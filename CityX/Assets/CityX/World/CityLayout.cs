@@ -45,6 +45,31 @@ namespace CityX.World
         }
 
         /// <summary>
+        /// World X of a chunk's centre, in metres.
+        ///
+        /// Chunk (cx, cy) covers [cx*ChunkSize, (cx+1)*ChunkSize) on each axis,
+        /// so chunk 0 is the square with its CORNER at the origin, not its
+        /// centre. Nothing before terrain needed this pinned down -- the
+        /// generator only ever took a chunk size, never a chunk position -- so
+        /// it is stated once here and everything else asks.
+        ///
+        /// Double, not float: at the far edges of an effectively infinite world
+        /// a float loses sub-metre precision, and a terrain sample that jitters
+        /// between two lattice cells is a seam that only appears a long way from
+        /// spawn, which is the worst possible place to debug one.
+        /// </summary>
+        public static double ChunkCentreX(int chunkX)
+        {
+            return (chunkX + 0.5) * ChunkSize;
+        }
+
+        /// <summary>World Z of a chunk's centre. See <see cref="ChunkCentreX"/>.</summary>
+        public static double ChunkCentreZ(int chunkY)
+        {
+            return (chunkY + 0.5) * ChunkSize;
+        }
+
+        /// <summary>
         /// Modulo that always returns a non-negative result, matching
         /// GDScript's posmod. Named for what it guarantees rather than what
         /// it wraps.
