@@ -60,14 +60,54 @@ namespace CityX.World
         /// </summary>
         public static double ChunkCentreX(int chunkX)
         {
-            return (chunkX + 0.5) * ChunkSize;
+            return SpanCentre(chunkX, 1);
         }
 
         /// <summary>World Z of a chunk's centre. See <see cref="ChunkCentreX"/>.</summary>
         public static double ChunkCentreZ(int chunkY)
         {
-            return (chunkY + 0.5) * ChunkSize;
+            return SpanCentre(chunkY, 1);
         }
+
+        /// <summary>
+        /// Centre of a run of <paramref name="span"/> chunks starting at
+        /// <paramref name="firstChunk"/>, on either axis.
+        ///
+        /// A building that covers more than one chunk sits at the centre of what
+        /// it covers, not at the centre of the chunk that happens to own it --
+        /// getting that wrong offsets every multi-chunk building by half a chunk
+        /// in a way that reads as "the city is slightly wrong" rather than as a
+        /// bug with a location.
+        /// </summary>
+        public static double SpanCentre(int firstChunk, int span)
+        {
+            return (firstChunk + span * 0.5) * ChunkSize;
+        }
+
+        /// <summary>
+        /// Which street-to-street block a chunk belongs to. Blocks tile the
+        /// world including negative space, so this floors rather than truncating.
+        /// </summary>
+        public static int BlockIndex(int chunkCoord)
+        {
+            return (chunkCoord - PositiveMod(chunkCoord, StreetPeriod)) / StreetPeriod;
+        }
+
+        /// <summary>
+        /// A chunk's slot inside its block, 0..StreetPeriod-1. Slot 0 is the
+        /// street; the buildable interior is slots 1..StreetPeriod-1.
+        /// </summary>
+        public static int IndexInBlock(int chunkCoord)
+        {
+            return PositiveMod(chunkCoord, StreetPeriod);
+        }
+
+        /// <summary>
+        /// Buildable chunks per axis inside one block -- 3, for a street period
+        /// of 4. Named because "StreetPeriod - 1" appears in enough places that
+        /// it stops being obviously the same 3 every time.
+        /// </summary>
+        public const int BuildableSpan = StreetPeriod - 1;
 
         /// <summary>
         /// Modulo that always returns a non-negative result, matching

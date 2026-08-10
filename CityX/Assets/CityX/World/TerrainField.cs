@@ -222,35 +222,7 @@ namespace CityX.World
         /// <summary>One lattice point's value, in [0,1).</summary>
         private double Lattice(int gx, int gz, ulong octaveSalt)
         {
-            return Hash(gx, gz, octaveSalt) / 4294967296.0;
-        }
-
-        /// <summary>
-        /// Integer hash of a lattice coordinate. Avalanche constants are the
-        /// SplitMix64 finaliser; the per-input multipliers differ so that (x,z)
-        /// and (z,x) do not collide, which would mirror the whole world about
-        /// its diagonal.
-        ///
-        /// The (ulong)(uint) casts are deliberate: they reinterpret a negative
-        /// coordinate rather than sign-extending it, so -1 and 4294967295 are
-        /// the same lattice point and every other negative coordinate stays
-        /// distinct. Plain (ulong)x on a negative int does not compile to
-        /// anything useful here.
-        /// </summary>
-        private uint Hash(int gx, int gz, ulong octaveSalt)
-        {
-            unchecked
-            {
-                ulong h = (ulong)(uint)gx * 0x9E3779B97F4A7C15UL;
-                h ^= (ulong)(uint)gz * 0xC2B2AE3D27D4EB4FUL;
-                h ^= (_seed + octaveSalt) * 0x165667B19E3779F9UL;
-                h ^= h >> 29;
-                h *= 0xBF58476D1CE4E5B9UL;
-                h ^= h >> 32;
-                h *= 0x94D049BB133111EBUL;
-                h ^= h >> 29;
-                return (uint)(h >> 32);
-            }
+            return WorldHash.Unit01(gx, gz, octaveSalt, _seed);
         }
 
         private static double ComputeMaxSlope()
