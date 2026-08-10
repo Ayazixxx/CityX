@@ -26,6 +26,21 @@ namespace CityX.Net
         [Tooltip("Bind address for a server that should be reachable from other machines. 0.0.0.0 listens on every interface.")]
         [SerializeField] private string _publicBindAddress = "0.0.0.0";
 
+        [Tooltip("Start the topology automatically on Start(). Turn off when something else decides when to connect -- a main menu, or a test.")]
+        [SerializeField] private bool _autoStartOnPlay = true;
+
+        /// <summary>
+        /// Whether to bring the topology up automatically. A real build with
+        /// a main menu will want this off and will call
+        /// <see cref="Begin"/> when the player picks a mode; a dedicated
+        /// shard wants it on.
+        /// </summary>
+        public bool AutoStartOnPlay
+        {
+            get => _autoStartOnPlay;
+            set => _autoStartOnPlay = value;
+        }
+
         /// <summary>
         /// A singleplayer server binds here and nowhere else, so nothing
         /// outside this machine can reach it. This is what "singleplayer"
@@ -53,6 +68,11 @@ namespace CityX.Net
 
         private void Start()
         {
+            if (!_autoStartOnPlay)
+            {
+                return;
+            }
+
             LaunchArgs args = LaunchArgs.Parse(System.Environment.GetCommandLineArgs());
 
             if (!args.IsValid)
