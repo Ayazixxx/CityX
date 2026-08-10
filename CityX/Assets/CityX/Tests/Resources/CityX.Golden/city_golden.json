@@ -1,0 +1,7233 @@
+{
+  "building_params": [
+    {
+      "chunk_seed": 352768776,
+      "has_building": false,
+      "world_seed": 0,
+      "x": -4,
+      "y": -4
+    },
+    {
+      "chunk_seed": 317591727,
+      "has_building": false,
+      "world_seed": 0,
+      "x": -4,
+      "y": -3
+    },
+    {
+      "chunk_seed": 332746830,
+      "has_building": false,
+      "world_seed": 0,
+      "x": -4,
+      "y": -2
+    },
+    {
+      "chunk_seed": 280793581,
+      "has_building": false,
+      "world_seed": 0,
+      "x": -4,
+      "y": -1
+    },
+    {
+      "chunk_seed": -295424372,
+      "has_building": false,
+      "world_seed": 0,
+      "x": -4,
+      "y": 0
+    },
+    {
+      "chunk_seed": -280793581,
+      "has_building": false,
+      "world_seed": 0,
+      "x": -4,
+      "y": 1
+    },
+    {
+      "chunk_seed": -332746830,
+      "has_building": false,
+      "world_seed": 0,
+      "x": -4,
+      "y": 2
+    },
+    {
+      "chunk_seed": -317591727,
+      "has_building": false,
+      "world_seed": 0,
+      "x": -4,
+      "y": 3
+    },
+    {
+      "chunk_seed": -352768784,
+      "has_building": false,
+      "world_seed": 0,
+      "x": -4,
+      "y": 4
+    },
+    {
+      "chunk_seed": 162127725,
+      "has_building": false,
+      "world_seed": 0,
+      "x": -3,
+      "y": -4
+    },
+    {
+      "chunk_seed": 239148234,
+      "depth": 10.525577545166,
+      "facade_index": 4,
+      "has_basement": false,
+      "has_building": true,
+      "height": 39.8098907470703,
+      "offset_x": -1.38872694969177,
+      "offset_z": 0.985755443572998,
+      "roof": "",
+      "special_type": "",
+      "width": 12.1001720428467,
+      "world_seed": 0,
+      "x": -3,
+      "y": -3
+    },
+    {
+      "chunk_seed": 259677227,
+      "has_building": false,
+      "world_seed": 0,
+      "x": -3,
+      "y": -2
+    },
+    {
+      "chunk_seed": 202612104,
+      "depth": 9.24385356903076,
+      "facade_index": 4,
+      "has_basement": false,
+      "has_building": true,
+      "height": 73.8555145263672,
+      "offset_x": -0.345975339412689,
+      "offset_z": -0.916642546653748,
+      "roof": "chimney",
+      "special_type": "",
+      "width": 17.2498626708984,
+      "world_seed": 0,
+      "x": -3,
+      "y": -1
+    },
+    {
+      "chunk_seed": -221568279,
+      "has_building": false,
+      "world_seed": 0,
+      "x": -3,
+      "y": 0
+    },
+    {
+      "chunk_seed": -202612106,
+      "depth": 13.3690567016602,
+      "facade_index": 3,
+      "has_basement": false,
+      "has_building": true,
+      "height": 59.0660247802734,
+      "offset_x": 0.793663024902344,
+      "offset_z": 0.506274700164795,
+      "roof": "chimney",
+      "special_type": "",
+      "width": 14.0909385681152,
+      "world_seed": 0,
+      "x": -3,
+      "y": 1
+    },
+    {
+      "chunk_seed": -259677225,
+      "depth": 14.2166290283203,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 10.5349159240723,
+      "offset_x": 0.225165963172913,
+      "offset_z": -1.20674681663513,
+      "roof": "",
+      "special_type": "supermarket",
+      "width": 16.9889850616455,
+      "world_seed": 0,
+      "x": -3,
+      "y": 2
+    },
+    {
+      "chunk_seed": -239148236,
+      "depth": 15.3694019317627,
+      "facade_index": 4,
+      "has_basement": false,
+      "has_building": true,
+      "height": 59.5209465026855,
+      "offset_x": 0.290334939956665,
+      "offset_z": 0.924286127090454,
+      "roof": "shed",
+      "special_type": "",
+      "width": 16.097282409668,
+      "world_seed": 0,
+      "x": -3,
+      "y": 3
+    },
+    {
+      "chunk_seed": -162127723,
+      "has_building": false,
+      "world_seed": 0,
+      "x": -3,
+      "y": 4
+    },
+    {
+      "chunk_seed": 206629570,
+      "has_building": false,
+      "world_seed": 0,
+      "x": -2,
+      "y": -4
+    },
+    {
+      "chunk_seed": 196618597,
+      "depth": 9.39931297302246,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 66.8263778686523,
+      "offset_x": 0.581894755363464,
+      "offset_z": -1.17686569690704,
+      "roof": "antenna",
+      "special_type": "",
+      "width": 15.5457420349121,
+      "world_seed": 0,
+      "x": -2,
+      "y": -3
+    },
+    {
+      "chunk_seed": 176384388,
+      "depth": 17.1366233825684,
+      "facade_index": 4,
+      "has_basement": true,
+      "has_building": true,
+      "height": 78.0901794433594,
+      "offset_x": -0.429230093955994,
+      "offset_z": 0.224577605724335,
+      "roof": "",
+      "special_type": "",
+      "width": 14.5896377563477,
+      "world_seed": 0,
+      "x": -2,
+      "y": -2
+    },
+    {
+      "chunk_seed": 166373415,
+      "depth": 16.6342353820801,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 57.2976417541504,
+      "offset_x": -1.24321341514587,
+      "offset_z": -0.206063389778137,
+      "roof": "chimney",
+      "special_type": "",
+      "width": 9.76561069488525,
+      "world_seed": 0,
+      "x": -2,
+      "y": -1
+    },
+    {
+      "chunk_seed": -147712186,
+      "has_building": false,
+      "world_seed": 0,
+      "x": -2,
+      "y": 0
+    },
+    {
+      "chunk_seed": -166373415,
+      "depth": 17.6405220031738,
+      "facade_index": 2,
+      "has_basement": false,
+      "has_building": true,
+      "height": 8.38727951049805,
+      "offset_x": -0.476045727729797,
+      "offset_z": 0.0721916258335114,
+      "roof": "",
+      "special_type": "",
+      "width": 15.1474351882935,
+      "world_seed": 0,
+      "x": -2,
+      "y": 1
+    },
+    {
+      "chunk_seed": -176384392,
+      "depth": 15.316370010376,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 44.62451171875,
+      "offset_x": -0.501297235488892,
+      "offset_z": 1.01287174224854,
+      "roof": "",
+      "special_type": "hospital",
+      "width": 16.925329208374,
+      "world_seed": 0,
+      "x": -2,
+      "y": 2
+    },
+    {
+      "chunk_seed": -196618597,
+      "depth": 15.093316078186,
+      "facade_index": 2,
+      "has_basement": false,
+      "has_building": true,
+      "height": 21.3962326049805,
+      "offset_x": 0.330073595046997,
+      "offset_z": -0.546441853046417,
+      "roof": "",
+      "special_type": "",
+      "width": 15.005241394043,
+      "world_seed": 0,
+      "x": -2,
+      "y": 3
+    },
+    {
+      "chunk_seed": -206629574,
+      "has_building": false,
+      "world_seed": 0,
+      "x": -2,
+      "y": 4
+    },
+    {
+      "chunk_seed": 16512551,
+      "has_building": false,
+      "world_seed": 0,
+      "x": -1,
+      "y": -4
+    },
+    {
+      "chunk_seed": 118699392,
+      "depth": 14.6596755981445,
+      "facade_index": 1,
+      "has_basement": false,
+      "has_building": true,
+      "height": 58.0987548828125,
+      "offset_x": 1.0578351020813,
+      "offset_z": -1.3193576335907,
+      "roof": "chimney",
+      "special_type": "",
+      "width": 12.046443939209,
+      "world_seed": 0,
+      "x": -1,
+      "y": -3
+    },
+    {
+      "chunk_seed": 103314785,
+      "depth": 14.0383949279785,
+      "facade_index": 0,
+      "has_basement": true,
+      "has_building": true,
+      "height": 17.014949798584,
+      "offset_x": 0.383206844329834,
+      "offset_z": 1.10662293434143,
+      "roof": "parapet",
+      "special_type": "bank",
+      "width": 12.2909774780273,
+      "world_seed": 0,
+      "x": -1,
+      "y": -2
+    },
+    {
+      "chunk_seed": 88192194,
+      "depth": 14.8483180999756,
+      "facade_index": 1,
+      "has_basement": false,
+      "has_building": true,
+      "height": 45.1784362792969,
+      "offset_x": -0.0615296065807343,
+      "offset_z": 1.35863065719604,
+      "roof": "chimney",
+      "special_type": "",
+      "width": 17.4689350128174,
+      "world_seed": 0,
+      "x": -1,
+      "y": -1
+    },
+    {
+      "chunk_seed": -73856093,
+      "has_building": false,
+      "world_seed": 0,
+      "x": -1,
+      "y": 0
+    },
+    {
+      "chunk_seed": -88192196,
+      "has_building": false,
+      "world_seed": 0,
+      "x": -1,
+      "y": 1
+    },
+    {
+      "chunk_seed": -103314787,
+      "depth": 14.8844079971313,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 10.0868883132935,
+      "offset_x": -0.0946038961410522,
+      "offset_z": 0.0709916353225708,
+      "roof": "",
+      "special_type": "supermarket",
+      "width": 17.0250988006592,
+      "world_seed": 0,
+      "x": -1,
+      "y": 2
+    },
+    {
+      "chunk_seed": -118699394,
+      "depth": 16.1001987457275,
+      "facade_index": 3,
+      "has_basement": false,
+      "has_building": true,
+      "height": 8.65013217926025,
+      "offset_x": -0.904426097869873,
+      "offset_z": 0.503928542137146,
+      "roof": "",
+      "special_type": "",
+      "width": 11.3953285217285,
+      "world_seed": 0,
+      "x": -1,
+      "y": 3
+    },
+    {
+      "chunk_seed": -16512545,
+      "has_building": false,
+      "world_seed": 0,
+      "x": -1,
+      "y": 4
+    },
+    {
+      "chunk_seed": -77398652,
+      "has_building": false,
+      "world_seed": 0,
+      "x": 0,
+      "y": -4
+    },
+    {
+      "chunk_seed": -58048989,
+      "has_building": false,
+      "world_seed": 0,
+      "x": 0,
+      "y": -3
+    },
+    {
+      "chunk_seed": -38699326,
+      "has_building": false,
+      "world_seed": 0,
+      "x": 0,
+      "y": -2
+    },
+    {
+      "chunk_seed": -19349663,
+      "has_building": false,
+      "world_seed": 0,
+      "x": 0,
+      "y": -1
+    },
+    {
+      "chunk_seed": 0,
+      "has_building": false,
+      "world_seed": 0,
+      "x": 0,
+      "y": 0
+    },
+    {
+      "chunk_seed": 19349663,
+      "has_building": false,
+      "world_seed": 0,
+      "x": 0,
+      "y": 1
+    },
+    {
+      "chunk_seed": 38699326,
+      "has_building": false,
+      "world_seed": 0,
+      "x": 0,
+      "y": 2
+    },
+    {
+      "chunk_seed": 58048989,
+      "has_building": false,
+      "world_seed": 0,
+      "x": 0,
+      "y": 3
+    },
+    {
+      "chunk_seed": 77398652,
+      "has_building": false,
+      "world_seed": 0,
+      "x": 0,
+      "y": 4
+    },
+    {
+      "chunk_seed": -16512551,
+      "has_building": false,
+      "world_seed": 0,
+      "x": 1,
+      "y": -4
+    },
+    {
+      "chunk_seed": -118699394,
+      "depth": 16.1001987457275,
+      "facade_index": 3,
+      "has_basement": false,
+      "has_building": true,
+      "height": 8.65013217926025,
+      "offset_x": -0.904426097869873,
+      "offset_z": 0.503928542137146,
+      "roof": "",
+      "special_type": "",
+      "width": 11.3953285217285,
+      "world_seed": 0,
+      "x": 1,
+      "y": -3
+    },
+    {
+      "chunk_seed": -103314785,
+      "depth": 16.7286376953125,
+      "facade_index": 2,
+      "has_basement": false,
+      "has_building": true,
+      "height": 21.0447406768799,
+      "offset_x": 0.245262682437897,
+      "offset_z": -0.576186001300812,
+      "roof": "",
+      "special_type": "",
+      "width": 17.4654560089111,
+      "world_seed": 0,
+      "x": 1,
+      "y": -2
+    },
+    {
+      "chunk_seed": -88192196,
+      "has_building": false,
+      "world_seed": 0,
+      "x": 1,
+      "y": -1
+    },
+    {
+      "chunk_seed": 73856093,
+      "has_building": false,
+      "world_seed": 0,
+      "x": 1,
+      "y": 0
+    },
+    {
+      "chunk_seed": 88192194,
+      "depth": 14.8483180999756,
+      "facade_index": 1,
+      "has_basement": false,
+      "has_building": true,
+      "height": 45.1784362792969,
+      "offset_x": -0.0615296065807343,
+      "offset_z": 1.35863065719604,
+      "roof": "chimney",
+      "special_type": "",
+      "width": 17.4689350128174,
+      "world_seed": 0,
+      "x": 1,
+      "y": 1
+    },
+    {
+      "chunk_seed": 103314787,
+      "depth": 16.2205924987793,
+      "facade_index": 1,
+      "has_basement": false,
+      "has_building": true,
+      "height": 22.0619945526123,
+      "offset_x": 0.008736252784729,
+      "offset_z": 0.502055764198303,
+      "roof": "chimney",
+      "special_type": "",
+      "width": 17.428840637207,
+      "world_seed": 0,
+      "x": 1,
+      "y": 2
+    },
+    {
+      "chunk_seed": 118699392,
+      "depth": 14.6596755981445,
+      "facade_index": 1,
+      "has_basement": false,
+      "has_building": true,
+      "height": 58.0987548828125,
+      "offset_x": 1.0578351020813,
+      "offset_z": -1.3193576335907,
+      "roof": "chimney",
+      "special_type": "",
+      "width": 12.046443939209,
+      "world_seed": 0,
+      "x": 1,
+      "y": 3
+    },
+    {
+      "chunk_seed": 16512545,
+      "has_building": false,
+      "world_seed": 0,
+      "x": 1,
+      "y": 4
+    },
+    {
+      "chunk_seed": -206629570,
+      "has_building": false,
+      "world_seed": 0,
+      "x": 2,
+      "y": -4
+    },
+    {
+      "chunk_seed": -196618599,
+      "depth": 10.2698831558228,
+      "facade_index": 3,
+      "has_basement": false,
+      "has_building": true,
+      "height": 8.00579929351807,
+      "offset_x": -1.26708316802979,
+      "offset_z": 1.36457014083862,
+      "roof": "",
+      "special_type": "",
+      "width": 13.7864475250244,
+      "world_seed": 0,
+      "x": 2,
+      "y": -3
+    },
+    {
+      "chunk_seed": -176384392,
+      "depth": 15.316370010376,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 44.62451171875,
+      "offset_x": -0.501297235488892,
+      "offset_z": 1.01287174224854,
+      "roof": "",
+      "special_type": "hospital",
+      "width": 16.925329208374,
+      "world_seed": 0,
+      "x": 2,
+      "y": -2
+    },
+    {
+      "chunk_seed": -166373413,
+      "depth": 11.8376598358154,
+      "facade_index": 3,
+      "has_basement": false,
+      "has_building": true,
+      "height": 19.6200160980225,
+      "offset_x": -0.360816717147827,
+      "offset_z": 0.802678108215332,
+      "roof": "shed",
+      "special_type": "",
+      "width": 11.6000366210938,
+      "world_seed": 0,
+      "x": 2,
+      "y": -1
+    },
+    {
+      "chunk_seed": 147712186,
+      "has_building": false,
+      "world_seed": 0,
+      "x": 2,
+      "y": 0
+    },
+    {
+      "chunk_seed": 166373413,
+      "depth": 10.0779638290405,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 68.2929306030273,
+      "offset_x": 1.45245504379272,
+      "offset_z": 0.00193119049072266,
+      "roof": "chimney",
+      "special_type": "",
+      "width": 11.1050081253052,
+      "world_seed": 0,
+      "x": 2,
+      "y": 1
+    },
+    {
+      "chunk_seed": 176384388,
+      "depth": 17.1366233825684,
+      "facade_index": 4,
+      "has_basement": true,
+      "has_building": true,
+      "height": 78.0901794433594,
+      "offset_x": -0.429230093955994,
+      "offset_z": 0.224577605724335,
+      "roof": "",
+      "special_type": "",
+      "width": 14.5896377563477,
+      "world_seed": 0,
+      "x": 2,
+      "y": 2
+    },
+    {
+      "chunk_seed": 196618599,
+      "depth": 9.31181335449219,
+      "facade_index": 4,
+      "has_basement": false,
+      "has_building": true,
+      "height": 58.207576751709,
+      "offset_x": -0.0303349792957306,
+      "offset_z": -0.0803499221801758,
+      "roof": "water_tower",
+      "special_type": "",
+      "width": 17.4932804107666,
+      "world_seed": 0,
+      "x": 2,
+      "y": 3
+    },
+    {
+      "chunk_seed": 206629574,
+      "has_building": false,
+      "world_seed": 0,
+      "x": 2,
+      "y": 4
+    },
+    {
+      "chunk_seed": -162127725,
+      "has_building": false,
+      "world_seed": 0,
+      "x": 3,
+      "y": -4
+    },
+    {
+      "chunk_seed": -239148236,
+      "depth": 15.3694019317627,
+      "facade_index": 4,
+      "has_basement": false,
+      "has_building": true,
+      "height": 59.5209465026855,
+      "offset_x": 0.290334939956665,
+      "offset_z": 0.924286127090454,
+      "roof": "shed",
+      "special_type": "",
+      "width": 16.097282409668,
+      "world_seed": 0,
+      "x": 3,
+      "y": -3
+    },
+    {
+      "chunk_seed": -259677227,
+      "depth": 15.4580812454224,
+      "facade_index": 2,
+      "has_basement": false,
+      "has_building": true,
+      "height": 44.1623382568359,
+      "offset_x": -0.931583762168884,
+      "offset_z": 1.24233508110046,
+      "roof": "shed",
+      "special_type": "",
+      "width": 14.0013294219971,
+      "world_seed": 0,
+      "x": 3,
+      "y": -2
+    },
+    {
+      "chunk_seed": -202612106,
+      "depth": 13.3690567016602,
+      "facade_index": 3,
+      "has_basement": false,
+      "has_building": true,
+      "height": 59.0660247802734,
+      "offset_x": 0.793663024902344,
+      "offset_z": 0.506274700164795,
+      "roof": "chimney",
+      "special_type": "",
+      "width": 14.0909385681152,
+      "world_seed": 0,
+      "x": 3,
+      "y": -1
+    },
+    {
+      "chunk_seed": 221568279,
+      "has_building": false,
+      "world_seed": 0,
+      "x": 3,
+      "y": 0
+    },
+    {
+      "chunk_seed": 202612104,
+      "depth": 9.24385356903076,
+      "facade_index": 4,
+      "has_basement": false,
+      "has_building": true,
+      "height": 73.8555145263672,
+      "offset_x": -0.345975339412689,
+      "offset_z": -0.916642546653748,
+      "roof": "chimney",
+      "special_type": "",
+      "width": 17.2498626708984,
+      "world_seed": 0,
+      "x": 3,
+      "y": 1
+    },
+    {
+      "chunk_seed": 259677225,
+      "depth": 15.1788387298584,
+      "facade_index": 3,
+      "has_basement": true,
+      "has_building": true,
+      "height": 50.9099731445313,
+      "offset_x": 1.34275436401367,
+      "offset_z": 0.953416109085083,
+      "roof": "chimney",
+      "special_type": "",
+      "width": 10.122200012207,
+      "world_seed": 0,
+      "x": 3,
+      "y": 2
+    },
+    {
+      "chunk_seed": 239148234,
+      "depth": 10.525577545166,
+      "facade_index": 4,
+      "has_basement": false,
+      "has_building": true,
+      "height": 39.8098907470703,
+      "offset_x": -1.38872694969177,
+      "offset_z": 0.985755443572998,
+      "roof": "",
+      "special_type": "",
+      "width": 12.1001720428467,
+      "world_seed": 0,
+      "x": 3,
+      "y": 3
+    },
+    {
+      "chunk_seed": 162127723,
+      "has_building": false,
+      "world_seed": 0,
+      "x": 3,
+      "y": 4
+    },
+    {
+      "chunk_seed": -352768784,
+      "has_building": false,
+      "world_seed": 0,
+      "x": 4,
+      "y": -4
+    },
+    {
+      "chunk_seed": -317591721,
+      "has_building": false,
+      "world_seed": 0,
+      "x": 4,
+      "y": -3
+    },
+    {
+      "chunk_seed": -332746826,
+      "has_building": false,
+      "world_seed": 0,
+      "x": 4,
+      "y": -2
+    },
+    {
+      "chunk_seed": -280793579,
+      "has_building": false,
+      "world_seed": 0,
+      "x": 4,
+      "y": -1
+    },
+    {
+      "chunk_seed": 295424372,
+      "has_building": false,
+      "world_seed": 0,
+      "x": 4,
+      "y": 0
+    },
+    {
+      "chunk_seed": 280793579,
+      "has_building": false,
+      "world_seed": 0,
+      "x": 4,
+      "y": 1
+    },
+    {
+      "chunk_seed": 332746826,
+      "has_building": false,
+      "world_seed": 0,
+      "x": 4,
+      "y": 2
+    },
+    {
+      "chunk_seed": 317591721,
+      "has_building": false,
+      "world_seed": 0,
+      "x": 4,
+      "y": 3
+    },
+    {
+      "chunk_seed": 352768776,
+      "has_building": false,
+      "world_seed": 0,
+      "x": 4,
+      "y": 4
+    },
+    {
+      "chunk_seed": 352768777,
+      "has_building": false,
+      "world_seed": 1,
+      "x": -4,
+      "y": -4
+    },
+    {
+      "chunk_seed": 317591726,
+      "has_building": false,
+      "world_seed": 1,
+      "x": -4,
+      "y": -3
+    },
+    {
+      "chunk_seed": 332746831,
+      "has_building": false,
+      "world_seed": 1,
+      "x": -4,
+      "y": -2
+    },
+    {
+      "chunk_seed": 280793580,
+      "has_building": false,
+      "world_seed": 1,
+      "x": -4,
+      "y": -1
+    },
+    {
+      "chunk_seed": -295424371,
+      "has_building": false,
+      "world_seed": 1,
+      "x": -4,
+      "y": 0
+    },
+    {
+      "chunk_seed": -280793582,
+      "has_building": false,
+      "world_seed": 1,
+      "x": -4,
+      "y": 1
+    },
+    {
+      "chunk_seed": -332746829,
+      "has_building": false,
+      "world_seed": 1,
+      "x": -4,
+      "y": 2
+    },
+    {
+      "chunk_seed": -317591728,
+      "has_building": false,
+      "world_seed": 1,
+      "x": -4,
+      "y": 3
+    },
+    {
+      "chunk_seed": -352768783,
+      "has_building": false,
+      "world_seed": 1,
+      "x": -4,
+      "y": 4
+    },
+    {
+      "chunk_seed": 162127724,
+      "has_building": false,
+      "world_seed": 1,
+      "x": -3,
+      "y": -4
+    },
+    {
+      "chunk_seed": 239148235,
+      "depth": 12.6829586029053,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 20.4113655090332,
+      "offset_x": 0.217709898948669,
+      "offset_z": -0.838454604148865,
+      "roof": "parapet",
+      "special_type": "bank",
+      "width": 11.9869194030762,
+      "world_seed": 1,
+      "x": -3,
+      "y": -3
+    },
+    {
+      "chunk_seed": 259677226,
+      "depth": 12.6674661636353,
+      "facade_index": 1,
+      "has_basement": false,
+      "has_building": true,
+      "height": 31.2550392150879,
+      "offset_x": 0.325334191322327,
+      "offset_z": -0.224745273590088,
+      "roof": "chimney",
+      "special_type": "",
+      "width": 16.1713199615479,
+      "world_seed": 1,
+      "x": -3,
+      "y": -2
+    },
+    {
+      "chunk_seed": 202612105,
+      "depth": 15.689546585083,
+      "facade_index": 4,
+      "has_basement": true,
+      "has_building": true,
+      "height": 54.6297378540039,
+      "offset_x": -0.808221936225891,
+      "offset_z": 0.587133646011353,
+      "roof": "",
+      "special_type": "",
+      "width": 16.2244205474854,
+      "world_seed": 1,
+      "x": -3,
+      "y": -1
+    },
+    {
+      "chunk_seed": -221568280,
+      "has_building": false,
+      "world_seed": 1,
+      "x": -3,
+      "y": 0
+    },
+    {
+      "chunk_seed": -202612105,
+      "depth": 9.87891864776611,
+      "facade_index": 1,
+      "has_basement": false,
+      "has_building": true,
+      "height": 11.9145612716675,
+      "offset_x": -0.467138290405273,
+      "offset_z": 1.34567451477051,
+      "roof": "",
+      "special_type": "",
+      "width": 16.7642307281494,
+      "world_seed": 1,
+      "x": -3,
+      "y": 1
+    },
+    {
+      "chunk_seed": -259677226,
+      "depth": 17.3578872680664,
+      "facade_index": 2,
+      "has_basement": false,
+      "has_building": true,
+      "height": 26.8888759613037,
+      "offset_x": -0.324605822563171,
+      "offset_z": -0.100747540593147,
+      "roof": "parapet",
+      "special_type": "",
+      "width": 12.1212072372437,
+      "world_seed": 1,
+      "x": -3,
+      "y": 2
+    },
+    {
+      "chunk_seed": -239148235,
+      "depth": 14.7929658889771,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 43.1856689453125,
+      "offset_x": 0.820698261260986,
+      "offset_z": -0.243916034698486,
+      "roof": "",
+      "special_type": "",
+      "width": 12.9477281570435,
+      "world_seed": 1,
+      "x": -3,
+      "y": 3
+    },
+    {
+      "chunk_seed": -162127724,
+      "has_building": false,
+      "world_seed": 1,
+      "x": -3,
+      "y": 4
+    },
+    {
+      "chunk_seed": 206629571,
+      "has_building": false,
+      "world_seed": 1,
+      "x": -2,
+      "y": -4
+    },
+    {
+      "chunk_seed": 196618596,
+      "depth": 14.7538719177246,
+      "facade_index": 3,
+      "has_basement": false,
+      "has_building": true,
+      "height": 30.7226123809814,
+      "offset_x": 0.137173116207123,
+      "offset_z": 0.0929142236709595,
+      "roof": "",
+      "special_type": "",
+      "width": 16.8359146118164,
+      "world_seed": 1,
+      "x": -2,
+      "y": -3
+    },
+    {
+      "chunk_seed": 176384389,
+      "depth": 13.0785732269287,
+      "facade_index": 5,
+      "has_basement": false,
+      "has_building": true,
+      "height": 22.3726253509521,
+      "offset_x": 1.34800291061401,
+      "offset_z": 0.880670309066772,
+      "roof": "chimney",
+      "special_type": "",
+      "width": 14.1091136932373,
+      "world_seed": 1,
+      "x": -2,
+      "y": -2
+    },
+    {
+      "chunk_seed": 166373414,
+      "depth": 10.0095872879028,
+      "facade_index": 2,
+      "has_basement": false,
+      "has_building": true,
+      "height": 17.6817016601563,
+      "offset_x": 1.34724044799805,
+      "offset_z": 0.157798290252686,
+      "roof": "",
+      "special_type": "",
+      "width": 13.2900791168213,
+      "world_seed": 1,
+      "x": -2,
+      "y": -1
+    },
+    {
+      "chunk_seed": -147712185,
+      "has_building": false,
+      "world_seed": 1,
+      "x": -2,
+      "y": 0
+    },
+    {
+      "chunk_seed": -166373416,
+      "has_building": false,
+      "world_seed": 1,
+      "x": -2,
+      "y": 1
+    },
+    {
+      "chunk_seed": -176384391,
+      "depth": 14.5460386276245,
+      "facade_index": 0,
+      "has_basement": true,
+      "has_building": true,
+      "height": 51.6152801513672,
+      "offset_x": 0.192107677459717,
+      "offset_z": 1.17705535888672,
+      "roof": "",
+      "special_type": "",
+      "width": 13.6783905029297,
+      "world_seed": 1,
+      "x": -2,
+      "y": 2
+    },
+    {
+      "chunk_seed": -196618598,
+      "depth": 14.4868936538696,
+      "facade_index": 3,
+      "has_basement": false,
+      "has_building": true,
+      "height": 19.6627025604248,
+      "offset_x": -1.04090309143066,
+      "offset_z": 0.399674654006958,
+      "roof": "parapet",
+      "special_type": "",
+      "width": 15.1444683074951,
+      "world_seed": 1,
+      "x": -2,
+      "y": 3
+    },
+    {
+      "chunk_seed": -206629573,
+      "has_building": false,
+      "world_seed": 1,
+      "x": -2,
+      "y": 4
+    },
+    {
+      "chunk_seed": 16512550,
+      "has_building": false,
+      "world_seed": 1,
+      "x": -1,
+      "y": -4
+    },
+    {
+      "chunk_seed": 118699393,
+      "depth": 13.8557033538818,
+      "facade_index": 4,
+      "has_basement": false,
+      "has_building": true,
+      "height": 69.267936706543,
+      "offset_x": -0.49217277765274,
+      "offset_z": -0.160444259643555,
+      "roof": "water_tower",
+      "special_type": "",
+      "width": 16.4796295166016,
+      "world_seed": 1,
+      "x": -1,
+      "y": -3
+    },
+    {
+      "chunk_seed": 103314784,
+      "depth": 12.8881387710571,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 38.9820671081543,
+      "offset_x": -0.496306419372559,
+      "offset_z": 1.05781817436218,
+      "roof": "parapet",
+      "special_type": "",
+      "width": 12.6443939208984,
+      "world_seed": 1,
+      "x": -1,
+      "y": -2
+    },
+    {
+      "chunk_seed": 88192195,
+      "has_building": false,
+      "world_seed": 1,
+      "x": -1,
+      "y": -1
+    },
+    {
+      "chunk_seed": -73856094,
+      "has_building": false,
+      "world_seed": 1,
+      "x": -1,
+      "y": 0
+    },
+    {
+      "chunk_seed": -88192195,
+      "depth": 13.0340061187744,
+      "facade_index": 5,
+      "has_basement": false,
+      "has_building": true,
+      "height": 8.1395902633667,
+      "offset_x": -1.46758997440338,
+      "offset_z": 1.34827637672424,
+      "roof": "",
+      "special_type": "",
+      "width": 9.66626167297363,
+      "world_seed": 1,
+      "x": -1,
+      "y": 1
+    },
+    {
+      "chunk_seed": -103314788,
+      "depth": 14.1902332305908,
+      "facade_index": 3,
+      "has_basement": false,
+      "has_building": true,
+      "height": 14.0967864990234,
+      "offset_x": -0.425183653831482,
+      "offset_z": 0.0953996181488037,
+      "roof": "antenna",
+      "special_type": "",
+      "width": 13.1463279724121,
+      "world_seed": 1,
+      "x": -1,
+      "y": 2
+    },
+    {
+      "chunk_seed": -118699393,
+      "depth": 11.8589191436768,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 8.75365734100342,
+      "offset_x": 0.584917187690735,
+      "offset_z": -0.299524903297424,
+      "roof": "",
+      "special_type": "supermarket",
+      "width": 15.8577442169189,
+      "world_seed": 1,
+      "x": -1,
+      "y": 3
+    },
+    {
+      "chunk_seed": -16512546,
+      "has_building": false,
+      "world_seed": 1,
+      "x": -1,
+      "y": 4
+    },
+    {
+      "chunk_seed": -77398651,
+      "has_building": false,
+      "world_seed": 1,
+      "x": 0,
+      "y": -4
+    },
+    {
+      "chunk_seed": -58048990,
+      "has_building": false,
+      "world_seed": 1,
+      "x": 0,
+      "y": -3
+    },
+    {
+      "chunk_seed": -38699325,
+      "has_building": false,
+      "world_seed": 1,
+      "x": 0,
+      "y": -2
+    },
+    {
+      "chunk_seed": -19349664,
+      "has_building": false,
+      "world_seed": 1,
+      "x": 0,
+      "y": -1
+    },
+    {
+      "chunk_seed": 1,
+      "has_building": false,
+      "world_seed": 1,
+      "x": 0,
+      "y": 0
+    },
+    {
+      "chunk_seed": 19349662,
+      "has_building": false,
+      "world_seed": 1,
+      "x": 0,
+      "y": 1
+    },
+    {
+      "chunk_seed": 38699327,
+      "has_building": false,
+      "world_seed": 1,
+      "x": 0,
+      "y": 2
+    },
+    {
+      "chunk_seed": 58048988,
+      "has_building": false,
+      "world_seed": 1,
+      "x": 0,
+      "y": 3
+    },
+    {
+      "chunk_seed": 77398653,
+      "has_building": false,
+      "world_seed": 1,
+      "x": 0,
+      "y": 4
+    },
+    {
+      "chunk_seed": -16512552,
+      "has_building": false,
+      "world_seed": 1,
+      "x": 1,
+      "y": -4
+    },
+    {
+      "chunk_seed": -118699393,
+      "depth": 11.8589191436768,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 8.75365734100342,
+      "offset_x": 0.584917187690735,
+      "offset_z": -0.299524903297424,
+      "roof": "",
+      "special_type": "supermarket",
+      "width": 15.8577442169189,
+      "world_seed": 1,
+      "x": 1,
+      "y": -3
+    },
+    {
+      "chunk_seed": -103314786,
+      "depth": 13.166934967041,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 8.47824382781982,
+      "offset_x": -0.665201246738434,
+      "offset_z": 0.304510354995728,
+      "roof": "",
+      "special_type": "supermarket",
+      "width": 15.0458354949951,
+      "world_seed": 1,
+      "x": 1,
+      "y": -2
+    },
+    {
+      "chunk_seed": -88192195,
+      "depth": 13.0340061187744,
+      "facade_index": 5,
+      "has_basement": false,
+      "has_building": true,
+      "height": 8.1395902633667,
+      "offset_x": -1.46758997440338,
+      "offset_z": 1.34827637672424,
+      "roof": "",
+      "special_type": "",
+      "width": 9.66626167297363,
+      "world_seed": 1,
+      "x": 1,
+      "y": -1
+    },
+    {
+      "chunk_seed": 73856092,
+      "has_building": false,
+      "world_seed": 1,
+      "x": 1,
+      "y": 0
+    },
+    {
+      "chunk_seed": 88192195,
+      "has_building": false,
+      "world_seed": 1,
+      "x": 1,
+      "y": 1
+    },
+    {
+      "chunk_seed": 103314786,
+      "depth": 15.9816036224365,
+      "facade_index": 4,
+      "has_basement": false,
+      "has_building": true,
+      "height": 61.0676574707031,
+      "offset_x": 0.163059711456299,
+      "offset_z": 0.141631722450256,
+      "roof": "chimney",
+      "special_type": "",
+      "width": 17.6355781555176,
+      "world_seed": 1,
+      "x": 1,
+      "y": 2
+    },
+    {
+      "chunk_seed": 118699393,
+      "depth": 13.8557033538818,
+      "facade_index": 4,
+      "has_basement": false,
+      "has_building": true,
+      "height": 69.267936706543,
+      "offset_x": -0.49217277765274,
+      "offset_z": -0.160444259643555,
+      "roof": "water_tower",
+      "special_type": "",
+      "width": 16.4796295166016,
+      "world_seed": 1,
+      "x": 1,
+      "y": 3
+    },
+    {
+      "chunk_seed": 16512544,
+      "has_building": false,
+      "world_seed": 1,
+      "x": 1,
+      "y": 4
+    },
+    {
+      "chunk_seed": -206629569,
+      "has_building": false,
+      "world_seed": 1,
+      "x": 2,
+      "y": -4
+    },
+    {
+      "chunk_seed": -196618600,
+      "depth": 17.4082298278809,
+      "facade_index": 2,
+      "has_basement": false,
+      "has_building": true,
+      "height": 14.522741317749,
+      "offset_x": 0.153785347938538,
+      "offset_z": -0.239822506904602,
+      "roof": "shed",
+      "special_type": "",
+      "width": 12.1070346832275,
+      "world_seed": 1,
+      "x": 2,
+      "y": -3
+    },
+    {
+      "chunk_seed": -176384391,
+      "depth": 14.5460386276245,
+      "facade_index": 0,
+      "has_basement": true,
+      "has_building": true,
+      "height": 51.6152801513672,
+      "offset_x": 0.192107677459717,
+      "offset_z": 1.17705535888672,
+      "roof": "",
+      "special_type": "",
+      "width": 13.6783905029297,
+      "world_seed": 1,
+      "x": 2,
+      "y": -2
+    },
+    {
+      "chunk_seed": -166373414,
+      "depth": 10.8191471099854,
+      "facade_index": 3,
+      "has_basement": false,
+      "has_building": true,
+      "height": 46.0185890197754,
+      "offset_x": -0.0193561986088753,
+      "offset_z": 1.02587890625,
+      "roof": "shed",
+      "special_type": "",
+      "width": 17.7331275939941,
+      "world_seed": 1,
+      "x": 2,
+      "y": -1
+    },
+    {
+      "chunk_seed": 147712187,
+      "has_building": false,
+      "world_seed": 1,
+      "x": 2,
+      "y": 0
+    },
+    {
+      "chunk_seed": 166373412,
+      "depth": 11.9670066833496,
+      "facade_index": 1,
+      "has_basement": false,
+      "has_building": true,
+      "height": 15.3979206085205,
+      "offset_x": 0.612853050231934,
+      "offset_z": -1.04035353660584,
+      "roof": "shed",
+      "special_type": "",
+      "width": 10.3450765609741,
+      "world_seed": 1,
+      "x": 2,
+      "y": 1
+    },
+    {
+      "chunk_seed": 176384389,
+      "depth": 13.0785732269287,
+      "facade_index": 5,
+      "has_basement": false,
+      "has_building": true,
+      "height": 22.3726253509521,
+      "offset_x": 1.34800291061401,
+      "offset_z": 0.880670309066772,
+      "roof": "chimney",
+      "special_type": "",
+      "width": 14.1091136932373,
+      "world_seed": 1,
+      "x": 2,
+      "y": 2
+    },
+    {
+      "chunk_seed": 196618598,
+      "depth": 14.1750316619873,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 12.6490411758423,
+      "offset_x": 1.03397464752197,
+      "offset_z": 0.16622519493103,
+      "roof": "parapet",
+      "special_type": "bank",
+      "width": 11.3339529037476,
+      "world_seed": 1,
+      "x": 2,
+      "y": 3
+    },
+    {
+      "chunk_seed": 206629575,
+      "has_building": false,
+      "world_seed": 1,
+      "x": 2,
+      "y": 4
+    },
+    {
+      "chunk_seed": -162127726,
+      "has_building": false,
+      "world_seed": 1,
+      "x": 3,
+      "y": -4
+    },
+    {
+      "chunk_seed": -239148235,
+      "depth": 14.7929658889771,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 43.1856689453125,
+      "offset_x": 0.820698261260986,
+      "offset_z": -0.243916034698486,
+      "roof": "",
+      "special_type": "",
+      "width": 12.9477281570435,
+      "world_seed": 1,
+      "x": 3,
+      "y": -3
+    },
+    {
+      "chunk_seed": -259677228,
+      "depth": 9.85558414459229,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 58.3077697753906,
+      "offset_x": -0.84399288892746,
+      "offset_z": 0.0666990280151367,
+      "roof": "",
+      "special_type": "",
+      "width": 11.0169067382813,
+      "world_seed": 1,
+      "x": 3,
+      "y": -2
+    },
+    {
+      "chunk_seed": -202612105,
+      "depth": 9.87891864776611,
+      "facade_index": 1,
+      "has_basement": false,
+      "has_building": true,
+      "height": 11.9145612716675,
+      "offset_x": -0.467138290405273,
+      "offset_z": 1.34567451477051,
+      "roof": "",
+      "special_type": "",
+      "width": 16.7642307281494,
+      "world_seed": 1,
+      "x": 3,
+      "y": -1
+    },
+    {
+      "chunk_seed": 221568278,
+      "has_building": false,
+      "world_seed": 1,
+      "x": 3,
+      "y": 0
+    },
+    {
+      "chunk_seed": 202612105,
+      "depth": 15.689546585083,
+      "facade_index": 4,
+      "has_basement": true,
+      "has_building": true,
+      "height": 54.6297378540039,
+      "offset_x": -0.808221936225891,
+      "offset_z": 0.587133646011353,
+      "roof": "",
+      "special_type": "",
+      "width": 16.2244205474854,
+      "world_seed": 1,
+      "x": 3,
+      "y": 1
+    },
+    {
+      "chunk_seed": 259677224,
+      "depth": 14.6693267822266,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 24.3350200653076,
+      "offset_x": -0.108193218708038,
+      "offset_z": 1.23819088935852,
+      "roof": "",
+      "special_type": "hospital",
+      "width": 17.38645362854,
+      "world_seed": 1,
+      "x": 3,
+      "y": 2
+    },
+    {
+      "chunk_seed": 239148235,
+      "depth": 12.6829586029053,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 20.4113655090332,
+      "offset_x": 0.217709898948669,
+      "offset_z": -0.838454604148865,
+      "roof": "parapet",
+      "special_type": "bank",
+      "width": 11.9869194030762,
+      "world_seed": 1,
+      "x": 3,
+      "y": 3
+    },
+    {
+      "chunk_seed": 162127722,
+      "has_building": false,
+      "world_seed": 1,
+      "x": 3,
+      "y": 4
+    },
+    {
+      "chunk_seed": -352768783,
+      "has_building": false,
+      "world_seed": 1,
+      "x": 4,
+      "y": -4
+    },
+    {
+      "chunk_seed": -317591722,
+      "has_building": false,
+      "world_seed": 1,
+      "x": 4,
+      "y": -3
+    },
+    {
+      "chunk_seed": -332746825,
+      "has_building": false,
+      "world_seed": 1,
+      "x": 4,
+      "y": -2
+    },
+    {
+      "chunk_seed": -280793580,
+      "has_building": false,
+      "world_seed": 1,
+      "x": 4,
+      "y": -1
+    },
+    {
+      "chunk_seed": 295424373,
+      "has_building": false,
+      "world_seed": 1,
+      "x": 4,
+      "y": 0
+    },
+    {
+      "chunk_seed": 280793578,
+      "has_building": false,
+      "world_seed": 1,
+      "x": 4,
+      "y": 1
+    },
+    {
+      "chunk_seed": 332746827,
+      "has_building": false,
+      "world_seed": 1,
+      "x": 4,
+      "y": 2
+    },
+    {
+      "chunk_seed": 317591720,
+      "has_building": false,
+      "world_seed": 1,
+      "x": 4,
+      "y": 3
+    },
+    {
+      "chunk_seed": 352768777,
+      "has_building": false,
+      "world_seed": 1,
+      "x": 4,
+      "y": 4
+    },
+    {
+      "chunk_seed": 352768802,
+      "has_building": false,
+      "world_seed": 42,
+      "x": -4,
+      "y": -4
+    },
+    {
+      "chunk_seed": 317591685,
+      "has_building": false,
+      "world_seed": 42,
+      "x": -4,
+      "y": -3
+    },
+    {
+      "chunk_seed": 332746852,
+      "has_building": false,
+      "world_seed": 42,
+      "x": -4,
+      "y": -2
+    },
+    {
+      "chunk_seed": 280793543,
+      "has_building": false,
+      "world_seed": 42,
+      "x": -4,
+      "y": -1
+    },
+    {
+      "chunk_seed": -295424346,
+      "has_building": false,
+      "world_seed": 42,
+      "x": -4,
+      "y": 0
+    },
+    {
+      "chunk_seed": -280793543,
+      "has_building": false,
+      "world_seed": 42,
+      "x": -4,
+      "y": 1
+    },
+    {
+      "chunk_seed": -332746856,
+      "has_building": false,
+      "world_seed": 42,
+      "x": -4,
+      "y": 2
+    },
+    {
+      "chunk_seed": -317591685,
+      "has_building": false,
+      "world_seed": 42,
+      "x": -4,
+      "y": 3
+    },
+    {
+      "chunk_seed": -352768806,
+      "has_building": false,
+      "world_seed": 42,
+      "x": -4,
+      "y": 4
+    },
+    {
+      "chunk_seed": 162127687,
+      "has_building": false,
+      "world_seed": 42,
+      "x": -3,
+      "y": -4
+    },
+    {
+      "chunk_seed": 239148256,
+      "depth": 16.1004772186279,
+      "facade_index": 1,
+      "has_basement": false,
+      "has_building": true,
+      "height": 8.16701984405518,
+      "offset_x": 1.13930249214172,
+      "offset_z": 0.280392289161682,
+      "roof": "antenna",
+      "special_type": "",
+      "width": 9.7510461807251,
+      "world_seed": 42,
+      "x": -3,
+      "y": -3
+    },
+    {
+      "chunk_seed": 259677185,
+      "depth": 15.2866497039795,
+      "facade_index": 2,
+      "has_basement": false,
+      "has_building": true,
+      "height": 25.5587692260742,
+      "offset_x": -0.292048692703247,
+      "offset_z": 0.139532566070557,
+      "roof": "",
+      "special_type": "",
+      "width": 13.3824243545532,
+      "world_seed": 42,
+      "x": -3,
+      "y": -2
+    },
+    {
+      "chunk_seed": 202612130,
+      "depth": 14.261438369751,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 11.395489692688,
+      "offset_x": 0.0929088592529297,
+      "offset_z": -0.310749053955078,
+      "roof": "chimney",
+      "special_type": "",
+      "width": 16.1356658935547,
+      "world_seed": 42,
+      "x": -3,
+      "y": -1
+    },
+    {
+      "chunk_seed": -221568317,
+      "has_building": false,
+      "world_seed": 42,
+      "x": -3,
+      "y": 0
+    },
+    {
+      "chunk_seed": -202612132,
+      "depth": 12.4466953277588,
+      "facade_index": 1,
+      "has_basement": false,
+      "has_building": true,
+      "height": 75.5673599243164,
+      "offset_x": 0.679372072219849,
+      "offset_z": -1.14147293567657,
+      "roof": "",
+      "special_type": "",
+      "width": 10.9526329040527,
+      "world_seed": 42,
+      "x": -3,
+      "y": 1
+    },
+    {
+      "chunk_seed": -259677187,
+      "depth": 11.689019203186,
+      "facade_index": 1,
+      "has_basement": false,
+      "has_building": true,
+      "height": 51.1320495605469,
+      "offset_x": 0.810773611068726,
+      "offset_z": -0.188293814659119,
+      "roof": "water_tower",
+      "special_type": "",
+      "width": 12.0048408508301,
+      "world_seed": 42,
+      "x": -3,
+      "y": 2
+    },
+    {
+      "chunk_seed": -239148258,
+      "depth": 11.5353899002075,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 11.2861461639404,
+      "offset_x": 0.77940559387207,
+      "offset_z": 0.0755634307861328,
+      "roof": "antenna",
+      "special_type": "police",
+      "width": 12.2661533355713,
+      "world_seed": 42,
+      "x": -3,
+      "y": 3
+    },
+    {
+      "chunk_seed": -162127681,
+      "has_building": false,
+      "world_seed": 42,
+      "x": -3,
+      "y": 4
+    },
+    {
+      "chunk_seed": 206629608,
+      "has_building": false,
+      "world_seed": 42,
+      "x": -2,
+      "y": -4
+    },
+    {
+      "chunk_seed": 196618575,
+      "depth": 9.65002632141113,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 50.5303001403809,
+      "offset_x": 0.610407829284668,
+      "offset_z": 0.0739257335662842,
+      "roof": "chimney",
+      "special_type": "",
+      "width": 11.1324138641357,
+      "world_seed": 42,
+      "x": -2,
+      "y": -3
+    },
+    {
+      "chunk_seed": 176384430,
+      "depth": 10.0466547012329,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 43.1758613586426,
+      "offset_x": -0.911231398582459,
+      "offset_z": -0.922172963619232,
+      "roof": "",
+      "special_type": "",
+      "width": 9.46576404571533,
+      "world_seed": 42,
+      "x": -2,
+      "y": -2
+    },
+    {
+      "chunk_seed": 166373389,
+      "depth": 10.7269582748413,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 54.966365814209,
+      "offset_x": -1.19154953956604,
+      "offset_z": -1.12589931488037,
+      "roof": "parapet",
+      "special_type": "",
+      "width": 10.7716341018677,
+      "world_seed": 42,
+      "x": -2,
+      "y": -1
+    },
+    {
+      "chunk_seed": -147712148,
+      "has_building": false,
+      "world_seed": 42,
+      "x": -2,
+      "y": 0
+    },
+    {
+      "chunk_seed": -166373389,
+      "has_building": false,
+      "world_seed": 42,
+      "x": -2,
+      "y": 1
+    },
+    {
+      "chunk_seed": -176384430,
+      "depth": 10.9835586547852,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 10.1537160873413,
+      "offset_x": -0.664801955223084,
+      "offset_z": 0.102112770080566,
+      "roof": "antenna",
+      "special_type": "police",
+      "width": 11.2011766433716,
+      "world_seed": 42,
+      "x": -2,
+      "y": 2
+    },
+    {
+      "chunk_seed": -196618575,
+      "depth": 16.3199424743652,
+      "facade_index": 1,
+      "has_basement": false,
+      "has_building": true,
+      "height": 16.387300491333,
+      "offset_x": 0.00901830196380615,
+      "offset_z": 0.810335636138916,
+      "roof": "shed",
+      "special_type": "",
+      "width": 16.733642578125,
+      "world_seed": 42,
+      "x": -2,
+      "y": 3
+    },
+    {
+      "chunk_seed": -206629616,
+      "has_building": false,
+      "world_seed": 42,
+      "x": -2,
+      "y": 4
+    },
+    {
+      "chunk_seed": 16512525,
+      "has_building": false,
+      "world_seed": 42,
+      "x": -1,
+      "y": -4
+    },
+    {
+      "chunk_seed": 118699434,
+      "depth": 14.3809547424316,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 8.02106666564941,
+      "offset_x": -0.507508635520935,
+      "offset_z": -0.0344899892807007,
+      "roof": "chimney",
+      "special_type": "",
+      "width": 12.2629861831665,
+      "world_seed": 42,
+      "x": -1,
+      "y": -3
+    },
+    {
+      "chunk_seed": 103314763,
+      "depth": 11.884614944458,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 11.3489351272583,
+      "offset_x": 1.10686588287354,
+      "offset_z": -0.308838605880737,
+      "roof": "antenna",
+      "special_type": "police",
+      "width": 10.2474670410156,
+      "world_seed": 42,
+      "x": -1,
+      "y": -2
+    },
+    {
+      "chunk_seed": 88192232,
+      "depth": 16.5590591430664,
+      "facade_index": 5,
+      "has_basement": true,
+      "has_building": true,
+      "height": 10.9104223251343,
+      "offset_x": 0.0207456350326538,
+      "offset_z": -0.394300758838654,
+      "roof": "chimney",
+      "special_type": "",
+      "width": 11.7758321762085,
+      "world_seed": 42,
+      "x": -1,
+      "y": -1
+    },
+    {
+      "chunk_seed": -73856119,
+      "has_building": false,
+      "world_seed": 42,
+      "x": -1,
+      "y": 0
+    },
+    {
+      "chunk_seed": -88192234,
+      "depth": 13.8646183013916,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 9.21697807312012,
+      "offset_x": 0.717696189880371,
+      "offset_z": -1.4130471944809,
+      "roof": "",
+      "special_type": "supermarket",
+      "width": 15.1227350234985,
+      "world_seed": 42,
+      "x": -1,
+      "y": 1
+    },
+    {
+      "chunk_seed": -103314761,
+      "depth": 9.82711219787598,
+      "facade_index": 1,
+      "has_basement": false,
+      "has_building": true,
+      "height": 38.090690612793,
+      "offset_x": 0.425678133964539,
+      "offset_z": -0.259711980819702,
+      "roof": "chimney",
+      "special_type": "",
+      "width": 16.5946502685547,
+      "world_seed": 42,
+      "x": -1,
+      "y": 2
+    },
+    {
+      "chunk_seed": -118699436,
+      "depth": 11.6088981628418,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 23.0501403808594,
+      "offset_x": -0.530174016952515,
+      "offset_z": -1.04417669773102,
+      "roof": "water_tower",
+      "special_type": "",
+      "width": 13.3912668228149,
+      "world_seed": 42,
+      "x": -1,
+      "y": 3
+    },
+    {
+      "chunk_seed": -16512523,
+      "has_building": false,
+      "world_seed": 42,
+      "x": -1,
+      "y": 4
+    },
+    {
+      "chunk_seed": -77398610,
+      "has_building": false,
+      "world_seed": 42,
+      "x": 0,
+      "y": -4
+    },
+    {
+      "chunk_seed": -58049015,
+      "has_building": false,
+      "world_seed": 42,
+      "x": 0,
+      "y": -3
+    },
+    {
+      "chunk_seed": -38699288,
+      "has_building": false,
+      "world_seed": 42,
+      "x": 0,
+      "y": -2
+    },
+    {
+      "chunk_seed": -19349685,
+      "has_building": false,
+      "world_seed": 42,
+      "x": 0,
+      "y": -1
+    },
+    {
+      "chunk_seed": 42,
+      "has_building": false,
+      "world_seed": 42,
+      "x": 0,
+      "y": 0
+    },
+    {
+      "chunk_seed": 19349685,
+      "has_building": false,
+      "world_seed": 42,
+      "x": 0,
+      "y": 1
+    },
+    {
+      "chunk_seed": 38699284,
+      "has_building": false,
+      "world_seed": 42,
+      "x": 0,
+      "y": 2
+    },
+    {
+      "chunk_seed": 58049015,
+      "has_building": false,
+      "world_seed": 42,
+      "x": 0,
+      "y": 3
+    },
+    {
+      "chunk_seed": 77398614,
+      "has_building": false,
+      "world_seed": 42,
+      "x": 0,
+      "y": 4
+    },
+    {
+      "chunk_seed": -16512525,
+      "has_building": false,
+      "world_seed": 42,
+      "x": 1,
+      "y": -4
+    },
+    {
+      "chunk_seed": -118699436,
+      "depth": 11.6088981628418,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 23.0501403808594,
+      "offset_x": -0.530174016952515,
+      "offset_z": -1.04417669773102,
+      "roof": "water_tower",
+      "special_type": "",
+      "width": 13.3912668228149,
+      "world_seed": 42,
+      "x": 1,
+      "y": -3
+    },
+    {
+      "chunk_seed": -103314763,
+      "depth": 16.1672382354736,
+      "facade_index": 5,
+      "has_basement": false,
+      "has_building": true,
+      "height": 8.16101169586182,
+      "offset_x": -0.756134986877441,
+      "offset_z": 0.36918318271637,
+      "roof": "",
+      "special_type": "",
+      "width": 11.1725292205811,
+      "world_seed": 42,
+      "x": 1,
+      "y": -2
+    },
+    {
+      "chunk_seed": -88192234,
+      "depth": 13.8646183013916,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 9.21697807312012,
+      "offset_x": 0.717696189880371,
+      "offset_z": -1.4130471944809,
+      "roof": "",
+      "special_type": "supermarket",
+      "width": 15.1227350234985,
+      "world_seed": 42,
+      "x": 1,
+      "y": -1
+    },
+    {
+      "chunk_seed": 73856119,
+      "has_building": false,
+      "world_seed": 42,
+      "x": 1,
+      "y": 0
+    },
+    {
+      "chunk_seed": 88192232,
+      "depth": 16.5590591430664,
+      "facade_index": 5,
+      "has_basement": true,
+      "has_building": true,
+      "height": 10.9104223251343,
+      "offset_x": 0.0207456350326538,
+      "offset_z": -0.394300758838654,
+      "roof": "chimney",
+      "special_type": "",
+      "width": 11.7758321762085,
+      "world_seed": 42,
+      "x": 1,
+      "y": 1
+    },
+    {
+      "chunk_seed": 103314761,
+      "has_building": false,
+      "world_seed": 42,
+      "x": 1,
+      "y": 2
+    },
+    {
+      "chunk_seed": 118699434,
+      "depth": 14.3809547424316,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 8.02106666564941,
+      "offset_x": -0.507508635520935,
+      "offset_z": -0.0344899892807007,
+      "roof": "chimney",
+      "special_type": "",
+      "width": 12.2629861831665,
+      "world_seed": 42,
+      "x": 1,
+      "y": 3
+    },
+    {
+      "chunk_seed": 16512523,
+      "has_building": false,
+      "world_seed": 42,
+      "x": 1,
+      "y": 4
+    },
+    {
+      "chunk_seed": -206629612,
+      "has_building": false,
+      "world_seed": 42,
+      "x": 2,
+      "y": -4
+    },
+    {
+      "chunk_seed": -196618573,
+      "depth": 14.6790494918823,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 15.0584983825684,
+      "offset_x": 0.616007566452026,
+      "offset_z": 1.3733594417572,
+      "roof": "parapet",
+      "special_type": "bank",
+      "width": 14.6632671356201,
+      "world_seed": 42,
+      "x": 2,
+      "y": -3
+    },
+    {
+      "chunk_seed": -176384430,
+      "depth": 10.9835586547852,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 10.1537160873413,
+      "offset_x": -0.664801955223084,
+      "offset_z": 0.102112770080566,
+      "roof": "antenna",
+      "special_type": "police",
+      "width": 11.2011766433716,
+      "world_seed": 42,
+      "x": 2,
+      "y": -2
+    },
+    {
+      "chunk_seed": -166373391,
+      "has_building": false,
+      "world_seed": 42,
+      "x": 2,
+      "y": -1
+    },
+    {
+      "chunk_seed": 147712144,
+      "has_building": false,
+      "world_seed": 42,
+      "x": 2,
+      "y": 0
+    },
+    {
+      "chunk_seed": 166373391,
+      "depth": 11.3405704498291,
+      "facade_index": 2,
+      "has_basement": false,
+      "has_building": true,
+      "height": 14.5808610916138,
+      "offset_x": 0.395010530948639,
+      "offset_z": -0.111491441726685,
+      "roof": "",
+      "special_type": "",
+      "width": 17.2010040283203,
+      "world_seed": 42,
+      "x": 2,
+      "y": 1
+    },
+    {
+      "chunk_seed": 176384430,
+      "depth": 10.0466547012329,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 43.1758613586426,
+      "offset_x": -0.911231398582459,
+      "offset_z": -0.922172963619232,
+      "roof": "",
+      "special_type": "",
+      "width": 9.46576404571533,
+      "world_seed": 42,
+      "x": 2,
+      "y": 2
+    },
+    {
+      "chunk_seed": 196618573,
+      "depth": 13.9492416381836,
+      "facade_index": 5,
+      "has_basement": false,
+      "has_building": true,
+      "height": 51.9494094848633,
+      "offset_x": -0.709903717041016,
+      "offset_z": 0.0939686298370361,
+      "roof": "chimney",
+      "special_type": "",
+      "width": 11.4492855072021,
+      "world_seed": 42,
+      "x": 2,
+      "y": 3
+    },
+    {
+      "chunk_seed": 206629612,
+      "has_building": false,
+      "world_seed": 42,
+      "x": 2,
+      "y": 4
+    },
+    {
+      "chunk_seed": -162127687,
+      "has_building": false,
+      "world_seed": 42,
+      "x": 3,
+      "y": -4
+    },
+    {
+      "chunk_seed": -239148258,
+      "depth": 11.5353899002075,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 11.2861461639404,
+      "offset_x": 0.77940559387207,
+      "offset_z": 0.0755634307861328,
+      "roof": "antenna",
+      "special_type": "police",
+      "width": 12.2661533355713,
+      "world_seed": 42,
+      "x": 3,
+      "y": -3
+    },
+    {
+      "chunk_seed": -259677185,
+      "depth": 9.16745090484619,
+      "facade_index": 5,
+      "has_basement": false,
+      "has_building": true,
+      "height": 10.8658103942871,
+      "offset_x": -0.38609391450882,
+      "offset_z": 0.106348514556885,
+      "roof": "",
+      "special_type": "",
+      "width": 15.3150691986084,
+      "world_seed": 42,
+      "x": 3,
+      "y": -2
+    },
+    {
+      "chunk_seed": -202612132,
+      "depth": 12.4466953277588,
+      "facade_index": 1,
+      "has_basement": false,
+      "has_building": true,
+      "height": 75.5673599243164,
+      "offset_x": 0.679372072219849,
+      "offset_z": -1.14147293567657,
+      "roof": "",
+      "special_type": "",
+      "width": 10.9526329040527,
+      "world_seed": 42,
+      "x": 3,
+      "y": -1
+    },
+    {
+      "chunk_seed": 221568317,
+      "has_building": false,
+      "world_seed": 42,
+      "x": 3,
+      "y": 0
+    },
+    {
+      "chunk_seed": 202612130,
+      "depth": 14.261438369751,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 11.395489692688,
+      "offset_x": 0.0929088592529297,
+      "offset_z": -0.310749053955078,
+      "roof": "chimney",
+      "special_type": "",
+      "width": 16.1356658935547,
+      "world_seed": 42,
+      "x": 3,
+      "y": 1
+    },
+    {
+      "chunk_seed": 259677187,
+      "has_building": false,
+      "world_seed": 42,
+      "x": 3,
+      "y": 2
+    },
+    {
+      "chunk_seed": 239148256,
+      "depth": 16.1004772186279,
+      "facade_index": 1,
+      "has_basement": false,
+      "has_building": true,
+      "height": 8.16701984405518,
+      "offset_x": 1.13930249214172,
+      "offset_z": 0.280392289161682,
+      "roof": "antenna",
+      "special_type": "",
+      "width": 9.7510461807251,
+      "world_seed": 42,
+      "x": 3,
+      "y": 3
+    },
+    {
+      "chunk_seed": 162127681,
+      "has_building": false,
+      "world_seed": 42,
+      "x": 3,
+      "y": 4
+    },
+    {
+      "chunk_seed": -352768806,
+      "has_building": false,
+      "world_seed": 42,
+      "x": 4,
+      "y": -4
+    },
+    {
+      "chunk_seed": -317591683,
+      "has_building": false,
+      "world_seed": 42,
+      "x": 4,
+      "y": -3
+    },
+    {
+      "chunk_seed": -332746852,
+      "has_building": false,
+      "world_seed": 42,
+      "x": 4,
+      "y": -2
+    },
+    {
+      "chunk_seed": -280793537,
+      "has_building": false,
+      "world_seed": 42,
+      "x": 4,
+      "y": -1
+    },
+    {
+      "chunk_seed": 295424350,
+      "has_building": false,
+      "world_seed": 42,
+      "x": 4,
+      "y": 0
+    },
+    {
+      "chunk_seed": 280793537,
+      "has_building": false,
+      "world_seed": 42,
+      "x": 4,
+      "y": 1
+    },
+    {
+      "chunk_seed": 332746848,
+      "has_building": false,
+      "world_seed": 42,
+      "x": 4,
+      "y": 2
+    },
+    {
+      "chunk_seed": 317591683,
+      "has_building": false,
+      "world_seed": 42,
+      "x": 4,
+      "y": 3
+    },
+    {
+      "chunk_seed": 352768802,
+      "has_building": false,
+      "world_seed": 42,
+      "x": 4,
+      "y": 4
+    },
+    {
+      "chunk_seed": 352772913,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": -4,
+      "y": -4
+    },
+    {
+      "chunk_seed": 317595798,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": -4,
+      "y": -3
+    },
+    {
+      "chunk_seed": 332750967,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": -4,
+      "y": -2
+    },
+    {
+      "chunk_seed": 280797652,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": -4,
+      "y": -1
+    },
+    {
+      "chunk_seed": -295428427,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": -4,
+      "y": 0
+    },
+    {
+      "chunk_seed": -280797654,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": -4,
+      "y": 1
+    },
+    {
+      "chunk_seed": -332750965,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": -4,
+      "y": 2
+    },
+    {
+      "chunk_seed": -317595800,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": -4,
+      "y": 3
+    },
+    {
+      "chunk_seed": -352772919,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": -4,
+      "y": 4
+    },
+    {
+      "chunk_seed": 162131796,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": -3,
+      "y": -4
+    },
+    {
+      "chunk_seed": 239152371,
+      "depth": 10.2257308959961,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 10.8367853164673,
+      "offset_x": 0.884476184844971,
+      "offset_z": 1.40794610977173,
+      "roof": "",
+      "special_type": "",
+      "width": 10.8149242401123,
+      "world_seed": 12345,
+      "x": -3,
+      "y": -3
+    },
+    {
+      "chunk_seed": 259681298,
+      "depth": 9.17972755432129,
+      "facade_index": 4,
+      "has_basement": false,
+      "has_building": true,
+      "height": 69.5745239257813,
+      "offset_x": -0.839133262634277,
+      "offset_z": -0.167084455490112,
+      "roof": "",
+      "special_type": "",
+      "width": 9.24704742431641,
+      "world_seed": 12345,
+      "x": -3,
+      "y": -2
+    },
+    {
+      "chunk_seed": 202616241,
+      "depth": 10.6218137741089,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 83.348518371582,
+      "offset_x": 0.00918745994567871,
+      "offset_z": 0.481465458869934,
+      "roof": "parapet",
+      "special_type": "",
+      "width": 10.6912698745728,
+      "world_seed": 12345,
+      "x": -3,
+      "y": -1
+    },
+    {
+      "chunk_seed": -221572400,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": -3,
+      "y": 0
+    },
+    {
+      "chunk_seed": -202616241,
+      "depth": 12.3462896347046,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 14.15651512146,
+      "offset_x": -1.18696558475494,
+      "offset_z": 1.29131865501404,
+      "roof": "parapet",
+      "special_type": "bank",
+      "width": 11.9452056884766,
+      "world_seed": 12345,
+      "x": -3,
+      "y": 1
+    },
+    {
+      "chunk_seed": -259681298,
+      "depth": 11.4362411499023,
+      "facade_index": 1,
+      "has_basement": false,
+      "has_building": true,
+      "height": 23.3097763061523,
+      "offset_x": 1.05234909057617,
+      "offset_z": 0.0850157737731934,
+      "roof": "parapet",
+      "special_type": "",
+      "width": 12.3431415557861,
+      "world_seed": 12345,
+      "x": -3,
+      "y": 2
+    },
+    {
+      "chunk_seed": -239152371,
+      "depth": 16.242057800293,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 61.1300048828125,
+      "offset_x": 0.304258108139038,
+      "offset_z": -0.0198990106582642,
+      "roof": "parapet",
+      "special_type": "",
+      "width": 16.5906829833984,
+      "world_seed": 12345,
+      "x": -3,
+      "y": 3
+    },
+    {
+      "chunk_seed": -162131796,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": -3,
+      "y": 4
+    },
+    {
+      "chunk_seed": 206625531,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": -2,
+      "y": -4
+    },
+    {
+      "chunk_seed": 196614492,
+      "depth": 11.6592788696289,
+      "facade_index": 3,
+      "has_basement": false,
+      "has_building": true,
+      "height": 8.8424654006958,
+      "offset_x": 0.554630637168884,
+      "offset_z": -0.821331322193146,
+      "roof": "",
+      "special_type": "",
+      "width": 16.4753856658936,
+      "world_seed": 12345,
+      "x": -2,
+      "y": -3
+    },
+    {
+      "chunk_seed": 176380349,
+      "depth": 10.268349647522,
+      "facade_index": 1,
+      "has_basement": false,
+      "has_building": true,
+      "height": 8.2148962020874,
+      "offset_x": 0.942633152008057,
+      "offset_z": -1.10840463638306,
+      "roof": "antenna",
+      "special_type": "",
+      "width": 13.9209251403809,
+      "world_seed": 12345,
+      "x": -2,
+      "y": -2
+    },
+    {
+      "chunk_seed": 166369310,
+      "depth": 14.8591842651367,
+      "facade_index": 1,
+      "has_basement": false,
+      "has_building": true,
+      "height": 15.0950698852539,
+      "offset_x": -1.12689542770386,
+      "offset_z": -0.828966617584229,
+      "roof": "chimney",
+      "special_type": "",
+      "width": 11.7669658660889,
+      "world_seed": 12345,
+      "x": -2,
+      "y": -1
+    },
+    {
+      "chunk_seed": -147708033,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": -2,
+      "y": 0
+    },
+    {
+      "chunk_seed": -166369312,
+      "depth": 13.030200958252,
+      "facade_index": 0,
+      "has_basement": true,
+      "has_building": true,
+      "height": 78.7060546875,
+      "offset_x": 0.622304439544678,
+      "offset_z": -0.015355110168457,
+      "roof": "",
+      "special_type": "",
+      "width": 14.8806133270264,
+      "world_seed": 12345,
+      "x": -2,
+      "y": 1
+    },
+    {
+      "chunk_seed": -176380351,
+      "depth": 9.45450878143311,
+      "facade_index": 2,
+      "has_basement": false,
+      "has_building": true,
+      "height": 23.0200576782227,
+      "offset_x": 0.0856606960296631,
+      "offset_z": 0.699889659881592,
+      "roof": "parapet",
+      "special_type": "",
+      "width": 9.93674468994141,
+      "world_seed": 12345,
+      "x": -2,
+      "y": 2
+    },
+    {
+      "chunk_seed": -196614494,
+      "depth": 16.0852718353271,
+      "facade_index": 3,
+      "has_basement": false,
+      "has_building": true,
+      "height": 43.4211959838867,
+      "offset_x": -0.831448674201965,
+      "offset_z": -0.27918803691864,
+      "roof": "parapet",
+      "special_type": "",
+      "width": 11.707914352417,
+      "world_seed": 12345,
+      "x": -2,
+      "y": 3
+    },
+    {
+      "chunk_seed": -206625533,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": -2,
+      "y": 4
+    },
+    {
+      "chunk_seed": 16500254,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": -1,
+      "y": -4
+    },
+    {
+      "chunk_seed": 118687161,
+      "depth": 13.4280958175659,
+      "facade_index": 1,
+      "has_basement": false,
+      "has_building": true,
+      "height": 10.0117177963257,
+      "offset_x": -1.0080132484436,
+      "offset_z": 0.443198204040527,
+      "roof": "",
+      "special_type": "",
+      "width": 10.1341018676758,
+      "world_seed": 12345,
+      "x": -1,
+      "y": -3
+    },
+    {
+      "chunk_seed": 103302488,
+      "depth": 10.2540531158447,
+      "facade_index": 2,
+      "has_basement": false,
+      "has_building": true,
+      "height": 12.6815557479858,
+      "offset_x": -0.0265496373176575,
+      "offset_z": -0.682585477828979,
+      "roof": "water_tower",
+      "special_type": "",
+      "width": 16.1008567810059,
+      "world_seed": 12345,
+      "x": -1,
+      "y": -2
+    },
+    {
+      "chunk_seed": 88179963,
+      "depth": 11.452299118042,
+      "facade_index": 2,
+      "has_basement": false,
+      "has_building": true,
+      "height": 57.4625549316406,
+      "offset_x": -0.0257103368639946,
+      "offset_z": -0.758085787296295,
+      "roof": "",
+      "special_type": "",
+      "width": 17.7242813110352,
+      "world_seed": 12345,
+      "x": -1,
+      "y": -1
+    },
+    {
+      "chunk_seed": -73843814,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": -1,
+      "y": 0
+    },
+    {
+      "chunk_seed": -88179963,
+      "depth": 15.3084897994995,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 26.1619453430176,
+      "offset_x": 0.248912572860718,
+      "offset_z": -0.0915391445159912,
+      "roof": "",
+      "special_type": "hospital",
+      "width": 16.803882598877,
+      "world_seed": 12345,
+      "x": -1,
+      "y": 1
+    },
+    {
+      "chunk_seed": -103302492,
+      "depth": 13.123363494873,
+      "facade_index": 1,
+      "has_basement": false,
+      "has_building": true,
+      "height": 15.182638168335,
+      "offset_x": 1.034334897995,
+      "offset_z": -0.354861974716187,
+      "roof": "",
+      "special_type": "",
+      "width": 10.3974800109863,
+      "world_seed": 12345,
+      "x": -1,
+      "y": 2
+    },
+    {
+      "chunk_seed": -118687161,
+      "depth": 11.6574401855469,
+      "facade_index": 2,
+      "has_basement": false,
+      "has_building": true,
+      "height": 52.8778381347656,
+      "offset_x": 0.636695861816406,
+      "offset_z": 0.352799415588379,
+      "roof": "water_tower",
+      "special_type": "",
+      "width": 14.3409442901611,
+      "world_seed": 12345,
+      "x": -1,
+      "y": 3
+    },
+    {
+      "chunk_seed": -16500250,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": -1,
+      "y": 4
+    },
+    {
+      "chunk_seed": -77410883,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": 0,
+      "y": -4
+    },
+    {
+      "chunk_seed": -58061286,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": 0,
+      "y": -3
+    },
+    {
+      "chunk_seed": -38711557,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": 0,
+      "y": -2
+    },
+    {
+      "chunk_seed": -19361960,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": 0,
+      "y": -1
+    },
+    {
+      "chunk_seed": 12345,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": 0,
+      "y": 0
+    },
+    {
+      "chunk_seed": 19361958,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": 0,
+      "y": 1
+    },
+    {
+      "chunk_seed": 38711559,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": 0,
+      "y": 2
+    },
+    {
+      "chunk_seed": 58061284,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": 0,
+      "y": 3
+    },
+    {
+      "chunk_seed": 77410885,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": 0,
+      "y": 4
+    },
+    {
+      "chunk_seed": -16500256,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": 1,
+      "y": -4
+    },
+    {
+      "chunk_seed": -118687161,
+      "depth": 11.6574401855469,
+      "facade_index": 2,
+      "has_basement": false,
+      "has_building": true,
+      "height": 52.8778381347656,
+      "offset_x": 0.636695861816406,
+      "offset_z": 0.352799415588379,
+      "roof": "water_tower",
+      "special_type": "",
+      "width": 14.3409442901611,
+      "world_seed": 12345,
+      "x": 1,
+      "y": -3
+    },
+    {
+      "chunk_seed": -103302490,
+      "depth": 9.4268798828125,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 8.04705238342285,
+      "offset_x": 1.26131153106689,
+      "offset_z": -0.0742497444152832,
+      "roof": "",
+      "special_type": "",
+      "width": 14.9194860458374,
+      "world_seed": 12345,
+      "x": 1,
+      "y": -2
+    },
+    {
+      "chunk_seed": -88179963,
+      "depth": 15.3084897994995,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 26.1619453430176,
+      "offset_x": 0.248912572860718,
+      "offset_z": -0.0915391445159912,
+      "roof": "",
+      "special_type": "hospital",
+      "width": 16.803882598877,
+      "world_seed": 12345,
+      "x": 1,
+      "y": -1
+    },
+    {
+      "chunk_seed": 73843812,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": 1,
+      "y": 0
+    },
+    {
+      "chunk_seed": 88179963,
+      "depth": 11.452299118042,
+      "facade_index": 2,
+      "has_basement": false,
+      "has_building": true,
+      "height": 57.4625549316406,
+      "offset_x": -0.0257103368639946,
+      "offset_z": -0.758085787296295,
+      "roof": "",
+      "special_type": "",
+      "width": 17.7242813110352,
+      "world_seed": 12345,
+      "x": 1,
+      "y": 1
+    },
+    {
+      "chunk_seed": 103302490,
+      "depth": 16.8344478607178,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 24.3738098144531,
+      "offset_x": -1.49121856689453,
+      "offset_z": 0.452641010284424,
+      "roof": "antenna",
+      "special_type": "",
+      "width": 12.6845636367798,
+      "world_seed": 12345,
+      "x": 1,
+      "y": 2
+    },
+    {
+      "chunk_seed": 118687161,
+      "depth": 13.4280958175659,
+      "facade_index": 1,
+      "has_basement": false,
+      "has_building": true,
+      "height": 10.0117177963257,
+      "offset_x": -1.0080132484436,
+      "offset_z": 0.443198204040527,
+      "roof": "",
+      "special_type": "",
+      "width": 10.1341018676758,
+      "world_seed": 12345,
+      "x": 1,
+      "y": 3
+    },
+    {
+      "chunk_seed": 16500248,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": 1,
+      "y": 4
+    },
+    {
+      "chunk_seed": -206625529,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": 2,
+      "y": -4
+    },
+    {
+      "chunk_seed": -196614496,
+      "depth": 17.5934867858887,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 60.0729446411133,
+      "offset_x": -0.102782607078552,
+      "offset_z": -0.0294171720743179,
+      "roof": "",
+      "special_type": "",
+      "width": 10.9830989837646,
+      "world_seed": 12345,
+      "x": 2,
+      "y": -3
+    },
+    {
+      "chunk_seed": -176380351,
+      "depth": 9.45450878143311,
+      "facade_index": 2,
+      "has_basement": false,
+      "has_building": true,
+      "height": 23.0200576782227,
+      "offset_x": 0.0856606960296631,
+      "offset_z": 0.699889659881592,
+      "roof": "parapet",
+      "special_type": "",
+      "width": 9.93674468994141,
+      "world_seed": 12345,
+      "x": 2,
+      "y": -2
+    },
+    {
+      "chunk_seed": -166369310,
+      "depth": 10.8357572555542,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 28.694278717041,
+      "offset_x": 0.0164589285850525,
+      "offset_z": 0.178490400314331,
+      "roof": "shed",
+      "special_type": "",
+      "width": 16.9114265441895,
+      "world_seed": 12345,
+      "x": 2,
+      "y": -1
+    },
+    {
+      "chunk_seed": 147708035,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": 2,
+      "y": 0
+    },
+    {
+      "chunk_seed": 166369308,
+      "depth": 13.6376285552979,
+      "facade_index": 2,
+      "has_basement": false,
+      "has_building": true,
+      "height": 8.90973377227783,
+      "offset_x": -0.785640776157379,
+      "offset_z": 0.755538463592529,
+      "roof": "water_tower",
+      "special_type": "",
+      "width": 10.6063261032104,
+      "world_seed": 12345,
+      "x": 2,
+      "y": 1
+    },
+    {
+      "chunk_seed": 176380349,
+      "depth": 10.268349647522,
+      "facade_index": 1,
+      "has_basement": false,
+      "has_building": true,
+      "height": 8.2148962020874,
+      "offset_x": 0.942633152008057,
+      "offset_z": -1.10840463638306,
+      "roof": "antenna",
+      "special_type": "",
+      "width": 13.9209251403809,
+      "world_seed": 12345,
+      "x": 2,
+      "y": 2
+    },
+    {
+      "chunk_seed": 196614494,
+      "depth": 11.9687328338623,
+      "facade_index": 5,
+      "has_basement": false,
+      "has_building": true,
+      "height": 14.482102394104,
+      "offset_x": -0.44562840461731,
+      "offset_z": -0.999854981899261,
+      "roof": "antenna",
+      "special_type": "",
+      "width": 10.7209978103638,
+      "world_seed": 12345,
+      "x": 2,
+      "y": 3
+    },
+    {
+      "chunk_seed": 206625535,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": 2,
+      "y": 4
+    },
+    {
+      "chunk_seed": -162131798,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": 3,
+      "y": -4
+    },
+    {
+      "chunk_seed": -239152371,
+      "depth": 16.242057800293,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 61.1300048828125,
+      "offset_x": 0.304258108139038,
+      "offset_z": -0.0198990106582642,
+      "roof": "parapet",
+      "special_type": "",
+      "width": 16.5906829833984,
+      "world_seed": 12345,
+      "x": 3,
+      "y": -3
+    },
+    {
+      "chunk_seed": -259681300,
+      "depth": 10.7844686508179,
+      "facade_index": 3,
+      "has_basement": false,
+      "has_building": true,
+      "height": 12.2125854492188,
+      "offset_x": 1.31415510177612,
+      "offset_z": -0.0856634378433228,
+      "roof": "",
+      "special_type": "",
+      "width": 9.29128265380859,
+      "world_seed": 12345,
+      "x": 3,
+      "y": -2
+    },
+    {
+      "chunk_seed": -202616241,
+      "depth": 12.3462896347046,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 14.15651512146,
+      "offset_x": -1.18696558475494,
+      "offset_z": 1.29131865501404,
+      "roof": "parapet",
+      "special_type": "bank",
+      "width": 11.9452056884766,
+      "world_seed": 12345,
+      "x": 3,
+      "y": -1
+    },
+    {
+      "chunk_seed": 221572398,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": 3,
+      "y": 0
+    },
+    {
+      "chunk_seed": 202616241,
+      "depth": 10.6218137741089,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 83.348518371582,
+      "offset_x": 0.00918745994567871,
+      "offset_z": 0.481465458869934,
+      "roof": "parapet",
+      "special_type": "",
+      "width": 10.6912698745728,
+      "world_seed": 12345,
+      "x": 3,
+      "y": 1
+    },
+    {
+      "chunk_seed": 259681296,
+      "depth": 11.264856338501,
+      "facade_index": 1,
+      "has_basement": false,
+      "has_building": true,
+      "height": 9.80867099761963,
+      "offset_x": -0.259789198637009,
+      "offset_z": -1.06851434707642,
+      "roof": "",
+      "special_type": "",
+      "width": 17.4650325775146,
+      "world_seed": 12345,
+      "x": 3,
+      "y": 2
+    },
+    {
+      "chunk_seed": 239152371,
+      "depth": 10.2257308959961,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 10.8367853164673,
+      "offset_x": 0.884476184844971,
+      "offset_z": 1.40794610977173,
+      "roof": "",
+      "special_type": "",
+      "width": 10.8149242401123,
+      "world_seed": 12345,
+      "x": 3,
+      "y": 3
+    },
+    {
+      "chunk_seed": 162131794,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": 3,
+      "y": 4
+    },
+    {
+      "chunk_seed": -352772919,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": 4,
+      "y": -4
+    },
+    {
+      "chunk_seed": -317595794,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": 4,
+      "y": -3
+    },
+    {
+      "chunk_seed": -332750961,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": 4,
+      "y": -2
+    },
+    {
+      "chunk_seed": -280797652,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": 4,
+      "y": -1
+    },
+    {
+      "chunk_seed": 295428429,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": 4,
+      "y": 0
+    },
+    {
+      "chunk_seed": 280797650,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": 4,
+      "y": 1
+    },
+    {
+      "chunk_seed": 332750963,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": 4,
+      "y": 2
+    },
+    {
+      "chunk_seed": 317595792,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": 4,
+      "y": 3
+    },
+    {
+      "chunk_seed": 352772913,
+      "has_building": false,
+      "world_seed": 12345,
+      "x": 4,
+      "y": 4
+    },
+    {
+      "chunk_seed": 1794714871,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": -4,
+      "y": -4
+    },
+    {
+      "chunk_seed": 1829891920,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": -4,
+      "y": -3
+    },
+    {
+      "chunk_seed": 1814736817,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": -4,
+      "y": -2
+    },
+    {
+      "chunk_seed": 1866690066,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": -4,
+      "y": -1
+    },
+    {
+      "chunk_seed": -1852059277,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": -4,
+      "y": 0
+    },
+    {
+      "chunk_seed": -1866690068,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": -4,
+      "y": 1
+    },
+    {
+      "chunk_seed": -1814736819,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": -4,
+      "y": 2
+    },
+    {
+      "chunk_seed": -1829891922,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": -4,
+      "y": 3
+    },
+    {
+      "chunk_seed": -1794714865,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": -4,
+      "y": 4
+    },
+    {
+      "chunk_seed": 1985355922,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": -3,
+      "y": -4
+    },
+    {
+      "chunk_seed": 1908335413,
+      "depth": 16.3232421875,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 8.47048854827881,
+      "offset_x": -0.334941565990448,
+      "offset_z": -0.113312304019928,
+      "roof": "",
+      "special_type": "",
+      "width": 16.8430061340332,
+      "world_seed": 2147483647,
+      "x": -3,
+      "y": -3
+    },
+    {
+      "chunk_seed": 1887806420,
+      "depth": 10.7254362106323,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 13.2562208175659,
+      "offset_x": 1.01169848442078,
+      "offset_z": -0.455989241600037,
+      "roof": "chimney",
+      "special_type": "",
+      "width": 13.9087381362915,
+      "world_seed": 2147483647,
+      "x": -3,
+      "y": -2
+    },
+    {
+      "chunk_seed": 1944871543,
+      "depth": 13.8916454315186,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 13.4422655105591,
+      "offset_x": 0.697076559066772,
+      "offset_z": -0.513705611228943,
+      "roof": "parapet",
+      "special_type": "bank",
+      "width": 14.4727001190186,
+      "world_seed": 2147483647,
+      "x": -3,
+      "y": -1
+    },
+    {
+      "chunk_seed": -1925915370,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": -3,
+      "y": 0
+    },
+    {
+      "chunk_seed": -1944871543,
+      "depth": 9.44999980926514,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 34.1228370666504,
+      "offset_x": 0.785446882247925,
+      "offset_z": -0.493620157241821,
+      "roof": "",
+      "special_type": "",
+      "width": 15.08349609375,
+      "world_seed": 2147483647,
+      "x": -3,
+      "y": 1
+    },
+    {
+      "chunk_seed": -1887806424,
+      "depth": 11.5827140808105,
+      "facade_index": 2,
+      "has_basement": false,
+      "has_building": true,
+      "height": 9.67329406738281,
+      "offset_x": 0.943765878677368,
+      "offset_z": 0.607644081115723,
+      "roof": "",
+      "special_type": "",
+      "width": 12.1898717880249,
+      "world_seed": 2147483647,
+      "x": -3,
+      "y": 2
+    },
+    {
+      "chunk_seed": -1908335413,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": -3,
+      "y": 3
+    },
+    {
+      "chunk_seed": -1985355926,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": -3,
+      "y": 4
+    },
+    {
+      "chunk_seed": 1940854077,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": -2,
+      "y": -4
+    },
+    {
+      "chunk_seed": 1950865050,
+      "depth": 10.9636192321777,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 50.2473449707031,
+      "offset_x": 0.111792087554932,
+      "offset_z": -1.00112223625183,
+      "roof": "shed",
+      "special_type": "",
+      "width": 16.2995491027832,
+      "world_seed": 2147483647,
+      "x": -2,
+      "y": -3
+    },
+    {
+      "chunk_seed": 1971099259,
+      "depth": 10.4084949493408,
+      "facade_index": 2,
+      "has_basement": false,
+      "has_building": true,
+      "height": 17.8267021179199,
+      "offset_x": -0.100868940353394,
+      "offset_z": -0.986791253089905,
+      "roof": "shed",
+      "special_type": "",
+      "width": 11.5597009658813,
+      "world_seed": 2147483647,
+      "x": -2,
+      "y": -2
+    },
+    {
+      "chunk_seed": 1981110232,
+      "depth": 16.5372123718262,
+      "facade_index": 2,
+      "has_basement": false,
+      "has_building": true,
+      "height": 57.0824737548828,
+      "offset_x": 0.576377868652344,
+      "offset_z": -0.0235139131546021,
+      "roof": "antenna",
+      "special_type": "",
+      "width": 12.3368129730225,
+      "world_seed": 2147483647,
+      "x": -2,
+      "y": -1
+    },
+    {
+      "chunk_seed": -1999771463,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": -2,
+      "y": 0
+    },
+    {
+      "chunk_seed": -1981110234,
+      "depth": 10.0287666320801,
+      "facade_index": 4,
+      "has_basement": false,
+      "has_building": true,
+      "height": 15.3507385253906,
+      "offset_x": 0.572864294052124,
+      "offset_z": 1.39509892463684,
+      "roof": "",
+      "special_type": "",
+      "width": 11.7904815673828,
+      "world_seed": 2147483647,
+      "x": -2,
+      "y": 1
+    },
+    {
+      "chunk_seed": -1971099257,
+      "depth": 12.0704965591431,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 18.8284225463867,
+      "offset_x": -1.23618018627167,
+      "offset_z": 0.104353904724121,
+      "roof": "parapet",
+      "special_type": "bank",
+      "width": 14.2578716278076,
+      "world_seed": 2147483647,
+      "x": -2,
+      "y": 2
+    },
+    {
+      "chunk_seed": -1950865052,
+      "depth": 16.7445163726807,
+      "facade_index": 4,
+      "has_basement": false,
+      "has_building": true,
+      "height": 72.6959228515625,
+      "offset_x": 0.477745294570923,
+      "offset_z": 0.251175284385681,
+      "roof": "chimney",
+      "special_type": "",
+      "width": 13.2722625732422,
+      "world_seed": 2147483647,
+      "x": -2,
+      "y": 3
+    },
+    {
+      "chunk_seed": -1940854075,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": -2,
+      "y": 4
+    },
+    {
+      "chunk_seed": 2130971096,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": -1,
+      "y": -4
+    },
+    {
+      "chunk_seed": 2028784255,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": -1,
+      "y": -3
+    },
+    {
+      "chunk_seed": 2044168862,
+      "depth": 16.6469573974609,
+      "facade_index": 2,
+      "has_basement": false,
+      "has_building": true,
+      "height": 52.4065170288086,
+      "offset_x": 0.441079616546631,
+      "offset_z": 0.473352909088135,
+      "roof": "",
+      "special_type": "",
+      "width": 12.3004951477051,
+      "world_seed": 2147483647,
+      "x": -1,
+      "y": -2
+    },
+    {
+      "chunk_seed": 2059291453,
+      "depth": 15.2124214172363,
+      "facade_index": 3,
+      "has_basement": false,
+      "has_building": true,
+      "height": 66.6832275390625,
+      "offset_x": -0.231136322021484,
+      "offset_z": 0.729139804840088,
+      "roof": "chimney",
+      "special_type": "",
+      "width": 13.4101467132568,
+      "world_seed": 2147483647,
+      "x": -1,
+      "y": -1
+    },
+    {
+      "chunk_seed": -2073627556,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": -1,
+      "y": 0
+    },
+    {
+      "chunk_seed": -2059291453,
+      "depth": 16.6905422210693,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 37.9682464599609,
+      "offset_x": 1.07234001159668,
+      "offset_z": 0.537001252174377,
+      "roof": "parapet",
+      "special_type": "",
+      "width": 11.9727258682251,
+      "world_seed": 2147483647,
+      "x": -1,
+      "y": 1
+    },
+    {
+      "chunk_seed": -2044168862,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": -1,
+      "y": 2
+    },
+    {
+      "chunk_seed": -2028784255,
+      "depth": 16.5636558532715,
+      "facade_index": 2,
+      "has_basement": true,
+      "has_building": true,
+      "height": 8.02268981933594,
+      "offset_x": -0.0528922080993652,
+      "offset_z": 0.0389731526374817,
+      "roof": "antenna",
+      "special_type": "",
+      "width": 12.6080780029297,
+      "world_seed": 2147483647,
+      "x": -1,
+      "y": 3
+    },
+    {
+      "chunk_seed": -2130971104,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": -1,
+      "y": 4
+    },
+    {
+      "chunk_seed": -2070084997,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": 0,
+      "y": -4
+    },
+    {
+      "chunk_seed": -2089434660,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": 0,
+      "y": -3
+    },
+    {
+      "chunk_seed": -2108784323,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": 0,
+      "y": -2
+    },
+    {
+      "chunk_seed": -2128133986,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": 0,
+      "y": -1
+    },
+    {
+      "chunk_seed": 2147483647,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": 0,
+      "y": 0
+    },
+    {
+      "chunk_seed": 2128133984,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": 0,
+      "y": 1
+    },
+    {
+      "chunk_seed": 2108784321,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": 0,
+      "y": 2
+    },
+    {
+      "chunk_seed": 2089434658,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": 0,
+      "y": 3
+    },
+    {
+      "chunk_seed": 2070084995,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": 0,
+      "y": 4
+    },
+    {
+      "chunk_seed": -2130971098,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": 1,
+      "y": -4
+    },
+    {
+      "chunk_seed": -2028784255,
+      "depth": 16.5636558532715,
+      "facade_index": 2,
+      "has_basement": true,
+      "has_building": true,
+      "height": 8.02268981933594,
+      "offset_x": -0.0528922080993652,
+      "offset_z": 0.0389731526374817,
+      "roof": "antenna",
+      "special_type": "",
+      "width": 12.6080780029297,
+      "world_seed": 2147483647,
+      "x": 1,
+      "y": -3
+    },
+    {
+      "chunk_seed": -2044168864,
+      "depth": 11.1629991531372,
+      "facade_index": 2,
+      "has_basement": false,
+      "has_building": true,
+      "height": 33.823429107666,
+      "offset_x": 1.38147640228271,
+      "offset_z": -1.39405882358551,
+      "roof": "",
+      "special_type": "",
+      "width": 11.5490875244141,
+      "world_seed": 2147483647,
+      "x": 1,
+      "y": -2
+    },
+    {
+      "chunk_seed": -2059291453,
+      "depth": 16.6905422210693,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 37.9682464599609,
+      "offset_x": 1.07234001159668,
+      "offset_z": 0.537001252174377,
+      "roof": "parapet",
+      "special_type": "",
+      "width": 11.9727258682251,
+      "world_seed": 2147483647,
+      "x": 1,
+      "y": -1
+    },
+    {
+      "chunk_seed": 2073627554,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": 1,
+      "y": 0
+    },
+    {
+      "chunk_seed": 2059291453,
+      "depth": 15.2124214172363,
+      "facade_index": 3,
+      "has_basement": false,
+      "has_building": true,
+      "height": 66.6832275390625,
+      "offset_x": -0.231136322021484,
+      "offset_z": 0.729139804840088,
+      "roof": "chimney",
+      "special_type": "",
+      "width": 13.4101467132568,
+      "world_seed": 2147483647,
+      "x": 1,
+      "y": 1
+    },
+    {
+      "chunk_seed": 2044168860,
+      "depth": 16.1745948791504,
+      "facade_index": 2,
+      "has_basement": false,
+      "has_building": true,
+      "height": 80.3158187866211,
+      "offset_x": -0.807505786418915,
+      "offset_z": -0.245974600315094,
+      "roof": "parapet",
+      "special_type": "",
+      "width": 14.7629661560059,
+      "world_seed": 2147483647,
+      "x": 1,
+      "y": 2
+    },
+    {
+      "chunk_seed": 2028784255,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": 1,
+      "y": 3
+    },
+    {
+      "chunk_seed": 2130971102,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": 1,
+      "y": 4
+    },
+    {
+      "chunk_seed": -1940854079,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": 2,
+      "y": -4
+    },
+    {
+      "chunk_seed": -1950865050,
+      "depth": 14.8260021209717,
+      "facade_index": 1,
+      "has_basement": false,
+      "has_building": true,
+      "height": 8.32406425476074,
+      "offset_x": -0.473799347877502,
+      "offset_z": 1.27601265907288,
+      "roof": "chimney",
+      "special_type": "",
+      "width": 15.0536136627197,
+      "world_seed": 2147483647,
+      "x": 2,
+      "y": -3
+    },
+    {
+      "chunk_seed": -1971099257,
+      "depth": 12.0704965591431,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 18.8284225463867,
+      "offset_x": -1.23618018627167,
+      "offset_z": 0.104353904724121,
+      "roof": "parapet",
+      "special_type": "bank",
+      "width": 14.2578716278076,
+      "world_seed": 2147483647,
+      "x": 2,
+      "y": -2
+    },
+    {
+      "chunk_seed": -1981110236,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": 2,
+      "y": -1
+    },
+    {
+      "chunk_seed": 1999771461,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": 2,
+      "y": 0
+    },
+    {
+      "chunk_seed": 1981110234,
+      "depth": 16.3100204467773,
+      "facade_index": 2,
+      "has_basement": false,
+      "has_building": true,
+      "height": 87.5074157714844,
+      "offset_x": 0.10965970158577,
+      "offset_z": -0.394273638725281,
+      "roof": "shed",
+      "special_type": "",
+      "width": 17.3494110107422,
+      "world_seed": 2147483647,
+      "x": 2,
+      "y": 1
+    },
+    {
+      "chunk_seed": 1971099259,
+      "depth": 10.4084949493408,
+      "facade_index": 2,
+      "has_basement": false,
+      "has_building": true,
+      "height": 17.8267021179199,
+      "offset_x": -0.100868940353394,
+      "offset_z": -0.986791253089905,
+      "roof": "shed",
+      "special_type": "",
+      "width": 11.5597009658813,
+      "world_seed": 2147483647,
+      "x": 2,
+      "y": 2
+    },
+    {
+      "chunk_seed": 1950865048,
+      "depth": 12.7892770767212,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 10.9941482543945,
+      "offset_x": -0.759283781051636,
+      "offset_z": -1.10595321655273,
+      "roof": "antenna",
+      "special_type": "police",
+      "width": 11.1666440963745,
+      "world_seed": 2147483647,
+      "x": 2,
+      "y": 3
+    },
+    {
+      "chunk_seed": 1940854073,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": 2,
+      "y": 4
+    },
+    {
+      "chunk_seed": -1985355924,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": 3,
+      "y": -4
+    },
+    {
+      "chunk_seed": -1908335413,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": 3,
+      "y": -3
+    },
+    {
+      "chunk_seed": -1887806422,
+      "depth": 13.3127059936523,
+      "facade_index": 3,
+      "has_basement": false,
+      "has_building": true,
+      "height": 18.4784393310547,
+      "offset_x": -0.378847777843475,
+      "offset_z": -0.227021932601929,
+      "roof": "shed",
+      "special_type": "",
+      "width": 17.1613063812256,
+      "world_seed": 2147483647,
+      "x": 3,
+      "y": -2
+    },
+    {
+      "chunk_seed": -1944871543,
+      "depth": 9.44999980926514,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 34.1228370666504,
+      "offset_x": 0.785446882247925,
+      "offset_z": -0.493620157241821,
+      "roof": "",
+      "special_type": "",
+      "width": 15.08349609375,
+      "world_seed": 2147483647,
+      "x": 3,
+      "y": -1
+    },
+    {
+      "chunk_seed": 1925915368,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": 3,
+      "y": 0
+    },
+    {
+      "chunk_seed": 1944871543,
+      "depth": 13.8916454315186,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 13.4422655105591,
+      "offset_x": 0.697076559066772,
+      "offset_z": -0.513705611228943,
+      "roof": "parapet",
+      "special_type": "bank",
+      "width": 14.4727001190186,
+      "world_seed": 2147483647,
+      "x": 3,
+      "y": 1
+    },
+    {
+      "chunk_seed": 1887806422,
+      "depth": 17.520263671875,
+      "facade_index": 0,
+      "has_basement": true,
+      "has_building": true,
+      "height": 38.9614067077637,
+      "offset_x": -0.816712737083435,
+      "offset_z": -0.228892982006073,
+      "roof": "shed",
+      "special_type": "",
+      "width": 11.0084495544434,
+      "world_seed": 2147483647,
+      "x": 3,
+      "y": 2
+    },
+    {
+      "chunk_seed": 1908335413,
+      "depth": 16.3232421875,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 8.47048854827881,
+      "offset_x": -0.334941565990448,
+      "offset_z": -0.113312304019928,
+      "roof": "",
+      "special_type": "",
+      "width": 16.8430061340332,
+      "world_seed": 2147483647,
+      "x": 3,
+      "y": 3
+    },
+    {
+      "chunk_seed": 1985355924,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": 3,
+      "y": 4
+    },
+    {
+      "chunk_seed": -1794714865,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": 4,
+      "y": -4
+    },
+    {
+      "chunk_seed": -1829891928,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": 4,
+      "y": -3
+    },
+    {
+      "chunk_seed": -1814736823,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": 4,
+      "y": -2
+    },
+    {
+      "chunk_seed": -1866690070,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": 4,
+      "y": -1
+    },
+    {
+      "chunk_seed": 1852059275,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": 4,
+      "y": 0
+    },
+    {
+      "chunk_seed": 1866690068,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": 4,
+      "y": 1
+    },
+    {
+      "chunk_seed": 1814736821,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": 4,
+      "y": 2
+    },
+    {
+      "chunk_seed": 1829891926,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": 4,
+      "y": 3
+    },
+    {
+      "chunk_seed": 1794714871,
+      "has_building": false,
+      "world_seed": 2147483647,
+      "x": 4,
+      "y": 4
+    },
+    {
+      "chunk_seed": 3942198519,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": -4,
+      "y": -4
+    },
+    {
+      "chunk_seed": 3977375568,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": -4,
+      "y": -3
+    },
+    {
+      "chunk_seed": 3962220465,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": -4,
+      "y": -2
+    },
+    {
+      "chunk_seed": 4014173714,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": -4,
+      "y": -1
+    },
+    {
+      "chunk_seed": -3999542925,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": -4,
+      "y": 0
+    },
+    {
+      "chunk_seed": -4014173716,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": -4,
+      "y": 1
+    },
+    {
+      "chunk_seed": -3962220467,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": -4,
+      "y": 2
+    },
+    {
+      "chunk_seed": -3977375570,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": -4,
+      "y": 3
+    },
+    {
+      "chunk_seed": -3942198513,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": -4,
+      "y": 4
+    },
+    {
+      "chunk_seed": 4132839570,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": -3,
+      "y": -4
+    },
+    {
+      "chunk_seed": 4055819061,
+      "depth": 17.1289863586426,
+      "facade_index": 2,
+      "has_basement": false,
+      "has_building": true,
+      "height": 45.8020210266113,
+      "offset_x": 0.868110179901123,
+      "offset_z": 0.216574490070343,
+      "roof": "water_tower",
+      "special_type": "",
+      "width": 10.9143953323364,
+      "world_seed": 4294967295,
+      "x": -3,
+      "y": -3
+    },
+    {
+      "chunk_seed": 4035290068,
+      "depth": 15.3044471740723,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 28.3237991333008,
+      "offset_x": -0.371491312980652,
+      "offset_z": 0.565043091773987,
+      "roof": "",
+      "special_type": "hospital",
+      "width": 16.0859794616699,
+      "world_seed": 4294967295,
+      "x": -3,
+      "y": -2
+    },
+    {
+      "chunk_seed": 4092355191,
+      "depth": 13.4686470031738,
+      "facade_index": 1,
+      "has_basement": false,
+      "has_building": true,
+      "height": 32.5252990722656,
+      "offset_x": 0.227540194988251,
+      "offset_z": -0.0864157676696777,
+      "roof": "parapet",
+      "special_type": "",
+      "width": 17.3907127380371,
+      "world_seed": 4294967295,
+      "x": -3,
+      "y": -1
+    },
+    {
+      "chunk_seed": -4073399018,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": -3,
+      "y": 0
+    },
+    {
+      "chunk_seed": -4092355191,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": -3,
+      "y": 1
+    },
+    {
+      "chunk_seed": -4035290072,
+      "depth": 9.70472049713135,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 42.3487129211426,
+      "offset_x": -1.22031593322754,
+      "offset_z": 0.343564987182617,
+      "roof": "",
+      "special_type": "",
+      "width": 13.5648860931396,
+      "world_seed": 4294967295,
+      "x": -3,
+      "y": 2
+    },
+    {
+      "chunk_seed": -4055819061,
+      "depth": 14.1223793029785,
+      "facade_index": 1,
+      "has_basement": false,
+      "has_building": true,
+      "height": 39.8962516784668,
+      "offset_x": -1.1008368730545,
+      "offset_z": -0.0838543176651001,
+      "roof": "",
+      "special_type": "",
+      "width": 15.5963163375854,
+      "world_seed": 4294967295,
+      "x": -3,
+      "y": 3
+    },
+    {
+      "chunk_seed": -4132839574,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": -3,
+      "y": 4
+    },
+    {
+      "chunk_seed": 4088337725,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": -2,
+      "y": -4
+    },
+    {
+      "chunk_seed": 4098348698,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": -2,
+      "y": -3
+    },
+    {
+      "chunk_seed": 4118582907,
+      "depth": 10.0510425567627,
+      "facade_index": 1,
+      "has_basement": false,
+      "has_building": true,
+      "height": 16.0963306427002,
+      "offset_x": 0.356729745864868,
+      "offset_z": -0.204542279243469,
+      "roof": "chimney",
+      "special_type": "",
+      "width": 9.79291343688965,
+      "world_seed": 4294967295,
+      "x": -2,
+      "y": -2
+    },
+    {
+      "chunk_seed": 4128593880,
+      "depth": 13.3512496948242,
+      "facade_index": 5,
+      "has_basement": false,
+      "has_building": true,
+      "height": 9.29512977600098,
+      "offset_x": -1.24573814868927,
+      "offset_z": -1.25721526145935,
+      "roof": "antenna",
+      "special_type": "",
+      "width": 14.9315185546875,
+      "world_seed": 4294967295,
+      "x": -2,
+      "y": -1
+    },
+    {
+      "chunk_seed": -4147255111,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": -2,
+      "y": 0
+    },
+    {
+      "chunk_seed": -4128593882,
+      "depth": 14.1137218475342,
+      "facade_index": 1,
+      "has_basement": false,
+      "has_building": true,
+      "height": 10.1055374145508,
+      "offset_x": -0.0549863576889038,
+      "offset_z": -0.224981665611267,
+      "roof": "chimney",
+      "special_type": "",
+      "width": 14.1900844573975,
+      "world_seed": 4294967295,
+      "x": -2,
+      "y": 1
+    },
+    {
+      "chunk_seed": -4118582905,
+      "depth": 13.5478248596191,
+      "facade_index": 2,
+      "has_basement": false,
+      "has_building": true,
+      "height": 18.07883644104,
+      "offset_x": 0.00280804187059402,
+      "offset_z": -0.12688684463501,
+      "roof": "chimney",
+      "special_type": "",
+      "width": 17.8951377868652,
+      "world_seed": 4294967295,
+      "x": -2,
+      "y": 2
+    },
+    {
+      "chunk_seed": -4098348700,
+      "depth": 12.0144939422607,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 8.04080104827881,
+      "offset_x": -1.27485060691834,
+      "offset_z": 0.883946657180786,
+      "roof": "antenna",
+      "special_type": "",
+      "width": 9.49076843261719,
+      "world_seed": 4294967295,
+      "x": -2,
+      "y": 3
+    },
+    {
+      "chunk_seed": -4088337723,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": -2,
+      "y": 4
+    },
+    {
+      "chunk_seed": 4278454744,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": -1,
+      "y": -4
+    },
+    {
+      "chunk_seed": 4176267903,
+      "depth": 15.4140758514404,
+      "facade_index": 3,
+      "has_basement": false,
+      "has_building": true,
+      "height": 21.1425170898438,
+      "offset_x": -1.04453265666962,
+      "offset_z": 0.142015099525452,
+      "roof": "",
+      "special_type": "",
+      "width": 15.7160940170288,
+      "world_seed": 4294967295,
+      "x": -1,
+      "y": -3
+    },
+    {
+      "chunk_seed": 4191652510,
+      "depth": 13.4796543121338,
+      "facade_index": 1,
+      "has_basement": false,
+      "has_building": true,
+      "height": 8.89090156555176,
+      "offset_x": 0.566340208053589,
+      "offset_z": 0.645783424377441,
+      "roof": "water_tower",
+      "special_type": "",
+      "width": 10.5052433013916,
+      "world_seed": 4294967295,
+      "x": -1,
+      "y": -2
+    },
+    {
+      "chunk_seed": 4206775101,
+      "depth": 9.66513347625732,
+      "facade_index": 2,
+      "has_basement": false,
+      "has_building": true,
+      "height": 50.0865516662598,
+      "offset_x": 0.00371170043945313,
+      "offset_z": 1.07536387443542,
+      "roof": "",
+      "special_type": "",
+      "width": 12.3750343322754,
+      "world_seed": 4294967295,
+      "x": -1,
+      "y": -1
+    },
+    {
+      "chunk_seed": -4221111204,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": -1,
+      "y": 0
+    },
+    {
+      "chunk_seed": -4206775101,
+      "depth": 15.8120517730713,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 57.9149398803711,
+      "offset_x": -0.00955747626721859,
+      "offset_z": 0.0666272640228271,
+      "roof": "",
+      "special_type": "",
+      "width": 17.9597015380859,
+      "world_seed": 4294967295,
+      "x": -1,
+      "y": 1
+    },
+    {
+      "chunk_seed": -4191652510,
+      "depth": 15.0562086105347,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 77.9228363037109,
+      "offset_x": -1.2743182182312,
+      "offset_z": 0.880215167999268,
+      "roof": "",
+      "special_type": "",
+      "width": 15.1311330795288,
+      "world_seed": 4294967295,
+      "x": -1,
+      "y": 2
+    },
+    {
+      "chunk_seed": -4176267903,
+      "depth": 12.0868043899536,
+      "facade_index": 2,
+      "has_basement": false,
+      "has_building": true,
+      "height": 63.6850814819336,
+      "offset_x": 0.580757737159729,
+      "offset_z": -0.372994661331177,
+      "roof": "water_tower",
+      "special_type": "",
+      "width": 16.0306758880615,
+      "world_seed": 4294967295,
+      "x": -1,
+      "y": 3
+    },
+    {
+      "chunk_seed": -4278454752,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": -1,
+      "y": 4
+    },
+    {
+      "chunk_seed": -4217568645,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": 0,
+      "y": -4
+    },
+    {
+      "chunk_seed": -4236918308,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": 0,
+      "y": -3
+    },
+    {
+      "chunk_seed": -4256267971,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": 0,
+      "y": -2
+    },
+    {
+      "chunk_seed": -4275617634,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": 0,
+      "y": -1
+    },
+    {
+      "chunk_seed": 4294967295,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": 0,
+      "y": 0
+    },
+    {
+      "chunk_seed": 4275617632,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": 0,
+      "y": 1
+    },
+    {
+      "chunk_seed": 4256267969,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": 0,
+      "y": 2
+    },
+    {
+      "chunk_seed": 4236918306,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": 0,
+      "y": 3
+    },
+    {
+      "chunk_seed": 4217568643,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": 0,
+      "y": 4
+    },
+    {
+      "chunk_seed": -4278454746,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": 1,
+      "y": -4
+    },
+    {
+      "chunk_seed": -4176267903,
+      "depth": 12.0868043899536,
+      "facade_index": 2,
+      "has_basement": false,
+      "has_building": true,
+      "height": 63.6850814819336,
+      "offset_x": 0.580757737159729,
+      "offset_z": -0.372994661331177,
+      "roof": "water_tower",
+      "special_type": "",
+      "width": 16.0306758880615,
+      "world_seed": 4294967295,
+      "x": 1,
+      "y": -3
+    },
+    {
+      "chunk_seed": -4191652512,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": 1,
+      "y": -2
+    },
+    {
+      "chunk_seed": -4206775101,
+      "depth": 15.8120517730713,
+      "facade_index": 0,
+      "has_basement": false,
+      "has_building": true,
+      "height": 57.9149398803711,
+      "offset_x": -0.00955747626721859,
+      "offset_z": 0.0666272640228271,
+      "roof": "",
+      "special_type": "",
+      "width": 17.9597015380859,
+      "world_seed": 4294967295,
+      "x": 1,
+      "y": -1
+    },
+    {
+      "chunk_seed": 4221111202,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": 1,
+      "y": 0
+    },
+    {
+      "chunk_seed": 4206775101,
+      "depth": 9.66513347625732,
+      "facade_index": 2,
+      "has_basement": false,
+      "has_building": true,
+      "height": 50.0865516662598,
+      "offset_x": 0.00371170043945313,
+      "offset_z": 1.07536387443542,
+      "roof": "",
+      "special_type": "",
+      "width": 12.3750343322754,
+      "world_seed": 4294967295,
+      "x": 1,
+      "y": 1
+    },
+    {
+      "chunk_seed": 4191652508,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": 1,
+      "y": 2
+    },
+    {
+      "chunk_seed": 4176267903,
+      "depth": 15.4140758514404,
+      "facade_index": 3,
+      "has_basement": false,
+      "has_building": true,
+      "height": 21.1425170898438,
+      "offset_x": -1.04453265666962,
+      "offset_z": 0.142015099525452,
+      "roof": "",
+      "special_type": "",
+      "width": 15.7160940170288,
+      "world_seed": 4294967295,
+      "x": 1,
+      "y": 3
+    },
+    {
+      "chunk_seed": 4278454750,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": 1,
+      "y": 4
+    },
+    {
+      "chunk_seed": -4088337727,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": 2,
+      "y": -4
+    },
+    {
+      "chunk_seed": -4098348698,
+      "depth": 10.0285921096802,
+      "facade_index": 1,
+      "has_basement": false,
+      "has_building": true,
+      "height": 10.1301851272583,
+      "offset_x": 0.224954009056091,
+      "offset_z": -0.309407711029053,
+      "roof": "",
+      "special_type": "",
+      "width": 14.1541118621826,
+      "world_seed": 4294967295,
+      "x": 2,
+      "y": -3
+    },
+    {
+      "chunk_seed": -4118582905,
+      "depth": 13.5478248596191,
+      "facade_index": 2,
+      "has_basement": false,
+      "has_building": true,
+      "height": 18.07883644104,
+      "offset_x": 0.00280804187059402,
+      "offset_z": -0.12688684463501,
+      "roof": "chimney",
+      "special_type": "",
+      "width": 17.8951377868652,
+      "world_seed": 4294967295,
+      "x": 2,
+      "y": -2
+    },
+    {
+      "chunk_seed": -4128593884,
+      "depth": 13.4088687896729,
+      "facade_index": 3,
+      "has_basement": false,
+      "has_building": true,
+      "height": 39.5284118652344,
+      "offset_x": 0.794098854064941,
+      "offset_z": 0.904094457626343,
+      "roof": "parapet",
+      "special_type": "",
+      "width": 15.3707675933838,
+      "world_seed": 4294967295,
+      "x": 2,
+      "y": -1
+    },
+    {
+      "chunk_seed": 4147255109,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": 2,
+      "y": 0
+    },
+    {
+      "chunk_seed": 4128593882,
+      "depth": 15.0401887893677,
+      "facade_index": 3,
+      "has_basement": false,
+      "has_building": true,
+      "height": 52.7912483215332,
+      "offset_x": -0.0863960981369019,
+      "offset_z": 0.106673955917358,
+      "roof": "shed",
+      "special_type": "",
+      "width": 14.9712982177734,
+      "world_seed": 4294967295,
+      "x": 2,
+      "y": 1
+    },
+    {
+      "chunk_seed": 4118582907,
+      "depth": 10.0510425567627,
+      "facade_index": 1,
+      "has_basement": false,
+      "has_building": true,
+      "height": 16.0963306427002,
+      "offset_x": 0.356729745864868,
+      "offset_z": -0.204542279243469,
+      "roof": "chimney",
+      "special_type": "",
+      "width": 9.79291343688965,
+      "world_seed": 4294967295,
+      "x": 2,
+      "y": 2
+    },
+    {
+      "chunk_seed": 4098348696,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": 2,
+      "y": 3
+    },
+    {
+      "chunk_seed": 4088337721,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": 2,
+      "y": 4
+    },
+    {
+      "chunk_seed": -4132839572,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": 3,
+      "y": -4
+    },
+    {
+      "chunk_seed": -4055819061,
+      "depth": 14.1223793029785,
+      "facade_index": 1,
+      "has_basement": false,
+      "has_building": true,
+      "height": 39.8962516784668,
+      "offset_x": -1.1008368730545,
+      "offset_z": -0.0838543176651001,
+      "roof": "",
+      "special_type": "",
+      "width": 15.5963163375854,
+      "world_seed": 4294967295,
+      "x": 3,
+      "y": -3
+    },
+    {
+      "chunk_seed": -4035290070,
+      "depth": 11.5806074142456,
+      "facade_index": 3,
+      "has_basement": false,
+      "has_building": true,
+      "height": 20.2190895080566,
+      "offset_x": 1.36853837966919,
+      "offset_z": 0.28012752532959,
+      "roof": "water_tower",
+      "special_type": "",
+      "width": 13.5235366821289,
+      "world_seed": 4294967295,
+      "x": 3,
+      "y": -2
+    },
+    {
+      "chunk_seed": -4092355191,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": 3,
+      "y": -1
+    },
+    {
+      "chunk_seed": 4073399016,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": 3,
+      "y": 0
+    },
+    {
+      "chunk_seed": 4092355191,
+      "depth": 13.4686470031738,
+      "facade_index": 1,
+      "has_basement": false,
+      "has_building": true,
+      "height": 32.5252990722656,
+      "offset_x": 0.227540194988251,
+      "offset_z": -0.0864157676696777,
+      "roof": "parapet",
+      "special_type": "",
+      "width": 17.3907127380371,
+      "world_seed": 4294967295,
+      "x": 3,
+      "y": 1
+    },
+    {
+      "chunk_seed": 4035290070,
+      "depth": 15.6505174636841,
+      "facade_index": 4,
+      "has_basement": true,
+      "has_building": true,
+      "height": 22.0197257995605,
+      "offset_x": 0.828826665878296,
+      "offset_z": -0.413422584533691,
+      "roof": "water_tower",
+      "special_type": "",
+      "width": 15.1536617279053,
+      "world_seed": 4294967295,
+      "x": 3,
+      "y": 2
+    },
+    {
+      "chunk_seed": 4055819061,
+      "depth": 17.1289863586426,
+      "facade_index": 2,
+      "has_basement": false,
+      "has_building": true,
+      "height": 45.8020210266113,
+      "offset_x": 0.868110179901123,
+      "offset_z": 0.216574490070343,
+      "roof": "water_tower",
+      "special_type": "",
+      "width": 10.9143953323364,
+      "world_seed": 4294967295,
+      "x": 3,
+      "y": 3
+    },
+    {
+      "chunk_seed": 4132839572,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": 3,
+      "y": 4
+    },
+    {
+      "chunk_seed": -3942198513,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": 4,
+      "y": -4
+    },
+    {
+      "chunk_seed": -3977375576,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": 4,
+      "y": -3
+    },
+    {
+      "chunk_seed": -3962220471,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": 4,
+      "y": -2
+    },
+    {
+      "chunk_seed": -4014173718,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": 4,
+      "y": -1
+    },
+    {
+      "chunk_seed": 3999542923,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": 4,
+      "y": 0
+    },
+    {
+      "chunk_seed": 4014173716,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": 4,
+      "y": 1
+    },
+    {
+      "chunk_seed": 3962220469,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": 4,
+      "y": 2
+    },
+    {
+      "chunk_seed": 3977375574,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": 4,
+      "y": 3
+    },
+    {
+      "chunk_seed": 3942198519,
+      "has_building": false,
+      "world_seed": 4294967295,
+      "x": 4,
+      "y": 4
+    }
+  ],
+  "chunk_size": 24.0,
+  "rng": [
+    {
+      "randf": [
+        0.202271848917007,
+        0.125359401106834,
+        0.358580857515335,
+        0.168866157531738,
+        0.859284400939941,
+        0.472052305936813,
+        0.708726406097412,
+        0.518353283405304,
+        0.0797472596168518,
+        0.231873452663422,
+        0.150086164474487,
+        0.990495681762695
+      ],
+      "randf_range_9_18": [
+        10.8204469680786,
+        10.1282348632813,
+        12.2272281646729,
+        10.5197954177856,
+        16.7335586547852,
+        13.2484703063965,
+        15.3785381317139,
+        13.6651802062988,
+        9.71772575378418,
+        11.0868606567383,
+        10.350775718689,
+        17.9144611358643
+      ],
+      "randi": [
+        881477183,
+        1327520283,
+        692503688,
+        2153658078,
+        2046399657,
+        3080186220,
+        910586837,
+        2901098513,
+        4142039417,
+        3690598433,
+        1601767543,
+        4054898517
+      ],
+      "seed": 0
+    },
+    {
+      "randf": [
+        0.329559087753296,
+        0.27659484744072,
+        0.509809613227844,
+        0.742021679878235,
+        0.523870408535004,
+        0.0474536046385765,
+        0.673098683357239,
+        0.73467755317688,
+        0.0744916722178459,
+        0.946317732334137,
+        0.762039542198181,
+        0.86765992641449
+      ],
+      "randf_range_9_18": [
+        11.9660320281982,
+        11.4893531799316,
+        13.5882863998413,
+        15.6781949996948,
+        13.7148342132568,
+        9.42708206176758,
+        15.0578880310059,
+        15.6120977401733,
+        9.67042541503906,
+        17.5168609619141,
+        15.8583564758301,
+        16.8089389801025
+      ],
+      "randi": [
+        1811587497,
+        683407368,
+        2033395789,
+        2375931748,
+        2873319489,
+        2189615729,
+        3391941925,
+        1039475129,
+        2402520051,
+        102522587,
+        144778585,
+        1113503278
+      ],
+      "seed": 1
+    },
+    {
+      "randf": [
+        0.118370190262794,
+        0.65903240442276,
+        0.298186808824539,
+        0.0375967100262642,
+        0.759906530380249,
+        0.160139471292496,
+        0.937328338623047,
+        0.101312845945358,
+        0.17885610461235,
+        0.968445658683777,
+        0.0593079403042793,
+        0.0573868714272976
+      ],
+      "randf_range_9_18": [
+        10.0653314590454,
+        14.9312915802002,
+        11.6836814880371,
+        9.33837032318115,
+        15.8391590118408,
+        10.441255569458,
+        17.4359550476074,
+        9.91181564331055,
+        10.6097049713135,
+        17.7160110473633,
+        9.53377151489258,
+        9.51648139953613
+      ],
+      "randi": [
+        492690617,
+        1919685028,
+        3561993920,
+        683038915,
+        1183706632,
+        413921556,
+        222559498,
+        436142503,
+        3736035009,
+        1116290151,
+        1058873627,
+        2751175047
+      ],
+      "seed": 42
+    },
+    {
+      "randf": [
+        0.252041906118393,
+        0.666673004627228,
+        0.0230819340795279,
+        0.742241680622101,
+        0.873262226581573,
+        0.977104842662811,
+        0.638559758663177,
+        0.73795759677887,
+        0.98723977804184,
+        0.748471558094025,
+        0.198188722133636,
+        0.0973802953958511
+      ],
+      "randf_range_9_18": [
+        11.2683773040771,
+        15.000057220459,
+        9.20773696899414,
+        15.68017578125,
+        16.8593597412109,
+        17.7939434051514,
+        14.7470378875732,
+        15.6416187286377,
+        17.8851585388184,
+        15.7362442016602,
+        10.7836990356445,
+        9.87642288208008
+      ],
+      "randi": [
+        1321476956,
+        17539747,
+        3348728241,
+        2863338820,
+        85463406,
+        1024873269,
+        4179236141,
+        1040420088,
+        2363282938,
+        1603148953,
+        2491055202,
+        4196633446
+      ],
+      "seed": 12345
+    },
+    {
+      "randf": [
+        0.270450115203857,
+        0.843344211578369,
+        0.570362210273743,
+        0.308325737714767,
+        0.49203884601593,
+        0.996135652065277,
+        0.701320171356201,
+        0.914296984672546,
+        0.653083324432373,
+        0.390371561050415,
+        0.279908418655396,
+        0.998112559318542
+      ],
+      "randf_range_9_18": [
+        11.4340515136719,
+        16.5900974273682,
+        14.1332597732544,
+        11.7749319076538,
+        13.4283494949341,
+        17.9652214050293,
+        15.311882019043,
+        17.2286720275879,
+        14.8777503967285,
+        12.5133438110352,
+        11.51917552948,
+        17.9830131530762
+      ],
+      "randi": [
+        1924446889,
+        2323148905,
+        3859470875,
+        1474652133,
+        2328690204,
+        2449687118,
+        1853371512,
+        501014266,
+        1339337187,
+        2079097902,
+        4007579020,
+        4278369977
+      ],
+      "seed": 2147483647
+    },
+    {
+      "randf": [
+        0.301887422800064,
+        0.322559744119644,
+        0.394426852464676,
+        0.41484209895134,
+        0.291595280170441,
+        0.104191608726978,
+        0.620606124401093,
+        0.878064751625061,
+        0.597396850585938,
+        0.48667499423027,
+        0.430386632680893,
+        0.856776475906372
+      ],
+      "randf_range_9_18": [
+        11.716986656189,
+        11.9030380249023,
+        12.5498418807983,
+        12.7335786819458,
+        11.6243572235107,
+        9.93772411346436,
+        14.5854549407959,
+        16.9025821685791,
+        14.3765716552734,
+        13.3800754547119,
+        12.8734798431396,
+        16.7109870910645
+      ],
+      "randi": [
+        1866142959,
+        445709547,
+        1895696473,
+        2770767185,
+        1830928941,
+        3388100838,
+        1814272995,
+        3563466527,
+        2080047598,
+        2504784408,
+        526371733,
+        3579996512
+      ],
+      "seed": 4294967295
+    }
+  ],
+  "street_chunks": [
+    {
+      "is_street": false,
+      "x": -9,
+      "y": -9
+    },
+    {
+      "is_street": true,
+      "x": -9,
+      "y": -8
+    },
+    {
+      "is_street": false,
+      "x": -9,
+      "y": -7
+    },
+    {
+      "is_street": false,
+      "x": -9,
+      "y": -6
+    },
+    {
+      "is_street": false,
+      "x": -9,
+      "y": -5
+    },
+    {
+      "is_street": true,
+      "x": -9,
+      "y": -4
+    },
+    {
+      "is_street": false,
+      "x": -9,
+      "y": -3
+    },
+    {
+      "is_street": false,
+      "x": -9,
+      "y": -2
+    },
+    {
+      "is_street": false,
+      "x": -9,
+      "y": -1
+    },
+    {
+      "is_street": true,
+      "x": -9,
+      "y": 0
+    },
+    {
+      "is_street": false,
+      "x": -9,
+      "y": 1
+    },
+    {
+      "is_street": false,
+      "x": -9,
+      "y": 2
+    },
+    {
+      "is_street": false,
+      "x": -9,
+      "y": 3
+    },
+    {
+      "is_street": true,
+      "x": -9,
+      "y": 4
+    },
+    {
+      "is_street": false,
+      "x": -9,
+      "y": 5
+    },
+    {
+      "is_street": false,
+      "x": -9,
+      "y": 6
+    },
+    {
+      "is_street": false,
+      "x": -9,
+      "y": 7
+    },
+    {
+      "is_street": true,
+      "x": -9,
+      "y": 8
+    },
+    {
+      "is_street": false,
+      "x": -9,
+      "y": 9
+    },
+    {
+      "is_street": true,
+      "x": -8,
+      "y": -9
+    },
+    {
+      "is_street": true,
+      "x": -8,
+      "y": -8
+    },
+    {
+      "is_street": true,
+      "x": -8,
+      "y": -7
+    },
+    {
+      "is_street": true,
+      "x": -8,
+      "y": -6
+    },
+    {
+      "is_street": true,
+      "x": -8,
+      "y": -5
+    },
+    {
+      "is_street": true,
+      "x": -8,
+      "y": -4
+    },
+    {
+      "is_street": true,
+      "x": -8,
+      "y": -3
+    },
+    {
+      "is_street": true,
+      "x": -8,
+      "y": -2
+    },
+    {
+      "is_street": true,
+      "x": -8,
+      "y": -1
+    },
+    {
+      "is_street": true,
+      "x": -8,
+      "y": 0
+    },
+    {
+      "is_street": true,
+      "x": -8,
+      "y": 1
+    },
+    {
+      "is_street": true,
+      "x": -8,
+      "y": 2
+    },
+    {
+      "is_street": true,
+      "x": -8,
+      "y": 3
+    },
+    {
+      "is_street": true,
+      "x": -8,
+      "y": 4
+    },
+    {
+      "is_street": true,
+      "x": -8,
+      "y": 5
+    },
+    {
+      "is_street": true,
+      "x": -8,
+      "y": 6
+    },
+    {
+      "is_street": true,
+      "x": -8,
+      "y": 7
+    },
+    {
+      "is_street": true,
+      "x": -8,
+      "y": 8
+    },
+    {
+      "is_street": true,
+      "x": -8,
+      "y": 9
+    },
+    {
+      "is_street": false,
+      "x": -7,
+      "y": -9
+    },
+    {
+      "is_street": true,
+      "x": -7,
+      "y": -8
+    },
+    {
+      "is_street": false,
+      "x": -7,
+      "y": -7
+    },
+    {
+      "is_street": false,
+      "x": -7,
+      "y": -6
+    },
+    {
+      "is_street": false,
+      "x": -7,
+      "y": -5
+    },
+    {
+      "is_street": true,
+      "x": -7,
+      "y": -4
+    },
+    {
+      "is_street": false,
+      "x": -7,
+      "y": -3
+    },
+    {
+      "is_street": false,
+      "x": -7,
+      "y": -2
+    },
+    {
+      "is_street": false,
+      "x": -7,
+      "y": -1
+    },
+    {
+      "is_street": true,
+      "x": -7,
+      "y": 0
+    },
+    {
+      "is_street": false,
+      "x": -7,
+      "y": 1
+    },
+    {
+      "is_street": false,
+      "x": -7,
+      "y": 2
+    },
+    {
+      "is_street": false,
+      "x": -7,
+      "y": 3
+    },
+    {
+      "is_street": true,
+      "x": -7,
+      "y": 4
+    },
+    {
+      "is_street": false,
+      "x": -7,
+      "y": 5
+    },
+    {
+      "is_street": false,
+      "x": -7,
+      "y": 6
+    },
+    {
+      "is_street": false,
+      "x": -7,
+      "y": 7
+    },
+    {
+      "is_street": true,
+      "x": -7,
+      "y": 8
+    },
+    {
+      "is_street": false,
+      "x": -7,
+      "y": 9
+    },
+    {
+      "is_street": false,
+      "x": -6,
+      "y": -9
+    },
+    {
+      "is_street": true,
+      "x": -6,
+      "y": -8
+    },
+    {
+      "is_street": false,
+      "x": -6,
+      "y": -7
+    },
+    {
+      "is_street": false,
+      "x": -6,
+      "y": -6
+    },
+    {
+      "is_street": false,
+      "x": -6,
+      "y": -5
+    },
+    {
+      "is_street": true,
+      "x": -6,
+      "y": -4
+    },
+    {
+      "is_street": false,
+      "x": -6,
+      "y": -3
+    },
+    {
+      "is_street": false,
+      "x": -6,
+      "y": -2
+    },
+    {
+      "is_street": false,
+      "x": -6,
+      "y": -1
+    },
+    {
+      "is_street": true,
+      "x": -6,
+      "y": 0
+    },
+    {
+      "is_street": false,
+      "x": -6,
+      "y": 1
+    },
+    {
+      "is_street": false,
+      "x": -6,
+      "y": 2
+    },
+    {
+      "is_street": false,
+      "x": -6,
+      "y": 3
+    },
+    {
+      "is_street": true,
+      "x": -6,
+      "y": 4
+    },
+    {
+      "is_street": false,
+      "x": -6,
+      "y": 5
+    },
+    {
+      "is_street": false,
+      "x": -6,
+      "y": 6
+    },
+    {
+      "is_street": false,
+      "x": -6,
+      "y": 7
+    },
+    {
+      "is_street": true,
+      "x": -6,
+      "y": 8
+    },
+    {
+      "is_street": false,
+      "x": -6,
+      "y": 9
+    },
+    {
+      "is_street": false,
+      "x": -5,
+      "y": -9
+    },
+    {
+      "is_street": true,
+      "x": -5,
+      "y": -8
+    },
+    {
+      "is_street": false,
+      "x": -5,
+      "y": -7
+    },
+    {
+      "is_street": false,
+      "x": -5,
+      "y": -6
+    },
+    {
+      "is_street": false,
+      "x": -5,
+      "y": -5
+    },
+    {
+      "is_street": true,
+      "x": -5,
+      "y": -4
+    },
+    {
+      "is_street": false,
+      "x": -5,
+      "y": -3
+    },
+    {
+      "is_street": false,
+      "x": -5,
+      "y": -2
+    },
+    {
+      "is_street": false,
+      "x": -5,
+      "y": -1
+    },
+    {
+      "is_street": true,
+      "x": -5,
+      "y": 0
+    },
+    {
+      "is_street": false,
+      "x": -5,
+      "y": 1
+    },
+    {
+      "is_street": false,
+      "x": -5,
+      "y": 2
+    },
+    {
+      "is_street": false,
+      "x": -5,
+      "y": 3
+    },
+    {
+      "is_street": true,
+      "x": -5,
+      "y": 4
+    },
+    {
+      "is_street": false,
+      "x": -5,
+      "y": 5
+    },
+    {
+      "is_street": false,
+      "x": -5,
+      "y": 6
+    },
+    {
+      "is_street": false,
+      "x": -5,
+      "y": 7
+    },
+    {
+      "is_street": true,
+      "x": -5,
+      "y": 8
+    },
+    {
+      "is_street": false,
+      "x": -5,
+      "y": 9
+    },
+    {
+      "is_street": true,
+      "x": -4,
+      "y": -9
+    },
+    {
+      "is_street": true,
+      "x": -4,
+      "y": -8
+    },
+    {
+      "is_street": true,
+      "x": -4,
+      "y": -7
+    },
+    {
+      "is_street": true,
+      "x": -4,
+      "y": -6
+    },
+    {
+      "is_street": true,
+      "x": -4,
+      "y": -5
+    },
+    {
+      "is_street": true,
+      "x": -4,
+      "y": -4
+    },
+    {
+      "is_street": true,
+      "x": -4,
+      "y": -3
+    },
+    {
+      "is_street": true,
+      "x": -4,
+      "y": -2
+    },
+    {
+      "is_street": true,
+      "x": -4,
+      "y": -1
+    },
+    {
+      "is_street": true,
+      "x": -4,
+      "y": 0
+    },
+    {
+      "is_street": true,
+      "x": -4,
+      "y": 1
+    },
+    {
+      "is_street": true,
+      "x": -4,
+      "y": 2
+    },
+    {
+      "is_street": true,
+      "x": -4,
+      "y": 3
+    },
+    {
+      "is_street": true,
+      "x": -4,
+      "y": 4
+    },
+    {
+      "is_street": true,
+      "x": -4,
+      "y": 5
+    },
+    {
+      "is_street": true,
+      "x": -4,
+      "y": 6
+    },
+    {
+      "is_street": true,
+      "x": -4,
+      "y": 7
+    },
+    {
+      "is_street": true,
+      "x": -4,
+      "y": 8
+    },
+    {
+      "is_street": true,
+      "x": -4,
+      "y": 9
+    },
+    {
+      "is_street": false,
+      "x": -3,
+      "y": -9
+    },
+    {
+      "is_street": true,
+      "x": -3,
+      "y": -8
+    },
+    {
+      "is_street": false,
+      "x": -3,
+      "y": -7
+    },
+    {
+      "is_street": false,
+      "x": -3,
+      "y": -6
+    },
+    {
+      "is_street": false,
+      "x": -3,
+      "y": -5
+    },
+    {
+      "is_street": true,
+      "x": -3,
+      "y": -4
+    },
+    {
+      "is_street": false,
+      "x": -3,
+      "y": -3
+    },
+    {
+      "is_street": false,
+      "x": -3,
+      "y": -2
+    },
+    {
+      "is_street": false,
+      "x": -3,
+      "y": -1
+    },
+    {
+      "is_street": true,
+      "x": -3,
+      "y": 0
+    },
+    {
+      "is_street": false,
+      "x": -3,
+      "y": 1
+    },
+    {
+      "is_street": false,
+      "x": -3,
+      "y": 2
+    },
+    {
+      "is_street": false,
+      "x": -3,
+      "y": 3
+    },
+    {
+      "is_street": true,
+      "x": -3,
+      "y": 4
+    },
+    {
+      "is_street": false,
+      "x": -3,
+      "y": 5
+    },
+    {
+      "is_street": false,
+      "x": -3,
+      "y": 6
+    },
+    {
+      "is_street": false,
+      "x": -3,
+      "y": 7
+    },
+    {
+      "is_street": true,
+      "x": -3,
+      "y": 8
+    },
+    {
+      "is_street": false,
+      "x": -3,
+      "y": 9
+    },
+    {
+      "is_street": false,
+      "x": -2,
+      "y": -9
+    },
+    {
+      "is_street": true,
+      "x": -2,
+      "y": -8
+    },
+    {
+      "is_street": false,
+      "x": -2,
+      "y": -7
+    },
+    {
+      "is_street": false,
+      "x": -2,
+      "y": -6
+    },
+    {
+      "is_street": false,
+      "x": -2,
+      "y": -5
+    },
+    {
+      "is_street": true,
+      "x": -2,
+      "y": -4
+    },
+    {
+      "is_street": false,
+      "x": -2,
+      "y": -3
+    },
+    {
+      "is_street": false,
+      "x": -2,
+      "y": -2
+    },
+    {
+      "is_street": false,
+      "x": -2,
+      "y": -1
+    },
+    {
+      "is_street": true,
+      "x": -2,
+      "y": 0
+    },
+    {
+      "is_street": false,
+      "x": -2,
+      "y": 1
+    },
+    {
+      "is_street": false,
+      "x": -2,
+      "y": 2
+    },
+    {
+      "is_street": false,
+      "x": -2,
+      "y": 3
+    },
+    {
+      "is_street": true,
+      "x": -2,
+      "y": 4
+    },
+    {
+      "is_street": false,
+      "x": -2,
+      "y": 5
+    },
+    {
+      "is_street": false,
+      "x": -2,
+      "y": 6
+    },
+    {
+      "is_street": false,
+      "x": -2,
+      "y": 7
+    },
+    {
+      "is_street": true,
+      "x": -2,
+      "y": 8
+    },
+    {
+      "is_street": false,
+      "x": -2,
+      "y": 9
+    },
+    {
+      "is_street": false,
+      "x": -1,
+      "y": -9
+    },
+    {
+      "is_street": true,
+      "x": -1,
+      "y": -8
+    },
+    {
+      "is_street": false,
+      "x": -1,
+      "y": -7
+    },
+    {
+      "is_street": false,
+      "x": -1,
+      "y": -6
+    },
+    {
+      "is_street": false,
+      "x": -1,
+      "y": -5
+    },
+    {
+      "is_street": true,
+      "x": -1,
+      "y": -4
+    },
+    {
+      "is_street": false,
+      "x": -1,
+      "y": -3
+    },
+    {
+      "is_street": false,
+      "x": -1,
+      "y": -2
+    },
+    {
+      "is_street": false,
+      "x": -1,
+      "y": -1
+    },
+    {
+      "is_street": true,
+      "x": -1,
+      "y": 0
+    },
+    {
+      "is_street": false,
+      "x": -1,
+      "y": 1
+    },
+    {
+      "is_street": false,
+      "x": -1,
+      "y": 2
+    },
+    {
+      "is_street": false,
+      "x": -1,
+      "y": 3
+    },
+    {
+      "is_street": true,
+      "x": -1,
+      "y": 4
+    },
+    {
+      "is_street": false,
+      "x": -1,
+      "y": 5
+    },
+    {
+      "is_street": false,
+      "x": -1,
+      "y": 6
+    },
+    {
+      "is_street": false,
+      "x": -1,
+      "y": 7
+    },
+    {
+      "is_street": true,
+      "x": -1,
+      "y": 8
+    },
+    {
+      "is_street": false,
+      "x": -1,
+      "y": 9
+    },
+    {
+      "is_street": true,
+      "x": 0,
+      "y": -9
+    },
+    {
+      "is_street": true,
+      "x": 0,
+      "y": -8
+    },
+    {
+      "is_street": true,
+      "x": 0,
+      "y": -7
+    },
+    {
+      "is_street": true,
+      "x": 0,
+      "y": -6
+    },
+    {
+      "is_street": true,
+      "x": 0,
+      "y": -5
+    },
+    {
+      "is_street": true,
+      "x": 0,
+      "y": -4
+    },
+    {
+      "is_street": true,
+      "x": 0,
+      "y": -3
+    },
+    {
+      "is_street": true,
+      "x": 0,
+      "y": -2
+    },
+    {
+      "is_street": true,
+      "x": 0,
+      "y": -1
+    },
+    {
+      "is_street": true,
+      "x": 0,
+      "y": 0
+    },
+    {
+      "is_street": true,
+      "x": 0,
+      "y": 1
+    },
+    {
+      "is_street": true,
+      "x": 0,
+      "y": 2
+    },
+    {
+      "is_street": true,
+      "x": 0,
+      "y": 3
+    },
+    {
+      "is_street": true,
+      "x": 0,
+      "y": 4
+    },
+    {
+      "is_street": true,
+      "x": 0,
+      "y": 5
+    },
+    {
+      "is_street": true,
+      "x": 0,
+      "y": 6
+    },
+    {
+      "is_street": true,
+      "x": 0,
+      "y": 7
+    },
+    {
+      "is_street": true,
+      "x": 0,
+      "y": 8
+    },
+    {
+      "is_street": true,
+      "x": 0,
+      "y": 9
+    },
+    {
+      "is_street": false,
+      "x": 1,
+      "y": -9
+    },
+    {
+      "is_street": true,
+      "x": 1,
+      "y": -8
+    },
+    {
+      "is_street": false,
+      "x": 1,
+      "y": -7
+    },
+    {
+      "is_street": false,
+      "x": 1,
+      "y": -6
+    },
+    {
+      "is_street": false,
+      "x": 1,
+      "y": -5
+    },
+    {
+      "is_street": true,
+      "x": 1,
+      "y": -4
+    },
+    {
+      "is_street": false,
+      "x": 1,
+      "y": -3
+    },
+    {
+      "is_street": false,
+      "x": 1,
+      "y": -2
+    },
+    {
+      "is_street": false,
+      "x": 1,
+      "y": -1
+    },
+    {
+      "is_street": true,
+      "x": 1,
+      "y": 0
+    },
+    {
+      "is_street": false,
+      "x": 1,
+      "y": 1
+    },
+    {
+      "is_street": false,
+      "x": 1,
+      "y": 2
+    },
+    {
+      "is_street": false,
+      "x": 1,
+      "y": 3
+    },
+    {
+      "is_street": true,
+      "x": 1,
+      "y": 4
+    },
+    {
+      "is_street": false,
+      "x": 1,
+      "y": 5
+    },
+    {
+      "is_street": false,
+      "x": 1,
+      "y": 6
+    },
+    {
+      "is_street": false,
+      "x": 1,
+      "y": 7
+    },
+    {
+      "is_street": true,
+      "x": 1,
+      "y": 8
+    },
+    {
+      "is_street": false,
+      "x": 1,
+      "y": 9
+    },
+    {
+      "is_street": false,
+      "x": 2,
+      "y": -9
+    },
+    {
+      "is_street": true,
+      "x": 2,
+      "y": -8
+    },
+    {
+      "is_street": false,
+      "x": 2,
+      "y": -7
+    },
+    {
+      "is_street": false,
+      "x": 2,
+      "y": -6
+    },
+    {
+      "is_street": false,
+      "x": 2,
+      "y": -5
+    },
+    {
+      "is_street": true,
+      "x": 2,
+      "y": -4
+    },
+    {
+      "is_street": false,
+      "x": 2,
+      "y": -3
+    },
+    {
+      "is_street": false,
+      "x": 2,
+      "y": -2
+    },
+    {
+      "is_street": false,
+      "x": 2,
+      "y": -1
+    },
+    {
+      "is_street": true,
+      "x": 2,
+      "y": 0
+    },
+    {
+      "is_street": false,
+      "x": 2,
+      "y": 1
+    },
+    {
+      "is_street": false,
+      "x": 2,
+      "y": 2
+    },
+    {
+      "is_street": false,
+      "x": 2,
+      "y": 3
+    },
+    {
+      "is_street": true,
+      "x": 2,
+      "y": 4
+    },
+    {
+      "is_street": false,
+      "x": 2,
+      "y": 5
+    },
+    {
+      "is_street": false,
+      "x": 2,
+      "y": 6
+    },
+    {
+      "is_street": false,
+      "x": 2,
+      "y": 7
+    },
+    {
+      "is_street": true,
+      "x": 2,
+      "y": 8
+    },
+    {
+      "is_street": false,
+      "x": 2,
+      "y": 9
+    },
+    {
+      "is_street": false,
+      "x": 3,
+      "y": -9
+    },
+    {
+      "is_street": true,
+      "x": 3,
+      "y": -8
+    },
+    {
+      "is_street": false,
+      "x": 3,
+      "y": -7
+    },
+    {
+      "is_street": false,
+      "x": 3,
+      "y": -6
+    },
+    {
+      "is_street": false,
+      "x": 3,
+      "y": -5
+    },
+    {
+      "is_street": true,
+      "x": 3,
+      "y": -4
+    },
+    {
+      "is_street": false,
+      "x": 3,
+      "y": -3
+    },
+    {
+      "is_street": false,
+      "x": 3,
+      "y": -2
+    },
+    {
+      "is_street": false,
+      "x": 3,
+      "y": -1
+    },
+    {
+      "is_street": true,
+      "x": 3,
+      "y": 0
+    },
+    {
+      "is_street": false,
+      "x": 3,
+      "y": 1
+    },
+    {
+      "is_street": false,
+      "x": 3,
+      "y": 2
+    },
+    {
+      "is_street": false,
+      "x": 3,
+      "y": 3
+    },
+    {
+      "is_street": true,
+      "x": 3,
+      "y": 4
+    },
+    {
+      "is_street": false,
+      "x": 3,
+      "y": 5
+    },
+    {
+      "is_street": false,
+      "x": 3,
+      "y": 6
+    },
+    {
+      "is_street": false,
+      "x": 3,
+      "y": 7
+    },
+    {
+      "is_street": true,
+      "x": 3,
+      "y": 8
+    },
+    {
+      "is_street": false,
+      "x": 3,
+      "y": 9
+    },
+    {
+      "is_street": true,
+      "x": 4,
+      "y": -9
+    },
+    {
+      "is_street": true,
+      "x": 4,
+      "y": -8
+    },
+    {
+      "is_street": true,
+      "x": 4,
+      "y": -7
+    },
+    {
+      "is_street": true,
+      "x": 4,
+      "y": -6
+    },
+    {
+      "is_street": true,
+      "x": 4,
+      "y": -5
+    },
+    {
+      "is_street": true,
+      "x": 4,
+      "y": -4
+    },
+    {
+      "is_street": true,
+      "x": 4,
+      "y": -3
+    },
+    {
+      "is_street": true,
+      "x": 4,
+      "y": -2
+    },
+    {
+      "is_street": true,
+      "x": 4,
+      "y": -1
+    },
+    {
+      "is_street": true,
+      "x": 4,
+      "y": 0
+    },
+    {
+      "is_street": true,
+      "x": 4,
+      "y": 1
+    },
+    {
+      "is_street": true,
+      "x": 4,
+      "y": 2
+    },
+    {
+      "is_street": true,
+      "x": 4,
+      "y": 3
+    },
+    {
+      "is_street": true,
+      "x": 4,
+      "y": 4
+    },
+    {
+      "is_street": true,
+      "x": 4,
+      "y": 5
+    },
+    {
+      "is_street": true,
+      "x": 4,
+      "y": 6
+    },
+    {
+      "is_street": true,
+      "x": 4,
+      "y": 7
+    },
+    {
+      "is_street": true,
+      "x": 4,
+      "y": 8
+    },
+    {
+      "is_street": true,
+      "x": 4,
+      "y": 9
+    },
+    {
+      "is_street": false,
+      "x": 5,
+      "y": -9
+    },
+    {
+      "is_street": true,
+      "x": 5,
+      "y": -8
+    },
+    {
+      "is_street": false,
+      "x": 5,
+      "y": -7
+    },
+    {
+      "is_street": false,
+      "x": 5,
+      "y": -6
+    },
+    {
+      "is_street": false,
+      "x": 5,
+      "y": -5
+    },
+    {
+      "is_street": true,
+      "x": 5,
+      "y": -4
+    },
+    {
+      "is_street": false,
+      "x": 5,
+      "y": -3
+    },
+    {
+      "is_street": false,
+      "x": 5,
+      "y": -2
+    },
+    {
+      "is_street": false,
+      "x": 5,
+      "y": -1
+    },
+    {
+      "is_street": true,
+      "x": 5,
+      "y": 0
+    },
+    {
+      "is_street": false,
+      "x": 5,
+      "y": 1
+    },
+    {
+      "is_street": false,
+      "x": 5,
+      "y": 2
+    },
+    {
+      "is_street": false,
+      "x": 5,
+      "y": 3
+    },
+    {
+      "is_street": true,
+      "x": 5,
+      "y": 4
+    },
+    {
+      "is_street": false,
+      "x": 5,
+      "y": 5
+    },
+    {
+      "is_street": false,
+      "x": 5,
+      "y": 6
+    },
+    {
+      "is_street": false,
+      "x": 5,
+      "y": 7
+    },
+    {
+      "is_street": true,
+      "x": 5,
+      "y": 8
+    },
+    {
+      "is_street": false,
+      "x": 5,
+      "y": 9
+    },
+    {
+      "is_street": false,
+      "x": 6,
+      "y": -9
+    },
+    {
+      "is_street": true,
+      "x": 6,
+      "y": -8
+    },
+    {
+      "is_street": false,
+      "x": 6,
+      "y": -7
+    },
+    {
+      "is_street": false,
+      "x": 6,
+      "y": -6
+    },
+    {
+      "is_street": false,
+      "x": 6,
+      "y": -5
+    },
+    {
+      "is_street": true,
+      "x": 6,
+      "y": -4
+    },
+    {
+      "is_street": false,
+      "x": 6,
+      "y": -3
+    },
+    {
+      "is_street": false,
+      "x": 6,
+      "y": -2
+    },
+    {
+      "is_street": false,
+      "x": 6,
+      "y": -1
+    },
+    {
+      "is_street": true,
+      "x": 6,
+      "y": 0
+    },
+    {
+      "is_street": false,
+      "x": 6,
+      "y": 1
+    },
+    {
+      "is_street": false,
+      "x": 6,
+      "y": 2
+    },
+    {
+      "is_street": false,
+      "x": 6,
+      "y": 3
+    },
+    {
+      "is_street": true,
+      "x": 6,
+      "y": 4
+    },
+    {
+      "is_street": false,
+      "x": 6,
+      "y": 5
+    },
+    {
+      "is_street": false,
+      "x": 6,
+      "y": 6
+    },
+    {
+      "is_street": false,
+      "x": 6,
+      "y": 7
+    },
+    {
+      "is_street": true,
+      "x": 6,
+      "y": 8
+    },
+    {
+      "is_street": false,
+      "x": 6,
+      "y": 9
+    },
+    {
+      "is_street": false,
+      "x": 7,
+      "y": -9
+    },
+    {
+      "is_street": true,
+      "x": 7,
+      "y": -8
+    },
+    {
+      "is_street": false,
+      "x": 7,
+      "y": -7
+    },
+    {
+      "is_street": false,
+      "x": 7,
+      "y": -6
+    },
+    {
+      "is_street": false,
+      "x": 7,
+      "y": -5
+    },
+    {
+      "is_street": true,
+      "x": 7,
+      "y": -4
+    },
+    {
+      "is_street": false,
+      "x": 7,
+      "y": -3
+    },
+    {
+      "is_street": false,
+      "x": 7,
+      "y": -2
+    },
+    {
+      "is_street": false,
+      "x": 7,
+      "y": -1
+    },
+    {
+      "is_street": true,
+      "x": 7,
+      "y": 0
+    },
+    {
+      "is_street": false,
+      "x": 7,
+      "y": 1
+    },
+    {
+      "is_street": false,
+      "x": 7,
+      "y": 2
+    },
+    {
+      "is_street": false,
+      "x": 7,
+      "y": 3
+    },
+    {
+      "is_street": true,
+      "x": 7,
+      "y": 4
+    },
+    {
+      "is_street": false,
+      "x": 7,
+      "y": 5
+    },
+    {
+      "is_street": false,
+      "x": 7,
+      "y": 6
+    },
+    {
+      "is_street": false,
+      "x": 7,
+      "y": 7
+    },
+    {
+      "is_street": true,
+      "x": 7,
+      "y": 8
+    },
+    {
+      "is_street": false,
+      "x": 7,
+      "y": 9
+    },
+    {
+      "is_street": true,
+      "x": 8,
+      "y": -9
+    },
+    {
+      "is_street": true,
+      "x": 8,
+      "y": -8
+    },
+    {
+      "is_street": true,
+      "x": 8,
+      "y": -7
+    },
+    {
+      "is_street": true,
+      "x": 8,
+      "y": -6
+    },
+    {
+      "is_street": true,
+      "x": 8,
+      "y": -5
+    },
+    {
+      "is_street": true,
+      "x": 8,
+      "y": -4
+    },
+    {
+      "is_street": true,
+      "x": 8,
+      "y": -3
+    },
+    {
+      "is_street": true,
+      "x": 8,
+      "y": -2
+    },
+    {
+      "is_street": true,
+      "x": 8,
+      "y": -1
+    },
+    {
+      "is_street": true,
+      "x": 8,
+      "y": 0
+    },
+    {
+      "is_street": true,
+      "x": 8,
+      "y": 1
+    },
+    {
+      "is_street": true,
+      "x": 8,
+      "y": 2
+    },
+    {
+      "is_street": true,
+      "x": 8,
+      "y": 3
+    },
+    {
+      "is_street": true,
+      "x": 8,
+      "y": 4
+    },
+    {
+      "is_street": true,
+      "x": 8,
+      "y": 5
+    },
+    {
+      "is_street": true,
+      "x": 8,
+      "y": 6
+    },
+    {
+      "is_street": true,
+      "x": 8,
+      "y": 7
+    },
+    {
+      "is_street": true,
+      "x": 8,
+      "y": 8
+    },
+    {
+      "is_street": true,
+      "x": 8,
+      "y": 9
+    },
+    {
+      "is_street": false,
+      "x": 9,
+      "y": -9
+    },
+    {
+      "is_street": true,
+      "x": 9,
+      "y": -8
+    },
+    {
+      "is_street": false,
+      "x": 9,
+      "y": -7
+    },
+    {
+      "is_street": false,
+      "x": 9,
+      "y": -6
+    },
+    {
+      "is_street": false,
+      "x": 9,
+      "y": -5
+    },
+    {
+      "is_street": true,
+      "x": 9,
+      "y": -4
+    },
+    {
+      "is_street": false,
+      "x": 9,
+      "y": -3
+    },
+    {
+      "is_street": false,
+      "x": 9,
+      "y": -2
+    },
+    {
+      "is_street": false,
+      "x": 9,
+      "y": -1
+    },
+    {
+      "is_street": true,
+      "x": 9,
+      "y": 0
+    },
+    {
+      "is_street": false,
+      "x": 9,
+      "y": 1
+    },
+    {
+      "is_street": false,
+      "x": 9,
+      "y": 2
+    },
+    {
+      "is_street": false,
+      "x": 9,
+      "y": 3
+    },
+    {
+      "is_street": true,
+      "x": 9,
+      "y": 4
+    },
+    {
+      "is_street": false,
+      "x": 9,
+      "y": 5
+    },
+    {
+      "is_street": false,
+      "x": 9,
+      "y": 6
+    },
+    {
+      "is_street": false,
+      "x": 9,
+      "y": 7
+    },
+    {
+      "is_street": true,
+      "x": 9,
+      "y": 8
+    },
+    {
+      "is_street": false,
+      "x": 9,
+      "y": 9
+    }
+  ],
+  "street_period": 4
+}
