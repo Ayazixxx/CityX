@@ -170,7 +170,7 @@ Run with `./tools/unity_tests.ps1 -Platform PlayMode`.
 | Interest management limits what a client receives | ✅ **34/200 observed (17%)**, vs 16% predicted by area |
 | Per-client bandwidth flat as entity count grows | ✅ **entities ×4 → client traffic ×0.87** (8.8 → 7.7 KB/s) |
 | Server holds tick rate at 30 clients + 200 AI | ✅ **1.02 ms of a 33.3 ms budget — 97% headroom** |
-| Responsive at 100ms simulated latency | ⬜ not started |
+| Responsive at 100ms simulated latency | ✅ **33 ms response on a 200 ms round trip**, 68 reconciles applied |
 
 ```
 30 clients, 200 entities, 30 players
@@ -224,14 +224,38 @@ Stated plainly, because a spike that oversells itself is worse than no spike:
 - **Movement only.** Entities move and replicate position; they do not fight,
   path, or acquire targets.
 
-The remaining criterion — responsiveness at 100 ms simulated latency — is
-the one that decides how the game FEELS rather than what it costs, and it is
-not started.
+### A near-miss worth remembering
 
-**Interim verdict: the port is viable.** The wall that motivated leaving
-Godot — bandwidth scaling as players x entities — is measurably not present
-here, and server cost at the target scale is a rounding error. Nothing found
-so far argues for stopping.
+The prediction test passed on its first run with a *better* headline number
+(15 ms) than the final one, and the result was worthless.
+`NetworkObject._enablePrediction` defaults to **false**, so reconciliation
+was never running. The client matched the server exactly — not because it
+was being corrected, but because both were running identical deterministic
+code from identical inputs. It would have held forever in a test and broken
+the first time anything diverged, with nothing to pull the client back.
+
+What caught it was asserting on the MECHANISM (reconcile count > 0) rather
+than the OUTCOME (client and server agree). The outcome was true and
+meaningless.
+
+Two habits worth keeping for the rest of this port:
+
+- When a number is used as evidence, check it can physically be non-zero.
+  The first version read the reconcile counter off the *server*, which never
+  reconciles — it could only ever have read 0.
+- Prefer asserting that the machinery ran over asserting that the answer
+  looks right. Agreement is cheap to fake; correction is not.
+
+---
+
+## Phase 0 verdict: PASS — the port proceeds
+
+All seven exit criteria met. The wall that motivated leaving Godot —
+bandwidth scaling as players × entities — is measurably not present, server
+cost at target scale is a rounding error, and movement stays responsive at
+transatlantic latency while remaining server-authoritative.
+
+Nothing found argues for stopping, so Phase 1 begins.
 
 ---
 

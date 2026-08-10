@@ -54,11 +54,57 @@ namespace CityX.Spike.EditorTools
             DistanceCondition viewDistance = BuildViewDistanceCondition();
             BuildAgentPrefab(viewDistance);
             BuildPlayerPrefab();
+            BuildPredictedPlayerPrefab();
             BuildNetworkManagerPrefab();
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             Debug.Log($"[CityX.Spike] rebuilt spike assets in {GeneratedFolder}");
+        }
+
+        /// <summary>
+        /// The predicted player. No NetworkTransform: prediction owns this
+        /// object's position, and a transform syncer fighting the reconcile
+        /// for control of the same value is a classic source of jitter.
+        /// </summary>
+        private static void BuildPredictedPlayerPrefab()
+        {
+            GameObject go = new GameObject("SpikePredictedPlayer");
+            try
+            {
+                NetworkObject nob = go.AddComponent<NetworkObject>();
+                go.AddComponent<SpikePredictedPlayer>();
+
+                // NetworkObject._enablePrediction defaults to FALSE, and
+                // without it the [Replicate]/[Reconcile] pair half-works in a
+                // way that looks fine: the client still predicts its own
+                // movement and still matches the server, because both run the
+                // same deterministic code from the same inputs. What it does
+                // NOT do is reconcile -- so the first time anything diverges
+                // (a dropped packet, a collision, another player) the client
+                // stays wrong forever with nothing to pull it back.
+                //
+                // This was caught by asserting reconcile count > 0 rather than
+                // just "client and server agree". Agreement was true and
+                // meaningless.
+                SerializedObject so = new SerializedObject(nob);
+                SerializedProperty enablePrediction = so.FindProperty("_enablePrediction");
+                if (enablePrediction == null)
+                {
+                    Debug.LogError("[CityX.Spike] NetworkObject has no '_enablePrediction' field -- FishNet's internals changed.");
+                }
+                else
+                {
+                    enablePrediction.boolValue = true;
+                }
+                so.ApplyModifiedPropertiesWithoutUndo();
+
+                PrefabUtility.SaveAsPrefabAsset(go, $"{GeneratedFolder}/SpikePredictedPlayer.prefab");
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
         }
 
         /// <summary>
