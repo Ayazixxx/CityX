@@ -33,8 +33,15 @@ namespace CityX.Spike
         /// field keeps entity density realistic for interest management --
         /// entities scattered across an unbounded plane would make any
         /// distance-based culling look far better than it really is.
+        ///
+        /// Set by SpikeWorld to match the field it spawned, with headroom, so
+        /// that growing the entity count grows the WORLD rather than the
+        /// crowd. If this stayed fixed while the spawn field grew, agents
+        /// would all herd back into the original disc and density would climb
+        /// with entity count -- quietly turning an area-of-interest
+        /// measurement into a density measurement.
         /// </summary>
-        private const float FieldRadius = 120.0f;
+        public static float FieldRadius { get; set; } = 120.0f;
 
         private float _heading;
         private float _speed;

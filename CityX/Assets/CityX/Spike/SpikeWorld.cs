@@ -72,6 +72,27 @@ namespace CityX.Spike
         /// this on a client is a programming error, not a runtime condition,
         /// so it complains rather than silently doing nothing.
         /// </summary>
+        /// <summary>
+        /// The field radius that holds entity DENSITY constant as the entity
+        /// count changes.
+        ///
+        /// This matters more than it looks. To show that per-client bandwidth
+        /// does not grow with total entity count, the extra entities have to
+        /// go somewhere a player is not. Piling more entities into a
+        /// fixed-size field raises local density, so a player legitimately
+        /// sees more of them and bandwidth legitimately rises -- that would
+        /// measure density, not area-of-interest, and would make working
+        /// culling look broken.
+        ///
+        /// The real world this ships into is an infinite city: more entities
+        /// means more city, at roughly the same density per street. Radius
+        /// therefore scales with sqrt(count), which keeps count/area fixed.
+        /// </summary>
+        public static float FieldRadiusFor(int count)
+        {
+            return SpawnRadius * Mathf.Sqrt(Mathf.Max(1, count) / (float)DefaultAgentCount);
+        }
+
         public void SpawnAgents(int count)
         {
             if (_networkManager == null || !_networkManager.IsServerStarted)
@@ -82,13 +103,18 @@ namespace CityX.Spike
 
             EnsurePrefab();
 
+            float fieldRadius = FieldRadiusFor(count);
+            // Agents must be allowed to roam the field they were spawned into,
+            // or they would herd back toward the origin and raise density.
+            SpikeAgent.FieldRadius = fieldRadius * 1.2f;
+
             for (int i = 0; i < count; i++)
             {
                 // Deterministic placement: a golden-angle spiral gives an even
                 // disc without random clumping, so density is comparable
                 // between runs with different entity counts.
                 float t = (i + 0.5f) / count;
-                float radius = SpawnRadius * Mathf.Sqrt(t);
+                float radius = fieldRadius * Mathf.Sqrt(t);
                 float angle = i * 2.39996323f;
                 Vector3 position = new Vector3(Mathf.Cos(angle) * radius, 0.0f, Mathf.Sin(angle) * radius);
 
@@ -97,6 +123,27 @@ namespace CityX.Spike
                 _networkManager.ServerManager.Spawn(agent);
                 _spawned.Add(agent);
             }
+        }
+
+        /// <summary>
+        /// Despawns the agents but leaves players connected. Needed to
+        /// re-measure at a different entity count without tearing down the
+        /// connection, which would reset the very traffic being compared.
+        /// </summary>
+        public void DespawnAgentsOnly()
+        {
+            foreach (NetworkObject agent in _spawned)
+            {
+                if (agent != null && agent.IsSpawned && _networkManager != null && _networkManager.IsServerStarted)
+                {
+                    _networkManager.ServerManager.Despawn(agent);
+                }
+                else if (agent != null)
+                {
+                    Object.Destroy(agent.gameObject);
+                }
+            }
+            _spawned.Clear();
         }
 
         /// <summary>Despawns everything this world spawned. Safe to call twice.</summary>

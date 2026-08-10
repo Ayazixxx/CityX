@@ -158,6 +158,46 @@ that makes AoI necessary, not the player count.
 
 **Estimate: days, not weeks. Do not skip. Do not port content first.**
 
+### Results so far (measured 2026-08-10, Unity 6.3 LTS + FishNet)
+
+Run with `./tools/unity_tests.ps1 -Platform PlayMode`.
+
+| Exit criterion | Status |
+|---|---|
+| Same build runs offline with no remote exposure | ✅ singleplayer binds loopback only |
+| A client can host and others join | ✅ hosted world is reachable and still plays |
+| 200 server-driven entities | ✅ spawn, simulate and despawn cleanly |
+| Interest management limits what a client receives | ✅ **34/200 observed (17%)**, vs 16% predicted by area |
+| Per-client bandwidth flat as entity count grows | ✅ **entities ×4 → client traffic ×0.87** (8.8 → 7.7 KB/s) |
+| Server holds tick rate at 30 clients + 200 AI | ⬜ measured at 1 client only so far |
+| Responsive at 100ms simulated latency | ⬜ not started |
+
+Server tick cost, one client, 120-tick windows:
+
+```
+ 50 entities: mean 0.171 ms
+200 entities: mean 0.356 ms   (worst 0.576 ms)
+```
+
+**Read these carefully.** Two of them are strong evidence and one is not yet
+evidence at all:
+
+- The bandwidth result is the important one. Traffic did not merely grow
+  sub-linearly, it did not grow. The extra entities were spawned into extra
+  *world* at constant density (see `SpikeWorld.FieldRadiusFor`), which is how
+  an infinite city actually scales — more entities means more city, not a
+  denser crowd. Measuring on a fixed-size field would have raised local
+  density and shown a rise that had nothing to do with culling.
+- 0.356 ms per tick for 200 entities is ~2% of a 60 Hz tick budget, so
+  server-side entity simulation is nowhere near the limit.
+- **It does NOT follow that 30 clients will be fine.** Replication work grows
+  with clients as well as entities, and this measured ONE client. The
+  30-client number is still genuinely unknown.
+
+Measured with a real server and a real remote client over a loopback socket,
+in one process. Host mode was rejected for this: its local client
+short-circuits the transport, so the byte counts would have been fiction.
+
 ---
 
 ## Phase 1 — Project skeleton and mode switching

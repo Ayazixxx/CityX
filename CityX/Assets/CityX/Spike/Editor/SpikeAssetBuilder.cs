@@ -1,8 +1,11 @@
 using System.IO;
 using FishNet.Component.Observing;
 using FishNet.Component.Transforming;
+using FishNet.Managing;
+using FishNet.Managing.Object;
 using FishNet.Object;
 using FishNet.Observing;
+using FishNet.Transporting.Tugboat;
 using UnityEditor;
 using UnityEngine;
 
@@ -40,6 +43,9 @@ namespace CityX.Spike.EditorTools
         public const string AgentPrefabResourcePath = "CityX.Spike/SpikeAgent";
         public const string PlayerPrefabResourcePath = "CityX.Spike/SpikePlayer";
 
+        /// <summary>FishNet's auto-populated prefab collection, created on import.</summary>
+        private const string DefaultPrefabObjectsPath = "Assets/DefaultPrefabObjects.asset";
+
         [MenuItem("CityX/Spike/Rebuild Spike Assets")]
         public static void BuildAll()
         {
@@ -48,10 +54,74 @@ namespace CityX.Spike.EditorTools
             DistanceCondition viewDistance = BuildViewDistanceCondition();
             BuildAgentPrefab(viewDistance);
             BuildPlayerPrefab();
+            BuildNetworkManagerPrefab();
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             Debug.Log($"[CityX.Spike] rebuilt spike assets in {GeneratedFolder}");
+        }
+
+        /// <summary>
+        /// A NetworkManager configured for measurement.
+        ///
+        /// Two things here can only be set by authoring, which is why this is
+        /// a generated prefab rather than an AddComponent in a test:
+        ///
+        ///   _persistence = AllowMultiple -- FishNet destroys extra
+        ///   NetworkManagers by default. Measuring real per-client bandwidth
+        ///   needs a genuine server AND a genuine remote client, and in host
+        ///   mode the local client short-circuits the socket, so the numbers
+        ///   would be fiction. Two managers in one process, talking over
+        ///   loopback, gives real serialization and real bytes.
+        ///
+        ///   _spawnablePrefabs -- assigned up front so instantiating this
+        ///   prefab does not trip NetworkManager's "SpawnablePrefabs is null"
+        ///   error the way building one by hand does.
+        /// </summary>
+        private static void BuildNetworkManagerPrefab()
+        {
+            PrefabObjects defaultPrefabs = AssetDatabase.LoadAssetAtPath<PrefabObjects>(DefaultPrefabObjectsPath);
+            if (defaultPrefabs == null)
+            {
+                Debug.LogError($"[CityX.Spike] no prefab collection at {DefaultPrefabObjectsPath}; " +
+                               "the generated NetworkManager will log errors when instantiated.");
+            }
+
+            GameObject go = new GameObject("SpikeNetworkManager");
+            try
+            {
+                NetworkManager nm = go.AddComponent<NetworkManager>();
+                go.AddComponent<Tugboat>();
+
+                SerializedObject so = new SerializedObject(nm);
+                SetEnumProperty(so, "_persistence", (int)NetworkManager.PersistenceType.AllowMultiple);
+                if (defaultPrefabs != null)
+                {
+                    SerializedProperty prefabs = so.FindProperty("_spawnablePrefabs");
+                    if (prefabs != null)
+                    {
+                        prefabs.objectReferenceValue = defaultPrefabs;
+                    }
+                }
+                so.ApplyModifiedPropertiesWithoutUndo();
+
+                PrefabUtility.SaveAsPrefabAsset(go, $"{GeneratedFolder}/SpikeNetworkManager.prefab");
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        private static void SetEnumProperty(SerializedObject so, string path, int value)
+        {
+            SerializedProperty property = so.FindProperty(path);
+            if (property == null)
+            {
+                Debug.LogError($"[CityX.Spike] NetworkManager has no '{path}' field -- FishNet's internals changed.");
+                return;
+            }
+            property.enumValueIndex = value;
         }
 
         private static DistanceCondition BuildViewDistanceCondition()
