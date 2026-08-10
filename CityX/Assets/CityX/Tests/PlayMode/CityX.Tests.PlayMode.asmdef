@@ -6,6 +6,7 @@
         "UnityEditor.TestRunner",
         "CityX.Core",
         "CityX.Net",
+        "CityX.Spike",
         "FishNet.Runtime"
     ],
     "includePlatforms": [],
