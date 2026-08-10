@@ -244,6 +244,53 @@ unchanged** — it outputs glb.
 
 ---
 
+## Explicitly NOT being ported
+
+Decided 2026-08-10. These exist and work in the Godot build, but they did
+not come out well and are **not** worth carrying to parity. They stay in the
+Godot repo as reference; rebuild them fresh in Unity later if and when they
+are actually wanted.
+
+This is a real saving, not just a deletion — it is roughly a fifth of the
+content-parity surface, and the three heaviest physics/animation problems in
+the whole port are all in this list.
+
+**Vehicles and driving.** `vehicles/car.gd`, `vehicles/mustang.tscn`, the
+mustang glb, and everything downstream of them: the multi-seat
+DriverSeat/PassengerSeat system, the nearest-seat E interaction, the
+`entering_car`/`exiting_car` retargeted animations and their hip-reset
+special cases in `character.gd`'s `_on_animation_finished`, the `_seated_car`
+early-return in `player.gd::_physics_process`, and `/spawn mustang`.
+
+Worth knowing before any future rebuild: driving feel, handbrake/drift,
+chase camera and collision tuning were never finished in Godot either — they
+were staged out and left pending. So there is no tuned reference to port.
+A Unity rebuild would start from Unity's own WheelCollider / vehicle physics
+rather than translating `car.gd`'s RigidBody3D forces, which is a better
+starting point anyway.
+
+**Grappling hook.** `items/grappling_hook.gd` / `.tscn`, its
+`items/item_registry.gd` entry, its hooks in `player.gd`, its `/spawn`
+command, and `tests/test_grappling_hook_check.gd`.
+
+**Wolf and sloth.** `npc/wolf.gd` and `npc/sloth.gd`. Both are standalone
+procedurally-built creatures with no dependency on the player rig, so they
+drop out cleanly — nothing else references them.
+
+### Which enemies DO get ported
+
+| Keep | Why it survives |
+|---|---|
+| **Mutant** (`npc/mutant.gd`) | Meshy Skulljaw rig with native animations — imports to Unity directly |
+| **Scratcher** (`npc/scratcher.gd`) | glb + baked clips, same |
+| **Crimson Claw** (`npc/crimson_claw_monster.gd`) | split body/claw meshes, real hit detection |
+| **Player-model NPCs** | `civilian.gd`, `cpu.gd`, `gunman.gd`, `unique_npc.gd`, `old_guy.gd`, `npc_design.gd` + `npc/designs/*.tres` — these ride the same rig and animation set as the player, so they come almost free once Phase 3 lands |
+
+`npc/npc_steering.gd` still ports (or is replaced by NavMesh per Phase 5) —
+it is shared by every NPC above, not tied to the dropped ones.
+
+---
+
 ## What survives, what dies, what improves
 
 **Survives (port directly):**
