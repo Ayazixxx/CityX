@@ -91,6 +91,35 @@ Any change that makes generation depend on runtime state breaks this.
 Nothing else starts until this is answered, because it is the entire reason
 for the port. If it fails, the port is off and we stay in Godot.
 
+### Engine version: Unity 6.3 LTS (6000.3.x) — measured, not assumed
+
+**Do not develop this project on a tech-stream release.** The project was
+first created on **6000.5.7f1**, and FishNet would not compile on it: 16
+`CS0619` errors across 6 files, from two Unity APIs that became
+*error-level* obsolete after 6.3:
+
+| API | 6.3 LTS | 6000.5 |
+|---|---|---|
+| `SceneHandle` ⇄ `int` implicit conversions | present, "for backward compatibility", **not deprecated** | error-level obsolete → `GetRawData()` / `FromRawData(ulong)` |
+| `Object.GetInstanceID()` | Supported | error-level obsolete → `GetEntityId()` |
+
+Both verified against Unity's own 6000.3 scripting reference, so 6.3 LTS
+fixes this at the root rather than by patching FishNet.
+
+Two things make this a version decision rather than a FishNet complaint:
+
+1. **It is ecosystem-wide.** An entirely unrelated package hit the identical
+   `CS0619` wall on 6000.6 alpha. Any tech-stream release will keep
+   outrunning third-party packages, and this project will depend on several.
+2. **LTS is what you ship a persistent multiplayer game on.** 6.3 LTS is
+   supported to **December 2027**. Note that 6.0 LTS (6000.0) is *not* the
+   right target either — its support ends **October 2026**.
+
+The rejected alternative was forking FishNet and rewriting the 16 call
+sites. That means owning a permanent fork of the networking library the
+entire game sits on, re-patched on every update, and the `ulong`→`int`
+truncation it needs is lossy in principle. Not a foundation.
+
 ### Networking library
 
 | Option | For | Against |

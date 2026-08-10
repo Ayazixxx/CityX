@@ -89,16 +89,22 @@ $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $resultsFile = Join-Path $resultsDir "test-results-$Platform-$stamp.xml"
 $logFile = Join-Path $resultsDir "test-run-$Platform-$stamp.log"
 
+# Every path below has to be quoted. Start-Process joins -ArgumentList with
+# spaces and does NOT quote for you, and this repo lives in a folder with a
+# space in its name ("the game"), so an unquoted -projectPath arrives at
+# Unity split in half.
+function Quote([string]$s) { return '"' + $s + '"' }
+
 $unityArgs = @(
     '-batchmode'
-    '-projectPath', $projectPath
+    '-projectPath', (Quote $projectPath)
     '-runTests'
     '-testPlatform', $Platform
-    '-testResults', $resultsFile
-    '-logFile', $logFile
+    '-testResults', (Quote $resultsFile)
+    '-logFile', (Quote $logFile)
 )
 if (-not $Graphics) { $unityArgs += '-nographics' }
-if ($Filter -ne '') { $unityArgs += @('-testFilter', $Filter) }
+if ($Filter -ne '') { $unityArgs += @('-testFilter', (Quote $Filter)) }
 
 Write-Host "Running $Platform tests on Unity $editorVersion ..." -ForegroundColor Cyan
 
@@ -114,22 +120,36 @@ if (-not $proc.WaitForExit($TimeoutMinutes * 60 * 1000)) {
 }
 $unityExit = $proc.ExitCode
 
-# --- No XML means it never got as far as running tests. Almost always a
-# --- compile error, and reporting that honestly matters more than the exit code.
+# --- No XML means it never got as far as running tests. Usually a C# compile
+# --- error, but NOT always -- Unity also aborts before starting for bad args
+# --- or a bad project path, and reporting that as "compile error" sends you
+# --- looking in the wrong place. Diagnose before naming a cause.
 if (-not (Test-Path $resultsFile)) {
     Write-Host "FAIL: the run produced no results file -- tests never executed." -ForegroundColor Red
-    Write-Host "      This is usually a C# compile error. Unity exit code: $unityExit"
-    if (Test-Path $logFile) {
-        $compileErrors = Select-String -Path $logFile -Pattern 'error CS\d+|Compilation failed|Assembly.*error' |
-            Select-Object -First 25
-        if ($compileErrors) {
-            Write-Host ""
-            Write-Host "  --- compiler output ---" -ForegroundColor Yellow
-            foreach ($e in $compileErrors) { Write-Host "  $($e.Line.Trim())" }
-        }
-        Write-Host ""
-        Write-Host "      Full log: $logFile"
+    Write-Host "      Unity exit code: $unityExit"
+
+    if (-not (Test-Path $logFile)) {
+        Write-Host "      No log was written either, so Unity aborted before it started:" -ForegroundColor Yellow
+        Write-Host "      bad arguments, a bad -projectPath, or the editor could not launch."
+        exit 1
     }
+
+    $compileErrors = Select-String -Path $logFile -Pattern 'error CS\d+|Compilation failed' |
+        Select-Object -First 25
+    if ($compileErrors) {
+        Write-Host ""
+        Write-Host "  --- compiler errors ---" -ForegroundColor Yellow
+        foreach ($e in $compileErrors) { Write-Host "  $($e.Line.Trim())" }
+    }
+    else {
+        # No compile errors found, so don't claim there were any. Show what
+        # actually happened instead.
+        Write-Host "      No compile errors in the log. Last 30 lines:" -ForegroundColor Yellow
+        Write-Host ""
+        foreach ($line in (Get-Content $logFile -Tail 30)) { Write-Host "  $line" }
+    }
+    Write-Host ""
+    Write-Host "      Full log: $logFile"
     exit 1
 }
 
