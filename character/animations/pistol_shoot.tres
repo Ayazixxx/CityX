@@ -1,0 +1,160 @@
+[gd_resource type="Animation" format=3]
+
+[resource]
+length = 0.3
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("BodySkeleton:bones/1/rotation")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.033333335, 0.06666667, 0.1, 0.13333334, 0.16666667, 0.2, 0.23333333, 0.26666668, 0.3),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 0,
+"values": [Quaternion(0.24997923, -0.14214915, 0.03406454, 0.9571539), Quaternion(0.24971911, -0.14216842, 0.03406364, 0.957219), Quaternion(0.24945912, -0.14218774, 0.034062807, 0.957284), Quaternion(0.2491991, -0.14220712, 0.03406202, 0.9573488), Quaternion(0.24893893, -0.14222652, 0.03406123, 0.9574136), Quaternion(0.24867879, -0.14224596, 0.034060508, 0.9574784), Quaternion(0.24841875, -0.14226535, 0.03405982, 0.957543), Quaternion(0.24651721, -0.1427643, 0.03546945, 0.957909), Quaternion(0.24297506, -0.14462012, 0.03723033, 0.9584686), Quaternion(0.23480327, -0.15132041, 0.0390432, 0.9593983)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("BodySkeleton:bones/2/rotation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.033333335, 0.06666667, 0.1, 0.13333334, 0.16666667, 0.2, 0.23333333, 0.26666668, 0.3),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 0,
+"values": [Quaternion(-0.03309876, 0.046367865, -0.00937008, 0.99833196), Quaternion(-0.03294387, 0.046426315, -0.009841909, 0.9983299), Quaternion(-0.032788966, 0.046484765, -0.010313729, 0.9983275), Quaternion(-0.03299366, 0.0466304, -0.010869275, 0.998308), Quaternion(-0.033198345, 0.04677598, -0.011424779, 0.9982882), Quaternion(-0.033235155, 0.0467419, -0.011562765, 0.998287), Quaternion(-0.03198924, 0.04685644, -0.01214142, 0.99831545), Quaternion(-0.029885154, 0.04727799, -0.013449706, 0.998344), Quaternion(-0.02928028, 0.04780908, -0.012951913, 0.9983432), Quaternion(-0.031719793, 0.04821213, -0.0064882496, 0.99831223)]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("BodySkeleton:bones/3/rotation")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 0.033333335, 0.06666667, 0.1, 0.13333334, 0.16666667, 0.2, 0.23333333, 0.26666668, 0.3),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 0,
+"values": [Quaternion(-0.109299384, -0.013954869, -0.007647686, 0.9938815), Quaternion(-0.10940913, -0.013742409, -0.0075825793, 0.9938729), Quaternion(-0.10951886, -0.013529938, -0.007517468, 0.9938642), Quaternion(-0.10962861, -0.013317477, -0.007452348, 0.9938555), Quaternion(-0.10973832, -0.013105007, -0.007387236, 0.99384665), Quaternion(-0.11086561, -0.012903941, -0.0075337132, 0.99372303), Quaternion(-0.11282252, -0.0124538755, -0.0078621665, 0.993506), Quaternion(-0.1123652, -0.011782091, -0.010430357, 0.9935424), Quaternion(-0.10370979, -0.011804191, -0.018951036, 0.994357), Quaternion(-0.08498555, -0.0136055555, -0.033872776, 0.9957133)]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("BodySkeleton:bones/4/rotation")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0, 0.033333335, 0.06666667, 0.1, 0.13333334, 0.16666667, 0.2, 0.23333333, 0.26666668, 0.3),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 0,
+"values": [Quaternion(0.68027943, -0.45431167, 0.3313966, -0.47010332), Quaternion(0.68104976, -0.45354956, 0.3288406, -0.4715166), Quaternion(0.68212634, -0.45258513, 0.32516822, -0.47343004), Quaternion(0.6844134, -0.45056343, 0.3192355, -0.47608787), Quaternion(0.6874772, -0.44759893, 0.3127911, -0.47874007), Quaternion(0.6876317, -0.4468502, 0.3122095, -0.47959644), Quaternion(0.68227035, -0.44979185, 0.31939712, -0.4797708), Quaternion(0.68266094, -0.4491958, 0.30505872, -0.48901576), Quaternion(0.6858055, -0.44993472, 0.28106123, -0.49823105), Quaternion(-0.69002736, 0.4496045, -0.24889281, 0.5096768)]
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("BodySkeleton:bones/5/rotation")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"times": PackedFloat32Array(0, 0.033333335, 0.06666667, 0.1, 0.13333334, 0.16666667, 0.2, 0.23333333, 0.26666668, 0.3),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 0,
+"values": [Quaternion(-0.1440529, 0.039707087, -7.3267125e-05, 0.98877305), Quaternion(-0.14575699, 0.040174574, -7.5372256e-05, 0.98850435), Quaternion(-0.14716329, 0.040559363, -7.676591e-05, 0.9882803), Quaternion(-0.14821836, 0.040847786, -7.752345e-05, 0.9881107), Quaternion(-0.14919995, 0.041118514, -7.823822e-05, 0.98795176), Quaternion(-0.15024562, 0.041409064, -8.0333055e-05, 0.98778117), Quaternion(-0.15153632, 0.04176223, -8.3198305e-05, 0.9875691), Quaternion(-0.1517444, 0.041807026, -8.079678e-05, 0.98753524), Quaternion(-0.14833155, 0.04086257, -7.515032e-05, 0.98809314), Quaternion(-0.15672036, 0.04317001, -9.129131e-05, 0.9866991)]
+}
+tracks/5/type = "value"
+tracks/5/imported = false
+tracks/5/enabled = true
+tracks/5/path = NodePath("BodySkeleton:bones/6/rotation")
+tracks/5/interp = 1
+tracks/5/loop_wrap = true
+tracks/5/keys = {
+"times": PackedFloat32Array(0, 0.033333335, 0.06666667, 0.1, 0.13333334, 0.16666667, 0.2, 0.23333333, 0.26666668, 0.3),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 0,
+"values": [Quaternion(0.028538678, -0.4616416, -0.23955218, 0.85363185), Quaternion(0.033202644, -0.4592822, -0.238191, 0.8551155), Quaternion(0.036055353, -0.45370257, -0.23787768, 0.8580607), Quaternion(0.039287407, -0.44512165, -0.23695767, 0.8626554), Quaternion(0.05057077, -0.4386913, -0.23043123, 0.86711824), Quaternion(0.067845374, -0.44187802, -0.21947365, 0.8671633), Quaternion(0.063721545, -0.4475844, -0.22228053, 0.86382824), Quaternion(0.0041615884, -0.41930956, -0.24971922, 0.872813), Quaternion(-0.09704647, -0.38338342, -0.26607105, 0.87909347), Quaternion(-0.14926098, -0.36683267, -0.26558706, 0.8789872)]
+}
+tracks/6/type = "value"
+tracks/6/imported = false
+tracks/6/enabled = true
+tracks/6/path = NodePath("BodySkeleton:bones/7/rotation")
+tracks/6/interp = 1
+tracks/6/loop_wrap = true
+tracks/6/keys = {
+"times": PackedFloat32Array(0, 0.033333335, 0.06666667, 0.1, 0.13333334, 0.16666667, 0.2, 0.23333333, 0.26666668, 0.3),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 0,
+"values": [Quaternion(-0.7095646, -0.3093959, 0.07357455, 0.62879175), Quaternion(-0.70844394, -0.30866104, 0.07338327, 0.6304367), Quaternion(-0.7078202, -0.30819374, 0.07252642, 0.63146424), Quaternion(-0.7075542, -0.30787727, 0.071476445, 0.6320362), Quaternion(-0.7067603, -0.3072618, 0.070605494, 0.63332057), Quaternion(-0.7054088, -0.30681002, 0.06967205, 0.6351471), Quaternion(-0.70481133, -0.30767396, 0.06817387, 0.6355549), Quaternion(-0.70515335, -0.30904716, 0.06333444, 0.63500977), Quaternion(-0.70017403, -0.304991, 0.058715615, 0.64287573), Quaternion(-0.67930776, -0.29009077, 0.061334413, 0.6712872)]
+}
+tracks/7/type = "value"
+tracks/7/imported = false
+tracks/7/enabled = true
+tracks/7/path = NodePath("BodySkeleton:bones/8/rotation")
+tracks/7/interp = 1
+tracks/7/loop_wrap = true
+tracks/7/keys = {
+"times": PackedFloat32Array(0, 0.033333335, 0.06666667, 0.1, 0.13333334, 0.16666667, 0.2, 0.23333333, 0.26666668, 0.3),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 0,
+"values": [Quaternion(-0.23123151, -0.06355439, 0.00021278129, 0.97082067), Quaternion(-0.23499712, -0.06457672, 0.00022451548, 0.9698485), Quaternion(-0.23666814, -0.065030865, 0.00022910026, 0.96941173), Quaternion(-0.23742919, -0.065238036, 0.00022988072, 0.9692117), Quaternion(-0.24117465, -0.06625552, 0.00024041098, 0.96821743), Quaternion(-0.2460247, -0.06757239, 0.00025600972, 0.96690524), Quaternion(-0.24124227, -0.06626875, 0.00024168222, 0.9681997), Quaternion(-0.22287723, -0.061281405, 0.00018664771, 0.97291845), Quaternion(-0.22051245, -0.060649764, 0.00018522666, 0.97349674), Quaternion(-0.2727137, -0.07480996, 0.00037824124, 0.95918226)]
+}
+tracks/8/type = "value"
+tracks/8/imported = false
+tracks/8/enabled = true
+tracks/8/path = NodePath("BodySkeleton:bones/9/rotation")
+tracks/8/interp = 1
+tracks/8/loop_wrap = true
+tracks/8/keys = {
+"times": PackedFloat32Array(0, 0.033333335, 0.06666667, 0.1, 0.13333334, 0.16666667, 0.2, 0.23333333, 0.26666668, 0.3),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 0,
+"values": [Quaternion(-0.010446457, 0.28508195, 0.2963378, 0.911484), Quaternion(-0.005338629, 0.28712988, 0.2961315, 0.9109523), Quaternion(-0.004477642, 0.28932232, 0.29631516, 0.9102032), Quaternion(-0.0037807375, 0.29184774, 0.29659393, 0.9093089), Quaternion(0.008431823, 0.29741886, 0.29610848, 0.90762913), Quaternion(0.029037602, 0.30572924, 0.2945104, 0.9049586), Quaternion(0.020623391, 0.30469412, 0.29436013, 0.90558726), Quaternion(-0.048777495, 0.2742792, 0.30943286, 0.9091991), Quaternion(-0.12633015, 0.21538648, 0.35098004, 0.9024757), Quaternion(-0.12413562, 0.16175808, 0.38098064, 0.9018195)]
+}
+tracks/9/type = "value"
+tracks/9/imported = false
+tracks/9/enabled = true
+tracks/9/path = NodePath("BodySkeleton:bones/10/rotation")
+tracks/9/interp = 1
+tracks/9/loop_wrap = true
+tracks/9/keys = {
+"times": PackedFloat32Array(0, 0.033333335, 0.06666667, 0.1, 0.13333334, 0.16666667, 0.2, 0.23333333, 0.26666668, 0.3),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 0,
+"values": [Quaternion(-0.12505916, -0.31277764, -0.18686791, 0.9228276), Quaternion(-0.12509358, -0.31274647, -0.18683799, 0.9228395), Quaternion(-0.12512805, -0.31271535, -0.18680805, 0.9228515), Quaternion(-0.1251625, -0.31268418, -0.18677813, 0.9228634), Quaternion(-0.12519696, -0.3126531, -0.18674822, 0.92287534), Quaternion(-0.12523146, -0.312622, -0.18671823, 0.92288727), Quaternion(-0.12526593, -0.31259087, -0.18668827, 0.9228992), Quaternion(-0.12501802, -0.3121224, -0.18676111, 0.92307657), Quaternion(-0.12427776, -0.3112677, -0.18694498, 0.9234279), Quaternion(-0.1228122, -0.31072825, -0.18734963, 0.9237236)]
+}
+tracks/10/type = "value"
+tracks/10/imported = false
+tracks/10/enabled = true
+tracks/10/path = NodePath("BodySkeleton:bones/11/rotation")
+tracks/10/interp = 1
+tracks/10/loop_wrap = true
+tracks/10/keys = {
+"times": PackedFloat32Array(0, 0.033333335, 0.06666667, 0.1, 0.13333334, 0.16666667, 0.2, 0.23333333, 0.26666668, 0.3),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 0,
+"values": [Quaternion(0.41076437, -0.00403685, 0.015004768, 0.9116091), Quaternion(0.4108353, -0.0039262874, 0.015067375, 0.9115766), Quaternion(0.41090637, -0.0038157334, 0.015129984, 0.911544), Quaternion(0.4109774, -0.0037051328, 0.015192561, 0.9115114), Quaternion(0.41104844, -0.0035946164, 0.015255195, 0.9114788), Quaternion(0.41111943, -0.0034840044, 0.015317783, 0.91144615), Quaternion(0.41119042, -0.0033734315, 0.015380362, 0.9114135), Quaternion(0.41126135, -0.003262871, 0.01544298, 0.9113808), Quaternion(0.4113324, -0.0031522585, 0.015505567, 0.9113481), Quaternion(0.41140324, -0.0030417417, 0.015568159, 0.9113154)]
+}
+tracks/11/type = "value"
+tracks/11/imported = false
+tracks/11/enabled = true
+tracks/11/path = NodePath("BodySkeleton:bones/12/rotation")
+tracks/11/interp = 1
+tracks/11/loop_wrap = true
+tracks/11/keys = {
+"times": PackedFloat32Array(0, 0.033333335, 0.06666667, 0.1, 0.13333334, 0.16666667, 0.2, 0.23333333, 0.26666668, 0.3),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 0,
+"values": [Quaternion(-0.3391693, -0.049665794, 0.074698575, 0.9364388), Quaternion(-0.33918783, -0.04955758, 0.07478608, 0.9364308), Quaternion(-0.33920634, -0.049449395, 0.074873604, 0.9364229), Quaternion(-0.33922493, -0.04934123, 0.07496113, 0.93641484), Quaternion(-0.33924353, -0.049232993, 0.07504863, 0.9364068), Quaternion(-0.3392621, -0.049124897, 0.075136185, 0.9363987), Quaternion(-0.33803943, -0.048672814, 0.074594826, 0.93690765), Quaternion(-0.33686522, -0.049311977, 0.07457578, 0.93729854), Quaternion(-0.33619592, -0.05057173, 0.07525402, 0.9374175), Quaternion(-0.33628076, -0.05307445, 0.074754864, 0.9372887)]
+}
+tracks/12/type = "value"
+tracks/12/imported = false
+tracks/12/enabled = true
+tracks/12/path = NodePath("BodySkeleton:bones/13/rotation")
+tracks/12/interp = 1
+tracks/12/loop_wrap = true
+tracks/12/keys = {
+"times": PackedFloat32Array(0, 0.033333335, 0.06666667, 0.1, 0.13333334, 0.16666667, 0.2, 0.23333333, 0.26666668, 0.3),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 0,
+"values": [Quaternion(0.2983769, -0.0014445568, -0.01240095, 0.95436645), Quaternion(0.29811245, -0.0014516736, -0.012391675, 0.95444924), Quaternion(0.29784787, -0.001458782, -0.012382384, 0.9545319), Quaternion(0.2975835, -0.001465901, -0.012373108, 0.9546145), Quaternion(0.29731897, -0.00147302, -0.012363823, 0.9546971), Quaternion(0.2970545, -0.0014801519, -0.012354534, 0.95477945), Quaternion(0.2955162, -0.0014563021, -0.012274666, 0.9552578), Quaternion(0.29427773, -0.0013945777, -0.012192441, 0.95564115), Quaternion(0.29517624, -0.0012866011, -0.012188221, 0.9553642), Quaternion(0.2994419, -0.0011049581, -0.012307519, 0.9540345)]
+}

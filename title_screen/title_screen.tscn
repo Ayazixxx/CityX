@@ -1,0 +1,203 @@
+[gd_scene load_steps=11 format=3]
+
+[ext_resource type="Script" path="res://title_screen/title_screen.gd" id="1"]
+[ext_resource type="Texture2D" path="res://title_screen/assets/background.png" id="2"]
+[ext_resource type="Texture2D" path="res://title_screen/assets/logo.png" id="3"]
+[ext_resource type="Script" path="res://title_screen/rain_layer.gd" id="4"]
+[ext_resource type="Script" path="res://title_screen/eye_layer.gd" id="5"]
+[ext_resource type="AudioStream" path="res://title_screen/assets/audio/rain_noises.mp3" id="6"]
+[ext_resource type="AudioStream" path="res://title_screen/assets/audio/stars.mp3" id="7"]
+[ext_resource type="PackedScene" path="res://ui/settings_panel.tscn" id="8"]
+[ext_resource type="PackedScene" path="res://title_screen/title_screen_city.tscn" id="9"]
+
+[sub_resource type="Gradient" id="Gradient_vignette"]
+offsets = PackedFloat32Array(0, 0.45, 1)
+colors = PackedColorArray(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.55)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_vignette"]
+gradient = SubResource("Gradient_vignette")
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(1, 0.5)
+width = 512
+height = 512
+
+[node name="TitleScreen" type="Control"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+script = ExtResource("1")
+
+[node name="City3DViewport" type="SubViewportContainer" parent="."]
+mouse_filter = 2
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="SubViewport" type="SubViewport" parent="City3DViewport"]
+handle_input_locally = false
+own_world_3d = true
+size = Vector2i(1280, 720)
+
+[node name="TitleScreenCity" parent="City3DViewport/SubViewport" instance=ExtResource("9")]
+
+[node name="Background" type="TextureRect" parent="."]
+visible = false
+mouse_filter = 2
+texture = ExtResource("2")
+expand_mode = 1
+stretch_mode = 0
+
+[node name="RainLayer" type="Control" parent="."]
+mouse_filter = 2
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("4")
+
+[node name="Vignette" type="TextureRect" parent="."]
+mouse_filter = 2
+anchor_right = 1.0
+anchor_bottom = 1.0
+texture = SubResource("GradientTexture2D_vignette")
+expand_mode = 1
+stretch_mode = 0
+
+[node name="Logo" type="TextureRect" parent="."]
+visible = false
+mouse_filter = 2
+texture = ExtResource("3")
+expand_mode = 1
+stretch_mode = 0
+
+[node name="EyeLayer" type="Control" parent="."]
+mouse_filter = 2
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("5")
+
+[node name="PromptLabel" type="Label" parent="."]
+mouse_filter = 2
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -200.0
+offset_top = -80.0
+offset_right = 200.0
+offset_bottom = -40.0
+theme_override_colors/font_color = Color(0.812, 0.839, 1, 1)
+theme_override_colors/font_shadow_color = Color(0.55, 0.63, 1, 0.6)
+theme_override_constants/shadow_outline_size = 6
+theme_override_font_sizes/font_size = 20
+horizontal_alignment = 1
+vertical_alignment = 1
+text = "PRESS ANY KEY TO START"
+
+[node name="MenuPanel" type="VBoxContainer" parent="."]
+visible = false
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -170.0
+offset_top = -350.0
+offset_right = 170.0
+offset_bottom = -50.0
+theme_override_constants/separation = 24
+
+[node name="SingleplayerButton" type="Button" parent="MenuPanel"]
+custom_minimum_size = Vector2(300, 76)
+theme_override_font_sizes/font_size = 30
+text = "Singleplayer"
+
+[node name="MultiplayerButton" type="Button" parent="MenuPanel"]
+custom_minimum_size = Vector2(300, 76)
+theme_override_font_sizes/font_size = 30
+text = "Multiplayer"
+
+[node name="SettingsButton" type="Button" parent="MenuPanel"]
+custom_minimum_size = Vector2(300, 76)
+theme_override_font_sizes/font_size = 30
+text = "Settings"
+
+[node name="SettingsPanel" parent="." instance=ExtResource("8")]
+visible = false
+
+[node name="MultiplayerPanel" type="VBoxContainer" parent="."]
+visible = false
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -220.0
+offset_top = -360.0
+offset_right = 220.0
+offset_bottom = -50.0
+theme_override_constants/separation = 18
+
+[node name="Title" type="Label" parent="MultiplayerPanel"]
+theme_override_colors/font_color = Color(0.812, 0.839, 1, 1)
+theme_override_colors/font_shadow_color = Color(0.55, 0.63, 1, 0.6)
+theme_override_constants/shadow_outline_size = 6
+theme_override_font_sizes/font_size = 22
+horizontal_alignment = 1
+text = "Multiplayer"
+
+[node name="HostRow" type="HBoxContainer" parent="MultiplayerPanel"]
+theme_override_constants/separation = 10
+
+[node name="HostButton" type="Button" parent="MultiplayerPanel/HostRow"]
+custom_minimum_size = Vector2(0, 64)
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 24
+text = "Host"
+
+[node name="HostPortField" type="LineEdit" parent="MultiplayerPanel/HostRow"]
+custom_minimum_size = Vector2(110, 64)
+theme_override_font_sizes/font_size = 20
+placeholder_text = "7777"
+
+[node name="JoinRow" type="HBoxContainer" parent="MultiplayerPanel"]
+theme_override_constants/separation = 10
+
+[node name="JoinAddressField" type="LineEdit" parent="MultiplayerPanel/JoinRow"]
+custom_minimum_size = Vector2(0, 64)
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 20
+placeholder_text = "IP address"
+
+[node name="JoinPortField" type="LineEdit" parent="MultiplayerPanel/JoinRow"]
+custom_minimum_size = Vector2(110, 64)
+theme_override_font_sizes/font_size = 20
+placeholder_text = "7777"
+
+[node name="JoinButton" type="Button" parent="MultiplayerPanel/JoinRow"]
+custom_minimum_size = Vector2(110, 64)
+theme_override_font_sizes/font_size = 20
+text = "Join"
+
+[node name="StatusLabel" type="Label" parent="MultiplayerPanel"]
+theme_override_colors/font_color = Color(1, 0.55, 0.55, 1)
+theme_override_font_sizes/font_size = 16
+horizontal_alignment = 1
+autowrap_mode = 2
+text = ""
+
+[node name="BackButton" type="Button" parent="MultiplayerPanel"]
+custom_minimum_size = Vector2(0, 64)
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 24
+text = "Back"
+
+[node name="FlashOverlay" type="ColorRect" parent="."]
+mouse_filter = 2
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(1, 1, 1, 0)
+
+[node name="RainPlayer" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("6")
+bus = &"Music"
+
+[node name="StarsPlayer" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("7")
+bus = &"Music"

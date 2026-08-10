@@ -1,0 +1,25 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://vehicles/car.gd" id="1"]
+
+[node name="Mustang" type="RigidBody3D"]
+mass = 1400.0
+script = ExtResource("1")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+
+[node name="VisualRoot" type="Node3D" parent="."]
+
+[node name="WheelRayFL" type="RayCast3D" parent="."]
+
+[node name="WheelRayFR" type="RayCast3D" parent="."]
+
+[node name="WheelRayRL" type="RayCast3D" parent="."]
+
+[node name="WheelRayRR" type="RayCast3D" parent="."]
+
+[node name="InteractArea" type="Area3D" parent="."]
+
+[node name="DriverSeat" type="Node3D" parent="."]
+
+[node name="PassengerSeat" type="Node3D" parent="."]

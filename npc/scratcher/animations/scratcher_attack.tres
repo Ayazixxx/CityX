@@ -1,0 +1,18 @@
+[gd_resource type="Animation" format=3]
+
+[resource]
+length = 0.75
+tracks/0/type = "rotation_3d"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Armature/Skeleton3D:head")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = PackedFloat32Array(0, 1, -0.1788063, 0.077738866, -0.30535784, 0.9320631, 0.34, 1, 0.08130515, 0.092727914, -0.29794803, 0.94658226, 0.46, 1, -0.5186515, 0.048153505, -0.28092915, 0.8060774, 0.75, 1, -0.1788063, 0.077738866, -0.30535784, 0.9320631)
+tracks/1/type = "rotation_3d"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Armature/Skeleton3D:chest")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = PackedFloat32Array(0, 1, -0.17297557, -1.3353305e-08, 0.12911662, 0.9764264, 0.34, 1, -0.08290533, -0.011814394, 0.12857497, 0.98815775, 0.46, 1, -0.29646862, 0.016517894, 0.12805569, 0.94627446, 0.75, 1, -0.17297557, -1.3353305e-08, 0.12911662, 0.9764264)

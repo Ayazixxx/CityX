@@ -1,0 +1,62 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://player/player.gd" id="1"]
+[ext_resource type="AudioStream" path="res://player/assets/audio/fall_impact.mp3" id="2"]
+[ext_resource type="AudioStream" path="res://player/assets/audio/walk_sound.mp3" id="3"]
+[ext_resource type="AudioStream" path="res://player/assets/audio/run_sound.mp3" id="4"]
+[ext_resource type="AudioStream" path="res://player/assets/audio/city_ambience.mp3" id="5"]
+[ext_resource type="Script" path="res://player/inventory.gd" id="6"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
+radius = 0.4
+height = 1.8
+
+[node name="Player" type="CharacterBody3D"]
+script = ExtResource("1")
+collision_layer = 4
+collision_mask = 1
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("CapsuleShape3D_1")
+position = Vector3(0, 0.9, 0)
+
+[node name="CameraPivot" type="Node3D" parent="."]
+position = Vector3(0, 1.6, 0)
+
+[node name="SpringArm3D" type="SpringArm3D" parent="CameraPivot"]
+collision_mask = 1
+spring_length = 4.0
+
+[node name="Camera3D" type="Camera3D" parent="CameraPivot/SpringArm3D"]
+
+[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
+
+[node name="FallImpactPlayer" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("2")
+bus = &"Master"
+
+[node name="WalkSoundPlayer" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("3")
+bus = &"Master"
+
+[node name="RunSoundPlayer" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("4")
+bus = &"Master"
+
+[node name="PunchImpactPlayer" type="AudioStreamPlayer" parent="."]
+bus = &"Master"
+
+[node name="DashPlayer" type="AudioStreamPlayer" parent="."]
+bus = &"Master"
+
+[node name="VoicePlayer" type="AudioStreamPlayer3D" parent="."]
+bus = &"Master"
+max_distance = 25.0
+unit_size = 3.0
+
+[node name="CityAmbiencePlayer" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("5")
+bus = &"Music"
+
+[node name="Inventory" type="Node" parent="."]
+script = ExtResource("6")
