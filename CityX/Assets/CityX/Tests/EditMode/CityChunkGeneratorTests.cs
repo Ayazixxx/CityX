@@ -11,22 +11,52 @@ namespace CityX.Tests
     /// build. That is a deliberate limit, and worth being clear about: the
     /// port uses its own PRNG, so the specific building on a given lot will
     /// NOT match Godot's, and could not. What must hold is that the rules are
-    /// the same -- footprints fit their lots, the height distribution has the
-    /// intended shape, streets stay clear, and the same seed always rebuilds
-    /// the same city.
+    /// the same -- footprints fit their lots, streets stay clear, and the same
+    /// seed always rebuilds the same city.
     ///
     /// Exact-match against Godot was available and rejected: it would have
     /// pinned this project to another engine's RNG internals forever to buy a
     /// property nothing actually needs. What the game needs is Unity agreeing
     /// with Unity.
+    ///
+    /// ONE INVARIANT WAS DELIBERATELY INVERTED. The Godot build biased heights
+    /// LOW so most buildings stayed short, and this file used to have a test
+    /// enforcing it. That was correct for the old look and is exactly backwards
+    /// for Chongqing. It has been replaced by
+    /// <see cref="MostOfTheCityIsGenuinelyTall"/> and
+    /// <see cref="MassMixMatchesTheArtDirection"/>, which enforce the new
+    /// direction just as strictly rather than leaving the shape untested.
     /// </summary>
     public class CityChunkGeneratorTests
     {
-        private const float ChunkSize = CityLayout.ChunkSize;
+        private const int Seed = 20260810;
 
         private static int ChunkSeed(int worldSeed, int x, int y)
         {
             return worldSeed ^ (x * 73856093) ^ (y * 19349663);
+        }
+
+        /// <summary>
+        /// Walks a square of chunks and yields the buildings that actually
+        /// stand on them, with the role that produced each one.
+        /// </summary>
+        private static List<(BuildingParams p, LotRole role, int x, int y)> Sweep(int worldSeed, int extent)
+        {
+            CityBlocks blocks = new CityBlocks(worldSeed);
+            var found = new List<(BuildingParams, LotRole, int, int)>();
+            for (int x = -extent; x <= extent; x++)
+            {
+                for (int y = -extent; y <= extent; y++)
+                {
+                    LotRole role = blocks.RoleFor(x, y);
+                    BuildingParams p = CityChunkGenerator.ParamsFor(ChunkSeed(worldSeed, x, y), role);
+                    if (p.HasBuilding)
+                    {
+                        found.Add((p, role, x, y));
+                    }
+                }
+            }
+            return found;
         }
 
         /// <summary>
@@ -36,13 +66,15 @@ namespace CityX.Tests
         [Test]
         public void TheSameSeedAlwaysRebuildsTheSameLot()
         {
+            CityBlocks blocks = new CityBlocks(4242);
             for (int x = -12; x <= 12; x++)
             {
                 for (int y = -12; y <= 12; y++)
                 {
                     int seed = ChunkSeed(4242, x, y);
-                    BuildingParams first = CityChunkGenerator.ParamsFor(seed, x, y, ChunkSize);
-                    BuildingParams second = CityChunkGenerator.ParamsFor(seed, x, y, ChunkSize);
+                    LotRole role = blocks.RoleFor(x, y);
+                    BuildingParams first = CityChunkGenerator.ParamsFor(seed, role);
+                    BuildingParams second = CityChunkGenerator.ParamsFor(seed, role);
 
                     Assert.AreEqual(first.HasBuilding, second.HasBuilding, $"({x},{y}) HasBuilding");
                     Assert.AreEqual(first.Width, second.Width, $"({x},{y}) Width");
@@ -54,146 +86,215 @@ namespace CityX.Tests
                     Assert.AreEqual(first.FacadeIndex, second.FacadeIndex, $"({x},{y}) FacadeIndex");
                     Assert.AreEqual(first.SpecialType, second.SpecialType, $"({x},{y}) SpecialType");
                     Assert.AreEqual(first.HasBasement, second.HasBasement, $"({x},{y}) HasBasement");
+                    Assert.AreEqual(first.Mass, second.Mass, $"({x},{y}) Mass");
                 }
             }
         }
 
         [Test]
-        public void StreetChunksNeverBuildAndConsumeNoRandomness()
+        public void StreetsAndCoveredChunksNeverBuild()
         {
-            for (int x = -8; x <= 8; x++)
+            CityBlocks blocks = new CityBlocks(7);
+            for (int x = -20; x <= 20; x++)
             {
-                for (int y = -8; y <= 8; y++)
+                for (int y = -20; y <= 20; y++)
                 {
-                    if (!CityLayout.IsStreetChunk(x, y))
+                    LotRole role = blocks.RoleFor(x, y);
+                    if (role.Builds)
                     {
                         continue;
                     }
-                    BuildingParams p = CityChunkGenerator.ParamsFor(ChunkSeed(7, x, y), x, y, ChunkSize);
-                    Assert.IsFalse(p.HasBuilding, $"a street chunk at ({x},{y}) grew a building");
+                    BuildingParams p = CityChunkGenerator.ParamsFor(ChunkSeed(7, x, y), role);
+                    Assert.IsFalse(p.HasBuilding,
+                        $"({x},{y}) is {role.Kind} but grew a building");
                 }
             }
         }
 
         /// <summary>
-        /// A building that overflows its lot would poke into the road, and
-        /// since generation is per-chunk and independent, neighbours would not
-        /// know to avoid it.
+        /// A building that overflows its lot would poke into the road, and since
+        /// generation is per-chunk and independent, neighbours would not know to
+        /// avoid it.
         /// </summary>
         [Test]
         public void EveryBuildingFitsInsideItsLotWithMarginToSpare()
         {
-            float maxFootprint = System.Math.Min(
-                CityChunkGenerator.MaxFootprint, ChunkSize - CityChunkGenerator.LotMargin * 2.0f);
-            float halfLot = ChunkSize / 2.0f - CityChunkGenerator.LotMargin;
+            var buildings = Sweep(99, 30);
+            Assert.Greater(buildings.Count, 400, "not enough buildings sampled for this to mean anything");
 
-            int checkedCount = 0;
-            for (int x = -20; x <= 20; x++)
+            foreach (var (p, role, x, y) in buildings)
             {
-                for (int y = -20; y <= 20; y++)
-                {
-                    BuildingParams p = CityChunkGenerator.ParamsFor(ChunkSeed(99, x, y), x, y, ChunkSize);
-                    if (!p.HasBuilding)
-                    {
-                        continue;
-                    }
-                    checkedCount++;
+                float lotWidth = role.SpanX * CityLayout.ChunkSize - CityChunkGenerator.LotMargin * 2.0f;
+                float lotDepth = role.SpanY * CityLayout.ChunkSize - CityChunkGenerator.LotMargin * 2.0f;
 
-                    Assert.GreaterOrEqual(p.Width, CityChunkGenerator.MinFootprint, $"({x},{y}) too narrow");
-                    Assert.LessOrEqual(p.Width, maxFootprint, $"({x},{y}) too wide");
-                    Assert.GreaterOrEqual(p.Depth, CityChunkGenerator.MinFootprint, $"({x},{y}) too shallow");
-                    Assert.LessOrEqual(p.Depth, maxFootprint, $"({x},{y}) too deep");
+                Assert.LessOrEqual(p.Width, lotWidth + 0.001f, $"({x},{y}) is wider than its lot");
+                Assert.LessOrEqual(p.Depth, lotDepth + 0.001f, $"({x},{y}) is deeper than its lot");
 
-                    // The jitter cap must never push a building past the margin.
-                    float reachX = System.Math.Abs(p.OffsetX) + p.Width / 2.0f;
-                    float reachZ = System.Math.Abs(p.OffsetZ) + p.Depth / 2.0f;
-                    Assert.LessOrEqual(reachX, halfLot + 0.001f,
-                        $"({x},{y}) reaches {reachX:0.00}m from centre, past the {halfLot:0.00}m lot edge -- it would poke into the street");
-                    Assert.LessOrEqual(reachZ, halfLot + 0.001f,
-                        $"({x},{y}) reaches {reachZ:0.00}m from centre, past the {halfLot:0.00}m lot edge");
-                }
-            }
-            Assert.Greater(checkedCount, 200, "not enough buildings sampled for this to mean anything");
-        }
+                float halfLotX = role.SpanX * CityLayout.ChunkSize / 2.0f - CityChunkGenerator.LotMargin;
+                float halfLotZ = role.SpanY * CityLayout.ChunkSize / 2.0f - CityChunkGenerator.LotMargin;
+                float reachX = System.Math.Abs(p.OffsetX) + p.Width / 2.0f;
+                float reachZ = System.Math.Abs(p.OffsetZ) + p.Depth / 2.0f;
 
-        [Test]
-        public void HeightsStayWithinRange()
-        {
-            for (int x = -20; x <= 20; x++)
-            {
-                for (int y = -20; y <= 20; y++)
-                {
-                    BuildingParams p = CityChunkGenerator.ParamsFor(ChunkSeed(5, x, y), x, y, ChunkSize);
-                    if (!p.HasBuilding)
-                    {
-                        continue;
-                    }
-                    Assert.GreaterOrEqual(p.Height, CityChunkGenerator.MinHeight - 0.001f, $"({x},{y})");
-                    Assert.LessOrEqual(p.Height, CityChunkGenerator.MaxHeight + 0.001f, $"({x},{y})");
-                }
+                Assert.LessOrEqual(reachX, halfLotX + 0.001f,
+                    $"({x},{y}) reaches {reachX:0.00}m from centre, past the {halfLotX:0.00}m lot edge -- " +
+                    "it would poke into the street");
+                Assert.LessOrEqual(reachZ, halfLotZ + 0.001f,
+                    $"({x},{y}) reaches {reachZ:0.00}m from centre, past the {halfLotZ:0.00}m lot edge");
             }
         }
 
         /// <summary>
-        /// The original squares its height sample specifically so most
-        /// buildings stay low and a rare few stand out. A flat distribution
-        /// would pass the range check above while making the skyline read
-        /// completely differently -- so the SHAPE gets its own test.
+        /// A big lot must actually produce a big building.
+        ///
+        /// This is what makes the whole block system worth having. Rolling a
+        /// footprint from a FIXED range -- which is what the code did before
+        /// multi-chunk lots existed -- would let a 2x2 tower lot come out 9m
+        /// wide, putting a 200m needle on a 42m plot. Filling a FRACTION of the
+        /// lot makes that structurally impossible rather than merely unlikely.
         /// </summary>
         [Test]
-        public void HeightDistributionIsBiasedLowNotFlat()
+        public void BuildingsFillTheLotTheyWereGiven()
         {
-            List<float> heights = new List<float>();
-            for (int x = -40; x <= 40; x++)
+            foreach (var (p, role, x, y) in Sweep(5150, 30))
             {
-                for (int y = -40; y <= 40; y++)
+                if (p.IsSpecial)
                 {
-                    BuildingParams p = CityChunkGenerator.ParamsFor(ChunkSeed(31337, x, y), x, y, ChunkSize);
-                    if (p.HasBuilding && !p.IsSpecial)
-                    {
-                        heights.Add(p.Height);
-                    }
+                    continue;   // presets are absolute by design; see their own test
+                }
+                float lotWidth = role.SpanX * CityLayout.ChunkSize - CityChunkGenerator.LotMargin * 2.0f;
+                float lotDepth = role.SpanY * CityLayout.ChunkSize - CityChunkGenerator.LotMargin * 2.0f;
+
+                Assert.GreaterOrEqual(p.Width / lotWidth, CityChunkGenerator.FootprintFillMin - 0.001,
+                    $"({x},{y}) fills only {p.Width / lotWidth:P0} of its lot width");
+                Assert.GreaterOrEqual(p.Depth / lotDepth, CityChunkGenerator.FootprintFillMin - 0.001,
+                    $"({x},{y}) fills only {p.Depth / lotDepth:P0} of its lot depth");
+            }
+        }
+
+        /// <summary>
+        /// No needles. The single number that says whether the footprint work
+        /// actually did its job.
+        ///
+        /// The bound is 9 rather than something tighter because slabs are MEANT
+        /// to be slender on their thin axis -- that long narrow concrete face is
+        /// the brutalist reference -- and real supertall landmarks are slimmer
+        /// still. What is being ruled out is a 200m building on a 9m plot.
+        /// </summary>
+        [Test]
+        public void NoBuildingIsANeedle()
+        {
+            float worst = 0.0f;
+            string worstWhere = "";
+
+            foreach (var (p, role, x, y) in Sweep(31337, 40))
+            {
+                if (p.Slenderness > worst)
+                {
+                    worst = p.Slenderness;
+                    worstWhere = $"({x},{y}) {p.Mass} {p.Width:0.0}x{p.Depth:0.0}x{p.Height:0.0}m " +
+                                 $"on a {role.SpanX}x{role.SpanY} lot";
                 }
             }
-            Assert.Greater(heights.Count, 500, "not enough generic buildings sampled");
 
-            float midpoint = (CityChunkGenerator.MinHeight + CityChunkGenerator.MaxHeight) / 2.0f;
-            int aboveMid = 0;
-            foreach (float h in heights)
+            TestContext.WriteLine($"most slender: {worst:0.00}:1 -- {worstWhere}");
+            Assert.LessOrEqual(worst, 9.0f,
+                $"a building reached {worst:0.0}:1 -- {worstWhere}. That is a mast, not a tower");
+        }
+
+        [Test]
+        public void HeightsStayInsideTheirOwnClassRange()
+        {
+            foreach (var (p, _, x, y) in Sweep(5, 30))
             {
-                if (h > midpoint)
+                if (p.IsSpecial)
                 {
-                    aboveMid++;
+                    continue;
                 }
+                CityChunkGenerator.HeightRange(p.Mass, out float min, out float max);
+                Assert.GreaterOrEqual(p.Height, min - 0.001f, $"({x},{y}) {p.Mass} is below its class range");
+                Assert.LessOrEqual(p.Height, max + 0.001f, $"({x},{y}) {p.Mass} is above its class range");
             }
-            double fractionAbove = aboveMid / (double)heights.Count;
+        }
 
-            // A flat distribution would put ~50% above the midpoint. Squaring
-            // the sample should put ~29% above (1 - sqrt(0.5)).
-            Assert.Less(fractionAbove, 0.40,
-                $"{fractionAbove:P0} of buildings are above the midpoint -- that is a flat distribution, " +
-                "so the whole skyline got taller instead of a few standouts appearing");
-            Assert.Greater(fractionAbove, 0.15,
-                $"only {fractionAbove:P0} of buildings are above the midpoint -- heights are crushed low " +
-                "and nothing stands out at all");
+        /// <summary>
+        /// The replacement for the old bias-low test, enforcing the art
+        /// direction the user actually asked for: mostly taller buildings, with
+        /// the de_maple low-rise present but uncommon.
+        /// </summary>
+        [Test]
+        public void MostOfTheCityIsGenuinelyTall()
+        {
+            var buildings = Sweep(2024, 40);
+            Assert.Greater(buildings.Count, 800, "not enough buildings sampled");
+
+            int tall = 0;
+            int veryTall = 0;
+            foreach (var (p, _, _, _) in buildings)
+            {
+                if (p.Height >= CityChunkGenerator.MidRiseMinHeight) tall++;
+                if (p.Height >= CityChunkGenerator.SlabMinHeight) veryTall++;
+            }
+
+            double tallShare = tall / (double)buildings.Count;
+            double veryTallShare = veryTall / (double)buildings.Count;
+            TestContext.WriteLine($"{tallShare:P1} of buildings are 28m+, {veryTallShare:P1} are 60m+");
+
+            Assert.Greater(tallShare, 0.70,
+                $"only {tallShare:P0} of buildings reach 28m -- the city is short, which is the OLD " +
+                "art direction, not this one");
+            Assert.Greater(veryTallShare, 0.03,
+                $"only {veryTallShare:P1} of buildings reach 60m -- nothing towers over anything");
+        }
+
+        [Test]
+        public void MassMixMatchesTheArtDirection()
+        {
+            var buildings = Sweep(777, 45);
+            var counts = new Dictionary<BuildingMass, int>();
+            foreach (var (p, _, _, _) in buildings)
+            {
+                counts.TryGetValue(p.Mass, out int n);
+                counts[p.Mass] = n + 1;
+            }
+
+            double Share(BuildingMass m)
+            {
+                counts.TryGetValue(m, out int n);
+                return n / (double)buildings.Count;
+            }
+
+            foreach (BuildingMass m in System.Enum.GetValues(typeof(BuildingMass)))
+            {
+                TestContext.WriteLine($"{m}: {Share(m):P2}");
+            }
+
+            Assert.Greater(Share(BuildingMass.MidRise), 0.60,
+                "mid-rise should be the workhorse of the city");
+
+            double lowRise = Share(BuildingMass.LowRise);
+            Assert.Greater(lowRise, 0.06,
+                $"low-rise is {lowRise:P1} -- the de_maple flavour has effectively vanished");
+            Assert.Less(lowRise, 0.20,
+                $"low-rise is {lowRise:P1} -- the user asked for these to be the uncommon ones");
+
+            double towers = Share(BuildingMass.Tower) + Share(BuildingMass.Supertall);
+            Assert.Greater(towers, 0.02, $"towers are {towers:P1} -- the skyline has nothing in it");
+            Assert.Less(towers, 0.10, $"towers are {towers:P1} -- every block cannot be a landmark");
+
+            Assert.Greater(Share(BuildingMass.Slab), 0.02, "the brutalist slab has gone missing");
+
+            Assert.Greater(Share(BuildingMass.Supertall), 0.0,
+                "no supertall appeared at all -- the rare landmark tier is unreachable");
         }
 
         [Test]
         public void RoofsAndFacadesStayInsideTheirTables()
         {
-            for (int x = -20; x <= 20; x++)
+            foreach (var (p, _, x, y) in Sweep(808, 25))
             {
-                for (int y = -20; y <= 20; y++)
-                {
-                    BuildingParams p = CityChunkGenerator.ParamsFor(ChunkSeed(808, x, y), x, y, ChunkSize);
-                    if (!p.HasBuilding)
-                    {
-                        continue;
-                    }
-                    Assert.Contains(p.Roof, CityChunkGenerator.RoofTypes, $"({x},{y}) unknown roof '{p.Roof}'");
-                    Assert.GreaterOrEqual(p.FacadeIndex, 0, $"({x},{y})");
-                    Assert.Less(p.FacadeIndex, CityChunkGenerator.FacadeWeights.Length, $"({x},{y})");
-                }
+                Assert.Contains(p.Roof, CityChunkGenerator.RoofTypes, $"({x},{y}) unknown roof '{p.Roof}'");
+                Assert.GreaterOrEqual(p.FacadeIndex, 0, $"({x},{y})");
+                Assert.Less(p.FacadeIndex, CityChunkGenerator.FacadeWeights.Length, $"({x},{y})");
             }
         }
 
@@ -205,24 +306,14 @@ namespace CityX.Tests
         [Test]
         public void SpecialBuildingsAreRareButDoOccur()
         {
-            int buildings = 0;
-            Dictionary<string, int> specials = new Dictionary<string, int>();
-
-            for (int x = -60; x <= 60; x++)
+            var buildings = Sweep(2024, 60);
+            var specials = new Dictionary<string, int>();
+            foreach (var (p, _, _, _) in buildings)
             {
-                for (int y = -60; y <= 60; y++)
+                if (p.IsSpecial)
                 {
-                    BuildingParams p = CityChunkGenerator.ParamsFor(ChunkSeed(2024, x, y), x, y, ChunkSize);
-                    if (!p.HasBuilding)
-                    {
-                        continue;
-                    }
-                    buildings++;
-                    if (p.IsSpecial)
-                    {
-                        specials.TryGetValue(p.SpecialType, out int count);
-                        specials[p.SpecialType] = count + 1;
-                    }
+                    specials.TryGetValue(p.SpecialType, out int count);
+                    specials[p.SpecialType] = count + 1;
                 }
             }
 
@@ -231,69 +322,72 @@ namespace CityX.Tests
             {
                 totalSpecial += kvp.Value;
             }
-            double rate = totalSpecial / (double)buildings;
+            double rate = totalSpecial / (double)buildings.Count;
 
-            // Presets sum to 9% of lots.
-            Assert.Greater(rate, 0.04, $"only {rate:P1} of buildings are special -- landmarks have vanished");
+            // Presets sum to 9% of single lots, and single lots are ~90% of all
+            // buildings, so about 8% overall.
+            Assert.Greater(rate, 0.03, $"only {rate:P1} of buildings are special -- landmarks have vanished");
             Assert.Less(rate, 0.16, $"{rate:P1} of buildings are special -- the city reads as a theme park");
 
-            // Every type should actually appear over this many lots, or one is
-            // unreachable -- which a total-rate check alone would hide.
             foreach (SpecialBuildingPreset preset in CityChunkGenerator.SpecialPresets)
             {
                 Assert.IsTrue(specials.ContainsKey(preset.Name),
-                    $"'{preset.Name}' never appeared in {buildings} buildings -- it is unreachable");
+                    $"'{preset.Name}' never appeared in {buildings.Count} buildings -- it is unreachable");
+            }
+        }
+
+        /// <summary>
+        /// A supermarket has no business taking a tower lot -- its dimensions
+        /// are absolute, so it would sit marooned in the middle of a 42m plot.
+        /// </summary>
+        [Test]
+        public void SpecialBuildingsOnlyTakeSingleChunkLots()
+        {
+            foreach (var (p, role, x, y) in Sweep(1234, 40))
+            {
+                if (p.IsSpecial)
+                {
+                    Assert.IsFalse(role.IsMultiChunk,
+                        $"'{p.SpecialType}' at ({x},{y}) took a {role.SpanX}x{role.SpanY} lot");
+                }
             }
         }
 
         [Test]
         public void SpecialBuildingsUseTheirPresetDimensions()
         {
-            Dictionary<string, SpecialBuildingPreset> byName = new Dictionary<string, SpecialBuildingPreset>();
+            var byName = new Dictionary<string, SpecialBuildingPreset>();
             foreach (SpecialBuildingPreset preset in CityChunkGenerator.SpecialPresets)
             {
                 byName[preset.Name] = preset;
             }
 
-            for (int x = -40; x <= 40; x++)
+            foreach (var (p, _, x, y) in Sweep(1234, 40))
             {
-                for (int y = -40; y <= 40; y++)
+                if (!p.IsSpecial)
                 {
-                    BuildingParams p = CityChunkGenerator.ParamsFor(ChunkSeed(1234, x, y), x, y, ChunkSize);
-                    if (!p.HasBuilding || !p.IsSpecial)
-                    {
-                        continue;
-                    }
-                    SpecialBuildingPreset preset = byName[p.SpecialType];
-                    Assert.GreaterOrEqual(p.Height, preset.HeightMin - 0.001f, $"{p.SpecialType} at ({x},{y}) too short");
-                    Assert.LessOrEqual(p.Height, preset.HeightMax + 0.001f, $"{p.SpecialType} at ({x},{y}) too tall");
-                    Assert.AreEqual(preset.Roof, p.Roof, $"{p.SpecialType} at ({x},{y}) has the wrong roof");
+                    continue;
                 }
+                SpecialBuildingPreset preset = byName[p.SpecialType];
+                Assert.GreaterOrEqual(p.Height, preset.HeightMin - 0.001f, $"{p.SpecialType} at ({x},{y}) too short");
+                Assert.LessOrEqual(p.Height, preset.HeightMax + 0.001f, $"{p.SpecialType} at ({x},{y}) too tall");
+                Assert.AreEqual(preset.Roof, p.Roof, $"{p.SpecialType} at ({x},{y}) has the wrong roof");
             }
         }
 
         [Test]
         public void BasementsAreRare()
         {
-            int buildings = 0;
+            var buildings = Sweep(616, 50);
             int basements = 0;
-            for (int x = -50; x <= 50; x++)
+            foreach (var (p, _, _, _) in buildings)
             {
-                for (int y = -50; y <= 50; y++)
+                if (p.HasBasement)
                 {
-                    BuildingParams p = CityChunkGenerator.ParamsFor(ChunkSeed(616, x, y), x, y, ChunkSize);
-                    if (!p.HasBuilding)
-                    {
-                        continue;
-                    }
-                    buildings++;
-                    if (p.HasBasement)
-                    {
-                        basements++;
-                    }
+                    basements++;
                 }
             }
-            double rate = basements / (double)buildings;
+            double rate = basements / (double)buildings.Count;
             Assert.Greater(rate, 0.06, $"only {rate:P1} of buildings have basements -- the feature has effectively vanished");
             Assert.Less(rate, 0.20, $"{rate:P1} of buildings have basements -- they are meant to be a rare find");
         }
@@ -301,22 +395,28 @@ namespace CityX.Tests
         /// <summary>
         /// Roughly one lot in ten is left as a plaza. Without this the city is
         /// a solid wall of buildings with no breathing room.
+        ///
+        /// Counts LOTS, not chunks: a 2x2 tower lot is one lot that either
+        /// builds or does not, and counting its four chunks would quietly
+        /// weight big lots four times.
         /// </summary>
         [Test]
         public void AboutOneLotInTenIsLeftEmpty()
         {
+            CityBlocks blocks = new CityBlocks(4321);
             int lots = 0;
             int empty = 0;
             for (int x = -50; x <= 50; x++)
             {
                 for (int y = -50; y <= 50; y++)
                 {
-                    if (CityLayout.IsStreetChunk(x, y))
+                    LotRole role = blocks.RoleFor(x, y);
+                    if (!role.Builds)
                     {
                         continue;
                     }
                     lots++;
-                    if (!CityChunkGenerator.ParamsFor(ChunkSeed(4321, x, y), x, y, ChunkSize).HasBuilding)
+                    if (!CityChunkGenerator.ParamsFor(ChunkSeed(4321, x, y), role).HasBuilding)
                     {
                         empty++;
                     }
@@ -325,6 +425,61 @@ namespace CityX.Tests
             double rate = empty / (double)lots;
             Assert.Greater(rate, 0.05, $"only {rate:P1} of lots are empty -- the city has no gaps at all");
             Assert.Less(rate, 0.18, $"{rate:P1} of lots are empty -- the city is full of holes");
+        }
+
+        /// <summary>
+        /// A multi-chunk building can straddle a terrace step. It has to sit on
+        /// the HIGHEST pad it covers -- anchoring to the lowest would bury the
+        /// uphill corner, which is a hole in the world rather than a style.
+        /// </summary>
+        [Test]
+        public void MultiChunkBuildingsSitOnTheHighestGroundTheyCover()
+        {
+            CityBlocks blocks = new CityBlocks(Seed);
+            TerrainField terrain = new TerrainField(Seed);
+            int straddling = 0;
+            float biggestDrop = 0.0f;
+
+            for (int x = -80; x <= 80; x++)
+            {
+                for (int y = -80; y <= 80; y++)
+                {
+                    LotRole role = blocks.RoleFor(x, y);
+                    if (!role.Builds || !role.IsMultiChunk)
+                    {
+                        continue;
+                    }
+
+                    terrain.PadRangeForSpan(x, y, role.SpanX, role.SpanY,
+                        out float highest, out float lowest);
+
+                    Assert.GreaterOrEqual(highest, lowest, $"({x},{y}) pad range is inverted");
+                    foreach (int dx in new[] { 0, role.SpanX - 1 })
+                    {
+                        foreach (int dy in new[] { 0, role.SpanY - 1 })
+                        {
+                            Assert.LessOrEqual(terrain.PadHeightFor(x + dx, y + dy), highest + 0.001f,
+                                $"({x},{y}) would be buried at corner ({dx},{dy})");
+                        }
+                    }
+
+                    if (highest > lowest)
+                    {
+                        straddling++;
+                        float drop = highest - lowest;
+                        if (drop > biggestDrop)
+                        {
+                            biggestDrop = drop;
+                        }
+                    }
+                }
+            }
+
+            TestContext.WriteLine($"{straddling} multi-chunk buildings straddle a terrace step; " +
+                                  $"deepest podium needed: {biggestDrop}m");
+            Assert.Greater(straddling, 0,
+                "no multi-chunk building anywhere straddles a step -- either the terrain is flat " +
+                "or the span pads are not being sampled");
         }
     }
 }

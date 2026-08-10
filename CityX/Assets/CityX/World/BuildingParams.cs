@@ -1,6 +1,32 @@
 namespace CityX.World
 {
     /// <summary>
+    /// What kind of building this is, in the sense that matters to a skyline.
+    ///
+    /// Mass follows mostly from FOOTPRINT rather than being rolled freely,
+    /// because the two are not independent in real cities and pretending they
+    /// are is what produces needles. A 2x2 lot gets a tower because it is the
+    /// only lot that can carry one.
+    /// </summary>
+    public enum BuildingMass
+    {
+        /// <summary>The de_maple flavour -- 7-20m, deliberately uncommon.</summary>
+        LowRise,
+
+        /// <summary>The workhorse. 28-85m on a single lot.</summary>
+        MidRise,
+
+        /// <summary>Long, thin and tall. The blank concrete face of the brutalist reference.</summary>
+        Slab,
+
+        /// <summary>110-210m on a 2x2 lot.</summary>
+        Tower,
+
+        /// <summary>Rare landmark, 240-320m. Chongqing's own top out around 470m.</summary>
+        Supertall,
+    }
+
+    /// <summary>
     /// Everything about one lot's building that is decided purely by dice.
     ///
     /// Split out from geometry building for the same reason the Godot
@@ -26,11 +52,14 @@ namespace CityX.World
         public readonly int FacadeIndex;
         public readonly string SpecialType;
         public readonly bool HasBasement;
+        public readonly BuildingMass Mass;
 
-        public static readonly BuildingParams Empty = new BuildingParams(false, 0, 0, 0, 0, 0, "", 0, "", false);
+        public static readonly BuildingParams Empty =
+            new BuildingParams(false, 0, 0, 0, 0, 0, "", 0, "", false, BuildingMass.LowRise);
 
         public BuildingParams(bool hasBuilding, float width, float height, float depth,
-            float offsetX, float offsetZ, string roof, int facadeIndex, string specialType, bool hasBasement)
+            float offsetX, float offsetZ, string roof, int facadeIndex, string specialType,
+            bool hasBasement, BuildingMass mass)
         {
             HasBuilding = hasBuilding;
             Width = width;
@@ -42,9 +71,16 @@ namespace CityX.World
             FacadeIndex = facadeIndex;
             SpecialType = specialType;
             HasBasement = hasBasement;
+            Mass = mass;
         }
 
         public bool IsSpecial => !string.IsNullOrEmpty(SpecialType);
+
+        /// <summary>
+        /// Height over the narrower footprint axis. The number that decides
+        /// whether something reads as a tower or as a mast.
+        /// </summary>
+        public float Slenderness => Height / (Width < Depth ? Width : Depth);
     }
 
     /// <summary>

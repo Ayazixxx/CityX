@@ -175,6 +175,34 @@ namespace CityX.World
             return HeightAt(CityLayout.ChunkCentreX(chunkX), CityLayout.ChunkCentreZ(chunkY));
         }
 
+        /// <summary>
+        /// The highest and lowest pad under a multi-chunk building.
+        ///
+        /// A 2x2 tower can straddle a terrace step, and which of the two heights
+        /// it uses is a real decision rather than a rounding one. The ground
+        /// floor goes at the HIGHEST pad -- put it at the lowest and the uphill
+        /// corner is buried, which is a hole in the world rather than a stylistic
+        /// choice. The lowest comes back too because the gap between them is
+        /// exactly the podium or plinth that fills the downhill side, and that
+        /// stepped podium is a large part of what the hillside blocks in the
+        /// reference photos actually are.
+        /// </summary>
+        public void PadRangeForSpan(int anchorX, int anchorY, int spanX, int spanY,
+            out float highest, out float lowest)
+        {
+            highest = float.MinValue;
+            lowest = float.MaxValue;
+            for (int dx = 0; dx < spanX; dx++)
+            {
+                for (int dy = 0; dy < spanY; dy++)
+                {
+                    float pad = PadHeightFor(anchorX + dx, anchorY + dy);
+                    if (pad > highest) highest = pad;
+                    if (pad < lowest) lowest = pad;
+                }
+            }
+        }
+
         // --- noise ---
 
         /// <summary>
