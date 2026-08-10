@@ -1,0 +1,19 @@
+{
+    "name": "CityX.Spike.Editor",
+    "rootNamespace": "CityX.Spike.EditorTools",
+    "references": [
+        "CityX.Spike",
+        "FishNet.Runtime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
