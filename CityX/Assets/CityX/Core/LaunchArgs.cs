@@ -207,9 +207,9 @@ namespace CityX.Core
             {
                 return $"LaunchArgs(INVALID: {Error})";
             }
-            return GameModeInfo.UsesTransport(Mode)
-                ? $"LaunchArgs({Mode} {Address}:{Port} seed={WorldSeed})"
-                : $"LaunchArgs({Mode} seed={WorldSeed})";
+            return Mode == GameMode.Singleplayer
+                ? $"LaunchArgs({Mode} loopback:{Port} seed={WorldSeed})"
+                : $"LaunchArgs({Mode} {Address}:{Port} seed={WorldSeed})";
         }
     }
 }

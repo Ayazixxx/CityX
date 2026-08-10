@@ -17,45 +17,84 @@ namespace CityX.Tests
         private static GameMode[] AllModes => (GameMode[])Enum.GetValues(typeof(GameMode));
 
         /// <summary>
-        /// THE RULE. Every mode either owns the simulation or is connected to
-        /// one that does. There must be no mode in which a client simulates
-        /// gameplay by itself -- that is the divergence PORT_PLAN calls "the
-        /// classic way these ports fail".
+        /// THE RULE. Anywhere there is a local view, there is an
+        /// authoritative simulation behind it -- either running in this
+        /// process, or on the far end of a connection this process makes.
+        /// There must be no mode in which a client simulates gameplay by
+        /// itself; that is the divergence PORT_PLAN calls "the classic way
+        /// these ports fail".
         /// </summary>
         [Test]
-        public void EveryModeEitherHostsTheSimulationOrConnectsToOne()
+        public void NoClientEverSimulatesWithoutAnAuthorityBehindIt()
         {
             foreach (GameMode mode in AllModes)
             {
-                bool hostsIt = GameModeInfo.RunsServer(mode);
-                bool connectsToIt = GameModeInfo.UsesTransport(mode);
+                if (!GameModeInfo.RunsClient(mode))
+                {
+                    continue;
+                }
+                bool ownsTheSimulation = GameModeInfo.RunsServer(mode);
+                bool dialsOutToOne = GameModeInfo.ConnectsToRemoteServer(mode);
                 Assert.IsTrue(
-                    hostsIt || connectsToIt,
-                    $"{mode} neither runs a server nor opens a transport, so it would have to " +
-                    "simulate gameplay locally with no authority. That breaks the one rule.");
+                    ownsTheSimulation || dialsOutToOne,
+                    $"{mode} has a local client but neither runs the simulation nor connects " +
+                    "to one, so it would have to simulate gameplay with no authority.");
             }
         }
 
         /// <summary>
-        /// Singleplayer is the ONLY mode allowed to skip the wire, and it is
-        /// still a full server. If a second transport-less mode ever appears,
-        /// somebody is building an offline special case.
+        /// Singleplayer still runs the full server -- it is a host, not an
+        /// offline special case. What makes it singleplayer is that nobody
+        /// else can reach it, NOT that it skips the network stack (FishNet
+        /// has no transport-less mode; see GameModeInfo.AcceptsRemoteConnections).
         /// </summary>
         [Test]
-        public void SingleplayerIsTheOnlyTransportlessMode_AndItStillRunsTheServer()
+        public void SingleplayerIsAHostThatNobodyElseCanReach()
+        {
+            Assert.IsTrue(GameModeInfo.RunsServer(GameMode.Singleplayer),
+                "singleplayer is a server with one local client");
+            Assert.IsTrue(GameModeInfo.RunsClient(GameMode.Singleplayer),
+                "singleplayer has a local client");
+            Assert.IsFalse(GameModeInfo.AcceptsRemoteConnections(GameMode.Singleplayer),
+                "singleplayer must not be reachable from another machine");
+            Assert.IsFalse(GameModeInfo.ConnectsToRemoteServer(GameMode.Singleplayer),
+                "singleplayer owns its own simulation, so it dials nobody");
+        }
+
+        /// <summary>
+        /// Singleplayer is the ONLY server that hides. If a second
+        /// unreachable server mode appears, somebody is building an offline
+        /// special case.
+        /// </summary>
+        [Test]
+        public void EveryOtherServerModeIsReachable()
         {
             foreach (GameMode mode in AllModes)
             {
-                if (mode == GameMode.Singleplayer)
+                if (!GameModeInfo.RunsServer(mode) || mode == GameMode.Singleplayer)
                 {
-                    Assert.IsFalse(GameModeInfo.UsesTransport(mode), "singleplayer should need no socket");
-                    Assert.IsTrue(GameModeInfo.RunsServer(mode), "singleplayer is a server with one local client");
-                    Assert.IsTrue(GameModeInfo.RunsClient(mode), "singleplayer has a local client");
                     continue;
                 }
                 Assert.IsTrue(
-                    GameModeInfo.UsesTransport(mode),
-                    $"{mode} skips the transport, which only singleplayer may do");
+                    GameModeInfo.AcceptsRemoteConnections(mode),
+                    $"{mode} runs a server nobody can connect to, which only singleplayer may do");
+            }
+        }
+
+        /// <summary>
+        /// Hosting and dialling out are mutually exclusive and exhaustive:
+        /// you own the simulation or you connect to one, never both, never
+        /// neither.
+        /// </summary>
+        [Test]
+        public void OwningTheSimulationAndDiallingOutAreExactOpposites()
+        {
+            foreach (GameMode mode in AllModes)
+            {
+                Assert.AreNotEqual(
+                    GameModeInfo.RunsServer(mode),
+                    GameModeInfo.ConnectsToRemoteServer(mode),
+                    $"{mode} must either own the simulation or connect to one, not both or neither");
             }
         }
 
@@ -72,7 +111,10 @@ namespace CityX.Tests
         {
             Assert.IsFalse(GameModeInfo.RunsServer(GameMode.RemoteClient));
             Assert.IsTrue(GameModeInfo.RunsClient(GameMode.RemoteClient));
-            Assert.IsTrue(GameModeInfo.UsesTransport(GameMode.RemoteClient));
+            Assert.IsTrue(GameModeInfo.ConnectsToRemoteServer(GameMode.RemoteClient),
+                "a remote client must dial out -- it owns no simulation of its own");
+            Assert.IsFalse(GameModeInfo.AcceptsRemoteConnections(GameMode.RemoteClient),
+                "a client listens for nobody; it is the one doing the connecting");
         }
 
         /// <summary>

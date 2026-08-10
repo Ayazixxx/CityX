@@ -17,7 +17,8 @@ namespace CityX.Tests
             LaunchArgs args = LaunchArgs.Parse(new string[0]);
             Assert.IsTrue(args.IsValid, args.Error);
             Assert.AreEqual(GameMode.Singleplayer, args.Mode);
-            Assert.IsFalse(GameModeInfo.UsesTransport(args.Mode));
+            Assert.IsFalse(GameModeInfo.AcceptsRemoteConnections(args.Mode),
+                "a default launch must not be reachable from another machine");
         }
 
         [Test]

@@ -75,15 +75,35 @@ namespace CityX.Core
         }
 
         /// <summary>
-        /// True when a real socket is needed. False ONLY for singleplayer,
-        /// which still runs the full server-authoritative path -- it just
-        /// short-circuits the wire. That is the whole trick: singleplayer is
-        /// not a different code path, it is the same code path with the
-        /// transport removed.
+        /// True when this process binds a socket that other machines can
+        /// reach.
+        ///
+        /// NOTE, and this corrects an earlier assumption in this file's
+        /// history: there is no such thing as a transport-less mode. An
+        /// earlier version of this class claimed singleplayer used no
+        /// transport at all. FishNet has no loopback-only "offline"
+        /// transport -- singleplayer is a host whose server binds
+        /// 127.0.0.1 and whose one client connects to it. The socket exists;
+        /// it is simply not reachable from outside the machine.
+        ///
+        /// That does not weaken the governing rule. Singleplayer still runs
+        /// the identical server-authoritative simulation with one local
+        /// client. The only thing that changed is the honest description of
+        /// how it is wired.
         /// </summary>
-        public static bool UsesTransport(GameMode mode)
+        public static bool AcceptsRemoteConnections(GameMode mode)
         {
-            return mode != GameMode.Singleplayer;
+            return RunsServer(mode) && mode != GameMode.Singleplayer;
+        }
+
+        /// <summary>
+        /// True when this process must dial out to a server it does not own.
+        /// Exactly the inverse of hosting the simulation: if you do not run
+        /// the server, you must be connected to one.
+        /// </summary>
+        public static bool ConnectsToRemoteServer(GameMode mode)
+        {
+            return !RunsServer(mode);
         }
 
         /// <summary>

@@ -1,0 +1,17 @@
+{
+    "name": "CityX.Net",
+    "rootNamespace": "CityX.Net",
+    "references": [
+        "CityX.Core",
+        "FishNet.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
