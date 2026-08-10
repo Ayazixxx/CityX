@@ -169,15 +169,30 @@ Run with `./tools/unity_tests.ps1 -Platform PlayMode`.
 | 200 server-driven entities | ✅ spawn, simulate and despawn cleanly |
 | Interest management limits what a client receives | ✅ **34/200 observed (17%)**, vs 16% predicted by area |
 | Per-client bandwidth flat as entity count grows | ✅ **entities ×4 → client traffic ×0.87** (8.8 → 7.7 KB/s) |
-| Server holds tick rate at 30 clients + 200 AI | ⬜ measured at 1 client only so far |
+| Server holds tick rate at 30 clients + 200 AI | ✅ **1.02 ms of a 33.3 ms budget — 97% headroom** |
 | Responsive at 100ms simulated latency | ⬜ not started |
 
-Server tick cost, one client, 120-tick windows:
+```
+30 clients, 200 entities, 30 players
+  tick mean 1.020 ms, worst 1.529 ms, against a 33.3 ms budget at 30 Hz
+  client[0] inbound 9.1 KB/s -- unchanged from the single-client case
+```
+
+Server tick cost by entity count, one client:
 
 ```
  50 entities: mean 0.171 ms
 200 entities: mean 0.356 ms   (worst 0.576 ms)
 ```
+
+That per-client bandwidth is **flat from 1 client to 30** is the clearest
+single sign that area-of-interest is doing its job: each client pays for its
+own neighbourhood and nothing else.
+
+**This measurement is pessimistic, not flattering.** All thirty clients ran
+in the SAME process as the server, competing for the same CPU. A real
+dedicated server does not host its own players. The honest expectation is
+that a standalone headless build does better than this, not worse.
 
 **Read these carefully.** Two of them are strong evidence and one is not yet
 evidence at all:
@@ -194,9 +209,29 @@ evidence at all:
   with clients as well as entities, and this measured ONE client. The
   30-client number is still genuinely unknown.
 
-Measured with a real server and a real remote client over a loopback socket,
+Measured with a real server and real remote clients over loopback sockets,
 in one process. Host mode was rejected for this: its local client
 short-circuits the transport, so the byte counts would have been fiction.
+
+### What these numbers do NOT cover
+
+Stated plainly, because a spike that oversells itself is worse than no spike:
+
+- **Capsules, not the game.** No combat resolution, no animation, no city
+  streaming, no persistence. Those add server cost this does not measure.
+- **Loopback, not the internet.** No packet loss, no jitter, no real RTT.
+- **Editor play mode, not a standalone headless build.**
+- **Movement only.** Entities move and replicate position; they do not fight,
+  path, or acquire targets.
+
+The remaining criterion — responsiveness at 100 ms simulated latency — is
+the one that decides how the game FEELS rather than what it costs, and it is
+not started.
+
+**Interim verdict: the port is viable.** The wall that motivated leaving
+Godot — bandwidth scaling as players x entities — is measurably not present
+here, and server cost at the target scale is a rounding error. Nothing found
+so far argues for stopping.
 
 ---
 
