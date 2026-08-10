@@ -29,11 +29,27 @@ namespace CityX.World
         public const double LotBuildingChance = 0.9;
 
         /// <summary>
-        /// Gap from the lot edge to the building, per side. 2m rather than the
-        /// Godot build's 3m: the reference is canyons, and every metre here is
-        /// a metre of sky.
+        /// Gap from the lot edge to the building where that edge faces a
+        /// STREET. This is the pavement, and it is the only gap the reference
+        /// actually has.
         /// </summary>
-        public const float LotMargin = 2.0f;
+        public const float StreetMargin = 2.0f;
+
+        /// <summary>
+        /// Gap where the edge faces ANOTHER LOT. Near zero, because in a dense
+        /// city neighbouring buildings share a party wall.
+        ///
+        /// WHY THE TWO ARE DIFFERENT, WHICH THE FIRST VERSION GOT WRONG. A
+        /// single margin on all four sides puts every building on its own
+        /// island with a gap around it. Rendered as a plan that reads as a
+        /// suburban grid of detached blocks -- and no test caught it, because
+        /// every number involved was individually fine. The reference is the
+        /// opposite: buildings meet along a continuous street wall, and the
+        /// only open space is the street itself. Making the street gap large
+        /// and the neighbour gap tiny is what turns a grid of boxes into
+        /// canyons.
+        /// </summary>
+        public const float PartyMargin = 0.4f;
 
         /// <summary>
         /// How much of its lot a building fills, as a fraction.
@@ -44,10 +60,20 @@ namespace CityX.World
         /// footprint and become a 200m needle -- undoing the exact problem the
         /// block system was built to solve. Scaling by the lot makes a big lot
         /// produce a big building structurally, not by luck.
+        ///
+        /// High, and deliberately so. Footprint variety was pulling buildings
+        /// away from each other and breaking the street wall; in a dense block
+        /// the variety that matters is HEIGHT, which is where this generator
+        /// now puts all of it.
         /// </summary>
-        public const double FootprintFillMin = 0.85;
+        public const double FootprintFillMin = 0.94;
 
-        public const float MaxJitter = 1.5f;
+        /// <summary>
+        /// Small for the same reason. A metre and a half of jitter is enough to
+        /// visibly ripple a street frontage that is supposed to read as one
+        /// continuous face.
+        /// </summary>
+        public const float MaxJitter = 0.4f;
         public const double BasementChance = 0.12;
 
         // --- mass ---
@@ -134,8 +160,9 @@ namespace CityX.World
                 return BuildingParams.Empty;
             }
 
-            float maxWidth = role.SpanX * CityLayout.ChunkSize - LotMargin * 2.0f;
-            float maxDepth = role.SpanY * CityLayout.ChunkSize - LotMargin * 2.0f;
+            LotRect lot = LotRectFor(role);
+            float maxWidth = lot.Width;
+            float maxDepth = lot.Depth;
 
             // Own stream. Rolling this from the shared generator would shift
             // every later draw, silently reshuffling every ALREADY-EXISTING
@@ -188,15 +215,20 @@ namespace CityX.World
                 facadeIndex = PickFacadeIndex(rng);
             }
 
-            // Jitter is capped per axis so it can never eat into LotMargin even
-            // at maximum footprint. Buildings stay near their lot centre so a
-            // block reads as lined up along the street rather than scattered.
-            float slackX = Math.Max(0.0f, (role.SpanX * CityLayout.ChunkSize / 2.0f - LotMargin) - width / 2.0f);
-            float slackZ = Math.Max(0.0f, (role.SpanY * CityLayout.ChunkSize / 2.0f - LotMargin) - depth / 2.0f);
+            // Jitter is capped by whatever slack is left inside the lot rect, so
+            // it can never push a building across a pavement into the road no
+            // matter what footprint was rolled.
+            float slackX = Math.Max(0.0f, (lot.Width - width) / 2.0f);
+            float slackZ = Math.Max(0.0f, (lot.Depth - depth) / 2.0f);
             float limitX = Math.Min(MaxJitter, slackX);
             float limitZ = Math.Min(MaxJitter, slackZ);
-            float offsetX = (float)rng.Range(-limitX, limitX);
-            float offsetZ = (float)rng.Range(-limitZ, limitZ);
+
+            // Offsets are measured from the SPAN centre, not the lot centre,
+            // because that is what the renderer and the bridge layout both use.
+            // The lot is off-centre inside its span whenever its two margins
+            // differ -- which is the normal case now.
+            float offsetX = lot.CentreOffsetX + (float)rng.Range(-limitX, limitX);
+            float offsetZ = lot.CentreOffsetZ + (float)rng.Range(-limitZ, limitZ);
 
             // Own stream, same reasoning as the special roll.
             DeterministicRandom basementRng = new DeterministicRandom(
@@ -205,6 +237,61 @@ namespace CityX.World
 
             return new BuildingParams(true, width, height, depth, offsetX, offsetZ,
                 roof, facadeIndex, specialType, hasBasement, mass);
+        }
+
+        /// <summary>
+        /// A lot's buildable rectangle, after margins, expressed relative to the
+        /// centre of the chunks it spans.
+        /// </summary>
+        public readonly struct LotRect
+        {
+            public readonly float Width;
+            public readonly float Depth;
+
+            /// <summary>How far the lot centre sits from the span centre.</summary>
+            public readonly float CentreOffsetX;
+            public readonly float CentreOffsetZ;
+
+            public LotRect(float width, float depth, float centreOffsetX, float centreOffsetZ)
+            {
+                Width = width;
+                Depth = depth;
+                CentreOffsetX = centreOffsetX;
+                CentreOffsetZ = centreOffsetZ;
+            }
+        }
+
+        /// <summary>
+        /// The buildable rectangle inside a lot, with a pavement-sized margin on
+        /// edges that face a street and a party-wall margin on edges that face a
+        /// neighbouring lot.
+        ///
+        /// With a street period of 4 this falls out neatly: a corner lot faces
+        /// streets on two sides, an edge lot on one, and the middle lot of the
+        /// 3x3 faces none at all -- it is landlocked behind the others. That is
+        /// the perimeter-block pattern real dense cities have, and it comes free
+        /// from the grid rather than being modelled separately.
+        /// </summary>
+        public static LotRect LotRectFor(LotRole role)
+        {
+            float west = MarginTowards(role.AnchorX - 1, role.AnchorY);
+            float east = MarginTowards(role.AnchorX + role.SpanX, role.AnchorY);
+            float south = MarginTowards(role.AnchorX, role.AnchorY - 1);
+            float north = MarginTowards(role.AnchorX, role.AnchorY + role.SpanY);
+
+            float width = role.SpanX * CityLayout.ChunkSize - west - east;
+            float depth = role.SpanY * CityLayout.ChunkSize - south - north;
+
+            // Span centre sits at half the span; the lot centre is pushed by
+            // however much the two margins differ.
+            return new LotRect(width, depth, (west - east) / 2.0f, (south - north) / 2.0f);
+        }
+
+        private static float MarginTowards(int neighbourChunkX, int neighbourChunkY)
+        {
+            return CityLayout.IsStreetChunk(neighbourChunkX, neighbourChunkY)
+                ? StreetMargin
+                : PartyMargin;
         }
 
         /// <summary>

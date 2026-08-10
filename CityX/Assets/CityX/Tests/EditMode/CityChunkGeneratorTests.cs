@@ -124,23 +124,90 @@ namespace CityX.Tests
 
             foreach (var (p, role, x, y) in buildings)
             {
-                float lotWidth = role.SpanX * CityLayout.ChunkSize - CityChunkGenerator.LotMargin * 2.0f;
-                float lotDepth = role.SpanY * CityLayout.ChunkSize - CityChunkGenerator.LotMargin * 2.0f;
+                CityChunkGenerator.LotRect lot = CityChunkGenerator.LotRectFor(role);
 
-                Assert.LessOrEqual(p.Width, lotWidth + 0.001f, $"({x},{y}) is wider than its lot");
-                Assert.LessOrEqual(p.Depth, lotDepth + 0.001f, $"({x},{y}) is deeper than its lot");
+                Assert.LessOrEqual(p.Width, lot.Width + 0.001f, $"({x},{y}) is wider than its lot");
+                Assert.LessOrEqual(p.Depth, lot.Depth + 0.001f, $"({x},{y}) is deeper than its lot");
 
-                float halfLotX = role.SpanX * CityLayout.ChunkSize / 2.0f - CityChunkGenerator.LotMargin;
-                float halfLotZ = role.SpanY * CityLayout.ChunkSize / 2.0f - CityChunkGenerator.LotMargin;
-                float reachX = System.Math.Abs(p.OffsetX) + p.Width / 2.0f;
-                float reachZ = System.Math.Abs(p.OffsetZ) + p.Depth / 2.0f;
+                // Both offsets are measured from the span centre, so the lot
+                // edges are its own centre offset plus half its width.
+                float reachX = System.Math.Abs(p.OffsetX - lot.CentreOffsetX) + p.Width / 2.0f;
+                float reachZ = System.Math.Abs(p.OffsetZ - lot.CentreOffsetZ) + p.Depth / 2.0f;
 
-                Assert.LessOrEqual(reachX, halfLotX + 0.001f,
-                    $"({x},{y}) reaches {reachX:0.00}m from centre, past the {halfLotX:0.00}m lot edge -- " +
-                    "it would poke into the street");
-                Assert.LessOrEqual(reachZ, halfLotZ + 0.001f,
-                    $"({x},{y}) reaches {reachZ:0.00}m from centre, past the {halfLotZ:0.00}m lot edge");
+                Assert.LessOrEqual(reachX, lot.Width / 2.0f + 0.001f,
+                    $"({x},{y}) reaches {reachX:0.00}m from its lot centre, past the " +
+                    $"{lot.Width / 2.0f:0.00}m lot edge -- it would poke into the street");
+                Assert.LessOrEqual(reachZ, lot.Depth / 2.0f + 0.001f,
+                    $"({x},{y}) reaches {reachZ:0.00}m from its lot centre, past the " +
+                    $"{lot.Depth / 2.0f:0.00}m lot edge");
             }
+        }
+
+        /// <summary>
+        /// The one that guards the fix this file's asymmetric margins exist for.
+        ///
+        /// A single margin on all four sides puts every building on its own
+        /// island. Every number is individually fine and the plan reads as a
+        /// suburban grid of detached blocks. What the reference actually has is
+        /// a continuous street wall with the road as the only gap -- so the
+        /// distance between two neighbouring buildings INSIDE a block has to be
+        /// small, and the distance across a street has to be large.
+        /// </summary>
+        [Test]
+        public void NeighboursInsideABlockNearlyTouch()
+        {
+            CityBlocks blocks = new CityBlocks(4242);
+            float widestPartyGap = 0.0f;
+            int measured = 0;
+
+            for (int x = -40; x <= 40; x++)
+            {
+                for (int y = -40; y <= 40; y++)
+                {
+                    LotRole role = blocks.RoleFor(x, y);
+                    if (!role.Builds)
+                    {
+                        continue;
+                    }
+                    int eastChunk = x + role.SpanX;
+                    if (CityLayout.IsStreetChunk(eastChunk, y))
+                    {
+                        continue;   // that gap is the street, and it should be wide
+                    }
+                    LotRole eastRole = blocks.RoleFor(eastChunk, y);
+                    if (!eastRole.Builds)
+                    {
+                        continue;
+                    }
+
+                    BuildingParams here = CityChunkGenerator.ParamsFor(ChunkSeed(4242, x, y), role);
+                    BuildingParams there = CityChunkGenerator.ParamsFor(
+                        ChunkSeed(4242, eastRole.AnchorX, eastRole.AnchorY), eastRole);
+                    if (!here.HasBuilding || !there.HasBuilding || here.IsSpecial || there.IsSpecial)
+                    {
+                        continue;
+                    }
+
+                    double hereEdge = CityLayout.SpanCentre(x, role.SpanX) + here.OffsetX + here.Width / 2.0;
+                    double thereEdge = CityLayout.SpanCentre(eastRole.AnchorX, eastRole.SpanX)
+                                       + there.OffsetX - there.Width / 2.0;
+                    float gap = (float)(thereEdge - hereEdge);
+
+                    measured++;
+                    Assert.GreaterOrEqual(gap, -0.001f,
+                        $"({x},{y}) overlaps its eastern neighbour by {-gap:0.00}m");
+                    if (gap > widestPartyGap)
+                    {
+                        widestPartyGap = gap;
+                    }
+                }
+            }
+
+            TestContext.WriteLine($"{measured} party walls measured; widest gap {widestPartyGap:0.00}m");
+            Assert.Greater(measured, 200, "not enough within-block neighbours sampled");
+            Assert.Less(widestPartyGap, 4.0f,
+                $"neighbouring buildings inside a block sit up to {widestPartyGap:0.00}m apart -- " +
+                "that is a suburban grid of islands, not a street wall");
         }
 
         /// <summary>
@@ -161,13 +228,12 @@ namespace CityX.Tests
                 {
                     continue;   // presets are absolute by design; see their own test
                 }
-                float lotWidth = role.SpanX * CityLayout.ChunkSize - CityChunkGenerator.LotMargin * 2.0f;
-                float lotDepth = role.SpanY * CityLayout.ChunkSize - CityChunkGenerator.LotMargin * 2.0f;
+                CityChunkGenerator.LotRect lot = CityChunkGenerator.LotRectFor(role);
 
-                Assert.GreaterOrEqual(p.Width / lotWidth, CityChunkGenerator.FootprintFillMin - 0.001,
-                    $"({x},{y}) fills only {p.Width / lotWidth:P0} of its lot width");
-                Assert.GreaterOrEqual(p.Depth / lotDepth, CityChunkGenerator.FootprintFillMin - 0.001,
-                    $"({x},{y}) fills only {p.Depth / lotDepth:P0} of its lot depth");
+                Assert.GreaterOrEqual(p.Width / lot.Width, CityChunkGenerator.FootprintFillMin - 0.001,
+                    $"({x},{y}) fills only {p.Width / lot.Width:P0} of its lot width");
+                Assert.GreaterOrEqual(p.Depth / lot.Depth, CityChunkGenerator.FootprintFillMin - 0.001,
+                    $"({x},{y}) fills only {p.Depth / lot.Depth:P0} of its lot depth");
             }
         }
 
