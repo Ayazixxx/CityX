@@ -25,14 +25,17 @@ namespace CityX.Character
         private PlayerLocomotion _locomotion;
         private PlayerVitals _vitals;
         private MeleeAttacker _melee;
+        private Ragdoll _ragdoll;
 
         private void Awake()
         {
             _locomotion = GetComponent<PlayerLocomotion>();
-            // Both optional. A body with no vitals and no fists still walks --
-            // useful for tests and for anything that is not the player.
+            // All optional. A body with no vitals, no fists and no ragdoll
+            // still walks -- useful for tests and for anything that is not the
+            // player.
             _vitals = GetComponent<PlayerVitals>();
             _melee = GetComponent<MeleeAttacker>();
+            _ragdoll = GetComponent<Ragdoll>();
         }
 
         private void Update()
@@ -53,10 +56,18 @@ namespace CityX.Character
                 _melee.Tick(deltaTime);
             }
 
+            if (_ragdoll != null && _ragdoll.IsLimp)
+            {
+                // Physics owns the body now. Ticking locomotion here would call
+                // Move on a CharacterController the ragdoll has just disabled,
+                // which does nothing useful and complains about it every frame.
+                return;
+            }
+
             if (_vitals != null && _vitals.IsDead)
             {
-                // A corpse still falls, so keep ticking the body with no input
-                // rather than stopping it dead in the air.
+                // A corpse with no ragdoll still falls, so keep ticking the
+                // body with no input rather than stopping it dead in the air.
                 _locomotion.Tick(default, deltaTime);
                 return;
             }

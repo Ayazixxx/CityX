@@ -64,6 +64,17 @@ namespace CityX.Character
         /// <summary>Horizontal speed after the last tick, in metres per second.</summary>
         public float CurrentSpeed { get; private set; }
 
+        /// <summary>
+        /// The full motion vector from the last step, in metres per second.
+        ///
+        /// Kept because a ragdoll needs it: a body that dies mid-sprint and
+        /// drops straight down reads as the game hitching and a corpse
+        /// appearing, whereas the same body carrying its momentum reads as
+        /// having been killed while running. CurrentSpeed alone cannot say
+        /// which way it was going.
+        /// </summary>
+        public Vector3 Velocity { get; private set; }
+
         public bool IsGrounded => _controller != null && _controller.isGrounded;
 
         private void Awake()
@@ -134,7 +145,7 @@ namespace CityX.Character
 
             bool grounded = _controller.isGrounded;
 
-            // THE `_verticalVelocity <= 0` GUARD IS LOad-BEARING. Resetting on
+            // THE `_verticalVelocity <= 0` GUARD IS LOAD-BEARING. Resetting on
             // grounded alone eats the jump: one step at 4.5 m/s only lifts the
             // body 75mm, which is inside the controller's own ground tolerance,
             // so the very next step still reports grounded and clobbers the
@@ -164,6 +175,7 @@ namespace CityX.Character
 
             Vector3 motion = horizontal;
             motion.y = _verticalVelocity;
+            Velocity = motion;
             _controller.Move(motion * deltaTime);
 
             if (horizontal.sqrMagnitude > 0.0001f)

@@ -227,6 +227,12 @@ namespace CityX.CharacterEditor
                 root.AddComponent<PlayerVitals>();
                 root.AddComponent<MeleeAttacker>();
                 root.AddComponent<PlayerAnimationDriver>();
+
+                // Built BEFORE the input reader and after the capsule, because
+                // it needs the CharacterController to exclude from its own
+                // collisions and it hangs bodies off the instantiated skeleton.
+                RagdollBuilder.Build(root, animator);
+
                 // Added last: it looks for the others in Awake.
                 root.AddComponent<PlayerInputReader>();
 
