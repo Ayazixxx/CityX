@@ -36,6 +36,11 @@ namespace CityX.CharacterEditor
         [MenuItem("CityX/Rebuild Player Rig")]
         public static GameObject Build()
         {
+            // Always first. Dropping a new FBX into the folder and rebuilding
+            // should just work; without this the clip imports as Generic and
+            // then silently animates nothing.
+            CharacterImportSetup.Import();
+
             AnimationClip idle = FindClip("idle");
             AnimationClip walk = FindClip("walking");
             AnimationClip sprint = FindClip("sprint");
@@ -108,8 +113,72 @@ namespace CityX.CharacterEditor
                 }
             }
 
+            AddPunchStates(root);
+
             EditorUtility.SetDirty(controller);
             return controller;
+        }
+
+        /// <summary>
+        /// One state per attack-chain animation, named to match
+        /// <see cref="ComboStage.Animation"/>.
+        ///
+        /// NO TRIGGERS AND NO CONDITIONS IN. The chain already decides which
+        /// swing plays and when; duplicating that as a web of animator
+        /// parameters means two state machines that have to agree, and they
+        /// will not. PlayerAnimationDriver cross-fades to the state by name
+        /// instead, so the chain stays the single source of truth.
+        ///
+        /// The way OUT is a plain exit-time transition, because a swing ending
+        /// is a property of the clip, not of anything the game knows.
+        /// </summary>
+        private static void AddPunchStates(AnimatorStateMachine root)
+        {
+            AnimatorState locomotion = FindState(root, "Locomotion");
+
+            foreach (ComboStage stage in ComboChain.For(ComboChain.Unarmed))
+            {
+                if (FindState(root, stage.Animation) != null)
+                {
+                    continue;   // the chain reuses punch_right and punch_left
+                }
+
+                AnimationClip clip = ClipForPunch(stage.Animation);
+                if (clip == null)
+                {
+                    Debug.LogWarning($"CityX: no clip for '{stage.Animation}' -- that stage of the " +
+                                     "chain will still hit, but the character will not swing.");
+                    continue;
+                }
+
+                AnimatorState state = root.AddState(stage.Animation);
+                state.motion = clip;
+
+                if (locomotion != null)
+                {
+                    AnimatorStateTransition back = state.AddTransition(locomotion);
+                    back.hasExitTime = true;
+                    back.exitTime = 0.85f;
+                    back.duration = 0.12f;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Maps a chain animation name to the Mixamo file that provides it.
+        /// Explicit rather than by filename convention, because the chain's
+        /// names describe the MOVE and the files are named after whatever
+        /// Mixamo called the clip.
+        /// </summary>
+        private static AnimationClip ClipForPunch(string animation)
+        {
+            switch (animation)
+            {
+                case "punch_right": return FindClip("boxing_right_jab");
+                case "punch_left": return FindClip("boxing_left_jab");
+                case "punch_heavy": return FindClip("heavy_punch");
+                default: return null;
+            }
         }
 
         private static GameObject BuildPrefab(AnimatorController controller)
@@ -136,6 +205,20 @@ namespace CityX.CharacterEditor
                 animator.runtimeAnimatorController = controller;
                 animator.applyRootMotion = false;   // PlayerLocomotion drives position.
 
+                // ASSIGNED EXPLICITLY rather than relying on the instantiated
+                // model already carrying it. Within a single batch run the FBX
+                // has just been reimported, and the GameObject handed back can
+                // still be the pre-import one with no avatar on its Animator.
+                // The prefab then ships with a null avatar and the character
+                // T-poses, with nothing logged. Loading the Avatar asset by
+                // path sidesteps the whole timing question.
+                var avatar = AssetDatabase.LoadAssetAtPath<Avatar>($"{AnimationDirectory}/idle.fbx");
+                if (avatar == null)
+                {
+                    Debug.LogError("CityX: no avatar on idle.fbx -- the player will T-pose.");
+                }
+                animator.avatar = avatar;
+
                 CharacterController capsule = root.AddComponent<CharacterController>();
                 capsule.slopeLimit = 50.0f;
                 capsule.skinWidth = 0.03f;
@@ -143,6 +226,7 @@ namespace CityX.CharacterEditor
                 root.AddComponent<PlayerLocomotion>();
                 root.AddComponent<PlayerVitals>();
                 root.AddComponent<MeleeAttacker>();
+                root.AddComponent<PlayerAnimationDriver>();
                 // Added last: it looks for the others in Awake.
                 root.AddComponent<PlayerInputReader>();
 

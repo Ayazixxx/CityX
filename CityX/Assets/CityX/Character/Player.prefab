@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 4406035457774837878}
   - component: {fileID: 5487257228465472575}
   - component: {fileID: 4004694634336102832}
+  - component: {fileID: 5839117258275935416}
   - component: {fileID: 4230536320211725702}
   m_Layer: 0
   m_Name: Player
@@ -117,6 +118,19 @@ MonoBehaviour:
   TargetLayers:
     serializedVersion: 2
     m_Bits: 4294967295
+--- !u!114 &5839117258275935416
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8412405609517267180}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30bb08067bdcc7746b8067a33695c01e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.PlayerAnimationDriver
+  SwingBlendSeconds: 0.06
 --- !u!114 &4230536320211725702
 MonoBehaviour:
   m_ObjectHideFlags: 0

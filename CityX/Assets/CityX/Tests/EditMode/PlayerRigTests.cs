@@ -20,6 +20,7 @@ namespace CityX.Tests
     {
         private const string PrefabPath = "Assets/CityX/Character/Player.prefab";
         private const string ControllerPath = "Assets/CityX/Character/PlayerAnimator.controller";
+        private const string AnimationDirectory = "Assets/CityX/Character/Animations";
 
         private static GameObject LoadPrefab()
         {
@@ -101,6 +102,119 @@ namespace CityX.Tests
             // makes a capsule Unity cannot build.
             Assert.Less(controller.radius * 2.0f, locomotion.StandingHeight,
                 "the capsule is wider than it is tall");
+        }
+
+        /// <summary>
+        /// Every stage of the attack chain must have a state to play.
+        ///
+        /// The failure is silent and specific: CrossFade to a state that does
+        /// not exist does nothing at all, so the punch still lands and still
+        /// hurts while the character stands there. It would look like the hit
+        /// detection was broken rather than the animation.
+        /// </summary>
+        [Test]
+        public void EveryChainStageHasAnAnimatorStateToPlay()
+        {
+            var controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(ControllerPath);
+            Assert.IsNotNull(controller);
+
+            AnimatorStateMachine root = controller.layers[0].stateMachine;
+            var stateNames = new System.Collections.Generic.HashSet<string>();
+            foreach (ChildAnimatorState child in root.states)
+            {
+                stateNames.Add(child.state.name);
+            }
+
+            foreach (ComboStage stage in ComboChain.For(ComboChain.Unarmed))
+            {
+                Assert.IsTrue(stateNames.Contains(stage.Animation),
+                    $"the chain plays '{stage.Animation}' but the animator has no such state -- " +
+                    "the punch would land with no swing");
+            }
+        }
+
+        /// <summary>
+        /// A swing must be able to end. Without a way out, the first punch
+        /// leaves the character stuck in that state permanently.
+        /// </summary>
+        [Test]
+        public void EverySwingStateCanReturnToLocomotion()
+        {
+            var controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(ControllerPath);
+            AnimatorStateMachine root = controller.layers[0].stateMachine;
+
+            foreach (ComboStage stage in ComboChain.For(ComboChain.Unarmed))
+            {
+                AnimatorState state = null;
+                foreach (ChildAnimatorState child in root.states)
+                {
+                    if (child.state.name == stage.Animation)
+                    {
+                        state = child.state;
+                        break;
+                    }
+                }
+                if (state == null)
+                {
+                    continue;   // covered by the test above
+                }
+
+                Assert.Greater(state.transitions.Length, 0,
+                    $"'{stage.Animation}' has no way out -- the character would be stuck mid-punch");
+            }
+        }
+
+        /// <summary>
+        /// Exactly one clip builds an avatar, and every other clip copies it.
+        ///
+        /// This is checked at the IMPORTER level rather than by looking at the
+        /// finished prefab, because that is where it went wrong and the prefab
+        /// does not show it. The loop that configures the dependents used to
+        /// skip index 0 of a sorted list, which was correct only while the
+        /// avatar source happened to sort first. Pinning the source to idle.fbx
+        /// broke it: idle sorts fourth, so it was handed its OWN avatar to copy
+        /// from -- a cycle Unity resolves by producing no avatar at all -- while
+        /// the clip at index 0 was skipped and quietly built a second, rival
+        /// avatar from a boxing stance.
+        ///
+        /// Nothing threw. The rig rebuilt, logged success, and wrote a prefab
+        /// whose Animator had a null avatar, which reads in-game as a character
+        /// standing in a T-pose while every clip "plays".
+        /// </summary>
+        [Test]
+        public void ExactlyOneClipOwnsTheAvatarAndTheRestCopyIt()
+        {
+            string[] guids = AssetDatabase.FindAssets("t:Model", new[] { AnimationDirectory });
+            Assert.Greater(guids.Length, 1, "expected several clips under " + AnimationDirectory);
+
+            var owners = new System.Collections.Generic.List<string>();
+
+            foreach (string guid in guids)
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                var importer = (ModelImporter)AssetImporter.GetAtPath(path);
+                Assert.IsNotNull(importer, $"no model importer for {path}");
+
+                Assert.AreEqual(ModelImporterAnimationType.Human, importer.animationType,
+                    $"{path} is not imported as Humanoid, so its clips cannot retarget");
+
+                if (importer.avatarSetup == ModelImporterAvatarSetup.CreateFromThisModel)
+                {
+                    owners.Add(path);
+                    continue;
+                }
+
+                Assert.AreEqual(ModelImporterAvatarSetup.CopyFromOther, importer.avatarSetup,
+                    $"{path} neither builds an avatar nor copies one");
+                Assert.IsNotNull(importer.sourceAvatar,
+                    $"{path} is set to copy an avatar but has no source -- it will produce none");
+            }
+
+            Assert.AreEqual(1, owners.Count,
+                "exactly one clip must build the avatar, but these do: " + string.Join(", ", owners));
+            Assert.AreEqual($"{AnimationDirectory}/idle.fbx", owners[0],
+                "the avatar must come from the neutral idle stand -- any other rest pose bends " +
+                "every clip retargeted through it");
         }
 
         /// <summary>

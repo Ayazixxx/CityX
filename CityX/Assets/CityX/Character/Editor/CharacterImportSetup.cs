@@ -27,6 +27,13 @@ namespace CityX.CharacterEditor
     {
         private const string AnimationDirectory = "Assets/CityX/Character/Animations";
 
+        /// <summary>
+        /// The clip whose skeleton defines the avatar. Must be one whose rest
+        /// pose is a NEUTRAL STAND -- every other clip is retargeted through
+        /// it, so a crouched or braced source bends the whole library.
+        /// </summary>
+        private const string AvatarSourceModel = "idle.fbx";
+
         [MenuItem("CityX/Import Character Clips")]
         public static void Import()
         {
@@ -37,11 +44,10 @@ namespace CityX.CharacterEditor
                 return;
             }
 
-            // The first clip alphabetically becomes the avatar source and every
-            // other clip copies from it. Without a shared avatar each clip
-            // builds its own, and two avatars from the same skeleton are not
-            // guaranteed to map bones identically -- which shows up as limbs
-            // popping between animation states.
+            // One clip is the avatar source and every other copies from it.
+            // Without a shared avatar each clip builds its own, and two avatars
+            // from the same skeleton are not guaranteed to map bones
+            // identically -- which shows up as limbs popping between states.
             var paths = new List<string>();
             foreach (string guid in guids)
             {
@@ -49,7 +55,20 @@ namespace CityX.CharacterEditor
             }
             paths.Sort();
 
-            string avatarSourcePath = paths[0];
+            // NAMED, NOT "first alphabetically". That was the original rule and
+            // it broke the moment punch clips arrived: boxing_left_jab sorts
+            // before idle, so the avatar started being built from a clip whose
+            // rest pose is a BOXING STANCE. The measured skeleton dropped from
+            // 1.78m to 1.65m because the source was crouched. An avatar
+            // configured from a bent pose retargets everything else onto that
+            // bend, and nothing would have reported an error.
+            string avatarSourcePath = $"{AnimationDirectory}/{AvatarSourceModel}";
+            if (!paths.Contains(avatarSourcePath))
+            {
+                Debug.LogWarning($"CityX: {AvatarSourceModel} is missing, so the avatar will come " +
+                                 $"from {paths[0]} instead. Check its rest pose is a neutral stand.");
+                avatarSourcePath = paths[0];
+            }
             ConfigureModel(avatarSourcePath, null);
 
             var avatar = AssetDatabase.LoadAssetAtPath<Avatar>(avatarSourcePath);
@@ -60,9 +79,20 @@ namespace CityX.CharacterEditor
                 return;
             }
 
-            for (int i = 1; i < paths.Count; i++)
+            // SKIPPED BY PATH, NOT BY INDEX. This loop used to start at 1,
+            // which was only ever correct while the avatar source was
+            // guaranteed to be paths[0]. Pinning the source to idle.fbx broke
+            // that silently: idle sorts fourth, so it fell into this loop and
+            // was set to copy from its OWN avatar -- the cycle described in
+            // ConfigureModel -- while boxing_left_jab at index 0 was skipped
+            // and kept building a second, competing avatar of its own.
+            foreach (string path in paths)
             {
-                ConfigureModel(paths[i], avatar);
+                if (path == avatarSourcePath)
+                {
+                    continue;
+                }
+                ConfigureModel(path, avatar);
             }
 
             Debug.Log($"CityX: configured {paths.Count} clips against the avatar from {avatarSourcePath}");
@@ -87,6 +117,13 @@ namespace CityX.CharacterEditor
             else
             {
                 importer.avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel;
+                // CLEARING THIS MATTERS. Importer settings persist in the .meta,
+                // so a model that was previously copying from another still
+                // holds that reference. Switching it to create-from-self while
+                // the old sourceAvatar points at a model that now copies from
+                // THIS one is a cycle, and Unity resolves it by producing no
+                // avatar at all -- silently, with the character T-posing.
+                importer.sourceAvatar = null;
             }
 
             // Mixamo ships its own placeholder materials; the game supplies its
