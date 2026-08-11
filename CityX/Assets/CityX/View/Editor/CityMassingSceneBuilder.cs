@@ -1,4 +1,5 @@
 using System.IO;
+using CityX.Character;
 using CityX.View;
 using CityX.World;
 using UnityEditor;
@@ -92,6 +93,28 @@ namespace CityX.ViewEditor
             cameraObject.transform.position = new Vector3(
                 CityLayout.ChunkSize * 0.5f, groundHeight + 1.7f, CityLayout.ChunkSize * 0.5f);
             cameraObject.transform.rotation = Quaternion.Euler(4.0f, 35.0f, 0.0f);
+
+            // --- the player. The flycam stays on the same object but disabled,
+            // --- so switching between walking the city and flying over it is a
+            // --- checkbox rather than a scene edit.
+            GameObject playerPrefab = CityX.CharacterEditor.PlayerRigBuilder.Build();
+            if (playerPrefab != null)
+            {
+                GameObject player = (GameObject)PrefabUtility.InstantiatePrefab(playerPrefab);
+                player.name = "Player";
+                // A little above the road so the controller settles onto it
+                // rather than starting intersecting it.
+                player.transform.position = new Vector3(
+                    CityLayout.ChunkSize * 0.5f, groundHeight + 0.5f, CityLayout.ChunkSize * 0.5f);
+
+                cameraObject.GetComponent<FlyCamera>().enabled = false;
+                var follow = cameraObject.AddComponent<ThirdPersonCamera>();
+                follow.Target = player.transform;
+            }
+            else
+            {
+                Debug.LogWarning("CityX: no player prefab -- leaving the flycam enabled.");
+            }
 
             GameObject streamerObject = new GameObject("CityStreamer");
             CityStreamer streamer = streamerObject.AddComponent<CityStreamer>();

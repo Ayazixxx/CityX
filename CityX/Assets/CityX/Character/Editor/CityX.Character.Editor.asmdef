@@ -1,0 +1,18 @@
+{
+    "name": "CityX.Character.Editor",
+    "rootNamespace": "CityX.CharacterEditor",
+    "references": [
+        "CityX.Character"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

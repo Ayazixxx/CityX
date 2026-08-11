@@ -3,7 +3,9 @@
     "rootNamespace": "CityX.ViewEditor",
     "references": [
         "CityX.View",
-        "CityX.World"
+        "CityX.World",
+        "CityX.Character",
+        "CityX.Character.Editor"
     ],
     "includePlatforms": [
         "Editor"
