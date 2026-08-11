@@ -29,11 +29,25 @@ namespace CityX.World
         public const double LotBuildingChance = 0.9;
 
         /// <summary>
-        /// Gap from the lot edge to the building where that edge faces a
-        /// STREET. This is the pavement, and it is the only gap the reference
-        /// actually has.
+        /// Setback from the lot edge where that edge faces a STREET.
+        ///
+        /// NEGATIVE, WHICH IS THE POINT. A street chunk is 24m wide; at the
+        /// +2m pavement this started with, the clear road came to 28m against
+        /// buildings of 40-85m -- about 1:2. Rendered at street level that
+        /// reads as a wide avenue, not a canyon, and the brutalist reference is
+        /// nearer 1:8. Measured from a screenshot, not guessed: the first
+        /// massing capture is what showed it.
+        ///
+        /// So buildings CANTILEVER over the road instead, which narrows the
+        /// clear width to 24 - 2*5 = 14m and is what the reference actually
+        /// shows. Overhanging the street is normal in both Chongqing and
+        /// brutalist blocks; a building that stops politely at its property
+        /// line is the unusual case.
+        ///
+        /// This is the single dial for how tight the city feels. Positive
+        /// values give pavements and avenues, negative gives canyons.
         /// </summary>
-        public const float StreetMargin = 2.0f;
+        public const float StreetMargin = -5.0f;
 
         /// <summary>
         /// Gap where the edge faces ANOTHER LOT. Near zero, because in a dense

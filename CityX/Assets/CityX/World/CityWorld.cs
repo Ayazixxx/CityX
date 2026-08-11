@@ -46,6 +46,11 @@ namespace CityX.World
 
         public double CentreX => CityLayout.SpanCentre(AnchorX, Role.SpanX) + Params.OffsetX;
         public double CentreZ => CityLayout.SpanCentre(AnchorY, Role.SpanY) + Params.OffsetZ;
+
+        public double MinX => CentreX - Params.Width * 0.5;
+        public double MaxX => CentreX + Params.Width * 0.5;
+        public double MinZ => CentreZ - Params.Depth * 0.5;
+        public double MaxZ => CentreZ + Params.Depth * 0.5;
     }
 
     /// <summary>
