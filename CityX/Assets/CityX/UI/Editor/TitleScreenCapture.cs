@@ -24,9 +24,41 @@ namespace CityX.UIEditor
         [MenuItem("CityX/Capture Title Screenshot")]
         public static void Capture()
         {
+            Shoot("title", TitleScreen.Panel.Menu, seedCharacters: false);
+        }
+
+        /// <summary>
+        /// The character list, with characters in it.
+        ///
+        /// SEEDED WITH FAKES INTO A SCRATCH DIRECTORY. An empty list is the one
+        /// state of this screen that says nothing about whether the rows work,
+        /// and pointing the store at the real save location to fill it would
+        /// mean a screenshot tool writing into somebody's characters.
+        /// </summary>
+        [MenuItem("CityX/Capture Character Select Screenshot")]
+        public static void CaptureCharacterSelect()
+        {
+            Shoot("character-select", TitleScreen.Panel.CharacterSelect, seedCharacters: true);
+            Shoot("character-create", TitleScreen.Panel.CharacterSelect, seedCharacters: true,
+                CharacterSelect.Mode.Creating);
+        }
+
+        private static void Shoot(string name, TitleScreen.Panel panel, bool seedCharacters,
+            CharacterSelect.Mode selectMode = CharacterSelect.Mode.List)
+        {
             string outputDirectory = Path.Combine(
                 Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
             Directory.CreateDirectory(outputDirectory);
+
+            string scratch = null;
+            string previousOverride = Core.CharacterStore.DirectoryOverride;
+            if (seedCharacters)
+            {
+                scratch = Path.Combine(Path.GetTempPath(), "CityXShot", Path.GetRandomFileName());
+                Directory.CreateDirectory(scratch);
+                Core.CharacterStore.DirectoryOverride = scratch;
+                SeedCharacters();
+            }
 
             EditorSceneManager.OpenScene("Assets/CityX/Scenes/Title.unity", OpenSceneMode.Single);
 
@@ -66,6 +98,20 @@ namespace CityX.UIEditor
                 cycle.Apply(View.SkyCycle.At(cycle.TimeOfDay));
             }
 
+            // The panel's OnEnable is what loads the character list, and
+            // OnEnable does not run in edit mode -- so Show alone would render
+            // an empty screen. Refresh is what actually reads the store.
+            var title = Object.FindFirstObjectByType<TitleScreen>();
+            if (title != null)
+            {
+                title.Show(panel);
+                if (panel == TitleScreen.Panel.CharacterSelect && title.Select != null)
+                {
+                    title.Select.Refresh();
+                    title.Select.Show(selectMode);
+                }
+            }
+
             var canvas = Object.FindFirstObjectByType<Canvas>();
             RenderTexture target = null;
             RenderTexture previous = RenderTexture.active;
@@ -94,7 +140,7 @@ namespace CityX.UIEditor
                 image.ReadPixels(new Rect(0, 0, Width, Height), 0, 0);
                 image.Apply();
 
-                string path = Path.Combine(outputDirectory, "title.png");
+                string path = Path.Combine(outputDirectory, name + ".png");
                 File.WriteAllBytes(path, image.EncodeToPNG());
                 Object.DestroyImmediate(image);
 
@@ -109,7 +155,40 @@ namespace CityX.UIEditor
                     target.Release();
                     Object.DestroyImmediate(target);
                 }
+
+                Core.CharacterStore.DirectoryOverride = previousOverride;
+                if (scratch != null && Directory.Exists(scratch))
+                {
+                    Directory.Delete(scratch, recursive: true);
+                }
             }
+        }
+
+        private static void SeedCharacters()
+        {
+            var made = new System.Collections.Generic.List<Core.CharacterSave>();
+
+            Core.CharacterSave veteran = Core.CharacterSave.Create(
+                "Ayaz", new Color(0.55f, 0.40f, 0.32f));
+            veteran.Level = 24;
+            veteran.PlaytimeSeconds = 9 * 3600 + 41 * 60;
+            veteran.LastPlayedUnixSeconds = 3000;
+            made.Add(veteran);
+
+            Core.CharacterSave second = Core.CharacterSave.Create(
+                "Nightshift", new Color(0.44f, 0.52f, 0.58f));
+            second.Level = 7;
+            second.PlaytimeSeconds = 52 * 60;
+            second.LastPlayedUnixSeconds = 2000;
+            made.Add(second);
+
+            Core.CharacterSave fresh = Core.CharacterSave.Create(
+                "Newcomer", new Color(0.86f, 0.76f, 0.68f));
+            fresh.PlaytimeSeconds = 40;
+            fresh.LastPlayedUnixSeconds = 1000;
+            made.Add(fresh);
+
+            Core.CharacterStore.Save(made);
         }
     }
 }

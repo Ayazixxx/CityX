@@ -17,6 +17,7 @@ namespace CityX.UI
         public enum Panel
         {
             Menu,
+            CharacterSelect,
             Multiplayer,
             Settings,
         }
@@ -24,9 +25,16 @@ namespace CityX.UI
         [Header("Wired by TitleScreenBuilder")]
         public GameObject MenuPanel;
 
+        public GameObject CharacterSelectPanel;
         public GameObject MultiplayerPanel;
         public GameObject SettingsPanel;
         public Image Logo;
+
+        [Tooltip("The character select's own component, so Back can step within it.")]
+        public CharacterSelect Select;
+
+        [Tooltip("Hidden while the character list is up -- it covers the whole screen.")]
+        public GameObject LogoGroup;
 
         [Tooltip("Seconds for one full pulse of the logo. The Godot build's own period.")]
         public float LogoFlickerPeriod = 6.5f;
@@ -52,17 +60,40 @@ namespace CityX.UI
         {
             _showing = panel;
             if (MenuPanel != null) MenuPanel.SetActive(panel == Panel.Menu);
+            if (CharacterSelectPanel != null)
+            {
+                CharacterSelectPanel.SetActive(panel == Panel.CharacterSelect);
+            }
             if (MultiplayerPanel != null) MultiplayerPanel.SetActive(panel == Panel.Multiplayer);
             if (SettingsPanel != null) SettingsPanel.SetActive(panel == Panel.Settings);
+
+            // The character list fills the screen, and the logo sitting over it
+            // makes both unreadable. The Godot build did the same thing.
+            if (LogoGroup != null)
+            {
+                LogoGroup.SetActive(panel != Panel.CharacterSelect);
+            }
         }
 
         /// <summary>
         /// Escape goes back one step, and from the menu it does nothing --
         /// quitting the game on an accidental keypress from the front screen is
         /// a bad surprise.
+        ///
+        /// ONE STEP, NOT ALL THE WAY OUT. The character select has its own
+        /// sub-modes -- typing a name, confirming a delete -- and escaping from
+        /// a delete confirmation should cancel the delete, not throw away the
+        /// whole screen. So it gets asked first and only refuses once it is
+        /// back at its own list.
         /// </summary>
         public void Back()
         {
+            if (_showing == Panel.CharacterSelect && Select != null
+                && Select.Showing != CharacterSelect.Mode.List)
+            {
+                Select.Back();
+                return;
+            }
             Show(Panel.Menu);
         }
 

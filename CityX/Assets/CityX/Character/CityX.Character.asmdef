@@ -1,17 +1,28 @@
-{
-    "name": "CityX.Character",
-    "rootNamespace": "CityX.Character",
-    "references": [
-        "CityX.World",
-        "Unity.InputSystem"
-    ],
-    "includePlatforms": [],
-    "excludePlatforms": [],
-    "allowUnsafeCode": false,
-    "overrideReferences": false,
-    "precompiledReferences": [],
-    "autoReferenced": true,
-    "defineConstraints": [],
-    "versionDefines": [],
-    "noEngineReferences": false
+﻿{
+    "name":  "CityX.Character",
+    "rootNamespace":  "CityX.Character",
+    "references":  [
+                       "CityX.Core",
+                       "CityX.World",
+                       "Unity.InputSystem"
+                   ],
+    "includePlatforms":  [
+
+                         ],
+    "excludePlatforms":  [
+
+                         ],
+    "allowUnsafeCode":  false,
+    "overrideReferences":  false,
+    "precompiledReferences":  [
+
+                              ],
+    "autoReferenced":  true,
+    "defineConstraints":  [
+
+                          ],
+    "versionDefines":  [
+
+                       ],
+    "noEngineReferences":  false
 }

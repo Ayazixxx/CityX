@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using CityX.UI;
 using CityX.View;
@@ -119,8 +120,56 @@ namespace CityX.UIEditor
             BuildInterface();
 
             EditorSceneManager.SaveScene(scene, ScenePath);
+            EnsureBuildScenes();
             AssetDatabase.SaveAssets();
             Debug.Log($"CityX: title screen written to {ScenePath}");
+        }
+
+        /// <summary>
+        /// Puts the title and the world into the build's scene list, title
+        /// first.
+        ///
+        /// NOT COSMETIC. SceneManager.LoadScene can only reach scenes that are
+        /// in this list, so without it the PLAY button on the character select
+        /// throws and reads as the button being broken. The project was still
+        /// carrying Unity's default SampleScene entry, which does not exist
+        /// here -- so the list was wrong in both directions.
+        ///
+        /// Index 0 is what a built game starts on, which has to be the title.
+        /// </summary>
+        private static void EnsureBuildScenes()
+        {
+            string[] wanted =
+            {
+                ScenePath,
+                "Assets/CityX/Scenes/CityMassing.unity",
+            };
+
+            var scenes = new List<EditorBuildSettingsScene>();
+            foreach (string path in wanted)
+            {
+                if (AssetDatabase.LoadAssetAtPath<SceneAsset>(path) == null)
+                {
+                    Debug.LogWarning($"CityX: no scene at {path} -- it will not be buildable " +
+                                     "or loadable until it is built.");
+                    continue;
+                }
+                scenes.Add(new EditorBuildSettingsScene(path, enabled: true));
+            }
+
+            // Anything else somebody added stays, after ours, so this does not
+            // quietly delete a scene that was put there on purpose.
+            foreach (EditorBuildSettingsScene existing in EditorBuildSettings.scenes)
+            {
+                bool alreadyWanted = System.Array.IndexOf(wanted, existing.path) >= 0;
+                bool missing = AssetDatabase.LoadAssetAtPath<SceneAsset>(existing.path) == null;
+                if (!alreadyWanted && !missing)
+                {
+                    scenes.Add(existing);
+                }
+            }
+
+            EditorBuildSettings.scenes = scenes.ToArray();
         }
 
         private static void BuildInterface()
@@ -144,8 +193,16 @@ namespace CityX.UIEditor
             Stretch((RectTransform)vignette.transform, 0.0f);
             vignette.GetComponent<Image>().raycastTarget = false;
 
-            title.Logo = BuildLogo(root.transform);
+            // Grouped so the character list can hide the logo without hiding
+            // the vignette under it.
+            var logoGroup = new GameObject("LogoGroup", typeof(RectTransform));
+            Stretch((RectTransform)logoGroup.transform, 0.0f);
+            logoGroup.transform.SetParent(root.transform, false);
+            title.LogoGroup = logoGroup;
+
+            title.Logo = BuildLogo(logoGroup.transform);
             title.MenuPanel = BuildMenu(root.transform, title);
+            title.CharacterSelectPanel = CharacterSelectBuilder.Build(root.transform, title);
             title.MultiplayerPanel = BuildStub(root.transform, "MultiplayerPanel",
                 "MULTIPLAYER", "Host and join are not ported yet.", title);
             title.SettingsPanel = BuildStub(root.transform, "SettingsPanel",
@@ -215,7 +272,7 @@ namespace CityX.UIEditor
             rect.sizeDelta = new Vector2(280.0f, 190.0f);
 
             MakeButton(panel.transform, "SingleplayerButton", "SINGLEPLAYER", 0,
-                () => Debug.Log("CityX: singleplayer -- character select is not ported yet."));
+                () => title.Show(TitleScreen.Panel.CharacterSelect));
             MakeButton(panel.transform, "MultiplayerButton", "MULTIPLAYER", 1,
                 () => title.Show(TitleScreen.Panel.Multiplayer));
             MakeButton(panel.transform, "SettingsButton", "SETTINGS", 2,

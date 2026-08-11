@@ -208,6 +208,10 @@ namespace CityX.CharacterEditor
                 root.AddComponent<PlayerVitals>();
                 root.AddComponent<MeleeAttacker>();
                 root.AddComponent<PlayerAnimationDriver>();
+                // Makes the body be whoever was chosen in the menu, and does
+                // nothing at all when the world is opened directly -- which is
+                // how it is opened most of the time.
+                root.AddComponent<CharacterIdentity>();
 
                 // Built BEFORE the input reader and after the capsule, because
                 // it needs the CharacterController to exclude from its own
