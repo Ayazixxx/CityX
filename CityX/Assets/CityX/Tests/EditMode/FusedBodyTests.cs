@@ -278,6 +278,118 @@ namespace CityX.Tests
         }
 
         /// <summary>
+        /// A JOINT MUST BE SHARED BETWEEN THE BONES IT JOINS. This is the test
+        /// that was missing, and its absence cost a visible bug: the skin was
+        /// weighted rigidly, one bone per vertex, faithfully copying the
+        /// original -- and it tore. The blob the smooth union fills at a
+        /// shoulder was handed entirely to whichever capsule happened to be a
+        /// millimetre nearer, so half the shoulder swung with the arm and the
+        /// rest stayed with the chest, stretching the seam between them.
+        ///
+        /// "Every vertex is attached to something" was true the whole time. The
+        /// property that actually matters is that no single bone owns a joint.
+        /// </summary>
+        [Test]
+        public void JointsAreSharedBetweenTheBonesTheyJoin()
+        {
+            List<FusedBodyShape.Segment> segments = MakeSegments();
+            var bones = new HumanBodyBones[4];
+            var weights = new float[4];
+
+            // Right at the shoulder, where the arm meets the torso.
+            Vector3 shoulder = Bone(HumanBodyBones.LeftUpperArm);
+            int used = FusedBodyShape.WeightsAt(segments, shoulder, bones, weights);
+
+            Assert.Greater(used, 1,
+                "the shoulder is owned by a single bone -- it will tear when the arm swings");
+
+            float heaviest = 0.0f;
+            for (int i = 0; i < used; i++)
+            {
+                heaviest = Mathf.Max(heaviest, weights[i]);
+            }
+            Assert.Less(heaviest, 0.95f,
+                "one bone takes essentially all of the shoulder, which is rigid weighting " +
+                "wearing a blend's clothes");
+
+            // And the elbow, between upper and lower arm.
+            Vector3 elbow = Bone(HumanBodyBones.LeftLowerArm);
+            used = FusedBodyShape.WeightsAt(segments, elbow, bones, weights);
+            Assert.Greater(used, 1, "the elbow is owned by a single bone");
+        }
+
+        /// <summary>
+        /// Weights must sum to one. Anything less darkens and shrinks a vertex
+        /// toward the origin; anything more inflates it.
+        /// </summary>
+        [Test]
+        public void EveryVertexIsFullyAccountedFor()
+        {
+            List<FusedBodyShape.Segment> segments = MakeSegments();
+            Bounds bounds = FusedBodyShape.BoundsOf(segments);
+
+            FusedBodyMesh.Extract(segments, bounds, FusedBodyShape.CellSize,
+                out List<Vector3> vertices, out _);
+
+            var bones = new HumanBodyBones[4];
+            var weights = new float[4];
+
+            for (int i = 0; i < vertices.Count; i += 13)
+            {
+                int used = FusedBodyShape.WeightsAt(segments, vertices[i], bones, weights);
+                Assert.Greater(used, 0, $"vertex {i} is attached to nothing");
+
+                float total = 0.0f;
+                for (int slot = 0; slot < used; slot++)
+                {
+                    Assert.Greater(weights[slot], 0.0f, $"vertex {i} has a zero influence");
+                    total += weights[slot];
+                }
+                Assert.AreEqual(1.0f, total, 0.001f, $"vertex {i} weights sum to {total:0.000}");
+            }
+        }
+
+        /// <summary>
+        /// Far from any joint, a vertex should still belong overwhelmingly to
+        /// its own bone. A blend that smears everything is as wrong as no blend
+        /// at all -- it makes a hand drag when a shoulder turns.
+        /// </summary>
+        [Test]
+        public void AwayFromAJointOneBoneStillDominates()
+        {
+            List<FusedBodyShape.Segment> segments = MakeSegments();
+            var bones = new HumanBodyBones[4];
+            var weights = new float[4];
+
+            // THE EXACT MIDPOINT, which is the only point on a forearm that is
+            // genuinely away from a joint. This probe was at 0.35 first and
+            // reported 57% -- but a forearm is only about two and a half radii
+            // long, so 0.35 along it is still inside the elbow's handover and
+            // SHOULD be shared. Testing there measured the elbow and called it
+            // the forearm.
+            Vector3 midForearm = Vector3.Lerp(
+                Bone(HumanBodyBones.LeftLowerArm), Bone(HumanBodyBones.LeftHand), 0.5f);
+
+            int used = FusedBodyShape.WeightsAt(segments, midForearm, bones, weights);
+
+            float heaviest = 0.0f;
+            HumanBodyBones owner = HumanBodyBones.Hips;
+            for (int i = 0; i < used; i++)
+            {
+                if (weights[i] > heaviest)
+                {
+                    heaviest = weights[i];
+                    owner = bones[i];
+                }
+            }
+
+            Assert.AreEqual(HumanBodyBones.LeftLowerArm, owner,
+                "the middle of the forearm is not owned by the forearm");
+            Assert.Greater(heaviest, 0.6f,
+                "the blend has smeared the forearm across too many bones");
+        }
+
+        /// <summary>
         /// A vertex on the head must be weighted to the head, and one on a hand
         /// to that hand. Getting this wrong is what makes a head swing around
         /// when an arm moves.

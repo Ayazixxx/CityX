@@ -202,11 +202,6 @@ namespace CityX.Character
 
         /// <summary>
         /// Which bone a point on the skin belongs to: the nearest capsule's.
-        ///
-        /// Nearest rather than blended, matching the original's closest_bone.
-        /// The capsules overlap generously at every joint, so a rigid weight
-        /// still bends cleanly -- and a blend would smear the hand's weight
-        /// onto the forearm, which shows up as fingers that lag a punch.
         /// </summary>
         public static HumanBodyBones NearestBone(IReadOnlyList<Segment> segments, Vector3 p)
         {
@@ -223,6 +218,140 @@ namespace CityX.Character
                 }
             }
             return best;
+        }
+
+        /// <summary>
+        /// How wide the handover between bones is, as a multiple of the LOCAL
+        /// limb's radius.
+        ///
+        /// RELATIVE TO THE LIMB, NOT A FIXED DISTANCE. A fixed width was tried
+        /// first and has no good value: 0.24m is about right across a shoulder
+        /// and catastrophic on a forearm, where it reaches past both the elbow
+        /// and the wrist at once.
+        ///
+        /// UNDER ONE RADIUS, which took measuring to find. At 1.5 radii the
+        /// middle of a forearm was still only 57% its own -- because a forearm
+        /// is under three radii long, so a handover a radius and a half wide
+        /// arrives from both ends at once and meets in the middle. The
+        /// neighbouring capsules' rounded caps already overlap it heavily
+        /// before any falloff is applied. Three quarters of a radius is wide
+        /// enough that a joint is genuinely shared and narrow enough that the
+        /// middle of a limb belongs to itself.
+        /// </summary>
+        public const float WeightFalloffRadii = 0.75f;
+
+        /// <summary>
+        /// The bones a vertex is attached to, and how much each one owns of it.
+        ///
+        /// BLENDED, NOT NEAREST-ONLY -- and this was got wrong first time. The
+        /// original assigns each vertex wholly to its closest capsule, which is
+        /// what fused_body.gd does, so that is what was ported. It tears. The
+        /// torso capsule is thick and the arm capsule is thin, and the smooth
+        /// union between them fills a large blob at the shoulder; giving every
+        /// point of that blob entirely to whichever capsule happens to be a
+        /// millimetre nearer means half a shoulder swings with the arm and the
+        /// other half stays with the chest. The seam between them stretches
+        /// like a sheet.
+        ///
+        /// Sharing a vertex between every capsule within <see cref="WeightFalloff"/>
+        /// of the nearest one makes that handover gradual, which is what a
+        /// shoulder actually does.
+        ///
+        /// Fills <paramref name="bones"/> and <paramref name="weights"/>, which
+        /// must each hold four, and returns how many were used. Four because
+        /// that is what a Unity BoneWeight carries -- past the fourth the
+        /// smallest influences are dropped and the rest renormalised.
+        /// </summary>
+        public static int WeightsAt(IReadOnlyList<Segment> segments, Vector3 p,
+            HumanBodyBones[] bones, float[] weights)
+        {
+            float nearest = float.MaxValue;
+            float nearestRadius = 0.0f;
+            foreach (Segment segment in segments)
+            {
+                float d = segment.Distance(p);
+                if (d < nearest)
+                {
+                    nearest = d;
+                    nearestRadius = segment.Radius;
+                }
+            }
+
+            // The handover is as wide as the limb this point sits on is thick,
+            // so a forearm hands over across a few centimetres and a torso
+            // across a hand's breadth.
+            float falloff = Mathf.Max(nearestRadius * WeightFalloffRadii, 1e-4f);
+
+            int used = 0;
+            foreach (Segment segment in segments)
+            {
+                // Linear falloff from the nearest capsule outward. A capsule
+                // exactly at the nearest distance takes a full share; one a
+                // whole falloff further away takes none.
+                float share = 1.0f - (segment.Distance(p) - nearest) / falloff;
+                if (share <= 0.0f)
+                {
+                    continue;
+                }
+
+                // Two capsules of the same limb share a bone at the elbow and
+                // the knee; their shares add rather than competing for a slot.
+                int existing = -1;
+                for (int i = 0; i < used; i++)
+                {
+                    if (bones[i] == segment.Bone)
+                    {
+                        existing = i;
+                        break;
+                    }
+                }
+                if (existing >= 0)
+                {
+                    weights[existing] = Mathf.Max(weights[existing], share);
+                    continue;
+                }
+
+                if (used < bones.Length)
+                {
+                    bones[used] = segment.Bone;
+                    weights[used] = share;
+                    used++;
+                    continue;
+                }
+
+                // Full: displace the weakest, if this one beats it.
+                int weakest = 0;
+                for (int i = 1; i < used; i++)
+                {
+                    if (weights[i] < weights[weakest])
+                    {
+                        weakest = i;
+                    }
+                }
+                if (share > weights[weakest])
+                {
+                    bones[weakest] = segment.Bone;
+                    weights[weakest] = share;
+                }
+            }
+
+            if (used == 0)
+            {
+                bones[0] = NearestBone(segments, p);
+                weights[0] = 1.0f;
+                return 1;
+            }
+
+            float total = 0.0f;
+            for (int i = 0; i < used; i++)
+            {
+                total += weights[i];
+            }
+            for (int i = 0; i < used; i++)
+            {
+                weights[i] /= total;
+            }
+            return used;
         }
 
         /// <summary>

@@ -131,14 +131,45 @@ namespace CityX.CharacterEditor
             }
 
             var weights = new BoneWeight[vertices.Count];
+            var influenceBones = new HumanBodyBones[4];
+            var influenceWeights = new float[4];
+
             for (int i = 0; i < vertices.Count; i++)
             {
-                HumanBodyBones bone = FusedBodyShape.NearestBone(segments, vertices[i]);
-                weights[i] = new BoneWeight
+                int used = FusedBodyShape.WeightsAt(
+                    segments, vertices[i], influenceBones, influenceWeights);
+
+                // Sorted heaviest first, because Unity treats slot 0 as the
+                // dominant bone and some quality settings drop the later ones.
+                for (int a = 0; a < used - 1; a++)
                 {
-                    boneIndex0 = boneIndex.TryGetValue(bone, out int slot) ? slot : 0,
-                    weight0 = 1.0f,
-                };
+                    for (int b = a + 1; b < used; b++)
+                    {
+                        if (influenceWeights[b] > influenceWeights[a])
+                        {
+                            (influenceWeights[a], influenceWeights[b]) =
+                                (influenceWeights[b], influenceWeights[a]);
+                            (influenceBones[a], influenceBones[b]) =
+                                (influenceBones[b], influenceBones[a]);
+                        }
+                    }
+                }
+
+                var weight = new BoneWeight();
+                for (int slot = 0; slot < used; slot++)
+                {
+                    int index = boneIndex.TryGetValue(influenceBones[slot], out int found)
+                        ? found
+                        : 0;
+                    switch (slot)
+                    {
+                        case 0: weight.boneIndex0 = index; weight.weight0 = influenceWeights[0]; break;
+                        case 1: weight.boneIndex1 = index; weight.weight1 = influenceWeights[1]; break;
+                        case 2: weight.boneIndex2 = index; weight.weight2 = influenceWeights[2]; break;
+                        case 3: weight.boneIndex3 = index; weight.weight3 = influenceWeights[3]; break;
+                    }
+                }
+                weights[i] = weight;
             }
 
             var bindPoses = new Matrix4x4[bones.Count];
@@ -222,6 +253,11 @@ namespace CityX.CharacterEditor
             renderer.bones = bones.ToArray();
             renderer.rootBone = animator.GetBoneTransform(HumanBodyBones.Hips);
             renderer.sharedMaterial = material;
+            // Four bones per vertex, explicitly. The default follows a quality
+            // setting that can be lowered to two or one, and dropping to one
+            // silently restores exactly the rigid weighting that made the
+            // shoulders tear.
+            renderer.quality = SkinQuality.Bone4;
             // The body's own bounds move a long way from the root when it
             // ragdolls, and a renderer culled by its rest bounds vanishes at
             // exactly the moment somebody is watching it fall.
