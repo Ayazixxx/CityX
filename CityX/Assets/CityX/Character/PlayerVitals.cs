@@ -16,7 +16,7 @@ namespace CityX.Character
     /// with their stat point, so a levelled character is genuinely tougher
     /// rather than just hitting harder.
     /// </summary>
-    public sealed class PlayerVitals : MonoBehaviour
+    public sealed class PlayerVitals : MonoBehaviour, IDamageable
     {
         // --- tuning, ported from player.gd ---
 
@@ -77,8 +77,45 @@ namespace CityX.Character
         /// </summary>
         public bool IsExhausted => _exhausted;
 
+        /// <summary>
+        /// Seconds left locked out of acting after being hit. Lives here rather
+        /// than in the attacker because it is a condition of the body being
+        /// hit, and several things need to ask about it.
+        /// </summary>
+        public float HitstunRemaining { get; private set; }
+
+        public bool IsStunned => HitstunRemaining > 0.0f;
+
+        public bool IsAlive => !IsDead;
+
         public event Action Died;
         public event Action<float> Damaged;
+
+        /// <summary>Raised with the world position the blow came from.</summary>
+        public event Action<Vector3> Hit;
+
+        void IDamageable.ApplyHit(float amount, Vector3 fromPosition, float hitstunSeconds)
+        {
+            if (IsDead)
+            {
+                return;
+            }
+
+            TakeDamage(amount);
+            // Longest wins rather than newest. A weak jab landing during a
+            // heavy stun should not cut it short.
+            HitstunRemaining = Mathf.Max(HitstunRemaining, hitstunSeconds);
+            Hit?.Invoke(fromPosition);
+        }
+
+        /// <summary>Counts hitstun down. Call once per frame.</summary>
+        public void TickHitstun(float deltaTime)
+        {
+            if (HitstunRemaining > 0.0f)
+            {
+                HitstunRemaining = Mathf.Max(0.0f, HitstunRemaining - deltaTime);
+            }
+        }
 
         private void Awake()
         {
@@ -93,6 +130,7 @@ namespace CityX.Character
             _stamina = MaxStamina;
             _exhausted = false;
             _wasAirborne = false;
+            HitstunRemaining = 0.0f;
         }
 
         /// <summary>

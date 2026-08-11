@@ -142,7 +142,8 @@ namespace CityX.CharacterEditor
 
                 root.AddComponent<PlayerLocomotion>();
                 root.AddComponent<PlayerVitals>();
-                // Added last: it looks for the other two in Awake.
+                root.AddComponent<MeleeAttacker>();
+                // Added last: it looks for the others in Awake.
                 root.AddComponent<PlayerInputReader>();
 
                 GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);

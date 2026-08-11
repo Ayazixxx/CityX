@@ -110,6 +110,8 @@ namespace CityX.ViewEditor
                 cameraObject.GetComponent<FlyCamera>().enabled = false;
                 var follow = cameraObject.AddComponent<ThirdPersonCamera>();
                 follow.Target = player.transform;
+
+                AddSparringDummies(groundHeight, structure);
             }
             else
             {
@@ -129,6 +131,35 @@ namespace CityX.ViewEditor
             AssetDatabase.SaveAssets();
 
             Debug.Log($"CityX: massing scene written to {ScenePath}");
+        }
+
+        /// <summary>
+        /// Puts a few things to punch in the street outside the spawn.
+        ///
+        /// Combat cannot be judged against nothing -- reach, arc, how many hits
+        /// a chain takes to fell something, whether the finisher reads as
+        /// heavier. None of that needs an AI to be felt, and adding one first
+        /// would mean tuning the swing and the chasing at once with no way to
+        /// tell which was wrong.
+        /// </summary>
+        private static void AddSparringDummies(float groundHeight, Material material)
+        {
+            var parent = new GameObject("SparringDummies");
+            float chunk = CityLayout.ChunkSize;
+
+            // Spread down the street the player spawns on, at increasing
+            // distance, so reach can be judged by walking up to them.
+            float[] distances = { 4.0f, 9.0f, 15.0f };
+            for (int i = 0; i < distances.Length; i++)
+            {
+                var dummy = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+                dummy.name = $"Dummy {i + 1}";
+                dummy.transform.SetParent(parent.transform);
+                dummy.transform.position = new Vector3(
+                    chunk * 0.5f, groundHeight + 1.0f, chunk * 0.5f + distances[i]);
+                dummy.GetComponent<MeshRenderer>().sharedMaterial = material;
+                dummy.AddComponent<SparringDummy>();
+            }
         }
 
         /// <summary>

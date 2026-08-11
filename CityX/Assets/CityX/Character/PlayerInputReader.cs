@@ -24,13 +24,15 @@ namespace CityX.Character
 
         private PlayerLocomotion _locomotion;
         private PlayerVitals _vitals;
+        private MeleeAttacker _melee;
 
         private void Awake()
         {
             _locomotion = GetComponent<PlayerLocomotion>();
-            // Optional. A body with no vitals still walks -- useful for tests
-            // and for anything that is not the player.
+            // Both optional. A body with no vitals and no fists still walks --
+            // useful for tests and for anything that is not the player.
             _vitals = GetComponent<PlayerVitals>();
+            _melee = GetComponent<MeleeAttacker>();
         }
 
         private void Update()
@@ -41,12 +43,37 @@ namespace CityX.Character
                 return;
             }
 
+            float deltaTime = Time.deltaTime;
+            if (_vitals != null)
+            {
+                _vitals.TickHitstun(deltaTime);
+            }
+            if (_melee != null)
+            {
+                _melee.Tick(deltaTime);
+            }
+
             if (_vitals != null && _vitals.IsDead)
             {
                 // A corpse still falls, so keep ticking the body with no input
                 // rather than stopping it dead in the air.
-                _locomotion.Tick(default, Time.deltaTime);
+                _locomotion.Tick(default, deltaTime);
                 return;
+            }
+
+            // Being hit takes the controls away for a moment. Gravity still
+            // applies, so a stunned body in mid-air keeps falling instead of
+            // hanging there.
+            if (_vitals != null && _vitals.IsStunned)
+            {
+                _locomotion.Tick(default, deltaTime);
+                return;
+            }
+
+            if (_melee != null && Mouse.current != null &&
+                Mouse.current.leftButton.wasPressedThisFrame)
+            {
+                _melee.TryAttack();
             }
 
             Vector2 move = Vector2.zero;
@@ -66,8 +93,16 @@ namespace CityX.Character
             // Stamina decides, not the key. Asking rather than checking a flag
             // keeps the exhaustion latch in one place.
             bool sprinting = _vitals != null
-                ? _vitals.TickStamina(wantsSprint, Time.deltaTime)
+                ? _vitals.TickStamina(wantsSprint, deltaTime)
                 : wantsSprint;
+
+            // Swinging roots the body, which is what makes a combo a
+            // commitment rather than something you can walk out of.
+            if (_melee != null && _melee.IsSwinging)
+            {
+                move = Vector2.zero;
+                sprinting = false;
+            }
 
             var input = new LocomotionInput
             {
@@ -77,7 +112,7 @@ namespace CityX.Character
                 Jump = keyboard.spaceKey.wasPressedThisFrame,
             };
 
-            _locomotion.Tick(input, Time.deltaTime);
+            _locomotion.Tick(input, deltaTime);
 
             // AFTER the move, so grounded and height are this frame's, not the
             // previous one's. Checking before would measure the fall one frame
