@@ -207,9 +207,20 @@ namespace CityX.Tests
             }
             TestContext.WriteLine(string.Join("\n", lines));
 
+            // WHY THIS FLOOR IS LOW, AND WHY IT USED TO BE WRONG. This started
+            // at 0.10 and was doing double duty: catching a vanished lattice AND
+            // standing in for density. It was never a good density measure --
+            // a building has four sides, so a per-pair share reads far lower
+            // than the share of buildings actually affected. At 44% of pairs
+            // bridged, about 90% of BUILDINGS had a walkway on them, which is
+            // the state the user objected to.
+            //
+            // MostBuildingsHaveNoWalkwayAtAll now owns density, measured on the
+            // unit that has a facade. This one is left as a bare
+            // has-not-vanished check.
             double bridgedShare = bridgedPairs / (double)totalPairs;
-            Assert.Greater(bridgedShare, 0.10,
-                $"only {bridgedShare:P0} of adjacent pairs are bridged -- there is no lattice");
+            Assert.Greater(bridgedShare, 0.02,
+                $"only {bridgedShare:P1} of adjacent pairs are bridged -- the lattice has vanished");
             Assert.Less(bridgedShare, 0.80,
                 $"{bridgedShare:P0} of pairs are bridged -- the canyons are roofed over, " +
                 "and the canyons are half the reference");
@@ -234,6 +245,134 @@ namespace CityX.Tests
             Assert.Greater(multiShare, 0.15,
                 $"only {multiShare:P1} of bridged pairs stack more than one walkway -- the reference " +
                 "is a lattice at several heights, not one bridge per gap");
+        }
+
+        /// <summary>
+        /// Most buildings must have NO walkway on them at all.
+        ///
+        /// This is the failure a per-pair chance alone cannot see, and the one
+        /// the user caught by eye. Each building has up to four neighbours, so
+        /// even a middling pair chance leaves nearly every building carrying
+        /// something -- at a 0.7 pair chance it was about 90%, a lattice welded
+        /// onto the whole city. Counting per PAIR looked reasonable the entire
+        /// time. So this counts per BUILDING, which is the unit that actually
+        /// has a facade.
+        /// </summary>
+        [Test]
+        public void MostBuildingsHaveNoWalkwayAtAll()
+        {
+            CityWorld world = new CityWorld(Seed);
+            SkybridgeLayout layout = new SkybridgeLayout(Seed);
+
+            int buildings = 0;
+            int withBridge = 0;
+            var byMass = new Dictionary<BuildingMass, (int total, int bridged)>();
+
+            for (int x = -Sweep; x <= Sweep; x++)
+            {
+                for (int y = -Sweep; y <= Sweep; y++)
+                {
+                    BuildingSite site = world.BuildingAt(x, y);
+                    if (!site.Exists || site.AnchorX != x || site.AnchorY != y)
+                    {
+                        continue;
+                    }
+                    buildings++;
+
+                    // A building carries a walkway if ANY of its four sides does.
+                    bool bridged = false;
+                    foreach (BuildingSite neighbour in NeighboursOf(world, site))
+                    {
+                        if (neighbour.Exists && layout.BridgesBetween(site, neighbour).Count > 0)
+                        {
+                            bridged = true;
+                            break;
+                        }
+                    }
+                    if (bridged)
+                    {
+                        withBridge++;
+                    }
+
+                    byMass.TryGetValue(site.Params.Mass, out var tally);
+                    byMass[site.Params.Mass] = (tally.total + 1, tally.bridged + (bridged ? 1 : 0));
+                }
+            }
+
+            double share = withBridge / (double)buildings;
+            TestContext.WriteLine($"{share:P1} of buildings carry at least one walkway ({withBridge}/{buildings})");
+            foreach (BuildingMass mass in System.Enum.GetValues(typeof(BuildingMass)))
+            {
+                if (byMass.TryGetValue(mass, out var tally) && tally.total > 0)
+                {
+                    TestContext.WriteLine($"  {mass}: {tally.bridged / (double)tally.total:P1} of {tally.total}");
+                }
+            }
+
+            Assert.Less(share, 0.45,
+                $"{share:P0} of buildings have a walkway attached -- the lattice is welded to the whole " +
+                "city and almost nothing has a clean facade");
+            Assert.Greater(share, 0.08,
+                $"only {share:P0} of buildings have a walkway -- there is no lattice left");
+        }
+
+        /// <summary>
+        /// The lattice should hang off the big masses, as it does in the
+        /// reference, rather than being spread evenly over every ordinary block.
+        /// </summary>
+        [Test]
+        public void WalkwaysFavourTowersAndSlabsOverOrdinaryBlocks()
+        {
+            CityWorld world = new CityWorld(Seed);
+            SkybridgeLayout layout = new SkybridgeLayout(Seed);
+
+            int bigTotal = 0, bigHubs = 0;
+            int midTotal = 0, midHubs = 0;
+
+            for (int x = -Sweep; x <= Sweep; x++)
+            {
+                for (int y = -Sweep; y <= Sweep; y++)
+                {
+                    BuildingSite site = world.BuildingAt(x, y);
+                    if (!site.Exists || site.AnchorX != x || site.AnchorY != y)
+                    {
+                        continue;
+                    }
+
+                    bool hub = layout.IsLatticeHub(site);
+                    switch (site.Params.Mass)
+                    {
+                        case BuildingMass.Tower:
+                        case BuildingMass.Supertall:
+                        case BuildingMass.Slab:
+                            bigTotal++;
+                            if (hub) bigHubs++;
+                            break;
+                        case BuildingMass.MidRise:
+                            midTotal++;
+                            if (hub) midHubs++;
+                            break;
+                    }
+                }
+            }
+
+            double bigShare = bigHubs / (double)bigTotal;
+            double midShare = midHubs / (double)midTotal;
+            TestContext.WriteLine($"lattice hubs -- towers/slabs {bigShare:P1}, mid-rise {midShare:P1}");
+
+            Assert.Greater(bigShare, midShare + 0.2,
+                "towers and slabs are no more likely to carry walkways than an ordinary mid-rise");
+        }
+
+        private static BuildingSite[] NeighboursOf(CityWorld world, BuildingSite site)
+        {
+            return new[]
+            {
+                SkybridgeLayout.EastNeighbour(world, site),
+                SkybridgeLayout.NorthNeighbour(world, site),
+                SkybridgeLayout.WestNeighbour(world, site),
+                SkybridgeLayout.SouthNeighbour(world, site),
+            };
         }
 
         [Test]

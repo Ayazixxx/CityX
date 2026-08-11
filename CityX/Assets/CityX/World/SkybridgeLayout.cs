@@ -87,13 +87,36 @@ namespace CityX.World
         public const int MaxLevels = 5;
 
         /// <summary>
-        /// Not every adjacent pair is bridged. Without this the city becomes a
-        /// solid lattice with no open canyons in it, and the canyons are half
-        /// the reference.
+        /// Given both buildings are part of the lattice, how often the gap
+        /// between them is actually bridged. High on purpose: once two
+        /// buildings are both hubs, they should be well connected to each
+        /// other. The sparseness comes from participation, below.
         /// </summary>
         public const double BridgedPairChance = 0.7;
 
-        private const ulong BridgeSalt = 0x42524447UL;   // "BRDG"
+        /// <summary>
+        /// Whether a building is part of the walkway network at all, by mass.
+        ///
+        /// WHY THIS EXISTS AS A SEPARATE GATE. A per-pair chance alone does not
+        /// do what it looks like it does. Each building has up to four
+        /// neighbours, so even a middling pair chance leaves almost every
+        /// building carrying at least one walkway -- at 0.7 it was about 90%,
+        /// which is a lattice welded onto the entire city. Deciding it per
+        /// BUILDING instead means unconnected buildings keep clean unbroken
+        /// facades, and the pairs that are connected cluster together into real
+        /// hubs rather than smearing one bridge evenly over everything.
+        ///
+        /// Weighted toward the big masses because that is what the reference
+        /// shows: the walkways hang off the large slabs and towers, not off
+        /// every ordinary block in the city.
+        /// </summary>
+        public const double TowerParticipation = 0.75;
+
+        public const double SlabParticipation = 0.7;
+        public const double MidRiseParticipation = 0.3;
+
+        private const ulong BridgeSalt = 0x42524447UL;      // "BRDG"
+        private const ulong ParticipationSalt = 0x4C415454UL; // "LATT"
 
         private readonly ulong _seed;
 
@@ -122,6 +145,10 @@ namespace CityX.World
                 return bridges;   // a building does not bridge to itself
             }
             if (a.Params.Height < MinBuildingHeight || b.Params.Height < MinBuildingHeight)
+            {
+                return bridges;
+            }
+            if (!IsLatticeHub(a) || !IsLatticeHub(b))
             {
                 return bridges;
             }
@@ -187,6 +214,40 @@ namespace CityX.World
         }
 
         /// <summary>
+        /// Whether this building carries walkways at all.
+        ///
+        /// Keyed on the building's own anchor, so every neighbour that asks
+        /// gets the same answer -- the same no-communication rule the pair roll
+        /// follows.
+        /// </summary>
+        public bool IsLatticeHub(BuildingSite site)
+        {
+            if (!site.Exists || site.Params.Height < MinBuildingHeight)
+            {
+                return false;
+            }
+
+            double chance;
+            switch (site.Params.Mass)
+            {
+                case BuildingMass.Tower:
+                case BuildingMass.Supertall:
+                    chance = TowerParticipation;
+                    break;
+                case BuildingMass.Slab:
+                    chance = SlabParticipation;
+                    break;
+                case BuildingMass.MidRise:
+                    chance = MidRiseParticipation;
+                    break;
+                default:
+                    return false;
+            }
+
+            return WorldHash.Unit01(site.AnchorX, site.AnchorY, ParticipationSalt, _seed) < chance;
+        }
+
+        /// <summary>
         /// A generator keyed on the ordered pair. Both anchors are folded in,
         /// so moving either building changes the bridges -- and neither end can
         /// reach a different answer than the other.
@@ -212,6 +273,21 @@ namespace CityX.World
         public static BuildingSite NorthNeighbour(CityWorld world, BuildingSite site)
         {
             return NeighbourAt(world, site, site.AnchorX, site.AnchorY + site.Role.SpanY, 0, 1);
+        }
+
+        /// <summary>
+        /// The building to the west. Probes from the anchor rather than the far
+        /// edge, because the anchor IS the low corner of the span.
+        /// </summary>
+        public static BuildingSite WestNeighbour(CityWorld world, BuildingSite site)
+        {
+            return NeighbourAt(world, site, site.AnchorX - 1, site.AnchorY, -1, 0);
+        }
+
+        /// <summary>The building to the south.</summary>
+        public static BuildingSite SouthNeighbour(CityWorld world, BuildingSite site)
+        {
+            return NeighbourAt(world, site, site.AnchorX, site.AnchorY - 1, 0, -1);
         }
 
         private static BuildingSite NeighbourAt(CityWorld world, BuildingSite site,
