@@ -117,17 +117,51 @@ namespace CityX.CharacterEditor
                 Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
             Directory.CreateDirectory(outputDirectory);
 
-            Shoot(prefab, outputDirectory, "body-front", 0.0f, Rest);
-            Shoot(prefab, outputDirectory, "body-back", 180.0f, Rest);
-            Shoot(prefab, outputDirectory, "body-stride", 215.0f, Stride);
-            Shoot(prefab, outputDirectory, "body-punch", 205.0f, Punch);
-            Shoot(prefab, outputDirectory, "body-reach", 200.0f, Reach);
-            Shoot(prefab, outputDirectory, "body-tpose", 0.0f, null);
+            Shoot(prefab, outputDirectory, "body-front", 0.0f, Rest, null, 0.0f);
+            Shoot(prefab, outputDirectory, "body-back", 180.0f, Rest, null, 0.0f);
+            Shoot(prefab, outputDirectory, "body-stride", 215.0f, Stride, null, 0.0f);
+            Shoot(prefab, outputDirectory, "body-punch", 205.0f, Punch, null, 0.0f);
+            Shoot(prefab, outputDirectory, "body-reach", 200.0f, Reach, null, 0.0f);
+            Shoot(prefab, outputDirectory, "body-tpose", 0.0f, null, null, 0.0f);
+
+            // THE REAL CLIPS, RETARGETED. The hand poses above prove the skin
+            // survives being bent; only these prove the Mixamo animations
+            // actually arrive on this skeleton looking like themselves, which
+            // is the whole bet of retargeting a human rig onto a figure with
+            // arms a third longer than a person's.
+            Shoot(prefab, outputDirectory, "clip-walk", 200.0f, null,
+                FindClip("walking"), 0.28f);
+            Shoot(prefab, outputDirectory, "clip-walk-late", 200.0f, null,
+                FindClip("walking"), 0.72f);
+            Shoot(prefab, outputDirectory, "clip-sprint", 205.0f, null,
+                FindClip("sprint"), 0.35f);
+            Shoot(prefab, outputDirectory, "clip-idle", 0.0f, null,
+                FindClip("idle"), 0.5f);
+            Shoot(prefab, outputDirectory, "clip-jab", 210.0f, null,
+                FindClip("boxing_right_jab"), 0.45f);
 
             if (Application.isBatchMode)
             {
                 EditorApplication.Exit(0);
             }
+        }
+
+        /// <summary>
+        /// Pulls the animation clip out of a model file, skipping Unity's own
+        /// __preview__ duplicates.
+        /// </summary>
+        private static AnimationClip FindClip(string modelName)
+        {
+            string path = $"Assets/CityX/Character/Animations/{modelName}.fbx";
+            foreach (Object asset in AssetDatabase.LoadAllAssetsAtPath(path))
+            {
+                if (asset is AnimationClip clip && !clip.name.StartsWith("__preview__"))
+                {
+                    return clip;
+                }
+            }
+            Debug.LogWarning($"CityX: no clip in {path} -- that shot will render at rest.");
+            return null;
         }
 
         /// <summary>
@@ -155,6 +189,83 @@ namespace CityX.CharacterEditor
             }
         }
 
+        /// <summary>
+        /// Poses the rig from a real clip, through the retargeting.
+        ///
+        /// AnimationMode, NOT AnimationClip.SampleAnimation. The latter is
+        /// what the Animation window's scrubber does NOT use, and on a
+        /// humanoid rig in batch mode it silently leaves the body at rest --
+        /// which is how a set of "posed" captures came out identical to the
+        /// bind pose and nobody noticed. This is the API the scrubber actually
+        /// uses, and it goes through the avatar, so what comes out is the clip
+        /// as the game will play it rather than raw bone tracks.
+        /// </summary>
+        private static void SampleClip(GameObject instance, AnimationClip clip, float fraction)
+        {
+            if (clip == null)
+            {
+                return;
+            }
+
+            // THE ANIMATOR'S OWN GAMEOBJECT, not the character root. Sampling a
+            // humanoid clip against an object that merely CONTAINS the animator
+            // does nothing at all and reports nothing -- the body comes back in
+            // its bind pose and the shot looks like a character standing still.
+            var animator = instance.GetComponentInChildren<Animator>();
+            if (animator == null)
+            {
+                Debug.LogWarning("CityX: no Animator to sample against.");
+                return;
+            }
+
+            Transform[] bones = animator.GetComponentsInChildren<Transform>();
+            var rotation = new Quaternion[bones.Length];
+            var position = new Vector3[bones.Length];
+
+            // Sampling applies the clip's root motion, which walks the
+            // character out of frame. The game runs with applyRootMotion off --
+            // PlayerLocomotion owns position -- so putting the root back is
+            // what makes the shot match what is played.
+            Vector3 rootPosition = animator.transform.localPosition;
+            Quaternion rootRotation = animator.transform.localRotation;
+
+            AnimationMode.StartAnimationMode();
+            try
+            {
+                AnimationMode.BeginSampling();
+                AnimationMode.SampleAnimationClip(
+                    animator.gameObject, clip, fraction * clip.length);
+                AnimationMode.EndSampling();
+
+                // SNAPSHOT WHILE IT IS STILL POSED. StopAnimationMode PUTS THE
+                // POSE BACK -- that is the whole point of it, it is a
+                // preview mode that does not dirty the scene -- so a capture
+                // taken after stopping would be of the rest pose again, which
+                // is the same failure this method exists to fix.
+                for (int i = 0; i < bones.Length; i++)
+                {
+                    rotation[i] = bones[i].localRotation;
+                    position[i] = bones[i].localPosition;
+                }
+            }
+            finally
+            {
+                // Left on, it makes every later scene edit part of a recording
+                // session, and the next capture would sample against a rig
+                // already being driven.
+                AnimationMode.StopAnimationMode();
+            }
+
+            for (int i = 0; i < bones.Length; i++)
+            {
+                bones[i].localRotation = rotation[i];
+                bones[i].localPosition = position[i];
+            }
+
+            animator.transform.localPosition = rootPosition;
+            animator.transform.localRotation = rootRotation;
+        }
+
         private static Transform FindDeep(Transform root, string name)
         {
             if (root.name == name)
@@ -173,7 +284,7 @@ namespace CityX.CharacterEditor
         }
 
         private static void Shoot(GameObject prefab, string directory, string name, float yaw,
-            IEnumerable<Turn> pose)
+            IEnumerable<Turn> pose, AnimationClip clip, float clipFraction)
         {
             var root = new GameObject("CharacterCaptureRig");
             RenderTexture target = null;
@@ -204,6 +315,7 @@ namespace CityX.CharacterEditor
                 instance.transform.rotation = Quaternion.Euler(0.0f, yaw, 0.0f);
 
                 Pose(instance, pose);
+                SampleClip(instance, clip, clipFraction);
 
                 // The renderer only re-skins when it thinks something changed,
                 // and outside play mode nothing tells it the bones moved.
