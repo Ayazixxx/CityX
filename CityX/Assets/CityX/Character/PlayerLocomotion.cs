@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace CityX.Character
 {
@@ -11,13 +10,17 @@ namespace CityX.Character
     /// about whether a 14m street feels narrow. So it carries the Godot build's
     /// movement NUMBERS exactly, because those are what decide the feel, and
     /// deliberately none of its systems: no climbing, no crouch, no combat, no
-    /// health, no networking. Those come back when there is a reason for them
-    /// beyond "the old one had it".
+    /// health. Those come back when there is a reason beyond "the old one had
+    /// it".
     ///
     /// CharacterController rather than Rigidbody, matching Godot's
     /// CharacterBody3D: both are kinematic, both resolve collisions by sliding,
     /// and both leave gravity to the caller -- so the ported numbers mean the
     /// same thing here that they meant there.
+    ///
+    /// It takes a <see cref="LocomotionInput"/> rather than reading the
+    /// keyboard, so it can be driven by a test and, later, by a replicated
+    /// network input without changing.
     /// </summary>
     [RequireComponent(typeof(CharacterController))]
     public sealed class PlayerLocomotion : MonoBehaviour
@@ -32,10 +35,10 @@ namespace CityX.Character
         [Tooltip("player.gd JUMP_VELOCITY")]
         public float JumpVelocity = 4.5f;
 
-        [Tooltip("player.gd GRAVITY. Note this is much gentler than Earth's 9.81 by design.")]
+        [Tooltip("player.gd GRAVITY. Deliberately gentler than Earth's 9.81.")]
         public float Gravity = 9.8f;
 
-        [Tooltip("How fast the body turns to face the direction it is moving, in degrees per second.")]
+        [Tooltip("How fast the body turns to face where it is going, in degrees per second.")]
         public float TurnDegreesPerSecond = 720.0f;
 
         [Header("Scale")]
@@ -46,9 +49,11 @@ namespace CityX.Character
             "number that decides whether the city feels right.")]
         public float StandingHeight = 2.2f;
 
+        /// <summary>The height the Mixamo rig is authored at, used to scale the model.</summary>
+        public const float MixamoRigHeight = 1.78f;
+
         private CharacterController _controller;
         private Animator _animator;
-        private Transform _cameraTransform;
         private float _verticalVelocity;
         private float _appliedHeight = -1.0f;
 
@@ -56,22 +61,16 @@ namespace CityX.Character
         private static readonly int GroundedParameter = Animator.StringToHash("Grounded");
         private static readonly int JumpParameter = Animator.StringToHash("Jump");
 
-        /// <summary>Horizontal speed this frame, in metres per second.</summary>
+        /// <summary>Horizontal speed after the last tick, in metres per second.</summary>
         public float CurrentSpeed { get; private set; }
+
+        public bool IsGrounded => _controller != null && _controller.isGrounded;
 
         private void Awake()
         {
             _controller = GetComponent<CharacterController>();
             _animator = GetComponentInChildren<Animator>();
             ApplyHeight();
-        }
-
-        private void OnValidate()
-        {
-            if (Application.isPlaying && _controller != null)
-            {
-                ApplyHeight();
-            }
         }
 
         /// <summary>
@@ -82,8 +81,12 @@ namespace CityX.Character
         /// longer matches the model is a subtly wrong answer rather than an
         /// obviously broken one.
         /// </summary>
-        private void ApplyHeight()
+        public void ApplyHeight()
         {
+            if (_controller == null)
+            {
+                _controller = GetComponent<CharacterController>();
+            }
             if (Mathf.Approximately(_appliedHeight, StandingHeight))
             {
                 return;
@@ -91,93 +94,83 @@ namespace CityX.Character
             _appliedHeight = StandingHeight;
 
             _controller.height = StandingHeight;
-            _controller.radius = Mathf.Min(0.35f * (StandingHeight / 1.78f), StandingHeight * 0.3f);
+            _controller.radius = Mathf.Min(0.35f * (StandingHeight / MixamoRigHeight),
+                StandingHeight * 0.3f);
             _controller.center = new Vector3(0.0f, StandingHeight * 0.5f, 0.0f);
-            // A step this size lets the body walk up a kerb without a jump, and
-            // is well under a terrace step, so terraces still have to be gone
-            // round or climbed.
+            // Big enough to walk up a kerb without jumping, well under a
+            // terrace step so terraces still have to be gone round.
             _controller.stepOffset = Mathf.Min(0.4f, StandingHeight * 0.25f);
+
+            // ZERO, NOT UNITY'S DEFAULT 0.001. That default silently DISCARDS
+            // any Move shorter than a millimetre, and a per-frame step is
+            // exactly that once the frame rate is high enough: at 4 m/s a
+            // 0.2ms frame asks for 0.0008m and gets nothing at all. The
+            // character then stands still while the animation walks, on fast
+            // machines only. Found by a PlayMode test where the batch-mode
+            // frame rate made it happen every time.
+            _controller.minMoveDistance = 0.0f;
 
             if (_animator != null)
             {
-                // The Mixamo rig is 1.78m tall; scale it to whatever height is
-                // being tested.
-                float scale = StandingHeight / 1.78f;
+                float scale = StandingHeight / MixamoRigHeight;
                 _animator.transform.localScale = new Vector3(scale, scale, scale);
             }
         }
 
-        private void Start()
-        {
-            _cameraTransform = Camera.main != null ? Camera.main.transform : null;
-        }
-
-        private void Update()
+        /// <summary>
+        /// Advances the body by one step. Everything that decides how movement
+        /// feels lives here and nothing reads the keyboard, so a test can drive
+        /// it directly.
+        /// </summary>
+        public void Tick(LocomotionInput input, float deltaTime)
         {
             ApplyHeight();
 
-            Keyboard keyboard = Keyboard.current;
-            if (keyboard == null)
-            {
-                return;
-            }
-
-            Vector2 input = Vector2.zero;
-            if (keyboard.wKey.isPressed) input.y += 1.0f;
-            if (keyboard.sKey.isPressed) input.y -= 1.0f;
-            if (keyboard.dKey.isPressed) input.x += 1.0f;
-            if (keyboard.aKey.isPressed) input.x -= 1.0f;
-            if (input.sqrMagnitude > 1.0f)
-            {
-                input.Normalize();
-            }
-
-            // Movement is relative to where the camera is looking, which is what
-            // every third-person game does and what player.gd did.
-            Vector3 forward = Vector3.forward;
-            Vector3 right = Vector3.right;
-            if (_cameraTransform != null)
-            {
-                forward = Vector3.ProjectOnPlane(_cameraTransform.forward, Vector3.up).normalized;
-                right = Vector3.ProjectOnPlane(_cameraTransform.right, Vector3.up).normalized;
-            }
-
-            Vector3 wish = forward * input.y + right * input.x;
-            bool sprinting = keyboard.leftShiftKey.isPressed && input.y > 0.0f;
+            Vector3 direction = input.WorldDirection();
+            bool sprinting = input.Sprint && direction.sqrMagnitude > 0.0001f;
             float speed = sprinting ? SprintSpeed : WalkSpeed;
-            Vector3 horizontal = wish * speed;
+            Vector3 horizontal = direction * speed;
             CurrentSpeed = horizontal.magnitude;
 
-            if (_controller.isGrounded)
+            bool grounded = _controller.isGrounded;
+
+            // THE `_verticalVelocity <= 0` GUARD IS LOad-BEARING. Resetting on
+            // grounded alone eats the jump: one step at 4.5 m/s only lifts the
+            // body 75mm, which is inside the controller's own ground tolerance,
+            // so the very next step still reports grounded and clobbers the
+            // upward velocity back to -2. The result is a jump that twitches a
+            // couple of centimetres and stops. Only stick the body down when it
+            // is not already going up.
+            if (grounded && _verticalVelocity <= 0.0f)
             {
                 // Slightly negative rather than zero: exactly zero lets the
-                // controller drift off the ground on the frame after a step and
+                // controller drift off the ground the step after a stair and
                 // report not-grounded, which makes jumping unreliable.
                 _verticalVelocity = -2.0f;
-
-                if (keyboard.spaceKey.wasPressedThisFrame)
-                {
-                    _verticalVelocity = JumpVelocity;
-                    if (_animator != null)
-                    {
-                        _animator.SetTrigger(JumpParameter);
-                    }
-                }
             }
             else
             {
-                _verticalVelocity -= Gravity * Time.deltaTime;
+                _verticalVelocity -= Gravity * deltaTime;
+            }
+
+            if (grounded && input.Jump)
+            {
+                _verticalVelocity = JumpVelocity;
+                if (_animator != null)
+                {
+                    _animator.SetTrigger(JumpParameter);
+                }
             }
 
             Vector3 motion = horizontal;
             motion.y = _verticalVelocity;
-            _controller.Move(motion * Time.deltaTime);
+            _controller.Move(motion * deltaTime);
 
             if (horizontal.sqrMagnitude > 0.0001f)
             {
                 Quaternion target = Quaternion.LookRotation(horizontal.normalized, Vector3.up);
                 transform.rotation = Quaternion.RotateTowards(
-                    transform.rotation, target, TurnDegreesPerSecond * Time.deltaTime);
+                    transform.rotation, target, TurnDegreesPerSecond * deltaTime);
             }
 
             if (_animator != null)

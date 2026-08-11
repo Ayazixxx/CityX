@@ -7,6 +7,9 @@
         "CityX.Core",
         "CityX.Net",
         "CityX.Spike",
+        "CityX.Character",
+        "CityX.World",
+        "CityX.View",
         "FishNet.Runtime"
     ],
     "includePlatforms": [],

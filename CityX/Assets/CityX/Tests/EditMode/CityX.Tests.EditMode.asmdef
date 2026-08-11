@@ -6,7 +6,8 @@
         "UnityEditor.TestRunner",
         "CityX.Core",
         "CityX.World",
-        "CityX.View"
+        "CityX.View",
+        "CityX.Character"
     ],
     "includePlatforms": [
         "Editor"

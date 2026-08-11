@@ -1,0 +1,55 @@
+using UnityEngine;
+
+namespace CityX.Character
+{
+    /// <summary>
+    /// Everything the body needs to know about what the player wants this
+    /// frame.
+    ///
+    /// WHY THIS IS A STRUCT AND NOT JUST KEYBOARD READS INSIDE THE CONTROLLER.
+    /// Two reasons that both arrived at the same shape.
+    ///
+    /// Testing: a controller that reads Keyboard.current cannot be driven by a
+    /// test, so the movement -- the thing that decides how the whole game feels
+    /// -- would be the one part with no coverage.
+    ///
+    /// Networking: FishNet's prediction replicates an input struct from client
+    /// to server and re-simulates it. That is exactly this. Building it now
+    /// costs nothing and means the predicted player is a wrapper rather than a
+    /// rewrite.
+    ///
+    /// Yaw is carried rather than a camera reference for the same reason: the
+    /// server has no idea where a client's camera is pointing, so the intent
+    /// has to travel with the input.
+    /// </summary>
+    public struct LocomotionInput
+    {
+        /// <summary>Stick or WASD, in [-1,1], relative to <see cref="YawDegrees"/>.</summary>
+        public Vector2 Move;
+
+        /// <summary>Which way the player is facing, in degrees. Usually the camera's yaw.</summary>
+        public float YawDegrees;
+
+        public bool Sprint;
+
+        /// <summary>True on the frame jump was pressed, not while it is held.</summary>
+        public bool Jump;
+
+        /// <summary>The world-space direction the player wants to travel, flat and normalised.</summary>
+        public Vector3 WorldDirection()
+        {
+            Vector2 move = Move;
+            if (move.sqrMagnitude > 1.0f)
+            {
+                move.Normalize();
+            }
+            if (move.sqrMagnitude < 0.0001f)
+            {
+                return Vector3.zero;
+            }
+
+            Quaternion yaw = Quaternion.Euler(0.0f, YawDegrees, 0.0f);
+            return yaw * new Vector3(move.x, 0.0f, move.y);
+        }
+    }
+}
