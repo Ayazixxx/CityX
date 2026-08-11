@@ -7,7 +7,9 @@
         "CityX.Core",
         "CityX.World",
         "CityX.View",
-        "CityX.Character"
+        "CityX.Character",
+        "CityX.UI",
+        "UnityEngine.UI"
     ],
     "includePlatforms": [
         "Editor"

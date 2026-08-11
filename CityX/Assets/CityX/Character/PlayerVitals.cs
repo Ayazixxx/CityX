@@ -48,6 +48,14 @@ namespace CityX.Character
         // --- stats ---
 
         [Header("Stats")]
+        /// <summary>
+        /// Shown on the HUD badge. Nothing raises it yet -- XP and the skill
+        /// tree are not ported -- but it lives here rather than being a
+        /// hardcoded "1" in the HUD, so that when progression does land there
+        /// is one number to set and no display quietly left behind.
+        /// </summary>
+        public int Level = 1;
+
         public int Vitality;
 
         public int Endurance;
@@ -89,6 +97,14 @@ namespace CityX.Character
         public bool IsAlive => !IsDead;
 
         public event Action Died;
+
+        /// <summary>
+        /// Raised by <see cref="Revive"/>. Paired with Died so that anything
+        /// showing a death state has a matching signal to clear it, rather than
+        /// polling IsDead and guessing when the transition happened.
+        /// </summary>
+        public event Action Revived;
+
         public event Action<float> Damaged;
 
         /// <summary>Raised with the world position the blow came from.</summary>
@@ -131,6 +147,7 @@ namespace CityX.Character
             _exhausted = false;
             _wasAirborne = false;
             HitstunRemaining = 0.0f;
+            Revived?.Invoke();
         }
 
         /// <summary>

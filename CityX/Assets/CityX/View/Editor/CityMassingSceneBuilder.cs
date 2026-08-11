@@ -111,6 +111,8 @@ namespace CityX.ViewEditor
                 var follow = cameraObject.AddComponent<ThirdPersonCamera>();
                 follow.Target = player.transform;
 
+                CityX.UIEditor.PlayerHudBuilder.AddToScene(player.GetComponent<PlayerVitals>());
+
                 AddSparringDummies(groundHeight, structure);
             }
             else

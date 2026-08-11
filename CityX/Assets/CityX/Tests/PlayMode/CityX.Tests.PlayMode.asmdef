@@ -10,6 +10,8 @@
         "CityX.Character",
         "CityX.World",
         "CityX.View",
+        "CityX.UI",
+        "UnityEngine.UI",
         "FishNet.Runtime"
     ],
     "includePlatforms": [],

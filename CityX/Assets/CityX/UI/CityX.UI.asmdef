@@ -1,0 +1,17 @@
+{
+    "name": "CityX.UI",
+    "rootNamespace": "CityX.UI",
+    "references": [
+        "CityX.Character",
+        "UnityEngine.UI"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

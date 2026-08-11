@@ -5,7 +5,8 @@
         "CityX.View",
         "CityX.World",
         "CityX.Character",
-        "CityX.Character.Editor"
+        "CityX.Character.Editor",
+        "CityX.UI.Editor"
     ],
     "includePlatforms": [
         "Editor"

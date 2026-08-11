@@ -93,6 +93,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9e878f8d1ad521448be781afdb2b8530, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Character::CityX.Character.PlayerVitals
+  Level: 1
   Vitality: 0
   Endurance: 0
   Strength: 0
