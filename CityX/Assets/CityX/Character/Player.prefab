@@ -11,6 +11,8 @@ GameObject:
   - component: {fileID: 8175725407627863874}
   - component: {fileID: 8936631163892899077}
   - component: {fileID: 4406035457774837878}
+  - component: {fileID: 5487257228465472575}
+  - component: {fileID: 4230536320211725702}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -77,6 +79,36 @@ MonoBehaviour:
   Gravity: 9.8
   TurnDegreesPerSecond: 720
   StandingHeight: 2.2
+--- !u!114 &5487257228465472575
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8412405609517267180}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9e878f8d1ad521448be781afdb2b8530, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.PlayerVitals
+  Vitality: 0
+  Endurance: 0
+  Strength: 0
+  _health: 100
+  _stamina: 130
+--- !u!114 &4230536320211725702
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8412405609517267180}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 525f056025d09a84f83897bb78c84f5d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.PlayerInputReader
+  YawSource: {fileID: 0}
 --- !u!1001 &4925221617785675515
 PrefabInstance:
   m_ObjectHideFlags: 0

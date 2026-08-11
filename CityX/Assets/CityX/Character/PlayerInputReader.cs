@@ -23,10 +23,14 @@ namespace CityX.Character
         public Transform YawSource;
 
         private PlayerLocomotion _locomotion;
+        private PlayerVitals _vitals;
 
         private void Awake()
         {
             _locomotion = GetComponent<PlayerLocomotion>();
+            // Optional. A body with no vitals still walks -- useful for tests
+            // and for anything that is not the player.
+            _vitals = GetComponent<PlayerVitals>();
         }
 
         private void Update()
@@ -34,6 +38,14 @@ namespace CityX.Character
             Keyboard keyboard = Keyboard.current;
             if (keyboard == null)
             {
+                return;
+            }
+
+            if (_vitals != null && _vitals.IsDead)
+            {
+                // A corpse still falls, so keep ticking the body with no input
+                // rather than stopping it dead in the air.
+                _locomotion.Tick(default, Time.deltaTime);
                 return;
             }
 
@@ -47,17 +59,33 @@ namespace CityX.Character
                 ? YawSource
                 : (Camera.main != null ? Camera.main.transform : null);
 
+            // Sprint only forwards. Sprinting sideways or backwards has no
+            // animation and reads as a glitch rather than as speed.
+            bool wantsSprint = keyboard.leftShiftKey.isPressed && move.y > 0.0f;
+
+            // Stamina decides, not the key. Asking rather than checking a flag
+            // keeps the exhaustion latch in one place.
+            bool sprinting = _vitals != null
+                ? _vitals.TickStamina(wantsSprint, Time.deltaTime)
+                : wantsSprint;
+
             var input = new LocomotionInput
             {
                 Move = move,
                 YawDegrees = yawSource != null ? yawSource.eulerAngles.y : 0.0f,
-                // Sprint only forwards. Sprinting sideways or backwards has no
-                // animation and reads as a glitch rather than as speed.
-                Sprint = keyboard.leftShiftKey.isPressed && move.y > 0.0f,
+                Sprint = sprinting,
                 Jump = keyboard.spaceKey.wasPressedThisFrame,
             };
 
             _locomotion.Tick(input, Time.deltaTime);
+
+            // AFTER the move, so grounded and height are this frame's, not the
+            // previous one's. Checking before would measure the fall one frame
+            // short and let a lethal drop land as a survivable one.
+            if (_vitals != null)
+            {
+                _vitals.TickFallDamage(_locomotion.IsGrounded, transform.position.y);
+            }
         }
     }
 }

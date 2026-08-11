@@ -141,6 +141,8 @@ namespace CityX.CharacterEditor
                 capsule.skinWidth = 0.03f;
 
                 root.AddComponent<PlayerLocomotion>();
+                root.AddComponent<PlayerVitals>();
+                // Added last: it looks for the other two in Awake.
                 root.AddComponent<PlayerInputReader>();
 
                 GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
