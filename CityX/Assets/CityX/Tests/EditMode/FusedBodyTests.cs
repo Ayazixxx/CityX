@@ -158,23 +158,25 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// How nearly closed the extracted surface is.
+        /// The extracted surface is closed. Exactly closed, no allowance.
         ///
-        /// NOT WATERTIGHT, AND THIS TEST SAYS SO RATHER THAN PRETENDING. About
-        /// 1.8% of directed edges have no facing pair, which means the surface
-        /// has slivers along the tetrahedron diagonals where two cells
-        /// disagreed. Rendered, it looks solid -- the gaps are far below a
-        /// pixel at any distance the character is ever seen from -- and that is
-        /// verified by looking, not assumed.
+        /// THIS USED TO ALLOW 1.8% AND CALLED THAT A REAL DEFECT IN THE
+        /// TESSELLATION -- slivers along the tetrahedron diagonals where two
+        /// cells were said to have disagreed. That diagnosis was wrong. The
+        /// tetrahedra agree perfectly; every cube face is cut by the same
+        /// diagonal from both sides. What was mismatched was the WINDING,
+        /// because a final pass turned each triangle to face the field's
+        /// gradient one triangle at a time, and two faces sharing an edge could
+        /// come out disagreeing. Nothing was ever missing, so nothing needed
+        /// tolerating.
         ///
-        /// It is still a real defect. It would matter the moment this mesh is
-        /// used for anything that needs a closed volume: a collision hull, a
-        /// boolean cut for damage, or a physically-correct shadow. So the level
-        /// is PINNED here rather than waved through, and a change that makes it
-        /// worse fails.
+        /// Worth stating because "it looks solid at playing distance" was
+        /// offered as the reason not to chase it, and the visible symptom --
+        /// black specks on the skin, which are single back-facing triangles --
+        /// was there the whole time.
         /// </summary>
         [Test]
-        public void TheExtractedSurfaceIsNearlyClosed()
+        public void TheExtractedSurfaceIsClosed()
         {
             List<FusedBodyShape.Segment> segments = MakeSegments();
             Bounds bounds = FusedBodyShape.BoundsOf(segments);
@@ -206,9 +208,8 @@ namespace CityX.Tests
             }
 
             float share = (float)unmatched / edges.Count;
-            Assert.Less(share, 0.025f,
-                $"{unmatched} of {edges.Count} edges have no facing pair ({share:P1}) -- " +
-                "measured is 1.8%, so the surface has got meaningfully more torn");
+            Assert.AreEqual(0, unmatched,
+                $"{unmatched} of {edges.Count} edges have no facing pair ({share:P2})");
         }
 
         private static void AddEdge(HashSet<(int, int)> edges, int a, int b)

@@ -108,50 +108,6 @@ namespace CityX.Character
 
                 (previous, current) = (current, previous);
             }
-
-            OrientOutward(segments, vertices, triangles);
-        }
-
-        /// <summary>
-        /// Turns every triangle to face out of the body.
-        ///
-        /// WHY THIS IS A PASS AND NOT CAREFUL WINDING AT EMIT TIME. Getting the
-        /// winding right per case means reasoning about the handedness of six
-        /// different tetrahedra against four different cut patterns, and the
-        /// first attempt here got it wrong in a way that produced eleven
-        /// thousand unpaired edges -- a surface full of holes.
-        ///
-        /// The field already knows which way is out, everywhere. Comparing each
-        /// face against the gradient at its own centre is a single rule that
-        /// cannot be got wrong per case, and the Godot original reached the
-        /// same conclusion: it has a whole _make_orientation_consistent for it.
-        /// </summary>
-        private static void OrientOutward(IReadOnlyList<FusedBodyShape.Segment> segments,
-            List<Vector3> vertices, List<int> triangles)
-        {
-            const float epsilon = 0.001f;
-
-            for (int i = 0; i < triangles.Count; i += 3)
-            {
-                Vector3 a = vertices[triangles[i]];
-                Vector3 b = vertices[triangles[i + 1]];
-                Vector3 c = vertices[triangles[i + 2]];
-
-                Vector3 face = Vector3.Cross(b - a, c - a);
-                if (face.sqrMagnitude < 1e-16f)
-                {
-                    continue;   // degenerate: nothing to face either way
-                }
-
-                Vector3 centre = (a + b + c) / 3.0f;
-                float outward = FusedBodyShape.Distance(segments, centre + face.normalized * epsilon);
-                float inward = FusedBodyShape.Distance(segments, centre - face.normalized * epsilon);
-
-                if (outward < inward)
-                {
-                    (triangles[i + 1], triangles[i + 2]) = (triangles[i + 2], triangles[i + 1]);
-                }
-            }
         }
 
         private static void SamplePlane(IReadOnlyList<FusedBodyShape.Segment> segments,
@@ -196,6 +152,21 @@ namespace CityX.Character
                 else outside.Add(tet[i]);
             }
 
+            // WHICH WAY IS OUT, FOR THIS TETRAHEDRON, from its own corners.
+            // The surface separates the inside corners from the outside ones,
+            // so the line between the two groups' centres crosses it going
+            // outward -- always, for any planar cut of a tetrahedron.
+            //
+            // This replaces a pass that turned each finished triangle to agree
+            // with the field's gradient at its own centre. That sounds safer
+            // and is not: it decides each face ALONE, so two faces sharing an
+            // edge could disagree, and one disagreeing face renders as a black
+            // speck, because what you are seeing is its unlit back. About 1.8%
+            // of edges were mismatched that way. Here neighbouring tetrahedra
+            // classify their shared corners identically, so they cannot
+            // disagree.
+            Vector3 outward = Centre(points, outside) - Centre(points, inside);
+
             if (inside.Count == 1 || outside.Count == 1)
             {
                 // A single corner cut off by the surface: one triangle across
@@ -207,22 +178,32 @@ namespace CityX.Character
                 int b = EdgeVertex(lone, others[1], values, points, keys, vertices, index);
                 int c = EdgeVertex(lone, others[2], values, points, keys, vertices, index);
 
-                // Wound so the face points OUT of the body. When the lone
-                // corner is the inside one the triangle faces the other way,
-                // which is why the order flips.
-                AddTriangle(triangles, vertices, a, b, c, inside.Count == 1);
+                AddTriangle(triangles, vertices, a, b, c, outward);
             }
             else
             {
-                // Two in, two out: the surface cuts the tet into a quad.
+                // Two in, two out: the surface cuts the tet into a quad. The
+                // order round it matters -- a and b share inside[0], b and c
+                // share outside[1], c and d share inside[1], d and a share
+                // outside[0] -- or the "quad" is a bowtie.
                 int a = EdgeVertex(inside[0], outside[0], values, points, keys, vertices, index);
                 int b = EdgeVertex(inside[0], outside[1], values, points, keys, vertices, index);
                 int c = EdgeVertex(inside[1], outside[1], values, points, keys, vertices, index);
                 int d = EdgeVertex(inside[1], outside[0], values, points, keys, vertices, index);
 
-                AddTriangle(triangles, vertices, a, b, c, true);
-                AddTriangle(triangles, vertices, a, c, d, true);
+                AddTriangle(triangles, vertices, a, b, c, outward);
+                AddTriangle(triangles, vertices, a, c, d, outward);
             }
+        }
+
+        private static Vector3 Centre(Vector3[] points, List<int> corners)
+        {
+            var sum = Vector3.zero;
+            foreach (int corner in corners)
+            {
+                sum += points[corner];
+            }
+            return sum / corners.Count;
         }
 
         /// <summary>
@@ -272,26 +253,27 @@ namespace CityX.Character
             return vertices.Count - 1;
         }
 
+        /// <summary>
+        /// Adds a triangle wound so its face points along
+        /// <paramref name="outward"/>.
+        /// </summary>
         private static void AddTriangle(List<int> triangles, List<Vector3> vertices,
-            int a, int b, int c, bool flip)
+            int a, int b, int c, Vector3 outward)
         {
             if (a == b || b == c || a == c)
             {
                 return;   // degenerate: the surface passed exactly through a corner
             }
 
-            if (flip)
+            Vector3 face = Vector3.Cross(vertices[b] - vertices[a], vertices[c] - vertices[a]);
+            if (Vector3.Dot(face, outward) < 0.0f)
             {
-                triangles.Add(a);
-                triangles.Add(c);
-                triangles.Add(b);
+                (b, c) = (c, b);
             }
-            else
-            {
-                triangles.Add(a);
-                triangles.Add(b);
-                triangles.Add(c);
-            }
+
+            triangles.Add(a);
+            triangles.Add(b);
+            triangles.Add(c);
         }
 
         /// <summary>
