@@ -52,6 +52,20 @@ namespace CityX.UIEditor
                 streamer.StreamAround(camera.transform.position, span * span);
             }
 
+            // THE SKY AND THE LIT WINDOWS ARE NOT PART OF THE SCENE FILE. They
+            // are RenderSettings and a shared material's emission colour, both
+            // written by DayNightCycle.Update -- which, like the streamer's,
+            // never runs outside play mode. So the shot came out with whatever
+            // the last editor tool to touch them happened to leave behind:
+            // once bright pink windows, and after a daytime city capture, no
+            // lit windows at all on a night skyline. Neither was ever what the
+            // game does; both were the capture rendering stale state.
+            var cycle = Object.FindFirstObjectByType<View.DayNightCycle>();
+            if (cycle != null)
+            {
+                cycle.Apply(View.SkyCycle.At(cycle.TimeOfDay));
+            }
+
             var canvas = Object.FindFirstObjectByType<Canvas>();
             RenderTexture target = null;
             RenderTexture previous = RenderTexture.active;
