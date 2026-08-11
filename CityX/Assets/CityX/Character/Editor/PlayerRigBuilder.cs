@@ -199,8 +199,8 @@ namespace CityX.CharacterEditor
 
                 // The clips import with materials off, which leaves every mesh
                 // with none at all -- magenta, silently. See CharacterSkin.
-                CharacterSkin.Apply(body,
-                    CharacterSkin.Ensure("PlayerSkin", CharacterSkin.PlayerColour));
+                Material skin = CharacterSkin.Ensure("PlayerSkin", CharacterSkin.PlayerColour);
+                CharacterSkin.Apply(body, skin);
 
                 Animator animator = body.GetComponent<Animator>();
                 if (animator == null)
@@ -223,6 +223,11 @@ namespace CityX.CharacterEditor
                     Debug.LogError("CityX: no avatar on idle.fbx -- the player will T-pose.");
                 }
                 animator.avatar = avatar;
+
+                // The game's own body replaces the imported mannequin. AFTER
+                // the avatar is set, because it reads the humanoid bones to
+                // work out where the limbs are.
+                FusedBodyBuilder.ApplyTo(body, animator, skin);
 
                 CharacterController capsule = root.AddComponent<CharacterController>();
                 capsule.slopeLimit = 50.0f;

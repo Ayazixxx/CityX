@@ -41,8 +41,8 @@ namespace CityX.CharacterEditor
                 body.name = "Body";
                 body.transform.SetParent(root.transform, false);
 
-                CharacterSkin.Apply(body,
-                    CharacterSkin.Ensure("CivilianSkin", CharacterSkin.CivilianColour));
+                Material skin = CharacterSkin.Ensure("CivilianSkin", CharacterSkin.CivilianColour);
+                CharacterSkin.Apply(body, skin);
 
                 Animator animator = body.GetComponent<Animator>();
                 if (animator == null)
@@ -52,6 +52,10 @@ namespace CityX.CharacterEditor
                 animator.runtimeAnimatorController = controller;
                 animator.avatar = avatar;
                 animator.applyRootMotion = false;
+
+                // Same body as the player, different skin. The mesh asset is
+                // shared, so a crowd of twelve is one mesh twelve times.
+                FusedBodyBuilder.ApplyTo(body, animator, skin);
 
                 // Same 2.2m body as the player. A crowd at a different height
                 // would make the city read as two different scales at once,
