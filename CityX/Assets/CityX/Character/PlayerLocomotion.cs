@@ -43,22 +43,20 @@ namespace CityX.Character
 
         [Header("Scale")]
         [Tooltip(
-            "Standing height in metres. 2.2 matches the Godot build's own body geometry " +
-            "(fused_body.gd puts shoulders at 1.9m with bounds to 2.35m). The Mixamo skeleton " +
-            "the animations came from is 1.78m, so try that for comparison -- this is the one " +
-            "number that decides whether the city feels right.")]
+            "Standing height in metres. The default is the CITY X body's own measured height, " +
+            "floor to the crown of the head sphere. Change it to scale the whole character -- " +
+            "this is the one number that decides whether the city feels right.")]
         public float StandingHeight = StandingHeightDefault;
 
         /// <summary>
-        /// The Godot build's body height. A const as well as a field, because
-        /// anything else that has to be the same size as a person -- a
-        /// pedestrian, a doorway, a bridge clearance -- needs to ask for it
-        /// without instantiating a player to find out.
+        /// The body's height, from the floor to the crown of the head sphere.
+        ///
+        /// DERIVED FROM THE RIG rather than typed. It was 2.2 while the body
+        /// was being fitted to an imported skeleton; the real CITY X figure
+        /// measures its own height out of its own joint coordinates, and this
+        /// follows it so the capsule can never drift from the body inside it.
         /// </summary>
-        public const float StandingHeightDefault = 2.2f;
-
-        /// <summary>The height the Mixamo rig is authored at, used to scale the model.</summary>
-        public const float MixamoRigHeight = 1.78f;
+        public static readonly float StandingHeightDefault = BodyRig.StandingHeight;
 
         private CharacterController _controller;
         private Animator _animator;
@@ -113,7 +111,11 @@ namespace CityX.Character
             _appliedHeight = StandingHeight;
 
             _controller.height = StandingHeight;
-            _controller.radius = Mathf.Min(0.35f * (StandingHeight / MixamoRigHeight),
+            // From the body's own widest point -- the torso capsule -- rather
+            // than a fraction of an imported rig's height. A capsule narrower
+            // than the shoulders lets them clip into walls.
+            _controller.radius = Mathf.Min(
+                FusedBodyShape.TorsoRadius * (StandingHeight / BodyRig.StandingHeight),
                 StandingHeight * 0.3f);
             _controller.center = new Vector3(0.0f, StandingHeight * 0.5f, 0.0f);
             // Big enough to walk up a kerb without jumping, well under a
@@ -131,7 +133,14 @@ namespace CityX.Character
 
             if (_animator != null)
             {
-                float scale = StandingHeight / MixamoRigHeight;
+                // The body is BUILT at its real size now, so the only scaling
+                // left is the deliberate experiment of changing StandingHeight
+                // away from the rig's own height. At the default that is
+                // exactly 1 and the model is untouched. It used to divide by
+                // the Mixamo rig's 1.78m, which was right while the body was
+                // fitted to an imported skeleton and would now shrink the
+                // character to 68% -- the imported skeleton is gone.
+                float scale = StandingHeight / BodyRig.StandingHeight;
                 _animator.transform.localScale = new Vector3(scale, scale, scale);
             }
         }

@@ -17,34 +17,25 @@ namespace CityX.Tests
     public class FusedBodyTests
     {
         /// <summary>
-        /// A stand-in skeleton with roughly human proportions, so these tests
-        /// do not need the imported FBX. What is under test is the shape
-        /// mathematics, which does not care where the bones came from.
+        /// THE REAL SKELETON, not a stand-in. This used to be a made-up set of
+        /// roughly human joint positions, on the grounds that the shape
+        /// mathematics does not care where the bones came from -- which is true
+        /// of the mathematics and false of the body. The proportions are most
+        /// of what goes wrong: a shoulder that sits proud of the torso, an arm
+        /// a third the thickness of the chest, a head sphere overhanging the
+        /// shoulder line. A stand-in with none of those passed every test while
+        /// the real body creased.
         /// </summary>
         private static Vector3 Bone(HumanBodyBones bone)
         {
-            switch (bone)
-            {
-                case HumanBodyBones.Hips: return new Vector3(0.0f, 1.00f, 0.0f);
-                case HumanBodyBones.Chest: return new Vector3(0.0f, 1.55f, 0.0f);
-                case HumanBodyBones.Head: return new Vector3(0.0f, 1.90f, 0.0f);
-                case HumanBodyBones.LeftUpperArm: return new Vector3(-0.20f, 1.55f, 0.0f);
-                case HumanBodyBones.LeftLowerArm: return new Vector3(-0.48f, 1.55f, 0.0f);
-                case HumanBodyBones.LeftHand: return new Vector3(-0.72f, 1.55f, 0.0f);
-                case HumanBodyBones.RightUpperArm: return new Vector3(0.20f, 1.55f, 0.0f);
-                case HumanBodyBones.RightLowerArm: return new Vector3(0.48f, 1.55f, 0.0f);
-                case HumanBodyBones.RightHand: return new Vector3(0.72f, 1.55f, 0.0f);
-                case HumanBodyBones.LeftUpperLeg: return new Vector3(-0.14f, 1.00f, 0.0f);
-                case HumanBodyBones.LeftLowerLeg: return new Vector3(-0.14f, 0.55f, 0.0f);
-                case HumanBodyBones.LeftFoot: return new Vector3(-0.14f, 0.10f, 0.0f);
-                case HumanBodyBones.RightUpperLeg: return new Vector3(0.14f, 1.00f, 0.0f);
-                case HumanBodyBones.RightLowerLeg: return new Vector3(0.14f, 0.55f, 0.0f);
-                case HumanBodyBones.RightFoot: return new Vector3(0.14f, 0.10f, 0.0f);
-                default: return Vector3.zero;
-            }
+            return BodyRig.PositionOf(bone);
         }
 
-        private const float Height = 2.2f;
+        /// <summary>
+        /// The authoring height, so the radius scale comes out at exactly one
+        /// and the capsules are the numbers the body was drawn with.
+        /// </summary>
+        private const float Height = FusedBodyShape.ReferenceHeight;
 
         private static List<FusedBodyShape.Segment> MakeSegments()
         {
@@ -296,8 +287,11 @@ namespace CityX.Tests
             var bones = new HumanBodyBones[4];
             var weights = new float[4];
 
-            // Right at the shoulder, where the arm meets the torso.
-            Vector3 shoulder = Bone(HumanBodyBones.LeftUpperArm);
+            // ON TOP OF THE SHOULDER, not at the joint centre. The centre is
+            // buried well inside the arm capsule; the skin that visibly creases
+            // when an arm swings is the cap of the blob above it, and that is
+            // what has to be shared.
+            Vector3 shoulder = Bone(HumanBodyBones.LeftUpperArm) + Vector3.up * 0.10f;
             int used = FusedBodyShape.WeightsAt(segments, shoulder, bones, weights);
 
             Assert.Greater(used, 1,
@@ -308,7 +302,7 @@ namespace CityX.Tests
             {
                 heaviest = Mathf.Max(heaviest, weights[i]);
             }
-            Assert.Less(heaviest, 0.95f,
+            Assert.Less(heaviest, 0.8f,
                 "one bone takes essentially all of the shoulder, which is rigid weighting " +
                 "wearing a blend's clothes");
 
@@ -416,6 +410,60 @@ namespace CityX.Tests
             Assert.AreEqual(HumanBodyBones.RightLowerLeg,
                 FusedBodyShape.NearestBone(segments, midShin),
                 "the right shin is not weighted to the right shin");
+        }
+
+        /// <summary>
+        /// NEAR IS NOT THE SAME AS ATTACHED, and on this body in particular.
+        /// The head is a 0.35m sphere centred one radius above the shoulder
+        /// line, so its surface passes within a few centimetres of the top of
+        /// each shoulder. Weighting purely by distance handed the head about a
+        /// third of the shoulder cap, which means looking left pulls both
+        /// shoulders round with it.
+        /// </summary>
+        [Test]
+        public void TheHeadDoesNotOwnAnyOfTheShoulders()
+        {
+            List<FusedBodyShape.Segment> segments = MakeSegments();
+            var bones = new HumanBodyBones[4];
+            var weights = new float[4];
+
+            Vector3 shoulder = Bone(HumanBodyBones.LeftUpperArm) + Vector3.up * 0.10f;
+            int used = FusedBodyShape.WeightsAt(segments, shoulder, bones, weights);
+
+            for (int i = 0; i < used; i++)
+            {
+                Assert.AreNotEqual(HumanBodyBones.Head, bones[i],
+                    "the head drives part of the shoulder");
+                Assert.AreNotEqual(HumanBodyBones.RightUpperArm, bones[i],
+                    "the far shoulder drives part of this one");
+            }
+        }
+
+        /// <summary>
+        /// The connectivity rule itself, stated directly rather than only
+        /// through its consequences.
+        /// </summary>
+        [Test]
+        public void SkinIsSharedOnlyBetweenAttachedBones()
+        {
+            Assert.IsTrue(FusedBodyShape.AreConnected(
+                HumanBodyBones.Hips, HumanBodyBones.LeftUpperArm), "a shoulder");
+            Assert.IsTrue(FusedBodyShape.AreConnected(
+                HumanBodyBones.LeftLowerArm, HumanBodyBones.LeftHand), "a wrist");
+
+            // Two apart, and they do have to share: the neck between the head
+            // and the torso is short enough that the head sphere and the torso
+            // capsule overlap directly.
+            Assert.IsTrue(FusedBodyShape.AreConnected(
+                HumanBodyBones.Hips, HumanBodyBones.Head), "the base of the skull");
+
+            // Reached by going up and back down again. Near, not attached.
+            Assert.IsFalse(FusedBodyShape.AreConnected(
+                HumanBodyBones.Head, HumanBodyBones.LeftUpperArm), "head to shoulder");
+            Assert.IsFalse(FusedBodyShape.AreConnected(
+                HumanBodyBones.LeftUpperArm, HumanBodyBones.RightUpperArm), "shoulder to shoulder");
+            Assert.IsFalse(FusedBodyShape.AreConnected(
+                HumanBodyBones.LeftUpperLeg, HumanBodyBones.RightUpperLeg), "hip to hip");
         }
     }
 }

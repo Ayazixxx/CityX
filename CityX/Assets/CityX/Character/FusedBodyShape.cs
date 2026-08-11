@@ -103,16 +103,18 @@ namespace CityX.Character
             float scale = height / ReferenceHeight;
 
             Vector3 hips = bonePosition(HumanBodyBones.Hips);
-            Vector3 chest = bonePosition(HumanBodyBones.Chest);
+            Vector3 neck = bonePosition(HumanBodyBones.Neck);
             Vector3 head = bonePosition(HumanBodyBones.Head);
 
             var segments = new List<Segment>
             {
-                // The torso runs hips to chest as one thick capsule, the way
-                // the original does -- not one per spine bone, which would
-                // bulge at every joint.
-                new Segment(hips, chest, TorsoRadius * scale, HumanBodyBones.Hips),
-                new Segment(chest, head, NeckRadius * scale, HumanBodyBones.Neck),
+                // HIPS TO NECK AS ONE THICK CAPSULE, which is fused_body.gd's
+                // own torso: a single capsule from the hip line to the shoulder
+                // line. Not one per spine bone, which would bulge at every
+                // joint -- and not hips-to-chest, which is what this used while
+                // it was fitting itself to an imported rig that has a chest.
+                new Segment(hips, neck, TorsoRadius * scale, HumanBodyBones.Hips),
+                new Segment(neck, head, NeckRadius * scale, HumanBodyBones.Neck),
 
                 // The head sphere is a zero-length capsule, which is exactly a
                 // sphere, so it fuses into the neck through the same blend as
@@ -221,8 +223,8 @@ namespace CityX.Character
         }
 
         /// <summary>
-        /// How wide the handover between bones is, as a multiple of the LOCAL
-        /// limb's radius.
+        /// How wide the handover between two bones is, as a multiple of the
+        /// THICKER of the two limbs meeting there.
         ///
         /// RELATIVE TO THE LIMB, NOT A FIXED DISTANCE. A fixed width was tried
         /// first and has no good value: 0.24m is about right across a shoulder
@@ -267,6 +269,7 @@ namespace CityX.Character
         {
             float nearest = float.MaxValue;
             float nearestRadius = 0.0f;
+            HumanBodyBones nearestBone = HumanBodyBones.Hips;
             foreach (Segment segment in segments)
             {
                 float d = segment.Distance(p);
@@ -274,17 +277,43 @@ namespace CityX.Character
                 {
                     nearest = d;
                     nearestRadius = segment.Radius;
+                    nearestBone = segment.Bone;
                 }
             }
-
-            // The handover is as wide as the limb this point sits on is thick,
-            // so a forearm hands over across a few centimetres and a torso
-            // across a hand's breadth.
-            float falloff = Mathf.Max(nearestRadius * WeightFalloffRadii, 1e-4f);
 
             int used = 0;
             foreach (Segment segment in segments)
             {
+                // ONLY BETWEEN BONES THAT ARE ACTUALLY CONNECTED. Without this
+                // the head sphere, which is big and sits directly above the
+                // shoulder line, takes a third of the top of each shoulder --
+                // so turning the head drags the shoulders with it. Distance
+                // alone cannot tell "these two pieces of skin meet at a joint"
+                // apart from "these two pieces of skin happen to be near each
+                // other".
+                if (!AreConnected(nearestBone, segment.Bone))
+                {
+                    continue;
+                }
+
+                // THE HANDOVER IS AS WIDE AS THE THICKER OF THE TWO LIMBS
+                // MEETING HERE, and using only the nearer one's thickness was
+                // wrong in the exact place it mattered most. At a CITY X
+                // shoulder the arm is 0.09 thick and the torso 0.26, and the
+                // joint sits proud of the torso, so the arm always wins
+                // "nearest" -- which handed the whole shoulder over across
+                // 34mm. The blob the smooth union fills there is several times
+                // that across, so most of it was rigidly weighted and creased
+                // when the arm swung. Against the torso's own thickness the
+                // handover is about 200mm, which is the size of the thing
+                // actually being blended.
+                //
+                // Taken per PAIR rather than once for the whole point, so it
+                // stays continuous: where two capsules are equidistant the
+                // falloff cancels out of the share entirely.
+                float falloff = Mathf.Max(
+                    Mathf.Max(nearestRadius, segment.Radius) * WeightFalloffRadii, 1e-4f);
+
                 // Linear falloff from the nearest capsule outward. A capsule
                 // exactly at the nearest distance takes a full share; one a
                 // whole falloff further away takes none.
@@ -352,6 +381,78 @@ namespace CityX.Character
                 weights[i] /= total;
             }
             return used;
+        }
+
+        /// <summary>
+        /// Whether two bones are close enough together in the skeleton to share
+        /// skin.
+        ///
+        /// TWO GENERATIONS, not one. A hand and an upper arm are two apart and
+        /// their capsules do overlap at a wrist; so are a head and the torso,
+        /// with only the short neck between them. One generation would cut both
+        /// of those and put a hard seam at the base of the skull.
+        ///
+        /// What it excludes is anything reached by going UP and then back down
+        /// -- a head and a shoulder, or the two shoulders. Those are near each
+        /// other without being attached to each other, and sharing weight
+        /// between them is what makes a head turn drag the shoulders round.
+        /// </summary>
+        public static bool AreConnected(HumanBodyBones a, HumanBodyBones b)
+        {
+            return a == b || IsAncestor(a, b, 2) || IsAncestor(b, a, 2);
+        }
+
+        private static bool IsAncestor(HumanBodyBones ancestor, HumanBodyBones of, int generations)
+        {
+            HumanBodyBones walk = of;
+            for (int i = 0; i < generations; i++)
+            {
+                walk = SkinParent(walk);
+                if (walk == HumanBodyBones.LastBone)
+                {
+                    return false;
+                }
+                if (walk == ancestor)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// The bone whose geometry a bone's geometry hangs off.
+        ///
+        /// NOT the skeleton's own parent chain, which is why it is written out
+        /// here. The torso capsule belongs to the hips, so an arm's skin
+        /// neighbour upward is the hips even though the arm bone is parented to
+        /// the spine. LastBone means "no parent".
+        /// </summary>
+        private static HumanBodyBones SkinParent(HumanBodyBones bone)
+        {
+            switch (bone)
+            {
+                case HumanBodyBones.Neck: return HumanBodyBones.Hips;
+                case HumanBodyBones.Head: return HumanBodyBones.Neck;
+
+                case HumanBodyBones.LeftUpperArm: return HumanBodyBones.Hips;
+                case HumanBodyBones.LeftLowerArm: return HumanBodyBones.LeftUpperArm;
+                case HumanBodyBones.LeftHand: return HumanBodyBones.LeftLowerArm;
+
+                case HumanBodyBones.RightUpperArm: return HumanBodyBones.Hips;
+                case HumanBodyBones.RightLowerArm: return HumanBodyBones.RightUpperArm;
+                case HumanBodyBones.RightHand: return HumanBodyBones.RightLowerArm;
+
+                case HumanBodyBones.LeftUpperLeg: return HumanBodyBones.Hips;
+                case HumanBodyBones.LeftLowerLeg: return HumanBodyBones.LeftUpperLeg;
+                case HumanBodyBones.LeftFoot: return HumanBodyBones.LeftLowerLeg;
+
+                case HumanBodyBones.RightUpperLeg: return HumanBodyBones.Hips;
+                case HumanBodyBones.RightLowerLeg: return HumanBodyBones.RightUpperLeg;
+                case HumanBodyBones.RightFoot: return HumanBodyBones.RightLowerLeg;
+
+                default: return HumanBodyBones.LastBone;
+            }
         }
 
         /// <summary>

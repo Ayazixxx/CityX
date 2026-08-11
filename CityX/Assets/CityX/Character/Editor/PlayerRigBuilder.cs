@@ -183,55 +183,26 @@ namespace CityX.CharacterEditor
 
         private static GameObject BuildPrefab(AnimatorController controller)
         {
-            var model = AssetDatabase.LoadAssetAtPath<GameObject>($"{AnimationDirectory}/idle.fbx");
-            if (model == null)
-            {
-                Debug.LogError("CityX: idle.fbx not found -- cannot build the player prefab.");
-                return null;
-            }
-
             var root = new GameObject("Player");
             try
             {
-                GameObject body = (GameObject)PrefabUtility.InstantiatePrefab(model);
-                body.name = "Body";
+                // THE GAME'S OWN SKELETON, not the imported one. The Mixamo FBX
+                // is now only a source of animation clips; nothing of its rig
+                // survives into the character. See BodyRig for why.
+                Material skin = CharacterSkin.Ensure("PlayerSkin", CharacterSkin.PlayerColour);
+                GameObject body = FusedBodyBuilder.BuildBody(skin, controller);
                 body.transform.SetParent(root.transform, false);
 
-                // The clips import with materials off, which leaves every mesh
-                // with none at all -- magenta, silently. See CharacterSkin.
-                Material skin = CharacterSkin.Ensure("PlayerSkin", CharacterSkin.PlayerColour);
-                CharacterSkin.Apply(body, skin);
-
                 Animator animator = body.GetComponent<Animator>();
-                if (animator == null)
-                {
-                    animator = body.AddComponent<Animator>();
-                }
-                animator.runtimeAnimatorController = controller;
-                animator.applyRootMotion = false;   // PlayerLocomotion drives position.
-
-                // ASSIGNED EXPLICITLY rather than relying on the instantiated
-                // model already carrying it. Within a single batch run the FBX
-                // has just been reimported, and the GameObject handed back can
-                // still be the pre-import one with no avatar on its Animator.
-                // The prefab then ships with a null avatar and the character
-                // T-poses, with nothing logged. Loading the Avatar asset by
-                // path sidesteps the whole timing question.
-                var avatar = AssetDatabase.LoadAssetAtPath<Avatar>($"{AnimationDirectory}/idle.fbx");
-                if (avatar == null)
-                {
-                    Debug.LogError("CityX: no avatar on idle.fbx -- the player will T-pose.");
-                }
-                animator.avatar = avatar;
-
-                // The game's own body replaces the imported mannequin. AFTER
-                // the avatar is set, because it reads the humanoid bones to
-                // work out where the limbs are.
-                FusedBodyBuilder.ApplyTo(body, animator, skin);
 
                 CharacterController capsule = root.AddComponent<CharacterController>();
                 capsule.slopeLimit = 50.0f;
                 capsule.skinWidth = 0.03f;
+                // PlayerLocomotion sizes this in Awake from StandingHeight,
+                // which is now the rig's own measured crown height rather than
+                // a number typed in beside it.
+                capsule.height = BodyRig.StandingHeight;
+                capsule.center = new Vector3(0.0f, BodyRig.StandingHeight * 0.5f, 0.0f);
 
                 root.AddComponent<PlayerLocomotion>();
                 root.AddComponent<PlayerVitals>();

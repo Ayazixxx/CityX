@@ -14,11 +14,11 @@ namespace CityX.CharacterEditor
     /// derived from the skeleton itself, so this works on any humanoid rig and
     /// survives the character changing size.
     ///
-    /// EVERYTHING IS A FRACTION OF THE RIG, NEVER A LENGTH IN METRES. The model
-    /// is imported at 1.78m and then scaled to the game's 2.2m body, so a
-    /// radius written as "0.05" would mean two different things depending on
-    /// which side of that scale it was measured on. Measuring the skeleton and
-    /// working in fractions of it removes the question.
+    /// EVERYTHING IS A FRACTION OF THE RIG, NEVER A LENGTH IN METRES. A radius
+    /// written as "0.05" means one thing on the 2.6m CITY X body and another on
+    /// anything else it gets pointed at, and the body has already changed
+    /// height once. Measuring the skeleton and working in fractions of it
+    /// removes the question.
     /// </summary>
     public static class RagdollBuilder
     {
@@ -88,6 +88,14 @@ namespace CityX.CharacterEditor
             Transform head = animator.GetBoneTransform(HumanBodyBones.Head);
             Transform leftFoot = animator.GetBoneTransform(HumanBodyBones.LeftFoot);
 
+            // WHERE THE CHEST BOX STOPS: the shoulder line, not the middle of
+            // the skull. Measuring chest-to-head was right on a rig with a
+            // chest bone up at the collarbones, and wrong on this one, where
+            // the "chest" falls back to a spine bone halfway up the torso -- it
+            // built a 0.85m slab that swallowed the neck and half the head
+            // sphere, and the rig thrashed itself apart trying to resolve it.
+            Transform shoulderLine = animator.GetBoneTransform(HumanBodyBones.Neck) ?? head;
+
             if (hips == null || chest == null || head == null || leftFoot == null)
             {
                 Debug.LogError("CityX: the skeleton is missing hips, chest, head or feet.");
@@ -120,8 +128,8 @@ namespace CityX.CharacterEditor
                 rigHeight * TorsoDepth);
             bodies.Add(hipBody);
 
-            Rigidbody chestBody = MakeBox(chest, head, Mathf.Max(shoulderSpan, rigHeight * 0.18f),
-                rigHeight * TorsoDepth);
+            Rigidbody chestBody = MakeBox(chest, shoulderLine,
+                Mathf.Max(shoulderSpan, rigHeight * 0.18f), rigHeight * TorsoDepth);
             bodies.Add(chestBody);
             Join(chestBody, hipBody, chest, SpineLimits);
 
