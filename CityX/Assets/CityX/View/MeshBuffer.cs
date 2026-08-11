@@ -70,12 +70,24 @@ namespace CityX.View
         /// </summary>
         public void AddBox(Vector3 min, Vector3 max, bool includeBottom = false)
         {
+            AddBox(min, max, this, includeBottom);
+        }
+
+        /// <summary>
+        /// A box whose TOP face goes into a different buffer.
+        ///
+        /// Buildings need this: a roof and a wall are not the same surface, and
+        /// putting the window texture on the top of every building is glaring
+        /// the moment you get above roof height.
+        /// </summary>
+        public void AddBox(Vector3 min, Vector3 max, MeshBuffer topBuffer, bool includeBottom = false)
+        {
             float x0 = min.x, y0 = min.y, z0 = min.z;
             float x1 = max.x, y1 = max.y, z1 = max.z;
             float w = x1 - x0, h = y1 - y0, d = z1 - z0;
 
             // +Y
-            AddQuad(new Vector3(x0, y1, z0), new Vector3(x0, y1, z1),
+            topBuffer.AddQuad(new Vector3(x0, y1, z0), new Vector3(x0, y1, z1),
                     new Vector3(x1, y1, z1), new Vector3(x1, y1, z0), Vector3.up,
                     new Vector2(0, 0), new Vector2(0, d), new Vector2(w, d), new Vector2(w, 0));
 

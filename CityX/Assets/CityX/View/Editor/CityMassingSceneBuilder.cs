@@ -33,13 +33,20 @@ namespace CityX.ViewEditor
             Directory.CreateDirectory(SceneDirectory);
             Directory.CreateDirectory(MaterialDirectory);
 
-            // Ground is darker than the buildings but not by much. The first
-            // pass used 0.20 and the streets rendered as a black void -- with
-            // no sky light bouncing into a narrow canyon, a dark albedo down
-            // there receives almost nothing and the whole lower half of every
-            // shot went to mud.
-            Material ground = EnsureMaterial("CityGround", new Color(0.44f, 0.45f, 0.46f), 0.95f);
-            Material structure = EnsureMaterial("CityConcrete", new Color(0.62f, 0.63f, 0.64f), 0.85f);
+            CityFacadeTextures.Build();
+
+            // The mesh builder writes UVs in METRES, so tiling is simply the
+            // reciprocal of how many metres of world each texture covers. That
+            // is what makes the facade line up with real floors and window
+            // columns on every face of every building with no per-building UV
+            // work -- and it is why these numbers are derived from the texture
+            // rather than typed in.
+            Material ground = EnsureMaterial("CityGround", "CityRoad", 8.0f, 0.10f);
+            // Also carries roofs and walkway decks -- same material in the real
+            // world, and the buffer is named flatConcrete for that reason.
+            Material pavement = EnsureMaterial("CityPavement", "CityPavement", 4.0f, 0.05f);
+            Material structure = EnsureMaterial("CityConcrete", "CityFacade",
+                CityFacadeTextures.FacadeTileWidth, 0.04f);
 
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
@@ -58,7 +65,12 @@ namespace CityX.ViewEditor
             Light sun = sunObject.AddComponent<Light>();
             sun.type = LightType.Directional;
             sun.color = new Color(1.0f, 0.97f, 0.92f);
-            sun.intensity = 1.7f;
+            // 1.15, not the 1.7 this started at. With no tonemapping in the
+            // pipeline yet, anything much above 1 drives every sunlit face to
+            // pure white and the concrete reads as painted render. Dropping the
+            // albedo instead was the wrong lever -- it only made the shadowed
+            // faces muddy while the lit ones stayed blown out.
+            sun.intensity = 1.15f;
             sun.shadows = LightShadows.Soft;
             sunObject.transform.rotation = Quaternion.Euler(38.0f, 145.0f, 0.0f);
 
@@ -86,6 +98,7 @@ namespace CityX.ViewEditor
             streamer.WorldSeed = 20260810;
             streamer.RadiusChunks = 14;
             streamer.GroundMaterial = ground;
+            streamer.PavementMaterial = pavement;
             streamer.StructureMaterial = structure;
             streamer.Viewer = cameraObject.transform;
 
@@ -96,10 +109,16 @@ namespace CityX.ViewEditor
         }
 
         /// <summary>
-        /// Creates or updates a URP Lit material. Updating in place rather than
-        /// replacing keeps the scene's reference to it valid across rebuilds.
+        /// Creates or updates a URP Lit material using one of the generated
+        /// textures. Updating in place rather than replacing keeps the scene's
+        /// reference to it valid across rebuilds.
         /// </summary>
-        private static Material EnsureMaterial(string name, Color colour, float smoothnessInverse)
+        /// <param name="metresPerTile">
+        /// How much world the texture covers. Tiling is its reciprocal, because
+        /// UVs are in metres.
+        /// </param>
+        private static Material EnsureMaterial(string name, string textureName,
+            float metresPerTile, float smoothness)
         {
             string path = $"{MaterialDirectory}/{name}.mat";
             Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
@@ -120,9 +139,30 @@ namespace CityX.ViewEditor
                 AssetDatabase.CreateAsset(material, path);
             }
 
-            material.SetColor("_BaseColor", colour);
-            material.SetFloat("_Smoothness", 1.0f - smoothnessInverse);
+            string textureDirectory = "Assets/CityX/View/Textures";
+            var albedo = AssetDatabase.LoadAssetAtPath<Texture2D>($"{textureDirectory}/{textureName}.png");
+            var normal = AssetDatabase.LoadAssetAtPath<Texture2D>($"{textureDirectory}/{textureName}Normal.png");
+
+            if (albedo == null)
+            {
+                Debug.LogError($"CityX: texture {textureName} missing -- run CityX/Rebuild City Textures.");
+            }
+
+            float tiling = 1.0f / metresPerTile;
+            material.SetColor("_BaseColor", Color.white);
+            material.SetTexture("_BaseMap", albedo);
+            material.SetTextureScale("_BaseMap", new Vector2(tiling, tiling));
+            material.SetFloat("_Smoothness", smoothness);
             material.SetFloat("_Metallic", 0.0f);
+
+            if (normal != null)
+            {
+                material.EnableKeyword("_NORMALMAP");
+                material.SetTexture("_BumpMap", normal);
+                material.SetTextureScale("_BumpMap", new Vector2(tiling, tiling));
+                material.SetFloat("_BumpScale", 1.0f);
+            }
+
             EditorUtility.SetDirty(material);
             return material;
         }

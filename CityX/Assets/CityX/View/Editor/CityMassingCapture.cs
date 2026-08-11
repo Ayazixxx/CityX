@@ -38,9 +38,11 @@ namespace CityX.ViewEditor
             {
                 Material ground = AssetDatabase.LoadAssetAtPath<Material>(
                     "Assets/CityX/View/Materials/CityGround.mat");
+                Material pavement = AssetDatabase.LoadAssetAtPath<Material>(
+                    "Assets/CityX/View/Materials/CityPavement.mat");
                 Material structure = AssetDatabase.LoadAssetAtPath<Material>(
                     "Assets/CityX/View/Materials/CityConcrete.mat");
-                if (ground == null || structure == null)
+                if (ground == null || pavement == null || structure == null)
                 {
                     Debug.LogError("CityX: materials missing -- run CityX/Rebuild Massing Scene first.");
                     return;
@@ -50,7 +52,9 @@ namespace CityX.ViewEditor
                 sunObject.transform.SetParent(root.transform);
                 Light sun = sunObject.AddComponent<Light>();
                 sun.type = LightType.Directional;
-                sun.intensity = 1.8f;
+                // Matches the scene's own sun. See CityMassingSceneBuilder for
+                // why it is near 1 rather than near 2.
+                sun.intensity = 1.15f;
                 sun.shadows = LightShadows.Soft;
                 sunObject.transform.rotation = Quaternion.Euler(40.0f, 150.0f, 0.0f);
 
@@ -68,6 +72,7 @@ namespace CityX.ViewEditor
                 CityStreamer streamer = streamerObject.AddComponent<CityStreamer>();
                 streamer.WorldSeed = WorldSeed;
                 streamer.GroundMaterial = ground;
+                streamer.PavementMaterial = pavement;
                 streamer.StructureMaterial = structure;
                 streamer.Rebuild();
 

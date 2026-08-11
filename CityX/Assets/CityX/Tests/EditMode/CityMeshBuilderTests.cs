@@ -21,11 +21,103 @@ namespace CityX.Tests
 
         private static void Build(int chunkX, int chunkY, out MeshBuffer ground, out MeshBuffer structures)
         {
+            Build(chunkX, chunkY, out ground, out _, out structures);
+        }
+
+        private static void Build(int chunkX, int chunkY,
+            out MeshBuffer ground, out MeshBuffer pavement, out MeshBuffer structures)
+        {
             CityWorld world = new CityWorld(Seed);
             SkybridgeLayout bridges = new SkybridgeLayout(Seed);
             ground = new MeshBuffer();
+            pavement = new MeshBuffer();
             structures = new MeshBuffer();
-            CityMeshBuilder.BuildChunk(world, bridges, chunkX, chunkY, Vector3.zero, ground, structures);
+            CityMeshBuilder.BuildChunk(world, bridges, chunkX, chunkY, Vector3.zero,
+                ground, pavement, structures);
+        }
+
+        /// <summary>
+        /// Pavement runs along streets and stops at junctions.
+        ///
+        /// The junction case is the one worth pinning: it is not written as a
+        /// special case anywhere, it falls out of the street grid, and it would
+        /// silently stop being true if the street period ever changed.
+        ///
+        /// ONLY STREET CHUNKS ARE INSPECTED, deliberately. The flat-concrete
+        /// buffer also carries roofs and walkway decks, so a buildable chunk
+        /// having something in it proves nothing either way -- asserting on it
+        /// would just be asserting that the chunk has a building.
+        /// </summary>
+        [Test]
+        public void PavementRunsAlongStreetsAndStopsAtJunctions()
+        {
+            int junctions = 0;
+            int runs = 0;
+
+            for (int x = -24; x <= 24; x++)
+            {
+                for (int y = -24; y <= 24; y++)
+                {
+                    if (!CityLayout.IsStreetChunk(x, y))
+                    {
+                        continue;
+                    }
+                    Build(x, y, out _, out MeshBuffer flatConcrete, out _);
+
+                    bool junction = CityLayout.IsStreetChunk(x - 1, y) && CityLayout.IsStreetChunk(x + 1, y) &&
+                                    CityLayout.IsStreetChunk(x, y - 1) && CityLayout.IsStreetChunk(x, y + 1);
+                    if (junction)
+                    {
+                        junctions++;
+                        Assert.IsTrue(flatConcrete.IsEmpty,
+                            $"({x},{y}) is a junction -- pavement there would block the crossing");
+                    }
+                    else
+                    {
+                        runs++;
+                        Assert.IsFalse(flatConcrete.IsEmpty,
+                            $"({x},{y}) is a street beside buildings but has no pavement");
+                    }
+                }
+            }
+
+            TestContext.WriteLine($"{runs} street runs with pavement, {junctions} junctions without");
+            Assert.Greater(junctions, 20, "not enough junctions sampled");
+            Assert.Greater(runs, 100, "not enough street runs sampled");
+        }
+
+        /// <summary>
+        /// No building wall may carry the roof. Directly guards the thing that
+        /// looked worst in the first textured render -- window texture printed
+        /// across the top of every building.
+        /// </summary>
+        [Test]
+        public void BuildingRoofsAreNotPartOfTheFacade()
+        {
+            CityWorld world = new CityWorld(Seed);
+            int checkedCount = 0;
+
+            for (int x = -20; x <= 20; x++)
+            {
+                for (int y = -20; y <= 20; y++)
+                {
+                    BuildingSite site = world.BuildingAt(x, y);
+                    if (!site.Exists || site.AnchorX != x || site.AnchorY != y)
+                    {
+                        continue;
+                    }
+                    checkedCount++;
+
+                    Build(x, y, out _, out _, out MeshBuffer structures);
+                    foreach (Vector3 normal in structures.Normals)
+                    {
+                        Assert.Less(normal.y, 0.5f,
+                            $"({x},{y}) has an upward-facing wall surface -- a roof got the window facade");
+                    }
+                }
+            }
+
+            Assert.Greater(checkedCount, 100, "not enough buildings sampled");
         }
 
         [Test]

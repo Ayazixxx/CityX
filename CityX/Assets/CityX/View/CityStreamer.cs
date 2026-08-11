@@ -27,6 +27,8 @@ namespace CityX.View
         [Header("Look")]
         public Material GroundMaterial;
 
+        public Material PavementMaterial;
+
         public Material StructureMaterial;
 
         [Tooltip("Leave empty to follow the main camera.")]
@@ -36,6 +38,7 @@ namespace CityX.View
         private SkybridgeLayout _bridges;
         private readonly Dictionary<Vector2Int, GameObject> _loaded = new Dictionary<Vector2Int, GameObject>();
         private readonly MeshBuffer _ground = new MeshBuffer();
+        private readonly MeshBuffer _pavement = new MeshBuffer();
         private readonly MeshBuffer _structures = new MeshBuffer();
         private readonly List<Vector2Int> _wanted = new List<Vector2Int>();
         private readonly List<Vector2Int> _stale = new List<Vector2Int>();
@@ -138,6 +141,7 @@ namespace CityX.View
         private GameObject BuildChunkObject(Vector2Int key)
         {
             _ground.Clear();
+            _pavement.Clear();
             _structures.Clear();
 
             // Chunks are built relative to their own corner and then placed, so
@@ -147,7 +151,8 @@ namespace CityX.View
             Vector3 origin = new Vector3(
                 key.x * CityLayout.ChunkSize, 0.0f, key.y * CityLayout.ChunkSize);
 
-            CityMeshBuilder.BuildChunk(_world, _bridges, key.x, key.y, origin, _ground, _structures);
+            CityMeshBuilder.BuildChunk(_world, _bridges, key.x, key.y, origin,
+                _ground, _pavement, _structures);
 
             GameObject go = new GameObject($"Chunk {key.x},{key.y}");
             go.transform.SetParent(transform, false);
@@ -155,16 +160,31 @@ namespace CityX.View
 
             Mesh mesh = new Mesh { name = $"chunk-{key.x}-{key.y}" };
 
-            int groundVerts = _ground.Vertices.Count;
-            var vertices = new List<Vector3>(groundVerts + _structures.Vertices.Count);
-            var normals = new List<Vector3>(vertices.Capacity);
-            var uvs = new List<Vector2>(vertices.Capacity);
-            vertices.AddRange(_ground.Vertices);
-            vertices.AddRange(_structures.Vertices);
-            normals.AddRange(_ground.Normals);
-            normals.AddRange(_structures.Normals);
-            uvs.AddRange(_ground.Uvs);
-            uvs.AddRange(_structures.Uvs);
+            // Road, pavement and concrete want different materials, so they go
+            // into one mesh as three submeshes rather than three objects. Same
+            // vertex buffer, same transform, one cull -- and each submesh's
+            // triangle indices have to be shifted by however many vertices came
+            // before it, which is the only fiddly part.
+            var buffers = new[] { _ground, _pavement, _structures };
+            var vertices = new List<Vector3>();
+            var normals = new List<Vector3>();
+            var uvs = new List<Vector2>();
+            var submeshTriangles = new List<int[]>(buffers.Length);
+
+            foreach (MeshBuffer buffer in buffers)
+            {
+                int offset = vertices.Count;
+                vertices.AddRange(buffer.Vertices);
+                normals.AddRange(buffer.Normals);
+                uvs.AddRange(buffer.Uvs);
+
+                var shifted = new int[buffer.Triangles.Count];
+                for (int i = 0; i < buffer.Triangles.Count; i++)
+                {
+                    shifted[i] = buffer.Triangles[i] + offset;
+                }
+                submeshTriangles.Add(shifted);
+            }
 
             mesh.indexFormat = vertices.Count > 65000
                 ? UnityEngine.Rendering.IndexFormat.UInt32
@@ -172,22 +192,19 @@ namespace CityX.View
             mesh.SetVertices(vertices);
             mesh.SetNormals(normals);
             mesh.SetUVs(0, uvs);
-            mesh.subMeshCount = 2;
-            mesh.SetTriangles(_ground.Triangles, 0);
-
-            var shifted = new List<int>(_structures.Triangles.Count);
-            foreach (int index in _structures.Triangles)
+            mesh.subMeshCount = buffers.Length;
+            for (int i = 0; i < buffers.Length; i++)
             {
-                shifted.Add(index + groundVerts);
+                mesh.SetTriangles(submeshTriangles[i], i);
             }
-            mesh.SetTriangles(shifted, 1);
+            mesh.RecalculateTangents();
             mesh.RecalculateBounds();
 
             MeshFilter filter = go.AddComponent<MeshFilter>();
             filter.sharedMesh = mesh;
 
             MeshRenderer renderer = go.AddComponent<MeshRenderer>();
-            renderer.sharedMaterials = new[] { GroundMaterial, StructureMaterial };
+            renderer.sharedMaterials = new[] { GroundMaterial, PavementMaterial, StructureMaterial };
 
             MeshCollider collider = go.AddComponent<MeshCollider>();
             collider.sharedMesh = mesh;

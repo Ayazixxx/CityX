@@ -47,15 +47,25 @@ namespace CityX.View
         public const float KerbHeight = 0.18f;
 
         /// <summary>
-        /// Builds ground into <paramref name="ground"/> and everything built by
-        /// people into <paramref name="structures"/>. Two buffers because they
-        /// want different materials, and two submeshes on one object is one
-        /// draw call cheaper than two objects.
+        /// Splits a chunk across three buffers, one per material, which become
+        /// three submeshes on one object -- cheaper than three objects sharing
+        /// a transform.
+        ///
+        /// The split is by SURFACE, not by what the thing is:
+        ///   ground        road and bare terrain
+        ///   flatConcrete  pavement, roofs and walkway decks
+        ///   structures    building walls, which are the only thing that wants
+        ///                 the window facade
+        ///
+        /// Roofs go with pavement rather than with their own building because
+        /// they are the same material in the real world, and because putting
+        /// the window texture on the top of every building is glaring the
+        /// moment the camera gets above roof height.
         /// </summary>
         public static void BuildChunk(CityWorld world, SkybridgeLayout bridges, int chunkX, int chunkY,
-            Vector3 origin, MeshBuffer ground, MeshBuffer structures)
+            Vector3 origin, MeshBuffer ground, MeshBuffer flatConcrete, MeshBuffer structures)
         {
-            BuildGround(world, chunkX, chunkY, origin, ground);
+            BuildGround(world, chunkX, chunkY, origin, ground, flatConcrete);
 
             BuildingSite site = world.BuildingAt(chunkX, chunkY);
             if (!site.Exists || site.AnchorX != chunkX || site.AnchorY != chunkY)
@@ -66,12 +76,12 @@ namespace CityX.View
                 return;
             }
 
-            BuildBuilding(site, origin, structures);
-            BuildBridges(world, bridges, site, origin, structures);
+            BuildBuilding(site, origin, structures, flatConcrete);
+            BuildBridges(world, bridges, site, origin, flatConcrete);
         }
 
         private static void BuildGround(CityWorld world, int chunkX, int chunkY, Vector3 origin,
-            MeshBuffer ground)
+            MeshBuffer ground, MeshBuffer pavement)
         {
             float pad = world.Terrain.PadHeightFor(chunkX, chunkY);
             float size = CityLayout.ChunkSize;
@@ -100,7 +110,7 @@ namespace CityX.View
             AddSkirtIfLower(world, chunkX, chunkY + 1, pad,
                 new Vector3(x0, y, z1), new Vector3(x1, y, z1), Vector3.forward, origin, ground);
 
-            AddSidewalks(chunkX, chunkY, x0, z0, x1, z1, y, ground);
+            AddSidewalks(chunkX, chunkY, x0, z0, x1, z1, y, pavement);
         }
 
         /// <summary>
@@ -113,7 +123,7 @@ namespace CityX.View
         /// strips can therefore never meet at a corner and overlap.
         /// </summary>
         private static void AddSidewalks(int chunkX, int chunkY,
-            float x0, float z0, float x1, float z1, float y, MeshBuffer ground)
+            float x0, float z0, float x1, float z1, float y, MeshBuffer pavement)
         {
             if (!CityLayout.IsStreetChunk(chunkX, chunkY))
             {
@@ -124,19 +134,19 @@ namespace CityX.View
 
             if (!CityLayout.IsStreetChunk(chunkX - 1, chunkY))
             {
-                ground.AddBox(new Vector3(x0, y, z0), new Vector3(x0 + SidewalkWidth, top, z1));
+                pavement.AddBox(new Vector3(x0, y, z0), new Vector3(x0 + SidewalkWidth, top, z1));
             }
             if (!CityLayout.IsStreetChunk(chunkX + 1, chunkY))
             {
-                ground.AddBox(new Vector3(x1 - SidewalkWidth, y, z0), new Vector3(x1, top, z1));
+                pavement.AddBox(new Vector3(x1 - SidewalkWidth, y, z0), new Vector3(x1, top, z1));
             }
             if (!CityLayout.IsStreetChunk(chunkX, chunkY - 1))
             {
-                ground.AddBox(new Vector3(x0, y, z0), new Vector3(x1, top, z0 + SidewalkWidth));
+                pavement.AddBox(new Vector3(x0, y, z0), new Vector3(x1, top, z0 + SidewalkWidth));
             }
             if (!CityLayout.IsStreetChunk(chunkX, chunkY + 1))
             {
-                ground.AddBox(new Vector3(x0, y, z1 - SidewalkWidth), new Vector3(x1, top, z1));
+                pavement.AddBox(new Vector3(x0, y, z1 - SidewalkWidth), new Vector3(x1, top, z1));
             }
         }
 
@@ -164,7 +174,8 @@ namespace CityX.View
                 new Vector2(0, 0), new Vector2(width, 0), new Vector2(width, height), new Vector2(0, height));
         }
 
-        private static void BuildBuilding(BuildingSite site, Vector3 origin, MeshBuffer structures)
+        private static void BuildBuilding(BuildingSite site, Vector3 origin, MeshBuffer structures,
+            MeshBuffer roofs)
         {
             // One box from the podium base to the roof. The stretch below
             // BaseHeight is buried on the uphill side and exposed downhill,
@@ -178,21 +189,21 @@ namespace CityX.View
                 site.Top - origin.y,
                 (float)(site.MaxZ - origin.z));
 
-            structures.AddBox(min, max);
+            structures.AddBox(min, max, roofs);
         }
 
         private static void BuildBridges(CityWorld world, SkybridgeLayout bridges, BuildingSite site,
-            Vector3 origin, MeshBuffer structures)
+            Vector3 origin, MeshBuffer decks)
         {
             // Only east and north. Every pair has exactly one building that
             // sees it as east-or-north, so each walkway is built once -- the
             // west and south lookups exist for queries, not for geometry.
-            BuildSpan(bridges, site, SkybridgeLayout.EastNeighbour(world, site), true, origin, structures);
-            BuildSpan(bridges, site, SkybridgeLayout.NorthNeighbour(world, site), false, origin, structures);
+            BuildSpan(bridges, site, SkybridgeLayout.EastNeighbour(world, site), true, origin, decks);
+            BuildSpan(bridges, site, SkybridgeLayout.NorthNeighbour(world, site), false, origin, decks);
         }
 
         private static void BuildSpan(SkybridgeLayout bridges, BuildingSite from, BuildingSite to,
-            bool alongX, Vector3 origin, MeshBuffer structures)
+            bool alongX, Vector3 origin, MeshBuffer decks)
         {
             if (!to.Exists)
             {
@@ -237,7 +248,7 @@ namespace CityX.View
                     continue;
                 }
 
-                structures.AddBox(min, max, includeBottom: true);
+                decks.AddBox(min, max, decks, includeBottom: true);
             }
         }
     }

@@ -207,7 +207,8 @@ namespace CityX.World
             {
                 width = Clamp((float)rng.Range(preset.WidthMin, preset.WidthMax), 1.0f, maxWidth);
                 depth = Clamp((float)rng.Range(preset.DepthMin, preset.DepthMax), 1.0f, maxDepth);
-                height = (float)rng.Range(preset.HeightMin, preset.HeightMax);
+                height = SnapToWholeFloors((float)rng.Range(preset.HeightMin, preset.HeightMax),
+                    preset.HeightMin, preset.HeightMax);
                 roof = preset.Roof;
                 mass = BuildingMass.MidRise;
             }
@@ -223,7 +224,7 @@ namespace CityX.World
                 // tied to real footprints -- rather than from one distribution
                 // trying to produce both a corner shop and a skyscraper.
                 HeightRange(mass, out float minHeight, out float maxHeight);
-                height = (float)rng.Range(minHeight, maxHeight);
+                height = SnapToWholeFloors((float)rng.Range(minHeight, maxHeight), minHeight, maxHeight);
 
                 roof = RoofTypes[rng.Below(RoofTypes.Length)];
                 facadeIndex = PickFacadeIndex(rng);
@@ -330,6 +331,40 @@ namespace CityX.World
             return massRng.NextDouble() < LowRiseShareOfSingleLots
                 ? BuildingMass.LowRise
                 : BuildingMass.MidRise;
+        }
+
+        /// <summary>
+        /// Rounds a height to a whole number of floors, kept inside its range.
+        ///
+        /// WHY IT MATTERS BEYOND TIDINESS. Three separate systems assume a
+        /// building is made of whole floors, and each one goes visibly wrong
+        /// without this. A facade texture tiled at floor height gets a sliced
+        /// row at the roof. A skybridge lands mid-window. And every interior
+        /// floor slab would leave a crawlspace at the top.
+        ///
+        /// Rounds rather than truncates, then steps back inside the range if
+        /// rounding pushed it out -- truncating would bias every building in
+        /// the city half a floor short.
+        /// </summary>
+        public static float SnapToWholeFloors(float height, float min, float max)
+        {
+            float floorHeight = CellLayout.NominalFloorMetres;
+            int floors = (int)Math.Round(height / floorHeight);
+            if (floors < 1)
+            {
+                floors = 1;
+            }
+
+            float snapped = floors * floorHeight;
+            if (snapped > max && floors > 1)
+            {
+                snapped = (floors - 1) * floorHeight;
+            }
+            if (snapped < min)
+            {
+                snapped = (float)Math.Ceiling(min / floorHeight) * floorHeight;
+            }
+            return snapped;
         }
 
         public static void HeightRange(BuildingMass mass, out float min, out float max)

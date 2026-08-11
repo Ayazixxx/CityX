@@ -267,6 +267,25 @@ namespace CityX.Tests
                 $"a building reached {worst:0.0}:1 -- {worstWhere}. That is a mast, not a tower");
         }
 
+        /// <summary>
+        /// Every building is a whole number of floors.
+        ///
+        /// Three systems depend on it and each fails visibly without it: a
+        /// facade texture tiled at floor height gets a sliced row at the roof,
+        /// a skybridge lands mid-window, and interior slabs leave a crawlspace
+        /// under the roof.
+        /// </summary>
+        [Test]
+        public void EveryBuildingIsAWholeNumberOfFloors()
+        {
+            foreach (var (p, _, x, y) in Sweep(4242, 35))
+            {
+                double floors = p.Height / CellLayout.NominalFloorMetres;
+                Assert.AreEqual(System.Math.Round(floors), floors, 1e-3,
+                    $"({x},{y}) is {p.Height}m, which is {floors:0.00} floors");
+            }
+        }
+
         [Test]
         public void HeightsStayInsideTheirOwnClassRange()
         {
