@@ -131,14 +131,29 @@ namespace CityX.CharacterEditor
             // arms a third longer than a person's.
             Shoot(prefab, outputDirectory, "clip-walk", 200.0f, null,
                 FindClip("walking"), 0.28f);
-            Shoot(prefab, outputDirectory, "clip-walk-late", 200.0f, null,
-                FindClip("walking"), 0.72f);
             Shoot(prefab, outputDirectory, "clip-sprint", 205.0f, null,
                 FindClip("sprint"), 0.35f);
             Shoot(prefab, outputDirectory, "clip-idle", 0.0f, null,
                 FindClip("idle"), 0.5f);
             Shoot(prefab, outputDirectory, "clip-jab", 210.0f, null,
                 FindClip("boxing_right_jab"), 0.45f);
+
+            // A SPREAD OF THE PORTED CLIPS, one per family, because the
+            // failure mode of bringing fifty-three clips across at once is
+            // that most of them work and two of them do something mad, and
+            // spot-checking the same four locomotion clips would never see it.
+            Shoot(prefab, outputDirectory, "clip-sword-idle", 200.0f, null,
+                FindClip("2hsw_idle"), 0.5f);
+            Shoot(prefab, outputDirectory, "clip-sword-attack", 210.0f, null,
+                FindClip("2hsw_attack"), 0.45f);
+            Shoot(prefab, outputDirectory, "clip-crouch-walk", 205.0f, null,
+                FindClip("crouch_walk"), 0.3f);
+            Shoot(prefab, outputDirectory, "clip-climb", 200.0f, null,
+                FindClip("climbing_up_wall"), 0.4f);
+            Shoot(prefab, outputDirectory, "clip-pistol-aim", 210.0f, null,
+                FindClip("pistol_aim_in"), 0.9f);
+            Shoot(prefab, outputDirectory, "clip-dance", 200.0f, null,
+                FindClip("dance"), 0.35f);
 
             if (Application.isBatchMode)
             {
@@ -264,6 +279,21 @@ namespace CityX.CharacterEditor
 
             animator.transform.localPosition = rootPosition;
             animator.transform.localRotation = rootRotation;
+
+            // AND RECENTRE ON THE HIPS. Resetting the animator's own transform
+            // removes root motion, but several clips -- climbing a wall,
+            // entering a car, the intro fall -- carry their travel in the HIPS
+            // track instead, and those walked straight out of frame. Sliding
+            // the whole rig back so the hips sit where they rest keeps the pose
+            // exactly as the clip made it and puts it where the camera is
+            // looking. It is a framing correction, not a change to the pose.
+            Transform hips = animator.GetBoneTransform(HumanBodyBones.Hips);
+            if (hips != null)
+            {
+                Vector3 rest = animator.transform.TransformPoint(
+                    CityX.Character.BodyRig.PositionOf(HumanBodyBones.Hips));
+                animator.transform.position += rest - hips.position;
+            }
         }
 
         private static Transform FindDeep(Transform root, string name)
