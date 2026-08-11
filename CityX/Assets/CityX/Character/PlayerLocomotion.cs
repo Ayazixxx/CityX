@@ -47,7 +47,15 @@ namespace CityX.Character
             "(fused_body.gd puts shoulders at 1.9m with bounds to 2.35m). The Mixamo skeleton " +
             "the animations came from is 1.78m, so try that for comparison -- this is the one " +
             "number that decides whether the city feels right.")]
-        public float StandingHeight = 2.2f;
+        public float StandingHeight = StandingHeightDefault;
+
+        /// <summary>
+        /// The Godot build's body height. A const as well as a field, because
+        /// anything else that has to be the same size as a person -- a
+        /// pedestrian, a doorway, a bridge clearance -- needs to ask for it
+        /// without instantiating a player to find out.
+        /// </summary>
+        public const float StandingHeightDefault = 2.2f;
 
         /// <summary>The height the Mixamo rig is authored at, used to scale the model.</summary>
         public const float MixamoRigHeight = 1.78f;

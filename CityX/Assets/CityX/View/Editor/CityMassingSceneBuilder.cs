@@ -114,6 +114,7 @@ namespace CityX.ViewEditor
                 CityX.UIEditor.PlayerHudBuilder.AddToScene(player.GetComponent<PlayerVitals>());
 
                 AddSparringDummies(groundHeight, structure);
+                AddCrowd(player.transform);
             }
             else
             {
@@ -154,6 +155,30 @@ namespace CityX.ViewEditor
             AssetDatabase.SaveAssets();
 
             Debug.Log($"CityX: massing scene written to {ScenePath}");
+        }
+
+        /// <summary>
+        /// Puts pedestrians on the streets around the player.
+        ///
+        /// They are here for scale as much as for life. Judging whether a 24m
+        /// street and a 3.2m floor feel right is much easier with other bodies
+        /// standing in front of the buildings than with an empty city and one
+        /// player who has nothing to be compared against.
+        /// </summary>
+        private static void AddCrowd(Transform player)
+        {
+            GameObject prefab = CityX.CharacterEditor.CivilianBuilder.Build();
+            if (prefab == null)
+            {
+                Debug.LogWarning("CityX: no civilian prefab -- the streets will be empty.");
+                return;
+            }
+
+            var populationObject = new GameObject("Civilians");
+            CivilianPopulation population = populationObject.AddComponent<CivilianPopulation>();
+            population.CivilianPrefab = prefab;
+            population.Viewer = player;
+            population.WorldSeed = 20260810;
         }
 
         /// <summary>

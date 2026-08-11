@@ -126,6 +126,137 @@ namespace CityX.ViewEditor
         }
 
         /// <summary>
+        /// The street with bodies standing in it.
+        ///
+        /// THE ONLY WAY TO ANSWER THE SCALE QUESTION. Every number in this
+        /// world -- a 24m street, a 3.2m floor, a 2.2m person -- is defensible
+        /// on its own and says nothing about whether the city feels right to
+        /// stand in. A person against a facade settles it in one look.
+        /// </summary>
+        [MenuItem("CityX/Capture Scale Screenshots")]
+        public static void CaptureScale()
+        {
+            string outputDirectory = Path.Combine(
+                Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
+            Directory.CreateDirectory(outputDirectory);
+
+            var player = AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/CityX/Character/Player.prefab");
+            var civilian = AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/CityX/Character/Civilian.prefab");
+            Material ground = AssetDatabase.LoadAssetAtPath<Material>(
+                "Assets/CityX/View/Materials/CityGround.mat");
+            Material pavement = AssetDatabase.LoadAssetAtPath<Material>(
+                "Assets/CityX/View/Materials/CityPavement.mat");
+            Material structure = AssetDatabase.LoadAssetAtPath<Material>(
+                "Assets/CityX/View/Materials/CityConcrete.mat");
+
+            if (player == null || civilian == null || ground == null)
+            {
+                Debug.LogError("CityX: run CityX/Rebuild Massing Scene first.");
+                return;
+            }
+
+            var root = new GameObject("ScaleRig");
+            bool previousFog = RenderSettings.fog;
+            try
+            {
+                var sunObject = new GameObject("Sun");
+                sunObject.transform.SetParent(root.transform);
+                Light sun = sunObject.AddComponent<Light>();
+                sun.type = LightType.Directional;
+                sun.shadows = LightShadows.Soft;
+
+                var streamerObject = new GameObject("Streamer");
+                streamerObject.transform.SetParent(root.transform);
+                CityStreamer streamer = streamerObject.AddComponent<CityStreamer>();
+                streamer.WorldSeed = WorldSeed;
+                streamer.GroundMaterial = ground;
+                streamer.PavementMaterial = pavement;
+                streamer.StructureMaterial = structure;
+                streamer.Rebuild();
+
+                var cameraObject = new GameObject("Camera");
+                cameraObject.transform.SetParent(root.transform);
+                Camera camera = cameraObject.AddComponent<Camera>();
+                camera.farClipPlane = 3000.0f;
+                camera.nearClipPlane = 0.2f;
+                camera.clearFlags = CameraClearFlags.SolidColor;
+
+                var cycleObject = new GameObject("Cycle");
+                cycleObject.transform.SetParent(root.transform);
+                DayNightCycle cycle = cycleObject.AddComponent<DayNightCycle>();
+                cycle.Sun = sun;
+                cycle.Sky = camera;
+                cycle.Running = false;
+                cycle.Apply(SkyCycle.At(SkyCycle.DaySeconds * 0.32f));
+
+                RenderSettings.fog = true;
+                RenderSettings.fogMode = FogMode.Linear;
+                RenderSettings.fogStartDistance = 140.0f;
+                RenderSettings.fogEndDistance = 330.0f;
+
+                TerrainField terrain = new TerrainField(WorldSeed);
+                float streetLevel = terrain.PadHeightFor(0, 0);
+                float chunk = CityLayout.ChunkSize;
+
+                // THE CAMERA IS PLACED FIRST AND THE BODIES ARE PUT RELATIVE TO
+                // IT. The first version of this shot stood everyone 20 to 35
+                // metres down the street, and a person at 30m is small because
+                // perspective says so -- which tells you nothing about scale.
+                // The question is what a person looks like standing NEXT to the
+                // building, so somebody has to be within a few metres.
+                var eye = new Vector3(chunk * 0.5f - StreetNetwork.PavementOffset,
+                    streetLevel + 1.7f, chunk * 0.5f);
+
+                // Just ahead and slightly aside, so the whole body is in frame
+                // and not blocking the street behind it.
+                PlaceBody(root.transform, player,
+                    new Vector3(eye.x + 1.2f, streetLevel, eye.z + 4.5f), 200.0f);
+
+                // The rest walk away down the same pavement, giving a ladder of
+                // distances to read the street's depth against.
+                for (int i = 0; i < 5; i++)
+                {
+                    Vector3 spot = StreetNetwork.SnapToPavement(
+                        new Vector3(eye.x, streetLevel, eye.z + 12.0f + i * 9.0f));
+                    // Alternating sides, so both pavements are populated rather
+                    // than one queue.
+                    if (i % 2 != 0)
+                    {
+                        spot.x = chunk - spot.x;
+                    }
+                    PlaceBody(root.transform, civilian, spot, i % 2 == 0 ? 0.0f : 180.0f);
+                }
+
+                Shoot(streamer, camera, outputDirectory, "scale-street",
+                    eye, new Vector3(-2.0f, 6.0f, 0.0f), 30);
+
+                // Across the street from a body standing at a facade, so the
+                // person can be read against the ground floor and its windows.
+                var acrossEye = new Vector3(chunk * 0.5f + StreetNetwork.PavementOffset,
+                    streetLevel + 1.7f, chunk * 0.5f + 2.0f);
+                Shoot(streamer, camera, outputDirectory, "scale-facade",
+                    acrossEye, new Vector3(-4.0f, -38.0f, 0.0f), 34);
+
+                Debug.Log($"CityX: scale shots written to {outputDirectory}");
+            }
+            finally
+            {
+                RenderSettings.fog = previousFog;
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        private static void PlaceBody(Transform parent, GameObject prefab, Vector3 spot, float yaw)
+        {
+            var instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+            instance.transform.SetParent(parent);
+            instance.transform.position = spot;
+            instance.transform.rotation = Quaternion.Euler(0.0f, yaw, 0.0f);
+        }
+
+        /// <summary>
         /// The same street at four moments of the cycle.
         ///
         /// The whole point of a day/night cycle is how it looks, and the two

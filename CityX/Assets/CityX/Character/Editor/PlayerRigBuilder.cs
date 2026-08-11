@@ -197,6 +197,11 @@ namespace CityX.CharacterEditor
                 body.name = "Body";
                 body.transform.SetParent(root.transform, false);
 
+                // The clips import with materials off, which leaves every mesh
+                // with none at all -- magenta, silently. See CharacterSkin.
+                CharacterSkin.Apply(body,
+                    CharacterSkin.Ensure("PlayerSkin", CharacterSkin.PlayerColour));
+
                 Animator animator = body.GetComponent<Animator>();
                 if (animator == null)
                 {
