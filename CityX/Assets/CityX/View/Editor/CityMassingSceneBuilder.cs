@@ -129,6 +129,7 @@ namespace CityX.ViewEditor
             cycle.Sun = sun;
             cycle.Moon = moon;
             cycle.Sky = camera;
+            cycle.Facades = structure;
             cycle.TimeOfDay = SkyCycle.StartSeconds;
             cycle.Apply(SkyCycle.At(SkyCycle.StartSeconds));
 
@@ -263,6 +264,21 @@ namespace CityX.ViewEditor
                 material.SetTexture("_BumpMap", normal);
                 material.SetTextureScale("_BumpMap", new Vector2(tiling, tiling));
                 material.SetFloat("_BumpScale", 1.0f);
+            }
+
+            // Lit windows, if this surface has any. The COLOUR is left black
+            // here and driven by DayNightCycle, so the windows come on at dusk
+            // rather than glowing through the afternoon.
+            var emission = AssetDatabase.LoadAssetAtPath<Texture2D>(
+                $"{textureDirectory}/{textureName}Emission.png");
+            if (emission != null)
+            {
+                material.EnableKeyword("_EMISSION");
+                material.SetTexture("_EmissionMap", emission);
+                material.SetTextureScale("_EmissionMap", new Vector2(tiling, tiling));
+                material.SetColor("_EmissionColor", Color.black);
+                material.globalIlluminationFlags =
+                    MaterialGlobalIlluminationFlags.RealtimeEmissive;
             }
 
             EditorUtility.SetDirty(material);

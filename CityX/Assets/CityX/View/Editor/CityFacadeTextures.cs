@@ -96,6 +96,9 @@ namespace CityX.ViewEditor
             // end. Deriving normals from the albedo instead would turn every
             // dirt streak into a bump.
             var relief = new float[width * height];
+            // Which windows have a light on. Black everywhere else, so the
+            // concrete never glows.
+            var emission = new Color[width * height];
 
             int cellWidth = width / TileColumns;
             int cellHeight = height / TileFloors;
@@ -160,12 +163,49 @@ namespace CityX.ViewEditor
                     glass += (Hash01(x * 7 + 13, y * 3 + 5) - 0.5f) * 0.03f;
                     albedo[index] = new Color(glass, glass * 1.04f, glass * 1.12f);
                     relief[index] = 0.0f;
+
+                    if (IsLit(cellX, cellY))
+                    {
+                        // Warm, and brighter toward the ceiling, because a room
+                        // is lit from above. A flat fill reads as a glowing
+                        // rectangle rather than a window into somewhere.
+                        float lamp = Mathf.Lerp(1.0f, 0.55f, depth);
+                        emission[index] = LitWindowColour * lamp;
+                    }
                 }
             }
 
             SaveTexture("CityFacade", width, height, albedo, srgb: true);
             SaveNormalMap("CityFacadeNormal", width, height, relief, strength: 3.0f);
+            SaveTexture("CityFacadeEmission", width, height, emission, srgb: true);
         }
+
+        /// <summary>
+        /// title_screen_city.gd WINDOW_LIGHT_COLOR. Warm tungsten, which is
+        /// what makes a night skyline read as inhabited rather than as a wall
+        /// with holes in it.
+        /// </summary>
+        private static readonly Color LitWindowColour = new Color(0.988f, 0.796f, 0.443f);
+
+        /// <summary>
+        /// Whether a glazed cell has its light on.
+        ///
+        /// A DIFFERENT HASH SALT FROM <see cref="HasWindow"/>, so the lit ones
+        /// are scattered through the glazed ones rather than being the same
+        /// cells or a neat subset of them. Sharing a salt would light every
+        /// window in the same pattern the windows themselves follow, which
+        /// reads as a regular grid switching on together.
+        /// </summary>
+        private static bool IsLit(int cellX, int cellY)
+        {
+            return WorldHash.Unit01(cellX, cellY, 0x4C495448UL, 0x0C17FUL) < LitCellShare;
+        }
+
+        /// <summary>
+        /// How many glazed cells are lit. Well under half: a city where every
+        /// window is on looks like an office block at 3pm, not a city at night.
+        /// </summary>
+        private const double LitCellShare = 0.34;
 
         /// <summary>
         /// Whether a cell of the tile is glazed. Hashed rather than random so

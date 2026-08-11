@@ -21,6 +21,19 @@ namespace CityX.View
         [Tooltip("Its background follows the horizon so the fog wall is invisible.")]
         public Camera Sky;
 
+        [Tooltip("The facade material. Its windows are lit at night and dark by day.")]
+        public Material Facades;
+
+        /// <summary>
+        /// How bright a lit window burns once night has fully fallen. Above 1
+        /// because the emission map's own colour is already a dim warm tint,
+        /// and a window has to read as a light source rather than as slightly
+        /// paler concrete.
+        /// </summary>
+        public const float WindowGlow = 2.4f;
+
+        private static readonly int EmissionColour = Shader.PropertyToID("_EmissionColor");
+
         [Tooltip("Seconds into the cycle. A full day and night is 34 minutes.")]
         public float TimeOfDay = SkyCycle.StartSeconds;
 
@@ -78,6 +91,16 @@ namespace CityX.View
                 // edge, and the only thing hiding it is fog the same colour as
                 // what is behind it.
                 Sky.backgroundColor = state.HorizonColour;
+            }
+
+            if (Facades != null)
+            {
+                // Windows come on as the light goes, and are fully out by day.
+                // Driven off daylight rather than a clock so they light through
+                // dusk at the same rate the world darkens, instead of snapping
+                // on at some threshold.
+                float glow = (1.0f - state.Daylight) * WindowGlow;
+                Facades.SetColor(EmissionColour, Color.white * glow);
             }
         }
     }

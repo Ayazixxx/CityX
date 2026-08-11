@@ -221,6 +221,34 @@ namespace CityX.Tests
             Assert.AreEqual(SkyCycle.AmbientGroundDay, noon.AmbientGround);
         }
 
+        /// <summary>
+        /// Window lights follow the daylight, not a clock.
+        ///
+        /// The failure this guards is a city whose windows glow through the
+        /// afternoon, which reads as a bug rather than as evening. Driving them
+        /// off daylight rather than a time threshold also means they come up
+        /// through dusk at the same rate the world goes down, instead of
+        /// snapping on at some moment.
+        /// </summary>
+        [Test]
+        public void WindowsAreDarkByDayAndLitByNight()
+        {
+            float Glow(float seconds) =>
+                (1.0f - SkyCycle.At(seconds).Daylight) * View.DayNightCycle.WindowGlow;
+
+            Assert.AreEqual(0.0f, Glow(SkyCycle.DaySeconds * 0.5f), 0.001f,
+                "the windows are lit at midday");
+            Assert.AreEqual(View.DayNightCycle.WindowGlow,
+                Glow(SkyCycle.DaySeconds + SkyCycle.NightSeconds * 0.5f), 0.001f,
+                "the windows are not fully lit at midnight");
+
+            // Half lit somewhere in the dusk band, rather than jumping.
+            float atSunset = Glow(SkyCycle.DaySeconds);
+            Assert.Greater(atSunset, 0.0f, "nothing is lit at sunset");
+            Assert.Less(atSunset, View.DayNightCycle.WindowGlow,
+                "the windows are already at full strength at sunset");
+        }
+
         private static void AssertSaneColour(Color c, string what, float t)
         {
             Assert.IsFalse(float.IsNaN(c.r) || float.IsNaN(c.g) || float.IsNaN(c.b),

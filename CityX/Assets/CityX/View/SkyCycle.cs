@@ -83,17 +83,15 @@ namespace CityX.View
         public static readonly Color AmbientEquatorDay = new Color(0.38f, 0.40f, 0.44f);
         public static readonly Color AmbientGroundDay = new Color(0.20f, 0.20f, 0.21f);
 
-        // BRIGHTER THAN A REAL NIGHT, AND THIS IS A STOPGAP. Rendered at the
-        // physically sensible value, the street was unreadable -- building
-        // silhouettes survived but the road under your feet was a flat black
-        // gradient. What makes a real night city legible is its own lit
-        // windows, and the Godot build had exactly that (emissive window
-        // glass). None of that is ported yet, so until it is, the fill carries
-        // the load. Expect to bring these numbers back DOWN once the windows
-        // light up, rather than treating them as tuned.
-        public static readonly Color AmbientSkyNight = new Color(0.130f, 0.150f, 0.240f);
-        public static readonly Color AmbientEquatorNight = new Color(0.090f, 0.100f, 0.150f);
-        public static readonly Color AmbientGroundNight = new Color(0.045f, 0.048f, 0.065f);
+        // BROUGHT BACK DOWN, as the stopgap that raised them said it should be.
+        // These were lifted well above a real night because the street was
+        // unreadable without lit windows -- silhouettes survived but the road
+        // underfoot was flat black. The windows light up now, which is what
+        // makes a real night city legible, so the ambient no longer has to
+        // carry it and is back to something nearer night.
+        public static readonly Color AmbientSkyNight = new Color(0.085f, 0.098f, 0.160f);
+        public static readonly Color AmbientEquatorNight = new Color(0.058f, 0.065f, 0.098f);
+        public static readonly Color AmbientGroundNight = new Color(0.028f, 0.030f, 0.042f);
 
         public static readonly Color SunsetTint = new Color(1.0f, 0.4f, 0.16f);
 

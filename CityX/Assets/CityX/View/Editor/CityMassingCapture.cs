@@ -319,6 +319,7 @@ namespace CityX.ViewEditor
                 cycle.Sun = sun;
                 cycle.Moon = moon;
                 cycle.Sky = camera;
+                cycle.Facades = structure;
                 cycle.Running = false;
 
                 RenderSettings.fog = true;
