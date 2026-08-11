@@ -34,6 +34,19 @@ namespace CityX.View
         public const float BridgeThickness = 0.6f;
 
         /// <summary>
+        /// Depth of the raised pavement along a street's building edges.
+        ///
+        /// Built as real geometry rather than painted on, because the point is
+        /// that there is somewhere to stand that is not the road. Combined with
+        /// the 3m lot setback this gives 7m of pedestrian space each side and
+        /// leaves 10m of carriageway in a 24m street chunk.
+        /// </summary>
+        public const float SidewalkWidth = 4.0f;
+
+        /// <summary>Kerb height. Enough to read as a step, low enough to walk up.</summary>
+        public const float KerbHeight = 0.18f;
+
+        /// <summary>
         /// Builds ground into <paramref name="ground"/> and everything built by
         /// people into <paramref name="structures"/>. Two buffers because they
         /// want different materials, and two submeshes on one object is one
@@ -86,6 +99,45 @@ namespace CityX.View
                 new Vector3(x1, y, z0), new Vector3(x0, y, z0), Vector3.back, origin, ground);
             AddSkirtIfLower(world, chunkX, chunkY + 1, pad,
                 new Vector3(x0, y, z1), new Vector3(x1, y, z1), Vector3.forward, origin, ground);
+
+            AddSidewalks(chunkX, chunkY, x0, z0, x1, z1, y, ground);
+        }
+
+        /// <summary>
+        /// Raised pavement along the edges of a street where it meets buildings.
+        ///
+        /// A junction gets none, and that falls out of the grid rather than
+        /// needing a special case: a street chunk has x or y divisible by the
+        /// street period, so a straight run has buildable neighbours on exactly
+        /// two OPPOSITE sides and a junction has street on all four. The two
+        /// strips can therefore never meet at a corner and overlap.
+        /// </summary>
+        private static void AddSidewalks(int chunkX, int chunkY,
+            float x0, float z0, float x1, float z1, float y, MeshBuffer ground)
+        {
+            if (!CityLayout.IsStreetChunk(chunkX, chunkY))
+            {
+                return;
+            }
+
+            float top = y + KerbHeight;
+
+            if (!CityLayout.IsStreetChunk(chunkX - 1, chunkY))
+            {
+                ground.AddBox(new Vector3(x0, y, z0), new Vector3(x0 + SidewalkWidth, top, z1));
+            }
+            if (!CityLayout.IsStreetChunk(chunkX + 1, chunkY))
+            {
+                ground.AddBox(new Vector3(x1 - SidewalkWidth, y, z0), new Vector3(x1, top, z1));
+            }
+            if (!CityLayout.IsStreetChunk(chunkX, chunkY - 1))
+            {
+                ground.AddBox(new Vector3(x0, y, z0), new Vector3(x1, top, z0 + SidewalkWidth));
+            }
+            if (!CityLayout.IsStreetChunk(chunkX, chunkY + 1))
+            {
+                ground.AddBox(new Vector3(x0, y, z1 - SidewalkWidth), new Vector3(x1, top, z1));
+            }
         }
 
         private static void AddSkirtIfLower(CityWorld world, int neighbourX, int neighbourY, float pad,

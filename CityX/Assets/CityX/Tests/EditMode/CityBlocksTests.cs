@@ -144,16 +144,90 @@ namespace CityX.Tests
             {
                 for (int y = -Sweep + CityLayout.StreetPeriod; y < Sweep - CityLayout.StreetPeriod; y++)
                 {
-                    if (CityLayout.IsStreetChunk(x, y))
+                    LotKind kind = blocks.RoleFor(x, y).Kind;
+                    if (kind == LotKind.Street || kind == LotKind.Open)
                     {
                         Assert.IsFalse(owner.ContainsKey((x, y)),
-                            $"a building was laid over street chunk ({x},{y})");
+                            $"a building was laid over {kind} chunk ({x},{y})");
                         continue;
                     }
                     Assert.IsTrue(owner.ContainsKey((x, y)),
                         $"buildable chunk ({x},{y}) is claimed by nobody -- a hole in the city");
                 }
             }
+        }
+
+        /// <summary>
+        /// Open blocks have to be WHOLE blocks. A courtyard that is open on
+        /// seven of its nine lots and has a tower on the other two is not a
+        /// courtyard, it is a mistake -- and it would look like one.
+        /// </summary>
+        [Test]
+        public void OpenBlocksAreOpenAllTheWayAcross()
+        {
+            CityBlocks blocks = Blocks();
+            int openBlocks = 0;
+            int totalBlocks = 0;
+
+            for (int bx = -60; bx < 60; bx++)
+            {
+                for (int by = -60; by < 60; by++)
+                {
+                    totalBlocks++;
+                    if (!blocks.IsOpenBlock(bx, by))
+                    {
+                        continue;
+                    }
+                    openBlocks++;
+
+                    for (int ix = 0; ix < CityLayout.BuildableSpan; ix++)
+                    {
+                        for (int iy = 0; iy < CityLayout.BuildableSpan; iy++)
+                        {
+                            int cx = bx * CityLayout.StreetPeriod + 1 + ix;
+                            int cy = by * CityLayout.StreetPeriod + 1 + iy;
+                            Assert.AreEqual(LotKind.Open, blocks.RoleFor(cx, cy).Kind,
+                                $"block ({bx},{by}) is open but chunk ({cx},{cy}) inside it is not");
+                        }
+                    }
+                }
+            }
+
+            double share = openBlocks / (double)totalBlocks;
+            TestContext.WriteLine($"{share:P1} of blocks are open ({openBlocks}/{totalBlocks})");
+            Assert.AreEqual(CityBlocks.OpenBlockChance, share, 0.03,
+                "open blocks are not appearing at their stated rate");
+        }
+
+        /// <summary>
+        /// Open space must not clump. Rolled per block independently it should
+        /// not, but a correlated salt would produce whole quarters of the map
+        /// with no buildings in them, which is a far worse failure than the
+        /// rate being slightly off.
+        /// </summary>
+        [Test]
+        public void OpenBlocksDoNotClumpIntoDeadDistricts()
+        {
+            CityBlocks blocks = Blocks();
+            int worstRun = 0;
+
+            for (int by = -60; by < 60; by++)
+            {
+                int run = 0;
+                for (int bx = -60; bx < 60; bx++)
+                {
+                    run = blocks.IsOpenBlock(bx, by) ? run + 1 : 0;
+                    if (run > worstRun)
+                    {
+                        worstRun = run;
+                    }
+                }
+            }
+
+            TestContext.WriteLine($"longest unbroken row of open blocks: {worstRun}");
+            Assert.LessOrEqual(worstRun, 4,
+                $"{worstRun} open blocks in a row -- that is {worstRun * 96}m of nothing, which reads " +
+                "as the city failing to generate rather than as a park");
         }
 
         /// <summary>
@@ -200,6 +274,13 @@ namespace CityX.Tests
             {
                 for (int by = -60; by < 60; by++)
                 {
+                    // Open blocks never reach the massing roll, so counting
+                    // them would report them as "1x1" and inflate that share by
+                    // the whole open-block rate.
+                    if (blocks.IsOpenBlock(bx, by))
+                    {
+                        continue;
+                    }
                     blockCount++;
                     string shape = "1x1";
                     for (int ix = 0; ix < CityLayout.BuildableSpan; ix++)

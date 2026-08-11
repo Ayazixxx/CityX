@@ -11,6 +11,14 @@ namespace CityX.World
 
         /// <summary>Builds here, covering Span chunks.</summary>
         Building,
+
+        /// <summary>
+        /// Part of a block left open -- a courtyard, plaza or yard. Distinct
+        /// from a lot that merely rolled empty: a whole block of these is one
+        /// continuous piece of open ground, and the renderer will eventually
+        /// want to pave it rather than leaving bare terrain.
+        /// </summary>
+        Open,
     }
 
     /// <summary>
@@ -97,12 +105,30 @@ namespace CityX.World
         public const double NoSuperlotChance =
             1.0 - TowerChance - SlabWideChance - SlabDeepChance;
 
+        /// <summary>
+        /// Share of blocks left entirely open -- a courtyard, plaza or yard
+        /// instead of buildings.
+        ///
+        /// WHY A WHOLE BLOCK AND NOT JUST MORE EMPTY LOTS. The generator
+        /// already leaves about one lot in ten empty, and that reads as a gap
+        /// in a wall rather than as somewhere to be: 20m of dead ground boxed
+        /// in on all sides. An open BLOCK is 72m square of continuous space
+        /// with streets on every side, which is a place. Rolled per block for
+        /// exactly that reason -- rolling it per lot would scatter the same
+        /// area into nine holes and produce neither.
+        ///
+        /// This roll happens BEFORE the massing roll and short-circuits it, so
+        /// tuning open space does not reshuffle which blocks get towers.
+        /// </summary>
+        public const double OpenBlockChance = 0.11;
+
         // Distinct salts so shape and the two anchor axes are independent.
         // Sharing one would correlate a block's shape with where it sits, and
         // every tower in the world would end up in the same corner.
         private const ulong ShapeSalt = 0x424C4B53UL;   // "BLKS"
         private const ulong AnchorXSalt = 0x424C4B41UL; // "BLKA"
         private const ulong AnchorYSalt = 0x424C4B42UL; // "BLKB"
+        private const ulong OpenSalt = 0x4F50454EUL;    // "OPEN"
 
         private readonly ulong _seed;
 
@@ -125,6 +151,11 @@ namespace CityX.World
 
             int blockX = CityLayout.BlockIndex(chunkX);
             int blockY = CityLayout.BlockIndex(chunkY);
+
+            if (IsOpenBlock(blockX, blockY))
+            {
+                return new LotRole(LotKind.Open, 1, 1, chunkX, chunkY);
+            }
 
             // Position within the block's buildable interior, 0..2.
             int interiorX = CityLayout.IndexInBlock(chunkX) - 1;
@@ -155,6 +186,15 @@ namespace CityX.World
             }
 
             return new LotRole(LotKind.Consumed, spanX, spanY, anchorChunkX, anchorChunkY);
+        }
+
+        /// <summary>
+        /// Whether this whole block is left open. Public so a renderer can pave
+        /// a plaza differently from bare ground, and so tests can count them.
+        /// </summary>
+        public bool IsOpenBlock(int blockX, int blockY)
+        {
+            return WorldHash.Unit01(blockX, blockY, OpenSalt, _seed) < OpenBlockChance;
         }
 
         /// <summary>

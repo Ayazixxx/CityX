@@ -31,23 +31,23 @@ namespace CityX.World
         /// <summary>
         /// Setback from the lot edge where that edge faces a STREET.
         ///
-        /// NEGATIVE, WHICH IS THE POINT. A street chunk is 24m wide; at the
-        /// +2m pavement this started with, the clear road came to 28m against
-        /// buildings of 40-85m -- about 1:2. Rendered at street level that
-        /// reads as a wide avenue, not a canyon, and the brutalist reference is
-        /// nearer 1:8. Measured from a screenshot, not guessed: the first
-        /// massing capture is what showed it.
+        /// HISTORY, BECAUSE THIS SWUNG TOO FAR AND CAME BACK. It started at
+        /// +2m. The first massing render showed roughly 1:2 between street
+        /// width and building height where the reference is nearer 1:8, so it
+        /// went to -5m -- buildings cantilevering over the road, 14m clear.
+        /// Played, that was too cramped: there was no room for a pavement or a
+        /// road, only a slot.
         ///
-        /// So buildings CANTILEVER over the road instead, which narrows the
-        /// clear width to 24 - 2*5 = 14m and is what the reference actually
-        /// shows. Overhanging the street is normal in both Chongqing and
-        /// brutalist blocks; a building that stops politely at its property
-        /// line is the unusual case.
+        /// The mistake was treating one number as the whole answer. Tightness
+        /// is not the same as having nowhere to stand. It is now +3m, and the
+        /// canyon feeling comes from the buildings being TALL rather than from
+        /// the ground being narrow -- with a real pavement built on the street
+        /// side of it (see CityMeshBuilder.SidewalkWidth).
         ///
-        /// This is the single dial for how tight the city feels. Positive
-        /// values give pavements and avenues, negative gives canyons.
+        /// Budget across a 24m street chunk:
+        ///     3m setback + 4m pavement | 10m road | 4m pavement + 3m setback
         /// </summary>
-        public const float StreetMargin = -5.0f;
+        public const float StreetMargin = 3.0f;
 
         /// <summary>
         /// Gap where the edge faces ANOTHER LOT. Near zero, because in a dense
