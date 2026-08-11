@@ -52,28 +52,28 @@ namespace CityX.ViewEditor
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
             // An empty scene has no environment lighting, so every surface
-            // facing away from the sun goes almost black. In a city of narrow
-            // canyons that is most surfaces.
+            // facing away from the sun goes almost black -- and in a city of
+            // narrow canyons that is most surfaces. DayNightCycle overwrites
+            // these every frame; they are set here so the scene still looks
+            // right when opened without pressing play.
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor = new Color(0.52f, 0.58f, 0.66f);
-            RenderSettings.ambientEquatorColor = new Color(0.38f, 0.40f, 0.44f);
-            RenderSettings.ambientGroundColor = new Color(0.20f, 0.20f, 0.21f);
+            RenderSettings.ambientSkyColor = SkyCycle.AmbientSkyDay;
+            RenderSettings.ambientEquatorColor = SkyCycle.AmbientEquatorDay;
+            RenderSettings.ambientGroundColor = SkyCycle.AmbientGroundDay;
 
-            // --- light. Angled rather than straight down so the massing casts
-            // --- readable shadows; a flat top light makes every box look like a
-            // --- flat grey rectangle and hides the thing being judged.
+            // --- light. A sun and a moon on one arc, driven by DayNightCycle.
+            // --- Their angle, colour, intensity and which of them casts a
+            // --- shadow are all decided by SkyCycle, so nothing about the
+            // --- lighting is set here beyond what kind of lights they are.
             GameObject sunObject = new GameObject("Sun");
             Light sun = sunObject.AddComponent<Light>();
             sun.type = LightType.Directional;
-            sun.color = new Color(1.0f, 0.97f, 0.92f);
-            // 1.15, not the 1.7 this started at. With no tonemapping in the
-            // pipeline yet, anything much above 1 drives every sunlit face to
-            // pure white and the concrete reads as painted render. Dropping the
-            // albedo instead was the wrong lever -- it only made the shadowed
-            // faces muddy while the lit ones stayed blown out.
-            sun.intensity = 1.15f;
             sun.shadows = LightShadows.Soft;
-            sunObject.transform.rotation = Quaternion.Euler(38.0f, 145.0f, 0.0f);
+
+            GameObject moonObject = new GameObject("Moon");
+            Light moon = moonObject.AddComponent<Light>();
+            moon.type = LightType.Directional;
+            moon.shadows = LightShadows.Soft;
 
             // --- camera, standing in a street rather than above the city, since
             // --- street level is where the reference lives.
@@ -119,6 +119,27 @@ namespace CityX.ViewEditor
             {
                 Debug.LogWarning("CityX: no player prefab -- leaving the flycam enabled.");
             }
+
+            // --- the clock. Added after the camera because it drives the
+            // --- camera's background colour, which has to keep matching the
+            // --- fog or the streamed world's edge becomes a visible wall.
+            var cycleObject = new GameObject("DayNightCycle");
+            DayNightCycle cycle = cycleObject.AddComponent<DayNightCycle>();
+            cycle.Sun = sun;
+            cycle.Moon = moon;
+            cycle.Sky = camera;
+            cycle.TimeOfDay = SkyCycle.StartSeconds;
+            cycle.Apply(SkyCycle.At(SkyCycle.StartSeconds));
+
+            camera.clearFlags = CameraClearFlags.SolidColor;
+
+            // Distance fog, at a range that hides the streamed edge without
+            // swallowing the skyline. RadiusChunks below is 14, which at 24m a
+            // chunk puts the boundary around 336m out.
+            RenderSettings.fog = true;
+            RenderSettings.fogMode = FogMode.Linear;
+            RenderSettings.fogStartDistance = 140.0f;
+            RenderSettings.fogEndDistance = 330.0f;
 
             GameObject streamerObject = new GameObject("CityStreamer");
             CityStreamer streamer = streamerObject.AddComponent<CityStreamer>();

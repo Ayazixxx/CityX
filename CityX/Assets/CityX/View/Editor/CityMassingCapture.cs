@@ -126,6 +126,105 @@ namespace CityX.ViewEditor
         }
 
         /// <summary>
+        /// The same street at four moments of the cycle.
+        ///
+        /// The whole point of a day/night cycle is how it looks, and the two
+        /// moments worth judging -- the horizon crossings -- last seconds out
+        /// of thirty-four minutes. Waiting for them in play mode is not a way
+        /// to iterate on them.
+        /// </summary>
+        [MenuItem("CityX/Capture Day-Night Screenshots")]
+        public static void CaptureDayNight()
+        {
+            string outputDirectory = Path.Combine(
+                Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
+            Directory.CreateDirectory(outputDirectory);
+
+            Material ground = AssetDatabase.LoadAssetAtPath<Material>(
+                "Assets/CityX/View/Materials/CityGround.mat");
+            Material pavement = AssetDatabase.LoadAssetAtPath<Material>(
+                "Assets/CityX/View/Materials/CityPavement.mat");
+            Material structure = AssetDatabase.LoadAssetAtPath<Material>(
+                "Assets/CityX/View/Materials/CityConcrete.mat");
+            if (ground == null || pavement == null || structure == null)
+            {
+                Debug.LogError("CityX: materials missing -- run CityX/Rebuild Massing Scene first.");
+                return;
+            }
+
+            var root = new GameObject("DayNightRig");
+            var previousFog = RenderSettings.fog;
+            try
+            {
+                var sunObject = new GameObject("Sun");
+                sunObject.transform.SetParent(root.transform);
+                Light sun = sunObject.AddComponent<Light>();
+                sun.type = LightType.Directional;
+
+                var moonObject = new GameObject("Moon");
+                moonObject.transform.SetParent(root.transform);
+                Light moon = moonObject.AddComponent<Light>();
+                moon.type = LightType.Directional;
+
+                var streamerObject = new GameObject("Streamer");
+                streamerObject.transform.SetParent(root.transform);
+                CityStreamer streamer = streamerObject.AddComponent<CityStreamer>();
+                streamer.WorldSeed = WorldSeed;
+                streamer.GroundMaterial = ground;
+                streamer.PavementMaterial = pavement;
+                streamer.StructureMaterial = structure;
+                streamer.Rebuild();
+
+                var cameraObject = new GameObject("Camera");
+                cameraObject.transform.SetParent(root.transform);
+                Camera camera = cameraObject.AddComponent<Camera>();
+                camera.farClipPlane = 3000.0f;
+                camera.nearClipPlane = 0.2f;
+                camera.clearFlags = CameraClearFlags.SolidColor;
+
+                var cycleObject = new GameObject("Cycle");
+                cycleObject.transform.SetParent(root.transform);
+                DayNightCycle cycle = cycleObject.AddComponent<DayNightCycle>();
+                cycle.Sun = sun;
+                cycle.Moon = moon;
+                cycle.Sky = camera;
+                cycle.Running = false;
+
+                RenderSettings.fog = true;
+                RenderSettings.fogMode = FogMode.Linear;
+                RenderSettings.fogStartDistance = 140.0f;
+                RenderSettings.fogEndDistance = 330.0f;
+
+                TerrainField terrain = new TerrainField(WorldSeed);
+                float streetLevel = terrain.PadHeightFor(0, 0);
+                float chunk = CityLayout.ChunkSize;
+                var eye = new Vector3(chunk * 0.5f, streetLevel + 1.7f, chunk * 4.5f);
+                var look = new Vector3(-10.0f, 0.0f, 0.0f);
+
+                (string name, float time)[] moments =
+                {
+                    ("time-morning", SkyCycle.StartSeconds),
+                    ("time-noon", SkyCycle.DaySeconds * 0.5f),
+                    ("time-sunset", SkyCycle.DaySeconds),
+                    ("time-night", SkyCycle.DaySeconds + SkyCycle.NightSeconds * 0.5f),
+                };
+
+                foreach ((string name, float time) in moments)
+                {
+                    cycle.Apply(SkyCycle.At(time));
+                    Shoot(streamer, camera, outputDirectory, name, eye, look, 20);
+                }
+
+                Debug.Log($"CityX: day-night shots written to {outputDirectory}");
+            }
+            finally
+            {
+                RenderSettings.fog = previousFog;
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        /// <summary>
         /// Finds the sharpest terrace drop along a street near the origin and
         /// photographs it from the low side, looking up at the wall.
         ///
