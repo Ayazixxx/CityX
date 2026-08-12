@@ -35,11 +35,29 @@ namespace CityX.View
 
         /// <summary>
         /// One quad, wound so its front face points along <paramref name="normal"/>.
-        /// Corners must be given in order around the perimeter.
+        /// Corners must be given in order around the perimeter, but EITHER WAY
+        /// ROUND -- the winding is corrected here rather than trusted.
+        ///
+        /// IT USED TO BE TRUSTED, AND FIVE OF ADDBOX'S SIX FACES WERE BACKWARDS.
+        /// Only the roof was right, so every wall, kerb and walkway deck in the
+        /// city was rasterised inside out. That is close to invisible on a
+        /// closed box -- you see the far wall's inner surface, which fills the
+        /// same silhouette -- but it lights each face by a normal pointing away
+        /// from the camera, and it puts the far wall's depth in the buffer, so
+        /// anything INSIDE a building draws in front of the building. The
+        /// convention was settled by rendering a quad each way round with
+        /// back-face culling on: the visible one is the one whose
+        /// Cross(b - a, c - a) points at the camera.
         /// </summary>
         public void AddQuad(Vector3 a, Vector3 b, Vector3 c, Vector3 d, Vector3 normal,
             Vector2 uvA, Vector2 uvB, Vector2 uvC, Vector2 uvD)
         {
+            if (Vector3.Dot(Vector3.Cross(b - a, c - a), normal) < 0.0f)
+            {
+                (b, d) = (d, b);
+                (uvB, uvD) = (uvD, uvB);
+            }
+
             int start = Vertices.Count;
 
             Vertices.Add(a);

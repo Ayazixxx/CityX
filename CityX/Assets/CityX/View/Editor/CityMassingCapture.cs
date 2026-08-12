@@ -116,6 +116,7 @@ namespace CityX.ViewEditor
                 // of it, so this hunts for the biggest step in the area and
                 // frames that rather than hoping one lands in shot.
                 ShootTerraceEdge(streamer, camera, outputDirectory, terrain);
+                ShootInterior(streamer, camera, outputDirectory);
 
                 Debug.Log($"CityX: massing shots written to {outputDirectory}");
             }
@@ -400,6 +401,78 @@ namespace CityX.ViewEditor
 
             Debug.Log($"CityX: terrace shot at chunk ({bestX},{bestY}), a {bestDrop}m step");
             Shoot(streamer, camera, directory, "terrace", position, new Vector3(-6.0f, 0.0f, 0.0f), 14);
+        }
+
+        /// <summary>
+        /// Inside a building: the lobby, and the top of a flight.
+        ///
+        /// A BUILDING BEING ENTERABLE IS EXACTLY THE THING A SKYLINE SHOT
+        /// CANNOT SHOW. From the street a hollow building and a solid one are
+        /// the same picture. These two stand in the doorway and on the first
+        /// landing, which is the only way to see whether the floor is really
+        /// there, whether the stairwell lines up with the opening above it,
+        /// and whether the walls face inward.
+        /// </summary>
+        private static void ShootInterior(CityStreamer streamer, Camera camera, string directory)
+        {
+            var world = new CityWorld(WorldSeed);
+
+            // A wide, low-ish building near the origin: a tower's ground floor
+            // is a room you cannot see the far wall of.
+            BuildingSite chosen = default;
+            float best = float.MaxValue;
+            for (int x = -6; x <= 6; x++)
+            {
+                for (int y = -6; y <= 6; y++)
+                {
+                    BuildingSite site = world.BuildingAt(x, y);
+                    if (!site.Exists || site.AnchorX != x || site.AnchorY != y ||
+                        site.Params.Width < 14.0f || site.Params.Depth < 14.0f)
+                    {
+                        continue;
+                    }
+                    float distance = x * x + y * y + site.Params.Height * 0.02f;
+                    if (distance < best)
+                    {
+                        best = distance;
+                        chosen = site;
+                    }
+                }
+            }
+
+            if (!chosen.Exists)
+            {
+                Debug.LogWarning("CityX: no building near the origin big enough to stand inside.");
+                return;
+            }
+
+            float storey = BuildingInterior.StoreyHeight(chosen.Params.Height);
+            int floors = BuildingInterior.FloorCountFor(chosen.Params.Height);
+            Debug.Log($"CityX: interior shot inside ({chosen.AnchorX},{chosen.AnchorY}), "
+                      + $"{chosen.Params.Width:0}x{chosen.Params.Depth:0}m, {floors} floors, "
+                      + $"{storey:0.0}m per storey");
+
+            // Just inside the door, which is centred on the wall at maximum Z,
+            // looking back into the room the way somebody walking in would.
+            var doorway = new Vector3(
+                (float)chosen.CentreX, chosen.BaseHeight + 1.7f, (float)chosen.MaxZ - 1.5f);
+            Shoot(streamer, camera, directory, "interior-lobby", doorway,
+                new Vector3(4.0f, 180.0f, 0.0f), 6);
+
+            // On the first floor, looking down its own stairwell at the flight
+            // that got you there.
+            float run = BuildingInterior.RunFor(
+                chosen.Params.Width * 0.5f, chosen.Params.Depth * 0.5f);
+            BuildingInterior.Stairwell well = BuildingInterior.StairwellFor(
+                0, chosen.Params.Width * 0.5f, chosen.Params.Depth * 0.5f, run);
+            Vector3 foot = well.FootOf(run);
+            var landing = new Vector3(
+                (float)chosen.CentreX + foot.x,
+                chosen.BaseHeight + storey + 1.7f,
+                (float)chosen.CentreZ + foot.z);
+            Shoot(streamer, camera, directory, "interior-stairs", landing,
+                new Vector3(24.0f, Mathf.Atan2(-well.RunDirection.x, -well.RunDirection.z)
+                                   * Mathf.Rad2Deg, 0.0f), 6);
         }
 
         private static void Shoot(CityStreamer streamer, Camera camera, string directory, string name,

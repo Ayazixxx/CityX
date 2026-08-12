@@ -174,22 +174,261 @@ namespace CityX.View
                 new Vector2(0, 0), new Vector2(width, 0), new Vector2(width, height), new Vector2(0, height));
         }
 
+        /// <summary>
+        /// One building: a facade you can see from the street and a stack of
+        /// floors you can walk up inside it.
+        ///
+        /// NOT A SOLID BOX ANY MORE. It used to be one AddBox, which is all a
+        /// skyline needs -- but city_chunk.gd's buildings are enterable, with
+        /// a door, floor slabs, a stairwell hole through each slab and a
+        /// flight climbing to it, and the roof cap is holed so the top flight
+        /// actually gets you out onto the roof. This is that, ported.
+        ///
+        /// WHAT GOES IN WHICH BUFFER. Only the outward facade goes to
+        /// structures, because structures is the buffer wearing the window
+        /// material. Everything inside -- interior walls, slabs, steps --
+        /// goes to the concrete buffer, which is the closest two buffers get
+        /// to city_chunk.gd's own separate INTERIOR_COLOR/INTERIOR_FLOOR_COLOR
+        /// materials. Printing windows down the inside of a stairwell would
+        /// be the same mistake as printing them across a roof.
+        ///
+        /// COLLISION COMES FREE AND IS NOT THE SAME AS GODOT'S. The chunk gets
+        /// one MeshCollider over exactly these triangles, so there is no
+        /// separate collision pass to keep in step -- which is the whole
+        /// reason city_chunk.gd builds its interior wall by wall. It does mean
+        /// the steps are collided individually rather than as Godot's single
+        /// sloped ramp box; at a 0.25m riser against the controller's 0.4m
+        /// step offset that walks, and it is a truer surface than the ramp.
+        /// </summary>
         private static void BuildBuilding(BuildingSite site, Vector3 origin, MeshBuffer structures,
-            MeshBuffer roofs)
+            MeshBuffer concrete)
         {
-            // One box from the podium base to the roof. The stretch below
-            // BaseHeight is buried on the uphill side and exposed downhill,
-            // which is what a hillside podium actually is.
-            Vector3 min = new Vector3(
-                (float)(site.MinX - origin.x),
-                site.PodiumBase - origin.y,
-                (float)(site.MinZ - origin.z));
-            Vector3 max = new Vector3(
-                (float)(site.MaxX - origin.x),
-                site.Top - origin.y,
-                (float)(site.MaxZ - origin.z));
+            // The stretch below BaseHeight is buried on the uphill side and
+            // exposed downhill, which is what a hillside podium actually is.
+            float x0 = (float)(site.MinX - origin.x);
+            float x1 = (float)(site.MaxX - origin.x);
+            float z0 = (float)(site.MinZ - origin.z);
+            float z1 = (float)(site.MaxZ - origin.z);
+            float podiumY = site.PodiumBase - origin.y;
+            float lobbyY = site.BaseHeight - origin.y;
 
-            structures.AddBox(min, max, roofs);
+            float height = site.Params.Height;
+            float storey = BuildingInterior.StoreyHeight(height);
+            int floors = BuildingInterior.FloorCountFor(height);
+            float halfX = site.Params.Width * 0.5f;
+            float halfZ = site.Params.Depth * 0.5f;
+            float run = BuildingInterior.RunFor(halfX, halfZ);
+            float centreX = (x0 + x1) * 0.5f;
+            float centreZ = (z0 + z1) * 0.5f;
+            float roofY = lobbyY + height;
+
+            // The doorway, centred on the wall at maximum Z -- city_chunk.gd's
+            // own door wall -- and standing on the lobby floor.
+            float doorU0 = centreX - BuildingInterior.DoorWidth * 0.5f;
+            float doorU1 = centreX + BuildingInterior.DoorWidth * 0.5f;
+            float doorTop = lobbyY + BuildingInterior.DoorHeight(height);
+
+            var west = new Wall(true, x0, z0, z1);
+            var east = new Wall(true, x1, z0, z1);
+            var south = new Wall(false, z0, x0, x1);
+            var north = new Wall(false, z1, x0, x1);
+
+            // Outward, for the street. The podium is part of the same span, so
+            // a building on a slope still has a face all the way down.
+            AddWallPanel(structures, west, z0, z1, podiumY, roofY, Vector3.left);
+            AddWallPanel(structures, east, z0, z1, podiumY, roofY, Vector3.right);
+            AddWallPanel(structures, south, x0, x1, podiumY, roofY, Vector3.back);
+            AddWallAround(structures, north, podiumY, roofY, Vector3.forward,
+                doorU0, doorU1, lobbyY, doorTop);
+
+            // Inward, for the room. Same planes, opposite normals -- back to
+            // back, so neither is ever seen from the wrong side.
+            AddWallPanel(concrete, west, z0, z1, lobbyY, roofY, Vector3.right);
+            AddWallPanel(concrete, east, z0, z1, lobbyY, roofY, Vector3.left);
+            AddWallPanel(concrete, south, x0, x1, lobbyY, roofY, Vector3.forward);
+            AddWallAround(concrete, north, lobbyY, roofY, Vector3.back,
+                doorU0, doorU1, lobbyY, doorTop);
+
+            // The lobby floor, and NOT a port: city_chunk.gd leans on the
+            // chunk's own ground body for the ground floor. Here the podium is
+            // hollow and the box has no underside, so without this you walk in
+            // the door and fall down the inside of the podium. It is solid --
+            // no hole -- because nothing in this port goes below it yet.
+            AddSlabFace(concrete, x0, x1, z0, z1, Rect.zero, lobbyY, Vector3.up);
+
+            for (int floor = 0; floor < floors; floor++)
+            {
+                float bottom = floor * storey;
+                float top = BuildingInterior.FloorTop(floor, floors, height, storey);
+                BuildingInterior.Stairwell well =
+                    BuildingInterior.StairwellFor(floor, halfX, halfZ, run);
+                Rect hole = new Rect(well.Hole.x + centreX, well.Hole.y + centreZ,
+                    well.Hole.width, well.Hole.height);
+
+                // This floor's ceiling. The last one is the roof itself, holed
+                // exactly like the rest -- that opening is how the top flight
+                // gets you outside.
+                AddSlab(concrete, x0, x1, z0, z1, hole, lobbyY + top);
+
+                foreach (BuildingInterior.Step step in
+                         BuildingInterior.Steps(well, run, lobbyY + bottom, top - bottom))
+                {
+                    Vector3 half = step.Size * 0.5f;
+                    Vector3 centre = new Vector3(
+                        step.Centre.x + centreX, step.Centre.y, step.Centre.z + centreZ);
+                    concrete.AddBox(centre - half, centre + half);
+                }
+            }
+        }
+
+        /// <summary>
+        /// One axis-aligned wall plane and the mapping from "along the wall"
+        /// to world, which is city_chunk.gd's own to_world callable. Wall
+        /// geometry is written once against this rather than four times
+        /// against hand-derived signs, which is where that file's own
+        /// comments say the sign errors came from.
+        /// </summary>
+        private readonly struct Wall
+        {
+            /// <summary>True if the wall stands at a fixed X and runs in Z.</summary>
+            public readonly bool RunsInZ;
+
+            /// <summary>The wall's own X, or its own Z.</summary>
+            public readonly float Plane;
+
+            public readonly float U0;
+            public readonly float U1;
+
+            public Wall(bool runsInZ, float plane, float u0, float u1)
+            {
+                RunsInZ = runsInZ;
+                Plane = plane;
+                U0 = u0;
+                U1 = u1;
+            }
+
+            public Vector3 At(float u, float y)
+            {
+                return RunsInZ ? new Vector3(Plane, y, u) : new Vector3(u, y, Plane);
+            }
+        }
+
+        private static void AddWallPanel(MeshBuffer buffer, in Wall wall,
+            float u0, float u1, float y0, float y1, Vector3 normal)
+        {
+            // A panel squeezed to nothing is normal here, not an error: a
+            // doorway reaching a wall's edge leaves no strip beside it.
+            if (u1 - u0 <= 0.0001f || y1 - y0 <= 0.0001f)
+            {
+                return;
+            }
+            AddFace(buffer, normal,
+                wall.At(u0, y0), wall.At(u1, y0), wall.At(u1, y1), wall.At(u0, y1));
+        }
+
+        /// <summary>A wall with a rectangular opening in it: strips each side, a sill and a header.</summary>
+        private static void AddWallAround(MeshBuffer buffer, in Wall wall, float y0, float y1,
+            Vector3 normal, float holeU0, float holeU1, float holeY0, float holeY1)
+        {
+            AddWallPanel(buffer, wall, wall.U0, holeU0, y0, y1, normal);
+            AddWallPanel(buffer, wall, holeU1, wall.U1, y0, y1, normal);
+            AddWallPanel(buffer, wall, holeU0, holeU1, y0, holeY0, normal);
+            AddWallPanel(buffer, wall, holeU0, holeU1, holeY1, y1, normal);
+        }
+
+        /// <summary>
+        /// A floor slab with real thickness and a stairwell hole through it.
+        ///
+        /// THE THICKNESS IS NOT DECORATION. Two coincident faces at one y let
+        /// the staircase from the floor above bleed through what should read
+        /// as a solid ceiling -- confirmed in a screenshot in the Godot build,
+        /// not argued about -- so the underside sits a slab below the walkable
+        /// top and a collar closes the gap around the opening.
+        /// </summary>
+        private static void AddSlab(MeshBuffer buffer, float x0, float x1, float z0, float z1,
+            Rect hole, float topY)
+        {
+            float bottomY = topY - BuildingInterior.SlabThickness;
+            AddSlabFace(buffer, x0, x1, z0, z1, hole, topY, Vector3.up);
+            AddSlabFace(buffer, x0, x1, z0, z1, hole, bottomY, Vector3.down);
+
+            // The hole's own inner edges, facing into the opening, which is the
+            // only side anyone ever sees them from.
+            AddFace(buffer, Vector3.right,
+                new Vector3(hole.xMin, bottomY, hole.yMin), new Vector3(hole.xMin, bottomY, hole.yMax),
+                new Vector3(hole.xMin, topY, hole.yMax), new Vector3(hole.xMin, topY, hole.yMin));
+            AddFace(buffer, Vector3.left,
+                new Vector3(hole.xMax, bottomY, hole.yMin), new Vector3(hole.xMax, bottomY, hole.yMax),
+                new Vector3(hole.xMax, topY, hole.yMax), new Vector3(hole.xMax, topY, hole.yMin));
+            AddFace(buffer, Vector3.forward,
+                new Vector3(hole.xMin, bottomY, hole.yMin), new Vector3(hole.xMax, bottomY, hole.yMin),
+                new Vector3(hole.xMax, topY, hole.yMin), new Vector3(hole.xMin, topY, hole.yMin));
+            AddFace(buffer, Vector3.back,
+                new Vector3(hole.xMin, bottomY, hole.yMax), new Vector3(hole.xMax, bottomY, hole.yMax),
+                new Vector3(hole.xMax, topY, hole.yMax), new Vector3(hole.xMin, topY, hole.yMax));
+        }
+
+        /// <summary>
+        /// One face of a slab, as up to four strips around its opening. The
+        /// Rect is in X and Z, so its own y is a z. Ported from
+        /// _add_floor_with_hole: east and west take the slab's full depth and
+        /// north and south fill only what is left between them, so no strip is
+        /// ever emitted twice.
+        /// </summary>
+        private static void AddSlabFace(MeshBuffer buffer, float x0, float x1, float z0, float z1,
+            Rect hole, float y, Vector3 normal)
+        {
+            float hx0 = Mathf.Clamp(hole.xMin, x0, x1);
+            float hx1 = Mathf.Clamp(hole.xMax, x0, x1);
+            float hz0 = Mathf.Clamp(hole.yMin, z0, z1);
+            float hz1 = Mathf.Clamp(hole.yMax, z0, z1);
+
+            if (hole.width <= 0.0f || hole.height <= 0.0f)
+            {
+                // No opening at all, so one quad rather than four strips.
+                AddFace(buffer, normal, new Vector3(x0, y, z0), new Vector3(x1, y, z0),
+                    new Vector3(x1, y, z1), new Vector3(x0, y, z1));
+                return;
+            }
+
+            AddQuadIfReal(buffer, normal, x0, hx0, z0, z1, y);
+            AddQuadIfReal(buffer, normal, hx1, x1, z0, z1, y);
+            AddQuadIfReal(buffer, normal, hx0, hx1, z0, hz0, y);
+            AddQuadIfReal(buffer, normal, hx0, hx1, hz1, z1, y);
+        }
+
+        private static void AddQuadIfReal(MeshBuffer buffer, Vector3 normal,
+            float x0, float x1, float z0, float z1, float y)
+        {
+            if (x1 - x0 <= 0.0001f || z1 - z0 <= 0.0001f)
+            {
+                return;
+            }
+            AddFace(buffer, normal, new Vector3(x0, y, z0), new Vector3(x1, y, z0),
+                new Vector3(x1, y, z1), new Vector3(x0, y, z1));
+        }
+
+        /// <summary>
+        /// A quad UV'd in metres from the two world axes it actually lies in,
+        /// so a floor slab and a stair riser read at the same scale as the
+        /// street outside without anyone working out coordinates by hand.
+        ///
+        /// Corner order does not matter -- AddQuad winds to the normal.
+        /// </summary>
+        private static void AddFace(MeshBuffer buffer, Vector3 normal,
+            Vector3 a, Vector3 b, Vector3 c, Vector3 d)
+        {
+            buffer.AddQuad(a, b, c, d, normal,
+                Uv(a, normal), Uv(b, normal), Uv(c, normal), Uv(d, normal));
+        }
+
+        private static Vector2 Uv(Vector3 v, Vector3 normal)
+        {
+            if (Mathf.Abs(normal.y) > 0.5f)
+            {
+                return new Vector2(v.x, v.z);
+            }
+            return Mathf.Abs(normal.x) > 0.5f ? new Vector2(v.z, v.y) : new Vector2(v.x, v.y);
         }
 
         private static void BuildBridges(CityWorld world, SkybridgeLayout bridges, BuildingSite site,

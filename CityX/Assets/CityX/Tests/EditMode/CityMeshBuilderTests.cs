@@ -359,6 +359,279 @@ namespace CityX.Tests
             Assert.Greater(decks, 30, "not enough walkways sampled");
         }
 
+        /// <summary>
+        /// EVERY FACE IS WOUND TO FACE THE WAY IT SAYS IT DOES.
+        ///
+        /// This one exists because it was already false. Five of AddBox's six
+        /// faces were wound backwards -- every wall, kerb and walkway deck in
+        /// the city -- and it went unnoticed for exactly the reason a test is
+        /// needed here: an inside-out closed box still fills the same
+        /// silhouette, so the city looked like a city. What it actually did
+        /// was light each surface by a normal pointing away from the camera
+        /// and leave the FAR wall's depth in the buffer, which is invisible
+        /// until something is put inside the building -- and then the stairs
+        /// draw in front of the facade.
+        ///
+        /// The convention was settled by rendering a quad each way round with
+        /// back-face culling on rather than by reasoning about handedness: the
+        /// visible one is the one whose Cross(b - a, c - a) points at the
+        /// camera, along the outward normal.
+        /// </summary>
+        [Test]
+        public void EveryFaceIsWoundTheWayItsNormalClaims()
+        {
+            int triangles = 0;
+
+            for (int x = -8; x <= 8; x++)
+            {
+                for (int y = -8; y <= 8; y++)
+                {
+                    Build(x, y, out MeshBuffer ground, out MeshBuffer pavement, out MeshBuffer structures);
+                    foreach (MeshBuffer buffer in new[] { ground, pavement, structures })
+                    {
+                        for (int t = 0; t + 2 < buffer.Triangles.Count; t += 3)
+                        {
+                            Vector3 a = buffer.Vertices[buffer.Triangles[t]];
+                            Vector3 b = buffer.Vertices[buffer.Triangles[t + 1]];
+                            Vector3 c = buffer.Vertices[buffer.Triangles[t + 2]];
+                            Vector3 stated = buffer.Normals[buffer.Triangles[t]];
+
+                            float facing = Vector3.Dot(Vector3.Cross(b - a, c - a), stated);
+                            Assert.Greater(facing, 0.0f,
+                                $"chunk ({x},{y}) has a triangle claiming to face {stated} that is "
+                                + "wound the other way -- it renders from behind and writes the "
+                                + "wrong surface's depth");
+                            triangles++;
+                        }
+                    }
+                }
+            }
+
+            TestContext.WriteLine($"{triangles} triangles checked");
+            Assert.Greater(triangles, 10000, "not enough geometry in the sweep to mean anything");
+        }
+
+        /// <summary>
+        /// THE DOOR IS A REAL HOLE, not a painted-on rectangle. Measured as
+        /// area rather than by looking for missing vertices, because a wall
+        /// built as four strips around an opening has vertices ON the
+        /// opening's edge either way -- only the area tells them apart.
+        /// </summary>
+        [Test]
+        public void TheFrontWallHasADoorwayMissingFromIt()
+        {
+            CityWorld world = new CityWorld(Seed);
+            int checkedCount = 0;
+
+            for (int x = -12; x <= 12; x++)
+            {
+                for (int y = -12; y <= 12; y++)
+                {
+                    BuildingSite site = world.BuildingAt(x, y);
+                    if (!site.Exists || site.AnchorX != x || site.AnchorY != y)
+                    {
+                        continue;
+                    }
+                    checkedCount++;
+
+                    Build(x, y, out _, out _, out MeshBuffer structures);
+
+                    // The whole wall, if it were solid, against what was built.
+                    float wallHeight = site.Top - site.PodiumBase;
+                    float solid = site.Params.Width * wallHeight;
+                    float doorway = BuildingInterior.DoorWidth * BuildingInterior.DoorHeight(site.Params.Height);
+                    float built = AreaInPlane(structures, (float)site.MaxZ, 2, Rect.zero, Rect.zero);
+
+                    Assert.AreEqual(solid - doorway, built, 0.05f,
+                        $"({x},{y})'s front wall came out {built:0.00}m2 against a solid "
+                        + $"{solid:0.00}m2 less a {doorway:0.00}m2 doorway -- there is no way in");
+                }
+            }
+
+            Assert.Greater(checkedCount, 40, "not enough buildings sampled");
+        }
+
+        /// <summary>
+        /// A FLOOR TO STAND ON AT EVERY STOREY, and the roof opened for the
+        /// top flight. Without the opening the last staircase climbs into a
+        /// solid ceiling and the roof is unreachable.
+        /// </summary>
+        [Test]
+        public void EveryStoreyGetsAFloorAndTheRoofGetsItsStairwell()
+        {
+            CityWorld world = new CityWorld(Seed);
+            int checkedCount = 0;
+
+            for (int x = -12; x <= 12; x++)
+            {
+                for (int y = -12; y <= 12; y++)
+                {
+                    BuildingSite site = world.BuildingAt(x, y);
+                    if (!site.Exists || site.AnchorX != x || site.AnchorY != y)
+                    {
+                        continue;
+                    }
+                    checkedCount++;
+
+                    Build(x, y, out _, out MeshBuffer concrete, out _);
+
+                    float height = site.Params.Height;
+                    float storey = BuildingInterior.StoreyHeight(height);
+                    int floors = BuildingInterior.FloorCountFor(height);
+                    float footprint = site.Params.Width * site.Params.Depth;
+
+                    var plan = Rect.MinMaxRect((float)site.MinX, (float)site.MinZ,
+                        (float)site.MaxX, (float)site.MaxZ);
+
+                    // The lobby, which is solid: nothing in this port goes below it.
+                    Assert.AreEqual(footprint,
+                        AreaInPlane(concrete, site.BaseHeight, 1, plan, Rect.zero), 0.05f,
+                        $"({x},{y}) has no lobby floor -- you walk in the door and fall down "
+                        + "the inside of the podium");
+
+                    float run = BuildingInterior.RunFor(
+                        site.Params.Width * 0.5f, site.Params.Depth * 0.5f);
+
+                    for (int floor = 0; floor < floors; floor++)
+                    {
+                        float top = site.BaseHeight
+                                    + BuildingInterior.FloorTop(floor, floors, height, storey);
+                        Rect local = BuildingInterior.StairwellFor(
+                            floor, site.Params.Width * 0.5f, site.Params.Depth * 0.5f, run).Hole;
+                        var hole = new Rect(
+                            local.x + (float)site.CentreX, local.y + (float)site.CentreZ,
+                            local.width, local.height);
+
+                        // THE OPENING IS EXCLUDED, not just subtracted. The
+                        // topmost step's tread lands flush with the storey
+                        // above -- that is the landing you step off onto --
+                        // so it lies in this exact plane, inside the hole.
+                        // Measuring the slab means measuring outside it.
+                        Assert.AreEqual(footprint - hole.width * hole.height,
+                            AreaInPlane(concrete, top, 1, plan, hole), 0.05f,
+                            $"({x},{y}) floor {floor}'s ceiling is not the footprint with its "
+                            + "stairwell taken out of it");
+                    }
+                }
+            }
+
+            Assert.Greater(checkedCount, 40, "not enough buildings sampled");
+        }
+
+        /// <summary>
+        /// What the staircases actually cost, pinned rather than guessed at.
+        ///
+        /// THE TOP FLOOR SWALLOWS WHATEVER THE FLOOR CAP LEFT OVER, which is
+        /// city_chunk.gd's own rule and is carried across unchanged. Nearly two
+        /// thirds of this city hits that cap, so nearly two thirds of its
+        /// buildings have a top floor several times taller than any other, and
+        /// a flight of steps that climbs all of it at a real 0.25m riser. That
+        /// is where almost all of this number comes from. It is pinned here so
+        /// that changing the rule -- which is a design call, not a porting one
+        /// -- shows up as a number moving rather than as a vague feeling that
+        /// the city got heavier.
+        /// </summary>
+        [Test]
+        public void TheStairsAreAKnownCostRatherThanASurprise()
+        {
+            CityWorld world = new CityWorld(Seed);
+            long steps = 0;
+            int buildings = 0;
+            int capped = 0;
+            int worst = 0;
+
+            for (int x = -20; x <= 20; x++)
+            {
+                for (int y = -20; y <= 20; y++)
+                {
+                    BuildingSite site = world.BuildingAt(x, y);
+                    if (!site.Exists || site.AnchorX != x || site.AnchorY != y)
+                    {
+                        continue;
+                    }
+                    buildings++;
+
+                    float height = site.Params.Height;
+                    float storey = BuildingInterior.StoreyHeight(height);
+                    int floors = BuildingInterior.FloorCountFor(height);
+                    if (floors == BuildingInterior.MaxFloors)
+                    {
+                        capped++;
+                    }
+
+                    int here = 0;
+                    for (int floor = 0; floor < floors; floor++)
+                    {
+                        here += BuildingInterior.StepsFor(
+                            BuildingInterior.FloorTop(floor, floors, height, storey) - floor * storey);
+                    }
+                    steps += here;
+                    worst = Mathf.Max(worst, here);
+                }
+            }
+
+            float mean = steps / (float)buildings;
+            TestContext.WriteLine($"{buildings} buildings, {capped} at the floor cap");
+            TestContext.WriteLine($"{steps} steps, {mean:0} per building, worst {worst}");
+
+            Assert.Greater(capped / (float)buildings, 0.5f,
+                "most of this city used to hit the floor cap; if that stopped being true the "
+                + "top-floor rule is worth another look");
+            Assert.Less(mean, 400.0f,
+                $"a building averages {mean:0} steps, which is {mean * 10:0} triangles of "
+                + "staircase each -- something made the top floor taller still");
+        }
+
+        /// <summary>
+        /// Area of every face lying in one axis plane and facing along it.
+        /// <paramref name="axis"/> is 0 for X, 1 for Y, 2 for Z.
+        ///
+        /// Both rectangles are in X and Z, and an empty one means no filter.
+        /// <paramref name="within"/> keeps the measurement to one building --
+        /// skybridges land on whole storeys, so a neighbour's walkway deck can
+        /// sit in the exact plane of this building's floor and be counted as
+        /// floor. <paramref name="exclude"/> drops the stairwell opening.
+        /// </summary>
+        private static float AreaInPlane(MeshBuffer buffer, float at, int axis,
+            Rect within, Rect exclude)
+        {
+            float total = 0.0f;
+            for (int t = 0; t + 2 < buffer.Triangles.Count; t += 3)
+            {
+                Vector3 a = buffer.Vertices[buffer.Triangles[t]];
+                Vector3 b = buffer.Vertices[buffer.Triangles[t + 1]];
+                Vector3 c = buffer.Vertices[buffer.Triangles[t + 2]];
+                if (Mathf.Abs(a[axis] - at) > 0.001f ||
+                    Mathf.Abs(b[axis] - at) > 0.001f ||
+                    Mathf.Abs(c[axis] - at) > 0.001f)
+                {
+                    continue;
+                }
+
+                // Only the side that faces out of the plane, or a slab's own
+                // underside would be counted along with its top.
+                if (buffer.Normals[buffer.Triangles[t]][axis] <= 0.0f)
+                {
+                    continue;
+                }
+
+                Vector3 centroid = (a + b + c) / 3.0f;
+                if (Covers(exclude, centroid) || (within.width > 0.0f && !Covers(within, centroid)))
+                {
+                    continue;
+                }
+                total += Vector3.Cross(b - a, c - a).magnitude * 0.5f;
+            }
+            return total;
+        }
+
+        private static bool Covers(Rect area, Vector3 point)
+        {
+            return area.width > 0.0f &&
+                   point.x > area.xMin && point.x < area.xMax &&
+                   point.z > area.yMin && point.z < area.yMax;
+        }
+
         private static Bounds BoundsOf(MeshBuffer buffer)
         {
             Bounds bounds = new Bounds(buffer.Vertices[0], Vector3.zero);

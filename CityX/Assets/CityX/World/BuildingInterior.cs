@@ -47,6 +47,53 @@ namespace CityX.World
         public const float StairStepHeight = 0.25f;
 
         /// <summary>
+        /// A storey, in window rows. city_chunk.gd's STORY_HEIGHT_FLOORS.
+        ///
+        /// Measured in ROWS rather than metres so a floor always lands on the
+        /// same grid the facade is divided by. A storey given in metres would
+        /// put a slab through the middle of a window on most buildings.
+        /// </summary>
+        public const int StoreyHeightRows = 2;
+
+        /// <summary>DOOR_HEIGHT_FLOORS. One row, for the same reason.</summary>
+        public const int DoorHeightRows = 1;
+
+        /// <summary>DOOR_WIDTH.</summary>
+        public const float DoorWidth = 1.6f;
+
+        /// <summary>
+        /// Slab and wall thickness, city_chunk.gd's WALL_THICKNESS.
+        ///
+        /// A slab has real thickness rather than being one flat sheet: two
+        /// coincident faces at the same y let the staircase from the floor
+        /// above bleed through what should read as a solid ceiling, which was
+        /// confirmed in a screenshot rather than argued about.
+        /// </summary>
+        public const float SlabThickness = 0.2f;
+
+        /// <summary>The facade's own window-row height for a building this tall.</summary>
+        public static float RowHeight(float buildingHeight)
+        {
+            return CellLayout.For(buildingHeight, CellLayout.NominalFloorMetres).Size;
+        }
+
+        public static float StoreyHeight(float buildingHeight)
+        {
+            return RowHeight(buildingHeight) * StoreyHeightRows;
+        }
+
+        public static float DoorHeight(float buildingHeight)
+        {
+            return RowHeight(buildingHeight) * DoorHeightRows;
+        }
+
+        /// <summary>How many floors a building this tall gets.</summary>
+        public static int FloorCountFor(float buildingHeight)
+        {
+            return FloorCount(buildingHeight, StoreyHeight(buildingHeight));
+        }
+
+        /// <summary>
         /// How many floors fit in a building of this height, capped.
         /// </summary>
         public static int FloorCount(float height, float storyHeight)
@@ -56,6 +103,26 @@ namespace CityX.World
                 return 1;
             }
             return Mathf.Clamp(Mathf.FloorToInt(height / storyHeight), 1, MaxFloors);
+        }
+
+        /// <summary>
+        /// The ceiling of one floor, above the building's own base.
+        ///
+        /// THE TOP FLOOR SWALLOWS EVERYTHING THE CAP LEFT OVER, which is what
+        /// _build_interior does -- "size.y if is_top". On an ordinary building
+        /// that is a few metres of extra headroom. On anything that hits
+        /// MaxFloors it is every metre above the seventh storey, so the top
+        /// floor of a supertall is a single room hundreds of metres tall with
+        /// a staircase climbing all of it. That is carried across as-is
+        /// because it is what the Godot build does; see the callers for what
+        /// it costs.
+        /// </summary>
+        public static float FloorTop(int floorIndex, int floorCount, float buildingHeight,
+            float storeyHeight)
+        {
+            return floorIndex >= floorCount - 1
+                ? buildingHeight
+                : (floorIndex + 1) * storeyHeight;
         }
 
         /// <summary>
@@ -129,7 +196,16 @@ namespace CityX.World
             /// <summary>The middle of the box, including its own height.</summary>
             public readonly Vector3 Centre;
 
-            /// <summary>Width across the flight, height, and tread depth.</summary>
+            /// <summary>
+            /// The box's full size, in WORLD AXES.
+            ///
+            /// _add_staircase orients each step by the flight's own basis and
+            /// sizes it (width, height, tread) in that basis. Every flight in
+            /// this city runs along a world axis, so the same box is an
+            /// axis-aligned one -- which is what a mesh buffer wants, and
+            /// which cannot be silently misread as world XYZ the way a
+            /// flight-local size can.
+            /// </summary>
             public readonly Vector3 Size;
 
             public Step(Vector3 centre, Vector3 size)
@@ -156,15 +232,27 @@ namespace CityX.World
             float depth = run / count;
             var steps = new Step[count];
 
+            // The flight's own two horizontal axes, as world extents. Both are
+            // axis-aligned unit vectors at right angles, so adding them gives
+            // exactly the box's X and Z size whichever way round the flight
+            // happens to run.
+            Vector3 across = Abs(well.WidthDirection) * StairWidth;
+            Vector3 alongRun = Abs(well.RunDirection);
+
             for (int i = 0; i < count; i++)
             {
                 float height = rise * (count - i) / count;
-                Vector3 along = well.WallPoint + well.RunDirection * (depth * i + depth * 0.5f);
+                Vector3 at = well.WallPoint + well.RunDirection * (depth * i + depth * 0.5f);
                 steps[i] = new Step(
-                    new Vector3(along.x, floorY + height * 0.5f, along.z),
-                    new Vector3(StairWidth, height, depth));
+                    new Vector3(at.x, floorY + height * 0.5f, at.z),
+                    across + alongRun * depth + new Vector3(0.0f, height, 0.0f));
             }
             return steps;
+        }
+
+        private static Vector3 Abs(Vector3 v)
+        {
+            return new Vector3(Mathf.Abs(v.x), Mathf.Abs(v.y), Mathf.Abs(v.z));
         }
 
         /// <summary>
