@@ -8,6 +8,7 @@
         "CityX.World",
         "CityX.View",
         "CityX.Character",
+        "CityX.Character.Editor",
         "CityX.UI",
         "UnityEngine.UI"
     ],

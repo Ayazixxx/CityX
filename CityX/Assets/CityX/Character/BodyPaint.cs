@@ -58,6 +58,28 @@ namespace CityX.Character
             Clear(fill);
         }
 
+        /// <summary>
+        /// Takes a whole atlas as it stands, for paint that came from
+        /// somewhere other than this brush -- see GodotCharacterImport.
+        ///
+        /// Returns false and changes nothing if the size is wrong, for the same
+        /// reason Decode does: an atlas of another shape would put an arm's
+        /// paint on a leg, and a plain body beats a scrambled one.
+        /// </summary>
+        public bool Adopt(Color32[] texels)
+        {
+            if (texels == null || texels.Length != _pixels.Length)
+            {
+                return false;
+            }
+            for (int i = 0; i < _pixels.Length; i++)
+            {
+                _pixels[i] = texels[i];
+            }
+            Apply();
+            return true;
+        }
+
         public void Clear(Color fill)
         {
             for (int i = 0; i < _pixels.Length; i++)

@@ -2,7 +2,8 @@
     "name": "CityX.Character.Editor",
     "rootNamespace": "CityX.CharacterEditor",
     "references": [
-        "CityX.Character"
+        "CityX.Character",
+        "CityX.Core"
     ],
     "includePlatforms": [
         "Editor"

@@ -277,10 +277,20 @@ namespace CityX.Tests
             Assert.IsEmpty(creator.GetComponentsInChildren<Joint>(true),
                 "the creator's body still has ragdoll joints");
 
+            // TWO, AND EXACTLY TWO: the body's and the skull's. The head is its
+            // own mesh on its own collider -- see HeadMesh -- so the body's
+            // collider stops at the shoulders and a click on the face would
+            // find nothing without the second one.
             Collider[] colliders = creator.GetComponentsInChildren<Collider>(true);
-            Assert.AreEqual(1, colliders.Length,
-                "the body should carry exactly one collider: the mesh a click is tested against");
-            Assert.IsInstanceOf<MeshCollider>(colliders[0]);
+            Assert.AreEqual(2, colliders.Length,
+                "the creator should carry exactly two colliders: the body and the skull");
+            foreach (Collider collider in colliders)
+            {
+                Assert.IsInstanceOf<MeshCollider>(collider,
+                    $"{collider.name} is not a mesh -- a click on it cannot become a triangle");
+            }
+            Assert.Contains(creator.BodyCollider, colliders);
+            Assert.Contains(creator.HeadCollider, colliders);
         }
 
         /// <summary>
