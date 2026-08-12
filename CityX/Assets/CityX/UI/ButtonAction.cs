@@ -55,6 +55,15 @@ namespace CityX.UI
             CreatorUndo,
             CreatorRedo,
             CreatorFinish,
+
+            /// <summary>Value indexes CharacterHair.ValidStyles.</summary>
+            CreatorHair,
+
+            CreatorAskName,
+            CreatorConfirmName,
+            CreatorTryBack,
+            CreatorDiscard,
+            CreatorKeepEditing,
         }
 
         public Kind Action;
@@ -67,6 +76,9 @@ namespace CityX.UI
 
         [Tooltip("So a palette press moves the colour wheel with it.")]
         public CreatorControls Controls;
+
+        [Tooltip("The name prompt and the discard check, for the buttons that raise them.")]
+        public CreatorOverlays Overlays;
 
         [Tooltip("Skin index, tool index or brush size, depending on the action.")]
         public int Value;
@@ -154,6 +166,30 @@ namespace CityX.UI
                         Title.Show(TitleScreen.Panel.CharacterSelect);
                         Title.Select.BeginCreate();
                     }
+                    break;
+
+                case Kind.CreatorHair:
+                    if (Creator != null && Value >= 0
+                        && Value < CharacterHair.ValidStyles.Length)
+                    {
+                        Creator.SetHairStyle(CharacterHair.ValidStyles[Value]);
+                    }
+                    break;
+
+                case Kind.CreatorAskName:
+                    if (Overlays != null) Overlays.AskName();
+                    break;
+                case Kind.CreatorConfirmName:
+                    if (Overlays != null) Overlays.ConfirmName();
+                    break;
+                case Kind.CreatorTryBack:
+                    if (Overlays != null) Overlays.TryGoBack();
+                    break;
+                case Kind.CreatorDiscard:
+                    if (Overlays != null) Overlays.Discard();
+                    break;
+                case Kind.CreatorKeepEditing:
+                    if (Overlays != null) Overlays.KeepEditing();
                     break;
             }
         }

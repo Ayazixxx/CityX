@@ -80,6 +80,9 @@ namespace CityX.UI
         /// </summary>
         public byte[] PendingPaint;
 
+        /// <summary>The hairstyle chosen in the creator, for the same reason.</summary>
+        public string PendingHair = "none";
+
         private void OnEnable()
         {
             Refresh();
@@ -183,7 +186,9 @@ namespace CityX.UI
             string name = NameField != null ? NameField.text : string.Empty;
             CharacterSave created = CharacterSave.Create(name, _pendingSkin);
             created.SetPaint(PendingPaint);
+            created.HairStyle = string.IsNullOrEmpty(PendingHair) ? "none" : PendingHair;
             PendingPaint = null;
+            PendingHair = "none";
             _characters = CharacterStore.Add(created);
             BuildRows();
             Play(created, isNew: true);

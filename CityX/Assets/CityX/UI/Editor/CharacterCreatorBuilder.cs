@@ -1,4 +1,4 @@
-﻿using CityX.Character;
+using CityX.Character;
 using CityX.Core;
 using CityX.UI;
 using UnityEditor;
@@ -22,10 +22,23 @@ namespace CityX.UIEditor
         private static readonly Color Gold = new Color(0.75f, 0.6f, 0.2f, 1.0f);
         private static readonly Color Paper = new Color(0.82f, 0.82f, 0.84f, 1.0f);
 
+        /// <summary>An unlit button. CreatorControls lights the active ones.</summary>
+        private static readonly Color Idle = new Color(0.11f, 0.12f, 0.15f, 0.95f);
+
         /// <summary>
-        /// The palette down the side. The Godot creator had a full colour
-        /// picker; these are the swatches plus the picker's job done by the
-        /// eyedropper, which is the part that actually gets used.
+        /// The panel down the left, in canvas units. The canvas is 1152x648, so
+        /// the whole stack below has to fit above the action bar at the bottom
+        /// -- it grew past it once already and the two ended up drawn over each
+        /// other, hiding UNDO and REDO completely.
+        /// </summary>
+        private const float ColumnWidth = 200.0f;
+
+        private const float ActionBarHeight = 88.0f;
+
+        /// <summary>
+        /// The palette down the side. Twelve presets for the colours anybody
+        /// reaches for first; the wheel above them is what makes every other
+        /// colour reachable.
         /// </summary>
         private static readonly Color[] Palette =
         {
@@ -50,7 +63,13 @@ namespace CityX.UIEditor
             GameObject stage = BuildStage(bodyPrefab, out CharacterCreator creator);
             panel.AddComponent<CreatorStage>().Stage = stage;
 
-            BuildTools(panel.transform, creator, title);
+            var overlays = panel.AddComponent<CreatorOverlays>();
+            overlays.Creator = creator;
+            overlays.Title = title;
+
+            BuildTools(panel.transform, creator, title, overlays);
+            BuildNamePrompt(panel.transform, overlays);
+            BuildDiscardPrompt(panel.transform, overlays);
             return panel;
         }
 
@@ -68,7 +87,8 @@ namespace CityX.UIEditor
             var pivotObject = new GameObject("RotationPivot");
             pivotObject.transform.SetParent(stage.transform, false);
             // Raised to the torso so the body orbits about its middle rather
-            // than swinging around its feet.
+            // than swinging around its feet -- character_creator.gd's own
+            // _recenter_on_torso, which does the same thing in two halves.
             pivotObject.transform.localPosition =
                 new Vector3(0.0f, BodyRig.StandingHeight * 0.5f, 0.0f);
 
@@ -84,9 +104,13 @@ namespace CityX.UIEditor
             Strip<CharacterController>(body);
             Strip<PlayerInputReader>(body);
             Strip<PlayerLocomotion>(body);
+            // Before MeleeAttacker: it requires one, and Unity refuses to
+            // remove a component something else still declares it needs.
+            Strip<PlayerAnimationDriver>(body);
             Strip<MeleeAttacker>(body);
             Strip<Ragdoll>(body);
             Strip<CharacterIdentity>(body);
+            Strip<PlayerVitals>(body);
             foreach (Rigidbody rigid in body.GetComponentsInChildren<Rigidbody>())
             {
                 Object.DestroyImmediate(rigid);
@@ -96,6 +120,18 @@ namespace CityX.UIEditor
                 Object.DestroyImmediate(collider);
             }
 
+            // THE BODY HOLDS ITS BIND POSE HERE. The mesh collider below is
+            // baked from sharedMesh, which is the UNPOSED mesh -- so an idle
+            // animation playing underneath would move the visible body while
+            // the surface a click tests against stayed where it was, and every
+            // stroke would land somewhere other than where it was aimed. A
+            // still T-pose is also the easiest thing to paint: nothing is
+            // hidden behind anything else.
+            foreach (Animator animator in body.GetComponentsInChildren<Animator>(true))
+            {
+                animator.enabled = false;
+            }
+
             var renderer = body.GetComponentInChildren<SkinnedMeshRenderer>();
             MeshCollider surface = null;
             if (renderer != null)
@@ -103,6 +139,8 @@ namespace CityX.UIEditor
                 surface = renderer.gameObject.AddComponent<MeshCollider>();
                 surface.sharedMesh = renderer.sharedMesh;
             }
+
+            CharacterHair hair = AddHair(body);
 
             // ON ITS OWN LAYER, WHICH I SAID BEFORE AND DID NOT DO. Without a
             // culling mask this camera renders the whole scene, so the night
@@ -114,14 +152,20 @@ namespace CityX.UIEditor
 
             var cameraObject = new GameObject("CreatorCamera");
             cameraObject.transform.SetParent(stage.transform, false);
-            // Centred on the pivot, which is at the body's middle, so the
-            // character sits in the frame rather than floating at the top.
-            cameraObject.transform.localPosition = new Vector3(0.0f, 0.0f, -3.2f);
-            cameraObject.transform.localRotation = Quaternion.identity;
+            // CHARACTER_CREATOR.TSCN'S OWN CAMERA, to the number: 1.6 up, 4
+            // back, pitched 8 degrees down, 75 degree vertical field of view.
+            // The invented framing before this had the camera level with the
+            // body's middle at a 42 degree field of view, which put the whole
+            // character high in the frame and cropped -- the shot the report
+            // "the character is too high up" was about. This is the framing the
+            // Godot build actually shipped.
+            cameraObject.transform.localPosition = new Vector3(0.0f, 1.6f, -4.0f);
+            cameraObject.transform.localRotation = Quaternion.Euler(8.0f, 0.0f, 0.0f);
             Camera camera = cameraObject.AddComponent<Camera>();
             camera.clearFlags = CameraClearFlags.SolidColor;
-            camera.backgroundColor = new Color(0.13f, 0.14f, 0.17f);
-            camera.fieldOfView = 42.0f;
+            // character_creator.tscn's own Environment background_color.
+            camera.backgroundColor = new Color(0.12f, 0.13f, 0.16f);
+            camera.fieldOfView = 75.0f;
             camera.nearClipPlane = 0.05f;
             camera.cullingMask = 1 << layer;
             // Above the title's own camera, so the creator draws over the city
@@ -142,9 +186,90 @@ namespace CityX.UIEditor
             creator.Camera = camera;
             creator.BodyCollider = surface;
             creator.BodyRenderer = renderer;
+            creator.Hair = hair;
 
             stage.SetActive(false);
             return stage;
+        }
+
+        /// <summary>
+        /// Puts the hairstyle component on the head bone.
+        ///
+        /// The mesh arrives as an OBJ rather than the .glb the Godot build
+        /// loads: Unity has no built-in glTF importer, so the .glb sat in the
+        /// project as an opaque blob with a DefaultImporter meta and could not
+        /// have been used at all. Same mesh, converted on the way in.
+        /// </summary>
+        private static CharacterHair AddHair(GameObject body)
+        {
+            Transform head = FindDeep(body.transform, "head");
+            if (head == null)
+            {
+                Debug.LogWarning("CityX: no head bone on the body -- the creator has no hair.");
+                return null;
+            }
+
+            var hair = body.AddComponent<CharacterHair>();
+            hair.Head = head;
+
+            var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(
+                "Assets/CityX/Character/Hair/embermane.obj");
+            if (mesh == null)
+            {
+                Debug.LogWarning("CityX: embermane.obj is missing -- the Hair buttons will " +
+                                 "do nothing.");
+            }
+            hair.StyleMeshes = new[] { mesh };
+            hair.HairMaterial = HairMaterial();
+            return hair;
+        }
+
+        /// <summary>
+        /// One shared hair material, saved as a real asset.
+        ///
+        /// A material made in memory here would be written into whatever scene
+        /// happened to reference it, so the same hair would end up with a
+        /// separate copy per scene and no single place to change its colour.
+        /// </summary>
+        private static Material HairMaterial()
+        {
+            const string path = "Assets/CityX/Character/Materials/Hair.mat";
+            var existing = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (existing != null)
+            {
+                return existing;
+            }
+
+            Shader shader = Shader.Find("Universal Render Pipeline/Lit")
+                            ?? Shader.Find("Standard");
+            var material = new Material(shader);
+            // character.gd's own HAIR_COLOR and roughness.
+            if (material.HasProperty("_BaseColor"))
+            {
+                material.SetColor("_BaseColor", CharacterHair.HairColour);
+            }
+            if (material.HasProperty("_Color"))
+            {
+                material.SetColor("_Color", CharacterHair.HairColour);
+            }
+            if (material.HasProperty("_Smoothness"))
+            {
+                material.SetFloat("_Smoothness", 0.4f);
+            }
+            AssetDatabase.CreateAsset(material, path);
+            return material;
+        }
+
+        private static Transform FindDeep(Transform root, string name)
+        {
+            foreach (Transform child in root.GetComponentsInChildren<Transform>(true))
+            {
+                if (child.name == name)
+                {
+                    return child;
+                }
+            }
+            return null;
         }
 
         private static void AddLight(GameObject stage, int layer, string name, Vector3 angles,
@@ -218,8 +343,10 @@ namespace CityX.UIEditor
             }
         }
 
+        // --- the tool column ---
+
         private static void BuildTools(Transform parent, CharacterCreator creator,
-            TitleScreen title)
+            TitleScreen title, CreatorOverlays overlays)
         {
             // Down the left, so the body stays centred and a stroke near the
             // edge of it does not start under a button.
@@ -230,106 +357,134 @@ namespace CityX.UIEditor
             rect.anchorMax = new Vector2(0.0f, 1.0f);
             rect.pivot = new Vector2(0.0f, 0.5f);
             rect.offsetMin = new Vector2(0.0f, 0.0f);
-            rect.offsetMax = new Vector2(190.0f, 0.0f);
+            rect.offsetMax = new Vector2(ColumnWidth, 0.0f);
 
             column.AddComponent<Image>().color = new Color(0.05f, 0.06f, 0.08f, 0.92f);
-
-            float y = -30.0f;
-            MakeLabel(column.transform, "Heading", "CREATE", 22, Gold, new Vector2(0.0f, y), 30.0f);
-
-            y -= 44.0f;
-            MakeToolRow(column.transform, creator, ref y);
 
             var controls = column.AddComponent<CreatorControls>();
             controls.Creator = creator;
 
-            y -= 12.0f;
-            MakeLabel(column.transform, "PaletteLabel", "COLOUR", 14, Paper,
-                new Vector2(0.0f, y), 20.0f);
+            Transform t = column.transform;
+
+            MakeLabel(t, "Heading", "CREATE", 20, Gold, At(-24.0f), 24.0f);
+
+            MakeToolRow(t, creator, controls);
+
+            MakeLabel(t, "PaletteLabel", "COLOUR", 13, Paper, At(-94.0f), 18.0f);
 
             // THE WHEEL, not just swatches. Any colour has to be reachable --
-            // twelve presets is a palette, not a character creator.
-            y -= 90.0f;
-            controls.Wheel = MakeWheel(column.transform, new Vector2(0.0f, y), 160.0f);
-            y -= 96.0f;
+            // twelve presets is a palette, not a character creator, and the
+            // Godot build had a full ColorPickerButton here.
+            controls.Wheel = MakeWheel(t, At(-166.0f), 128.0f);
 
-            controls.Value = MakeSlider(column.transform, "ValueSlider",
-                new Vector2(0.0f, y), 0.0f, 1.0f, 1.0f, wholeNumbers: false);
-            y -= 26.0f;
-            controls.Preview = MakeSwatch(column.transform, "Preview",
-                new Vector2(0.0f, y), new Vector2(150.0f, 18.0f), Color.white);
+            controls.Value = MakeSlider(t, "ValueSlider", At(-244.0f), 0.0f, 1.0f, 1.0f, false);
+            controls.Preview = MakeSwatch(t, "Preview", At(-266.0f),
+                new Vector2(150.0f, 16.0f), Color.white);
 
-            y -= 26.0f;
-            MakePalette(column.transform, creator, controls, ref y);
+            MakePalette(t, creator, controls, -292.0f);
 
-            y -= 16.0f;
-            MakeLabel(column.transform, "BrushLabel", "BRUSH", 14, Paper,
-                new Vector2(0.0f, y), 20.0f);
-            y -= 24.0f;
-            controls.BrushSize = MakeSlider(column.transform, "BrushSlider",
-                new Vector2(0.0f, y), 1.0f, 15.0f,
+            controls.BrushLabel =
+                MakeLabel(t, "BrushLabel", "BRUSH  1", 13, Paper, At(-348.0f), 18.0f);
+            controls.BrushSize = MakeSlider(t, "BrushSlider", At(-370.0f), 1.0f, 15.0f,
                 CharacterCreator.DefaultBrushRadius, wholeNumbers: true);
-            y -= 22.0f;
-            controls.BrushLabel = MakeLabel(column.transform, "BrushValue", "1", 13, Paper,
-                new Vector2(0.0f, y), 18.0f);
 
-            y -= 20.0f;
-            MakeToggle(column.transform, "MirrorButton", "MIRROR", new Vector2(0.0f, y),
+            controls.MirrorButton = MakeButton(t, "MirrorButton", "MIRROR", Paper,
+                new Vector2(-46.0f, -400.0f), new Vector2(88.0f, 30.0f),
                 ButtonAction.Kind.CreatorToggleMirror, creator);
-            y -= 40.0f;
-            MakeToggle(column.transform, "EraserButton", "ERASER", new Vector2(0.0f, y),
+            controls.EraserButton = MakeButton(t, "EraserButton", "ERASER", Paper,
+                new Vector2(46.0f, -400.0f), new Vector2(88.0f, 30.0f),
                 ButtonAction.Kind.CreatorToggleEraser, creator);
 
-            y -= 48.0f;
-            MakeButton(column.transform, "UndoButton", "UNDO", Paper,
-                new Vector2(-45.0f, y), new Vector2(80.0f, 34.0f),
+            MakeButton(t, "UndoButton", "UNDO", Paper,
+                new Vector2(-46.0f, -434.0f), new Vector2(88.0f, 30.0f),
                 ButtonAction.Kind.CreatorUndo, creator);
-            MakeButton(column.transform, "RedoButton", "REDO", Paper,
-                new Vector2(45.0f, y), new Vector2(80.0f, 34.0f),
+            MakeButton(t, "RedoButton", "REDO", Paper,
+                new Vector2(46.0f, -434.0f), new Vector2(88.0f, 30.0f),
                 ButtonAction.Kind.CreatorRedo, creator);
+            controls.UndoButton = t.Find("UndoButton").GetComponent<Button>();
+            controls.RedoButton = t.Find("RedoButton").GetComponent<Button>();
+
+            MakeLabel(t, "HairLabel", "HAIR", 13, Paper, At(-458.0f), 18.0f);
+            MakeButton(t, "HairNoneButton", "BALD", Paper,
+                new Vector2(-46.0f, -484.0f), new Vector2(88.0f, 30.0f),
+                ButtonAction.Kind.CreatorHair, creator, value: 0);
+            MakeButton(t, "HairEmbermaneButton", "MANE", Paper,
+                new Vector2(46.0f, -484.0f), new Vector2(88.0f, 30.0f),
+                ButtonAction.Kind.CreatorHair, creator, value: 1);
+
+            // character_creator.gd's own HintLabel. Nothing about "drag the
+            // body to paint, drag the space to spin it" is discoverable, and
+            // that one sentence is the whole control scheme.
+            MakeLabel(t, "HintLabel",
+                "Drag the body to paint it.\nDrag anywhere else to turn it.\nScroll to zoom.",
+                10, new Color(0.62f, 0.64f, 0.70f), At(-524.0f), 40.0f);
 
             // Pinned to the bottom rather than following the stack, so it stays
-            // put as tools are added above it.
-            MakeAnchoredButton(column.transform, "EnterCityButton", "ENTER THE CITY", Gold,
-                new Vector2(0.0f, 96.0f), new Vector2(160.0f, 42.0f),
-                ButtonAction.Kind.CreatorFinish, creator, title);
-            MakeAnchoredButton(column.transform, "BackButton", "BACK", Paper,
-                new Vector2(0.0f, 46.0f), new Vector2(160.0f, 36.0f),
-                ButtonAction.Kind.ShowCharacterSelect, creator, title);
+            // put as tools are added above it -- ON ITS OWN OPAQUE BAR, because
+            // the stack grew past it once already and the two ended up drawn
+            // over each other.
+            var bar = new GameObject("ActionBar", typeof(RectTransform));
+            var barRect = (RectTransform)bar.transform;
+            barRect.SetParent(t, false);
+            barRect.anchorMin = new Vector2(0.0f, 0.0f);
+            barRect.anchorMax = new Vector2(1.0f, 0.0f);
+            barRect.pivot = new Vector2(0.5f, 0.0f);
+            barRect.anchoredPosition = Vector2.zero;
+            barRect.sizeDelta = new Vector2(0.0f, ActionBarHeight);
+            bar.AddComponent<Image>().color = new Color(0.04f, 0.05f, 0.07f, 1.0f);
+
+            // Built AFTER the bar and therefore drawn over it, which is the
+            // whole point -- built before it, they were the ones underneath.
+            MakeAnchoredButton(t, "EnterCityButton", "ENTER THE CITY", Gold,
+                new Vector2(0.0f, 52.0f), new Vector2(172.0f, 36.0f),
+                ButtonAction.Kind.CreatorAskName, creator, title, overlays);
+            MakeAnchoredButton(t, "BackButton", "BACK", Paper,
+                new Vector2(0.0f, 16.0f), new Vector2(172.0f, 32.0f),
+                ButtonAction.Kind.CreatorTryBack, creator, title, overlays);
         }
+
+        /// <summary>Centred in the column, this far down from its top.</summary>
+        private static Vector2 At(float y) => new Vector2(0.0f, y);
 
         /// <summary>
-        /// Hands the painted character off to the select screen, which owns
-        /// naming and entering the world.
+        /// Brush, bucket and eyedropper, as icons rather than the words BRUSH,
+        /// FILL and PICK -- the Godot build drew these and then cleared the
+        /// button text entirely, and this had quietly gone back to text.
         /// </summary>
-        private static void Finish(CharacterCreator creator, TitleScreen title)
+        private static void MakeToolRow(Transform parent, CharacterCreator creator,
+            CreatorControls controls)
         {
-            if (title.Select != null)
-            {
-                title.Select.PendingPaint = creator.Paint.Encode();
-                title.Show(TitleScreen.Panel.CharacterSelect);
-                title.Select.BeginCreate();
-            }
-        }
+            string[] names = { "Brush", "Bucket", "Eyedropper" };
+            string[] kinds = { "brush", "bucket", "eyedropper" };
 
-        private static void MakeToolRow(Transform parent, CharacterCreator creator, ref float y)
-        {
-            string[] names = { "BRUSH", "FILL", "PICK" };
-            var tools = new[]
-            {
-                CharacterCreator.Tool.Brush,
-                CharacterCreator.Tool.Bucket,
-                CharacterCreator.Tool.Eyedropper,
-            };
+            var faces = new Image[names.Length];
+            var icons = new RawImage[names.Length];
 
             for (int i = 0; i < names.Length; i++)
             {
-                CharacterCreator.Tool tool = tools[i];
-                MakeButton(parent, names[i] + "Button", names[i], Gold,
-                    new Vector2(i * 58.0f - 58.0f, y), new Vector2(54.0f, 32.0f),
-                    ButtonAction.Kind.CreatorTool, creator, null, (int)tool);
+                Image face = MakeButton(parent, names[i] + "Button", string.Empty, Gold,
+                    new Vector2(i * 58.0f - 58.0f, -62.0f), new Vector2(54.0f, 40.0f),
+                    ButtonAction.Kind.CreatorTool, creator, value: i);
+                faces[i] = face;
+
+                var iconObject = new GameObject("Icon", typeof(RectTransform));
+                var iconRect = (RectTransform)iconObject.transform;
+                iconRect.SetParent(face.transform, false);
+                iconRect.anchorMin = iconRect.anchorMax = new Vector2(0.5f, 0.5f);
+                iconRect.pivot = new Vector2(0.5f, 0.5f);
+                iconRect.anchoredPosition = Vector2.zero;
+                iconRect.sizeDelta = new Vector2(30.0f, 30.0f);
+
+                var icon = iconObject.AddComponent<RawImage>();
+                icon.texture = ToolIcons.Build(kinds[i]);
+                // Nothing should ever click the picture on top of a button --
+                // it would eat the press meant for the button underneath.
+                icon.raycastTarget = false;
+                icons[i] = icon;
             }
-            y -= 40.0f;
+
+            controls.ToolButtons = faces;
+            controls.ToolIconImages = icons;
         }
 
         private static RawImage MakeWheel(Transform parent, Vector2 position, float size)
@@ -377,7 +532,7 @@ namespace CityX.UIEditor
             rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 1.0f);
             rect.pivot = new Vector2(0.5f, 0.5f);
             rect.anchoredPosition = position;
-            rect.sizeDelta = new Vector2(150.0f, 18.0f);
+            rect.sizeDelta = new Vector2(150.0f, 16.0f);
 
             Image background = go.AddComponent<Image>();
             background.color = new Color(0.16f, 0.17f, 0.20f, 1.0f);
@@ -395,7 +550,7 @@ namespace CityX.UIEditor
             var handle = new GameObject("Handle", typeof(RectTransform));
             var handleRect = (RectTransform)handle.transform;
             handleRect.SetParent(go.transform, false);
-            handleRect.sizeDelta = new Vector2(12.0f, 22.0f);
+            handleRect.sizeDelta = new Vector2(10.0f, 20.0f);
             Image handleImage = handle.AddComponent<Image>();
             handleImage.color = Paper;
 
@@ -412,9 +567,11 @@ namespace CityX.UIEditor
         }
 
         private static void MakePalette(Transform parent, CharacterCreator creator,
-            CreatorControls controls, ref float y)
+            CreatorControls controls, float top)
         {
-            const int perRow = 4;
+            const int perRow = 6;
+            const float pitch = 28.0f;
+
             for (int i = 0; i < Palette.Length; i++)
             {
                 Color swatch = Palette[i];
@@ -426,8 +583,9 @@ namespace CityX.UIEditor
                 rect.SetParent(parent, false);
                 rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 1.0f);
                 rect.pivot = new Vector2(0.5f, 0.5f);
-                rect.anchoredPosition =
-                    new Vector2(column * 30.0f - 45.0f, y - row * 30.0f);
+                rect.anchoredPosition = new Vector2(
+                    column * pitch - pitch * (perRow - 1) * 0.5f,
+                    top - row * pitch);
                 rect.sizeDelta = new Vector2(26.0f, 26.0f);
 
                 Image image = go.AddComponent<Image>();
@@ -444,29 +602,163 @@ namespace CityX.UIEditor
                 // than still showing whatever was picked before it.
                 wiring.Controls = controls;
             }
-
-            y -= Mathf.CeilToInt(Palette.Length / (float)perRow) * 30.0f;
         }
 
+        // --- the two prompts on top ---
+
+        /// <summary>
+        /// ENTER THE CITY opens this rather than finishing directly, which is
+        /// character_creator.gd's own flow: the character is only made once a
+        /// name has actually been confirmed.
+        /// </summary>
+        private static void BuildNamePrompt(Transform parent, CreatorOverlays overlays)
+        {
+            GameObject dim = MakeDim(parent, "NamePrompt");
+            RectTransform panel = MakePromptPanel(dim.transform, new Vector2(360.0f, 170.0f));
+
+            MakeLabel(panel, "Title", "NAME YOUR CHARACTER", 16, Gold,
+                new Vector2(0.0f, 34.0f), 24.0f);
+
+            overlays.NameField = MakeField(panel, new Vector2(0.0f, -4.0f),
+                new Vector2(260.0f, 34.0f));
+
+            MakePromptButton(panel, "StartButton", "START", Gold,
+                new Vector2(0.0f, -52.0f), new Vector2(150.0f, 36.0f),
+                ButtonAction.Kind.CreatorConfirmName, overlays);
+
+            overlays.NamePanel = dim;
+            dim.SetActive(false);
+        }
+
+        /// <summary>
+        /// Nothing is ever saved from the creator until a name is confirmed, so
+        /// walking out after painting silently throws the work away. Having
+        /// painted at all is what raises this.
+        /// </summary>
+        private static void BuildDiscardPrompt(Transform parent, CreatorOverlays overlays)
+        {
+            GameObject dim = MakeDim(parent, "DiscardPrompt");
+            RectTransform panel = MakePromptPanel(dim.transform, new Vector2(400.0f, 180.0f));
+
+            Text question = MakeLabel(panel, "Question",
+                "Discard your painted design and go back?", 16, Paper,
+                new Vector2(0.0f, 34.0f), 48.0f);
+            ((RectTransform)question.transform).sizeDelta = new Vector2(340.0f, 48.0f);
+
+            MakePromptButton(panel, "DiscardButton", "DISCARD & BACK", Paper,
+                new Vector2(-80.0f, -44.0f), new Vector2(150.0f, 40.0f),
+                ButtonAction.Kind.CreatorDiscard, overlays);
+            MakePromptButton(panel, "CancelButton", "CANCEL", Gold,
+                new Vector2(85.0f, -44.0f), new Vector2(110.0f, 40.0f),
+                ButtonAction.Kind.CreatorKeepEditing, overlays);
+
+            overlays.ConfirmPanel = dim;
+            dim.SetActive(false);
+        }
+
+        /// <summary>
+        /// The full-screen darkener behind a prompt. It is a raycast target on
+        /// purpose: it is what stops a click reaching a tool button behind it.
+        /// </summary>
+        private static GameObject MakeDim(Transform parent, string name)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            var rect = (RectTransform)go.transform;
+            rect.SetParent(parent, false);
+            Stretch(rect);
+            go.AddComponent<Image>().color = new Color(0.0f, 0.0f, 0.0f, 0.7f);
+            return go;
+        }
+
+        private static RectTransform MakePromptPanel(Transform parent, Vector2 size)
+        {
+            var go = new GameObject("Panel", typeof(RectTransform));
+            var rect = (RectTransform)go.transform;
+            rect.SetParent(parent, false);
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = Vector2.zero;
+            rect.sizeDelta = size;
+
+            go.AddComponent<Image>().color = new Color(0.10f, 0.11f, 0.14f, 0.98f);
+            var outline = go.AddComponent<Outline>();
+            outline.effectColor = new Color(0.55f, 0.63f, 1.0f, 0.6f);
+            outline.effectDistance = new Vector2(2.0f, -2.0f);
+            return rect;
+        }
+
+        private static InputField MakeField(Transform parent, Vector2 position, Vector2 size)
+        {
+            var go = new GameObject("NameField", typeof(RectTransform));
+            var rect = (RectTransform)go.transform;
+            rect.SetParent(parent, false);
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
+
+            Image background = go.AddComponent<Image>();
+            background.color = new Color(0.16f, 0.17f, 0.21f, 1.0f);
+
+            Text placeholder = Caption(go.transform, "Enter name...", 14,
+                new Color(0.5f, 0.5f, 0.55f));
+            placeholder.name = "Placeholder";
+            Text typed = Caption(go.transform, string.Empty, 14, Paper);
+            typed.name = "Text";
+            typed.supportRichText = false;
+
+            InputField field = go.AddComponent<InputField>();
+            field.targetGraphic = background;
+            field.textComponent = typed;
+            field.placeholder = placeholder;
+            field.characterLimit = CharacterSave.MaximumNameLength;
+            field.lineType = InputField.LineType.SingleLine;
+            return field;
+        }
+
+        private static void MakePromptButton(Transform parent, string name, string label,
+            Color tint, Vector2 position, Vector2 size, ButtonAction.Kind action,
+            CreatorOverlays overlays)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            var rect = (RectTransform)go.transform;
+            rect.SetParent(parent, false);
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
+
+            Image background = go.AddComponent<Image>();
+            background.color = Idle;
+
+            Button button = go.AddComponent<Button>();
+            button.targetGraphic = background;
+
+            var wiring = go.AddComponent<ButtonAction>();
+            wiring.Action = action;
+            wiring.Overlays = overlays;
+            wiring.Creator = overlays.Creator;
+            wiring.Title = overlays.Title;
+
+            ColorBlock colours = button.colors;
+            colours.highlightedColor = new Color(0.22f, 0.20f, 0.12f, 1.0f);
+            colours.pressedColor = tint;
+            button.colors = colours;
+
+            Caption(go.transform, label, 13, tint);
+        }
 
         // --- small pieces ---
-
-        private static void MakeToggle(Transform parent, string name, string label,
-            Vector2 position, ButtonAction.Kind action, CharacterCreator creator)
-        {
-            MakeButton(parent, name, label, Paper, position, new Vector2(150.0f, 32.0f),
-                action, creator);
-        }
 
         /// <summary>
         /// Carries a ButtonAction, not a listener -- see that class. A listener
         /// added from an editor script is not serialized, so buttons wired that
         /// way are dead the moment the scene is saved and reopened.
         /// </summary>
-        private static void MakeButton(Transform parent, string name, string label, Color tint,
+        private static Image MakeButton(Transform parent, string name, string label, Color tint,
             Vector2 position, Vector2 size, ButtonAction.Kind action,
             CharacterCreator creator, TitleScreen title = null, int value = 0,
-            Color colour = default)
+            CreatorOverlays overlays = null)
         {
             var go = new GameObject(name, typeof(RectTransform));
             var rect = (RectTransform)go.transform;
@@ -477,7 +769,7 @@ namespace CityX.UIEditor
             rect.sizeDelta = size;
 
             Image background = go.AddComponent<Image>();
-            background.color = new Color(0.11f, 0.12f, 0.15f, 0.95f);
+            background.color = Idle;
 
             Button button = go.AddComponent<Button>();
             button.targetGraphic = background;
@@ -487,21 +779,57 @@ namespace CityX.UIEditor
             wiring.Creator = creator;
             wiring.Title = title;
             wiring.Value = value;
-            wiring.Colour = colour;
+            wiring.Overlays = overlays;
 
             ColorBlock colours = button.colors;
             colours.highlightedColor = new Color(0.22f, 0.20f, 0.12f, 1.0f);
             colours.pressedColor = tint;
+            // Disabled has to be visibly different, or a greyed-out UNDO looks
+            // exactly like a live one that does nothing when pressed.
+            colours.disabledColor = new Color(0.09f, 0.09f, 0.10f, 0.6f);
             button.colors = colours;
 
-            MakeLabel(go.transform, "Label", label, 13, tint, Vector2.zero, size.y - 6.0f);
+            if (!string.IsNullOrEmpty(label))
+            {
+                Caption(go.transform, label, 13, tint);
+            }
+            return background;
+        }
+
+        /// <summary>
+        /// A button's own text, STRETCHED OVER THE WHOLE BUTTON.
+        ///
+        /// Not MakeLabel: that one hangs a label from the top of the tool
+        /// column, and reusing it inside a button anchored the text to the
+        /// button's top EDGE with the pivot in the middle of it -- so every
+        /// caption on the panel was drawn half above the button it named.
+        /// MIRROR, ERASER, ENTER THE CITY and BACK were all floating over
+        /// their own boxes.
+        /// </summary>
+        private static Text Caption(Transform parent, string content, int size, Color colour)
+        {
+            var go = new GameObject("Label", typeof(RectTransform));
+            var rect = (RectTransform)go.transform;
+            rect.SetParent(parent, false);
+            Stretch(rect);
+
+            Text text = go.AddComponent<Text>();
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.fontSize = size;
+            text.color = colour;
+            text.alignment = TextAnchor.MiddleCenter;
+            text.horizontalOverflow = HorizontalWrapMode.Overflow;
+            text.raycastTarget = false;
+            text.text = content;
+            return text;
         }
 
         private static void MakeAnchoredButton(Transform parent, string name, string label,
             Color tint, Vector2 position, Vector2 size, ButtonAction.Kind action,
-            CharacterCreator creator, TitleScreen title = null)
+            CharacterCreator creator, TitleScreen title, CreatorOverlays overlays)
         {
-            MakeButton(parent, name, label, tint, position, size, action, creator, title);
+            MakeButton(parent, name, label, tint, position, size, action, creator, title,
+                overlays: overlays);
             var rect = (RectTransform)parent.Find(name);
             rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.0f);
         }
@@ -515,7 +843,7 @@ namespace CityX.UIEditor
             rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 1.0f);
             rect.pivot = new Vector2(0.5f, 0.5f);
             rect.anchoredPosition = position;
-            rect.sizeDelta = new Vector2(170.0f, height);
+            rect.sizeDelta = new Vector2(ColumnWidth - 16.0f, height);
 
             Text text = go.AddComponent<Text>();
             text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
@@ -524,6 +852,21 @@ namespace CityX.UIEditor
             text.alignment = TextAnchor.MiddleCenter;
             text.raycastTarget = false;
             text.text = content;
+            return text;
+        }
+
+        /// <summary>
+        /// The same label, centred on its parent rather than hung from the top
+        /// of the column -- for the prompts, which are centred boxes.
+        /// </summary>
+        private static Text MakeLabel(RectTransform parent, string name, string content,
+            int size, Color colour, Vector2 position, float height)
+        {
+            Text text = MakeLabel(parent.transform, name, content, size, colour,
+                position, height);
+            var rect = (RectTransform)text.transform;
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = position;
             return text;
         }
 

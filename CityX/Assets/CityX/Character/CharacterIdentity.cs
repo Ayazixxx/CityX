@@ -74,6 +74,12 @@ namespace CityX.Character
                 _vitals.Revive();
             }
 
+            var hair = GetComponentInChildren<CharacterHair>(includeInactive: true);
+            if (hair != null)
+            {
+                hair.SetStyle(character.HairStyle);
+            }
+
             // PAINT WINS OVER THE FLAT COLOUR when there is any, because paint
             // is authored on top of a base and replacing it with a tint would
             // throw the player's work away. A character with none -- typed a

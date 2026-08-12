@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 
 namespace CityX.Character
@@ -31,6 +32,9 @@ namespace CityX.Character
         public MeshCollider BodyCollider;
 
         public SkinnedMeshRenderer BodyRenderer;
+
+        [Tooltip("The hairstyle on the body being made. Set by the Hair buttons.")]
+        public CharacterHair Hair;
 
         [Header("Tools")]
         public Tool Current = Tool.Brush;
@@ -85,6 +89,24 @@ namespace CityX.Character
 
         private void Awake()
         {
+            Initialise();
+        }
+
+        /// <summary>
+        /// Builds the atlas and points the body at it.
+        ///
+        /// PUBLIC, AND SAFE TO CALL TWICE, so the editor's screenshot tool can
+        /// get the same body the player sees. Awake does not run outside play
+        /// mode, and without this the shot came out with the body wearing its
+        /// world material over paint-atlas UVs, which is not what the creator
+        /// ever shows.
+        /// </summary>
+        public void Initialise()
+        {
+            if (_paint != null)
+            {
+                return;
+            }
             _paint = new BodyPaint(EraseColour);
 
             if (BodyRenderer != null && BodyRenderer.sharedMesh != null)
@@ -119,10 +141,16 @@ namespace CityX.Character
             }
         }
 
+        /// <summary>
+        /// Set while a prompt is up, so the body underneath does not keep
+        /// taking clicks meant for the thing on top of it.
+        /// </summary>
+        public bool InputBlocked;
+
         private void Update()
         {
             Mouse mouse = Mouse.current;
-            if (mouse == null || Camera == null)
+            if (mouse == null || Camera == null || InputBlocked)
             {
                 return;
             }
@@ -137,6 +165,15 @@ namespace CityX.Character
 
             if (mouse.leftButton.wasPressedThisFrame)
             {
+                // Godot's creator read the mouse from _unhandled_input, which a
+                // Control that was clicked has already swallowed. Reading the
+                // device directly here does not get that for free: without this
+                // check, dragging the brush slider also spun the model, because
+                // the press missed the body and started a rotate.
+                if (OverInterface())
+                {
+                    return;
+                }
                 Press(position);
             }
             else if (mouse.leftButton.wasReleasedThisFrame)
@@ -148,6 +185,12 @@ namespace CityX.Character
             {
                 Drag(position, mouse.delta.ReadValue());
             }
+        }
+
+        private static bool OverInterface()
+        {
+            EventSystem events = EventSystem.current;
+            return events != null && events.IsPointerOverGameObject();
         }
 
         public void Zoom(float step)
@@ -324,6 +367,24 @@ namespace CityX.Character
         /// Whether anything has been painted, so Back can leave without asking
         /// when there is nothing to lose.
         /// </summary>
-        public bool HasEdits => _paint.CanUndo;
+        public bool HasEdits => _paint != null && _paint.CanUndo;
+
+        public bool CanUndo => _paint != null && _paint.CanUndo;
+
+        public bool CanRedo => _paint != null && _paint.CanRedo;
+
+        /// <summary>
+        /// Godot's own VALID_HAIR_STYLES: "none" is always valid and is not a
+        /// real asset; everything else names a mesh.
+        /// </summary>
+        public void SetHairStyle(string style)
+        {
+            if (Hair != null)
+            {
+                Hair.SetStyle(style);
+            }
+        }
+
+        public string HairStyle => Hair != null ? Hair.Style : CharacterHair.None;
     }
 }

@@ -6,8 +6,9 @@ using UnityEngine.UI;
 namespace CityX.UI
 {
     /// <summary>
-    /// The creator's continuous controls: the colour wheel and the brush size
-    /// slider.
+    /// The creator's continuous controls -- the colour wheel and the two
+    /// sliders -- and the job of keeping every button on the panel showing the
+    /// state it actually represents.
     ///
     /// A COMPONENT, NOT LISTENERS ADDED BY THE BUILDER -- same reason as
     /// ButtonAction. A listener added from an editor script is not serialized,
@@ -28,10 +29,32 @@ namespace CityX.UI
         [Tooltip("Shows the colour currently being painted with.")]
         public Image Preview;
 
+        [Tooltip("Reads 'BRUSH 4' -- the number lives in the heading, to save a row.")]
         public Text BrushLabel;
 
-        /// <summary>The wheel's own resolution. Small: it is 200px on screen.</summary>
+        [Header("Buttons that show a state")]
+        [Tooltip("Brush, Bucket, Eyedropper, in Tool order. Lit for the active one.")]
+        public Image[] ToolButtons = new Image[0];
+
+        [Tooltip("The icon on each tool button, so it can be redrawn if it is missing.")]
+        public RawImage[] ToolIconImages = new RawImage[0];
+
+        public Image MirrorButton;
+        public Image EraserButton;
+
+        public Button UndoButton;
+        public Button RedoButton;
+
+        /// <summary>The wheel's own resolution. Small: it is 128 units on screen.</summary>
         public const int WheelSize = 256;
+
+        /// <summary>An unlit button. Matches CharacterCreatorBuilder's own default.</summary>
+        private static readonly Color Idle = new Color(0.11f, 0.12f, 0.15f, 0.95f);
+
+        /// <summary>A pressed-in toggle, or the tool currently in hand.</summary>
+        private static readonly Color Active = new Color(0.30f, 0.26f, 0.12f, 1.0f);
+
+        private static readonly string[] IconKinds = { "brush", "bucket", "eyedropper" };
 
         private float _hue;
         private float _saturation;
@@ -41,6 +64,15 @@ namespace CityX.UI
             if (Wheel != null && Wheel.texture == null)
             {
                 Wheel.texture = BuildWheel();
+            }
+            // The icons are drawn by the builder and saved into the scene with
+            // it, so this is only the fallback for a scene that lost them.
+            for (int i = 0; i < ToolIconImages.Length && i < IconKinds.Length; i++)
+            {
+                if (ToolIconImages[i] != null && ToolIconImages[i].texture == null)
+                {
+                    ToolIconImages[i].texture = ToolIcons.Build(IconKinds[i]);
+                }
             }
             if (Value != null)
             {
@@ -54,6 +86,47 @@ namespace CityX.UI
             Recolour();
         }
 
+        /// <summary>
+        /// Keeps the panel honest about what is switched on.
+        ///
+        /// Polled rather than pushed because the state it reflects is changed
+        /// from several places -- a swatch clears the eraser, the eyedropper
+        /// switches itself back to the brush after one pick -- and a button
+        /// that only repaints when its own listener fires goes stale every time
+        /// something else moves it.
+        /// </summary>
+        private void Update()
+        {
+            if (Creator == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < ToolButtons.Length; i++)
+            {
+                if (ToolButtons[i] != null)
+                {
+                    ToolButtons[i].color = (int)Creator.Current == i ? Active : Idle;
+                }
+            }
+            if (MirrorButton != null)
+            {
+                MirrorButton.color = Creator.Mirroring ? Active : Idle;
+            }
+            if (EraserButton != null)
+            {
+                EraserButton.color = Creator.Erasing ? Active : Idle;
+            }
+            if (UndoButton != null)
+            {
+                UndoButton.interactable = Creator.CanUndo;
+            }
+            if (RedoButton != null)
+            {
+                RedoButton.interactable = Creator.CanRedo;
+            }
+        }
+
         private void OnBrushSize(float value)
         {
             int size = Mathf.RoundToInt(value);
@@ -63,7 +136,7 @@ namespace CityX.UI
             }
             if (BrushLabel != null)
             {
-                BrushLabel.text = size.ToString();
+                BrushLabel.text = "BRUSH  " + size;
             }
         }
 
@@ -145,6 +218,7 @@ namespace CityX.UI
         {
             var texture = new Texture2D(WheelSize, WheelSize, TextureFormat.RGBA32, false)
             {
+                name = "CityXColourWheel",
                 filterMode = FilterMode.Bilinear,
                 wrapMode = TextureWrapMode.Clamp,
             };

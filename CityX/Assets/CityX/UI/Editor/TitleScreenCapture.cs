@@ -42,10 +42,17 @@ namespace CityX.UIEditor
             Shoot("character-create", TitleScreen.Panel.CharacterSelect, seedCharacters: true,
                 CharacterSelect.Mode.Creating);
             Shoot("creator", TitleScreen.Panel.Creator, seedCharacters: false);
+            // The hairstyle is the one thing on this screen with no default --
+            // a character starts bald -- so without asking for it the shot
+            // says nothing about whether the mesh lands on the head or halfway
+            // down the back, which is exactly the bug the Godot build had.
+            Shoot("creator-hair", TitleScreen.Panel.Creator, seedCharacters: false,
+                hairStyle: Character.CharacterHair.Embermane);
         }
 
         private static void Shoot(string name, TitleScreen.Panel panel, bool seedCharacters,
-            CharacterSelect.Mode selectMode = CharacterSelect.Mode.List)
+            CharacterSelect.Mode selectMode = CharacterSelect.Mode.List,
+            string hairStyle = null)
         {
             string outputDirectory = Path.Combine(
                 Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
@@ -113,6 +120,46 @@ namespace CityX.UIEditor
                 }
             }
 
+            // THE CREATOR HAS ITS OWN CAMERA AND ITS OWN LAYER, and this only
+            // ever rendered Camera.main -- so the shot came out as the night
+            // city with the tool panel over it and no character anywhere,
+            // which is nothing like what the screen actually shows. In the
+            // game both cameras draw and the creator's, being higher up the
+            // depth order, clears over the city. Rendering to a texture by
+            // hand does not get that ordering for free: the creator's camera
+            // has to be the one asked for the picture.
+            //
+            // Its stage is off in the saved scene and switched on by
+            // CreatorStage's OnEnable, which -- like everything else this file
+            // has had to work around -- does not run outside play mode.
+            Camera shotCamera = camera;
+            CreatorStage relay = null;
+            int savedMask = 0;
+            if (panel == TitleScreen.Panel.Creator)
+            {
+                relay = Object.FindFirstObjectByType<CreatorStage>(FindObjectsInactive.Include);
+                if (relay != null && relay.Stage != null)
+                {
+                    relay.Stage.SetActive(true);
+                    var creator = relay.Stage.GetComponent<Character.CharacterCreator>();
+                    if (creator != null)
+                    {
+                        // Awake does not run either, so without this the body
+                        // wears its world material over paint-atlas UVs.
+                        creator.Initialise();
+                        if (hairStyle != null)
+                        {
+                            creator.SetHairStyle(hairStyle);
+                        }
+                        if (creator.Camera != null)
+                        {
+                            shotCamera = creator.Camera;
+                            savedMask = shotCamera.cullingMask;
+                        }
+                    }
+                }
+            }
+
             var canvas = Object.FindFirstObjectByType<Canvas>();
             RenderTexture target = null;
             RenderTexture previous = RenderTexture.active;
@@ -125,16 +172,37 @@ namespace CityX.UIEditor
                 if (canvas != null)
                 {
                     canvas.renderMode = RenderMode.ScreenSpaceCamera;
-                    canvas.worldCamera = camera;
+                    canvas.worldCamera = shotCamera;
                     canvas.planeDistance = 1.0f;
+
+                    // The interface is built on the DEFAULT layer, and the
+                    // creator's camera renders only its own -- so the first
+                    // version of this rendered a character on an empty
+                    // backdrop with no panel at all. Widening the mask to
+                    // include Default is not the fix: the night city is on it
+                    // too, and it would come straight back in behind the body.
+                    // Moving the interface onto the creator's layer is, and it
+                    // matches the game, where an overlay canvas draws over
+                    // every camera regardless of layer. Not put back
+                    // afterwards on purpose -- the scene is reopened from disk
+                    // for each shot and never saved.
+                    if (shotCamera != camera)
+                    {
+                        int layer = shotCamera.gameObject.layer;
+                        foreach (Transform t in
+                            canvas.GetComponentsInChildren<Transform>(true))
+                        {
+                            t.gameObject.layer = layer;
+                        }
+                    }
                 }
 
                 target = new RenderTexture(Width, Height, 24, RenderTextureFormat.ARGB32)
                 {
                     antiAliasing = 4,
                 };
-                camera.targetTexture = target;
-                camera.Render();
+                shotCamera.targetTexture = target;
+                shotCamera.Render();
 
                 RenderTexture.active = target;
                 var image = new Texture2D(Width, Height, TextureFormat.RGB24, false);
@@ -150,7 +218,15 @@ namespace CityX.UIEditor
             finally
             {
                 RenderTexture.active = previous;
-                camera.targetTexture = null;
+                shotCamera.targetTexture = null;
+                if (shotCamera != camera)
+                {
+                    shotCamera.cullingMask = savedMask;
+                }
+                if (relay != null && relay.Stage != null)
+                {
+                    relay.Stage.SetActive(false);
+                }
                 if (target != null)
                 {
                     target.Release();

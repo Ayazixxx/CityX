@@ -75,6 +75,12 @@ namespace CityX.Core
             }
         }
 
+        /// <summary>
+        /// One of CharacterHair.ValidStyles. "none" is bald and is what every
+        /// save written before hair existed loads as.
+        /// </summary>
+        public string HairStyle = "none";
+
         public int Level = 1;
 
         public int Experience;
@@ -207,6 +213,14 @@ namespace CityX.Core
             if (Skin.a < 0.99f || (Skin.r <= 0.0f && Skin.g <= 0.0f && Skin.b <= 0.0f))
             {
                 Skin = DefaultSkin;
+                changed = true;
+            }
+
+            // Blank rather than bald is what an older save carries, and an
+            // unknown style would leave CharacterHair with nothing to build.
+            if (string.IsNullOrEmpty(HairStyle))
+            {
+                HairStyle = "none";
                 changed = true;
             }
 
