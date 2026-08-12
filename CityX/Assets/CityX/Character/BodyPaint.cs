@@ -308,6 +308,175 @@ namespace CityX.Character
             queue.Enqueue(new Vector2Int(x, y));
         }
 
+        // --- undo, mirroring and relocating a point on the mesh ---
+
+        private readonly List<Color[]> _undo = new List<Color[]>();
+        private readonly List<Color[]> _redo = new List<Color[]>();
+
+        /// <summary>
+        /// How many strokes back you can go. Each snapshot is the whole atlas,
+        /// which at 384x448 is under 700KB, so a deep history is affordable and
+        /// a shallow one is the thing people actually complain about.
+        /// </summary>
+        public const int UndoDepth = 32;
+
+        public bool CanUndo => _undo.Count > 0;
+
+        public bool CanRedo => _redo.Count > 0;
+
+        /// <summary>
+        /// Taken BEFORE an edit, once per stroke rather than per stamp -- a
+        /// drag is one thing the player did, so one press of undo should take
+        /// all of it back rather than a hundred presses taking back a hundred
+        /// dots.
+        /// </summary>
+        public void PushUndoSnapshot()
+        {
+            _undo.Add((Color[])_pixels.Clone());
+            if (_undo.Count > UndoDepth)
+            {
+                _undo.RemoveAt(0);
+            }
+            // A new edit makes any redone-away future unreachable, which is
+            // what every other editor does.
+            _redo.Clear();
+        }
+
+        public void Undo()
+        {
+            if (_undo.Count == 0)
+            {
+                return;
+            }
+            _redo.Add((Color[])_pixels.Clone());
+            _pixels = _undo[_undo.Count - 1];
+            _undo.RemoveAt(_undo.Count - 1);
+            Apply();
+        }
+
+        public void Redo()
+        {
+            if (_redo.Count == 0)
+            {
+                return;
+            }
+            _undo.Add((Color[])_pixels.Clone());
+            _pixels = _redo[_redo.Count - 1];
+            _redo.RemoveAt(_redo.Count - 1);
+            Apply();
+        }
+
+        /// <summary>The same point on the other side. The rig is symmetric about x=0.</summary>
+        public static Vector3 Mirror(Vector3 localPoint)
+        {
+            return new Vector3(-localPoint.x, localPoint.y, localPoint.z);
+        }
+
+        /// <summary>
+        /// Which triangle a point sits on, for mirroring -- the mirrored point
+        /// is a position in space with no ray behind it, so it has to be
+        /// relocated on the surface.
+        ///
+        /// Returns -1 when nothing is near enough, which is CORRECT rather than
+        /// a failure right on the centreline: a brush dead-centre on the spine
+        /// mirrors onto itself, and there is nothing different to paint.
+        /// </summary>
+        public int FindTriangle(Vector3 localPoint, float maximumDistance = 0.05f)
+        {
+            int best = -1;
+            float bestDistance = maximumDistance * maximumDistance;
+
+            for (int i = 0; i + 2 < _positions.Length; i += 3)
+            {
+                Vector3 centroid = (_positions[i] + _positions[i + 1] + _positions[i + 2]) / 3.0f;
+                float distance = (centroid - localPoint).sqrMagnitude;
+                if (distance < bestDistance)
+                {
+                    bestDistance = distance;
+                    best = i / 3;
+                }
+            }
+            return best;
+        }
+
+        /// <summary>
+        /// The paint, for saving with a character: raw RGBA, gzipped.
+        ///
+        /// NOT PNG, which would be the obvious choice. EncodeToPNG lives in
+        /// Unity's ImageConversion module, which is not referenced here and
+        /// can be stripped from a build entirely -- a save format that stops
+        /// working depending on build settings is a bad trade for a smaller
+        /// file. Raw RGBA is 688KB, and a paint texture is mostly flat colour,
+        /// so gzip takes it to a few KB.
+        /// </summary>
+        public byte[] Encode()
+        {
+            var raw = new byte[_pixels.Length * 4];
+            for (int i = 0; i < _pixels.Length; i++)
+            {
+                Color32 c = _pixels[i];
+                raw[i * 4] = c.r;
+                raw[i * 4 + 1] = c.g;
+                raw[i * 4 + 2] = c.b;
+                raw[i * 4 + 3] = c.a;
+            }
+
+            using (var output = new System.IO.MemoryStream())
+            {
+                using (var zip = new System.IO.Compression.GZipStream(
+                    output, System.IO.Compression.CompressionLevel.Optimal))
+                {
+                    zip.Write(raw, 0, raw.Length);
+                }
+                return output.ToArray();
+            }
+        }
+
+        /// <summary>
+        /// Loads previously saved paint. Returns false and changes nothing if
+        /// it will not load -- a save from a different atlas size would put an
+        /// arm's paint on a leg, so starting clean is better than loading it
+        /// wrong.
+        /// </summary>
+        public bool Decode(byte[] compressed)
+        {
+            if (compressed == null || compressed.Length == 0)
+            {
+                return false;
+            }
+
+            byte[] raw;
+            try
+            {
+                using (var input = new System.IO.MemoryStream(compressed))
+                using (var zip = new System.IO.Compression.GZipStream(
+                    input, System.IO.Compression.CompressionMode.Decompress))
+                using (var output = new System.IO.MemoryStream())
+                {
+                    zip.CopyTo(output);
+                    raw = output.ToArray();
+                }
+            }
+            catch (System.Exception error)
+            {
+                Debug.LogError($"CityX: the saved paint would not decompress -- {error.Message}");
+                return false;
+            }
+
+            if (raw.Length != _pixels.Length * 4)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < _pixels.Length; i++)
+            {
+                _pixels[i] = new Color32(
+                    raw[i * 4], raw[i * 4 + 1], raw[i * 4 + 2], raw[i * 4 + 3]);
+            }
+            Apply();
+            return true;
+        }
+
         private static bool Same(Color a, Color b)
         {
             return Mathf.Abs(a.r - b.r) < 0.004f
