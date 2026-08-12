@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using CityX.Core;
 using CityX.UI;
 using UnityEngine;
@@ -109,10 +109,10 @@ namespace CityX.UIEditor
             // and the order that makes sense: you name the thing you made.
             MakeButton(panel.transform, "NewButton", "NEW CHARACTER", Gold,
                 Anchor(0.5f, 0.0f), new Vector2(-90.0f, 58.0f), new Vector2(220.0f, 44.0f),
-                () => title.Show(TitleScreen.Panel.Creator));
+                ButtonAction.Kind.ShowCreator, title, select);
             MakeButton(panel.transform, "BackButton", "BACK", Paper,
                 Anchor(0.5f, 0.0f), new Vector2(150.0f, 58.0f), new Vector2(140.0f, 44.0f),
-                title.Back);
+                ButtonAction.Kind.TitleBack, title, select);
 
             return panel;
         }
@@ -157,9 +157,9 @@ namespace CityX.UIEditor
             detail.alignment = TextAnchor.MiddleLeft;
 
             MakeButton(row.transform, "PlayButton", "PLAY", Gold,
-                Anchor(1.0f, 0.5f), new Vector2(-108.0f, 0.0f), new Vector2(96.0f, 38.0f), null);
+                Anchor(1.0f, 0.5f), new Vector2(-108.0f, 0.0f), new Vector2(96.0f, 38.0f), ButtonAction.Kind.None, null, null);
             MakeButton(row.transform, "DeleteButton", "DELETE", Danger,
-                Anchor(1.0f, 0.5f), new Vector2(-12.0f, 0.0f), new Vector2(88.0f, 38.0f), null);
+                Anchor(1.0f, 0.5f), new Vector2(-12.0f, 0.0f), new Vector2(88.0f, 38.0f), ButtonAction.Kind.None, null, null);
 
             row.SetActive(false);
             return row;
@@ -211,7 +211,10 @@ namespace CityX.UIEditor
 
                 Button button = swatchObject.AddComponent<Button>();
                 button.targetGraphic = image;
-                button.onClick.AddListener(() => select.ChooseSkin(index));
+                var wiring = swatchObject.AddComponent<ButtonAction>();
+                wiring.Action = ButtonAction.Kind.SelectChooseSkin;
+                wiring.Select = select;
+                wiring.Value = index;
 
                 swatches.Add(image);
             }
@@ -219,10 +222,10 @@ namespace CityX.UIEditor
 
             MakeButton(panel.transform, "CreateButton", "ENTER THE CITY", Gold,
                 Anchor(0.5f, 0.5f), new Vector2(-80.0f, -90.0f), new Vector2(220.0f, 44.0f),
-                () => select.ConfirmCreate());
+                ButtonAction.Kind.SelectConfirmCreate, title, select);
             MakeButton(panel.transform, "CancelButton", "CANCEL", Paper,
                 Anchor(0.5f, 0.5f), new Vector2(140.0f, -90.0f), new Vector2(140.0f, 44.0f),
-                select.Back);
+                ButtonAction.Kind.TitleBack, title, select);
 
             return panel;
         }
@@ -286,10 +289,10 @@ namespace CityX.UIEditor
             // from the previous screen would fall.
             MakeButton(panel.transform, "CancelButton", "KEEP", Paper,
                 Anchor(0.5f, 0.5f), new Vector2(-100.0f, -40.0f), new Vector2(160.0f, 44.0f),
-                select.CancelDelete);
+                ButtonAction.Kind.SelectCancelDelete, null, select);
             MakeButton(panel.transform, "DeleteButton", "DELETE", Danger,
                 Anchor(0.5f, 0.5f), new Vector2(100.0f, -40.0f), new Vector2(160.0f, 44.0f),
-                select.ConfirmDelete);
+                ButtonAction.Kind.SelectConfirmDelete, null, select);
 
             return panel;
         }
@@ -301,9 +304,14 @@ namespace CityX.UIEditor
             return new Vector2(x, y);
         }
 
+        /// <summary>
+        /// Buttons carry a ButtonAction rather than a listener -- see that
+        /// class. A listener added from an editor script is not serialized, so
+        /// every one of these was dead once the scene had been saved.
+        /// </summary>
         private static void MakeButton(Transform parent, string name, string label, Color tint,
             Vector2 anchor, Vector2 position, Vector2 dimensions,
-            UnityEngine.Events.UnityAction onClick)
+            ButtonAction.Kind action, TitleScreen title, CharacterSelect select, int value = 0)
         {
             var buttonObject = new GameObject(name, typeof(RectTransform));
             var rect = (RectTransform)buttonObject.transform;
@@ -318,10 +326,12 @@ namespace CityX.UIEditor
 
             Button button = buttonObject.AddComponent<Button>();
             button.targetGraphic = background;
-            if (onClick != null)
-            {
-                button.onClick.AddListener(onClick);
-            }
+
+            var wiring = buttonObject.AddComponent<ButtonAction>();
+            wiring.Action = action;
+            wiring.Title = title;
+            wiring.Select = select;
+            wiring.Value = value;
 
             ColorBlock colours = button.colors;
             colours.highlightedColor = new Color(0.22f, 0.20f, 0.12f, 1.0f);

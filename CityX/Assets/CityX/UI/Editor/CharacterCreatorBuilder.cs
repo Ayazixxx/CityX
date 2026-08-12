@@ -1,4 +1,4 @@
-using CityX.Character;
+﻿using CityX.Character;
 using CityX.Core;
 using CityX.UI;
 using UnityEngine;
@@ -177,25 +177,27 @@ namespace CityX.UIEditor
 
             y -= 20.0f;
             MakeToggle(column.transform, "MirrorButton", "MIRROR", new Vector2(0.0f, y),
-                () => creator.Mirroring = !creator.Mirroring);
+                ButtonAction.Kind.CreatorToggleMirror, creator);
             y -= 40.0f;
             MakeToggle(column.transform, "EraserButton", "ERASER", new Vector2(0.0f, y),
-                () => creator.Erasing = !creator.Erasing);
+                ButtonAction.Kind.CreatorToggleEraser, creator);
 
             y -= 48.0f;
             MakeButton(column.transform, "UndoButton", "UNDO", Paper,
-                new Vector2(-45.0f, y), new Vector2(80.0f, 34.0f), creator.Undo);
+                new Vector2(-45.0f, y), new Vector2(80.0f, 34.0f),
+                ButtonAction.Kind.CreatorUndo, creator);
             MakeButton(column.transform, "RedoButton", "REDO", Paper,
-                new Vector2(45.0f, y), new Vector2(80.0f, 34.0f), creator.Redo);
+                new Vector2(45.0f, y), new Vector2(80.0f, 34.0f),
+                ButtonAction.Kind.CreatorRedo, creator);
 
             // Pinned to the bottom rather than following the stack, so it stays
             // put as tools are added above it.
             MakeAnchoredButton(column.transform, "EnterCityButton", "ENTER THE CITY", Gold,
                 new Vector2(0.0f, 96.0f), new Vector2(160.0f, 42.0f),
-                () => Finish(creator, title));
+                ButtonAction.Kind.CreatorFinish, creator, title);
             MakeAnchoredButton(column.transform, "BackButton", "BACK", Paper,
                 new Vector2(0.0f, 46.0f), new Vector2(160.0f, 36.0f),
-                () => title.Show(TitleScreen.Panel.CharacterSelect));
+                ButtonAction.Kind.ShowCharacterSelect, creator, title);
         }
 
         /// <summary>
@@ -227,7 +229,7 @@ namespace CityX.UIEditor
                 CharacterCreator.Tool tool = tools[i];
                 MakeButton(parent, names[i] + "Button", names[i], Gold,
                     new Vector2(i * 58.0f - 58.0f, y), new Vector2(54.0f, 32.0f),
-                    () => creator.Current = tool);
+                    ButtonAction.Kind.CreatorTool, creator, null, (int)tool);
             }
             y -= 40.0f;
         }
@@ -255,14 +257,11 @@ namespace CityX.UIEditor
 
                 Button button = go.AddComponent<Button>();
                 button.targetGraphic = image;
-                button.onClick.AddListener(() =>
-                {
-                    creator.Colour = swatch;
-                    // Picking a colour is a clear signal you want to paint with
-                    // it. Leaving the eraser silently on would force every
-                    // stroke to white and make the palette look stuck.
-                    creator.Erasing = false;
-                });
+
+                var wiring = go.AddComponent<ButtonAction>();
+                wiring.Action = ButtonAction.Kind.CreatorColour;
+                wiring.Creator = creator;
+                wiring.Colour = swatch;
             }
 
             y -= Mathf.CeilToInt(Palette.Length / (float)perRow) * 40.0f;
@@ -276,7 +275,7 @@ namespace CityX.UIEditor
                 int size = sizes[i];
                 MakeButton(parent, $"Brush{size}", size.ToString(), Paper,
                     new Vector2(i * 34.0f - 68.0f, y), new Vector2(30.0f, 28.0f),
-                    () => creator.BrushRadiusPixels = size);
+                    ButtonAction.Kind.CreatorBrushSize, creator, null, size);
             }
             y -= 34.0f;
         }
@@ -284,13 +283,21 @@ namespace CityX.UIEditor
         // --- small pieces ---
 
         private static void MakeToggle(Transform parent, string name, string label,
-            Vector2 position, UnityEngine.Events.UnityAction onClick)
+            Vector2 position, ButtonAction.Kind action, CharacterCreator creator)
         {
-            MakeButton(parent, name, label, Paper, position, new Vector2(150.0f, 32.0f), onClick);
+            MakeButton(parent, name, label, Paper, position, new Vector2(150.0f, 32.0f),
+                action, creator);
         }
 
+        /// <summary>
+        /// Carries a ButtonAction, not a listener -- see that class. A listener
+        /// added from an editor script is not serialized, so buttons wired that
+        /// way are dead the moment the scene is saved and reopened.
+        /// </summary>
         private static void MakeButton(Transform parent, string name, string label, Color tint,
-            Vector2 position, Vector2 size, UnityEngine.Events.UnityAction onClick)
+            Vector2 position, Vector2 size, ButtonAction.Kind action,
+            CharacterCreator creator, TitleScreen title = null, int value = 0,
+            Color colour = default)
         {
             var go = new GameObject(name, typeof(RectTransform));
             var rect = (RectTransform)go.transform;
@@ -305,10 +312,13 @@ namespace CityX.UIEditor
 
             Button button = go.AddComponent<Button>();
             button.targetGraphic = background;
-            if (onClick != null)
-            {
-                button.onClick.AddListener(onClick);
-            }
+
+            var wiring = go.AddComponent<ButtonAction>();
+            wiring.Action = action;
+            wiring.Creator = creator;
+            wiring.Title = title;
+            wiring.Value = value;
+            wiring.Colour = colour;
 
             ColorBlock colours = button.colors;
             colours.highlightedColor = new Color(0.22f, 0.20f, 0.12f, 1.0f);
@@ -319,9 +329,10 @@ namespace CityX.UIEditor
         }
 
         private static void MakeAnchoredButton(Transform parent, string name, string label,
-            Color tint, Vector2 position, Vector2 size, UnityEngine.Events.UnityAction onClick)
+            Color tint, Vector2 position, Vector2 size, ButtonAction.Kind action,
+            CharacterCreator creator, TitleScreen title = null)
         {
-            MakeButton(parent, name, label, tint, position, size, onClick);
+            MakeButton(parent, name, label, tint, position, size, action, creator, title);
             var rect = (RectTransform)parent.Find(name);
             rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.0f);
         }

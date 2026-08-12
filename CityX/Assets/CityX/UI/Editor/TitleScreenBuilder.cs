@@ -286,11 +286,11 @@ namespace CityX.UIEditor
             rect.sizeDelta = new Vector2(280.0f, 190.0f);
 
             MakeButton(panel.transform, "SingleplayerButton", "SINGLEPLAYER", 0,
-                () => title.Show(TitleScreen.Panel.CharacterSelect));
+                title, ButtonAction.Kind.ShowCharacterSelect);
             MakeButton(panel.transform, "MultiplayerButton", "MULTIPLAYER", 1,
-                () => title.Show(TitleScreen.Panel.Multiplayer));
+                title, ButtonAction.Kind.ShowMultiplayer);
             MakeButton(panel.transform, "SettingsButton", "SETTINGS", 2,
-                () => title.Show(TitleScreen.Panel.Settings));
+                title, ButtonAction.Kind.ShowSettings);
 
             return panel;
         }
@@ -320,12 +320,12 @@ namespace CityX.UIEditor
             MakeLabel(panel.transform, "Body", body, 17, new Color(0.82f, 0.82f, 0.84f),
                 new Vector2(0.0f, 14.0f), new Vector2(440.0f, 46.0f));
 
-            MakeButton(panel.transform, "BackButton", "BACK", 2, title.Back);
+            MakeButton(panel.transform, "BackButton", "BACK", 2, title, ButtonAction.Kind.TitleBack);
             return panel;
         }
 
         private static void MakeButton(Transform parent, string name, string label, int row,
-            UnityEngine.Events.UnityAction onClick)
+            TitleScreen title, ButtonAction.Kind action)
         {
             var buttonObject = new GameObject(name, typeof(RectTransform));
             var rect = (RectTransform)buttonObject.transform;
@@ -341,7 +341,13 @@ namespace CityX.UIEditor
 
             Button button = buttonObject.AddComponent<Button>();
             button.targetGraphic = background;
-            button.onClick.AddListener(onClick);
+
+            // A COMPONENT, NOT A LISTENER. See ButtonAction: a listener added
+            // here does not survive the scene being saved, so every button on
+            // this screen was dead in play mode.
+            var wiring = buttonObject.AddComponent<ButtonAction>();
+            wiring.Action = action;
+            wiring.Title = title;
 
             ColorBlock colours = button.colors;
             colours.highlightedColor = new Color(0.22f, 0.20f, 0.12f, 1.0f);
