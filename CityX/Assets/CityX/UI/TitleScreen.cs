@@ -18,6 +18,7 @@ namespace CityX.UI
         {
             Menu,
             CharacterSelect,
+            Creator,
             Multiplayer,
             Settings,
         }
@@ -26,6 +27,7 @@ namespace CityX.UI
         public GameObject MenuPanel;
 
         public GameObject CharacterSelectPanel;
+        public GameObject CreatorPanel;
         public GameObject MultiplayerPanel;
         public GameObject SettingsPanel;
         public Image Logo;
@@ -64,14 +66,16 @@ namespace CityX.UI
             {
                 CharacterSelectPanel.SetActive(panel == Panel.CharacterSelect);
             }
+            if (CreatorPanel != null) CreatorPanel.SetActive(panel == Panel.Creator);
             if (MultiplayerPanel != null) MultiplayerPanel.SetActive(panel == Panel.Multiplayer);
             if (SettingsPanel != null) SettingsPanel.SetActive(panel == Panel.Settings);
 
-            // The character list fills the screen, and the logo sitting over it
-            // makes both unreadable. The Godot build did the same thing.
+            // The character list and the creator both fill the screen, and the
+            // logo sitting over them makes everything unreadable. The Godot
+            // build did the same thing.
             if (LogoGroup != null)
             {
-                LogoGroup.SetActive(panel != Panel.CharacterSelect);
+                LogoGroup.SetActive(panel != Panel.CharacterSelect && panel != Panel.Creator);
             }
         }
 

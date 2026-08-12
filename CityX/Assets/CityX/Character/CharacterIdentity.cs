@@ -74,7 +74,53 @@ namespace CityX.Character
                 _vitals.Revive();
             }
 
+            // PAINT WINS OVER THE FLAT COLOUR when there is any, because paint
+            // is authored on top of a base and replacing it with a tint would
+            // throw the player's work away. A character with none -- typed a
+            // name and pressed enter -- still gets their chosen skin.
+            byte[] painted = character.GetPaint();
+            if (painted != null)
+            {
+                var paint = new BodyPaint(character.Skin);
+                if (paint.Decode(painted))
+                {
+                    ApplyPaint(paint.Atlas);
+                    return;
+                }
+                Debug.LogWarning($"CityX: {character.Name}'s paint would not load -- falling " +
+                                 "back to their skin colour.");
+            }
+
             Recolour(character.Skin);
+        }
+
+        /// <summary>Puts a painted atlas on the body.</summary>
+        public void ApplyPaint(Texture texture)
+        {
+            foreach (SkinnedMeshRenderer renderer in
+                GetComponentsInChildren<SkinnedMeshRenderer>())
+            {
+                Material instance = renderer.material;
+                if (instance == null)
+                {
+                    continue;
+                }
+                if (instance.HasProperty("_BaseMap"))
+                {
+                    instance.SetTexture("_BaseMap", texture);
+                }
+                instance.mainTexture = texture;
+                // White underneath, or the paint comes out tinted by whatever
+                // skin colour the material was left on.
+                if (instance.HasProperty("_BaseColor"))
+                {
+                    instance.SetColor("_BaseColor", Color.white);
+                }
+                if (instance.HasProperty("_Color"))
+                {
+                    instance.SetColor("_Color", Color.white);
+                }
+            }
         }
 
         /// <summary>

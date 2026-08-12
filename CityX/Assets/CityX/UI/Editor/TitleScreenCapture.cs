@@ -41,6 +41,7 @@ namespace CityX.UIEditor
             Shoot("character-select", TitleScreen.Panel.CharacterSelect, seedCharacters: true);
             Shoot("character-create", TitleScreen.Panel.CharacterSelect, seedCharacters: true,
                 CharacterSelect.Mode.Creating);
+            Shoot("creator", TitleScreen.Panel.Creator, seedCharacters: false);
         }
 
         private static void Shoot(string name, TitleScreen.Panel panel, bool seedCharacters,

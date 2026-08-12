@@ -29,11 +29,51 @@ namespace CityX.Core
         public string Name = string.Empty;
 
         /// <summary>
-        /// The body's colour. The Godot build let you paint a whole texture in
-        /// its creator; this is one colour, which is the honest subset that
-        /// exists so far rather than a stand-in pretending to be the rest.
+        /// The body's base colour, under any paint.
         /// </summary>
         public Color Skin = DefaultSkin;
+
+        /// <summary>
+        /// The painted atlas: gzipped raw RGBA, base64'd because JsonUtility
+        /// has no useful representation for a byte array.
+        ///
+        /// EMPTY IS A VALID CHARACTER, not a broken one -- somebody who typed a
+        /// name and pressed enter without painting gets a plain body in their
+        /// chosen skin colour, and every save written before painting existed
+        /// loads exactly that way too.
+        /// </summary>
+        public string Paint = string.Empty;
+
+        public bool HasPaint => !string.IsNullOrEmpty(Paint);
+
+        /// <summary>Stores painted pixels. Null or empty clears the paint.</summary>
+        public void SetPaint(byte[] compressed)
+        {
+            Paint = compressed == null || compressed.Length == 0
+                ? string.Empty
+                : System.Convert.ToBase64String(compressed);
+        }
+
+        /// <summary>
+        /// The stored paint, or null. Never throws on a corrupt string -- a
+        /// hand-edited save should cost you your paint, not your character.
+        /// </summary>
+        public byte[] GetPaint()
+        {
+            if (string.IsNullOrEmpty(Paint))
+            {
+                return null;
+            }
+            try
+            {
+                return System.Convert.FromBase64String(Paint);
+            }
+            catch (System.FormatException)
+            {
+                Debug.LogError($"CityX: {Name}'s saved paint is not valid base64 -- ignoring it.");
+                return null;
+            }
+        }
 
         public int Level = 1;
 

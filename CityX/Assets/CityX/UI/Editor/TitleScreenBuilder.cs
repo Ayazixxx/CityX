@@ -203,6 +203,20 @@ namespace CityX.UIEditor
             title.Logo = BuildLogo(logoGroup.transform);
             title.MenuPanel = BuildMenu(root.transform, title);
             title.CharacterSelectPanel = CharacterSelectBuilder.Build(root.transform, title);
+
+            var playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/CityX/Character/Player.prefab");
+            if (playerPrefab != null)
+            {
+                title.CreatorPanel = CharacterCreatorBuilder.Build(
+                    root.transform, title, playerPrefab);
+            }
+            else
+            {
+                Debug.LogWarning("CityX: no player prefab -- the creator will not be built. " +
+                                 "Run CityX/Rebuild Player Rig first.");
+            }
+
             title.MultiplayerPanel = BuildStub(root.transform, "MultiplayerPanel",
                 "MULTIPLAYER", "Host and join are not ported yet.", title);
             title.SettingsPanel = BuildStub(root.transform, "SettingsPanel",

@@ -71,6 +71,15 @@ namespace CityX.UI
 
         public Color PendingSkin => _pendingSkin;
 
+        /// <summary>
+        /// Paint handed over by the creator, waiting for a name.
+        ///
+        /// Held here rather than in the creator because the creator is torn
+        /// down when it closes, and the paint has to outlive it long enough to
+        /// be written into the save.
+        /// </summary>
+        public byte[] PendingPaint;
+
         private void OnEnable()
         {
             Refresh();
@@ -173,6 +182,8 @@ namespace CityX.UI
         {
             string name = NameField != null ? NameField.text : string.Empty;
             CharacterSave created = CharacterSave.Create(name, _pendingSkin);
+            created.SetPaint(PendingPaint);
+            PendingPaint = null;
             _characters = CharacterStore.Add(created);
             BuildRows();
             Play(created, isNew: true);
