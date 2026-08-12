@@ -92,10 +92,33 @@ namespace CityX.View
             float z1 = z0 + size;
             float y = pad - origin.y;
 
-            ground.AddQuad(
-                new Vector3(x0, y, z0), new Vector3(x0, y, z1),
-                new Vector3(x1, y, z1), new Vector3(x1, y, z0), Vector3.up,
-                new Vector2(0, 0), new Vector2(0, size), new Vector2(size, size), new Vector2(size, 0));
+            // TAKE THE BUILDING'S FOOTPRINT OUT OF THE GROUND. A building's own
+            // lobby floor sits at BaseHeight, and for a lot on level ground
+            // that is exactly this quad's own height -- two coplanar upward
+            // faces, which is a z-fight rather than a floor. Cutting the
+            // footprint leaves one surface, and the ground under a building was
+            // never visible anyway.
+            //
+            // Every chunk cuts only its OWN share of the footprint, which is
+            // its square intersected with the building, so a building covering
+            // four chunks is handled by four separate chunks agreeing without
+            // talking to each other -- the same rule the rest of this file
+            // works by.
+            BuildingSite standing = world.BuildingAt(chunkX, chunkY);
+            Rect covered = Rect.zero;
+            if (standing.Exists)
+            {
+                covered = Rect.MinMaxRect(
+                    Mathf.Max(x0, (float)(standing.MinX - origin.x)),
+                    Mathf.Max(z0, (float)(standing.MinZ - origin.z)),
+                    Mathf.Min(x1, (float)(standing.MaxX - origin.x)),
+                    Mathf.Min(z1, (float)(standing.MaxZ - origin.z)));
+                if (covered.width <= 0.0f || covered.height <= 0.0f)
+                {
+                    covered = Rect.zero;
+                }
+            }
+            AddSlabFace(ground, x0, x1, z0, z1, covered, y, Vector3.up);
 
             // Retaining walls, but only where the neighbour is actually lower.
             // Skirting every edge unconditionally would be simpler and would

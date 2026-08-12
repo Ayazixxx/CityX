@@ -452,6 +452,57 @@ namespace CityX.Tests
         }
 
         /// <summary>
+        /// NO GROUND UNDER A BUILDING. A building's lobby floor sits at
+        /// BaseHeight and on level ground so does the chunk's own surface, so
+        /// leaving both means two coplanar upward faces at the same height --
+        /// which is not a floor, it is a z-fight you only notice once you can
+        /// walk in and stand on it.
+        /// </summary>
+        [Test]
+        public void TheGroundIsCutAwayUnderEveryBuilding()
+        {
+            CityWorld world = new CityWorld(Seed);
+            int checkedCount = 0;
+
+            for (int x = -14; x <= 14; x++)
+            {
+                for (int y = -14; y <= 14; y++)
+                {
+                    BuildingSite site = world.BuildingAt(x, y);
+                    if (!site.Exists)
+                    {
+                        continue;
+                    }
+                    checkedCount++;
+
+                    Build(x, y, out MeshBuffer ground, out _);
+                    Rect plan = Rect.MinMaxRect((float)site.MinX, (float)site.MinZ,
+                        (float)site.MaxX, (float)site.MaxZ);
+
+                    for (int t = 0; t + 2 < ground.Triangles.Count; t += 3)
+                    {
+                        // Only the walkable surface. Retaining walls are
+                        // vertical and a 2x2 building covers its own internal
+                        // chunk edges, so a skirt buried under one is normal.
+                        if (ground.Normals[ground.Triangles[t]].y < 0.5f)
+                        {
+                            continue;
+                        }
+                        Vector3 a = ground.Vertices[ground.Triangles[t]];
+                        Vector3 b = ground.Vertices[ground.Triangles[t + 1]];
+                        Vector3 c = ground.Vertices[ground.Triangles[t + 2]];
+                        Vector3 centroid = (a + b + c) / 3.0f;
+                        Assert.IsFalse(Covers(plan, centroid),
+                            $"chunk ({x},{y}) still has ground at {centroid} inside the footprint "
+                            + $"of the building at ({site.AnchorX},{site.AnchorY})");
+                    }
+                }
+            }
+
+            Assert.Greater(checkedCount, 200, "not enough built-on chunks sampled");
+        }
+
+        /// <summary>
         /// A FLOOR TO STAND ON AT EVERY STOREY, and the roof opened for the
         /// top flight. Without the opening the last staircase climbs into a
         /// solid ceiling and the roof is unreachable.
