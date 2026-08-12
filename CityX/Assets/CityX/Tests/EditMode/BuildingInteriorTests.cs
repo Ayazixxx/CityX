@@ -54,7 +54,7 @@ namespace CityX.Tests
                 BuildingInterior.Stairwell well =
                     BuildingInterior.StairwellFor(floor, HalfX, HalfZ, run);
 
-                // It starts one margin off the wall it climbs away from...
+                // Its top sits one margin off the wall it climbs towards...
                 float alongRun = Mathf.Abs(Vector3.Dot(well.WallPoint, well.RunDirection));
                 float nearExtent = Mathf.Abs(well.RunDirection.x) > 0.5f ? HalfX : HalfZ;
                 Assert.AreEqual(nearExtent - BuildingInterior.StairMargin, alongRun, 0.001f,
@@ -72,8 +72,12 @@ namespace CityX.Tests
             }
         }
 
+        /// <summary>
+        /// The flight runs from its wall out into the room -- climbing the
+        /// other way, towards that wall -- and neither end pokes through it.
+        /// </summary>
         [Test]
-        public void TheFlightClimbsAwayFromItsOwnWallAndStaysInTheRoom()
+        public void TheFlightRunsInFromItsWallAndStaysInTheRoom()
         {
             float run = Run();
 
@@ -88,7 +92,7 @@ namespace CityX.Tests
                 Assert.AreEqual(0.0f, well.RunDirection.y, "a flight should not climb through Y");
 
                 // Both ends inside the room.
-                foreach (Vector3 end in new[] { well.WallPoint, well.TopOf(run) })
+                foreach (Vector3 end in new[] { well.WallPoint, well.FootOf(run) })
                 {
                     Assert.LessOrEqual(Mathf.Abs(end.x), HalfX + 0.001f,
                         $"floor {floor} leaves the room in X");
@@ -99,33 +103,33 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// CONSECUTIVE FLIGHTS DO NOT MEET, and that is what Godot shipped.
+        /// CONSECUTIVE FLIGHTS MEET, which is the whole reason the corner
+        /// rotates rather than staying put.
         ///
-        /// _stairwell_for_floor's own comment claims the next flight starts
-        /// along the wall the previous one topped out at -- a walk along one
-        /// wall rather than a crossing. Its code does not do that: with the
-        /// corner table it actually has, floor 0 hugs the -X wall and tops out
-        /// mid-way along it, while floor 1 starts against +X. In a 14 by 10
-        /// room they end up 12.7 apart, against a room diagonal of 8.6.
-        ///
-        /// Measured and pinned rather than asserted as an intention, because
-        /// this is the behaviour the Godot build actually has and the port is
-        /// meant to match it. If someone later makes the flights genuinely
-        /// meet, this fails and says so, which is the right prompt to check
-        /// whether that was on purpose.
+        /// You arrive on a floor at the TOP of the flight below, which is
+        /// against a wall -- see Stairwell.WallPoint, and note that this is
+        /// easy to read backwards: the step at the wall is the full rise tall
+        /// and they get shorter into the room, so the flight is highest at the
+        /// wall and you climb towards it. The next flight's foot should then
+        /// be a walk along that wall away, not a march across open floor.
         /// </summary>
         [Test]
-        public void ConsecutiveFlightsLandOnOppositeSidesJustAsGodotsDo()
+        public void ConsecutiveFlightsMeetRatherThanCrossingTheRoom()
         {
             float run = Run();
+            float diagonal = new Vector2(HalfX * 2.0f, HalfZ * 2.0f).magnitude;
 
-            Vector3 top = BuildingInterior.StairwellFor(0, HalfX, HalfZ, run).TopOf(run);
-            Vector3 next = BuildingInterior.StairwellFor(1, HalfX, HalfZ, run).WallPoint;
+            for (int floor = 0; floor < 4; floor++)
+            {
+                // Where you step off, and where you start climbing again.
+                Vector3 arrive = BuildingInterior.StairwellFor(floor, HalfX, HalfZ, run).WallPoint;
+                Vector3 depart =
+                    BuildingInterior.StairwellFor(floor + 1, HalfX, HalfZ, run).FootOf(run);
 
-            Assert.AreEqual(-6.05f, top.x, 0.01f, "floor 0 tops out somewhere new");
-            Assert.AreEqual(0.0f, top.z, 0.01f);
-            Assert.AreEqual(6.0f, next.x, 0.01f, "floor 1 starts somewhere new");
-            Assert.AreEqual(-4.05f, next.z, 0.01f);
+                Assert.Less(Vector3.Distance(arrive, depart), diagonal * 0.75f,
+                    $"stepping off floor {floor} leaves you most of a room away from the next "
+                    + "flight -- that is a march across open floor, not a walk along a wall");
+            }
         }
 
         [Test]
@@ -180,8 +184,8 @@ namespace CityX.Tests
                 // on the boundary. Rect.Contains is half-open and would call
                 // that a miss; its second argument is allowInverse, not
                 // inclusive, which is an easy thing to read wrong.
-                Inside(hole, well.WallPoint, $"floor {floor}'s hole misses the foot of its stairs");
-                Inside(hole, well.TopOf(run), $"floor {floor}'s hole misses the top of its stairs");
+                Inside(hole, well.WallPoint, $"floor {floor}'s hole misses the top of its stairs");
+                Inside(hole, well.FootOf(run), $"floor {floor}'s hole misses the foot of its stairs");
 
                 // And it stays inside the room, or it would cut the outer wall.
                 Assert.GreaterOrEqual(hole.xMin, -HalfX - 0.001f);
@@ -189,6 +193,49 @@ namespace CityX.Tests
                 Assert.GreaterOrEqual(hole.yMin, -HalfZ - 0.001f);
                 Assert.LessOrEqual(hole.yMax, HalfZ + 0.001f);
             }
+        }
+
+        /// <summary>
+        /// The steps make a real, climbable flight: each one standing on the
+        /// floor, rising evenly, ending flush with the storey above.
+        /// </summary>
+        [Test]
+        public void TheStepsClimbEvenlyFromTheFloorToTheStoreyAbove()
+        {
+            float run = Run();
+            const float floorY = 3.2f;
+            const float rise = 3.2f;
+
+            BuildingInterior.Stairwell well =
+                BuildingInterior.StairwellFor(0, HalfX, HalfZ, run);
+            BuildingInterior.Step[] steps = BuildingInterior.Steps(well, run, floorY, rise);
+
+            Assert.AreEqual(BuildingInterior.StepsFor(rise), steps.Length);
+
+            float previous = float.MaxValue;
+            foreach (BuildingInterior.Step step in steps)
+            {
+                // EVERY STEP STANDS ON THE FLOOR. Floating treads would be a
+                // flight you can fall through and which reads as slats from
+                // the side; Godot builds each one as a box down to the slab.
+                Assert.AreEqual(floorY, step.Centre.y - step.Size.y * 0.5f, 0.001f,
+                    "a step does not reach the floor");
+                Assert.Greater(step.Size.y, 0.0f);
+                Assert.AreEqual(BuildingInterior.StairWidth, step.Size.x, 0.001f);
+                Assert.AreEqual(run / steps.Length, step.Size.z, 0.001f, "uneven tread depth");
+
+                // Tallest at the wall, shortest in the room -- the flight
+                // climbs TOWARDS the wall.
+                Assert.Less(step.Top, previous, "the steps do not descend into the room");
+                previous = step.Top;
+            }
+
+            // The first one reaches the floor above exactly.
+            Assert.AreEqual(floorY + rise, steps[0].Top, 0.001f,
+                "the top step does not meet the storey above -- that is a lip to trip on");
+
+            // And the last is one riser off the ground, not a kerb to vault.
+            Assert.AreEqual(rise / steps.Length, steps[steps.Length - 1].Top - floorY, 0.001f);
         }
 
         private static void Inside(Rect hole, Vector3 point, string message)

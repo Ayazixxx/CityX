@@ -75,10 +75,24 @@ namespace CityX.World
         /// <summary>One floor's flight, and the hole it needs in the slab above.</summary>
         public readonly struct Stairwell
         {
-            /// <summary>Where the flight starts, at the foot of the wall.</summary>
+            /// <summary>
+            /// THE TOP OF THE FLIGHT, against the wall it climbs towards.
+            ///
+            /// Easy to read the other way round, and I did: _add_staircase's
+            /// first step sits here and is the FULL rise tall, with each one
+            /// after it shorter, out into the room. So the flight is highest
+            /// at the wall. You walk from the middle of the room up to the
+            /// wall and arrive at the floor above -- which is what
+            /// _stairwell_for_floor's own "climbs toward the back wall" means,
+            /// and it is correct.
+            /// </summary>
             public readonly Vector3 WallPoint;
 
-            /// <summary>The way the flight climbs: away from the wall it starts at.</summary>
+            /// <summary>
+            /// The way the flight EXTENDS, which is away from the wall and
+            /// therefore downward: from the top, at the wall, out to the foot
+            /// in the middle of the room.
+            /// </summary>
             public readonly Vector3 RunDirection;
 
             /// <summary>Across the flight, towards the side wall it hugs.</summary>
@@ -102,8 +116,55 @@ namespace CityX.World
                 Hole = hole;
             }
 
-            /// <summary>Where the flight tops out, in local X/Z.</summary>
-            public Vector3 TopOf(float run) => WallPoint + RunDirection * run;
+            /// <summary>
+            /// The FOOT of the flight, out in the middle of the room -- where
+            /// somebody starts climbing. See WallPoint for which end is which.
+            /// </summary>
+            public Vector3 FootOf(float run) => WallPoint + RunDirection * run;
+        }
+
+        /// <summary>One step: a box resting on the floor, as Godot builds them.</summary>
+        public readonly struct Step
+        {
+            /// <summary>The middle of the box, including its own height.</summary>
+            public readonly Vector3 Centre;
+
+            /// <summary>Width across the flight, height, and tread depth.</summary>
+            public readonly Vector3 Size;
+
+            public Step(Vector3 centre, Vector3 size)
+            {
+                Centre = centre;
+                Size = size;
+            }
+
+            public float Top => Centre.y + Size.y * 0.5f;
+        }
+
+        /// <summary>
+        /// Every step of one flight, in the building's own local space.
+        ///
+        /// EACH STEP IS A BOX STANDING ON THE FLOOR, not a floating tread:
+        /// the one at the wall is the full rise tall and each one after it is
+        /// shorter, so the stack reads as a solid flight from the side and
+        /// there is nothing to fall through. That is _add_staircase's own
+        /// shape, and it is why the flight is highest at the wall.
+        /// </summary>
+        public static Step[] Steps(Stairwell well, float run, float floorY, float rise)
+        {
+            int count = StepsFor(rise);
+            float depth = run / count;
+            var steps = new Step[count];
+
+            for (int i = 0; i < count; i++)
+            {
+                float height = rise * (count - i) / count;
+                Vector3 along = well.WallPoint + well.RunDirection * (depth * i + depth * 0.5f);
+                steps[i] = new Step(
+                    new Vector3(along.x, floorY + height * 0.5f, along.z),
+                    new Vector3(StairWidth, height, depth));
+            }
+            return steps;
         }
 
         /// <summary>
