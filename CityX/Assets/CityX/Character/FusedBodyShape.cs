@@ -121,7 +121,23 @@ namespace CityX.Character
                 // line. Not one per spine bone, which would bulge at every
                 // joint -- and not hips-to-chest, which is what this used while
                 // it was fitting itself to an imported rig that has a chest.
-                new Segment(hips, neck, TorsoRadius * scale, HumanBodyBones.Hips),
+                // THE TORSO IS TWO BONES, NOT ONE. fused_body.gd splits it at
+                // SPINE_T -- hips for the lower half, spine for the upper --
+                // and this port collapsed it into a single capsule owned
+                // entirely by the hips. The Spine bone then drove no geometry
+                // at all, so the whole back was rigid to the pelvis while the
+                // head and arms still hung off a spine chain the mesh ignored.
+                // Mixamo puts most of its upper-body motion in the spine, so
+                // every clip read as the back lurching in one block with the
+                // head disconnected from it.
+                //
+                // Two colinear capsules of the same radius sharing an endpoint
+                // union to exactly the shape of one, so this changes where the
+                // weights fall and nothing whatever about the silhouette.
+                new Segment(hips, Vector3.Lerp(hips, neck, BodyRig.SpineT),
+                    TorsoRadius * scale, HumanBodyBones.Hips),
+                new Segment(Vector3.Lerp(hips, neck, BodyRig.SpineT), neck,
+                    TorsoRadius * scale, HumanBodyBones.Spine),
 
                 // A BUMP AT THE SHOULDER LINE, not a column up to the skull.
                 // fused_body.gd's neck limb is NECK_LEN = 0.001 long: a 0.10
@@ -492,14 +508,24 @@ namespace CityX.Character
         {
             switch (bone)
             {
-                case HumanBodyBones.Neck: return HumanBodyBones.Hips;
+                // THE UPPER TORSO IS THE SPINE'S NOW, so everything that meets
+                // the body at the shoulder line hangs off the spine rather
+                // than the hips. Splitting the torso without moving these left
+                // the shoulder owned by a single bone -- the arm and the
+                // geometry it grows out of were no longer neighbours, so no
+                // weight was shared across the join and it tore the moment an
+                // arm swung. The legs stay on the hips: they meet the LOWER
+                // half, which is still the hips' own capsule.
+                case HumanBodyBones.Spine: return HumanBodyBones.Hips;
+
+                case HumanBodyBones.Neck: return HumanBodyBones.Spine;
                 case HumanBodyBones.Head: return HumanBodyBones.Neck;
 
-                case HumanBodyBones.LeftUpperArm: return HumanBodyBones.Hips;
+                case HumanBodyBones.LeftUpperArm: return HumanBodyBones.Spine;
                 case HumanBodyBones.LeftLowerArm: return HumanBodyBones.LeftUpperArm;
                 case HumanBodyBones.LeftHand: return HumanBodyBones.LeftLowerArm;
 
-                case HumanBodyBones.RightUpperArm: return HumanBodyBones.Hips;
+                case HumanBodyBones.RightUpperArm: return HumanBodyBones.Spine;
                 case HumanBodyBones.RightLowerArm: return HumanBodyBones.RightUpperArm;
                 case HumanBodyBones.RightHand: return HumanBodyBones.RightLowerArm;
 

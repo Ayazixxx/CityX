@@ -47,8 +47,8 @@ namespace CityX.Tests
         {
             List<FusedBodyShape.Segment> segments = MakeSegments();
 
-            // torso, neck, three capsules per arm, two per leg.
-            Assert.AreEqual(1 + 1 + 3 + 3 + 2 + 2, segments.Count);
+            // two for the torso, neck, three capsules per arm, two per leg.
+            Assert.AreEqual(2 + 1 + 3 + 3 + 2 + 2, segments.Count);
 
             var bones = new HashSet<HumanBodyBones>();
             foreach (FusedBodyShape.Segment segment in segments)
@@ -65,6 +65,16 @@ namespace CityX.Tests
             Assert.IsFalse(bones.Contains(HumanBodyBones.Head),
                 "the head is back in the body's shape -- it belongs to HeadMesh");
             Assert.IsTrue(bones.Contains(HumanBodyBones.Neck), "no neck");
+
+            // THE TORSO IS TWO BONES. It was one, owned entirely by the hips,
+            // which left the Spine bone driving no geometry at all: the whole
+            // back stayed rigid to the pelvis while the head and arms still
+            // hung off a spine chain the mesh ignored. Mixamo puts most of its
+            // upper-body motion in the spine, so every clip read as the back
+            // lurching in one block with the head disconnected from it.
+            // fused_body.gd splits the torso at SPINE_T and always has.
+            Assert.IsTrue(bones.Contains(HumanBodyBones.Spine),
+                "the spine drives no geometry -- the back will move as one rigid block");
             Assert.IsTrue(bones.Contains(HumanBodyBones.LeftHand), "no left hand");
             Assert.IsTrue(bones.Contains(HumanBodyBones.RightLowerLeg), "no right shin");
 
@@ -509,9 +519,14 @@ namespace CityX.Tests
             // and never reaches the surface. That is true of fused_body.gd too
             // -- its neck limb exists to give the skeleton a joint between the
             // spine and the head, not to add any geometry.
-            Assert.AreEqual(HumanBodyBones.Hips,
+            // The top of the body belongs to the SPINE, which is the upper half
+            // of the torso -- see ThereIsATorsoANeckAndFourLimbsAndNoHead. It
+            // used to answer Hips, because the whole torso was one capsule the
+            // hips owned outright, and that is what made the back move in one
+            // rigid block.
+            Assert.AreEqual(HumanBodyBones.Spine,
                 FusedBodyShape.NearestBone(segments, Bone(HumanBodyBones.Neck) + Vector3.up * 0.05f),
-                "the top of the body is not weighted to the torso");
+                "the top of the body is not weighted to the spine");
 
             Assert.AreEqual(HumanBodyBones.LeftHand,
                 FusedBodyShape.NearestBone(segments, Bone(HumanBodyBones.LeftHand)),
@@ -562,16 +577,29 @@ namespace CityX.Tests
         [Test]
         public void SkinIsSharedOnlyBetweenAttachedBones()
         {
+            // THE SHOULDER IS THE SPINE'S JOIN NOW. The arm grows out of the
+            // upper half of the torso, and if these two stop being neighbours
+            // no weight is shared across the join and the shoulder tears the
+            // moment an arm swings -- which is exactly what splitting the
+            // torso caused until this table was moved with it.
             Assert.IsTrue(FusedBodyShape.AreConnected(
-                HumanBodyBones.Hips, HumanBodyBones.LeftUpperArm), "a shoulder");
+                HumanBodyBones.Spine, HumanBodyBones.LeftUpperArm), "a shoulder");
             Assert.IsTrue(FusedBodyShape.AreConnected(
                 HumanBodyBones.LeftLowerArm, HumanBodyBones.LeftHand), "a wrist");
 
-            // Two apart, and they do have to share: the neck between the head
-            // and the torso is short enough that the head sphere and the torso
-            // capsule overlap directly.
+            // Two apart, and they still share: an arm swinging hard pulls skin
+            // well below the shoulder line, into the hips' own half.
             Assert.IsTrue(FusedBodyShape.AreConnected(
-                HumanBodyBones.Hips, HumanBodyBones.Head), "the base of the skull");
+                HumanBodyBones.Hips, HumanBodyBones.LeftUpperArm), "a shoulder to the lower back");
+            Assert.IsTrue(FusedBodyShape.AreConnected(
+                HumanBodyBones.Hips, HumanBodyBones.Neck), "the collar");
+
+            // The head is NOT here. It left the body's shape field when it
+            // became its own mesh -- see HeadMesh -- so nothing in this skin is
+            // ever weighted to it and whether it neighbours the hips is moot.
+            Assert.IsFalse(FusedBodyShape.AreConnected(
+                HumanBodyBones.Hips, HumanBodyBones.Head),
+                "the head is three joins from the hips and owns no skin anyway");
 
             // Reached by going up and back down again. Near, not attached.
             Assert.IsFalse(FusedBodyShape.AreConnected(
