@@ -71,9 +71,16 @@ namespace CityX.Tests
                 widest[row] = float.MinValue;
             }
 
-            foreach (int index in triangles)
+            // THE HEAD'S UVs COME FROM ITS OWN MESH. It is not part of the
+            // body's shape field -- see HeadMesh -- so its row is filled by the
+            // skull, and looking only at the body would find row 0 empty.
+            Mesh head = HeadMesh.Build();
+            var everything = new List<Vector2>(uvs);
+            everything.AddRange(head.uv);
+            Object.DestroyImmediate(head);
+
+            foreach (Vector2 uv in everything)
             {
-                Vector2 uv = uvs[index];
                 int row = Mathf.Clamp(
                     Mathf.FloorToInt(uv.y * PaintAtlas.PartCount), 0, PaintAtlas.PartCount - 1);
                 lowest[row] = Mathf.Min(lowest[row], uv.y);

@@ -43,8 +43,17 @@ namespace CityX.Character
         /// <summary>
         /// character.gd's head_size is a 0.7 cube, so the sphere that fills it
         /// has this radius. Deliberately unchanged from the Godot build.
+        ///
+        /// The head is NOT one of the capsules below -- see Segments. This
+        /// lives here because it is the body's own scale that decides it.
         /// </summary>
         public const float HeadRadius = 0.35f;
+
+        /// <summary>
+        /// fused_body.gd NECK_LEN. Very nearly zero on purpose: the neck is a
+        /// rounded bump where the head meets the shoulders, not a column.
+        /// </summary>
+        public const float NeckLength = 0.001f;
 
         /// <summary>
         /// fused_body.gd BLEND_K. How far either side of a join the surface
@@ -104,7 +113,6 @@ namespace CityX.Character
 
             Vector3 hips = bonePosition(HumanBodyBones.Hips);
             Vector3 neck = bonePosition(HumanBodyBones.Neck);
-            Vector3 head = bonePosition(HumanBodyBones.Head);
 
             var segments = new List<Segment>
             {
@@ -114,14 +122,22 @@ namespace CityX.Character
                 // joint -- and not hips-to-chest, which is what this used while
                 // it was fitting itself to an imported rig that has a chest.
                 new Segment(hips, neck, TorsoRadius * scale, HumanBodyBones.Hips),
-                new Segment(neck, head, NeckRadius * scale, HumanBodyBones.Neck),
 
-                // The head sphere is a zero-length capsule, which is exactly a
-                // sphere, so it fuses into the neck through the same blend as
-                // everything else rather than being a separate object stuck on
-                // top with a visible join.
-                new Segment(head, head, HeadRadius * scale, HumanBodyBones.Head),
+                // A BUMP AT THE SHOULDER LINE, not a column up to the skull.
+                // fused_body.gd's neck limb is NECK_LEN = 0.001 long: a 0.10
+                // sphere sitting on the torso, and nothing more.
+                new Segment(neck, neck + Vector3.up * (NeckLength * scale),
+                    NeckRadius * scale, HumanBodyBones.Neck),
             };
+
+            // AND NO HEAD. fused_body.gd's own limb_defs() has a torso, two
+            // arms, two legs and a neck in it and has never had a head --
+            // character.gd builds that separately, as its own sphere hung off
+            // the head bone (see HeadMesh). Adding it here fused it into the
+            // neck through the same smooth blend as every joint, and since the
+            // head sphere's radius reaches from the skull all the way back
+            // down to the shoulder line, it swallowed the neck whole and gave
+            // one continuous peanut with no neck in it at all.
 
             // Arms carry a hand: fused_body.gd splits each arm three ways at
             // WRIST_T, which is 0.7 of the way from elbow to fingertip.

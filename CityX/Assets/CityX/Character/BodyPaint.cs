@@ -81,7 +81,55 @@ namespace CityX.Character
         {
             _positions = mesh.vertices;
             _uvs = mesh.uv;
+            _bodyTriangles = _positions.Length / 3;
         }
+
+        /// <summary>
+        /// The body AND the head, as one list of triangles.
+        ///
+        /// THE HEAD IS ITS OWN MESH ON ITS OWN COLLIDER -- see HeadMesh -- so a
+        /// ray that hits it comes back with a triangle index counted from that
+        /// mesh's own zero. Appending the head's triangles after the body's and
+        /// offsetting by <see cref="BodyTriangleCount"/> keeps one flat index
+        /// space, which is all the rest of this class ever wanted.
+        ///
+        /// The head's vertices are stored in the BODY's space, because that is
+        /// the space every caller hands in a hit point in. It is a fixed
+        /// transform: the head is unposed while it is being painted.
+        /// </summary>
+        public void Bind(Mesh body, Mesh head, Matrix4x4 headToBody)
+        {
+            Bind(body);
+            if (head == null)
+            {
+                return;
+            }
+
+            Vector3[] headPositions = head.vertices;
+            Vector2[] headUvs = head.uv;
+
+            var positions = new Vector3[_positions.Length + headPositions.Length];
+            var uvs = new Vector2[_uvs.Length + headUvs.Length];
+            _positions.CopyTo(positions, 0);
+            _uvs.CopyTo(uvs, 0);
+
+            for (int i = 0; i < headPositions.Length; i++)
+            {
+                positions[_positions.Length + i] = headToBody.MultiplyPoint3x4(headPositions[i]);
+                uvs[_uvs.Length + i] = headUvs[i];
+            }
+
+            _positions = positions;
+            _uvs = uvs;
+        }
+
+        /// <summary>
+        /// How many triangles belong to the body. A head hit's own triangle
+        /// index is added to this.
+        /// </summary>
+        public int BodyTriangleCount => _bodyTriangles;
+
+        private int _bodyTriangles;
 
         public int TriangleCount => _positions.Length / 3;
 

@@ -103,8 +103,11 @@ namespace CityX.Character
         /// <summary>Puts a painted atlas on the body.</summary>
         public void ApplyPaint(Texture texture)
         {
-            foreach (SkinnedMeshRenderer renderer in
-                GetComponentsInChildren<SkinnedMeshRenderer>())
+            // EVERY RENDERER, NOT JUST THE SKINNED ONES. The skull is a plain
+            // mesh hung off the head bone rather than part of the skinned body
+            // -- see HeadMesh -- so looking only for SkinnedMeshRenderers left
+            // every character with a default-coloured, unpainted head.
+            foreach (Renderer renderer in GetComponentsInChildren<Renderer>())
             {
                 Material instance = renderer.material;
                 if (instance == null)
@@ -140,8 +143,11 @@ namespace CityX.Character
         /// </summary>
         public void Recolour(Color skin)
         {
-            foreach (SkinnedMeshRenderer renderer in
-                GetComponentsInChildren<SkinnedMeshRenderer>())
+            // EVERY RENDERER, NOT JUST THE SKINNED ONES. The skull is a plain
+            // mesh hung off the head bone rather than part of the skinned body
+            // -- see HeadMesh -- so looking only for SkinnedMeshRenderers left
+            // every character with a default-coloured, unpainted head.
+            foreach (Renderer renderer in GetComponentsInChildren<Renderer>())
             {
                 Material instance = renderer.material;
                 if (instance == null)

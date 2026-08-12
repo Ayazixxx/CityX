@@ -43,19 +43,28 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void ThereIsATorsoAHeadAndFourLimbs()
+        public void ThereIsATorsoANeckAndFourLimbsAndNoHead()
         {
             List<FusedBodyShape.Segment> segments = MakeSegments();
 
-            // torso, neck, head, three capsules per arm, two per leg.
-            Assert.AreEqual(3 + 3 + 3 + 2 + 2, segments.Count);
+            // torso, neck, three capsules per arm, two per leg.
+            Assert.AreEqual(1 + 1 + 3 + 3 + 2 + 2, segments.Count);
 
             var bones = new HashSet<HumanBodyBones>();
             foreach (FusedBodyShape.Segment segment in segments)
             {
                 bones.Add(segment.Bone);
             }
-            Assert.IsTrue(bones.Contains(HumanBodyBones.Head), "no head");
+
+            // NO HEAD, WHICH IS THE POINT. fused_body.gd's own limb_defs() has
+            // a torso, two arms, two legs and a neck and has never had a head
+            // in it -- character.gd builds the skull separately, as its own
+            // mesh on the head bone. Fusing it in here blended it into the
+            // neck through the same smooth minimum as every joint and gave a
+            // single continuous peanut with no neck at all.
+            Assert.IsFalse(bones.Contains(HumanBodyBones.Head),
+                "the head is back in the body's shape -- it belongs to HeadMesh");
+            Assert.IsTrue(bones.Contains(HumanBodyBones.Neck), "no neck");
             Assert.IsTrue(bones.Contains(HumanBodyBones.LeftHand), "no left hand");
             Assert.IsTrue(bones.Contains(HumanBodyBones.RightLowerLeg), "no right shin");
 
@@ -74,12 +83,108 @@ namespace CityX.Tests
         [Test]
         public void TheHeadIsASphereOfTheOriginalSize()
         {
-            List<FusedBodyShape.Segment> segments = MakeSegments();
+            Mesh head = HeadMesh.Build();
+            try
+            {
+                Assert.Greater(head.vertexCount, 0, "the head built to nothing");
 
-            FusedBodyShape.Segment head = segments.Find(s => s.Bone == HumanBodyBones.Head);
-            Assert.AreEqual(head.A, head.B, "the head is a capsule, not a sphere");
-            Assert.AreEqual(FusedBodyShape.HeadRadius, head.Radius, 0.001f,
-                "the head is not the size it was drawn at");
+                foreach (Vector3 vertex in head.vertices)
+                {
+                    Assert.AreEqual(FusedBodyShape.HeadRadius, vertex.magnitude, 0.001f,
+                        "the head is not a sphere of the size it was drawn at");
+                }
+
+                // Centred on its own origin, which is the head bone: the bone
+                // is at the middle of the skull in this rig, so the mesh needs
+                // no offset off it.
+                Assert.AreEqual(Vector3.zero, head.bounds.center);
+            }
+            finally
+            {
+                Object.DestroyImmediate(head);
+            }
+        }
+
+        /// <summary>
+        /// Wound outward, and closed. character.gd records losing a triangle
+        /// at each pole to a winding check that read a degenerate quad, which
+        /// is a hole in the top of the skull.
+        /// </summary>
+        [Test]
+        public void TheHeadIsClosedAndFacesOutward()
+        {
+            Mesh head = HeadMesh.Build();
+            try
+            {
+                int[] triangles = head.triangles;
+                Vector3[] vertices = head.vertices;
+                Assert.AreEqual(0, triangles.Length % 3);
+
+                for (int i = 0; i < triangles.Length; i += 3)
+                {
+                    Vector3 a = vertices[triangles[i]];
+                    Vector3 b = vertices[triangles[i + 1]];
+                    Vector3 c = vertices[triangles[i + 2]];
+
+                    Vector3 face = Vector3.Cross(b - a, c - a);
+                    Vector3 centre = (a + b + c) / 3.0f;
+                    Assert.Greater(Vector3.Dot(face.normalized, centre.normalized), 0.0f,
+                        $"triangle {i / 3} of the head faces inward -- a hole in the skull");
+                }
+
+                // Every edge shared by exactly two triangles: a closed surface.
+                var edges = new Dictionary<(Vector3Int, Vector3Int), int>();
+                for (int i = 0; i < triangles.Length; i += 3)
+                {
+                    Count(edges, vertices, triangles[i], triangles[i + 1]);
+                    Count(edges, vertices, triangles[i + 1], triangles[i + 2]);
+                    Count(edges, vertices, triangles[i + 2], triangles[i]);
+                }
+                foreach (KeyValuePair<(Vector3Int, Vector3Int), int> edge in edges)
+                {
+                    Assert.AreEqual(2, edge.Value,
+                        $"the edge {edge.Key.Item1} to {edge.Key.Item2} is shared by "
+                        + $"{edge.Value} triangles, not 2 -- the head is not closed");
+                }
+            }
+            finally
+            {
+                Object.DestroyImmediate(head);
+            }
+        }
+
+        /// <summary>
+        /// Keyed by rounded POSITION, not vertex index: the head is triangle
+        /// soup, so the two triangles either side of an edge own separate
+        /// copies of its two corners.
+        /// </summary>
+        private static void Count(Dictionary<(Vector3Int, Vector3Int), int> edges,
+            Vector3[] vertices, int from, int to)
+        {
+            Vector3Int a = Key(vertices[from]);
+            Vector3Int b = Key(vertices[to]);
+            (Vector3Int, Vector3Int) edge = Before(a, b) ? (a, b) : (b, a);
+            edges[edge] = edges.TryGetValue(edge, out int seen) ? seen + 1 : 1;
+        }
+
+        /// <summary>
+        /// A tenth-of-a-millimetre grid, kept as coordinates rather than hashed
+        /// into an int -- two distinct edges colliding on a hash reads exactly
+        /// like a hole, and chasing that is not what this test is for.
+        /// </summary>
+        private static Vector3Int Key(Vector3 position)
+        {
+            return new Vector3Int(
+                Mathf.RoundToInt(position.x * 10000.0f),
+                Mathf.RoundToInt(position.y * 10000.0f),
+                Mathf.RoundToInt(position.z * 10000.0f));
+        }
+
+        private static bool Before(Vector3Int a, Vector3Int b)
+        {
+            if (a.x != b.x) return a.x < b.x;
+            if (a.y != b.y) return a.y < b.y;
+            return a.z < b.z;
         }
 
         /// <summary>
@@ -106,8 +211,12 @@ namespace CityX.Tests
 
             Assert.Less(FusedBodyShape.Distance(segments, new Vector3(0.0f, 1.3f, 0.0f)), 0.0f,
                 "the middle of the torso is not inside the body");
-            Assert.Less(FusedBodyShape.Distance(segments, Bone(HumanBodyBones.Head)), 0.0f,
-                "the middle of the head is not inside the body");
+            // The neck's own bump, which is the top of the body now that the
+            // skull is a separate mesh -- see ThereIsATorsoANeckAndFourLimbs.
+            Assert.Less(FusedBodyShape.Distance(segments, Bone(HumanBodyBones.Neck)), 0.0f,
+                "the neck is not inside the body");
+            Assert.Greater(FusedBodyShape.Distance(segments, Bone(HumanBodyBones.Head)), 0.0f,
+                "the middle of the skull is inside the body -- the head is fused in again");
             Assert.Greater(FusedBodyShape.Distance(segments, new Vector3(0.0f, 5.0f, 0.0f)), 0.0f,
                 "a point well above the character is inside it");
             Assert.Greater(FusedBodyShape.Distance(segments, new Vector3(3.0f, 1.3f, 0.0f)), 0.0f,
@@ -394,9 +503,15 @@ namespace CityX.Tests
         {
             List<FusedBodyShape.Segment> segments = MakeSegments();
 
-            Assert.AreEqual(HumanBodyBones.Head,
-                FusedBodyShape.NearestBone(segments, Bone(HumanBodyBones.Head) + Vector3.up * 0.3f),
-                "the top of the head is not weighted to the head");
+            // THE TOP OF THE BODY IS THE TORSO'S OWN CAP, not the neck. The
+            // neck is a 0.10 sphere at the shoulder line and the torso is a
+            // 0.26 capsule ending there, so the neck sits entirely inside it
+            // and never reaches the surface. That is true of fused_body.gd too
+            // -- its neck limb exists to give the skeleton a joint between the
+            // spine and the head, not to add any geometry.
+            Assert.AreEqual(HumanBodyBones.Hips,
+                FusedBodyShape.NearestBone(segments, Bone(HumanBodyBones.Neck) + Vector3.up * 0.05f),
+                "the top of the body is not weighted to the torso");
 
             Assert.AreEqual(HumanBodyBones.LeftHand,
                 FusedBodyShape.NearestBone(segments, Bone(HumanBodyBones.LeftHand)),

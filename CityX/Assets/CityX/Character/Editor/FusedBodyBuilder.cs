@@ -24,6 +24,11 @@ namespace CityX.CharacterEditor
     {
         private const string MeshPath = "Assets/CityX/Character/FusedBody.asset";
 
+        private const string HeadPath = "Assets/CityX/Character/Head.asset";
+
+        /// <summary>The child of the head bone that carries the skull.</summary>
+        public const string HeadObjectName = "Head";
+
         [MenuItem("CityX/Rebuild Body Mesh")]
         public static void BuildMenu()
         {
@@ -231,7 +236,72 @@ namespace CityX.CharacterEditor
             // ragdolls, and a renderer culled by its rest bounds vanishes at
             // exactly the moment somebody is watching it fall.
             renderer.updateWhenOffscreen = true;
+
+            AttachHead(named["head"], material);
             return root;
+        }
+
+        /// <summary>
+        /// Hangs the skull off the head bone as its own mesh.
+        ///
+        /// A PLAIN MESH ON THE BONE, NOT SKINNED INTO THE BODY, which is what
+        /// character.gd does: a BoneAttachment3D following the head bone with a
+        /// MeshInstance3D under it. It follows any animation for free, it can
+        /// turn without dragging a shared skin around with it, and -- the part
+        /// this port got wrong -- it leaves the body's own shape field with a
+        /// torso, two arms, two legs and a neck in it, exactly as
+        /// fused_body.gd's limb_defs() has always had.
+        /// </summary>
+        public static void AttachHead(Transform headBone, Material material)
+        {
+            if (headBone == null)
+            {
+                Debug.LogError("CityX: no head bone -- the character has no skull.");
+                return;
+            }
+
+            Transform existing = headBone.Find(HeadObjectName);
+            if (existing != null)
+            {
+                Object.DestroyImmediate(existing.gameObject);
+            }
+
+            var head = new GameObject(HeadObjectName);
+            head.transform.SetParent(headBone, false);
+            head.transform.localPosition = HeadMesh.CentreOnBone;
+            head.transform.localRotation = Quaternion.identity;
+
+            head.AddComponent<MeshFilter>().sharedMesh = BuildHeadMesh();
+            MeshRenderer renderer = head.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = material;
+        }
+
+        /// <summary>
+        /// The head mesh asset, rebuilt in place so every prefab already
+        /// pointing at it keeps pointing at it -- same reasoning as the body's.
+        /// </summary>
+        public static Mesh BuildHeadMesh()
+        {
+            Mesh built = HeadMesh.Build();
+
+            Mesh existing = AssetDatabase.LoadAssetAtPath<Mesh>(HeadPath);
+            if (existing == null)
+            {
+                AssetDatabase.CreateAsset(built, HeadPath);
+                AssetDatabase.SaveAssets();
+                return built;
+            }
+
+            existing.Clear();
+            existing.SetVertices(built.vertices);
+            existing.SetNormals(built.normals);
+            existing.SetUVs(0, built.uv);
+            existing.SetTriangles(built.triangles, 0);
+            existing.RecalculateBounds();
+            EditorUtility.SetDirty(existing);
+            Object.DestroyImmediate(built);
+            AssetDatabase.SaveAssets();
+            return existing;
         }
     }
 }

@@ -162,6 +162,23 @@ namespace CityX.UIEditor
                 surface.sharedMesh = renderer.sharedMesh;
             }
 
+            // THE SKULL IS ITS OWN MESH AND NEEDS ITS OWN COLLIDER. It is not
+            // part of the body's shape field -- see HeadMesh -- so the body's
+            // collider stops at the shoulders and a click on the face would
+            // find nothing at all.
+            var headRenderer = FindHead(body);
+            MeshCollider skull = null;
+            if (headRenderer != null)
+            {
+                var filter = headRenderer.GetComponent<MeshFilter>();
+                skull = headRenderer.gameObject.AddComponent<MeshCollider>();
+                skull.sharedMesh = filter != null ? filter.sharedMesh : null;
+            }
+            else
+            {
+                Debug.LogWarning("CityX: the body has no head mesh -- the face cannot be painted.");
+            }
+
             CharacterHair hair = AddHair(body);
 
             // ON ITS OWN LAYER, WHICH I SAID BEFORE AND DID NOT DO. Without a
@@ -208,6 +225,8 @@ namespace CityX.UIEditor
             creator.Camera = camera;
             creator.BodyCollider = surface;
             creator.BodyRenderer = renderer;
+            creator.HeadCollider = skull;
+            creator.HeadRenderer = headRenderer;
             creator.Hair = hair;
 
             stage.SetActive(false);
@@ -280,6 +299,17 @@ namespace CityX.UIEditor
             }
             AssetDatabase.CreateAsset(material, path);
             return material;
+        }
+
+        /// <summary>
+        /// The skull's renderer: the one MeshRenderer under the head bone.
+        /// Found by component rather than by name so a rename does not quietly
+        /// leave the face unpaintable.
+        /// </summary>
+        private static MeshRenderer FindHead(GameObject body)
+        {
+            Transform head = FindDeep(body.transform, "head");
+            return head != null ? head.GetComponentInChildren<MeshRenderer>(true) : null;
         }
 
         private static Transform FindDeep(Transform root, string name)

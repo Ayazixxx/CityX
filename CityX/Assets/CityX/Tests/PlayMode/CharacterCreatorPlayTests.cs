@@ -186,6 +186,63 @@ namespace CityX.Tests
         /// backdrop would be dragging colour onto whatever part of the atlas a
         /// stray ray happened to resolve to.
         /// </summary>
+        /// <summary>
+        /// The face, which is a DIFFERENT MESH ON A DIFFERENT COLLIDER.
+        ///
+        /// The skull left the body's shape field when it stopped being fused
+        /// into the neck, so a click on the face is a hit on its own collider
+        /// with its own triangle index counted from its own zero. Getting the
+        /// offset into the shared index space wrong does not throw -- it paints
+        /// somewhere else on the body entirely.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator AClickOnTheFaceLandsPaintOnTheHead()
+        {
+            Assert.IsNotNull(_creator.HeadCollider, "the head has no collider of its own");
+
+            _creator.Colour = Color.red;
+            _creator.BrushRadiusPixels = 5;
+
+            Texture2D atlas = _creator.Paint.Atlas;
+            Color32[] before = atlas.GetPixels32();
+
+            // Straight at the middle of the skull, which is the head bone.
+            Vector3 face = _creator.HeadCollider.transform.position;
+            _creator.PressAt(_creator.Camera.WorldToScreenPoint(face));
+            yield return null;
+
+            Color32[] after = atlas.GetPixels32();
+
+            int headRow = PaintAtlas.RowOf(HumanBodyBones.Head);
+            int fromY = headRow * PaintAtlas.Cell;
+            int toY = (headRow + 1) * PaintAtlas.Cell;
+
+            int onHead = 0;
+            int elsewhere = 0;
+            for (int i = 0; i < before.Length; i++)
+            {
+                if (before[i].r == after[i].r && before[i].g == after[i].g
+                    && before[i].b == after[i].b)
+                {
+                    continue;
+                }
+                int y = i / PaintAtlas.Width;
+                if (y >= fromY && y < toY)
+                {
+                    onHead++;
+                }
+                else
+                {
+                    elsewhere++;
+                }
+            }
+
+            Assert.Greater(onHead, 0, "clicking the face painted nothing on the head's row");
+            Assert.AreEqual(0, elsewhere,
+                "clicking the face also painted somewhere else -- the head's triangles are "
+                + "landing at the wrong offset in the shared index space");
+        }
+
         [UnityTest]
         public IEnumerator AClickOnEmptySpaceLeavesTheBodyAlone()
         {
@@ -301,7 +358,11 @@ namespace CityX.Tests
             _creator.SetHairStyle(CharacterHair.Embermane);
             yield return null;
 
-            var worn = hair.GetComponentInChildren<MeshFilter>();
+            // BY NAME, not "any MeshFilter under the head". The skull is a mesh
+            // on the head bone too now -- see HeadMesh -- so the loose search
+            // this used to do found the head and reported the hairstyle as
+            // present whether or not it had been built.
+            MeshFilter worn = Worn(hair);
             Assert.IsNotNull(worn, "choosing a hairstyle produced no mesh");
             Assert.IsNotNull(worn.sharedMesh, "the hairstyle's mesh is empty");
 
@@ -315,8 +376,13 @@ namespace CityX.Tests
 
             _creator.SetHairStyle(CharacterHair.None);
             yield return null;
-            Assert.IsNull(hair.GetComponentInChildren<MeshFilter>(),
-                "going back to bald left the hair on");
+            Assert.IsNull(Worn(hair), "going back to bald left the hair on");
+        }
+
+        private static MeshFilter Worn(CharacterHair hair)
+        {
+            Transform found = hair.Head.Find("Hair");
+            return found != null ? found.GetComponent<MeshFilter>() : null;
         }
     }
 }

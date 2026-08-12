@@ -33,6 +33,11 @@ namespace CityX.Character
 
         public SkinnedMeshRenderer BodyRenderer;
 
+        [Tooltip("The skull's own collider. It is a separate mesh -- see HeadMesh.")]
+        public MeshCollider HeadCollider;
+
+        public MeshRenderer HeadRenderer;
+
         [Tooltip("The hairstyle on the body being made. Set by the Hair buttons.")]
         public CharacterHair Hair;
 
@@ -113,7 +118,18 @@ namespace CityX.Character
 
             if (BodyRenderer != null && BodyRenderer.sharedMesh != null)
             {
-                _paint.Bind(BodyRenderer.sharedMesh);
+                Mesh head = HeadRenderer != null
+                    ? HeadRenderer.GetComponent<MeshFilter>()?.sharedMesh
+                    : null;
+
+                // Into the body's space. The head is a child of the head bone
+                // and unposed while it is being painted, so this is fixed.
+                Matrix4x4 headToBody = head != null
+                    ? BodyRenderer.transform.worldToLocalMatrix
+                      * HeadRenderer.transform.localToWorldMatrix
+                    : Matrix4x4.identity;
+
+                _paint.Bind(BodyRenderer.sharedMesh, head, headToBody);
                 ApplyToRenderer();
             }
         }
@@ -125,7 +141,18 @@ namespace CityX.Character
             {
                 return;
             }
-            Material instance = BodyRenderer.material;
+            Wear(BodyRenderer);
+            // The head wears the same atlas from its own row of it.
+            Wear(HeadRenderer);
+        }
+
+        private void Wear(Renderer target)
+        {
+            if (target == null)
+            {
+                return;
+            }
+            Material instance = target.material;
             if (instance == null)
             {
                 return;
@@ -222,8 +249,8 @@ namespace CityX.Character
             }
             foreach (Collider collider in GetComponentsInChildren<Collider>(true))
             {
-                // Except the one a click is tested against.
-                if (collider != BodyCollider)
+                // Except the two a click is tested against.
+                if (collider != BodyCollider && collider != HeadCollider)
                 {
                     Remove(collider);
                 }
@@ -419,13 +446,37 @@ namespace CityX.Character
             }
 
             Ray ray = Camera.ScreenPointToRay(screenPosition);
-            if (!BodyCollider.Raycast(ray, out RaycastHit hit, RayLength))
+
+            bool onBody = BodyCollider.Raycast(ray, out RaycastHit body, RayLength);
+
+            RaycastHit headHit = default;
+            bool onHead = HeadCollider != null
+                          && HeadCollider.Raycast(ray, out headHit, RayLength);
+
+            if (!onBody && !onHead)
             {
                 return false;
             }
 
-            localPoint = BodyCollider.transform.InverseTransformPoint(hit.point);
-            triangle = hit.triangleIndex;
+            // WHICHEVER IS IN FRONT. The head and the body are two separate
+            // meshes that overlap where the skull meets the shoulders, so a ray
+            // through that region hits both, and taking either one by
+            // preference paints the hidden surface behind the visible one.
+            bool useHead = onHead && (!onBody || headHit.distance < body.distance);
+
+            if (useHead)
+            {
+                // Into the body's space, because that is the space the head's
+                // triangles were bound in -- see BodyPaint.Bind.
+                localPoint = BodyCollider.transform.InverseTransformPoint(headHit.point);
+                triangle = headHit.triangleIndex < 0
+                    ? -1
+                    : _paint.BodyTriangleCount + headHit.triangleIndex;
+                return triangle >= 0;
+            }
+
+            localPoint = BodyCollider.transform.InverseTransformPoint(body.point);
+            triangle = body.triangleIndex;
             return triangle >= 0;
         }
 
