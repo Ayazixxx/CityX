@@ -174,7 +174,7 @@ namespace CityX.Character
                 {
                     return;
                 }
-                Press(position);
+                PressAt(position);
             }
             else if (mouse.leftButton.wasReleasedThisFrame)
             {
@@ -213,7 +213,16 @@ namespace CityX.Character
             Camera.transform.localPosition = local;
         }
 
-        private void Press(Vector2 screenPosition)
+        /// <summary>
+        /// A press at a screen point: the whole chain from a pixel to a
+        /// painted texel.
+        ///
+        /// PUBLIC SO A TEST CAN DRIVE IT. Every step of this -- the raycast
+        /// finding the collider, the hit becoming a triangle, the triangle
+        /// becoming atlas coordinates -- fails by doing nothing visible, and
+        /// reading the mouse device directly from Update leaves no way in.
+        /// </summary>
+        public void PressAt(Vector2 screenPosition)
         {
             if (!Raycast(screenPosition, out Vector3 local, out int triangle))
             {
@@ -248,7 +257,8 @@ namespace CityX.Character
             _paint.Apply();
         }
 
-        private void Drag(Vector2 screenPosition, Vector2 delta)
+        /// <summary>Continues whatever PressAt started. Public for the same reason.</summary>
+        public void Drag(Vector2 screenPosition, Vector2 delta)
         {
             if (_painting)
             {

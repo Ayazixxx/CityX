@@ -411,10 +411,22 @@ namespace CityX.Character
         /// </summary>
         public byte[] Encode()
         {
-            var raw = new byte[_pixels.Length * 4];
-            for (int i = 0; i < _pixels.Length; i++)
+            // STRAIGHT OFF THE TEXTURE, not converted again from the float
+            // pixels behind it. Both are the same picture, but only one of
+            // them is the picture that was on screen, and rounding a float
+            // channel to a byte a second time does not reliably land on the
+            // same byte the texture chose: a channel at 0.7 is 178.4999... in
+            // single precision, sitting on the knife edge between 178 and 179,
+            // and every plausible way of writing that conversion by hand
+            // picked the other side of it. So every saved character came back
+            // a step darker in every channel.
+            Apply();
+            Color32[] texels = Atlas.GetPixels32();
+
+            var raw = new byte[texels.Length * 4];
+            for (int i = 0; i < texels.Length; i++)
             {
-                Color32 c = _pixels[i];
+                Color32 c = texels[i];
                 raw[i * 4] = c.r;
                 raw[i * 4 + 1] = c.g;
                 raw[i * 4 + 2] = c.b;
