@@ -1,6 +1,7 @@
 ﻿using CityX.Character;
 using CityX.Core;
 using CityX.UI;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -103,25 +104,38 @@ namespace CityX.UIEditor
                 surface.sharedMesh = renderer.sharedMesh;
             }
 
+            // ON ITS OWN LAYER, WHICH I SAID BEFORE AND DID NOT DO. Without a
+            // culling mask this camera renders the whole scene, so the night
+            // city came through behind the body and its own light lit the city
+            // instead of the character -- you could not see what you were
+            // painting. The layer is what makes the backdrop actually blank.
+            int layer = EnsureLayer("CityXCreator");
+            SetLayerRecursively(stage, layer);
+
             var cameraObject = new GameObject("CreatorCamera");
             cameraObject.transform.SetParent(stage.transform, false);
-            cameraObject.transform.localPosition =
-                new Vector3(0.0f, 0.0f, -4.0f);
+            // Centred on the pivot, which is at the body's middle, so the
+            // character sits in the frame rather than floating at the top.
+            cameraObject.transform.localPosition = new Vector3(0.0f, 0.0f, -3.2f);
+            cameraObject.transform.localRotation = Quaternion.identity;
             Camera camera = cameraObject.AddComponent<Camera>();
             camera.clearFlags = CameraClearFlags.SolidColor;
-            camera.backgroundColor = new Color(0.07f, 0.08f, 0.11f);
-            camera.fieldOfView = 34.0f;
+            camera.backgroundColor = new Color(0.13f, 0.14f, 0.17f);
+            camera.fieldOfView = 42.0f;
             camera.nearClipPlane = 0.05f;
+            camera.cullingMask = 1 << layer;
             // Above the title's own camera, so the creator draws over the city
             // rather than being buried in it.
             camera.depth = 5;
+            cameraObject.layer = layer;
 
-            var light = new GameObject("CreatorLight");
-            light.transform.SetParent(stage.transform, false);
-            Light key = light.AddComponent<Light>();
-            key.type = LightType.Directional;
-            key.intensity = 1.1f;
-            light.transform.rotation = Quaternion.Euler(28.0f, 150.0f, 0.0f);
+            // THREE LIGHTS, because one directional light on a matte body gives
+            // a black side, and half of painting is on the side facing away.
+            AddLight(stage, layer, "Key", new Vector3(22.0f, 150.0f, 0.0f), 1.5f, Color.white);
+            AddLight(stage, layer, "Fill", new Vector3(10.0f, -40.0f, 0.0f), 0.9f,
+                new Color(0.82f, 0.86f, 1.0f));
+            AddLight(stage, layer, "Back", new Vector3(-25.0f, 20.0f, 0.0f), 0.6f,
+                new Color(1.0f, 0.95f, 0.85f));
 
             creator = stage.AddComponent<CharacterCreator>();
             creator.RotationPivot = pivotObject.transform;
@@ -131,6 +145,69 @@ namespace CityX.UIEditor
 
             stage.SetActive(false);
             return stage;
+        }
+
+        private static void AddLight(GameObject stage, int layer, string name, Vector3 angles,
+            float intensity, Color colour)
+        {
+            var go = new GameObject($"{name}Light");
+            go.transform.SetParent(stage.transform, false);
+            go.transform.rotation = Quaternion.Euler(angles);
+            go.layer = layer;
+
+            Light light = go.AddComponent<Light>();
+            light.type = LightType.Directional;
+            light.intensity = intensity;
+            light.color = colour;
+            // Only this layer, so the creator's lights do not also brighten the
+            // night city the title screen is showing behind it.
+            light.cullingMask = 1 << layer;
+            light.shadows = LightShadows.None;
+        }
+
+        /// <summary>
+        /// Finds a layer by name, adding it to the project if it is not there.
+        ///
+        /// Written rather than asking somebody to add it by hand, because a
+        /// missing layer fails as "the creator shows the whole city and is too
+        /// dark to paint in" rather than as an error.
+        /// </summary>
+        private static int EnsureLayer(string name)
+        {
+            int existing = LayerMask.NameToLayer(name);
+            if (existing >= 0)
+            {
+                return existing;
+            }
+
+            var manager = new SerializedObject(
+                AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/TagManager.asset")[0]);
+            SerializedProperty layers = manager.FindProperty("layers");
+
+            // 8 is the first layer Unity leaves to the project; 0-7 are its own.
+            for (int i = 8; i < layers.arraySize; i++)
+            {
+                SerializedProperty slot = layers.GetArrayElementAtIndex(i);
+                if (string.IsNullOrEmpty(slot.stringValue))
+                {
+                    slot.stringValue = name;
+                    manager.ApplyModifiedProperties();
+                    return i;
+                }
+            }
+
+            Debug.LogWarning($"CityX: no free layer for '{name}' -- the creator will render " +
+                             "the whole scene behind the character.");
+            return 0;
+        }
+
+        private static void SetLayerRecursively(GameObject root, int layer)
+        {
+            root.layer = layer;
+            foreach (Transform child in root.GetComponentsInChildren<Transform>(true))
+            {
+                child.gameObject.layer = layer;
+            }
         }
 
         private static void Strip<T>(GameObject root) where T : Component
@@ -163,17 +240,38 @@ namespace CityX.UIEditor
             y -= 44.0f;
             MakeToolRow(column.transform, creator, ref y);
 
+            var controls = column.AddComponent<CreatorControls>();
+            controls.Creator = creator;
+
             y -= 12.0f;
             MakeLabel(column.transform, "PaletteLabel", "COLOUR", 14, Paper,
                 new Vector2(0.0f, y), 20.0f);
+
+            // THE WHEEL, not just swatches. Any colour has to be reachable --
+            // twelve presets is a palette, not a character creator.
+            y -= 90.0f;
+            controls.Wheel = MakeWheel(column.transform, new Vector2(0.0f, y), 160.0f);
+            y -= 96.0f;
+
+            controls.Value = MakeSlider(column.transform, "ValueSlider",
+                new Vector2(0.0f, y), 0.0f, 1.0f, 1.0f, wholeNumbers: false);
             y -= 26.0f;
-            MakePalette(column.transform, creator, ref y);
+            controls.Preview = MakeSwatch(column.transform, "Preview",
+                new Vector2(0.0f, y), new Vector2(150.0f, 18.0f), Color.white);
+
+            y -= 26.0f;
+            MakePalette(column.transform, creator, controls, ref y);
 
             y -= 16.0f;
             MakeLabel(column.transform, "BrushLabel", "BRUSH", 14, Paper,
                 new Vector2(0.0f, y), 20.0f);
-            y -= 28.0f;
-            MakeBrushSizes(column.transform, creator, ref y);
+            y -= 24.0f;
+            controls.BrushSize = MakeSlider(column.transform, "BrushSlider",
+                new Vector2(0.0f, y), 1.0f, 15.0f,
+                CharacterCreator.DefaultBrushRadius, wholeNumbers: true);
+            y -= 22.0f;
+            controls.BrushLabel = MakeLabel(column.transform, "BrushValue", "1", 13, Paper,
+                new Vector2(0.0f, y), 18.0f);
 
             y -= 20.0f;
             MakeToggle(column.transform, "MirrorButton", "MIRROR", new Vector2(0.0f, y),
@@ -234,7 +332,87 @@ namespace CityX.UIEditor
             y -= 40.0f;
         }
 
-        private static void MakePalette(Transform parent, CharacterCreator creator, ref float y)
+        private static RawImage MakeWheel(Transform parent, Vector2 position, float size)
+        {
+            var go = new GameObject("ColourWheel", typeof(RectTransform));
+            var rect = (RectTransform)go.transform;
+            rect.SetParent(parent, false);
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 1.0f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = new Vector2(size, size);
+
+            var image = go.AddComponent<RawImage>();
+            image.texture = CreatorControls.BuildWheel();
+            return image;
+        }
+
+        private static Image MakeSwatch(Transform parent, string name, Vector2 position,
+            Vector2 size, Color colour)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            var rect = (RectTransform)go.transform;
+            rect.SetParent(parent, false);
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 1.0f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
+
+            Image image = go.AddComponent<Image>();
+            image.color = colour;
+            image.raycastTarget = false;
+            return image;
+        }
+
+        /// <summary>
+        /// A slider, built by hand rather than from DefaultControls so its
+        /// hierarchy is the one written here and not one to reverse-engineer.
+        /// </summary>
+        private static Slider MakeSlider(Transform parent, string name, Vector2 position,
+            float minimum, float maximum, float value, bool wholeNumbers)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            var rect = (RectTransform)go.transform;
+            rect.SetParent(parent, false);
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 1.0f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = new Vector2(150.0f, 18.0f);
+
+            Image background = go.AddComponent<Image>();
+            background.color = new Color(0.16f, 0.17f, 0.20f, 1.0f);
+
+            var fillArea = new GameObject("Fill", typeof(RectTransform));
+            var fillRect = (RectTransform)fillArea.transform;
+            fillRect.SetParent(go.transform, false);
+            fillRect.anchorMin = Vector2.zero;
+            fillRect.anchorMax = Vector2.one;
+            fillRect.offsetMin = Vector2.zero;
+            fillRect.offsetMax = Vector2.zero;
+            Image fill = fillArea.AddComponent<Image>();
+            fill.color = Gold;
+
+            var handle = new GameObject("Handle", typeof(RectTransform));
+            var handleRect = (RectTransform)handle.transform;
+            handleRect.SetParent(go.transform, false);
+            handleRect.sizeDelta = new Vector2(12.0f, 22.0f);
+            Image handleImage = handle.AddComponent<Image>();
+            handleImage.color = Paper;
+
+            Slider slider = go.AddComponent<Slider>();
+            slider.fillRect = fillRect;
+            slider.handleRect = handleRect;
+            slider.targetGraphic = handleImage;
+            slider.direction = Slider.Direction.LeftToRight;
+            slider.minValue = minimum;
+            slider.maxValue = maximum;
+            slider.wholeNumbers = wholeNumbers;
+            slider.value = value;
+            return slider;
+        }
+
+        private static void MakePalette(Transform parent, CharacterCreator creator,
+            CreatorControls controls, ref float y)
         {
             const int perRow = 4;
             for (int i = 0; i < Palette.Length; i++)
@@ -249,8 +427,8 @@ namespace CityX.UIEditor
                 rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 1.0f);
                 rect.pivot = new Vector2(0.5f, 0.5f);
                 rect.anchoredPosition =
-                    new Vector2(column * 40.0f - 60.0f, y - row * 40.0f);
-                rect.sizeDelta = new Vector2(34.0f, 34.0f);
+                    new Vector2(column * 30.0f - 45.0f, y - row * 30.0f);
+                rect.sizeDelta = new Vector2(26.0f, 26.0f);
 
                 Image image = go.AddComponent<Image>();
                 image.color = swatch;
@@ -262,23 +440,14 @@ namespace CityX.UIEditor
                 wiring.Action = ButtonAction.Kind.CreatorColour;
                 wiring.Creator = creator;
                 wiring.Colour = swatch;
+                // So the wheel and the preview follow a swatch press rather
+                // than still showing whatever was picked before it.
+                wiring.Controls = controls;
             }
 
-            y -= Mathf.CeilToInt(Palette.Length / (float)perRow) * 40.0f;
+            y -= Mathf.CeilToInt(Palette.Length / (float)perRow) * 30.0f;
         }
 
-        private static void MakeBrushSizes(Transform parent, CharacterCreator creator, ref float y)
-        {
-            int[] sizes = { 1, 2, 4, 8, 15 };
-            for (int i = 0; i < sizes.Length; i++)
-            {
-                int size = sizes[i];
-                MakeButton(parent, $"Brush{size}", size.ToString(), Paper,
-                    new Vector2(i * 34.0f - 68.0f, y), new Vector2(30.0f, 28.0f),
-                    ButtonAction.Kind.CreatorBrushSize, creator, null, size);
-            }
-            y -= 34.0f;
-        }
 
         // --- small pieces ---
 

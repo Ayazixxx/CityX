@@ -65,6 +65,9 @@ namespace CityX.UI
 
         public CharacterCreator Creator;
 
+        [Tooltip("So a palette press moves the colour wheel with it.")]
+        public CreatorControls Controls;
+
         [Tooltip("Skin index, tool index or brush size, depending on the action.")]
         public int Value;
 
@@ -113,7 +116,13 @@ namespace CityX.UI
                     if (Creator != null) Creator.Current = (CharacterCreator.Tool)Value;
                     break;
                 case Kind.CreatorColour:
-                    if (Creator != null)
+                    if (Controls != null)
+                    {
+                        // Through the wheel, so it and the preview move to the
+                        // swatch instead of still showing the last pick.
+                        Controls.Adopt(Colour);
+                    }
+                    else if (Creator != null)
                     {
                         Creator.Colour = Colour;
                         // Choosing a colour clearly means you want to paint with
