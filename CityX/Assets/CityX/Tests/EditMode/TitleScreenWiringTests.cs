@@ -253,6 +253,56 @@ namespace CityX.Tests
         }
 
         /// <summary>
+        /// The creator's body must carry NO PHYSICS AT ALL except the one mesh
+        /// collider a click is tested against.
+        ///
+        /// The prefab it is cloned from is a full ragdoll -- a rigidbody, a
+        /// joint and a collider on every bone -- and the first attempt to take
+        /// that off destroyed the rigidbodies before the joints. Unity will not
+        /// remove a component another one depends on, so it silently failed on
+        /// every bone that had a joint and ten of each went into the saved
+        /// scene with their colliders gone. On play the bones fell through the
+        /// world and dragged the skin out into a twisted ribbon. Nothing said
+        /// so: not the build, not the tests, not the screenshot, which does not
+        /// run physics.
+        /// </summary>
+        [Test]
+        public void TheCreatorsBodyIsNotSecretlyARagdoll()
+        {
+            var creator = Find<CharacterCreator>();
+            Assert.IsNotNull(creator, "there is no CharacterCreator in the title scene");
+
+            Assert.IsEmpty(creator.GetComponentsInChildren<Rigidbody>(true),
+                "the creator's body still has rigidbodies -- it will fall apart on play");
+            Assert.IsEmpty(creator.GetComponentsInChildren<Joint>(true),
+                "the creator's body still has ragdoll joints");
+
+            Collider[] colliders = creator.GetComponentsInChildren<Collider>(true);
+            Assert.AreEqual(1, colliders.Length,
+                "the body should carry exactly one collider: the mesh a click is tested against");
+            Assert.IsInstanceOf<MeshCollider>(colliders[0]);
+        }
+
+        /// <summary>
+        /// And the animator has to be off, because the mesh collider above is
+        /// baked from the UNPOSED mesh. A body that animates under a collider
+        /// that does not is a body where every stroke lands somewhere other
+        /// than where it was aimed.
+        /// </summary>
+        [Test]
+        public void TheCreatorsBodyHoldsStillSoTheColliderStaysTrue()
+        {
+            var creator = Find<CharacterCreator>();
+            Assert.IsNotNull(creator, "there is no CharacterCreator in the title scene");
+
+            foreach (Animator animator in creator.GetComponentsInChildren<Animator>(true))
+            {
+                Assert.IsFalse(animator.enabled,
+                    $"{animator.name} would animate the body away from its paint collider");
+            }
+        }
+
+        /// <summary>
         /// character_creator.tscn's own camera, to the number. Getting this
         /// wrong is not subtle -- the last invented one put the whole
         /// character high in the frame and cropped it.

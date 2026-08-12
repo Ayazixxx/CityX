@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Linq;
 using CityX.Character;
 using CityX.UI;
 using NUnit.Framework;
@@ -91,6 +92,55 @@ namespace CityX.Tests
             Vector3 chest = _creator.BodyCollider.transform.TransformPoint(
                 _creator.BodyCollider.sharedMesh.bounds.center);
             return _camera.WorldToScreenPoint(chest);
+        }
+
+        /// <summary>
+        /// The body must stand perfectly still, and stay standing still while
+        /// it is turned.
+        ///
+        /// IT DID NOT. The prefab it is cloned from is a full ragdoll, and the
+        /// strip that was meant to take that off destroyed the rigidbodies
+        /// before the joints -- Unity refuses to remove a component another one
+        /// depends on, so ten of each survived with their colliders gone. They
+        /// had nothing to rest on. The instant play started the bones fell away
+        /// and the skin stretched out behind them; turning the model just made
+        /// it obvious. Every check made of this screen passed, because none of
+        /// them ran physics.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheBodyStandsStillEvenWhileItIsTurned()
+        {
+            Assert.IsEmpty(_creator.GetComponentsInChildren<Rigidbody>(true),
+                "the creator's body is still a ragdoll");
+            Assert.IsEmpty(_creator.GetComponentsInChildren<Joint>(true),
+                "the creator's body still has ragdoll joints");
+
+            Transform[] bones = _creator.BodyRenderer.bones;
+            Assert.IsNotEmpty(bones, "the body has no bones");
+            var before = bones.Select(b => _creator.RotationPivot.InverseTransformPoint(b.position))
+                .ToArray();
+
+            // A second of real frames, with a turn part-way through, which is
+            // all it took for the melted version to be unmistakable.
+            for (int frame = 0; frame < 60; frame++)
+            {
+                if (frame == 20)
+                {
+                    _creator.PressAt(new Vector2(Screen.width - 4.0f, Screen.height * 0.5f));
+                    _creator.Drag(new Vector2(Screen.width - 4.0f, Screen.height * 0.5f),
+                        new Vector2(60.0f, 20.0f));
+                }
+                yield return new WaitForFixedUpdate();
+            }
+
+            for (int i = 0; i < bones.Length; i++)
+            {
+                // In the pivot's own space, so turning the model is not itself
+                // counted as the bones having moved.
+                Vector3 now = _creator.RotationPivot.InverseTransformPoint(bones[i].position);
+                Assert.Less(Vector3.Distance(before[i], now), 0.001f,
+                    $"{bones[i].name} drifted -- the body is being simulated, not held");
+            }
         }
 
         [UnityTest]

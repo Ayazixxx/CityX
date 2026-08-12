@@ -107,6 +107,8 @@ namespace CityX.Character
             {
                 return;
             }
+
+            Disarm();
             _paint = new BodyPaint(EraseColour);
 
             if (BodyRenderer != null && BodyRenderer.sharedMesh != null)
@@ -184,6 +186,70 @@ namespace CityX.Character
             else if (mouse.leftButton.isPressed)
             {
                 Drag(position, mouse.delta.ReadValue());
+            }
+        }
+
+        /// <summary>
+        /// Takes the ragdoll off the body being made, and stops it animating.
+        ///
+        /// THE BUILDER ALREADY DOES THIS, AND IT IS STILL WORTH DOING HERE.
+        /// The body is cloned from the world prefab, which is a full ragdoll --
+        /// a rigidbody, a joint and a collider on every bone. The first attempt
+        /// to strip that destroyed the rigidbodies before the joints, and Unity
+        /// will not remove a component another one depends on, so ten of each
+        /// survived into the saved scene with their colliders gone. They had
+        /// nothing to rest on: the instant play started the bones fell away and
+        /// dragged the skin out into a twisted ribbon.
+        ///
+        /// Doing it again at runtime costs one pass over the hierarchy and
+        /// means a scene that was built wrong -- or built before the fix, and
+        /// never rebuilt -- still opens a creator you can paint in.
+        /// </summary>
+        private void Disarm()
+        {
+            // Joints before bodies: a joint depends on the body beside it.
+            foreach (Joint joint in GetComponentsInChildren<Joint>(true))
+            {
+                Remove(joint);
+            }
+            foreach (Rigidbody rigid in GetComponentsInChildren<Rigidbody>(true))
+            {
+                // Kinematic first, because Destroy only takes effect at the end
+                // of the frame and a fixed step can land before then -- one
+                // step of a colliderless ragdoll is one step too many.
+                rigid.isKinematic = true;
+                Remove(rigid);
+            }
+            foreach (Collider collider in GetComponentsInChildren<Collider>(true))
+            {
+                // Except the one a click is tested against.
+                if (collider != BodyCollider)
+                {
+                    Remove(collider);
+                }
+            }
+
+            // And still: the paint collider is baked from the UNPOSED mesh, so
+            // a body that animates is a body where strokes land off target.
+            foreach (Animator animator in GetComponentsInChildren<Animator>(true))
+            {
+                animator.enabled = false;
+            }
+        }
+
+        /// <summary>
+        /// Destroy refuses to run outside play mode, and Initialise is called
+        /// by the editor's screenshot tool as well as by Awake.
+        /// </summary>
+        private static void Remove(Component component)
+        {
+            if (Application.isPlaying)
+            {
+                Destroy(component);
+            }
+            else
+            {
+                DestroyImmediate(component);
             }
         }
 

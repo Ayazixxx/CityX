@@ -101,23 +101,45 @@ namespace CityX.UIEditor
             // weight here and some of it is actively wrong -- a
             // CharacterController would push the body about, and the input
             // reader would try to walk it.
-            Strip<CharacterController>(body);
+            // DEPENDANTS BEFORE WHAT THEY DEPEND ON, throughout. Unity will not
+            // remove a component another one declares it needs, and it refuses
+            // with a console line rather than an exception -- so the wrong
+            // order leaves the component behind and nothing stops the build.
+            // PlayerLocomotion requires the CharacterController;
+            // PlayerAnimationDriver requires the MeleeAttacker.
             Strip<PlayerInputReader>(body);
             Strip<PlayerLocomotion>(body);
-            // Before MeleeAttacker: it requires one, and Unity refuses to
-            // remove a component something else still declares it needs.
+            Strip<CharacterController>(body);
             Strip<PlayerAnimationDriver>(body);
             Strip<MeleeAttacker>(body);
             Strip<Ragdoll>(body);
             Strip<CharacterIdentity>(body);
             Strip<PlayerVitals>(body);
-            foreach (Rigidbody rigid in body.GetComponentsInChildren<Rigidbody>())
+
+            // JOINTS BEFORE BODIES, AND CHECKED AFTERWARDS.
+            //
+            // A CharacterJoint depends on the Rigidbody on its own object, and
+            // Unity refuses to remove a component another one still needs. So
+            // destroying the bodies first quietly failed on every bone that
+            // carried a joint, and ten rigidbodies and ten joints went into
+            // the saved scene. Their colliders HAD gone, so the ragdoll had
+            // nothing to rest on: the moment play started the bones fell, and
+            // the skin stretched out behind them into a twisted ribbon.
+            //
+            // Nothing about that was visible at build time, and the editor's
+            // screenshot does not run physics, so the creator looked correct
+            // in every check made of it right up until somebody pressed play.
+            Strip<Joint>(body);
+            Strip<Rigidbody>(body);
+            Strip<Collider>(body);
+
+            int leftover = body.GetComponentsInChildren<Rigidbody>(true).Length
+                           + body.GetComponentsInChildren<Joint>(true).Length
+                           + body.GetComponentsInChildren<Collider>(true).Length;
+            if (leftover > 0)
             {
-                Object.DestroyImmediate(rigid);
-            }
-            foreach (Collider collider in body.GetComponentsInChildren<Collider>())
-            {
-                Object.DestroyImmediate(collider);
+                Debug.LogError($"CityX: {leftover} physics components would not come off the " +
+                               "creator's body -- it will collapse into a ragdoll on play.");
             }
 
             // THE BODY HOLDS ITS BIND POSE HERE. The mesh collider below is
