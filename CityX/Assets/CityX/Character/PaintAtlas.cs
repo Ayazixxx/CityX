@@ -101,6 +101,37 @@ namespace CityX.Character
         {
             switch (paintBone)
             {
+                // THE HEAD HAD NO CASE HERE AND FELL THROUGH TO THE DEFAULT,
+                // which handed back the world Y axis from the origin. The head
+                // sits between y=1.9 and y=2.6, so every point on it came out
+                // with rawT between 1.9 and 2.6 -- all of it past the end of a
+                // one-unit axis, all of it therefore in the cap-overflow
+                // branch, which asymptotes. The entire head collapsed into the
+                // top 0.03% of its own row: about a hundredth of one pixel of
+                // v. Painting it stamped a full-height stripe every time,
+                // which is what "the brush is all widespread on the face"
+                // looks like from the front.
+                //
+                // Godot never hit this because its head is not part of the
+                // fused body at all -- it is a separate mesh with its own box
+                // map, and fused_body.gd's own PAINT_BONES has no head in it.
+                // Fusing the head in was this port's own decision, and it left
+                // the head's unwrap behind.
+                //
+                // The sphere, end to end. A surface point at angle n has
+                // rawT = (n.y + 1) / 2, so it spans exactly 0 to 1 with the
+                // poles at the ends and nothing overflowing -- except the
+                // blend where it melts into the neck, which bulges slightly
+                // past the bottom and is exactly what the cap slice is for.
+                case HumanBodyBones.Head:
+                {
+                    Vector3 centre = BodyRig.PositionOf(HumanBodyBones.Head);
+                    Vector3 half = Vector3.up * FusedBodyShape.HeadRadius;
+                    a = centre - half;
+                    b = centre + half;
+                    return;
+                }
+
                 case HumanBodyBones.Hips:
                     a = BodyRig.PositionOf(HumanBodyBones.Hips);
                     b = BodyRig.PositionOf(HumanBodyBones.Neck);
@@ -132,6 +163,14 @@ namespace CityX.Character
                     return;
 
                 default:
+                    // COMPLAINS RATHER THAN GUESSING. The silent world-Y
+                    // fallback that used to live here is the whole reason the
+                    // head shipped unpaintable: a part with no axis got a
+                    // plausible-looking one instead of an error, and every
+                    // check downstream passed because the numbers were finite.
+                    // fused_body.gd's own _uv_axis pushes an error here too.
+                    Debug.LogError($"CityX: no UV axis for paint bone {paintBone} -- " +
+                                   "anything skinned to it cannot be painted.");
                     a = Vector3.zero;
                     b = Vector3.up;
                     return;
@@ -160,6 +199,31 @@ namespace CityX.Character
         /// the far end either -- spreads distinct 3D points across distinct V.
         /// </summary>
         public const float CapFraction = 0.2f;
+
+        /// <summary>
+        /// The head's share, which is much smaller, because the head is a
+        /// SPHERE AND ITS AXIS ALREADY RUNS POLE TO POLE.
+        ///
+        /// Every other part is a capsule whose surface genuinely extends a
+        /// whole radius past each end of its axis, and a fifth of the row is
+        /// what it takes to spread that out. The head's axis is the sphere's
+        /// own diameter, so its surface reaches exactly the ends and no
+        /// further -- reserving another fifth at each end is reserving room
+        /// for an overflow that cannot happen, and it cost the face half its
+        /// vertical resolution.
+        ///
+        /// Not zero, though: the blend that melts the head into the neck
+        /// bulges a little below the bottom pole, and with no slice at all
+        /// every vertex out there would land on one v -- exactly the collapse
+        /// the cap slice exists to prevent, just at a smaller scale.
+        /// </summary>
+        public const float HeadCapFraction = 0.05f;
+
+        /// <summary>Which of the two a row uses.</summary>
+        public static float CapFractionFor(int row)
+        {
+            return row == RowOf(HumanBodyBones.Head) ? HeadCapFraction : CapFraction;
+        }
 
         public const float CapOverflowScale = 0.22f;
 
@@ -192,20 +256,22 @@ namespace CityX.Character
             float theta = Mathf.Atan2(Vector3.Dot(radial, forward), Vector3.Dot(radial, right));
             float u = theta / (Mathf.PI * 2.0f) + 0.5f;
 
+            float cap = CapFractionFor(row);
+
             float t;
             if (rawT > 1.0f)
             {
                 float overflow = 1.0f - Mathf.Exp(-(rawT - 1.0f) / CapOverflowScale);
-                t = (1.0f - CapFraction) + overflow * CapFraction;
+                t = (1.0f - cap) + overflow * cap;
             }
             else if (rawT < 0.0f)
             {
                 float overflow = 1.0f - Mathf.Exp(rawT / CapOverflowScale);
-                t = CapFraction * (1.0f - overflow);
+                t = cap * (1.0f - overflow);
             }
             else
             {
-                t = CapFraction + rawT * (1.0f - 2.0f * CapFraction);
+                t = cap + rawT * (1.0f - 2.0f * cap);
             }
 
             float v0 = (float)row / PartCount + RowMargin;

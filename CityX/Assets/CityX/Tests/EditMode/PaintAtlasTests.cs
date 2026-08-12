@@ -31,6 +31,127 @@ namespace CityX.Tests
         }
 
         /// <summary>
+        /// EVERY PART HAS TO ACTUALLY FILL ITS ROW.
+        ///
+        /// The head did not. It had no case in AxisOf and fell through to the
+        /// default, which returned the world Y axis from the origin -- so a
+        /// head sitting between y=1.9 and y=2.6 came out with rawT from 1.9 to
+        /// 2.6, all of it past the end of a one-unit axis and all of it
+        /// therefore in the cap-overflow branch, which asymptotes. The whole
+        /// head collapsed into the top 0.03% of its own row: about a hundredth
+        /// of a pixel of v. Every brush stroke on the face rendered as a
+        /// full-height stripe.
+        ///
+        /// Nothing caught it because nothing was wrong in a way a number could
+        /// show: the UVs were finite, inside the row, and inside [0,1]. The
+        /// only thing wrong was that they were all the SAME.
+        /// </summary>
+        [Test]
+        public void EveryPartSpreadsAcrossItsOwnRowRatherThanCollapsingIntoALine()
+        {
+            List<FusedBodyShape.Segment> segments = FusedBodyShape.Segments(
+                BodyRig.PositionOf, FusedBodyShape.ReferenceHeight);
+            Bounds bounds = FusedBodyShape.BoundsOf(segments);
+
+            FusedBodyMesh.Extract(segments, bounds, FusedBodyShape.CellSize,
+                out List<Vector3> welded, out List<int> weldedTriangles);
+            FusedBodyMesh.Unwrap(segments, welded, weldedTriangles,
+                out List<Vector3> _, out List<int> triangles, out List<Vector2> uvs);
+
+            var lowest = new float[PaintAtlas.PartCount];
+            var highest = new float[PaintAtlas.PartCount];
+            var widest = new float[PaintAtlas.PartCount];
+            var narrowest = new float[PaintAtlas.PartCount];
+            var counted = new int[PaintAtlas.PartCount];
+            for (int row = 0; row < PaintAtlas.PartCount; row++)
+            {
+                lowest[row] = float.MaxValue;
+                highest[row] = float.MinValue;
+                narrowest[row] = float.MaxValue;
+                widest[row] = float.MinValue;
+            }
+
+            foreach (int index in triangles)
+            {
+                Vector2 uv = uvs[index];
+                int row = Mathf.Clamp(
+                    Mathf.FloorToInt(uv.y * PaintAtlas.PartCount), 0, PaintAtlas.PartCount - 1);
+                lowest[row] = Mathf.Min(lowest[row], uv.y);
+                highest[row] = Mathf.Max(highest[row], uv.y);
+                narrowest[row] = Mathf.Min(narrowest[row], Mathf.Repeat(uv.x, 1.0f));
+                widest[row] = Mathf.Max(widest[row], Mathf.Repeat(uv.x, 1.0f));
+                counted[row]++;
+            }
+
+            float rowHeight = 1.0f / PaintAtlas.PartCount;
+
+            for (int row = 0; row < PaintAtlas.PartCount; row++)
+            {
+                HumanBodyBones part = PaintAtlas.Parts[row];
+
+                // THE NECK'S ROW IS EMPTY, AND THAT IS THE GEOMETRY, not a
+                // bug in the unwrap. The neck capsule runs from the shoulder
+                // line up to the head bone with a radius of 0.10; the head
+                // sphere is centred on that same head bone with a radius of
+                // 0.35, so it reaches all the way back down to the shoulder
+                // line and swallows the neck whole. No point on the surface is
+                // ever nearest the neck, so nothing is ever skinned to it and
+                // its row never receives a vertex. The visible throat is
+                // painted as part of the head above and the torso below, which
+                // means paint runs across it continuously instead of seaming.
+                //
+                // Godot's neck WAS exposed -- its head was a separate box
+                // floating above a shorter neck rather than a sphere fused
+                // into it. Asserted rather than skipped so that if the body's
+                // proportions ever change, this says so instead of a row
+                // quietly filling up with an unwrap nobody checked.
+                if (part == HumanBodyBones.Neck)
+                {
+                    Assert.AreEqual(0, counted[row],
+                        "the neck is exposed now -- it needs its unwrap checking like the rest");
+                    continue;
+                }
+
+                Assert.Greater(counted[row], 0,
+                    $"nothing at all is mapped into {part}'s row");
+
+                // Half the row, allowing for the cap slices reserved at each
+                // end. A part using less than that is being crushed.
+                float used = (highest[row] - lowest[row]) / rowHeight;
+                Assert.Greater(used, 0.5f,
+                    $"{part} uses only {used:P1} of the height of its row -- "
+                    + "a brush stroke on it will smear across the whole part");
+
+                // And all the way round, or one side of the part is unreachable.
+                Assert.Greater(widest[row] - narrowest[row], 0.8f,
+                    $"{part} does not wrap all the way round");
+            }
+        }
+
+        /// <summary>
+        /// Every part's axis has to be a real axis THROUGH THAT PART. The
+        /// silent fallback that shipped was a unit of world Y at the origin,
+        /// which is a perfectly well-formed axis nowhere near the head.
+        /// </summary>
+        [Test]
+        public void EveryPartsAxisRunsThroughThePartItBelongsTo()
+        {
+            foreach (HumanBodyBones part in PaintAtlas.Parts)
+            {
+                PaintAtlas.AxisOf(part, out Vector3 a, out Vector3 b);
+
+                Assert.Greater((b - a).magnitude, 0.05f, $"{part}'s axis has no length");
+
+                Vector3 bone = BodyRig.PositionOf(part);
+                Vector3 ab = b - a;
+                float t = Mathf.Clamp01(Vector3.Dot(bone - a, ab) / ab.sqrMagnitude);
+                float away = Vector3.Distance(bone, a + ab * t);
+                Assert.Less(away, 0.35f,
+                    $"{part}'s own bone sits {away:F2} from the axis it is unwrapped around");
+            }
+        }
+
+        /// <summary>
         /// A forearm paints into its upper arm's row, so a stroke drawn across
         /// the elbow is one stroke rather than two halves in different rows.
         /// </summary>
