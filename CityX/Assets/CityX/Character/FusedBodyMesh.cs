@@ -277,6 +277,76 @@ namespace CityX.Character
         }
 
         /// <summary>
+        /// Re-emits an extracted surface as TRIANGLE SOUP with paint UVs: every
+        /// triangle gets its own three vertices, shared with nothing.
+        ///
+        /// UNWELDED ON PURPOSE, which is the whole reason this exists as a
+        /// separate pass. The seam unwrap that stops a triangle straddling the
+        /// wrap from interpolating backwards round the far side of a limb works
+        /// by nudging one corner's u from 0.01 to 1.01 -- and that is only safe
+        /// if no other triangle shares that corner. Welded, the nudge would
+        /// drag every neighbouring triangle's mapping with it.
+        ///
+        /// THE ATLAS ROW IS DECIDED ONCE PER TRIANGLE, from its centroid, never
+        /// per vertex. Every blend junction -- the armpit, the hip -- has a
+        /// knife-edge where two bones' claims are nearly tied, and a small
+        /// triangle straddling it could have one corner won by the torso and
+        /// another by the arm, putting its corners in two different rows. The
+        /// hardware interpolates UV across the triangle, so its interior would
+        /// sweep through every row in between and sample whatever was painted
+        /// there. In the Godot build that showed up as a stroke near an armpit
+        /// appearing as a thin line along the hip.
+        /// </summary>
+        public static void Unwrap(IReadOnlyList<FusedBodyShape.Segment> segments,
+            IReadOnlyList<Vector3> weldedVertices, IReadOnlyList<int> weldedTriangles,
+            out List<Vector3> vertices, out List<int> triangles, out List<Vector2> uvs)
+        {
+            vertices = new List<Vector3>(weldedTriangles.Count);
+            triangles = new List<int>(weldedTriangles.Count);
+            uvs = new List<Vector2>(weldedTriangles.Count);
+
+            for (int i = 0; i < weldedTriangles.Count; i += 3)
+            {
+                Vector3 a = weldedVertices[weldedTriangles[i]];
+                Vector3 b = weldedVertices[weldedTriangles[i + 1]];
+                Vector3 c = weldedVertices[weldedTriangles[i + 2]];
+
+                Vector3 centroid = (a + b + c) / 3.0f;
+                HumanBodyBones dominant = FusedBodyShape.DominantBone(segments, centroid);
+                HumanBodyBones paintBone = PaintAtlas.PaintBoneFor(dominant);
+                int row = PaintAtlas.RowOf(paintBone);
+                if (row < 0)
+                {
+                    // A bone with no row of its own means the paint bone table
+                    // and the atlas have drifted apart. Painting there would
+                    // land somewhere arbitrary, so it goes to the hips rather
+                    // than off the end of the texture.
+                    row = PaintAtlas.RowOf(HumanBodyBones.Hips);
+                    paintBone = HumanBodyBones.Hips;
+                }
+
+                PaintAtlas.AxisOf(paintBone, out Vector3 axisA, out Vector3 axisB);
+
+                Vector2 ua = PaintAtlas.Coordinate(a, axisA, axisB, row);
+                Vector2 ub = PaintAtlas.Coordinate(b, axisA, axisB, row);
+                Vector2 uc = PaintAtlas.Coordinate(c, axisA, axisB, row);
+                PaintAtlas.FixThetaSeam(ref ua, ref ub, ref uc);
+
+                triangles.Add(vertices.Count);
+                vertices.Add(a);
+                uvs.Add(ua);
+
+                triangles.Add(vertices.Count);
+                vertices.Add(b);
+                uvs.Add(ub);
+
+                triangles.Add(vertices.Count);
+                vertices.Add(c);
+                uvs.Add(uc);
+            }
+        }
+
+        /// <summary>
         /// Surface normals from the distance field itself, by central
         /// difference, rather than averaged from triangle faces.
         ///

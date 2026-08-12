@@ -51,13 +51,20 @@ namespace CityX.CharacterEditor
             Bounds bounds = FusedBodyShape.BoundsOf(segments);
 
             FusedBodyMesh.Extract(segments, bounds, cellSize,
-                out List<Vector3> vertices, out List<int> triangles);
+                out List<Vector3> welded, out List<int> weldedTriangles);
 
-            if (vertices.Count == 0 || triangles.Count == 0)
+            if (welded.Count == 0 || weldedTriangles.Count == 0)
             {
                 Debug.LogError("CityX: the body extracted to nothing -- check the bounds.");
                 return null;
             }
+
+            // UNWELDED, WITH PAINT UVs. The character is paintable, and the
+            // seam unwrap that makes the unwrap usable is only safe on triangle
+            // soup -- see FusedBodyMesh.Unwrap. It costs three times the
+            // vertices for a mesh built once at import time.
+            FusedBodyMesh.Unwrap(segments, welded, weldedTriangles,
+                out List<Vector3> vertices, out List<int> triangles, out List<Vector2> uvs);
 
             Vector3[] normals = FusedBodyMesh.Normals(segments, vertices, cellSize * 0.5f);
 
@@ -140,6 +147,7 @@ namespace CityX.CharacterEditor
             mesh.SetVertices(vertices);
             mesh.SetTriangles(triangles, 0);
             mesh.SetNormals(normals);
+            mesh.SetUVs(0, uvs);
             mesh.boneWeights = weights;
             mesh.bindposes = bindPoses;
             mesh.RecalculateBounds();
@@ -158,6 +166,7 @@ namespace CityX.CharacterEditor
                 existing.SetVertices(vertices);
                 existing.SetTriangles(triangles, 0);
                 existing.SetNormals(normals);
+                existing.SetUVs(0, uvs);
                 existing.boneWeights = weights;
                 existing.bindposes = bindPoses;
                 existing.RecalculateBounds();

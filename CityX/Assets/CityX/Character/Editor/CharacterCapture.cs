@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
+using CityX.Character;
 using UnityEditor;
 using UnityEngine;
 
@@ -102,6 +103,76 @@ namespace CityX.CharacterEditor
             new Turn("arm_r", 0.0f, 0.0f, 75.0f),
             new Turn("head", -12.0f, 0.0f, 0.0f),
         };
+
+        /// <summary>
+        /// The body wearing its own UV layout, as a checker.
+        ///
+        /// THE ONLY WAY TO SEE AN UNWRAP. Numbers can say no triangle spans two
+        /// rows and few are degenerate, and the unwrap can still be unusable --
+        /// squares stretched into ribbons down one limb and crushed on another
+        /// means a brush changes size depending where you paint. A checker
+        /// shows that instantly and nothing else does.
+        /// </summary>
+        [MenuItem("CityX/Capture UV Checker")]
+        public static void CaptureChecker()
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath);
+            if (prefab == null)
+            {
+                Debug.LogError($"CityX: no player prefab at {PrefabPath}.");
+                return;
+            }
+
+            string outputDirectory = Path.Combine(
+                Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
+            Directory.CreateDirectory(outputDirectory);
+
+            Material checker = CheckerMaterial();
+            Shoot(prefab, outputDirectory, "uv-front", 0.0f, Rest, null, 0.0f, checker);
+            Shoot(prefab, outputDirectory, "uv-back", 180.0f, Rest, null, 0.0f, checker);
+            Shoot(prefab, outputDirectory, "uv-tpose", 20.0f, null, null, 0.0f, checker);
+
+            if (Application.isBatchMode)
+            {
+                EditorApplication.Exit(0);
+            }
+        }
+
+        /// <summary>
+        /// A checker drawn at the atlas's own resolution, so one square is one
+        /// texel block and the row boundaries land where they really are.
+        /// </summary>
+        private static Material CheckerMaterial()
+        {
+            var texture = new Texture2D(PaintAtlas.Width, PaintAtlas.Height)
+            {
+                filterMode = FilterMode.Point,
+                wrapMode = TextureWrapMode.Repeat,
+            };
+
+            for (int y = 0; y < PaintAtlas.Height; y++)
+            {
+                // Each atlas ROW gets its own hue, so a limb painting into the
+                // wrong row is obvious rather than merely wrong-looking.
+                int rowIndex = y / PaintAtlas.Cell;
+                Color tint = Color.HSVToRGB(rowIndex / (float)PaintAtlas.PartCount, 0.55f, 1.0f);
+
+                for (int x = 0; x < PaintAtlas.Width; x++)
+                {
+                    bool dark = ((x / 8) + (y / 8)) % 2 == 0;
+                    texture.SetPixel(x, y, dark ? tint * 0.45f : tint);
+                }
+            }
+            texture.Apply();
+
+            var material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            if (material.HasProperty("_BaseMap"))
+            {
+                material.SetTexture("_BaseMap", texture);
+            }
+            material.mainTexture = texture;
+            return material;
+        }
 
         [MenuItem("CityX/Capture Character Screenshots")]
         public static void Capture()
@@ -314,7 +385,8 @@ namespace CityX.CharacterEditor
         }
 
         private static void Shoot(GameObject prefab, string directory, string name, float yaw,
-            IEnumerable<Turn> pose, AnimationClip clip, float clipFraction)
+            IEnumerable<Turn> pose, AnimationClip clip, float clipFraction,
+            Material overrideMaterial = null)
         {
             var root = new GameObject("CharacterCaptureRig");
             RenderTexture target = null;
@@ -353,6 +425,10 @@ namespace CityX.CharacterEditor
                     instance.GetComponentsInChildren<SkinnedMeshRenderer>())
                 {
                     skin.updateWhenOffscreen = true;
+                    if (overrideMaterial != null)
+                    {
+                        skin.sharedMaterial = overrideMaterial;
+                    }
                 }
 
                 var cameraObject = new GameObject("Camera");

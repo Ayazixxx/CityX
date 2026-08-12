@@ -187,7 +187,9 @@ namespace CityX.Character
             // clamps regardless of how the length axis handles overflow.
             float clampedT = Mathf.Clamp01(rawT);
             Vector3 radial = point - (axisA + ab * clampedT);
-            float theta = Mathf.Atan2(radial.z, radial.x);
+
+            Frame(ab, out Vector3 right, out Vector3 forward);
+            float theta = Mathf.Atan2(Vector3.Dot(radial, forward), Vector3.Dot(radial, right));
             float u = theta / (Mathf.PI * 2.0f) + 0.5f;
 
             float t;
@@ -209,6 +211,48 @@ namespace CityX.Character
             float v0 = (float)row / PartCount + RowMargin;
             float v1 = (float)(row + 1) / PartCount - RowMargin;
             return new Vector2(u, v0 + t * (v1 - v0));
+        }
+
+        /// <summary>
+        /// Two perpendicular directions across a limb, to measure its angle
+        /// against.
+        ///
+        /// THE ONE PLACE THIS DELIBERATELY DIFFERS FROM fused_body.gd, and it
+        /// had to. Godot measures the angle as atan2(radial.z, radial.x)
+        /// outright, which works there because its bind pose rests with the
+        /// arms DOWN -- every limb runs roughly along Y, so the radial
+        /// direction lies in XZ and those two components span it.
+        ///
+        /// This rig binds in a T-POSE, because Unity's humanoid retargeting
+        /// measures a rig against one. The arms therefore run along X, radial.x
+        /// is always about zero on them, and atan2 collapses to plus or minus a
+        /// right angle -- which folded each arm's whole circumference onto two
+        /// u values. Measured: 19% of the body's triangles came out degenerate
+        /// in UV, which is a brush stamping diamonds down both arms.
+        ///
+        /// Building the frame from the limb's own direction is the same idea
+        /// expressed so it does not depend on which way the limb happens to
+        /// point, and it agrees with Godot exactly on a vertical limb.
+        /// </summary>
+        public static void Frame(Vector3 along, out Vector3 right, out Vector3 forward)
+        {
+            Vector3 direction = along.normalized;
+
+            // World X, with anything along the limb removed. On a vertical limb
+            // that leaves X untouched, which is what keeps the torso's unwrap
+            // identical to the Godot build's.
+            right = Vector3.right - direction * Vector3.Dot(Vector3.right, direction);
+            if (right.sqrMagnitude < 1e-6f)
+            {
+                // The limb runs along X itself -- an arm in the T-pose. Any
+                // perpendicular will do as long as it is chosen consistently.
+                right = Vector3.forward - direction * Vector3.Dot(Vector3.forward, direction);
+            }
+            right.Normalize();
+
+            // Cross(right, direction), in that order, so a vertical limb gives
+            // forward = +Z and the angle comes out as atan2(z, x) exactly.
+            forward = Vector3.Cross(right, direction);
         }
 
         /// <summary>

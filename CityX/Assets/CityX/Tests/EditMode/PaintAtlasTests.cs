@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using CityX.Character;
 using NUnit.Framework;
 using UnityEngine;
@@ -178,6 +179,96 @@ namespace CityX.Tests
 
             Assert.AreEqual(0.40f, a.x, 0.0001f);
             Assert.AreEqual(0.44f, b.x, 0.0001f);
+        }
+
+        /// <summary>
+        /// THE REAL BODY, UNWRAPPED. Everything above tests the mapping on its
+        /// own; this tests the mesh a brush will actually paint on.
+        /// </summary>
+        [Test]
+        public void TheUnwrappedBodyIsPaintable()
+        {
+            List<FusedBodyShape.Segment> segments = FusedBodyShape.Segments(
+                BodyRig.PositionOf, FusedBodyShape.ReferenceHeight);
+            Bounds bounds = FusedBodyShape.BoundsOf(segments);
+
+            FusedBodyMesh.Extract(segments, bounds, FusedBodyShape.CellSize,
+                out List<Vector3> welded, out List<int> weldedTriangles);
+            FusedBodyMesh.Unwrap(segments, welded, weldedTriangles,
+                out List<Vector3> vertices, out List<int> triangles, out List<Vector2> uvs);
+
+            Assert.AreEqual(weldedTriangles.Count, vertices.Count,
+                "the unwrap did not produce triangle soup -- vertices are still shared");
+            Assert.AreEqual(vertices.Count, uvs.Count, "a vertex has no UV");
+
+            int degenerate = 0;
+            int wide = 0;
+            for (int i = 0; i < triangles.Count; i += 3)
+            {
+                Vector2 a = uvs[triangles[i]];
+                Vector2 b = uvs[triangles[i + 1]];
+                Vector2 c = uvs[triangles[i + 2]];
+
+                // ALL THREE CORNERS IN ONE ROW. A triangle spanning two rows
+                // sweeps its interior through every row in between and samples
+                // whatever is painted there -- the armpit-to-hip bug.
+                int rowA = Mathf.FloorToInt(a.y * PaintAtlas.PartCount);
+                int rowB = Mathf.FloorToInt(b.y * PaintAtlas.PartCount);
+                int rowC = Mathf.FloorToInt(c.y * PaintAtlas.PartCount);
+                Assert.AreEqual(rowA, rowB, $"triangle {i / 3} spans two atlas rows");
+                Assert.AreEqual(rowA, rowC, $"triangle {i / 3} spans two atlas rows");
+
+                float span = Mathf.Max(a.x, Mathf.Max(b.x, c.x))
+                             - Mathf.Min(a.x, Mathf.Min(b.x, c.x));
+                if (span > 0.5f)
+                {
+                    wide++;
+                }
+
+                float area = Mathf.Abs((b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y));
+                if (area < 1e-9f)
+                {
+                    degenerate++;
+                }
+            }
+
+            // THE COLLAR BUG, MEASURED ON THE REAL MESH. Zero-area triangles in
+            // UV are the ones a brush cannot solve a tangent from, so it falls
+            // back to a generic shape and stamps a diamond. A handful is
+            // tolerable; the hard clamp produced them in a band.
+            int count = triangles.Count / 3;
+
+            // MEASURED AT 1.27%, PINNED AT 2%. These are the poles: at the very
+            // tip of a rounded cap the radial vector is essentially zero and
+            // the angle around the limb is arbitrary, so the triangles fanning
+            // across it collapse in UV. Every cylindrical unwrap has that, and
+            // a handful of pole triangles per cap is what it costs.
+            //
+            // It was 19% before the limb frame was built from the limb's own
+            // direction rather than assuming a vertical one -- so this number
+            // is worth watching, because it is exactly what a whole arm
+            // unwrapping wrongly looks like.
+            float share = (float)degenerate / count;
+            Assert.Less(share, 0.02f,
+                $"{degenerate} of {count} triangles are degenerate in UV ({share:P2}) -- " +
+                "measured is 1.27%, so the unwrap has got meaningfully worse");
+
+            // TRIANGLES THE SEAM UNWRAP CANNOT FIX, COUNTED RATHER THAN
+            // ASSERTED AWAY. Shifting the corners below 0.5 up by one only
+            // helps a clean seam crossing. A triangle whose corners are
+            // genuinely spread over more than half a circumference -- which
+            // happens at a cap, where a vertex sits near the axis and its angle
+            // is close to arbitrary -- is still spread afterwards, and no
+            // choice of shift fixes it. fused_body.gd has the same limitation.
+            //
+            // I asserted twice that this could not happen before measuring
+            // whether it does. It does, on a small number of cap triangles, and
+            // the honest thing is to pin how many so a change that makes it
+            // meaningfully worse fails.
+            float wideShare = (float)wide / count;
+            Assert.Less(wideShare, 0.005f,
+                $"{wide} of {count} triangles still span the long way after the unwrap " +
+                $"({wideShare:P2})");
         }
 
         /// <summary>

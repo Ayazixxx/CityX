@@ -384,6 +384,50 @@ namespace CityX.Character
         }
 
         /// <summary>
+        /// Which bone owns a point, by fused_body.gd's own rule: sum
+        /// exp(-(d - dmin) / BlendRadius) over every segment, grouped by bone,
+        /// and take the heaviest.
+        ///
+        /// NOT SIMPLY THE NEAREST SEGMENT, and the difference is the point.
+        /// Two segments of the same bone -- a torso capsule and the neck stub,
+        /// a thigh and its shin -- ADD their claims here, so a point that is
+        /// marginally nearest to a single thin segment can still be owned by
+        /// the bone that surrounds it on both sides. Used to pick the atlas
+        /// row, where being marginally wrong puts paint on a different limb.
+        /// </summary>
+        public static HumanBodyBones DominantBone(IReadOnlyList<Segment> segments, Vector3 p)
+        {
+            float nearest = float.MaxValue;
+            foreach (Segment segment in segments)
+            {
+                nearest = Mathf.Min(nearest, segment.Distance(p));
+            }
+
+            HumanBodyBones best = HumanBodyBones.Hips;
+            float bestWeight = -1.0f;
+
+            foreach (Segment candidate in segments)
+            {
+                float weight = 0.0f;
+                foreach (Segment segment in segments)
+                {
+                    if (segment.Bone != candidate.Bone)
+                    {
+                        continue;
+                    }
+                    weight += Mathf.Exp(-(segment.Distance(p) - nearest) / BlendRadius);
+                }
+
+                if (weight > bestWeight)
+                {
+                    bestWeight = weight;
+                    best = candidate.Bone;
+                }
+            }
+            return best;
+        }
+
+        /// <summary>
         /// Whether two bones are close enough together in the skeleton to share
         /// skin.
         ///
