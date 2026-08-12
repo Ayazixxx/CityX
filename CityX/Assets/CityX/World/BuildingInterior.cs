@@ -113,9 +113,15 @@ namespace CityX.World
         /// that is a few metres of extra headroom. On anything that hits
         /// MaxFloors it is every metre above the seventh storey, so the top
         /// floor of a supertall is a single room hundreds of metres tall with
-        /// a staircase climbing all of it. That is carried across as-is
-        /// because it is what the Godot build does; see the callers for what
-        /// it costs.
+        /// a staircase climbing all of it.
+        ///
+        /// IT COSTS MORE HERE THAN IT EVER DID IN GODOT, and not because the
+        /// rule changed. city_chunk.gd caps a building at MAX_HEIGHT = 96m and
+        /// _add_staircase's own comment budgets "up to ~65" steps for the
+        /// worst top floor. This city's art direction goes to 320m, so the
+        /// same rule now produces a 281m top floor and 1154 steps. The rule is
+        /// carried across unchanged because it is a design call rather than a
+        /// porting one, and CityMeshBuilderTests pins what it costs.
         /// </summary>
         public static float FloorTop(int floorIndex, int floorCount, float buildingHeight,
             float storeyHeight)
@@ -253,6 +259,101 @@ namespace CityX.World
         private static Vector3 Abs(Vector3 v)
         {
             return new Vector3(Mathf.Abs(v.x), Mathf.Abs(v.y), Mathf.Abs(v.z));
+        }
+
+        /// <summary>How much of the floor the carved corner room takes.</summary>
+        public const float RoomWidthFraction = 0.4f;
+
+        public const float RoomDepthFraction = 0.42f;
+
+        /// <summary>
+        /// Below this a room is a cupboard rather than a room, and the floor it
+        /// was carved out of is left a sliver.
+        /// </summary>
+        public const float MinRoomSize = 2.4f;
+
+        /// <summary>
+        /// One floor's carved-off corner room, with the doorway into it.
+        ///
+        /// ALWAYS ON THE BACK WALL, never the wall the building's own entrance
+        /// is in, and always the back corner this floor's staircase is not
+        /// using. Every floor gets one, so more than one room reads as a
+        /// property of the building rather than a rare extra.
+        /// </summary>
+        public readonly struct Room
+        {
+            /// <summary>False when the floor is too small to carve.</summary>
+            public readonly bool Exists;
+
+            /// <summary>Footprint in the building's own local X/Z.</summary>
+            public readonly Rect Plan;
+
+            /// <summary>
+            /// The X of the wall carrying the doorway: the room's inner side,
+            /// away from the exterior corner it hugs. Its other inner side,
+            /// at Plan's maximum Z, is solid -- one door is enough.
+            /// </summary>
+            public readonly float DoorWallX;
+
+            public readonly float DoorZ0;
+            public readonly float DoorZ1;
+
+            public Room(bool exists, Rect plan, float doorWallX, float doorZ0, float doorZ1)
+            {
+                Exists = exists;
+                Plan = plan;
+                DoorWallX = doorWallX;
+                DoorZ0 = doorZ0;
+                DoorZ1 = doorZ1;
+            }
+        }
+
+        /// <summary>
+        /// The corner this floor's room takes: 0 for the back-left, 1 for the
+        /// back-right. Ported from _room_corner_for_floor.
+        ///
+        /// It dodges the staircase. Floors 0 and 1 put their flight in a BACK
+        /// corner, so the room takes the other one. Floors 2 and 3 put theirs
+        /// at the front, where the room cannot reach at all, so those just
+        /// alternate to keep consecutive floors from looking identical.
+        /// </summary>
+        public static int RoomCornerFor(int floorIndex)
+        {
+            int stairCorner = ((floorIndex % 4) + 4) % 4;
+            if (stairCorner == 0)
+            {
+                return 1;
+            }
+            if (stairCorner == 1)
+            {
+                return 0;
+            }
+            return ((floorIndex % 2) + 2) % 2 == 0 ? 0 : 1;
+        }
+
+        public static Room RoomFor(int floorIndex, float halfX, float halfZ)
+        {
+            if (halfX < MinRoomSize + 0.5f || halfZ < MinRoomSize + 0.5f)
+            {
+                return default;
+            }
+
+            // CAPPED AT HALF THE FOOTPRINT, less a margin. That is what makes
+            // the room's clearance of the stairwell structural rather than
+            // lucky: it cannot cross the building's own centre line, so it can
+            // never reach a flight hugging the opposite corner either.
+            float width = Mathf.Clamp(2.0f * halfX * RoomWidthFraction, MinRoomSize, halfX - 0.5f);
+            float depth = Mathf.Clamp(2.0f * halfZ * RoomDepthFraction, MinRoomSize, halfZ - 0.5f);
+
+            bool left = RoomCornerFor(floorIndex) == 0;
+            float x0 = left ? -halfX : halfX - width;
+            float x1 = left ? -halfX + width : halfX;
+            float z0 = -halfZ;
+            float z1 = -halfZ + depth;
+
+            float doorZ0 = z0 + (depth - DoorWidth) * 0.5f;
+            return new Room(true, Rect.MinMaxRect(x0, z0, x1, z1),
+                left ? x1 : x0, doorZ0, doorZ0 + DoorWidth);
         }
 
         /// <summary>

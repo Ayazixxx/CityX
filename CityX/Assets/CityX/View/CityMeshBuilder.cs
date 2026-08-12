@@ -270,6 +270,9 @@ namespace CityX.View
                 // gets you outside.
                 AddSlab(concrete, x0, x1, z0, z1, hole, lobbyY + top);
 
+                AddRoomPartition(concrete, BuildingInterior.RoomFor(floor, halfX, halfZ),
+                    centreX, centreZ, lobbyY + bottom, lobbyY + top, doorTop - lobbyY);
+
                 foreach (BuildingInterior.Step step in
                          BuildingInterior.Steps(well, run, lobbyY + bottom, top - bottom))
                 {
@@ -278,6 +281,46 @@ namespace CityX.View
                         step.Centre.x + centreX, step.Centre.y, step.Centre.z + centreZ);
                     concrete.AddBox(centre - half, centre + half);
                 }
+            }
+        }
+
+        /// <summary>
+        /// The two walls that cut one floor's back corner into a separate room.
+        ///
+        /// BOTH SIDES OF EACH ARE REAL. Every other interior wall in a building
+        /// has open air or solid podium behind it, so one face is enough. These
+        /// two have walkable floor on both sides, and a partition you can see
+        /// through from one side of a room is worse than no partition.
+        /// </summary>
+        private static void AddRoomPartition(MeshBuffer buffer, in BuildingInterior.Room room,
+            float centreX, float centreZ, float floorY, float ceilingY, float doorHeight)
+        {
+            if (!room.Exists)
+            {
+                return;
+            }
+
+            float x0 = room.Plan.xMin + centreX;
+            float x1 = room.Plan.xMax + centreX;
+            float z0 = room.Plan.yMin + centreZ;
+            float z1 = room.Plan.yMax + centreZ;
+            float doorX = room.DoorWallX + centreX;
+            float doorZ0 = room.DoorZ0 + centreZ;
+            float doorZ1 = room.DoorZ1 + centreZ;
+
+            var doorWall = new Wall(true, doorX, z0, z1);
+            foreach (Vector3 normal in new[] { Vector3.right, Vector3.left })
+            {
+                AddWallAround(buffer, doorWall, floorY, ceilingY, normal,
+                    doorZ0, doorZ1, floorY, floorY + doorHeight);
+            }
+
+            // The room's other inner side, solid: one doorway is enough for a
+            // corner room this size.
+            var backWall = new Wall(false, z1, x0, x1);
+            foreach (Vector3 normal in new[] { Vector3.forward, Vector3.back })
+            {
+                AddWallPanel(buffer, backWall, x0, x1, floorY, ceilingY, normal);
             }
         }
 

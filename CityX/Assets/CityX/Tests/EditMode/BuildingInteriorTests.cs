@@ -238,6 +238,90 @@ namespace CityX.Tests
             Assert.AreEqual(rise / steps.Length, steps[steps.Length - 1].Top - floorY, 0.001f);
         }
 
+        /// <summary>
+        /// THE CARVED ROOM NEVER EATS THE STAIRWELL. _room_corner_for_floor
+        /// claims this and it is the one thing that would be badly broken and
+        /// hard to see: a partition wall standing in the stairwell opening
+        /// leaves a floor you cannot leave.
+        ///
+        /// Swept over real footprints rather than one, because the guarantee
+        /// is meant to be structural -- the room is capped at half the
+        /// footprint so it cannot cross the centre line -- and a single shape
+        /// would not tell a structural guarantee from a lucky one.
+        /// </summary>
+        [Test]
+        public void TheCarvedRoomNeverOverlapsTheStairs()
+        {
+            foreach (float halfWidth in new[] { 3.5f, 5.0f, 7.0f, 12.0f, 30.0f })
+            {
+                foreach (float halfDepth in new[] { 3.5f, 5.0f, 9.0f, 25.0f })
+                {
+                    float run = BuildingInterior.RunFor(halfWidth, halfDepth);
+                    for (int floor = 0; floor < 8; floor++)
+                    {
+                        BuildingInterior.Room room =
+                            BuildingInterior.RoomFor(floor, halfWidth, halfDepth);
+                        if (!room.Exists)
+                        {
+                            continue;
+                        }
+                        Rect hole = BuildingInterior.StairwellFor(
+                            floor, halfWidth, halfDepth, run).Hole;
+
+                        Assert.IsFalse(room.Plan.Overlaps(hole),
+                            $"in a {halfWidth * 2.0f}x{halfDepth * 2.0f}m building, floor "
+                            + $"{floor}'s room {room.Plan} sits on its own stairwell {hole} "
+                            + "-- that is a floor you cannot leave");
+
+                        // And inside the building, or it is a room hanging in
+                        // the street.
+                        Assert.GreaterOrEqual(room.Plan.xMin, -halfWidth - 0.001f);
+                        Assert.LessOrEqual(room.Plan.xMax, halfWidth + 0.001f);
+                        Assert.GreaterOrEqual(room.Plan.yMin, -halfDepth - 0.001f);
+                        Assert.LessOrEqual(room.Plan.yMax, halfDepth + 0.001f);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// The room has a way in, and it is on the wall facing the rest of the
+        /// floor rather than the exterior corner it hugs.
+        /// </summary>
+        [Test]
+        public void TheCarvedRoomHasADoorwayOnItsInnerWall()
+        {
+            for (int floor = 0; floor < 8; floor++)
+            {
+                BuildingInterior.Room room = BuildingInterior.RoomFor(floor, HalfX, HalfZ);
+                Assert.IsTrue(room.Exists, $"floor {floor} of a {HalfX * 2}x{HalfZ * 2}m "
+                                           + "building should be big enough to carve a room from");
+
+                // The doorway is on one of the room's two X edges, and on the
+                // one AWAY from the building's own outside wall.
+                bool onLeftEdge = Mathf.Abs(room.DoorWallX - room.Plan.xMin) < 0.001f;
+                bool onRightEdge = Mathf.Abs(room.DoorWallX - room.Plan.xMax) < 0.001f;
+                Assert.IsTrue(onLeftEdge || onRightEdge,
+                    $"floor {floor}'s doorway wall is not an edge of the room");
+                Assert.Less(Mathf.Abs(room.DoorWallX), HalfX - 0.001f,
+                    $"floor {floor} put its doorway in the building's own outside wall");
+
+                Assert.AreEqual(BuildingInterior.DoorWidth, room.DoorZ1 - room.DoorZ0, 0.001f);
+                Assert.GreaterOrEqual(room.DoorZ0, room.Plan.yMin - 0.001f,
+                    $"floor {floor}'s doorway runs off the end of its own wall");
+                Assert.LessOrEqual(room.DoorZ1, room.Plan.yMax + 0.001f);
+
+                // Against the back wall, never the one the entrance is in.
+                Assert.AreEqual(-HalfZ, room.Plan.yMin, 0.001f,
+                    $"floor {floor}'s room left the back wall");
+            }
+
+            // A building too small to give up a corner gets no room at all,
+            // rather than one that swallows the floor.
+            Assert.IsFalse(BuildingInterior.RoomFor(0, 2.0f, 8.0f).Exists);
+            Assert.IsFalse(BuildingInterior.RoomFor(0, 8.0f, 2.0f).Exists);
+        }
+
         private static void Inside(Rect hole, Vector3 point, string message)
         {
             const float edge = 0.001f;
