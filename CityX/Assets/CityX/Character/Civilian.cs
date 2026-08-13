@@ -6,6 +6,14 @@ namespace CityX.Character
     /// A pedestrian. Walks the pavement, can be punched, falls over when
     /// killed.
     ///
+    /// ONLY EVER PLACED DELIBERATELY. CivilianPopulation used to keep a pooled
+    /// dozen streaming in and out around the player; it was deleted at the
+    /// user's request -- the crowd was not wanted -- matching the Godot build,
+    /// which retired its own civilian_population.gd to
+    /// archive/civilian_population/ for the same reason. Nothing places one
+    /// automatically now. The scale screenshots still stand a few in a street
+    /// on purpose, and that is the remaining use.
+    ///
     /// Reuses the player's own body: the same rig, animator and ragdoll,
     /// wearing a different material. That is deliberate rather than lazy --
     /// what the city needs most right now is other bodies at real scale

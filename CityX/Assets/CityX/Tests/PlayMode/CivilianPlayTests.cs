@@ -9,6 +9,13 @@ namespace CityX.Tests
     /// <summary>
     /// A pedestrian in a real scene.
     ///
+    /// THE AMBIENT CROWD IS GONE. CivilianPopulation used to recycle a pooled
+    /// dozen around the viewer; it was deleted at the user's request, matching
+    /// the Godot build's own retirement of civilian_population.gd. A pedestrian
+    /// is still a working, punchable body -- these tests are what says so --
+    /// but nothing places one on its own, which is what the last test here
+    /// pins so the crowd cannot creep back in unnoticed.
+    ///
     /// CivilianBrainTests already prove the wander logic, exhaustively and
     /// without a scene. This exists for the gap between correct logic and a
     /// body that actually moves -- which is not a hypothetical gap: the player
@@ -142,6 +149,31 @@ namespace CityX.Tests
             // No ragdoll on this bare test body, so the root must simply stop.
             Assert.Less(Vector3.Distance(fell, civilian.transform.position), 0.2f,
                 "a dead pedestrian carried on walking");
+        }
+
+        /// <summary>
+        /// NOTHING PUTS A CROWD IN THE STREETS. The ambient population was
+        /// removed on purpose, and "on purpose" is the part worth pinning --
+        /// a spawner is exactly the kind of thing that gets added back by
+        /// someone who sees an empty city and assumes it is a bug.
+        ///
+        /// Checked by type rather than by counting bodies in a scene, because
+        /// the thing being asserted is that no such component exists to be
+        /// wired up at all.
+        /// </summary>
+        [Test]
+        public void NothingSpawnsAnAmbientCrowd()
+        {
+            foreach (System.Reflection.Assembly assembly in
+                     System.AppDomain.CurrentDomain.GetAssemblies())
+            {
+                foreach (System.Type type in assembly.GetTypes())
+                {
+                    Assert.AreNotEqual("CivilianPopulation", type.Name,
+                        $"{type.FullName} brings the ambient crowd back -- pedestrians are only "
+                        + "ever placed deliberately now");
+                }
+            }
         }
     }
 }
