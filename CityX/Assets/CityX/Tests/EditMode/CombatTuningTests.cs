@@ -105,5 +105,29 @@ namespace CityX.Tests
             Assert.IsEmpty(ComboChain.For(""));
             Assert.IsFalse(ComboChain.Has("nonsense"));
         }
+
+        /// <summary>
+        /// A SAFE DROP IS TWO STOREYS, 12.8m, and this pins the metres rather
+        /// than the formula.
+        ///
+        /// It was 6.4m -- two window ROWS instead of two storeys -- so every
+        /// drop between one and two storeys hurt here and was free in Godot.
+        /// The PlayMode fall tests all passed throughout, because every one of
+        /// them is written against SafeFallDistance itself: they proved the
+        /// behaviour was consistent with the constant while the constant was
+        /// the thing that was wrong. That is why this asserts the number.
+        /// </summary>
+        [Test]
+        public void ASafeDropIsTwoStoreysOfTheCitysOwnFloorHeight()
+        {
+            Assert.AreEqual(12.8f, PlayerVitals.SafeFallDistance, 0.001f,
+                "player.gd falls NOMINAL_FLOOR_METERS * STORY_HEIGHT_FLOORS * 2 without damage");
+
+            // Stated the long way round too, so changing the city's floor
+            // height moves this with it rather than breaking it.
+            Assert.AreEqual(
+                World.CellLayout.NominalFloorMetres * World.BuildingInterior.StoreyHeightRows * 2.0f,
+                PlayerVitals.SafeFallDistance, 0.001f);
+        }
     }
 }

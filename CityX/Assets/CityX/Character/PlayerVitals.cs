@@ -36,11 +36,18 @@ namespace CityX.Character
         public const float StaminaPerStatPoint = 10.0f;
 
         /// <summary>
-        /// player.gd SAFE_FALL_DISTANCE, which was two storeys expressed in the
-        /// city's own floor height rather than a loose number. Kept derived for
-        /// the same reason: change the floor height and this follows.
+        /// player.gd SAFE_FALL_DISTANCE: TWO STOREYS, expressed in the city's
+        /// own floor height rather than as a loose number, so changing the
+        /// floor height carries this with it.
+        ///
+        /// A storey is StoreyHeightRows window rows, not one -- and this used
+        /// to read NominalFloorMetres * 2, which is two ROWS. That is 6.4m
+        /// against Godot's 12.8m, so every drop between one and two storeys
+        /// hurt here and was free there. The comment already said "two
+        /// storeys"; only the arithmetic disagreed.
         /// </summary>
-        public static float SafeFallDistance => World.CellLayout.NominalFloorMetres * 2.0f;
+        public static float SafeFallDistance =>
+            World.CellLayout.NominalFloorMetres * World.BuildingInterior.StoreyHeightRows * 2.0f;
 
         /// <summary>player.gd FALL_DAMAGE_PER_METER, as a fraction of base health.</summary>
         public const float FallDamagePerMetreFraction = 0.08f;
