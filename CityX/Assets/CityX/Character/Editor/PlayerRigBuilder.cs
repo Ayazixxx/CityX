@@ -45,6 +45,9 @@ namespace CityX.CharacterEditor
             AnimationClip walk = FindClip("walking");
             AnimationClip sprint = FindClip("sprint");
             AnimationClip jump = FindClip("jump");
+            AnimationClip back = FindClip("walk_backward");
+            AnimationClip left = FindClip("walk_left");
+            AnimationClip right = FindClip("walk_right");
 
             if (idle == null || walk == null || sprint == null)
             {
@@ -57,8 +60,11 @@ namespace CityX.CharacterEditor
             MakeLooping(idle);
             MakeLooping(walk);
             MakeLooping(sprint);
+            MakeLooping(back);
+            MakeLooping(left);
+            MakeLooping(right);
 
-            AnimatorController controller = BuildController(idle, walk, sprint, jump);
+            AnimatorController controller = BuildController(idle, walk, sprint, jump, back, left, right);
             GameObject prefab = BuildPrefab(controller);
 
             AssetDatabase.SaveAssets();
@@ -67,26 +73,48 @@ namespace CityX.CharacterEditor
         }
 
         private static AnimatorController BuildController(
-            AnimationClip idle, AnimationClip walk, AnimationClip sprint, AnimationClip jump)
+            AnimationClip idle, AnimationClip walk, AnimationClip sprint, AnimationClip jump,
+            AnimationClip back, AnimationClip left, AnimationClip right)
         {
             AnimatorController controller =
                 AnimatorController.CreateAnimatorControllerAtPath(ControllerPath);
 
             controller.AddParameter("Speed", AnimatorControllerParameterType.Float);
+            controller.AddParameter("MoveX", AnimatorControllerParameterType.Float);
+            controller.AddParameter("MoveZ", AnimatorControllerParameterType.Float);
             controller.AddParameter("Grounded", AnimatorControllerParameterType.Bool);
             controller.AddParameter("Jump", AnimatorControllerParameterType.Trigger);
 
-            // A 1-D blend tree on speed, with thresholds at the real movement
-            // speeds. Blending by actual m/s rather than by a normalised 0..1
-            // is what keeps the stride matched to the ground at every speed
-            // between walking and sprinting, not just at the ends.
+            // A 2-D blend over the body's own velocity IN ITS OWN FRAME, in
+            // metres per second. It was a 1-D blend on speed alone, which could
+            // only ever say how fast, never which way -- so walking backwards
+            // was shown by a forward stride.
+            //
+            // STILL IN REAL m/s, NOT A NORMALISED 0..1. That is what keeps the
+            // stride matched to the ground between walking and sprinting rather
+            // than only at the ends, and it is why the forward axis carries two
+            // clips while the lateral ones carry one: sprint only ever applies
+            // going forward (see PlayerLocomotion), so no sideways sample can
+            // ever be asked for above walking pace.
             controller.CreateBlendTreeInController("Locomotion", out BlendTree locomotion, 0);
-            locomotion.blendParameter = "Speed";
-            locomotion.blendType = BlendTreeType.Simple1D;
-            locomotion.useAutomaticThresholds = false;
-            locomotion.AddChild(idle, 0.0f);
-            locomotion.AddChild(walk, WalkSpeed);
-            locomotion.AddChild(sprint, SprintSpeed);
+            locomotion.blendType = BlendTreeType.FreeformCartesian2D;
+            locomotion.blendParameter = "MoveX";
+            locomotion.blendParameterY = "MoveZ";
+            locomotion.AddChild(idle, Vector2.zero);
+            locomotion.AddChild(walk, new Vector2(0.0f, WalkSpeed));
+            locomotion.AddChild(sprint, new Vector2(0.0f, SprintSpeed));
+            if (back != null)
+            {
+                locomotion.AddChild(back, new Vector2(0.0f, -WalkSpeed));
+            }
+            if (left != null)
+            {
+                locomotion.AddChild(left, new Vector2(-WalkSpeed, 0.0f));
+            }
+            if (right != null)
+            {
+                locomotion.AddChild(right, new Vector2(WalkSpeed, 0.0f));
+            }
 
             AnimatorStateMachine root = controller.layers[0].stateMachine;
 

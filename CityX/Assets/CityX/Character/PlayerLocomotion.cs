@@ -64,11 +64,24 @@ namespace CityX.Character
         private float _appliedHeight = -1.0f;
 
         private static readonly int SpeedParameter = Animator.StringToHash("Speed");
+        private static readonly int MoveXParameter = Animator.StringToHash("MoveX");
+        private static readonly int MoveZParameter = Animator.StringToHash("MoveZ");
         private static readonly int GroundedParameter = Animator.StringToHash("Grounded");
         private static readonly int JumpParameter = Animator.StringToHash("Jump");
 
         /// <summary>Horizontal speed after the last tick, in metres per second.</summary>
         public float CurrentSpeed { get; private set; }
+
+        /// <summary>
+        /// Where the body is travelling RELATIVE TO ITS OWN FACING, in metres
+        /// per second: x across, y along. Strafing right at walking pace is
+        /// (4, 0); backing up is (0, -4).
+        ///
+        /// This is the whole point of separating facing from travel. While the
+        /// two were the same thing this was always (0, speed) and the walk_left,
+        /// walk_right and walk_backward clips could never be reached.
+        /// </summary>
+        public Vector2 LocalVelocity { get; private set; }
 
         /// <summary>
         /// The full motion vector from the last step, in metres per second.
@@ -155,7 +168,17 @@ namespace CityX.Character
             ApplyHeight();
 
             Vector3 direction = input.WorldDirection();
-            bool sprinting = input.Sprint && direction.sqrMagnitude > 0.0001f;
+            bool moving = direction.sqrMagnitude > 0.0001f;
+
+            // SPRINT ONLY APPLIES GOING FORWARD, which is player.gd's own rule
+            // and not a simplification. There is no running-backward or
+            // running-sideways clip, so a 7.5 m/s strafe would be shown by a
+            // 4 m/s walk clip -- feet sliding across the ground, which is the
+            // exact moonwalk this rig's blend thresholds already exist to
+            // prevent. Godot ties the speed to the direction for the same
+            // reason it ties the clip to it.
+            bool forward = input.Move.y > 0.0f && input.Move.y >= Mathf.Abs(input.Move.x);
+            bool sprinting = input.Sprint && moving && forward;
             float speed = sprinting ? SprintSpeed : WalkSpeed;
             Vector3 horizontal = direction * speed;
             CurrentSpeed = horizontal.magnitude;
@@ -195,16 +218,41 @@ namespace CityX.Character
             Velocity = motion;
             _controller.Move(motion * deltaTime);
 
-            if (horizontal.sqrMagnitude > 0.0001f)
+            // THE BODY FACES THE CAMERA, NOT WHERE IT IS GOING.
+            //
+            // It used to face its own velocity, which is the obvious thing and
+            // is wrong: it makes travel direction and facing the same vector,
+            // so "walking backwards" cannot exist -- the body simply turns
+            // round and walks forwards. Every directional clip in the folder
+            // was unreachable for that one reason. player.gd instead folds the
+            // camera's yaw into the body whenever it is moving, and moves
+            // relative to the result, which is what LocomotionInput has always
+            // described: Move is a stick reading relative to YawDegrees.
+            //
+            // ONLY WHILE MOVING, also from player.gd. Turning the body to the
+            // camera while standing still means looking around spins the
+            // character on the spot.
+            //
+            // One deliberate difference: player.gd's fold is instant, because
+            // it is bookkeeping between a pivot and its parent rather than a
+            // turn. Here it is a real turn at TurnDegreesPerSecond, so a fast
+            // flick of the mouse lets the body lag the camera for a few frames
+            // instead of snapping.
+            if (moving)
             {
-                Quaternion target = Quaternion.LookRotation(horizontal.normalized, Vector3.up);
+                Quaternion facing = Quaternion.Euler(0.0f, input.YawDegrees, 0.0f);
                 transform.rotation = Quaternion.RotateTowards(
-                    transform.rotation, target, TurnDegreesPerSecond * deltaTime);
+                    transform.rotation, facing, TurnDegreesPerSecond * deltaTime);
             }
+
+            Vector3 local = transform.InverseTransformDirection(horizontal);
+            LocalVelocity = new Vector2(local.x, local.z);
 
             if (_animator != null)
             {
                 _animator.SetFloat(SpeedParameter, CurrentSpeed);
+                _animator.SetFloat(MoveXParameter, LocalVelocity.x);
+                _animator.SetFloat(MoveZParameter, LocalVelocity.y);
                 _animator.SetBool(GroundedParameter, _controller.isGrounded);
             }
         }

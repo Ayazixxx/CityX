@@ -71,6 +71,117 @@ namespace CityX.Tests
             }
         }
 
+        /// <summary>
+        /// THE BODY FACES THE CAMERA, NOT WHERE IT IS GOING.
+        ///
+        /// It faced its own velocity until now, which sounds right and quietly
+        /// removes a whole dimension: if facing and travel are the same vector
+        /// then walking backwards is impossible -- the body just turns round
+        /// and walks forwards -- and walk_backward, walk_left and walk_right
+        /// can never play. Strafing is the clearest case: pushing the stick
+        /// left with the camera pointing north should move the body west while
+        /// it still faces north.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator StrafingMovesSidewaysWithoutTurningTheBody()
+        {
+            _player.transform.rotation = Quaternion.identity;
+            Vector3 start = _player.transform.position;
+
+            yield return Drive(new LocomotionInput
+            {
+                Move = new Vector2(-1.0f, 0.0f),
+                YawDegrees = 0.0f,
+            }, 120);
+
+            Vector3 travelled = _player.transform.position - start;
+            Assert.Less(travelled.x, -1.0f,
+                $"pushed left for two seconds and moved {travelled.x:0.00}m in x");
+            Assert.AreEqual(0.0f, travelled.z, 0.2f, "strafing should not carry the body forwards");
+
+            Assert.AreEqual(0.0f, Mathf.DeltaAngle(0.0f, _player.transform.eulerAngles.y), 1.0f,
+                "the body turned to face where it was walking, so it is not strafing at all -- "
+                + "it is walking forwards in a new direction");
+
+            // And the animator is told about it in the body's own frame, which
+            // is what reaches the sideways clips.
+            Assert.Less(_locomotion.LocalVelocity.x, -1.0f,
+                "local velocity does not report a sideways step");
+            Assert.AreEqual(0.0f, _locomotion.LocalVelocity.y, 0.2f);
+        }
+
+        /// <summary>
+        /// Backing up keeps the body facing forward, which is the whole reason
+        /// walk_backward exists.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator WalkingBackwardsKeepsFacingForward()
+        {
+            _player.transform.rotation = Quaternion.identity;
+            Vector3 start = _player.transform.position;
+
+            yield return Drive(new LocomotionInput
+            {
+                Move = new Vector2(0.0f, -1.0f),
+                YawDegrees = 0.0f,
+            }, 120);
+
+            Assert.Less(_player.transform.position.z - start.z, -1.0f, "did not travel backwards");
+            Assert.AreEqual(0.0f, Mathf.DeltaAngle(0.0f, _player.transform.eulerAngles.y), 1.0f,
+                "the body turned round rather than walking backwards");
+            Assert.Less(_locomotion.LocalVelocity.y, -1.0f);
+        }
+
+        /// <summary>
+        /// SPRINT IS FORWARD ONLY, from player.gd. There is no running-sideways
+        /// clip, so a 7.5 m/s strafe would be drawn by a 4 m/s walk -- feet
+        /// sliding over the ground, the same moonwalk the blend thresholds
+        /// exist to prevent.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator SprintingSidewaysOrBackwardsStaysAtWalkingPace()
+        {
+            foreach (Vector2 move in new[] { new Vector2(1.0f, 0.0f), new Vector2(0.0f, -1.0f) })
+            {
+                _player.transform.rotation = Quaternion.identity;
+                yield return Drive(new LocomotionInput
+                {
+                    Move = move,
+                    YawDegrees = 0.0f,
+                    Sprint = true,
+                }, 30);
+
+                Assert.AreEqual(_locomotion.WalkSpeed, _locomotion.CurrentSpeed, 0.01f,
+                    $"sprinting with move {move} ran at {_locomotion.CurrentSpeed:0.00} m/s, but "
+                    + "the only clip that can show it is a walk");
+            }
+
+            // Forward still sprints, or this rule would just be "no sprinting".
+            yield return Drive(new LocomotionInput
+            {
+                Move = new Vector2(0.0f, 1.0f),
+                YawDegrees = 0.0f,
+                Sprint = true,
+            }, 30);
+            Assert.AreEqual(_locomotion.SprintSpeed, _locomotion.CurrentSpeed, 0.01f);
+        }
+
+        /// <summary>
+        /// Standing still and looking around does not spin the character on the
+        /// spot. player.gd only folds the camera's yaw into the body while it
+        /// is moving, for exactly this reason.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator LookingAroundWhileStandingStillDoesNotTurnTheBody()
+        {
+            _player.transform.rotation = Quaternion.identity;
+
+            yield return Drive(new LocomotionInput { Move = Vector2.zero, YawDegrees = 90.0f }, 60);
+
+            Assert.AreEqual(0.0f, Mathf.DeltaAngle(0.0f, _player.transform.eulerAngles.y), 1.0f,
+                "the body followed the camera while standing still, so looking around spins it");
+        }
+
         [UnityTest]
         public IEnumerator TheBodyFallsAndComesToRestOnTheGround()
         {

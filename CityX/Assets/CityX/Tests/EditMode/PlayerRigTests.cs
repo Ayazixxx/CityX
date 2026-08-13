@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using CityX.Character;
 using NUnit.Framework;
 using UnityEditor;
@@ -241,20 +242,62 @@ namespace CityX.Tests
                 }
             }
             Assert.IsNotNull(tree, "no blend tree in the controller");
-            Assert.AreEqual("Speed", tree.blendParameter, "the tree blends on the wrong parameter");
-            Assert.GreaterOrEqual(tree.children.Length, 3, "expected idle, walk and sprint");
 
-            float[] thresholds = new float[tree.children.Length];
-            for (int i = 0; i < tree.children.Length; i++)
+            // BLENDED IN REAL METRES PER SECOND, in the body's own frame. Both
+            // halves matter. If the positions stop matching the controller's
+            // speeds the feet slide -- the clip's stride no longer covers the
+            // ground actually travelled. If it blends on speed ALONE, as it
+            // did, the tree can only say how fast and never which way, and
+            // walking backwards comes out as a forward stride.
+            Assert.AreEqual("MoveX", tree.blendParameter, "the tree blends on the wrong parameter");
+            Assert.AreEqual("MoveZ", tree.blendParameterY, "the tree has no lateral axis");
+            Assert.GreaterOrEqual(tree.children.Length, 6,
+                "expected idle, walk, sprint and the three directional clips");
+
+            // KEYED ON THE ASSET PATH, NOT THE CLIP NAME. Every clip Mixamo
+            // exports is internally called "mixamo.com", so all 53 of them
+            // share one name and the only thing telling walk_left from sprint
+            // is which FBX it came out of.
+            var positions = new Dictionary<string, Vector2>();
+            foreach (ChildMotion child in tree.children)
             {
-                thresholds[i] = tree.children[i].threshold;
+                Assert.IsNotNull(child.motion, "a blend child has no clip");
+                string path = AssetDatabase.GetAssetPath(child.motion);
+                positions[System.IO.Path.GetFileNameWithoutExtension(path)] = child.position;
             }
 
-            Assert.AreEqual(0.0f, thresholds[0], 0.01f, "the first blend child should be idle at 0");
-            Assert.AreEqual(locomotion.WalkSpeed, thresholds[1], 0.01f,
-                "the walk threshold does not match PlayerLocomotion.WalkSpeed");
-            Assert.AreEqual(locomotion.SprintSpeed, thresholds[thresholds.Length - 1], 0.01f,
-                "the top threshold does not match PlayerLocomotion.SprintSpeed");
+            Vector2 At(string clip)
+            {
+                if (positions.TryGetValue(clip, out Vector2 found))
+                {
+                    return found;
+                }
+                Assert.Fail($"no blend child from {clip}.fbx -- found {string.Join(", ", positions.Keys)}");
+                return Vector2.zero;
+            }
+
+            Assert.AreEqual(Vector2.zero, At("idle"), "idle should sit at a standstill");
+            Assert.AreEqual(new Vector2(0.0f, locomotion.WalkSpeed), At("walking"),
+                "the walk clip is not placed at PlayerLocomotion.WalkSpeed");
+            Assert.AreEqual(new Vector2(0.0f, locomotion.SprintSpeed), At("sprint"),
+                "the sprint clip is not placed at PlayerLocomotion.SprintSpeed");
+
+            // The three that were unreachable while facing followed velocity.
+            Assert.AreEqual(new Vector2(0.0f, -locomotion.WalkSpeed), At("walk_backward"));
+            Assert.AreEqual(new Vector2(-locomotion.WalkSpeed, 0.0f), At("walk_left"));
+            Assert.AreEqual(new Vector2(locomotion.WalkSpeed, 0.0f), At("walk_right"));
+
+            // NOTHING SIDEWAYS ABOVE WALKING PACE, which is what lets each
+            // lateral axis carry one clip rather than two: PlayerLocomotion
+            // refuses to sprint in any direction but forward.
+            foreach (KeyValuePair<string, Vector2> pair in positions)
+            {
+                if (Mathf.Abs(pair.Value.x) > 0.01f)
+                {
+                    Assert.LessOrEqual(Mathf.Abs(pair.Value.x), locomotion.WalkSpeed + 0.01f,
+                        $"{pair.Key} is placed at a sideways speed the controller never produces");
+                }
+            }
         }
     }
 }
