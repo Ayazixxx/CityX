@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using CityX.View;
 using CityX.World;
 using NUnit.Framework;
@@ -657,6 +658,86 @@ namespace CityX.Tests
                 }
             }
             return false;
+        }
+
+        /// <summary>
+        /// EVERY ROOF TYPE THE GENERATOR ROLLS ACTUALLY BUILDS SOMETHING.
+        ///
+        /// The roof was picked, stored and asserted against its own table for
+        /// a long time while nothing read it, so every rooftop in the city was
+        /// a bare plane and no test noticed -- the data was perfect and unused.
+        /// This checks the other end: a building whose roof is not flat has
+        /// geometry standing above its own roofline, and a flat one does not.
+        /// </summary>
+        [Test]
+        public void EveryRoofTypeBuildsSomethingOnTheRoof()
+        {
+            CityWorld world = new CityWorld(Seed);
+            var seen = new Dictionary<string, int>();
+
+            for (int x = -20; x <= 20; x++)
+            {
+                for (int y = -20; y <= 20; y++)
+                {
+                    BuildingSite site = world.BuildingAt(x, y);
+                    if (!site.Exists || site.AnchorX != x || site.AnchorY != y)
+                    {
+                        continue;
+                    }
+
+                    Build(x, y, out _, out MeshBuffer concrete, out _);
+
+                    // WIDENED BY A HAIR, because a parapet is a rim wall flush
+                    // with the roof edge: every one of its vertices sits
+                    // exactly ON the footprint boundary in at least one axis,
+                    // and strict containment throws all of them away. The
+                    // nearest neighbouring building is metres off, so this
+                    // cannot pick up anything but this roof.
+                    const float edge = 0.01f;
+                    var plan = Rect.MinMaxRect((float)site.MinX - edge, (float)site.MinZ - edge,
+                        (float)site.MaxX + edge, (float)site.MaxZ + edge);
+
+                    // Anything standing proud of the roof, inside the
+                    // footprint. Skybridges land below the roofline and other
+                    // buildings are elsewhere, so this is the props alone.
+                    bool anythingUpThere = false;
+                    foreach (Vector3 v in concrete.Vertices)
+                    {
+                        if (v.y > site.Top + 0.01f && Covers(plan, v))
+                        {
+                            anythingUpThere = true;
+                            break;
+                        }
+                    }
+
+                    string roof = string.IsNullOrEmpty(site.Params.Roof) ? "flat" : site.Params.Roof;
+                    seen.TryGetValue(roof, out int count);
+                    seen[roof] = count + 1;
+
+                    if (roof == "flat")
+                    {
+                        Assert.IsFalse(anythingUpThere,
+                            $"({x},{y}) has a flat roof but something is standing on it");
+                    }
+                    else
+                    {
+                        Assert.IsTrue(anythingUpThere,
+                            $"({x},{y}) rolled a '{roof}' roof and nothing was built for it");
+                    }
+                }
+            }
+
+            TestContext.WriteLine(string.Join(", ",
+                seen.Select(pair => $"{pair.Key} {pair.Value}")));
+
+            // Every type in the table has to actually turn up, or this could
+            // pass while one of them silently built nothing.
+            foreach (string type in CityChunkGenerator.RoofTypes)
+            {
+                string roof = string.IsNullOrEmpty(type) ? "flat" : type;
+                Assert.IsTrue(seen.ContainsKey(roof),
+                    $"no building in the sweep rolled a '{roof}' roof, so it went unchecked");
+            }
         }
 
         /// <summary>

@@ -308,6 +308,11 @@ namespace CityX.View
                 AddRoomPartition(concrete, BuildingInterior.RoomFor(floor, halfX, halfZ),
                     centreX, centreZ, lobbyY + bottom, lobbyY + top, doorTop - lobbyY);
 
+                if (floor == floors - 1)
+                {
+                    AddRoofDetail(concrete, site.Params.Roof, x0, x1, z0, z1, lobbyY + top);
+                }
+
                 foreach (BuildingInterior.Step step in
                          BuildingInterior.Steps(well, run, lobbyY + bottom, top - bottom))
                 {
@@ -317,6 +322,98 @@ namespace CityX.View
                     concrete.AddBox(centre - half, centre + half);
                 }
             }
+        }
+
+        /// <summary>
+        /// Whatever is standing on this building's roof.
+        ///
+        /// city_chunk.gd has rolled a roof type per building since the start
+        /// and CityChunkGenerator ports it -- it is generated, it is tested,
+        /// and until now nothing read it, so every rooftop in the city was a
+        /// bare plane. That is most visible from exactly the two angles the
+        /// art direction cares about: the skyline, and standing on a roof.
+        ///
+        /// Sizes are Godot's own and are deliberately SMALL against a 20m
+        /// roof. These are props, not massing: a water tank a person could
+        /// stand beside, not a second storey.
+        /// </summary>
+        private static void AddRoofDetail(MeshBuffer buffer, string roof,
+            float x0, float x1, float z0, float z1, float roofY)
+        {
+            float centreX = (x0 + x1) * 0.5f;
+            float centreZ = (z0 + z1) * 0.5f;
+
+            switch (roof)
+            {
+                case "shed":
+                    AddCentredBox(buffer, centreX, centreZ, roofY, 1.1f, 0.6f, 1.1f);
+                    break;
+
+                case "antenna":
+                    AddMast(buffer, centreX, centreZ, roofY, 2.0f);
+                    break;
+
+                case "chimney":
+                    AddCentredBox(buffer, centreX, centreZ, roofY, 0.9f, 1.2f, 0.9f);
+                    AddMast(buffer, centreX + 0.3f, centreZ, roofY + 1.2f, 1.5f);
+                    break;
+
+                case "parapet":
+                    // A rim wall round all four edges. Part of the roofline
+                    // rather than a prop sitting on it, which is why it takes
+                    // the building's own footprint rather than a fixed size.
+                    AddCentredBox(buffer, centreX, z0 + ParapetThickness * 0.5f, roofY,
+                        x1 - x0, ParapetHeight, ParapetThickness);
+                    AddCentredBox(buffer, centreX, z1 - ParapetThickness * 0.5f, roofY,
+                        x1 - x0, ParapetHeight, ParapetThickness);
+                    AddCentredBox(buffer, x0 + ParapetThickness * 0.5f, centreZ, roofY,
+                        ParapetThickness, ParapetHeight, z1 - z0);
+                    AddCentredBox(buffer, x1 - ParapetThickness * 0.5f, centreZ, roofY,
+                        ParapetThickness, ParapetHeight, z1 - z0);
+                    break;
+
+                case "water_tower":
+                    // Four thin legs and a tank, which is the silhouette that
+                    // reads as a rooftop from a long way off.
+                    foreach (float dx in new[] { -0.55f, 0.55f })
+                    {
+                        foreach (float dz in new[] { -0.55f, 0.55f })
+                        {
+                            AddCentredBox(buffer, centreX + dx, centreZ + dz, roofY,
+                                0.1f, TankLegHeight, 0.1f);
+                        }
+                    }
+                    AddCentredBox(buffer, centreX, centreZ, roofY + TankLegHeight,
+                        TankRadius * 2.0f, TankHeight, TankRadius * 2.0f);
+                    break;
+            }
+        }
+
+        private const float ParapetHeight = 0.5f;
+        private const float ParapetThickness = 0.15f;
+        private const float TankLegHeight = 1.4f;
+        private const float TankRadius = 0.9f;
+        private const float TankHeight = 1.3f;
+
+        /// <summary>A box standing ON a surface, given its centre in X and Z.</summary>
+        private static void AddCentredBox(MeshBuffer buffer, float centreX, float centreZ,
+            float baseY, float width, float height, float depth)
+        {
+            buffer.AddBox(
+                new Vector3(centreX - width * 0.5f, baseY, centreZ - depth * 0.5f),
+                new Vector3(centreX + width * 0.5f, baseY + height, centreZ + depth * 0.5f));
+        }
+
+        /// <summary>
+        /// An aerial. A square post rather than Godot's tapered cylinder --
+        /// at 6cm across it is under a pixel wide from anywhere you would see
+        /// a skyline from, and a cylinder would cost sixteen times the
+        /// triangles to say the same thing.
+        /// </summary>
+        private static void AddMast(MeshBuffer buffer, float centreX, float centreZ,
+            float baseY, float height)
+        {
+            AddCentredBox(buffer, centreX, centreZ, baseY, 0.06f, height, 0.06f);
         }
 
         /// <summary>
