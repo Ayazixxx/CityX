@@ -534,14 +534,26 @@ namespace CityX.Tests
                     var plan = Rect.MinMaxRect((float)site.MinX, (float)site.MinZ,
                         (float)site.MaxX, (float)site.MaxZ);
 
-                    // The lobby, which is solid: nothing in this port goes below it.
-                    Assert.AreEqual(footprint,
-                        AreaInPlane(concrete, site.BaseHeight, 1, plan, Rect.zero), 0.05f,
-                        $"({x},{y}) has no lobby floor -- you walk in the door and fall down "
-                        + "the inside of the podium");
-
                     float run = BuildingInterior.RunFor(
                         site.Params.Width * 0.5f, site.Params.Depth * 0.5f);
+
+                    // The lobby, whole except where a basement is reached
+                    // through it. ABasementIsARoomWithAHoleInTheLobbyAboveIt
+                    // owns that opening; here it is only subtracted so the
+                    // floor's own area still adds up.
+                    Rect cellar = Rect.zero;
+                    if (site.Params.HasBasement)
+                    {
+                        Rect local = BuildingInterior.StairwellFor(
+                            BuildingInterior.BasementStairCorner,
+                            site.Params.Width * 0.5f, site.Params.Depth * 0.5f, run).Hole;
+                        cellar = new Rect(local.x + (float)site.CentreX,
+                            local.y + (float)site.CentreZ, local.width, local.height);
+                    }
+                    Assert.AreEqual(footprint - cellar.width * cellar.height,
+                        AreaInPlane(concrete, site.BaseHeight, 1, plan, cellar), 0.05f,
+                        $"({x},{y}) has no lobby floor -- you walk in the door and fall down "
+                        + "the inside of the podium");
 
                     for (int floor = 0; floor < floors; floor++)
                     {
@@ -567,6 +579,84 @@ namespace CityX.Tests
             }
 
             Assert.Greater(checkedCount, 40, "not enough buildings sampled");
+        }
+
+        /// <summary>
+        /// A BASEMENT IS A REAL ROOM WITH A WAY IN, and a building without one
+        /// still has an unbroken lobby floor. The second half matters as much
+        /// as the first: a hole cut in every lobby would be a pit in nine
+        /// buildings out of ten.
+        /// </summary>
+        [Test]
+        public void ABasementIsARoomWithAHoleInTheLobbyAboveIt()
+        {
+            CityWorld world = new CityWorld(Seed);
+            int cellars = 0;
+            int plain = 0;
+
+            for (int x = -20; x <= 20; x++)
+            {
+                for (int y = -20; y <= 20; y++)
+                {
+                    BuildingSite site = world.BuildingAt(x, y);
+                    if (!site.Exists || site.AnchorX != x || site.AnchorY != y)
+                    {
+                        continue;
+                    }
+
+                    Build(x, y, out _, out MeshBuffer concrete, out _);
+                    var plan = Rect.MinMaxRect((float)site.MinX, (float)site.MinZ,
+                        (float)site.MaxX, (float)site.MaxZ);
+                    float footprint = site.Params.Width * site.Params.Depth;
+                    float storey = BuildingInterior.StoreyHeight(site.Params.Height);
+                    float run = BuildingInterior.RunFor(
+                        site.Params.Width * 0.5f, site.Params.Depth * 0.5f);
+                    Rect hole = BuildingInterior.StairwellFor(BuildingInterior.BasementStairCorner,
+                        site.Params.Width * 0.5f, site.Params.Depth * 0.5f, run).Hole;
+                    float opening = hole.width * hole.height;
+
+                    if (!site.Params.HasBasement)
+                    {
+                        plain++;
+                        Assert.AreEqual(footprint,
+                            AreaInPlane(concrete, site.BaseHeight, 1, plan, Rect.zero), 0.05f,
+                            $"({x},{y}) has no basement but its lobby floor is not solid");
+                        Assert.IsFalse(HasSurfaceBelow(concrete, plan, site.BaseHeight - 0.5f),
+                            $"({x},{y}) has no basement but built geometry under its lobby");
+                        continue;
+                    }
+
+                    cellars++;
+                    var world_hole = new Rect(hole.x + (float)site.CentreX,
+                        hole.y + (float)site.CentreZ, hole.width, hole.height);
+                    Assert.AreEqual(footprint - opening,
+                        AreaInPlane(concrete, site.BaseHeight, 1, plan, world_hole), 0.05f,
+                        $"({x},{y}) has a basement but no way down into it");
+
+                    // And a floor at the bottom of it, or the way down is a pit.
+                    Assert.AreEqual(footprint,
+                        AreaInPlane(concrete, site.BaseHeight - storey, 1, plan, Rect.zero), 0.05f,
+                        $"({x},{y})'s basement has no floor");
+                }
+            }
+
+            TestContext.WriteLine($"{cellars} basements, {plain} buildings without one");
+            Assert.Greater(cellars, 5, "no basements in the sweep, so this proved nothing");
+            Assert.Greater(plain, cellars * 4, "basements are supposed to be rare");
+        }
+
+        /// <summary>Is there any geometry under this footprint below a height?</summary>
+        private static bool HasSurfaceBelow(MeshBuffer buffer, Rect plan, float below)
+        {
+            for (int i = 0; i < buffer.Vertices.Count; i++)
+            {
+                Vector3 v = buffer.Vertices[i];
+                if (v.y < below && Covers(plan, v))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>

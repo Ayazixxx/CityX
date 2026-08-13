@@ -273,11 +273,23 @@ namespace CityX.View
                 doorU0, doorU1, lobbyY, doorTop);
 
             // The lobby floor, and NOT a port: city_chunk.gd leans on the
-            // chunk's own ground body for the ground floor. Here the podium is
-            // hollow and the box has no underside, so without this you walk in
-            // the door and fall down the inside of the podium. It is solid --
-            // no hole -- because nothing in this port goes below it yet.
-            AddSlabFace(concrete, x0, x1, z0, z1, Rect.zero, lobbyY, Vector3.up);
+            // chunk's own ground body for the ground floor, and here that
+            // ground is cut away under the footprint (see BuildGround) so this
+            // is the only thing holding anybody up. Solid, unless there is a
+            // basement, in which case it is opened for the flight down.
+            BuildingInterior.Stairwell basement = BuildingInterior.StairwellFor(
+                BuildingInterior.BasementStairCorner, halfX, halfZ, run);
+            Rect basementHole = site.Params.HasBasement
+                ? new Rect(basement.Hole.x + centreX, basement.Hole.y + centreZ,
+                    basement.Hole.width, basement.Hole.height)
+                : Rect.zero;
+            AddSlabFace(concrete, x0, x1, z0, z1, basementHole, lobbyY, Vector3.up);
+
+            if (site.Params.HasBasement)
+            {
+                BuildBasement(site, concrete, x0, x1, z0, z1, lobbyY, storey,
+                    centreX, centreZ, basement, basementHole, run);
+            }
 
             for (int floor = 0; floor < floors; floor++)
             {
@@ -304,6 +316,54 @@ namespace CityX.View
                         step.Centre.x + centreX, step.Centre.y, step.Centre.z + centreZ);
                     concrete.AddBox(centre - half, centre + half);
                 }
+            }
+        }
+
+        /// <summary>
+        /// One storey below ground, reached down the hole in the lobby floor.
+        ///
+        /// DELIBERATELY WINDOWLESS, which is city_chunk.gd's own choice: it is
+        /// underground, so it skips the facade treatment every storey above it
+        /// gets and is four solid walls. Its own floor is solid too -- nothing
+        /// goes below this -- and its ceiling is the lobby slab, which the
+        /// caller has already opened for the flight.
+        ///
+        /// The stairwell is a FIXED corner rather than the rotating one every
+        /// floor above uses. There is only one floor down here and nothing
+        /// below it to meet, so there is nothing for a rotation to line up
+        /// with.
+        /// </summary>
+        private static void BuildBasement(BuildingSite site, MeshBuffer concrete,
+            float x0, float x1, float z0, float z1, float lobbyY, float storey,
+            float centreX, float centreZ, BuildingInterior.Stairwell well, Rect hole, float run)
+        {
+            float floorY = lobbyY - storey;
+
+            var west = new Wall(true, x0, z0, z1);
+            var east = new Wall(true, x1, z0, z1);
+            var south = new Wall(false, z0, x0, x1);
+            var north = new Wall(false, z1, x0, x1);
+            AddWallPanel(concrete, west, z0, z1, floorY, lobbyY, Vector3.right);
+            AddWallPanel(concrete, east, z0, z1, floorY, lobbyY, Vector3.left);
+            AddWallPanel(concrete, south, x0, x1, floorY, lobbyY, Vector3.forward);
+            AddWallPanel(concrete, north, x0, x1, floorY, lobbyY, Vector3.back);
+
+            AddSlabFace(concrete, x0, x1, z0, z1, Rect.zero, floorY, Vector3.up);
+
+            // The underside of the lobby slab, seen from down here, and the
+            // collar closing the opening's own edges.
+            AddSlabFace(concrete, x0, x1, z0, z1, hole,
+                lobbyY - BuildingInterior.SlabThickness, Vector3.down);
+            AddHoleCollar(concrete, hole, lobbyY - BuildingInterior.SlabThickness, lobbyY);
+
+            // The same flight the player walks DOWN to get here.
+            foreach (BuildingInterior.Step step in
+                     BuildingInterior.Steps(well, run, floorY, storey))
+            {
+                Vector3 half = step.Size * 0.5f;
+                Vector3 centre = new Vector3(
+                    step.Centre.x + centreX, step.Centre.y, step.Centre.z + centreZ);
+                concrete.AddBox(centre - half, centre + half);
             }
         }
 
@@ -417,9 +477,22 @@ namespace CityX.View
             float bottomY = topY - BuildingInterior.SlabThickness;
             AddSlabFace(buffer, x0, x1, z0, z1, hole, topY, Vector3.up);
             AddSlabFace(buffer, x0, x1, z0, z1, hole, bottomY, Vector3.down);
+            AddHoleCollar(buffer, hole, bottomY, topY);
+        }
 
-            // The hole's own inner edges, facing into the opening, which is the
-            // only side anyone ever sees them from.
+        /// <summary>
+        /// The vertical edges of a slab's opening, so it reads as a hole cut
+        /// through solid material rather than a gap between two floating
+        /// sheets. Each face points INTO the opening, which is the only side
+        /// anyone ever sees it from -- the other faces solid slab.
+        /// </summary>
+        private static void AddHoleCollar(MeshBuffer buffer, Rect hole, float bottomY, float topY)
+        {
+            if (hole.width <= 0.0f || hole.height <= 0.0f)
+            {
+                return;
+            }
+
             AddFace(buffer, Vector3.right,
                 new Vector3(hole.xMin, bottomY, hole.yMin), new Vector3(hole.xMin, bottomY, hole.yMax),
                 new Vector3(hole.xMin, topY, hole.yMax), new Vector3(hole.xMin, topY, hole.yMin));
