@@ -701,8 +701,18 @@ namespace CityX.Tests
             // triangle counts, and the difference cost a confused test run.
             const int Quad = 6;
 
+            var openings = new List<CityMeshBuilder.CrackedOpening>();
             int wallCracked = BuildWith(world, bridges, x, y, damage,
-                out int litCracked, out int darkCracked, out int crackedNow);
+                out int litCracked, out int darkCracked, out int crackedNow, openings);
+
+            // The opening a body can climb through. One per cracked pane, at
+            // the pane, and with real depth -- a trigger with no thickness is
+            // stepped over between two physics frames at a run.
+            Assert.AreEqual(1, openings.Count, "a cracked pane got no opening, or several");
+            Assert.AreEqual(key, openings[0].Key);
+            Assert.GreaterOrEqual(openings[0].Size.x, CityMeshBuilder.CrackedOpeningDepth - 0.001f);
+            Assert.GreaterOrEqual(openings[0].Size.z, CityMeshBuilder.CrackedOpeningDepth - 0.001f);
+            Assert.Greater(openings[0].Size.y, 0.5f, "the opening is not window-shaped");
             Assert.AreEqual(Quad, crackedNow,
                 "the cracked pane is not in the cracked buffer, or took something with it");
             Assert.AreEqual(litBefore + darkBefore - Quad, litCracked + darkCracked,
@@ -722,7 +732,8 @@ namespace CityX.Tests
 
         /// <summary>Builds one chunk against a damage record and counts triangles.</summary>
         private static int BuildWith(CityWorld world, SkybridgeLayout bridges, int x, int y,
-            GlassDamage damage, out int lit, out int dark, out int cracked)
+            GlassDamage damage, out int lit, out int dark, out int cracked,
+            List<CityMeshBuilder.CrackedOpening> openings = null)
         {
             var ground = new MeshBuffer();
             var pavement = new MeshBuffer();
@@ -732,7 +743,7 @@ namespace CityX.Tests
             var crackedGlass = new MeshBuffer();
 
             CityMeshBuilder.BuildChunk(world, bridges, x, y, Vector3.zero,
-                ground, pavement, structures, litGlass, darkGlass, crackedGlass, damage);
+                ground, pavement, structures, litGlass, darkGlass, crackedGlass, damage, openings);
 
             lit = litGlass.Triangles.Count;
             dark = darkGlass.Triangles.Count;

@@ -52,6 +52,8 @@ namespace CityX.View
         private readonly MeshBuffer _litGlass = new MeshBuffer();
         private readonly MeshBuffer _darkGlass = new MeshBuffer();
         private readonly MeshBuffer _crackedGlass = new MeshBuffer();
+        private readonly List<CityMeshBuilder.CrackedOpening> _crackedOpenings =
+            new List<CityMeshBuilder.CrackedOpening>();
         private readonly List<Vector2Int> _wanted = new List<Vector2Int>();
         private readonly List<Vector2Int> _stale = new List<Vector2Int>();
 
@@ -201,6 +203,7 @@ namespace CityX.View
             _litGlass.Clear();
             _darkGlass.Clear();
             _crackedGlass.Clear();
+            _crackedOpenings.Clear();
 
             // Chunks are built relative to their own corner and then placed, so
             // vertex coordinates stay small. Building in absolute world space
@@ -210,7 +213,8 @@ namespace CityX.View
                 key.x * CityLayout.ChunkSize, 0.0f, key.y * CityLayout.ChunkSize);
 
             CityMeshBuilder.BuildChunk(_world, _bridges, key.x, key.y, origin,
-                _ground, _pavement, _structures, _litGlass, _darkGlass, _crackedGlass, Damage);
+                _ground, _pavement, _structures, _litGlass, _darkGlass, _crackedGlass, Damage,
+                _crackedOpenings);
 
             GameObject go = new GameObject($"Chunk {key.x},{key.y}");
             go.transform.SetParent(transform, false);
@@ -314,6 +318,22 @@ namespace CityX.View
 
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
             go.AddComponent<MeshRenderer>().sharedMaterial = CrackedGlassMaterial;
+
+            // One trigger per cracked opening, so climbing through what is left
+            // of a window finishes it off. The builder hands these out because
+            // it is the only thing that knows exactly where a pane went.
+            foreach (CityMeshBuilder.CrackedOpening opening in _crackedOpenings)
+            {
+                var watcher = new GameObject("Opening");
+                watcher.transform.SetParent(go.transform, false);
+                watcher.transform.localPosition = opening.Centre;
+
+                BoxCollider box = watcher.AddComponent<BoxCollider>();
+                box.isTrigger = true;
+                box.size = opening.Size;
+
+                watcher.AddComponent<CrackedPane>().Watch(Damage, opening.Key);
+            }
         }
 
         private static void DestroyChunk(GameObject go)
@@ -323,13 +343,22 @@ namespace CityX.View
                 return;
             }
 
-            // The mesh is created here, so it is this object's to free. Unity
-            // does not collect meshes with the GameObject, and a streamer that
-            // leaks one mesh per chunk will eat a machine alive over a few
-            // minutes of walking.
-            MeshFilter filter = go.GetComponent<MeshFilter>();
-            if (filter != null && filter.sharedMesh != null)
+            // Every mesh here is created here, so all of them are this object's
+            // to free. Unity does not collect meshes with the GameObject, and a
+            // streamer that leaks one mesh per chunk will eat a machine alive
+            // over a few minutes of walking.
+            //
+            // CHILDREN INCLUDED, and that word is the fix for a real leak: the
+            // cracked-glass mesh hangs off a child object, and freeing only the
+            // root's mesh left one behind on every chunk with a broken window
+            // in it -- which is exactly the leak this comment was already
+            // warning about, reintroduced one level down.
+            foreach (MeshFilter filter in go.GetComponentsInChildren<MeshFilter>(true))
             {
+                if (filter.sharedMesh == null)
+                {
+                    continue;
+                }
                 if (Application.isPlaying)
                 {
                     Destroy(filter.sharedMesh);
@@ -342,6 +371,12 @@ namespace CityX.View
 
             if (Application.isPlaying)
             {
+                // Switched off BEFORE the deferred destroy. A chunk rebuilt
+                // mid-frame -- which is what breaking a window does -- would
+                // otherwise leave the old copy's colliders in the world
+                // alongside the new one until the end of the frame, and the
+                // player would be standing inside two walls.
+                go.SetActive(false);
                 Destroy(go);
             }
             else

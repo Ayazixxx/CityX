@@ -65,7 +65,8 @@ namespace CityX.View
         public static void BuildChunk(CityWorld world, SkybridgeLayout bridges, int chunkX, int chunkY,
             Vector3 origin, MeshBuffer ground, MeshBuffer flatConcrete, MeshBuffer structures,
             MeshBuffer litGlass = null, MeshBuffer darkGlass = null,
-            MeshBuffer crackedGlass = null, GlassDamage damage = null)
+            MeshBuffer crackedGlass = null, GlassDamage damage = null,
+            List<CrackedOpening> crackedOpenings = null)
         {
             BuildGround(world, chunkX, chunkY, origin, ground, flatConcrete);
 
@@ -79,7 +80,7 @@ namespace CityX.View
             }
 
             BuildBuilding(world, site, origin, structures, flatConcrete,
-                new Glazing(litGlass, darkGlass, crackedGlass, damage));
+                new Glazing(litGlass, darkGlass, crackedGlass, damage, crackedOpenings));
             AddWing(world, site, origin, structures, flatConcrete);
             AddBalconies(world, site, origin, flatConcrete);
             AddRibs(world, site, origin, structures);
@@ -245,19 +246,59 @@ namespace CityX.View
             public readonly MeshBuffer Dark;
             public readonly MeshBuffer Cracked;
             public readonly GlassDamage Damage;
+            public readonly List<CrackedOpening> Openings;
 
-            public Glazing(MeshBuffer lit, MeshBuffer dark, MeshBuffer cracked, GlassDamage damage)
+            public Glazing(MeshBuffer lit, MeshBuffer dark, MeshBuffer cracked, GlassDamage damage,
+                List<CrackedOpening> openings)
             {
                 Lit = lit;
                 Dark = dark;
                 Cracked = cracked;
                 Damage = damage;
+                Openings = openings;
             }
 
             public bool HangsGlass => Lit != null;
 
             public static readonly Glazing OpeningsOnly = default;
         }
+
+        /// <summary>
+        /// A window somebody has already cracked, as a box you could walk
+        /// through.
+        ///
+        /// HANDED OUT RATHER THAN KEPT, because a cracked pane has one more
+        /// thing to do than be drawn: shoving a body through the opening
+        /// finishes it off, which is city_chunk.gd's own second way of
+        /// shattering a window. That needs a trigger at the pane, and the only
+        /// place that knows exactly where a pane is, is the code that just put
+        /// one there. Rederiving it in the streamer would be a second copy of
+        /// the window grid, which is the mistake this whole file exists to
+        /// avoid making twice.
+        ///
+        /// Positions are chunk-local, like every vertex the builder writes.
+        /// </summary>
+        public readonly struct CrackedOpening
+        {
+            public readonly PaneKey Key;
+            public readonly Vector3 Centre;
+            public readonly Vector3 Size;
+
+            public CrackedOpening(PaneKey key, Vector3 centre, Vector3 size)
+            {
+                Key = key;
+                Centre = centre;
+                Size = size;
+            }
+        }
+
+        /// <summary>
+        /// How deep through the wall a cracked opening reaches for the purpose
+        /// of noticing somebody in it. A pane is a flat sheet; a trigger with
+        /// no thickness would be stepped over between two physics frames by
+        /// anyone moving at a run.
+        /// </summary>
+        public const float CrackedOpeningDepth = 0.5f;
 
         private static void BuildBuilding(CityWorld world, BuildingSite site, Vector3 origin,
             MeshBuffer structures, MeshBuffer concrete, Glazing glazing)
@@ -1022,6 +1063,18 @@ namespace CityX.View
 
             AddFace(glass, normal,
                 wall.At(u0, y0), wall.At(u1, y0), wall.At(u1, y1), wall.At(u0, y1));
+
+            if (state == PaneState.Cracked && glazing.Openings != null)
+            {
+                Vector3 centre = (wall.At(u0, y0) + wall.At(u1, y1)) * 0.5f;
+                Vector3 across = wall.At(u1, y0) - wall.At(u0, y0);
+                var size = new Vector3(
+                    Mathf.Max(Mathf.Abs(across.x), CrackedOpeningDepth),
+                    y1 - y0,
+                    Mathf.Max(Mathf.Abs(across.z), CrackedOpeningDepth));
+                glazing.Openings.Add(new CrackedOpening(
+                    new PaneKey(site.AnchorX, site.AnchorY, which, column, row), centre, size));
+            }
         }
 
         /// <summary>A wall with a rectangular opening in it: strips each side, a sill and a header.</summary>
