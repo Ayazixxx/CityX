@@ -75,8 +75,7 @@ namespace CityX.ViewEditor
                 streamer.GroundMaterial = ground;
                 streamer.PavementMaterial = pavement;
                 streamer.StructureMaterial = structure;
-                streamer.DarkGlassMaterial = GlassMaterial(false);
-                streamer.LitGlassMaterial = GlassMaterial(true);
+                Dress(streamer);
                 streamer.Rebuild();
 
                 var cameraObject = new GameObject("CaptureCamera");
@@ -121,6 +120,7 @@ namespace CityX.ViewEditor
                 ShootTerraceEdge(streamer, camera, outputDirectory, terrain);
                 ShootInterior(streamer, camera, outputDirectory);
                 ShootFacade(streamer, camera, outputDirectory);
+                ShootEntrance(streamer, camera, outputDirectory);
 
                 Debug.Log($"CityX: massing shots written to {outputDirectory}");
             }
@@ -179,8 +179,7 @@ namespace CityX.ViewEditor
                 streamer.GroundMaterial = ground;
                 streamer.PavementMaterial = pavement;
                 streamer.StructureMaterial = structure;
-                streamer.DarkGlassMaterial = GlassMaterial(false);
-                streamer.LitGlassMaterial = GlassMaterial(true);
+                Dress(streamer);
                 streamer.Rebuild();
 
                 var cameraObject = new GameObject("Camera");
@@ -314,8 +313,7 @@ namespace CityX.ViewEditor
                 streamer.GroundMaterial = ground;
                 streamer.PavementMaterial = pavement;
                 streamer.StructureMaterial = structure;
-                streamer.DarkGlassMaterial = GlassMaterial(false);
-                streamer.LitGlassMaterial = GlassMaterial(true);
+                Dress(streamer);
                 streamer.Rebuild();
 
                 var cameraObject = new GameObject("Camera");
@@ -622,14 +620,95 @@ namespace CityX.ViewEditor
         }
 
         /// <summary>
-        /// One of the two window-glass materials the scene builder writes.
-        /// Missing means the capture runs with unlit black panes rather than
-        /// failing, which is the same way every other material here behaves.
+        /// A special building's front door, from the street.
+        ///
+        /// THE ONE THING NO OTHER SHOT CAN FIND. About one lot in thirty is a
+        /// supermarket, a bank, a police station or a hospital, and the only
+        /// thing that says so is a three-metre sign band over its doorway. At
+        /// that rarity no fixed camera will ever have one in frame -- the
+        /// feature would be verified by a passing test and never actually
+        /// looked at, which is how the roof types stayed invisible for weeks.
+        ///
+        /// This is also the only angle that shows a doorway from outside.
         /// </summary>
-        private static Material GlassMaterial(bool lit)
+        private static void ShootEntrance(CityStreamer streamer, Camera camera, string directory)
+        {
+            var world = new CityWorld(WorldSeed);
+
+            BuildingSite chosen = default;
+            float best = float.MaxValue;
+            for (int x = -20; x <= 20; x++)
+            {
+                for (int y = -20; y <= 20; y++)
+                {
+                    BuildingSite site = world.BuildingAt(x, y);
+                    if (!site.Exists || site.AnchorX != x || site.AnchorY != y ||
+                        !site.Params.IsSpecial)
+                    {
+                        continue;
+                    }
+                    // The door is on the wall at maximum Z, so that side has to
+                    // be a street or there is nowhere to stand and look at it.
+                    if (!CityLayout.IsStreetChunk(x, y + site.Role.SpanY))
+                    {
+                        continue;
+                    }
+                    float distance = x * x + y * y;
+                    if (distance < best)
+                    {
+                        best = distance;
+                        chosen = site;
+                    }
+                }
+            }
+
+            if (!chosen.Exists)
+            {
+                Debug.LogWarning("CityX: no special building faces a street near the origin.");
+                return;
+            }
+
+            var from = new Vector3(
+                (float)chosen.CentreX,
+                chosen.BaseHeight + 2.2f,
+                (float)chosen.MaxZ + 12.0f);
+            Debug.Log($"CityX: entrance shot of a {chosen.Params.SpecialType} " +
+                      $"at ({chosen.AnchorX},{chosen.AnchorY})");
+            Shoot(streamer, camera, directory, "entrance", from, new Vector3(0.0f, 180.0f, 0.0f), 6);
+        }
+
+        /// <summary>
+        /// Every material a chunk wears beyond the three the capture already
+        /// loads by hand.
+        ///
+        /// IN ONE PLACE BECAUSE FORGETTING ONE IS SILENT. The streamer skips
+        /// anything it has no material for, so a capture missing one renders a
+        /// city with that feature simply absent -- which is exactly what
+        /// happened the first time signs were photographed: the geometry was
+        /// there, the test passed, and the picture showed a police station with
+        /// a blank wall over its door.
+        /// </summary>
+        private static void Dress(CityStreamer streamer)
+        {
+            streamer.DarkGlassMaterial = Material_("CityGlassDark");
+            streamer.LitGlassMaterial = Material_("CityGlassLit");
+            streamer.CrackedGlassMaterial = Material_("CityGlassCracked");
+            streamer.SupermarketSignMaterial = Material_("SignSupermarket");
+            streamer.BankSignMaterial = Material_("SignBank");
+            streamer.PoliceSignMaterial = Material_("SignPolice");
+            streamer.HospitalSignMaterial = Material_("SignHospital");
+        }
+
+        private static Material Material_(string name)
         {
             return AssetDatabase.LoadAssetAtPath<Material>(
-                $"Assets/CityX/View/Materials/CityGlass{(lit ? "Lit" : "Dark")}.mat");
+                $"Assets/CityX/View/Materials/{name}.mat");
+        }
+
+        /// <summary>The lit-window glass, which the day/night cycle drives.</summary>
+        private static Material GlassMaterial(bool lit)
+        {
+            return Material_(lit ? "CityGlassLit" : "CityGlassDark");
         }
 
         private static void Shoot(CityStreamer streamer, Camera camera, string directory, string name,

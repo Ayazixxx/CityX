@@ -66,7 +66,7 @@ namespace CityX.View
             Vector3 origin, MeshBuffer ground, MeshBuffer flatConcrete, MeshBuffer structures,
             MeshBuffer litGlass = null, MeshBuffer darkGlass = null,
             MeshBuffer crackedGlass = null, GlassDamage damage = null,
-            List<CrackedOpening> crackedOpenings = null)
+            List<CrackedOpening> crackedOpenings = null, MeshBuffer sign = null)
         {
             BuildGround(world, chunkX, chunkY, origin, ground, flatConcrete);
 
@@ -81,6 +81,7 @@ namespace CityX.View
 
             BuildBuilding(world, site, origin, structures, flatConcrete,
                 new Glazing(litGlass, darkGlass, crackedGlass, damage, crackedOpenings));
+            AddSign(site, origin, sign);
             AddWing(world, site, origin, structures, flatConcrete);
             AddBalconies(world, site, origin, flatConcrete);
             AddRibs(world, site, origin, structures);
@@ -486,6 +487,66 @@ namespace CityX.View
                             ? BuildingDecor.BalconyDepth : BuildingDecor.BalconyRailThickness);
                 }
             }
+        }
+
+        public const float SignWidth = 3.0f;
+        public const float SignHeight = 1.1f;
+
+        /// <summary>Clearance above the door's own fixed height.</summary>
+        public const float SignBottomMargin = 0.6f;
+
+        /// <summary>Pulled off the facade so the two do not z-fight.</summary>
+        public const float SignWallOffset = 0.05f;
+
+        /// <summary>
+        /// The band over a special building's door.
+        ///
+        /// THE ONLY THING THAT MAKES A SPECIAL BUILDING LOOK SPECIAL right now.
+        /// The generator has rolled supermarkets, banks, police stations and
+        /// hospitals since it was ported -- with their own footprints, their own
+        /// heights, their own roofs -- and every one of them has been rendered
+        /// as an ordinary block, because nothing read the type. Same gap the
+        /// roof types had.
+        ///
+        /// NOT A HOSPITAL CROSS. city_chunk.gd used to draw one and does not any
+        /// more: its preset comment says that colour "was the red cross's own
+        /// color; now used for its plain sign like every other special
+        /// building". Porting the cross would have been porting something the
+        /// original deleted.
+        ///
+        /// The COLOUR is the streamer's business, not this file's, which is the
+        /// same split CityChunkGenerator's own facade weights already use:
+        /// indices and geometry here, colours where the materials are.
+        /// </summary>
+        private static void AddSign(BuildingSite site, Vector3 origin, MeshBuffer sign)
+        {
+            if (sign == null || !site.Params.IsSpecial)
+            {
+                return;
+            }
+
+            CellLayout rows = WindowGrid.RowsFor(site.Params.Height);
+            float y0 = rows.Size * BuildingInterior.DoorHeightRows + SignBottomMargin;
+            float y1 = y0 + SignHeight;
+
+            // A preset right at its own minimum height can be short enough that
+            // the sign would poke through its own roof. Godot skips it rather
+            // than drawing past the roofline, and so does this.
+            if (y1 > site.Params.Height - 0.3f)
+            {
+                return;
+            }
+
+            float centreX = (float)(site.CentreX - origin.x);
+            float z = (float)(site.MaxZ - origin.z) + SignWallOffset;
+            float baseY = site.BaseHeight - origin.y;
+            float half = SignWidth * 0.5f;
+
+            AddFace(sign, Vector3.forward,
+                new Vector3(centreX - half, baseY + y0, z),
+                new Vector3(centreX + half, baseY + y0, z),
+                new Vector3(centreX + half, baseY + y1, z),
+                new Vector3(centreX - half, baseY + y1, z));
         }
 
         /// <summary>

@@ -53,6 +53,16 @@ namespace CityX.ViewEditor
             Material crackedGlass = EnsureGlassMaterial("CityGlassCracked", false, cracked: true);
             GameObject shards = GlassShardsBuilder.Build();
 
+            // city_chunk.gd's own SPECIAL_BUILDING_PRESETS sign_color values.
+            Material supermarketSign = EnsureSignMaterial("SignSupermarket",
+                new Color(0.95f, 0.82f, 0.15f));    // bright yellow band
+            Material bankSign = EnsureSignMaterial("SignBank",
+                new Color(0.72f, 0.60f, 0.28f));    // gold plaque
+            Material policeSign = EnsureSignMaterial("SignPolice",
+                new Color(0.08f, 0.18f, 0.45f));    // dark blue
+            Material hospitalSign = EnsureSignMaterial("SignHospital",
+                new Color(0.82f, 0.08f, 0.10f));    // red
+
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
             // An empty scene has no environment lighting, so every surface
@@ -164,6 +174,10 @@ namespace CityX.ViewEditor
             streamer.DarkGlassMaterial = darkGlass;
             streamer.LitGlassMaterial = litGlass;
             streamer.CrackedGlassMaterial = crackedGlass;
+            streamer.SupermarketSignMaterial = supermarketSign;
+            streamer.BankSignMaterial = bankSign;
+            streamer.PoliceSignMaterial = policeSign;
+            streamer.HospitalSignMaterial = hospitalSign;
 
             // Punching a window is the streamer's business because the damage
             // is: chunks come and go, the record of what is broken does not.
@@ -233,6 +247,35 @@ namespace CityX.ViewEditor
         /// alternative is two quads per window, which is the same triangles
         /// again for something one flag does.
         /// </summary>
+        /// <summary>
+        /// A special building's sign band. Unshaded, because signage is a
+        /// printed colour rather than a lit surface -- city_chunk.gd's own
+        /// _flat_material(colour, true), and the reason a bank's gold reads as
+        /// gold in a shadowed street rather than as brown.
+        /// </summary>
+        private static Material EnsureSignMaterial(string name, Color colour)
+        {
+            string path = $"{MaterialDirectory}/{name}.mat";
+            Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material == null)
+            {
+                Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
+                if (shader == null)
+                {
+                    Debug.LogError("CityX: URP Unlit shader not found -- is the Universal Render " +
+                                   "Pipeline asset assigned in Graphics settings?");
+                    shader = Shader.Find("Unlit/Color");
+                }
+                material = new Material(shader);
+                AssetDatabase.CreateAsset(material, path);
+            }
+
+            material.SetColor("_BaseColor", colour);
+            material.color = colour;
+            EditorUtility.SetDirty(material);
+            return material;
+        }
+
         /// <summary>
         /// One of the glass sounds, copied over from Godot's own
         /// weapons/assets/audio. Missing means silence rather than a failure --
