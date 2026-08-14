@@ -322,12 +322,24 @@ namespace CityX.Tests
             // exports is internally called "mixamo.com", so all 53 of them
             // share one name and the only thing telling walk_left from sprint
             // is which FBX it came out of.
+            //
+            // "_stride" STRIPPED OFF THE END: the walk/sprint/directional
+            // children are PlayerRigBuilder's own widened-swing duplicates
+            // (ExaggerateStride), named "<clip>_stride.anim" rather than
+            // "<clip>.fbx" -- a different asset, but still the thing standing
+            // in for that clip in the tree, so it should still answer to the
+            // clip's own name here.
             var positions = new Dictionary<string, Vector2>();
             foreach (ChildMotion child in tree.children)
             {
                 Assert.IsNotNull(child.motion, "a blend child has no clip");
                 string path = AssetDatabase.GetAssetPath(child.motion);
-                positions[System.IO.Path.GetFileNameWithoutExtension(path)] = child.position;
+                string name = System.IO.Path.GetFileNameWithoutExtension(path);
+                if (name.EndsWith("_stride"))
+                {
+                    name = name.Substring(0, name.Length - "_stride".Length);
+                }
+                positions[name] = child.position;
             }
 
             Vector2 At(string clip)

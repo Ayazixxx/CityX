@@ -64,6 +64,22 @@ namespace CityX.CharacterEditor
             MakeLooping(left);
             MakeLooping(right);
 
+            // Mecanim's Humanoid retargeting is proportion-aware: it resolves
+            // the source stride against THIS avatar's own bone lengths, and on
+            // this rig's short legs (see BodyRig) that lands on a smaller
+            // knee/hip swing than the same clip reads as on Mixamo's own
+            // longer-legged reference body -- confirmed by direct measurement,
+            // the muscle values never approach their own +-1 limit, so nothing
+            // is being clamped, the retargeted motion is just genuinely
+            // smaller. Widening it back out around each curve's own mean
+            // fixes that proportion mismatch without touching anything the
+            // limit-clamping fix would have addressed instead.
+            walk = ExaggerateStride(walk, "walking");
+            sprint = ExaggerateStride(sprint, "sprint");
+            back = ExaggerateStride(back, "walk_backward");
+            left = ExaggerateStride(left, "walk_left");
+            right = ExaggerateStride(right, "walk_right");
+
             AnimatorController controller = BuildController(idle, walk, sprint, jump, back, left, right);
             GameObject prefab = BuildPrefab(controller);
 
@@ -506,6 +522,83 @@ namespace CityX.CharacterEditor
                 return null;
             }
             return found[0];
+        }
+
+        /// <summary>How much wider than the raw retargeted swing the leg motion is stretched.</summary>
+        private const float StrideExaggeration = 1.8f;
+
+        /// <summary>
+        /// The muscle channels that actually carry a walking stride's knee
+        /// and hip swing. Deliberately narrow -- this is a fix for the leg
+        /// motion the retargeting proportion mismatch visibly compresses,
+        /// not a general "make the animation bigger" knob.
+        /// </summary>
+        private static readonly string[] StrideMuscles =
+        {
+            "Left Upper Leg Front-Back", "Right Upper Leg Front-Back",
+            "Left Lower Leg Stretch", "Right Lower Leg Stretch",
+        };
+
+        /// <summary>
+        /// A duplicate of <paramref name="source"/> with its leg-swing muscle
+        /// curves widened around their own mean, so the average pose (and
+        /// therefore ground contact and the blend tree's speed-to-stride
+        /// matching) is unchanged -- only how far the leg swings each way.
+        ///
+        /// A DUPLICATE, NOT AN IN-PLACE EDIT: the source clip is an FBX
+        /// sub-asset, and its curves are regenerated from the model file on
+        /// every reimport, so any edit made directly on it would be silently
+        /// discarded the next time the clip gets reimported.
+        ///
+        /// <paramref name="modelName"/> names the destination asset rather
+        /// than reusing <c>source.name</c> -- every Mixamo clip in this set
+        /// shares the same internal clip name ("mixamo.com"), so keying off
+        /// it would make every call collide on one path.
+        /// </summary>
+        private static AnimationClip ExaggerateStride(AnimationClip source, string modelName)
+        {
+            if (source == null)
+            {
+                return null;
+            }
+
+            var exaggerated = Object.Instantiate(source);
+            exaggerated.name = modelName + "Stride";
+
+            foreach (EditorCurveBinding binding in AnimationUtility.GetCurveBindings(source))
+            {
+                if (System.Array.IndexOf(StrideMuscles, binding.propertyName) < 0)
+                {
+                    continue;
+                }
+
+                AnimationCurve curve = AnimationUtility.GetEditorCurve(source, binding);
+                Keyframe[] keys = curve.keys;
+                float mean = 0.0f;
+                foreach (Keyframe key in keys)
+                {
+                    mean += key.value;
+                }
+                mean /= keys.Length;
+
+                for (int i = 0; i < keys.Length; i++)
+                {
+                    keys[i].value = Mathf.Clamp(
+                        mean + (keys[i].value - mean) * StrideExaggeration, -1.0f, 1.0f);
+                    keys[i].inTangent *= StrideExaggeration;
+                    keys[i].outTangent *= StrideExaggeration;
+                }
+                curve.keys = keys;
+                AnimationUtility.SetEditorCurve(exaggerated, binding, curve);
+            }
+
+            string path = $"{AnimationDirectory}/{modelName}_stride.anim";
+            if (AssetDatabase.LoadAssetAtPath<AnimationClip>(path) != null)
+            {
+                AssetDatabase.DeleteAsset(path);
+            }
+            AssetDatabase.CreateAsset(exaggerated, path);
+            return exaggerated;
         }
 
         private static void MakeLooping(AnimationClip clip)
