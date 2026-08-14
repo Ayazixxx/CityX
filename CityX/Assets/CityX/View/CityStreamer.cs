@@ -47,14 +47,13 @@ namespace CityX.View
         [Tooltip("The white zebra bars at a junction.")]
         public Material CrosswalkMaterial;
 
-        [Header("Signage (city_chunk.gd's own preset colours)")]
-        public Material SupermarketSignMaterial;
-
-        public Material BankSignMaterial;
-
-        public Material PoliceSignMaterial;
-
-        public Material HospitalSignMaterial;
+        // A SPECIAL BUILDING WEARS NOTHING THAT SAYS SO, and that is a decision
+        // rather than an omission. city_chunk.gd hangs a coloured sign band
+        // over the door of every supermarket, bank, police station and
+        // hospital, and this port had one too for about an hour. Taken back off
+        // on request: the types still roll, with their own footprints, heights
+        // and roofs, but nothing labels them. Anyone reading city_chunk.gd and
+        // "fixing" the divergence would be undoing that.
 
         [Tooltip("Leave empty to follow the main camera.")]
         public Transform Viewer;
@@ -70,7 +69,6 @@ namespace CityX.View
         private readonly MeshBuffer _crackedGlass = new MeshBuffer();
         private readonly List<CityMeshBuilder.CrackedOpening> _crackedOpenings =
             new List<CityMeshBuilder.CrackedOpening>();
-        private readonly MeshBuffer _sign = new MeshBuffer();
         private readonly MeshBuffer _markings = new MeshBuffer();
         private readonly List<Vector2Int> _wanted = new List<Vector2Int>();
         private readonly List<Vector2Int> _stale = new List<Vector2Int>();
@@ -222,7 +220,6 @@ namespace CityX.View
             _darkGlass.Clear();
             _crackedGlass.Clear();
             _crackedOpenings.Clear();
-            _sign.Clear();
             _markings.Clear();
 
             // Chunks are built relative to their own corner and then placed, so
@@ -234,7 +231,7 @@ namespace CityX.View
 
             CityMeshBuilder.BuildChunk(_world, _bridges, key.x, key.y, origin,
                 _ground, _pavement, _structures, _litGlass, _darkGlass, _crackedGlass, Damage,
-                _crackedOpenings, _sign, _markings);
+                _crackedOpenings, _markings);
 
             GameObject go = new GameObject($"Chunk {key.x},{key.y}");
             go.transform.SetParent(transform, false);
@@ -299,7 +296,6 @@ namespace CityX.View
             collider.sharedMesh = mesh;
 
             AddCrackedGlass(go, key);
-            AddSign(go, key);
             AddMarkings(go, key);
             return go;
         }
@@ -346,60 +342,6 @@ namespace CityX.View
 
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
             go.AddComponent<MeshRenderer>().sharedMaterial = material;
-        }
-
-        /// <summary>
-        /// A special building's sign band, on its own object because it is the
-        /// one thing in the city that is a flat unlit colour.
-        ///
-        /// A SUBMESH PER TYPE WOULD BE FOUR MORE ON EVERY CHUNK IN THE WORLD to
-        /// say something about the one lot in twelve that is special at all,
-        /// and most chunks have no building. One object with one material, only
-        /// where there is a sign, costs nothing everywhere else.
-        ///
-        /// The colour is looked up here rather than carried through the mesh
-        /// builder: the generator's own comment already puts colours on this
-        /// side of the line, and the streamer can ask the world what type a
-        /// building is as cheaply as anyone.
-        /// </summary>
-        private void AddSign(GameObject chunk, Vector2Int key)
-        {
-            if (_sign.IsEmpty)
-            {
-                return;
-            }
-
-            BuildingSite site = _world.BuildingAt(key.x, key.y);
-            Material material = SignMaterialFor(site.Params.SpecialType);
-            if (material == null)
-            {
-                return;
-            }
-
-            var go = new GameObject("Sign");
-            go.transform.SetParent(chunk.transform, false);
-
-            var mesh = new Mesh { name = $"sign-{key.x}-{key.y}" };
-            mesh.SetVertices(_sign.Vertices);
-            mesh.SetNormals(_sign.Normals);
-            mesh.SetUVs(0, _sign.Uvs);
-            mesh.SetTriangles(_sign.Triangles, 0);
-            mesh.RecalculateBounds();
-
-            go.AddComponent<MeshFilter>().sharedMesh = mesh;
-            go.AddComponent<MeshRenderer>().sharedMaterial = material;
-        }
-
-        private Material SignMaterialFor(string specialType)
-        {
-            switch (specialType)
-            {
-                case "supermarket": return SupermarketSignMaterial;
-                case "bank": return BankSignMaterial;
-                case "police": return PoliceSignMaterial;
-                case "hospital": return HospitalSignMaterial;
-                default: return null;
-            }
         }
 
         /// <summary>

@@ -693,7 +693,7 @@ namespace CityX.Tests
                     var markings = new MeshBuffer();
                     CityMeshBuilder.BuildChunk(world, bridges, x, y, Vector3.zero,
                         new MeshBuffer(), new MeshBuffer(), new MeshBuffer(),
-                        null, null, null, null, null, null, markings);
+                        null, null, null, null, null, markings);
 
                     if (!CityLayout.IsStreetChunk(x, y))
                     {
@@ -747,80 +747,6 @@ namespace CityX.Tests
             TestContext.WriteLine($"{runs} straight runs, {junctions} junctions");
             Assert.Greater(junctions, 3, "not enough junctions sampled");
             Assert.Greater(runs, 20, "not enough straight street sampled");
-        }
-
-        /// <summary>
-        /// ONLY SPECIAL BUILDINGS GET A SIGN, and they all get one.
-        ///
-        /// The generator has rolled supermarkets, banks, police stations and
-        /// hospitals since it was ported and every one of them rendered as an
-        /// ordinary block, because nothing read the type. That is invisible in
-        /// a screenshot -- a special building with no sign just looks like a
-        /// building -- so the only thing that catches it is counting.
-        /// </summary>
-        [Test]
-        public void OnlySpecialBuildingsWearASign()
-        {
-            CityWorld world = new CityWorld(Seed);
-            SkybridgeLayout bridges = new SkybridgeLayout(Seed);
-            int specials = 0;
-            int signs = 0;
-            int tooShort = 0;
-
-            for (int x = -20; x <= 20; x++)
-            {
-                for (int y = -20; y <= 20; y++)
-                {
-                    BuildingSite site = world.BuildingAt(x, y);
-                    bool anchored = site.Exists && site.AnchorX == x && site.AnchorY == y;
-
-                    var sign = new MeshBuffer();
-                    CityMeshBuilder.BuildChunk(world, bridges, x, y, Vector3.zero,
-                        new MeshBuffer(), new MeshBuffer(), new MeshBuffer(),
-                        null, null, null, null, null, sign);
-
-                    if (!anchored || !site.Params.IsSpecial)
-                    {
-                        Assert.IsTrue(sign.IsEmpty,
-                            $"({x},{y}) put up a sign without being a special building");
-                        continue;
-                    }
-                    specials++;
-
-                    // A preset at its own minimum height has no room between
-                    // the door and the roofline, and Godot skips the sign
-                    // rather than drawing through the roof.
-                    CellLayout rows = WindowGrid.RowsFor(site.Params.Height);
-                    float top = rows.Size * BuildingInterior.DoorHeightRows
-                                + CityMeshBuilder.SignBottomMargin + CityMeshBuilder.SignHeight;
-                    if (top > site.Params.Height - 0.3f)
-                    {
-                        Assert.IsTrue(sign.IsEmpty,
-                            $"({x},{y}) is {site.Params.Height:0.0}m and hung a sign through its roof");
-                        tooShort++;
-                        continue;
-                    }
-
-                    Assert.AreEqual(6, sign.Triangles.Count,
-                        $"({x},{y}) is a {site.Params.SpecialType} without exactly one sign");
-                    signs++;
-
-                    // On the entrance wall, outside it, above the door.
-                    foreach (Vector3 v in sign.Vertices)
-                    {
-                        Assert.AreEqual((float)site.MaxZ + CityMeshBuilder.SignWallOffset, v.z, 0.001f,
-                            "the sign is not standing off the entrance wall");
-                        Assert.Greater(v.y, site.BaseHeight + BuildingInterior.DoorHeight(site.Params.Height),
-                            "the sign hangs over the doorway");
-                        Assert.LessOrEqual(v.y, site.Top, "the sign is above the roof");
-                    }
-                }
-            }
-
-            TestContext.WriteLine($"{signs} signs, {tooShort} skipped as too short, " +
-                                  $"{specials} special buildings");
-            Assert.Greater(specials, 5, "no special buildings in the sweep, so this proved nothing");
-            Assert.Greater(signs, 0, "every special building was too short for a sign");
         }
 
         /// <summary>

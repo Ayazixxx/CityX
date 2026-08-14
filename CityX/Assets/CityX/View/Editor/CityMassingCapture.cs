@@ -620,16 +620,17 @@ namespace CityX.ViewEditor
         }
 
         /// <summary>
-        /// A special building's front door, from the street.
+        /// A front door, from the street.
         ///
-        /// THE ONE THING NO OTHER SHOT CAN FIND. About one lot in thirty is a
-        /// supermarket, a bank, a police station or a hospital, and the only
-        /// thing that says so is a three-metre sign band over its doorway. At
-        /// that rarity no fixed camera will ever have one in frame -- the
-        /// feature would be verified by a passing test and never actually
-        /// looked at, which is how the roof types stayed invisible for weeks.
+        /// THE ONLY ANGLE THAT SHOWS A DOORWAY FROM OUTSIDE, which turns out to
+        /// be the shot that says most about whether a building reads as
+        /// enterable: you can see the opening, the lobby behind it and the
+        /// first flight of stairs through the ground-floor glass, all at once.
+        /// The interior shots stand inside and cannot show any of that.
         ///
-        /// This is also the only angle that shows a doorway from outside.
+        /// It went in to photograph a special building's sign, which no fixed
+        /// camera would ever have caught at one lot in thirty. The signs came
+        /// back off; the shot earned its place anyway.
         /// </summary>
         private static void ShootEntrance(CityStreamer streamer, Camera camera, string directory)
         {
@@ -643,7 +644,7 @@ namespace CityX.ViewEditor
                 {
                     BuildingSite site = world.BuildingAt(x, y);
                     if (!site.Exists || site.AnchorX != x || site.AnchorY != y ||
-                        !site.Params.IsSpecial)
+                        site.Params.Width < 14.0f)
                     {
                         continue;
                     }
@@ -664,7 +665,7 @@ namespace CityX.ViewEditor
 
             if (!chosen.Exists)
             {
-                Debug.LogWarning("CityX: no special building faces a street near the origin.");
+                Debug.LogWarning("CityX: no building faces a street near the origin.");
                 return;
             }
 
@@ -672,8 +673,7 @@ namespace CityX.ViewEditor
                 (float)chosen.CentreX,
                 chosen.BaseHeight + 2.2f,
                 (float)chosen.MaxZ + 12.0f);
-            Debug.Log($"CityX: entrance shot of a {chosen.Params.SpecialType} " +
-                      $"at ({chosen.AnchorX},{chosen.AnchorY})");
+            Debug.Log($"CityX: entrance shot of ({chosen.AnchorX},{chosen.AnchorY})");
             Shoot(streamer, camera, directory, "entrance", from, new Vector3(0.0f, 180.0f, 0.0f), 6);
         }
 
@@ -695,10 +695,6 @@ namespace CityX.ViewEditor
             streamer.CrackedGlassMaterial = Material_("CityGlassCracked");
             streamer.RoadLineMaterial = Material_("RoadLine");
             streamer.CrosswalkMaterial = Material_("Crosswalk");
-            streamer.SupermarketSignMaterial = Material_("SignSupermarket");
-            streamer.BankSignMaterial = Material_("SignBank");
-            streamer.PoliceSignMaterial = Material_("SignPolice");
-            streamer.HospitalSignMaterial = Material_("SignHospital");
         }
 
         private static Material Material_(string name)

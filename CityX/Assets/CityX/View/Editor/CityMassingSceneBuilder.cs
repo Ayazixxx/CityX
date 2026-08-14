@@ -54,18 +54,9 @@ namespace CityX.ViewEditor
             GameObject shards = GlassShardsBuilder.Build();
 
             // city_chunk.gd's own LINE_COLOR_YELLOW / LINE_COLOR_WHITE.
-            Material roadLine = EnsureSignMaterial("RoadLine", new Color(0.95f, 0.75f, 0.10f));
-            Material crosswalk = EnsureSignMaterial("Crosswalk", new Color(0.92f, 0.92f, 0.90f));
+            Material roadLine = EnsureFlatMaterial("RoadLine", new Color(0.95f, 0.75f, 0.10f));
+            Material crosswalk = EnsureFlatMaterial("Crosswalk", new Color(0.92f, 0.92f, 0.90f));
 
-            // city_chunk.gd's own SPECIAL_BUILDING_PRESETS sign_color values.
-            Material supermarketSign = EnsureSignMaterial("SignSupermarket",
-                new Color(0.95f, 0.82f, 0.15f));    // bright yellow band
-            Material bankSign = EnsureSignMaterial("SignBank",
-                new Color(0.72f, 0.60f, 0.28f));    // gold plaque
-            Material policeSign = EnsureSignMaterial("SignPolice",
-                new Color(0.08f, 0.18f, 0.45f));    // dark blue
-            Material hospitalSign = EnsureSignMaterial("SignHospital",
-                new Color(0.82f, 0.08f, 0.10f));    // red
 
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
@@ -180,10 +171,6 @@ namespace CityX.ViewEditor
             streamer.CrackedGlassMaterial = crackedGlass;
             streamer.RoadLineMaterial = roadLine;
             streamer.CrosswalkMaterial = crosswalk;
-            streamer.SupermarketSignMaterial = supermarketSign;
-            streamer.BankSignMaterial = bankSign;
-            streamer.PoliceSignMaterial = policeSign;
-            streamer.HospitalSignMaterial = hospitalSign;
 
             // Punching a window is the streamer's business because the damage
             // is: chunks come and go, the record of what is broken does not.
@@ -254,12 +241,11 @@ namespace CityX.ViewEditor
         /// again for something one flag does.
         /// </summary>
         /// <summary>
-        /// A special building's sign band. Unshaded, because signage is a
-        /// printed colour rather than a lit surface -- city_chunk.gd's own
-        /// _flat_material(colour, true), and the reason a bank's gold reads as
-        /// gold in a shadowed street rather than as brown.
+        /// A flat printed colour: lane paint. Unshaded, which is
+        /// city_chunk.gd's own _flat_material(colour, true), and the reason
+        /// road markings stay legible in a street that is in shadow all day.
         /// </summary>
-        private static Material EnsureSignMaterial(string name, Color colour)
+        private static Material EnsureFlatMaterial(string name, Color colour)
         {
             string path = $"{MaterialDirectory}/{name}.mat";
             Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
