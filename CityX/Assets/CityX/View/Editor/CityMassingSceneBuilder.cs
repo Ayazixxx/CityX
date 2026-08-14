@@ -206,7 +206,8 @@ namespace CityX.ViewEditor
                 Object.FindFirstObjectByType<RainEffect>(),
                 cycle,
                 cameraObject.GetComponent<FlyCamera>(),
-                CityX.CharacterEditor.WolfBuilder.Build());
+                CityX.CharacterEditor.WolfBuilder.Build(),
+                RadioBuilder.Build());
 
             GameObject streamerObject = new GameObject("CityStreamer");
             CityStreamer streamer = streamerObject.AddComponent<CityStreamer>();

@@ -55,6 +55,9 @@ namespace CityX.UI
         [Tooltip("What /spawn wolf puts down.")]
         public GameObject WolfPrefab;
 
+        [Tooltip("What /spawn radio puts down.")]
+        public GameObject RadioPrefab;
+
         /// <summary>How far in front of the player something spawns.</summary>
         public const float SpawnDistance = 3.0f;
 
@@ -309,6 +312,18 @@ namespace CityX.UI
                         brain.Felled += _ => earner.Level += 1;
                     }
                     Log("spawned wolf");
+                    return;
+
+                case "radio":
+                    if (RadioPrefab == null)
+                    {
+                        Log("no radio prefab wired");
+                        return;
+                    }
+                    // Dropped a little above the ground so it settles onto it
+                    // rather than starting intersecting -- it is a real body.
+                    Instantiate(RadioPrefab, where + Vector3.up * 0.5f, facing);
+                    Log("spawned radio -- press E to switch it on");
                     return;
 
                 case "dummy":
