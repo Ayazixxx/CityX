@@ -48,6 +48,8 @@ namespace CityX.ViewEditor
             Material pavement = EnsureMaterial("CityPavement", "CityPavement", 4.0f, 0.05f);
             Material structure = EnsureMaterial("CityConcrete", "CityFacade",
                 CityFacadeTextures.FacadeTileWidth, 0.04f);
+            Material darkGlass = EnsureGlassMaterial("CityGlassDark", false);
+            Material litGlass = EnsureGlassMaterial("CityGlassLit", true);
 
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
@@ -136,6 +138,7 @@ namespace CityX.ViewEditor
             cycle.Moon = moon;
             cycle.Sky = camera;
             cycle.Facades = structure;
+            cycle.LitWindows = litGlass;
             cycle.TimeOfDay = SkyCycle.StartSeconds;
             cycle.Apply(SkyCycle.At(SkyCycle.StartSeconds));
 
@@ -156,6 +159,8 @@ namespace CityX.ViewEditor
             streamer.GroundMaterial = ground;
             streamer.PavementMaterial = pavement;
             streamer.StructureMaterial = structure;
+            streamer.DarkGlassMaterial = darkGlass;
+            streamer.LitGlassMaterial = litGlass;
             streamer.Viewer = cameraObject.transform;
 
             EditorSceneManager.SaveScene(scene, ScenePath);
@@ -202,6 +207,79 @@ namespace CityX.ViewEditor
         /// How much world the texture covers. Tiling is its reciprocal, because
         /// UVs are in metres.
         /// </param>
+        /// <summary>
+        /// Window glass, in two flavours: one with a light behind it and one
+        /// without.
+        ///
+        /// TWO MATERIALS RATHER THAN ONE WITH A VERTEX COLOUR. Whether a
+        /// particular window is lit is a per-pane fact, and the cheap ways to
+        /// get a per-pane fact into a shader all cost something on every vertex
+        /// in the city. Two submeshes cost nothing per vertex and let
+        /// DayNightCycle bring every lit window up at dusk by touching one
+        /// material.
+        ///
+        /// CULL OFF, because a pane fills a real hole through a real wall and
+        /// is therefore seen from inside as often as from the street. The
+        /// alternative is two quads per window, which is the same triangles
+        /// again for something one flag does.
+        /// </summary>
+        private static Material EnsureGlassMaterial(string name, bool lit)
+        {
+            string path = $"{MaterialDirectory}/{name}.mat";
+            Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material == null)
+            {
+                Shader shader = Shader.Find("Universal Render Pipeline/Lit");
+                if (shader == null)
+                {
+                    Debug.LogError("CityX: URP Lit shader not found -- is the Universal Render " +
+                                   "Pipeline asset assigned in Graphics settings?");
+                    shader = Shader.Find("Standard");
+                }
+                material = new Material(shader);
+                AssetDatabase.CreateAsset(material, path);
+            }
+
+            // Transparent, and dark rather than clear: city glass at a distance
+            // reads as a dark reflective slot, not as an open hole. Fully clear
+            // glass would make every building look like it had no windows at
+            // all, which is where this started.
+            material.SetFloat("_Surface", 1.0f);              // transparent
+            material.SetFloat("_Blend", 0.0f);                // alpha
+            material.SetFloat("_ZWrite", 0.0f);
+            material.SetFloat("_Cull", 0.0f);                 // both sides
+            material.SetFloat("_AlphaClip", 0.0f);
+            material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            material.SetOverrideTag("RenderType", "Transparent");
+            material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            material.DisableKeyword("_ALPHATEST_ON");
+            material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+
+            material.SetTexture("_BaseMap", null);
+            material.SetColor("_BaseColor", new Color(0.055f, 0.062f, 0.075f, 0.72f));
+            material.SetFloat("_Smoothness", 0.86f);
+            material.SetFloat("_Metallic", 0.0f);
+
+            if (lit)
+            {
+                // Colour left black; DayNightCycle raises it as the light goes,
+                // so the windows come on at dusk rather than glowing all
+                // afternoon. Same arrangement the facade emission map had.
+                material.EnableKeyword("_EMISSION");
+                material.SetColor("_EmissionColor", Color.black);
+                material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
+            }
+            else
+            {
+                material.DisableKeyword("_EMISSION");
+                material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.EmissiveIsBlack;
+            }
+
+            EditorUtility.SetDirty(material);
+            return material;
+        }
+
         private static Material EnsureMaterial(string name, string textureName,
             float metresPerTile, float smoothness)
         {

@@ -21,8 +21,11 @@ namespace CityX.View
         [Tooltip("Its background follows the horizon so the fog wall is invisible.")]
         public Camera Sky;
 
-        [Tooltip("The facade material. Its windows are lit at night and dark by day.")]
+        [Tooltip("The facade material. Kept for anything on the wall itself that glows.")]
         public Material Facades;
+
+        [Tooltip("The lit-window glass. This is where the city's night light actually comes from.")]
+        public Material LitWindows;
 
         /// <summary>
         /// How bright a lit window burns once night has fully fallen. Above 1
@@ -31,6 +34,14 @@ namespace CityX.View
         /// paler concrete.
         /// </summary>
         public const float WindowGlow = 2.4f;
+
+        /// <summary>
+        /// title_screen_city.gd's WINDOW_LIGHT_COLOR. Warm tungsten, which is
+        /// what makes a night skyline read as inhabited rather than as a wall
+        /// with holes in it. It used to live in the facade emission map; now
+        /// that the windows are real glass it lives here.
+        /// </summary>
+        public static readonly Color LitWindowColour = new Color(0.988f, 0.796f, 0.443f);
 
         private static readonly int EmissionColour = Shader.PropertyToID("_EmissionColor");
 
@@ -93,14 +104,18 @@ namespace CityX.View
                 Sky.backgroundColor = state.HorizonColour;
             }
 
+            // Windows come on as the light goes, and are fully out by day.
+            // Driven off daylight rather than a clock so they light through
+            // dusk at the same rate the world darkens, instead of snapping on
+            // at some threshold.
+            float glow = (1.0f - state.Daylight) * WindowGlow;
             if (Facades != null)
             {
-                // Windows come on as the light goes, and are fully out by day.
-                // Driven off daylight rather than a clock so they light through
-                // dusk at the same rate the world darkens, instead of snapping
-                // on at some threshold.
-                float glow = (1.0f - state.Daylight) * WindowGlow;
                 Facades.SetColor(EmissionColour, Color.white * glow);
+            }
+            if (LitWindows != null)
+            {
+                LitWindows.SetColor(EmissionColour, LitWindowColour * glow);
             }
         }
     }

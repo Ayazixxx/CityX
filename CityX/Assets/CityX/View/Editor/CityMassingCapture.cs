@@ -75,6 +75,8 @@ namespace CityX.ViewEditor
                 streamer.GroundMaterial = ground;
                 streamer.PavementMaterial = pavement;
                 streamer.StructureMaterial = structure;
+                streamer.DarkGlassMaterial = GlassMaterial(false);
+                streamer.LitGlassMaterial = GlassMaterial(true);
                 streamer.Rebuild();
 
                 var cameraObject = new GameObject("CaptureCamera");
@@ -177,6 +179,8 @@ namespace CityX.ViewEditor
                 streamer.GroundMaterial = ground;
                 streamer.PavementMaterial = pavement;
                 streamer.StructureMaterial = structure;
+                streamer.DarkGlassMaterial = GlassMaterial(false);
+                streamer.LitGlassMaterial = GlassMaterial(true);
                 streamer.Rebuild();
 
                 var cameraObject = new GameObject("Camera");
@@ -189,6 +193,9 @@ namespace CityX.ViewEditor
                 var cycleObject = new GameObject("Cycle");
                 cycleObject.transform.SetParent(root.transform);
                 DayNightCycle cycle = cycleObject.AddComponent<DayNightCycle>();
+                // The windows are glass now, so this is what has to be told the
+                // hour -- without it every pane in the shot renders unlit.
+                cycle.LitWindows = GlassMaterial(true);
                 cycle.Sun = sun;
                 cycle.Sky = camera;
                 cycle.Running = false;
@@ -307,6 +314,8 @@ namespace CityX.ViewEditor
                 streamer.GroundMaterial = ground;
                 streamer.PavementMaterial = pavement;
                 streamer.StructureMaterial = structure;
+                streamer.DarkGlassMaterial = GlassMaterial(false);
+                streamer.LitGlassMaterial = GlassMaterial(true);
                 streamer.Rebuild();
 
                 var cameraObject = new GameObject("Camera");
@@ -319,6 +328,9 @@ namespace CityX.ViewEditor
                 var cycleObject = new GameObject("Cycle");
                 cycleObject.transform.SetParent(root.transform);
                 DayNightCycle cycle = cycleObject.AddComponent<DayNightCycle>();
+                // The windows are glass now, so this is what has to be told the
+                // hour -- without it every pane in the shot renders unlit.
+                cycle.LitWindows = GlassMaterial(true);
                 cycle.Sun = sun;
                 cycle.Moon = moon;
                 cycle.Sky = camera;
@@ -607,6 +619,17 @@ namespace CityX.ViewEditor
             Shoot(streamer, camera, directory, "interior-stairs", landing,
                 new Vector3(24.0f, Mathf.Atan2(-well.RunDirection.x, -well.RunDirection.z)
                                    * Mathf.Rad2Deg, 0.0f), 6);
+        }
+
+        /// <summary>
+        /// One of the two window-glass materials the scene builder writes.
+        /// Missing means the capture runs with unlit black panes rather than
+        /// failing, which is the same way every other material here behaves.
+        /// </summary>
+        private static Material GlassMaterial(bool lit)
+        {
+            return AssetDatabase.LoadAssetAtPath<Material>(
+                $"Assets/CityX/View/Materials/CityGlass{(lit ? "Lit" : "Dark")}.mat");
         }
 
         private static void Shoot(CityStreamer streamer, Camera camera, string directory, string name,

@@ -31,6 +31,12 @@ namespace CityX.View
 
         public Material StructureMaterial;
 
+        [Tooltip("Window glass with no light behind it.")]
+        public Material DarkGlassMaterial;
+
+        [Tooltip("Window glass with a light on. DayNightCycle brings this one up at dusk.")]
+        public Material LitGlassMaterial;
+
         [Tooltip("Leave empty to follow the main camera.")]
         public Transform Viewer;
 
@@ -40,6 +46,8 @@ namespace CityX.View
         private readonly MeshBuffer _ground = new MeshBuffer();
         private readonly MeshBuffer _pavement = new MeshBuffer();
         private readonly MeshBuffer _structures = new MeshBuffer();
+        private readonly MeshBuffer _litGlass = new MeshBuffer();
+        private readonly MeshBuffer _darkGlass = new MeshBuffer();
         private readonly List<Vector2Int> _wanted = new List<Vector2Int>();
         private readonly List<Vector2Int> _stale = new List<Vector2Int>();
 
@@ -143,6 +151,8 @@ namespace CityX.View
             _ground.Clear();
             _pavement.Clear();
             _structures.Clear();
+            _litGlass.Clear();
+            _darkGlass.Clear();
 
             // Chunks are built relative to their own corner and then placed, so
             // vertex coordinates stay small. Building in absolute world space
@@ -152,7 +162,7 @@ namespace CityX.View
                 key.x * CityLayout.ChunkSize, 0.0f, key.y * CityLayout.ChunkSize);
 
             CityMeshBuilder.BuildChunk(_world, _bridges, key.x, key.y, origin,
-                _ground, _pavement, _structures);
+                _ground, _pavement, _structures, _litGlass, _darkGlass);
 
             GameObject go = new GameObject($"Chunk {key.x},{key.y}");
             go.transform.SetParent(transform, false);
@@ -165,7 +175,7 @@ namespace CityX.View
             // vertex buffer, same transform, one cull -- and each submesh's
             // triangle indices have to be shifted by however many vertices came
             // before it, which is the only fiddly part.
-            var buffers = new[] { _ground, _pavement, _structures };
+            var buffers = new[] { _ground, _pavement, _structures, _darkGlass, _litGlass };
             var vertices = new List<Vector3>();
             var normals = new List<Vector3>();
             var uvs = new List<Vector2>();
@@ -204,8 +214,15 @@ namespace CityX.View
             filter.sharedMesh = mesh;
 
             MeshRenderer renderer = go.AddComponent<MeshRenderer>();
-            renderer.sharedMaterials = new[] { GroundMaterial, PavementMaterial, StructureMaterial };
+            renderer.sharedMaterials = new[]
+            {
+                GroundMaterial, PavementMaterial, StructureMaterial,
+                DarkGlassMaterial, LitGlassMaterial,
+            };
 
+            // The glass is in the collider along with everything else, which is
+            // what makes an unbroken window something you walk into rather than
+            // through.
             MeshCollider collider = go.AddComponent<MeshCollider>();
             collider.sharedMesh = mesh;
 

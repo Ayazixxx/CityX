@@ -63,7 +63,8 @@ namespace CityX.View
         /// moment the camera gets above roof height.
         /// </summary>
         public static void BuildChunk(CityWorld world, SkybridgeLayout bridges, int chunkX, int chunkY,
-            Vector3 origin, MeshBuffer ground, MeshBuffer flatConcrete, MeshBuffer structures)
+            Vector3 origin, MeshBuffer ground, MeshBuffer flatConcrete, MeshBuffer structures,
+            MeshBuffer litGlass = null, MeshBuffer darkGlass = null)
         {
             BuildGround(world, chunkX, chunkY, origin, ground, flatConcrete);
 
@@ -76,7 +77,7 @@ namespace CityX.View
                 return;
             }
 
-            BuildBuilding(site, origin, structures, flatConcrete);
+            BuildBuilding(world, site, origin, structures, flatConcrete, litGlass, darkGlass);
             AddWing(world, site, origin, structures, flatConcrete);
             AddBalconies(world, site, origin, flatConcrete);
             AddRibs(world, site, origin, structures);
@@ -226,8 +227,8 @@ namespace CityX.View
         /// sloped ramp box; at a 0.25m riser against the controller's 0.4m
         /// step offset that walks, and it is a truer surface than the ramp.
         /// </summary>
-        private static void BuildBuilding(BuildingSite site, Vector3 origin, MeshBuffer structures,
-            MeshBuffer concrete)
+        private static void BuildBuilding(CityWorld world, BuildingSite site, Vector3 origin,
+            MeshBuffer structures, MeshBuffer concrete, MeshBuffer litGlass, MeshBuffer darkGlass)
         {
             // The stretch below BaseHeight is buried on the uphill side and
             // exposed downhill, which is what a hillside podium actually is.
@@ -259,21 +260,39 @@ namespace CityX.View
             var south = new Wall(false, z0, x0, x1);
             var north = new Wall(false, z1, x0, x1);
 
-            // Outward, for the street. The podium is part of the same span, so
-            // a building on a slope still has a face all the way down.
-            AddWallPanel(structures, west, z0, z1, podiumY, roofY, Vector3.left);
-            AddWallPanel(structures, east, z0, z1, podiumY, roofY, Vector3.right);
-            AddWallPanel(structures, south, x0, x1, podiumY, roofY, Vector3.back);
-            AddWallAround(structures, north, podiumY, roofY, Vector3.forward,
-                doorU0, doorU1, lobbyY, doorTop);
+            int seed = world.ChunkSeed(site.AnchorX, site.AnchorY);
+            CellLayout rows = WindowGrid.RowsFor(height);
 
-            // Inward, for the room. Same planes, opposite normals -- back to
-            // back, so neither is ever seen from the wrong side.
-            AddWallPanel(concrete, west, z0, z1, lobbyY, roofY, Vector3.right);
-            AddWallPanel(concrete, east, z0, z1, lobbyY, roofY, Vector3.left);
-            AddWallPanel(concrete, south, x0, x1, lobbyY, roofY, Vector3.forward);
-            AddWallAround(concrete, north, lobbyY, roofY, Vector3.back,
-                doorU0, doorU1, lobbyY, doorTop);
+            // The podium, below the lobby floor. Solid: it is buried on the
+            // uphill side and exposed downhill, so glazing it would put windows
+            // in a retaining wall.
+            AddWallPanel(structures, west, z0, z1, podiumY, lobbyY, Vector3.left);
+            AddWallPanel(structures, east, z0, z1, podiumY, lobbyY, Vector3.right);
+            AddWallPanel(structures, south, x0, x1, podiumY, lobbyY, Vector3.back);
+            AddWallPanel(structures, north, x0, x1, podiumY, lobbyY, Vector3.forward);
+
+            // Outward, for the street, with real openings in it.
+            AddWindowedWall(structures, litGlass, darkGlass, west, z0, z1, lobbyY, roofY,
+                Vector3.left, seed, WindowGrid.Wall.West, rows, 0.0f, 0.0f, false);
+            AddWindowedWall(structures, litGlass, darkGlass, east, z0, z1, lobbyY, roofY,
+                Vector3.right, seed, WindowGrid.Wall.East, rows, 0.0f, 0.0f, false);
+            AddWindowedWall(structures, litGlass, darkGlass, south, x0, x1, lobbyY, roofY,
+                Vector3.back, seed, WindowGrid.Wall.South, rows, 0.0f, 0.0f, false);
+            AddWindowedWall(structures, litGlass, darkGlass, north, x0, x1, lobbyY, roofY,
+                Vector3.forward, seed, WindowGrid.Wall.North, rows, doorU0, doorU1, true);
+
+            // Inward, for the room. Same planes and the same openings, opposite
+            // normals -- back to back, so neither is ever seen from the wrong
+            // side, and a window is a hole through BOTH or it is not a hole.
+            // No panes: the glass was already hung by the outward pass.
+            AddWindowedWall(concrete, null, null, west, z0, z1, lobbyY, roofY,
+                Vector3.right, seed, WindowGrid.Wall.West, rows, 0.0f, 0.0f, false);
+            AddWindowedWall(concrete, null, null, east, z0, z1, lobbyY, roofY,
+                Vector3.left, seed, WindowGrid.Wall.East, rows, 0.0f, 0.0f, false);
+            AddWindowedWall(concrete, null, null, south, x0, x1, lobbyY, roofY,
+                Vector3.forward, seed, WindowGrid.Wall.South, rows, 0.0f, 0.0f, false);
+            AddWindowedWall(concrete, null, null, north, x0, x1, lobbyY, roofY,
+                Vector3.back, seed, WindowGrid.Wall.North, rows, doorU0, doorU1, true);
 
             // The lobby floor, and NOT a port: city_chunk.gd leans on the
             // chunk's own ground body for the ground floor, and here that
@@ -797,6 +816,154 @@ namespace CityX.View
                 return;
             }
             AddFace(buffer, normal,
+                wall.At(u0, y0), wall.At(u1, y0), wall.At(u1, y1), wall.At(u0, y1));
+        }
+
+        /// <summary>
+        /// A wall with real openings cut through it, one per glazed cell.
+        ///
+        /// THE DECOMPOSITION IS THE WHOLE COST STORY. The obvious way to build
+        /// this is four frame pieces around every cell, and that is what
+        /// city_chunk.gd does -- but city_chunk.gd glazes every cell, so it has
+        /// no blank concrete to waste quads on. Here 58% of cells are blank,
+        /// and cell-at-a-time would have paid four quads each for nothing.
+        ///
+        /// Instead each ROW is cut into three horizontal bands. Every opening
+        /// in a row starts and ends at the same two heights -- same margin
+        /// ratio, same row height -- so the sill band below them and the header
+        /// band above them each run the full width of the wall as ONE quad,
+        /// however many windows the row has. Only the middle band is broken up,
+        /// and there the blank cells between two windows merge into a single
+        /// run. A twelve-by-twelve wall comes out at about eight quads a row
+        /// rather than sixty.
+        ///
+        /// <paramref name="litPanes"/> null means this is the INWARD copy of
+        /// the wall: same openings, opposite normal, and no glass, because the
+        /// outward pass already hung it. A window has to be a hole through both
+        /// or it is not a hole.
+        /// </summary>
+        private static void AddWindowedWall(MeshBuffer wallBuffer, MeshBuffer litPanes,
+            MeshBuffer darkPanes, in Wall wall, float u0, float u1, float floorY, float topY,
+            Vector3 normal, int seed, WindowGrid.Wall which, CellLayout rows,
+            float doorU0, float doorU1, bool hasDoor)
+        {
+            CellLayout columns = WindowGrid.ColumnsFor(u1 - u0);
+            float inset = WindowGrid.PaneInset;
+
+            for (int row = 0; row < rows.Count; row++)
+            {
+                float y0 = floorY + row * rows.Size;
+                float y1 = y0 + rows.Size;
+
+                if (hasDoor && row == 0)
+                {
+                    AddDoorRow(wallBuffer, litPanes, darkPanes, wall, u0, y0, y1, normal,
+                        seed, which, columns, doorU0, doorU1);
+                    continue;
+                }
+
+                float paneY0 = y0 + rows.Size * inset;
+                float paneY1 = y1 - rows.Size * inset;
+
+                AddWallPanel(wallBuffer, wall, u0, u1, y0, paneY0, normal);
+                AddWallPanel(wallBuffer, wall, u0, u1, paneY1, y1, normal);
+
+                float runStart = u0;
+                for (int column = 0; column < columns.Count; column++)
+                {
+                    if (!WindowGrid.IsGlazed(seed, which, column, row))
+                    {
+                        continue;
+                    }
+
+                    float cellU0 = u0 + column * columns.Size;
+                    float paneU0 = cellU0 + columns.Size * inset;
+                    float paneU1 = cellU0 + columns.Size * (1.0f - inset);
+
+                    AddWallPanel(wallBuffer, wall, runStart, paneU0, paneY0, paneY1, normal);
+                    runStart = paneU1;
+
+                    AddPane(litPanes, darkPanes, wall, paneU0, paneU1, paneY0, paneY1, normal,
+                        seed, which, column, row);
+                }
+                AddWallPanel(wallBuffer, wall, runStart, u1, paneY0, paneY1, normal);
+            }
+        }
+
+        /// <summary>
+        /// The entrance row: same grid, but a doorway the height of the whole
+        /// row stands in it.
+        ///
+        /// NO BAND MERGING HERE, because the door reaches from the floor to the
+        /// top of the row and cuts both the sill and the header band in two.
+        /// One row per building pays cell-at-a-time; the eleven above it do not.
+        ///
+        /// A cell the door passes through keeps whatever is left of itself
+        /// either side and gets no window, which is city_chunk.gd's own
+        /// whole-cell exclusion. Narrowing the cells around the door instead --
+        /// its earlier approach -- gives that row a different column grid from
+        /// every row above it, and that shipped a visible seam there twice.
+        /// </summary>
+        private static void AddDoorRow(MeshBuffer wallBuffer, MeshBuffer litPanes,
+            MeshBuffer darkPanes, in Wall wall, float u0, float y0, float y1, Vector3 normal,
+            int seed, WindowGrid.Wall which, CellLayout columns, float doorU0, float doorU1)
+        {
+            float inset = WindowGrid.PaneInset;
+            float paneY0 = y0 + (y1 - y0) * inset;
+            float paneY1 = y1 - (y1 - y0) * inset;
+
+            for (int column = 0; column < columns.Count; column++)
+            {
+                float cellU0 = u0 + column * columns.Size;
+                float cellU1 = cellU0 + columns.Size;
+
+                if (cellU1 > doorU0 && cellU0 < doorU1)
+                {
+                    // Whatever is left of this cell beside the opening.
+                    AddWallPanel(wallBuffer, wall, cellU0, Mathf.Min(cellU1, doorU0), y0, y1, normal);
+                    AddWallPanel(wallBuffer, wall, Mathf.Max(cellU0, doorU1), cellU1, y0, y1, normal);
+                    continue;
+                }
+
+                if (!WindowGrid.IsGlazed(seed, which, column, 0))
+                {
+                    AddWallPanel(wallBuffer, wall, cellU0, cellU1, y0, y1, normal);
+                    continue;
+                }
+
+                float paneU0 = cellU0 + columns.Size * inset;
+                float paneU1 = cellU1 - columns.Size * inset;
+                AddWallPanel(wallBuffer, wall, cellU0, paneU0, y0, y1, normal);
+                AddWallPanel(wallBuffer, wall, paneU1, cellU1, y0, y1, normal);
+                AddWallPanel(wallBuffer, wall, paneU0, paneU1, y0, paneY0, normal);
+                AddWallPanel(wallBuffer, wall, paneU0, paneU1, paneY1, y1, normal);
+
+                AddPane(litPanes, darkPanes, wall, paneU0, paneU1, paneY0, paneY1, normal,
+                    seed, which, column, 0);
+            }
+        }
+
+        /// <summary>
+        /// One sheet of glass, into the lit buffer or the dark one.
+        ///
+        /// TWO BUFFERS RATHER THAN A COLOUR PER PANE. Whether a window is lit
+        /// has to reach the shader somehow, and MeshBuffer has no colour
+        /// channel -- adding one would put four bytes on every vertex in the
+        /// city to say something about a few hundred of them. Two submeshes
+        /// with two materials says it for nothing, and it lets DayNightCycle
+        /// bring the lit ones up at dusk by touching one material rather than
+        /// walking geometry.
+        /// </summary>
+        private static void AddPane(MeshBuffer litPanes, MeshBuffer darkPanes, in Wall wall,
+            float u0, float u1, float y0, float y1, Vector3 normal,
+            int seed, WindowGrid.Wall which, int column, int row)
+        {
+            if (litPanes == null)
+            {
+                return;
+            }
+            MeshBuffer glass = WindowGrid.IsLit(seed, which, column, row) ? litPanes : darkPanes;
+            AddFace(glass, normal,
                 wall.At(u0, y0), wall.At(u1, y0), wall.At(u1, y1), wall.At(u0, y1));
         }
 

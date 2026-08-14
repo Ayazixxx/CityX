@@ -28,13 +28,22 @@ namespace CityX.Tests
         private static void Build(int chunkX, int chunkY,
             out MeshBuffer ground, out MeshBuffer pavement, out MeshBuffer structures)
         {
+            Build(chunkX, chunkY, out ground, out pavement, out structures, out _, out _);
+        }
+
+        private static void Build(int chunkX, int chunkY, out MeshBuffer ground,
+            out MeshBuffer pavement, out MeshBuffer structures,
+            out MeshBuffer litGlass, out MeshBuffer darkGlass)
+        {
             CityWorld world = new CityWorld(Seed);
             SkybridgeLayout bridges = new SkybridgeLayout(Seed);
             ground = new MeshBuffer();
             pavement = new MeshBuffer();
             structures = new MeshBuffer();
+            litGlass = new MeshBuffer();
+            darkGlass = new MeshBuffer();
             CityMeshBuilder.BuildChunk(world, bridges, chunkX, chunkY, Vector3.zero,
-                ground, pavement, structures);
+                ground, pavement, structures, litGlass, darkGlass);
         }
 
         /// <summary>
@@ -527,10 +536,19 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// THE DOOR IS A REAL HOLE, not a painted-on rectangle. Measured as
-        /// area rather than by looking for missing vertices, because a wall
-        /// built as four strips around an opening has vertices ON the
-        /// opening's edge either way -- only the area tells them apart.
+        /// THE DOOR IS A REAL HOLE, not a painted-on rectangle.
+        ///
+        /// IT USED TO MEASURE THE WHOLE WALL against a solid rectangle less a
+        /// doorway, and that stopped meaning anything the moment the wall grew
+        /// real windows -- it failed with 619m2 against an expected 816m2,
+        /// which is the windows, not a missing door. Rewriting it to subtract
+        /// the window area too would have made the test recompute the layout it
+        /// is supposed to be checking.
+        ///
+        /// So it measures the one rectangle the claim is actually about: how
+        /// much wall stands in the doorway. The answer has to be none, whatever
+        /// the rest of the wall is doing, and the second assertion keeps that
+        /// from passing because the wall was never built at all.
         /// </summary>
         [Test]
         public void TheFrontWallHasADoorwayMissingFromIt()
@@ -551,19 +569,181 @@ namespace CityX.Tests
 
                     Build(x, y, out _, out _, out MeshBuffer structures);
 
-                    // The whole wall, if it were solid, against what was built.
-                    float wallHeight = site.Top - site.PodiumBase;
-                    float solid = site.Params.Width * wallHeight;
-                    float doorway = BuildingInterior.DoorWidth * BuildingInterior.DoorHeight(site.Params.Height);
-                    float built = AreaInPlane(structures, (float)site.MaxZ, 2, Rect.zero, Rect.zero);
+                    float centreX = (float)site.CentreX;
+                    float half = BuildingInterior.DoorWidth * 0.5f;
+                    var doorway = Rect.MinMaxRect(
+                        centreX - half, site.BaseHeight,
+                        centreX + half, site.BaseHeight + BuildingInterior.DoorHeight(site.Params.Height));
 
-                    Assert.AreEqual(solid - doorway, built, 0.05f,
-                        $"({x},{y})'s front wall came out {built:0.00}m2 against a solid "
-                        + $"{solid:0.00}m2 less a {doorway:0.00}m2 doorway -- there is no way in");
+                    float blocking = AreaInUprightRect(structures, (float)site.MaxZ, doorway);
+                    Assert.AreEqual(0.0f, blocking, 0.001f,
+                        $"({x},{y}) has {blocking:0.00}m2 of wall standing in its own doorway");
+
+                    float wall = AreaInPlane(structures, (float)site.MaxZ, 2, Rect.zero, Rect.zero);
+                    Assert.Greater(wall, site.Params.Width * 2.0f,
+                        $"({x},{y})'s front wall is barely there, so an empty doorway proves nothing");
                 }
             }
 
             Assert.Greater(checkedCount, 40, "not enough buildings sampled");
+        }
+
+        /// <summary>
+        /// A WINDOW IS A HOLE THROUGH THE WALL WITH GLASS IN IT.
+        ///
+        /// Three claims, and each one fails differently if it is wrong. The
+        /// pane count has to match what WindowGrid says is glazed, or the
+        /// geometry and the layout have drifted apart. No wall may stand inside
+        /// a pane's own rectangle, or the opening was never cut and the glass
+        /// is a sticker on concrete -- which is exactly the bug the Godot build
+        /// reported as "you cant see the outside or inside through them" while
+        /// the glass material itself was perfectly transparent. And the same
+        /// has to hold for the INWARD wall, or a window is a recess rather than
+        /// a way of seeing into a room.
+        /// </summary>
+        [Test]
+        public void EveryGlazedCellIsARealOpeningWithAPaneInIt()
+        {
+            CityWorld world = new CityWorld(Seed);
+            int panes = 0;
+            int buildings = 0;
+
+            for (int x = -8; x <= 8; x++)
+            {
+                for (int y = -8; y <= 8; y++)
+                {
+                    BuildingSite site = world.BuildingAt(x, y);
+                    if (!site.Exists || site.AnchorX != x || site.AnchorY != y)
+                    {
+                        continue;
+                    }
+                    buildings++;
+
+                    Build(x, y, out _, out MeshBuffer concrete, out MeshBuffer facade,
+                        out MeshBuffer lit, out MeshBuffer dark);
+
+                    // Two triangles a pane, in one buffer or the other.
+                    int built = (lit.Triangles.Count + dark.Triangles.Count) / 6;
+                    Assert.AreEqual(ExpectedPanes(world, site), built,
+                        $"({x},{y}) glazed {ExpectedPanes(world, site)} cells but hung {built} panes");
+                    panes += built;
+
+                    // The wall at maximum Z, checked pane by pane. One wall is
+                    // enough to catch a mismatch and keeps the sweep quick.
+                    CellLayout rows = WindowGrid.RowsFor(site.Params.Height);
+                    CellLayout columns = WindowGrid.ColumnsFor(site.Params.Width);
+                    float inset = WindowGrid.PaneInset;
+                    int seed = world.ChunkSeed(x, y);
+
+                    for (int row = 1; row < rows.Count; row++)
+                    {
+                        for (int column = 0; column < columns.Count; column++)
+                        {
+                            if (!WindowGrid.IsGlazed(seed, WindowGrid.Wall.North, column, row))
+                            {
+                                continue;
+                            }
+                            float cellX = (float)site.MinX + column * columns.Size;
+                            float cellY = site.BaseHeight + row * rows.Size;
+                            var pane = Rect.MinMaxRect(
+                                cellX + columns.Size * inset, cellY + rows.Size * inset,
+                                cellX + columns.Size * (1.0f - inset), cellY + rows.Size * (1.0f - inset));
+
+                            float blocked = AreaInUprightRect(facade, (float)site.MaxZ, pane);
+                            Assert.AreEqual(0.0f, blocked, 0.001f,
+                                $"({x},{y}) has {blocked:0.000}m2 of facade across the window at " +
+                                $"column {column}, row {row} -- the opening was never cut");
+
+                            float inside = AreaInUprightRect(concrete, (float)site.MaxZ, pane);
+                            Assert.AreEqual(0.0f, inside, 0.001f,
+                                $"({x},{y}) cut the outward wall at column {column}, row {row} but " +
+                                "left the inward one solid -- you cannot see into the room");
+                        }
+                    }
+                }
+            }
+
+            TestContext.WriteLine($"{panes} panes over {buildings} buildings");
+            Assert.Greater(buildings, 20, "not enough buildings sampled");
+            Assert.Greater(panes, 1000, "not enough glass sampled to mean anything");
+        }
+
+        /// <summary>How many cells WindowGrid glazes on a building, doorway aside.</summary>
+        private static int ExpectedPanes(CityWorld world, BuildingSite site)
+        {
+            CellLayout rows = WindowGrid.RowsFor(site.Params.Height);
+            int seed = world.ChunkSeed(site.AnchorX, site.AnchorY);
+            float centreX = (float)site.CentreX;
+            float doorU0 = centreX - BuildingInterior.DoorWidth * 0.5f;
+            float doorU1 = centreX + BuildingInterior.DoorWidth * 0.5f;
+
+            int total = 0;
+            foreach ((WindowGrid.Wall wall, float span) in new[]
+                     {
+                         (WindowGrid.Wall.West, site.Params.Depth),
+                         (WindowGrid.Wall.East, site.Params.Depth),
+                         (WindowGrid.Wall.South, site.Params.Width),
+                         (WindowGrid.Wall.North, site.Params.Width),
+                     })
+            {
+                CellLayout columns = WindowGrid.ColumnsFor(span);
+                for (int row = 0; row < rows.Count; row++)
+                {
+                    for (int column = 0; column < columns.Count; column++)
+                    {
+                        if (!WindowGrid.IsGlazed(seed, wall, column, row))
+                        {
+                            continue;
+                        }
+                        // The entrance row of the door wall loses whatever
+                        // cells the opening passes through.
+                        if (wall == WindowGrid.Wall.North && row == 0)
+                        {
+                            float cellU0 = (float)site.MinX + column * columns.Size;
+                            if (cellU0 + columns.Size > doorU0 && cellU0 < doorU1)
+                            {
+                                continue;
+                            }
+                        }
+                        total++;
+                    }
+                }
+            }
+            return total;
+        }
+
+        /// <summary>
+        /// Area of geometry standing in an upright rectangle on a wall at fixed
+        /// Z. <paramref name="area"/> is in X and Y, unlike
+        /// <see cref="AreaInPlane"/>'s plan rectangles.
+        ///
+        /// Faces BOTH ways, because the outward and inward copies of a wall sit
+        /// in the same plane with opposite normals, and asking about one of
+        /// them means not filtering the other out by accident.
+        /// </summary>
+        private static float AreaInUprightRect(MeshBuffer buffer, float atZ, Rect area)
+        {
+            float total = 0.0f;
+            for (int t = 0; t + 2 < buffer.Triangles.Count; t += 3)
+            {
+                Vector3 a = buffer.Vertices[buffer.Triangles[t]];
+                Vector3 b = buffer.Vertices[buffer.Triangles[t + 1]];
+                Vector3 c = buffer.Vertices[buffer.Triangles[t + 2]];
+                if (Mathf.Abs(a.z - atZ) > 0.001f || Mathf.Abs(b.z - atZ) > 0.001f ||
+                    Mathf.Abs(c.z - atZ) > 0.001f)
+                {
+                    continue;
+                }
+
+                Vector3 centroid = (a + b + c) / 3.0f;
+                if (centroid.x <= area.xMin || centroid.x >= area.xMax ||
+                    centroid.y <= area.yMin || centroid.y >= area.yMax)
+                {
+                    continue;
+                }
+                total += Vector3.Cross(b - a, c - a).magnitude * 0.5f;
+            }
+            return total;
         }
 
         /// <summary>

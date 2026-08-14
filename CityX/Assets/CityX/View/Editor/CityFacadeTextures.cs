@@ -43,19 +43,12 @@ namespace CityX.ViewEditor
 
         private const int TileColumns = 16;
 
-        /// <summary>Pixels per metre. 80 puts a 1m window slot across 80 pixels.</summary>
+        /// <summary>Pixels per metre.</summary>
         private const int PixelsPerMetre = 80;
 
         public static float FacadeTileHeight => TileFloors * CellLayout.NominalFloorMetres;
 
         public static float FacadeTileWidth => TileColumns * CellLayout.NominalColumnMetres;
-
-        /// <summary>
-        /// Fraction of cells that get a window. Sparse, per the reference --
-        /// punched openings with real runs of blank concrete between them, not
-        /// a curtain wall.
-        /// </summary>
-        private const double WindowedCellShare = 0.42;
 
         /// <summary>
         /// Base concrete lightness.
@@ -86,6 +79,24 @@ namespace CityX.ViewEditor
             Debug.Log($"CityX: textures written to {Directory_}");
         }
 
+        /// <summary>
+        /// Poured concrete and the floor lines across it. NO WINDOWS.
+        ///
+        /// It used to paint them, and that was safe because it was the only
+        /// place in the city anything window-shaped was drawn. Now the geometry
+        /// cuts real openings on <see cref="CellLayout"/>'s grid, and this tile
+        /// is anchored to world metres -- a 19.8m wall has twelve 1.65m columns
+        /// and this tile has 1.6m ones. Two grids drawing windows on one wall
+        /// is precisely what CellLayout's own comment records going wrong in
+        /// the Godot build: black windows and transparent windows combined, and
+        /// walls overlapping each other. One system draws windows, and it is no
+        /// longer this one.
+        ///
+        /// What stays is what a wall still needs from a texture and cannot get
+        /// from geometry: the concrete itself, and a floor line at every
+        /// storey. That banding is what carries the brutalist read at distance,
+        /// where individual windows are already too small to see.
+        /// </summary>
         private static void BuildFacade()
         {
             int width = Mathf.RoundToInt(FacadeTileWidth * PixelsPerMetre);
@@ -96,18 +107,8 @@ namespace CityX.ViewEditor
             // end. Deriving normals from the albedo instead would turn every
             // dirt streak into a bump.
             var relief = new float[width * height];
-            // Which windows have a light on. Black everywhere else, so the
-            // concrete never glows.
-            var emission = new Color[width * height];
 
-            int cellWidth = width / TileColumns;
             int cellHeight = height / TileFloors;
-
-            // Window opening inside its cell. Tall and narrow: a punched slot,
-            // not a picture window.
-            int windowInsetX = Mathf.RoundToInt(cellWidth * 0.26f);
-            int windowTop = Mathf.RoundToInt(cellHeight * 0.20f);
-            int windowBottom = Mathf.RoundToInt(cellHeight * 0.78f);
 
             for (int y = 0; y < height; y++)
             {
@@ -119,102 +120,26 @@ namespace CityX.ViewEditor
                     albedo[index] = new Color(concrete, concrete, concrete * 0.99f);
                     relief[index] = 0.5f + (concrete - ConcreteBase) * 0.35f;
 
-                    int cellX = x / cellWidth;
-                    int cellY = y / cellHeight;
-                    int inCellX = x - cellX * cellWidth;
-                    int inCellY = y - cellY * cellHeight;
+                    int inCellY = y - y / cellHeight * cellHeight;
 
-                    // A floor line at every cell boundary, whether or not the
-                    // cell has a window. This is the horizontal banding that
-                    // carries the brutalist read at distance, where individual
-                    // windows are already too small to see.
+                    // The slab edge: a dark line with a lighter lip above it.
                     if (inCellY < 3)
                     {
                         float shade = concrete * 0.72f;
                         albedo[index] = new Color(shade, shade, shade);
                         relief[index] = 0.18f;
-                        continue;
                     }
-                    if (inCellY < 7)
+                    else if (inCellY < 7)
                     {
                         float shade = Mathf.Min(1.0f, concrete * 1.12f);
                         albedo[index] = new Color(shade, shade, shade);
                         relief[index] = 0.86f;
-                        continue;
-                    }
-
-                    if (!HasWindow(cellX, cellY))
-                    {
-                        continue;
-                    }
-
-                    bool insideWindow =
-                        inCellX >= windowInsetX && inCellX < cellWidth - windowInsetX &&
-                        inCellY >= windowTop && inCellY < windowBottom;
-                    if (!insideWindow)
-                    {
-                        continue;
-                    }
-
-                    // Glass darkens toward the top, the way a recessed opening
-                    // reads when the sky is only reflected in its lower part.
-                    float depth = Mathf.InverseLerp(windowTop, windowBottom, inCellY);
-                    float glass = Mathf.Lerp(0.055f, 0.16f, depth);
-                    glass += (Hash01(x * 7 + 13, y * 3 + 5) - 0.5f) * 0.03f;
-                    albedo[index] = new Color(glass, glass * 1.04f, glass * 1.12f);
-                    relief[index] = 0.0f;
-
-                    if (IsLit(cellX, cellY))
-                    {
-                        // Warm, and brighter toward the ceiling, because a room
-                        // is lit from above. A flat fill reads as a glowing
-                        // rectangle rather than a window into somewhere.
-                        float lamp = Mathf.Lerp(1.0f, 0.55f, depth);
-                        emission[index] = LitWindowColour * lamp;
                     }
                 }
             }
 
             SaveTexture("CityFacade", width, height, albedo, srgb: true);
             SaveNormalMap("CityFacadeNormal", width, height, relief, strength: 3.0f);
-            SaveTexture("CityFacadeEmission", width, height, emission, srgb: true);
-        }
-
-        /// <summary>
-        /// title_screen_city.gd WINDOW_LIGHT_COLOR. Warm tungsten, which is
-        /// what makes a night skyline read as inhabited rather than as a wall
-        /// with holes in it.
-        /// </summary>
-        private static readonly Color LitWindowColour = new Color(0.988f, 0.796f, 0.443f);
-
-        /// <summary>
-        /// Whether a glazed cell has its light on.
-        ///
-        /// A DIFFERENT HASH SALT FROM <see cref="HasWindow"/>, so the lit ones
-        /// are scattered through the glazed ones rather than being the same
-        /// cells or a neat subset of them. Sharing a salt would light every
-        /// window in the same pattern the windows themselves follow, which
-        /// reads as a regular grid switching on together.
-        /// </summary>
-        private static bool IsLit(int cellX, int cellY)
-        {
-            return WorldHash.Unit01(cellX, cellY, 0x4C495448UL, 0x0C17FUL) < LitCellShare;
-        }
-
-        /// <summary>
-        /// How many glazed cells are lit. Well under half: a city where every
-        /// window is on looks like an office block at 3pm, not a city at night.
-        /// </summary>
-        private const double LitCellShare = 0.34;
-
-        /// <summary>
-        /// Whether a cell of the tile is glazed. Hashed rather than random so
-        /// the pattern is the same every rebuild, and so the tile's own repeat
-        /// is the only regularity in it.
-        /// </summary>
-        private static bool HasWindow(int cellX, int cellY)
-        {
-            return WorldHash.Unit01(cellX, cellY, 0x57494E44UL, 0x0C17FUL) < WindowedCellShare;
         }
 
         /// <summary>
