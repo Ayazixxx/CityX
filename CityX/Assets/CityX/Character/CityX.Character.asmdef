@@ -3,6 +3,7 @@
     "rootNamespace":  "CityX.Character",
     "references":  [
                        "CityX.Core",
+                       "CityX.Items",
                        "CityX.World",
                        "Unity.InputSystem"
                    ],

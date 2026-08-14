@@ -5,6 +5,7 @@
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
         "CityX.Core",
+        "CityX.Items",
         "CityX.World",
         "CityX.View",
         "CityX.Character",
