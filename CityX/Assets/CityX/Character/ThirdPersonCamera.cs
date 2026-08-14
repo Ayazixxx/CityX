@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -34,6 +35,14 @@ namespace CityX.Character
         private float _pitch = 12.0f;
         private PlayerLocomotion _player;
 
+        /// <summary>What is currently locked on, or null.</summary>
+        public Transform LockedTarget { get; private set; }
+
+        private int _lockVisits;
+        private float _sightLost;
+
+        public bool IsLockedOn => LockedTarget != null;
+
         private void Start()
         {
             if (Target != null)
@@ -56,12 +65,29 @@ namespace CityX.Character
                 return;
             }
 
-            Mouse mouse = Mouse.current;
-            if (mouse != null)
+            if (Keyboard.current != null && Keyboard.current.cKey.wasPressedThisFrame)
             {
-                Vector2 delta = mouse.delta.ReadValue();
-                _yaw += delta.x * LookDegreesPerPixel;
-                _pitch = Mathf.Clamp(_pitch - delta.y * LookDegreesPerPixel, MinPitch, MaxPitch);
+                ToggleLock();
+            }
+
+            // WHILE LOCKED THE MOUSE IS IGNORED ENTIRELY. Blending a lock with
+            // live look input means two things fighting over the same yaw, and
+            // the visible result is a camera that will not settle. Godot takes
+            // the same line.
+            if (IsLockedOn)
+            {
+                TrackLock();
+            }
+            else
+            {
+                Mouse mouse = Mouse.current;
+                if (mouse != null)
+                {
+                    Vector2 delta = mouse.delta.ReadValue();
+                    _yaw += delta.x * LookDegreesPerPixel;
+                    _pitch = Mathf.Clamp(
+                        _pitch - delta.y * LookDegreesPerPixel, MinPitch, MaxPitch);
+                }
             }
 
             if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
@@ -112,6 +138,100 @@ namespace CityX.Character
 
             transform.position = wanted;
             transform.rotation = rotation;
+        }
+
+        /// <summary>
+        /// C acquires, cycles, and eventually lets go -- one button for all
+        /// three, which is what makes it usable mid-fight.
+        /// </summary>
+        private void ToggleLock()
+        {
+            MonoBehaviour[] everything =
+                Object.FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None);
+            List<Transform> candidates =
+                LockOn.Candidates(Target.position, Lockable(everything));
+
+            if (!IsLockedOn)
+            {
+                LockedTarget = LockOn.Acquire(Target.position, transform.forward, candidates);
+                _lockVisits = LockedTarget != null ? 1 : 0;
+                _sightLost = 0.0f;
+                return;
+            }
+
+            _lockVisits++;
+            LockedTarget = LockOn.Cycle(LockedTarget, candidates, _lockVisits);
+            if (LockedTarget == null)
+            {
+                _lockVisits = 0;
+            }
+            _sightLost = 0.0f;
+        }
+
+        /// <summary>
+        /// Everything damageable EXCEPT the body doing the looking. Without
+        /// that exclusion, pressing lock-on picks yourself -- you are, after
+        /// all, the nearest thing to the crosshair that can be hit.
+        /// </summary>
+        private IEnumerable<IDamageable> Lockable(IEnumerable<MonoBehaviour> all)
+        {
+            foreach (MonoBehaviour behaviour in all)
+            {
+                if (behaviour is IDamageable damageable &&
+                    !behaviour.transform.IsChildOf(Target) && behaviour.transform != Target)
+                {
+                    yield return damageable;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Swings toward the target, and decides whether the lock survives.
+        ///
+        /// The yaw is LERPED rather than snapped, so acquiring reads as the
+        /// camera turning to look rather than as a cut. And because the body
+        /// takes its facing from the camera, driving the yaw here turns WASD
+        /// into strafing around the target for free -- no movement code knows
+        /// this feature exists.
+        /// </summary>
+        private void TrackLock()
+        {
+            var damageable = LockedTarget.GetComponentInParent<IDamageable>();
+            float distance = Vector3.Distance(Target.position, LockedTarget.position);
+
+            if (damageable == null || !damageable.IsAlive ||
+                distance > LockOn.Range * LockOn.ReleaseSlack)
+            {
+                LockedTarget = null;
+                _lockVisits = 0;
+                return;
+            }
+
+            // Out of sight is forgiven briefly -- somebody ducking behind a
+            // corner mid-fight should not cost the lock, but standing behind a
+            // building should.
+            Vector3 eye = Target.position + Vector3.up * 1.2f;
+            Vector3 toTarget = LockedTarget.position + Vector3.up * 0.8f - eye;
+            bool blocked = Physics.Raycast(eye, toTarget.normalized, out RaycastHit hit,
+                                toTarget.magnitude, CollisionLayers,
+                                QueryTriggerInteraction.Ignore)
+                           && !hit.transform.IsChildOf(LockedTarget)
+                           && hit.transform != LockedTarget;
+
+            _sightLost = blocked ? _sightLost + Time.deltaTime : 0.0f;
+            if (_sightLost > LockOn.SightGraceSeconds)
+            {
+                LockedTarget = null;
+                _lockVisits = 0;
+                return;
+            }
+
+            LockOn.Bearing(Target.position, LockedTarget.position,
+                out float wantedYaw, out float wantedPitch);
+
+            float step = LockOn.CameraLerpSpeed * Time.deltaTime;
+            _yaw = Mathf.LerpAngle(_yaw, wantedYaw, step);
+            _pitch = Mathf.Lerp(_pitch, wantedPitch, step);
         }
     }
 }
