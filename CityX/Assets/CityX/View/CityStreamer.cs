@@ -305,7 +305,30 @@ namespace CityX.View
             AddCrackedGlass(go, key);
             AddMarkings(go, key);
             AddDoor(go, key);
+            AddInteriorVolume(go, key);
             return go;
+        }
+
+        /// <summary>
+        /// The "you are inside this building" trigger, which is what makes the
+        /// street go quiet as you step through the door.
+        ///
+        /// ON THE ANCHOR ONLY, like the door and the geometry: a building that
+        /// spans four chunks is one building and wants one volume, not four
+        /// overlapping ones counting the same body in four times over.
+        /// </summary>
+        private void AddInteriorVolume(GameObject chunk, Vector2Int key)
+        {
+            BuildingSite site = _world.BuildingAt(key.x, key.y);
+            if (!site.Exists || site.AnchorX != key.x || site.AnchorY != key.y)
+            {
+                return;
+            }
+
+            var go = new GameObject("Interior");
+            go.transform.SetParent(chunk.transform, true);
+            var volume = go.AddComponent<BuildingInteriorVolume>();
+            volume.Fit(BuildingInteriorVolume.BoundsFor(site));
         }
 
         /// <summary>

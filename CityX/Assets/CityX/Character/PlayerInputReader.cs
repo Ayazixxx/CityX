@@ -26,6 +26,7 @@ namespace CityX.Character
         private PlayerVitals _vitals;
         private MeleeAttacker _melee;
         private Ragdoll _ragdoll;
+        private PlayerAudio _audio;
 
         private void Awake()
         {
@@ -36,6 +37,7 @@ namespace CityX.Character
             _vitals = GetComponent<PlayerVitals>();
             _melee = GetComponent<MeleeAttacker>();
             _ragdoll = GetComponent<Ragdoll>();
+            _audio = GetComponent<PlayerAudio>();
         }
 
         private void Update()
@@ -61,6 +63,10 @@ namespace CityX.Character
                 // Physics owns the body now. Ticking locomotion here would call
                 // Move on a CharacterController the ragdoll has just disabled,
                 // which does nothing useful and complains about it every frame.
+                // The footsteps have to be stopped by hand on every one of
+                // these early returns: they are loops, so they do not run out
+                // on their own, and a corpse walking on the spot is audible.
+                _audio?.SilenceFootsteps();
                 return;
             }
 
@@ -69,6 +75,7 @@ namespace CityX.Character
                 // A corpse with no ragdoll still falls, so keep ticking the
                 // body with no input rather than stopping it dead in the air.
                 _locomotion.Tick(default, deltaTime);
+                _audio?.SilenceFootsteps();
                 return;
             }
 
@@ -78,6 +85,7 @@ namespace CityX.Character
             if (_vitals != null && _vitals.IsStunned)
             {
                 _locomotion.Tick(default, deltaTime);
+                _audio?.SilenceFootsteps();
                 return;
             }
 
@@ -130,8 +138,20 @@ namespace CityX.Character
             // short and let a lethal drop land as a survivable one.
             if (_vitals != null)
             {
-                _vitals.TickFallDamage(_locomotion.IsGrounded, transform.position.y);
+                float fallDamage =
+                    _vitals.TickFallDamage(_locomotion.IsGrounded, transform.position.y);
+                if (fallDamage > 0.0f)
+                {
+                    // Only a landing that actually HURT. A drop inside the safe
+                    // distance deals nothing and makes no noise, which is what
+                    // keeps the sound meaning something rather than firing on
+                    // every hop off a kerb.
+                    _audio?.PlayFallImpact();
+                }
             }
+
+            _audio?.UpdateFootsteps(
+                _locomotion.CurrentSpeed > 0.01f, _locomotion.IsGrounded, _locomotion.IsSprinting);
         }
     }
 }

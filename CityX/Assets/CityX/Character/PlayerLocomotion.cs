@@ -96,6 +96,15 @@ namespace CityX.Character
 
         public bool IsGrounded => _controller != null && _controller.isGrounded;
 
+        /// <summary>
+        /// Whether the last step was actually a sprint -- which is narrower
+        /// than "the sprint key is down", because sprinting only applies going
+        /// forward. Exposed so the footstep audio can pick the run loop by the
+        /// same rule the animator picks the run clip, rather than by a second
+        /// copy of the rule that can drift out of step with it.
+        /// </summary>
+        public bool IsSprinting { get; private set; }
+
         private void Awake()
         {
             _controller = GetComponent<CharacterController>();
@@ -179,6 +188,7 @@ namespace CityX.Character
             // reason it ties the clip to it.
             bool forward = input.Move.y > 0.0f && input.Move.y >= Mathf.Abs(input.Move.x);
             bool sprinting = input.Sprint && moving && forward;
+            IsSprinting = sprinting;
             float speed = sprinting ? SprintSpeed : WalkSpeed;
             Vector3 horizontal = direction * speed;
             CurrentSpeed = horizontal.magnitude;

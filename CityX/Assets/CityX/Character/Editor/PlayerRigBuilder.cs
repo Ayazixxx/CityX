@@ -79,21 +79,61 @@ namespace CityX.CharacterEditor
         /// </summary>
         private static AudioClip[] LoadImpactSounds()
         {
-            var clips = new List<AudioClip>();
-            for (int i = 1; i <= 3; i++)
+            AudioClip[] clips = LoadNumbered("punch_impact", 3);
+            if (clips.Length == 0)
             {
-                var clip = AssetDatabase.LoadAssetAtPath<AudioClip>(
-                    $"Assets/CityX/Character/Audio/punch_impact_{i}.mp3");
+                Debug.LogWarning("CityX: no punch impact clips -- landing a hit will be silent.");
+            }
+            return clips;
+        }
+
+        /// <summary>
+        /// A numbered bank of clips. Missing ones are dropped rather than left
+        /// as null slots, so a random pick can never land on nothing.
+        /// </summary>
+        private static AudioClip[] LoadNumbered(string stem, int count)
+        {
+            var clips = new List<AudioClip>();
+            for (int i = 1; i <= count; i++)
+            {
+                AudioClip clip = LoadClip($"{stem}_{i}");
                 if (clip != null)
                 {
                     clips.Add(clip);
                 }
             }
-            if (clips.Count == 0)
-            {
-                Debug.LogWarning("CityX: no punch impact clips -- landing a hit will be silent.");
-            }
             return clips.ToArray();
+        }
+
+        private static AudioClip LoadClip(string name)
+        {
+            return AssetDatabase.LoadAssetAtPath<AudioClip>(
+                $"Assets/CityX/Character/Audio/{name}.mp3");
+        }
+
+        /// <summary>
+        /// The noises the player makes, carried across from the pile of
+        /// AudioStreamPlayers player.tscn hangs off its own root.
+        ///
+        /// The clips are attached HERE rather than in the scene builder because
+        /// they belong to the player prefab, and a prefab that only makes noise
+        /// in one particular scene is a trap for whoever drops it into the next
+        /// one. Same reason the punch impacts already live here.
+        /// </summary>
+        private static void AddAudio(GameObject root)
+        {
+            var audio = root.AddComponent<CityX.Character.PlayerAudio>();
+            audio.WalkLoop = LoadClip("walk_sound");
+            audio.RunLoop = LoadClip("run_sound");
+            audio.FallImpact = LoadClip("fall_impact");
+            audio.DashSounds = LoadNumbered("dash", 3);
+            audio.CityAmbience = AssetDatabase.LoadAssetAtPath<AudioClip>(
+                "Assets/CityX/View/Audio/city_ambience.mp3");
+
+            if (audio.WalkLoop == null || audio.RunLoop == null)
+            {
+                Debug.LogWarning("CityX: footstep clips missing -- walking will be silent.");
+            }
         }
 
         private static AnimatorController BuildController(
@@ -265,6 +305,7 @@ namespace CityX.CharacterEditor
                 // silent null at runtime.
                 melee.ImpactSounds = LoadImpactSounds();
                 melee.BloodPrefab = BloodSplatterBuilder.Build();
+                AddAudio(root);
                 root.AddComponent<PlayerAnimationDriver>();
                 // Makes the body be whoever was chosen in the menu, and does
                 // nothing at all when the world is opened directly -- which is
