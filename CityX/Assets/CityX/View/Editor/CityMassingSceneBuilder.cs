@@ -142,6 +142,15 @@ namespace CityX.ViewEditor
 
                 CityX.UIEditor.PlayerHudBuilder.AddToScene(player.GetComponent<PlayerVitals>());
 
+                // Rain hangs off the PLAYER, not the camera -- see RainEffect
+                // for why. It starts off; /weather turns it on.
+                var rainObject = new GameObject("Rain");
+                rainObject.transform.SetParent(player.transform, false);
+                RainEffect rain = rainObject.AddComponent<RainEffect>();
+                rain.RainSound = AssetDatabase.LoadAssetAtPath<AudioClip>(
+                    "Assets/CityX/UI/Audio/rain_noises.mp3");
+                rain.DropMaterial = EnsureRainMaterial();
+
                 // NO AMBIENT CROWD. There was one -- a pooled dozen recycled
                 // around the viewer as they walked -- and it went at the user's
                 // request, matching the Godot build, which retired its own
@@ -188,6 +197,16 @@ namespace CityX.ViewEditor
             RenderSettings.fogMode = FogMode.Linear;
             RenderSettings.fogStartDistance = 140.0f;
             RenderSettings.fogEndDistance = 330.0f;
+
+            // --- the dev console. Backtick opens it. Wired here rather than
+            // --- shipped as a prefab because half of what it drives only
+            // --- exists in a scene, and a prefab of empty slots is the exact
+            // --- class of mistake the capture rig has already been caught by.
+            CityX.UIEditor.DevConsoleBuilder.AddToScene(
+                Object.FindFirstObjectByType<PlayerVitals>(),
+                Object.FindFirstObjectByType<RainEffect>(),
+                cycle,
+                cameraObject.GetComponent<FlyCamera>());
 
             GameObject streamerObject = new GameObject("CityStreamer");
             CityStreamer streamer = streamerObject.AddComponent<CityStreamer>();
@@ -360,6 +379,48 @@ namespace CityX.ViewEditor
 
             EditorUtility.SetDirty(profile);
             return profile;
+        }
+
+        /// <summary>
+        /// A raindrop: unlit, transparent, no shadows either way.
+        ///
+        /// UNLIT ON PURPOSE, which is Godot's own choice. A lit raindrop would
+        /// take its brightness from whichever way its quad happened to be
+        /// facing, so a curtain of rain would flicker as the camera turned. It
+        /// is a pale streak; it should be that pale streak from everywhere.
+        /// </summary>
+        private static Material EnsureRainMaterial()
+        {
+            string path = $"{MaterialDirectory}/Raindrop.mat";
+            Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material == null)
+            {
+                Shader shader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
+                if (shader == null)
+                {
+                    shader = Shader.Find("Universal Render Pipeline/Unlit");
+                }
+                if (shader == null)
+                {
+                    Debug.LogError("CityX: no URP unlit shader -- rain will render magenta.");
+                    return null;
+                }
+                material = new Material(shader);
+                AssetDatabase.CreateAsset(material, path);
+            }
+
+            material.SetFloat("_Surface", 1.0f);              // transparent
+            material.SetFloat("_Blend", 0.0f);                // alpha
+            material.SetFloat("_ZWrite", 0.0f);
+            material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            material.SetOverrideTag("RenderType", "Transparent");
+            material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            material.SetColor("_BaseColor", RainEffect.DropColour);
+            material.color = RainEffect.DropColour;
+            EditorUtility.SetDirty(material);
+            return material;
         }
 
         /// <summary>A plain lit colour, for a prop with no texture of its own.</summary>

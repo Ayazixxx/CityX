@@ -142,6 +142,16 @@ namespace CityX.Character
         /// </summary>
         public const float BlockWindowSeconds = 0.7f;
 
+        /// <summary>
+        /// Development cheats, ported from Godot's /infinitehealth and
+        /// /infinitesprint. Plain fields rather than anything cleverer: they
+        /// exist to let somebody stand in front of a thing and study it without
+        /// the game killing them, and nothing else should ever read them.
+        /// </summary>
+        public bool InfiniteHealth;
+
+        public bool InfiniteStamina;
+
         public float BlockRemaining { get; private set; }
 
         public bool IsBlocking => BlockRemaining > 0.0f;
@@ -229,6 +239,13 @@ namespace CityX.Character
         {
             bool sprinting = wantsToSprint && !_exhausted && _stamina > 0.0f;
 
+            if (InfiniteStamina)
+            {
+                _stamina = MaxStamina;
+                _exhausted = false;
+                return wantsToSprint;
+            }
+
             if (sprinting)
             {
                 _stamina = Mathf.Max(0.0f, _stamina - StaminaDrainPerSecond * deltaTime);
@@ -272,7 +289,7 @@ namespace CityX.Character
         /// </summary>
         public void TakeDamage(float amount, bool blocking = false)
         {
-            if (IsDead || amount <= 0.0f)
+            if (IsDead || amount <= 0.0f || InfiniteHealth)
             {
                 return;
             }

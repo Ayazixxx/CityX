@@ -4,6 +4,8 @@
     "references":  [
                        "CityX.Core",
                        "CityX.Character",
+                       "CityX.View",
+                       "CityX.World",
                        "UnityEngine.UI",
                        "Unity.InputSystem"
                    ],

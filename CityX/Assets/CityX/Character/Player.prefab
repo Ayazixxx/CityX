@@ -1746,6 +1746,8 @@ MonoBehaviour:
   Strength: 0
   _health: 100
   _stamina: 130
+  InfiniteHealth: 0
+  InfiniteStamina: 0
 --- !u!114 &4004694634336102832
 MonoBehaviour:
   m_ObjectHideFlags: 0
