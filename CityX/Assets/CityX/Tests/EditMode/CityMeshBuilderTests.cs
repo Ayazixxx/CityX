@@ -669,6 +669,87 @@ namespace CityX.Tests
         }
 
         /// <summary>
+        /// LANE PAINT GOES ON ROADS AND STAYS ON THEM.
+        ///
+        /// Two failures worth catching. Paint on a lot is paint on somebody's
+        /// floor. And paint that reaches past the road onto the pavement is the
+        /// giveaway that a crossing was sized against the chunk rather than
+        /// against the street it crosses -- which is the bug Godot's own
+        /// _add_crosswalks comment records fixing, where every band's outermost
+        /// stripe overlapped the perpendicular band's.
+        /// </summary>
+        [Test]
+        public void LanePaintOnlyEverLandsOnRoad()
+        {
+            CityWorld world = new CityWorld(Seed);
+            SkybridgeLayout bridges = new SkybridgeLayout(Seed);
+            int junctions = 0;
+            int runs = 0;
+
+            for (int x = -6; x <= 6; x++)
+            {
+                for (int y = -6; y <= 6; y++)
+                {
+                    var markings = new MeshBuffer();
+                    CityMeshBuilder.BuildChunk(world, bridges, x, y, Vector3.zero,
+                        new MeshBuffer(), new MeshBuffer(), new MeshBuffer(),
+                        null, null, null, null, null, null, markings);
+
+                    if (!CityLayout.IsStreetChunk(x, y))
+                    {
+                        Assert.IsTrue(markings.IsEmpty, $"({x},{y}) is a lot with lane paint on it");
+                        continue;
+                    }
+
+                    Assert.IsFalse(markings.IsEmpty, $"({x},{y}) is a street with no markings");
+
+                    bool junction = CityLayout.IsStreetChunk(x - 1, y) && CityLayout.IsStreetChunk(x + 1, y) &&
+                                    CityLayout.IsStreetChunk(x, y - 1) && CityLayout.IsStreetChunk(x, y + 1);
+                    if (junction)
+                    {
+                        junctions++;
+                    }
+                    else
+                    {
+                        runs++;
+                    }
+
+                    float chunk = CityLayout.ChunkSize;
+                    float minX = x * chunk;
+                    float minZ = y * chunk;
+                    float pad = world.Terrain.PadHeightFor(x, y);
+
+                    foreach (Vector3 v in markings.Vertices)
+                    {
+                        Assert.AreEqual(pad + CityMeshBuilder.MarkingLift, v.y, 0.001f,
+                            "paint is not lying on the road");
+                        Assert.GreaterOrEqual(v.x, minX - 0.001f);
+                        Assert.LessOrEqual(v.x, minX + chunk + 0.001f);
+                        Assert.GreaterOrEqual(v.z, minZ - 0.001f);
+                        Assert.LessOrEqual(v.z, minZ + chunk + 0.001f);
+
+                        // The crossings are sized against the street they cross,
+                        // so nothing may reach out onto a pavement.
+                        if (!junction)
+                        {
+                            continue;
+                        }
+                        bool acrossX = v.x > minX + CityMeshBuilder.SidewalkWidth - 0.001f &&
+                                       v.x < minX + chunk - CityMeshBuilder.SidewalkWidth + 0.001f;
+                        bool acrossZ = v.z > minZ + CityMeshBuilder.SidewalkWidth - 0.001f &&
+                                       v.z < minZ + chunk - CityMeshBuilder.SidewalkWidth + 0.001f;
+                        Assert.IsTrue(acrossX || acrossZ,
+                            $"({x},{y}) has a crossing stripe at {v} out in the corner");
+                    }
+                }
+            }
+
+            TestContext.WriteLine($"{runs} straight runs, {junctions} junctions");
+            Assert.Greater(junctions, 3, "not enough junctions sampled");
+            Assert.Greater(runs, 20, "not enough straight street sampled");
+        }
+
+        /// <summary>
         /// ONLY SPECIAL BUILDINGS GET A SIGN, and they all get one.
         ///
         /// The generator has rolled supermarkets, banks, police stations and

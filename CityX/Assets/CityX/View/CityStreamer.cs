@@ -40,6 +40,13 @@ namespace CityX.View
         [Tooltip("A window somebody has already put a fist through. Drawn, never collided with.")]
         public Material CrackedGlassMaterial;
 
+        [Header("Lane paint")]
+        [Tooltip("The double yellow down a straight street.")]
+        public Material RoadLineMaterial;
+
+        [Tooltip("The white zebra bars at a junction.")]
+        public Material CrosswalkMaterial;
+
         [Header("Signage (city_chunk.gd's own preset colours)")]
         public Material SupermarketSignMaterial;
 
@@ -64,6 +71,7 @@ namespace CityX.View
         private readonly List<CityMeshBuilder.CrackedOpening> _crackedOpenings =
             new List<CityMeshBuilder.CrackedOpening>();
         private readonly MeshBuffer _sign = new MeshBuffer();
+        private readonly MeshBuffer _markings = new MeshBuffer();
         private readonly List<Vector2Int> _wanted = new List<Vector2Int>();
         private readonly List<Vector2Int> _stale = new List<Vector2Int>();
 
@@ -215,6 +223,7 @@ namespace CityX.View
             _crackedGlass.Clear();
             _crackedOpenings.Clear();
             _sign.Clear();
+            _markings.Clear();
 
             // Chunks are built relative to their own corner and then placed, so
             // vertex coordinates stay small. Building in absolute world space
@@ -225,7 +234,7 @@ namespace CityX.View
 
             CityMeshBuilder.BuildChunk(_world, _bridges, key.x, key.y, origin,
                 _ground, _pavement, _structures, _litGlass, _darkGlass, _crackedGlass, Damage,
-                _crackedOpenings, _sign);
+                _crackedOpenings, _sign, _markings);
 
             GameObject go = new GameObject($"Chunk {key.x},{key.y}");
             go.transform.SetParent(transform, false);
@@ -291,7 +300,52 @@ namespace CityX.View
 
             AddCrackedGlass(go, key);
             AddSign(go, key);
+            AddMarkings(go, key);
             return go;
+        }
+
+        /// <summary>
+        /// Lane paint, on its own object.
+        ///
+        /// NOT IN THE CHUNK MESH, for the same reason the signs are not: it is
+        /// unlit flat colour where everything else in that mesh is lit
+        /// concrete. It also has no business in the collider -- paint is not
+        /// something you can stand on top of, it is part of the road that
+        /// already holds you up.
+        ///
+        /// A chunk gets yellow OR white, never both: a junction has crossings
+        /// and no centre line, a straight run has a centre line and no
+        /// crossings. One buffer carries either.
+        /// </summary>
+        private void AddMarkings(GameObject chunk, Vector2Int key)
+        {
+            if (_markings.IsEmpty)
+            {
+                return;
+            }
+
+            bool junction = CityLayout.IsStreetChunk(key.x - 1, key.y) &&
+                            CityLayout.IsStreetChunk(key.x + 1, key.y) &&
+                            CityLayout.IsStreetChunk(key.x, key.y - 1) &&
+                            CityLayout.IsStreetChunk(key.x, key.y + 1);
+            Material material = junction ? CrosswalkMaterial : RoadLineMaterial;
+            if (material == null)
+            {
+                return;
+            }
+
+            var go = new GameObject("Markings");
+            go.transform.SetParent(chunk.transform, false);
+
+            var mesh = new Mesh { name = $"markings-{key.x}-{key.y}" };
+            mesh.SetVertices(_markings.Vertices);
+            mesh.SetNormals(_markings.Normals);
+            mesh.SetUVs(0, _markings.Uvs);
+            mesh.SetTriangles(_markings.Triangles, 0);
+            mesh.RecalculateBounds();
+
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            go.AddComponent<MeshRenderer>().sharedMaterial = material;
         }
 
         /// <summary>

@@ -693,6 +693,8 @@ namespace CityX.ViewEditor
             streamer.DarkGlassMaterial = Material_("CityGlassDark");
             streamer.LitGlassMaterial = Material_("CityGlassLit");
             streamer.CrackedGlassMaterial = Material_("CityGlassCracked");
+            streamer.RoadLineMaterial = Material_("RoadLine");
+            streamer.CrosswalkMaterial = Material_("Crosswalk");
             streamer.SupermarketSignMaterial = Material_("SignSupermarket");
             streamer.BankSignMaterial = Material_("SignBank");
             streamer.PoliceSignMaterial = Material_("SignPolice");

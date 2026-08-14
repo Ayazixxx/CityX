@@ -66,9 +66,11 @@ namespace CityX.View
             Vector3 origin, MeshBuffer ground, MeshBuffer flatConcrete, MeshBuffer structures,
             MeshBuffer litGlass = null, MeshBuffer darkGlass = null,
             MeshBuffer crackedGlass = null, GlassDamage damage = null,
-            List<CrackedOpening> crackedOpenings = null, MeshBuffer sign = null)
+            List<CrackedOpening> crackedOpenings = null, MeshBuffer sign = null,
+            MeshBuffer markings = null)
         {
             BuildGround(world, chunkX, chunkY, origin, ground, flatConcrete);
+            AddRoadMarkings(world, chunkX, chunkY, origin, markings);
 
             BuildingSite site = world.BuildingAt(chunkX, chunkY);
             if (!site.Exists || site.AnchorX != chunkX || site.AnchorY != chunkY)
@@ -179,6 +181,132 @@ namespace CityX.View
             {
                 pavement.AddBox(new Vector3(x0, y, z1 - SidewalkWidth), new Vector3(x1, top, z1));
             }
+        }
+
+        // --- road markings, ported from city_chunk.gd's own constants ---
+
+        public const float LineWidth = 0.15f;
+        public const float DoubleLineGap = 0.12f;
+        public const float CrosswalkDepth = 4.0f;
+        public const float CrosswalkStripeWidth = 1.0f;
+        public const float CrosswalkStripeGap = 1.0f;
+
+        /// <summary>
+        /// How far paint sits above the road it is painted on. Enough to beat
+        /// depth precision at the far edge of a streamed world, small enough
+        /// that nothing catches on it -- and it never needs collision, because
+        /// the road under it already has some.
+        /// </summary>
+        public const float MarkingLift = 0.012f;
+
+        /// <summary>
+        /// Lane paint: a double yellow line down a straight street, zebra
+        /// crossings at a junction.
+        ///
+        /// WHICH ONE A CHUNK GETS FALLS OUT OF THE GRID rather than being
+        /// stored. A street chunk with street on all four sides is a junction
+        /// and gets crossings; anything else is a straight run and gets a
+        /// centre line down whichever axis made it a street in the first place.
+        /// The same derivation the pavement already uses.
+        ///
+        /// NO CHUNK EVER GETS BOTH, which is what lets one buffer carry either
+        /// -- a junction has no centre line to draw through the middle of its
+        /// own crossings.
+        /// </summary>
+        private static void AddRoadMarkings(CityWorld world, int chunkX, int chunkY,
+            Vector3 origin, MeshBuffer markings)
+        {
+            if (markings == null || !CityLayout.IsStreetChunk(chunkX, chunkY))
+            {
+                return;
+            }
+
+            float size = CityLayout.ChunkSize;
+            float half = size * 0.5f;
+            float centreX = (float)(CityLayout.ChunkCentreX(chunkX) - origin.x);
+            float centreZ = (float)(CityLayout.ChunkCentreZ(chunkY) - origin.z);
+            float y = world.Terrain.PadHeightFor(chunkX, chunkY) - origin.y + MarkingLift;
+
+            bool junction = CityLayout.IsStreetChunk(chunkX - 1, chunkY) &&
+                            CityLayout.IsStreetChunk(chunkX + 1, chunkY) &&
+                            CityLayout.IsStreetChunk(chunkX, chunkY - 1) &&
+                            CityLayout.IsStreetChunk(chunkX, chunkY + 1);
+
+            // The width of the road being crossed -- the chunk less the
+            // pavement on either side of a straight run, which is what the
+            // crossings have to line up with even though a junction itself is
+            // paved corner to corner here.
+            float crossing = size - SidewalkWidth * 2.0f;
+
+            if (junction)
+            {
+                float band = half - CrosswalkDepth * 0.5f;
+                AddCrosswalkBand(markings, centreX, centreZ - band, y, crossing, false);
+                AddCrosswalkBand(markings, centreX, centreZ + band, y, crossing, false);
+                AddCrosswalkBand(markings, centreX - band, centreZ, y, crossing, true);
+                AddCrosswalkBand(markings, centreX + band, centreZ, y, crossing, true);
+                return;
+            }
+
+            // Exactly one axis is this street's own direction of travel; the
+            // other is what picked it out as a street at all.
+            bool runsAlongX = CityLayout.PositiveMod(chunkY, CityLayout.StreetPeriod) == 0;
+            float offset = (LineWidth + DoubleLineGap) * 0.5f;
+
+            for (int side = -1; side <= 1; side += 2)
+            {
+                if (runsAlongX)
+                {
+                    AddMarking(markings, centreX, centreZ + side * offset, y, size, LineWidth);
+                }
+                else
+                {
+                    AddMarking(markings, centreX + side * offset, centreZ, y, LineWidth, size);
+                }
+            }
+        }
+
+        /// <summary>
+        /// One crossing's bars.
+        ///
+        /// THE BARS RUN WITH THE TRAFFIC, not with the pedestrian. That is what
+        /// a real zebra crossing looks like and it is easy to get backwards:
+        /// the crossing on the north side is for walking north-south, so its
+        /// bars lie along Z and repeat across X.
+        /// </summary>
+        private static void AddCrosswalkBand(MeshBuffer markings, float centreX, float centreZ,
+            float y, float crossingWidth, bool barsAlongX)
+        {
+            float pitch = CrosswalkStripeWidth + CrosswalkStripeGap;
+            int count = Mathf.FloorToInt(crossingWidth / pitch);
+            float start = -crossingWidth * 0.5f + pitch * 0.5f;
+
+            for (int i = 0; i < count; i++)
+            {
+                float along = start + i * pitch;
+                if (barsAlongX)
+                {
+                    AddMarking(markings, centreX, centreZ + along, y,
+                        CrosswalkDepth, CrosswalkStripeWidth);
+                }
+                else
+                {
+                    AddMarking(markings, centreX + along, centreZ, y,
+                        CrosswalkStripeWidth, CrosswalkDepth);
+                }
+            }
+        }
+
+        private static void AddMarking(MeshBuffer markings, float centreX, float centreZ,
+            float y, float sizeX, float sizeZ)
+        {
+            float halfX = sizeX * 0.5f;
+            float halfZ = sizeZ * 0.5f;
+            AddFace(markings, Vector3.up,
+                new Vector3(centreX - halfX, y, centreZ - halfZ),
+                new Vector3(centreX + halfX, y, centreZ - halfZ),
+                new Vector3(centreX + halfX, y, centreZ + halfZ),
+                new Vector3(centreX - halfX, y, centreZ + halfZ));
         }
 
         private static void AddSkirtIfLower(CityWorld world, int neighbourX, int neighbourY, float pad,

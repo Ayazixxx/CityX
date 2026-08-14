@@ -53,6 +53,10 @@ namespace CityX.ViewEditor
             Material crackedGlass = EnsureGlassMaterial("CityGlassCracked", false, cracked: true);
             GameObject shards = GlassShardsBuilder.Build();
 
+            // city_chunk.gd's own LINE_COLOR_YELLOW / LINE_COLOR_WHITE.
+            Material roadLine = EnsureSignMaterial("RoadLine", new Color(0.95f, 0.75f, 0.10f));
+            Material crosswalk = EnsureSignMaterial("Crosswalk", new Color(0.92f, 0.92f, 0.90f));
+
             // city_chunk.gd's own SPECIAL_BUILDING_PRESETS sign_color values.
             Material supermarketSign = EnsureSignMaterial("SignSupermarket",
                 new Color(0.95f, 0.82f, 0.15f));    // bright yellow band
@@ -174,6 +178,8 @@ namespace CityX.ViewEditor
             streamer.DarkGlassMaterial = darkGlass;
             streamer.LitGlassMaterial = litGlass;
             streamer.CrackedGlassMaterial = crackedGlass;
+            streamer.RoadLineMaterial = roadLine;
+            streamer.CrosswalkMaterial = crosswalk;
             streamer.SupermarketSignMaterial = supermarketSign;
             streamer.BankSignMaterial = bankSign;
             streamer.PoliceSignMaterial = policeSign;
