@@ -5,6 +5,8 @@ using CityX.World;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 using UnityEngine.SceneManagement;
 
 namespace CityX.ViewEditor
@@ -65,17 +67,27 @@ namespace CityX.ViewEditor
             Material crosswalk = EnsureFlatMaterial("Crosswalk", new Color(0.92f, 0.92f, 0.90f));
 
 
+            Material skyDome = EnsureSkyMaterial();
+            VolumeProfile grade = EnsureGradeProfile();
+
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
             // An empty scene has no environment lighting, so every surface
             // facing away from the sun goes almost black -- and in a city of
             // narrow canyons that is most surfaces. DayNightCycle overwrites
-            // these every frame; they are set here so the scene still looks
-            // right when opened without pressing play.
-            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor = SkyCycle.AmbientSkyDay;
-            RenderSettings.ambientEquatorColor = SkyCycle.AmbientEquatorDay;
-            RenderSettings.ambientGroundColor = SkyCycle.AmbientGroundDay;
+            // this every frame; it is set here so the scene still looks right
+            // when opened without pressing play.
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+            RenderSettings.ambientLight = SkyCycle.At(SkyCycle.StartSeconds).AmbientColour;
+
+            // THE SKY IS ALSO WHAT THE CITY REFLECTS. Godot's environment sets
+            // reflected_light_source to the sky, and until this scene had a sky
+            // at all there was nothing for a window to reflect -- which is a
+            // large part of why glass at 0.86 smoothness still read as flat
+            // dark paint rather than as glass.
+            RenderSettings.skybox = skyDome;
+            RenderSettings.defaultReflectionMode =
+                UnityEngine.Rendering.DefaultReflectionMode.Skybox;
 
             // --- light. A sun and a moon on one arc, driven by DayNightCycle.
             // --- Their angle, colour, intensity and which of them casts a
@@ -99,6 +111,7 @@ namespace CityX.ViewEditor
             camera.farClipPlane = 2000.0f;
             camera.nearClipPlane = 0.15f;
             camera.backgroundColor = new Color(0.55f, 0.60f, 0.66f);
+            camera.allowHDR = true;
             cameraObject.AddComponent<FlyCamera>();
             cameraObject.AddComponent<AudioListener>();
 
@@ -151,12 +164,22 @@ namespace CityX.ViewEditor
             cycle.Sun = sun;
             cycle.Moon = moon;
             cycle.Sky = camera;
+            cycle.SkyDome = skyDome;
             cycle.Facades = structure;
             cycle.LitWindows = litGlass;
             cycle.TimeOfDay = SkyCycle.StartSeconds;
             cycle.Apply(SkyCycle.At(SkyCycle.StartSeconds));
 
-            camera.clearFlags = CameraClearFlags.SolidColor;
+            camera.clearFlags = CameraClearFlags.Skybox;
+
+            // --- the grade. A global volume, which is how a URP scene gets one
+            // --- at all: without it the pipeline does no tonemapping and every
+            // --- highlight clips flat to white. See EnsureGradeProfile.
+            var gradeObject = new GameObject("PostProcessing");
+            var volume = gradeObject.AddComponent<Volume>();
+            volume.isGlobal = true;
+            volume.priority = 0.0f;
+            volume.sharedProfile = grade;
 
             // Distance fog, at a range that hides the streamed edge without
             // swallowing the skyline. RadiusChunks below is 14, which at 24m a
@@ -254,6 +277,91 @@ namespace CityX.ViewEditor
         /// city_chunk.gd's own _flat_material(colour, true), and the reason
         /// road markings stay legible in a street that is in shadow all day.
         /// </summary>
+        /// <summary>
+        /// The sky dome. Its colours are overwritten by DayNightCycle every
+        /// frame; what is set here is the geometry of the gradient -- the two
+        /// curves and the glow -- which does not change with the time of day.
+        /// </summary>
+        private static Material EnsureSkyMaterial()
+        {
+            string path = $"{MaterialDirectory}/CityXSky.mat";
+            Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material == null)
+            {
+                Shader shader = Shader.Find("CityX/ProceduralSky");
+                if (shader == null)
+                {
+                    Debug.LogError("CityX: CityXProceduralSky.shader missing -- the sky will " +
+                                   "fall back to a flat clear colour.");
+                    return null;
+                }
+                material = new Material(shader);
+                AssetDatabase.CreateAsset(material, path);
+            }
+
+            material.SetFloat("_SkyCurve", SkyCycle.SkyGradientCurve);
+            material.SetFloat("_GroundCurve", SkyCycle.GroundGradientCurve);
+            material.SetFloat("_SunAngularRadius", SkyCycle.SunAngularRadius);
+            material.SetFloat("_MoonAngularRadius", SkyCycle.MoonAngularRadius);
+            material.SetFloat("_SunAngleMax", SkyCycle.GlowRadiusDegrees);
+            material.SetFloat("_SunCurve", SkyCycle.GlowCurve);
+            EditorUtility.SetDirty(material);
+            return material;
+        }
+
+        /// <summary>
+        /// The grade: a tonemap and a small contrast/saturation lift, matching
+        /// city.tscn's own Environment.
+        ///
+        /// THE TONEMAP IS THE POINT. Without one the renderer's HDR output is
+        /// simply clamped, so every sunlit concrete face lands on flat white
+        /// with no roll-off and no highlight detail -- which is most of what
+        /// "the graphics looked worse" actually was, and why the sun had to be
+        /// held down to 1.15 to be bearable at all.
+        ///
+        /// ONE HONEST DIVERGENCE: Godot uses AgX (tonemap_mode 4). URP offers
+        /// None, Neutral and ACES, and has no AgX. NEUTRAL is the closer of the
+        /// two, because both it and AgX preserve hue as they compress; ACES
+        /// applies a strong S-curve and visibly shifts blues toward purple and
+        /// oranges toward yellow, which would pull the sunset and the sky dome
+        /// away from the values Godot tuned. Swap the mode below if a punchier
+        /// image is wanted over a faithful one.
+        /// </summary>
+        private static VolumeProfile EnsureGradeProfile()
+        {
+            string path = $"{MaterialDirectory}/CityGrade.asset";
+            var profile = AssetDatabase.LoadAssetAtPath<VolumeProfile>(path);
+            if (profile == null)
+            {
+                profile = ScriptableObject.CreateInstance<VolumeProfile>();
+                AssetDatabase.CreateAsset(profile, path);
+            }
+
+            if (!profile.TryGet(out Tonemapping tonemapping))
+            {
+                tonemapping = profile.Add<Tonemapping>();
+            }
+            tonemapping.active = true;
+            tonemapping.mode.overrideState = true;
+            tonemapping.mode.value = TonemappingMode.Neutral;
+
+            // city.tscn's adjustment_contrast / adjustment_saturation, both
+            // 1.08. Unity states these as a percentage offset from neutral
+            // rather than as a multiplier, so 1.08 is 8.
+            if (!profile.TryGet(out ColorAdjustments adjustments))
+            {
+                adjustments = profile.Add<ColorAdjustments>();
+            }
+            adjustments.active = true;
+            adjustments.contrast.overrideState = true;
+            adjustments.contrast.value = 8.0f;
+            adjustments.saturation.overrideState = true;
+            adjustments.saturation.value = 8.0f;
+
+            EditorUtility.SetDirty(profile);
+            return profile;
+        }
+
         /// <summary>A plain lit colour, for a prop with no texture of its own.</summary>
         private static Material EnsureLitMaterial(string name, Color colour)
         {

@@ -1,0 +1,170 @@
+// Godot's ProceduralSkyMaterial, ported.
+//
+// WHY A SHADER AND NOT UNITY'S OWN PROCEDURAL SKYBOX. Unity's is an
+// atmospheric-scattering model driven by a sun position; Godot's is a
+// two-colour gradient with an explicit curve, and city.tscn's own values
+// (sky_curve = 0.09, ground_curve = 0.02) are tuned against THAT curve.
+// Feeding them to a different model would produce a different sky, and the
+// sky is most of why the two builds look different at all.
+//
+// The maths below is Godot's sky_material.cpp shader, line for line: the
+// vertical angle, the two gradients either side of the horizon, and a disc
+// per directional light with a soft glow around it. Two lights, because the
+// sun and the moon each draw their own -- which is what day_night_cycle.gd
+// relies on for the moon to be visible at night.
+Shader "CityX/ProceduralSky"
+{
+    Properties
+    {
+        _SkyTopColour("Sky Top", Color) = (0.22, 0.42, 0.82, 1)
+        _SkyHorizonColour("Sky Horizon", Color) = (0.64, 0.76, 0.91, 1)
+        _SkyCurve("Sky Curve", Range(0.001, 1)) = 0.09
+        _SkyEnergy("Sky Energy", Float) = 1.0
+
+        _GroundBottomColour("Ground Bottom", Color) = (0.16, 0.16, 0.18, 1)
+        _GroundHorizonColour("Ground Horizon", Color) = (0.64, 0.76, 0.91, 1)
+        _GroundCurve("Ground Curve", Range(0.001, 1)) = 0.02
+        _GroundEnergy("Ground Energy", Float) = 0.6
+
+        // Directions point TOWARDS the body, which is -transform.forward for
+        // a Unity directional light.
+        _SunDirection("Sun Direction", Vector) = (0, 1, 0, 0)
+        _SunColour("Sun Colour", Color) = (1, 1, 1, 1)
+        _SunEnergy("Sun Energy", Float) = 1.0
+        _SunAngularRadius("Sun Angular Radius", Float) = 1.0
+
+        _MoonDirection("Moon Direction", Vector) = (0, -1, 0, 0)
+        _MoonColour("Moon Colour", Color) = (0.62, 0.72, 1.0, 1)
+        _MoonEnergy("Moon Energy", Float) = 0.0
+        _MoonAngularRadius("Moon Angular Radius", Float) = 1.5
+
+        _SunAngleMax("Glow Radius", Float) = 30.0
+        _SunCurve("Glow Curve", Range(0.001, 1)) = 0.08
+    }
+
+    SubShader
+    {
+        Tags
+        {
+            "Queue" = "Background"
+            "RenderType" = "Background"
+            "PreviewType" = "Skybox"
+            "RenderPipeline" = "UniversalPipeline"
+        }
+        Cull Off
+        ZWrite Off
+
+        Pass
+        {
+            HLSLPROGRAM
+            #pragma vertex Vertex
+            #pragma fragment Fragment
+
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+
+            #define CITYX_PI 3.14159265358979323846
+
+            float4 _SkyTopColour;
+            float4 _SkyHorizonColour;
+            float _SkyCurve;
+            float _SkyEnergy;
+
+            float4 _GroundBottomColour;
+            float4 _GroundHorizonColour;
+            float _GroundCurve;
+            float _GroundEnergy;
+
+            float4 _SunDirection;
+            float4 _SunColour;
+            float _SunEnergy;
+            float _SunAngularRadius;
+
+            float4 _MoonDirection;
+            float4 _MoonColour;
+            float _MoonEnergy;
+            float _MoonAngularRadius;
+
+            float _SunAngleMax;
+            float _SunCurve;
+
+            struct Attributes
+            {
+                float4 positionOS : POSITION;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
+            };
+
+            struct Varyings
+            {
+                float4 positionCS : SV_POSITION;
+                float3 direction : TEXCOORD0;
+                UNITY_VERTEX_OUTPUT_STEREO
+            };
+
+            Varyings Vertex(Attributes input)
+            {
+                Varyings output = (Varyings)0;
+                UNITY_SETUP_INSTANCE_ID(input);
+                UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
+                output.positionCS = TransformObjectToHClip(input.positionOS.xyz);
+                // A skybox mesh's own vertex position IS the view direction.
+                output.direction = input.positionOS.xyz;
+                return output;
+            }
+
+            /// One body's contribution: a solid disc out to its angular radius,
+            /// then a glow falling off to nothing at _SunAngleMax. The curve
+            /// exponent is what keeps that falloff tight against the disc
+            /// instead of washing a third of the sky.
+            float3 Body(float3 eye, float3 towards, float3 colour, float energy,
+                float angularRadius)
+            {
+                if (energy <= 0.0)
+                {
+                    return float3(0.0, 0.0, 0.0);
+                }
+
+                float angle = degrees(acos(clamp(dot(towards, eye), -1.0, 1.0)));
+                if (angle < angularRadius)
+                {
+                    return colour * energy;
+                }
+                if (angle < _SunAngleMax)
+                {
+                    float t = (angle - angularRadius) / max(_SunAngleMax - angularRadius, 1e-4);
+                    return colour * energy * (1.0 - pow(t, 1.0 / _SunCurve));
+                }
+                return float3(0.0, 0.0, 0.0);
+            }
+
+            half4 Fragment(Varyings input) : SV_Target
+            {
+                float3 eye = normalize(input.direction);
+
+                // Godot works in the angle down from straight up rather than in
+                // the y component directly, which is what makes the curve
+                // exponent behave the same near the horizon as near the zenith.
+                float verticalAngle = acos(clamp(eye.y, -1.0, 1.0));
+
+                float above = 1.0 - verticalAngle / (CITYX_PI * 0.5);
+                float skyBlend = saturate(1.0 - pow(max(1.0 - above, 0.0), 1.0 / _SkyCurve));
+                float3 sky = lerp(_SkyHorizonColour.rgb, _SkyTopColour.rgb, skyBlend) * _SkyEnergy;
+
+                sky += Body(eye, normalize(_SunDirection.xyz), _SunColour.rgb,
+                    _SunEnergy, _SunAngularRadius);
+                sky += Body(eye, normalize(_MoonDirection.xyz), _MoonColour.rgb,
+                    _MoonEnergy, _MoonAngularRadius);
+
+                float below = (verticalAngle - CITYX_PI * 0.5) / (CITYX_PI * 0.5);
+                float groundBlend = saturate(1.0 - pow(max(1.0 - below, 0.0), 1.0 / _GroundCurve));
+                float3 ground =
+                    lerp(_GroundHorizonColour.rgb, _GroundBottomColour.rgb, groundBlend) *
+                    _GroundEnergy;
+
+                return half4(eye.y >= 0.0 ? sky : ground, 1.0);
+            }
+            ENDHLSL
+        }
+    }
+
+    Fallback Off
+}

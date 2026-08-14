@@ -48,11 +48,19 @@ namespace CityX.View
         public static readonly Color MoonColour = new Color(0.62f, 0.72f, 1.0f);
 
         /// <summary>
-        /// The massing scene's own tuned value, kept exactly. It was 1.7 once,
-        /// and with no tonemapping in the pipeline anything much above 1 drives
-        /// every sunlit face to white and the concrete reads as painted render.
+        /// Godot's own SUN_ENERGY, restored.
+        ///
+        /// This sat at 1.15 for one stated reason: with no tonemapping in the
+        /// pipeline, anything much above 1 drove every sunlit face to flat
+        /// white and the concrete read as painted render. That reason is gone
+        /// -- the pipeline tonemaps now -- and the cap was costing the thing it
+        /// was protecting. A key light barely above its own fill cannot make
+        /// contrast, and a city with no contrast is the flat look this pass is
+        /// about. Values above 1 are meaningful again: the renderer works in
+        /// HDR and the curve brings the highlights back down with a roll-off
+        /// instead of clipping them.
         /// </summary>
-        public const float SunIntensityNoon = 1.15f;
+        public const float SunIntensityNoon = 2.4f;
 
         /// <summary>
         /// Real moonlight is about a millionth of sunlight, which is far too
@@ -74,24 +82,32 @@ namespace CityX.View
         /// </summary>
         public const float SunsetHalfWidth = 0.3f;
 
-        // --- ambient. The DAY values are the massing scene's own, unchanged,
-        // --- because that is the look already tuned and already seen. Night is
-        // --- the same fill taken down and shifted blue; the cycle is built
-        // --- around the tuned appearance rather than replacing it.
+        // --- ambient, now Godot's own numbers rather than the port's.
+        // ---
+        // --- THIS IS MOST OF WHY THE TWO BUILDS LOOKED DIFFERENT. The port
+        // --- filled the world with a bright, near-grey ambient about three
+        // --- times Godot's, and day_night_cycle.gd names precisely what that
+        // --- does: a high uniform ambient floods every crevice and erases the
+        // --- shading gradient that makes a surface read as solid. Flat, in
+        // --- other words -- and a city of plain concrete boxes has less
+        // --- tolerance for that than almost anything else would.
+        // ---
+        // --- Godot's fill is a fifth as bright and properly BLUE, because
+        // --- outdoors that is physically what ambient light IS: the sky dome
+        // --- filling in everything the sun does not reach directly. The sun
+        // --- does the lighting; this only fills. Warm key against cool fill is
+        // --- most of what reads as real lighting at all.
+        // ---
+        // --- COLOUR AND ENERGY STAY APART, as Godot keeps them, because they
+        // --- are tuned against each other: the blue is strong and the
+        // --- brightness is low, and multiplying them together into one colour
+        // --- would hide that and invite somebody to "fix" the dimness later.
 
-        public static readonly Color AmbientSkyDay = new Color(0.52f, 0.58f, 0.66f);
-        public static readonly Color AmbientEquatorDay = new Color(0.38f, 0.40f, 0.44f);
-        public static readonly Color AmbientGroundDay = new Color(0.20f, 0.20f, 0.21f);
+        public static readonly Color AmbientDayColour = new Color(0.45f, 0.58f, 0.85f);
+        public const float AmbientDayEnergy = 0.3f;
 
-        // BROUGHT BACK DOWN, as the stopgap that raised them said it should be.
-        // These were lifted well above a real night because the street was
-        // unreadable without lit windows -- silhouettes survived but the road
-        // underfoot was flat black. The windows light up now, which is what
-        // makes a real night city legible, so the ambient no longer has to
-        // carry it and is back to something nearer night.
-        public static readonly Color AmbientSkyNight = new Color(0.085f, 0.098f, 0.160f);
-        public static readonly Color AmbientEquatorNight = new Color(0.058f, 0.065f, 0.098f);
-        public static readonly Color AmbientGroundNight = new Color(0.028f, 0.030f, 0.042f);
+        public static readonly Color AmbientNightColour = new Color(0.12f, 0.15f, 0.28f);
+        public const float AmbientNightEnergy = 0.09f;
 
         public static readonly Color SunsetTint = new Color(1.0f, 0.4f, 0.16f);
 
@@ -106,6 +122,64 @@ namespace CityX.View
 
         public static readonly Color SkyHorizonDay = new Color(0.64f, 0.76f, 0.91f);
         public static readonly Color SkyHorizonNight = new Color(0.04f, 0.05f, 0.10f);
+
+        // --- the dome itself. Godot's own day_night_cycle.gd drives all of
+        // --- this every frame and the port had none of it, because the port
+        // --- had no sky at all -- just a flat clear colour behind the city.
+
+        /// <summary>
+        /// Saturated overhead, pale toward the horizon. That gradient is
+        /// aerial perspective: more atmosphere between you and the horizon
+        /// scatters more light back, and it is what stops a sky reading as a
+        /// painted backdrop.
+        /// </summary>
+        public static readonly Color SkyTopDay = new Color(0.22f, 0.42f, 0.82f);
+
+        public static readonly Color SkyTopNight = new Color(0.015f, 0.02f, 0.05f);
+        public static readonly Color GroundBottomDay = new Color(0.16f, 0.16f, 0.18f);
+        public static readonly Color GroundBottomNight = new Color(0.015f, 0.015f, 0.03f);
+
+        /// <summary>
+        /// The dome's BRIGHTNESS, separate from its colour, and dropped hard
+        /// at night. Two reasons, both Godot's own: a night sky sitting at
+        /// daytime luminance survives the tonemap curve and stays visibly
+        /// bright, and -- since the sky is what the world reflects -- it would
+        /// go on lighting the city like an overcast afternoon at midnight.
+        /// </summary>
+        public const float SkyEnergyDay = 1.0f;
+
+        public const float SkyEnergyNight = 0.15f;
+
+        /// <summary>The ground half of the dome is dimmer than the sky half.</summary>
+        public const float GroundEnergyRatio = 0.6f;
+
+        /// <summary>
+        /// How wide the sun's disc is, in degrees. Not the real 0.53: a disc
+        /// that small is a couple of pixels and reads as a stuck highlight
+        /// rather than as the sun.
+        /// </summary>
+        public const float SunAngularRadius = 1.0f;
+
+        /// <summary>
+        /// The moon is about the same apparent size; a touch wider only
+        /// because its light is dim enough that a soft edge never gets noisy.
+        /// </summary>
+        public const float MoonAngularRadius = 1.5f;
+
+        /// <summary>How far the glow around a body reaches, in degrees.</summary>
+        public const float GlowRadiusDegrees = 30.0f;
+
+        /// <summary>
+        /// The glow's falloff exponent is the reciprocal of this, so a small
+        /// number keeps the glow tight against the disc rather than washing a
+        /// third of the sky.
+        /// </summary>
+        public const float GlowCurve = 0.08f;
+
+        /// <summary>city.tscn's own sky_curve / ground_curve.</summary>
+        public const float SkyGradientCurve = 0.09f;
+
+        public const float GroundGradientCurve = 0.02f;
 
         /// <summary>The sky at one moment. Everything a renderer needs, nothing else.</summary>
         public readonly struct State
@@ -126,9 +200,13 @@ namespace CityX.View
             public readonly Color MoonColour;
             public readonly float MoonIntensity;
 
-            public readonly Color AmbientSky;
-            public readonly Color AmbientEquator;
-            public readonly Color AmbientGround;
+            /// <summary>
+            /// The fill light, already multiplied by its energy -- one value a
+            /// renderer can take straight. Uniform, as Godot's is: a real sky
+            /// dome is not uniform, but the tuning that stops this washing the
+            /// city flat was done against a uniform one.
+            /// </summary>
+            public readonly Color AmbientColour;
 
             /// <summary>
             /// Also the camera's background and the fog. They must stay equal:
@@ -138,14 +216,28 @@ namespace CityX.View
             /// </summary>
             public readonly Color HorizonColour;
 
+            /// <summary>The dome overhead. Its horizon end is HorizonColour.</summary>
+            public readonly Color SkyTopColour;
+
+            /// <summary>The dome underneath, which is what a rooftop reflects.</summary>
+            public readonly Color GroundBottomColour;
+
+            public readonly float SkyEnergy;
+            public readonly float GroundEnergy;
+
             public readonly bool SunCastsShadow;
             public readonly bool MoonCastsShadow;
 
             public State(float sunPitch, float moonPitch, float sunElevation, float moonElevation,
                 float daylight, float sunset, Color sunColour, float sunIntensity,
-                Color moonColour, float moonIntensity, Color ambientSky, Color ambientEquator,
-                Color ambientGround, Color horizon, bool sunShadow, bool moonShadow)
+                Color moonColour, float moonIntensity, Color ambient,
+                Color horizon, Color skyTop, Color groundBottom,
+                float skyEnergy, float groundEnergy, bool sunShadow, bool moonShadow)
             {
+                SkyTopColour = skyTop;
+                GroundBottomColour = groundBottom;
+                SkyEnergy = skyEnergy;
+                GroundEnergy = groundEnergy;
                 SunPitchDegrees = sunPitch;
                 MoonPitchDegrees = moonPitch;
                 SunElevationSine = sunElevation;
@@ -156,9 +248,7 @@ namespace CityX.View
                 SunIntensity = sunIntensity;
                 MoonColour = moonColour;
                 MoonIntensity = moonIntensity;
-                AmbientSky = ambientSky;
-                AmbientEquator = ambientEquator;
-                AmbientGround = ambientGround;
+                AmbientColour = ambient;
                 HorizonColour = horizon;
                 SunCastsShadow = sunShadow;
                 MoonCastsShadow = moonShadow;
@@ -198,16 +288,26 @@ namespace CityX.View
 
             Color sunColour = Color.Lerp(SunColour, SunsetSunColour, sunset);
 
-            Color ambientSky = Color.Lerp(AmbientSkyNight, AmbientSkyDay, daylight);
-            Color ambientEquator = Color.Lerp(AmbientEquatorNight, AmbientEquatorDay, daylight);
-            Color ambientGround = Color.Lerp(AmbientGroundNight, AmbientGroundDay, daylight);
-
-            float ambientTint = sunset * SunsetAmbientWeight;
-            ambientSky = Color.Lerp(ambientSky, SunsetTint, ambientTint);
-            ambientEquator = Color.Lerp(ambientEquator, SunsetTint, ambientTint * SunsetTopWeight);
+            Color ambient = Color.Lerp(AmbientNightColour, AmbientDayColour, daylight);
+            ambient = Color.Lerp(ambient, SunsetTint, sunset * SunsetAmbientWeight);
+            ambient = Dim(ambient, Mathf.Lerp(AmbientNightEnergy, AmbientDayEnergy, daylight));
 
             Color horizon = Color.Lerp(SkyHorizonNight, SkyHorizonDay, daylight);
             horizon = Color.Lerp(horizon, SunsetTint, sunset);
+
+            // The zenith takes LESS of the sunset than the horizon does, by the
+            // same weight the ambient uses. A real sunset is a band low in the
+            // sky; tinting the whole dome evenly reads as a colour filter over
+            // the world rather than as a sun going down.
+            Color skyTop = Color.Lerp(SkyTopNight, SkyTopDay, daylight);
+            skyTop = Color.Lerp(skyTop, SunsetTint, sunset * SunsetTopWeight);
+
+            Color groundBottom = Color.Lerp(GroundBottomNight, GroundBottomDay, daylight);
+            groundBottom = Color.Lerp(groundBottom, SunsetTint, sunset * SunsetTopWeight);
+
+            float skyEnergy = Mathf.Lerp(SkyEnergyNight, SkyEnergyDay, daylight);
+            float groundEnergy =
+                Mathf.Lerp(SkyEnergyNight, SkyEnergyDay * GroundEnergyRatio, daylight);
 
             // ONLY THE BODY ACTUALLY ABOVE THE HORIZON CASTS. A light at zero
             // intensity still runs its shadow pass, so leaving both enabled
@@ -216,7 +316,7 @@ namespace CityX.View
             // Godot build, reported as "there should just be one shadow".
             return new State(sunPitch, moonPitch, sunElevation, moonElevation,
                 daylight, sunset, sunColour, sunIntensity, MoonColour, moonIntensity,
-                ambientSky, ambientEquator, ambientGround, horizon,
+                ambient, horizon, skyTop, groundBottom, skyEnergy, groundEnergy,
                 sunElevation > 0.0f, moonElevation > 0.0f);
         }
 
@@ -233,6 +333,25 @@ namespace CityX.View
                 return -180.0f * (time / DaySeconds);
             }
             return -180.0f - 180.0f * ((time - DaySeconds) / NightSeconds);
+        }
+
+        /// <summary>
+        /// A colour turned down by an energy multiplier, IN LINEAR SPACE.
+        ///
+        /// This is not fussiness. Brightness is a property of light, and light
+        /// adds and scales linearly; an sRGB triple is a storage encoding with
+        /// a curve baked into it, and multiplying that curve by 0.3 is not the
+        /// same thing as letting through 30% of the light. Godot scales the
+        /// linearised colour, so doing it the other way here landed the fill
+        /// about three times too dark -- the first render of this pass came
+        /// back with every shadowed facade crushed to near-black silhouette,
+        /// and this was why.
+        /// </summary>
+        public static Color Dim(Color colour, float energy)
+        {
+            Color scaled = colour.linear * energy;
+            scaled.a = 1.0f;
+            return scaled.gamma;
         }
 
         /// <summary>

@@ -6,7 +6,9 @@
         "CityX.World",
         "CityX.Character",
         "CityX.Character.Editor",
-        "CityX.UI.Editor"
+        "CityX.UI.Editor",
+        "Unity.RenderPipelines.Core.Runtime",
+        "Unity.RenderPipelines.Universal.Runtime"
     ],
     "includePlatforms": [
         "Editor"

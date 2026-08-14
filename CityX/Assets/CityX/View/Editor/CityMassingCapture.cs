@@ -4,6 +4,7 @@ using CityX.View;
 using CityX.World;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace CityX.ViewEditor
 {
@@ -49,24 +50,35 @@ namespace CityX.ViewEditor
                     return;
                 }
 
+                // THE REAL CYCLE, not a hand-built copy of it.
+                //
+                // This used to set a sun intensity and three ambient colours
+                // itself, and the moment the scene's own lighting changed the
+                // photographs stopped being photographs OF the scene -- which
+                // defeats the whole point of a camera whose job is catching
+                // what a test cannot. Same failure the materials had: the rig
+                // has to be told about anything new or it silently shows
+                // something else. Driving it from DayNightCycle means there is
+                // nothing left to keep in step.
                 var sunObject = new GameObject("CaptureSun");
                 sunObject.transform.SetParent(root.transform);
                 Light sun = sunObject.AddComponent<Light>();
                 sun.type = LightType.Directional;
-                // Matches the scene's own sun. See CityMassingSceneBuilder for
-                // why it is near 1 rather than near 2.
-                sun.intensity = 1.15f;
                 sun.shadows = LightShadows.Soft;
-                sunObject.transform.rotation = Quaternion.Euler(40.0f, 150.0f, 0.0f);
 
-                // Without this every surface facing away from the sun renders
-                // near black, and in a city of narrow canyons that is most of
-                // them. The first capture pass lost the entire lower half of
-                // every shot to it.
-                RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
-                RenderSettings.ambientSkyColor = new Color(0.52f, 0.58f, 0.66f);
-                RenderSettings.ambientEquatorColor = new Color(0.38f, 0.40f, 0.44f);
-                RenderSettings.ambientGroundColor = new Color(0.20f, 0.20f, 0.21f);
+                var moonObject = new GameObject("CaptureMoon");
+                moonObject.transform.SetParent(root.transform);
+                Light moon = moonObject.AddComponent<Light>();
+                moon.type = LightType.Directional;
+                moon.shadows = LightShadows.Soft;
+
+                var cycleObject = new GameObject("CaptureCycle");
+                cycleObject.transform.SetParent(root.transform);
+                DayNightCycle cycle = cycleObject.AddComponent<DayNightCycle>();
+                cycle.Sun = sun;
+                cycle.Moon = moon;
+                cycle.Running = false;
+                cycle.TimeOfDay = SkyCycle.StartSeconds;
 
                 var streamerObject = new GameObject("CaptureStreamer");
                 streamerObject.transform.SetParent(root.transform);
@@ -83,8 +95,11 @@ namespace CityX.ViewEditor
                 Camera camera = cameraObject.AddComponent<Camera>();
                 camera.farClipPlane = 3000.0f;
                 camera.nearClipPlane = 0.2f;
-                camera.clearFlags = CameraClearFlags.SolidColor;
-                camera.backgroundColor = new Color(0.60f, 0.66f, 0.72f);
+                if (!AttachEnvironment(root, camera, cycle))
+                {
+                    return;
+                }
+                cycle.Apply(SkyCycle.At(cycle.TimeOfDay));
 
                 TerrainField terrain = new TerrainField(WorldSeed);
                 float streetLevel = terrain.PadHeightFor(0, 0);
@@ -187,7 +202,6 @@ namespace CityX.ViewEditor
                 Camera camera = cameraObject.AddComponent<Camera>();
                 camera.farClipPlane = 3000.0f;
                 camera.nearClipPlane = 0.2f;
-                camera.clearFlags = CameraClearFlags.SolidColor;
 
                 var cycleObject = new GameObject("Cycle");
                 cycleObject.transform.SetParent(root.transform);
@@ -196,8 +210,11 @@ namespace CityX.ViewEditor
                 // hour -- without it every pane in the shot renders unlit.
                 cycle.LitWindows = GlassMaterial(true);
                 cycle.Sun = sun;
-                cycle.Sky = camera;
                 cycle.Running = false;
+                if (!AttachEnvironment(root, camera, cycle))
+                {
+                    return;
+                }
                 cycle.Apply(SkyCycle.At(SkyCycle.DaySeconds * 0.32f));
 
                 RenderSettings.fog = true;
@@ -321,7 +338,6 @@ namespace CityX.ViewEditor
                 Camera camera = cameraObject.AddComponent<Camera>();
                 camera.farClipPlane = 3000.0f;
                 camera.nearClipPlane = 0.2f;
-                camera.clearFlags = CameraClearFlags.SolidColor;
 
                 var cycleObject = new GameObject("Cycle");
                 cycleObject.transform.SetParent(root.transform);
@@ -331,9 +347,12 @@ namespace CityX.ViewEditor
                 cycle.LitWindows = GlassMaterial(true);
                 cycle.Sun = sun;
                 cycle.Moon = moon;
-                cycle.Sky = camera;
                 cycle.Facades = structure;
                 cycle.Running = false;
+                if (!AttachEnvironment(root, camera, cycle))
+                {
+                    return;
+                }
 
                 RenderSettings.fog = true;
                 RenderSettings.fogMode = FogMode.Linear;
@@ -703,6 +722,50 @@ namespace CityX.ViewEditor
         {
             return AssetDatabase.LoadAssetAtPath<Material>(
                 $"Assets/CityX/View/Materials/{name}.mat");
+        }
+
+        /// <summary>
+        /// Hangs the scene's real sky and grade on a capture rig.
+        ///
+        /// SAME REASON AS <see cref="Dress"/>, one level up. A rig that builds
+        /// its own lighting stops photographing the game the moment the game's
+        /// lighting changes -- and a camera whose only job is catching what a
+        /// test cannot is worth nothing if it is quietly shooting something
+        /// else. Everything the look depends on is loaded from disk here, so
+        /// there is nothing to keep in step by hand.
+        ///
+        /// The tonemap matters more than it sounds: without the grade volume,
+        /// the renderer's HDR output is simply clamped and every sunlit face in
+        /// the photograph lands on flat white.
+        /// </summary>
+        private static bool AttachEnvironment(GameObject root, Camera camera, DayNightCycle cycle)
+        {
+            var skyDome = Material_("CityXSky");
+            var grade = AssetDatabase.LoadAssetAtPath<VolumeProfile>(
+                "Assets/CityX/View/Materials/CityGrade.asset");
+            if (skyDome == null || grade == null)
+            {
+                Debug.LogError("CityX: sky or grade missing -- run CityX/Rebuild Massing Scene " +
+                               "first.");
+                return false;
+            }
+
+            RenderSettings.skybox = skyDome;
+            RenderSettings.defaultReflectionMode =
+                UnityEngine.Rendering.DefaultReflectionMode.Skybox;
+
+            var gradeObject = new GameObject("Grade");
+            gradeObject.transform.SetParent(root.transform);
+            var volume = gradeObject.AddComponent<Volume>();
+            volume.isGlobal = true;
+            volume.sharedProfile = grade;
+
+            camera.clearFlags = CameraClearFlags.Skybox;
+            camera.allowHDR = true;
+
+            cycle.Sky = camera;
+            cycle.SkyDome = skyDome;
+            return true;
         }
 
         /// <summary>The lit-window glass, which the day/night cycle drives.</summary>

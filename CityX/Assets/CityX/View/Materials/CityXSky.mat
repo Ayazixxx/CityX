@@ -1,0 +1,48 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: CityXSky
+  m_Shader: {fileID: 4800000, guid: 22f9e1e5be8e1e24bbd907edcc3283dc, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs: []
+    m_Ints: []
+    m_Floats:
+    - _GroundCurve: 0.02
+    - _GroundEnergy: 0.6
+    - _MoonAngularRadius: 1.5
+    - _MoonEnergy: 0
+    - _SkyCurve: 0.09
+    - _SkyEnergy: 1
+    - _SunAngleMax: 30
+    - _SunAngularRadius: 1
+    - _SunCurve: 0.08
+    - _SunEnergy: 1.9834808
+    m_Colors:
+    - _GroundBottomColour: {r: 0.16, g: 0.16, b: 0.18, a: 1}
+    - _GroundHorizonColour: {r: 0.64, g: 0.76, b: 0.91, a: 1}
+    - _MoonColour: {r: 0.62, g: 0.72, b: 1, a: 1}
+    - _MoonDirection: {r: 0.40557986, g: 0.7071067, b: -0.579228, a: 0}
+    - _SkyHorizonColour: {r: 0.64, g: 0.76, b: 0.91, a: 1}
+    - _SkyTopColour: {r: 0.22, g: 0.42, b: 0.82, a: 1}
+    - _SunColour: {r: 1, g: 0.955, b: 0.885, a: 1}
+    - _SunDirection: {r: -0.40557975, g: -0.70710677, b: 0.57922786, a: 0}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

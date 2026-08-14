@@ -185,10 +185,10 @@ namespace CityX.Tests
                 Assert.LessOrEqual(state.SunsetAmount, 1.0f);
 
                 AssertSaneColour(state.SunColour, "sun", t);
-                AssertSaneColour(state.AmbientSky, "ambient sky", t);
-                AssertSaneColour(state.AmbientEquator, "ambient equator", t);
-                AssertSaneColour(state.AmbientGround, "ambient ground", t);
+                AssertSaneColour(state.AmbientColour, "ambient", t);
                 AssertSaneColour(state.HorizonColour, "horizon", t);
+                AssertSaneColour(state.SkyTopColour, "sky top", t);
+                AssertSaneColour(state.GroundBottomColour, "ground bottom", t);
             }
         }
 
@@ -199,26 +199,100 @@ namespace CityX.Tests
         [Test]
         public void NightIsDarkerThanDay()
         {
-            float noon = Luminance(SkyCycle.At(SkyCycle.DaySeconds * 0.5f).AmbientSky);
+            float noon = Luminance(SkyCycle.At(SkyCycle.DaySeconds * 0.5f).AmbientColour);
             float midnight = Luminance(
-                SkyCycle.At(SkyCycle.DaySeconds + SkyCycle.NightSeconds * 0.5f).AmbientSky);
+                SkyCycle.At(SkyCycle.DaySeconds + SkyCycle.NightSeconds * 0.5f).AmbientColour);
 
             Assert.Less(midnight, noon * 0.5f,
                 "the night ambient is not meaningfully darker than the day's");
         }
 
         /// <summary>
-        /// The daytime ambient must be exactly the massing scene's tuned value.
-        /// The cycle was built around the look already approved rather than
-        /// replacing it, and this is what pins that down.
+        /// The daytime ambient must be exactly Godot's own colour times its own
+        /// energy.
+        ///
+        /// WHAT THIS IS REALLY GUARDING is the dimness. The port ran an ambient
+        /// roughly three times this bright, which floods every crevice and
+        /// erases the shading that makes concrete read as solid -- the flat
+        /// look the whole graphics pass was about. It is the kind of value
+        /// somebody raises later because a shadowed street looks dark, so the
+        /// number is pinned rather than left to drift.
         /// </summary>
         [Test]
-        public void NoonMatchesTheAmbientTheCityWasTunedUnder()
+        public void NoonMatchesGodotsOwnAmbientFill()
         {
             SkyCycle.State noon = SkyCycle.At(SkyCycle.DaySeconds * 0.5f);
-            Assert.AreEqual(SkyCycle.AmbientSkyDay, noon.AmbientSky);
-            Assert.AreEqual(SkyCycle.AmbientEquatorDay, noon.AmbientEquator);
-            Assert.AreEqual(SkyCycle.AmbientGroundDay, noon.AmbientGround);
+            Color expected = SkyCycle.Dim(SkyCycle.AmbientDayColour, SkyCycle.AmbientDayEnergy);
+
+            Assert.AreEqual(expected.r, noon.AmbientColour.r, 0.0001f);
+            Assert.AreEqual(expected.g, noon.AmbientColour.g, 0.0001f);
+            Assert.AreEqual(expected.b, noon.AmbientColour.b, 0.0001f);
+
+            // AND THE DIMMING IS DONE IN LINEAR SPACE, which is the whole of
+            // why this helper exists. Scaling the sRGB triple instead lands
+            // roughly a third of the light and crushes every shadowed facade
+            // to silhouette -- it is an easy mistake to make twice, and the
+            // symptom looks like an art decision rather than a bug.
+            Color naive = SkyCycle.AmbientDayColour * SkyCycle.AmbientDayEnergy;
+            Assert.Greater(noon.AmbientColour.linear.g, naive.linear.g * 2.0f,
+                "the ambient energy is being applied to the sRGB triple, not to the light");
+
+            // And it is genuinely BLUE, not a grey fill with a hint of blue in
+            // it. Warm key against cool fill is most of what reads as real
+            // outdoor lighting, and a neutral fill loses that entirely.
+            Assert.Greater(noon.AmbientColour.b, noon.AmbientColour.r * 1.5f,
+                "the daytime fill has lost its blue and is close to neutral grey");
+        }
+
+        /// <summary>
+        /// The sky dome and the fog must meet at exactly the same colour.
+        ///
+        /// This is the trick that hides the streamed world's loaded-chunk edge:
+        /// the city stops at a hard boundary and the only thing concealing it
+        /// is fog the same colour as what is behind it. Let the two drift and
+        /// the boundary reappears as a visible wall at every dawn and dusk.
+        /// </summary>
+        [Test]
+        public void TheFogAndTheHorizonAreTheSameColour()
+        {
+            // Dusk specifically, because that is where a separately-computed
+            // sunset tint on each of them would come apart.
+            for (float t = 0.0f; t < SkyCycle.CycleSeconds; t += 20.0f)
+            {
+                SkyCycle.State state = SkyCycle.At(t);
+
+                // The dome's horizon end IS HorizonColour -- DayNightCycle
+                // feeds the one value to both -- so what is left to check is
+                // that the zenith is a DIFFERENT colour from it. A dome whose
+                // top and horizon had collapsed together would still hide the
+                // edge perfectly and would also be a flat card.
+                Assert.AreNotEqual(state.SkyTopColour, state.HorizonColour,
+                    $"the sky has no gradient left at t={t}");
+            }
+        }
+
+        /// <summary>
+        /// The dome dims at night, separately from going darker in colour.
+        ///
+        /// Two things depend on this. A night sky left at daytime luminance
+        /// survives the tonemap curve and stays visibly bright; and since the
+        /// city reflects the sky, it would go on lighting the streets like an
+        /// overcast afternoon at midnight.
+        /// </summary>
+        [Test]
+        public void TheSkyDimsAtNight()
+        {
+            SkyCycle.State noon = SkyCycle.At(SkyCycle.DaySeconds * 0.5f);
+            SkyCycle.State midnight =
+                SkyCycle.At(SkyCycle.DaySeconds + SkyCycle.NightSeconds * 0.5f);
+
+            Assert.AreEqual(SkyCycle.SkyEnergyDay, noon.SkyEnergy, 0.001f);
+            Assert.AreEqual(SkyCycle.SkyEnergyNight, midnight.SkyEnergy, 0.001f);
+            Assert.Less(midnight.SkyEnergy, noon.SkyEnergy * 0.25f);
+
+            // The ground half is dimmer than the sky half all day, which is
+            // what stops a rooftop reflecting as much light up as down.
+            Assert.Less(noon.GroundEnergy, noon.SkyEnergy);
         }
 
         /// <summary>

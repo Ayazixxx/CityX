@@ -21,6 +21,9 @@ namespace CityX.View
         [Tooltip("Its background follows the horizon so the fog wall is invisible.")]
         public Camera Sky;
 
+        [Tooltip("The sky dome material. Its colours and brightness are driven from here.")]
+        public Material SkyDome;
+
         [Tooltip("The facade material. Kept for anything on the wall itself that glows.")]
         public Material Facades;
 
@@ -43,7 +46,27 @@ namespace CityX.View
         /// </summary>
         public static readonly Color LitWindowColour = new Color(0.988f, 0.796f, 0.443f);
 
+        /// <summary>
+        /// How much brighter the moon's DISC is than the light it casts. Its
+        /// intensity is a legibility number for lighting a street by, and a
+        /// disc drawn at that value is an almost invisible smudge.
+        /// </summary>
+        public const float MoonDiscGain = 6.0f;
+
         private static readonly int EmissionColour = Shader.PropertyToID("_EmissionColor");
+
+        private static readonly int SkyTop = Shader.PropertyToID("_SkyTopColour");
+        private static readonly int SkyHorizon = Shader.PropertyToID("_SkyHorizonColour");
+        private static readonly int SkyEnergy = Shader.PropertyToID("_SkyEnergy");
+        private static readonly int GroundBottom = Shader.PropertyToID("_GroundBottomColour");
+        private static readonly int GroundHorizon = Shader.PropertyToID("_GroundHorizonColour");
+        private static readonly int GroundEnergy = Shader.PropertyToID("_GroundEnergy");
+        private static readonly int SunDirection = Shader.PropertyToID("_SunDirection");
+        private static readonly int SunColour = Shader.PropertyToID("_SunColour");
+        private static readonly int SunEnergy = Shader.PropertyToID("_SunEnergy");
+        private static readonly int MoonDirection = Shader.PropertyToID("_MoonDirection");
+        private static readonly int MoonColour = Shader.PropertyToID("_MoonColour");
+        private static readonly int MoonEnergy = Shader.PropertyToID("_MoonEnergy");
 
         [Tooltip("Seconds into the cycle. A full day and night is 34 minutes.")]
         public float TimeOfDay = SkyCycle.StartSeconds;
@@ -89,10 +112,11 @@ namespace CityX.View
                 Moon.shadows = state.MoonCastsShadow ? LightShadows.Soft : LightShadows.None;
             }
 
-            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor = state.AmbientSky;
-            RenderSettings.ambientEquatorColor = state.AmbientEquator;
-            RenderSettings.ambientGroundColor = state.AmbientGround;
+            // FLAT, not Trilight, and dim. Godot's ambient is a single colour
+            // at a low energy, and SkyCycle's own note explains why that
+            // matters more than the shape of the fill does.
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+            RenderSettings.ambientLight = state.AmbientColour;
 
             RenderSettings.fogColor = state.HorizonColour;
 
@@ -100,8 +124,43 @@ namespace CityX.View
             {
                 // Must match the fog exactly. The streamed world ends at a hard
                 // edge, and the only thing hiding it is fog the same colour as
-                // what is behind it.
+                // what is behind it. Still set even though the camera now
+                // clears to the sky dome rather than to this, because the dome
+                // meets the horizon at exactly this colour and anything that
+                // falls back to a clear colour should land on it too.
                 Sky.backgroundColor = state.HorizonColour;
+            }
+
+            if (SkyDome != null)
+            {
+                // The dome's horizon end IS the fog colour, by construction
+                // rather than by two values being kept in step -- which is the
+                // only way that never drifts.
+                SkyDome.SetColor(SkyTop, state.SkyTopColour);
+                SkyDome.SetColor(SkyHorizon, state.HorizonColour);
+                SkyDome.SetFloat(SkyEnergy, state.SkyEnergy);
+                SkyDome.SetColor(GroundHorizon, state.HorizonColour);
+                SkyDome.SetColor(GroundBottom, state.GroundBottomColour);
+                SkyDome.SetFloat(GroundEnergy, state.GroundEnergy);
+
+                // The discs. Fed the lights' own directions rather than
+                // recomputed from the pitch, so the sun in the sky cannot drift
+                // out of step with the sun casting the shadows.
+                if (Sun != null)
+                {
+                    SkyDome.SetVector(SunDirection, -Sun.transform.forward);
+                    SkyDome.SetColor(SunColour, state.SunColour);
+                    SkyDome.SetFloat(SunEnergy, state.SunIntensity);
+                }
+                if (Moon != null)
+                {
+                    SkyDome.SetVector(MoonDirection, -Moon.transform.forward);
+                    SkyDome.SetColor(MoonColour, state.MoonColour);
+                    // Scaled up off its own intensity, which is a legibility
+                    // number for lighting the street and would leave the moon
+                    // itself an almost invisible smudge.
+                    SkyDome.SetFloat(MoonEnergy, state.MoonIntensity * MoonDiscGain);
+                }
             }
 
             // Windows come on as the light goes, and are fully out by day.
