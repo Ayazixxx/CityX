@@ -31,7 +31,8 @@ namespace CityX.UIEditor
         /// editor has no business referencing that just to fill one slot.
         /// </summary>
         public static DevConsoleView AddToScene(PlayerVitals vitals, RainEffect rain,
-            DayNightCycle cycle, FlyCamera fly, GameObject wolfPrefab, GameObject radioPrefab)
+            DayNightCycle cycle, FlyCamera fly, GameObject wolfPrefab, GameObject slothPrefab,
+            GameObject radioPrefab)
         {
             var root = new GameObject("DevConsole", typeof(RectTransform));
             Canvas canvas = root.AddComponent<Canvas>();
@@ -99,6 +100,7 @@ namespace CityX.UIEditor
             view.CivilianPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
                 "Assets/CityX/Character/Civilian.prefab");
             view.WolfPrefab = wolfPrefab;
+            view.SlothPrefab = slothPrefab;
             view.RadioPrefab = radioPrefab;
 
             EnsureEventSystem();
