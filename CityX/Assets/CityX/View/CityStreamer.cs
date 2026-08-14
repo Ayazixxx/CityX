@@ -79,6 +79,7 @@ namespace CityX.View
         private readonly HashSet<Vector2Int> _openDoors = new HashSet<Vector2Int>();
         private readonly List<Vector2Int> _wanted = new List<Vector2Int>();
         private readonly List<Vector2Int> _stale = new List<Vector2Int>();
+        private readonly ExploredChunks _explored = new ExploredChunks();
 
         private void Awake()
         {
@@ -102,7 +103,15 @@ namespace CityX.View
                 DestroyChunk(pair.Value);
             }
             _loaded.Clear();
+            // A different seed makes the old explored coordinates meaningless.
+            _explored.Clear();
         }
+
+        /// <summary>Whether the player has ever stood within ExploredChunks.Radius of this chunk. Drives the map panel's fog of war.</summary>
+        public bool IsChunkExplored(Vector2Int coord) => _explored.Contains(coord);
+
+        /// <summary>Every chunk the player has been to, as a snapshot -- see ExploredChunks.ToArray.</summary>
+        public Vector2Int[] GetExploredChunks() => _explored.ToArray();
 
         private void OnEnable()
         {
@@ -169,6 +178,7 @@ namespace CityX.View
             Vector3 p = position;
             int centreX = Mathf.FloorToInt(p.x / CityLayout.ChunkSize);
             int centreY = Mathf.FloorToInt(p.z / CityLayout.ChunkSize);
+            _explored.Mark(new Vector2Int(centreX, centreY));
 
             // Drop first: freeing before allocating keeps the peak lower when
             // the viewer is moving fast.
