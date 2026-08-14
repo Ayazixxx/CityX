@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using CityX.View;
 using CityX.World;
@@ -117,6 +118,7 @@ namespace CityX.ViewEditor
                 // frames that rather than hoping one lands in shot.
                 ShootTerraceEdge(streamer, camera, outputDirectory, terrain);
                 ShootInterior(streamer, camera, outputDirectory);
+                ShootFacade(streamer, camera, outputDirectory);
 
                 Debug.Log($"CityX: massing shots written to {outputDirectory}");
             }
@@ -401,6 +403,115 @@ namespace CityX.ViewEditor
 
             Debug.Log($"CityX: terrace shot at chunk ({bestX},{bestY}), a {bestDrop}m step");
             Shoot(streamer, camera, directory, "terrace", position, new Vector3(-6.0f, 0.0f, 0.0f), 14);
+        }
+
+        /// <summary>
+        /// One building's wall, square on and close.
+        ///
+        /// THE ANGLE THE OTHER SHOTS CANNOT GIVE. Everything that happens on a
+        /// facade -- balconies, ribs, and eventually real windows -- lives in
+        /// the bottom few storeys, which the rooftop shot flies 90m above and
+        /// the street shot only ever sees edge-on down a canyon. Balconies went
+        /// in and were invisible in both, and the triangle count was the only
+        /// thing saying they existed at all.
+        ///
+        /// Aimed at a wall that is NOT the entrance, since that is the one wall
+        /// deliberately kept clear of decoration.
+        /// </summary>
+        private static void ShootFacade(CityStreamer streamer, Camera camera, string directory)
+        {
+            var world = new CityWorld(WorldSeed);
+
+            BuildingSite chosen = default;
+            var chosenSubjects = new List<Vector3>();
+            float best = float.MaxValue;
+            for (int x = -6; x <= 6; x++)
+            {
+                for (int y = -6; y <= 6; y++)
+                {
+                    BuildingSite site = world.BuildingAt(x, y);
+                    if (!site.Exists || site.AnchorX != x || site.AnchorY != y ||
+                        site.Params.Width < 16.0f)
+                    {
+                        continue;
+                    }
+                    // The wall at minimum Z has to face a street, or backing
+                    // off from it puts the camera inside the neighbour -- which
+                    // is what the first version of this shot did, and it
+                    // photographed the inside of someone else's wall.
+                    if (!CityLayout.IsStreetChunk(x, y - 1))
+                    {
+                        continue;
+                    }
+                    // ON THIS WALL, not just somewhere on the building. Two of
+                    // the three walls a balcony can land on face sideways, so
+                    // "has a balcony" picked a building whose balconies were
+                    // both round the corner, and the shot proved nothing.
+                    var subjects = new List<Vector3>();
+                    foreach (BuildingDecor.Balcony balcony in BuildingDecor.Balconies(
+                                 world.ChunkSeed(x, y),
+                                 site.Params.Width, site.Params.Depth, site.Params.Height))
+                    {
+                        if (balcony.Normal.z < -0.5f)
+                        {
+                            subjects.Add(new Vector3(
+                                (float)site.CentreX + balcony.Centre.x,
+                                site.BaseHeight + balcony.Centre.y,
+                                (float)site.CentreZ + balcony.Centre.z));
+                        }
+                    }
+                    if (subjects.Count == 0)
+                    {
+                        continue;
+                    }
+                    // More of them beats nearer. A wall with three is a better
+                    // photograph of the feature than a wall with one, and every
+                    // candidate here is already within 150m of the origin.
+                    float score = x * x + y * y - subjects.Count * 1000.0f;
+                    if (score < best)
+                    {
+                        best = score;
+                        chosen = site;
+                        chosenSubjects = subjects;
+                    }
+                }
+            }
+
+            if (!chosen.Exists)
+            {
+                Debug.LogWarning("CityX: no decorated building near the origin to photograph.");
+                return;
+            }
+
+            // AIMED AT THE BALCONIES THEMSELVES, not at a height that ought to
+            // contain them. The first version framed the wall from 9m up, which
+            // is a sound guess -- rows 1..6 at a 3.2m floor span 3m to 19m --
+            // and the one balcony on the building it picked was on row 6, one
+            // tenth of a degree outside the top of the frame. A shot that only
+            // works when the subject lands mid-range is a shot that will lie
+            // again the next time the seed moves.
+            Vector3 look = Vector3.zero;
+            foreach (Vector3 subject in chosenSubjects)
+            {
+                look += subject;
+            }
+            look /= chosenSubjects.Count;
+            look.z = (float)chosen.MinZ;
+
+            // OFF TO ONE SIDE, NOT SQUARE ON. Everything a balcony is -- a slab
+            // standing 1.1m off the wall with a rail round it -- is depth, and
+            // depth photographed head-on is a rectangle drawn on a wall. The
+            // yaw is derived from where the camera actually ends up rather than
+            // guessed, so moving the offsets cannot swing the aim off the wall.
+            const float SideOffset = 13.0f;
+            const float Standoff = 17.0f;
+
+            var from = look + new Vector3(-SideOffset, 0.0f, -Standoff);
+            float yaw = Mathf.Atan2(SideOffset, Standoff) * Mathf.Rad2Deg;
+
+            Debug.Log($"CityX: facade shot of ({chosen.AnchorX},{chosen.AnchorY}), " +
+                      $"{chosenSubjects.Count} balconies on the -Z wall, camera {from}");
+            Shoot(streamer, camera, directory, "facade", from, new Vector3(0.0f, yaw, 0.0f), 6);
         }
 
         /// <summary>
