@@ -90,12 +90,14 @@ namespace CityX.Character
                 }
             }
 
-            if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
-            {
-                // Otherwise there is no way out of the play window.
-                Cursor.lockState = CursorLockMode.None;
-                Cursor.visible = true;
-            }
+            // NO ESCAPE HANDLING HERE. There used to be a bare "Escape frees the
+            // cursor" fallback, from before there was any menu to open with it.
+            // PauseMenuView owns Escape exclusively now, and it matters that
+            // this component does not also react to the same key: re-reading
+            // Escape here would race PauseMenuView's own Close(), which also
+            // sets Cursor.lockState in the same frame -- whichever ran last
+            // would win by accident, sometimes leaving the cursor free right
+            // after the menu closed.
 
             float height = _player != null ? _player.StandingHeight : 1.8f;
             Vector3 pivot = Target.position + Vector3.up * (height * PivotHeightFraction);

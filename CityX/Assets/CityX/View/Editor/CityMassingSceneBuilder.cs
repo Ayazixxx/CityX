@@ -210,7 +210,7 @@ namespace CityX.ViewEditor
 
             // --- the pause menu. Escape opens it; it guards itself against
             // --- opening on top of the console above.
-            CityX.UIEditor.PauseMenuBuilder.AddToScene(console);
+            CityX.UI.PauseMenuView pause = CityX.UIEditor.PauseMenuBuilder.AddToScene(console);
 
             GameObject streamerObject = new GameObject("CityStreamer");
             CityStreamer streamer = streamerObject.AddComponent<CityStreamer>();
@@ -234,6 +234,20 @@ namespace CityX.ViewEditor
             breaker.BreakSounds = new[] { LoadClip("glass_break") };
             breaker.ShardPrefab = shards;
             streamer.Viewer = cameraObject.transform;
+
+            // --- the map. M opens it; it guards itself against opening on
+            // --- top of the console or while the game is paused.
+            var mapPlayer = Object.FindFirstObjectByType<PlayerVitals>();
+            if (mapPlayer != null)
+            {
+                CityX.UIEditor.MapPanelBuilder.AddToScene(
+                    streamer,
+                    mapPlayer.transform,
+                    Object.FindFirstObjectByType<PlayerInputReader>(),
+                    Object.FindFirstObjectByType<ThirdPersonCamera>(),
+                    console,
+                    pause);
+            }
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             AssetDatabase.SaveAssets();
