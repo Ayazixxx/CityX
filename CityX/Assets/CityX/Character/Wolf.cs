@@ -53,6 +53,12 @@ namespace CityX.Character
         [Tooltip("The visible body. Built by WolfBuilder; lunges and topples on its own.")]
         public Transform Model;
 
+        /// <summary>
+        /// Keeps it from running face-first into a building when you are on the
+        /// other side of one.
+        /// </summary>
+        private readonly NpcSteering _steering = new NpcSteering();
+
         private CharacterController _controller;
         private Transform _target;
         private float _biteCooldown;
@@ -72,6 +78,7 @@ namespace CityX.Character
         private void Awake()
         {
             _controller = GetComponent<CharacterController>();
+            _steering.ConfigureFrom(_controller);
         }
 
         private void Update()
@@ -106,10 +113,16 @@ namespace CityX.Character
                 if (distance > DetectionRange)
                 {
                     _target = null;
+                    _steering.Reset();
                 }
                 else if (distance > BiteRange)
                 {
-                    Vector3 direction = toTarget / distance;
+                    // STEERED, not straight at you. And faced along the way it
+                    // is actually travelling, so it looks where it is going
+                    // while rounding a building rather than crabbing sideways
+                    // with its head fixed on you.
+                    Vector3 direction = _steering.Steer(
+                        transform, toTarget / distance, deltaTime);
                     Face(direction);
                     travel = direction * ChaseSpeed;
                 }

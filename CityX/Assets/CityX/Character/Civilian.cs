@@ -60,7 +60,15 @@ namespace CityX.Character
             _animator = GetComponentInChildren<Animator>();
             _ragdoll = GetComponent<Ragdoll>();
             _brain = new CivilianBrain(Seed);
+            _steering.ConfigureFrom(_controller);
         }
+
+        /// <summary>
+        /// Stops a pedestrian walking into the building they happen to be
+        /// pointed at. The brain picks somewhere on the street network to go;
+        /// getting there without a wall in the way is a separate problem.
+        /// </summary>
+        private readonly NpcSteering _steering = new NpcSteering();
 
         /// <summary>
         /// Re-seeds and revives, for a pedestrian being reused from a pool.
@@ -98,7 +106,10 @@ namespace CityX.Character
             }
 
             float deltaTime = Time.deltaTime;
-            Vector3 direction = _brain.Tick(transform.position, deltaTime);
+            // The brain picks somewhere on the street network to walk to;
+            // getting there without a wall in the way is the steering's job.
+            Vector3 direction = _steering.Steer(
+                transform, _brain.Tick(transform.position, deltaTime), deltaTime);
 
             if (_controller.isGrounded && _verticalVelocity <= 0.0f)
             {
