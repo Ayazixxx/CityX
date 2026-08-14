@@ -223,6 +223,32 @@ namespace CityX.Tests
         /// actually moves at. If they drift apart the character plays a walk
         /// cycle while travelling at a sprint, which is the classic moonwalk.
         /// </summary>
+        /// <summary>
+        /// The three punch impact samples are on the prefab.
+        ///
+        /// player.gd plays one at random on a LANDED hit and nothing on a
+        /// whiff, which is most of what makes the sound read as impact rather
+        /// than effort. Checked here because the failure mode is silence, and
+        /// silence is indistinguishable from "the sound system is fine, this
+        /// swing just missed".
+        /// </summary>
+        [Test]
+        public void ThePunchImpactSoundsAreOnTheBody()
+        {
+            var prefab = LoadPrefab();
+            var melee = prefab.GetComponent<MeleeAttacker>();
+            Assert.IsNotNull(melee, "the player has no MeleeAttacker");
+
+            Assert.IsNotNull(melee.ImpactSounds, "no impact sounds wired at all");
+            Assert.AreEqual(3, melee.ImpactSounds.Length,
+                "player.gd carries three punch impact samples and picks one per hit");
+            foreach (AudioClip clip in melee.ImpactSounds)
+            {
+                Assert.IsNotNull(clip,
+                    "an empty slot means the random pick can land on nothing and go silent");
+            }
+        }
+
         [Test]
         public void BlendThresholdsMatchTheControllerSpeeds()
         {

@@ -39,6 +39,12 @@ namespace CityX.Character
         [Tooltip("Fraction into the swing at which the blow actually lands.")]
         public float ContactFraction = 0.45f;
 
+        [Header("Feedback (ported from player.gd)")]
+        [Tooltip("player.gd PunchImpactSounds -- one is picked at random per LANDED hit.")]
+        public AudioClip[] ImpactSounds;
+
+        private AudioSource _impactSource;
+
         [Header("Targets")]
         public LayerMask TargetLayers = ~0;
 
@@ -226,11 +232,53 @@ namespace CityX.Character
             float damage = CombatTuning.DamageFor(_currentStage, strength);
             float hitstun = CombatTuning.HitstunFor(_currentStage);
 
+            bool connected = false;
             foreach (IDamageable target in TargetsInReach())
             {
                 target.ApplyHit(damage, transform.position, hitstun);
                 Landed?.Invoke(target, damage);
+                connected = true;
             }
+
+            if (connected)
+            {
+                PlayImpact();
+            }
+        }
+
+        /// <summary>
+        /// One of player.gd's three punch impact samples, picked fresh per hit.
+        ///
+        /// ONLY WHEN THE SWING CONNECTS. A whiff stays silent, which is
+        /// player.gd's own rule and is most of what makes the sound read as
+        /// impact rather than as effort -- a swing that always clicks tells
+        /// you nothing about whether you hit anything.
+        ///
+        /// Picked at random each time rather than cycling, so spamming punches
+        /// does not loop the same sample.
+        /// </summary>
+        private void PlayImpact()
+        {
+            if (ImpactSounds == null || ImpactSounds.Length == 0)
+            {
+                return;
+            }
+
+            AudioClip clip = ImpactSounds[Random.Range(0, ImpactSounds.Length)];
+            if (clip == null)
+            {
+                return;
+            }
+
+            if (_impactSource == null)
+            {
+                _impactSource = gameObject.AddComponent<AudioSource>();
+                // Flat rather than positional: it is the player's own hit
+                // landing, not a thing happening somewhere in the world.
+                _impactSource.spatialBlend = 0.0f;
+                _impactSource.playOnAwake = false;
+            }
+            _impactSource.PlayOneShot(clip);
         }
     }
 }

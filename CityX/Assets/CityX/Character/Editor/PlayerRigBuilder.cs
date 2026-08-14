@@ -72,6 +72,30 @@ namespace CityX.CharacterEditor
             return prefab;
         }
 
+        /// <summary>
+        /// The punch impact clips, carried across from player/assets/audio.
+        /// Missing ones are dropped rather than left as null slots, so the
+        /// random pick can never land on nothing.
+        /// </summary>
+        private static AudioClip[] LoadImpactSounds()
+        {
+            var clips = new List<AudioClip>();
+            for (int i = 1; i <= 3; i++)
+            {
+                var clip = AssetDatabase.LoadAssetAtPath<AudioClip>(
+                    $"Assets/CityX/Character/Audio/punch_impact_{i}.mp3");
+                if (clip != null)
+                {
+                    clips.Add(clip);
+                }
+            }
+            if (clips.Count == 0)
+            {
+                Debug.LogWarning("CityX: no punch impact clips -- landing a hit will be silent.");
+            }
+            return clips.ToArray();
+        }
+
         private static AnimatorController BuildController(
             AnimationClip idle, AnimationClip walk, AnimationClip sprint, AnimationClip jump,
             AnimationClip back, AnimationClip left, AnimationClip right)
@@ -234,7 +258,12 @@ namespace CityX.CharacterEditor
 
                 root.AddComponent<PlayerLocomotion>();
                 root.AddComponent<PlayerVitals>();
-                root.AddComponent<MeleeAttacker>();
+                MeleeAttacker melee = root.AddComponent<MeleeAttacker>();
+                // player.gd's three punch impact samples, the same files. A
+                // serialized array rather than a Resources load, so a missing
+                // clip shows up as an empty slot on the prefab instead of a
+                // silent null at runtime.
+                melee.ImpactSounds = LoadImpactSounds();
                 root.AddComponent<PlayerAnimationDriver>();
                 // Makes the body be whoever was chosen in the menu, and does
                 // nothing at all when the world is opened directly -- which is
