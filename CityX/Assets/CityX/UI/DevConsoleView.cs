@@ -52,25 +52,11 @@ namespace CityX.UI
         [Tooltip("What /spawn civilian puts down. A dummy is built from a capsule instead.")]
         public GameObject CivilianPrefab;
 
-        [Tooltip("What /spawn wolf puts down.")]
-        public GameObject WolfPrefab;
-
-        [Tooltip("What /spawn sloth puts down.")]
-        public GameObject SlothPrefab;
-
         [Tooltip("What /spawn radio puts down.")]
         public GameObject RadioPrefab;
 
         /// <summary>How far in front of the player something spawns.</summary>
         public const float SpawnDistance = 3.0f;
-
-        /// <summary>
-        /// The sloth's own model reaches nearly to the ground at roughly 9.5m
-        /// tall -- spawning it at the ordinary distance would drop it
-        /// standing on top of, or inside, the player. Matches dev_console.gd's
-        /// own _spawn_sloth distance.
-        /// </summary>
-        public const float SlothSpawnDistance = 14.0f;
 
         private readonly List<string> _lines = new List<string>();
 
@@ -302,40 +288,6 @@ namespace CityX.UI
                     }
                     Instantiate(CivilianPrefab, where, facing);
                     Log("spawned civilian");
-                    return;
-
-                case "wolf":
-                    if (WolfPrefab == null)
-                    {
-                        Log("no wolf prefab wired");
-                        return;
-                    }
-                    GameObject wolf = Instantiate(WolfPrefab, where, facing);
-                    // The kill reward goes to whoever was watching when it
-                    // died, which here is the one body the console knows about.
-                    // Godot hands it to the attacker that landed the blow; the
-                    // port has no way to name that yet, and pretending it does
-                    // would be worse than saying so.
-                    var brain = wolf.GetComponent<Wolf>();
-                    if (brain != null && Vitals != null)
-                    {
-                        PlayerVitals earner = Vitals;
-                        brain.Felled += _ => earner.Level += 1;
-                    }
-                    Log("spawned wolf");
-                    return;
-
-                case "sloth":
-                    if (SlothPrefab == null)
-                    {
-                        Log("no sloth prefab wired");
-                        return;
-                    }
-                    // Spawned much further out than everything else here --
-                    // see SlothSpawnDistance.
-                    Vector3 slothWhere = origin.position + origin.forward * SlothSpawnDistance;
-                    Instantiate(SlothPrefab, slothWhere, facing);
-                    Log("spawned a giant hostile beast in front of you -- run");
                     return;
 
                 case "radio":

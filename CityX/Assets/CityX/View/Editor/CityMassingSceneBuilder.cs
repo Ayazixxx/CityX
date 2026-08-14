@@ -206,8 +206,6 @@ namespace CityX.ViewEditor
                 Object.FindFirstObjectByType<RainEffect>(),
                 cycle,
                 cameraObject.GetComponent<FlyCamera>(),
-                CityX.CharacterEditor.WolfBuilder.Build(),
-                CityX.CharacterEditor.SlothBuilder.Build(),
                 RadioBuilder.Build());
 
             // --- the pause menu. Escape opens it; it guards itself against

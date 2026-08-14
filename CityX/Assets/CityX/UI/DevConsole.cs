@@ -145,7 +145,7 @@ namespace CityX.UI
                 case "infinitehealth": return "/infinitehealth -- toggles";
                 case "infinitesprint": return "/infinitesprint -- toggles";
                 case "xp": return "/xp <amount>";
-                case "spawn": return "/spawn <dummy|civilian|wolf|sloth|radio>";
+                case "spawn": return "/spawn <dummy|civilian|radio>";
                 default: return null;
             }
         }

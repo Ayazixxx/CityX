@@ -26,13 +26,12 @@ namespace CityX.UIEditor
         private static readonly Color Ink = new Color(0.82f, 0.86f, 0.92f, 1.0f);
 
         /// <summary>
-        /// <paramref name="wolfPrefab"/> is handed in rather than built here,
-        /// because building it needs the Character editor assembly and the UI
+        /// <paramref name="radioPrefab"/> is handed in rather than built here,
+        /// because building it needs the View editor assembly and the UI
         /// editor has no business referencing that just to fill one slot.
         /// </summary>
         public static DevConsoleView AddToScene(PlayerVitals vitals, RainEffect rain,
-            DayNightCycle cycle, FlyCamera fly, GameObject wolfPrefab, GameObject slothPrefab,
-            GameObject radioPrefab)
+            DayNightCycle cycle, FlyCamera fly, GameObject radioPrefab)
         {
             var root = new GameObject("DevConsole", typeof(RectTransform));
             Canvas canvas = root.AddComponent<Canvas>();
@@ -99,8 +98,6 @@ namespace CityX.UIEditor
             view.Fly = fly;
             view.CivilianPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
                 "Assets/CityX/Character/Civilian.prefab");
-            view.WolfPrefab = wolfPrefab;
-            view.SlothPrefab = slothPrefab;
             view.RadioPrefab = radioPrefab;
 
             EnsureEventSystem();
