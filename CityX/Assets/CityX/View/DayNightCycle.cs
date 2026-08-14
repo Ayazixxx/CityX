@@ -24,9 +24,6 @@ namespace CityX.View
         [Tooltip("The sky dome material. Its colours and brightness are driven from here.")]
         public Material SkyDome;
 
-        [Tooltip("The facade material. Kept for anything on the wall itself that glows.")]
-        public Material Facades;
-
         [Tooltip("The lit-window glass. This is where the city's night light actually comes from.")]
         public Material LitWindows;
 
@@ -167,11 +164,16 @@ namespace CityX.View
             // Driven off daylight rather than a clock so they light through
             // dusk at the same rate the world darkens, instead of snapping on
             // at some threshold.
+            //
+            // ONLY THE GLASS. This used to drive the facade material too, back
+            // when the windows were painted onto it and an emission MAP picked
+            // out which pixels were a window. The windows are real holes with
+            // real glass in them now and that map is gone -- so the same call
+            // no longer lights the windows, it lights the entire wall. See
+            // CityMassingSceneBuilder's EnsureMaterial for the other half of
+            // this: a material asset remembers, so the old value had to be
+            // cleared as well as stopped.
             float glow = (1.0f - state.Daylight) * WindowGlow;
-            if (Facades != null)
-            {
-                Facades.SetColor(EmissionColour, Color.white * glow);
-            }
             if (LitWindows != null)
             {
                 LitWindows.SetColor(EmissionColour, LitWindowColour * glow);

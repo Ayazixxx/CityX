@@ -347,7 +347,6 @@ namespace CityX.ViewEditor
                 cycle.LitWindows = GlassMaterial(true);
                 cycle.Sun = sun;
                 cycle.Moon = moon;
-                cycle.Facades = structure;
                 cycle.Running = false;
                 if (!AttachEnvironment(root, camera, cycle))
                 {

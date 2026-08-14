@@ -95,7 +95,6 @@ namespace CityX.UIEditor
             cycle.Sun = sun;
             cycle.Moon = moon;
             cycle.Sky = camera;
-            cycle.Facades = structure;
             cycle.TimeOfDay = TimeOfDay;
             // FROZEN. A title screen that gets brighter while somebody reads the
             // menu is a title screen with two different looks depending on how

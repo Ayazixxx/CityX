@@ -174,7 +174,6 @@ namespace CityX.ViewEditor
             cycle.Moon = moon;
             cycle.Sky = camera;
             cycle.SkyDome = skyDome;
-            cycle.Facades = structure;
             cycle.LitWindows = litGlass;
             cycle.TimeOfDay = SkyCycle.StartSeconds;
             cycle.Apply(SkyCycle.At(SkyCycle.StartSeconds));
@@ -611,6 +610,23 @@ namespace CityX.ViewEditor
                 material.SetColor("_EmissionColor", Color.black);
                 material.globalIlluminationFlags =
                     MaterialGlobalIlluminationFlags.RealtimeEmissive;
+            }
+            else
+            {
+                // TURNED OFF EXPLICITLY, NOT JUST LEFT ALONE. A material asset
+                // remembers: the facade carried an emission map once, and the
+                // day/night cycle wrote a night-time glow into its colour.
+                // Deleting the map stopped anything SETTING that value but did
+                // nothing about the value already saved in the file -- and with
+                // no map to multiply against, a leftover 2.4 stopped lighting
+                // the window pixels and started lighting every wall in the
+                // city. Which is exactly what it did: the whole skyline came
+                // back pure white.
+                material.DisableKeyword("_EMISSION");
+                material.SetTexture("_EmissionMap", null);
+                material.SetColor("_EmissionColor", Color.black);
+                material.globalIlluminationFlags =
+                    MaterialGlobalIlluminationFlags.EmissiveIsBlack;
             }
 
             EditorUtility.SetDirty(material);
