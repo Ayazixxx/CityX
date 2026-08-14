@@ -35,6 +35,7 @@ namespace CityX.Character
             if (_melee != null)
             {
                 _melee.SwingStarted += OnSwingStarted;
+                _melee.BlockThrown += OnBlockThrown;
             }
         }
 
@@ -43,6 +44,21 @@ namespace CityX.Character
             if (_melee != null)
             {
                 _melee.SwingStarted -= OnSwingStarted;
+                _melee.BlockThrown -= OnBlockThrown;
+            }
+        }
+
+        /// <summary>
+        /// The block pose. Told by name for the same reason the swings are: the
+        /// window it corresponds to is the vitals' state, and expressing it a
+        /// second time as an animator condition is how a body ends up guarding
+        /// while the damage says it was not.
+        /// </summary>
+        private void OnBlockThrown()
+        {
+            if (_animator != null)
+            {
+                _animator.CrossFadeInFixedTime("Block", SwingBlendSeconds, 0);
             }
         }
 

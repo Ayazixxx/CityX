@@ -102,11 +102,7 @@ namespace CityX.Character
                 return;
             }
 
-            if (_melee != null && Mouse.current != null &&
-                Mouse.current.leftButton.wasPressedThisFrame)
-            {
-                _melee.TryAttack();
-            }
+            TickCombat(deltaTime);
 
             Vector2 move = Vector2.zero;
             if (keyboard.wKey.isPressed) move.y += 1.0f;
@@ -169,6 +165,61 @@ namespace CityX.Character
 
             _audio?.UpdateFootsteps(
                 _locomotion.CurrentSpeed > 0.01f, _locomotion.IsGrounded, _locomotion.IsSprinting);
+        }
+
+        /// <summary>
+        /// How long left-click has to be held before it becomes a heavy punch.
+        ///
+        /// Long enough that an ordinary click -- typically well under 150ms
+        /// between press and release -- never rolls one by accident, short
+        /// enough that deliberately holding does not feel like waiting for a
+        /// laggy input to register.
+        /// </summary>
+        public const float HeavyPunchHoldSeconds = 0.4f;
+
+        private bool _punchHeld;
+        private float _punchHeldSeconds;
+
+        /// <summary>
+        /// Punching, holding for a heavy one, and blocking.
+        ///
+        /// THE PUNCH FIRES ON RELEASE, NOT ON PRESS, which it has to: whether
+        /// this was a jab or a haymaker is not known until the button comes
+        /// back up. That is the cost of a hold-to-charge attack and it is the
+        /// arrangement Godot uses.
+        /// </summary>
+        private void TickCombat(float deltaTime)
+        {
+            if (_melee == null || Mouse.current == null)
+            {
+                return;
+            }
+
+            // Right-click, timed, NOT holdable. There is no start/stop pair the
+            // way crouch has one: a press throws the block, and the window is
+            // exactly as long as the clip. Holding the button past that does
+            // nothing -- you cannot hold a block, you have to time it.
+            if (Mouse.current.rightButton.wasPressedThisFrame && _vitals != null)
+            {
+                _vitals.StartBlock();
+                _melee.PlayBlock();
+            }
+
+            if (Mouse.current.leftButton.wasPressedThisFrame)
+            {
+                _punchHeld = true;
+                _punchHeldSeconds = 0.0f;
+            }
+            else if (_punchHeld && Mouse.current.leftButton.isPressed)
+            {
+                _punchHeldSeconds += deltaTime;
+            }
+
+            if (_punchHeld && Mouse.current.leftButton.wasReleasedThisFrame)
+            {
+                _punchHeld = false;
+                _melee.TryAttack(heavy: _punchHeldSeconds >= HeavyPunchHoldSeconds);
+            }
         }
 
         /// <summary>

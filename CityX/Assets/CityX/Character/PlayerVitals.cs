@@ -134,18 +134,57 @@ namespace CityX.Character
             InvulnerableRemaining = Mathf.Max(InvulnerableRemaining, seconds);
         }
 
-        void IDamageable.ApplyHit(float amount, Vector3 fromPosition, float hitstunSeconds)
+        /// <summary>
+        /// How long a block stays up once thrown. Exactly as long as the clip
+        /// plays, and NOT extendable by holding the button -- Godot is explicit
+        /// that you cannot hold a block, you have to time it. Holding
+        /// right-click past this does nothing at all.
+        /// </summary>
+        public const float BlockWindowSeconds = 0.7f;
+
+        public float BlockRemaining { get; private set; }
+
+        public bool IsBlocking => BlockRemaining > 0.0f;
+
+        /// <summary>Throws a block. Re-throwing mid-block restarts the window.</summary>
+        public void StartBlock()
+        {
+            BlockRemaining = BlockWindowSeconds;
+        }
+
+        /// <summary>
+        /// Locks this body out of acting, without damaging it. Used to punish
+        /// an attacker whose punch was blocked -- the damage already went to
+        /// the defender, and this is what happens to whoever threw it.
+        /// </summary>
+        public void Stun(float seconds)
+        {
+            HitstunRemaining = Mathf.Max(HitstunRemaining, seconds);
+        }
+
+        HitResponse IDamageable.ApplyHit(float amount, Vector3 fromPosition, float hitstunSeconds)
         {
             if (IsDead || IsInvulnerable)
             {
-                return;
+                return HitResponse.Ignored;
             }
 
-            TakeDamage(amount);
-            // Longest wins rather than newest. A weak jab landing during a
-            // heavy stun should not cut it short.
-            HitstunRemaining = Mathf.Max(HitstunRemaining, hitstunSeconds);
+            bool blocked = IsBlocking;
+            TakeDamage(amount, blocked);
+
+            // A BLOCKED HIT DOES NOT STUN THE DEFENDER. Eating the hitstun as
+            // well as a quarter of the damage would make blocking a worse dodge
+            // rather than a punish -- and the punish is the whole point of
+            // timing one.
+            if (!blocked)
+            {
+                // Longest wins rather than newest. A weak jab landing during a
+                // heavy stun should not cut it short.
+                HitstunRemaining = Mathf.Max(HitstunRemaining, hitstunSeconds);
+            }
+
             Hit?.Invoke(fromPosition);
+            return blocked ? HitResponse.Blocked : HitResponse.Landed;
         }
 
         /// <summary>Counts hitstun and i-frames down. Call once per frame.</summary>
@@ -158,6 +197,10 @@ namespace CityX.Character
             if (InvulnerableRemaining > 0.0f)
             {
                 InvulnerableRemaining = Mathf.Max(0.0f, InvulnerableRemaining - deltaTime);
+            }
+            if (BlockRemaining > 0.0f)
+            {
+                BlockRemaining = Mathf.Max(0.0f, BlockRemaining - deltaTime);
             }
         }
 

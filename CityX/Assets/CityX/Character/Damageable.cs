@@ -31,6 +31,24 @@ namespace CityX.Character
         /// rather than stunning, and doing both would be two competing
         /// reactions to one hit.
         /// </param>
-        void ApplyHit(float amount, Vector3 fromPosition, float hitstunSeconds);
+        /// <returns>
+        /// What the target did with it. THE ATTACKER HAS TO BE TOLD, because a
+        /// timed block punishes whoever threw the punch -- and only the
+        /// receiver knows it was blocked. Reporting it back is what makes a
+        /// block a real answer rather than a slightly cheaper way of being hit.
+        /// </returns>
+        HitResponse ApplyHit(float amount, Vector3 fromPosition, float hitstunSeconds);
+    }
+
+    /// <summary>What a target did with a hit.</summary>
+    public enum HitResponse
+    {
+        /// <summary>Nothing happened -- already dead, or dashing through it.</summary>
+        Ignored = 0,
+
+        Landed = 1,
+
+        /// <summary>Caught on a timed block. The attacker gets punished for it.</summary>
+        Blocked = 2,
     }
 }

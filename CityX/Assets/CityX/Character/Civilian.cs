@@ -131,17 +131,19 @@ namespace CityX.Character
             }
         }
 
-        void IDamageable.ApplyHit(float amount, Vector3 fromPosition, float hitstunSeconds)
+        HitResponse IDamageable.ApplyHit(float amount, Vector3 fromPosition, float hitstunSeconds)
         {
             if (IsDead)
             {
-                return;
+                return HitResponse.Ignored;
             }
 
+            // A civilian never blocks. They are not a fighter, which is most of
+            // the point of hitting one.
             _health = Mathf.Max(0.0f, _health - amount);
             if (!IsDead)
             {
-                return;
+                return HitResponse.Landed;
             }
 
             if (_ragdoll != null)
@@ -152,6 +154,8 @@ namespace CityX.Character
                 away.y = 0.0f;
                 _ragdoll.Activate(away.normalized * 2.0f);
             }
+
+            return HitResponse.Landed;
         }
     }
 }

@@ -100,8 +100,28 @@ namespace CityX.Character
         /// <summary>player.gd BLOCK_DAMAGE_MULTIPLIER -- 75% is absorbed.</summary>
         public const float BlockDamageMultiplier = 0.25f;
 
+        /// <summary>
+        /// How long a successful block leaves the ATTACKER unable to move or
+        /// throw another punch. This is the actual reward for timing a block:
+        /// without it, blocking would be a worse dodge -- still taking a
+        /// quarter of the hit -- rather than an opening.
+        /// </summary>
+        public const float BlockStunSeconds = 1.0f;
+
         /// <summary>player.gd POST_FINISHER_INVULN_SECONDS</summary>
         public const float PostFinisherInvulnerabilitySeconds = 1.0f;
+
+        /// <summary>
+        /// The haymaker thrown by holding the punch button rather than tapping
+        /// it. player.gd's HEAVY_PUNCH_DAMAGE, which is 1.5x a jab.
+        ///
+        /// NOT A MEMBER OF ANY CHAIN, which is the point. It hits harder and
+        /// takes longer, and it opens no follow-up window -- so throwing one is
+        /// a decision to commit rather than a free upgrade to whichever jab was
+        /// coming next.
+        /// </summary>
+        public static readonly ComboStage HeavyPunch =
+            new ComboStage("punch_heavy", 1.5f, 1.5f, 0.0f, false);
 
         /// <summary>player.gd STRENGTH_DAMAGE_PERCENT_PER_POINT</summary>
         public const float StrengthDamagePerPoint = 0.02f;

@@ -36,6 +36,13 @@ namespace CityX.Character
         [Tooltip("player.gd PUNCH_COOLDOWN_SECONDS -- how long a swing occupies the body.")]
         public float SwingSeconds = 0.35f;
 
+        /// <summary>
+        /// A haymaker takes longer to throw. That is the trade for 1.5x damage:
+        /// without it, holding for a heavy punch would be strictly better than
+        /// tapping and there would be no reason ever to jab.
+        /// </summary>
+        public float HeavySwingSeconds = 0.55f;
+
         [Tooltip("Fraction into the swing at which the blow actually lands.")]
         public float ContactFraction = 0.45f;
 
@@ -77,6 +84,19 @@ namespace CityX.Character
         /// <summary>Raised when a swing starts, with the stage being played.</summary>
         public event System.Action<ComboStage> SwingStarted;
 
+        /// <summary>Raised when a block is thrown, so the animator can show it.</summary>
+        public event System.Action BlockThrown;
+
+        /// <summary>
+        /// Plays the block pose. No state of its own -- the block WINDOW lives
+        /// on the vitals, because that is what has to consult it when a hit
+        /// actually arrives. This is only what it looks like.
+        /// </summary>
+        public void PlayBlock()
+        {
+            BlockThrown?.Invoke();
+        }
+
         private void Awake()
         {
             _vitals = GetComponent<PlayerVitals>();
@@ -90,11 +110,28 @@ namespace CityX.Character
         /// caller: the window is this component's state, and letting anyone
         /// else decide is how the two ends of a combo drift apart.
         /// </summary>
-        public bool TryAttack()
+        public bool TryAttack(bool heavy = false)
         {
             if (IsSwinging || (_vitals != null && _vitals.IsDead))
             {
                 return false;
+            }
+
+            // A HAYMAKER IS NOT PART OF THE CHAIN. It is its own committed
+            // swing: slower, harder, and it starts the chain over rather than
+            // advancing it -- which is what makes holding for one a decision
+            // rather than a free upgrade to whatever the next jab was going to
+            // be. Godot's own heavy_punch resets _combo_stage_index for the
+            // same reason.
+            if (heavy)
+            {
+                _currentStage = CombatTuning.HeavyPunch;
+                _swingRemaining = HeavySwingSeconds;
+                _contactDone = false;
+                _nextStage = 0;
+                _windowRemaining = 0.0f;
+                SwingStarted?.Invoke(_currentStage);
+                return true;
             }
 
             ComboStage[] chain = ComboChain.For(ComboChain.Unarmed);
@@ -267,17 +304,42 @@ namespace CityX.Character
             float hitstun = CombatTuning.HitstunFor(_currentStage);
 
             bool connected = false;
+            bool blocked = false;
             Vector3 origin = SwingOrigin();
             foreach (Contact contact in ContactsInReach())
             {
-                contact.Target.ApplyHit(damage, transform.position, hitstun);
+                HitResponse response =
+                    contact.Target.ApplyHit(damage, transform.position, hitstun);
+                if (response == HitResponse.Ignored)
+                {
+                    continue;
+                }
+
                 Landed?.Invoke(contact.Target, damage);
                 connected = true;
 
+                if (response == HitResponse.Blocked)
+                {
+                    blocked = true;
+                    continue;
+                }
+
                 // Spraying back towards whoever threw the punch, which is what
                 // "away from the surface that got hit" means when the surface
-                // is a body facing you.
+                // is a body facing you. Nothing bleeds off a blocked hit.
                 BloodSplatter.Spawn(BloodPrefab, contact.Point, origin - contact.Point);
+            }
+
+            // THE PUNISH. Whoever threw a punch into a timed block is locked out
+            // for a second -- which is the actual reward for blocking. Without
+            // it a block would just be a worse dodge, still eating a quarter of
+            // the damage and giving nothing back.
+            if (blocked && _vitals != null)
+            {
+                _vitals.Stun(CombatTuning.BlockStunSeconds);
+                _swingRemaining = 0.0f;
+                _windowRemaining = 0.0f;
+                _nextStage = 0;
             }
 
             connected |= PunchGlass(origin);

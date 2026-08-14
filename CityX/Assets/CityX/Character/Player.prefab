@@ -1762,6 +1762,7 @@ MonoBehaviour:
   OriginHeightFraction: 0.68
   HalfArcDegrees: 60
   SwingSeconds: 0.35
+  HeavySwingSeconds: 0.55
   ContactFraction: 0.45
   ImpactSounds:
   - {fileID: 8300000, guid: 2653802eb30c13044b5710cc20f73b48, type: 3}

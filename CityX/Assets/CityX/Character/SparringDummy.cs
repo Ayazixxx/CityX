@@ -57,11 +57,11 @@ namespace CityX.Character
             LastHitstun = 0.0f;
         }
 
-        void IDamageable.ApplyHit(float amount, Vector3 fromPosition, float hitstunSeconds)
+        HitResponse IDamageable.ApplyHit(float amount, Vector3 fromPosition, float hitstunSeconds)
         {
             if (!IsAlive)
             {
-                return;
+                return HitResponse.Ignored;
             }
 
             Health = Mathf.Max(0.0f, Health - amount);
@@ -75,6 +75,10 @@ namespace CityX.Character
             {
                 Felled?.Invoke();
             }
+
+            // A dummy stands there and takes it. That is what makes it useful
+            // for judging reach and pacing without a second system in the way.
+            return HitResponse.Landed;
         }
 
         private void Update()

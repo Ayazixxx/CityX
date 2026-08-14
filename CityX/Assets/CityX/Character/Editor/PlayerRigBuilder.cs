@@ -360,7 +360,16 @@ namespace CityX.CharacterEditor
         {
             AnimatorState locomotion = FindState(root, "Locomotion");
 
-            foreach (ComboStage stage in ComboChain.For(ComboChain.Unarmed))
+            // The chain, plus the haymaker, which belongs to no chain but needs
+            // a state exactly like theirs -- and the block, which is neither an
+            // attack nor part of a chain but reaches the animator the same way.
+            var swings = new List<ComboStage>(ComboChain.For(ComboChain.Unarmed))
+            {
+                CombatTuning.HeavyPunch,
+                new ComboStage("Block", 0.0f, 0.0f, 0.0f, false),
+            };
+
+            foreach (ComboStage stage in swings)
             {
                 if (FindState(root, stage.Animation) != null)
                 {
@@ -401,6 +410,7 @@ namespace CityX.CharacterEditor
                 case "punch_right": return FindClip("boxing_right_jab");
                 case "punch_left": return FindClip("boxing_left_jab");
                 case "punch_heavy": return FindClip("heavy_punch");
+                case "Block": return FindClip("body_block");
                 default: return null;
             }
         }
