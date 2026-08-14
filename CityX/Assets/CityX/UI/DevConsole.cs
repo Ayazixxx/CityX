@@ -131,6 +131,7 @@ namespace CityX.UI
             "infinitesprint",
             "xp",
             "spawn",
+            "celshade",
         };
 
         public static string UsageFor(string verb)
@@ -146,6 +147,7 @@ namespace CityX.UI
                 case "infinitesprint": return "/infinitesprint -- toggles";
                 case "xp": return "/xp <amount>";
                 case "spawn": return "/spawn <dummy|civilian|radio>";
+                case "celshade": return "/celshade -- toggles toon shading on every character skin";
                 default: return null;
             }
         }

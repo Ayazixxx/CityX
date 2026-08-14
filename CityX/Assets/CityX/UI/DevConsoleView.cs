@@ -55,10 +55,16 @@ namespace CityX.UI
         [Tooltip("What /spawn radio puts down.")]
         public GameObject RadioPrefab;
 
+        [Tooltip("Every character-skin material /celshade toggles -- PlayerSkin, CivilianSkin.")]
+        public Material[] ToonableMaterials;
+
         /// <summary>How far in front of the player something spawns.</summary>
         public const float SpawnDistance = 3.0f;
 
         private readonly List<string> _lines = new List<string>();
+        private Shader _litShader;
+        private Shader _toonShader;
+        private bool _celShadeOn;
 
         public bool IsOpen => Panel != null && Panel.activeSelf;
 
@@ -186,6 +192,10 @@ namespace CityX.UI
 
                 case "spawn":
                     Spawn(line.Argument(0));
+                    return;
+
+                case "celshade":
+                    ToggleCelShade();
                     return;
 
                 default:
@@ -319,6 +329,41 @@ namespace CityX.UI
                     Log(DevCommands.UsageFor("spawn"));
                     return;
             }
+        }
+
+        /// <summary>
+        /// Swaps every wired skin material's shader between the normal URP
+        /// Lit and CityX/ToonLit. Lives on the MATERIAL, not per-renderer --
+        /// CharacterSkin.Apply shares one material instance across a whole
+        /// body (and every civilian wearing the same skin), so this one
+        /// swap changes everyone using it at once, the same as Godot's own
+        /// /celshade did for its full-screen version.
+        /// </summary>
+        private void ToggleCelShade()
+        {
+            if (ToonableMaterials == null || ToonableMaterials.Length == 0)
+            {
+                Log("no toonable materials wired");
+                return;
+            }
+            if (_litShader == null) _litShader = Shader.Find("Universal Render Pipeline/Lit");
+            if (_toonShader == null) _toonShader = Shader.Find("CityX/ToonLit");
+            if (_litShader == null || _toonShader == null)
+            {
+                Log("cel shade shader missing");
+                return;
+            }
+
+            _celShadeOn = !_celShadeOn;
+            Shader target = _celShadeOn ? _toonShader : _litShader;
+            foreach (Material material in ToonableMaterials)
+            {
+                if (material != null)
+                {
+                    material.shader = target;
+                }
+            }
+            Log("cel shading " + (_celShadeOn ? "on" : "off"));
         }
 
         private void Log(string message)
