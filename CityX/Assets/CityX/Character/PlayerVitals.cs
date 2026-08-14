@@ -117,9 +117,26 @@ namespace CityX.Character
         /// <summary>Raised with the world position the blow came from.</summary>
         public event Action<Vector3> Hit;
 
+        /// <summary>
+        /// How long this body still cannot be hit. Set by a dash.
+        ///
+        /// EXACTLY THE BURST, not the animation's follow-through -- the dash
+        /// clip keeps playing a recovery pose for a while after the movement
+        /// has ended, and Godot is explicit that what dodges the blow is going
+        /// through it, not standing in the aftermath of having done so.
+        /// </summary>
+        public float InvulnerableRemaining { get; private set; }
+
+        public bool IsInvulnerable => InvulnerableRemaining > 0.0f;
+
+        public void GrantInvulnerability(float seconds)
+        {
+            InvulnerableRemaining = Mathf.Max(InvulnerableRemaining, seconds);
+        }
+
         void IDamageable.ApplyHit(float amount, Vector3 fromPosition, float hitstunSeconds)
         {
-            if (IsDead)
+            if (IsDead || IsInvulnerable)
             {
                 return;
             }
@@ -131,12 +148,16 @@ namespace CityX.Character
             Hit?.Invoke(fromPosition);
         }
 
-        /// <summary>Counts hitstun down. Call once per frame.</summary>
+        /// <summary>Counts hitstun and i-frames down. Call once per frame.</summary>
         public void TickHitstun(float deltaTime)
         {
             if (HitstunRemaining > 0.0f)
             {
                 HitstunRemaining = Mathf.Max(0.0f, HitstunRemaining - deltaTime);
+            }
+            if (InvulnerableRemaining > 0.0f)
+            {
+                InvulnerableRemaining = Mathf.Max(0.0f, InvulnerableRemaining - deltaTime);
             }
         }
 

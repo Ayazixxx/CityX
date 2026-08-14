@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.IO;
 using UnityEditor;
 using UnityEngine;
 
@@ -132,7 +133,47 @@ namespace CityX.CharacterEditor
             importer.importCameras = false;
             importer.importLights = false;
 
+            ConfigureVerticalMotion(importer, path);
+
             importer.SaveAndReimport();
+        }
+
+        /// <summary>
+        /// Clips whose whole point is that the body CHANGES HEIGHT.
+        ///
+        /// The rig runs with root motion off, so by default a clip's vertical
+        /// travel is handed to the root and then thrown away -- which is
+        /// exactly right for a walk cycle and exactly wrong for a crouch. A
+        /// crouch imported that way bends the knees and folds the torso while
+        /// the hips stay at standing height: a character stooping rather than
+        /// crouching. Baking Y into the POSE instead keeps the lowering.
+        ///
+        /// AND MEASURED FROM THE FEET, which fixes a real problem Godot hit and
+        /// solved by hand. The three crouch clips are separately authored and
+        /// do not agree on how deep a crouch is -- standing_to_crouch ends with
+        /// the hips about 0.4m lower than crouch_walk holds -- so a character
+        /// who crouches and then walks pops upright. Anchoring each clip to its
+        /// own feet normalises them against the floor rather than against
+        /// whatever height the animator happened to author.
+        /// </summary>
+        private static void ConfigureVerticalMotion(ModelImporter importer, string path)
+        {
+            string name = Path.GetFileNameWithoutExtension(path);
+            bool lowers = name == "standing_to_crouch" || name == "crouch_to_idle" ||
+                          name == "crouch_walk";
+            if (!lowers)
+            {
+                return;
+            }
+
+            ModelImporterClipAnimation[] clips = importer.defaultClipAnimations;
+            for (int i = 0; i < clips.Length; i++)
+            {
+                clips[i].lockRootHeightY = true;    // bake Y into the pose
+                clips[i].keepOriginalPositionY = false;
+                clips[i].heightFromFeet = true;     // measured from the feet
+            }
+            importer.clipAnimations = clips;
         }
 
         /// <summary>

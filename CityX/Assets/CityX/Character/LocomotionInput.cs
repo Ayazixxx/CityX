@@ -32,6 +32,13 @@ namespace CityX.Character
 
         public bool Sprint;
 
+        /// <summary>
+        /// Held, not tapped. Sprint beats it -- player.gd's own rule, and not
+        /// arbitrary: there is no crouch-sprint clip, so holding both would
+        /// show a crouch walk while the body travelled at sprint speed.
+        /// </summary>
+        public bool Crouch;
+
         /// <summary>True on the frame jump was pressed, not while it is held.</summary>
         public bool Jump;
 

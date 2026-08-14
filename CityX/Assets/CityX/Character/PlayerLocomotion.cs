@@ -67,6 +67,8 @@ namespace CityX.Character
         private static readonly int MoveXParameter = Animator.StringToHash("MoveX");
         private static readonly int MoveZParameter = Animator.StringToHash("MoveZ");
         private static readonly int GroundedParameter = Animator.StringToHash("Grounded");
+        private static readonly int CrouchingParameter = Animator.StringToHash("Crouching");
+        private static readonly int DashParameter = Animator.StringToHash("Dash");
         private static readonly int JumpParameter = Animator.StringToHash("Jump");
 
         /// <summary>Horizontal speed after the last tick, in metres per second.</summary>
@@ -105,7 +107,69 @@ namespace CityX.Character
         /// </summary>
         public bool IsSprinting { get; private set; }
 
+        /// <summary>Whether the body is actually crouched, sprint override applied.</summary>
+        public bool IsCrouching { get; private set; }
+
+        // --- the dash. player.gd's own numbers.
+
+        /// <summary>
+        /// Faster than a sprint, deliberately. A dash should read as a burst
+        /// rather than as "sprint, briefly". Godot doubled this from 12 rather
+        /// than doubling the duration, so covering twice the ground still reads
+        /// as a quicker lunge instead of a longer boost.
+        /// </summary>
+        public const float DashSpeed = 24.0f;
+
+        /// <summary>
+        /// Short enough to read as an instant lunge. 24 x 0.2 covers 4.8m.
+        /// </summary>
+        public const float DashSeconds = 0.2f;
+
+        /// <summary>Godot's 25% of the FULL bar, not of whatever is left in it.</summary>
+        public const float DashStaminaFraction = 0.25f;
+
+        private float _dashRemaining;
+        private Vector3 _dashDirection;
+
+        public bool IsDashing => _dashRemaining > 0.0f;
+
+        /// <summary>
+        /// Sends the body into a dash along <paramref name="direction"/>.
+        ///
+        /// THE DIRECTION IS LOCKED IN HERE rather than read live each step.
+        /// That is what makes a dash a committed lunge: turning mid-burst
+        /// would let it be steered, which is a different move.
+        /// </summary>
+        public void StartDash(Vector3 direction)
+        {
+            direction.y = 0.0f;
+            if (direction.sqrMagnitude < 0.0001f)
+            {
+                return;
+            }
+            _dashDirection = direction.normalized;
+            _dashRemaining = DashSeconds;
+            if (_animator != null)
+            {
+                _animator.SetTrigger(DashParameter);
+            }
+        }
+
         private void Awake()
+        {
+            Bind();
+        }
+
+        /// <summary>
+        /// Finds the controller and the animator.
+        ///
+        /// PUBLIC BECAUSE AWAKE IS NOT AVAILABLE OUTSIDE PLAY MODE. An EditMode
+        /// test can build this component but never gets Awake run on it, so
+        /// without a way in by hand the movement rules -- the things that
+        /// decide how the game feels -- would be the one part with no coverage.
+        /// Calling it twice is harmless.
+        /// </summary>
+        public void Bind()
         {
             _controller = GetComponent<CharacterController>();
             _animator = GetComponentInChildren<Animator>();
@@ -189,8 +253,34 @@ namespace CityX.Character
             bool forward = input.Move.y > 0.0f && input.Move.y >= Mathf.Abs(input.Move.x);
             bool sprinting = input.Sprint && moving && forward;
             IsSprinting = sprinting;
+
+            // SPRINT WINS OVER CROUCH, from player.gd. Not a tie-break for its
+            // own sake: there is no crouch-sprint clip, so holding both would
+            // play a crouch walk over a body already travelling at 7.5 m/s.
+            IsCrouching = input.Crouch && !input.Sprint;
+
             float speed = sprinting ? SprintSpeed : WalkSpeed;
             Vector3 horizontal = direction * speed;
+
+            // THE DASH OVERRIDES WASD ENTIRELY for its burst, along the
+            // direction it was started with. Placed here so everything below --
+            // the animator's speed, the footsteps, the facing -- sees the real
+            // travel rather than the input that is being ignored.
+            //
+            // SCALED BY HOW MUCH OF THE BURST THIS STEP ACTUALLY USES. Applying
+            // the full speed for a step longer than the dash has left lets one
+            // slow frame carry the body past where the dash should have ended:
+            // a 0.2s dash on a 0.3s hitch travels half again as far. That turns
+            // a frame-rate dip into extra distance, which is exactly the kind
+            // of thing that makes a dodge feel unreliable.
+            if (_dashRemaining > 0.0f)
+            {
+                float used = Mathf.Min(_dashRemaining, deltaTime);
+                _dashRemaining -= used;
+                horizontal = _dashDirection * DashSpeed *
+                    (deltaTime > 0.0f ? used / deltaTime : 1.0f);
+            }
+
             CurrentSpeed = horizontal.magnitude;
 
             bool grounded = _controller.isGrounded;
@@ -264,6 +354,7 @@ namespace CityX.Character
                 _animator.SetFloat(MoveXParameter, LocalVelocity.x);
                 _animator.SetFloat(MoveZParameter, LocalVelocity.y);
                 _animator.SetBool(GroundedParameter, _controller.isGrounded);
+                _animator.SetBool(CrouchingParameter, IsCrouching);
             }
         }
     }

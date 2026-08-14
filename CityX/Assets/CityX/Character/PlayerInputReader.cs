@@ -22,6 +22,19 @@ namespace CityX.Character
         [Tooltip("Whose yaw movement is relative to. Falls back to the main camera.")]
         public Transform YawSource;
 
+        /// <summary>
+        /// How long after tapping sprint a second tap still counts as a dash.
+        ///
+        /// A press-release-press inside this window is the double-tap; a single
+        /// press, or sprint simply held down, never crosses it, because the
+        /// timer only starts on the FIRST press and is consumed the moment a
+        /// second one lands. 0.3s is generous enough to catch a deliberate
+        /// double-tap without firing on two unrelated ones.
+        /// </summary>
+        public const float DoubleTapSeconds = 0.3f;
+
+        private float _sprintTapWindow;
+
         private PlayerLocomotion _locomotion;
         private PlayerVitals _vitals;
         private MeleeAttacker _melee;
@@ -123,11 +136,15 @@ namespace CityX.Character
                 sprinting = false;
             }
 
+            float yawDegrees = yawSource != null ? yawSource.eulerAngles.y : 0.0f;
+            TickDash(keyboard, move, yawDegrees, deltaTime);
+
             var input = new LocomotionInput
             {
                 Move = move,
-                YawDegrees = yawSource != null ? yawSource.eulerAngles.y : 0.0f,
+                YawDegrees = yawDegrees,
                 Sprint = sprinting,
+                Crouch = keyboard.leftCtrlKey.isPressed,
                 Jump = keyboard.spaceKey.wasPressedThisFrame,
             };
 
@@ -152,6 +169,53 @@ namespace CityX.Character
 
             _audio?.UpdateFootsteps(
                 _locomotion.CurrentSpeed > 0.01f, _locomotion.IsGrounded, _locomotion.IsSprinting);
+        }
+
+        /// <summary>
+        /// Double-tap sprint to dash.
+        ///
+        /// WHICH WAY IT GOES IS WHATEVER WAS HELD AT THAT INSTANT, and a bare
+        /// double-tap with nothing held dashes BACKWARD -- that is Godot's own
+        /// choice, and it is the useful one: a dash with no direction is a
+        /// dodge, and a dodge goes away from whatever you are facing.
+        /// </summary>
+        private void TickDash(Keyboard keyboard, Vector2 move, float yawDegrees, float deltaTime)
+        {
+            _sprintTapWindow = Mathf.Max(0.0f, _sprintTapWindow - deltaTime);
+
+            if (!keyboard.leftShiftKey.wasPressedThisFrame)
+            {
+                return;
+            }
+
+            if (_sprintTapWindow <= 0.0f)
+            {
+                // The first tap only opens the window. Holding sprint down
+                // never gets here twice, which is what keeps hold-to-sprint and
+                // double-tap-to-dash from fighting over the same key.
+                _sprintTapWindow = DoubleTapSeconds;
+                return;
+            }
+            _sprintTapWindow = 0.0f;
+
+            if (_locomotion.IsDashing)
+            {
+                return;
+            }
+
+            // Stamina is spent through the vitals rather than checked and
+            // deducted here, so the exhaustion latch stays in one place.
+            float cost = PlayerVitals.BaseMaxStamina * PlayerLocomotion.DashStaminaFraction;
+            if (_vitals != null && !_vitals.TrySpendStamina(cost))
+            {
+                return;
+            }
+
+            Vector2 held = move.sqrMagnitude > 0.01f ? move : new Vector2(0.0f, -1.0f);
+            var direction = new LocomotionInput { Move = held, YawDegrees = yawDegrees };
+            _locomotion.StartDash(direction.WorldDirection());
+            _vitals?.GrantInvulnerability(PlayerLocomotion.DashSeconds);
+            _audio?.PlayDash();
         }
     }
 }

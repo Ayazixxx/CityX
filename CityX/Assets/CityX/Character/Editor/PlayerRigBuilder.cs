@@ -205,10 +205,142 @@ namespace CityX.CharacterEditor
                 }
             }
 
+            AddCrouchStates(controller, root);
+            AddDashState(controller, root);
             AddPunchStates(root);
 
             EditorUtility.SetDirty(controller);
             return controller;
+        }
+
+        /// <summary>How long a crouch takes to fold or unfold. character.gd's own.</summary>
+        private const float CrouchBlendSeconds = 0.2f;
+
+        /// <summary>
+        /// Going down, being down, and coming back up.
+        ///
+        /// THREE STATES RATHER THAN A BLEND, because Godot has three clips and
+        /// two of them are transitions -- standing_to_crouch and crouch_to_idle
+        /// exist precisely so the fold reads as a movement rather than as the
+        /// body sliding between two poses.
+        ///
+        /// THE HELD CROUCH IS crouch_walk FROZEN AT ITS FIRST FRAME. There is
+        /// no crouch-idle clip in the set; Godot holds the last pose of
+        /// standing_to_crouch instead, which cannot be expressed as a blend
+        /// tree child without replaying the fold every loop. Freezing the walk
+        /// gives the same thing -- a crouched body, not moving -- and comes
+        /// from the clip the body will actually blend INTO the moment it walks,
+        /// so there is nothing to pop between.
+        /// </summary>
+        private static void AddCrouchStates(AnimatorController controller,
+            AnimatorStateMachine root)
+        {
+            AnimationClip down = FindClip("standing_to_crouch");
+            AnimationClip walk = FindClip("crouch_walk");
+            AnimationClip up = FindClip("crouch_to_idle");
+            AnimatorState locomotion = FindState(root, "Locomotion");
+            if (down == null || walk == null || up == null || locomotion == null)
+            {
+                Debug.LogWarning("CityX: crouch clips missing -- crouching will not be shown.");
+                return;
+            }
+
+            controller.AddParameter("Crouching", AnimatorControllerParameterType.Bool);
+
+            controller.CreateBlendTreeInController("Crouched", out BlendTree crouched, 0);
+            crouched.blendType = BlendTreeType.Simple1D;
+            crouched.blendParameter = "Speed";
+            crouched.AddChild(walk, 0.0f);
+            crouched.AddChild(walk, WalkSpeed);
+            ChildMotion[] children = crouched.children;
+            children[0].timeScale = 0.0f;   // held, not walking on the spot
+            crouched.children = children;
+            AnimatorState crouchedState = FindState(root, "Crouched");
+
+            AnimatorState downState = root.AddState("StandingToCrouch");
+            downState.motion = down;
+
+            AnimatorState upState = root.AddState("CrouchToIdle");
+            upState.motion = up;
+
+            Link(locomotion, downState, CrouchBlendSeconds, "Crouching", true);
+            Link(downState, crouchedState, 0.1f, null, false, exitTime: 0.9f);
+
+            // A crouch abandoned before it finishes still has to come back up,
+            // or holding and releasing quickly leaves the body folded.
+            Link(downState, upState, CrouchBlendSeconds, "Crouching", false);
+            Link(crouchedState, upState, CrouchBlendSeconds, "Crouching", false);
+            Link(upState, locomotion, 0.1f, null, false, exitTime: 0.9f);
+
+            // And crouching again mid-stand goes straight back down rather than
+            // waiting out the rest of the stand.
+            Link(upState, downState, CrouchBlendSeconds, "Crouching", true);
+        }
+
+        /// <summary>
+        /// The dash.
+        ///
+        /// ONE CLIP FOR EVERY DIRECTION, which is Godot's own arrangement: only
+        /// dash_backward was ever authored, and a bare double-tap with nothing
+        /// held dashes backward anyway. A sideways dash borrows it rather than
+        /// showing a walk cycle at 24 m/s.
+        /// </summary>
+        private static void AddDashState(AnimatorController controller, AnimatorStateMachine root)
+        {
+            AnimationClip clip = FindClip("dash_backward");
+            AnimatorState locomotion = FindState(root, "Locomotion");
+            if (clip == null || locomotion == null)
+            {
+                return;
+            }
+
+            controller.AddParameter("Dash", AnimatorControllerParameterType.Trigger);
+
+            AnimatorState dash = root.AddState("Dash");
+            dash.motion = clip;
+
+            AnimatorStateTransition into = root.AddAnyStateTransition(dash);
+            into.AddCondition(AnimatorConditionMode.If, 0.0f, "Dash");
+            into.duration = 0.05f;
+            into.hasExitTime = false;
+            into.canTransitionToSelf = false;
+
+            // OUT ON EXIT TIME, not on the burst ending. The clip runs well
+            // past the 0.2s of real movement into its own recovery, and Godot
+            // cuts that tail short deliberately -- but cutting it at 0.2s here
+            // would snap mid-lunge. 0.6 of the clip is the compromise: the
+            // recovery reads, and the body is not still lunging a second after
+            // it stopped moving.
+            AnimatorStateTransition outOf = dash.AddTransition(locomotion);
+            outOf.duration = 0.15f;
+            outOf.hasExitTime = true;
+            outOf.exitTime = 0.6f;
+        }
+
+        /// <summary>One transition, with the boilerplate that is the same every time.</summary>
+        private static void Link(AnimatorState from, AnimatorState to, float duration,
+            string parameter, bool wanted, float exitTime = -1.0f)
+        {
+            if (from == null || to == null)
+            {
+                return;
+            }
+            AnimatorStateTransition transition = from.AddTransition(to);
+            transition.duration = duration;
+            if (parameter != null)
+            {
+                transition.AddCondition(
+                    wanted ? AnimatorConditionMode.If : AnimatorConditionMode.IfNot, 0.0f, parameter);
+            }
+            if (exitTime >= 0.0f)
+            {
+                transition.hasExitTime = true;
+                transition.exitTime = exitTime;
+            }
+            else
+            {
+                transition.hasExitTime = false;
+            }
         }
 
         /// <summary>
