@@ -201,13 +201,17 @@ namespace CityX.ViewEditor
             // --- shipped as a prefab because half of what it drives only
             // --- exists in a scene, and a prefab of empty slots is the exact
             // --- class of mistake the capture rig has already been caught by.
-            CityX.UIEditor.DevConsoleBuilder.AddToScene(
+            CityX.UI.DevConsoleView console = CityX.UIEditor.DevConsoleBuilder.AddToScene(
                 Object.FindFirstObjectByType<PlayerVitals>(),
                 Object.FindFirstObjectByType<RainEffect>(),
                 cycle,
                 cameraObject.GetComponent<FlyCamera>(),
                 CityX.CharacterEditor.WolfBuilder.Build(),
                 RadioBuilder.Build());
+
+            // --- the pause menu. Escape opens it; it guards itself against
+            // --- opening on top of the console above.
+            CityX.UIEditor.PauseMenuBuilder.AddToScene(console);
 
             GameObject streamerObject = new GameObject("CityStreamer");
             CityStreamer streamer = streamerObject.AddComponent<CityStreamer>();
