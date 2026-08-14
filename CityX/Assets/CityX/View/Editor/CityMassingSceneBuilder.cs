@@ -190,6 +190,17 @@ namespace CityX.ViewEditor
                 {
                     bubble.AnchorHeadHeight = locomotion.StandingHeight;
                 }
+
+                // --- grab/carry. Hold E on a Grabbable rigidbody (a limp
+                // --- ragdoll bone, or the crate below) to lift it; a tap
+                // --- while carrying drops it. Movement/looking stay free --
+                // --- see GrabCarry's own doc comment for why it never
+                // --- touches PlayerInputReader/ThirdPersonCamera.enabled.
+                var grabCarry = player.AddComponent<CityX.Character.GrabCarry>();
+                grabCarry.Vitals = player.GetComponent<PlayerVitals>();
+                grabCarry.Eye = cameraObject.transform;
+
+                AddGrabbableCrate(groundHeight, structure);
             }
             else
             {
@@ -331,6 +342,28 @@ namespace CityX.ViewEditor
                 dummy.GetComponent<MeshRenderer>().sharedMaterial = material;
                 dummy.AddComponent<SparringDummy>();
             }
+        }
+
+        /// <summary>
+        /// A loose physics prop to pick up and carry -- there is no ported
+        /// glass_bottle.gd yet (no Unity weapon/wearable component layer
+        /// exists at all today) and nothing in this scene naturally dies
+        /// into a limp, grabbable ragdoll, so grab/carry would otherwise
+        /// have nothing to demonstrate itself on. A plain crate, not a fake
+        /// stand-in for a specific Godot item.
+        /// </summary>
+        private static void AddGrabbableCrate(float groundHeight, Material material)
+        {
+            float chunk = CityLayout.ChunkSize;
+            var crate = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            crate.name = "GrabbableCrate";
+            crate.transform.position = new Vector3(chunk * 0.5f + 1.5f, groundHeight + 0.4f, chunk * 0.5f + 2.5f);
+            crate.transform.localScale = Vector3.one * 0.8f;
+            crate.GetComponent<MeshRenderer>().sharedMaterial = material;
+
+            Rigidbody body = crate.AddComponent<Rigidbody>();
+            body.mass = 8.0f;
+            crate.AddComponent<CityX.Character.Grabbable>();
         }
 
         /// <summary>

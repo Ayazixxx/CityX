@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 5225322987804841595}
   - component: {fileID: 4803657614302496348}
   - component: {fileID: 6010434333696763830}
+  - component: {fileID: 7514570834022727689}
   - component: {fileID: 2296554459167264413}
   m_Layer: 0
   m_Name: spine
@@ -85,6 +86,18 @@ Rigidbody:
   m_Interpolate: 1
   m_Constraints: 0
   m_CollisionDetection: 2
+--- !u!114 &7514570834022727689
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1678484389451227582}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 583264311f67e3048a3e037a67733105, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.Grabbable
 --- !u!144 &2296554459167264413
 CharacterJoint:
   m_ObjectHideFlags: 0
@@ -204,6 +217,7 @@ GameObject:
   - component: {fileID: 419351647400107083}
   - component: {fileID: 42040817742217798}
   - component: {fileID: 3242004262988159011}
+  - component: {fileID: 4432401226103680020}
   - component: {fileID: 7878538856298453766}
   m_Layer: 0
   m_Name: shin_r
@@ -278,6 +292,18 @@ Rigidbody:
   m_Interpolate: 1
   m_Constraints: 0
   m_CollisionDetection: 2
+--- !u!114 &4432401226103680020
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3803849200647736526}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 583264311f67e3048a3e037a67733105, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.Grabbable
 --- !u!144 &7878538856298453766
 CharacterJoint:
   m_ObjectHideFlags: 0
@@ -366,6 +392,7 @@ GameObject:
   - component: {fileID: 5908263141913170000}
   - component: {fileID: 8450583653493363059}
   - component: {fileID: 7502073928346198846}
+  - component: {fileID: 8449905220960443374}
   - component: {fileID: 4090636193949757395}
   m_Layer: 0
   m_Name: thigh_l
@@ -440,6 +467,18 @@ Rigidbody:
   m_Interpolate: 1
   m_Constraints: 0
   m_CollisionDetection: 2
+--- !u!114 &8449905220960443374
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4210660740953477059}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 583264311f67e3048a3e037a67733105, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.Grabbable
 --- !u!144 &4090636193949757395
 CharacterJoint:
   m_ObjectHideFlags: 0
@@ -497,6 +536,7 @@ GameObject:
   - component: {fileID: 4270905265901048042}
   - component: {fileID: 2279581257789267561}
   - component: {fileID: 1338443506510413375}
+  - component: {fileID: 7286728129341603700}
   m_Layer: 0
   m_Name: hips
   m_TagString: Untagged
@@ -570,6 +610,18 @@ Rigidbody:
   m_Interpolate: 1
   m_Constraints: 0
   m_CollisionDetection: 2
+--- !u!114 &7286728129341603700
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4266593717739313908}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 583264311f67e3048a3e037a67733105, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.Grabbable
 --- !u!1 &4894738447990093862
 GameObject:
   m_ObjectHideFlags: 0
@@ -742,6 +794,7 @@ GameObject:
   - component: {fileID: 7844091356814042110}
   - component: {fileID: 2976693454700010982}
   - component: {fileID: 3930108678213077817}
+  - component: {fileID: 2667534871763002820}
   - component: {fileID: 9095521204960451220}
   m_Layer: 0
   m_Name: arm_r
@@ -816,6 +869,18 @@ Rigidbody:
   m_Interpolate: 1
   m_Constraints: 0
   m_CollisionDetection: 2
+--- !u!114 &2667534871763002820
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5432428275855522641}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 583264311f67e3048a3e037a67733105, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.Grabbable
 --- !u!144 &9095521204960451220
 CharacterJoint:
   m_ObjectHideFlags: 0
@@ -905,6 +970,7 @@ GameObject:
   - component: {fileID: 6828603573978781226}
   - component: {fileID: 3705595485616693755}
   - component: {fileID: 8634816842056062589}
+  - component: {fileID: 5797433293388788498}
   - component: {fileID: 9199938391370133390}
   m_Layer: 0
   m_Name: arm_l
@@ -979,6 +1045,18 @@ Rigidbody:
   m_Interpolate: 1
   m_Constraints: 0
   m_CollisionDetection: 2
+--- !u!114 &5797433293388788498
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6688324254832896979}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 583264311f67e3048a3e037a67733105, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.Grabbable
 --- !u!144 &9199938391370133390
 CharacterJoint:
   m_ObjectHideFlags: 0
@@ -1036,6 +1114,7 @@ GameObject:
   - component: {fileID: 3293616691903146185}
   - component: {fileID: 3197995429638563903}
   - component: {fileID: 5721917860501738942}
+  - component: {fileID: 6897272176533176912}
   - component: {fileID: 5014186726292085983}
   m_Layer: 0
   m_Name: forearm_l
@@ -1110,6 +1189,18 @@ Rigidbody:
   m_Interpolate: 1
   m_Constraints: 0
   m_CollisionDetection: 2
+--- !u!114 &6897272176533176912
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7121224922100818511}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 583264311f67e3048a3e037a67733105, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.Grabbable
 --- !u!144 &5014186726292085983
 CharacterJoint:
   m_ObjectHideFlags: 0
@@ -1198,6 +1289,7 @@ GameObject:
   - component: {fileID: 7714210579295498665}
   - component: {fileID: 817188620378955045}
   - component: {fileID: 6932870340142354369}
+  - component: {fileID: 3928639025390596194}
   - component: {fileID: 1767263480006882821}
   m_Layer: 0
   m_Name: forearm_r
@@ -1272,6 +1364,18 @@ Rigidbody:
   m_Interpolate: 1
   m_Constraints: 0
   m_CollisionDetection: 2
+--- !u!114 &3928639025390596194
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7400273605822843278}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 583264311f67e3048a3e037a67733105, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.Grabbable
 --- !u!144 &1767263480006882821
 CharacterJoint:
   m_ObjectHideFlags: 0
@@ -1329,6 +1433,7 @@ GameObject:
   - component: {fileID: 6280535375741328311}
   - component: {fileID: 7207419882759102820}
   - component: {fileID: 8233927423305576193}
+  - component: {fileID: 8254567409834157895}
   - component: {fileID: 1118781440403951583}
   m_Layer: 0
   m_Name: thigh_r
@@ -1403,6 +1508,18 @@ Rigidbody:
   m_Interpolate: 1
   m_Constraints: 0
   m_CollisionDetection: 2
+--- !u!114 &8254567409834157895
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7498867228171686399}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 583264311f67e3048a3e037a67733105, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.Grabbable
 --- !u!144 &1118781440403951583
 CharacterJoint:
   m_ObjectHideFlags: 0
@@ -1492,6 +1609,7 @@ GameObject:
   - component: {fileID: 5484454264140843519}
   - component: {fileID: 6184322304777948197}
   - component: {fileID: 7058666007677756581}
+  - component: {fileID: 8442741839326326175}
   - component: {fileID: 3160675724870936873}
   m_Layer: 0
   m_Name: shin_l
@@ -1566,6 +1684,18 @@ Rigidbody:
   m_Interpolate: 1
   m_Constraints: 0
   m_CollisionDetection: 2
+--- !u!114 &8442741839326326175
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8136244523452461305}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 583264311f67e3048a3e037a67733105, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.Grabbable
 --- !u!144 &3160675724870936873
 CharacterJoint:
   m_ObjectHideFlags: 0
@@ -1960,6 +2090,7 @@ GameObject:
   - component: {fileID: 6897154836521841398}
   - component: {fileID: 7486273406201068889}
   - component: {fileID: 6857740579645167720}
+  - component: {fileID: 697336855627023730}
   - component: {fileID: 7494055251885713511}
   m_Layer: 0
   m_Name: head
@@ -2032,6 +2163,18 @@ Rigidbody:
   m_Interpolate: 1
   m_Constraints: 0
   m_CollisionDetection: 2
+--- !u!114 &697336855627023730
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8745195789988289024}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 583264311f67e3048a3e037a67733105, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.Grabbable
 --- !u!144 &7494055251885713511
 CharacterJoint:
   m_ObjectHideFlags: 0

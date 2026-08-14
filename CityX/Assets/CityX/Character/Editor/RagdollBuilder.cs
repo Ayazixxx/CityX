@@ -243,6 +243,9 @@ namespace CityX.CharacterEditor
         private static Rigidbody MakeBody(Transform bone, float volume)
         {
             var body = bone.gameObject.AddComponent<Rigidbody>();
+            // See GrabCarry.cs -- every ragdoll bone can be picked up once
+            // it is actually limp (GrabCarry also requires !isKinematic).
+            bone.gameObject.AddComponent<Grabbable>();
             body.mass = Mathf.Max(volume * Density, 0.5f);
             body.linearDamping = Ragdoll.LinearDamping;
             body.angularDamping = Ragdoll.AngularDamping;

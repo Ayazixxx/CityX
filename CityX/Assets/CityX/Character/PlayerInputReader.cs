@@ -40,6 +40,7 @@ namespace CityX.Character
         private MeleeAttacker _melee;
         private Ragdoll _ragdoll;
         private PlayerAudio _audio;
+        private GrabCarry _grabCarry;
 
         private void Awake()
         {
@@ -51,6 +52,7 @@ namespace CityX.Character
             _melee = GetComponent<MeleeAttacker>();
             _ragdoll = GetComponent<Ragdoll>();
             _audio = GetComponent<PlayerAudio>();
+            _grabCarry = GetComponent<GrabCarry>();
         }
 
         private void Update()
@@ -191,6 +193,14 @@ namespace CityX.Character
         private void TickCombat(float deltaTime)
         {
             if (_melee == null || Mouse.current == null)
+            {
+                return;
+            }
+
+            // Both hands are full while carrying something -- matches
+            // player.gd's own "entirely while carrying something" guard on
+            // punch/block input.
+            if (_grabCarry != null && _grabCarry.IsCarrying)
             {
                 return;
             }
