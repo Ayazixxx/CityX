@@ -37,6 +37,9 @@ namespace CityX.View
         [Tooltip("Window glass with a light on. DayNightCycle brings this one up at dusk.")]
         public Material LitGlassMaterial;
 
+        [Tooltip("A window somebody has already put a fist through. Drawn, never collided with.")]
+        public Material CrackedGlassMaterial;
+
         [Tooltip("Leave empty to follow the main camera.")]
         public Transform Viewer;
 
@@ -48,6 +51,7 @@ namespace CityX.View
         private readonly MeshBuffer _structures = new MeshBuffer();
         private readonly MeshBuffer _litGlass = new MeshBuffer();
         private readonly MeshBuffer _darkGlass = new MeshBuffer();
+        private readonly MeshBuffer _crackedGlass = new MeshBuffer();
         private readonly List<Vector2Int> _wanted = new List<Vector2Int>();
         private readonly List<Vector2Int> _stale = new List<Vector2Int>();
 
@@ -55,6 +59,13 @@ namespace CityX.View
         {
             Rebuild();
         }
+
+        /// <summary>
+        /// Which windows in this world are broken. Survives chunks streaming
+        /// out and back, which is the whole reason it lives here rather than on
+        /// a chunk -- see GlassDamage.
+        /// </summary>
+        public GlassDamage Damage { get; } = new GlassDamage();
 
         /// <summary>Drops everything and starts again. Called on seed changes.</summary>
         public void Rebuild()
@@ -66,6 +77,42 @@ namespace CityX.View
                 DestroyChunk(pair.Value);
             }
             _loaded.Clear();
+        }
+
+        private void OnEnable()
+        {
+            Damage.Changed += OnPaneChanged;
+        }
+
+        private void OnDisable()
+        {
+            Damage.Changed -= OnPaneChanged;
+        }
+
+        /// <summary>
+        /// A window changed, so the chunk it belongs to is built again.
+        ///
+        /// REBUILDING THE WHOLE CHUNK FOR ONE PANE looks heavy and is the right
+        /// trade here. A chunk costs about two milliseconds to build, upload
+        /// and cook; breaking a window is something a player does a few times a
+        /// minute, not a few times a frame. The alternative -- keeping every
+        /// pane as its own object so one can be removed on its own -- is the
+        /// arrangement city_chunk.gd measured at four thousand collision nodes
+        /// per chunk and sixty-three milliseconds, which is what made a
+        /// sprinting player stutter. One rebuild on a punch is cheaper than
+        /// that permanently.
+        /// </summary>
+        private void OnPaneChanged(PaneKey key, PaneState state)
+        {
+            var chunk = new Vector2Int(key.ChunkX, key.ChunkY);
+            if (!_loaded.TryGetValue(chunk, out GameObject existing))
+            {
+                // Not on screen. The rebuild happens when it streams back in,
+                // and it reads the same damage.
+                return;
+            }
+            DestroyChunk(existing);
+            _loaded[chunk] = BuildChunkObject(chunk);
         }
 
         private void Update()
@@ -153,6 +200,7 @@ namespace CityX.View
             _structures.Clear();
             _litGlass.Clear();
             _darkGlass.Clear();
+            _crackedGlass.Clear();
 
             // Chunks are built relative to their own corner and then placed, so
             // vertex coordinates stay small. Building in absolute world space
@@ -162,7 +210,7 @@ namespace CityX.View
                 key.x * CityLayout.ChunkSize, 0.0f, key.y * CityLayout.ChunkSize);
 
             CityMeshBuilder.BuildChunk(_world, _bridges, key.x, key.y, origin,
-                _ground, _pavement, _structures, _litGlass, _darkGlass);
+                _ground, _pavement, _structures, _litGlass, _darkGlass, _crackedGlass, Damage);
 
             GameObject go = new GameObject($"Chunk {key.x},{key.y}");
             go.transform.SetParent(transform, false);
@@ -226,7 +274,46 @@ namespace CityX.View
             MeshCollider collider = go.AddComponent<MeshCollider>();
             collider.sharedMesh = mesh;
 
+            AddCrackedGlass(go, key);
             return go;
+        }
+
+        /// <summary>
+        /// Cracked panes, on their own object with no collider.
+        ///
+        /// THIS IS THE ONLY REASON IT IS A SEPARATE OBJECT. The first hit on a
+        /// window has to make it walkable immediately and still leave something
+        /// frosted to look at -- city_chunk.gd's own rule, and the user's own
+        /// "you can now just walk through it". The chunk's collider is built
+        /// from its render mesh, so drawn-but-not-solid is impossible within
+        /// it. A second mesh with no MeshCollider is the whole trick.
+        ///
+        /// Almost always empty: it costs one object per chunk with a broken
+        /// window and nothing at all for the rest.
+        /// </summary>
+        private void AddCrackedGlass(GameObject chunk, Vector2Int key)
+        {
+            if (_crackedGlass.IsEmpty)
+            {
+                return;
+            }
+
+            var go = new GameObject("CrackedGlass");
+            go.transform.SetParent(chunk.transform, false);
+
+            var mesh = new Mesh { name = $"cracked-{key.x}-{key.y}" };
+            mesh.indexFormat = _crackedGlass.Vertices.Count > 65000
+                ? UnityEngine.Rendering.IndexFormat.UInt32
+                : UnityEngine.Rendering.IndexFormat.UInt16;
+            mesh.SetVertices(_crackedGlass.Vertices);
+            mesh.SetNormals(_crackedGlass.Normals);
+            mesh.SetUVs(0, _crackedGlass.Uvs);
+            mesh.SetTriangles(_crackedGlass.Triangles, 0);
+            mesh.RecalculateTangents();
+            mesh.RecalculateBounds();
+
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            go.AddComponent<MeshRenderer>().sharedMaterial = CrackedGlassMaterial;
         }
 
         private static void DestroyChunk(GameObject go)

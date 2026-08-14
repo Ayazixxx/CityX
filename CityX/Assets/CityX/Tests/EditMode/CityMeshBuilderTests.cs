@@ -668,6 +668,117 @@ namespace CityX.Tests
             Assert.Greater(panes, 1000, "not enough glass sampled to mean anything");
         }
 
+        /// <summary>
+        /// A BROKEN WINDOW STAYS BROKEN, AND THE HOLE STAYS A HOLE.
+        ///
+        /// The dangerous failure here is not that the glass fails to change --
+        /// that is visible instantly. It is that the OPENING gets rebuilt along
+        /// with it: the wall is cut around each glazed cell, so a builder that
+        /// consulted damage in the wrong place would reinstate solid concrete
+        /// where a shattered window used to be, and the window a player just
+        /// smashed would become a wall they cannot walk through.
+        /// </summary>
+        [Test]
+        public void BreakingAWindowChangesTheGlassAndNotTheHole()
+        {
+            CityWorld world = new CityWorld(Seed);
+            SkybridgeLayout bridges = new SkybridgeLayout(Seed);
+
+            (int x, int y) = FirstBuilding(world);
+            BuildingSite site = world.BuildingAt(x, y);
+            var damage = new GlassDamage();
+
+            int wallBefore = BuildWith(world, bridges, x, y, damage,
+                out int litBefore, out int darkBefore, out int crackedBefore);
+            Assert.AreEqual(0, crackedBefore, "an untouched city has cracked glass in it");
+            Assert.Greater(litBefore + darkBefore, 0, "this building has no glass to break");
+
+            // Find a window that is really there, and hit it.
+            PaneKey key = AnyPaneOn(world, site);
+            Assert.AreEqual(PaneState.Cracked, damage.Hit(key));
+
+            // One quad, which is six indices -- these are index counts, not
+            // triangle counts, and the difference cost a confused test run.
+            const int Quad = 6;
+
+            int wallCracked = BuildWith(world, bridges, x, y, damage,
+                out int litCracked, out int darkCracked, out int crackedNow);
+            Assert.AreEqual(Quad, crackedNow,
+                "the cracked pane is not in the cracked buffer, or took something with it");
+            Assert.AreEqual(litBefore + darkBefore - Quad, litCracked + darkCracked,
+                "the pane left the intact buffers as exactly one quad");
+            Assert.AreEqual(wallBefore, wallCracked,
+                "cracking a window changed the wall around it");
+
+            Assert.AreEqual(PaneState.Shattered, damage.Hit(key));
+
+            int wallGone = BuildWith(world, bridges, x, y, damage,
+                out int litGone, out int darkGone, out int crackedGone);
+            Assert.AreEqual(0, crackedGone, "a shattered pane is still drawn");
+            Assert.AreEqual(litBefore + darkBefore - Quad, litGone + darkGone);
+            Assert.AreEqual(wallBefore, wallGone,
+                "the wall grew back over a window somebody smashed");
+        }
+
+        /// <summary>Builds one chunk against a damage record and counts triangles.</summary>
+        private static int BuildWith(CityWorld world, SkybridgeLayout bridges, int x, int y,
+            GlassDamage damage, out int lit, out int dark, out int cracked)
+        {
+            var ground = new MeshBuffer();
+            var pavement = new MeshBuffer();
+            var structures = new MeshBuffer();
+            var litGlass = new MeshBuffer();
+            var darkGlass = new MeshBuffer();
+            var crackedGlass = new MeshBuffer();
+
+            CityMeshBuilder.BuildChunk(world, bridges, x, y, Vector3.zero,
+                ground, pavement, structures, litGlass, darkGlass, crackedGlass, damage);
+
+            lit = litGlass.Triangles.Count;
+            dark = darkGlass.Triangles.Count;
+            cracked = crackedGlass.Triangles.Count;
+            return structures.Triangles.Count;
+        }
+
+        private static (int, int) FirstBuilding(CityWorld world)
+        {
+            for (int x = -8; x <= 8; x++)
+            {
+                for (int y = -8; y <= 8; y++)
+                {
+                    BuildingSite site = world.BuildingAt(x, y);
+                    if (site.Exists && site.AnchorX == x && site.AnchorY == y &&
+                        site.Params.Width > 14.0f)
+                    {
+                        return (x, y);
+                    }
+                }
+            }
+            Assert.Fail("no building near the origin");
+            return (0, 0);
+        }
+
+        private static PaneKey AnyPaneOn(CityWorld world, BuildingSite site)
+        {
+            int seed = world.ChunkSeed(site.AnchorX, site.AnchorY);
+            CellLayout rows = WindowGrid.RowsFor(site.Params.Height);
+            CellLayout columns = WindowGrid.ColumnsFor(site.Params.Width);
+
+            for (int row = 1; row < rows.Count; row++)
+            {
+                for (int column = 0; column < columns.Count; column++)
+                {
+                    if (WindowGrid.IsGlazed(seed, WindowGrid.Wall.North, column, row))
+                    {
+                        return new PaneKey(site.AnchorX, site.AnchorY,
+                            WindowGrid.Wall.North, column, row);
+                    }
+                }
+            }
+            Assert.Fail("this building's front wall has no windows at all");
+            return default;
+        }
+
         /// <summary>How many cells WindowGrid glazes on a building, doorway aside.</summary>
         private static int ExpectedPanes(CityWorld world, BuildingSite site)
         {

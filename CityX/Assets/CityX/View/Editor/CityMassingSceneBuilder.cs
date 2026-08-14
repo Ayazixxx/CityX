@@ -50,6 +50,8 @@ namespace CityX.ViewEditor
                 CityFacadeTextures.FacadeTileWidth, 0.04f);
             Material darkGlass = EnsureGlassMaterial("CityGlassDark", false);
             Material litGlass = EnsureGlassMaterial("CityGlassLit", true);
+            Material crackedGlass = EnsureGlassMaterial("CityGlassCracked", false, cracked: true);
+            GameObject shards = GlassShardsBuilder.Build();
 
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
@@ -161,6 +163,14 @@ namespace CityX.ViewEditor
             streamer.StructureMaterial = structure;
             streamer.DarkGlassMaterial = darkGlass;
             streamer.LitGlassMaterial = litGlass;
+            streamer.CrackedGlassMaterial = crackedGlass;
+
+            // Punching a window is the streamer's business because the damage
+            // is: chunks come and go, the record of what is broken does not.
+            GlassBreaker breaker = streamerObject.AddComponent<GlassBreaker>();
+            breaker.CrackSounds = new[] { LoadClip("glass_crack") };
+            breaker.BreakSounds = new[] { LoadClip("glass_break") };
+            breaker.ShardPrefab = shards;
             streamer.Viewer = cameraObject.transform;
 
             EditorSceneManager.SaveScene(scene, ScenePath);
@@ -223,7 +233,23 @@ namespace CityX.ViewEditor
         /// alternative is two quads per window, which is the same triangles
         /// again for something one flag does.
         /// </summary>
-        private static Material EnsureGlassMaterial(string name, bool lit)
+        /// <summary>
+        /// One of the glass sounds, copied over from Godot's own
+        /// weapons/assets/audio. Missing means silence rather than a failure --
+        /// the same way a missing punch sample behaves.
+        /// </summary>
+        private static AudioClip LoadClip(string name)
+        {
+            var clip = AssetDatabase.LoadAssetAtPath<AudioClip>(
+                $"Assets/CityX/View/Audio/{name}.mp3");
+            if (clip == null)
+            {
+                Debug.LogWarning($"CityX: {name}.mp3 missing -- glass will break silently.");
+            }
+            return clip;
+        }
+
+        private static Material EnsureGlassMaterial(string name, bool lit, bool cracked = false)
         {
             string path = $"{MaterialDirectory}/{name}.mat";
             Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
@@ -257,8 +283,14 @@ namespace CityX.ViewEditor
             material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
 
             material.SetTexture("_BaseMap", null);
-            material.SetColor("_BaseColor", new Color(0.055f, 0.062f, 0.075f, 0.72f));
-            material.SetFloat("_Smoothness", 0.86f);
+            // Cracked glass goes pale and rough rather than dark and sharp: a
+            // window somebody has put a fist through frosts over, and it has to
+            // read as damaged from across the street or the first hit will look
+            // like it did nothing.
+            material.SetColor("_BaseColor", cracked
+                ? new Color(0.72f, 0.78f, 0.80f, 0.45f)
+                : new Color(0.055f, 0.062f, 0.075f, 0.72f));
+            material.SetFloat("_Smoothness", cracked ? 0.18f : 0.86f);
             material.SetFloat("_Metallic", 0.0f);
 
             if (lit)

@@ -64,7 +64,8 @@ namespace CityX.View
         /// </summary>
         public static void BuildChunk(CityWorld world, SkybridgeLayout bridges, int chunkX, int chunkY,
             Vector3 origin, MeshBuffer ground, MeshBuffer flatConcrete, MeshBuffer structures,
-            MeshBuffer litGlass = null, MeshBuffer darkGlass = null)
+            MeshBuffer litGlass = null, MeshBuffer darkGlass = null,
+            MeshBuffer crackedGlass = null, GlassDamage damage = null)
         {
             BuildGround(world, chunkX, chunkY, origin, ground, flatConcrete);
 
@@ -77,7 +78,8 @@ namespace CityX.View
                 return;
             }
 
-            BuildBuilding(world, site, origin, structures, flatConcrete, litGlass, darkGlass);
+            BuildBuilding(world, site, origin, structures, flatConcrete,
+                new Glazing(litGlass, darkGlass, crackedGlass, damage));
             AddWing(world, site, origin, structures, flatConcrete);
             AddBalconies(world, site, origin, flatConcrete);
             AddRibs(world, site, origin, structures);
@@ -227,8 +229,38 @@ namespace CityX.View
         /// sloped ramp box; at a 0.25m riser against the controller's 0.4m
         /// step offset that walks, and it is a truer surface than the ramp.
         /// </summary>
+        /// <summary>
+        /// Where a building's windows go, and what has already been done to
+        /// them.
+        ///
+        /// Bundled because these four always travel together and every wall
+        /// needs all of them -- four more parameters on each of eight calls
+        /// says nothing the name does not. An instance with no buffers is the
+        /// INWARD copy of a wall: same openings, no glass, because the outward
+        /// pass already hung it.
+        /// </summary>
+        private readonly struct Glazing
+        {
+            public readonly MeshBuffer Lit;
+            public readonly MeshBuffer Dark;
+            public readonly MeshBuffer Cracked;
+            public readonly GlassDamage Damage;
+
+            public Glazing(MeshBuffer lit, MeshBuffer dark, MeshBuffer cracked, GlassDamage damage)
+            {
+                Lit = lit;
+                Dark = dark;
+                Cracked = cracked;
+                Damage = damage;
+            }
+
+            public bool HangsGlass => Lit != null;
+
+            public static readonly Glazing OpeningsOnly = default;
+        }
+
         private static void BuildBuilding(CityWorld world, BuildingSite site, Vector3 origin,
-            MeshBuffer structures, MeshBuffer concrete, MeshBuffer litGlass, MeshBuffer darkGlass)
+            MeshBuffer structures, MeshBuffer concrete, Glazing glazing)
         {
             // The stretch below BaseHeight is buried on the uphill side and
             // exposed downhill, which is what a hillside podium actually is.
@@ -272,26 +304,25 @@ namespace CityX.View
             AddWallPanel(structures, north, x0, x1, podiumY, lobbyY, Vector3.forward);
 
             // Outward, for the street, with real openings in it.
-            AddWindowedWall(structures, litGlass, darkGlass, west, z0, z1, lobbyY, roofY,
+            AddWindowedWall(structures, glazing, site, west, z0, z1, lobbyY, roofY,
                 Vector3.left, seed, WindowGrid.Wall.West, rows, 0.0f, 0.0f, false);
-            AddWindowedWall(structures, litGlass, darkGlass, east, z0, z1, lobbyY, roofY,
+            AddWindowedWall(structures, glazing, site, east, z0, z1, lobbyY, roofY,
                 Vector3.right, seed, WindowGrid.Wall.East, rows, 0.0f, 0.0f, false);
-            AddWindowedWall(structures, litGlass, darkGlass, south, x0, x1, lobbyY, roofY,
+            AddWindowedWall(structures, glazing, site, south, x0, x1, lobbyY, roofY,
                 Vector3.back, seed, WindowGrid.Wall.South, rows, 0.0f, 0.0f, false);
-            AddWindowedWall(structures, litGlass, darkGlass, north, x0, x1, lobbyY, roofY,
+            AddWindowedWall(structures, glazing, site, north, x0, x1, lobbyY, roofY,
                 Vector3.forward, seed, WindowGrid.Wall.North, rows, doorU0, doorU1, true);
 
             // Inward, for the room. Same planes and the same openings, opposite
             // normals -- back to back, so neither is ever seen from the wrong
             // side, and a window is a hole through BOTH or it is not a hole.
-            // No panes: the glass was already hung by the outward pass.
-            AddWindowedWall(concrete, null, null, west, z0, z1, lobbyY, roofY,
+            AddWindowedWall(concrete, Glazing.OpeningsOnly, site, west, z0, z1, lobbyY, roofY,
                 Vector3.right, seed, WindowGrid.Wall.West, rows, 0.0f, 0.0f, false);
-            AddWindowedWall(concrete, null, null, east, z0, z1, lobbyY, roofY,
+            AddWindowedWall(concrete, Glazing.OpeningsOnly, site, east, z0, z1, lobbyY, roofY,
                 Vector3.left, seed, WindowGrid.Wall.East, rows, 0.0f, 0.0f, false);
-            AddWindowedWall(concrete, null, null, south, x0, x1, lobbyY, roofY,
+            AddWindowedWall(concrete, Glazing.OpeningsOnly, site, south, x0, x1, lobbyY, roofY,
                 Vector3.forward, seed, WindowGrid.Wall.South, rows, 0.0f, 0.0f, false);
-            AddWindowedWall(concrete, null, null, north, x0, x1, lobbyY, roofY,
+            AddWindowedWall(concrete, Glazing.OpeningsOnly, site, north, x0, x1, lobbyY, roofY,
                 Vector3.back, seed, WindowGrid.Wall.North, rows, doorU0, doorU1, true);
 
             // The lobby floor, and NOT a port: city_chunk.gd leans on the
@@ -837,13 +868,15 @@ namespace CityX.View
         /// run. A twelve-by-twelve wall comes out at about eight quads a row
         /// rather than sixty.
         ///
-        /// <paramref name="litPanes"/> null means this is the INWARD copy of
+        /// A <paramref name="glazing"/> with no buffers is the INWARD copy of
         /// the wall: same openings, opposite normal, and no glass, because the
         /// outward pass already hung it. A window has to be a hole through both
-        /// or it is not a hole.
+        /// or it is not a hole -- AND THE OPENING IS CUT WHATEVER STATE THE
+        /// GLASS IS IN, so a shattered window leaves a hole rather than
+        /// reinstating the wall it was cut from.
         /// </summary>
-        private static void AddWindowedWall(MeshBuffer wallBuffer, MeshBuffer litPanes,
-            MeshBuffer darkPanes, in Wall wall, float u0, float u1, float floorY, float topY,
+        private static void AddWindowedWall(MeshBuffer wallBuffer, in Glazing glazing,
+            BuildingSite site, in Wall wall, float u0, float u1, float floorY, float topY,
             Vector3 normal, int seed, WindowGrid.Wall which, CellLayout rows,
             float doorU0, float doorU1, bool hasDoor)
         {
@@ -857,7 +890,7 @@ namespace CityX.View
 
                 if (hasDoor && row == 0)
                 {
-                    AddDoorRow(wallBuffer, litPanes, darkPanes, wall, u0, y0, y1, normal,
+                    AddDoorRow(wallBuffer, glazing, site, wall, u0, y0, y1, normal,
                         seed, which, columns, doorU0, doorU1);
                     continue;
                 }
@@ -883,7 +916,7 @@ namespace CityX.View
                     AddWallPanel(wallBuffer, wall, runStart, paneU0, paneY0, paneY1, normal);
                     runStart = paneU1;
 
-                    AddPane(litPanes, darkPanes, wall, paneU0, paneU1, paneY0, paneY1, normal,
+                    AddPane(glazing, site, wall, paneU0, paneU1, paneY0, paneY1, normal,
                         seed, which, column, row);
                 }
                 AddWallPanel(wallBuffer, wall, runStart, u1, paneY0, paneY1, normal);
@@ -904,8 +937,8 @@ namespace CityX.View
         /// its earlier approach -- gives that row a different column grid from
         /// every row above it, and that shipped a visible seam there twice.
         /// </summary>
-        private static void AddDoorRow(MeshBuffer wallBuffer, MeshBuffer litPanes,
-            MeshBuffer darkPanes, in Wall wall, float u0, float y0, float y1, Vector3 normal,
+        private static void AddDoorRow(MeshBuffer wallBuffer, in Glazing glazing,
+            BuildingSite site, in Wall wall, float u0, float y0, float y1, Vector3 normal,
             int seed, WindowGrid.Wall which, CellLayout columns, float doorU0, float doorU1)
         {
             float inset = WindowGrid.PaneInset;
@@ -938,31 +971,55 @@ namespace CityX.View
                 AddWallPanel(wallBuffer, wall, paneU0, paneU1, y0, paneY0, normal);
                 AddWallPanel(wallBuffer, wall, paneU0, paneU1, paneY1, y1, normal);
 
-                AddPane(litPanes, darkPanes, wall, paneU0, paneU1, paneY0, paneY1, normal,
+                AddPane(glazing, site, wall, paneU0, paneU1, paneY0, paneY1, normal,
                     seed, which, column, 0);
             }
         }
 
         /// <summary>
-        /// One sheet of glass, into the lit buffer or the dark one.
+        /// One sheet of glass, or none if somebody has already put a fist
+        /// through it.
         ///
-        /// TWO BUFFERS RATHER THAN A COLOUR PER PANE. Whether a window is lit
-        /// has to reach the shader somehow, and MeshBuffer has no colour
-        /// channel -- adding one would put four bytes on every vertex in the
-        /// city to say something about a few hundred of them. Two submeshes
-        /// with two materials says it for nothing, and it lets DayNightCycle
-        /// bring the lit ones up at dusk by touching one material rather than
-        /// walking geometry.
+        /// THREE BUFFERS RATHER THAN A COLOUR PER PANE. Whether a window is lit
+        /// and whether it is cracked both have to reach the shader somehow, and
+        /// MeshBuffer has no colour channel -- adding one would put four bytes
+        /// on every vertex in the city to say something about a few hundred of
+        /// them. Submeshes cost nothing per vertex, and they let DayNightCycle
+        /// bring every lit window up at dusk by touching one material rather
+        /// than walking geometry.
+        ///
+        /// CRACKED GLASS IS THE ONE THAT MATTERS STRUCTURALLY. It has to still
+        /// be drawn and NOT be collided with, because the first hit is what
+        /// makes a window walkable. The chunk's collider is the render mesh, so
+        /// the only way to have one without the other is to put it in a buffer
+        /// the collider is not built from.
         /// </summary>
-        private static void AddPane(MeshBuffer litPanes, MeshBuffer darkPanes, in Wall wall,
+        private static void AddPane(in Glazing glazing, BuildingSite site, in Wall wall,
             float u0, float u1, float y0, float y1, Vector3 normal,
             int seed, WindowGrid.Wall which, int column, int row)
         {
-            if (litPanes == null)
+            if (!glazing.HangsGlass)
             {
                 return;
             }
-            MeshBuffer glass = WindowGrid.IsLit(seed, which, column, row) ? litPanes : darkPanes;
+
+            PaneState state = glazing.Damage == null
+                ? PaneState.Intact
+                : glazing.Damage.StateOf(
+                    new PaneKey(site.AnchorX, site.AnchorY, which, column, row));
+            if (state == PaneState.Shattered)
+            {
+                return;
+            }
+
+            MeshBuffer glass = state == PaneState.Cracked
+                ? glazing.Cracked
+                : WindowGrid.IsLit(seed, which, column, row) ? glazing.Lit : glazing.Dark;
+            if (glass == null)
+            {
+                return;
+            }
+
             AddFace(glass, normal,
                 wall.At(u0, y0), wall.At(u1, y0), wall.At(u1, y1), wall.At(u0, y1));
         }

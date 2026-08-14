@@ -280,10 +280,37 @@ namespace CityX.Character
                 BloodSplatter.Spawn(BloodPrefab, contact.Point, origin - contact.Point);
             }
 
+            connected |= PunchGlass(origin);
+
             if (connected)
             {
                 PlayImpact();
             }
+        }
+
+        /// <summary>
+        /// A window in front of the swing, if there is one.
+        ///
+        /// A RAY RATHER THAN THE ARC SWEEP the bodies use, and the difference is
+        /// the point. A body is a thing you turn towards and hit; a window is
+        /// one of a dozen in a wall you are standing at, and the one you meant
+        /// is the one you are looking at. A sweep would break whichever pane
+        /// the physics query happened to return first.
+        ///
+        /// The chunk is one merged collider for the road, the roofs and every
+        /// wall, so the ray only says WHERE the wall was touched -- what is at
+        /// that point is the city's own question to answer.
+        /// </summary>
+        private bool PunchGlass(Vector3 origin)
+        {
+            if (!Physics.Raycast(origin, transform.forward, out RaycastHit hit, Range,
+                    TargetLayers, QueryTriggerInteraction.Ignore))
+            {
+                return false;
+            }
+
+            var breakable = hit.collider.GetComponentInParent<World.IBreakableSurface>();
+            return breakable != null && breakable.TakePunch(hit.point);
         }
 
         /// <summary>
