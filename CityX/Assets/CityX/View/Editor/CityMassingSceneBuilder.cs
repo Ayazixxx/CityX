@@ -159,6 +159,37 @@ namespace CityX.ViewEditor
                 // now; Civilian is still built and still placed deliberately by
                 // the scale screenshots.
                 AddSparringDummies(groundHeight, structure);
+
+                // --- /claim. Reuses PlayerAudio.CurrentBuilding for "which
+                // --- building is this," and orbits the same single camera
+                // --- FlyCamera/ThirdPersonCamera already share -- see
+                // --- ClaimCutscene's own doc comment for why that is not a
+                // --- second Camera.
+                var claim = player.AddComponent<CityX.Character.ClaimSystem>();
+                claim.Audio = player.GetComponent<PlayerAudio>();
+                claim.Vitals = player.GetComponent<PlayerVitals>();
+                claim.InputReader = player.GetComponent<PlayerInputReader>();
+                claim.OrbitCamera = follow;
+                claim.CameraTransform = cameraObject.transform;
+
+                var claimSoundObject = new GameObject("ClaimSound");
+                claimSoundObject.transform.SetParent(player.transform, false);
+                var claimSource = claimSoundObject.AddComponent<AudioSource>();
+                claimSource.clip = AssetDatabase.LoadAssetAtPath<AudioClip>(
+                    "Assets/CityX/UI/Audio/building_acquired.mp3");
+                claimSource.playOnAwake = false;
+                claimSource.spatialBlend = 0.0f;
+                claim.AcquiredSoundSource = claimSource;
+
+                var bubbleObject = new GameObject("SpeechBubble");
+                bubbleObject.transform.SetParent(player.transform, false);
+                var bubble = bubbleObject.AddComponent<CityX.Character.SpeechBubble>();
+                bubble.Anchor = player.transform;
+                var locomotion = player.GetComponent<PlayerLocomotion>();
+                if (locomotion != null)
+                {
+                    bubble.AnchorHeadHeight = locomotion.StandingHeight;
+                }
             }
             else
             {
@@ -238,15 +269,33 @@ namespace CityX.ViewEditor
             // --- the map. M opens it; it guards itself against opening on
             // --- top of the console or while the game is paused.
             var mapPlayer = Object.FindFirstObjectByType<PlayerVitals>();
+            CityX.UI.MapPanelView map = null;
             if (mapPlayer != null)
             {
-                CityX.UIEditor.MapPanelBuilder.AddToScene(
+                map = CityX.UIEditor.MapPanelBuilder.AddToScene(
                     streamer,
                     mapPlayer.transform,
                     Object.FindFirstObjectByType<PlayerInputReader>(),
                     Object.FindFirstObjectByType<ThirdPersonCamera>(),
                     console,
                     pause);
+            }
+
+            // --- chat. Enter opens it; /claim inside it is the only way to
+            // --- reach the claim system above. Guards itself against the
+            // --- console, the pause menu and the map, all of which also
+            // --- read Enter or Escape.
+            if (mapPlayer != null)
+            {
+                CityX.UI.PlayerChat chat = CityX.UIEditor.PlayerChatBuilder.AddToScene(
+                    Object.FindFirstObjectByType<CityX.Character.ClaimSystem>(),
+                    Object.FindFirstObjectByType<CityX.Character.SpeechBubble>(),
+                    Object.FindFirstObjectByType<PlayerInputReader>(),
+                    Object.FindFirstObjectByType<ThirdPersonCamera>(),
+                    console,
+                    pause,
+                    map);
+                pause.Chat = chat;
             }
 
             EditorSceneManager.SaveScene(scene, ScenePath);

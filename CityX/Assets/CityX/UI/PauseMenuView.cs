@@ -59,6 +59,9 @@ namespace CityX.UI
         [Tooltip("Escape is ignored while this is open -- typing a command should not also pause the game.")]
         public DevConsoleView Console;
 
+        [Tooltip("Escape is ignored while this is open -- it cancels the chat message instead of also pausing the game.")]
+        public PlayerChat Chat;
+
         [Tooltip("The scene Quit returns to.")]
         public string TitleScene = "Title";
 
@@ -95,6 +98,16 @@ namespace CityX.UI
             // console closes on backtick, not Escape, so there is no
             // ordering conflict -- this simply refuses to open on top of it.
             if (Console != null && Console.IsOpen)
+            {
+                return;
+            }
+
+            // Chat DOES close on Escape too -- PlayerChat's own Update()
+            // handles that half. Refusing to also open the pause menu here
+            // is the fix for the exact race ThirdPersonCamera's leftover
+            // Escape handler used to cause against this component: two
+            // things reacting to the same keypress in the same frame.
+            if (Chat != null && Chat.IsOpen)
             {
                 return;
             }
