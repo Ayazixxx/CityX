@@ -52,6 +52,9 @@ namespace CityX.UI
         [Tooltip("What /spawn civilian puts down. A dummy is built from a capsule instead.")]
         public GameObject CivilianPrefab;
 
+        [Tooltip("What /spawn wolf puts down.")]
+        public GameObject WolfPrefab;
+
         /// <summary>How far in front of the player something spawns.</summary>
         public const float SpawnDistance = 3.0f;
 
@@ -285,6 +288,27 @@ namespace CityX.UI
                     }
                     Instantiate(CivilianPrefab, where, facing);
                     Log("spawned civilian");
+                    return;
+
+                case "wolf":
+                    if (WolfPrefab == null)
+                    {
+                        Log("no wolf prefab wired");
+                        return;
+                    }
+                    GameObject wolf = Instantiate(WolfPrefab, where, facing);
+                    // The kill reward goes to whoever was watching when it
+                    // died, which here is the one body the console knows about.
+                    // Godot hands it to the attacker that landed the blow; the
+                    // port has no way to name that yet, and pretending it does
+                    // would be worse than saying so.
+                    var brain = wolf.GetComponent<Wolf>();
+                    if (brain != null && Vitals != null)
+                    {
+                        PlayerVitals earner = Vitals;
+                        brain.Felled += _ => earner.Level += 1;
+                    }
+                    Log("spawned wolf");
                     return;
 
                 case "dummy":
