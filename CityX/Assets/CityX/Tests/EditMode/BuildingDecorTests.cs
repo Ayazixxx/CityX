@@ -156,5 +156,208 @@ namespace CityX.Tests
             // because row 0 is the only row there is.
             Assert.IsEmpty(BuildingDecor.Balconies(0, Width, Depth, 3.0f));
         }
+
+        // --- ribs ---
+
+        private const float DoorU0 = -0.8f;
+        private const float DoorU1 = 0.8f;
+
+        private static BuildingDecor.RibbedFacade RibsFor(int seed, float height = Height)
+        {
+            return BuildingDecor.Ribs(seed, Width, Depth, height, DoorU0, DoorU1);
+        }
+
+        /// <summary>
+        /// A fin stands on its own wall, in its own slot, clear of its
+        /// neighbours. Overlapping fins would be invisible at a cost, and a fin
+        /// running off the end of a wall would hang in mid air at the corner.
+        /// </summary>
+        [Test]
+        public void EachFinSitsInsideItsOwnCellOnItsOwnWall()
+        {
+            int sampled = 0;
+
+            for (int seed = 0; seed < 300; seed++)
+            {
+                BuildingDecor.RibbedFacade ribbed = RibsFor(seed);
+
+                var spansByWall = new Dictionary<Vector3, List<BuildingDecor.Rib>>();
+                foreach (BuildingDecor.Rib rib in ribbed.Fins)
+                {
+                    sampled++;
+
+                    Assert.AreEqual(1.0f, rib.Normal.magnitude, 0.001f);
+                    Assert.AreEqual(0.0f, rib.Normal.y, 0.001f, "a fin lying on the roof");
+                    Assert.Less(rib.U0, rib.U1, "a fin with no width");
+
+                    // On the wall it claims, not round the corner.
+                    float span = Mathf.Abs(rib.Normal.x) > 0.5f ? Depth : Width;
+                    Assert.GreaterOrEqual(rib.U0, -span * 0.5f - 0.001f);
+                    Assert.LessOrEqual(rib.U1, span * 0.5f + 0.001f);
+
+                    if (!spansByWall.TryGetValue(rib.Normal, out List<BuildingDecor.Rib> onWall))
+                    {
+                        onWall = new List<BuildingDecor.Rib>();
+                        spansByWall[rib.Normal] = onWall;
+                    }
+                    foreach (BuildingDecor.Rib other in onWall)
+                    {
+                        Assert.IsTrue(rib.U1 <= other.U0 + 0.001f || rib.U0 >= other.U1 - 0.001f,
+                            $"two fins overlap on the same wall: " +
+                            $"[{rib.U0},{rib.U1}] and [{other.U0},{other.U1}]");
+                    }
+                    onWall.Add(rib);
+                }
+
+                if (ribbed.Fins.Count > 0)
+                {
+                    Assert.GreaterOrEqual(ribbed.Depth, BuildingDecor.RibMinDepth);
+                    Assert.LessOrEqual(ribbed.Depth, BuildingDecor.RibMaxDepth);
+                }
+            }
+
+            TestContext.WriteLine($"{sampled} fins over 300 buildings");
+            Assert.Greater(sampled, 1000, "not enough fins sampled to mean anything");
+        }
+
+        /// <summary>
+        /// NOTHING STANDS IN THE DOORWAY. Every other rule here is about how the
+        /// facade looks; this one is about whether the building can be walked
+        /// into, which is the only way a decorative fin can break something
+        /// real.
+        /// </summary>
+        [Test]
+        public void NoFinStandsInFrontOfTheDoor()
+        {
+            int doorWallFins = 0;
+
+            for (int seed = 0; seed < 400; seed++)
+            {
+                foreach (BuildingDecor.Rib rib in RibsFor(seed).Fins)
+                {
+                    if (rib.Normal.z < 0.5f)
+                    {
+                        continue;   // not the door wall
+                    }
+                    doorWallFins++;
+
+                    bool clear = rib.U1 <= DoorU0 - BuildingDecor.RibDoorClearance ||
+                                 rib.U0 >= DoorU1 + BuildingDecor.RibDoorClearance;
+                    Assert.IsTrue(clear,
+                        $"a fin spans [{rib.U0},{rib.U1}], across the doorway at [{DoorU0},{DoorU1}]");
+                }
+            }
+
+            Assert.Greater(doorWallFins, 100, "the door wall was never ribbed, so this proved nothing");
+        }
+
+        /// <summary>
+        /// Ribbed at roughly the stated rate, and when a building is ribbed it
+        /// is either all four walls or some of them -- the mix is what stops
+        /// the city reading as one repeated building.
+        /// </summary>
+        [Test]
+        public void SomeBuildingsAreRibbedAndSomeWallsAreNot()
+        {
+            int ribbed = 0;
+            var wallCounts = new Dictionary<int, int>();
+
+            for (int seed = 0; seed < 800; seed++)
+            {
+                BuildingDecor.RibbedFacade facade = RibsFor(seed);
+                if (facade.Fins.Count == 0)
+                {
+                    continue;
+                }
+                ribbed++;
+
+                var walls = new HashSet<Vector3>();
+                foreach (BuildingDecor.Rib rib in facade.Fins)
+                {
+                    walls.Add(rib.Normal);
+                }
+                wallCounts.TryGetValue(walls.Count, out int seen);
+                wallCounts[walls.Count] = seen + 1;
+            }
+
+            float share = ribbed / 800.0f;
+            TestContext.WriteLine($"{share:0.00} ribbed; walls per ribbed building: " +
+                                  string.Join(", ", wallCounts));
+
+            Assert.AreEqual(BuildingDecor.RibChance, share, 0.06,
+                "the ribbed share drifted");
+            wallCounts.TryGetValue(4, out int allFour);
+            Assert.Greater(allFour, 0, "no building ribs every wall");
+            Assert.Greater(wallCounts.Count, 1,
+                "every ribbed building ribs the same number of walls");
+        }
+
+        /// <summary>
+        /// Fins start one window row up and run to the roof. The bottom row is
+        /// the one holding the entrance and the street-level glass, and a fin
+        /// bracketing either is the one place this decoration would be in the
+        /// way rather than on the wall.
+        /// </summary>
+        [Test]
+        public void FinsClearTheGroundRowAndAShortBuildingGetsNone()
+        {
+            int checked_ = 0;
+            for (int seed = 0; seed < 300; seed++)
+            {
+                BuildingDecor.RibbedFacade facade = RibsFor(seed);
+                if (facade.Fins.Count == 0)
+                {
+                    continue;
+                }
+                checked_++;
+
+                CellLayout rows = CellLayout.For(Height, CellLayout.NominalFloorMetres);
+                Assert.AreEqual(rows.Size * BuildingDecor.RibBaseRows, facade.BaseY, 0.001f);
+                Assert.Greater(facade.BaseY, 0.0f);
+            }
+            Assert.Greater(checked_, 50);
+
+            // One row of building is all door and all glass, and there is
+            // nothing above it for a fin to run up.
+            for (int seed = 0; seed < 100; seed++)
+            {
+                Assert.IsEmpty(BuildingDecor.Ribs(seed, Width, Depth, 3.2f, DoorU0, DoorU1).Fins,
+                    "a one-storey building grew fins over its own doorway");
+            }
+        }
+
+        /// <summary>
+        /// Same seed, same fins. Chunks rebuild whenever streaming decides to,
+        /// and a facade that re-rolled on reload is a building that changed
+        /// while you were looking away.
+        /// </summary>
+        [Test]
+        public void TheSameSeedAlwaysGivesTheSameFins()
+        {
+            BuildingDecor.RibbedFacade first = RibsFor(31);
+            BuildingDecor.RibbedFacade again = RibsFor(31);
+
+            Assert.AreEqual(first.BaseY, again.BaseY);
+            Assert.AreEqual(first.Depth, again.Depth);
+            Assert.AreEqual(first.Fins.Count, again.Fins.Count);
+            for (int i = 0; i < first.Fins.Count; i++)
+            {
+                Assert.AreEqual(first.Fins[i].Normal, again.Fins[i].Normal);
+                Assert.AreEqual(first.Fins[i].U0, again.Fins[i].U0);
+            }
+
+            // And ribs are rolled on their own stream, so adding or removing
+            // them cannot move a balcony -- the same independence every other
+            // seeded decision on a building relies on.
+            int differences = 0;
+            for (int seed = 0; seed < 200; seed++)
+            {
+                if (RibsFor(seed).Fins.Count != RibsFor(seed + 1000).Fins.Count)
+                {
+                    differences++;
+                }
+            }
+            Assert.Greater(differences, 40, "different seeds produced suspiciously similar facades");
+        }
     }
 }

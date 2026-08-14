@@ -91,6 +91,14 @@ namespace CityX.Tests
         /// No building wall may carry the roof. Directly guards the thing that
         /// looked worst in the first textured render -- window texture printed
         /// across the top of every building.
+        ///
+        /// THE RULE IS "NOT OVER THE FOOTPRINT", not "nothing facing up", and
+        /// the difference is a fin's top cap. Facade ribs stand proud of the
+        /// wall and are capped, so they put a few upward-facing slivers in this
+        /// buffer, entirely OUTSIDE the plan of the building. Loosening this to
+        /// tolerate small upward faces anywhere would have let a real roof
+        /// through the day one got split into small triangles; testing where
+        /// they are instead separates the two exactly.
         /// </summary>
         [Test]
         public void BuildingRoofsAreNotPartOfTheFacade()
@@ -110,10 +118,23 @@ namespace CityX.Tests
                     checkedCount++;
 
                     Build(x, y, out _, out _, out MeshBuffer structures);
-                    foreach (Vector3 normal in structures.Normals)
+                    for (int t = 0; t < structures.Triangles.Count; t += 3)
                     {
-                        Assert.Less(normal.y, 0.5f,
-                            $"({x},{y}) has an upward-facing wall surface -- a roof got the window facade");
+                        int a = structures.Triangles[t];
+                        if (structures.Normals[a].y < 0.5f)
+                        {
+                            continue;
+                        }
+
+                        Vector3 centre = (structures.Vertices[a] +
+                                          structures.Vertices[structures.Triangles[t + 1]] +
+                                          structures.Vertices[structures.Triangles[t + 2]]) / 3.0f;
+                        bool overThePlan =
+                            centre.x > site.MinX + 0.001 && centre.x < site.MaxX - 0.001 &&
+                            centre.z > site.MinZ + 0.001 && centre.z < site.MaxZ - 0.001;
+                        Assert.IsFalse(overThePlan,
+                            $"({x},{y}) has an upward-facing facade surface at {centre} inside its own " +
+                            "footprint -- a roof got the window texture");
                     }
                 }
             }
@@ -219,10 +240,35 @@ namespace CityX.Tests
                     checkedCount++;
 
                     Bounds bounds = BoundsOf(structures);
+
+                    // Facade ribs stand proud of the wall they are on, so the
+                    // west and south faces reach exactly one fin depth further
+                    // out -- and exactly zero further when that wall was not
+                    // ribbed. Both are pinned rather than allowing a range,
+                    // because "somewhere within half a metre of the wall" would
+                    // also pass for a fin built on the wrong wall entirely.
+                    BuildingDecor.RibbedFacade ribbed = BuildingDecor.Ribs(
+                        world.ChunkSeed(x, y), site.Params.Width, site.Params.Depth,
+                        site.Params.Height,
+                        -BuildingInterior.DoorWidth * 0.5f, BuildingInterior.DoorWidth * 0.5f);
+                    float westFins = 0.0f;
+                    float southFins = 0.0f;
+                    foreach (BuildingDecor.Rib rib in ribbed.Fins)
+                    {
+                        if (rib.Normal == Vector3.left)
+                        {
+                            westFins = ribbed.Depth;
+                        }
+                        if (rib.Normal == Vector3.back)
+                        {
+                            southFins = ribbed.Depth;
+                        }
+                    }
+
                     // Bridges extend past the building, so only the lower
                     // corner and the roof can be compared exactly.
-                    Assert.AreEqual(site.MinX, bounds.min.x, 0.01, $"({x},{y}) west face");
-                    Assert.AreEqual(site.MinZ, bounds.min.z, 0.01, $"({x},{y}) south face");
+                    Assert.AreEqual(site.MinX - westFins, bounds.min.x, 0.01, $"({x},{y}) west face");
+                    Assert.AreEqual(site.MinZ - southFins, bounds.min.z, 0.01, $"({x},{y}) south face");
                     Assert.AreEqual(site.PodiumBase, bounds.min.y, 0.01, $"({x},{y}) podium base");
                     Assert.GreaterOrEqual(bounds.max.y, site.Top - 0.01f, $"({x},{y}) roof");
                 }

@@ -78,6 +78,7 @@ namespace CityX.View
 
             BuildBuilding(site, origin, structures, flatConcrete);
             AddBalconies(world, site, origin, flatConcrete);
+            AddRibs(world, site, origin, structures);
             BuildBridges(world, bridges, site, origin, flatConcrete);
         }
 
@@ -393,6 +394,83 @@ namespace CityX.View
                             ? BuildingDecor.BalconyDepth : BuildingDecor.BalconyRailThickness);
                 }
             }
+        }
+
+        /// <summary>
+        /// Vertical concrete fins standing proud of the facade.
+        ///
+        /// FACADE MATERIAL, NOT CONCRETE, which is city_chunk.gd's own choice
+        /// and worth stating because the opposite looks more obviously right.
+        /// A fin's own faces are UV'd in metres like every other surface here,
+        /// so a fin picks up the same strip of wall texture as the wall
+        /// directly behind it -- it reads as a piece of the facade pulled
+        /// forward, which is what a cast fin is. Putting them in the concrete
+        /// buffer would give a cleaner fin and a visible seam where it meets
+        /// the wall it grew out of.
+        ///
+        /// NO COLLISION IS NOT A DECISION HERE, unlike in Godot where it was:
+        /// the chunk's own MeshCollider takes whatever triangles it is given.
+        /// A fin is a thin ledge on a wall that is already solid behind it, so
+        /// nothing becomes passable or impassable either way.
+        /// </summary>
+        private static void AddRibs(CityWorld world, BuildingSite site, Vector3 origin,
+            MeshBuffer facade)
+        {
+            float halfX = site.Params.Width * 0.5f;
+            float halfZ = site.Params.Depth * 0.5f;
+
+            BuildingDecor.RibbedFacade ribbed = BuildingDecor.Ribs(
+                world.ChunkSeed(site.AnchorX, site.AnchorY),
+                site.Params.Width, site.Params.Depth, site.Params.Height,
+                -BuildingInterior.DoorWidth * 0.5f, BuildingInterior.DoorWidth * 0.5f);
+            if (ribbed.Fins.Count == 0)
+            {
+                return;
+            }
+
+            float centreX = (float)(site.CentreX - origin.x);
+            float centreZ = (float)(site.CentreZ - origin.z);
+            float y0 = site.BaseHeight - origin.y + ribbed.BaseY;
+            float y1 = site.BaseHeight - origin.y + site.Params.Height;
+
+            foreach (BuildingDecor.Rib rib in ribbed.Fins)
+            {
+                bool runsInZ = Mathf.Abs(rib.Normal.x) > 0.5f;
+                Wall wall = runsInZ
+                    ? new Wall(true, centreX + rib.Normal.x * halfX, rib.U0, rib.U1)
+                    : new Wall(false, centreZ + rib.Normal.z * halfZ, rib.U0, rib.U1);
+                float u0 = rib.U0 + (runsInZ ? centreZ : centreX);
+                float u1 = rib.U1 + (runsInZ ? centreZ : centreX);
+
+                AddFin(facade, wall, u0, u1, y0, y1, rib.Normal, ribbed.Depth,
+                    runsInZ ? Vector3.forward : Vector3.right);
+            }
+        }
+
+        /// <summary>
+        /// One fin: a rectangular prism standing proud of its wall plane.
+        ///
+        /// FOUR FACES, NOT SIX, and this is Godot's own reasoning carried over
+        /// rather than a shortcut. The back face is flush against the wall it
+        /// stands on and the underside is only visible from directly below a
+        /// fin that starts one storey up. A densely ribbed tower is a hundred
+        /// fins, and this file's cost is already what dominates streaming.
+        /// </summary>
+        private static void AddFin(MeshBuffer buffer, in Wall wall, float u0, float u1,
+            float y0, float y1, Vector3 normal, float depth, Vector3 along)
+        {
+            Vector3 out_ = normal * depth;
+
+            Vector3 baseLow0 = wall.At(u0, y0);
+            Vector3 baseLow1 = wall.At(u1, y0);
+            Vector3 baseHigh0 = wall.At(u0, y1);
+            Vector3 baseHigh1 = wall.At(u1, y1);
+
+            AddFace(buffer, normal,
+                baseLow0 + out_, baseLow1 + out_, baseHigh1 + out_, baseHigh0 + out_);
+            AddFace(buffer, -along, baseLow0, baseLow0 + out_, baseHigh0 + out_, baseHigh0);
+            AddFace(buffer, along, baseLow1, baseLow1 + out_, baseHigh1 + out_, baseHigh1);
+            AddFace(buffer, Vector3.up, baseHigh0, baseHigh1, baseHigh1 + out_, baseHigh0 + out_);
         }
 
         /// <summary>

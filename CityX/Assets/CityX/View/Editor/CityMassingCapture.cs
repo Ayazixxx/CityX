@@ -460,14 +460,30 @@ namespace CityX.ViewEditor
                                 (float)site.CentreZ + balcony.Centre.z));
                         }
                     }
-                    if (subjects.Count == 0)
+
+                    bool ribbed = false;
+                    foreach (BuildingDecor.Rib rib in BuildingDecor.Ribs(
+                                 world.ChunkSeed(x, y),
+                                 site.Params.Width, site.Params.Depth, site.Params.Height,
+                                 -BuildingInterior.DoorWidth * 0.5f,
+                                 BuildingInterior.DoorWidth * 0.5f).Fins)
+                    {
+                        ribbed |= rib.Normal.z < -0.5f;
+                    }
+
+                    if (subjects.Count == 0 && !ribbed)
                     {
                         continue;
                     }
-                    // More of them beats nearer. A wall with three is a better
-                    // photograph of the feature than a wall with one, and every
-                    // candidate here is already within 150m of the origin.
-                    float score = x * x + y * y - subjects.Count * 1000.0f;
+
+                    // A wall carrying BOTH beats a wall carrying one, which
+                    // beats nearer -- one photograph that answers two questions
+                    // is worth more than a short walk. Every candidate here is
+                    // already within 150m of the origin.
+                    float score = x * x + y * y
+                                  - subjects.Count * 1000.0f
+                                  - (ribbed ? 20000.0f : 0.0f)
+                                  - (ribbed && subjects.Count > 0 ? 40000.0f : 0.0f);
                     if (score < best)
                     {
                         best = score;
@@ -490,13 +506,20 @@ namespace CityX.ViewEditor
             // tenth of a degree outside the top of the frame. A shot that only
             // works when the subject lands mid-range is a shot that will lie
             // again the next time the seed moves.
-            Vector3 look = Vector3.zero;
-            foreach (Vector3 subject in chosenSubjects)
+            var look = new Vector3(
+                (float)chosen.CentreX,
+                chosen.BaseHeight + Mathf.Min(9.0f, chosen.Params.Height * 0.5f),
+                (float)chosen.MinZ);
+            if (chosenSubjects.Count > 0)
             {
-                look += subject;
+                Vector3 sum = Vector3.zero;
+                foreach (Vector3 subject in chosenSubjects)
+                {
+                    sum += subject;
+                }
+                look.x = sum.x / chosenSubjects.Count;
+                look.y = sum.y / chosenSubjects.Count;
             }
-            look /= chosenSubjects.Count;
-            look.z = (float)chosen.MinZ;
 
             // OFF TO ONE SIDE, NOT SQUARE ON. Everything a balcony is -- a slab
             // standing 1.1m off the wall with a rail round it -- is depth, and
