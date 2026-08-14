@@ -77,6 +77,7 @@ namespace CityX.View
             }
 
             BuildBuilding(site, origin, structures, flatConcrete);
+            AddWing(world, site, origin, structures, flatConcrete);
             AddBalconies(world, site, origin, flatConcrete);
             AddRibs(world, site, origin, structures);
             BuildBridges(world, bridges, site, origin, flatConcrete);
@@ -394,6 +395,107 @@ namespace CityX.View
                             ? BuildingDecor.BalconyDepth : BuildingDecor.BalconyRailThickness);
                 }
             }
+        }
+
+        /// <summary>
+        /// The attached secondary volume that turns a box into an L.
+        ///
+        /// A SOLID BLOCK, NOT A SECOND ENTERABLE BUILDING, which is
+        /// city_chunk.gd's own choice: a wing has no doorway, no stairwell and
+        /// no interior, so there is nothing to walk into and nothing to leave
+        /// a hole open for. Four windowed faces and a roof cap.
+        ///
+        /// IT STARTS AT THE PODIUM, not at the lobby floor Godot uses, and that
+        /// is terrain rather than drift. A Godot building stands on flat
+        /// ground, so its floor and the ground are the same height; here a lot
+        /// spans terraces and the main walls already reach down to the lowest
+        /// pad they cover. A wing stopping at the lobby floor would hang in the
+        /// air on the downhill side.
+        /// </summary>
+        private static void AddWing(CityWorld world, BuildingSite site, Vector3 origin,
+            MeshBuffer facade, MeshBuffer roof)
+        {
+            if (!TryWingBox(world, site, out Bounds box))
+            {
+                return;
+            }
+            facade.AddBox(box.min - origin, box.max - origin, roof);
+        }
+
+        /// <summary>
+        /// Where a building's wing stands, in world space, or false if it has
+        /// none.
+        ///
+        /// PUBLIC BECAUSE A TEST HAS TO ASK. The clamp that stops a wing from
+        /// growing through the building next door is the whole reason this
+        /// differs from Godot, and the only honest way to check it is to take
+        /// every wing in a sweep and hold it against every neighbouring
+        /// footprint. Rederiving these six numbers inside the test would be
+        /// testing a copy of the arithmetic rather than the arithmetic.
+        /// </summary>
+        public static bool TryWingBox(CityWorld world, BuildingSite site, out Bounds box)
+        {
+            box = default;
+
+            // How much clear ground each of the three candidate walls has: the
+            // slack the building leaves inside its own lot, plus whatever lies
+            // beyond that lot edge.
+            CityChunkGenerator.LotRect lot = CityChunkGenerator.LotRectFor(site.Role);
+            double lotCentreX = CityLayout.SpanCentre(site.AnchorX, site.Role.SpanX) + lot.CentreOffsetX;
+            double lotCentreZ = CityLayout.SpanCentre(site.AnchorY, site.Role.SpanY) + lot.CentreOffsetZ;
+
+            float westRoom = (float)(site.MinX - (lotCentreX - lot.Width * 0.5))
+                             + CityChunkGenerator.MarginBeyond(site.Role, -1, 0);
+            float eastRoom = (float)(lotCentreX + lot.Width * 0.5 - site.MaxX)
+                             + CityChunkGenerator.MarginBeyond(site.Role, 1, 0);
+            float southRoom = (float)(site.MinZ - (lotCentreZ - lot.Depth * 0.5))
+                              + CityChunkGenerator.MarginBeyond(site.Role, 0, -1);
+
+            BuildingDecor.Wing wing = BuildingDecor.WingFor(
+                world.ChunkSeed(site.AnchorX, site.AnchorY),
+                site.Params.Width, site.Params.Depth, site.Params.Height,
+                westRoom, eastRoom, southRoom);
+            if (!wing.Exists)
+            {
+                return false;
+            }
+
+            float centreX = (float)site.CentreX;
+            float centreZ = (float)site.CentreZ;
+            float halfX = site.Params.Width * 0.5f;
+            float halfZ = site.Params.Depth * 0.5f;
+
+            // Bite into the wall it grows from. Meeting it exactly leaves two
+            // coincident faces, which z-fight along the whole join.
+            const float Bite = 0.05f;
+
+            float minX, maxX, minZ, maxZ;
+            if (Mathf.Abs(wing.Normal.x) > 0.5f)
+            {
+                float face = centreX + wing.Normal.x * halfX;
+                float outer = face + wing.Depth * wing.Normal.x;
+                float inner = face - Bite * wing.Normal.x;
+                minX = Mathf.Min(inner, outer);
+                maxX = Mathf.Max(inner, outer);
+                minZ = centreZ + wing.Along - wing.Width * 0.5f;
+                maxZ = centreZ + wing.Along + wing.Width * 0.5f;
+            }
+            else
+            {
+                float face = centreZ + wing.Normal.z * halfZ;
+                float outer = face + wing.Depth * wing.Normal.z;
+                float inner = face - Bite * wing.Normal.z;
+                minZ = Mathf.Min(inner, outer);
+                maxZ = Mathf.Max(inner, outer);
+                minX = centreX + wing.Along - wing.Width * 0.5f;
+                maxX = centreX + wing.Along + wing.Width * 0.5f;
+            }
+
+            box = new Bounds();
+            box.SetMinMax(
+                new Vector3(minX, site.PodiumBase, minZ),
+                new Vector3(maxX, site.BaseHeight + wing.Height, maxZ));
+            return true;
         }
 
         /// <summary>

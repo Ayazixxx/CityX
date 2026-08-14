@@ -265,16 +265,84 @@ namespace CityX.Tests
                         }
                     }
 
+                    // A wing is a second volume attached to one wall, so on the
+                    // wall it grew from the facade reaches out to the wing's
+                    // own far face instead.
+                    double westFace = site.MinX - westFins;
+                    double southFace = site.MinZ - southFins;
+                    if (CityMeshBuilder.TryWingBox(world, site, out Bounds wing))
+                    {
+                        westFace = System.Math.Min(westFace, wing.min.x);
+                        southFace = System.Math.Min(southFace, wing.min.z);
+                    }
+
                     // Bridges extend past the building, so only the lower
                     // corner and the roof can be compared exactly.
-                    Assert.AreEqual(site.MinX - westFins, bounds.min.x, 0.01, $"({x},{y}) west face");
-                    Assert.AreEqual(site.MinZ - southFins, bounds.min.z, 0.01, $"({x},{y}) south face");
+                    Assert.AreEqual(westFace, bounds.min.x, 0.01, $"({x},{y}) west face");
+                    Assert.AreEqual(southFace, bounds.min.z, 0.01, $"({x},{y}) south face");
                     Assert.AreEqual(site.PodiumBase, bounds.min.y, 0.01, $"({x},{y}) podium base");
                     Assert.GreaterOrEqual(bounds.max.y, site.Top - 0.01f, $"({x},{y}) roof");
                 }
             }
 
             Assert.Greater(checkedCount, 100, "not enough buildings sampled");
+        }
+
+        /// <summary>
+        /// NO WING EVER REACHES INTO ANOTHER BUILDING. This is the one thing
+        /// the wing's clearance clamp exists for, and the only place it can
+        /// actually be checked: BuildingDecor is handed clearances as numbers
+        /// and has no way of knowing whether they were measured correctly, so
+        /// a clamp that worked on paper and a lot rectangle read one chunk out
+        /// would both pass every test in that file.
+        ///
+        /// Real ground truth, over every anchored building in a wide sweep,
+        /// against every other building's real footprint.
+        /// </summary>
+        [Test]
+        public void NoWingGrowsThroughTheBuildingNextDoor()
+        {
+            CityWorld world = new CityWorld(Seed);
+            var footprints = new List<(int X, int Y, Rect Plan)>();
+
+            for (int x = -20; x <= 20; x++)
+            {
+                for (int y = -20; y <= 20; y++)
+                {
+                    BuildingSite site = world.BuildingAt(x, y);
+                    if (!site.Exists || site.AnchorX != x || site.AnchorY != y)
+                    {
+                        continue;
+                    }
+                    footprints.Add((x, y, Rect.MinMaxRect(
+                        (float)site.MinX, (float)site.MinZ, (float)site.MaxX, (float)site.MaxZ)));
+                }
+            }
+
+            int wings = 0;
+            foreach ((int x, int y, Rect _) in footprints)
+            {
+                BuildingSite site = world.BuildingAt(x, y);
+                if (!CityMeshBuilder.TryWingBox(world, site, out Bounds box))
+                {
+                    continue;
+                }
+                wings++;
+
+                Rect plan = Rect.MinMaxRect(box.min.x, box.min.z, box.max.x, box.max.z);
+                foreach ((int otherX, int otherY, Rect other) in footprints)
+                {
+                    if (otherX == x && otherY == y)
+                    {
+                        continue;
+                    }
+                    Assert.IsFalse(plan.Overlaps(other),
+                        $"({x},{y})'s wing at {plan} runs into ({otherX},{otherY}) at {other}");
+                }
+            }
+
+            TestContext.WriteLine($"{wings} wings over {footprints.Count} buildings");
+            Assert.Greater(wings, 20, "no building in the sweep grew a wing, so this proved nothing");
         }
 
         /// <summary>

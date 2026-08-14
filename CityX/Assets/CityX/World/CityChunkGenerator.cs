@@ -310,6 +310,33 @@ namespace CityX.World
         }
 
         /// <summary>
+        /// Clear ground immediately beyond one edge of a lot, before anything
+        /// the next lot might build on.
+        ///
+        /// The same number <see cref="LotRectFor"/> subtracts, read from
+        /// outside instead of inside. Anything wanting to put geometry PAST a
+        /// building -- a wing, a canopy -- needs to know how much room there
+        /// actually is, and a street edge has three metres where a party edge
+        /// has less than half of one.
+        /// </summary>
+        public static float MarginBeyond(LotRole role, int dx, int dz)
+        {
+            if (dx < 0)
+            {
+                return MarginTowards(role.AnchorX - 1, role.AnchorY);
+            }
+            if (dx > 0)
+            {
+                return MarginTowards(role.AnchorX + role.SpanX, role.AnchorY);
+            }
+            if (dz < 0)
+            {
+                return MarginTowards(role.AnchorX, role.AnchorY - 1);
+            }
+            return MarginTowards(role.AnchorX, role.AnchorY + role.SpanY);
+        }
+
+        /// <summary>
         /// Mass follows the footprint. Only the single-chunk case has a genuine
         /// choice in it, and that choice is the one the user asked for -- mostly
         /// taller buildings, with the de_maple low-rise as a rarer accent.

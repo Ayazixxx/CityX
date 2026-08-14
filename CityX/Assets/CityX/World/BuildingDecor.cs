@@ -284,5 +284,122 @@ namespace CityX.World
 
             return fins.Count == 0 ? none : new RibbedFacade(fins, baseY, finDepth);
         }
+
+        // --- attached secondary massing ---
+
+        public const double WingChance = 0.35;
+        public const float WingMinWidthFraction = 0.35f;
+        public const float WingMaxWidthFraction = 0.65f;
+        public const float WingMinDepth = 3.0f;
+        public const float WingMaxDepth = 6.0f;
+        public const float WingMinHeightFraction = 0.35f;
+        public const float WingMaxHeightFraction = 0.8f;
+
+        /// <summary>Keeps a wing's footprint from reaching past the main building's far corner.</summary>
+        public const float WingMargin = 1.0f;
+
+        /// <summary>
+        /// Shallower than this and a wing is a bump on a wall rather than a
+        /// second volume, so the building keeps its plain box instead. This is
+        /// the floor the clearance clamp is tested against -- see
+        /// <see cref="WingFor"/>.
+        /// </summary>
+        public const float WingLeastUsefulDepth = 1.5f;
+
+        private const ulong WingStream = 0x57494E47UL;   // "WING"
+
+        /// <summary>A secondary massing volume attached to one wall.</summary>
+        public readonly struct Wing
+        {
+            public readonly bool Exists;
+
+            /// <summary>Outward normal of the wall it grows from. Never the door wall.</summary>
+            public readonly Vector3 Normal;
+
+            /// <summary>Centre offset ALONG that wall, in building-local space.</summary>
+            public readonly float Along;
+
+            /// <summary>Span across the wall.</summary>
+            public readonly float Width;
+
+            /// <summary>How far it protrudes from the wall.</summary>
+            public readonly float Depth;
+
+            public readonly float Height;
+
+            public Wing(Vector3 normal, float along, float width, float depth, float height)
+            {
+                Exists = true;
+                Normal = normal;
+                Along = along;
+                Width = width;
+                Depth = depth;
+                Height = height;
+            }
+        }
+
+        /// <summary>
+        /// The L-shaped massing volume a third of buildings grow, or none.
+        ///
+        /// THE ONE PLACE THIS DEPARTS FROM city_chunk.gd, deliberately and for
+        /// a structural reason. Godot picks a wall and protrudes 3 to 6 metres
+        /// with no check, which is safe THERE because a Godot building is 9-18m
+        /// inside its own 24m chunk and has metres of clear ground all round
+        /// it. Here a building fills its lot, and its neighbour's wall is 0.8m
+        /// away. Protruding six metres blind would push a solid volume through
+        /// the building next door.
+        ///
+        /// So the wall is still picked blind, in Godot's own draw order, and
+        /// the depth is then clamped to whatever room that wall actually has.
+        /// A wall with no room grows nothing -- which is why a landlocked lot
+        /// in the middle of a block stays a plain box, and a lot facing the
+        /// street is the one that gets a wing. That is the right answer for
+        /// this city rather than a compromise: the wings appear exactly where
+        /// there is space for them to be seen.
+        ///
+        /// Clearances are the clear ground beyond each wall, which the caller
+        /// measures -- this stays a pure function of numbers.
+        /// </summary>
+        public static Wing WingFor(int buildingSeed, float width, float depth, float height,
+            float clearanceMinusX, float clearancePlusX, float clearanceMinusZ)
+        {
+            var rng = new DeterministicRandom(unchecked((ulong)(long)buildingSeed), WingStream);
+            if (rng.NextDouble() >= WingChance)
+            {
+                return default;
+            }
+
+            float halfX = width * 0.5f;
+            float halfZ = depth * 0.5f;
+            float wingHeight = height *
+                               (float)rng.Range(WingMinHeightFraction, WingMaxHeightFraction);
+            float wingDepth = (float)rng.Range(WingMinDepth, WingMaxDepth);
+
+            // Godot's own wall_choice: 0 is -X, 1 is +X, 2 is the back wall at
+            // -Z. The door wall is never a choice.
+            int wall = rng.Below(3);
+            Vector3 normal;
+            float clearance;
+            float span;
+            switch (wall)
+            {
+                case 0: normal = Vector3.left; clearance = clearanceMinusX; span = halfZ; break;
+                case 1: normal = Vector3.right; clearance = clearancePlusX; span = halfZ; break;
+                default: normal = Vector3.back; clearance = clearanceMinusZ; span = halfX; break;
+            }
+
+            wingDepth = Mathf.Min(wingDepth, clearance);
+            if (wingDepth < WingLeastUsefulDepth)
+            {
+                return default;
+            }
+
+            float wingWidth = span * 2.0f *
+                              (float)rng.Range(WingMinWidthFraction, WingMaxWidthFraction);
+            float slack = Mathf.Max(0.0f, span - WingMargin - wingWidth * 0.5f);
+            float along = (float)rng.Range(-slack, slack);
+
+            return new Wing(normal, along, wingWidth, wingDepth, wingHeight);
+        }
     }
 }

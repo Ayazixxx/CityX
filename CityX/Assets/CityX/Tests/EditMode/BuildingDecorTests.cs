@@ -359,5 +359,130 @@ namespace CityX.Tests
             }
             Assert.Greater(differences, 40, "different seeds produced suspiciously similar facades");
         }
+
+        // --- wings ---
+
+        private const float Roomy = 8.0f;
+
+        /// <summary>
+        /// A wing grows off a real wall, stays within it, and never off the
+        /// entrance side.
+        /// </summary>
+        [Test]
+        public void AWingSitsOnOneWallAndStaysWithinIt()
+        {
+            int grown = 0;
+
+            for (int seed = 0; seed < 500; seed++)
+            {
+                BuildingDecor.Wing wing = BuildingDecor.WingFor(
+                    seed, Width, Depth, Height, Roomy, Roomy, Roomy);
+                if (!wing.Exists)
+                {
+                    continue;
+                }
+                grown++;
+
+                Assert.AreEqual(1.0f, wing.Normal.magnitude, 0.001f);
+                Assert.AreEqual(0.0f, wing.Normal.y, 0.001f);
+                Assert.Less(wing.Normal.z, 0.5f, "a wing grew across the entrance");
+
+                float span = Mathf.Abs(wing.Normal.x) > 0.5f ? Depth : Width;
+                Assert.Greater(wing.Width, 0.0f);
+                Assert.LessOrEqual(wing.Width, span * BuildingDecor.WingMaxWidthFraction + 0.001f);
+
+                // Inside the wall it grows from, with the stated margin left at
+                // the corner -- unless the wing is so wide there is none to
+                // leave, in which case it centres rather than overhanging.
+                float reach = Mathf.Abs(wing.Along) + wing.Width * 0.5f;
+                Assert.LessOrEqual(reach, span * 0.5f + 0.001f,
+                    "a wing runs off the end of the wall it grew from");
+
+                Assert.GreaterOrEqual(wing.Depth, BuildingDecor.WingLeastUsefulDepth);
+                Assert.LessOrEqual(wing.Depth, BuildingDecor.WingMaxDepth + 0.001f);
+
+                Assert.GreaterOrEqual(wing.Height, Height * BuildingDecor.WingMinHeightFraction - 0.001f);
+                Assert.LessOrEqual(wing.Height, Height * BuildingDecor.WingMaxHeightFraction + 0.001f);
+            }
+
+            float share = grown / 500.0f;
+            TestContext.WriteLine($"{share:0.00} of roomy buildings grew a wing");
+            Assert.AreEqual(BuildingDecor.WingChance, share, 0.06, "the wing share drifted");
+        }
+
+        /// <summary>
+        /// THE DEPARTURE FROM GODOT, TESTED AS SUCH. city_chunk.gd protrudes
+        /// three to six metres with no check, which is safe there because a
+        /// building sits alone in the middle of its chunk. Here a building
+        /// fills its lot and its neighbour is under a metre away, so the depth
+        /// is clamped to the room the wall actually has -- and a wall with no
+        /// room grows nothing at all rather than a stub.
+        /// </summary>
+        [Test]
+        public void AWingNeverProtrudesFurtherThanThereIsRoom()
+        {
+            int refused = 0;
+            int clamped = 0;
+
+            for (int seed = 0; seed < 500; seed++)
+            {
+                // A landlocked building: a party wall's worth of room on every
+                // side, which is not enough for a wing on any of them.
+                Assert.IsFalse(
+                    BuildingDecor.WingFor(seed, Width, Depth, Height, 0.8f, 0.8f, 0.8f).Exists,
+                    "a wing grew into the building next door");
+                refused++;
+
+                // One street-facing wall and two party walls. Whatever grows
+                // must be on the wall with the room, and must fit in it.
+                BuildingDecor.Wing wing =
+                    BuildingDecor.WingFor(seed, Width, Depth, Height, 0.8f, 4.0f, 0.8f);
+                if (!wing.Exists)
+                {
+                    continue;
+                }
+                clamped++;
+                Assert.AreEqual(Vector3.right, wing.Normal,
+                    "a wing grew off a wall with no room beside a wall that had some");
+                Assert.LessOrEqual(wing.Depth, 4.0f + 0.001f);
+            }
+
+            TestContext.WriteLine($"{refused} landlocked refused, {clamped} clamped to one wall");
+            Assert.Greater(clamped, 20, "no wing ever landed on the one wall with room");
+        }
+
+        /// <summary>
+        /// Same seed, same wing -- and picking the wall does not depend on how
+        /// much room the walls have, only whether the pick survives. A building
+        /// whose wing moved when a neighbour was demolished would be a building
+        /// rebuilding itself for reasons nothing can see.
+        /// </summary>
+        [Test]
+        public void TheSameSeedAlwaysGrowsTheSameWing()
+        {
+            for (int seed = 0; seed < 200; seed++)
+            {
+                BuildingDecor.Wing first =
+                    BuildingDecor.WingFor(seed, Width, Depth, Height, Roomy, Roomy, Roomy);
+                BuildingDecor.Wing again =
+                    BuildingDecor.WingFor(seed, Width, Depth, Height, Roomy, Roomy, Roomy);
+
+                Assert.AreEqual(first.Exists, again.Exists);
+                Assert.AreEqual(first.Normal, again.Normal);
+                Assert.AreEqual(first.Along, again.Along);
+                Assert.AreEqual(first.Width, again.Width);
+
+                // Tighter clearances can only shrink or refuse a wing, never
+                // move it to another wall.
+                BuildingDecor.Wing tight =
+                    BuildingDecor.WingFor(seed, Width, Depth, Height, 2.0f, 2.0f, 2.0f);
+                if (tight.Exists)
+                {
+                    Assert.AreEqual(first.Normal, tight.Normal);
+                    Assert.AreEqual(first.Along, tight.Along);
+                    Assert.LessOrEqual(tight.Depth, first.Depth + 0.001f);
+                }
+            }
+        }
     }
 }
