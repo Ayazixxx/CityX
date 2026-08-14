@@ -257,6 +257,8 @@ namespace CityX.ViewEditor
                 cycle,
                 cameraObject.GetComponent<FlyCamera>(),
                 RadioBuilder.Build(),
+                Object.FindFirstObjectByType<PlayerInputReader>(),
+                Object.FindFirstObjectByType<ThirdPersonCamera>(),
                 toonableMaterials);
 
             // --- the pause menu. Escape opens it; it guards itself against

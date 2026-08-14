@@ -47,6 +47,20 @@ namespace CityX.CharacterEditor
                 AssetDatabase.CreateAsset(material, path);
             }
 
+            // RESET UNCONDITIONALLY, NOT ONLY ON CREATE. /celshade swaps this
+            // same shared asset to CityX/ToonLit at runtime, and a Material
+            // asset's shader -- unlike scene object state -- does not revert
+            // when Play mode exits, so a session that ends mid-toggle leaves
+            // the toon shader baked onto disk. Rebuilding the skin has to be
+            // able to put it back on Lit, or the very first /celshade after
+            // that looks like it does nothing (it's toggling ON a material
+            // that was already stuck ON).
+            Shader litShader = Shader.Find("Universal Render Pipeline/Lit");
+            if (litShader != null)
+            {
+                material.shader = litShader;
+            }
+
             material.SetColor("_BaseColor", colour);
             material.SetFloat("_Smoothness", 0.12f);
             material.SetFloat("_Metallic", 0.0f);

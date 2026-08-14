@@ -55,6 +55,12 @@ namespace CityX.UI
         [Tooltip("What /spawn radio puts down.")]
         public GameObject RadioPrefab;
 
+        [Tooltip("Movement/combat input. Disabled while the console is open.")]
+        public PlayerInputReader InputReader;
+
+        [Tooltip("Mouse-look. Disabled while the console is open -- otherwise typing WASD into a command also walks the player.")]
+        public ThirdPersonCamera OrbitCamera;
+
         [Tooltip("Every character-skin material /celshade toggles -- PlayerSkin, CivilianSkin.")]
         public Material[] ToonableMaterials;
 
@@ -119,6 +125,9 @@ namespace CityX.UI
             }
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
+
+            if (InputReader != null) InputReader.enabled = false;
+            if (OrbitCamera != null) OrbitCamera.enabled = false;
         }
 
         public void Close()
@@ -129,6 +138,9 @@ namespace CityX.UI
             }
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
+
+            if (InputReader != null) InputReader.enabled = true;
+            if (OrbitCamera != null) OrbitCamera.enabled = true;
         }
 
         public void Submit(string text)

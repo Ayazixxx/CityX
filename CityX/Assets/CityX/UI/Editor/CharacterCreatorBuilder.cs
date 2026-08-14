@@ -192,14 +192,22 @@ namespace CityX.UIEditor
             var cameraObject = new GameObject("CreatorCamera");
             cameraObject.transform.SetParent(stage.transform, false);
             // CHARACTER_CREATOR.TSCN'S OWN CAMERA, to the number: 1.6 up, 4
-            // back, pitched 8 degrees down, 75 degree vertical field of view.
-            // The invented framing before this had the camera level with the
-            // body's middle at a 42 degree field of view, which put the whole
-            // character high in the frame and cropped -- the shot the report
-            // "the character is too high up" was about. This is the framing the
-            // Godot build actually shipped.
-            cameraObject.transform.localPosition = new Vector3(0.0f, 1.6f, -4.0f);
-            cameraObject.transform.localRotation = Quaternion.Euler(8.0f, 0.0f, 0.0f);
+            // in front, pitched 8 degrees down, 75 degree vertical field of
+            // view. The invented framing before this had the camera level
+            // with the body's middle at a 42 degree field of view, which put
+            // the whole character high in the frame and cropped -- the shot
+            // the report "the character is too high up" was about. This is
+            // the framing the Godot build actually shipped.
+            //
+            // POSITIVE Z, NOT NEGATIVE, AND YAWED 180: Godot's camera forward
+            // is -Z, Unity's is +Z, so a value-for-value copy of Godot's own
+            // node position put the camera on the WRONG side of the pivot --
+            // behind the character rather than in front, the same spot
+            // ThirdPersonCamera deliberately targets (pivot - forward *
+            // distance) for its own over-the-shoulder gameplay shot. The
+            // creator wants the opposite of that shot.
+            cameraObject.transform.localPosition = new Vector3(0.0f, 1.6f, 4.0f);
+            cameraObject.transform.localRotation = Quaternion.Euler(8.0f, 180.0f, 0.0f);
             Camera camera = cameraObject.AddComponent<Camera>();
             camera.clearFlags = CameraClearFlags.SolidColor;
             // character_creator.tscn's own Environment background_color.
