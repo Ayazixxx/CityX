@@ -669,6 +669,61 @@ namespace CityX.Tests
         }
 
         /// <summary>
+        /// THE DOOR FILLS THE HOLE THE WALL BUILDER CUT, exactly.
+        ///
+        /// Two numbers arrived at independently -- the opening comes from
+        /// AddWallAround, the leaf from BuildingDoor -- and they have to agree
+        /// or it shows immediately: a leaf narrower than its opening leaves a
+        /// gap you can walk through with the door shut, and a wider one clips
+        /// into the wall as it swings.
+        ///
+        /// It also hinges on the LEFT edge, which is what makes it swing inward
+        /// clear of the opening rather than sweeping across it.
+        /// </summary>
+        [Test]
+        public void EveryDoorLeafFillsItsOwnDoorway()
+        {
+            CityWorld world = new CityWorld(Seed);
+            int checkedCount = 0;
+
+            for (int x = -12; x <= 12; x++)
+            {
+                for (int y = -12; y <= 12; y++)
+                {
+                    BuildingSite site = world.BuildingAt(x, y);
+                    if (!site.Exists || site.AnchorX != x || site.AnchorY != y)
+                    {
+                        continue;
+                    }
+                    checkedCount++;
+
+                    BuildingDoor.Panel panel = BuildingDoor.PanelFor(site);
+
+                    Assert.AreEqual(BuildingInterior.DoorWidth, panel.Width, 0.001f);
+                    Assert.AreEqual(BuildingInterior.DoorHeight(site.Params.Height),
+                        panel.Height, 0.001f, "the leaf is not the height of its own opening");
+
+                    // Hinged on the opening's left edge, standing in the
+                    // entrance wall, on the lobby floor.
+                    float half = BuildingInterior.DoorWidth * 0.5f;
+                    Assert.AreEqual((float)site.CentreX - half, panel.Hinge.x, 0.001f,
+                        "the door does not hinge on the left edge of its opening");
+                    Assert.AreEqual((float)site.MaxZ, panel.Hinge.z, 0.001f,
+                        "the door is not in the entrance wall");
+                    Assert.AreEqual(site.BaseHeight, panel.Hinge.y, 0.001f,
+                        "the door does not stand on the lobby floor");
+
+                    // The leaf reaches exactly across, no further.
+                    Assert.AreEqual((float)site.CentreX + half, panel.Hinge.x + panel.Width, 0.001f);
+                    Assert.LessOrEqual(panel.Hinge.y + panel.Height, site.Top,
+                        "the door is taller than the building");
+                }
+            }
+
+            Assert.Greater(checkedCount, 40, "not enough buildings sampled");
+        }
+
+        /// <summary>
         /// LANE PAINT GOES ON ROADS AND STAYS ON THEM.
         ///
         /// Two failures worth catching. Paint on a lot is paint on somebody's

@@ -53,6 +53,13 @@ namespace CityX.ViewEditor
             Material crackedGlass = EnsureGlassMaterial("CityGlassCracked", false, cracked: true);
             GameObject shards = GlassShardsBuilder.Build();
 
+            // building_door.gd's own DOOR_COLOR / HANDLE_COLOR. Lit, unlike the
+            // lane paint -- a door is a real object catching real light, and an
+            // unshaded one would read as a sticker on the wall.
+            Material door = EnsureLitMaterial("BuildingDoor", new Color(0.42f, 0.28f, 0.16f));
+            Material doorHandle = EnsureLitMaterial("BuildingDoorHandle",
+                new Color(0.72f, 0.68f, 0.55f));
+
             // city_chunk.gd's own LINE_COLOR_YELLOW / LINE_COLOR_WHITE.
             Material roadLine = EnsureFlatMaterial("RoadLine", new Color(0.95f, 0.75f, 0.10f));
             Material crosswalk = EnsureFlatMaterial("Crosswalk", new Color(0.92f, 0.92f, 0.90f));
@@ -171,6 +178,8 @@ namespace CityX.ViewEditor
             streamer.CrackedGlassMaterial = crackedGlass;
             streamer.RoadLineMaterial = roadLine;
             streamer.CrosswalkMaterial = crosswalk;
+            streamer.DoorMaterial = door;
+            streamer.DoorHandleMaterial = doorHandle;
 
             // Punching a window is the streamer's business because the damage
             // is: chunks come and go, the record of what is broken does not.
@@ -245,6 +254,32 @@ namespace CityX.ViewEditor
         /// city_chunk.gd's own _flat_material(colour, true), and the reason
         /// road markings stay legible in a street that is in shadow all day.
         /// </summary>
+        /// <summary>A plain lit colour, for a prop with no texture of its own.</summary>
+        private static Material EnsureLitMaterial(string name, Color colour)
+        {
+            string path = $"{MaterialDirectory}/{name}.mat";
+            Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material == null)
+            {
+                Shader shader = Shader.Find("Universal Render Pipeline/Lit");
+                if (shader == null)
+                {
+                    Debug.LogError("CityX: URP Lit shader not found -- is the Universal Render " +
+                                   "Pipeline asset assigned in Graphics settings?");
+                    shader = Shader.Find("Standard");
+                }
+                material = new Material(shader);
+                AssetDatabase.CreateAsset(material, path);
+            }
+
+            material.SetTexture("_BaseMap", null);
+            material.SetColor("_BaseColor", colour);
+            material.SetFloat("_Smoothness", 0.25f);
+            material.SetFloat("_Metallic", 0.0f);
+            EditorUtility.SetDirty(material);
+            return material;
+        }
+
         private static Material EnsureFlatMaterial(string name, Color colour)
         {
             string path = $"{MaterialDirectory}/{name}.mat";

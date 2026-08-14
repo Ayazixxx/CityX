@@ -40,6 +40,12 @@ namespace CityX.View
         [Tooltip("A window somebody has already put a fist through. Drawn, never collided with.")]
         public Material CrackedGlassMaterial;
 
+        [Header("Doors")]
+        [Tooltip("The door leaf. Warm wood brown, a fixed prop accent.")]
+        public Material DoorMaterial;
+
+        public Material DoorHandleMaterial;
+
         [Header("Lane paint")]
         [Tooltip("The double yellow down a straight street.")]
         public Material RoadLineMaterial;
@@ -70,6 +76,7 @@ namespace CityX.View
         private readonly List<CityMeshBuilder.CrackedOpening> _crackedOpenings =
             new List<CityMeshBuilder.CrackedOpening>();
         private readonly MeshBuffer _markings = new MeshBuffer();
+        private readonly HashSet<Vector2Int> _openDoors = new HashSet<Vector2Int>();
         private readonly List<Vector2Int> _wanted = new List<Vector2Int>();
         private readonly List<Vector2Int> _stale = new List<Vector2Int>();
 
@@ -297,7 +304,50 @@ namespace CityX.View
 
             AddCrackedGlass(go, key);
             AddMarkings(go, key);
+            AddDoor(go, key);
             return go;
+        }
+
+        /// <summary>
+        /// The building's front door, if it has one.
+        ///
+        /// WHETHER IT IS OPEN IS REMEMBERED HERE, NOT ON THE DOOR, and that is
+        /// a departure from Godot forced by this port's own streaming. A Godot
+        /// door lives as long as its chunk and simply resets when that chunk
+        /// unloads. Here a chunk is also rebuilt whenever a window in it
+        /// breaks, so a door on the door itself would slam shut the moment you
+        /// punched a pane on the same building -- which looks like a bug rather
+        /// than like streaming.
+        ///
+        /// Still local-only and still forgotten when the chunk really unloads,
+        /// exactly as Godot's is.
+        /// </summary>
+        private void AddDoor(GameObject chunk, Vector2Int key)
+        {
+            BuildingSite site = _world.BuildingAt(key.x, key.y);
+            if (!site.Exists || site.AnchorX != key.x || site.AnchorY != key.y ||
+                DoorMaterial == null)
+            {
+                return;
+            }
+
+            var go = new GameObject("Door");
+            go.transform.SetParent(chunk.transform, true);
+
+            BuildingDoor door = go.AddComponent<BuildingDoor>();
+            door.Toggled += open =>
+            {
+                if (open)
+                {
+                    _openDoors.Add(key);
+                }
+                else
+                {
+                    _openDoors.Remove(key);
+                }
+            };
+            door.Hang(BuildingDoor.PanelFor(site), DoorMaterial, DoorHandleMaterial,
+                _openDoors.Contains(key));
         }
 
         /// <summary>
