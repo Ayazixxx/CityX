@@ -77,6 +77,7 @@ namespace CityX.View
             }
 
             BuildBuilding(site, origin, structures, flatConcrete);
+            AddBalconies(world, site, origin, flatConcrete);
             BuildBridges(world, bridges, site, origin, flatConcrete);
         }
 
@@ -320,6 +321,76 @@ namespace CityX.View
                     Vector3 centre = new Vector3(
                         step.Centre.x + centreX, step.Centre.y, step.Centre.z + centreZ);
                     concrete.AddBox(centre - half, centre + half);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Balcony slabs and their railings, hung off the facade.
+        ///
+        /// Concrete rather than facade, like everything else that is not the
+        /// windowed wall itself -- a balcony reading as a sheet of windows
+        /// stuck to the side of a building is worse than no balcony.
+        /// </summary>
+        private static void AddBalconies(CityWorld world, BuildingSite site, Vector3 origin,
+            MeshBuffer concrete)
+        {
+            List<BuildingDecor.Balcony> balconies = BuildingDecor.Balconies(
+                world.ChunkSeed(site.AnchorX, site.AnchorY),
+                site.Params.Width, site.Params.Depth, site.Params.Height);
+            if (balconies.Count == 0)
+            {
+                return;
+            }
+
+            float centreX = (float)(site.CentreX - origin.x);
+            float centreZ = (float)(site.CentreZ - origin.z);
+            float baseY = site.BaseHeight - origin.y;
+
+            foreach (BuildingDecor.Balcony balcony in balconies)
+            {
+                Vector3 centre = new Vector3(
+                    balcony.Centre.x + centreX,
+                    balcony.Centre.y + baseY,
+                    balcony.Centre.z + centreZ);
+
+                // Width runs one way and depth the other depending on which
+                // wall it hangs off, which is what WidthAlongX settles.
+                float sizeX = balcony.WidthAlongX
+                    ? BuildingDecor.BalconyWidth : BuildingDecor.BalconyDepth;
+                float sizeZ = balcony.WidthAlongX
+                    ? BuildingDecor.BalconyDepth : BuildingDecor.BalconyWidth;
+
+                AddCentredBox(concrete, centre.x, centre.z,
+                    centre.y - BuildingDecor.BalconySlabThickness * 0.5f,
+                    sizeX, BuildingDecor.BalconySlabThickness, sizeZ);
+
+                // The rail along the open edge, set in by its own thickness so
+                // it stands ON the slab rather than off the end of it.
+                Vector3 outer = centre + balcony.Normal
+                    * (BuildingDecor.BalconyDepth * 0.5f
+                       - BuildingDecor.BalconyRailThickness * 0.5f);
+                AddCentredBox(concrete, outer.x, outer.z, centre.y,
+                    balcony.WidthAlongX
+                        ? BuildingDecor.BalconyWidth : BuildingDecor.BalconyRailThickness,
+                    BuildingDecor.BalconyRailHeight,
+                    balcony.WidthAlongX
+                        ? BuildingDecor.BalconyRailThickness : BuildingDecor.BalconyWidth);
+
+                // And one down each side, so it reads as an enclosure rather
+                // than a shelf with a fence on the far edge.
+                Vector3 sideStep = balcony.WidthAlongX
+                    ? new Vector3(BuildingDecor.BalconyWidth * 0.5f, 0.0f, 0.0f)
+                    : new Vector3(0.0f, 0.0f, BuildingDecor.BalconyWidth * 0.5f);
+                foreach (float sign in new[] { -1.0f, 1.0f })
+                {
+                    Vector3 side = centre + sideStep * sign;
+                    AddCentredBox(concrete, side.x, side.z, centre.y,
+                        balcony.WidthAlongX
+                            ? BuildingDecor.BalconyRailThickness : BuildingDecor.BalconyDepth,
+                        BuildingDecor.BalconyRailHeight,
+                        balcony.WidthAlongX
+                            ? BuildingDecor.BalconyDepth : BuildingDecor.BalconyRailThickness);
                 }
             }
         }
