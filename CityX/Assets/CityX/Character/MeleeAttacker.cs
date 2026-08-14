@@ -43,6 +43,9 @@ namespace CityX.Character
         [Tooltip("player.gd PunchImpactSounds -- one is picked at random per LANDED hit.")]
         public AudioClip[] ImpactSounds;
 
+        [Tooltip("weapons/blood_splatter.tscn -- one burst per landed hit, at the impact point.")]
+        public GameObject BloodPrefab;
+
         private AudioSource _impactSource;
 
         [Header("Targets")]
@@ -184,6 +187,35 @@ namespace CityX.Character
         public List<IDamageable> TargetsInReach()
         {
             var found = new List<IDamageable>();
+            foreach (Contact contact in ContactsInReach())
+            {
+                found.Add(contact.Target);
+            }
+            return found;
+        }
+
+        /// <summary>Who a swing would hit, and where on them it would land.</summary>
+        public readonly struct Contact
+        {
+            public readonly IDamageable Target;
+
+            /// <summary>
+            /// The point on the target's own surface nearest the swing, which
+            /// is where blood belongs. The target's centre would put every
+            /// spurt inside the body it came out of.
+            /// </summary>
+            public readonly Vector3 Point;
+
+            public Contact(IDamageable target, Vector3 point)
+            {
+                Target = target;
+                Point = point;
+            }
+        }
+
+        private List<Contact> ContactsInReach()
+        {
+            var found = new List<Contact>();
             Vector3 origin = SwingOrigin();
 
             Collider[] hits = Physics.OverlapSphere(origin, Range, TargetLayers,
@@ -202,7 +234,9 @@ namespace CityX.Character
                 {
                     continue;
                 }
-                if (found.Contains(target))
+                // One body can own several colliders; the first one reached is
+                // the nearest, so later ones are the same target again.
+                if (found.Exists(seen => ReferenceEquals(seen.Target, target)))
                 {
                     continue;
                 }
@@ -214,7 +248,7 @@ namespace CityX.Character
                 {
                     continue;   // behind, or too far round the side
                 }
-                found.Add(target);
+                found.Add(new Contact(target, collider.ClosestPoint(origin)));
             }
 
             return found;
@@ -233,11 +267,17 @@ namespace CityX.Character
             float hitstun = CombatTuning.HitstunFor(_currentStage);
 
             bool connected = false;
-            foreach (IDamageable target in TargetsInReach())
+            Vector3 origin = SwingOrigin();
+            foreach (Contact contact in ContactsInReach())
             {
-                target.ApplyHit(damage, transform.position, hitstun);
-                Landed?.Invoke(target, damage);
+                contact.Target.ApplyHit(damage, transform.position, hitstun);
+                Landed?.Invoke(contact.Target, damage);
                 connected = true;
+
+                // Spraying back towards whoever threw the punch, which is what
+                // "away from the surface that got hit" means when the surface
+                // is a body facing you.
+                BloodSplatter.Spawn(BloodPrefab, contact.Point, origin - contact.Point);
             }
 
             if (connected)

@@ -264,6 +264,7 @@ namespace CityX.CharacterEditor
                 // clip shows up as an empty slot on the prefab instead of a
                 // silent null at runtime.
                 melee.ImpactSounds = LoadImpactSounds();
+                melee.BloodPrefab = BloodSplatterBuilder.Build();
                 root.AddComponent<PlayerAnimationDriver>();
                 // Makes the body be whoever was chosen in the menu, and does
                 // nothing at all when the world is opened directly -- which is
