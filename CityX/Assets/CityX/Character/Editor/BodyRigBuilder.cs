@@ -171,5 +171,12 @@ namespace CityX.CharacterEditor
             return FusedBodyShape.Segments(
                 BodyRig.PositionOf, FusedBodyShape.ReferenceHeight);
         }
+
+        /// <summary>The body's SHAPE, one capsule per limb -- see FusedBodyShape.LimbCapsules' own comment for why this is not Segments().</summary>
+        public static List<FusedBodyShape.Segment> LimbCapsules()
+        {
+            return FusedBodyShape.LimbCapsules(
+                BodyRig.PositionOf, FusedBodyShape.ReferenceHeight);
+        }
     }
 }

@@ -277,6 +277,79 @@ namespace CityX.Tests
         }
 
         /// <summary>
+        /// The bug the previous test's own property does not catch:
+        /// SmoothMin(d, d, k) is NOT d, it equals d - k * 0.25 (h lands
+        /// exactly on 0.5 when the two inputs are equal). That is invisible
+        /// as long as a limb is ever only one capsule -- it only bites once
+        /// a limb is split into several colinear same-radius pieces sharing
+        /// an endpoint (an elbow, a wrist, a knee) and those pieces are
+        /// unioned back together with a SECOND round of SmoothMin, which is
+        /// exactly what LimbCapsules exists to avoid. Pinned here as its own
+        /// fact about the formula, independent of the body at all.
+        /// </summary>
+        [Test]
+        public void SmoothMinOfTwoEqualValuesDropsBelowEitherOfThem()
+        {
+            const float k = 0.06f;
+            for (float d = -1.0f; d <= 1.0f; d += 0.1f)
+            {
+                float smooth = FusedBodyShape.SmoothMin(d, d, k);
+                Assert.AreEqual(d - k * 0.25f, smooth, 1e-5f);
+                Assert.Less(smooth, d, "two equal inputs should not smin() back to themselves");
+            }
+        }
+
+        [Test]
+        public void LimbCapsulesHaveOneCapsulePerLimb()
+        {
+            List<FusedBodyShape.Segment> limbs = FusedBodyShape.LimbCapsules(Bone, Height);
+
+            Assert.AreEqual(6, limbs.Count, "torso, neck, two arms, two legs -- one capsule each, no elbow/wrist/knee/spine splits");
+        }
+
+        /// <summary>
+        /// The actual regression this whole pass exists for. A point exactly
+        /// ArmRadius off the elbow sits precisely on the surface of a single
+        /// unbroken shoulder-to-hand capsule -- LimbCapsules must report it
+        /// as exactly on the skin (distance zero), not pushed outward by a
+        /// spurious seam bulge.
+        /// </summary>
+        [Test]
+        public void LimbCapsulesHaveNoBulgeAtWhatWouldHaveBeenAnElbowSeam()
+        {
+            Vector3 elbow = Bone(HumanBodyBones.LeftLowerArm);
+            Vector3 probe = elbow + Vector3.up * FusedBodyShape.ArmRadius;
+
+            List<FusedBodyShape.Segment> limbs = FusedBodyShape.LimbCapsules(Bone, Height);
+            float distance = FusedBodyShape.Distance(limbs, probe);
+
+            Assert.AreEqual(0.0f, distance, 0.001f,
+                "a point exactly ArmRadius off the elbow should sit exactly on one unbroken capsule's surface");
+        }
+
+        /// <summary>
+        /// Documents the defect itself, on the OLD per-bone list Segments()
+        /// still (correctly) produces for skin weights. Unioning the
+        /// upper-arm and forearm capsules back together with SmoothMin right
+        /// at their shared elbow endpoint pushes the surface outward by
+        /// BlendRadius * 0.25 there -- a real bump with no anatomical
+        /// counterpart. This is why the shape is built from LimbCapsules
+        /// instead, not from this list.
+        /// </summary>
+        [Test]
+        public void ThePerBoneSegmentListStillBulgesAtAnElbowSeam()
+        {
+            Vector3 elbow = Bone(HumanBodyBones.LeftLowerArm);
+            Vector3 probe = elbow + Vector3.up * FusedBodyShape.ArmRadius;
+
+            List<FusedBodyShape.Segment> segments = MakeSegments();
+            float distance = FusedBodyShape.Distance(segments, probe);
+
+            Assert.AreEqual(-FusedBodyShape.BlendRadius * 0.25f, distance, 0.001f,
+                "the per-bone list should bulge outward at the elbow seam by exactly BlendRadius * 0.25");
+        }
+
+        /// <summary>
         /// The extracted surface is closed. Exactly closed, no allowance.
         ///
         /// THIS USED TO ALLOW 1.8% AND CALLED THAT A REAL DEFECT IN THE

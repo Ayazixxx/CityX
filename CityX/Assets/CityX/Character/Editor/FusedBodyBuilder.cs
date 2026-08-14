@@ -51,11 +51,22 @@ namespace CityX.CharacterEditor
         {
             skinnedBones = new List<Transform>();
 
+            // TWO DIFFERENT CAPSULE LISTS, DELIBERATELY. segments is split
+            // per BONE (an elbow, a wrist, a knee, the spine) -- right for
+            // deciding which bone owns a vertex, wrong for deciding where
+            // the surface sits: unioning per-bone pieces back together with
+            // a second round of SmoothMin bulges every internal seam
+            // outward (see FusedBodyShape.LimbCapsules' own comment for the
+            // exact reason). limbCapsules is one capsule per limb -- what
+            // the surface is actually extracted and shaded from. Only
+            // Unwrap() and WeightsAt() below use segments; everything
+            // touching the actual shape uses limbCapsules.
             List<FusedBodyShape.Segment> segments = BodyRigBuilder.Segments();
+            List<FusedBodyShape.Segment> limbCapsules = BodyRigBuilder.LimbCapsules();
             float cellSize = FusedBodyShape.CellSize;
             Bounds bounds = FusedBodyShape.BoundsOf(segments);
 
-            FusedBodyMesh.Extract(segments, bounds, cellSize,
+            FusedBodyMesh.Extract(limbCapsules, bounds, cellSize,
                 out List<Vector3> welded, out List<int> weldedTriangles);
 
             if (welded.Count == 0 || weldedTriangles.Count == 0)
@@ -67,11 +78,14 @@ namespace CityX.CharacterEditor
             // UNWELDED, WITH PAINT UVs. The character is paintable, and the
             // seam unwrap that makes the unwrap usable is only safe on triangle
             // soup -- see FusedBodyMesh.Unwrap. It costs three times the
-            // vertices for a mesh built once at import time.
+            // vertices for a mesh built once at import time. Uses the
+            // per-bone segments -- unwrap needs to know which BONE a vertex
+            // belongs to, regardless of which capsule list its position
+            // came from.
             FusedBodyMesh.Unwrap(segments, welded, weldedTriangles,
                 out List<Vector3> vertices, out List<int> triangles, out List<Vector2> uvs);
 
-            Vector3[] normals = FusedBodyMesh.Normals(segments, vertices, cellSize * 0.5f);
+            Vector3[] normals = FusedBodyMesh.Normals(limbCapsules, vertices, cellSize * 0.5f);
 
             // --- skinning, blended across up to four bones per vertex.
             var skinBones = new List<Transform>();

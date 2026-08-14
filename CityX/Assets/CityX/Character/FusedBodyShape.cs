@@ -174,6 +174,56 @@ namespace CityX.Character
         }
 
         /// <summary>
+        /// One capsule per LIMB -- torso (hips straight to neck), each arm
+        /// (shoulder straight to hand), each leg (hip straight to foot), and
+        /// the neck. Exactly what fused_body.gd's own limb_defs()/sdf_body()
+        /// draws, for exactly the reason its own limb_defs() comment gives:
+        /// "two colinear, same-radius, endpoint-sharing capsules union to an
+        /// identical SDF as one capsule spanning both."
+        ///
+        /// THIS IS THE SHAPE. Segments() above exists for skin weights, and
+        /// splits a limb into per-BONE pieces (an elbow, a wrist, a knee, the
+        /// spine) -- correct for deciding which bone owns a vertex, wrong for
+        /// deciding where the SURFACE sits. Unioning those per-bone pieces
+        /// back together with a second round of SmoothMin, as Distance(...)
+        /// does for whatever list it is handed, does not reproduce "one
+        /// capsule spanning both": SmoothMin(d, d, k) is NOT d, it equals
+        /// d - k * 0.25, so every internal seam between two colinear
+        /// same-radius capsules pushes the surface outward by a quarter of
+        /// the blend radius. fused_body.gd's sdf_capsule() is only ever
+        /// called once per limb and smin() only ever runs BETWEEN limbs (an
+        /// arm against the torso, a leg against the torso), never within
+        /// one, so it structurally cannot hit this. Extract() and Normals()
+        /// must be built from this list; Unwrap() and WeightsAt() must keep
+        /// using Segments() -- see FusedBodyBuilder.Build's own comment.
+        /// </summary>
+        public static List<Segment> LimbCapsules(
+            System.Func<HumanBodyBones, Vector3> bonePosition, float height)
+        {
+            float scale = height / ReferenceHeight;
+
+            Vector3 hips = bonePosition(HumanBodyBones.Hips);
+            Vector3 neck = bonePosition(HumanBodyBones.Neck);
+
+            return new List<Segment>
+            {
+                new Segment(hips, neck, TorsoRadius * scale, HumanBodyBones.Hips),
+                new Segment(neck, neck + Vector3.up * (NeckLength * scale),
+                    NeckRadius * scale, HumanBodyBones.Neck),
+
+                new Segment(bonePosition(HumanBodyBones.LeftUpperArm), bonePosition(HumanBodyBones.LeftHand),
+                    ArmRadius * scale, HumanBodyBones.LeftUpperArm),
+                new Segment(bonePosition(HumanBodyBones.RightUpperArm), bonePosition(HumanBodyBones.RightHand),
+                    ArmRadius * scale, HumanBodyBones.RightUpperArm),
+
+                new Segment(bonePosition(HumanBodyBones.LeftUpperLeg), bonePosition(HumanBodyBones.LeftFoot),
+                    LegRadius * scale, HumanBodyBones.LeftUpperLeg),
+                new Segment(bonePosition(HumanBodyBones.RightUpperLeg), bonePosition(HumanBodyBones.RightFoot),
+                    LegRadius * scale, HumanBodyBones.RightUpperLeg),
+            };
+        }
+
+        /// <summary>
         /// fused_body.gd WRIST_T, re-expressed along the elbow-to-hand span
         /// rather than the whole arm: its 0.5/0.85/1.0 split becomes 0.7 of
         /// the forearm segment.
