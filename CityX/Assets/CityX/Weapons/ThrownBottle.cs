@@ -38,6 +38,15 @@ namespace CityX.Weapons
             }
 
             thrown._throwerStrength = throwerStrength;
+            // GetComponent RATHER THAN THE CACHED FIELD: Awake() has not
+            // necessarily run yet on a clone made from an inactive prefab
+            // template by the time Spawn touches it here (Unity defers
+            // Awake on a GameObject that starts inactive) -- same fix as
+            // BottleWeapon.OnEquip, for the same reason.
+            if (thrown._rigidbody == null)
+            {
+                thrown._rigidbody = instance.GetComponent<Rigidbody>();
+            }
             thrown._rigidbody.linearVelocity = velocity;
 
             if (ignoreColliders != null)

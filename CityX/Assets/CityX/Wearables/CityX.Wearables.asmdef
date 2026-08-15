@@ -4,7 +4,8 @@
     "references": [
         "CityX.Character",
         "CityX.Core",
-        "CityX.Items"
+        "CityX.Items",
+        "Unity.InputSystem"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
