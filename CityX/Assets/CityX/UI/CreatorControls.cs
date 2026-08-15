@@ -18,11 +18,11 @@ namespace CityX.UI
     {
         public CharacterCreator Creator;
 
-        [Tooltip("The hue/saturation wheel. Clicking it picks that colour.")]
-        public RawImage Wheel;
+        [Tooltip("Saturation across, value up, for the currently selected hue. Clicking it picks that colour.")]
+        public RawImage SVSquare;
 
-        [Tooltip("Darkens the picked hue, so black and greys are reachable.")]
-        public Slider Value;
+        [Tooltip("Picks the hue the square is drawn for.")]
+        public Slider Hue;
 
         public Slider BrushSize;
 
@@ -45,8 +45,17 @@ namespace CityX.UI
         public Button UndoButton;
         public Button RedoButton;
 
-        /// <summary>The wheel's own resolution. Small: it is 128 units on screen.</summary>
-        public const int WheelSize = 256;
+        /// <summary>
+        /// The square's own resolution. Matches its on-screen size exactly
+        /// (128 units), rather than the wheel's old 256 -- unlike the wheel,
+        /// which baked every hue into one static ring built once, this square
+        /// only ever shows a single hue and has to be rebuilt on every hue
+        /// slider drag, so it stays cheap to regenerate at interactive rates.
+        /// </summary>
+        public const int SquareSize = 128;
+
+        /// <summary>The hue strip's own resolution -- one hue per column.</summary>
+        public const int HueStripSize = 256;
 
         /// <summary>An unlit button. Matches CharacterCreatorBuilder's own default.</summary>
         private static readonly Color Idle = new Color(0.11f, 0.12f, 0.15f, 0.95f);
@@ -59,11 +68,14 @@ namespace CityX.UI
         private float _hue;
         private float _saturation;
 
+        /// <summary>Matches the Value slider's own old default, so a fresh creator still opens on white.</summary>
+        private float _value = 1.0f;
+
         private void Awake()
         {
-            if (Wheel != null && Wheel.texture == null)
+            if (SVSquare != null && SVSquare.texture == null)
             {
-                Wheel.texture = BuildWheel();
+                SVSquare.texture = BuildSquare(_hue);
             }
             // The icons are drawn by the builder and saved into the scene with
             // it, so this is only the fallback for a scene that lost them.
@@ -74,14 +86,29 @@ namespace CityX.UI
                     ToolIconImages[i].texture = ToolIcons.Build(IconKinds[i]);
                 }
             }
-            if (Value != null)
+            if (Hue != null)
             {
-                Value.onValueChanged.AddListener(_ => Recolour());
+                Hue.onValueChanged.AddListener(OnHueChanged);
             }
             if (BrushSize != null)
             {
                 BrushSize.onValueChanged.AddListener(OnBrushSize);
                 OnBrushSize(BrushSize.value);
+            }
+            Recolour();
+        }
+
+        /// <summary>
+        /// The square only ever shows ONE hue at a time, unlike the old
+        /// wheel's static ring -- so every hue drag has to redraw it, not
+        /// just move a slider over a texture that was already correct.
+        /// </summary>
+        private void OnHueChanged(float hue)
+        {
+            _hue = hue;
+            if (SVSquare != null)
+            {
+                SVSquare.texture = BuildSquare(_hue);
             }
             Recolour();
         }
@@ -153,44 +180,41 @@ namespace CityX.UI
 
         private void Pick(PointerEventData eventData)
         {
-            if (Wheel == null)
+            if (SVSquare == null)
             {
                 return;
             }
 
-            var rect = (RectTransform)Wheel.transform;
+            var rect = (RectTransform)SVSquare.transform;
             if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
                 rect, eventData.position, eventData.pressEventCamera, out Vector2 local))
             {
                 return;
             }
 
-            // Normalised to the wheel's radius, so the maths does not care what
-            // size the layout gave it.
-            float radius = Mathf.Min(rect.rect.width, rect.rect.height) * 0.5f;
-            Vector2 fromCentre = local / Mathf.Max(radius, 0.0001f);
-            float distance = fromCentre.magnitude;
-            if (distance > 1.0f)
-            {
-                return;   // outside the circle, in the corners of its square
-            }
-
-            _hue = Mathf.Repeat(Mathf.Atan2(fromCentre.y, fromCentre.x) / (Mathf.PI * 2.0f), 1.0f);
-            _saturation = distance;
+            // rect.rect is centred on (0,0) for a middle-pivoted transform, so
+            // this normalises into [0,1] regardless of what size the layout
+            // gave it -- x is saturation, y is value, matching the texture
+            // BuildSquare paints. Clamped rather than rejected outside the
+            // bounds: unlike the old wheel's circle-in-a-square, every point
+            // in this rect is a real, valid colour, so a drag that slides
+            // past the edge should still pick the nearest one on it.
+            Rect area = rect.rect;
+            _saturation = Mathf.Clamp01((local.x - area.xMin) / area.width);
+            _value = Mathf.Clamp01((local.y - area.yMin) / area.height);
             Recolour();
         }
 
         private void Recolour()
         {
-            float value = Value != null ? Value.value : 1.0f;
-            Color picked = Color.HSVToRGB(_hue, _saturation, value);
+            Color picked = Color.HSVToRGB(_hue, _saturation, _value);
 
             if (Creator != null)
             {
                 Creator.Colour = picked;
                 // Choosing a colour means you want to paint with it. Leaving
                 // the eraser on would force every stroke white and make the
-                // wheel look broken.
+                // square look broken.
                 Creator.Erasing = false;
             }
             if (Preview != null)
@@ -199,54 +223,68 @@ namespace CityX.UI
             }
         }
 
-        /// <summary>Called by a palette swatch, so the wheel keeps up with it.</summary>
+        /// <summary>Called by a palette swatch, so the picker keeps up with it.</summary>
         public void Adopt(Color colour)
         {
-            Color.RGBToHSV(colour, out _hue, out _saturation, out float v);
-            if (Value != null)
+            Color.RGBToHSV(colour, out _hue, out _saturation, out _value);
+            if (Hue != null)
             {
-                Value.SetValueWithoutNotify(v);
+                Hue.SetValueWithoutNotify(_hue);
+            }
+            if (SVSquare != null)
+            {
+                SVSquare.texture = BuildSquare(_hue);
             }
             Recolour();
         }
 
         /// <summary>
-        /// Hue round the circle, saturation out from the middle. Transparent
-        /// outside the circle so it reads as a disc rather than a square.
+        /// Saturation across, value up, for one fixed hue -- Godot's own
+        /// default ColorPicker shape (SHAPE_HSV_RECTANGLE), which the
+        /// original character creator used unmodified. The wheel this
+        /// replaced baked every hue into one static ring; this square only
+        /// ever holds the one hue the slider is currently on, so the caller
+        /// has to rebuild it whenever that hue changes rather than once.
         /// </summary>
-        public static Texture2D BuildWheel()
+        public static Texture2D BuildSquare(float hue)
         {
-            var texture = new Texture2D(WheelSize, WheelSize, TextureFormat.RGBA32, false)
+            var texture = new Texture2D(SquareSize, SquareSize, TextureFormat.RGB24, false)
             {
-                name = "CityXColourWheel",
+                name = "CityXColourSquare",
                 filterMode = FilterMode.Bilinear,
                 wrapMode = TextureWrapMode.Clamp,
             };
 
-            var pixels = new Color32[WheelSize * WheelSize];
-            const float centre = WheelSize * 0.5f;
-
-            for (int y = 0; y < WheelSize; y++)
+            var pixels = new Color32[SquareSize * SquareSize];
+            for (int y = 0; y < SquareSize; y++)
             {
-                for (int x = 0; x < WheelSize; x++)
+                float value = (y + 0.5f) / SquareSize;
+                for (int x = 0; x < SquareSize; x++)
                 {
-                    float dx = (x + 0.5f - centre) / centre;
-                    float dy = (y + 0.5f - centre) / centre;
-                    float distance = Mathf.Sqrt(dx * dx + dy * dy);
-
-                    if (distance > 1.0f)
-                    {
-                        pixels[y * WheelSize + x] = new Color32(0, 0, 0, 0);
-                        continue;
-                    }
-
-                    float hue = Mathf.Repeat(Mathf.Atan2(dy, dx) / (Mathf.PI * 2.0f), 1.0f);
-                    Color colour = Color.HSVToRGB(hue, distance, 1.0f);
-
-                    // Feathered at the rim, or the disc has a hard jagged edge.
-                    colour.a = Mathf.Clamp01((1.0f - distance) * WheelSize * 0.25f);
-                    pixels[y * WheelSize + x] = colour;
+                    float saturation = (x + 0.5f) / SquareSize;
+                    pixels[y * SquareSize + x] = Color.HSVToRGB(hue, saturation, value);
                 }
+            }
+
+            texture.SetPixels32(pixels);
+            texture.Apply();
+            return texture;
+        }
+
+        /// <summary>Every hue at full saturation and value, left to right -- the strip behind the hue slider's handle.</summary>
+        public static Texture2D BuildHueStrip()
+        {
+            var texture = new Texture2D(HueStripSize, 1, TextureFormat.RGB24, false)
+            {
+                name = "CityXHueStrip",
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp,
+            };
+
+            var pixels = new Color32[HueStripSize];
+            for (int x = 0; x < HueStripSize; x++)
+            {
+                pixels[x] = Color.HSVToRGB((x + 0.5f) / HueStripSize, 1.0f, 1.0f);
             }
 
             texture.SetPixels32(pixels);

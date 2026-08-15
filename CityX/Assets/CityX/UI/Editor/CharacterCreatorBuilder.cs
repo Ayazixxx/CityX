@@ -432,12 +432,15 @@ namespace CityX.UIEditor
 
             MakeLabel(t, "PaletteLabel", "COLOUR", 13, Paper, At(-94.0f), 18.0f);
 
-            // THE WHEEL, not just swatches. Any colour has to be reachable --
-            // twelve presets is a palette, not a character creator, and the
-            // Godot build had a full ColorPickerButton here.
-            controls.Wheel = MakeWheel(t, At(-166.0f), 128.0f);
+            // THE SV SQUARE, not just swatches. Any colour has to be
+            // reachable -- twelve presets is a palette, not a character
+            // creator. Godot's own ColorPickerButton opens its default
+            // SHAPE_HSV_RECTANGLE popup: a saturation/value square for
+            // whatever hue is selected, plus a separate hue strip -- this is
+            // that shape, not the hue/saturation wheel it replaced.
+            controls.SVSquare = MakeSquare(t, At(-166.0f), 128.0f);
 
-            controls.Value = MakeSlider(t, "ValueSlider", At(-244.0f), 0.0f, 1.0f, 1.0f, false);
+            controls.Hue = MakeHueSlider(t, "HueSlider", At(-244.0f), 150.0f);
             controls.Preview = MakeSwatch(t, "Preview", At(-266.0f),
                 new Vector2(150.0f, 16.0f), Color.white);
 
@@ -547,9 +550,9 @@ namespace CityX.UIEditor
             controls.ToolIconImages = icons;
         }
 
-        private static RawImage MakeWheel(Transform parent, Vector2 position, float size)
+        private static RawImage MakeSquare(Transform parent, Vector2 position, float size)
         {
-            var go = new GameObject("ColourWheel", typeof(RectTransform));
+            var go = new GameObject("SVSquare", typeof(RectTransform));
             var rect = (RectTransform)go.transform;
             rect.SetParent(parent, false);
             rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 1.0f);
@@ -558,8 +561,57 @@ namespace CityX.UIEditor
             rect.sizeDelta = new Vector2(size, size);
 
             var image = go.AddComponent<RawImage>();
-            image.texture = CreatorControls.BuildWheel();
+            image.texture = CreatorControls.BuildSquare(0.0f);
             return image;
+        }
+
+        /// <summary>
+        /// A plain Slider's flat fill would just be a bar sitting over half
+        /// the rainbow -- the gradient itself, drawn once behind the handle,
+        /// is what a hue slider actually shows, so the fill is left
+        /// invisible and only the background carries the strip.
+        /// </summary>
+        private static Slider MakeHueSlider(Transform parent, string name, Vector2 position,
+            float width)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            var rect = (RectTransform)go.transform;
+            rect.SetParent(parent, false);
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 1.0f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = new Vector2(width, 16.0f);
+
+            var background = go.AddComponent<RawImage>();
+            background.texture = CreatorControls.BuildHueStrip();
+
+            var fillArea = new GameObject("Fill", typeof(RectTransform));
+            var fillRect = (RectTransform)fillArea.transform;
+            fillRect.SetParent(go.transform, false);
+            fillRect.anchorMin = Vector2.zero;
+            fillRect.anchorMax = Vector2.one;
+            fillRect.offsetMin = Vector2.zero;
+            fillRect.offsetMax = Vector2.zero;
+            Image fill = fillArea.AddComponent<Image>();
+            fill.color = new Color(0.0f, 0.0f, 0.0f, 0.0f);
+
+            var handle = new GameObject("Handle", typeof(RectTransform));
+            var handleRect = (RectTransform)handle.transform;
+            handleRect.SetParent(go.transform, false);
+            handleRect.sizeDelta = new Vector2(6.0f, 20.0f);
+            Image handleImage = handle.AddComponent<Image>();
+            handleImage.color = Paper;
+
+            Slider slider = go.AddComponent<Slider>();
+            slider.fillRect = fillRect;
+            slider.handleRect = handleRect;
+            slider.targetGraphic = handleImage;
+            slider.direction = Slider.Direction.LeftToRight;
+            slider.minValue = 0.0f;
+            slider.maxValue = 1.0f;
+            slider.wholeNumbers = false;
+            slider.value = 0.0f;
+            return slider;
         }
 
         private static Image MakeSwatch(Transform parent, string name, Vector2 position,

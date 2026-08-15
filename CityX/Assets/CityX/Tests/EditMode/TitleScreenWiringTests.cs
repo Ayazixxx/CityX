@@ -211,10 +211,10 @@ namespace CityX.Tests
             Assert.IsNotNull(controls, "the creator has no CreatorControls");
 
             Assert.IsNotNull(controls.Creator, "the controls drive nothing");
-            Assert.IsNotNull(controls.Wheel, "no colour wheel");
-            Assert.IsNotNull(controls.Wheel.texture,
-                "the colour wheel has no texture -- it would draw as a white square");
-            Assert.IsNotNull(controls.Value, "no value slider -- black and grey are unreachable");
+            Assert.IsNotNull(controls.SVSquare, "no saturation/value square");
+            Assert.IsNotNull(controls.SVSquare.texture,
+                "the saturation/value square has no texture -- it would draw blank");
+            Assert.IsNotNull(controls.Hue, "no hue slider -- only one hue would ever be reachable");
             Assert.IsNotNull(controls.BrushSize, "no brush size slider");
             Assert.IsNotNull(controls.Preview, "no colour preview");
 
