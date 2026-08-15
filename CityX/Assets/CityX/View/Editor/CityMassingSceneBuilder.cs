@@ -251,13 +251,22 @@ namespace CityX.ViewEditor
             volume.priority = 0.0f;
             volume.sharedProfile = grade;
 
-            // Distance fog, at a range that hides the streamed edge without
-            // swallowing the skyline. RadiusChunks below is 14, which at 24m a
-            // chunk puts the boundary around 336m out.
+            // Distance fog. city.tscn's own fog_depth_begin/fog_depth_end (35m/
+            // 88m) -- the port had these at 140/330, a range chosen only to
+            // hide the streamed edge (336m out at RadiusChunks=14) rather than
+            // to match the reference at all, and the difference is most of why
+            // the city read as clearer and flatter than Godot's own hazy,
+            // overcast look. 88m of full fog hides the streamed edge just as
+            // well (it is already fully fogged well before 336m) while also
+            // giving the skyline the atmospheric falloff city.tscn actually
+            // has. Godot's own fog_depth_curve (1.5, non-linear) and
+            // volumetric fog layer have no direct URP equivalent without a
+            // custom shader; plain linear fog at the right distances is the
+            // closest faithful match available off the shelf.
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.Linear;
-            RenderSettings.fogStartDistance = 140.0f;
-            RenderSettings.fogEndDistance = 330.0f;
+            RenderSettings.fogStartDistance = 35.0f;
+            RenderSettings.fogEndDistance = 88.0f;
 
             // --- the dev console. Backtick opens it. Wired here rather than
             // --- shipped as a prefab because half of what it drives only
