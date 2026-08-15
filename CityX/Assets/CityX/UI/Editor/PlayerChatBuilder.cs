@@ -35,7 +35,8 @@ namespace CityX.UIEditor
 
         public static PlayerChat AddToScene(ClaimSystem claim, SpeechBubble bubble,
             PlayerInputReader inputReader, ThirdPersonCamera orbitCamera,
-            DevConsoleView console, PauseMenuView pause, MapPanelView map)
+            DevConsoleView console, PauseMenuView pause, MapPanelView map,
+            InventoryPanelView inventory)
         {
             var root = new GameObject("PlayerChat", typeof(RectTransform));
             Canvas canvas = root.AddComponent<Canvas>();
@@ -109,6 +110,7 @@ namespace CityX.UIEditor
             view.Console = console;
             view.Pause = pause;
             view.Map = map;
+            view.Inventory = inventory;
 
             EnsureEventSystem();
             return view;

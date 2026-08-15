@@ -17,10 +17,11 @@ namespace CityX.UI
     /// -- onEndEdit fires on Escape/blur too, which would conflate
     /// "cancelled" with "submitted." Matches DevConsoleView's own reasoning.
     ///
-    /// GUARDED AGAINST EVERY OTHER OVERLAY THAT ALSO READS ENTER OR ESCAPE:
-    /// the dev console (backtick), the pause menu and the map (both Escape/M
-    /// but neither Enter) -- see PauseMenuView's own new Chat guard, added
-    /// alongside this file, for the matching half of this same problem.
+    /// GUARDED AGAINST EVERY OTHER OVERLAY THAT ALSO READS ENTER OR ESCAPE,
+    /// OR COVERS THE SAME PART OF THE SCREEN: the dev console (backtick),
+    /// the pause menu, the map (Escape/M) and the inventory (I) -- see
+    /// PauseMenuView's own new Chat guard, added alongside this file, for
+    /// the matching half of this same problem.
     ///
     /// ALL LISTENERS WIRED IN AWAKE -- see PauseMenuView's doc comment for
     /// why an editor-time AddListener never survives the scene being saved.
@@ -46,6 +47,7 @@ namespace CityX.UI
         public DevConsoleView Console;
         public PauseMenuView Pause;
         public MapPanelView Map;
+        public InventoryPanelView Inventory;
 
         private bool _wasCursorCaptured;
 
@@ -76,7 +78,8 @@ namespace CityX.UI
                 return;
             }
 
-            if ((Console != null && Console.IsOpen) || (Pause != null && Pause.IsOpen) || (Map != null && Map.IsOpen))
+            if ((Console != null && Console.IsOpen) || (Pause != null && Pause.IsOpen) ||
+                (Map != null && Map.IsOpen) || (Inventory != null && Inventory.IsOpen))
             {
                 return;
             }

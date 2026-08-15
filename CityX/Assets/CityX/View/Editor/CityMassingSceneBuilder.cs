@@ -209,8 +209,8 @@ namespace CityX.ViewEditor
 
                 AddGrabbableCrate(groundHeight, structure);
 
-                // --- inventory. No UI panel yet -- /equip and /unequip in the
-                // --- dev console are the only way in for this pass.
+                // --- inventory. /equip and /unequip in the dev console still
+                // --- work too -- both go through the same Inventory calls.
                 var inventory = player.AddComponent<CityX.Character.Inventory>();
                 inventory.ItemPrefabs = new[]
                 {
@@ -317,10 +317,27 @@ namespace CityX.ViewEditor
                     pause);
             }
 
+            // --- the inventory. I opens it; it guards itself against opening
+            // --- on top of the console, the pause menu or the map.
+            CityX.UI.InventoryPanelView inventoryView = null;
+            var inventoryComponent = Object.FindFirstObjectByType<CityX.Character.Inventory>();
+            if (inventoryComponent != null)
+            {
+                inventoryView = CityX.UIEditor.InventoryPanelBuilder.AddToScene(
+                    inventoryComponent,
+                    inventoryComponent.gameObject,
+                    Object.FindFirstObjectByType<PlayerInputReader>(),
+                    Object.FindFirstObjectByType<ThirdPersonCamera>(),
+                    console,
+                    pause,
+                    map);
+            }
+
             // --- chat. Enter opens it; /claim inside it is the only way to
             // --- reach the claim system above. Guards itself against the
-            // --- console, the pause menu and the map, all of which also
-            // --- read Enter or Escape.
+            // --- console, the pause menu, the map and the inventory, all of
+            // --- which also read Enter or Escape or cover the same part of
+            // --- the screen.
             if (mapPlayer != null)
             {
                 CityX.UI.PlayerChat chat = CityX.UIEditor.PlayerChatBuilder.AddToScene(
@@ -330,7 +347,8 @@ namespace CityX.ViewEditor
                     Object.FindFirstObjectByType<ThirdPersonCamera>(),
                     console,
                     pause,
-                    map);
+                    map,
+                    inventoryView);
                 pause.Chat = chat;
             }
 

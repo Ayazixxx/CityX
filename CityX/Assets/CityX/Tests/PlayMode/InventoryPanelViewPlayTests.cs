@@ -1,0 +1,196 @@
+using System.Collections;
+using CityX.Character;
+using CityX.Items;
+using CityX.UI;
+using CityX.Wearables;
+using NUnit.Framework;
+using UnityEngine;
+using UnityEngine.TestTools;
+using UnityEngine.UI;
+
+namespace CityX.Tests
+{
+    /// <summary>
+    /// What opening and closing the inventory does to movement/camera
+    /// input, and what clicking its storage and equipment slots actually
+    /// does through a real Inventory component -- the same
+    /// RemoveFromStorage-then-EquipItemId composition DevConsoleView.Equip
+    /// uses. Built by hand rather than by loading the scene, so this tests
+    /// InventoryPanelView's own behaviour and fails for one reason, the
+    /// same reasoning MapPanelViewPlayTests already uses.
+    /// </summary>
+    public class InventoryPanelViewPlayTests
+    {
+        private GameObject _panelObject;
+        private GameObject _playerObject;
+        private GameObject _cameraObject;
+        private GameObject _jeansPrefab;
+
+        [TearDown]
+        public void TearDown()
+        {
+            if (_panelObject != null) Object.DestroyImmediate(_panelObject);
+            if (_playerObject != null) Object.DestroyImmediate(_playerObject);
+            if (_cameraObject != null) Object.DestroyImmediate(_cameraObject);
+            if (_jeansPrefab != null) Object.DestroyImmediate(_jeansPrefab);
+        }
+
+        /// <summary>
+        /// Built INACTIVE, and stays that way until the caller activates it
+        /// with ActivatePanel -- Unity only calls Awake once a GameObject is
+        /// actually active, and Awake is where InventoryPanelView wires its
+        /// button listeners. Adding the component to an already-active
+        /// object (as MapPanelViewPlayTests does, since MapPanelView wires
+        /// no listeners in Awake) would fire that wiring before this method
+        /// -- or the click tests below -- had finished setting
+        /// StorageButtons/EquipButtons, and it would silently wire nothing.
+        /// </summary>
+        private InventoryPanelView MakePanel(out PlayerInputReader inputReader,
+            out ThirdPersonCamera orbitCamera, out Inventory inventory)
+        {
+            _playerObject = new GameObject("Player");
+            _playerObject.AddComponent<CharacterController>();
+            _playerObject.AddComponent<PlayerLocomotion>();
+            inputReader = _playerObject.AddComponent<PlayerInputReader>();
+            inventory = _playerObject.AddComponent<Inventory>();
+            inventory.Storage = new Inventory.StorageSlot[Inventory.StorageSlotCount];
+
+            _jeansPrefab = new GameObject("JeansPrefab");
+            _jeansPrefab.AddComponent<SkelliJeans>();
+            _jeansPrefab.SetActive(false);
+            inventory.ItemPrefabs = new[]
+            {
+                new Inventory.ItemPrefabEntry { ItemId = ItemRegistry.SkelliJeans, Prefab = _jeansPrefab },
+            };
+
+            _cameraObject = new GameObject("Camera");
+            orbitCamera = _cameraObject.AddComponent<ThirdPersonCamera>();
+            orbitCamera.Target = _playerObject.transform;
+
+            _panelObject = new GameObject("InventoryPanel");
+            _panelObject.SetActive(false);
+            var panel = _panelObject.AddComponent<InventoryPanelView>();
+            panel.Root = new GameObject("Root");
+            panel.Root.transform.SetParent(_panelObject.transform, false);
+            panel.Root.SetActive(false);
+            panel.InputReader = inputReader;
+            panel.OrbitCamera = orbitCamera;
+            panel.Inventory = inventory;
+            panel.Player = _playerObject;
+            return panel;
+        }
+
+        private void ActivatePanel()
+        {
+            _panelObject.SetActive(true);
+        }
+
+        /// <summary>A bare clickable button for the two slot tests below -- no icon, no label, just something with a real onClick to wire.</summary>
+        private static Button MakeButton(GameObject parent)
+        {
+            var go = new GameObject("Slot");
+            go.transform.SetParent(parent.transform, false);
+            var image = go.AddComponent<Image>();
+            Button button = go.AddComponent<Button>();
+            button.targetGraphic = image;
+            return button;
+        }
+
+        [UnityTest]
+        public IEnumerator OpeningDisablesMovementAndCameraLook()
+        {
+            InventoryPanelView panel = MakePanel(out PlayerInputReader inputReader,
+                out ThirdPersonCamera orbitCamera, out _);
+            ActivatePanel();
+            yield return null;
+
+            panel.Open();
+            yield return null;
+
+            Assert.IsTrue(panel.IsOpen);
+            Assert.IsFalse(inputReader.enabled, "input should be disabled while the inventory is open");
+            Assert.IsFalse(orbitCamera.enabled, "the orbit camera should be disabled while the inventory is open");
+        }
+
+        [UnityTest]
+        public IEnumerator ClosingRestoresMovementAndCameraLook()
+        {
+            InventoryPanelView panel = MakePanel(out PlayerInputReader inputReader,
+                out ThirdPersonCamera orbitCamera, out _);
+            ActivatePanel();
+            yield return null;
+            panel.Open();
+            yield return null;
+
+            panel.Close();
+            yield return null;
+
+            Assert.IsFalse(panel.IsOpen);
+            Assert.IsTrue(inputReader.enabled, "input should come back once the inventory closes");
+            Assert.IsTrue(orbitCamera.enabled, "the orbit camera should come back once the inventory closes");
+        }
+
+        [UnityTest]
+        public IEnumerator OpeningTwiceInARowDoesNothingExtra()
+        {
+            InventoryPanelView panel = MakePanel(out PlayerInputReader inputReader, out _, out _);
+            ActivatePanel();
+            yield return null;
+
+            panel.Open();
+            yield return null;
+            inputReader.enabled = true; // simulate something else re-enabling it mid-session
+            panel.Open();
+            yield return null;
+
+            // The guard at the top of Open() should have refused the second
+            // call rather than re-running it and stomping the flag back off
+            // in a way that would mask a real bug elsewhere.
+            Assert.IsTrue(inputReader.enabled);
+        }
+
+        [UnityTest]
+        public IEnumerator ClickingAStorageSlotHoldingAnEquippableItemEquipsIt()
+        {
+            InventoryPanelView panel = MakePanel(out _, out _, out Inventory inventory);
+            inventory.Storage[0] = new Inventory.StorageSlot
+                { ItemId = ItemRegistry.SkelliJeans, Count = 1, InstanceData = ItemInstanceData.None };
+
+            Button slot = MakeButton(_panelObject);
+            panel.StorageButtons = new[] { slot };
+            panel.StorageLabels = new Text[] { null };
+            ActivatePanel();
+            yield return null;
+
+            slot.onClick.Invoke();
+            yield return null;
+
+            Assert.IsTrue(inventory.Storage[0].IsEmpty, "the jeans should have left storage");
+            Assert.AreEqual(ItemRegistry.SkelliJeans, inventory.EquippedItemId("legs"),
+                "the jeans should now be equipped");
+        }
+
+        [UnityTest]
+        public IEnumerator ClickingAFilledEquipmentSlotUnequipsItBackToStorage()
+        {
+            InventoryPanelView panel = MakePanel(out _, out _, out Inventory inventory);
+            Assert.IsTrue(inventory.EquipItemId(ItemRegistry.SkelliJeans, _playerObject));
+
+            int legsIndex = System.Array.IndexOf(InventoryPanelView.EquipSlotKeys, "legs");
+            var buttons = new Button[InventoryPanelView.EquipSlotKeys.Length];
+            buttons[legsIndex] = MakeButton(_panelObject);
+            panel.EquipButtons = buttons;
+            panel.EquipLabels = new Text[InventoryPanelView.EquipSlotKeys.Length];
+            ActivatePanel();
+            yield return null;
+
+            buttons[legsIndex].onClick.Invoke();
+            yield return null;
+
+            Assert.AreEqual(string.Empty, inventory.EquippedItemId("legs"),
+                "the legs slot should be empty again");
+            Assert.IsTrue(inventory.HasItem(ItemRegistry.SkelliJeans),
+                "the jeans should be back in storage");
+        }
+    }
+}
