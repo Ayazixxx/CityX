@@ -126,10 +126,16 @@ namespace CityX.Character
         /// <summary>player.gd STRENGTH_DAMAGE_PERCENT_PER_POINT</summary>
         public const float StrengthDamagePerPoint = 0.02f;
 
+        /// <summary>The shared strength-scaling chokepoint every damage source runs through.</summary>
+        public static float DamageFor(float baseDamage, int strength)
+        {
+            return baseDamage * (1.0f + strength * StrengthDamagePerPoint);
+        }
+
         /// <summary>Damage a stage deals at a given Strength.</summary>
         public static float DamageFor(ComboStage stage, int strength)
         {
-            return PunchDamage * stage.DamageScale * (1.0f + strength * StrengthDamagePerPoint);
+            return DamageFor(PunchDamage * stage.DamageScale, strength);
         }
 
         /// <summary>How long a stage stuns its target.</summary>

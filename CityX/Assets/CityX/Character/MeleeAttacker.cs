@@ -58,11 +58,29 @@ namespace CityX.Character
         [Header("Targets")]
         public LayerMask TargetLayers = ~0;
 
+        /// <summary>
+        /// Set by Inventory.EquipItemId (via the weapon's own OnEquip) and
+        /// cleared by OnUnequip. Non-null routes TryAttack/LandBlow through
+        /// the weapon's own damage and cooldown instead of the unarmed
+        /// combo chain -- MeleeAttacker never references a concrete weapon
+        /// class, only this interface.
+        /// </summary>
+        public IEquippableWeapon EquippedWeapon;
+
         private float _swingRemaining;
         private float _windowRemaining;
         private int _nextStage;
         private bool _contactDone;
         private ComboStage _currentStage;
+
+        /// <summary>
+        /// The swing duration actually in effect for the swing in progress.
+        /// A weapon supplies its own cooldown; jab and heavy both use
+        /// SwingSeconds even though heavy's own duration is HeavySwingSeconds
+        /// -- that mismatch predates this field and isn't this change's to
+        /// fix, so it's preserved bit-for-bit.
+        /// </summary>
+        private float _activeSwingSeconds;
 
         /// <summary>Which stage of the chain the next swing would play.</summary>
         public int NextStageIndex => _nextStage;
@@ -117,6 +135,22 @@ namespace CityX.Character
                 return false;
             }
 
+            // A WEAPON SWING IS ITS OWN THING, not a combo stage -- there is
+            // no chain, no window, no heavy variant here in this pass (the
+            // ground truth's own bottle-melee description never mentions
+            // one). The weapon supplies its own damage and cooldown.
+            if (EquippedWeapon != null)
+            {
+                _currentStage = default;
+                _activeSwingSeconds = EquippedWeapon.MeleeCooldownSeconds;
+                _swingRemaining = _activeSwingSeconds;
+                _contactDone = false;
+                _nextStage = 0;
+                _windowRemaining = 0.0f;
+                SwingStarted?.Invoke(_currentStage);
+                return true;
+            }
+
             // A HAYMAKER IS NOT PART OF THE CHAIN. It is its own committed
             // swing: slower, harder, and it starts the chain over rather than
             // advancing it -- which is what makes holding for one a decision
@@ -126,6 +160,7 @@ namespace CityX.Character
             if (heavy)
             {
                 _currentStage = CombatTuning.HeavyPunch;
+                _activeSwingSeconds = SwingSeconds;
                 _swingRemaining = HeavySwingSeconds;
                 _contactDone = false;
                 _nextStage = 0;
@@ -148,6 +183,7 @@ namespace CityX.Character
             }
 
             _currentStage = chain[_nextStage];
+            _activeSwingSeconds = SwingSeconds;
             _swingRemaining = SwingSeconds;
             _contactDone = false;
 
@@ -197,7 +233,7 @@ namespace CityX.Character
             // Contact is a moment inside the swing, not its start or end. Fire
             // it when the timer crosses that point, so a long frame cannot skip
             // it -- a dropped frame swallowing a punch is a miserable bug.
-            float contactAt = SwingSeconds * (1.0f - ContactFraction);
+            float contactAt = _activeSwingSeconds * (1.0f - ContactFraction);
             if (!_contactDone && before > contactAt && _swingRemaining <= contactAt)
             {
                 _contactDone = true;
@@ -300,8 +336,20 @@ namespace CityX.Character
         private void LandBlow()
         {
             int strength = _vitals != null ? _vitals.Strength : 0;
-            float damage = CombatTuning.DamageFor(_currentStage, strength);
-            float hitstun = CombatTuning.HitstunFor(_currentStage);
+            float damage;
+            float hitstun;
+            if (EquippedWeapon != null)
+            {
+                damage = CombatTuning.DamageFor(EquippedWeapon.GetMeleeDamage(), strength);
+                // No weapon-specific figure in the ground truth -- reuses
+                // the fist's own base hitstun rather than inventing one.
+                hitstun = CombatTuning.HitstunSeconds;
+            }
+            else
+            {
+                damage = CombatTuning.DamageFor(_currentStage, strength);
+                hitstun = CombatTuning.HitstunFor(_currentStage);
+            }
 
             bool connected = false;
             bool blocked = false;
@@ -342,11 +390,19 @@ namespace CityX.Character
                 _nextStage = 0;
             }
 
-            connected |= PunchGlass(origin);
+            // ONLY BARE FISTS BREAK WINDOWS -- the ground truth's own bottle-
+            // melee description never mentions glass, so a weapon swing
+            // skips this rather than punching through a wall it's holding
+            // a bottle up to.
+            if (EquippedWeapon == null)
+            {
+                connected |= PunchGlass(origin);
+            }
 
             if (connected)
             {
                 PlayImpact();
+                EquippedWeapon?.RegisterLandedMeleeHit();
             }
         }
 

@@ -1,0 +1,22 @@
+{
+    "name": "CityX.Wearables.Editor",
+    "rootNamespace": "CityX.WearablesEditor",
+    "references": [
+        "CityX.Character",
+        "CityX.Character.Editor",
+        "CityX.Core",
+        "CityX.Items",
+        "CityX.Wearables"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

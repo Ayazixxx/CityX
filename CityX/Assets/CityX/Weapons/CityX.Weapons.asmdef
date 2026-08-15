@@ -1,0 +1,19 @@
+{
+    "name": "CityX.Weapons",
+    "rootNamespace": "CityX.Weapons",
+    "references": [
+        "CityX.Character",
+        "CityX.Core",
+        "CityX.Items",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

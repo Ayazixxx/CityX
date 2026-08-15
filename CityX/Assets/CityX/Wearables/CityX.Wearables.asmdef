@@ -1,0 +1,18 @@
+{
+    "name": "CityX.Wearables",
+    "rootNamespace": "CityX.Wearables",
+    "references": [
+        "CityX.Character",
+        "CityX.Core",
+        "CityX.Items"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -11,6 +11,8 @@
         "CityX.Character",
         "CityX.Character.Editor",
         "CityX.UI",
+        "CityX.Weapons",
+        "CityX.Wearables",
         "UnityEngine.UI"
     ],
     "includePlatforms": [
