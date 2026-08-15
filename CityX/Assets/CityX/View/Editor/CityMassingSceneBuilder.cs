@@ -123,6 +123,13 @@ namespace CityX.ViewEditor
                 CityLayout.ChunkSize * 0.5f, groundHeight + 1.7f, CityLayout.ChunkSize * 0.5f);
             cameraObject.transform.rotation = Quaternion.Euler(4.0f, 35.0f, 0.0f);
 
+            // --- weapons/wearables. Built here, once, so both the player's
+            // --- own Inventory.ItemPrefabs and the dev console's /spawn +
+            // --- /equip can point at the very same prefabs.
+            GameObject bottlePrefab = CityX.WeaponsEditor.BottleBuilder.Build();
+            GameObject tShirtPrefab = CityX.WearablesEditor.ClothingBuilder.BuildTShirt();
+            GameObject hoodiePrefab = CityX.WearablesEditor.ClothingBuilder.BuildHoodie();
+
             // --- the player. The flycam stays on the same object but disabled,
             // --- so switching between walking the city and flying over it is a
             // --- checkbox rather than a scene edit.
@@ -201,6 +208,19 @@ namespace CityX.ViewEditor
                 grabCarry.Eye = cameraObject.transform;
 
                 AddGrabbableCrate(groundHeight, structure);
+
+                // --- inventory. No UI panel yet -- /equip and /unequip in the
+                // --- dev console are the only way in for this pass.
+                var inventory = player.AddComponent<CityX.Character.Inventory>();
+                inventory.ItemPrefabs = new[]
+                {
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.GlassBottle, Prefab = bottlePrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.TShirt, Prefab = tShirtPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.Hoodie, Prefab = hoodiePrefab },
+                };
             }
             else
             {
@@ -257,6 +277,9 @@ namespace CityX.ViewEditor
                 cycle,
                 cameraObject.GetComponent<FlyCamera>(),
                 RadioBuilder.Build(),
+                bottlePrefab,
+                tShirtPrefab,
+                hoodiePrefab,
                 Object.FindFirstObjectByType<PlayerInputReader>(),
                 Object.FindFirstObjectByType<ThirdPersonCamera>(),
                 toonableMaterials);

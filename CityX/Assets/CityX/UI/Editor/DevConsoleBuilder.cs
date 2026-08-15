@@ -32,6 +32,7 @@ namespace CityX.UIEditor
         /// </summary>
         public static DevConsoleView AddToScene(PlayerVitals vitals, RainEffect rain,
             DayNightCycle cycle, FlyCamera fly, GameObject radioPrefab,
+            GameObject bottlePrefab = null, GameObject tShirtPrefab = null, GameObject hoodiePrefab = null,
             PlayerInputReader inputReader = null, ThirdPersonCamera orbitCamera = null,
             Material[] toonableMaterials = null)
         {
@@ -101,6 +102,9 @@ namespace CityX.UIEditor
             view.CivilianPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
                 "Assets/CityX/Character/Civilian.prefab");
             view.RadioPrefab = radioPrefab;
+            view.BottlePrefab = bottlePrefab;
+            view.TShirtPrefab = tShirtPrefab;
+            view.HoodiePrefab = hoodiePrefab;
             view.InputReader = inputReader;
             view.OrbitCamera = orbitCamera;
             view.ToonableMaterials = toonableMaterials;

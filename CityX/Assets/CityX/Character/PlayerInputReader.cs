@@ -41,6 +41,8 @@ namespace CityX.Character
         private Ragdoll _ragdoll;
         private PlayerAudio _audio;
         private GrabCarry _grabCarry;
+        private Inventory _inventory;
+        private readonly WeaponAimInput _weaponAim = new WeaponAimInput();
 
         private void Awake()
         {
@@ -53,6 +55,7 @@ namespace CityX.Character
             _ragdoll = GetComponent<Ragdoll>();
             _audio = GetComponent<PlayerAudio>();
             _grabCarry = GetComponent<GrabCarry>();
+            _inventory = GetComponent<Inventory>();
         }
 
         private void Update()
@@ -202,6 +205,43 @@ namespace CityX.Character
             // punch/block input.
             if (_grabCarry != null && _grabCarry.IsCarrying)
             {
+                return;
+            }
+
+            // A WEAPON EQUIPPED IN THE RIGHT HAND TAKES OVER LEFT/RIGHT-CLICK
+            // ENTIRELY, matching the bottle's own aim/melee/throw sequencing
+            // in player.gd: hold right = aim, release right without ever
+            // pressing left = cancel free, left while aiming = throw, left
+            // while not aiming = melee swing. Nothing below this branch --
+            // the ordinary block/punch-hold logic -- ever runs while a
+            // weapon is equipped.
+            IEquippableWeapon weapon = _inventory != null
+                ? _inventory.EquippedInstance("hand_r")?.GetComponent<IEquippableWeapon>()
+                : null;
+            if (weapon != null)
+            {
+                WeaponAimInput.Action action = _weaponAim.Tick(
+                    Mouse.current.rightButton.wasPressedThisFrame,
+                    Mouse.current.rightButton.wasReleasedThisFrame,
+                    Mouse.current.leftButton.wasPressedThisFrame);
+
+                if (action == WeaponAimInput.Action.Melee)
+                {
+                    _melee.TryAttack();
+                }
+                else if (action == WeaponAimInput.Action.Throw && weapon.CanThrow())
+                {
+                    Transform yawSource = YawSource != null
+                        ? YawSource
+                        : (Camera.main != null ? Camera.main.transform : null);
+                    if (yawSource != null)
+                    {
+                        Vector3 direction = -yawSource.forward;
+                        Vector3 origin = transform.position + Vector3.up * (_melee.OriginHeightFraction *
+                            (_locomotion != null ? _locomotion.StandingHeight : 1.8f)) + direction * 0.5f;
+                        weapon.Throw(gameObject, origin, direction);
+                    }
+                }
                 return;
             }
 

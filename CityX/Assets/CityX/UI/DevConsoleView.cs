@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 using CityX.Character;
+using CityX.Items;
 using CityX.View;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -54,6 +55,15 @@ namespace CityX.UI
 
         [Tooltip("What /spawn radio puts down.")]
         public GameObject RadioPrefab;
+
+        [Tooltip("What /spawn bottle puts down, and what /equip bottle equips.")]
+        public GameObject BottlePrefab;
+
+        [Tooltip("What /spawn shirt puts down, and what /equip shirt equips.")]
+        public GameObject TShirtPrefab;
+
+        [Tooltip("What /spawn hoodie puts down, and what /equip hoodie equips.")]
+        public GameObject HoodiePrefab;
 
         [Tooltip("Movement/combat input. Disabled while the console is open.")]
         public PlayerInputReader InputReader;
@@ -210,6 +220,14 @@ namespace CityX.UI
                     ToggleCelShade();
                     return;
 
+                case "equip":
+                    Equip(line.Argument(0));
+                    return;
+
+                case "unequip":
+                    Unequip(line.Argument(0));
+                    return;
+
                 default:
                     Log("unknown command: " + line.Verb + "   (try /help)");
                     return;
@@ -324,6 +342,36 @@ namespace CityX.UI
                     Log("spawned radio -- press E to switch it on");
                     return;
 
+                case "bottle":
+                    if (BottlePrefab == null)
+                    {
+                        Log("no bottle prefab wired");
+                        return;
+                    }
+                    Instantiate(BottlePrefab, where + Vector3.up * 0.1f, Quaternion.identity);
+                    Log("spawned a glass bottle -- walk up, look at it and press E");
+                    return;
+
+                case "shirt":
+                    if (TShirtPrefab == null)
+                    {
+                        Log("no t-shirt prefab wired");
+                        return;
+                    }
+                    Instantiate(TShirtPrefab, where + Vector3.up * 0.05f, Quaternion.identity);
+                    Log("spawned a t-shirt -- press E nearby to pick it up");
+                    return;
+
+                case "hoodie":
+                    if (HoodiePrefab == null)
+                    {
+                        Log("no hoodie prefab wired");
+                        return;
+                    }
+                    Instantiate(HoodiePrefab, where + Vector3.up * 0.05f, Quaternion.identity);
+                    Log("spawned a hoodie -- press E nearby to pick it up");
+                    return;
+
                 case "dummy":
                     // BUILT HERE RATHER THAN INSTANTIATED, because a sparring
                     // dummy has no prefab -- the scene builder makes its own out
@@ -376,6 +424,100 @@ namespace CityX.UI
                 }
             }
             Log("cel shading " + (_celShadeOn ? "on" : "off"));
+        }
+
+        /// <summary>
+        /// Friendly console spellings for the item ids in ItemRegistry.
+        /// Null for anything not recognised.
+        /// </summary>
+        private static string AliasToItemId(string which)
+        {
+            switch (which)
+            {
+                case "bottle": return ItemRegistry.GlassBottle;
+                case "shirt":
+                case "tshirt": return ItemRegistry.TShirt;
+                case "hoodie": return ItemRegistry.Hoodie;
+                default: return null;
+            }
+        }
+
+        /// <summary>
+        /// TOPS UP STORAGE IF THE ITEM ISN'T ALREADY THERE -- a deliberate
+        /// dev-console convenience so /equip bottle works standalone,
+        /// without first /spawn-ing one and walking over to pick it up.
+        /// </summary>
+        private void Equip(string which)
+        {
+            if (Vitals == null)
+            {
+                Log("no body here");
+                return;
+            }
+            Inventory inventory = Vitals.GetComponent<Inventory>();
+            if (inventory == null)
+            {
+                Log("no inventory on this body");
+                return;
+            }
+
+            string itemId = AliasToItemId(which);
+            if (itemId == null)
+            {
+                Log(DevCommands.UsageFor("equip"));
+                return;
+            }
+
+            if (!inventory.HasItem(itemId))
+            {
+                inventory.AddItem(itemId, 1);
+            }
+
+            if (!inventory.RemoveFromStorage(itemId, 1, out ItemInstanceData instanceData))
+            {
+                Log("no " + which + " in storage");
+                return;
+            }
+
+            if (!inventory.EquipItemId(itemId, Vitals.gameObject, instanceData))
+            {
+                // Put it back rather than leaving it removed from storage
+                // and nowhere else -- a prefab wired wrong shouldn't also
+                // eat the item.
+                inventory.AddItem(itemId, 1, instanceData);
+                Log("couldn't equip " + which + " -- check its prefab is wired");
+                return;
+            }
+
+            Log("equipped " + which);
+        }
+
+        private void Unequip(string slot)
+        {
+            if (Vitals == null)
+            {
+                Log("no body here");
+                return;
+            }
+            Inventory inventory = Vitals.GetComponent<Inventory>();
+            if (inventory == null)
+            {
+                Log("no inventory on this body");
+                return;
+            }
+            if (string.IsNullOrEmpty(slot))
+            {
+                Log(DevCommands.UsageFor("unequip"));
+                return;
+            }
+
+            if (!inventory.UnequipToSlot(slot, Vitals.gameObject))
+            {
+                Log("nothing equipped in " + slot + " (or storage is full)");
+                return;
+            }
+
+            Log("unequipped " + slot);
         }
 
         private void Log(string message)
