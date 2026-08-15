@@ -23,6 +23,14 @@ Shader "CityX/ToonLit"
     {
         _BaseColor("Base Colour", Color) = (0.72, 0.60, 0.52, 1)
 
+        // A painted character's whole body/head is this texture (see
+        // CharacterIdentity.ApplyPaint) with _BaseColor left white so the
+        // paint shows through unmixed -- without sampling it here, toggling
+        // cel shading on a painted character would strip every stroke and
+        // show a flat colour instead, which reads as broken rather than
+        // stylised.
+        _BaseMap("Base Map", 2D) = "white" {}
+
         // Not pure black: a real shadow band picks up a cooler, darker
         // tint of the surface rather than going flat, which is what keeps
         // a toon-shaded body reading as lit-from-somewhere rather than
@@ -75,6 +83,10 @@ Shader "CityX/ToonLit"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
+            TEXTURE2D(_BaseMap);
+            SAMPLER(sampler_BaseMap);
+            float4 _BaseMap_ST;
+
             float4 _BaseColor;
             float4 _ShadowColor;
             float _ShadowThreshold;
@@ -87,6 +99,7 @@ Shader "CityX/ToonLit"
             {
                 float4 positionOS : POSITION;
                 float3 normalOS : NORMAL;
+                float2 uv : TEXCOORD0;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
@@ -95,7 +108,8 @@ Shader "CityX/ToonLit"
                 float4 positionCS : SV_POSITION;
                 float3 positionWS : TEXCOORD0;
                 float3 normalWS : TEXCOORD1;
-                float fogFactor : TEXCOORD2;
+                float2 uv : TEXCOORD2;
+                float fogFactor : TEXCOORD3;
                 UNITY_VERTEX_OUTPUT_STEREO
             };
 
@@ -109,6 +123,7 @@ Shader "CityX/ToonLit"
                 output.positionWS = positions.positionWS;
                 output.positionCS = positions.positionCS;
                 output.normalWS = TransformObjectToWorldNormal(input.normalOS);
+                output.uv = TRANSFORM_TEX(input.uv, _BaseMap);
                 output.fogFactor = ComputeFogFactor(positions.positionCS.z);
                 return output;
             }
@@ -132,15 +147,17 @@ Shader "CityX/ToonLit"
                 float band = smoothstep(
                     _ShadowThreshold - _BandSoftness, _ShadowThreshold + _BandSoftness, lit);
 
-                float3 litColour = _BaseColor.rgb * mainLight.color.rgb;
-                float3 shadowColour = _BaseColor.rgb * _ShadowColor.rgb;
+                float3 albedo = _BaseColor.rgb * SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, input.uv).rgb;
+
+                float3 litColour = albedo * mainLight.color.rgb;
+                float3 shadowColour = albedo * _ShadowColor.rgb;
                 float3 colour = lerp(shadowColour, litColour, band);
 
                 // Flat ambient, matching DayNightCycle's own AmbientMode.Flat
                 // -- SampleSH reads whatever RenderSettings.ambientLight
                 // currently is regardless of normal, so this rises and falls
                 // with the same day/night cycle as everything else.
-                colour += _BaseColor.rgb * SampleSH(normalWS);
+                colour += albedo * SampleSH(normalWS);
 
                 float3 viewWS = normalize(GetWorldSpaceViewDir(input.positionWS));
                 float rim = 1.0 - saturate(dot(normalWS, viewWS));

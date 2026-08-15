@@ -263,14 +263,6 @@ namespace CityX.ViewEditor
             // --- shipped as a prefab because half of what it drives only
             // --- exists in a scene, and a prefab of empty slots is the exact
             // --- class of mistake the capture rig has already been caught by.
-            // Every character skin /celshade toggles -- both share one
-            // material instance each, so this is the whole population.
-            var toonableMaterials = new[]
-            {
-                AssetDatabase.LoadAssetAtPath<Material>("Assets/CityX/Character/Materials/PlayerSkin.mat"),
-                AssetDatabase.LoadAssetAtPath<Material>("Assets/CityX/Character/Materials/CivilianSkin.mat"),
-            };
-
             CityX.UI.DevConsoleView console = CityX.UIEditor.DevConsoleBuilder.AddToScene(
                 Object.FindFirstObjectByType<PlayerVitals>(),
                 Object.FindFirstObjectByType<RainEffect>(),
@@ -281,8 +273,7 @@ namespace CityX.ViewEditor
                 tShirtPrefab,
                 hoodiePrefab,
                 Object.FindFirstObjectByType<PlayerInputReader>(),
-                Object.FindFirstObjectByType<ThirdPersonCamera>(),
-                toonableMaterials);
+                Object.FindFirstObjectByType<ThirdPersonCamera>());
 
             // --- the pause menu. Escape opens it; it guards itself against
             // --- opening on top of the console above.

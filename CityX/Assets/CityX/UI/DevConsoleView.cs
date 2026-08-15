@@ -71,9 +71,6 @@ namespace CityX.UI
         [Tooltip("Mouse-look. Disabled while the console is open -- otherwise typing WASD into a command also walks the player.")]
         public ThirdPersonCamera OrbitCamera;
 
-        [Tooltip("Every character-skin material /celshade toggles -- PlayerSkin, CivilianSkin.")]
-        public Material[] ToonableMaterials;
-
         /// <summary>How far in front of the player something spawns.</summary>
         public const float SpawnDistance = 3.0f;
 
@@ -392,20 +389,22 @@ namespace CityX.UI
         }
 
         /// <summary>
-        /// Swaps every wired skin material's shader between the normal URP
-        /// Lit and CityX/ToonLit. Lives on the MATERIAL, not per-renderer --
-        /// CharacterSkin.Apply shares one material instance across a whole
-        /// body (and every civilian wearing the same skin), so this one
-        /// swap changes everyone using it at once, the same as Godot's own
-        /// /celshade did for its full-screen version.
+        /// Swaps every skin renderer's shader between the normal URP Lit
+        /// and CityX/ToonLit.
+        ///
+        /// WALKS LIVE RENDERERS, NOT A WIRED Material[] -- a material
+        /// asset like PlayerSkin.mat is only what a renderer STARTS on.
+        /// CharacterIdentity.Recolour/ApplyPaint read `renderer.material`
+        /// (deliberately, to tint one body without recolouring everyone
+        /// sharing the asset), and that auto-instances a private copy the
+        /// first time it's touched -- which for any character who has ever
+        /// been painted or recoloured is well before this ever runs. Toggling
+        /// the shared asset's own .shader missed that copy entirely, which is
+        /// why this used to look like it did nothing on a painted player
+        /// while still working on an untouched civilian.
         /// </summary>
         private void ToggleCelShade()
         {
-            if (ToonableMaterials == null || ToonableMaterials.Length == 0)
-            {
-                Log("no toonable materials wired");
-                return;
-            }
             if (_litShader == null) _litShader = Shader.Find("Universal Render Pipeline/Lit");
             if (_toonShader == null) _toonShader = Shader.Find("CityX/ToonLit");
             if (_litShader == null || _toonShader == null)
@@ -416,15 +415,30 @@ namespace CityX.UI
 
             _celShadeOn = !_celShadeOn;
             Shader target = _celShadeOn ? _toonShader : _litShader;
-            foreach (Material material in ToonableMaterials)
+
+            int changed = 0;
+            foreach (Renderer renderer in FindObjectsByType<Renderer>(FindObjectsSortMode.None))
             {
-                if (material != null)
+                // Read sharedMaterial to test the name -- it returns
+                // whatever is actually bound (instance or asset) without
+                // instancing anything just to look. Only a match then goes
+                // through .material, so an untouched civilian population
+                // still gets one shared swap instead of a thousand new
+                // per-renderer clones.
+                Material current = renderer.sharedMaterial;
+                if (current == null || !IsToonableSkinName(current.name))
                 {
-                    material.shader = target;
+                    continue;
                 }
+                renderer.material.shader = target;
+                changed++;
             }
-            Log("cel shading " + (_celShadeOn ? "on" : "off"));
+
+            Log("cel shading " + (_celShadeOn ? "on" : "off") + $" ({changed} renderer(s))");
         }
+
+        private static bool IsToonableSkinName(string materialName) =>
+            materialName.StartsWith("PlayerSkin") || materialName.StartsWith("CivilianSkin");
 
         /// <summary>
         /// Friendly console spellings for the item ids in ItemRegistry.

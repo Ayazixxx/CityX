@@ -33,8 +33,7 @@ namespace CityX.UIEditor
         public static DevConsoleView AddToScene(PlayerVitals vitals, RainEffect rain,
             DayNightCycle cycle, FlyCamera fly, GameObject radioPrefab,
             GameObject bottlePrefab = null, GameObject tShirtPrefab = null, GameObject hoodiePrefab = null,
-            PlayerInputReader inputReader = null, ThirdPersonCamera orbitCamera = null,
-            Material[] toonableMaterials = null)
+            PlayerInputReader inputReader = null, ThirdPersonCamera orbitCamera = null)
         {
             var root = new GameObject("DevConsole", typeof(RectTransform));
             Canvas canvas = root.AddComponent<Canvas>();
@@ -107,7 +106,6 @@ namespace CityX.UIEditor
             view.HoodiePrefab = hoodiePrefab;
             view.InputReader = inputReader;
             view.OrbitCamera = orbitCamera;
-            view.ToonableMaterials = toonableMaterials;
 
             EnsureEventSystem();
             return view;
