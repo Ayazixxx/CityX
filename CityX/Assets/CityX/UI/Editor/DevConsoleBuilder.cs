@@ -32,7 +32,7 @@ namespace CityX.UIEditor
         /// </summary>
         public static DevConsoleView AddToScene(PlayerVitals vitals, RainEffect rain,
             DayNightCycle cycle, FlyCamera fly, GameObject radioPrefab,
-            GameObject bottlePrefab = null, GameObject tShirtPrefab = null, GameObject hoodiePrefab = null,
+            GameObject bottlePrefab = null, GameObject skelliJeansPrefab = null, GameObject hoodedCloakPrefab = null,
             PlayerInputReader inputReader = null, ThirdPersonCamera orbitCamera = null)
         {
             var root = new GameObject("DevConsole", typeof(RectTransform));
@@ -102,8 +102,8 @@ namespace CityX.UIEditor
                 "Assets/CityX/Character/Civilian.prefab");
             view.RadioPrefab = radioPrefab;
             view.BottlePrefab = bottlePrefab;
-            view.TShirtPrefab = tShirtPrefab;
-            view.HoodiePrefab = hoodiePrefab;
+            view.SkelliJeansPrefab = skelliJeansPrefab;
+            view.HoodedCloakPrefab = hoodedCloakPrefab;
             view.InputReader = inputReader;
             view.OrbitCamera = orbitCamera;
 

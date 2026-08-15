@@ -11,14 +11,14 @@ namespace CityX.Items
     public static class ItemRegistry
     {
         public const string GlassBottle = "glass_bottle";
-        public const string TShirt = "t_shirt";
-        public const string Hoodie = "hoodie";
+        public const string SkelliJeans = "skelli_jeans";
+        public const string HoodedCloak = "hooded_cloak";
 
         private static readonly Dictionary<string, ItemDefinition> Items = new Dictionary<string, ItemDefinition>
         {
             [GlassBottle] = new ItemDefinition(GlassBottle, "Glass Bottle", "weapon", "hand_r", 1),
-            [TShirt] = new ItemDefinition(TShirt, "T-Shirt", "wearable", "top", 1),
-            [Hoodie] = new ItemDefinition(Hoodie, "Hoodie", "wearable", "top", 1),
+            [SkelliJeans] = new ItemDefinition(SkelliJeans, "Skelli Jeans", "wearable", "legs", 1),
+            [HoodedCloak] = new ItemDefinition(HoodedCloak, "Hooded Cloak", "wearable", "top", 1),
         };
 
         public static bool TryGet(string itemId, out ItemDefinition definition)

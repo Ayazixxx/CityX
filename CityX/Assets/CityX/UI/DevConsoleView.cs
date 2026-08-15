@@ -59,11 +59,11 @@ namespace CityX.UI
         [Tooltip("What /spawn bottle puts down, and what /equip bottle equips.")]
         public GameObject BottlePrefab;
 
-        [Tooltip("What /spawn shirt puts down, and what /equip shirt equips.")]
-        public GameObject TShirtPrefab;
+        [Tooltip("What /spawn jeans puts down, and what /equip jeans equips.")]
+        public GameObject SkelliJeansPrefab;
 
-        [Tooltip("What /spawn hoodie puts down, and what /equip hoodie equips.")]
-        public GameObject HoodiePrefab;
+        [Tooltip("What /spawn cloak puts down, and what /equip cloak equips.")]
+        public GameObject HoodedCloakPrefab;
 
         [Tooltip("Movement/combat input. Disabled while the console is open.")]
         public PlayerInputReader InputReader;
@@ -349,24 +349,24 @@ namespace CityX.UI
                     Log("spawned a glass bottle -- walk up, look at it and press E");
                     return;
 
-                case "shirt":
-                    if (TShirtPrefab == null)
+                case "jeans":
+                    if (SkelliJeansPrefab == null)
                     {
-                        Log("no t-shirt prefab wired");
+                        Log("no skelli jeans prefab wired");
                         return;
                     }
-                    Instantiate(TShirtPrefab, where + Vector3.up * 0.05f, Quaternion.identity);
-                    Log("spawned a t-shirt -- press E nearby to pick it up");
+                    Instantiate(SkelliJeansPrefab, where + Vector3.up * 0.05f, Quaternion.identity);
+                    Log("spawned skelli jeans -- press E nearby to pick them up");
                     return;
 
-                case "hoodie":
-                    if (HoodiePrefab == null)
+                case "cloak":
+                    if (HoodedCloakPrefab == null)
                     {
-                        Log("no hoodie prefab wired");
+                        Log("no hooded cloak prefab wired");
                         return;
                     }
-                    Instantiate(HoodiePrefab, where + Vector3.up * 0.05f, Quaternion.identity);
-                    Log("spawned a hoodie -- press E nearby to pick it up");
+                    Instantiate(HoodedCloakPrefab, where + Vector3.up * 0.05f, Quaternion.identity);
+                    Log("spawned a hooded cloak -- press E nearby to pick it up");
                     return;
 
                 case "dummy":
@@ -449,9 +449,8 @@ namespace CityX.UI
             switch (which)
             {
                 case "bottle": return ItemRegistry.GlassBottle;
-                case "shirt":
-                case "tshirt": return ItemRegistry.TShirt;
-                case "hoodie": return ItemRegistry.Hoodie;
+                case "jeans": return ItemRegistry.SkelliJeans;
+                case "cloak": return ItemRegistry.HoodedCloak;
                 default: return null;
             }
         }

@@ -127,8 +127,8 @@ namespace CityX.ViewEditor
             // --- own Inventory.ItemPrefabs and the dev console's /spawn +
             // --- /equip can point at the very same prefabs.
             GameObject bottlePrefab = CityX.WeaponsEditor.BottleBuilder.Build();
-            GameObject tShirtPrefab = CityX.WearablesEditor.ClothingBuilder.BuildTShirt();
-            GameObject hoodiePrefab = CityX.WearablesEditor.ClothingBuilder.BuildHoodie();
+            GameObject skelliJeansPrefab = CityX.WearablesEditor.SkinnedGarmentBuilder.BuildJeans();
+            GameObject hoodedCloakPrefab = CityX.WearablesEditor.SkinnedGarmentBuilder.BuildCloak();
 
             // --- the player. The flycam stays on the same object but disabled,
             // --- so switching between walking the city and flying over it is a
@@ -217,9 +217,9 @@ namespace CityX.ViewEditor
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.GlassBottle, Prefab = bottlePrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
-                        { ItemId = CityX.Items.ItemRegistry.TShirt, Prefab = tShirtPrefab },
+                        { ItemId = CityX.Items.ItemRegistry.SkelliJeans, Prefab = skelliJeansPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
-                        { ItemId = CityX.Items.ItemRegistry.Hoodie, Prefab = hoodiePrefab },
+                        { ItemId = CityX.Items.ItemRegistry.HoodedCloak, Prefab = hoodedCloakPrefab },
                 };
             }
             else
@@ -270,8 +270,8 @@ namespace CityX.ViewEditor
                 cameraObject.GetComponent<FlyCamera>(),
                 RadioBuilder.Build(),
                 bottlePrefab,
-                tShirtPrefab,
-                hoodiePrefab,
+                skelliJeansPrefab,
+                hoodedCloakPrefab,
                 Object.FindFirstObjectByType<PlayerInputReader>(),
                 Object.FindFirstObjectByType<ThirdPersonCamera>());
 

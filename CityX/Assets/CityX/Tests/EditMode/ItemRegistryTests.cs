@@ -14,12 +14,12 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void TShirtAndHoodieBothFillTheTopSlot()
+        public void SkelliJeansFillsTheLegsSlotAndHoodedCloakFillsTheTopSlot()
         {
-            Assert.IsTrue(ItemRegistry.TryGet(ItemRegistry.TShirt, out ItemDefinition shirt));
-            Assert.IsTrue(ItemRegistry.TryGet(ItemRegistry.Hoodie, out ItemDefinition hoodie));
-            Assert.AreEqual("top", shirt.EquipSlot);
-            Assert.AreEqual("top", hoodie.EquipSlot);
+            Assert.IsTrue(ItemRegistry.TryGet(ItemRegistry.SkelliJeans, out ItemDefinition jeans));
+            Assert.IsTrue(ItemRegistry.TryGet(ItemRegistry.HoodedCloak, out ItemDefinition cloak));
+            Assert.AreEqual("legs", jeans.EquipSlot);
+            Assert.AreEqual("top", cloak.EquipSlot);
         }
 
         [Test]

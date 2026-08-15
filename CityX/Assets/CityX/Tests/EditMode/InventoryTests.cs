@@ -26,7 +26,7 @@ namespace CityX.Tests
                 // NOT Destroy(gameObject) here -- Destroy() throws in the
                 // editor context these EditMode tests run in ("Destroy may
                 // not be called from edit mode"). Real IEquippableItem
-                // implementations (BottleWeapon, ClothingItem) do call it,
+                // implementations (BottleWeapon, SkinnedGarment) do call it,
                 // in real runtime; this double only needs to prove
                 // OnUnequip was reached, not exercise Unity's own destroy
                 // path.
@@ -39,7 +39,7 @@ namespace CityX.Tests
         private GameObject _playerObject;
         private Inventory _inventory;
         private GameObject _bottlePrefab;
-        private GameObject _shirtPrefab;
+        private GameObject _legsPrefab;
 
         [SetUp]
         public void SetUp()
@@ -52,14 +52,14 @@ namespace CityX.Tests
             _bottlePrefab.AddComponent<TestEquippableItem>();
             _bottlePrefab.SetActive(false);
 
-            _shirtPrefab = new GameObject("ShirtPrefab");
-            _shirtPrefab.AddComponent<TestEquippableItem>();
-            _shirtPrefab.SetActive(false);
+            _legsPrefab = new GameObject("LegsPrefab");
+            _legsPrefab.AddComponent<TestEquippableItem>();
+            _legsPrefab.SetActive(false);
 
             _inventory.ItemPrefabs = new[]
             {
                 new Inventory.ItemPrefabEntry { ItemId = ItemRegistry.GlassBottle, Prefab = _bottlePrefab },
-                new Inventory.ItemPrefabEntry { ItemId = ItemRegistry.TShirt, Prefab = _shirtPrefab },
+                new Inventory.ItemPrefabEntry { ItemId = ItemRegistry.SkelliJeans, Prefab = _legsPrefab },
             };
         }
 
@@ -68,14 +68,14 @@ namespace CityX.Tests
         {
             Object.DestroyImmediate(_playerObject);
             Object.DestroyImmediate(_bottlePrefab);
-            Object.DestroyImmediate(_shirtPrefab);
+            Object.DestroyImmediate(_legsPrefab);
         }
 
         [Test]
         public void AddItemOnAnEmptyInventoryTakesTheFirstSlot()
         {
-            Assert.IsTrue(_inventory.AddItem(ItemRegistry.TShirt, 1));
-            Assert.AreEqual(ItemRegistry.TShirt, _inventory.Storage[0].ItemId);
+            Assert.IsTrue(_inventory.AddItem(ItemRegistry.SkelliJeans, 1));
+            Assert.AreEqual(ItemRegistry.SkelliJeans, _inventory.Storage[0].ItemId);
         }
 
         [Test]
@@ -119,7 +119,7 @@ namespace CityX.Tests
             }
             var before = (Inventory.StorageSlot[])_inventory.Storage.Clone();
 
-            Assert.IsFalse(_inventory.AddItem(ItemRegistry.TShirt, 1));
+            Assert.IsFalse(_inventory.AddItem(ItemRegistry.SkelliJeans, 1));
 
             for (int i = 0; i < Inventory.StorageSlotCount; i++)
             {
@@ -176,7 +176,7 @@ namespace CityX.Tests
 
             for (int i = 0; i < Inventory.StorageSlotCount; i++)
             {
-                _inventory.AddItem(ItemRegistry.TShirt, 1, new ItemInstanceData { HasDurability = true, Durability = i });
+                _inventory.AddItem(ItemRegistry.SkelliJeans, 1, new ItemInstanceData { HasDurability = true, Durability = i });
             }
 
             _inventory.AddItem(ItemRegistry.GlassBottle, 1);
@@ -207,7 +207,7 @@ namespace CityX.Tests
             _inventory.EquipItemId(ItemRegistry.GlassBottle, _playerObject);
             for (int i = 0; i < Inventory.StorageSlotCount; i++)
             {
-                _inventory.AddItem(ItemRegistry.TShirt, 1, new ItemInstanceData { HasDurability = true, Durability = i });
+                _inventory.AddItem(ItemRegistry.SkelliJeans, 1, new ItemInstanceData { HasDurability = true, Durability = i });
             }
 
             Assert.IsFalse(_inventory.UnequipToSlot("hand_r", _playerObject));
