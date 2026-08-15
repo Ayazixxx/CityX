@@ -166,6 +166,27 @@ namespace CityX.View
         /// </summary>
         public const float MoonAngularRadius = 1.5f;
 
+        /// <summary>
+        /// Below this elevation, a light stops casting shadows instead of
+        /// stretching them to extreme length across the street.
+        ///
+        /// A caster's shadow reaches roughly height/tan(elevation) along the
+        /// ground -- for a ~2m-tall character that is already 5-6m at this
+        /// threshold, and it keeps growing without bound as elevation
+        /// approaches zero. Past a certain length that shadow's far end
+        /// reaches nearby building facades, and from most third-person
+        /// camera angles a long, near-horizontal ground shadow foreshortens
+        /// against a vertical wall behind it and reads as though it were
+        /// cast ONTO the wall, floating -- correct geometry, but it looks
+        /// exactly like a broken shadow. Cutting shadows off before the sun
+        /// or moon gets that low avoids it, the same trade every game with
+        /// a day/night cycle makes rather than rendering true sunrise/
+        /// sunset-length shadows. Costs about 5-6 minutes of shadowless
+        /// dawn/dusk out of the 34-minute cycle, which is not something a
+        /// player is likely to consciously notice.
+        /// </summary>
+        public const float MinShadowElevationSine = 0.35f; // ~20.5 degrees
+
         /// <summary>How far the glow around a body reaches, in degrees.</summary>
         public const float GlowRadiusDegrees = 30.0f;
 
@@ -317,7 +338,7 @@ namespace CityX.View
             return new State(sunPitch, moonPitch, sunElevation, moonElevation,
                 daylight, sunset, sunColour, sunIntensity, MoonColour, moonIntensity,
                 ambient, horizon, skyTop, groundBottom, skyEnergy, groundEnergy,
-                sunElevation > 0.0f, moonElevation > 0.0f);
+                sunElevation > MinShadowElevationSine, moonElevation > MinShadowElevationSine);
         }
 
         /// <summary>
