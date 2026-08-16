@@ -42,6 +42,12 @@ namespace CityX.Tests
             Assert.IsNotNull(hud.Crosshair, "no crosshair -- it could not be hidden on death");
             Assert.IsNotNull(hud.DeathScreen, "no death screen -- dying would show nothing");
             Assert.IsNotNull(hud.RespawnButton, "no respawn button -- death would be unrecoverable");
+            Assert.IsNotNull(hud.PortraitImage,
+                "no portrait image -- CapturePortrait would have nothing to display its RenderTexture on");
+            // PortraitCamera itself is wired by PlayerHudBuilder.AddToScene,
+            // not the prefab -- it needs a real player Transform to sit
+            // under (see AddToScene's own BuildPortraitCamera), which the
+            // prefab alone does not have.
         }
 
         /// <summary>

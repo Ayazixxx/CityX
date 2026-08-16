@@ -4,6 +4,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
+using UnityEngine.Rendering;
 using UnityEngine.UI;
 
 namespace CityX.UIEditor
@@ -50,6 +51,20 @@ namespace CityX.UIEditor
 
         private const float HealthBorder = 5.0f;
         private const float StaminaBorder = 4.0f;
+
+        /// <summary>
+        /// The Unity layer PortraitCamera's own cullingMask is restricted
+        /// to -- Godot instead OR's a second layer BIT onto every body-part
+        /// mesh (character.gd's own PORTRAIT_VISUAL_LAYER), so the same
+        /// mesh renders for both the main camera and the portrait one at
+        /// once. Unity's GameObject.layer is a single value, not a bitmask,
+        /// so that specific trick doesn't carry over -- moving the head/skin
+        /// renderers onto a layer of their own, while the main game camera's
+        /// own cullingMask stays Everything, reaches the identical result:
+        /// one real mesh, visible to both cameras, and nothing else in the
+        /// world visible to the portrait one.
+        /// </summary>
+        public const string PortraitLayerName = "PlayerPortrait";
 
         [MenuItem("CityX/Rebuild Player HUD")]
         public static GameObject Build()
@@ -110,10 +125,75 @@ namespace CityX.UIEditor
 
             var instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
             instance.name = "PlayerHud";
-            instance.GetComponent<PlayerHud>().Target = target;
+            PlayerHud hud = instance.GetComponent<PlayerHud>();
+            hud.Target = target;
+
+            if (target != null)
+            {
+                hud.PortraitCamera = BuildPortraitCamera(target.transform);
+            }
 
             EnsureEventSystem();
             return instance;
+        }
+
+        /// <summary>
+        /// The portrait's own camera and light, cullingMask-restricted to
+        /// PortraitLayerName, plus moving the target's own body renderers
+        /// onto that layer so this camera (and only this camera) can see
+        /// them -- see PortraitLayerName's own doc comment for why Unity
+        /// needs a real layer move here where Godot only ORs in a bit.
+        ///
+        /// A DEDICATED LIGHT, cullingMask-restricted the same way, rather
+        /// than reading whatever DayNightCycle currently has the sun/moon
+        /// set to -- hud.gd's own Environment override on just this camera
+        /// exists so the portrait reads the same at noon and at midnight;
+        /// letting it fall under the world's own lighting would make a
+        /// portrait taken at 2am unrecognisably dark for no reason related
+        /// to the character it is a portrait of.
+        /// </summary>
+        private static Camera BuildPortraitCamera(Transform target)
+        {
+            int layer = LayerMask.NameToLayer(PortraitLayerName);
+            if (layer < 0)
+            {
+                Debug.LogError($"CityX: no '{PortraitLayerName}' layer defined -- add it in Project Settings > Tags and Layers.");
+                return null;
+            }
+
+            foreach (Renderer renderer in target.GetComponentsInChildren<Renderer>(true))
+            {
+                renderer.gameObject.layer = layer;
+            }
+
+            var cameraObject = new GameObject("PortraitCamera");
+            cameraObject.transform.SetParent(target, false);
+            Camera camera = cameraObject.AddComponent<Camera>();
+            camera.clearFlags = CameraClearFlags.SolidColor;
+            camera.backgroundColor = PlayerHud.PortraitBackgroundColour;
+            camera.cullingMask = 1 << layer;
+            camera.nearClipPlane = 0.05f;
+            camera.farClipPlane = 5.0f;
+            camera.fieldOfView = 35.0f;
+
+            const int resolution = 256;
+            var texture = new RenderTexture(resolution, resolution, 16, RenderTextureFormat.ARGB32)
+            {
+                name = "PortraitTexture",
+            };
+            camera.targetTexture = texture;
+
+            var lightObject = new GameObject("PortraitLight");
+            lightObject.transform.SetParent(cameraObject.transform, false);
+            Light light = lightObject.AddComponent<Light>();
+            light.type = LightType.Point;
+            light.color = Color.white;
+            light.intensity = 3.0f;
+            light.range = 3.0f;
+            light.cullingMask = 1 << layer;
+            light.shadows = LightShadows.None;
+
+            return camera;
         }
 
         /// <summary>
@@ -155,25 +235,64 @@ namespace CityX.UIEditor
             RectTransform rect = Attach(frame, parent);
             TopLeft(rect, new Vector2(20.0f, -20.0f), new Vector2(500.0f, 130.0f));
 
-            // hud.tscn indents the bars by 115px to clear a 130px portrait, and
-            // hangs the level badge off that portrait's bottom-left corner.
-            // With no portrait ported, keeping those offsets leaves a badge
-            // floating alone in an empty gap, which reads as a broken layout
-            // rather than a missing feature.
-            //
-            // So the badge takes the left slot and the bars close up beside it.
-            // When the portrait lands it reclaims this corner and these three
-            // numbers move back.
-            hud.LevelLabel = BuildLevelBadge(frame.transform, new Vector2(0.0f, -12.0f));
+            // hud.tscn's own numbers: the bars indent 115px to clear a 130px
+            // portrait, and the level badge hangs off that portrait's own
+            // bottom-left corner.
+            hud.LevelLabel = BuildPortrait(frame.transform, hud);
 
             hud.HealthFill = BuildBar(frame.transform, "HealthBar",
-                new Vector2(56.0f, -10.0f), new Vector2(300.0f, 38.0f),
+                new Vector2(115.0f, -33.0f), new Vector2(300.0f, 38.0f),
                 HealthBorder, PlayerHud.HealthGreen, out Image healthFillImage);
             hud.HealthFillImage = healthFillImage;
 
             hud.StaminaFill = BuildBar(frame.transform, "StaminaBar",
-                new Vector2(56.0f, -54.0f), new Vector2(300.0f, 20.0f),
+                new Vector2(115.0f, -77.0f), new Vector2(300.0f, 20.0f),
                 StaminaBorder, StaminaBlue, out _);
+        }
+
+        /// <summary>
+        /// The portrait: a gold ring (hud.tscn's own circular_mask.gdshader,
+        /// as a pre-baked CircleSprite ring here instead -- see that class's
+        /// own doc comment), a circular Mask clipping the camera's own
+        /// RenderTexture inside it, and the level badge hanging off its
+        /// bottom-left corner exactly where hud.tscn puts it.
+        /// </summary>
+        private static Text BuildPortrait(Transform parent, PlayerHud hud)
+        {
+            Sprite circle = CircleSprite.Ensure();
+
+            var clip = new GameObject("PortraitClip", typeof(RectTransform));
+            RectTransform clipRect = Attach(clip, parent);
+            TopLeft(clipRect, new Vector2(0.0f, 0.0f), new Vector2(130.0f, 130.0f));
+
+            var ring = new GameObject("Ring", typeof(RectTransform));
+            RectTransform ringRect = Attach(ring, clip.transform);
+            Stretch(ringRect, 0.0f);
+            Image ringImage = ring.AddComponent<Image>();
+            ringImage.sprite = circle;
+            ringImage.color = Gold;
+            ringImage.raycastTarget = false;
+
+            // Inset inside the ring so the gold shows all the way round as a
+            // border, matching circular_mask.gdshader's own border_thickness.
+            const float ringBorder = 8.0f;
+            var maskObject = new GameObject("PortraitMask", typeof(RectTransform));
+            RectTransform maskRect = Attach(maskObject, clip.transform);
+            Stretch(maskRect, ringBorder);
+            Image maskImage = maskObject.AddComponent<Image>();
+            maskImage.sprite = circle;
+            maskImage.raycastTarget = false;
+            maskObject.AddComponent<Mask>().showMaskGraphic = false;
+
+            var portraitImageObject = new GameObject("PortraitImage", typeof(RectTransform));
+            RectTransform imageRect = Attach(portraitImageObject, maskObject.transform);
+            Stretch(imageRect, 0.0f);
+            RawImage rawImage = portraitImageObject.AddComponent<RawImage>();
+            rawImage.color = Color.white;
+            rawImage.raycastTarget = false;
+            hud.PortraitImage = rawImage;
+
+            return BuildLevelBadge(clip.transform, new Vector2(-8.0f, -92.0f));
         }
 
         /// <summary>

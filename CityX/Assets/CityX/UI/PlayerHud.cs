@@ -1,3 +1,4 @@
+using System.Collections;
 using CityX.Character;
 using UnityEngine;
 using UnityEngine.UI;
@@ -5,8 +6,8 @@ using UnityEngine.UI;
 namespace CityX.UI
 {
     /// <summary>
-    /// Health and stamina bars, a level badge, and the death screen. Ported
-    /// from ui/hud.gd.
+    /// Health and stamina bars, a level badge, a circular character
+    /// portrait, and the death screen. Ported from ui/hud.gd.
     ///
     /// POLLS THE CONTINUOUS VALUES, LISTENS FOR THE DISCRETE ONES. Health and
     /// stamina change every single frame while sprinting or regenerating, so an
@@ -15,11 +16,13 @@ namespace CityX.UI
     /// caught exactly when they happen, so those are real events. The Godot
     /// original drew the same line for the same reason.
     ///
-    /// Deliberately not ported yet: the character portrait and the ammo
-    /// counter. The portrait needs a head bone, a per-character render layer
-    /// and a paint job, none of which exist here yet, and there are no guns.
-    /// An empty frame in the corner would look like a bug rather than an
-    /// absence.
+    /// THE PORTRAIT IS A ONE-TIME SNAPSHOT, NOT A LIVE FEED -- matching
+    /// hud.gd's own reasoning exactly: a portrait that kept following the
+    /// character's current facing would visibly swing around every time the
+    /// player turned, reading as the portrait itself "moving" rather than a
+    /// still headshot. See CapturePortrait.
+    ///
+    /// Deliberately not ported yet: the ammo counter -- there are no guns.
     /// </summary>
     public sealed class PlayerHud : MonoBehaviour
     {
@@ -31,6 +34,19 @@ namespace CityX.UI
         public static readonly Color HealthGreen = new Color(0.2f, 0.85f, 0.2f);
         public static readonly Color HealthYellow = new Color(0.95f, 0.85f, 0.15f);
         public static readonly Color HealthRed = new Color(0.9f, 0.15f, 0.15f);
+
+        /// <summary>
+        /// In front of the character's own face, close and level -- a
+        /// head-and-a-little-shoulder crop, not a full-body shot and not
+        /// tilted up/down. hud.gd's own PORTRAIT_CAMERA_DISTANCE, carried
+        /// straight over: this project's own head sphere measures out to a
+        /// near-identical absolute size, so the same distance frames the
+        /// same crop here.
+        /// </summary>
+        public const float PortraitCameraDistance = 0.85f;
+
+        /// <summary>A flat, darker shade of the gold ring around the portrait -- hud.gd's own PORTRAIT_BG_COLOR.</summary>
+        public static readonly Color PortraitBackgroundColour = new Color(0.26f, 0.21f, 0.07f);
 
         [Tooltip("Whose vitals are shown. Found on the parent hierarchy if left empty.")]
         public PlayerVitals Target;
@@ -44,6 +60,12 @@ namespace CityX.UI
         public GameObject Crosshair;
         public GameObject DeathScreen;
         public Button RespawnButton;
+
+        [Tooltip("Displays the baked RenderTexture PortraitCamera writes once, then never again.")]
+        public RawImage PortraitImage;
+
+        [Tooltip("A scene camera, cullingMask-restricted to the player's own dedicated portrait layer (see PlayerHudBuilder.PortraitLayerName), that never renders anywhere else.")]
+        public Camera PortraitCamera;
 
         private PlayerVitals _bound;
         private Button _hookedButton;
@@ -62,12 +84,78 @@ namespace CityX.UI
             Bind(Target);
             HookButton(RespawnButton);
             ShowDead(_bound != null && _bound.IsDead);
+            StartCoroutine(CapturePortrait());
         }
 
         private void OnDisable()
         {
             Bind(null);
             HookButton(null);
+        }
+
+        /// <summary>
+        /// Bakes one still image of the character into PortraitCamera's own
+        /// RenderTexture, then switches the camera off for good -- see this
+        /// class's own doc comment for why a live feed is wrong here.
+        ///
+        /// WAITS TWO FRAMES FIRST, before ever looking for Target -- matches
+        /// hud.gd's own _capture_portrait() exactly, and for the same
+        /// ordering reason: AddToScene sets Target on this component right
+        /// after Instantiate, which runs Awake/OnEnable (and so starts this
+        /// coroutine) before that assignment happens. Coroutines only begin
+        /// running after the calling method returns, so by the time this
+        /// resumes past the first yield the field is already set -- but the
+        /// wait, and the null guard after it, cost nothing and mean this
+        /// never depends on that ordering staying exactly as it is today.
+        /// </summary>
+        private IEnumerator CapturePortrait()
+        {
+            yield return null;
+            yield return null;
+
+            if (Target == null || PortraitCamera == null || PortraitImage == null)
+            {
+                yield break;
+            }
+
+            Renderer headRenderer = FindHeadRenderer(Target.transform);
+            if (headRenderer == null)
+            {
+                yield break;
+            }
+
+            Vector3 headPos = headRenderer.bounds.center;
+            Vector3 facing = Target.transform.forward;
+            PortraitCamera.transform.position = headPos + facing * PortraitCameraDistance;
+            PortraitCamera.transform.LookAt(headPos, Vector3.up);
+
+            PortraitCamera.Render();
+            // The whole GameObject, not just the camera -- PlayerHudBuilder
+            // hangs a dedicated light off this same object for the shot, and
+            // leaving that behind still-enabled would keep it lit and
+            // costing render time near the player forever, for a texture
+            // nothing ever writes to again.
+            PortraitCamera.gameObject.SetActive(false);
+        }
+
+        /// <summary>
+        /// Ported from character.gd's get_head_center_world(), but reading
+        /// the actual visual mesh's own world bounds rather than a bone
+        /// offset -- FusedBodyBuilder.AttachHead parents the head mesh onto
+        /// the head bone once and lets it ride along, so the mesh's own
+        /// current bounds ARE its current world position with nothing else
+        /// to derive.
+        /// </summary>
+        private static Renderer FindHeadRenderer(Transform root)
+        {
+            foreach (Renderer renderer in root.GetComponentsInChildren<Renderer>(true))
+            {
+                if (renderer.gameObject.name == "Head")
+                {
+                    return renderer;
+                }
+            }
+            return null;
         }
 
         /// <summary>
