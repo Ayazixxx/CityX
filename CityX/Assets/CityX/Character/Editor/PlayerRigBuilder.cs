@@ -224,9 +224,63 @@ namespace CityX.CharacterEditor
             AddCrouchStates(controller, root);
             AddDashState(controller, root);
             AddPunchStates(root);
+            AddCutsceneStates(root);
 
             EditorUtility.SetDirty(controller);
             return controller;
+        }
+
+        /// <summary>
+        /// Falling/impact/getting-up/looking-around, for IntroCutscene's own
+        /// one-time fall on a brand new character. Ported from
+        /// player/intro_cutscene.gd's four anim_player.play() calls.
+        ///
+        /// NO TRANSITIONS AT ALL, in or out -- same "told by name, has no
+        /// opinion" reasoning PlayerAnimationDriver's own class comment
+        /// already gives for the punch states, just taken further: even the
+        /// punch states get an exit-time transition back to Locomotion,
+        /// because a swing's own duration is fixed and predictable. This
+        /// cutscene's beats are not (impact holds for a tuned constant,
+        /// getting_up and looking_around run to their own real clip
+        /// lengths, which IntroCutscene reads off the Animator itself) --
+        /// a graph transition would have to guess at a duration it cannot
+        /// know, where a raw CrossFadeInFixedTime call from the one place
+        /// that DOES know is exact. IntroCutscene drives every step of this
+        /// sequence directly, including the final CrossFadeInFixedTime back
+        /// to "Locomotion" at handoff.
+        /// </summary>
+        private static void AddCutsceneStates(AnimatorStateMachine root)
+        {
+            AnimationClip falling = FindClip("falling");
+            if (falling != null)
+            {
+                // The only looped clip of the four -- see intro_cutscene.gd's
+                // own class comment: "falling is the only LOOPED clip in
+                // this game." The fall's own real duration (15s) almost
+                // never matches the clip's short dive-loop length exactly.
+                MakeLooping(falling);
+            }
+
+            AddCutsceneState(root, "Falling", falling);
+            AddCutsceneState(root, "FallingFlatImpact", FindClip("falling_flat_impact"));
+            AddCutsceneState(root, "GettingUp", FindClip("getting_up"));
+            AddCutsceneState(root, "LookingAround", FindClip("looking_around"));
+        }
+
+        private static void AddCutsceneState(AnimatorStateMachine root, string name, AnimationClip clip)
+        {
+            if (clip == null)
+            {
+                Debug.LogWarning($"CityX: no clip for cutscene state '{name}' -- the intro " +
+                                  "cutscene will hold on whatever animation was already playing.");
+                return;
+            }
+            if (FindState(root, name) != null)
+            {
+                return;
+            }
+            AnimatorState state = root.AddState(name);
+            state.motion = clip;
         }
 
         /// <summary>How long a crouch takes to fold or unfold. character.gd's own.</summary>

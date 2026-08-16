@@ -35,6 +35,26 @@ namespace CityX.Character
         private float _pitch = 12.0f;
         private PlayerLocomotion _player;
 
+        /// <summary>
+        /// Settable so IntroCutscene can hand the camera back on the same
+        /// yaw/pitch it was left on when it re-enables this component --
+        /// otherwise the very next LateUpdate would snap to whatever
+        /// leftover _yaw/_pitch this component last held from before the
+        /// cutscene disabled it, popping the view. Degrees, same convention
+        /// LateUpdate's own Quaternion.Euler(pitch, yaw, 0) already uses.
+        /// </summary>
+        public float Yaw
+        {
+            get => _yaw;
+            set => _yaw = value;
+        }
+
+        public float Pitch
+        {
+            get => _pitch;
+            set => _pitch = value;
+        }
+
         /// <summary>What is currently locked on, or null.</summary>
         public Transform LockedTarget { get; private set; }
 

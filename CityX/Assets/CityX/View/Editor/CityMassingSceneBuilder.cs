@@ -189,6 +189,24 @@ namespace CityX.ViewEditor
                 claimSource.spatialBlend = 0.0f;
                 claim.AcquiredSoundSource = claimSource;
 
+                // --- the intro cutscene. Only actually starts for a
+                // --- genuinely new character (see IntroCutsceneStarter's
+                // --- own PlaySession check) -- pressing Play directly on
+                // --- this scene, which is how the world is normally worked
+                // --- on and tested, never sets PlaySession.Character at all
+                // --- and so never triggers it.
+                var introStarter = player.AddComponent<CityX.Character.IntroCutsceneStarter>();
+                introStarter.Controller = player.GetComponent<CharacterController>();
+                introStarter.OrbitCamera = follow;
+                introStarter.InputReader = player.GetComponent<PlayerInputReader>();
+                introStarter.Animator = player.GetComponentInChildren<Animator>();
+                introStarter.CameraTransform = cameraObject.transform;
+                introStarter.Locomotion = player.GetComponent<PlayerLocomotion>();
+                introStarter.RuinsMusic = AssetDatabase.LoadAssetAtPath<AudioClip>(
+                    "Assets/CityX/UI/Audio/ruins1.mp3");
+                introStarter.GroundImpactSound = AssetDatabase.LoadAssetAtPath<AudioClip>(
+                    "Assets/CityX/UI/Audio/cutscene_ground_impact.mp3");
+
                 var bubbleObject = new GameObject("SpeechBubble");
                 bubbleObject.transform.SetParent(player.transform, false);
                 var bubble = bubbleObject.AddComponent<CityX.Character.SpeechBubble>();
