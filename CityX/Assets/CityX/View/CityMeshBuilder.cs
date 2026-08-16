@@ -28,6 +28,15 @@ namespace CityX.View
         public static float SkirtDepth =>
             TerrainField.MaxNeighbourTerraceSteps * TerrainField.TerraceStep + 1.0f;
 
+        /// <summary>
+        /// How far a diagonal corner post reaches back along each edge from
+        /// the corner. A short pocket rather than a full edge -- the corner
+        /// post only has to close the notch a diagonal drop leaves; the
+        /// ordinary cardinal skirt already covers the rest of that edge if
+        /// its own neighbour warrants one.
+        /// </summary>
+        public const float CornerSkirtReach = 3.0f;
+
         /// <summary>Walkway deck width and thickness, in metres.</summary>
         public const float BridgeWidth = 4.0f;
 
@@ -140,6 +149,32 @@ namespace CityX.View
                 new Vector3(x1, y, z0), new Vector3(x0, y, z0), Vector3.back, origin, ground);
             AddSkirtIfLower(world, chunkX, chunkY + 1, pad,
                 new Vector3(x0, y, z1), new Vector3(x1, y, z1), Vector3.forward, origin, ground);
+
+            // Corner posts, for a DIAGONAL neighbour that drops away even when
+            // neither of the two flanking cardinal neighbours does.
+            //
+            // The four calls above only ever compare a chunk against the one
+            // directly N/S/E/W of it. A diagonal neighbour is never compared
+            // against at all -- and terracing only bounds how much a CARDINAL
+            // step can be (see TerrainField.MaxNeighbourTerraceSteps), not a
+            // diagonal one, which is free to compound two independent cardinal
+            // drops. When that happens at a corner where neither flanking edge
+            // is itself stepped, no skirt gets built anywhere near it: a slot
+            // of open air (and an unobstructed line to the sun) right at the
+            // corner, small enough to miss in a screenshot from most angles but
+            // large enough to stand next to.
+            AddCornerSkirtIfLower(world, chunkX - 1, chunkY - 1, pad, new Vector3(x0, y, z0),
+                new Vector3(x0 + CornerSkirtReach, y, z0), Vector3.back,
+                new Vector3(x0, y, z0 + CornerSkirtReach), Vector3.left, ground);
+            AddCornerSkirtIfLower(world, chunkX + 1, chunkY - 1, pad, new Vector3(x1, y, z0),
+                new Vector3(x1 - CornerSkirtReach, y, z0), Vector3.back,
+                new Vector3(x1, y, z0 + CornerSkirtReach), Vector3.right, ground);
+            AddCornerSkirtIfLower(world, chunkX - 1, chunkY + 1, pad, new Vector3(x0, y, z1),
+                new Vector3(x0 + CornerSkirtReach, y, z1), Vector3.forward,
+                new Vector3(x0, y, z1 - CornerSkirtReach), Vector3.left, ground);
+            AddCornerSkirtIfLower(world, chunkX + 1, chunkY + 1, pad, new Vector3(x1, y, z1),
+                new Vector3(x1 - CornerSkirtReach, y, z1), Vector3.forward,
+                new Vector3(x1, y, z1 - CornerSkirtReach), Vector3.right, ground);
 
             AddSidewalks(chunkX, chunkY, x0, z0, x1, z1, y, pavement);
         }
@@ -327,6 +362,40 @@ namespace CityX.View
             float width = Vector3.Distance(top0, top1);
             float height = top0.y - bottomY;
 
+            ground.AddQuad(bottom0, bottom1, top1, top0, normal,
+                new Vector2(0, 0), new Vector2(width, 0), new Vector2(width, height), new Vector2(0, height));
+        }
+
+        /// <summary>
+        /// Two short faces meeting at a chunk corner, dropped toward a
+        /// DIAGONAL neighbour's pad. See the corner-post comment at the call
+        /// site in <see cref="BuildGround"/> for why this exists alongside
+        /// <see cref="AddSkirtIfLower"/> rather than being covered by it.
+        /// </summary>
+        private static void AddCornerSkirtIfLower(CityWorld world, int neighbourX, int neighbourY, float pad,
+            Vector3 corner, Vector3 alongA, Vector3 normalA, Vector3 alongB, Vector3 normalB,
+            MeshBuffer ground)
+        {
+            float neighbourPad = world.Terrain.PadHeightFor(neighbourX, neighbourY);
+            if (neighbourPad >= pad)
+            {
+                return;
+            }
+
+            float drop = pad - neighbourPad + 0.5f;
+            float bottomY = corner.y - Mathf.Min(drop, SkirtDepth);
+
+            AddCornerFace(ground, corner, alongA, bottomY, normalA);
+            AddCornerFace(ground, corner, alongB, bottomY, normalB);
+        }
+
+        private static void AddCornerFace(MeshBuffer ground, Vector3 top0, Vector3 top1, float bottomY,
+            Vector3 normal)
+        {
+            Vector3 bottom0 = new Vector3(top0.x, bottomY, top0.z);
+            Vector3 bottom1 = new Vector3(top1.x, bottomY, top1.z);
+            float width = Vector3.Distance(top0, top1);
+            float height = top0.y - bottomY;
             ground.AddQuad(bottom0, bottom1, top1, top0, normal,
                 new Vector2(0, 0), new Vector2(width, 0), new Vector2(width, height), new Vector2(0, height));
         }

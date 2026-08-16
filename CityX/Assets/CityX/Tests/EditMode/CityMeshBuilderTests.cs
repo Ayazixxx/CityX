@@ -181,6 +181,12 @@ namespace CityX.Tests
         /// The one a picture genuinely cannot answer. A missing retaining wall
         /// is a slot of daylight along a terrace edge, visible only if you
         /// happen to be standing at the right spot on the low side.
+        ///
+        /// Checks all 8 neighbours, not just the 4 cardinal ones. A diagonal
+        /// neighbour is never bounded by the cardinal slope limit the same
+        /// way a direct one is (it can compound two independent cardinal
+        /// drops), so a corner can need a wall even when neither flanking
+        /// edge does -- see AddCornerSkirtIfLower's own doc comment.
         /// </summary>
         [Test]
         public void ATerraceEdgeAlwaysGetsARetainingWall()
@@ -193,9 +199,19 @@ namespace CityX.Tests
                 for (int y = -30; y <= 30; y++)
                 {
                     float pad = world.Terrain.PadHeightFor(x, y);
-                    float lowestNeighbour = Mathf.Min(
-                        Mathf.Min(world.Terrain.PadHeightFor(x - 1, y), world.Terrain.PadHeightFor(x + 1, y)),
-                        Mathf.Min(world.Terrain.PadHeightFor(x, y - 1), world.Terrain.PadHeightFor(x, y + 1)));
+                    float lowestNeighbour = pad;
+                    for (int dx = -1; dx <= 1; dx++)
+                    {
+                        for (int dy = -1; dy <= 1; dy++)
+                        {
+                            if (dx == 0 && dy == 0)
+                            {
+                                continue;
+                            }
+                            lowestNeighbour = Mathf.Min(lowestNeighbour,
+                                world.Terrain.PadHeightFor(x + dx, y + dy));
+                        }
+                    }
 
                     Build(x, y, out MeshBuffer ground, out _);
 
