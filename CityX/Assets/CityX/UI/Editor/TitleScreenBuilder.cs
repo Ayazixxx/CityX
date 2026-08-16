@@ -6,6 +6,7 @@ using CityX.World;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.Rendering.Universal;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
@@ -80,6 +81,13 @@ namespace CityX.UIEditor
             camera.nearClipPlane = 0.3f;
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.fieldOfView = 34.0f;
+            camera.allowMSAA = true;
+            // Same reasoning as CityMassingSceneBuilder's own player camera --
+            // this is the very first thing anyone sees, so it gets the same
+            // SMAA pass rather than relying on MSAA alone.
+            var cameraData = cameraObject.AddComponent<UniversalAdditionalCameraData>();
+            cameraData.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
+            cameraData.antialiasingQuality = AntialiasingQuality.High;
             cameraObject.AddComponent<AudioListener>();
             cameraObject.AddComponent<TitleBackdrop>();
 

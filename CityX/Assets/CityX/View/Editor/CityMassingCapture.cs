@@ -5,6 +5,7 @@ using CityX.World;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 
 namespace CityX.ViewEditor
 {
@@ -27,6 +28,9 @@ namespace CityX.ViewEditor
         private const int Width = 1280;
         private const int Height = 720;
         private const int WorldSeed = 20260810;
+
+        /// <summary>Matches PC_RPAsset's own m_MSAA -- see Shoot's own comment.</summary>
+        private const int PC_MsaaSamples = 4;
 
         [MenuItem("CityX/Capture Massing Screenshots")]
         public static void Capture()
@@ -785,7 +789,22 @@ namespace CityX.ViewEditor
             camera.transform.position = position;
             camera.transform.rotation = Quaternion.Euler(euler);
 
-            RenderTexture target = RenderTexture.GetTemporary(Width, Height, 24, RenderTextureFormat.ARGB32);
+            // Same AA the real player camera gets (see CityMassingSceneBuilder's
+            // own reasoning) -- without this a screenshot is honestly a worse
+            // picture than the game itself, since MSAA needs the RENDER
+            // TEXTURE it draws into to itself request samples, which a plain
+            // GetTemporary call below does not do on its own.
+            UniversalAdditionalCameraData cameraData = camera.GetComponent<UniversalAdditionalCameraData>();
+            if (cameraData == null)
+            {
+                cameraData = camera.gameObject.AddComponent<UniversalAdditionalCameraData>();
+            }
+            cameraData.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
+            cameraData.antialiasingQuality = AntialiasingQuality.High;
+            camera.allowMSAA = true;
+
+            RenderTexture target = RenderTexture.GetTemporary(
+                Width, Height, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default, PC_MsaaSamples);
             RenderTexture previous = RenderTexture.active;
             try
             {

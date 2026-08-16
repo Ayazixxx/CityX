@@ -112,6 +112,16 @@ namespace CityX.ViewEditor
             camera.nearClipPlane = 0.15f;
             camera.backgroundColor = new Color(0.55f, 0.60f, 0.66f);
             camera.allowHDR = true;
+            camera.allowMSAA = true;
+            // MSAA alone (the URP asset's own m_MSAA) only smooths true
+            // geometric edges. This city's window/rib/facade detail is a lot
+            // of small hard-edged geometry viewed at street level, and the
+            // difference an added SMAA pass makes there is exactly what
+            // reads as "pixelated" without it -- so both run together
+            // rather than relying on MSAA alone.
+            UniversalAdditionalCameraData cameraData = cameraObject.AddComponent<UniversalAdditionalCameraData>();
+            cameraData.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
+            cameraData.antialiasingQuality = AntialiasingQuality.High;
             cameraObject.AddComponent<FlyCamera>();
             cameraObject.AddComponent<AudioListener>();
 

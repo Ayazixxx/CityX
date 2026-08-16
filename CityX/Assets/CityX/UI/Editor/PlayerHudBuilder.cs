@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 using UnityEngine.UI;
 
 namespace CityX.UIEditor
@@ -175,11 +176,22 @@ namespace CityX.UIEditor
             camera.nearClipPlane = 0.05f;
             camera.farClipPlane = 5.0f;
             camera.fieldOfView = 35.0f;
+            camera.allowMSAA = true;
+            // A one-shot capture of a head silhouette against a flat colour --
+            // exactly the shape (a curved edge on a plain background) MSAA
+            // alone shows the most jaggies on, and it stays on screen in the
+            // HUD corner for the entire session, so it is worth spending
+            // SMAA on too rather than leaving it at whatever this camera's
+            // antialiasing default happens to be.
+            var portraitCameraData = cameraObject.AddComponent<UniversalAdditionalCameraData>();
+            portraitCameraData.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
+            portraitCameraData.antialiasingQuality = AntialiasingQuality.High;
 
             const int resolution = 256;
             var texture = new RenderTexture(resolution, resolution, 16, RenderTextureFormat.ARGB32)
             {
                 name = "PortraitTexture",
+                antiAliasing = 4,
             };
             camera.targetTexture = texture;
 

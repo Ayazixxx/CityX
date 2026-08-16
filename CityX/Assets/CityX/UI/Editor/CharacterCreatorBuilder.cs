@@ -3,6 +3,7 @@ using CityX.Core;
 using CityX.UI;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Rendering.Universal;
 using UnityEngine.UI;
 
 namespace CityX.UIEditor
@@ -218,6 +219,14 @@ namespace CityX.UIEditor
             // Above the title's own camera, so the creator draws over the city
             // rather than being buried in it.
             camera.depth = 5;
+            camera.allowMSAA = true;
+            // The closest, most static view in the whole game -- players
+            // stare at this body for minutes while painting it, so any
+            // residual edge aliasing MSAA alone misses is the most visible
+            // it will ever be.
+            var creatorCameraData = cameraObject.AddComponent<UniversalAdditionalCameraData>();
+            creatorCameraData.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
+            creatorCameraData.antialiasingQuality = AntialiasingQuality.High;
             cameraObject.layer = layer;
 
             // THREE LIGHTS, because one directional light on a matte body gives
