@@ -305,6 +305,13 @@ namespace CityX.Character
             float eased = t * t;
             float y = Mathf.Lerp(_spawnPosition.y + StartAltitude, _spawnPosition.y, eased);
             SetPlayerY(y);
+            // Re-anchored to the player EVERY frame, not just while
+            // TickCameraSwitch is active. Without this the camera is only
+            // ever placed once, in Begin() -- it sits frozen at the
+            // spawn-altitude framing for the whole fall and only starts
+            // tracking again in the last CamSwitchLeadSeconds, which reads
+            // exactly like "the camera doesn't follow the player down."
+            PlaceCamera(_thirdPersonCamera.Distance, _thirdPersonCamera.Pitch, _thirdPersonCamera.Yaw);
 
             if (!_cameraSwitching && _phaseElapsed >= FallDurationSeconds - CamSwitchLeadSeconds)
             {
@@ -377,7 +384,10 @@ namespace CityX.Character
             float pitch = Mathf.Lerp(OverheadPitchDegrees, 0.0f, t);
             _thirdPersonCamera.Distance = springLength;
             _thirdPersonCamera.Pitch = pitch;
-            PlaceCamera(springLength, pitch, 0.0f);
+            // Placed by TickFalling's own unconditional call, right after it
+            // moves the player for this same frame -- not here, which would
+            // place it a frame stale (TickCameraSwitch runs before TickFalling
+            // in Tick()'s own ordering).
 
             if (t >= 1.0f)
             {

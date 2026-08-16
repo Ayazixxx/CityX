@@ -122,6 +122,28 @@ namespace CityX.Tests
         }
 
         [Test]
+        public void TheCameraTracksTheBodyDownThroughoutTheWholeFallNotJustNearTheEnd()
+        {
+            Begin();
+            float cameraYAtStart = _cameraObject.transform.position.y;
+
+            // Well before TickCameraSwitch's own CamSwitchLeadSeconds window
+            // kicks in near the end of the fall -- if the camera is only
+            // ever placed once, in Begin(), it sits frozen here while the
+            // body keeps dropping underneath it.
+            _cutscene.Tick(IntroCutscene.FallDurationSeconds * 0.25f);
+            float cameraYAfterAQuarterFall = _cameraObject.transform.position.y;
+            Assert.Less(cameraYAfterAQuarterFall, cameraYAtStart - 1.0f,
+                "the camera should already be descending with the body a quarter of the way through the " +
+                "fall, not still sitting at its Begin()-time height");
+
+            _cutscene.Tick(IntroCutscene.FallDurationSeconds * 0.25f);
+            float cameraYAfterHalfFall = _cameraObject.transform.position.y;
+            Assert.Less(cameraYAfterHalfFall, cameraYAfterAQuarterFall,
+                "the camera should keep descending as the fall continues");
+        }
+
+        [Test]
         public void DriftNeverPushesTheBodyPastTheCappedRadius()
         {
             Begin();
