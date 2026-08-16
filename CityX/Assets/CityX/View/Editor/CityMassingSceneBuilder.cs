@@ -189,6 +189,24 @@ namespace CityX.ViewEditor
                 claimSource.spatialBlend = 0.0f;
                 claim.AcquiredSoundSource = claimSource;
 
+                // --- Old Guy. Stands a few metres off, facing the spawn
+                // --- point -- "he watches you land" is the doc comment
+                // --- old_guy.gd itself opens with.
+                GameObject dialogueBoxPrefab = CityX.UIEditor.DialogueBoxBuilder.Build();
+                GameObject oldGuyPrefab = CityX.CharacterEditor.OldGuyBuilder.Build(dialogueBoxPrefab);
+                if (oldGuyPrefab != null)
+                {
+                    GameObject oldGuy = (GameObject)PrefabUtility.InstantiatePrefab(oldGuyPrefab);
+                    oldGuy.name = "OldGuy";
+                    oldGuy.transform.position = player.transform.position + new Vector3(3.0f, 0.0f, 3.0f);
+                    Vector3 facing = player.transform.position - oldGuy.transform.position;
+                    if (facing.sqrMagnitude > 0.0001f)
+                    {
+                        oldGuy.transform.rotation = Quaternion.LookRotation(
+                            new Vector3(facing.x, 0.0f, facing.z), Vector3.up);
+                    }
+                }
+
                 // --- the intro cutscene. Only actually starts for a
                 // --- genuinely new character (see IntroCutsceneStarter's
                 // --- own PlaySession check) -- pressing Play directly on

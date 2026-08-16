@@ -21,8 +21,11 @@ namespace CityX.View
     /// the only arrangement that does not make the character code depend on the
     /// city code to open a door.
     /// </summary>
-    public sealed class BuildingDoor : MonoBehaviour
+    public sealed class BuildingDoor : MonoBehaviour, IOpenableDoor
     {
+        /// <summary>Part of IOpenableDoor -- OldGuy's own way to find this door without CityX.Character depending on CityX.View.</summary>
+        Vector3 IOpenableDoor.Position => transform.position;
+
         public const float Thickness = 0.08f;
 
         /// <summary>
@@ -148,6 +151,23 @@ namespace CityX.View
         }
 
         public bool IsOpen => _open;
+
+        /// <summary>
+        /// Opens or shuts the door programmatically, without needing an
+        /// E-press from anyone standing nearby -- what OldGuy uses to let
+        /// himself in. Still fires Toggled, so CityStreamer's own
+        /// remembered-open-doors tracking never falls out of step with a
+        /// door someone other than the player opened.
+        /// </summary>
+        public void SetOpen(bool open)
+        {
+            if (_open == open)
+            {
+                return;
+            }
+            _open = open;
+            Toggled?.Invoke(_open);
+        }
 
         private void OnTriggerEnter(Collider other)
         {
