@@ -42,6 +42,7 @@ namespace CityX.Character
         private PlayerAudio _audio;
         private GrabCarry _grabCarry;
         private Inventory _inventory;
+        private GrappleSwing _grappleSwing;
         private readonly WeaponAimInput _weaponAim = new WeaponAimInput();
 
         private void Awake()
@@ -56,6 +57,7 @@ namespace CityX.Character
             _audio = GetComponent<PlayerAudio>();
             _grabCarry = GetComponent<GrabCarry>();
             _inventory = GetComponent<Inventory>();
+            _grappleSwing = GetComponent<GrappleSwing>();
         }
 
         private void Update()
@@ -74,6 +76,21 @@ namespace CityX.Character
             if (_melee != null)
             {
                 _melee.Tick(deltaTime);
+            }
+
+            // DEATH IS POLLED HERE, NOT EVENT-DRIVEN -- see GrabCarry's own
+            // doc comment for why an OnEnable subscription to
+            // PlayerVitals.Died is unsafe in this codebase's own
+            // scene-builder field-assignment order. Checked BEFORE every
+            // early-return below (ragdoll/dead/stunned all lead into
+            // ordinary falling, which knows nothing about a rope) so a
+            // player who dies mid-swing is never left visibly tethered --
+            // matches player.gd's own _die() calling release_grapple(false)
+            // for exactly the same reason.
+            if (_grappleSwing != null && _grappleSwing.IsActive &&
+                _vitals != null && _vitals.IsDead)
+            {
+                _grappleSwing.Release(false);
             }
 
             if (_ragdoll != null && _ragdoll.IsLimp)
@@ -103,6 +120,39 @@ namespace CityX.Character
             if (_vitals != null && _vitals.IsStunned)
             {
                 _locomotion.Tick(default, deltaTime);
+                _audio?.SilenceFootsteps();
+                return;
+            }
+
+            // THE SWING OWNS THE WHOLE FRAME WHILE ACTIVE, matching
+            // player.gd's own _physics_process early-return into
+            // _process_grapple_swing -- placed above TickCombat and the
+            // ordinary WASD-to-locomotion dispatch below so neither ever
+            // runs while a rope is attached. Reel/payout reuse the sprint/
+            // crouch keys and release reuses jump/punch, the same keys
+            // Godot's own version does, since the grapple has no other use
+            // for them while it is active (see TickCombat's own weapon-
+            // equipped branch, which this pre-empts by never being reached).
+            if (_grappleSwing != null && _grappleSwing.IsActive)
+            {
+                Vector2 swingMove = Vector2.zero;
+                if (keyboard.wKey.isPressed) swingMove.y += 1.0f;
+                if (keyboard.sKey.isPressed) swingMove.y -= 1.0f;
+                if (keyboard.dKey.isPressed) swingMove.x += 1.0f;
+                if (keyboard.aKey.isPressed) swingMove.x -= 1.0f;
+
+                Transform swingYawSource = YawSource != null
+                    ? YawSource
+                    : (Camera.main != null ? Camera.main.transform : null);
+                float swingYaw = swingYawSource != null ? swingYawSource.eulerAngles.y : 0.0f;
+
+                bool boostedRelease = keyboard.spaceKey.wasPressedThisFrame;
+                bool plainRelease = Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame;
+                bool reelHeld = keyboard.leftShiftKey.isPressed;
+                bool payoutHeld = keyboard.leftCtrlKey.isPressed;
+
+                _grappleSwing.Tick(swingMove, swingYaw, boostedRelease, plainRelease,
+                    reelHeld, payoutHeld, deltaTime);
                 _audio?.SilenceFootsteps();
                 return;
             }
@@ -195,7 +245,7 @@ namespace CityX.Character
         /// </summary>
         private void TickCombat(float deltaTime)
         {
-            if (_melee == null || Mouse.current == null)
+            if (Mouse.current == null)
             {
                 return;
             }
@@ -204,6 +254,29 @@ namespace CityX.Character
             // player.gd's own "entirely while carrying something" guard on
             // punch/block input.
             if (_grabCarry != null && _grabCarry.IsCarrying)
+            {
+                return;
+            }
+
+            // THE GRAPPLING HOOK TAKES OVER LEFT-CLICK ENTIRELY WHILE
+            // EQUIPPED, matching player.gd's own separate
+            // `elif _equipped_grapple != null` branch. FIRING ONLY: once a
+            // shot attaches, GrappleSwing.IsActive goes true and
+            // PlayerInputReader.Update's own swing-active early return
+            // means this whole method never runs again until the rope
+            // drops -- releasing is handled entirely inside
+            // GrappleSwing.Tick instead. Checked ahead of the `_melee ==
+            // null` guard below since firing needs no fists at all.
+            if (_grappleSwing != null && _grappleSwing.EquippedHook != null)
+            {
+                if (Mouse.current.leftButton.wasPressedThisFrame && Camera.main != null)
+                {
+                    _grappleSwing.TryFire(Camera.main.transform.position, Camera.main.transform.forward);
+                }
+                return;
+            }
+
+            if (_melee == null)
             {
                 return;
             }

@@ -140,6 +140,25 @@ namespace CityX.Character
         /// That is what makes a dash a committed lunge: turning mid-burst
         /// would let it be steered, which is a different move.
         /// </summary>
+        /// <summary>
+        /// Hands the body's own persistent vertical velocity to whatever a
+        /// caller just computed, without touching anything else about how
+        /// the next Tick runs.
+        ///
+        /// The one thing GrappleSwing's release needs from here: its own
+        /// upward release kick is worth carrying into ordinary falling the
+        /// same way a jump's own upward velocity already does, since both
+        /// end up decaying under this same Gravity every Tick after. See
+        /// GrappleSwing's own doc comment for why horizontal momentum does
+        /// NOT get an equivalent hand-off -- WASD air control already
+        /// overwrites horizontal velocity from scratch every Tick, jump
+        /// included, so there is nothing here for it to carry into.
+        /// </summary>
+        public void SetVerticalVelocity(float verticalVelocity)
+        {
+            _verticalVelocity = verticalVelocity;
+        }
+
         public void StartDash(Vector3 direction)
         {
             direction.y = 0.0f;

@@ -148,9 +148,9 @@ namespace CityX.UI
                 case "infinitehealth": return "/infinitehealth -- toggles";
                 case "infinitesprint": return "/infinitesprint -- toggles";
                 case "xp": return "/xp <amount>";
-                case "spawn": return "/spawn <dummy|civilian|radio|bottle|jeans|cloak>";
+                case "spawn": return "/spawn <dummy|civilian|radio|bottle|jeans|cloak|grapple>";
                 case "celshade": return "/celshade -- toggles toon shading on every character skin";
-                case "equip": return "/equip <bottle|jeans|cloak>";
+                case "equip": return "/equip <bottle|jeans|cloak|grapple>";
                 case "unequip": return "/unequip <hand_r|legs|top>";
                 default: return null;
             }

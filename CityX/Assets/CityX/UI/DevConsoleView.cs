@@ -65,6 +65,9 @@ namespace CityX.UI
         [Tooltip("What /spawn cloak puts down, and what /equip cloak equips.")]
         public GameObject HoodedCloakPrefab;
 
+        [Tooltip("What /spawn grapple puts down, and what /equip grapple equips.")]
+        public GameObject GrapplingHookPrefab;
+
         [Tooltip("Movement/combat input. Disabled while the console is open.")]
         public PlayerInputReader InputReader;
 
@@ -369,6 +372,16 @@ namespace CityX.UI
                     Log("spawned a hooded cloak -- press E nearby to pick it up");
                     return;
 
+                case "grapple":
+                    if (GrapplingHookPrefab == null)
+                    {
+                        Log("no grappling hook prefab wired");
+                        return;
+                    }
+                    Instantiate(GrapplingHookPrefab, where + Vector3.up * 0.1f, Quaternion.identity);
+                    Log("spawned a grappling hook -- walk up, look at it and press E");
+                    return;
+
                 case "dummy":
                     // BUILT HERE RATHER THAN INSTANTIATED, because a sparring
                     // dummy has no prefab -- the scene builder makes its own out
@@ -451,6 +464,7 @@ namespace CityX.UI
                 case "bottle": return ItemRegistry.GlassBottle;
                 case "jeans": return ItemRegistry.SkelliJeans;
                 case "cloak": return ItemRegistry.HoodedCloak;
+                case "grapple": return ItemRegistry.GrapplingHook;
                 default: return null;
             }
         }

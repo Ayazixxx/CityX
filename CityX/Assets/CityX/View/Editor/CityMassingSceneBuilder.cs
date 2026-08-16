@@ -129,6 +129,7 @@ namespace CityX.ViewEditor
             GameObject bottlePrefab = CityX.WeaponsEditor.BottleBuilder.Build();
             GameObject skelliJeansPrefab = CityX.WearablesEditor.SkinnedGarmentBuilder.BuildJeans();
             GameObject hoodedCloakPrefab = CityX.WearablesEditor.SkinnedGarmentBuilder.BuildCloak();
+            GameObject grapplingHookPrefab = CityX.WeaponsEditor.GrapplingHookBuilder.Build();
 
             // --- the player. The flycam stays on the same object but disabled,
             // --- so switching between walking the city and flying over it is a
@@ -220,7 +221,15 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.SkelliJeans, Prefab = skelliJeansPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.HoodedCloak, Prefab = hoodedCloakPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.GrapplingHook, Prefab = grapplingHookPrefab },
                 };
+
+                // --- the grapple swing. Aim (left-click while a grappling
+                // --- hook is equipped), fire, and it owns the whole
+                // --- movement frame for as long as the rope is attached --
+                // --- see GrappleSwing's own doc comment.
+                player.AddComponent<CityX.Character.GrappleSwing>();
             }
             else
             {
@@ -282,7 +291,8 @@ namespace CityX.ViewEditor
                 skelliJeansPrefab,
                 hoodedCloakPrefab,
                 Object.FindFirstObjectByType<PlayerInputReader>(),
-                Object.FindFirstObjectByType<ThirdPersonCamera>());
+                Object.FindFirstObjectByType<ThirdPersonCamera>(),
+                grapplingHookPrefab);
 
             // --- the pause menu. Escape opens it; it guards itself against
             // --- opening on top of the console above.

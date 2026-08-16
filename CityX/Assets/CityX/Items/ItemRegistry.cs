@@ -13,12 +13,14 @@ namespace CityX.Items
         public const string GlassBottle = "glass_bottle";
         public const string SkelliJeans = "skelli_jeans";
         public const string HoodedCloak = "hooded_cloak";
+        public const string GrapplingHook = "grappling_hook";
 
         private static readonly Dictionary<string, ItemDefinition> Items = new Dictionary<string, ItemDefinition>
         {
             [GlassBottle] = new ItemDefinition(GlassBottle, "Glass Bottle", "weapon", "hand_r", 1),
             [SkelliJeans] = new ItemDefinition(SkelliJeans, "Skelli Jeans", "wearable", "legs", 1),
             [HoodedCloak] = new ItemDefinition(HoodedCloak, "Hooded Cloak", "wearable", "top", 1),
+            [GrapplingHook] = new ItemDefinition(GrapplingHook, "Grappling Hook", "weapon", "hand_r", 1),
         };
 
         public static bool TryGet(string itemId, out ItemDefinition definition)

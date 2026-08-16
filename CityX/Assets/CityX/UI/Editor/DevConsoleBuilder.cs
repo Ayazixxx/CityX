@@ -33,7 +33,8 @@ namespace CityX.UIEditor
         public static DevConsoleView AddToScene(PlayerVitals vitals, RainEffect rain,
             DayNightCycle cycle, FlyCamera fly, GameObject radioPrefab,
             GameObject bottlePrefab = null, GameObject skelliJeansPrefab = null, GameObject hoodedCloakPrefab = null,
-            PlayerInputReader inputReader = null, ThirdPersonCamera orbitCamera = null)
+            PlayerInputReader inputReader = null, ThirdPersonCamera orbitCamera = null,
+            GameObject grapplingHookPrefab = null)
         {
             var root = new GameObject("DevConsole", typeof(RectTransform));
             Canvas canvas = root.AddComponent<Canvas>();
@@ -104,6 +105,7 @@ namespace CityX.UIEditor
             view.BottlePrefab = bottlePrefab;
             view.SkelliJeansPrefab = skelliJeansPrefab;
             view.HoodedCloakPrefab = hoodedCloakPrefab;
+            view.GrapplingHookPrefab = grapplingHookPrefab;
             view.InputReader = inputReader;
             view.OrbitCamera = orbitCamera;
 
