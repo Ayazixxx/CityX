@@ -53,6 +53,10 @@ namespace CityX.View
         [Tooltip("The white zebra bars at a junction.")]
         public Material CrosswalkMaterial;
 
+        [Header("Terrace edges")]
+        [Tooltip("The short guardrail along a street-level drop.")]
+        public Material GuardRailMaterial;
+
         // A SPECIAL BUILDING WEARS NOTHING THAT SAYS SO, and that is a decision
         // rather than an omission. city_chunk.gd hangs a coloured sign band
         // over the door of every supermarket, bank, police station and
@@ -76,6 +80,7 @@ namespace CityX.View
         private readonly List<CityMeshBuilder.CrackedOpening> _crackedOpenings =
             new List<CityMeshBuilder.CrackedOpening>();
         private readonly MeshBuffer _markings = new MeshBuffer();
+        private readonly MeshBuffer _guardRail = new MeshBuffer();
         private readonly HashSet<Vector2Int> _openDoors = new HashSet<Vector2Int>();
         private readonly List<Vector2Int> _wanted = new List<Vector2Int>();
         private readonly List<Vector2Int> _stale = new List<Vector2Int>();
@@ -238,6 +243,7 @@ namespace CityX.View
             _crackedGlass.Clear();
             _crackedOpenings.Clear();
             _markings.Clear();
+            _guardRail.Clear();
 
             // Chunks are built relative to their own corner and then placed, so
             // vertex coordinates stay small. Building in absolute world space
@@ -248,7 +254,7 @@ namespace CityX.View
 
             CityMeshBuilder.BuildChunk(_world, _bridges, key.x, key.y, origin,
                 _ground, _pavement, _structures, _litGlass, _darkGlass, _crackedGlass, Damage,
-                _crackedOpenings, _markings);
+                _crackedOpenings, _markings, _guardRail);
 
             GameObject go = new GameObject($"Chunk {key.x},{key.y}");
             go.transform.SetParent(transform, false);
@@ -314,9 +320,44 @@ namespace CityX.View
 
             AddCrackedGlass(go, key);
             AddMarkings(go, key);
+            AddGuardRail(go, key);
             AddDoor(go, key);
             AddInteriorVolume(go, key);
             return go;
+        }
+
+        /// <summary>
+        /// The short guardrail CityMeshBuilder built along a street-level
+        /// terrace drop, if this chunk has one.
+        ///
+        /// A SEPARATE OBJECT, same shape as AddMarkings -- but UNLIKE
+        /// markings (paint nobody stands on, see that method's own comment),
+        /// this one gets a real MeshCollider: the whole point of a guardrail
+        /// is that it actually stops a pedestrian walking off the ledge.
+        /// </summary>
+        private void AddGuardRail(GameObject chunk, Vector2Int key)
+        {
+            if (_guardRail.IsEmpty || GuardRailMaterial == null)
+            {
+                return;
+            }
+
+            var go = new GameObject("GuardRail");
+            go.transform.SetParent(chunk.transform, false);
+
+            var mesh = new Mesh { name = $"guardrail-{key.x}-{key.y}" };
+            mesh.SetVertices(_guardRail.Vertices);
+            mesh.SetNormals(_guardRail.Normals);
+            mesh.SetUVs(0, _guardRail.Uvs);
+            mesh.SetTriangles(_guardRail.Triangles, 0);
+            mesh.RecalculateBounds();
+
+            MeshFilter filter = go.AddComponent<MeshFilter>();
+            filter.sharedMesh = mesh;
+            MeshRenderer renderer = go.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = GuardRailMaterial;
+            MeshCollider collider = go.AddComponent<MeshCollider>();
+            collider.sharedMesh = mesh;
         }
 
         /// <summary>

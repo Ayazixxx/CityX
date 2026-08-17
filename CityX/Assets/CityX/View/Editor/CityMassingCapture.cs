@@ -719,6 +719,7 @@ namespace CityX.ViewEditor
             streamer.CrosswalkMaterial = Material_("Crosswalk");
             streamer.DoorMaterial = Material_("BuildingDoor");
             streamer.DoorHandleMaterial = Material_("BuildingDoorHandle");
+            streamer.GuardRailMaterial = Material_("CityGuardRail");
         }
 
         private static Material Material_(string name)

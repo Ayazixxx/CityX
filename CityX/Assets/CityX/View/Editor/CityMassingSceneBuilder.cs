@@ -66,6 +66,12 @@ namespace CityX.ViewEditor
             Material roadLine = EnsureFlatMaterial("RoadLine", new Color(0.95f, 0.75f, 0.10f));
             Material crosswalk = EnsureFlatMaterial("Crosswalk", new Color(0.92f, 0.92f, 0.90f));
 
+            // A cool dark steel, deliberately distinct from both the door
+            // handle's warm brass and the pavement's own light concrete --
+            // a guardrail has to read as a different material at a glance,
+            // not just a different shape.
+            Material guardRail = EnsureLitMaterial("CityGuardRail", new Color(0.28f, 0.30f, 0.33f));
+
 
             Material skyDome = EnsureSkyMaterial();
             VolumeProfile grade = EnsureGradeProfile();
@@ -358,6 +364,7 @@ namespace CityX.ViewEditor
             streamer.CrosswalkMaterial = crosswalk;
             streamer.DoorMaterial = door;
             streamer.DoorHandleMaterial = doorHandle;
+            streamer.GuardRailMaterial = guardRail;
 
             // Punching a window is the streamer's business because the damage
             // is: chunks come and go, the record of what is broken does not.

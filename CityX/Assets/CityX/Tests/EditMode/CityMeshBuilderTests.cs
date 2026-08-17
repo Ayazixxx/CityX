@@ -46,6 +46,31 @@ namespace CityX.Tests
                 ground, pavement, structures, litGlass, darkGlass);
         }
 
+        private static void BuildStreetEdge(int chunkX, int chunkY,
+            out MeshBuffer pavement, out MeshBuffer guardRail)
+        {
+            CityWorld world = new CityWorld(Seed);
+            SkybridgeLayout bridges = new SkybridgeLayout(Seed);
+            var ground = new MeshBuffer();
+            pavement = new MeshBuffer();
+            var structures = new MeshBuffer();
+            guardRail = new MeshBuffer();
+            CityMeshBuilder.BuildChunk(world, bridges, chunkX, chunkY, Vector3.zero,
+                ground, pavement, structures, guardRail: guardRail);
+        }
+
+        private static bool HasVertexNear(MeshBuffer buffer, float y, float tolerance = 0.05f)
+        {
+            foreach (Vector3 v in buffer.Vertices)
+            {
+                if (Mathf.Abs(v.y - y) <= tolerance)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         /// <summary>
         /// Pavement runs along streets and stops at junctions.
         ///
@@ -242,6 +267,192 @@ namespace CityX.Tests
 
             TestContext.WriteLine($"{edgesFound} terrace edges checked");
             Assert.Greater(edgesFound, 100, "not enough terrace edges in the sweep to mean anything");
+        }
+
+        /// <summary>
+        /// Wherever a street keeps going but drops onto a lower street chunk
+        /// with a real sidewalk to carry it, there is a real flight of steps
+        /// -- not just the sheer retaining wall -- reaching all the way from
+        /// this chunk's own pad down to the lower one's.
+        /// </summary>
+        [Test]
+        public void AStreetTerraceDropWithASidewalkGetsARealStaircase()
+        {
+            CityWorld world = new CityWorld(Seed);
+            int casesFound = 0;
+
+            for (int x = -30; x <= 30; x++)
+            {
+                for (int y = -30; y <= 30; y++)
+                {
+                    if (!CityLayout.IsStreetChunk(x, y))
+                    {
+                        continue;
+                    }
+                    float pad = world.Terrain.PadHeightFor(x, y);
+
+                    foreach ((int nx, int ny) in new[] { (x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1) })
+                    {
+                        if (!CityLayout.IsStreetChunk(nx, ny))
+                        {
+                            continue;
+                        }
+                        float neighbourPad = world.Terrain.PadHeightFor(nx, ny);
+                        if (neighbourPad >= pad)
+                        {
+                            continue;
+                        }
+                        // A junction (both axes divisible by the street period)
+                        // gets no sidewalk on either side -- see AddSidewalks's
+                        // own doc comment -- so it never has anywhere to carve a
+                        // stair into. Only a straight run qualifies here.
+                        bool junction = CityLayout.IsStreetChunk(x - 1, y) &&
+                                        CityLayout.IsStreetChunk(x + 1, y) &&
+                                        CityLayout.IsStreetChunk(x, y - 1) &&
+                                        CityLayout.IsStreetChunk(x, y + 1);
+                        if (junction)
+                        {
+                            continue;
+                        }
+
+                        BuildStreetEdge(x, y, out MeshBuffer pavement, out _);
+                        casesFound++;
+                        Assert.IsTrue(HasVertexNear(pavement, pad),
+                            $"chunk ({x},{y}) drops to ({nx},{ny}) with a sidewalk to carry a stair, " +
+                            $"but no step reaches back up to its own pad at {pad}m");
+                        Assert.IsTrue(HasVertexNear(pavement, neighbourPad),
+                            $"chunk ({x},{y}) drops to ({nx},{ny}), but no step reaches down to " +
+                            $"{neighbourPad}m -- the flight stops short of the lower level");
+                    }
+                }
+            }
+
+            TestContext.WriteLine($"{casesFound} street-vs-street drops checked");
+            Assert.Greater(casesFound, 0, "no street-vs-street terrace drop with a sidewalk in the sweep");
+        }
+
+        /// <summary>
+        /// A junction has no sidewalk on any side (AddSidewalks builds none
+        /// there), so even where two streets meet at different terrace
+        /// levels there is nowhere to carve a stair into -- just the plain
+        /// wall, correctly, rather than one floating over open roadway.
+        /// </summary>
+        [Test]
+        public void AJunctionTerraceDropGetsNoStaircase()
+        {
+            CityWorld world = new CityWorld(Seed);
+            int casesFound = 0;
+
+            for (int x = -40; x <= 40; x += 4)
+            {
+                for (int y = -40; y <= 40; y += 4)
+                {
+                    float pad = world.Terrain.PadHeightFor(x, y);
+                    foreach ((int nx, int ny) in new[] { (x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1) })
+                    {
+                        float neighbourPad = world.Terrain.PadHeightFor(nx, ny);
+                        if (neighbourPad >= pad)
+                        {
+                            continue;
+                        }
+
+                        BuildStreetEdge(x, y, out MeshBuffer pavement, out _);
+                        casesFound++;
+                        Assert.IsFalse(HasVertexNear(pavement, neighbourPad),
+                            $"junction ({x},{y}) drops to ({nx},{ny}) with no sidewalk on either side, " +
+                            $"but pavement still reaches {neighbourPad}m -- a stair over open roadway");
+                    }
+                }
+            }
+
+            TestContext.WriteLine($"{casesFound} junction drops checked");
+            Assert.Greater(casesFound, 0, "no junction terrace drop in the sweep");
+        }
+
+        /// <summary>
+        /// The short guardrail is there wherever a street-level drop is,
+        /// not just wherever a stair happens to be -- a street meeting a
+        /// building lot's own lower edge is still a real ledge.
+        /// </summary>
+        [Test]
+        public void AStreetTerraceDropAlwaysGetsAGuardRail()
+        {
+            CityWorld world = new CityWorld(Seed);
+            int casesFound = 0;
+
+            for (int x = -30; x <= 30; x++)
+            {
+                for (int y = -30; y <= 30; y++)
+                {
+                    if (!CityLayout.IsStreetChunk(x, y))
+                    {
+                        continue;
+                    }
+                    float pad = world.Terrain.PadHeightFor(x, y);
+                    bool anyDrop = false;
+                    foreach ((int nx, int ny) in new[] { (x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1) })
+                    {
+                        if (world.Terrain.PadHeightFor(nx, ny) < pad)
+                        {
+                            anyDrop = true;
+                        }
+                    }
+                    if (!anyDrop)
+                    {
+                        continue;
+                    }
+
+                    BuildStreetEdge(x, y, out _, out MeshBuffer guardRail);
+                    casesFound++;
+                    Assert.IsFalse(guardRail.IsEmpty,
+                        $"street chunk ({x},{y}) drops to a lower neighbour but built no guardrail");
+                }
+            }
+
+            TestContext.WriteLine($"{casesFound} street drops checked for a guardrail");
+            Assert.Greater(casesFound, 0, "no street terrace drop in the sweep");
+        }
+
+        /// <summary>Same chunk, same world -- the stair has to pick the same side every time, not flip on a rebuild.</summary>
+        [Test]
+        public void StreetEdgeFeaturesAreDeterministic()
+        {
+            CityWorld world = new CityWorld(Seed);
+
+            for (int x = -20; x <= 20; x++)
+            {
+                for (int y = -20; y <= 20; y++)
+                {
+                    if (!CityLayout.IsStreetChunk(x, y))
+                    {
+                        continue;
+                    }
+                    float pad = world.Terrain.PadHeightFor(x, y);
+                    bool anyDrop = false;
+                    foreach ((int nx, int ny) in new[] { (x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1) })
+                    {
+                        if (world.Terrain.PadHeightFor(nx, ny) < pad)
+                        {
+                            anyDrop = true;
+                        }
+                    }
+                    if (!anyDrop)
+                    {
+                        continue;
+                    }
+
+                    BuildStreetEdge(x, y, out MeshBuffer pavementA, out MeshBuffer guardRailA);
+                    BuildStreetEdge(x, y, out MeshBuffer pavementB, out MeshBuffer guardRailB);
+
+                    CollectionAssert.AreEqual(pavementA.Vertices, pavementB.Vertices,
+                        $"chunk ({x},{y}) built a different staircase on a second, identical rebuild");
+                    CollectionAssert.AreEqual(guardRailA.Vertices, guardRailB.Vertices,
+                        $"chunk ({x},{y}) built a different guardrail on a second, identical rebuild");
+                    return;
+                }
+            }
+
+            Assert.Fail("no street terrace drop found to check determinism against");
         }
 
         [Test]

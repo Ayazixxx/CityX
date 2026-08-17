@@ -56,6 +56,33 @@ namespace CityX.View
         public const float KerbHeight = 0.18f;
 
         /// <summary>
+        /// Tread depth for a STREET stair, at the same
+        /// <see cref="BuildingInterior.StairStepHeight"/> riser every interior
+        /// flight already uses. An interior tread is whatever a room's own run
+        /// divided by its own step count happens to give; a street stair has no
+        /// room to derive that from, so this is a real number -- shallow enough
+        /// that a flight climbing a full terrace step (6.4m, roughly 26 risers)
+        /// reads as a real civic stairway rather than a steep fire-escape flight.
+        /// </summary>
+        public const float StreetStairTreadDepth = 0.32f;
+
+        /// <summary>
+        /// Guardrail post/rail height. Short on purpose -- a waist-high stop
+        /// at a ledge, not a safety cage. Matches the "short metal fence" this
+        /// was asked for rather than a tall barrier.
+        /// </summary>
+        public const float GuardRailHeight = 0.9f;
+
+        /// <summary>Post cross-section, square.</summary>
+        public const float GuardRailPostSize = 0.06f;
+
+        /// <summary>Centre-to-centre spacing between posts along one run.</summary>
+        public const float GuardRailPostSpacing = 2.0f;
+
+        /// <summary>Top-rail cross-section.</summary>
+        public const float GuardRailRailSize = 0.05f;
+
+        /// <summary>
         /// Splits a chunk across three buffers, one per material, which become
         /// three submeshes on one object -- cheaper than three objects sharing
         /// a transform.
@@ -75,9 +102,10 @@ namespace CityX.View
             Vector3 origin, MeshBuffer ground, MeshBuffer flatConcrete, MeshBuffer structures,
             MeshBuffer litGlass = null, MeshBuffer darkGlass = null,
             MeshBuffer crackedGlass = null, GlassDamage damage = null,
-            List<CrackedOpening> crackedOpenings = null, MeshBuffer markings = null)
+            List<CrackedOpening> crackedOpenings = null, MeshBuffer markings = null,
+            MeshBuffer guardRail = null)
         {
-            BuildGround(world, chunkX, chunkY, origin, ground, flatConcrete);
+            BuildGround(world, chunkX, chunkY, origin, ground, flatConcrete, guardRail);
             AddRoadMarkings(world, chunkX, chunkY, origin, markings);
 
             BuildingSite site = world.BuildingAt(chunkX, chunkY);
@@ -98,7 +126,7 @@ namespace CityX.View
         }
 
         private static void BuildGround(CityWorld world, int chunkX, int chunkY, Vector3 origin,
-            MeshBuffer ground, MeshBuffer pavement)
+            MeshBuffer ground, MeshBuffer pavement, MeshBuffer guardRail = null)
         {
             float pad = world.Terrain.PadHeightFor(chunkX, chunkY);
             float size = CityLayout.ChunkSize;
@@ -149,6 +177,39 @@ namespace CityX.View
                 new Vector3(x1, y, z0), new Vector3(x0, y, z0), Vector3.back, origin, ground);
             AddSkirtIfLower(world, chunkX, chunkY + 1, pad,
                 new Vector3(x0, y, z1), new Vector3(x1, y, z1), Vector3.forward, origin, ground);
+
+            // A real staircase and a short guardrail wherever one of the four
+            // skirts above just fired next to a street -- see
+            // AddStreetEdgeFeatures's own doc comment for why this runs
+            // alongside AddSkirtIfLower rather than inside it. The two
+            // sidewalk-existence checks per edge match AddSidewalks's own
+            // four conditions below exactly, since a stair can only ever sit
+            // where a real sidewalk slab already does.
+            bool sidewalkX0 = !CityLayout.IsStreetChunk(chunkX - 1, chunkY);
+            bool sidewalkX1 = !CityLayout.IsStreetChunk(chunkX + 1, chunkY);
+            bool sidewalkZ0 = !CityLayout.IsStreetChunk(chunkX, chunkY - 1);
+            bool sidewalkZ1 = !CityLayout.IsStreetChunk(chunkX, chunkY + 1);
+
+            AddStreetEdgeFeatures(world, chunkX, chunkY, chunkX - 1, chunkY, pad,
+                new Vector3(x0, y, z0), new Vector3(x0, y, z1), Vector3.left,
+                new Vector3(x0, y, z0 + SidewalkWidth * 0.5f), sidewalkZ0,
+                new Vector3(x0, y, z1 - SidewalkWidth * 0.5f), sidewalkZ1,
+                pavement, guardRail);
+            AddStreetEdgeFeatures(world, chunkX, chunkY, chunkX + 1, chunkY, pad,
+                new Vector3(x1, y, z1), new Vector3(x1, y, z0), Vector3.right,
+                new Vector3(x1, y, z1 - SidewalkWidth * 0.5f), sidewalkZ1,
+                new Vector3(x1, y, z0 + SidewalkWidth * 0.5f), sidewalkZ0,
+                pavement, guardRail);
+            AddStreetEdgeFeatures(world, chunkX, chunkY, chunkX, chunkY - 1, pad,
+                new Vector3(x1, y, z0), new Vector3(x0, y, z0), Vector3.back,
+                new Vector3(x1 - SidewalkWidth * 0.5f, y, z0), sidewalkX1,
+                new Vector3(x0 + SidewalkWidth * 0.5f, y, z0), sidewalkX0,
+                pavement, guardRail);
+            AddStreetEdgeFeatures(world, chunkX, chunkY, chunkX, chunkY + 1, pad,
+                new Vector3(x0, y, z1), new Vector3(x1, y, z1), Vector3.forward,
+                new Vector3(x0 + SidewalkWidth * 0.5f, y, z1), sidewalkX0,
+                new Vector3(x1 - SidewalkWidth * 0.5f, y, z1), sidewalkX1,
+                pavement, guardRail);
 
             // Corner posts, for a DIAGONAL neighbour that drops away even when
             // neither of the two flanking cardinal neighbours does.
@@ -398,6 +459,142 @@ namespace CityX.View
             float height = top0.y - bottomY;
             ground.AddQuad(bottom0, bottom1, top1, top0, normal,
                 new Vector2(0, 0), new Vector2(width, 0), new Vector2(width, height), new Vector2(0, height));
+        }
+
+        /// <summary>
+        /// Where a street keeps going but the road itself drops a terrace,
+        /// cuts a real staircase into whichever sidewalk actually exists at
+        /// this edge instead of leaving pedestrians nothing but the sheer
+        /// wall AddSkirtIfLower already built to climb, and runs a short
+        /// guardrail the rest of the way across with a gap over the stairs.
+        ///
+        /// ADDITIVE, NOT A REPLACEMENT. AddSkirtIfLower's own wall geometry
+        /// is left exactly as it already was -- the stair's own solid steps
+        /// stand directly in front of the section of wall they cover and
+        /// hide it completely. Simpler and safer than editing that
+        /// function's geometry, and it means
+        /// ATerraceEdgeAlwaysGetsARetainingWall's own "no gap" guarantee
+        /// stays true of a function this code never touches.
+        ///
+        /// ONLY ON A STREET CHUNK, and only a real flight when the neighbour
+        /// is street too -- a street meeting a building lot's own terraced
+        /// edge still gets the rail (a real ledge, worth fencing), just
+        /// never a stair, since that is not "the street" this was asked for.
+        /// </summary>
+        private static void AddStreetEdgeFeatures(CityWorld world, int chunkX, int chunkY,
+            int neighbourX, int neighbourY, float pad, Vector3 top0, Vector3 top1, Vector3 normal,
+            Vector3 slice0Centre, bool slice0Exists, Vector3 slice1Centre, bool slice1Exists,
+            MeshBuffer pavement, MeshBuffer guardRail)
+        {
+            if (!CityLayout.IsStreetChunk(chunkX, chunkY))
+            {
+                return;
+            }
+            float neighbourPad = world.Terrain.PadHeightFor(neighbourX, neighbourY);
+            if (neighbourPad >= pad)
+            {
+                return;
+            }
+
+            Vector3 along = top1 - top0;
+            float edgeLength = along.magnitude;
+            if (edgeLength < 0.01f)
+            {
+                return;
+            }
+            Vector3 alongDir = along / edgeLength;
+
+            bool hasStair = false;
+            float stairFrom = 0.0f;
+            float stairTo = 0.0f;
+
+            if (CityLayout.IsStreetChunk(neighbourX, neighbourY) && (slice0Exists || slice1Exists))
+            {
+                // Seeded rather than hard-coded to one side, so the same
+                // street's two flanks don't always put every stair on
+                // identical sides city-wide.
+                bool preferSlice0 = new DeterministicRandom(world.ChunkSeed(chunkX, chunkY)).Below(2) == 0;
+                bool useSlice0 = (preferSlice0 && slice0Exists) || (!preferSlice0 && !slice1Exists);
+                Vector3 wallPoint = useSlice0 ? slice0Centre : slice1Centre;
+
+                float rise = pad - neighbourPad;
+                float run = BuildingInterior.StepsFor(rise) * StreetStairTreadDepth;
+                float floorY = wallPoint.y - rise;
+
+                // normal already points AWAY from this chunk, out over the
+                // lower neighbour (see AddSkirtIfLower's own 4 call sites --
+                // e.g. the x0 edge's neighbour is chunkX-1 and its normal is
+                // Vector3.left, the same direction), which is exactly the
+                // direction a flight has to run to climb down off the ledge.
+                var well = new BuildingInterior.Stairwell(wallPoint, normal, alongDir, default);
+                foreach (BuildingInterior.Step step in BuildingInterior.Steps(well, run, floorY, rise))
+                {
+                    Vector3 half = step.Size * 0.5f;
+                    pavement.AddBox(step.Centre - half, step.Centre + half);
+                }
+
+                // BuildingInterior.Steps always builds BuildingInterior.StairWidth
+                // wide (the same width every interior flight uses), centred on
+                // wallPoint -- narrower than the 4m sidewalk it sits inside,
+                // which is exactly why it fits with clearance either side.
+                float centreOffset = Vector3.Dot(wallPoint - top0, alongDir);
+                float halfWidth = BuildingInterior.StairWidth * 0.5f;
+                stairFrom = centreOffset - halfWidth;
+                stairTo = centreOffset + halfWidth;
+                hasStair = true;
+            }
+
+            if (guardRail == null)
+            {
+                return;
+            }
+            if (hasStair)
+            {
+                AddGuardRailRun(top0, alongDir, 0.0f, Mathf.Max(stairFrom, 0.0f), pad, guardRail);
+                AddGuardRailRun(top0, alongDir, Mathf.Min(stairTo, edgeLength), edgeLength, pad, guardRail);
+            }
+            else
+            {
+                AddGuardRailRun(top0, alongDir, 0.0f, edgeLength, pad, guardRail);
+            }
+        }
+
+        /// <summary>
+        /// One straight run of thin posts plus a top rail, `from` to `to`
+        /// metres along `alongDir` starting at `origin`. `alongDir` is always
+        /// a world axis here (every skirt edge in this file is), so a plain
+        /// axis-aligned box is already the right shape for both -- no local
+        /// basis to build.
+        /// </summary>
+        private static void AddGuardRailRun(Vector3 origin, Vector3 alongDir, float from, float to,
+            float topY, MeshBuffer guardRail)
+        {
+            float length = to - from;
+            if (length <= 0.01f)
+            {
+                return;
+            }
+
+            // Posts at both ends as well as along the middle, so a run always
+            // reads as a bounded fence rather than trailing off mid-air.
+            int postCount = Mathf.Max(2, Mathf.RoundToInt(length / GuardRailPostSpacing) + 1);
+            Vector3 postHalf = new Vector3(GuardRailPostSize, GuardRailHeight, GuardRailPostSize) * 0.5f;
+            for (int i = 0; i < postCount; i++)
+            {
+                float t = postCount == 1 ? 0.0f : (float)i / (postCount - 1);
+                Vector3 baseAt = origin + alongDir * (from + length * t);
+                Vector3 centre = new Vector3(baseAt.x, topY + GuardRailHeight * 0.5f, baseAt.z);
+                guardRail.AddBox(centre - postHalf, centre + postHalf);
+            }
+
+            // The rail. Along-axis overshoot of half a rail-width at each end
+            // (from the uniform inset below) is a couple of centimetres,
+            // there to stop the rail's own corner z-fighting against the end
+            // post rather than being trimmed exactly to length.
+            Vector3 p0 = new Vector3(origin.x + alongDir.x * from, topY + GuardRailHeight, origin.z + alongDir.z * from);
+            Vector3 p1 = new Vector3(origin.x + alongDir.x * to, topY + GuardRailHeight, origin.z + alongDir.z * to);
+            Vector3 railHalf = new Vector3(GuardRailRailSize, GuardRailRailSize, GuardRailRailSize) * 0.5f;
+            guardRail.AddBox(Vector3.Min(p0, p1) - railHalf, Vector3.Max(p0, p1) + railHalf);
         }
 
         /// <summary>
