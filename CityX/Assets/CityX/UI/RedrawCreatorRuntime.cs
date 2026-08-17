@@ -103,6 +103,19 @@ namespace CityX.UI
             out CharacterCreator creator)
         {
             var stage = new GameObject("RedrawStage");
+            // INACTIVE FOR THE WHOLE BUILD, activated only at the very end.
+            // CharacterCreator.Awake() (which strips ragdoll physics via its
+            // own Disarm()) and CharacterHair.Awake() both fire the instant
+            // their component is added to an ACTIVE GameObject -- which,
+            // this early, is before BodyCollider/HeadCollider/Head/
+            // StyleMeshes are ever assigned to them below. Disarm() would
+            // then see those fields still null and destroy the very
+            // MeshColliders just added a few lines above it, and the hair
+            // would rebuild against nothing. CharacterCreatorBuilder's own
+            // BuildStage sidesteps this the same way, just later -- it also
+            // leaves its stage inactive until CreatorStage re-enables it,
+            // well after every field below is already wired.
+            stage.SetActive(false);
 
             var pivotObject = new GameObject("RotationPivot");
             pivotObject.transform.SetParent(stage.transform, false);
@@ -124,6 +137,11 @@ namespace CityX.UI
             // the MeleeAttacker. Destroy() defers to end of frame rather than
             // refusing the way DestroyImmediate can, but the order still keeps
             // this predictable rather than relying on that.
+            // PlayerRedrawStarter FIRST -- the clone is Instantiate()'d from
+            // the LIVE player, which carries PlayerRedrawStarter itself, and
+            // that component's own [RequireComponent(CharacterIdentity)]
+            // blocks CharacterIdentity's own removal below until this is gone.
+            Strip<PlayerRedrawStarter>(body);
             Strip<PlayerInputReader>(body);
             Strip<PlayerLocomotion>(body);
             Strip<CharacterController>(body);
@@ -226,6 +244,10 @@ namespace CityX.UI
             creator.HeadRenderer = headRenderer;
             creator.Hair = hair;
 
+            // NOW it is safe to switch on -- every field the Awake() calls
+            // about to fire (CharacterCreator's, CharacterHair's) depend on
+            // is already wired.
+            stage.SetActive(true);
             return stage;
         }
 
