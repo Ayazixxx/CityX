@@ -428,13 +428,25 @@ namespace CityX.ViewEditor
                 Object.FindFirstObjectByType<PlayerInputReader>(),
                 Object.FindFirstObjectByType<ThirdPersonCamera>());
 
-            // Loadout/Stats are still stubs (see their own doc comments) --
-            // built here as bare components so the C-menu has something
-            // real to wire its submenu buttons to; CityX/Rebuild Massing
-            // Scene re-running after either gets its real builder will pick
-            // the upgrade up automatically, same as every other panel here.
+            // --- Loadout, the 8-slot equip panel. No dedicated hotkey --
+            // --- reached only through the C-menu's Player submenu, which
+            // --- has already closed the C-menu by the time it opens.
+            CityX.UI.LoadoutPanelView loadoutView = null;
+            if (inventoryComponent != null && mapPlayer != null)
+            {
+                loadoutView = CityX.UIEditor.LoadoutPanelBuilder.AddToScene(
+                    inventoryComponent,
+                    mapPlayer.gameObject,
+                    Object.FindFirstObjectByType<PlayerInputReader>(),
+                    Object.FindFirstObjectByType<ThirdPersonCamera>());
+            }
+
+            // Stats is still a stub (see its own doc comment) -- built here
+            // as a bare component so the C-menu has something real to wire
+            // its submenu button to; CityX/Rebuild Massing Scene re-running
+            // after it gets its real builder will pick the upgrade up
+            // automatically, same as every other panel here.
             var progressionObject = new GameObject("PlayerProgressionPanels");
-            var loadoutView = progressionObject.AddComponent<CityX.UI.LoadoutPanelView>();
             var statsView = progressionObject.AddComponent<CityX.UI.StatsPanelView>();
 
             CityX.UI.PlayerMenuView playerMenu = null;
