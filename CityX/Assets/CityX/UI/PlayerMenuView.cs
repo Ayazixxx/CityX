@@ -129,6 +129,10 @@ namespace CityX.UI
             if (Root != null) Root.SetActive(false);
             Submenu?.Hide();
 
+            // Before re-enabling OrbitCamera, not after -- otherwise a menu
+            // closed mid-ease leaves this component and ThirdPersonCamera
+            // both writing to the camera transform on the very same frame.
+            MenuCamera?.Stop();
             if (InputReader != null) InputReader.enabled = true;
             if (OrbitCamera != null) OrbitCamera.enabled = true;
 

@@ -38,40 +38,96 @@ namespace CityX.Character
     }
 
     /// <summary>
-    /// Cuts the scene's single shared camera to a front-on shot of the
-    /// player for as long as the C-menu is open, then hands it back.
-    /// Ported conceptually from ClaimCutscene's own "drive the existing
-    /// camera rather than spawn a second one" pattern, but static rather
-    /// than animated -- the menu wants an immediate cut, not an orbit, so
-    /// there is no Tick/ease loop here, just one positioning call.
+    /// Eases the scene's single shared camera into a front-on shot of the
+    /// player for as long as the C-menu is open, then hands it back. Ported
+    /// from ClaimCutscene's own "drive the existing camera rather than spawn
+    /// a second one" shape, including its public Tick(deltaTime) taking its
+    /// own delta rather than reading Time.deltaTime -- same reasoning: a
+    /// test can step straight to the end of the ease without waiting on real
+    /// wall-clock seconds.
     /// </summary>
     public sealed class PlayerMenuCamera : MonoBehaviour
     {
+        /// <summary>
+        /// How long the cut takes to arrive. Short enough to read as a snap
+        /// of attention rather than a lingering pan -- this is a menu
+        /// opening, not a cutscene -- long enough that the camera visibly
+        /// swings into the front-on framing instead of popping there.
+        /// </summary>
+        public const float EaseSeconds = 0.35f;
+
         private Transform _camera;
         private Transform _player;
+        private Vector3 _startPosition;
+        private Quaternion _startRotation;
+        private Vector3 _targetPosition;
+        private Quaternion _targetRotation;
+        private float _elapsed;
+        private bool _easing;
 
         /// <summary>
-        /// Cuts the camera to the front-on shot immediately. The caller
-        /// (PlayerMenuView) is responsible for disabling PlayerInputReader
-        /// and ThirdPersonCamera first and re-enabling them on close --
-        /// this component only ever touches the camera transform.
+        /// Starts the ease from wherever the camera already is -- normally
+        /// wherever ThirdPersonCamera's own last LateUpdate left it, since
+        /// PlayerMenuView disables that component in the same call that
+        /// reaches here. The caller is responsible for disabling
+        /// PlayerInputReader and ThirdPersonCamera first and re-enabling
+        /// them on close; this component only ever touches the camera
+        /// transform.
         /// </summary>
         public void Begin(Transform cameraTransform, Transform player)
         {
             _camera = cameraTransform;
             _player = player;
-            Place();
+            if (_camera == null || _player == null)
+            {
+                _easing = false;
+                return;
+            }
+
+            Vector3 forward = _player.forward;
+            _startPosition = _camera.position;
+            _startRotation = _camera.rotation;
+            _targetPosition = PlayerMenuCameraMath.CameraPosition(_player.position, forward);
+            _targetRotation = PlayerMenuCameraMath.CameraRotation(forward);
+            _elapsed = 0.0f;
+            _easing = true;
         }
 
-        private void Place()
+        /// <summary>
+        /// Halts the ease immediately, mid-flight if need be. PlayerMenuView
+        /// calls this on Close() -- without it, a menu closed before the
+        /// ease finishes would leave this component still writing to the
+        /// camera transform the same frame ThirdPersonCamera resumes doing
+        /// the same thing, and the two would fight over the result.
+        /// </summary>
+        public void Stop()
         {
-            if (_camera == null || _player == null)
+            _easing = false;
+        }
+
+        private void Update()
+        {
+            Tick(Time.deltaTime);
+        }
+
+        /// <summary>The ease advanced by one step. See the class doc comment for why this takes its own deltaTime.</summary>
+        public void Tick(float deltaTime)
+        {
+            if (!_easing || _camera == null)
             {
                 return;
             }
-            Vector3 forward = _player.forward;
-            _camera.position = PlayerMenuCameraMath.CameraPosition(_player.position, forward);
-            _camera.rotation = PlayerMenuCameraMath.CameraRotation(forward);
+
+            _elapsed += deltaTime;
+            float t = EaseSeconds > 0.0f ? Mathf.Clamp01(_elapsed / EaseSeconds) : 1.0f;
+            float eased = ClaimCutsceneMath.Ease(t);
+            _camera.position = Vector3.Lerp(_startPosition, _targetPosition, eased);
+            _camera.rotation = Quaternion.Slerp(_startRotation, _targetRotation, eased);
+
+            if (t >= 1.0f)
+            {
+                _easing = false;
+            }
         }
     }
 }

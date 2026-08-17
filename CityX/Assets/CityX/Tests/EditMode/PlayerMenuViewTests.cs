@@ -81,20 +81,68 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void OpenCutsTheCameraToTheFrontOnFraming()
+        public void OpenBeginsEasingFromWhereverTheCameraAlreadyWas()
+        {
+            _cameraObject.transform.position = new Vector3(10.0f, 10.0f, 10.0f);
+            _playerObject.transform.rotation = Quaternion.Euler(0.0f, 40.0f, 0.0f);
+            _menu.Open();
+
+            // Begin() starts the ease, it does not cut straight to the
+            // target -- the whole point of this being an ease rather than a
+            // snap is that the camera has not yet arrived the instant C is
+            // pressed.
+            Assert.AreEqual(new Vector3(10.0f, 10.0f, 10.0f), _cameraObject.transform.position);
+        }
+
+        [Test]
+        public void TheCameraActuallyMovesPartwayThroughTheEase()
+        {
+            _cameraObject.transform.position = Vector3.zero;
+            _playerObject.transform.rotation = Quaternion.Euler(0.0f, 40.0f, 0.0f);
+            _menu.Open();
+
+            _menuCamera.Tick(PlayerMenuCamera.EaseSeconds * 0.5f);
+
+            Vector3 target = PlayerMenuCameraMath.CameraPosition(
+                _playerObject.transform.position, _playerObject.transform.forward);
+            float movedFromStart = Vector3.Distance(_cameraObject.transform.position, Vector3.zero);
+            float stillFromTarget = Vector3.Distance(_cameraObject.transform.position, target);
+            Assert.Greater(movedFromStart, 0.01f, "camera should have moved from where it started");
+            Assert.Greater(stillFromTarget, 0.01f, "camera should not already be at the target halfway through");
+        }
+
+        [Test]
+        public void TickingTheFullEaseReachesTheFrontOnFraming()
         {
             _playerObject.transform.rotation = Quaternion.Euler(0.0f, 40.0f, 0.0f);
             _menu.Open();
+            _menuCamera.Tick(PlayerMenuCamera.EaseSeconds);
 
             Vector3 expectedPosition = PlayerMenuCameraMath.CameraPosition(
                 _playerObject.transform.position, _playerObject.transform.forward);
             Assert.AreEqual(expectedPosition, _cameraObject.transform.position);
 
             // The camera should end up somewhere in front of the player,
-            // not coincident with them -- a cheap sanity check that Begin
+            // not coincident with them -- a cheap sanity check that the ease
             // actually ran rather than leaving the camera wherever it was.
             float distance = Vector3.Distance(_cameraObject.transform.position, _playerObject.transform.position);
             Assert.Greater(distance, 0.5f);
+        }
+
+        [Test]
+        public void ClosingMidEaseStopsTheCameraFromContinuingToMove()
+        {
+            _cameraObject.transform.position = Vector3.zero;
+            _playerObject.transform.rotation = Quaternion.Euler(0.0f, 40.0f, 0.0f);
+            _menu.Open();
+            _menuCamera.Tick(PlayerMenuCamera.EaseSeconds * 0.5f);
+            Vector3 midEase = _cameraObject.transform.position;
+
+            _menu.Close();
+            _menuCamera.Tick(PlayerMenuCamera.EaseSeconds * 0.5f);
+
+            Assert.AreEqual(midEase, _cameraObject.transform.position,
+                "Close() should stop the ease outright, not let it keep animating toward the old target");
         }
 
         [Test]
