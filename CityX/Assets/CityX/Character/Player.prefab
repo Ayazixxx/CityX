@@ -1874,6 +1874,8 @@ MonoBehaviour:
   Vitality: 0
   Endurance: 0
   Strength: 0
+  StatPoints: 0
+  Experience: 0
   _health: 100
   _stamina: 130
   InfiniteHealth: 0
