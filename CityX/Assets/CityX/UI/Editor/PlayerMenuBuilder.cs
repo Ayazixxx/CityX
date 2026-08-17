@@ -75,9 +75,20 @@ namespace CityX.UIEditor
             view.Placeholder = placeholder;
             view.MenuCamera = player.AddComponent<PlayerMenuCamera>();
 
+            // A SEPARATE CHILD FROM root, not root itself. PlayerMenuView's
+            // own Update() reads C directly to reopen itself -- if Root were
+            // root (the object the view itself lives on), Close() disabling
+            // it would also disable the very Update() loop watching for C to
+            // ever bring it back. Same shape DevConsole/PauseMenu/PlayerChat
+            // already use; see their own builders for the same reasoning.
+            var content = new GameObject("Content", typeof(RectTransform));
+            var contentRect = (RectTransform)content.transform;
+            contentRect.SetParent(root.transform, false);
+            Stretch(contentRect);
+
             var rail = new GameObject("Rail", typeof(RectTransform));
             var railRect = (RectTransform)rail.transform;
-            railRect.SetParent(root.transform, false);
+            railRect.SetParent(content.transform, false);
             railRect.anchorMin = new Vector2(0.0f, 0.5f);
             railRect.anchorMax = new Vector2(0.0f, 0.5f);
             railRect.pivot = new Vector2(0.5f, 0.5f);
@@ -98,10 +109,9 @@ namespace CityX.UIEditor
             view.SocialButton = buttons[2];
             view.MapButton = buttons[3];
 
-            view.Submenu = BuildSubmenu(root.transform, view, loadout, stats, inventory, placeholder, redraw);
+            view.Submenu = BuildSubmenu(content.transform, view, loadout, stats, inventory, placeholder, redraw);
 
-            view.Root = root;
-            root.SetActive(false);
+            view.Root = content;
             EnsureEventSystem();
             return view;
         }
@@ -258,6 +268,14 @@ namespace CityX.UIEditor
             text.raycastTarget = false;
             text.text = content;
             return text;
+        }
+
+        private static void Stretch(RectTransform rect)
+        {
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
         }
 
         /// <summary>Without one of these no button on this panel ever receives a click -- see MapPanelBuilder's own copy of this note.</summary>

@@ -111,7 +111,14 @@ namespace CityX.UIEditor
             hintRect.sizeDelta = new Vector2(360.0f, 20.0f);
             hint.alignment = TextAnchor.LowerRight;
 
-            view.Root = root;
+            // THE PANEL, NOT THE CANVAS ROOT. MapPanelView's own Update()
+            // reads M directly to reopen itself -- if Root pointed at root
+            // (the object MapPanelView itself lives on), Close() disabling
+            // it would also disable the Update() loop watching for M to
+            // ever bring it back. Root has to be a child the view can hide
+            // without hiding itself, the same shape DevConsole/PauseMenu/
+            // PlayerChat's own builders already use.
+            view.Root = panel;
             EnsureEventSystem();
             return view;
         }

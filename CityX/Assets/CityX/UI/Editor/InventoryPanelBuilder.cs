@@ -124,8 +124,13 @@ namespace CityX.UIEditor
 
             BuildStorageGrid(panel.transform, view);
 
-            view.Root = root;
-            root.SetActive(false);
+            // THE PANEL, NOT THE CANVAS ROOT -- InventoryPanelView's own
+            // Update() reads I directly to reopen itself; if Root pointed at
+            // root (the object the view itself lives on), Close() disabling
+            // it would also disable the very Update() loop watching for I to
+            // ever bring it back. Same shape DevConsole/PauseMenu/PlayerChat
+            // already use.
+            view.Root = panel;
             EnsureEventSystem();
             return view;
         }
