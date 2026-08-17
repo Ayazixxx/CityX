@@ -64,6 +64,9 @@ namespace CityX.UI
             CreatorTryBack,
             CreatorDiscard,
             CreatorKeepEditing,
+
+            /// <summary>ReDraw's own SAVE button -- see CreatorOverlays.SaveRedraw.</summary>
+            CreatorRedrawSave,
         }
 
         public Kind Action;
@@ -190,6 +193,9 @@ namespace CityX.UI
                     break;
                 case Kind.CreatorKeepEditing:
                     if (Overlays != null) Overlays.KeepEditing();
+                    break;
+                case Kind.CreatorRedrawSave:
+                    if (Overlays != null) Overlays.SaveRedraw();
                     break;
             }
         }

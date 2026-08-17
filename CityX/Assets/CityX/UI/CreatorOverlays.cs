@@ -32,6 +32,12 @@ namespace CityX.UI
 
         public GameObject ConfirmPanel;
 
+        [Tooltip("Set instead of Title/NamePanel by ReDraw -- see RedrawCreatorRuntime. Fired by the SAVE button.")]
+        public System.Action<CharacterCreator> OnConfirmRedraw;
+
+        [Tooltip("Fired instead of Title.Show(CharacterSelect) by Discard() when Title is null -- i.e. when this overlay is a ReDraw session rather than the title-screen creator.")]
+        public System.Action OnCancelRedraw;
+
         /// <summary>Whether something is on top of the creator right now.</summary>
         public bool Blocking =>
             (NamePanel != null && NamePanel.activeSelf)
@@ -151,6 +157,25 @@ namespace CityX.UI
             if (Title != null)
             {
                 Title.Show(TitleScreen.Panel.CharacterSelect);
+            }
+            else
+            {
+                // No title screen to go back to -- this is a ReDraw session
+                // walking away from its edits instead.
+                OnCancelRedraw?.Invoke();
+            }
+        }
+
+        /// <summary>
+        /// ReDraw's own SAVE button. Unlike ConfirmName, there is no name to
+        /// type and nothing routes through CharacterSelect -- the paint is
+        /// handed straight to whoever started the session.
+        /// </summary>
+        public void SaveRedraw()
+        {
+            if (Creator != null)
+            {
+                OnConfirmRedraw?.Invoke(Creator);
             }
         }
 

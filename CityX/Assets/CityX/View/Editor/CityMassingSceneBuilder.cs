@@ -453,6 +453,33 @@ namespace CityX.ViewEditor
                     Object.FindFirstObjectByType<ThirdPersonCamera>());
             }
 
+            // --- ReDraw. Unlike every other panel above, its creator is
+            // --- built AT RUNTIME (see RedrawCreatorRuntime's own doc
+            // --- comment for why) -- all that has to happen here is wiring
+            // --- the one thing runtime code cannot load by path itself:
+            // --- the hair mesh/material CharacterCreatorBuilder's own
+            // --- AddHair already uses for the title screen.
+            CityX.UI.PlayerRedrawStarter redrawStarter = null;
+            if (mapPlayer != null)
+            {
+                redrawStarter = mapPlayer.gameObject.AddComponent<CityX.UI.PlayerRedrawStarter>();
+                redrawStarter.InputReader = Object.FindFirstObjectByType<PlayerInputReader>();
+                redrawStarter.OrbitCamera = Object.FindFirstObjectByType<ThirdPersonCamera>();
+                redrawStarter.HairMesh = AssetDatabase.LoadAssetAtPath<Mesh>(
+                    "Assets/CityX/Character/Hair/embermane.obj");
+                redrawStarter.HairMaterial = AssetDatabase.LoadAssetAtPath<Material>(
+                    "Assets/CityX/Character/Materials/Hair.mat");
+                if (redrawStarter.HairMesh == null || redrawStarter.HairMaterial == null)
+                {
+                    // CharacterCreatorBuilder.HairMaterial() creates Hair.mat
+                    // the first time the title screen is built -- if that has
+                    // never happened, ReDraw still works, it just leaves the
+                    // hair unrendered rather than throwing.
+                    Debug.LogWarning("CityX: no hair mesh/material -- build the title screen " +
+                                     "scene once so ReDraw has one to reuse.");
+                }
+            }
+
             CityX.UI.PlayerMenuView playerMenu = null;
             if (mapPlayer != null)
             {
@@ -468,7 +495,8 @@ namespace CityX.ViewEditor
                     chat,
                     loadoutView,
                     statsView,
-                    placeholder);
+                    placeholder,
+                    redrawStarter);
                 map.Menu = playerMenu;
                 if (inventoryView != null) inventoryView.Menu = playerMenu;
                 if (chat != null) chat.Menu = playerMenu;

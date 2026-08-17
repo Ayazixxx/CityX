@@ -44,7 +44,8 @@ namespace CityX.UIEditor
             PlayerInputReader inputReader, ThirdPersonCamera orbitCamera,
             DevConsoleView console, PauseMenuView pause, MapPanelView map,
             InventoryPanelView inventory, PlayerChat chat,
-            LoadoutPanelView loadout, StatsPanelView stats, PlaceholderPanelView placeholder)
+            LoadoutPanelView loadout, StatsPanelView stats, PlaceholderPanelView placeholder,
+            PlayerRedrawStarter redraw)
         {
             var root = new GameObject("PlayerMenu", typeof(RectTransform));
             Canvas canvas = root.AddComponent<Canvas>();
@@ -97,7 +98,7 @@ namespace CityX.UIEditor
             view.SocialButton = buttons[2];
             view.MapButton = buttons[3];
 
-            view.Submenu = BuildSubmenu(root.transform, view, loadout, stats, inventory, placeholder);
+            view.Submenu = BuildSubmenu(root.transform, view, loadout, stats, inventory, placeholder, redraw);
 
             view.Root = root;
             root.SetActive(false);
@@ -136,7 +137,7 @@ namespace CityX.UIEditor
         /// </summary>
         private static PlayerSubmenuView BuildSubmenu(Transform parent, PlayerMenuView menu,
             LoadoutPanelView loadout, StatsPanelView stats, InventoryPanelView inventory,
-            PlaceholderPanelView placeholder)
+            PlaceholderPanelView placeholder, PlayerRedrawStarter redraw)
         {
             var flyoutRoot = new GameObject("Submenu", typeof(RectTransform));
             var flyoutRect = (RectTransform)flyoutRoot.transform;
@@ -156,6 +157,7 @@ namespace CityX.UIEditor
             submenu.Stats = stats;
             submenu.Items = inventory;
             submenu.Placeholder = placeholder;
+            submenu.Redraw = redraw;
 
             string[] kinds = { "vest", "chart", "star", "bag", "brush" };
             string[] labels = { "Loadout", "Stats", "Skills", "Items", "ReDraw" };
