@@ -93,8 +93,20 @@ namespace CityX.View
         {
             if (Sun != null)
             {
+                // NEGATED. SkyCycle's own pitch is the angle that makes
+                // -sin(pitch) equal the body's elevation (verified against
+                // Godot numerically -- see SkyCycle.At's own comment), but a
+                // Unity Directional Light shines along its OWN forward axis,
+                // and Quaternion.Euler(pitch, ...) applied directly put that
+                // forward pointing UP whenever the body was above the
+                // horizon -- every roof in the city rendered unlit while the
+                // walls caught light, because a light shining upward never
+                // reaches an upward-facing surface. Negating the pitch here
+                // is the one line that turns "elevation" into "which way the
+                // light actually travels" without touching SkyCycle's own
+                // math or any test that only ever reads its numbers.
                 Sun.transform.rotation =
-                    Quaternion.Euler(state.SunPitchDegrees, SkyCycle.AzimuthDegrees, 0.0f);
+                    Quaternion.Euler(-state.SunPitchDegrees, SkyCycle.AzimuthDegrees, 0.0f);
                 Sun.color = state.SunColour;
                 Sun.intensity = state.SunIntensity;
                 Sun.shadows = state.SunCastsShadow ? LightShadows.Soft : LightShadows.None;
@@ -103,7 +115,7 @@ namespace CityX.View
             if (Moon != null)
             {
                 Moon.transform.rotation =
-                    Quaternion.Euler(state.MoonPitchDegrees, SkyCycle.AzimuthDegrees, 0.0f);
+                    Quaternion.Euler(-state.MoonPitchDegrees, SkyCycle.AzimuthDegrees, 0.0f);
                 Moon.color = state.MoonColour;
                 Moon.intensity = state.MoonIntensity;
                 Moon.shadows = state.MoonCastsShadow ? LightShadows.Soft : LightShadows.None;
