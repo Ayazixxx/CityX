@@ -441,13 +441,17 @@ namespace CityX.ViewEditor
                     Object.FindFirstObjectByType<ThirdPersonCamera>());
             }
 
-            // Stats is still a stub (see its own doc comment) -- built here
-            // as a bare component so the C-menu has something real to wire
-            // its submenu button to; CityX/Rebuild Massing Scene re-running
-            // after it gets its real builder will pick the upgrade up
-            // automatically, same as every other panel here.
-            var progressionObject = new GameObject("PlayerProgressionPanels");
-            var statsView = progressionObject.AddComponent<CityX.UI.StatsPanelView>();
+            // --- Stats, the level/XP/stat-points panel. Same no-hotkey
+            // --- shape as Loadout -- reached only through the C-menu's
+            // --- Player submenu.
+            CityX.UI.StatsPanelView statsView = null;
+            if (mapPlayer != null)
+            {
+                statsView = CityX.UIEditor.StatsPanelBuilder.AddToScene(
+                    mapPlayer,
+                    Object.FindFirstObjectByType<PlayerInputReader>(),
+                    Object.FindFirstObjectByType<ThirdPersonCamera>());
+            }
 
             CityX.UI.PlayerMenuView playerMenu = null;
             if (mapPlayer != null)

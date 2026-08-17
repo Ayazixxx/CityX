@@ -65,6 +65,8 @@ namespace CityX.Character
             if (_vitals != null)
             {
                 _vitals.Level = character.Level;
+                _vitals.Experience = character.Experience;
+                _vitals.StatPoints = character.StatPoints;
                 _vitals.Vitality = character.Vitality;
                 _vitals.Endurance = character.Endurance;
                 _vitals.Strength = character.Strength;
@@ -198,6 +200,8 @@ namespace CityX.Character
             if (_vitals != null)
             {
                 _character.Level = _vitals.Level;
+                _character.Experience = _vitals.Experience;
+                _character.StatPoints = _vitals.StatPoints;
                 _character.Vitality = _vitals.Vitality;
                 _character.Endurance = _vitals.Endurance;
                 _character.Strength = _vitals.Strength;

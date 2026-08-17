@@ -35,6 +35,12 @@ namespace CityX.Character
         public const float HealthPerStatPoint = 10.0f;
         public const float StaminaPerStatPoint = 10.0f;
 
+        /// <summary>player.gd STAT_POINTS_PER_LEVEL -- granted on every level-up.</summary>
+        public const int StatPointsPerLevel = 5;
+
+        /// <summary>player.gd XP_PER_LEVEL_BASE -- next level costs this times the level being left.</summary>
+        public const int XpPerLevelBase = 100;
+
         /// <summary>
         /// player.gd SAFE_FALL_DISTANCE: TWO STOREYS, expressed in the city's
         /// own floor height rather than as a loose number, so changing the
@@ -67,6 +73,15 @@ namespace CityX.Character
 
         public int Endurance;
         public int Strength;
+
+        /// <summary>Earned but not yet spent on Vitality/Endurance/Strength.</summary>
+        public int StatPoints;
+
+        /// <summary>Progress toward the next level. Reset (not cleared) on every level-up.</summary>
+        public int Experience;
+
+        /// <summary>player.gd xp_to_next_level -- a pure function of Level, so it can never drift out of sync with it.</summary>
+        public int ExperienceToNextLevel => XpPerLevelBase * Level;
 
         // --- state ---
 
@@ -229,6 +244,67 @@ namespace CityX.Character
             _wasAirborne = false;
             HitstunRemaining = 0.0f;
             Revived?.Invoke();
+        }
+
+        /// <summary>
+        /// Grants XP, ported from player.gd's own add_xp(). Loops rather than
+        /// a single if so one big grant can trigger several level-ups at
+        /// once. Godot also awards a skill point every few levels here; the
+        /// skill tree is not ported yet (see PlayerSubmenuView's own doc
+        /// comment), so that half is left out rather than silently building
+        /// toward a system that does not exist.
+        /// </summary>
+        public void AddXp(int amount)
+        {
+            if (amount <= 0)
+            {
+                return;
+            }
+            Experience += amount;
+            while (Experience >= ExperienceToNextLevel)
+            {
+                Experience -= ExperienceToNextLevel;
+                Level += 1;
+                StatPoints += StatPointsPerLevel;
+            }
+        }
+
+        /// <summary>
+        /// Spends one available point on Vitality/Endurance/Strength. Ported
+        /// from player.gd's own spend_stat_point(), scoped to the 3 stats
+        /// this port has -- Mana/Speed do not exist here. Returns false, a
+        /// no-op, if there is nothing to spend or the name is not
+        /// recognised, the same "denied action does nothing" convention
+        /// every other gated action in this project already uses.
+        ///
+        /// RAISES CURRENT HEALTH/STAMINA BY THE SAME AMOUNT THE MAXIMUM JUST
+        /// ROSE, exactly like player.gd's own _recompute_stats() -- spending
+        /// a point is an immediate, real boost, not something you have to go
+        /// rest to benefit from, but it can only ever raise current health/
+        /// stamina, never lower them, since a max here can only ever go up.
+        /// </summary>
+        public bool SpendStatPoint(string statName)
+        {
+            if (StatPoints <= 0)
+            {
+                return false;
+            }
+
+            float oldMaxHealth = MaxHealth;
+            float oldMaxStamina = MaxStamina;
+
+            switch (statName)
+            {
+                case "vitality": Vitality += 1; break;
+                case "endurance": Endurance += 1; break;
+                case "strength": Strength += 1; break;
+                default: return false;
+            }
+            StatPoints -= 1;
+
+            _health += MaxHealth - oldMaxHealth;
+            _stamina += MaxStamina - oldMaxStamina;
+            return true;
         }
 
         /// <summary>

@@ -297,19 +297,19 @@ namespace CityX.UI
                 Log("no body here");
                 return;
             }
-            if (amount == null || !float.TryParse(amount, NumberStyles.Float,
-                    CultureInfo.InvariantCulture, out float points))
+            if (amount == null || !int.TryParse(amount, NumberStyles.Integer,
+                    CultureInfo.InvariantCulture, out int points) || points <= 0)
             {
                 Log(DevCommands.UsageFor("xp"));
                 return;
             }
 
-            // Levels are the only thing the port's vitals track so far, so this
-            // grants them directly rather than pretending there is an XP curve
-            // underneath that nothing else reads.
-            int levels = Mathf.Max(1, Mathf.RoundToInt(points / 100.0f));
-            Vitals.Level += levels;
-            Log($"+{levels} level(s) -- now {Vitals.Level}");
+            int levelBefore = Vitals.Level;
+            Vitals.AddXp(points);
+            int levelsGained = Vitals.Level - levelBefore;
+            Log(levelsGained > 0
+                ? $"+{points} xp -- +{levelsGained} level(s), now level {Vitals.Level} ({Vitals.StatPoints} point(s) to spend)"
+                : $"+{points} xp -- {Vitals.Experience}/{Vitals.ExperienceToNextLevel} to next level");
         }
 
         private void Spawn(string what)

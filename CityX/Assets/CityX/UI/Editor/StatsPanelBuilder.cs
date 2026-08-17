@@ -1,0 +1,238 @@
+using CityX.Character;
+using CityX.UI;
+using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem.UI;
+using UnityEngine.UI;
+
+namespace CityX.UIEditor
+{
+    /// <summary>
+    /// Builds the Stats panel into the open scene -- Level, an XP bar, how
+    /// many points are left to spend, and a "+" row each for Vitality/
+    /// Endurance/Strength. Reached from the Player submenu.
+    ///
+    /// STRAIGHT INTO THE SCENE, not a prefab -- same reasoning as
+    /// LoadoutPanelBuilder: wired to the player's own PlayerVitals and
+    /// input/camera components, none of which exist outside a scene.
+    ///
+    /// EVERY LISTENER StatsPanelView OWNS IS WIRED IN ITS OWN Awake, not
+    /// here -- see PauseMenuView's doc comment for why an editor-time
+    /// AddListener never survives the scene being saved.
+    /// </summary>
+    public static class StatsPanelBuilder
+    {
+        private static readonly Vector2 DesignResolution = new Vector2(1152.0f, 648.0f);
+        private static readonly Color BackgroundColour = new Color(0.05f, 0.055f, 0.07f, 0.96f);
+        private static readonly Color BorderColour = new Color(0.55f, 0.63f, 1.0f, 0.5f);
+        private static readonly Color LabelColour = new Color(0.72f, 0.79f, 1.0f);
+        private static readonly Color HintColour = new Color(0.55f, 0.58f, 0.66f);
+        private static readonly Color BarWellColour = new Color(0.14f, 0.15f, 0.19f, 1.0f);
+        private static readonly Color BarFillColour = new Color(1.0f, 0.78f, 0.28f, 1.0f);
+        private static readonly Color RowColour = new Color(0.14f, 0.15f, 0.19f, 1.0f);
+        private static readonly Color RowTextColour = new Color(0.90f, 0.90f, 0.92f);
+        private static readonly Color PlusColour = new Color(0.20f, 0.21f, 0.27f, 1.0f);
+        private static readonly Color CloseColour = new Color(0.20f, 0.21f, 0.27f, 1.0f);
+
+        private const float PanelMargin = 60.0f;
+        private const string TitleText = "STATS";
+        private const float BarWidth = 420.0f;
+        private const float BarHeight = 22.0f;
+        private const float RowWidth = 420.0f;
+        private const float RowHeight = 44.0f;
+        private const float RowPitch = 58.0f;
+        private const float PlusButtonSize = 36.0f;
+
+        public static StatsPanelView AddToScene(PlayerVitals vitals,
+            PlayerInputReader inputReader, ThirdPersonCamera orbitCamera)
+        {
+            var root = new GameObject("StatsPanel", typeof(RectTransform));
+            Canvas canvas = root.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            // Same tier as Loadout/Items -- Stats is reached from the same
+            // submenu and never opens at once with either.
+            canvas.sortingOrder = 55;
+
+            CanvasScaler scaler = root.AddComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = DesignResolution;
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+            scaler.matchWidthOrHeight = 0.5f;
+            root.AddComponent<GraphicRaycaster>();
+
+            StatsPanelView view = root.AddComponent<StatsPanelView>();
+            view.Vitals = vitals;
+            view.InputReader = inputReader;
+            view.OrbitCamera = orbitCamera;
+
+            var panel = new GameObject("Panel", typeof(RectTransform));
+            var panelRect = (RectTransform)panel.transform;
+            panelRect.SetParent(root.transform, false);
+            panelRect.anchorMin = Vector2.zero;
+            panelRect.anchorMax = Vector2.one;
+            panelRect.offsetMin = new Vector2(PanelMargin, PanelMargin);
+            panelRect.offsetMax = new Vector2(-PanelMargin, -PanelMargin);
+            panel.AddComponent<Image>().color = BackgroundColour;
+            var border = panel.AddComponent<Outline>();
+            border.effectColor = BorderColour;
+            border.effectDistance = new Vector2(2.0f, -2.0f);
+
+            Text title = MakeText(panel.transform, "Title", TitleText, 22, LabelColour);
+            PlaceTopLeft(title.transform, new Vector2(24.0f, -16.0f), new Vector2(300.0f, 30.0f));
+            title.alignment = TextAnchor.UpperLeft;
+
+            Text level = MakeText(panel.transform, "Level", string.Empty, 18, LabelColour);
+            PlaceTopLeft(level.transform, new Vector2(24.0f, -58.0f), new Vector2(300.0f, 24.0f));
+            level.alignment = TextAnchor.UpperLeft;
+            view.LevelLabel = level;
+
+            view.ExperienceBarFill = BuildBar(panel.transform, new Vector2(24.0f, -92.0f),
+                new Vector2(BarWidth, BarHeight));
+
+            Text xp = MakeText(panel.transform, "ExperienceLabel", string.Empty, 13, HintColour);
+            PlaceTopLeft(xp.transform, new Vector2(24.0f, -120.0f), new Vector2(BarWidth, 18.0f));
+            xp.alignment = TextAnchor.UpperLeft;
+            view.ExperienceLabel = xp;
+
+            Text points = MakeText(panel.transform, "PointsLabel", string.Empty, 15, LabelColour);
+            PlaceTopLeft(points.transform, new Vector2(24.0f, -148.0f), new Vector2(300.0f, 22.0f));
+            points.alignment = TextAnchor.UpperLeft;
+            view.PointsLabel = points;
+
+            view.VitalityLabel = BuildStatRow(panel.transform, -190.0f, out view.VitalityButton);
+            view.EnduranceLabel = BuildStatRow(panel.transform, -190.0f - RowPitch, out view.EnduranceButton);
+            view.StrengthLabel = BuildStatRow(panel.transform, -190.0f - RowPitch * 2.0f, out view.StrengthButton);
+
+            var closeGo = new GameObject("CloseButton", typeof(RectTransform));
+            var closeRect = (RectTransform)closeGo.transform;
+            closeRect.SetParent(panel.transform, false);
+            closeRect.anchorMin = new Vector2(0.5f, 0.0f);
+            closeRect.anchorMax = new Vector2(0.5f, 0.0f);
+            closeRect.pivot = new Vector2(0.5f, 0.0f);
+            closeRect.anchoredPosition = new Vector2(0.0f, 20.0f);
+            closeRect.sizeDelta = new Vector2(140.0f, 36.0f);
+            Image closeBackground = closeGo.AddComponent<Image>();
+            closeBackground.color = CloseColour;
+            Button closeButton = closeGo.AddComponent<Button>();
+            closeButton.targetGraphic = closeBackground;
+            Text closeLabel = MakeText(closeGo.transform, "Label", "Close", 15, LabelColour);
+            var closeLabelRect = (RectTransform)closeLabel.transform;
+            closeLabelRect.anchorMin = Vector2.zero;
+            closeLabelRect.anchorMax = Vector2.one;
+            closeLabelRect.offsetMin = Vector2.zero;
+            closeLabelRect.offsetMax = Vector2.zero;
+            closeLabel.alignment = TextAnchor.MiddleCenter;
+            closeLabel.raycastTarget = false;
+            view.CloseButton = closeButton;
+
+            view.Root = root;
+            root.SetActive(false);
+            EnsureEventSystem();
+            return view;
+        }
+
+        /// <summary>
+        /// A background well plus a fill child whose anchors StatsPanelView
+        /// moves at refresh time -- the same technique PlayerHudBuilder's own
+        /// BuildBar/PlayerHud.SetFill pair uses for the HUD's health/stamina
+        /// bars, reused here rather than Image.Type.Filled so both bars in
+        /// this project scale the same way under the canvas scaler.
+        /// </summary>
+        private static RectTransform BuildBar(Transform parent, Vector2 position, Vector2 size)
+        {
+            var well = new GameObject("ExperienceBar", typeof(RectTransform));
+            well.transform.SetParent(parent, false);
+            PlaceTopLeft(well.transform, position, size);
+            well.AddComponent<Image>().color = BarWellColour;
+
+            var fill = new GameObject("Fill", typeof(RectTransform));
+            var fillRect = (RectTransform)fill.transform;
+            fillRect.SetParent(well.transform, false);
+            fillRect.anchorMin = Vector2.zero;
+            fillRect.anchorMax = new Vector2(0.0f, 1.0f);
+            fillRect.offsetMin = Vector2.zero;
+            fillRect.offsetMax = Vector2.zero;
+            fill.AddComponent<Image>().color = BarFillColour;
+
+            return fillRect;
+        }
+
+        /// <summary>
+        /// One stat row: a dark background strip with a label (filled in by
+        /// StatsPanelView.Refresh) and a "+" button pinned to its right edge.
+        /// </summary>
+        private static Text BuildStatRow(Transform parent, float y, out Button plusButton)
+        {
+            var row = new GameObject("Row", typeof(RectTransform));
+            row.transform.SetParent(parent, false);
+            PlaceTopLeft(row.transform, new Vector2(24.0f, y), new Vector2(RowWidth, RowHeight));
+            row.AddComponent<Image>().color = RowColour;
+
+            Text label = MakeText(row.transform, "Label", string.Empty, 16, RowTextColour);
+            var labelRect = (RectTransform)label.transform;
+            labelRect.anchorMin = Vector2.zero;
+            labelRect.anchorMax = Vector2.one;
+            labelRect.offsetMin = new Vector2(16.0f, 0.0f);
+            labelRect.offsetMax = new Vector2(-PlusButtonSize - 24.0f, 0.0f);
+            label.alignment = TextAnchor.MiddleLeft;
+
+            var plusGo = new GameObject("Plus", typeof(RectTransform));
+            var plusRect = (RectTransform)plusGo.transform;
+            plusRect.SetParent(row.transform, false);
+            plusRect.anchorMin = new Vector2(1.0f, 0.5f);
+            plusRect.anchorMax = new Vector2(1.0f, 0.5f);
+            plusRect.pivot = new Vector2(1.0f, 0.5f);
+            plusRect.anchoredPosition = new Vector2(-8.0f, 0.0f);
+            plusRect.sizeDelta = new Vector2(PlusButtonSize, PlusButtonSize);
+            Image plusBackground = plusGo.AddComponent<Image>();
+            plusBackground.color = PlusColour;
+            plusButton = plusGo.AddComponent<Button>();
+            plusButton.targetGraphic = plusBackground;
+            Text plusLabel = MakeText(plusGo.transform, "Label", "+", 20, LabelColour);
+            var plusLabelRect = (RectTransform)plusLabel.transform;
+            plusLabelRect.anchorMin = Vector2.zero;
+            plusLabelRect.anchorMax = Vector2.one;
+            plusLabelRect.offsetMin = Vector2.zero;
+            plusLabelRect.offsetMax = Vector2.zero;
+            plusLabel.alignment = TextAnchor.MiddleCenter;
+            plusLabel.raycastTarget = false;
+
+            return label;
+        }
+
+        private static void PlaceTopLeft(Transform t, Vector2 position, Vector2 size)
+        {
+            var rect = (RectTransform)t;
+            rect.anchorMin = new Vector2(0.0f, 1.0f);
+            rect.anchorMax = new Vector2(0.0f, 1.0f);
+            rect.pivot = new Vector2(0.0f, 1.0f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
+        }
+
+        private static Text MakeText(Transform parent, string name, string content, int size, Color colour)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            Text text = go.AddComponent<Text>();
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.fontSize = size;
+            text.color = colour;
+            text.raycastTarget = false;
+            text.text = content;
+            return text;
+        }
+
+        /// <summary>Without one of these no button on this panel ever receives a click -- see MapPanelBuilder's own copy of this note.</summary>
+        private static void EnsureEventSystem()
+        {
+            if (Object.FindFirstObjectByType<EventSystem>() != null)
+            {
+                return;
+            }
+            var events = new GameObject("EventSystem");
+            events.AddComponent<EventSystem>();
+            events.AddComponent<InputSystemUIInputModule>();
+        }
+    }
+}

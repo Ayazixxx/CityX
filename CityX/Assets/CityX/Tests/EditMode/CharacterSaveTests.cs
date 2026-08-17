@@ -191,6 +191,16 @@ namespace CityX.Tests
         }
 
         [Test]
+        public void RepairClampsANegativeStatPointsBalanceToZero()
+        {
+            CharacterSave save = CharacterSave.Create("Hand-Edited", Color.white);
+            save.StatPoints = -3;
+
+            Assert.IsTrue(save.Repair());
+            Assert.AreEqual(0, save.StatPoints);
+        }
+
+        [Test]
         public void PlaytimeReadsAsSomethingAPersonWouldSay()
         {
             Assert.AreEqual("under a minute", new CharacterSave { PlaytimeSeconds = 12 }.PlaytimeText());

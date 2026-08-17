@@ -85,7 +85,10 @@ namespace CityX.Core
 
         public int Experience;
 
-        // Stat points, matching PlayerVitals' own three.
+        /// <summary>Unspent points, earned on level-up. Spent via PlayerVitals.SpendStatPoint.</summary>
+        public int StatPoints;
+
+        // Stat points already spent, matching PlayerVitals' own three.
         public int Vitality;
 
         public int Endurance;
@@ -227,6 +230,7 @@ namespace CityX.Core
             if (Vitality < 0) { Vitality = 0; changed = true; }
             if (Endurance < 0) { Endurance = 0; changed = true; }
             if (Strength < 0) { Strength = 0; changed = true; }
+            if (StatPoints < 0) { StatPoints = 0; changed = true; }
 
             return changed;
         }
