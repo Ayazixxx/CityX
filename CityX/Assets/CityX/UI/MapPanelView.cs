@@ -35,6 +35,9 @@ namespace CityX.UI
         [Tooltip("M is ignored while the game is paused.")]
         public PauseMenuView Pause;
 
+        [Tooltip("M is ignored while the C-menu is open -- opening a full panel on top of its own camera cut would strand its input/camera-disable state on close.")]
+        public PlayerMenuView Menu;
+
         private bool _wasCursorCaptured;
 
         public bool IsOpen => Root != null && Root.activeSelf;
@@ -52,7 +55,8 @@ namespace CityX.UI
                 return;
             }
 
-            if ((Console != null && Console.IsOpen) || (Pause != null && Pause.IsOpen))
+            if ((Console != null && Console.IsOpen) || (Pause != null && Pause.IsOpen) ||
+                (Menu != null && Menu.IsOpen))
             {
                 return;
             }

@@ -403,9 +403,10 @@ namespace CityX.ViewEditor
             // --- console, the pause menu, the map and the inventory, all of
             // --- which also read Enter or Escape or cover the same part of
             // --- the screen.
+            CityX.UI.PlayerChat chat = null;
             if (mapPlayer != null)
             {
-                CityX.UI.PlayerChat chat = CityX.UIEditor.PlayerChatBuilder.AddToScene(
+                chat = CityX.UIEditor.PlayerChatBuilder.AddToScene(
                     Object.FindFirstObjectByType<CityX.Character.ClaimSystem>(),
                     Object.FindFirstObjectByType<CityX.Character.SpeechBubble>(),
                     Object.FindFirstObjectByType<PlayerInputReader>(),
@@ -415,6 +416,46 @@ namespace CityX.ViewEditor
                     map,
                     inventoryView);
                 pause.Chat = chat;
+            }
+
+            // --- the C-menu. C opens it; it guards itself against opening
+            // --- on top of the console, the pause menu, the map, the
+            // --- inventory or chat, and each of those now also refuses to
+            // --- open on top of IT (see the Menu field each just gained) --
+            // --- otherwise closing one while the other is still "open"
+            // --- would stomp the shared input/camera-enabled state.
+            var placeholder = CityX.UIEditor.PlaceholderPanelBuilder.AddToScene(
+                Object.FindFirstObjectByType<PlayerInputReader>(),
+                Object.FindFirstObjectByType<ThirdPersonCamera>());
+
+            // Loadout/Stats are still stubs (see their own doc comments) --
+            // built here as bare components so the C-menu has something
+            // real to wire its submenu buttons to; CityX/Rebuild Massing
+            // Scene re-running after either gets its real builder will pick
+            // the upgrade up automatically, same as every other panel here.
+            var progressionObject = new GameObject("PlayerProgressionPanels");
+            var loadoutView = progressionObject.AddComponent<CityX.UI.LoadoutPanelView>();
+            var statsView = progressionObject.AddComponent<CityX.UI.StatsPanelView>();
+
+            CityX.UI.PlayerMenuView playerMenu = null;
+            if (mapPlayer != null)
+            {
+                playerMenu = CityX.UIEditor.PlayerMenuBuilder.AddToScene(
+                    mapPlayer.gameObject,
+                    cameraObject.transform,
+                    Object.FindFirstObjectByType<PlayerInputReader>(),
+                    Object.FindFirstObjectByType<ThirdPersonCamera>(),
+                    console,
+                    pause,
+                    map,
+                    inventoryView,
+                    chat,
+                    loadoutView,
+                    statsView,
+                    placeholder);
+                map.Menu = playerMenu;
+                if (inventoryView != null) inventoryView.Menu = playerMenu;
+                if (chat != null) chat.Menu = playerMenu;
             }
 
             EditorSceneManager.SaveScene(scene, ScenePath);

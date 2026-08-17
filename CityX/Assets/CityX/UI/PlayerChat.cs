@@ -49,6 +49,9 @@ namespace CityX.UI
         public MapPanelView Map;
         public InventoryPanelView Inventory;
 
+        [Tooltip("Enter is ignored while the C-menu is open -- see MapPanelView's own Menu field for why.")]
+        public PlayerMenuView Menu;
+
         private bool _wasCursorCaptured;
 
         public bool IsOpen => Panel != null && Panel.activeSelf;
@@ -79,7 +82,8 @@ namespace CityX.UI
             }
 
             if ((Console != null && Console.IsOpen) || (Pause != null && Pause.IsOpen) ||
-                (Map != null && Map.IsOpen) || (Inventory != null && Inventory.IsOpen))
+                (Map != null && Map.IsOpen) || (Inventory != null && Inventory.IsOpen) ||
+                (Menu != null && Menu.IsOpen))
             {
                 return;
             }

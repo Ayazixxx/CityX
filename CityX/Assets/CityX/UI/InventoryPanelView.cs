@@ -90,6 +90,9 @@ namespace CityX.UI
         [Tooltip("I is ignored while the map is open -- both cover the same part of the screen.")]
         public MapPanelView Map;
 
+        [Tooltip("I is ignored while the C-menu is open -- see MapPanelView's own Menu field for why.")]
+        public PlayerMenuView Menu;
+
         private bool _wasCursorCaptured;
 
         public bool IsOpen => Root != null && Root.activeSelf;
@@ -124,7 +127,7 @@ namespace CityX.UI
             }
 
             if ((Console != null && Console.IsOpen) || (Pause != null && Pause.IsOpen) ||
-                (Map != null && Map.IsOpen))
+                (Map != null && Map.IsOpen) || (Menu != null && Menu.IsOpen))
             {
                 return;
             }
