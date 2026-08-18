@@ -211,6 +211,20 @@ namespace CityX.Character
             {
                 return;
             }
+            // Re-checked here rather than trusted from the trigger alone: a
+            // collider disabled while still inside the trigger volume never
+            // fires OnTriggerExit -- exactly what happens the instant the
+            // player dies, since Ragdoll.Activate() turns their
+            // CharacterController off mid-frame (see its own comment).
+            // Without this, dying once within InteractRange of this NPC
+            // leaves _nearbyPlayer permanently stale, and E would start a
+            // conversation from anywhere in the world, forever after,
+            // including from beyond the grave.
+            if (Vector3.Distance(_nearbyPlayer.position, transform.position) > InteractRange)
+            {
+                _nearbyPlayer = null;
+                return;
+            }
             if (Keyboard.current == null || !Keyboard.current.eKey.wasPressedThisFrame)
             {
                 return;

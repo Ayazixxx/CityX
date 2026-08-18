@@ -93,6 +93,16 @@ namespace CityX.View
 
         private void Update()
         {
+            // A collider disabled while still inside the trigger never fires
+            // OnTriggerExit -- exactly what happens the instant the player
+            // dies (Ragdoll.Activate() turns their CharacterController off
+            // mid-frame), which would otherwise leave _nearby stale and this
+            // radio toggleable by E from anywhere, forever after.
+            if (_nearby != null && Vector3.Distance(_nearby.position, transform.position) > InteractRange)
+            {
+                _nearby = null;
+            }
+
             if (_nearby != null && Keyboard.current != null &&
                 Keyboard.current.eKey.wasPressedThisFrame)
             {
