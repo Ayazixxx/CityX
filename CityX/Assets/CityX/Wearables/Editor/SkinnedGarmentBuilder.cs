@@ -1,5 +1,8 @@
 using System.Collections.Generic;
+using System.IO;
+using CityX.Character;
 using CityX.CharacterEditor;
+using CityX.Items;
 using CityX.Wearables;
 using UnityEditor;
 using UnityEngine;
@@ -92,6 +95,15 @@ namespace CityX.WearablesEditor
             material.SetColor("_BaseColor", Color.white);
             material.SetFloat("_Smoothness", 0.12f);
             material.SetFloat("_Metallic", 0.0f);
+            // The waistband and both cuffs are intentionally open --
+            // build_skelli_jeans.py exports its own source material
+            // double-sided specifically so those openings don't read as
+            // holes (skelli_jeans.gd's own comment says so outright), and
+            // so does whatever a bent knee exposes on the inner thigh.
+            // Left at Unity's own default (back-face culled), every one of
+            // those became a literal see-through gap -- matches
+            // BuildCloak's own _Cull=0 fix for the identical reason.
+            material.SetFloat("_Cull", 0.0f);
 
             Material existing = AssetDatabase.LoadAssetAtPath<Material>(JeansMaterialPath);
             if (existing != null)
@@ -197,11 +209,21 @@ namespace CityX.WearablesEditor
         /// same requirement for the body's own mesh, and solves it the
         /// same way: bind against a rig that has just been built and never
         /// posed.
+        ///
+        /// BUT NOT THE SAME REST. FusedBodyBuilder generates the body's own
+        /// mesh FRESH from BodyRig.Bones() (T-pose), so binding it against
+        /// that same T-pose is self-consistent by construction. This mesh
+        /// is not generated -- it is imported verbatim from hooded_cloak.glb
+        /// / skelli_jeans.glb, authored against fused_body.gd's own
+        /// arms-down rest, which is what BodyRig.RestBones() reconstructs.
+        /// Binding arms-down vertex data against T-pose bone positions was
+        /// the actual cause of the cloak's sleeves visibly tearing away
+        /// from the arms: see RestBones's own doc comment for the numbers.
         /// </summary>
         private static Mesh BakeMesh(SkinnedMeshRenderer source, string path)
         {
             GameObject skeletonRoot = BodyRigBuilder.BuildSkeleton(
-                "GarmentBindSkeleton", out Dictionary<string, Transform> named);
+                "GarmentBindSkeleton", out Dictionary<string, Transform> named, BodyRig.RestBones());
             try
             {
                 var bindPoses = new Matrix4x4[source.bones.Length];
@@ -239,6 +261,203 @@ namespace CityX.WearablesEditor
             {
                 Object.DestroyImmediate(skeletonRoot);
             }
+        }
+
+        // --- visual verification ---
+
+        /// <summary>One bone turned to a fixed local rotation.</summary>
+        private readonly struct Turn
+        {
+            public readonly string Bone;
+            public readonly Vector3 Euler;
+
+            public Turn(string bone, float x, float y, float z)
+            {
+                Bone = bone;
+                Euler = new Vector3(x, y, z);
+            }
+        }
+
+        // Matches CharacterCapture.cs's own Rest/Stride poses exactly, so a
+        // wearable is judged in the same two shapes the bare body already
+        // is -- arms-down rest is where a bad bindpose shows as a static
+        // gap, and a mid-stride bend is where it shows as tearing.
+        private static readonly Turn[] RestPose =
+        {
+            new Turn("arm_l", 0.0f, 0.0f, 78.0f),
+            new Turn("forearm_l", 0.0f, 0.0f, 12.0f),
+            new Turn("arm_r", 0.0f, 0.0f, -78.0f),
+            new Turn("forearm_r", 0.0f, 0.0f, -12.0f),
+        };
+
+        private static readonly Turn[] StridePose =
+        {
+            new Turn("spine", 0.0f, 10.0f, 0.0f),
+            new Turn("arm_l", -35.0f, 0.0f, 78.0f),
+            new Turn("forearm_l", -40.0f, 0.0f, 12.0f),
+            new Turn("arm_r", 35.0f, 0.0f, -78.0f),
+            new Turn("forearm_r", -40.0f, 0.0f, -12.0f),
+            new Turn("thigh_l", -35.0f, 0.0f, 0.0f),
+            new Turn("shin_l", 25.0f, 0.0f, 0.0f),
+            new Turn("thigh_r", 30.0f, 0.0f, 0.0f),
+            new Turn("shin_r", 45.0f, 0.0f, 0.0f),
+        };
+
+        /// <summary>
+        /// The rebuilt cloak and jeans, worn, at rest and mid-stride, close
+        /// up on a dark background -- the same framing and pose set
+        /// CharacterCapture.Capture already uses for the bare body, so this
+        /// is judged the same way. Self-contained rather than calling into
+        /// CharacterCapture directly: that lives in the Character/Editor
+        /// assembly, which cannot reference Wearables or Items without
+        /// inverting this project's own dependency direction (Wearables may
+        /// depend on Character, never the reverse).
+        ///
+        /// Equips through the real SkinnedGarment.OnEquip, not a hand-rolled
+        /// stand-in -- what gets rendered is exactly what the game itself
+        /// builds when a player presses the equip button.
+        /// </summary>
+        [MenuItem("CityX/Capture Wearable Screenshots")]
+        public static void CaptureWearables()
+        {
+            var bodyPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab");
+            if (bodyPrefab == null)
+            {
+                Debug.LogError("CityX: no player prefab at Assets/CityX/Character/Player.prefab.");
+                return;
+            }
+
+            string outputDirectory = Path.Combine(
+                Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
+            Directory.CreateDirectory(outputDirectory);
+
+            Shoot(bodyPrefab, CloakPrefabPath, outputDirectory, "cloak-front", 0.0f, RestPose);
+            Shoot(bodyPrefab, CloakPrefabPath, outputDirectory, "cloak-stride", 215.0f, StridePose);
+            Shoot(bodyPrefab, JeansPrefabPath, outputDirectory, "jeans-front", 0.0f, RestPose);
+            Shoot(bodyPrefab, JeansPrefabPath, outputDirectory, "jeans-stride", 215.0f, StridePose);
+
+            if (Application.isBatchMode)
+            {
+                EditorApplication.Exit(0);
+            }
+        }
+
+        private static void Shoot(GameObject bodyPrefab, string garmentPrefabPath, string directory,
+            string name, float yaw, IEnumerable<Turn> pose)
+        {
+            var root = new GameObject("WearableCaptureRig");
+            RenderTexture target = null;
+            RenderTexture previous = RenderTexture.active;
+
+            var previousAmbient = RenderSettings.ambientMode;
+            var previousSky = RenderSettings.ambientSkyColor;
+            bool previousFog = RenderSettings.fog;
+
+            try
+            {
+                RenderSettings.fog = false;
+                RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+                RenderSettings.ambientSkyColor = new Color(0.34f, 0.36f, 0.40f);
+
+                var sunObject = new GameObject("Sun");
+                sunObject.transform.SetParent(root.transform);
+                Light sun = sunObject.AddComponent<Light>();
+                sun.type = LightType.Directional;
+                sun.intensity = 1.0f;
+                sun.transform.rotation = Quaternion.Euler(35.0f, 150.0f + yaw, 0.0f);
+
+                var body = (GameObject)PrefabUtility.InstantiatePrefab(bodyPrefab);
+                body.transform.SetParent(root.transform);
+                body.transform.position = Vector3.zero;
+                body.transform.rotation = Quaternion.Euler(0.0f, yaw, 0.0f);
+
+                foreach (Turn turn in pose)
+                {
+                    Transform bone = FindDeep(body.transform, turn.Bone);
+                    if (bone == null)
+                    {
+                        Debug.LogWarning($"CityX: no bone called '{turn.Bone}' -- that part of the pose did nothing.");
+                        continue;
+                    }
+                    bone.localRotation = Quaternion.Euler(turn.Euler);
+                }
+
+                GameObject garmentPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(garmentPrefabPath);
+                if (garmentPrefab == null)
+                {
+                    Debug.LogWarning($"CityX: no garment prefab at {garmentPrefabPath} -- " +
+                                      "run its own Rebuild menu item first.");
+                }
+                else
+                {
+                    var garmentInstance = (GameObject)PrefabUtility.InstantiatePrefab(garmentPrefab);
+                    garmentInstance.transform.SetParent(body.transform, false);
+                    var garment = garmentInstance.GetComponent<SkinnedGarment>();
+                    garment.OnEquip(body, ItemInstanceData.None);
+                }
+
+                // The renderer only re-skins when it thinks something
+                // changed, and outside play mode nothing tells it the bones
+                // moved.
+                foreach (SkinnedMeshRenderer skin in root.GetComponentsInChildren<SkinnedMeshRenderer>())
+                {
+                    skin.updateWhenOffscreen = true;
+                }
+
+                var cameraObject = new GameObject("Camera");
+                cameraObject.transform.SetParent(root.transform);
+                Camera camera = cameraObject.AddComponent<Camera>();
+                camera.clearFlags = CameraClearFlags.SolidColor;
+                camera.backgroundColor = new Color(0.10f, 0.11f, 0.15f);
+                camera.fieldOfView = 32.0f;
+                camera.nearClipPlane = 0.05f;
+                cameraObject.transform.position = new Vector3(0.0f, 1.35f, -5.2f);
+                cameraObject.transform.rotation = Quaternion.identity;
+
+                target = new RenderTexture(700, 900, 24, RenderTextureFormat.ARGB32) { antiAliasing = 8 };
+                camera.targetTexture = target;
+                camera.Render();
+
+                RenderTexture.active = target;
+                var image = new Texture2D(700, 900, TextureFormat.RGB24, false);
+                image.ReadPixels(new Rect(0, 0, 700, 900), 0, 0);
+                image.Apply();
+
+                string path = Path.Combine(directory, name + ".png");
+                File.WriteAllBytes(path, image.EncodeToPNG());
+                Object.DestroyImmediate(image);
+                Debug.Log($"CityX: wrote {path}");
+            }
+            finally
+            {
+                RenderTexture.active = previous;
+                RenderSettings.ambientMode = previousAmbient;
+                RenderSettings.ambientSkyColor = previousSky;
+                RenderSettings.fog = previousFog;
+                if (target != null)
+                {
+                    target.Release();
+                    Object.DestroyImmediate(target);
+                }
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        private static Transform FindDeep(Transform root, string name)
+        {
+            if (root.name == name)
+            {
+                return root;
+            }
+            foreach (Transform child in root)
+            {
+                Transform hit = FindDeep(child, name);
+                if (hit != null)
+                {
+                    return hit;
+                }
+            }
+            return null;
         }
     }
 }

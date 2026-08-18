@@ -27,13 +27,22 @@ namespace CityX.CharacterEditor
         /// <summary>
         /// Builds the skeleton under a new root and returns it, with every bone
         /// by name in <paramref name="bones"/>.
+        ///
+        /// <paramref name="boneList"/> defaults to <see cref="BodyRig.Bones"/>
+        /// (the T-pose every LIVE, Animator-driven rig has to use) --
+        /// SkinnedGarmentBuilder passes <see cref="BodyRig.RestBones"/>
+        /// instead, since the garment meshes it bakes were authored against
+        /// that pose, not this one. See RestBones's own doc comment for why
+        /// binding a garment against the wrong one of the two is a real bug,
+        /// not a cosmetic difference.
         /// </summary>
-        public static GameObject BuildSkeleton(string name, out Dictionary<string, Transform> bones)
+        public static GameObject BuildSkeleton(string name, out Dictionary<string, Transform> bones,
+            IReadOnlyList<BodyRig.Bone> boneList = null)
         {
             var root = new GameObject(name);
             bones = new Dictionary<string, Transform>();
 
-            foreach (BodyRig.Bone bone in BodyRig.Bones())
+            foreach (BodyRig.Bone bone in boneList ?? BodyRig.Bones())
             {
                 var joint = new GameObject(bone.Name);
                 Transform parent = bone.Parent == null ? root.transform : bones[bone.Parent];

@@ -150,6 +150,78 @@ namespace CityX.Character
             };
         }
 
+        /// <summary>
+        /// The arm-and-torso-relevant project bones at fused_body.gd's OWN
+        /// rest: arms hanging down and outward, not the T-pose Bones() lays
+        /// out for Unity's own humanoid retargeting (see that method's own
+        /// doc comment for why the two have to differ for the LIVE rig).
+        ///
+        /// The wearable meshes -- hooded_cloak.glb, skelli_jeans.glb -- were
+        /// authored against exactly THIS pose, since Godot's own body never
+        /// had a T-pose to begin with. Binding them against Bones() instead
+        /// (as SkinnedGarmentBuilder originally did, on the mistaken analogy
+        /// that "whatever rest skeleton the body itself binds against" was
+        /// the right choice for every mesh) leaves every arm-weighted
+        /// garment vertex off by however far T-pose moved that bone from
+        /// its actual arms-down rest -- upwards of a metre at the wrist --
+        /// which is a skinning error the Animator's own arms-down pose never
+        /// cancels out, because the whole point of a bindpose is to record
+        /// where a bone was WHEN the mesh's own vertices were authored, and
+        /// these vertices were never anywhere near T-pose.
+        ///
+        /// Only the arm chain actually needs its own numbers: the legs
+        /// already hang straight down in both conventions, and ElbowT/
+        /// WristT are exactly the fractions fused_body.gd itself measures
+        /// the elbow and wrist at -- interpolated here along the real
+        /// shoulder-to-hand diagonal instead of Bones()'s own flattened-to-
+        /// horizontal one. Feet and fingertips are Unity-only additions
+        /// Bones() needs for a valid humanoid avatar; no garment vertex is
+        /// ever weighted to them, so this omits both rather than inventing
+        /// rest positions nothing reads.
+        /// </summary>
+        public static IReadOnlyList<Bone> RestBones()
+        {
+            var shoulderL = new Vector3(-ShoulderX, ShoulderY, 0.0f);
+            var handL = new Vector3(-HandX, HandY, 0.0f);
+            var shoulderR = new Vector3(ShoulderX, ShoulderY, 0.0f);
+            var handR = new Vector3(HandX, HandY, 0.0f);
+            float kneeY = HipY - LegLength * KneeT;
+
+            return new[]
+            {
+                new Bone("hips", null, new Vector3(0.0f, HipY, 0.0f), HumanBodyBones.Hips),
+                new Bone("spine", "hips",
+                    new Vector3(0.0f, Mathf.Lerp(HipY, ShoulderY, SpineT), 0.0f),
+                    HumanBodyBones.Spine),
+                new Bone("neck", "spine", new Vector3(0.0f, ShoulderY, 0.0f),
+                    HumanBodyBones.Neck),
+                new Bone("head", "neck", new Vector3(0.0f, HeadCentreY, 0.0f),
+                    HumanBodyBones.Head),
+
+                new Bone("arm_l", "spine", shoulderL, HumanBodyBones.LeftUpperArm),
+                new Bone("forearm_l", "arm_l", Vector3.Lerp(shoulderL, handL, ElbowT),
+                    HumanBodyBones.LeftLowerArm),
+                new Bone("hand_l", "forearm_l", Vector3.Lerp(shoulderL, handL, WristT),
+                    HumanBodyBones.LeftHand),
+
+                new Bone("arm_r", "spine", shoulderR, HumanBodyBones.RightUpperArm),
+                new Bone("forearm_r", "arm_r", Vector3.Lerp(shoulderR, handR, ElbowT),
+                    HumanBodyBones.RightLowerArm),
+                new Bone("hand_r", "forearm_r", Vector3.Lerp(shoulderR, handR, WristT),
+                    HumanBodyBones.RightHand),
+
+                new Bone("thigh_l", "hips", new Vector3(-HipX, HipY, 0.0f),
+                    HumanBodyBones.LeftUpperLeg),
+                new Bone("shin_l", "thigh_l", new Vector3(-HipX, kneeY, 0.0f),
+                    HumanBodyBones.LeftLowerLeg),
+
+                new Bone("thigh_r", "hips", new Vector3(HipX, HipY, 0.0f),
+                    HumanBodyBones.RightUpperLeg),
+                new Bone("shin_r", "thigh_r", new Vector3(HipX, kneeY, 0.0f),
+                    HumanBodyBones.RightLowerLeg),
+            };
+        }
+
         /// <summary>Where a bone sits at rest, by its humanoid role.</summary>
         public static Vector3 PositionOf(HumanBodyBones human)
         {

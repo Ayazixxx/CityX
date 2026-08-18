@@ -159,17 +159,33 @@ namespace CityX.Wearables
             renderer.updateWhenOffscreen = true;
 
             _skinInstance = holder;
+            OnEquipped(player);
         }
 
         /// <summary>Destroys the live skin instance, then the (by then bare) root.</summary>
         public void OnUnequip(GameObject player)
         {
+            OnUnequipped(player);
             if (_skinInstance != null)
             {
                 Destroy(_skinInstance);
             }
             _skinInstance = null;
             Destroy(gameObject);
+        }
+
+        /// <summary>
+        /// Called once the live skin is built and showing. A plain garment
+        /// has nothing further to do; HoodedCloak overrides this to hide
+        /// the body's own skin underneath (see that class's own comment).
+        /// </summary>
+        protected virtual void OnEquipped(GameObject player)
+        {
+        }
+
+        /// <summary>The reverse of OnEquipped, called before the skin is torn down.</summary>
+        protected virtual void OnUnequipped(GameObject player)
+        {
         }
 
         /// <summary>Plain clothing carries no per-instance state.</summary>
