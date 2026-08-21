@@ -94,33 +94,46 @@ namespace CityX.Weapons
                 return;
             }
             Keyboard keyboard = Keyboard.current;
-            if (keyboard == null || !keyboard.eKey.wasPressedThisFrame)
+            bool ePressed = keyboard != null && keyboard.eKey.wasPressedThisFrame;
+            TryPickup(_nearbyPlayer, ePressed);
+        }
+
+        /// <summary>
+        /// See PistolWeapon.TryPickup's own comment -- same split, same
+        /// reason: Keyboard.current is null outside a real Input System
+        /// device, so a test drives this with an explicit flag instead.
+        /// </summary>
+        public bool TryPickup(Transform player, bool ePressed)
+        {
+            if (!ePressed)
             {
-                return;
+                return false;
             }
 
-            Transform lookSource = PistolWeapon.LookSourceFor(_nearbyPlayer);
+            Transform lookSource = PistolWeapon.LookSourceFor(player);
             Vector3 toSelf = transform.position - lookSource.position;
             if (toSelf.sqrMagnitude > InteractRange * InteractRange)
             {
-                return;
+                return false;
             }
             if (toSelf.sqrMagnitude > 0.0001f &&
                 Vector3.Dot(lookSource.forward, toSelf.normalized) < LookDotThreshold)
             {
-                return;
+                return false;
             }
 
-            var inventory = _nearbyPlayer.GetComponentInParent<Inventory>();
+            var inventory = player.GetComponentInParent<Inventory>();
             if (inventory == null)
             {
-                return;
+                return false;
             }
             var instanceData = new ItemInstanceData { HasDurability = true, Durability = (int)State };
             if (inventory.AddItem(ItemRegistry.GlassBottle, 1, instanceData))
             {
                 Destroy(gameObject);
+                return true;
             }
+            return false;
         }
 
         public float GetMeleeDamage()

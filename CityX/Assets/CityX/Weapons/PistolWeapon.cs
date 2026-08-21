@@ -92,6 +92,15 @@ namespace CityX.Weapons
         public int ReserveAmmo { get; private set; } = StartingReserveAmmo;
         public bool IsReloading { get; private set; }
 
+        /// <summary>
+        /// Whether OnTriggerEnter has actually seen a player, independent
+        /// of the look/range gate in TryPickup -- lets a test tell "the
+        /// trigger never fired at all" apart from "it fired but the look
+        /// check said no", which used to be indistinguishable from either
+        /// side of the pickup ever going quiet.
+        /// </summary>
+        public bool HasNearbyPlayer => _nearbyPlayer != null;
+
         private float _fireCooldownRemaining;
         private float _reloadTimeRemaining;
         private float _muzzleFlashRemaining;
@@ -169,32 +178,50 @@ namespace CityX.Weapons
                 return;
             }
             Keyboard keyboard = Keyboard.current;
-            if (keyboard == null || !keyboard.eKey.wasPressedThisFrame)
+            bool ePressed = keyboard != null && keyboard.eKey.wasPressedThisFrame;
+            TryPickup(_nearbyPlayer, ePressed);
+        }
+
+        /// <summary>
+        /// The actual pickup decision, factored out from TickPickup so a
+        /// test can drive it with an explicit "was E pressed" flag --
+        /// Keyboard.current is null outside a real Input System device
+        /// (nothing in this project's own tests exercises it), and this
+        /// gate had never actually been run end to end by anything before
+        /// this. Matches PlayerLocomotion.Tick's own split: the thing that
+        /// reads real input is a thin wrapper around the thing that
+        /// decides, so the decision is what gets tested.
+        /// </summary>
+        public bool TryPickup(Transform player, bool ePressed)
+        {
+            if (!ePressed)
             {
-                return;
+                return false;
             }
 
-            Transform lookSource = LookSourceFor(_nearbyPlayer);
+            Transform lookSource = LookSourceFor(player);
             Vector3 toSelf = transform.position - lookSource.position;
             if (toSelf.sqrMagnitude > InteractRange * InteractRange)
             {
-                return;
+                return false;
             }
             if (toSelf.sqrMagnitude > 0.0001f &&
                 Vector3.Dot(lookSource.forward, toSelf.normalized) < LookDotThreshold)
             {
-                return;
+                return false;
             }
 
-            var inventory = _nearbyPlayer.GetComponentInParent<Inventory>();
+            var inventory = player.GetComponentInParent<Inventory>();
             if (inventory == null)
             {
-                return;
+                return false;
             }
             if (inventory.AddItem(ItemRegistry.Pistol, 1))
             {
                 Destroy(gameObject);
+                return true;
             }
+            return false;
         }
 
         /// <summary>
