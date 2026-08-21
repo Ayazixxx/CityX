@@ -1855,6 +1855,7 @@ MonoBehaviour:
   WalkSpeed: 4
   SprintSpeed: 7.5
   JumpVelocity: 4.5
+  ChargedJumpHeightMultiplier: 15
   Gravity: 9.8
   TurnDegreesPerSecond: 720
   StandingHeight: 2.6

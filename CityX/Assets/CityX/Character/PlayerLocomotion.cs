@@ -35,6 +35,17 @@ namespace CityX.Character
         [Tooltip("player.gd JUMP_VELOCITY")]
         public float JumpVelocity = 4.5f;
 
+        /// <summary>
+        /// How many times higher than an ordinary jump a FULLY charged
+        /// release goes -- Saints Row 4's own charge jump, not ported from
+        /// anywhere in player.gd (there is no equivalent there). An explicit
+        /// first test value the user asked for, not yet tuned against
+        /// anything, and meant to move once this is a real skill rather than
+        /// a flat constant.
+        /// </summary>
+        [Tooltip("How many times higher than an ordinary jump a full charge-release goes.")]
+        public float ChargedJumpHeightMultiplier = 15.0f;
+
         [Tooltip("player.gd GRAVITY. Deliberately gentler than Earth's 9.81.")]
         public float Gravity = 9.8f;
 
@@ -70,6 +81,7 @@ namespace CityX.Character
         private static readonly int CrouchingParameter = Animator.StringToHash("Crouching");
         private static readonly int DashParameter = Animator.StringToHash("Dash");
         private static readonly int JumpParameter = Animator.StringToHash("Jump");
+        private static readonly int ChargingJumpParameter = Animator.StringToHash("ChargingJump");
 
         /// <summary>Horizontal speed after the last tick, in metres per second.</summary>
         public float CurrentSpeed { get; private set; }
@@ -332,6 +344,40 @@ namespace CityX.Character
                 }
             }
 
+            // THE CHARGED RELEASE. Height is proportional to the SQUARE of
+            // launch velocity (h = v^2 / 2g), so reaching
+            // ChargedJumpHeightMultiplier times the height only takes its
+            // SQUARE ROOT times the velocity, not the multiplier itself.
+            // Scales continuously with JumpChargeFraction rather than being
+            // a flat "charged or not" flag -- a near-instant release reports
+            // a fraction near 0, which this already resolves to an ordinary
+            // JumpVelocity, so a quick tap and a full hold are one
+            // mechanic, not two.
+            //
+            // THE TRIGGER FIRES EVEN WHEN NOT GROUNDED, deliberately split
+            // from the velocity boost below it. PlayerInputReader's own
+            // TickJumpCharge still reports JumpReleased when a charge is
+            // cancelled by the ground disappearing out from under it (walking
+            // off an edge mid-charge), purely so the animator has a way back
+            // out of the ChargedJump pose -- the same Jump trigger every
+            // ordinary jump already uses to leave any other state. Only the
+            // velocity actually pays out on solid ground; a charge that
+            // walked off an edge should not also grant a boost once it is
+            // already falling.
+            if (input.JumpReleased)
+            {
+                if (grounded)
+                {
+                    float heightMultiplier = Mathf.Lerp(
+                        1.0f, ChargedJumpHeightMultiplier, Mathf.Clamp01(input.JumpChargeFraction));
+                    _verticalVelocity = JumpVelocity * Mathf.Sqrt(heightMultiplier);
+                }
+                if (_animator != null)
+                {
+                    _animator.SetTrigger(JumpParameter);
+                }
+            }
+
             Vector3 motion = horizontal;
             motion.y = _verticalVelocity;
             Velocity = motion;
@@ -374,6 +420,7 @@ namespace CityX.Character
                 _animator.SetFloat(MoveZParameter, LocalVelocity.y);
                 _animator.SetBool(GroundedParameter, _controller.isGrounded);
                 _animator.SetBool(CrouchingParameter, IsCrouching);
+                _animator.SetBool(ChargingJumpParameter, input.ChargingJump);
             }
         }
     }

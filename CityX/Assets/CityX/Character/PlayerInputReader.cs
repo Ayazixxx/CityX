@@ -44,6 +44,18 @@ namespace CityX.Character
 
         private float _sprintTapWindow;
 
+        /// <summary>
+        /// How long held space takes to reach a FULL charge -- Saints Row
+        /// 4's own charge jump, sized only as a first test value: hold less
+        /// and the release scales smoothly down toward an ordinary jump
+        /// (see PlayerLocomotion.ChargedJumpHeightMultiplier for what
+        /// "full" means in real height), hold longer and it just caps here.
+        /// </summary>
+        public const float ChargedJumpMaxHoldSeconds = 1.5f;
+
+        private bool _jumpHeld;
+        private float _jumpHeldSeconds;
+
         private PlayerLocomotion _locomotion;
         private PlayerVitals _vitals;
         private MeleeAttacker _melee;
@@ -198,6 +210,8 @@ namespace CityX.Character
 
             float yawDegrees = yawSource != null ? yawSource.eulerAngles.y : 0.0f;
             TickDash(keyboard, move, yawDegrees, deltaTime);
+            TickJumpCharge(keyboard, _locomotion.IsGrounded, deltaTime,
+                out bool chargingJumpNow, out bool jumpReleased, out float jumpChargeFraction);
 
             var input = new LocomotionInput
             {
@@ -205,7 +219,12 @@ namespace CityX.Character
                 YawDegrees = yawDegrees,
                 Sprint = sprinting,
                 Crouch = keyboard.leftCtrlKey.isPressed,
-                Jump = keyboard.spaceKey.wasPressedThisFrame,
+                // Space no longer fires Jump directly -- see TickJumpCharge's
+                // own comment for why a tap and a hold are one mechanic now,
+                // not a plain press here plus a competing charge below it.
+                ChargingJump = chargingJumpNow,
+                JumpReleased = jumpReleased,
+                JumpChargeFraction = jumpChargeFraction,
             };
 
             _locomotion.Tick(input, deltaTime);
@@ -379,6 +398,61 @@ namespace CityX.Character
             {
                 _punchHeld = false;
                 _melee.TryAttack(heavy: _punchHeldSeconds >= HeavyPunchHoldSeconds);
+            }
+        }
+
+        /// <summary>
+        /// Space, held then released -- the same shape TickCombat's own
+        /// punch-hold uses, and for the same reason: how high this should
+        /// send the body is not known until release.
+        ///
+        /// UNLIKE THE PUNCH, THIS NEVER FIRES ON A BARE PRESS. There is no
+        /// "light jump on press, heavy jump replaces it on a long-enough
+        /// hold" branch here, because a tap and a hold are the SAME gesture
+        /// at opposite ends of one continuous charge: a near-instant release
+        /// reports a JumpChargeFraction near 0, which PlayerLocomotion's own
+        /// height math already resolves to an ordinary jump. One mechanic,
+        /// not two competing ones.
+        ///
+        /// A CHARGE ONLY STARTS GROUNDED, matching an ordinary jump's own
+        /// gate, and CANCELS -- reporting a release with whatever fraction
+        /// it had reached, so the animator still has a way out of the pose
+        /// -- the moment the ground disappears out from under it, rather
+        /// than letting a charge that started on solid ground pay out as a
+        /// mid-air launch once it releases.
+        /// </summary>
+        private void TickJumpCharge(Keyboard keyboard, bool grounded, float deltaTime,
+            out bool chargingJumpNow, out bool jumpReleased, out float chargeFraction)
+        {
+            chargingJumpNow = false;
+            jumpReleased = false;
+            chargeFraction = 0.0f;
+
+            if (keyboard.spaceKey.wasPressedThisFrame && grounded)
+            {
+                _jumpHeld = true;
+                _jumpHeldSeconds = 0.0f;
+            }
+
+            if (!_jumpHeld)
+            {
+                return;
+            }
+
+            if (!grounded || keyboard.spaceKey.wasReleasedThisFrame)
+            {
+                _jumpHeld = false;
+                jumpReleased = true;
+                chargeFraction = ChargedJumpMaxHoldSeconds > 0.0f
+                    ? Mathf.Clamp01(_jumpHeldSeconds / ChargedJumpMaxHoldSeconds)
+                    : 1.0f;
+                return;
+            }
+
+            if (keyboard.spaceKey.isPressed)
+            {
+                _jumpHeldSeconds = Mathf.Min(_jumpHeldSeconds + deltaTime, ChargedJumpMaxHoldSeconds);
+                chargingJumpNow = true;
             }
         }
 

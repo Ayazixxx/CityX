@@ -42,6 +42,30 @@ namespace CityX.Character
         /// <summary>True on the frame jump was pressed, not while it is held.</summary>
         public bool Jump;
 
+        /// <summary>
+        /// True every frame a charge-jump hold is in progress -- drives the
+        /// ChargedJump animator pose while it is true, nothing more. See
+        /// PlayerInputReader.TickJumpCharge for how a press starts one.
+        /// </summary>
+        public bool ChargingJump;
+
+        /// <summary>
+        /// True on the frame a held jump was released (or the charge was
+        /// cancelled by the ground disappearing out from under it). Distinct
+        /// from Jump because a charge's payout is not known until release --
+        /// same reasoning TickCombat's own punch-hold already uses.
+        /// </summary>
+        public bool JumpReleased;
+
+        /// <summary>
+        /// How much of a full charge JumpReleased is reporting, in [0,1].
+        /// Only meaningful alongside JumpReleased; a near-instant tap reports
+        /// near 0, which PlayerLocomotion's own height math already resolves
+        /// to an ordinary jump -- there is no separate "this was just a tap"
+        /// case to handle.
+        /// </summary>
+        public float JumpChargeFraction;
+
         /// <summary>The world-space direction the player wants to travel, flat and normalised.</summary>
         public Vector3 WorldDirection()
         {

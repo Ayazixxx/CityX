@@ -65,9 +65,11 @@ namespace CityX.Tests
             {
                 _locomotion.Tick(input, Step);
                 yield return null;
-                // Jump is an edge, not a state -- repeating it every step would
-                // be holding the key down, which is a different thing.
+                // Jump and JumpReleased are edges, not states -- repeating
+                // either every step would be holding the key down (or
+                // releasing it every frame), which is a different thing.
                 input.Jump = false;
+                input.JumpReleased = false;
             }
         }
 
@@ -295,6 +297,102 @@ namespace CityX.Tests
 
             yield return Drive(default, 240);
             Assert.IsTrue(_locomotion.IsGrounded, "never landed again");
+        }
+
+        /// <summary>
+        /// A near-instant release (JumpChargeFraction 0) should land at the
+        /// SAME height a plain Jump does -- the whole point of scaling by
+        /// the fraction rather than branching on "was this charged", per
+        /// PlayerLocomotion.Tick's own comment on the charged-release block.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ReleasingWithNoChargeJumpsTheOrdinaryHeight()
+        {
+            yield return Drive(default, 30);
+            float restingY = _player.transform.position.y;
+
+            var released = new LocomotionInput { JumpReleased = true, JumpChargeFraction = 0.0f };
+            _locomotion.Tick(released, Step);
+            yield return null;
+
+            float peak = restingY;
+            for (int i = 0; i < 40; i++)
+            {
+                _locomotion.Tick(default, Step);
+                peak = Mathf.Max(peak, _player.transform.position.y);
+                yield return null;
+            }
+
+            float apex = peak - restingY;
+            Debug.Log($"CityX: uncharged release peaked {apex:0.00}m above rest");
+            // 4.5^2 / (2*9.8) = 1.03m, same maths and same tolerance as
+            // JumpingLeavesTheGroundAndComesBack's own plain Jump.
+            Assert.AreEqual(1.03f, apex, 0.2f);
+        }
+
+        /// <summary>
+        /// A fully charged release (JumpChargeFraction 1) should reach
+        /// ChargedJumpHeightMultiplier times the ordinary apex. Height is
+        /// proportional to velocity SQUARED, so the launch velocity itself
+        /// only needs the SQUARE ROOT of the multiplier -- if this test
+        /// only checked "did it go higher" it could not tell that math
+        /// apart from an accidentally linear scale, which would land 15x
+        /// the VELOCITY and roughly 225x the height instead.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator FullyChargedReleaseJumpsTheConfiguredMultiplierHigher()
+        {
+            yield return Drive(default, 30);
+            float restingY = _player.transform.position.y;
+
+            var released = new LocomotionInput { JumpReleased = true, JumpChargeFraction = 1.0f };
+            _locomotion.Tick(released, Step);
+            yield return null;
+
+            // v = 4.5 * sqrt(15) = 17.43, apex = v^2/2g = 15.5m, reached
+            // after v/g = 1.78s. 150 steps of 1/60 is 2.5s, comfortably past it.
+            float peak = restingY;
+            for (int i = 0; i < 150; i++)
+            {
+                _locomotion.Tick(default, Step);
+                peak = Mathf.Max(peak, _player.transform.position.y);
+                yield return null;
+            }
+
+            float apex = peak - restingY;
+            float expected = 1.03f * _locomotion.ChargedJumpHeightMultiplier;
+            Debug.Log($"CityX: fully charged release peaked {apex:0.00}m above rest " +
+                $"(expected ~{expected:0.00}m)");
+            Assert.AreEqual(expected, apex, expected * 0.1f);
+        }
+
+        /// <summary>
+        /// A charge cancelled by leaving the ground (JumpReleased still
+        /// fires so the animator has a way out of the pose, but grounded is
+        /// false) must not ALSO grant height once it releases -- see
+        /// PlayerLocomotion.Tick's own comment on why the trigger and the
+        /// velocity boost are deliberately split.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ReleasingWhileAirborneGrantsNoBoost()
+        {
+            yield return Drive(default, 30);
+
+            // Airborne, ungrounded, falling -- a real jump already in
+            // flight, not a teleport, so IsGrounded reads false the honest
+            // way.
+            var jump = new LocomotionInput { Jump = true };
+            _locomotion.Tick(jump, Step);
+            yield return null;
+            Assert.IsFalse(_locomotion.IsGrounded, "should be airborne right after a jump");
+
+            float beforeVelocityY = _locomotion.Velocity.y;
+
+            var released = new LocomotionInput { JumpReleased = true, JumpChargeFraction = 1.0f };
+            _locomotion.Tick(released, Step);
+
+            Assert.Less(_locomotion.Velocity.y, beforeVelocityY + 0.01f,
+                "a release while airborne should not add any upward boost -- gravity should be the only change");
         }
 
         /// <summary>

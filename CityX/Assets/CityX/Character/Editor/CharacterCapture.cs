@@ -328,6 +328,8 @@ namespace CityX.CharacterEditor
                 FindClip("pistol_aim_in"), 0.9f);
             Shoot(prefab, outputDirectory, "clip-dance", 200.0f, null,
                 FindClip("dance"), 0.35f);
+            Shoot(prefab, outputDirectory, "clip-charged-jump", 200.0f, null,
+                FindClip("charged_jump"), 0.9f);
 
             if (Application.isBatchMode)
             {

@@ -223,6 +223,7 @@ namespace CityX.CharacterEditor
 
             AddCrouchStates(controller, root);
             AddDashState(controller, root);
+            AddChargedJumpState(controller, root);
             AddPunchStates(root);
             AddCutsceneStates(root);
 
@@ -385,6 +386,46 @@ namespace CityX.CharacterEditor
             outOf.duration = 0.15f;
             outOf.hasExitTime = true;
             outOf.exitTime = 0.6f;
+        }
+
+        /// <summary>
+        /// The charge-up pose for a held jump. Saints Row 4's own charge
+        /// jump, with no Godot equivalent to port -- see
+        /// PlayerLocomotion.ChargedJumpHeightMultiplier for the height math
+        /// this feeds into.
+        ///
+        /// NO WAY OUT IS WIRED HERE, on purpose. The only exit this state
+        /// needs is the same "Jump" any-state transition every other state
+        /// already has (added just above, if a jump clip exists) -- release
+        /// fires the very same Jump trigger, whether the charge paid out or
+        /// was cancelled by the ground disappearing out from under it (see
+        /// PlayerInputReader.TickJumpCharge's own comment on why a
+        /// cancelled charge still reports a release). Giving this state its
+        /// own separate "ChargingJump went false" transition back to
+        /// Locomotion would race that any-state transition on the exact
+        /// frame both are true -- Unity checks a state's OWN transitions
+        /// before any-state ones, so an explicit second exit here would win
+        /// on every real release and silently swallow the jump.
+        /// </summary>
+        private static void AddChargedJumpState(AnimatorController controller, AnimatorStateMachine root)
+        {
+            AnimationClip clip = FindClip("charged_jump");
+            if (clip == null)
+            {
+                Debug.LogWarning("CityX: no charged_jump clip -- holding space will not show a charging pose.");
+                return;
+            }
+
+            controller.AddParameter("ChargingJump", AnimatorControllerParameterType.Bool);
+
+            AnimatorState charging = root.AddState("ChargedJump");
+            charging.motion = clip;
+
+            AnimatorStateTransition into = root.AddAnyStateTransition(charging);
+            into.AddCondition(AnimatorConditionMode.If, 0.0f, "ChargingJump");
+            into.duration = 0.08f;
+            into.hasExitTime = false;
+            into.canTransitionToSelf = false;
         }
 
         /// <summary>One transition, with the boilerplate that is the same every time.</summary>

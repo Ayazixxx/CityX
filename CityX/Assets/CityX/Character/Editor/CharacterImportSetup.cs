@@ -159,8 +159,12 @@ namespace CityX.CharacterEditor
         private static void ConfigureVerticalMotion(ModelImporter importer, string path)
         {
             string name = Path.GetFileNameWithoutExtension(path);
+            // charged_jump is the same shape as the other three: a deep
+            // wind-up crouch the body has to actually lower into, not
+            // stoop through, while it holds for however long space stays
+            // down.
             bool lowers = name == "standing_to_crouch" || name == "crouch_to_idle" ||
-                          name == "crouch_walk";
+                          name == "crouch_walk" || name == "charged_jump";
             if (!lowers)
             {
                 return;
