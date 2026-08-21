@@ -14,6 +14,7 @@ namespace CityX.Items
         public const string SkelliJeans = "skelli_jeans";
         public const string HoodedCloak = "hooded_cloak";
         public const string GrapplingHook = "grappling_hook";
+        public const string Pistol = "pistol";
 
         private static readonly Dictionary<string, ItemDefinition> Items = new Dictionary<string, ItemDefinition>
         {
@@ -21,6 +22,7 @@ namespace CityX.Items
             [SkelliJeans] = new ItemDefinition(SkelliJeans, "Skelli Jeans", "wearable", "legs", 1),
             [HoodedCloak] = new ItemDefinition(HoodedCloak, "Hooded Cloak", "wearable", "top", 1),
             [GrapplingHook] = new ItemDefinition(GrapplingHook, "Grappling Hook", "weapon", "hand_r", 1),
+            [Pistol] = new ItemDefinition(Pistol, "Pistol", "weapon", "hand_r", 1),
         };
 
         public static bool TryGet(string itemId, out ItemDefinition definition)

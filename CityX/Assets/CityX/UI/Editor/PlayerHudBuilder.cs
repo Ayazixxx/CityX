@@ -93,6 +93,7 @@ namespace CityX.UIEditor
 
                 hud.Crosshair = BuildCrosshair(root.transform);
                 BuildStatusFrame(root.transform, hud);
+                hud.AmmoLabel = BuildAmmoLabel(root.transform);
                 BuildDeathScreen(root.transform, hud);
 
                 GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
@@ -379,6 +380,26 @@ namespace CityX.UIEditor
             return text;
         }
 
+        /// <summary>
+        /// hud.tscn's own AmmoLabel: bottom-right, hidden by PlayerHud
+        /// itself unless a gun is actually equipped.
+        /// </summary>
+        private static Text BuildAmmoLabel(Transform parent)
+        {
+            var label = new GameObject("AmmoLabel", typeof(RectTransform));
+            RectTransform rect = Attach(label, parent);
+            BottomRight(rect, new Vector2(-20.0f, 20.0f), new Vector2(200.0f, 40.0f));
+
+            Text text = label.AddComponent<Text>();
+            text.font = BuiltinFont();
+            text.fontSize = 28;
+            text.color = Gold;
+            text.alignment = TextAnchor.MiddleRight;
+            text.text = "15 / 45";
+            label.SetActive(false);
+            return text;
+        }
+
         private static void BuildDeathScreen(Transform parent, PlayerHud hud)
         {
             var screen = new GameObject("DeathScreen", typeof(RectTransform));
@@ -443,6 +464,16 @@ namespace CityX.UIEditor
             rect.anchorMin = new Vector2(0.0f, 1.0f);
             rect.anchorMax = new Vector2(0.0f, 1.0f);
             rect.pivot = new Vector2(0.0f, 1.0f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
+        }
+
+        /// <summary>Anchored to the parent's bottom-right corner, as Godot lays out.</summary>
+        private static void BottomRight(RectTransform rect, Vector2 position, Vector2 size)
+        {
+            rect.anchorMin = new Vector2(1.0f, 0.0f);
+            rect.anchorMax = new Vector2(1.0f, 0.0f);
+            rect.pivot = new Vector2(1.0f, 0.0f);
             rect.anchoredPosition = position;
             rect.sizeDelta = size;
         }

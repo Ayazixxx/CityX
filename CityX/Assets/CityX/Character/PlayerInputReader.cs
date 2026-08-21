@@ -23,6 +23,15 @@ namespace CityX.Character
         public Transform YawSource;
 
         /// <summary>
+        /// Set by a gun's own OnEquip/OnUnequip (see PistolWeapon), the same
+        /// pattern GrappleSwing.EquippedHook and MeleeAttacker.EquippedWeapon
+        /// already use. Typed as the interface rather than a concrete class
+        /// so this assembly (CityX.Character) never has to reference
+        /// CityX.Weapons -- see IEquippableGun's own doc comment.
+        /// </summary>
+        public IEquippableGun EquippedGun;
+
+        /// <summary>
         /// How long after tapping sprint a second tap still counts as a dash.
         ///
         /// A press-release-press inside this window is the double-tap; a single
@@ -255,6 +264,34 @@ namespace CityX.Character
             // punch/block input.
             if (_grabCarry != null && _grabCarry.IsCarrying)
             {
+                return;
+            }
+
+            // A GUN TAKES OVER LEFT/RIGHT-CLICK AND RELOAD ENTIRELY WHILE
+            // EQUIPPED, matching player.gd's own separate `if _equipped_gun
+            // != null` branch: semi-automatic (a fresh press fires once,
+            // none of the fist system's hold-for-heavy tracking or cooldown
+            // gating here -- the gun tracks its own internally), aiming is
+            // continuous for as long as right is HELD (unlike block()'s own
+            // one-shot press), and reload is its own key rather than sharing
+            // one with anything else. Checked ahead of the grapple hook and
+            // the generic weapon branch below since a gun is neither.
+            if (EquippedGun != null)
+            {
+                bool aiming = Mouse.current.rightButton.isPressed;
+
+                Transform gunYawSource = YawSource != null
+                    ? YawSource
+                    : (Camera.main != null ? Camera.main.transform : null);
+
+                if (Mouse.current.leftButton.wasPressedThisFrame && gunYawSource != null)
+                {
+                    EquippedGun.Fire(gunYawSource.position, gunYawSource.forward, aiming, gameObject);
+                }
+                if (Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame)
+                {
+                    EquippedGun.TryReload();
+                }
                 return;
             }
 

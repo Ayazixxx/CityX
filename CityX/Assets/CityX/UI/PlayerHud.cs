@@ -22,7 +22,11 @@ namespace CityX.UI
     /// player turned, reading as the portrait itself "moving" rather than a
     /// still headshot. See CapturePortrait.
     ///
-    /// Deliberately not ported yet: the ammo counter -- there are no guns.
+    /// THE AMMO COUNTER READS PlayerInputReader.EquippedGun, NOT A CACHED
+    /// REFERENCE -- a gun can be equipped, dropped and re-equipped over a
+    /// HUD's own lifetime, and polling fresh every frame (same "target can
+    /// be reassigned" reasoning Bind's own caller already applies) means
+    /// this never has to be told when that happens.
     /// </summary>
     public sealed class PlayerHud : MonoBehaviour
     {
@@ -63,6 +67,9 @@ namespace CityX.UI
 
         [Tooltip("Displays the baked RenderTexture PortraitCamera writes once, then never again.")]
         public RawImage PortraitImage;
+
+        [Tooltip("Hidden unless a gun (see PlayerInputReader.EquippedGun) is actually equipped.")]
+        public Text AmmoLabel;
 
         [Tooltip("A scene camera, cullingMask-restricted to the player's own dedicated portrait layer (see PlayerHudBuilder.PortraitLayerName), that never renders anywhere else.")]
         public Camera PortraitCamera;
@@ -241,6 +248,16 @@ namespace CityX.UI
             if (HealthFillImage != null)
             {
                 HealthFillImage.color = ColourForHealth(Fraction(_bound.Health, _bound.MaxHealth));
+            }
+
+            if (AmmoLabel != null)
+            {
+                IEquippableGun gun = _bound.GetComponent<PlayerInputReader>()?.EquippedGun;
+                AmmoLabel.gameObject.SetActive(gun != null);
+                if (gun != null)
+                {
+                    AmmoLabel.text = gun.GetAmmoText();
+                }
             }
 
             // Rebuilding a string every frame to say "1" is wasteful, and text

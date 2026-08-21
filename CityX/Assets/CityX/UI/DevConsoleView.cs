@@ -67,6 +67,7 @@ namespace CityX.UI
 
         [Tooltip("What /spawn grapple puts down, and what /equip grapple equips.")]
         public GameObject GrapplingHookPrefab;
+        public GameObject PistolPrefab;
 
         [Tooltip("Movement/combat input. Disabled while the console is open.")]
         public PlayerInputReader InputReader;
@@ -382,6 +383,16 @@ namespace CityX.UI
                     Log("spawned a grappling hook -- walk up, look at it and press E");
                     return;
 
+                case "pistol":
+                    if (PistolPrefab == null)
+                    {
+                        Log("no pistol prefab wired");
+                        return;
+                    }
+                    Instantiate(PistolPrefab, where + Vector3.up * 0.1f, Quaternion.identity);
+                    Log("spawned a pistol -- walk up, look at it and press E");
+                    return;
+
                 case "dummy":
                     // BUILT HERE RATHER THAN INSTANTIATED, because a sparring
                     // dummy has no prefab -- the scene builder makes its own out
@@ -465,6 +476,7 @@ namespace CityX.UI
                 case "jeans": return ItemRegistry.SkelliJeans;
                 case "cloak": return ItemRegistry.HoodedCloak;
                 case "grapple": return ItemRegistry.GrapplingHook;
+                case "pistol": return ItemRegistry.Pistol;
                 default: return null;
             }
         }
