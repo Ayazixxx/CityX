@@ -19,9 +19,13 @@ namespace CityX.UI
     ///
     /// GUARDED AGAINST EVERY OTHER OVERLAY THAT ALSO READS ENTER OR ESCAPE,
     /// OR COVERS THE SAME PART OF THE SCREEN: the dev console (backtick),
-    /// the pause menu, the map (Escape/M) and the inventory (I) -- see
-    /// PauseMenuView's own new Chat guard, added alongside this file, for
-    /// the matching half of this same problem.
+    /// the pause menu, the map (Escape/M), the inventory (I) and any open
+    /// DialogueBox -- see PauseMenuView's own new Chat guard, added
+    /// alongside this file, for the matching half of this same problem.
+    /// DialogueBox is read through its static AnyOpen rather than an
+    /// instance field like the others: there is one DialogueBox per NPC
+    /// prefab, not a single scene singleton, so nothing here can hold one
+    /// reference and ask it directly.
     ///
     /// ALL LISTENERS WIRED IN AWAKE -- see PauseMenuView's doc comment for
     /// why an editor-time AddListener never survives the scene being saved.
@@ -83,7 +87,7 @@ namespace CityX.UI
 
             if ((Console != null && Console.IsOpen) || (Pause != null && Pause.IsOpen) ||
                 (Map != null && Map.IsOpen) || (Inventory != null && Inventory.IsOpen) ||
-                (Menu != null && Menu.IsOpen))
+                (Menu != null && Menu.IsOpen) || DialogueBox.AnyOpen)
             {
                 return;
             }

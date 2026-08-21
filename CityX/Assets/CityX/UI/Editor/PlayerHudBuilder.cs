@@ -131,7 +131,17 @@ namespace CityX.UIEditor
 
             if (target != null)
             {
-                hud.PortraitCamera = BuildPortraitCamera(target.transform);
+                hud.PortraitCamera = BuildPortraitCamera(target.transform, out RenderTexture texture);
+                // WITHOUT THIS the camera renders the character into its own
+                // private texture every frame and nothing on screen ever
+                // shows it -- RawImage defaults to a null texture, which
+                // draws as a plain white rect tinted by its own .color
+                // (also white here), not the portrait. Confirmed exactly
+                // that: a solid white circle where the character should be.
+                if (hud.PortraitImage != null)
+                {
+                    hud.PortraitImage.texture = texture;
+                }
             }
 
             EnsureEventSystem();
@@ -153,8 +163,9 @@ namespace CityX.UIEditor
         /// portrait taken at 2am unrecognisably dark for no reason related
         /// to the character it is a portrait of.
         /// </summary>
-        private static Camera BuildPortraitCamera(Transform target)
+        private static Camera BuildPortraitCamera(Transform target, out RenderTexture texture)
         {
+            texture = null;
             int layer = LayerMask.NameToLayer(PortraitLayerName);
             if (layer < 0)
             {
@@ -188,7 +199,7 @@ namespace CityX.UIEditor
             portraitCameraData.antialiasingQuality = AntialiasingQuality.High;
 
             const int resolution = 256;
-            var texture = new RenderTexture(resolution, resolution, 16, RenderTextureFormat.ARGB32)
+            texture = new RenderTexture(resolution, resolution, 16, RenderTextureFormat.ARGB32)
             {
                 name = "PortraitTexture",
                 antiAliasing = 4,
@@ -247,11 +258,16 @@ namespace CityX.UIEditor
             RectTransform rect = Attach(frame, parent);
             TopLeft(rect, new Vector2(20.0f, -20.0f), new Vector2(500.0f, 130.0f));
 
-            // hud.tscn's own numbers: the bars indent 115px to clear a 130px
-            // portrait, and the level badge hangs off that portrait's own
-            // bottom-left corner.
-            hud.LevelLabel = BuildPortrait(frame.transform, hud);
-
+            // hud.tscn's own numbers: the bars indent 115px, which does NOT
+            // fully clear the 130px portrait -- it overlaps it by 15px, in
+            // Godot too. What hides that there is CHILD ORDER: hud.tscn adds
+            // HealthBar and StaminaBar to StatusFrame BEFORE PortraitClip, so
+            // the portrait's own circle draws on top of the sliver of bar
+            // beneath it. Building the portrait first, as this used to, put
+            // Unity's later-drawn siblings (the bars) OVER the portrait
+            // instead -- exactly backwards, and exactly what "the bars are
+            // covering the portrait" was. Same child order as hud.tscn fixes
+            // it without changing a single number.
             hud.HealthFill = BuildBar(frame.transform, "HealthBar",
                 new Vector2(115.0f, -33.0f), new Vector2(300.0f, 38.0f),
                 HealthBorder, PlayerHud.HealthGreen, out Image healthFillImage);
@@ -260,6 +276,8 @@ namespace CityX.UIEditor
             hud.StaminaFill = BuildBar(frame.transform, "StaminaBar",
                 new Vector2(115.0f, -77.0f), new Vector2(300.0f, 20.0f),
                 StaminaBorder, StaminaBlue, out _);
+
+            hud.LevelLabel = BuildPortrait(frame.transform, hud);
         }
 
         /// <summary>
@@ -304,7 +322,7 @@ namespace CityX.UIEditor
             rawImage.raycastTarget = false;
             hud.PortraitImage = rawImage;
 
-            return BuildLevelBadge(clip.transform, new Vector2(-8.0f, -92.0f));
+            return BuildLevelBadge(clip.transform, new Vector2(-8.0f, -92.0f), circle);
         }
 
         /// <summary>
@@ -335,12 +353,18 @@ namespace CityX.UIEditor
             return fillRect;
         }
 
-        private static Text BuildLevelBadge(Transform parent, Vector2 position)
+        private static Text BuildLevelBadge(Transform parent, Vector2 position, Sprite circle)
         {
             var badge = new GameObject("LevelBadge", typeof(RectTransform));
             RectTransform badgeRect = Attach(badge, parent);
             TopLeft(badgeRect, position, new Vector2(44.0f, 44.0f));
-            badge.AddComponent<Image>().color = Gold;
+            // WITHOUT A SPRITE, Image fills its rect as a plain square --
+            // hud.tscn's own StyleBoxFlat_LevelBadge draws a rounded panel;
+            // the same circle sprite the portrait ring already uses gets
+            // the closest match for free rather than baking a second shape.
+            Image badgeImage = badge.AddComponent<Image>();
+            badgeImage.sprite = circle;
+            badgeImage.color = Gold;
 
             var label = new GameObject("LevelLabel", typeof(RectTransform));
             RectTransform labelRect = Attach(label, badge.transform);

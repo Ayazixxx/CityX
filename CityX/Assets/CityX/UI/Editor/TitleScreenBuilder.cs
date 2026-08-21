@@ -60,6 +60,17 @@ namespace CityX.UIEditor
                                "uses the city's own materials.");
                 return;
             }
+            // NEVER LOADED HERE BEFORE -- CityStreamer rendered every window
+            // submesh with a null material slot, which Unity shows as its
+            // bright magenta "missing material" fallback rather than
+            // anything resembling glass. Ground/pavement/structure were
+            // wired below; these three were simply forgotten alongside them.
+            Material darkGlass = AssetDatabase.LoadAssetAtPath<Material>(
+                "Assets/CityX/View/Materials/CityGlassDark.mat");
+            Material litGlass = AssetDatabase.LoadAssetAtPath<Material>(
+                "Assets/CityX/View/Materials/CityGlassLit.mat");
+            Material crackedGlass = AssetDatabase.LoadAssetAtPath<Material>(
+                "Assets/CityX/View/Materials/CityGlassCracked.mat");
 
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
@@ -103,6 +114,13 @@ namespace CityX.UIEditor
             cycle.Sun = sun;
             cycle.Moon = moon;
             cycle.Sky = camera;
+            // NOT SkyDome -- this camera clears to a solid colour, not a
+            // skybox, so a sky material would never actually be drawn here.
+            // LitWindows is the real gap: without it nothing ever raises the
+            // glass's emission, so even the "lit" windows sit flat and dark
+            // -- exactly wrong for a screen whose whole point is the lit
+            // windows carrying the picture (see TimeOfDay's own comment).
+            cycle.LitWindows = litGlass;
             cycle.TimeOfDay = TimeOfDay;
             // FROZEN. A title screen that gets brighter while somebody reads the
             // menu is a title screen with two different looks depending on how
@@ -122,6 +140,9 @@ namespace CityX.UIEditor
             streamer.GroundMaterial = ground;
             streamer.PavementMaterial = pavement;
             streamer.StructureMaterial = structure;
+            streamer.DarkGlassMaterial = darkGlass;
+            streamer.LitGlassMaterial = litGlass;
+            streamer.CrackedGlassMaterial = crackedGlass;
             streamer.Viewer = cameraObject.transform;
 
             BuildInterface();

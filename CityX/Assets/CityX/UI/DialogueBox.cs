@@ -63,6 +63,17 @@ namespace CityX.UI
         /// </summary>
         public bool IsOpen => _isOpen;
 
+        /// <summary>
+        /// Whether ANY DialogueBox anywhere is currently open -- there is one
+        /// instance per NPC prefab (DialogueBoxBuilder is baked into each
+        /// one, not a single scene singleton like Console/Pause/Map), so
+        /// nothing else can hold one instance reference and ask it directly.
+        /// PlayerChat reads this to stay closed while a conversation is up;
+        /// see its own guard list for why -- without it, Enter to advance a
+        /// dialogue line also opened the chat box in the same frame.
+        /// </summary>
+        public static bool AnyOpen { get; private set; }
+
         /// <summary>True while the player is being asked to pick a reply.</summary>
         public bool IsChoosing => IsOpen && _optionButtons.Count > 0;
 
@@ -88,6 +99,7 @@ namespace CityX.UI
             _nodes = nodes;
             _index = 0;
             _isOpen = true;
+            AnyOpen = true;
             if (SpeakerLabel != null)
             {
                 SpeakerLabel.text = speaker;
@@ -115,6 +127,7 @@ namespace CityX.UI
                 return;
             }
             _isOpen = false;
+            AnyOpen = false;
             if (Panel != null)
             {
                 Panel.SetActive(false);
@@ -271,6 +284,7 @@ namespace CityX.UI
             // and that has to land on a clean box rather than on top of the
             // old one's own replies.
             _isOpen = false;
+            AnyOpen = false;
             if (Panel != null)
             {
                 Panel.SetActive(false);
