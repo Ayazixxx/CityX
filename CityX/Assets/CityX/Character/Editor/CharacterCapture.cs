@@ -174,6 +174,67 @@ namespace CityX.CharacterEditor
             return material;
         }
 
+        [MenuItem("CityX/Capture Armpit Check")]
+        public static void CaptureArmpitCheck()
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath);
+            if (prefab == null) return;
+            string outputDirectory = Path.Combine(
+                Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
+            Directory.CreateDirectory(outputDirectory);
+
+            var root = new GameObject("ArmpitCheckRig");
+            RenderTexture target = null;
+            try
+            {
+                var sunObject = new GameObject("Sun");
+                sunObject.transform.SetParent(root.transform);
+                Light sun = sunObject.AddComponent<Light>();
+                sun.type = LightType.Directional;
+                sun.intensity = 1.3f;
+                sun.transform.rotation = Quaternion.Euler(20.0f, 20.0f, 0.0f);
+
+                var instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+                instance.transform.SetParent(root.transform);
+                instance.transform.position = Vector3.zero;
+                instance.transform.rotation = Quaternion.Euler(0.0f, 190.0f, 0.0f);
+                Pose(instance, Rest);
+
+                foreach (SkinnedMeshRenderer skin in instance.GetComponentsInChildren<SkinnedMeshRenderer>())
+                {
+                    skin.updateWhenOffscreen = true;
+                }
+
+                var cameraObject = new GameObject("Camera");
+                cameraObject.transform.SetParent(root.transform);
+                Camera camera = cameraObject.AddComponent<Camera>();
+                camera.clearFlags = CameraClearFlags.SolidColor;
+                camera.backgroundColor = new Color(0.05f, 0.06f, 0.09f);
+                camera.fieldOfView = 28.0f;
+                camera.nearClipPlane = 0.05f;
+                cameraObject.transform.position = new Vector3(0.3f, 1.75f, -1.6f);
+                cameraObject.transform.LookAt(new Vector3(0.32f, 1.7f, 0.0f));
+
+                target = new RenderTexture(700, 700, 24, RenderTextureFormat.ARGB32) { antiAliasing = 8 };
+                camera.targetTexture = target;
+                camera.Render();
+                RenderTexture.active = target;
+                var image = new Texture2D(700, 700, TextureFormat.RGB24, false);
+                image.ReadPixels(new Rect(0, 0, 700, 700), 0, 0);
+                image.Apply();
+                string path = Path.Combine(outputDirectory, "armpit-check.png");
+                File.WriteAllBytes(path, image.EncodeToPNG());
+                Object.DestroyImmediate(image);
+                Debug.Log($"CityX: wrote {path}");
+            }
+            finally
+            {
+                if (target != null) { target.Release(); Object.DestroyImmediate(target); }
+                Object.DestroyImmediate(root);
+            }
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
         [MenuItem("CityX/Capture Character Screenshots")]
         public static void Capture()
         {
