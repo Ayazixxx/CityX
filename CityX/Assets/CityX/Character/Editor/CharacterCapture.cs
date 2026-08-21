@@ -183,8 +183,39 @@ namespace CityX.CharacterEditor
                 Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
             Directory.CreateDirectory(outputDirectory);
 
+            // BOTH shoulders, several poses/angles -- the first pass only
+            // ever checked the left shoulder in the Rest pose from one
+            // grazing angle. A gap that survives at a different yaw, on the
+            // other side, or under a real (not hand-posed) clip would have
+            // been invisible to that single shot.
+            ArmpitShot(prefab, outputDirectory, "armpit-left-rest", 190.0f,
+                new Vector3(0.30f, 1.75f, -1.6f), new Vector3(0.32f, 1.70f, 0.0f), Rest, null, 0.0f);
+            ArmpitShot(prefab, outputDirectory, "armpit-right-rest", 10.0f,
+                new Vector3(-0.30f, 1.75f, -1.6f), new Vector3(-0.32f, 1.70f, 0.0f), Rest, null, 0.0f);
+            ArmpitShot(prefab, outputDirectory, "armpit-left-stride", 235.0f,
+                new Vector3(0.30f, 1.60f, -1.6f), new Vector3(0.32f, 1.55f, 0.0f), Stride, null, 0.0f);
+            ArmpitShot(prefab, outputDirectory, "armpit-right-punch", -25.0f,
+                new Vector3(-0.30f, 1.85f, -1.6f), new Vector3(-0.32f, 1.80f, 0.0f), Punch, null, 0.0f);
+            ArmpitShot(prefab, outputDirectory, "armpit-left-walk-clip", 235.0f,
+                new Vector3(0.30f, 1.55f, -1.6f), new Vector3(0.32f, 1.50f, 0.0f), null,
+                FindClip("walking"), 0.28f);
+            ArmpitShot(prefab, outputDirectory, "armpit-right-sword-clip", -25.0f,
+                new Vector3(-0.30f, 1.75f, -1.6f), new Vector3(-0.32f, 1.70f, 0.0f), null,
+                FindClip("2hsw_attack"), 0.45f);
+
+            if (Application.isBatchMode)
+            {
+                EditorApplication.Exit(0);
+            }
+        }
+
+        private static void ArmpitShot(GameObject prefab, string outputDirectory, string name, float yaw,
+            Vector3 cameraPosition, Vector3 lookAt, IEnumerable<Turn> pose, AnimationClip clip, float clipFraction)
+        {
             var root = new GameObject("ArmpitCheckRig");
             RenderTexture target = null;
+            var previousAmbient = RenderSettings.ambientMode;
+            var previousSky = RenderSettings.ambientSkyColor;
             try
             {
                 var sunObject = new GameObject("Sun");
@@ -192,13 +223,23 @@ namespace CityX.CharacterEditor
                 Light sun = sunObject.AddComponent<Light>();
                 sun.type = LightType.Directional;
                 sun.intensity = 1.3f;
-                sun.transform.rotation = Quaternion.Euler(20.0f, 20.0f, 0.0f);
+                sun.transform.rotation = Quaternion.Euler(20.0f, 20.0f + yaw, 0.0f);
+
+                // A DELIBERATE FILL LIGHT, not the scene's leftover default --
+                // this rig previously had NONE (unlike Shoot's own ambient
+                // setup below), and a real, closed, deeply concave crease with
+                // no fill light reaching it self-shadows to near-black,
+                // visually identical to this background colour. Ruling that
+                // out before trusting anything this tool renders as a hole.
+                RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+                RenderSettings.ambientSkyColor = new Color(0.34f, 0.36f, 0.40f);
 
                 var instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
                 instance.transform.SetParent(root.transform);
                 instance.transform.position = Vector3.zero;
-                instance.transform.rotation = Quaternion.Euler(0.0f, 190.0f, 0.0f);
-                Pose(instance, Rest);
+                instance.transform.rotation = Quaternion.Euler(0.0f, yaw, 0.0f);
+                Pose(instance, pose);
+                SampleClip(instance, clip, clipFraction);
 
                 foreach (SkinnedMeshRenderer skin in instance.GetComponentsInChildren<SkinnedMeshRenderer>())
                 {
@@ -212,8 +253,8 @@ namespace CityX.CharacterEditor
                 camera.backgroundColor = new Color(0.05f, 0.06f, 0.09f);
                 camera.fieldOfView = 28.0f;
                 camera.nearClipPlane = 0.05f;
-                cameraObject.transform.position = new Vector3(0.3f, 1.75f, -1.6f);
-                cameraObject.transform.LookAt(new Vector3(0.32f, 1.7f, 0.0f));
+                cameraObject.transform.position = cameraPosition;
+                cameraObject.transform.LookAt(lookAt);
 
                 target = new RenderTexture(700, 700, 24, RenderTextureFormat.ARGB32) { antiAliasing = 8 };
                 camera.targetTexture = target;
@@ -222,17 +263,18 @@ namespace CityX.CharacterEditor
                 var image = new Texture2D(700, 700, TextureFormat.RGB24, false);
                 image.ReadPixels(new Rect(0, 0, 700, 700), 0, 0);
                 image.Apply();
-                string path = Path.Combine(outputDirectory, "armpit-check.png");
+                string path = Path.Combine(outputDirectory, name + ".png");
                 File.WriteAllBytes(path, image.EncodeToPNG());
                 Object.DestroyImmediate(image);
                 Debug.Log($"CityX: wrote {path}");
             }
             finally
             {
+                RenderSettings.ambientMode = previousAmbient;
+                RenderSettings.ambientSkyColor = previousSky;
                 if (target != null) { target.Release(); Object.DestroyImmediate(target); }
                 Object.DestroyImmediate(root);
             }
-            if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 
         [MenuItem("CityX/Capture Character Screenshots")]

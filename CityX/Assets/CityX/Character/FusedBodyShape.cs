@@ -322,7 +322,7 @@ namespace CityX.Character
         /// enough that a joint is genuinely shared and narrow enough that the
         /// middle of a limb belongs to itself.
         /// </summary>
-        public const float WeightFalloffRadii = 1.0f;
+        public const float WeightFalloffRadii = 0.75f;
 
         /// <summary>
         /// The bones a vertex is attached to, and how much each one owns of it.
