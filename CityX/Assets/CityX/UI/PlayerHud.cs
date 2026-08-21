@@ -42,12 +42,13 @@ namespace CityX.UI
         /// <summary>
         /// In front of the character's own face, close and level -- a
         /// head-and-a-little-shoulder crop, not a full-body shot and not
-        /// tilted up/down. hud.gd's own PORTRAIT_CAMERA_DISTANCE, carried
-        /// straight over: this project's own head sphere measures out to a
-        /// near-identical absolute size, so the same distance frames the
-        /// same crop here.
+        /// tilted up/down. hud.gd's own PORTRAIT_CAMERA_DISTANCE was
+        /// carried straight over first, on the theory that a near-identical
+        /// head-sphere size meant the same distance would frame the same
+        /// crop -- reported too tight a crop live in-game, so pulled back
+        /// further than that carried-over number.
         /// </summary>
-        public const float PortraitCameraDistance = 0.85f;
+        public const float PortraitCameraDistance = 1.75f;
 
         /// <summary>A flat, darker shade of the gold ring around the portrait -- hud.gd's own PORTRAIT_BG_COLOR.</summary>
         public static readonly Color PortraitBackgroundColour = new Color(0.26f, 0.21f, 0.07f);

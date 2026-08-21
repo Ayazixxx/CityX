@@ -29,6 +29,94 @@ namespace CityX.UIEditor
         private const int Height = 720;
         private const string PrefabPath = "Assets/CityX/UI/PlayerHud.prefab";
 
+        /// <summary>
+        /// Renders exactly what the portrait camera would actually frame --
+        /// PlayerHud.CapturePortrait is a coroutine (needs a running Update
+        /// loop, which a plain batch-mode editor call has none of), so this
+        /// replicates its own positioning directly against a real
+        /// Player.prefab instance rather than trying to pump it.
+        /// </summary>
+        [MenuItem("CityX/Capture Portrait Framing")]
+        public static void CapturePortraitFraming()
+        {
+            var playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab");
+            if (playerPrefab == null)
+            {
+                Debug.LogError("CityX: no Player.prefab -- run CityX/Rebuild Player Rig first.");
+                return;
+            }
+
+            string outputDirectory = Path.Combine(
+                Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
+            Directory.CreateDirectory(outputDirectory);
+
+            var root = new GameObject("PortraitFramingRig");
+            RenderTexture target = null;
+            try
+            {
+                var player = (GameObject)PrefabUtility.InstantiatePrefab(playerPrefab);
+                player.transform.SetParent(root.transform);
+                player.transform.position = Vector3.zero;
+                player.transform.rotation = Quaternion.identity;
+
+                Renderer headRenderer = null;
+                foreach (Renderer renderer in player.GetComponentsInChildren<Renderer>(true))
+                {
+                    if (renderer.gameObject.name == "Head")
+                    {
+                        headRenderer = renderer;
+                        break;
+                    }
+                }
+                if (headRenderer == null)
+                {
+                    Debug.LogError("CityX: no 'Head' renderer found on the player.");
+                    return;
+                }
+
+                var lightObject = new GameObject("Light");
+                lightObject.transform.SetParent(root.transform);
+                Light light = lightObject.AddComponent<Light>();
+                light.type = LightType.Directional;
+                light.intensity = 1.2f;
+                light.transform.rotation = Quaternion.Euler(35.0f, 30.0f, 0.0f);
+
+                Vector3 headPos = headRenderer.bounds.center;
+                Vector3 facing = player.transform.forward;
+
+                var cameraObject = new GameObject("PortraitCamera");
+                cameraObject.transform.SetParent(root.transform);
+                Camera camera = cameraObject.AddComponent<Camera>();
+                camera.clearFlags = CameraClearFlags.SolidColor;
+                camera.backgroundColor = PlayerHud.PortraitBackgroundColour;
+                camera.fieldOfView = 35.0f;
+                camera.nearClipPlane = 0.05f;
+                camera.transform.position = headPos + facing * PlayerHud.PortraitCameraDistance;
+                camera.transform.LookAt(headPos, Vector3.up);
+
+                target = new RenderTexture(256, 256, 16, RenderTextureFormat.ARGB32) { antiAliasing = 4 };
+                camera.targetTexture = target;
+                camera.Render();
+                RenderTexture.active = target;
+                var image = new Texture2D(256, 256, TextureFormat.RGB24, false);
+                image.ReadPixels(new Rect(0, 0, 256, 256), 0, 0);
+                image.Apply();
+                string path = Path.Combine(outputDirectory, "portrait-framing.png");
+                File.WriteAllBytes(path, image.EncodeToPNG());
+                Object.DestroyImmediate(image);
+                Debug.Log($"CityX: wrote {path}");
+            }
+            finally
+            {
+                if (target != null) { target.Release(); Object.DestroyImmediate(target); }
+                Object.DestroyImmediate(root);
+            }
+            if (Application.isBatchMode)
+            {
+                EditorApplication.Exit(0);
+            }
+        }
+
         [MenuItem("CityX/Capture HUD Screenshot")]
         public static void Capture()
         {
