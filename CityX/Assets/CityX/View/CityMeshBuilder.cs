@@ -1329,8 +1329,20 @@ namespace CityX.View
                     continue;
                 }
 
-                float paneY0 = y0 + rows.Size * inset;
-                float paneY1 = y1 - rows.Size * inset;
+                // ASYMMETRIC ON PURPOSE: AddSlab hangs a floor slab downward
+                // from its own boundary, so a slab only ever eats into the
+                // TOP of the row directly below it -- a row's OWN bottom
+                // edge never has one, whatever the row index, because that
+                // material is entirely on the far side of the boundary
+                // below. Only the top edge needs checking. See
+                // WindowGrid.TopEdgeHasSlab's own comment for why that is a
+                // real per-building check and not a row-parity guess.
+                float insetBottom = WindowGrid.PaneInsetVerticalClear;
+                float insetTop = WindowGrid.TopEdgeHasSlab(row, rows.Size, site.Params.Height)
+                    ? WindowGrid.PaneInsetVerticalSlab
+                    : WindowGrid.PaneInsetVerticalClear;
+                float paneY0 = y0 + rows.Size * insetBottom;
+                float paneY1 = y1 - rows.Size * insetTop;
 
                 AddWallPanel(wallBuffer, wall, u0, u1, y0, paneY0, normal);
                 AddWallPanel(wallBuffer, wall, u0, u1, paneY1, y1, normal);
@@ -1376,8 +1388,12 @@ namespace CityX.View
             int seed, WindowGrid.Wall which, CellLayout columns, float doorU0, float doorU1)
         {
             float inset = WindowGrid.PaneInset;
-            float paneY0 = y0 + (y1 - y0) * inset;
-            float paneY1 = y1 - (y1 - y0) * inset;
+            // The door row is always row 0, whose own top boundary (1) is
+            // never a slab location (see WindowGrid.TopEdgeHasSlab) -- the
+            // small clear margin is correct on both edges here, not just a
+            // simplification.
+            float paneY0 = y0 + (y1 - y0) * WindowGrid.PaneInsetVerticalClear;
+            float paneY1 = y1 - (y1 - y0) * WindowGrid.PaneInsetVerticalClear;
 
             for (int column = 0; column < columns.Count; column++)
             {

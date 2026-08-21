@@ -1,3 +1,5 @@
+using UnityEngine;
+
 namespace CityX.World
 {
     /// <summary>
@@ -92,6 +94,60 @@ namespace CityX.World
         /// world-anchored one.
         /// </summary>
         public static float PaneInset => CellLayout.WindowMarginRatio;
+
+        /// <summary>
+        /// The vertical margin on whichever edge of a window row has NO
+        /// floor slab against it -- small, mostly cosmetic (a sill/lintel),
+        /// since nothing structural sits there to clear.
+        /// </summary>
+        public const float PaneInsetVerticalClear = 0.05f;
+
+        /// <summary>
+        /// The vertical margin on the edge that DOES have a floor slab
+        /// against it. AddSlab hangs a slab DOWNWARD from its own boundary
+        /// (bottomY = topY - SlabThickness -- see its own comment), so the
+        /// slab between two floors always occupies the TOP of the row
+        /// below it and never the bottom of the row above -- there is no
+        /// symmetric "clear the slab on both sides" case to design for.
+        /// 0.2m of BuildingInterior.SlabThickness plus a real 0.06m buffer,
+        /// not a hairline -- the previous attempt at this fix used a margin
+        /// only 0.024m past the slab and still measurably clipped it.
+        /// </summary>
+        public const float PaneInsetVerticalSlab = 0.08125f;
+
+        /// <summary>
+        /// Whether THIS window row's own top edge has a floor slab hanging
+        /// into it.
+        ///
+        /// CHECKED AGAINST THE REAL BuildingInterior.FloorTop VALUES, not a
+        /// row-is-odd parity guess. A first attempt at this used parity
+        /// (BuildingInterior spans a fixed two rows per storey, so an
+        /// ordinary slab always lands on an even row boundary counted from
+        /// the door row) and it is correct for every floor except the last:
+        /// FloorTop's own comment says the TOP floor "swallows everything
+        /// the cap left over" rather than sitting at a clean multiple of
+        /// the storey height, so its own ceiling -- which is still a real
+        /// slab; the roof is built through the exact same AddSlab call the
+        /// comment right there says so -- can land on a row boundary
+        /// parity never predicts. Confirmed as the actual cause of a test
+        /// failure parity alone could not explain: same building, same
+        /// column and row, unmoved by three different margin values.
+        /// </summary>
+        public static bool TopEdgeHasSlab(int row, float rowSize, float buildingHeight)
+        {
+            float storeyHeight = BuildingInterior.StoreyHeight(buildingHeight);
+            int floorCount = BuildingInterior.FloorCountFor(buildingHeight);
+            float rowTop = (row + 1) * rowSize;
+            for (int floor = 0; floor < floorCount; floor++)
+            {
+                float floorTop = BuildingInterior.FloorTop(floor, floorCount, buildingHeight, storeyHeight);
+                if (Mathf.Abs(rowTop - floorTop) < 0.01f)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
 
         /// <summary>
         /// Window rows across a building's height. Rows are counted from the
