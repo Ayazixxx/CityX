@@ -35,6 +35,19 @@ namespace CityX.WeaponsEditor
         // Real Beretta M9 overall length (~21.7cm).
         private const float TargetLengthMeters = 0.22f;
 
+        /// <summary>
+        /// How much bigger the pistol reads lying in the world than its
+        /// true-to-life NormalizeScale size -- reported too small to
+        /// notice on the ground. ONLY affects the world/pickup state: the
+        /// root's own scale gets overwritten outright by OnEquip's
+        /// GripHandPosition/GripHandRotationEuler/GripScale block the
+        /// instant it's picked up, so this never touches how it looks in
+        /// hand. The pickup trigger's radius is divided back down by the
+        /// same factor below so InteractRange still means what it says in
+        /// real metres, rather than silently doubling the pickup range too.
+        /// </summary>
+        private const float WorldPickupScale = 2.0f;
+
         private static readonly Color GunmetalColour = new Color(0.16f, 0.16f, 0.17f);
         private static readonly Color SparkColour = new Color(1.0f, 0.85f, 0.4f);
         private static readonly Color MuzzleLightColour = new Color(1.0f, 0.75f, 0.35f);
@@ -65,9 +78,11 @@ namespace CityX.WeaponsEditor
                     renderer.sharedMaterial = gunmetal;
                 }
 
+                root.transform.localScale = Vector3.one * WorldPickupScale;
+
                 var pickupTrigger = root.AddComponent<SphereCollider>();
                 pickupTrigger.isTrigger = true;
-                pickupTrigger.radius = PistolWeapon.InteractRange;
+                pickupTrigger.radius = PistolWeapon.InteractRange / WorldPickupScale;
 
                 GameObject muzzleFlash = BuildMuzzleFlash(root.transform, out ParticleSystem sparks);
 

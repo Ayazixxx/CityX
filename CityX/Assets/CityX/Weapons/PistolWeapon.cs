@@ -174,13 +174,14 @@ namespace CityX.Weapons
                 return;
             }
 
-            Vector3 toSelf = transform.position - _nearbyPlayer.position;
+            Transform lookSource = LookSourceFor(_nearbyPlayer);
+            Vector3 toSelf = transform.position - lookSource.position;
             if (toSelf.sqrMagnitude > InteractRange * InteractRange)
             {
                 return;
             }
             if (toSelf.sqrMagnitude > 0.0001f &&
-                Vector3.Dot(_nearbyPlayer.forward, toSelf.normalized) < LookDotThreshold)
+                Vector3.Dot(lookSource.forward, toSelf.normalized) < LookDotThreshold)
             {
                 return;
             }
@@ -194,6 +195,34 @@ namespace CityX.Weapons
             {
                 Destroy(gameObject);
             }
+        }
+
+        /// <summary>
+        /// THE CAMERA'S FACING, NOT THE BODY'S -- pistol.gd's own
+        /// _player_is_looking_at_me (and glass_bottle.gd's identical
+        /// _player_is_looking_at_me) reads the camera directly
+        /// (camera.global_transform.basis.z), not the body, and porting
+        /// that literally matters here: PlayerLocomotion only turns the
+        /// body to match the camera WHILE ACTUALLY MOVING (see its own
+        /// "the body faces the camera, not where it is going" comment),
+        /// so a player who walked up to a dropped pickup and stopped to
+        /// press E -- the natural way to pick up something stationary --
+        /// can be facing anywhere at all, and the old body-forward check
+        /// silently rejected the pickup no matter how many times E was
+        /// pressed. Same YawSource-or-Camera.main fallback chain
+        /// PlayerInputReader's own gunYawSource/swingYawSource already use,
+        /// so this asks the same question the same way everything else
+        /// that needs "where is the player actually looking" already does.
+        /// Shared with BottleWeapon.TickPickup, which had the identical bug.
+        /// </summary>
+        internal static Transform LookSourceFor(Transform player)
+        {
+            var input = player.GetComponent<PlayerInputReader>();
+            if (input != null && input.YawSource != null)
+            {
+                return input.YawSource;
+            }
+            return Camera.main != null ? Camera.main.transform : player;
         }
 
         private void OnTriggerEnter(Collider other)

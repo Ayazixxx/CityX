@@ -99,13 +99,14 @@ namespace CityX.Weapons
                 return;
             }
 
-            Vector3 toSelf = transform.position - _nearbyPlayer.position;
+            Transform lookSource = PistolWeapon.LookSourceFor(_nearbyPlayer);
+            Vector3 toSelf = transform.position - lookSource.position;
             if (toSelf.sqrMagnitude > InteractRange * InteractRange)
             {
                 return;
             }
             if (toSelf.sqrMagnitude > 0.0001f &&
-                Vector3.Dot(_nearbyPlayer.forward, toSelf.normalized) < LookDotThreshold)
+                Vector3.Dot(lookSource.forward, toSelf.normalized) < LookDotThreshold)
             {
                 return;
             }
