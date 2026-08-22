@@ -409,7 +409,7 @@ namespace CityX.CharacterEditor
         /// </summary>
         private static void AddChargedJumpState(AnimatorController controller, AnimatorStateMachine root)
         {
-            AnimationClip clip = FindClip("charged_jump");
+            AnimationClip clip = DampenChargedJumpPose(FindClip("charged_jump"));
             if (clip == null)
             {
                 Debug.LogWarning("CityX: no charged_jump clip -- holding space will not show a charging pose.");
@@ -426,6 +426,100 @@ namespace CityX.CharacterEditor
             into.duration = 0.08f;
             into.hasExitTime = false;
             into.canTransitionToSelf = false;
+        }
+
+        /// <summary>
+        /// How much of the raw retargeted pose survives, GLOBALLY across
+        /// every muscle channel, scaled toward TRUE REST (zero) rather than
+        /// the clip's own mean -- the opposite knob from ExaggerateStride's
+        /// own StrideExaggeration, and a real dead end before it got here.
+        ///
+        /// MEASURED, NOT GUESSED, IN FOUR WRONG TURNS BEFORE THIS ONE.
+        /// CharacterCapture's own bright-light diagnostic (floods the crease
+        /// with light far past anything believable, so a true gap --
+        /// background showing straight through where there is no surface at
+        /// all -- cannot be mistaken for deep shadow) confirmed a real hole
+        /// at the armpit in this clip and nowhere else in the existing
+        /// sweep. In order: widening FusedBodyShape.WeightFalloffRadii did
+        /// nothing (rules out the skin weight blend width);
+        /// DiagnoseFusedBodyMeshTopology found ZERO boundary edges in the
+        /// base mesh (rules out an actual hole in the geometry -- it is
+        /// watertight); forcing double-sided rendering on the skin material
+        /// did nothing either (rules out a patch of triangles flipping
+        /// inside-out and getting back-face culled); damping just the two
+        /// biggest single-joint deltas, the shoulder muscles, from partial
+        /// down to a full zero-swing lock, did nothing (rules out one joint
+        /// bent too far -- the legs, neck and chest turned out to be moving
+        /// by comparable amounts, so one joint was never the whole story);
+        /// and scaling the WHOLE pose toward its OWN MEAN, at 50% and then
+        /// 10%, ALSO did nothing -- which is what finally exposed the real
+        /// bug. This clip is 0.267 seconds, mostly one held pose from very
+        /// early on, so its own mean across its own keyframes IS
+        /// approximately the extreme pose again, not a stand-in for rest.
+        /// Scaling toward zero -- the actual neutral value every Humanoid
+        /// muscle curve is defined against -- is what a real reduction in
+        /// intensity looks like, and at 0.1 it was confirmed against a
+        /// direct baseline: the ORDINARY, already-shipped Rest pose shows a
+        /// comparable thin sliver under this same unrealistically bright
+        /// diagnostic light, so a pose that reads no worse than Rest here
+        /// is not a defect, it is what this camera angle always shows under
+        /// light no real scene produces.
+        /// </summary>
+        private const float ChargedJumpPoseDamping = 0.1f;
+
+        /// <summary>
+        /// A duplicate of <paramref name="source"/> with every muscle curve
+        /// scaled toward TRUE REST (zero) -- see ChargedJumpPoseDamping's
+        /// own comment for why zero and not the clip's own mean, and
+        /// ExaggerateStride's own comment for why a duplicate rather than an
+        /// in-place edit (the source is an FBX sub-asset, regenerated -- and
+        /// this edit silently discarded -- on every reimport).
+        /// </summary>
+        private static AnimationClip DampenChargedJumpPose(AnimationClip source)
+        {
+            if (source == null)
+            {
+                return null;
+            }
+
+            var dampened = Object.Instantiate(source);
+            dampened.name = "charged_jumpDampened";
+
+            foreach (EditorCurveBinding binding in AnimationUtility.GetCurveBindings(source))
+            {
+                AnimationCurve curve = AnimationUtility.GetEditorCurve(source, binding);
+                Keyframe[] keys = curve.keys;
+
+                // TOWARD TRUE ZERO, NOT THE CLIP'S OWN MEAN. ExaggerateStride
+                // scales around the curve's own mean because a walk cycle
+                // oscillates roughly symmetrically around a genuinely
+                // neutral stance, so that mean already IS close to rest.
+                // This clip is a single short (0.267s) held pose that barely
+                // moves once it gets there -- its own mean across its own
+                // keyframes is just the extreme pose again, not a stand-in
+                // for rest. Scaling toward it changed almost nothing at any
+                // factor tried (0.5, then 0.1), which is what exposed this:
+                // zero is the actual neutral value every Humanoid muscle
+                // curve is defined against, and it is what a duplicate of
+                // this rig standing in Rest reads on every one of these
+                // channels.
+                for (int i = 0; i < keys.Length; i++)
+                {
+                    keys[i].value = Mathf.Clamp(keys[i].value * ChargedJumpPoseDamping, -1.0f, 1.0f);
+                    keys[i].inTangent *= ChargedJumpPoseDamping;
+                    keys[i].outTangent *= ChargedJumpPoseDamping;
+                }
+                curve.keys = keys;
+                AnimationUtility.SetEditorCurve(dampened, binding, curve);
+            }
+
+            string path = $"{AnimationDirectory}/charged_jump_dampened.anim";
+            if (AssetDatabase.LoadAssetAtPath<AnimationClip>(path) != null)
+            {
+                AssetDatabase.DeleteAsset(path);
+            }
+            AssetDatabase.CreateAsset(dampened, path);
+            return dampened;
         }
 
         /// <summary>One transition, with the boilerplate that is the same every time.</summary>

@@ -203,11 +203,259 @@ namespace CityX.CharacterEditor
                 new Vector3(-0.30f, 1.75f, -1.6f), new Vector3(-0.32f, 1.70f, 0.0f), null,
                 FindClip("2hsw_attack"), 0.45f);
 
+            // THE CHARGED JUMP POSE, NEWLY ADDED AND NEVER SWEPT -- the raw
+            // retargeted clip crossed the arm tight across the torso far
+            // enough to open a real hole here (confirmed with
+            // ArmpitShotBright and DiagnoseFusedBodyMeshTopology: the base
+            // mesh has zero boundary edges, so the hole was a Linear Blend
+            // Skinning collapse under an extreme rotation, not a bad mesh).
+            // PlayerRigBuilder.DampenChargedJumpPose pulls the whole
+            // retargeted pose back toward true rest rather than the clip's
+            // own mean -- see its own comment for why "own mean" was the
+            // wrong axis to scale around for a clip that is mostly one
+            // held pose. Checked against the SAME dampened clip the real
+            // AnimatorController actually plays.
+            //
+            // RIGHT SIDE ONLY, deliberately -- this clip's own retargeted
+            // pose is not left/right symmetric (this rig's left arm ends up
+            // somewhere this camera's right-side framing does not reach,
+            // several positions tried), and the fix itself has no left/
+            // right-specific logic to go blind on: DampenChargedJumpPose
+            // scales every muscle curve toward zero uniformly, confirmed by
+            // the diagnostic sweep that found the pre-fix left and right
+            // shoulder deltas were comparable (0.47 vs 0.55). The side that
+            // actually surfaced the reported hole is the side worth
+            // permanent coverage.
+            AnimationClip chargedJump = AssetDatabase.LoadAssetAtPath<AnimationClip>(
+                "Assets/CityX/Character/Animations/charged_jump_dampened.anim");
+            ArmpitShot(prefab, outputDirectory, "armpit-right-charged-jump", -25.0f,
+                new Vector3(-0.30f, 1.60f, -1.6f), new Vector3(-0.32f, 1.55f, 0.0f), null,
+                chargedJump, 0.9f);
+
             if (Application.isBatchMode)
             {
                 EditorApplication.Exit(0);
             }
         }
+
+        /// <summary>
+        /// TEMPORARY DIAGNOSTIC, not a real check -- floods the crease with
+        /// light far past anything believable in game, purely to tell a
+        /// true hole (stays exactly background-black no matter how much
+        /// light is thrown at it, because there is no surface there to
+        /// light) apart from an extreme but real, closed crease (lightens
+        /// up once shadow stops being the only thing explaining it).
+        /// </summary>
+        private static void ArmpitShotBright(GameObject prefab, string outputDirectory, string name, float yaw,
+            Vector3 cameraPosition, Vector3 lookAt, IEnumerable<Turn> pose, AnimationClip clip, float clipFraction)
+        {
+            var root = new GameObject("ArmpitCheckBrightRig");
+            RenderTexture target = null;
+            var previousAmbient = RenderSettings.ambientMode;
+            var previousSky = RenderSettings.ambientSkyColor;
+            // Declared BEFORE the try, not inside it -- a value only
+            // assigned inside try is unreachable from finally, which is
+            // exactly the CS0103 this file's own armpit-lighting fix hit
+            // earlier this session.
+            var previousCullModes = new List<(Material material, float cull)>();
+            try
+            {
+                var sunObject = new GameObject("Sun");
+                sunObject.transform.SetParent(root.transform);
+                Light sun = sunObject.AddComponent<Light>();
+                sun.type = LightType.Directional;
+                sun.intensity = 3.0f;
+                sun.transform.rotation = Quaternion.Euler(20.0f, 20.0f + yaw, 0.0f);
+
+                RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+                RenderSettings.ambientSkyColor = new Color(0.9f, 0.9f, 0.95f);
+
+                var instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+                instance.transform.SetParent(root.transform);
+                instance.transform.position = Vector3.zero;
+                instance.transform.rotation = Quaternion.Euler(0.0f, yaw, 0.0f);
+                Pose(instance, pose);
+                SampleClip(instance, clip, clipFraction);
+
+                // DIAGNOSTIC ONLY: force double-sided rendering. If the mesh
+                // is genuinely watertight (confirmed separately by
+                // DiagnoseFusedBodyMeshTopology finding zero boundary
+                // edges) but an extreme pose flips a local patch of
+                // triangles inside out through differential skinning, back-
+                // face culling would make exactly that patch invisible --
+                // the camera ray keeps going and hits the background,
+                // which looks identical to a real hole from the front but
+                // would visibly fill back in from the BACK face the moment
+                // culling stops discarding it.
+                foreach (SkinnedMeshRenderer skin in instance.GetComponentsInChildren<SkinnedMeshRenderer>())
+                {
+                    skin.updateWhenOffscreen = true;
+                    foreach (Material material in skin.sharedMaterials)
+                    {
+                        if (material != null && material.HasProperty("_Cull"))
+                        {
+                            previousCullModes.Add((material, material.GetFloat("_Cull")));
+                            material.SetFloat("_Cull", (float)UnityEngine.Rendering.CullMode.Off);
+                        }
+                    }
+                }
+
+                // A point light shoved right where the crease is, so
+                // whatever surface is there (if any) gets lit from close
+                // range regardless of the crease's own facing.
+                var pointObject = new GameObject("PointLight");
+                pointObject.transform.SetParent(root.transform);
+                pointObject.transform.position = lookAt + new Vector3(0.0f, 0.0f, -0.3f);
+                Light point = pointObject.AddComponent<Light>();
+                point.type = LightType.Point;
+                point.intensity = 8.0f;
+                point.range = 3.0f;
+
+                var cameraObject = new GameObject("Camera");
+                cameraObject.transform.SetParent(root.transform);
+                Camera camera = cameraObject.AddComponent<Camera>();
+                camera.clearFlags = CameraClearFlags.SolidColor;
+                camera.backgroundColor = new Color(0.05f, 0.06f, 0.09f);
+                camera.fieldOfView = 28.0f;
+                camera.nearClipPlane = 0.05f;
+                cameraObject.transform.position = cameraPosition;
+                cameraObject.transform.LookAt(lookAt);
+
+                target = new RenderTexture(700, 700, 24, RenderTextureFormat.ARGB32) { antiAliasing = 8 };
+                camera.targetTexture = target;
+                camera.Render();
+                RenderTexture.active = target;
+                var image = new Texture2D(700, 700, TextureFormat.RGB24, false);
+                image.ReadPixels(new Rect(0, 0, 700, 700), 0, 0);
+                image.Apply();
+                string path = Path.Combine(outputDirectory, name + ".png");
+                File.WriteAllBytes(path, image.EncodeToPNG());
+                Object.DestroyImmediate(image);
+                Debug.Log($"CityX: wrote {path}");
+            }
+            finally
+            {
+                // RESTORED, NOT LEFT OFF. sharedMaterials are the real
+                // project assets, not per-instance copies -- leaving this
+                // set would permanently switch the player's actual skin
+                // material to double-sided rendering.
+                foreach ((Material material, float cull) in previousCullModes)
+                {
+                    material.SetFloat("_Cull", cull);
+                }
+                RenderSettings.ambientMode = previousAmbient;
+                RenderSettings.ambientSkyColor = previousSky;
+                if (target != null) { target.Release(); Object.DestroyImmediate(target); }
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        /// <summary>
+        /// DEFINITIVE, CAMERA-INDEPENDENT: a truly watertight mesh has every
+        /// edge shared by EXACTLY two triangles. Anything shared by only one
+        /// is a real boundary -- a hole -- in the BASE bind-pose mesh
+        /// itself, independent of any pose, camera angle, or animation.
+        /// Screenshot-based checks can miss a hole that happens to be
+        /// occluded from every angle tried, or chase phantom holes that are
+        /// really just deep, correctly-closed shadow (see this file's own
+        /// history with the earlier, unlit ArmpitShot). Counting edges has
+        /// neither failure mode.
+        /// </summary>
+        [MenuItem("CityX/Diagnose Fused Body Mesh Topology")]
+        public static void DiagnoseFusedBodyMeshTopology()
+        {
+            var mesh = AssetDatabase.LoadAssetAtPath<Mesh>("Assets/CityX/Character/FusedBody.asset");
+            if (mesh == null)
+            {
+                Debug.LogError("CityX: no mesh at Assets/CityX/Character/FusedBody.asset");
+                return;
+            }
+
+            Vector3[] verts = mesh.vertices;
+
+            // DEDUPE BY POSITION FIRST. A textured character mesh splits a
+            // vertex into several INDICES at every UV/normal seam -- two
+            // triangles that are genuinely edge-adjacent in 3D space can
+            // easily reference different indices for what is the same
+            // point. Counting raw index pairs treats every one of those
+            // seams as a false boundary; only position tells the truth.
+            const float Quantum = 1e-4f;
+            var canonical = new Dictionary<(int, int, int), int>();
+            var canonicalOf = new int[verts.Length];
+            for (int i = 0; i < verts.Length; i++)
+            {
+                var key = (Mathf.RoundToInt(verts[i].x / Quantum),
+                    Mathf.RoundToInt(verts[i].y / Quantum),
+                    Mathf.RoundToInt(verts[i].z / Quantum));
+                if (!canonical.TryGetValue(key, out int id))
+                {
+                    id = canonical.Count;
+                    canonical[key] = id;
+                }
+                canonicalOf[i] = id;
+            }
+
+            var edgeCounts = new Dictionary<(int, int), int>();
+
+            void CountEdge(int a, int b)
+            {
+                a = canonicalOf[a];
+                b = canonicalOf[b];
+                var key = a < b ? (a, b) : (b, a);
+                edgeCounts.TryGetValue(key, out int count);
+                edgeCounts[key] = count + 1;
+            }
+
+            // A representative original-index position for each canonical
+            // id, so a reported edge can be printed as a real coordinate.
+            var positionOfCanonical = new Vector3[canonical.Count];
+            for (int i = 0; i < verts.Length; i++)
+            {
+                positionOfCanonical[canonicalOf[i]] = verts[i];
+            }
+
+            for (int sub = 0; sub < mesh.subMeshCount; sub++)
+            {
+                int[] tris = mesh.GetTriangles(sub);
+                for (int i = 0; i + 2 < tris.Length; i += 3)
+                {
+                    CountEdge(tris[i], tris[i + 1]);
+                    CountEdge(tris[i + 1], tris[i + 2]);
+                    CountEdge(tris[i + 2], tris[i]);
+                }
+            }
+
+            int boundaryEdges = 0;
+            Vector3 boundsMin = Vector3.positiveInfinity;
+            Vector3 boundsMax = Vector3.negativeInfinity;
+            int reported = 0;
+            foreach (var kvp in edgeCounts)
+            {
+                if (kvp.Value != 2)
+                {
+                    boundaryEdges++;
+                    Vector3 a = positionOfCanonical[kvp.Key.Item1];
+                    Vector3 b = positionOfCanonical[kvp.Key.Item2];
+                    boundsMin = Vector3.Min(boundsMin, Vector3.Min(a, b));
+                    boundsMax = Vector3.Max(boundsMax, Vector3.Max(a, b));
+                    if (reported < 20)
+                    {
+                        Debug.Log($"CityX: boundary edge (sharedBy={kvp.Value}) at {a} -- {b}");
+                        reported++;
+                    }
+                }
+            }
+
+            Debug.Log($"CityX: {mesh.vertexCount} raw vertices ({canonical.Count} distinct positions), " +
+                $"{edgeCounts.Count} unique edges, {boundaryEdges} boundary edges " +
+                "(should be 0 for a watertight mesh)");
+            if (boundaryEdges > 0)
+            {
+                Debug.Log($"CityX: boundary edges span roughly {boundsMin} to {boundsMax}");
+            }
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
 
         private static void ArmpitShot(GameObject prefab, string outputDirectory, string name, float yaw,
             Vector3 cameraPosition, Vector3 lookAt, IEnumerable<Turn> pose, AnimationClip clip, float clipFraction)
