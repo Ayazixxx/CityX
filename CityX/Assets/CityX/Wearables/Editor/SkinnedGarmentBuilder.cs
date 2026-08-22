@@ -394,6 +394,16 @@ namespace CityX.WearablesEditor
                     garmentInstance.transform.SetParent(body.transform, false);
                     var garment = garmentInstance.GetComponent<SkinnedGarment>();
                     garment.OnEquip(body, ItemInstanceData.None);
+
+                    // HoodedCloak's own sleeve-arm spread normally reapplies
+                    // itself every frame from LateUpdate, which never runs
+                    // outside play mode -- called directly here for the same
+                    // reason the body pose above is applied by hand instead
+                    // of through a real Animator tick.
+                    if (garment is HoodedCloak cloak)
+                    {
+                        cloak.ApplySleeveArmSpread();
+                    }
                 }
 
                 // The renderer only re-skins when it thinks something
