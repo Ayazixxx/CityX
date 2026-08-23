@@ -27,6 +27,14 @@ namespace CityX.Character
         public float MinPitch = -35.0f;
         public float MaxPitch = 70.0f;
 
+        [Tooltip(
+            "Metres to the right of the spine the camera sits, Fortnite/GTA-style, so the body " +
+            "is off to one side of frame instead of dead centre. Reported directly: standing " +
+            "square behind the head put anything small and close in front of the player -- a " +
+            "dropped pistol on the ground being the concrete case -- right behind their own " +
+            "silhouette, with nothing on screen to actually judge alignment against.")]
+        public float ShoulderOffset = 0.55f;
+
         [Tooltip("Layers the spring arm collides with. Should include the city.")]
         public LayerMask CollisionLayers = ~0;
 
@@ -98,7 +106,16 @@ namespace CityX.Character
             Vector3 pivot = Target.position + Vector3.up * (height * PivotHeightFraction);
 
             Quaternion rotation = Quaternion.Euler(_pitch, _yaw, 0.0f);
-            Vector3 wanted = pivot - rotation * Vector3.forward * Distance;
+
+            // OFFSET THE DESTINATION, NOT THE COLLISION ORIGIN. The spherecast
+            // below still starts from the centred chest pivot -- see its own
+            // comment on why that specifically has to be inside the capsule --
+            // and simply aims at the shifted point instead, so a wall directly
+            // behind the player's own centreline still pulls the shoulder-shot
+            // camera in correctly rather than missing it because the cast
+            // started somewhere already past the collider.
+            Vector3 shoulderPivot = pivot + rotation * Vector3.right * ShoulderOffset;
+            Vector3 wanted = shoulderPivot - rotation * Vector3.forward * Distance;
 
             // Pull in if a wall is in the way. The sphere radius keeps the near
             // plane out of the surface rather than flush against it, which is
@@ -109,11 +126,16 @@ namespace CityX.Character
             // the body. A plain cast reports that capsule as the nearest hit and
             // pins the camera at minimum distance forever, which looks like the
             // camera being broken rather than like a collision bug.
+            // The shoulder offset makes pivot-to-wanted slightly longer than
+            // Distance itself (the hypotenuse of Distance and ShoulderOffset)
+            // -- casting only as far as the flat Distance would leave the
+            // last few centimetres in front of the actual camera unchecked.
+            float wantedDistance = Vector3.Distance(pivot, wanted);
             Vector3 direction = (wanted - pivot).normalized;
             RaycastHit[] hits = Physics.SphereCastAll(
-                pivot, 0.25f, direction, Distance, CollisionLayers, QueryTriggerInteraction.Ignore);
+                pivot, 0.25f, direction, wantedDistance, CollisionLayers, QueryTriggerInteraction.Ignore);
 
-            float nearest = Distance;
+            float nearest = wantedDistance;
             foreach (RaycastHit hit in hits)
             {
                 if (hit.transform.IsChildOf(Target) || hit.transform == Target)
@@ -128,7 +150,7 @@ namespace CityX.Character
                 }
             }
 
-            if (nearest < Distance)
+            if (nearest < wantedDistance)
             {
                 wanted = pivot + direction * Mathf.Max(0.4f, nearest - 0.1f);
             }
