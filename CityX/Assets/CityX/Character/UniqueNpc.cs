@@ -130,6 +130,9 @@ namespace CityX.Character
 
         public bool IsTalking => _dialogue != null && _dialogue.IsOpen;
 
+        /// <summary>Mirrors PistolWeapon.HasNearbyPlayer -- lets a test see OnTriggerEnter's result without a real key press.</summary>
+        public bool HasNearbyPlayer => _nearbyPlayer != null;
+
         // --- IDamageable: story characters never take damage. ---
         bool IDamageable.IsAlive => true;
 
@@ -179,7 +182,20 @@ namespace CityX.Character
 
         private void OnTriggerEnter(Collider other)
         {
-            if (other.GetComponentInParent<CharacterController>() != null)
+            // EXCLUDES THIS NPC'S OWN CONTROLLER, NOT JUST A NULL CHECK.
+            // Bind() puts the interact trigger on the same GameObject as the
+            // CharacterController RequireComponent demands, and with no
+            // Rigidbody grouping them Unity treats the two as separate
+            // bodies -- this trigger genuinely fires against its own
+            // controller the moment physics first evaluates it. A plain
+            // null check let that self-hit through: _nearbyPlayer == this
+            // NPC's own transform means distance-to-self is permanently
+            // 0.00, which is also permanently inside InteractRange, so the
+            // stale-reference self-heal in HandleInteractInput can never
+            // clear it -- E starts a conversation from literally anywhere,
+            // forever, confirmed directly from CityX-NPC-DIAG log output.
+            CharacterController controller = other.GetComponentInParent<CharacterController>();
+            if (controller != null && controller != Controller)
             {
                 _nearbyPlayer = other.transform;
             }
