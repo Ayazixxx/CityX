@@ -21,11 +21,22 @@ namespace CityX.Character
     /// </summary>
     public static class HeadMesh
     {
-        /// <summary>character.gd's own LAT_SEGMENTS.</summary>
-        public const int LatitudeSegments = 8;
+        /// <summary>
+        /// character.gd's own LAT_SEGMENTS was 8 -- fine with Godot's own
+        /// lighting, but reported here as visibly faceted creases across
+        /// the head, both in the surface shading and the silhouette
+        /// (smooth per-vertex normals fix the shading gradient WITHIN a
+        /// triangle, never the polygon edges themselves, and at 18cm a
+        /// panel on a 70cm-diameter sphere those edges are real). Raised
+        /// well past parity since the ask was "make it smooth", not "match
+        /// Godot's own faceting" -- the paint UV mapping (u = lon/
+        /// LongitudeSegments, v scaled the same way) is proportional, so
+        /// this is a pure resolution increase with nothing else to retune.
+        /// </summary>
+        public const int LatitudeSegments = 24;
 
-        /// <summary>character.gd's own LON_SEGMENTS.</summary>
-        public const int LongitudeSegments = 12;
+        /// <summary>See LatitudeSegments -- character.gd's own LON_SEGMENTS was 12.</summary>
+        public const int LongitudeSegments = 36;
 
         /// <summary>
         /// Where the head's centre sits relative to the head BONE.
