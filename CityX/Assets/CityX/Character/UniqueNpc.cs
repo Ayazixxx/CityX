@@ -109,6 +109,7 @@ namespace CityX.Character
         protected Animator BodyAnimator;
 
         private Transform _hips;
+        private Transform _spine;
         private IDialogueBox _dialogue;
         private Transform _nearbyPlayer;
         private bool _gatedInput;
@@ -169,6 +170,7 @@ namespace CityX.Character
             Controller = GetComponent<CharacterController>();
             BodyAnimator = GetComponentInChildren<Animator>();
             _hips = BodyAnimator != null ? BodyAnimator.GetBoneTransform(HumanBodyBones.Hips) : null;
+            _spine = BodyAnimator != null ? BodyAnimator.GetBoneTransform(HumanBodyBones.Spine) : null;
             _steering.ConfigureFrom(Controller);
 
             var trigger = gameObject.AddComponent<SphereCollider>();
@@ -176,12 +178,20 @@ namespace CityX.Character
             trigger.radius = InteractRange;
         }
 
-        /// <summary>See PlayerLocomotion's own identical LateUpdate for why -- same shared mocap, same fix.</summary>
+        /// <summary>
+        /// See PlayerLocomotion's own identical LateUpdate for why (hips and
+        /// spine both -- freezing hips alone just moved the reported wiggle
+        /// up to the torso).
+        /// </summary>
         protected virtual void LateUpdate()
         {
             if (_hips != null)
             {
                 _hips.localRotation = Quaternion.identity;
+            }
+            if (_spine != null)
+            {
+                _spine.localRotation = Quaternion.identity;
             }
         }
 

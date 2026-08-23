@@ -7,21 +7,23 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// THE REPORTED "BUTT WIGGLES SIDE TO SIDE" REGRESSION. character.gd's
-    /// retarget() forces the hips bone's calibrated global basis to a bare
-    /// identity for every walk/run/punch clip (see its own "our game's own
-    /// walk/run/punch animations already follow this convention" comment) --
-    /// the raw Mixamo mocap's natural pelvis sway never reaches the skeleton
-    /// in Godot at all. Unity's Humanoid retargeting has no equivalent
-    /// per-clip switch, so that sway landed on the actual Hips joint here,
-    /// which is exactly the visible wiggle. PlayerLocomotion.LateUpdate now
-    /// resets the Hips bone's own local rotation to identity every frame,
-    /// after the Animator has already evaluated the pose for it.
+    /// THE REPORTED "BUTT WIGGLES SIDE TO SIDE" / "TOP OF THE TORSO WADDLES"
+    /// REGRESSION. character.gd's retarget() forces the hips bone's
+    /// calibrated global basis to a bare identity for every walk/run/punch
+    /// clip (see its own "our game's own walk/run/punch animations already
+    /// follow this convention" comment) -- the raw Mixamo mocap's natural
+    /// pelvis sway never reaches the skeleton in Godot at all. Unity's
+    /// Humanoid retargeting has no equivalent per-clip switch, so that sway
+    /// landed on the actual Hips joint here. Freezing hips alone just moved
+    /// the reported wiggle up to the spine instead of removing it -- Unity's
+    /// muscle-space retargeting of the same Mixamo curves onto this rig's
+    /// own proportions does not carry Godot's implicit guarantee that spine
+    /// sway stays small, so both bones now get the same treatment.
     ///
     /// NEEDS THE REAL Player.prefab, NOT A BARE GameObject -- there is no
-    /// Hips bone, no Animator and no sprint clip to actually exhibit the
-    /// sway without the genuine rig, unlike PlayerLocomotionPlayTests' own
-    /// primitives-only tests (see that file's own comment on why those
+    /// Hips/Spine bone, no Animator and no sprint clip to actually exhibit
+    /// the sway without the genuine rig, unlike PlayerLocomotionPlayTests'
+    /// own primitives-only tests (see that file's own comment on why those
     /// deliberately test the controller rather than the art).
     /// </summary>
     public sealed class PlayerLocomotionHipsPlayTests
@@ -31,6 +33,7 @@ namespace CityX.Tests
         private PlayerLocomotion _locomotion;
         private Animator _animator;
         private Transform _hips;
+        private Transform _spine;
 
         private const float StepSeconds = 1.0f / 60.0f;
 
@@ -51,7 +54,7 @@ namespace CityX.Tests
         }
 
         [UnityTest]
-        public IEnumerator TheHipsNeverRotateAwayFromIdentityWhileSprinting()
+        public IEnumerator TheHipsAndSpineNeverRotateAwayFromIdentityWhileSprinting()
         {
 #if UNITY_EDITOR
             GameObject playerPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
@@ -63,7 +66,9 @@ namespace CityX.Tests
             _animator = _player.GetComponentInChildren<Animator>();
             Assert.IsNotNull(_animator, "Player.prefab has no Animator");
             _hips = _animator.GetBoneTransform(HumanBodyBones.Hips);
+            _spine = _animator.GetBoneTransform(HumanBodyBones.Spine);
             Assert.IsNotNull(_hips, "Player.prefab's Animator has no Hips bone mapped");
+            Assert.IsNotNull(_spine, "Player.prefab's Animator has no Spine bone mapped");
 
             var input = new LocomotionInput { Move = new Vector2(0.0f, 1.0f), Sprint = true };
 
@@ -85,10 +90,15 @@ namespace CityX.Tests
                 _locomotion.Tick(input, StepSeconds);
                 yield return null;
 
-                float angle = Quaternion.Angle(_hips.localRotation, Quaternion.identity);
-                Assert.Less(angle, 0.01f,
-                    $"hips rotated {angle:0.000} degrees off identity at step {step} -- " +
+                float hipsAngle = Quaternion.Angle(_hips.localRotation, Quaternion.identity);
+                Assert.Less(hipsAngle, 0.01f,
+                    $"hips rotated {hipsAngle:0.000} degrees off identity at step {step} -- " +
                     "the reported side-to-side wiggle is still there");
+
+                float spineAngle = Quaternion.Angle(_spine.localRotation, Quaternion.identity);
+                Assert.Less(spineAngle, 0.01f,
+                    $"spine rotated {spineAngle:0.000} degrees off identity at step {step} -- " +
+                    "the reported top-of-the-torso waddle is still there");
             }
 
             Object.Destroy(_player);

@@ -72,6 +72,9 @@ namespace CityX.Character
         private CharacterController _controller;
         private Animator _animator;
         private Transform _hips;
+        private Transform _spine;
+        private Transform _leftFoot;
+        private Transform _rightFoot;
         private float _verticalVelocity;
         private float _appliedHeight = -1.0f;
 
@@ -206,38 +209,106 @@ namespace CityX.Character
             _controller = GetComponent<CharacterController>();
             _animator = GetComponentInChildren<Animator>();
             _hips = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.Hips) : null;
+            _spine = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.Spine) : null;
+            _leftFoot = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.LeftFoot) : null;
+            _rightFoot = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.RightFoot) : null;
             ApplyHeight();
         }
 
         /// <summary>
-        /// FREEZES THE HIPS BONE'S OWN ROTATION EVERY FRAME -- character.gd's
-        /// retarget() hard-ports the exact same rule: every walk/run/punch
-        /// clip is retargeted with the hips bone's calibrated global basis
-        /// forced to a bare identity (see its own "our game's own walk/run/
-        /// punch animations already follow this convention" comment), so the
-        /// raw Mixamo mocap's natural pelvis sway/roll never reaches the
-        /// skeleton at all -- body facing comes entirely from this
-        /// GameObject's own transform, never from an animation track. Unity's
-        /// Humanoid import has no equivalent per-clip "drop this bone's
-        /// track" switch, so the retargeted pose keeps that sway on the
-        /// actual Hips joint, which read as the reported "butt wiggles side
-        /// to side" on every locomotion clip built from the same mocap set.
+        /// FREEZES THE HIPS AND SPINE BONES' OWN ROTATION EVERY FRAME --
+        /// character.gd's retarget() hard-ports the exact same rule for
+        /// hips: every walk/run/punch clip is retargeted with the hips
+        /// bone's calibrated global basis forced to a bare identity (see
+        /// its own "our game's own walk/run/punch animations already
+        /// follow this convention" comment), so the raw Mixamo mocap's
+        /// natural pelvis sway/roll never reaches the skeleton at all --
+        /// body facing comes entirely from this GameObject's own
+        /// transform, never from an animation track. Unity's Humanoid
+        /// import has no equivalent per-clip "drop this bone's track"
+        /// switch, so the retargeted pose kept that sway on the actual
+        /// Hips joint, which read as the reported "butt wiggles side to
+        /// side."
+        ///
+        /// SPINE JOINED IT AFTER FREEZING HIPS ALONE MOVED THE WADDLE UP,
+        /// NOT OUT. Godot only special-cases hips in its own retargeter;
+        /// it does not need to touch spine because Godot's own bone-by-bone
+        /// FK composition apparently keeps the source mocap's spine sway
+        /// small enough not to read as a wobble. Unity's muscle-space
+        /// retargeting of the identical Mixamo curves onto this rig's very
+        /// different proportions (see BodyRig's own Mixamo-vs-native height
+        /// mismatch) does not carry that same guarantee, confirmed live:
+        /// with only hips frozen, the reported wiggle just moved to "the
+        /// top of the torso." Matches this project's own stride-exaggeration
+        /// precedent (PlayerRigBuilder.ExaggerateStride) of the same lesson
+        /// -- proportion mismatches between the two retargeting pipelines
+        /// do not fix themselves just because the source clip is identical.
+        ///
         /// Reset AFTER the Animator evaluates the frame's pose (LateUpdate
         /// runs after the Animation phase), so this overwrites whatever the
         /// clip just wrote rather than being overwritten by it. Position is
         /// untouched -- only rotation carried the sway; nothing here should
-        /// fight a genuine hips-height clip like standing_to_crouch.
+        /// fight a genuine hips-height clip like standing_to_crouch, and
+        /// nothing here touches the neck/head, which still turn freely.
         ///
         /// Automatically stops the instant Ragdoll disables this component
         /// (see Ragdoll.cs's own "_locomotion.enabled = false") -- Unity
         /// never calls LateUpdate on a disabled MonoBehaviour, so a limp
-        /// body's hips stay free for physics to actually throw around.
+        /// body's hips and spine stay free for physics to actually throw
+        /// around.
         /// </summary>
         private void LateUpdate()
         {
             if (_hips != null)
             {
                 _hips.localRotation = Quaternion.identity;
+            }
+            if (_spine != null)
+            {
+                _spine.localRotation = Quaternion.identity;
+            }
+            ClampFeetAboveGround();
+        }
+
+        /// <summary>
+        /// THE GENERAL FLOOR CLAMP -- confirmed live on charged_jump: its
+        /// hips carries a real, large local position drop (measured at
+        /// roughly -0.31m on this rig, on top of an already-crouched pose),
+        /// which Humanoid retargeting inherited faithfully from the source
+        /// FBX's own proportions but which lands well BELOW ground once
+        /// mapped onto this rig's own taller legs -- confirmed by sampling
+        /// the real feet bones mid-charge and finding them over a metre
+        /// under the floor. That is a per-clip calibration problem, and
+        /// there is no reason to assume charged_jump is the only clip that
+        /// will ever have it (a user-supplied FBX, unlike the vetted Mixamo
+        /// set everything else in this rig retargets from).
+        ///
+        /// Rather than hand-tune each offending clip's own position curves
+        /// one at a time as they turn up, this is the same fix applied
+        /// generally: after the Animator has evaluated the frame's pose,
+        /// if the lower of the two feet bones would sit below the
+        /// CharacterController's own ground contact (see ApplyHeight's own
+        /// centre/height maths for why transform.position.y IS that contact
+        /// point), lift the WHOLE VISUAL RIG -- not the collider, and not
+        /// any individual bone -- by exactly enough to put it back on the
+        /// surface. Moving the rig's own root rather than clamping a bone
+        /// preserves the pose's internal shape exactly (a crouch still
+        /// looks like a crouch, just standing on the ground instead of
+        /// through it) instead of distorting the leg chain by forcing one
+        /// joint's position independently of the others.
+        /// </summary>
+        private void ClampFeetAboveGround()
+        {
+            if (_animator == null || _leftFoot == null || _rightFoot == null)
+            {
+                return;
+            }
+            _animator.transform.localPosition = Vector3.zero;
+            float lowestFootY = Mathf.Min(_leftFoot.position.y, _rightFoot.position.y);
+            float penetration = transform.position.y - lowestFootY;
+            if (penetration > 0.0f)
+            {
+                _animator.transform.localPosition = new Vector3(0.0f, penetration, 0.0f);
             }
         }
 

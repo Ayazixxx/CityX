@@ -36,6 +36,9 @@ namespace CityX.Character
         private CharacterController _controller;
         private Animator _animator;
         private Transform _hips;
+        private Transform _spine;
+        private Transform _leftFoot;
+        private Transform _rightFoot;
         private Ragdoll _ragdoll;
         private CivilianBrain _brain;
 
@@ -60,25 +63,49 @@ namespace CityX.Character
             _controller = GetComponent<CharacterController>();
             _animator = GetComponentInChildren<Animator>();
             _hips = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.Hips) : null;
+            _spine = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.Spine) : null;
+            _leftFoot = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.LeftFoot) : null;
+            _rightFoot = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.RightFoot) : null;
             _ragdoll = GetComponent<Ragdoll>();
             _brain = new CivilianBrain(Seed);
             _steering.ConfigureFrom(_controller);
         }
 
         /// <summary>
-        /// See PlayerLocomotion's own identical LateUpdate for why -- same
-        /// shared mocap, same fix. Guarded on _animator.enabled rather than
-        /// being auto-disabled the way PlayerLocomotion is: Ragdoll only
-        /// ever looks up a PlayerLocomotion to disable (see its own
-        /// _locomotion field), never a Civilian, so this component keeps
-        /// running after Activate() and has to check for itself -- same
-        /// condition Update() already uses below for the same reason.
+        /// See PlayerLocomotion's own identical LateUpdate for why (hips
+        /// and spine both -- freezing hips alone just moved the reported
+        /// wiggle up to the torso -- plus the same general floor clamp, see
+        /// PlayerLocomotion.ClampFeetAboveGround's own comment). Guarded on
+        /// _animator.enabled rather than being auto-disabled the way
+        /// PlayerLocomotion is: Ragdoll only ever looks up a PlayerLocomotion
+        /// to disable (see its own _locomotion field), never a Civilian, so
+        /// this component keeps running after Activate() and has to check
+        /// for itself -- same condition Update() already uses below for the
+        /// same reason.
         /// </summary>
         private void LateUpdate()
         {
-            if (_hips != null && _animator != null && _animator.enabled)
+            if (_animator == null || !_animator.enabled)
+            {
+                return;
+            }
+            if (_hips != null)
             {
                 _hips.localRotation = Quaternion.identity;
+            }
+            if (_spine != null)
+            {
+                _spine.localRotation = Quaternion.identity;
+            }
+            if (_leftFoot != null && _rightFoot != null)
+            {
+                _animator.transform.localPosition = Vector3.zero;
+                float lowestFootY = Mathf.Min(_leftFoot.position.y, _rightFoot.position.y);
+                float penetration = transform.position.y - lowestFootY;
+                if (penetration > 0.0f)
+                {
+                    _animator.transform.localPosition = new Vector3(0.0f, penetration, 0.0f);
+                }
             }
         }
 
