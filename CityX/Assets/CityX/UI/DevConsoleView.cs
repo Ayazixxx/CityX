@@ -413,8 +413,28 @@ namespace CityX.UI
         }
 
         /// <summary>
-        /// Swaps every skin renderer's shader between the normal URP Lit
-        /// and CityX/ToonLit.
+        /// Swaps every eligible renderer's shader between the normal URP
+        /// Lit and CityX/ToonLit -- EVERY ONE OF THEM, not just characters.
+        /// Character skins and the whole city (ground, pavement, concrete,
+        /// doors, guard rails) are built on the exact same "Universal
+        /// Render Pipeline/Lit" shader asset (confirmed directly: every one
+        /// of those .mat files points at the identical shader GUID), so
+        /// asking "is this material currently Lit" is what "all the
+        /// graphics" actually means here -- a name-based allowlist
+        /// (formerly PlayerSkin/CivilianSkin only) would need updating by
+        /// hand for every new material the city ever adds, and would have
+        /// silently stayed character-only forever if nobody remembered to.
+        ///
+        /// OPAQUE SURFACES ONLY. Glass (CityGlassDark/Lit/Cracked) is built
+        /// on this SAME shader with its Surface Type property set to
+        /// Transparent rather than a different shader asset -- ToonLit has
+        /// no Blend state at all (Tags declare it Opaque, "Queue" =
+        /// "Geometry"), so toon-shading a window would not restyle it, it
+        /// would make it suddenly solid, undoing the real work that went
+        /// into making a building's glass see-through. _Surface (0 =
+        /// Opaque, 1 = Transparent) is the same URP Lit property that
+        /// decision is already stored in, so checking it is enough to skip
+        /// every window without needing a name check for them either.
         ///
         /// WALKS LIVE RENDERERS, NOT A WIRED Material[] -- a material
         /// asset like PlayerSkin.mat is only what a renderer STARTS on.
@@ -443,14 +463,14 @@ namespace CityX.UI
             int changed = 0;
             foreach (Renderer renderer in FindObjectsByType<Renderer>(FindObjectsSortMode.None))
             {
-                // Read sharedMaterial to test the name -- it returns
-                // whatever is actually bound (instance or asset) without
-                // instancing anything just to look. Only a match then goes
-                // through .material, so an untouched civilian population
-                // still gets one shared swap instead of a thousand new
-                // per-renderer clones.
+                // Read sharedMaterial to test it -- it returns whatever is
+                // actually bound (instance or asset) without instancing
+                // anything just to look. Only a match then goes through
+                // .material, so an untouched civilian population (or an
+                // untouched building) still gets one shared swap instead of
+                // a thousand new per-renderer clones.
                 Material current = renderer.sharedMaterial;
-                if (current == null || !IsToonableSkinName(current.name))
+                if (current == null || !IsToonableMaterial(current))
                 {
                     continue;
                 }
@@ -461,8 +481,20 @@ namespace CityX.UI
             Log("cel shading " + (_celShadeOn ? "on" : "off") + $" ({changed} renderer(s))");
         }
 
-        private static bool IsToonableSkinName(string materialName) =>
-            materialName.StartsWith("PlayerSkin") || materialName.StartsWith("CivilianSkin");
+        /// <summary>Public, not private, so a test can drive this exact rule directly.</summary>
+        public static bool IsToonableMaterial(Material material)
+        {
+            if (material.shader == null || material.shader.name != "Universal Render Pipeline/Lit")
+            {
+                return false;
+            }
+            // Missing the property at all means it was never given a
+            // surface-type choice, which URP Lit only omits for a material
+            // stuck on its own default (Opaque) -- treated as opaque rather
+            // than excluded, so a plain fresh material is never silently
+            // skipped just for not being touched yet.
+            return !material.HasProperty("_Surface") || material.GetFloat("_Surface") == 0.0f;
+        }
 
         /// <summary>
         /// Friendly console spellings for the item ids in ItemRegistry.
