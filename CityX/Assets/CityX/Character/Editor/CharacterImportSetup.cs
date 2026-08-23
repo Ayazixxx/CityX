@@ -159,23 +159,45 @@ namespace CityX.CharacterEditor
         private static void ConfigureVerticalMotion(ModelImporter importer, string path)
         {
             string name = Path.GetFileNameWithoutExtension(path);
-            // charged_jump is the same shape as the other three: a deep
-            // wind-up crouch the body has to actually lower into, not
-            // stoop through, while it holds for however long space stays
-            // down.
+            // charged_jump WAS ADDED HERE, SPECULATIVELY, AND WAS WRONG. It
+            // looked like the same shape as the other three -- a body that
+            // has to actually lower rather than stoop -- but it is a lean
+            // into a coiled, weight-shifted stance with one leg crossed at
+            // an angle, not a clean symmetric vertical crouch, and
+            // heightFromFeet's own "anchor to the lowest point" measurement
+            // assumes exactly the shape a real crouch has. Anchored to the
+            // wrong reference point on this clip, it sank the whole body
+            // below the floor for as long as space was held -- confirmed
+            // by the user, reported as "clips through the floor" the moment
+            // this shipped. Left at the DEFAULT treatment instead (Y
+            // motion discarded, matching jump.fbx and every other non-
+            // crouch clip), which is the same choice this file already
+            // made for every clip that is not one of the three real
+            // crouches.
             bool lowers = name == "standing_to_crouch" || name == "crouch_to_idle" ||
-                          name == "crouch_walk" || name == "charged_jump";
-            if (!lowers)
-            {
-                return;
-            }
+                          name == "crouch_walk";
 
+            // ALWAYS WRITTEN, NEVER JUST RETURNED PAST. A clip that used to
+            // qualify (charged_jump, briefly, before that turned out to be
+            // wrong) and reads `importer.defaultClipAnimations` again on a
+            // later reimport does NOT get a clean slate for free -- that
+            // property re-derives frame ranges from the take, but Unity
+            // still carries the LAST EXPLICITLY-SAVED per-clip settings
+            // forward underneath it, because those live in this importer's
+            // own persisted state, not in the source file. Returning early
+            // here left lockRootHeightY/heightFromFeet=true sitting in
+            // charged_jump.fbx.meta from the earlier, wrong attempt even
+            // after the C# said it should no longer apply -- confirmed
+            // directly in the .meta file after this method's own early
+            // return ran on it. Every clip gets an explicit value for both
+            // fields every time now, so which one is true is never a
+            // function of import history.
             ModelImporterClipAnimation[] clips = importer.defaultClipAnimations;
             for (int i = 0; i < clips.Length; i++)
             {
-                clips[i].lockRootHeightY = true;    // bake Y into the pose
+                clips[i].lockRootHeightY = lowers;    // bake Y into the pose
                 clips[i].keepOriginalPositionY = false;
-                clips[i].heightFromFeet = true;     // measured from the feet
+                clips[i].heightFromFeet = lowers;     // measured from the feet
             }
             importer.clipAnimations = clips;
         }
