@@ -71,6 +71,7 @@ namespace CityX.Character
 
         private CharacterController _controller;
         private Animator _animator;
+        private Transform _hips;
         private float _verticalVelocity;
         private float _appliedHeight = -1.0f;
 
@@ -204,7 +205,40 @@ namespace CityX.Character
         {
             _controller = GetComponent<CharacterController>();
             _animator = GetComponentInChildren<Animator>();
+            _hips = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.Hips) : null;
             ApplyHeight();
+        }
+
+        /// <summary>
+        /// FREEZES THE HIPS BONE'S OWN ROTATION EVERY FRAME -- character.gd's
+        /// retarget() hard-ports the exact same rule: every walk/run/punch
+        /// clip is retargeted with the hips bone's calibrated global basis
+        /// forced to a bare identity (see its own "our game's own walk/run/
+        /// punch animations already follow this convention" comment), so the
+        /// raw Mixamo mocap's natural pelvis sway/roll never reaches the
+        /// skeleton at all -- body facing comes entirely from this
+        /// GameObject's own transform, never from an animation track. Unity's
+        /// Humanoid import has no equivalent per-clip "drop this bone's
+        /// track" switch, so the retargeted pose keeps that sway on the
+        /// actual Hips joint, which read as the reported "butt wiggles side
+        /// to side" on every locomotion clip built from the same mocap set.
+        /// Reset AFTER the Animator evaluates the frame's pose (LateUpdate
+        /// runs after the Animation phase), so this overwrites whatever the
+        /// clip just wrote rather than being overwritten by it. Position is
+        /// untouched -- only rotation carried the sway; nothing here should
+        /// fight a genuine hips-height clip like standing_to_crouch.
+        ///
+        /// Automatically stops the instant Ragdoll disables this component
+        /// (see Ragdoll.cs's own "_locomotion.enabled = false") -- Unity
+        /// never calls LateUpdate on a disabled MonoBehaviour, so a limp
+        /// body's hips stay free for physics to actually throw around.
+        /// </summary>
+        private void LateUpdate()
+        {
+            if (_hips != null)
+            {
+                _hips.localRotation = Quaternion.identity;
+            }
         }
 
         /// <summary>

@@ -35,6 +35,7 @@ namespace CityX.Character
 
         private CharacterController _controller;
         private Animator _animator;
+        private Transform _hips;
         private Ragdoll _ragdoll;
         private CivilianBrain _brain;
 
@@ -58,9 +59,27 @@ namespace CityX.Character
         {
             _controller = GetComponent<CharacterController>();
             _animator = GetComponentInChildren<Animator>();
+            _hips = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.Hips) : null;
             _ragdoll = GetComponent<Ragdoll>();
             _brain = new CivilianBrain(Seed);
             _steering.ConfigureFrom(_controller);
+        }
+
+        /// <summary>
+        /// See PlayerLocomotion's own identical LateUpdate for why -- same
+        /// shared mocap, same fix. Guarded on _animator.enabled rather than
+        /// being auto-disabled the way PlayerLocomotion is: Ragdoll only
+        /// ever looks up a PlayerLocomotion to disable (see its own
+        /// _locomotion field), never a Civilian, so this component keeps
+        /// running after Activate() and has to check for itself -- same
+        /// condition Update() already uses below for the same reason.
+        /// </summary>
+        private void LateUpdate()
+        {
+            if (_hips != null && _animator != null && _animator.enabled)
+            {
+                _hips.localRotation = Quaternion.identity;
+            }
         }
 
         /// <summary>

@@ -108,6 +108,7 @@ namespace CityX.Character
         protected CharacterController Controller;
         protected Animator BodyAnimator;
 
+        private Transform _hips;
         private IDialogueBox _dialogue;
         private Transform _nearbyPlayer;
         private bool _gatedInput;
@@ -167,11 +168,21 @@ namespace CityX.Character
 
             Controller = GetComponent<CharacterController>();
             BodyAnimator = GetComponentInChildren<Animator>();
+            _hips = BodyAnimator != null ? BodyAnimator.GetBoneTransform(HumanBodyBones.Hips) : null;
             _steering.ConfigureFrom(Controller);
 
             var trigger = gameObject.AddComponent<SphereCollider>();
             trigger.isTrigger = true;
             trigger.radius = InteractRange;
+        }
+
+        /// <summary>See PlayerLocomotion's own identical LateUpdate for why -- same shared mocap, same fix.</summary>
+        protected virtual void LateUpdate()
+        {
+            if (_hips != null)
+            {
+                _hips.localRotation = Quaternion.identity;
+            }
         }
 
         protected virtual void Start()
