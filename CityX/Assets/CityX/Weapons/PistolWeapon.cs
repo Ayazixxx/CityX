@@ -365,9 +365,17 @@ namespace CityX.Weapons
                 MuzzleSparks.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
                 MuzzleSparks.Play();
             }
-            if (ShotPlayer != null)
+            // PlayOneShot, NOT Play() -- Play() restarts the SAME playback,
+            // so spamming shots faster than the clip's own length cut it off
+            // every time (confirmed reported: "the whole thing" never got a
+            // chance to play). PlayOneShot fires an independent, overlapping
+            // instance instead, the same fix MuzzleSparks already needed a
+            // different solution for (that one restarts on purpose, per its
+            // own comment -- a burst of sparks stacking indefinitely looks
+            // wrong where overlapping gunshot audio does not).
+            if (ShotPlayer != null && ShotPlayer.clip != null)
             {
-                ShotPlayer.Play();
+                ShotPlayer.PlayOneShot(ShotPlayer.clip);
             }
 
             float spreadDegrees = aiming ? AdsSpreadDegrees : HipFireSpreadDegrees;
