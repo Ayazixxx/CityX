@@ -38,9 +38,29 @@ namespace CityX.Character
         [Tooltip("Layers the spring arm collides with. Should include the city.")]
         public LayerMask CollisionLayers = ~0;
 
+        [Tooltip(
+            "Field of view while aiming (see IsAiming). Narrower than the ordinary field of " +
+            "view, which is read from whatever the Camera component already starts at rather " +
+            "than assumed here, so this only ever has to describe how much CLOSER aiming zooms.")]
+        public float AimFieldOfView = 40.0f;
+
+        [Tooltip("Degrees of field of view crossed per second when the aim state changes.")]
+        public float AimZoomDegreesPerSecond = 90.0f;
+
+        /// <summary>
+        /// Set every frame by PlayerInputReader -- see its own TickCombat,
+        /// the one place that already knows whether a gun is out and right
+        /// is held, or a melee weapon's own WeaponAimInput.IsAiming says so.
+        /// This component stays a plain camera rig with no opinion on which
+        /// input or which equipped item means "aiming"; it only zooms.
+        /// </summary>
+        public bool IsAiming;
+
         private float _yaw;
         private float _pitch = 12.0f;
         private PlayerLocomotion _player;
+        private Camera _camera;
+        private float _restFieldOfView;
 
         /// <summary>
         /// Settable so IntroCutscene can hand the camera back on the same
@@ -67,6 +87,11 @@ namespace CityX.Character
             if (Target != null)
             {
                 _player = Target.GetComponent<PlayerLocomotion>();
+            }
+            _camera = GetComponent<Camera>();
+            if (_camera != null)
+            {
+                _restFieldOfView = _camera.fieldOfView;
             }
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
@@ -157,6 +182,13 @@ namespace CityX.Character
 
             transform.position = wanted;
             transform.rotation = rotation;
+
+            if (_camera != null)
+            {
+                float target = IsAiming ? AimFieldOfView : _restFieldOfView;
+                _camera.fieldOfView = Mathf.MoveTowards(
+                    _camera.fieldOfView, target, AimZoomDegreesPerSecond * Time.deltaTime);
+            }
         }
     }
 }

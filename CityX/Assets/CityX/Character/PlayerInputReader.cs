@@ -64,6 +64,7 @@ namespace CityX.Character
         private GrabCarry _grabCarry;
         private Inventory _inventory;
         private GrappleSwing _grappleSwing;
+        private ThirdPersonCamera _orbitCamera;
         private readonly WeaponAimInput _weaponAim = new WeaponAimInput();
 
         private void Awake()
@@ -79,6 +80,18 @@ namespace CityX.Character
             _grabCarry = GetComponent<GrabCarry>();
             _inventory = GetComponent<Inventory>();
             _grappleSwing = GetComponent<GrappleSwing>();
+        }
+
+        /// <summary>
+        /// A LOOKUP, NOT A GetComponent -- the camera lives on its own
+        /// GameObject, not this one, matching UniqueNpc's own reasoning for
+        /// finding it in Start() rather than Awake(): Awake ordering between
+        /// separate objects is not guaranteed, and Start runs only after
+        /// every object's own Awake has already run.
+        /// </summary>
+        private void Start()
+        {
+            _orbitCamera = Object.FindFirstObjectByType<ThirdPersonCamera>();
         }
 
         private void Update()
@@ -278,6 +291,16 @@ namespace CityX.Character
                 return;
             }
 
+            // DEFAULTS OFF, SET BACK ON BELOW WHEREVER RIGHT-CLICK ACTUALLY
+            // MEANS AIMING. Every early return below this line (carrying
+            // something, the grapple hook equipped, unarmed) is a state
+            // that is not aiming, so this only has to be re-armed by the
+            // two branches that are.
+            if (_orbitCamera != null)
+            {
+                _orbitCamera.IsAiming = false;
+            }
+
             // Both hands are full while carrying something -- matches
             // player.gd's own "entirely while carrying something" guard on
             // punch/block input.
@@ -298,6 +321,10 @@ namespace CityX.Character
             if (EquippedGun != null)
             {
                 bool aiming = Mouse.current.rightButton.isPressed;
+                if (_orbitCamera != null)
+                {
+                    _orbitCamera.IsAiming = aiming;
+                }
 
                 Transform gunYawSource = YawSource != null
                     ? YawSource
@@ -353,6 +380,10 @@ namespace CityX.Character
                     Mouse.current.rightButton.wasPressedThisFrame,
                     Mouse.current.rightButton.wasReleasedThisFrame,
                     Mouse.current.leftButton.wasPressedThisFrame);
+                if (_orbitCamera != null)
+                {
+                    _orbitCamera.IsAiming = _weaponAim.IsAiming;
+                }
 
                 if (action == WeaponAimInput.Action.Melee)
                 {
