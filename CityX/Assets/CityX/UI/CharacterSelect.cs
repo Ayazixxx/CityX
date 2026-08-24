@@ -449,6 +449,23 @@ namespace CityX.UI
             Strip<Rigidbody>(body);
             Strip<Collider>(body);
 
+            // THE REPORTED "WIND KEEPS PLAYING ON THE SELECT SCREEN AND
+            // RESETS EVERY TIME YOU PICK A NEW CHARACTER" BUG. PlayerAudio's
+            // own Awake() runs synchronously during Instantiate() --  before
+            // this method ever gets a chance to strip it -- and immediately
+            // AddComponent<AudioSource>()s and Play()s the looping city
+            // ambience right there, fading it in. Destroying PlayerAudio
+            // alone stops its per-frame fade logic but does nothing to the
+            // AudioSource it already created and started, which keeps
+            // looping on its own with nothing left managing it. Every
+            // UpdateCarousel() rebuilds the pedestal bodies from scratch, so
+            // a fresh one of these starts on top of the last every time the
+            // selection changes -- the reported "resets." A pedestal is a
+            // silent display prop; it has no legitimate reason to carry any
+            // audio at all.
+            Strip<PlayerAudio>(body);
+            Strip<AudioSource>(body);
+
             // Held still rather than animated -- there is no locomotion
             // driving it, so an enabled Animator would just hold whichever
             // frame its default state happened to start on. UNLIKE the

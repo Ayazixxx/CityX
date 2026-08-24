@@ -102,6 +102,36 @@ namespace CityX.Tests
                 "once the layer fix alone let the bodies actually appear");
         }
 
+        /// <summary>
+        /// "THE WIND SOUND ON THE SELECT SCREEN KEEPS PLAYING AND RESETS
+        /// WHENEVER I SELECT A NEW PLAYER" -- PlayerAudio's own Awake() runs
+        /// synchronously the instant the pedestal body is Instantiate()d,
+        /// AddComponent()ing an AudioSource and Play()ing the looping city
+        /// ambience right there, before StripWorldComponents ever gets a
+        /// chance to run. Every pedestal rebuild (Next/Previous re-populates
+        /// all three slots from scratch) started a fresh one of these on top
+        /// of whatever was already playing -- the reported "resets."
+        /// </summary>
+        [UnityTest]
+        public IEnumerator NoAudioSourceSurvivesOnAPedestalBody()
+        {
+            Assert.IsNotNull(_select.CarouselBodyPrefab, "Player.prefab is missing");
+
+            CharacterStore.Add(CharacterSave.Create("Ayaz", new Color(0.3f, 0.4f, 0.5f)));
+            _select.Refresh();
+            yield return null;
+
+            Transform centreAnchor = _select.PedestalAnchors[1];
+            Assert.AreEqual(1, centreAnchor.childCount, "the centre pedestal has no body on it");
+            GameObject body = centreAnchor.GetChild(0).gameObject;
+
+            AudioSource[] sources = body.GetComponentsInChildren<AudioSource>(true);
+            Assert.IsEmpty(sources,
+                $"found {sources.Length} AudioSource(s) still on the pedestal body -- a silent " +
+                "display prop has no legitimate reason to carry any audio, and this is exactly " +
+                "the ambience PlayerAudio.Awake() started before it could be stripped");
+        }
+
         private static Transform FindDeep(Transform root, string name)
         {
             foreach (Transform child in root.GetComponentsInChildren<Transform>(true))
