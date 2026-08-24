@@ -78,6 +78,7 @@ namespace CityX.UI
         private PlayerVitals _bound;
         private Button _hookedButton;
         private int _shownLevel = -1;
+        private bool _wasCursorCaptured;
 
         private void Awake()
         {
@@ -321,6 +322,16 @@ namespace CityX.UI
         /// The crosshair goes with the death screen. A corpse is not aiming at
         /// anything, and left up it lands between YOU DIED and the respawn
         /// button looking like a rendering fault rather than a reticle.
+        ///
+        /// THE CURSOR HAS TO COME BACK TOO, or the respawn button is a real
+        /// reported bug: it renders and its onClick is genuinely wired (see
+        /// HookButton), but third-person play keeps the cursor locked and
+        /// invisible the entire time, so there is no pointer on screen to
+        /// click it with. Same "remember, then restore on the way back out"
+        /// idiom every other panel in this project already uses (Pause,
+        /// Inventory, Map, PlayerChat and the rest) -- captured here instead
+        /// of assumed Locked, since a player could in principle die while
+        /// one of those panels already has it free.
         /// </summary>
         private void ShowDead(bool dead)
         {
@@ -331,6 +342,18 @@ namespace CityX.UI
             if (Crosshair != null)
             {
                 Crosshair.SetActive(!dead);
+            }
+
+            if (dead)
+            {
+                _wasCursorCaptured = Cursor.lockState == CursorLockMode.Locked;
+                Cursor.lockState = CursorLockMode.None;
+                Cursor.visible = true;
+            }
+            else if (_wasCursorCaptured)
+            {
+                Cursor.lockState = CursorLockMode.Locked;
+                Cursor.visible = false;
             }
         }
 

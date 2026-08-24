@@ -19,12 +19,23 @@ namespace CityX.Tests
     {
         private GameObject _hudObject;
         private GameObject _bodyObject;
+        private CursorLockMode _lockStateBefore;
+        private bool _cursorVisibleBefore;
+
+        [SetUp]
+        public void SetUp()
+        {
+            _lockStateBefore = Cursor.lockState;
+            _cursorVisibleBefore = Cursor.visible;
+        }
 
         [TearDown]
         public void TearDown()
         {
             if (_hudObject != null) Object.DestroyImmediate(_hudObject);
             if (_bodyObject != null) Object.DestroyImmediate(_bodyObject);
+            Cursor.lockState = _lockStateBefore;
+            Cursor.visible = _cursorVisibleBefore;
         }
 
         private PlayerHud MakeHud(out PlayerVitals vitals)
@@ -150,6 +161,34 @@ namespace CityX.Tests
                 "the death screen stayed up after respawning");
             Assert.IsTrue(hud.Crosshair.activeSelf,
                 "respawning did not bring the crosshair back");
+        }
+
+        /// <summary>
+        /// "MAKE IT SO WHEN YOU DIE YOU CAN CLICK RESPAWN" -- a real reported
+        /// bug: the button itself was always genuinely wired (see
+        /// PressingRespawnBringsTheBodyBack), but third-person play keeps the
+        /// cursor locked and invisible the whole time, so there was no
+        /// pointer on screen to actually click it with. Only the unlock-on-
+        /// death direction is asserted -- Cursor.lockState does not reliably
+        /// latch back to Locked under headless batch mode (no real window
+        /// for the OS to confine the pointer to), the same gotcha
+        /// PauseMenuViewTests' own class comment already documents.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator DyingFreesTheCursorSoTheRespawnButtonCanActuallyBeClicked()
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+
+            PlayerHud hud = MakeHud(out PlayerVitals vitals);
+            yield return null;
+
+            vitals.TakeDamage(vitals.MaxHealth);
+            yield return null;
+
+            Assert.AreEqual(CursorLockMode.None, Cursor.lockState,
+                "dying should free the cursor so the respawn button can be clicked");
+            Assert.IsTrue(Cursor.visible, "dying should make the cursor visible again");
         }
 
         [UnityTest]
