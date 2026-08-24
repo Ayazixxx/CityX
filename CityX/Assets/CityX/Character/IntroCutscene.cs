@@ -45,7 +45,10 @@ namespace CityX.Character
     /// mode: every clip on a Humanoid avatar defines a value for every
     /// muscle each frame, so the very next state (FallingFlatImpact, then
     /// Locomotion) fully replaces the pose rather than leaving anything
-    /// behind.
+    /// behind. That's about PERSISTENCE, not about the cut itself looking
+    /// smooth -- see ImpactBlendSeconds's own comment for the separate,
+    /// real bug that "fully replaces the pose" caused: a hard one-frame pop
+    /// between the dive and impact poses, fixed with a short cross-fade.
     ///
     /// NO PORTRAIT-RACE WAIT NEEDED EITHER, for the equivalent reason
     /// intro_cutscene.gd itself gives for why ITS wait is safe to place
@@ -118,6 +121,24 @@ namespace CityX.Character
 
         /// <summary>30% of unity gain -- GroundImpactSound's own real explicit ask, matching Godot's GROUND_IMPACT_VOLUME_LINEAR.</summary>
         public const float GroundImpactVolumeLinear = 0.3f;
+
+        /// <summary>
+        /// THE FALLING-TO-IMPACT CROSS-FADE -- a real reported "extra jump
+        /// cut... before he hits the ground." Confirmed directly (see
+        /// IntroCutsceneImpactPlayTests): a zero-blend Animator.Play() here
+        /// popped LeftUpperLeg 45.9 degrees in a single frame, versus ~0
+        /// degrees of normal frame-to-frame movement mid-fall -- the dive
+        /// pose (limbs trailing) and the flat-impact pose (braced against
+        /// the ground) don't remotely agree, so the hard cut reads exactly
+        /// like a splice. Same class of bug, same fix, as character.gd's own
+        /// BLEND_SECONDS ("an instant cut... reads as a visible pop/snap...
+        /// even a short cross-fade over the gap reads as fluid instead") --
+        /// slightly longer than that 0.1s general value because this gap is
+        /// bigger (a full-body dive-to-braced repose, not a walk/punch
+        /// hand-off) and, unlike combat, nothing here needs to stay snappy
+        /// for input responsiveness -- it's a one-shot cutscene beat.
+        /// </summary>
+        public const float ImpactBlendSeconds = 0.15f;
 
         public event System.Action Finished;
 
@@ -401,7 +422,7 @@ namespace CityX.Character
         {
             _phase = Phase.Impact;
             _phaseElapsed = 0.0f;
-            _animator.Play("FallingFlatImpact", 0, 0.0f);
+            _animator.CrossFade("FallingFlatImpact", ImpactBlendSeconds, 0);
             if (GroundImpactSound != null)
             {
                 AudioSource.PlayClipAtPoint(GroundImpactSound, transform.position,
