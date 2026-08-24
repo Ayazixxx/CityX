@@ -1,7 +1,10 @@
 ﻿using System.Collections.Generic;
+using CityX.Character;
 using CityX.Core;
 using CityX.UI;
+using UnityEditor;
 using UnityEngine;
+using UnityEngine.Rendering.Universal;
 using UnityEngine.UI;
 
 namespace CityX.UIEditor
@@ -9,21 +12,24 @@ namespace CityX.UIEditor
     /// <summary>
     /// Builds the character select panel onto the title screen's canvas.
     ///
-    /// A ROW TEMPLATE RATHER THAN A PREFAB. The rows are cloned at runtime, and
-    /// a prefab would be a second binary asset to keep in step with this file.
-    /// One inactive GameObject built here and cloned by CharacterSelect is the
-    /// same mechanism with nothing to fall out of sync.
-    ///
-    /// Terraria-style rows, which is what the Godot build settled on: a colour
-    /// swatch, the name, the level and playtime, and PLAY and DELETE on the
-    /// right.
+    /// A CAROUSEL, NOT A SCROLLING LIST -- saved characters stand on
+    /// pedestals in a row with the chosen one centred, cycled with the
+    /// arrows either side. The 3D half is built exactly the way
+    /// CharacterCreatorBuilder builds its own single preview body (own
+    /// layer, own camera, own lights, drawn over the title screen by
+    /// camera depth rather than baked to a RenderTexture) -- see that
+    /// file's own doc comment for why a RenderTexture was never the
+    /// pattern here. This just needs up to three of that same kind of body
+    /// on screen at once instead of one.
     /// </summary>
     public static class CharacterSelectBuilder
     {
         private static readonly Color Gold = new Color(0.75f, 0.6f, 0.2f, 1.0f);
         private static readonly Color Paper = new Color(0.82f, 0.82f, 0.84f, 1.0f);
-        private static readonly Color RowBackground = new Color(0.07f, 0.08f, 0.10f, 0.90f);
         private static readonly Color Danger = new Color(0.55f, 0.16f, 0.16f, 1.0f);
+
+        /// <summary>How far the side pedestals sit from the centre one, in metres.</summary>
+        private const float PedestalSpacing = 2.4f;
 
         /// <summary>
         /// The skins a new character can be. Deliberately a short list of
@@ -42,7 +48,7 @@ namespace CityX.UIEditor
             new Color(0.62f, 0.30f, 0.30f),
         };
 
-        public static GameObject Build(Transform parent, TitleScreen title)
+        public static GameObject Build(Transform parent, TitleScreen title, GameObject bodyPrefab)
         {
             var panel = new GameObject("CharacterSelectPanel", typeof(RectTransform));
             var rect = (RectTransform)panel.transform;
@@ -52,7 +58,13 @@ namespace CityX.UIEditor
             CharacterSelect select = panel.AddComponent<CharacterSelect>();
             title.Select = select;
 
-            select.ListPanel = BuildList(panel.transform, select, title);
+            // The 3D half lives outside the canvas, same reason and same
+            // relay CharacterCreatorBuilder already uses for its own body --
+            // a canvas cannot hold one.
+            GameObject stage = BuildCarouselStage(bodyPrefab, select);
+            panel.AddComponent<CreatorStage>().Stage = stage;
+
+            select.ListPanel = BuildListUI(panel.transform, select, title);
             select.CreatePanel = BuildCreate(panel.transform, select, title);
             select.ConfirmPanel = BuildConfirm(panel.transform, select);
 
@@ -60,9 +72,217 @@ namespace CityX.UIEditor
             return panel;
         }
 
-        // --- the list ---
+        // --- the carousel's 3D half ---
 
-        private static GameObject BuildList(Transform parent, CharacterSelect select,
+        /// <summary>
+        /// The pedestals, the bodies' anchors, the camera and the lights.
+        ///
+        /// SAME LAYER THE CREATOR ALREADY OWNS, deliberately reused rather
+        /// than claiming a second one: TitleScreen.Panel shows exactly one
+        /// panel at a time, so the creator's stage and this one are never
+        /// both active together, and reusing "CityXCreator" means this does
+        /// not spend another of the project's own limited layer slots on a
+        /// backdrop that is functionally the same kind of thing (a body,
+        /// lit, on nothing else).
+        /// </summary>
+        private static GameObject BuildCarouselStage(GameObject bodyPrefab, CharacterSelect select)
+        {
+            var stage = new GameObject("SelectStage");
+            int layer = EnsureLayer("CityXCreator");
+            stage.layer = layer;
+
+            select.CarouselBodyPrefab = bodyPrefab;
+            LoadHair(select);
+
+            var anchors = new Transform[3];
+            string[] names = { "PedestalLeft", "PedestalCentre", "PedestalRight" };
+            float[] xPositions = { -PedestalSpacing, 0.0f, PedestalSpacing };
+            // The centre pedestal reads as chosen by standing a little proud
+            // of its neighbours and under its own brighter light, rather
+            // than by a UI frame around it -- the body IS the selection.
+            float[] platformHeights = { 0.18f, 0.30f, 0.18f };
+            float[] platformScales = { 0.78f, 1.0f, 0.78f };
+
+            Material platformMaterial = PedestalMaterial();
+
+            for (int i = 0; i < 3; i++)
+            {
+                var anchorObject = new GameObject(names[i]);
+                anchorObject.transform.SetParent(stage.transform, false);
+                anchorObject.transform.localPosition =
+                    new Vector3(xPositions[i], platformHeights[i], 0.0f);
+                anchorObject.transform.localScale = Vector3.one * platformScales[i];
+                anchors[i] = anchorObject.transform;
+
+                GameObject platform = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                platform.name = "Platform";
+                Object.DestroyImmediate(platform.GetComponent<Collider>());
+                platform.transform.SetParent(stage.transform, false);
+                platform.transform.localPosition =
+                    new Vector3(xPositions[i], platformHeights[i] * 0.5f, 0.0f);
+                platform.transform.localScale =
+                    new Vector3(0.9f * platformScales[i], platformHeights[i] * 0.5f, 0.9f * platformScales[i]);
+                platform.GetComponent<MeshRenderer>().sharedMaterial = platformMaterial;
+            }
+
+            select.PedestalAnchors = anchors;
+
+            SetLayerRecursively(stage, layer);
+
+            var cameraObject = new GameObject("SelectCamera");
+            cameraObject.transform.SetParent(stage.transform, false);
+            // Pulled back and widened from the creator's own single-body
+            // framing (0, 1.6, 4 at 75 degrees) -- three bodies spaced
+            // PedestalSpacing apart need enough width in frame to clear all
+            // three, not just the one at the centre.
+            cameraObject.transform.localPosition = new Vector3(0.0f, 1.7f, 7.5f);
+            cameraObject.transform.localRotation = Quaternion.Euler(6.0f, 180.0f, 0.0f);
+            Camera camera = cameraObject.AddComponent<Camera>();
+            camera.clearFlags = CameraClearFlags.SolidColor;
+            camera.backgroundColor = new Color(0.07f, 0.08f, 0.10f);
+            camera.fieldOfView = 50.0f;
+            camera.nearClipPlane = 0.05f;
+            camera.cullingMask = 1 << layer;
+            camera.depth = 5;
+            camera.allowMSAA = true;
+            var cameraData = cameraObject.AddComponent<UniversalAdditionalCameraData>();
+            cameraData.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
+            cameraData.antialiasingQuality = AntialiasingQuality.High;
+            cameraObject.layer = layer;
+
+            AddLight(stage, layer, "Key", new Vector3(22.0f, 150.0f, 0.0f), 1.4f, Color.white);
+            AddLight(stage, layer, "Fill", new Vector3(10.0f, -40.0f, 0.0f), 0.8f,
+                new Color(0.82f, 0.86f, 1.0f));
+            AddLight(stage, layer, "Back", new Vector3(-25.0f, 20.0f, 0.0f), 0.5f,
+                new Color(1.0f, 0.95f, 0.85f));
+
+            // The one light that says "this is the chosen one" -- a downward
+            // spot only the centre pedestal sits in.
+            var spotObject = new GameObject("SelectionSpot");
+            spotObject.transform.SetParent(stage.transform, false);
+            spotObject.transform.localPosition = new Vector3(0.0f, 4.0f, 0.5f);
+            spotObject.transform.localRotation = Quaternion.Euler(75.0f, 0.0f, 0.0f);
+            spotObject.layer = layer;
+            Light spot = spotObject.AddComponent<Light>();
+            spot.type = LightType.Spot;
+            spot.color = Gold;
+            spot.intensity = 3.0f;
+            spot.range = 8.0f;
+            spot.spotAngle = 45.0f;
+            spot.cullingMask = 1 << layer;
+            spot.shadows = LightShadows.None;
+
+            stage.SetActive(false);
+            return stage;
+        }
+
+        /// <summary>
+        /// One shared, saved material for every pedestal -- an in-memory
+        /// one assigned straight to a renderer does not reliably survive
+        /// the scene being saved (see PistolBuilder's own fix for the
+        /// identical failure on the muzzle sparks, which came back with a
+        /// null material and rendered the reported bright pink/purple).
+        /// </summary>
+        private static Material PedestalMaterial()
+        {
+            const string path = "Assets/CityX/UI/SelectPedestal.mat";
+            var existing = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (existing != null)
+            {
+                return existing;
+            }
+            Shader shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            var material = new Material(shader);
+            var dark = new Color(0.10f, 0.11f, 0.14f);
+            if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", dark);
+            if (material.HasProperty("_Color")) material.SetColor("_Color", dark);
+            if (material.HasProperty("_Metallic")) material.SetFloat("_Metallic", 0.6f);
+            if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", 0.5f);
+            AssetDatabase.CreateAsset(material, path);
+            return material;
+        }
+
+        /// <summary>
+        /// The hair mesh/material CharacterSelect needs to show a saved
+        /// character's chosen style -- loaded here, once, because runtime
+        /// code has no AssetDatabase to load them with itself. Same asset
+        /// CharacterCreatorBuilder.AddHair wires for the creator's own body.
+        /// </summary>
+        private static void LoadHair(CharacterSelect select)
+        {
+            var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(
+                "Assets/CityX/Character/Hair/embermane.obj");
+            select.HairStyleMeshes = mesh != null ? new[] { mesh } : new Mesh[0];
+
+            const string materialPath = "Assets/CityX/Character/Materials/Hair.mat";
+            var material = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
+            if (material == null)
+            {
+                Shader shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+                material = new Material(shader);
+                if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", CharacterHair.HairColour);
+                if (material.HasProperty("_Color")) material.SetColor("_Color", CharacterHair.HairColour);
+                if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", 0.4f);
+                AssetDatabase.CreateAsset(material, materialPath);
+            }
+            select.HairMaterialAsset = material;
+        }
+
+        private static void AddLight(GameObject stage, int layer, string name, Vector3 angles,
+            float intensity, Color colour)
+        {
+            var go = new GameObject($"{name}Light");
+            go.transform.SetParent(stage.transform, false);
+            go.transform.rotation = Quaternion.Euler(angles);
+            go.layer = layer;
+
+            Light light = go.AddComponent<Light>();
+            light.type = LightType.Directional;
+            light.intensity = intensity;
+            light.color = colour;
+            light.cullingMask = 1 << layer;
+            light.shadows = LightShadows.None;
+        }
+
+        /// <summary>See CharacterCreatorBuilder's own identical method -- kept as its own copy rather than shared, since the two builders otherwise depend on nothing of each other's.</summary>
+        private static int EnsureLayer(string name)
+        {
+            int existing = LayerMask.NameToLayer(name);
+            if (existing >= 0)
+            {
+                return existing;
+            }
+
+            var manager = new SerializedObject(
+                AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/TagManager.asset")[0]);
+            SerializedProperty layers = manager.FindProperty("layers");
+            for (int i = 8; i < layers.arraySize; i++)
+            {
+                SerializedProperty slot = layers.GetArrayElementAtIndex(i);
+                if (string.IsNullOrEmpty(slot.stringValue))
+                {
+                    slot.stringValue = name;
+                    manager.ApplyModifiedProperties();
+                    return i;
+                }
+            }
+            Debug.LogWarning($"CityX: no free layer for '{name}' -- the select screen will render " +
+                             "the whole scene behind the pedestals.");
+            return 0;
+        }
+
+        private static void SetLayerRecursively(GameObject root, int layer)
+        {
+            root.layer = layer;
+            foreach (Transform child in root.GetComponentsInChildren<Transform>(true))
+            {
+                child.gameObject.layer = layer;
+            }
+        }
+
+        // --- the carousel's UI half ---
+
+        private static GameObject BuildListUI(Transform parent, CharacterSelect select,
             TitleScreen title)
         {
             var panel = new GameObject("ListPanel", typeof(RectTransform));
@@ -70,99 +290,98 @@ namespace CityX.UIEditor
             rect.SetParent(parent, false);
             Stretch(rect, 0.0f);
 
-            // Darker than the title's own wash: a list of rows needs more
-            // contrast behind it than three buttons do.
-            GameObject wash = MakeRect("Wash", panel.transform,
-                new Color(0.0f, 0.0f, 0.0f, 0.66f));
-            Stretch((RectTransform)wash.transform, 0.0f);
-            wash.GetComponent<Image>().raycastTarget = false;
+            MakeLabel(panel.transform, "Heading", "SELECT YOUR CHARACTER", 28, Gold,
+                Anchor(0.5f, 1.0f), new Vector2(0.0f, -44.0f), new Vector2(600.0f, 40.0f));
 
-            MakeLabel(panel.transform, "Heading", "CHARACTERS", 28, Gold,
-                Anchor(0.5f, 1.0f), new Vector2(0.0f, -44.0f), new Vector2(420.0f, 40.0f));
+            // Wide, so a press lands on the arrow rather than needing to be
+            // aimed at the very edge of the screen.
+            MakeArrowButton(panel.transform, "PreviousButton", "<", Anchor(0.0f, 0.5f),
+                new Vector2(48.0f, 0.0f), ButtonAction.Kind.SelectPrevious, select);
+            MakeArrowButton(panel.transform, "NextButton", ">", Anchor(1.0f, 0.5f),
+                new Vector2(-48.0f, 0.0f), ButtonAction.Kind.SelectNext, select);
 
-            var scroll = new GameObject("Rows", typeof(RectTransform));
-            var scrollRect = (RectTransform)scroll.transform;
-            scrollRect.SetParent(panel.transform, false);
-            scrollRect.anchorMin = new Vector2(0.5f, 1.0f);
-            scrollRect.anchorMax = new Vector2(0.5f, 1.0f);
-            scrollRect.pivot = new Vector2(0.5f, 1.0f);
-            scrollRect.anchoredPosition = new Vector2(0.0f, -80.0f);
-            scrollRect.sizeDelta = new Vector2(560.0f, 380.0f);
-
-            var layout = scroll.gameObject.AddComponent<VerticalLayoutGroup>();
-            layout.spacing = 8.0f;
-            layout.childControlHeight = false;
-            layout.childControlWidth = true;
-            layout.childForceExpandHeight = false;
-            layout.childForceExpandWidth = true;
-            layout.childAlignment = TextAnchor.UpperCenter;
-
-            select.RowParent = scrollRect;
-            select.RowTemplate = BuildRowTemplate(panel.transform);
+            select.IndexLabel = MakeLabel(panel.transform, "IndexLabel", "1 / 1", 14,
+                new Color(0.6f, 0.6f, 0.64f),
+                Anchor(0.5f, 1.0f), new Vector2(0.0f, -78.0f), new Vector2(200.0f, 24.0f));
 
             select.EmptyNotice = MakeLabel(panel.transform, "EmptyNotice",
-                "No characters yet.", 18, Paper,
-                Anchor(0.5f, 0.5f), new Vector2(0.0f, 40.0f), new Vector2(420.0f, 30.0f));
+                "No characters yet -- make one below.", 18, Paper,
+                Anchor(0.5f, 0.42f), new Vector2(0.0f, 0.0f), new Vector2(460.0f, 30.0f));
 
+            // The stat card, bottom centre, standing in front of the
+            // pedestals rather than beside them -- the reference this was
+            // asked to follow puts the chosen character's own details in
+            // exactly that spot.
+            GameObject card = MakeRect("StatCard", panel.transform,
+                new Color(0.05f, 0.06f, 0.08f, 0.90f));
+            var cardRect = (RectTransform)card.transform;
+            cardRect.anchorMin = cardRect.anchorMax = new Vector2(0.5f, 0.0f);
+            cardRect.pivot = new Vector2(0.5f, 0.0f);
+            cardRect.anchoredPosition = new Vector2(0.0f, 118.0f);
+            cardRect.sizeDelta = new Vector2(380.0f, 76.0f);
+
+            select.NameLabel = MakeLabel(card.transform, "Name", "Name", 22, Paper,
+                Anchor(0.0f, 1.0f), new Vector2(96.0f, -18.0f), new Vector2(270.0f, 28.0f));
+            select.NameLabel.alignment = TextAnchor.MiddleLeft;
+
+            select.DetailLabel = MakeLabel(card.transform, "Detail", "Level 1   0m", 14,
+                new Color(0.62f, 0.62f, 0.66f),
+                Anchor(0.0f, 1.0f), new Vector2(96.0f, -40.0f), new Vector2(270.0f, 20.0f));
+            select.DetailLabel.alignment = TextAnchor.MiddleLeft;
+
+            select.StatsLabel = MakeLabel(card.transform, "Stats", "VIT 0   END 0   STR 0", 13,
+                new Color(0.62f, 0.62f, 0.66f),
+                Anchor(0.0f, 1.0f), new Vector2(96.0f, -58.0f), new Vector2(270.0f, 20.0f));
+            select.StatsLabel.alignment = TextAnchor.MiddleLeft;
+
+            MakeButton(panel.transform, "PlayButton", "PLAY", Gold,
+                Anchor(0.5f, 0.0f), new Vector2(-160.0f, 58.0f), new Vector2(140.0f, 44.0f),
+                ButtonAction.Kind.SelectPlaySelected, title, select);
+            MakeButton(panel.transform, "DeleteButton", "DELETE", Danger,
+                Anchor(0.5f, 0.0f), new Vector2(0.0f, 58.0f), new Vector2(140.0f, 44.0f),
+                ButtonAction.Kind.SelectBeginDeleteSelected, title, select);
             // Into the CREATOR, not straight to the name box. Painting comes
             // first and naming last, which is the order the Godot build used
             // and the order that makes sense: you name the thing you made.
-            MakeButton(panel.transform, "NewButton", "NEW CHARACTER", Gold,
-                Anchor(0.5f, 0.0f), new Vector2(-90.0f, 58.0f), new Vector2(220.0f, 44.0f),
+            MakeButton(panel.transform, "NewButton", "NEW CHARACTER", Paper,
+                Anchor(0.5f, 0.0f), new Vector2(160.0f, 58.0f), new Vector2(160.0f, 44.0f),
                 ButtonAction.Kind.ShowCreator, title, select);
+
             MakeButton(panel.transform, "BackButton", "BACK", Paper,
-                Anchor(0.5f, 0.0f), new Vector2(150.0f, 58.0f), new Vector2(140.0f, 44.0f),
+                Anchor(0.0f, 0.0f), new Vector2(90.0f, 30.0f), new Vector2(120.0f, 38.0f),
                 ButtonAction.Kind.TitleBack, title, select);
 
             return panel;
         }
 
-        /// <summary>
-        /// The row every character gets, built once and left INACTIVE.
-        ///
-        /// Parented to the list panel rather than to the row container, so the
-        /// layout group does not count the template itself as a row and leave a
-        /// permanent gap at the top of the list.
-        /// </summary>
-        private static GameObject BuildRowTemplate(Transform parent)
+        /// <summary>A big, plain chevron button rather than MakeButton's boxed style -- it sits over the 3D stage, not on a panel background.</summary>
+        private static void MakeArrowButton(Transform parent, string name, string glyph,
+            Vector2 anchor, Vector2 position, ButtonAction.Kind action, CharacterSelect select)
         {
-            var row = new GameObject("RowTemplate", typeof(RectTransform));
-            var rect = (RectTransform)row.transform;
+            var buttonObject = new GameObject(name, typeof(RectTransform));
+            var rect = (RectTransform)buttonObject.transform;
             rect.SetParent(parent, false);
-            rect.sizeDelta = new Vector2(560.0f, 62.0f);
+            rect.anchorMin = rect.anchorMax = anchor;
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = new Vector2(64.0f, 64.0f);
 
-            var element = row.AddComponent<LayoutElement>();
-            element.preferredHeight = 62.0f;
-            element.preferredWidth = 560.0f;
+            Image background = buttonObject.AddComponent<Image>();
+            background.color = new Color(0.09f, 0.10f, 0.13f, 0.75f);
 
-            row.AddComponent<Image>().color = RowBackground;
+            Button button = buttonObject.AddComponent<Button>();
+            button.targetGraphic = background;
+            ColorBlock colours = button.colors;
+            colours.highlightedColor = new Color(0.22f, 0.20f, 0.12f, 1.0f);
+            colours.pressedColor = Gold;
+            button.colors = colours;
 
-            var portrait = new GameObject("Portrait", typeof(RectTransform));
-            var portraitRect = (RectTransform)portrait.transform;
-            portraitRect.SetParent(row.transform, false);
-            portraitRect.anchorMin = new Vector2(0.0f, 0.5f);
-            portraitRect.anchorMax = new Vector2(0.0f, 0.5f);
-            portraitRect.pivot = new Vector2(0.0f, 0.5f);
-            portraitRect.anchoredPosition = new Vector2(10.0f, 0.0f);
-            portraitRect.sizeDelta = new Vector2(42.0f, 42.0f);
-            portrait.AddComponent<Image>().color = CharacterSave.DefaultSkin;
+            var wiring = buttonObject.AddComponent<ButtonAction>();
+            wiring.Action = action;
+            wiring.Select = select;
 
-            Text name = MakeLabel(row.transform, "Name", "Name", 20, Paper,
-                Anchor(0.0f, 0.5f), new Vector2(64.0f, 10.0f), new Vector2(260.0f, 26.0f));
-            name.alignment = TextAnchor.MiddleLeft;
-
-            Text detail = MakeLabel(row.transform, "Detail", "Level 1   0m", 14,
-                new Color(0.62f, 0.62f, 0.66f),
-                Anchor(0.0f, 0.5f), new Vector2(64.0f, -12.0f), new Vector2(260.0f, 22.0f));
-            detail.alignment = TextAnchor.MiddleLeft;
-
-            MakeButton(row.transform, "PlayButton", "PLAY", Gold,
-                Anchor(1.0f, 0.5f), new Vector2(-108.0f, 0.0f), new Vector2(96.0f, 38.0f), ButtonAction.Kind.None, null, null);
-            MakeButton(row.transform, "DeleteButton", "DELETE", Danger,
-                Anchor(1.0f, 0.5f), new Vector2(-12.0f, 0.0f), new Vector2(88.0f, 38.0f), ButtonAction.Kind.None, null, null);
-
-            row.SetActive(false);
-            return row;
+            MakeLabel(buttonObject.transform, "Glyph", glyph, 30, Gold,
+                Anchor(0.5f, 0.5f), Vector2.zero, new Vector2(60.0f, 60.0f));
         }
 
         // --- making one ---

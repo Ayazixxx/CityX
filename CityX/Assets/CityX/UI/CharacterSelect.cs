@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using CityX.Character;
 using CityX.Core;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -40,15 +41,26 @@ namespace CityX.UI
         public GameObject CreatePanel;
         public GameObject ConfirmPanel;
 
-        [Tooltip("Rows are instantiated under this.")]
-        public RectTransform RowParent;
-
-        [Tooltip("The row template, kept inactive and cloned per character.")]
-        public GameObject RowTemplate;
-
         public InputField NameField;
         public Text ConfirmText;
         public Text EmptyNotice;
+
+        [Header("Carousel, wired by CharacterSelectBuilder")]
+        [Tooltip("Left/Centre/Right pedestal anchors on the 3D stage. A body is instantiated as a child of each one that has a character to show.")]
+        public Transform[] PedestalAnchors = new Transform[3];
+
+        [Tooltip("Cloned per pedestal slot, then stripped down to a static display body -- see StripWorldComponents.")]
+        public GameObject CarouselBodyPrefab;
+
+        [Tooltip("Loaded once by the builder -- runtime code has no AssetDatabase to load these itself. Same asset CharacterCreatorBuilder wires.")]
+        public Mesh[] HairStyleMeshes = new Mesh[0];
+
+        public Material HairMaterialAsset;
+
+        public Text NameLabel;
+        public Text DetailLabel;
+        public Text StatsLabel;
+        public Text IndexLabel;
 
         [Tooltip("Swatches the creator offers. Chosen by CharacterSelectBuilder.")]
         public Image[] Swatches = new Image[0];
@@ -56,18 +68,23 @@ namespace CityX.UI
         [Tooltip("The scene the world lives in.")]
         public string WorldScene = "CityMassing";
 
-        private readonly List<GameObject> _rows = new List<GameObject>();
+        private readonly GameObject[] _pedestalBodies = new GameObject[3];
         private List<CharacterSave> _characters = new List<CharacterSave>();
         private Mode _mode = Mode.List;
+        private int _selectedIndex;
         private string _pendingDeleteId;
         private Color _pendingSkin = CharacterSave.DefaultSkin;
 
         public Mode Showing => _mode;
 
-        /// <summary>How many characters are on screen. Public so a test can read it.</summary>
-        public int RowCount => _rows.Count;
+        /// <summary>Which loaded character the centre pedestal is showing. Public so a test can read it.</summary>
+        public int SelectedIndex => _selectedIndex;
 
         public IReadOnlyList<CharacterSave> Characters => _characters;
+
+        /// <summary>The character the centre pedestal is on, or null with nothing saved yet.</summary>
+        public CharacterSave Selected =>
+            _selectedIndex >= 0 && _selectedIndex < _characters.Count ? _characters[_selectedIndex] : null;
 
         public Color PendingSkin => _pendingSkin;
 
@@ -89,11 +106,12 @@ namespace CityX.UI
             Show(Mode.List);
         }
 
-        /// <summary>Re-reads the store and rebuilds the rows.</summary>
+        /// <summary>Re-reads the store and rebuilds the carousel.</summary>
         public void Refresh()
         {
             _characters = CharacterStore.Load();
-            BuildRows();
+            _selectedIndex = Mathf.Clamp(_selectedIndex, 0, Mathf.Max(0, _characters.Count - 1));
+            UpdateCarousel();
         }
 
         public void Show(Mode mode)
@@ -190,7 +208,8 @@ namespace CityX.UI
             PendingPaint = null;
             PendingHair = "none";
             _characters = CharacterStore.Add(created);
-            BuildRows();
+            _selectedIndex = _characters.FindIndex(c => c.Id == created.Id);
+            UpdateCarousel();
             Play(created, isNew: true);
             return created;
         }
@@ -210,13 +229,24 @@ namespace CityX.UI
             Show(Mode.Confirming);
         }
 
+        /// <summary>Deletes whichever character the centre pedestal is currently showing.</summary>
+        public void BeginDeleteSelected()
+        {
+            CharacterSave character = Selected;
+            if (character != null)
+            {
+                BeginDelete(character.Id);
+            }
+        }
+
         public void ConfirmDelete()
         {
             if (!string.IsNullOrEmpty(_pendingDeleteId))
             {
                 _characters = CharacterStore.Delete(_pendingDeleteId);
                 _pendingDeleteId = null;
-                BuildRows();
+                _selectedIndex = Mathf.Clamp(_selectedIndex, 0, Mathf.Max(0, _characters.Count - 1));
+                UpdateCarousel();
             }
             Show(Mode.List);
         }
@@ -252,100 +282,240 @@ namespace CityX.UI
             }
         }
 
-        // --- the rows ---
-
-        private void BuildRows()
+        /// <summary>Plays whichever character the centre pedestal is currently showing.</summary>
+        public void PlaySelected()
         {
-            foreach (GameObject row in _rows)
-            {
-                if (row != null)
-                {
-                    Destroy(row);
-                }
-            }
-            _rows.Clear();
+            Play(Selected, isNew: false);
+        }
 
-            if (RowTemplate == null || RowParent == null)
+        // --- the carousel ---
+
+        /// <summary>
+        /// Steps the centre pedestal one character to the right, wrapping back
+        /// to the start -- a carousel is meant to be cycled, not a list that
+        /// stops at its own ends.
+        /// </summary>
+        public void Next()
+        {
+            if (_characters.Count == 0)
             {
                 return;
             }
+            _selectedIndex = (_selectedIndex + 1) % _characters.Count;
+            UpdateCarousel();
+        }
 
-            foreach (CharacterSave character in _characters)
+        public void Previous()
+        {
+            if (_characters.Count == 0)
             {
-                GameObject row = Instantiate(RowTemplate, RowParent);
-                row.name = $"Row_{character.Id}";
-                row.SetActive(true);
-                Bind(row, character);
-                _rows.Add(row);
+                return;
             }
+            _selectedIndex = (_selectedIndex - 1 + _characters.Count) % _characters.Count;
+            UpdateCarousel();
+        }
+
+        /// <summary>
+        /// Repopulates the three pedestals from the character either side of
+        /// _selectedIndex and refreshes the stat panel. Called on every
+        /// selection change rather than animated into place -- with typically
+        /// a handful of saves, instantiating up to three bodies is cheap
+        /// enough to just redo outright, and it keeps this in step with
+        /// Refresh() rebuilding the whole list the same way a delete or a
+        /// new character already did before the carousel existed.
+        /// </summary>
+        private void UpdateCarousel()
+        {
+            DestroyPedestalBodies();
 
             if (EmptyNotice != null)
             {
                 EmptyNotice.gameObject.SetActive(_characters.Count == 0);
             }
+
+            if (_characters.Count == 0)
+            {
+                SetStatPanel(null);
+                return;
+            }
+
+            PopulateSlot(1, _selectedIndex);
+            if (_characters.Count > 1)
+            {
+                int leftIndex = (_selectedIndex - 1 + _characters.Count) % _characters.Count;
+                int rightIndex = (_selectedIndex + 1) % _characters.Count;
+                PopulateSlot(0, leftIndex);
+                PopulateSlot(2, rightIndex);
+            }
+
+            SetStatPanel(_characters[_selectedIndex]);
         }
 
-        /// <summary>
-        /// Fills one row and wires its two buttons.
-        ///
-        /// Found by name rather than by a per-row component, because the row is
-        /// built in code a few lines away in CharacterSelectBuilder and a
-        /// component for three labels would be more indirection than the thing
-        /// it describes.
-        /// </summary>
-        private void Bind(GameObject row, CharacterSave character)
+        private void SetStatPanel(CharacterSave character)
         {
-            SetText(row, "Name", character.Name);
-            SetText(row, "Detail", $"Level {character.Level}   {character.PlaytimeText()}");
-
-            Transform portrait = row.transform.Find("Portrait");
-            if (portrait != null)
+            if (NameLabel != null)
             {
-                var image = portrait.GetComponent<Image>();
-                if (image != null)
-                {
-                    image.color = character.Skin;
-                }
+                NameLabel.text = character != null ? character.Name : string.Empty;
             }
-
-            string id = character.Id;
-            CharacterSave captured = character;
-
-            Transform playButton = row.transform.Find("PlayButton");
-            if (playButton != null)
+            if (DetailLabel != null)
             {
-                var button = playButton.GetComponent<Button>();
-                if (button != null)
-                {
-                    button.onClick.RemoveAllListeners();
-                    button.onClick.AddListener(() => Play(captured, isNew: false));
-                }
+                DetailLabel.text = character != null
+                    ? $"Level {character.Level}   {character.PlaytimeText()}"
+                    : string.Empty;
             }
-
-            Transform deleteButton = row.transform.Find("DeleteButton");
-            if (deleteButton != null)
+            if (StatsLabel != null)
             {
-                var button = deleteButton.GetComponent<Button>();
-                if (button != null)
-                {
-                    button.onClick.RemoveAllListeners();
-                    button.onClick.AddListener(() => BeginDelete(id));
-                }
+                StatsLabel.text = character != null
+                    ? $"VIT {character.Vitality}   END {character.Endurance}   STR {character.Strength}"
+                    : string.Empty;
+            }
+            if (IndexLabel != null)
+            {
+                IndexLabel.text = character != null
+                    ? $"{_selectedIndex + 1} / {_characters.Count}"
+                    : string.Empty;
             }
         }
 
-        private static void SetText(GameObject row, string child, string value)
+        private void DestroyPedestalBodies()
         {
-            Transform found = row.transform.Find(child);
-            if (found == null)
+            for (int i = 0; i < _pedestalBodies.Length; i++)
+            {
+                if (_pedestalBodies[i] != null)
+                {
+                    Destroy(_pedestalBodies[i]);
+                    _pedestalBodies[i] = null;
+                }
+            }
+        }
+
+        /// <summary>Stands a static preview of _characters[characterIndex] on pedestal slot 0/1/2 (left/centre/right).</summary>
+        private void PopulateSlot(int slot, int characterIndex)
+        {
+            if (PedestalAnchors == null || slot >= PedestalAnchors.Length
+                || PedestalAnchors[slot] == null || CarouselBodyPrefab == null)
             {
                 return;
             }
-            var label = found.GetComponent<Text>();
-            if (label != null)
+
+            GameObject body = Instantiate(CarouselBodyPrefab, PedestalAnchors[slot]);
+            body.name = $"Pedestal_{slot}";
+            body.transform.localPosition = Vector3.zero;
+            body.transform.localRotation = Quaternion.identity;
+
+            StripWorldComponents(body);
+            ApplyCosmetics(body, _characters[characterIndex]);
+
+            _pedestalBodies[slot] = body;
+        }
+
+        /// <summary>
+        /// Leaves a still, undirected display body -- everything that would
+        /// make it walk, swing, ragdoll or physically collide with the
+        /// pedestal has to come off. The same order and the same list
+        /// CharacterCreatorBuilder.BuildStage already uses for its own
+        /// preview body, and for the same reason: PlayerLocomotion requires
+        /// the CharacterController and PlayerAnimationDriver requires
+        /// MeleeAttacker, so the thing depended on has to go second or Unity
+        /// silently refuses to remove the one that needs it.
+        /// </summary>
+        private static void StripWorldComponents(GameObject body)
+        {
+            Strip<PlayerInputReader>(body);
+            Strip<PlayerLocomotion>(body);
+            Strip<CharacterController>(body);
+            Strip<PlayerAnimationDriver>(body);
+            Strip<MeleeAttacker>(body);
+            Strip<Ragdoll>(body);
+            Strip<CharacterIdentity>(body);
+            Strip<PlayerVitals>(body);
+            Strip<Joint>(body);
+            Strip<Rigidbody>(body);
+            Strip<Collider>(body);
+
+            // Held in its bind pose, matching the creator's own stage --
+            // there is no locomotion driving it, so an enabled Animator
+            // would just hold whichever frame its default state happened to
+            // start on rather than a deliberate standing pose.
+            foreach (Animator animator in body.GetComponentsInChildren<Animator>(true))
             {
-                label.text = value;
+                animator.enabled = false;
             }
+        }
+
+        private static void Strip<T>(GameObject root) where T : Component
+        {
+            foreach (T found in root.GetComponentsInChildren<T>(includeInactive: true))
+            {
+                Destroy(found);
+            }
+        }
+
+        /// <summary>
+        /// Paints the body the way CharacterIdentity.Apply paints the live
+        /// in-world one -- deliberately NOT by adding a CharacterIdentity
+        /// component and calling it, though. That component also tracks
+        /// playtime and autosaves back to the store on its own timer, and a
+        /// character sitting on a pedestal being idly looked at is not being
+        /// played -- attaching the real thing here would silently rack up
+        /// playtime and touch LastPlayedUnixSeconds just from browsing the
+        /// menu. This reimplements only the cosmetic half.
+        /// </summary>
+        private void ApplyCosmetics(GameObject body, CharacterSave character)
+        {
+            byte[] painted = character.GetPaint();
+            Texture2D atlas = null;
+            if (painted != null)
+            {
+                var paint = new BodyPaint(character.Skin);
+                if (paint.Decode(painted))
+                {
+                    atlas = paint.Atlas;
+                }
+            }
+
+            foreach (Renderer renderer in body.GetComponentsInChildren<Renderer>(true))
+            {
+                Material instance = renderer.material;
+                if (instance == null)
+                {
+                    continue;
+                }
+                if (atlas != null)
+                {
+                    if (instance.HasProperty("_BaseMap")) instance.SetTexture("_BaseMap", atlas);
+                    instance.mainTexture = atlas;
+                    if (instance.HasProperty("_BaseColor")) instance.SetColor("_BaseColor", Color.white);
+                    if (instance.HasProperty("_Color")) instance.SetColor("_Color", Color.white);
+                }
+                else
+                {
+                    if (instance.HasProperty("_BaseColor")) instance.SetColor("_BaseColor", character.Skin);
+                    if (instance.HasProperty("_Color")) instance.SetColor("_Color", character.Skin);
+                }
+            }
+
+            Transform head = FindDeep(body.transform, "head");
+            if (head != null && HairStyleMeshes != null && HairStyleMeshes.Length > 0)
+            {
+                var hair = body.AddComponent<CharacterHair>();
+                hair.Head = head;
+                hair.StyleMeshes = HairStyleMeshes;
+                hair.HairMaterial = HairMaterialAsset;
+                hair.SetStyle(string.IsNullOrEmpty(character.HairStyle) ? "none" : character.HairStyle);
+            }
+        }
+
+        private static Transform FindDeep(Transform root, string name)
+        {
+            foreach (Transform child in root.GetComponentsInChildren<Transform>(true))
+            {
+                if (child.name == name)
+                {
+                    return child;
+                }
+            }
+            return null;
         }
     }
 }

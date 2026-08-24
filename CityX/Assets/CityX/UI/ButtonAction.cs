@@ -46,6 +46,10 @@ namespace CityX.UI
             SelectChooseSkin,
             SelectConfirmDelete,
             SelectCancelDelete,
+            SelectNext,
+            SelectPrevious,
+            SelectPlaySelected,
+            SelectBeginDeleteSelected,
 
             CreatorTool,
             CreatorColour,
@@ -125,6 +129,18 @@ namespace CityX.UI
                     break;
                 case Kind.SelectCancelDelete:
                     if (Select != null) Select.CancelDelete();
+                    break;
+                case Kind.SelectNext:
+                    if (Select != null) Select.Next();
+                    break;
+                case Kind.SelectPrevious:
+                    if (Select != null) Select.Previous();
+                    break;
+                case Kind.SelectPlaySelected:
+                    if (Select != null) Select.PlaySelected();
+                    break;
+                case Kind.SelectBeginDeleteSelected:
+                    if (Select != null) Select.BeginDeleteSelected();
                     break;
 
                 case Kind.CreatorTool:

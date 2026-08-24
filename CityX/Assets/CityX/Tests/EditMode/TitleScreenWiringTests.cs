@@ -149,6 +149,10 @@ namespace CityX.Tests
                     case ButtonAction.Kind.SelectChooseSkin:
                     case ButtonAction.Kind.SelectConfirmDelete:
                     case ButtonAction.Kind.SelectCancelDelete:
+                    case ButtonAction.Kind.SelectNext:
+                    case ButtonAction.Kind.SelectPrevious:
+                    case ButtonAction.Kind.SelectPlaySelected:
+                    case ButtonAction.Kind.SelectBeginDeleteSelected:
                         Require(unwired, go, action.Select, "a CharacterSelect");
                         break;
 

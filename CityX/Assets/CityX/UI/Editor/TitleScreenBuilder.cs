@@ -230,19 +230,25 @@ namespace CityX.UIEditor
 
             title.Logo = BuildLogo(logoGroup.transform);
             title.MenuPanel = BuildMenu(root.transform, title);
-            title.CharacterSelectPanel = CharacterSelectBuilder.Build(root.transform, title);
 
+            // Loaded once, up here, because both the select carousel and the
+            // creator need their own clone of the same body -- CityX/Rebuild
+            // Player Rig has to have run first for either to have anything
+            // to show.
             var playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(
                 "Assets/CityX/Character/Player.prefab");
+            if (playerPrefab == null)
+            {
+                Debug.LogWarning("CityX: no player prefab -- the select carousel and the " +
+                                 "creator will not be built. Run CityX/Rebuild Player Rig first.");
+            }
+
+            title.CharacterSelectPanel = CharacterSelectBuilder.Build(root.transform, title, playerPrefab);
+
             if (playerPrefab != null)
             {
                 title.CreatorPanel = CharacterCreatorBuilder.Build(
                     root.transform, title, playerPrefab);
-            }
-            else
-            {
-                Debug.LogWarning("CityX: no player prefab -- the creator will not be built. " +
-                                 "Run CityX/Rebuild Player Rig first.");
             }
 
             title.MultiplayerPanel = BuildStub(root.transform, "MultiplayerPanel",
