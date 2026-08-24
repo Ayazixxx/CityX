@@ -187,6 +187,26 @@ namespace CityX.Tests
         }
 
         /// <summary>
+        /// title_screen.gd's own StarsPlayer -- background music through
+        /// Menu/CharacterSelect/Creator. loop and playOnAwake both have to
+        /// be true for a scene-baked AudioSource to actually start itself
+        /// without any script calling Play(): nothing in TitleScreen.cs
+        /// does, on purpose (see MusicPlayer's own tooltip).
+        /// </summary>
+        [Test]
+        public void TheTitleMusicIsWiredToLoopAndStartItself()
+        {
+            var title = Find<TitleScreen>();
+            Assert.IsNotNull(title, "there is no TitleScreen in the title scene");
+
+            Assert.IsNotNull(title.MusicPlayer, "the title screen has no music player");
+            Assert.IsNotNull(title.MusicPlayer.clip, "the music player has no clip assigned");
+            Assert.IsTrue(title.MusicPlayer.loop, "the music should loop rather than play once and go silent");
+            Assert.IsTrue(title.MusicPlayer.playOnAwake,
+                "nothing calls Play() on this -- it has to start itself");
+        }
+
+        /// <summary>
         /// The panel that lets somebody leave the creator, and the one that
         /// asks for a name. Either left unwired means a screen with no way out
         /// or no way forward.

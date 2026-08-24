@@ -38,6 +38,9 @@ namespace CityX.UI
         [Tooltip("Hidden while the character list is up -- it covers the whole screen.")]
         public GameObject LogoGroup;
 
+        [Tooltip("title_screen.gd's own StarsPlayer -- plays through Menu/CharacterSelect/Creator, set to loop and play on awake, and never touched by Show().")]
+        public AudioSource MusicPlayer;
+
         [Tooltip("Seconds for one full pulse of the logo. The Godot build's own period.")]
         public float LogoFlickerPeriod = 6.5f;
 

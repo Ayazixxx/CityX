@@ -215,6 +215,35 @@ namespace CityX.UIEditor
             root.AddComponent<GraphicRaycaster>();
             TitleScreen title = root.AddComponent<TitleScreen>();
 
+            // title_screen.gd's own StarsPlayer -- background music that
+            // starts the instant the title screen loads and just keeps
+            // playing underneath Menu/CharacterSelect/Creator exactly the
+            // way that node does (see its own class comment: "the
+            // persistent background music... keep playing regardless").
+            // Nothing here has to stop or restart it across those panels --
+            // Show() only ever toggles the UI panels, never touches this,
+            // so playOnAwake alone is enough to cover the whole title flow.
+            // It stops the moment CharacterSelect.Play() loads the world
+            // scene -- that unloads this whole scene outright, which is a
+            // hard cut rather than title_screen.gd's own tweened
+            // fade_out_stars(): that fade is only possible there because
+            // Godot's own title screen node survives the transition and can
+            // still be tweened afterwards, and re-architecting scene
+            // loading to keep this scene alive across that boundary is a
+            // bigger change than "add the music" asked for.
+            var musicObject = new GameObject("MusicPlayer");
+            musicObject.transform.SetParent(root.transform, false);
+            AudioSource music = musicObject.AddComponent<AudioSource>();
+            music.clip = AssetDatabase.LoadAssetAtPath<AudioClip>(
+                "Assets/CityX/UI/Audio/stars.mp3");
+            music.loop = true;
+            music.playOnAwake = true;
+            if (music.clip == null)
+            {
+                Debug.LogWarning("CityX: no title music clip at Assets/CityX/UI/Audio/stars.mp3.");
+            }
+            title.MusicPlayer = music;
+
             // A dark wash over the city so the menu stays readable against
             // whatever the camera happens to be flying past.
             var vignette = MakeRect("Vignette", root.transform, new Color(0.0f, 0.0f, 0.0f, 0.35f));
