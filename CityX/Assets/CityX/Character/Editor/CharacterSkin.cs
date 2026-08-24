@@ -69,6 +69,71 @@ namespace CityX.CharacterEditor
         }
 
         /// <summary>
+        /// A material carrying a real painted atlas rather than a flat colour
+        /// -- OldGuyBuilder's own equivalent of what CharacterIdentity.Apply
+        /// does for a live player body (see its own ApplyPaint), baked at
+        /// build time instead of applied at runtime, since a design-baked NPC
+        /// has no CharacterIdentity driving it.
+        ///
+        /// THE TEXTURE IS SAVED AS A REAL ASSET, NOT LEFT LOOSE -- the same
+        /// lesson PistolSpark's own material learned: a loose in-memory
+        /// Texture2D does not reliably survive PrefabUtility.SaveAsPrefabAsset,
+        /// so this creates (or updates in place, so re-running the build after
+        /// a repaint picks up the change) a real .asset file for it first.
+        /// </summary>
+        public static Material EnsurePainted(string name, Texture2D atlas)
+        {
+            System.IO.Directory.CreateDirectory(Directory);
+
+            string texturePath = $"{Directory}/{name}Atlas.asset";
+            Texture2D savedAtlas = AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath);
+            if (savedAtlas == null)
+            {
+                AssetDatabase.CreateAsset(atlas, texturePath);
+                savedAtlas = atlas;
+            }
+            else if (savedAtlas != atlas)
+            {
+                savedAtlas.SetPixels32(atlas.GetPixels32());
+                savedAtlas.Apply();
+                EditorUtility.SetDirty(savedAtlas);
+            }
+
+            string materialPath = $"{Directory}/{name}.mat";
+            Material material = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
+            if (material == null)
+            {
+                Shader shader = Shader.Find("Universal Render Pipeline/Lit");
+                if (shader == null)
+                {
+                    Debug.LogError("CityX: URP Lit shader not found -- characters will be magenta.");
+                    shader = Shader.Find("Standard");
+                }
+                material = new Material(shader);
+                AssetDatabase.CreateAsset(material, materialPath);
+            }
+
+            Shader litShader = Shader.Find("Universal Render Pipeline/Lit");
+            if (litShader != null)
+            {
+                material.shader = litShader;
+            }
+
+            // White underneath, or the paint comes out tinted -- same
+            // reasoning as CharacterIdentity.ApplyPaint's own copy of this.
+            if (material.HasProperty("_BaseMap"))
+            {
+                material.SetTexture("_BaseMap", savedAtlas);
+            }
+            material.mainTexture = savedAtlas;
+            material.SetColor("_BaseColor", Color.white);
+            material.SetFloat("_Smoothness", 0.12f);
+            material.SetFloat("_Metallic", 0.0f);
+            EditorUtility.SetDirty(material);
+            return material;
+        }
+
+        /// <summary>
         /// Paints every renderer under <paramref name="root"/>. Applies to the
         /// whole hierarchy rather than one named mesh, because the Mixamo body
         /// arrives as two skinned meshes and which is which is the exporter's

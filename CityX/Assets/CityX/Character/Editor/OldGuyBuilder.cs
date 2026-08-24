@@ -1,3 +1,5 @@
+using System;
+using System.IO;
 using CityX.Character;
 using UnityEditor;
 using UnityEngine;
@@ -9,16 +11,16 @@ namespace CityX.CharacterEditor
     /// shares the player's body, animator controller and rig wholesale, a
     /// distinct skin is the only visual difference.
     ///
-    /// A FLAT SKIN COLOUR, NOT A DRAWN PORTRAIT. Godot's own npc/old_guy.gd
-    /// wears a design baked in the game's own character creator
-    /// (npc/designs/old_guy.tres) -- there is no equivalent bake pipeline
-    /// on the Unity side yet (confirmed: nothing resembling a saved
-    /// design/paint asset exists anywhere in this project outside the
-    /// live in-game creator itself). Building that whole pipeline as a
-    /// side effect of one NPC's own look would be a much larger, separate
-    /// piece of work; CharacterSkin.Ensure is this project's own
-    /// established fallback for exactly this gap, already used by
-    /// Civilian for the identical reason.
+    /// A REAL DRAWN PORTRAIT, PULLED FROM THE GODOT DESIGN. Godot's own
+    /// npc/old_guy.gd wears a design baked in the game's own character
+    /// creator (npc/designs/old_guy.tres). It is a Godot Resource (.tres),
+    /// not a ConfigFile, so its own atlas_png is base64 inside a quoted
+    /// string rather than GodotCharacterImport.Bytes' comma-separated
+    /// integer literal -- LoadDesignAtlasPng below is that format's own
+    /// reader. Same "CharacterSkin.Ensure a flat colour" fallback as
+    /// before if the design is missing or its atlas will not decode, so a
+    /// checkout without the Godot repo alongside it still builds something
+    /// rather than failing outright.
     ///
     /// NO RAGDOLL. Old Guy never takes damage (see UniqueNpc's own
     /// ApplyHit) and so never has a reason to go limp -- unlike Civilian,
@@ -37,6 +39,7 @@ namespace CityX.CharacterEditor
         private const string ControllerPath = "Assets/CityX/Character/PlayerAnimator.controller";
         private const string PrefabPath = "Assets/CityX/Character/OldGuy.prefab";
 
+        /// <summary>Fallback only -- used when the drawn design can't be found or decoded.</summary>
         private static readonly Color SkinColour = new Color(0.62f, 0.55f, 0.47f);
 
         public static GameObject Build(GameObject dialogueBoxPrefab)
@@ -51,7 +54,7 @@ namespace CityX.CharacterEditor
             var root = new GameObject("OldGuy");
             try
             {
-                Material skin = CharacterSkin.Ensure("OldGuySkin", SkinColour);
+                Material skin = BuildSkin();
                 GameObject body = FusedBodyBuilder.BuildBody(skin, controller);
                 body.transform.SetParent(root.transform, false);
 
@@ -75,7 +78,110 @@ namespace CityX.CharacterEditor
             }
             finally
             {
-                Object.DestroyImmediate(root);
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        /// <summary>
+        /// The painted material if the Godot design decodes, otherwise the
+        /// flat fallback colour -- never a hard failure, since a checkout
+        /// without the Godot repo sitting next to this one should still
+        /// build a usable (if plainer) Old Guy.
+        /// </summary>
+        private static Material BuildSkin()
+        {
+            byte[] png = LoadDesignAtlasPng("old_guy");
+            if (png == null)
+            {
+                Debug.LogWarning("CityX: no npc/designs/old_guy.tres found (or its atlas would " +
+                                  "not decode) -- Old Guy is getting the flat fallback colour.");
+                return CharacterSkin.Ensure("OldGuySkin", SkinColour);
+            }
+
+            var image = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+            try
+            {
+                if (!ImageConversion.LoadImage(image, png, markNonReadable: false))
+                {
+                    Debug.LogWarning("CityX: old_guy.tres's atlas_png would not decode as a PNG " +
+                                      "-- falling back to the flat colour.");
+                    return CharacterSkin.Ensure("OldGuySkin", SkinColour);
+                }
+                if (image.width != PaintAtlas.Width || image.height != PaintAtlas.Height)
+                {
+                    Debug.LogWarning($"CityX: old_guy.tres's atlas is {image.width}x{image.height}, " +
+                                      $"not {PaintAtlas.Width}x{PaintAtlas.Height} -- falling back " +
+                                      "to the flat colour rather than stretching it onto the wrong rows.");
+                    return CharacterSkin.Ensure("OldGuySkin", SkinColour);
+                }
+
+                var paint = new BodyPaint(Color.white);
+                if (!paint.Adopt(image.GetPixels32()))
+                {
+                    Debug.LogWarning("CityX: old_guy.tres's atlas would not adopt -- falling back " +
+                                      "to the flat colour.");
+                    return CharacterSkin.Ensure("OldGuySkin", SkinColour);
+                }
+
+                return CharacterSkin.EnsurePainted("OldGuySkin", paint.Atlas);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(image);
+            }
+        }
+
+        /// <summary>
+        /// Reads a design's own atlas_png straight out of npc/designs/&lt;slug&gt;
+        /// .tres. A .tres is a Godot Resource, saved through ResourceSaver --
+        /// a DIFFERENT serialization from characters.cfg's ConfigFile (see
+        /// GodotCharacterImport.Bytes' own comma-separated integer literal):
+        /// a Resource's own PackedByteArray comes out as base64 inside a
+        /// quoted string instead. Null on anything short of a clean decode
+        /// -- a missing repo, a missing design, a field that will not parse
+        /// -- rather than throwing, since this runs as part of an ordinary
+        /// rebuild that has to keep working without the Godot half of the
+        /// project checked out alongside it.
+        /// </summary>
+        public static byte[] LoadDesignAtlasPng(string slug)
+        {
+            string projectRoot = Directory.GetParent(Application.dataPath).Parent.FullName;
+            string path = Path.Combine(projectRoot, "npc", "designs", slug + ".tres");
+            if (!File.Exists(path))
+            {
+                return null;
+            }
+            return ParseAtlasPngFromTres(File.ReadAllText(path));
+        }
+
+        /// <summary>
+        /// Separated from the file read above so a test can drive it against
+        /// an inline fixture, the same reasoning GodotCharacterImport.Import
+        /// gives for its own split from ImportMenu.
+        /// </summary>
+        public static byte[] ParseAtlasPngFromTres(string text)
+        {
+            const string marker = "atlas_png = PackedByteArray(\"";
+            int start = text.IndexOf(marker, StringComparison.Ordinal);
+            if (start < 0)
+            {
+                return null;
+            }
+            start += marker.Length;
+            int end = text.IndexOf('"', start);
+            if (end < 0)
+            {
+                return null;
+            }
+
+            string base64 = text.Substring(start, end - start);
+            try
+            {
+                return Convert.FromBase64String(base64);
+            }
+            catch (FormatException)
+            {
+                return null;
             }
         }
     }
