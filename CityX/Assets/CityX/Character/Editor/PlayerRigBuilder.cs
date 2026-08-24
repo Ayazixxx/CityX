@@ -289,6 +289,15 @@ namespace CityX.CharacterEditor
         private const float CrouchBlendSeconds = 0.2f;
 
         /// <summary>
+        /// Below this the body counts as standing still for the purposes of
+        /// deciding whether a crouch fold/unfold pose actually gets shown --
+        /// see AddCrouchStates' own doc comment on why that distinction
+        /// matters. Small rather than zero so residual float noise from a
+        /// stopped body can never read as "still moving."
+        /// </summary>
+        private const float CrouchMovingSpeedThreshold = 0.1f;
+
+        /// <summary>
         /// Going down, being down, and coming back up.
         ///
         /// THREE STATES RATHER THAN A BLEND, because Godot has three clips and
@@ -303,6 +312,24 @@ namespace CityX.CharacterEditor
         /// gives the same thing -- a crouched body, not moving -- and comes
         /// from the clip the body will actually blend INTO the moment it walks,
         /// so there is nothing to pop between.
+        ///
+        /// THE FOLD/UNFOLD POSE ONLY EVER PLAYS WHILE STANDING STILL -- ported
+        /// from character.gd's own start_crouch()/end_crouch(), whose class
+        /// comments say this in as many words: "Firing this while the player
+        /// is ALREADY moving is fine: set_walking's own 'crouching' branch
+        /// plays crouch_walk instead the very same/next frame, so this
+        /// transition only actually gets seen through to completion while
+        /// standing still." Godot re-evaluates which clip to play from
+        /// scratch every physics frame, so that fallthrough is implicit
+        /// there. Unity's graph has no equivalent per-frame re-decision, so
+        /// it needs its own explicit transitions: without them, crouching (or
+        /// un-crouching) while already walking sat through the WHOLE
+        /// standing_to_crouch/crouch_to_idle clip -- a real reported bug
+        /// ("crouch walking isn't working right") -- with the body sliding
+        /// across the ground under a fold animation that was never meant to
+        /// carry any actual travel. Gated on Speed rather than a separate
+        /// "Moving" bool because Speed is already fed every Tick and reads
+        /// zero at rest to well within CrouchMovingSpeedThreshold.
         /// </summary>
         private static void AddCrouchStates(AnimatorController controller,
             AnimatorStateMachine root)
@@ -335,18 +362,49 @@ namespace CityX.CharacterEditor
             AnimatorState upState = root.AddState("CrouchToIdle");
             upState.motion = up;
 
-            Link(locomotion, downState, CrouchBlendSeconds, "Crouching", true);
+            // EACH OF THESE FOUR IS GATED TO STANDING STILL (Speed below the
+            // threshold), made explicit rather than left to transition
+            // ordering -- Mecanim does not prefer the more specific of two
+            // simultaneously-satisfied transitions from the same state, it
+            // takes whichever was added first, so without this the moving
+            // versions added below would never be reached at all while
+            // Crouching was also true. See this method's own doc comment.
+            AddSpeedCondition(
+                Link(locomotion, downState, CrouchBlendSeconds, "Crouching", true),
+                AnimatorConditionMode.Less);
             Link(downState, crouchedState, 0.1f, null, false, exitTime: 0.9f);
 
             // A crouch abandoned before it finishes still has to come back up,
             // or holding and releasing quickly leaves the body folded.
             Link(downState, upState, CrouchBlendSeconds, "Crouching", false);
-            Link(crouchedState, upState, CrouchBlendSeconds, "Crouching", false);
+            AddSpeedCondition(
+                Link(crouchedState, upState, CrouchBlendSeconds, "Crouching", false),
+                AnimatorConditionMode.Less);
             Link(upState, locomotion, 0.1f, null, false, exitTime: 0.9f);
 
             // And crouching again mid-stand goes straight back down rather than
             // waiting out the rest of the stand.
             Link(upState, downState, CrouchBlendSeconds, "Crouching", true);
+
+            // --- moving skips the fold/unfold pose entirely, see this
+            // --- method's own doc comment for why.
+            AddSpeedCondition(
+                Link(locomotion, crouchedState, CrouchBlendSeconds, "Crouching", true),
+                AnimatorConditionMode.Greater);
+            AddSpeedCondition(
+                Link(downState, crouchedState, CrouchBlendSeconds, "Crouching", true),
+                AnimatorConditionMode.Greater);
+            AddSpeedCondition(
+                Link(crouchedState, locomotion, CrouchBlendSeconds, "Crouching", false),
+                AnimatorConditionMode.Greater);
+            AddSpeedCondition(
+                Link(upState, locomotion, CrouchBlendSeconds, null, false),
+                AnimatorConditionMode.Greater);
+        }
+
+        private static void AddSpeedCondition(AnimatorStateTransition transition, AnimatorConditionMode mode)
+        {
+            transition.AddCondition(mode, CrouchMovingSpeedThreshold, "Speed");
         }
 
         /// <summary>
@@ -572,12 +630,18 @@ namespace CityX.CharacterEditor
         }
 
         /// <summary>One transition, with the boilerplate that is the same every time.</summary>
-        private static void Link(AnimatorState from, AnimatorState to, float duration,
+        /// <summary>
+        /// Returns the transition it built, so a caller that needs one more
+        /// condition than this covers (see AddCrouchStates' own
+        /// AddSpeedCondition calls) can add it without a second, near-
+        /// identical helper.
+        /// </summary>
+        private static AnimatorStateTransition Link(AnimatorState from, AnimatorState to, float duration,
             string parameter, bool wanted, float exitTime = -1.0f)
         {
             if (from == null || to == null)
             {
-                return;
+                return null;
             }
             AnimatorStateTransition transition = from.AddTransition(to);
             transition.duration = duration;
@@ -595,6 +659,7 @@ namespace CityX.CharacterEditor
             {
                 transition.hasExitTime = false;
             }
+            return transition;
         }
 
         /// <summary>
