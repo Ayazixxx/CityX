@@ -1,0 +1,117 @@
+using System.Collections;
+using System.IO;
+using CityX.Core;
+using CityX.UI;
+using NUnit.Framework;
+using UnityEngine;
+using UnityEngine.TestTools;
+
+namespace CityX.Tests
+{
+    /// <summary>
+    /// THE CAROUSEL'S PEDESTAL BODIES, confirmed against a real headless
+    /// render rather than assumed from the code alone -- a render with
+    /// these two bugs still in place showed pedestals standing empty (the
+    /// body layer bug) and, once that was fixed, arms locked straight out
+    /// in a T-pose (the missing PoseArmsDown call). Both are regression-
+    /// tested here directly rather than only by eye.
+    /// </summary>
+    public sealed class CharacterSelectCarouselPlayTests
+    {
+        private string _directory;
+        private GameObject _panel;
+        private CharacterSelect _select;
+        private GameObject[] _anchorObjects;
+
+        [SetUp]
+        public void SetUp()
+        {
+            _directory = Path.Combine(Path.GetTempPath(), "CityXTests", Path.GetRandomFileName());
+            Directory.CreateDirectory(_directory);
+            CharacterStore.DirectoryOverride = _directory;
+
+            _panel = new GameObject("Panel");
+            _select = _panel.AddComponent<CharacterSelect>();
+
+#if UNITY_EDITOR
+            GameObject playerPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/CityX/Character/Player.prefab");
+            _select.CarouselBodyPrefab = playerPrefab;
+#endif
+
+            // A layer OTHER than Default (0), the same way the real
+            // carousel's own anchors carry the dedicated "CityXCreator"
+            // layer rather than whatever Player.prefab ships on -- the bug
+            // this guards against only shows up when the two actually
+            // differ.
+            int stageLayer = 1;
+            _anchorObjects = new GameObject[3];
+            var anchors = new Transform[3];
+            for (int i = 0; i < 3; i++)
+            {
+                _anchorObjects[i] = new GameObject($"Anchor{i}");
+                _anchorObjects[i].layer = stageLayer;
+                anchors[i] = _anchorObjects[i].transform;
+            }
+            _select.PedestalAnchors = anchors;
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            CharacterStore.DirectoryOverride = null;
+            if (Directory.Exists(_directory))
+            {
+                Directory.Delete(_directory, recursive: true);
+            }
+            Object.Destroy(_panel);
+            foreach (GameObject anchor in _anchorObjects)
+            {
+                if (anchor != null) Object.Destroy(anchor);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator APedestalBodyLandsOnTheAnchorsOwnLayerAndStandsWithItsArmsDown()
+        {
+            Assert.IsNotNull(_select.CarouselBodyPrefab, "Player.prefab is missing");
+
+            CharacterStore.Add(CharacterSave.Create("Ayaz", new Color(0.3f, 0.4f, 0.5f)));
+            _select.Refresh();
+            yield return null;
+
+            Transform centreAnchor = _select.PedestalAnchors[1];
+            Assert.AreEqual(1, centreAnchor.childCount, "the centre pedestal has no body on it");
+            GameObject body = centreAnchor.GetChild(0).gameObject;
+
+            Assert.AreEqual(centreAnchor.gameObject.layer, body.layer,
+                "the pedestal body is not on the stage's own layer -- the carousel's camera, " +
+                "culling-masked to that layer, would never render it (confirmed live: a render " +
+                "with this bug showed the pedestal platforms lit but standing empty)");
+
+            var animator = body.GetComponentInChildren<Animator>();
+            Assert.IsNotNull(animator, "the pedestal body has no Animator");
+            Assert.IsFalse(animator.enabled, "the pedestal body should be held still, not animated");
+
+            Transform armLeft = FindDeep(body.transform, "arm_l");
+            Assert.IsNotNull(armLeft, "no arm_l bone -- cannot confirm the pose");
+            float angle = Quaternion.Angle(armLeft.localRotation, Quaternion.Euler(0.0f, 0.0f, 78.0f));
+            Assert.Less(angle, 1.0f,
+                "the left arm is not down at the body's side -- it is still at (or near) the " +
+                "bind pose's T-pose, confirmed live as the second thing the same render showed " +
+                "once the layer fix alone let the bodies actually appear");
+        }
+
+        private static Transform FindDeep(Transform root, string name)
+        {
+            foreach (Transform child in root.GetComponentsInChildren<Transform>(true))
+            {
+                if (child.name == name)
+                {
+                    return child;
+                }
+            }
+            return null;
+        }
+    }
+}

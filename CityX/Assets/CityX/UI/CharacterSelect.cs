@@ -403,6 +403,22 @@ namespace CityX.UI
             body.transform.localPosition = Vector3.zero;
             body.transform.localRotation = Quaternion.identity;
 
+            // ONTO THE STAGE'S OWN LAYER, NOT WHATEVER Player.prefab SHIPS
+            // ON. The anchors were put on the carousel's dedicated layer at
+            // build time (CharacterSelectBuilder.BuildCarouselStage), but a
+            // body cloned from the prefab at RUNTIME still carries the
+            // prefab's own default layer -- invisible to a camera whose
+            // cullingMask only shows the stage's layer, confirmed directly:
+            // a render showed the pedestals lit and in frame with no body
+            // on any of them, and every stripped-down component came back
+            // present and active except the layer never having been
+            // touched.
+            int layer = PedestalAnchors[slot].gameObject.layer;
+            foreach (Transform t in body.GetComponentsInChildren<Transform>(true))
+            {
+                t.gameObject.layer = layer;
+            }
+
             StripWorldComponents(body);
             ApplyCosmetics(body, _characters[characterIndex]);
 
@@ -433,13 +449,38 @@ namespace CityX.UI
             Strip<Rigidbody>(body);
             Strip<Collider>(body);
 
-            // Held in its bind pose, matching the creator's own stage --
-            // there is no locomotion driving it, so an enabled Animator
-            // would just hold whichever frame its default state happened to
-            // start on rather than a deliberate standing pose.
+            // Held still rather than animated -- there is no locomotion
+            // driving it, so an enabled Animator would just hold whichever
+            // frame its default state happened to start on. UNLIKE the
+            // creator's own body, this is not left at the bare bind pose:
+            // that is a T-pose, arms straight out, which reads as broken on
+            // a screen whose whole point is showing off the character
+            // rather than exposing it for painting. Posed to a natural
+            // arms-down stance instead, the same fixed rotations
+            // PistolBuilder.PoseArmsDown already uses for its own grip
+            // renders.
             foreach (Animator animator in body.GetComponentsInChildren<Animator>(true))
             {
                 animator.enabled = false;
+            }
+            PoseArmsDown(body.transform);
+        }
+
+        /// <summary>Same fixed pose PistolBuilder.PoseArmsDown uses -- arms relaxed at the sides rather than the bind pose's T-pose.</summary>
+        private static void PoseArmsDown(Transform root)
+        {
+            SetLocalRotation(root, "arm_l", new Vector3(0.0f, 0.0f, 78.0f));
+            SetLocalRotation(root, "forearm_l", new Vector3(0.0f, 0.0f, 12.0f));
+            SetLocalRotation(root, "arm_r", new Vector3(0.0f, 0.0f, -78.0f));
+            SetLocalRotation(root, "forearm_r", new Vector3(0.0f, 0.0f, -12.0f));
+        }
+
+        private static void SetLocalRotation(Transform root, string boneName, Vector3 euler)
+        {
+            Transform bone = FindDeep(root, boneName);
+            if (bone != null)
+            {
+                bone.localRotation = Quaternion.Euler(euler);
             }
         }
 
