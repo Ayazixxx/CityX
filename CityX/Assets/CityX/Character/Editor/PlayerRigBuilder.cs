@@ -224,6 +224,7 @@ namespace CityX.CharacterEditor
             AddCrouchStates(controller, root);
             AddDashState(controller, root);
             AddChargedJumpState(controller, root);
+            AddAimingState(controller, root);
             AddPunchStates(root);
             AddCutsceneStates(root);
 
@@ -386,6 +387,54 @@ namespace CityX.CharacterEditor
             outOf.duration = 0.15f;
             outOf.hasExitTime = true;
             outOf.exitTime = 0.6f;
+        }
+
+        /// <summary>
+        /// Raises the pistol to aim while right-click is held. Ported from
+        /// nowhere -- pistol_aim_in.fbx was already sitting retargeted and
+        /// unused in the Animations folder (this project's own doc comment
+        /// on UpdateHeldPose's "no dedicated reload mocap clip exists
+        /// (unlike shoot/aim-in/locomotion, all real retargeted Mixamo
+        /// clips)" already named it) until this wired it up.
+        ///
+        /// A FULL-BODY STANDING POSE, not an upper-body-only overlay --
+        /// confirmed by sampling its own curve bindings directly: it
+        /// animates the legs too (Right Upper Leg Front-Back and friends),
+        /// the same shape as ChargedJump's own held pose, so it replaces
+        /// Locomotion outright the same way rather than needing a second
+        /// additive Animator layer over the walk cycle.
+        ///
+        /// BOOL-GATED BOTH WAYS, unlike ChargedJump's one-way trigger reuse
+        /// -- there is no other any-state transition this can piggyback on
+        /// to get back out, so it needs its own explicit "Aiming went
+        /// false" exit, matching AddCrouchStates' own bidirectional Link
+        /// pattern instead.
+        /// </summary>
+        private static void AddAimingState(AnimatorController controller, AnimatorStateMachine root)
+        {
+            AnimationClip clip = FindClip("pistol_aim_in");
+            AnimatorState locomotion = FindState(root, "Locomotion");
+            if (clip == null || locomotion == null)
+            {
+                Debug.LogWarning("CityX: no pistol_aim_in clip -- aiming will not raise the gun.");
+                return;
+            }
+
+            controller.AddParameter("Aiming", AnimatorControllerParameterType.Bool);
+
+            AnimatorState aiming = root.AddState("Aiming");
+            aiming.motion = clip;
+
+            AnimatorStateTransition into = root.AddAnyStateTransition(aiming);
+            into.AddCondition(AnimatorConditionMode.If, 0.0f, "Aiming");
+            into.duration = 0.12f;
+            into.hasExitTime = false;
+            into.canTransitionToSelf = false;
+
+            AnimatorStateTransition outOf = aiming.AddTransition(locomotion);
+            outOf.AddCondition(AnimatorConditionMode.IfNot, 0.0f, "Aiming");
+            outOf.duration = 0.15f;
+            outOf.hasExitTime = false;
         }
 
         /// <summary>

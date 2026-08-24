@@ -86,6 +86,7 @@ namespace CityX.Character
         private static readonly int DashParameter = Animator.StringToHash("Dash");
         private static readonly int JumpParameter = Animator.StringToHash("Jump");
         private static readonly int ChargingJumpParameter = Animator.StringToHash("ChargingJump");
+        private static readonly int AimingParameter = Animator.StringToHash("Aiming");
 
         /// <summary>Horizontal speed after the last tick, in metres per second.</summary>
         public float CurrentSpeed { get; private set; }
@@ -526,6 +527,7 @@ namespace CityX.Character
                 _animator.SetBool(GroundedParameter, _controller.isGrounded);
                 _animator.SetBool(CrouchingParameter, IsCrouching);
                 _animator.SetBool(ChargingJumpParameter, input.ChargingJump);
+                _animator.SetBool(AimingParameter, input.Aiming);
             }
         }
     }

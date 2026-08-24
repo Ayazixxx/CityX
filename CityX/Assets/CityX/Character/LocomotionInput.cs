@@ -66,6 +66,16 @@ namespace CityX.Character
         /// </summary>
         public float JumpChargeFraction;
 
+        /// <summary>
+        /// True for as long as a gun's own right-click aim is held -- see
+        /// PlayerInputReader.TickCombat's own gun branch. Drives the
+        /// Animator's "Aiming" bool, which shows the pistol_aim_in pose;
+        /// nothing here decides WHAT counts as aiming, only carries the
+        /// answer to the one place (PlayerLocomotion.Tick) that already
+        /// owns every other animator parameter.
+        /// </summary>
+        public bool Aiming;
+
         /// <summary>The world-space direction the player wants to travel, flat and normalised.</summary>
         public Vector3 WorldDirection()
         {

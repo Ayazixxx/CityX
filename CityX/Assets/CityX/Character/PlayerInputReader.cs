@@ -56,6 +56,15 @@ namespace CityX.Character
         private bool _jumpHeld;
         private float _jumpHeldSeconds;
 
+        /// <summary>
+        /// Set inside TickCombat's own gun branch, read back here in Update()
+        /// once the LocomotionInput for this same frame is built -- TickCombat
+        /// runs first and returns before movement is ever touched, so there is
+        /// no other way for "is the gun's right-click held" to reach the
+        /// animator without threading a whole extra parameter through.
+        /// </summary>
+        private bool _isAimingGun;
+
         private PlayerLocomotion _locomotion;
         private PlayerVitals _vitals;
         private MeleeAttacker _melee;
@@ -238,6 +247,7 @@ namespace CityX.Character
                 ChargingJump = chargingJumpNow,
                 JumpReleased = jumpReleased,
                 JumpChargeFraction = jumpChargeFraction,
+                Aiming = _isAimingGun,
             };
 
             _locomotion.Tick(input, deltaTime);
@@ -300,6 +310,7 @@ namespace CityX.Character
             {
                 _orbitCamera.IsAiming = false;
             }
+            _isAimingGun = false;
 
             // Both hands are full while carrying something -- matches
             // player.gd's own "entirely while carrying something" guard on
@@ -325,6 +336,7 @@ namespace CityX.Character
                 {
                     _orbitCamera.IsAiming = aiming;
                 }
+                _isAimingGun = aiming;
 
                 Transform gunYawSource = YawSource != null
                     ? YawSource
