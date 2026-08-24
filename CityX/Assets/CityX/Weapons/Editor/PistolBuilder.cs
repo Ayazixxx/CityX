@@ -31,6 +31,7 @@ namespace CityX.WeaponsEditor
         private const string ModelPath = "Assets/CityX/Weapons/Models/Beretta_M9.obj";
         private const string ShotAudioPath = "Assets/CityX/Weapons/Audio/pistol_shot.mp3";
         private const string ReloadAudioPath = "Assets/CityX/Weapons/Audio/beretta_reload.mp3";
+        private const string SparkMaterialPath = "Assets/CityX/Weapons/PistolSpark.mat";
 
         // Real Beretta M9 overall length (~21.7cm).
         private const float TargetLengthMeters = 0.22f;
@@ -182,10 +183,27 @@ namespace CityX.WeaponsEditor
 
             var renderer = sparksObject.GetComponent<ParticleSystemRenderer>();
             renderer.renderMode = ParticleSystemRenderMode.Stretch;
-            var sparkMaterial = new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit"))
+
+            // SAVED AS A REAL ASSET, NOT LEFT LOOSE -- a bare in-memory
+            // `new Material(...)` assigned straight to a renderer does not
+            // reliably survive PrefabUtility.SaveAsPrefabAsset; loading the
+            // saved Pistol.prefab back found sharedMaterial null (confirmed
+            // directly), which URP renders as the reported bright pink/
+            // purple "missing shader" fallback, same as CharacterSkin's own
+            // doc comment describes for the identical symptom on a body
+            // with no material at all. BloodSplatterBuilder/GlassShatter
+            // Builder/GlassShardsBuilder all give their own particle
+            // material real asset backing via AssetDatabase.CreateAsset
+            // for exactly this reason; this one just never had.
+            Material sparkMaterial = AssetDatabase.LoadAssetAtPath<Material>(SparkMaterialPath);
+            if (sparkMaterial == null)
             {
-                name = "PistolSpark",
-            };
+                sparkMaterial = new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit"))
+                {
+                    name = "PistolSpark",
+                };
+                AssetDatabase.CreateAsset(sparkMaterial, SparkMaterialPath);
+            }
             sparkMaterial.SetColor("_BaseColor", SparkColour);
             renderer.sharedMaterial = sparkMaterial;
 
