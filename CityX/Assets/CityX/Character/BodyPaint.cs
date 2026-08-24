@@ -60,11 +60,29 @@ namespace CityX.Character
 
         /// <summary>
         /// Takes a whole atlas as it stands, for paint that came from
-        /// somewhere other than this brush -- see GodotCharacterImport.
+        /// somewhere other than this brush -- see GodotCharacterImport and
+        /// OldGuyBuilder.
         ///
         /// Returns false and changes nothing if the size is wrong, for the same
         /// reason Decode does: an atlas of another shape would put an arm's
         /// paint on a leg, and a plain body beats a scrambled one.
+        ///
+        /// VERTICALLY FLIPPED, DELIBERATELY -- confirmed as a real bug live,
+        /// not assumed. texels always arrives fresh from
+        /// Texture2D.GetPixels32() on a just-decoded Godot PNG, both real
+        /// callers pass it straight through. A PNG file's own row order is
+        /// top-down (row 0 = the visual top -- confirmed directly against a
+        /// real design's atlas_png, whose row 0 is unmistakably the drawn
+        /// face), but GetPixels32() uses Unity's own BOTTOM-origin
+        /// convention (confirmed directly with an EncodeToPNG/LoadImage
+        /// round-trip: array index 0 comes back as whatever was set at the
+        /// BOTTOM). PaintAtlas.RowOf gives the Head row index 0, and
+        /// HeadMesh reads it starting from v=0 -- Unity's low v, i.e.
+        /// GetPixels32 index 0 -- so without this flip the head sampled
+        /// from the PNG's own bottom row (the last atlas part, a leg) the
+        /// whole time. Rendered live as a flat, featureless head with no
+        /// trace of the drawn face; the same face reappeared once this
+        /// flip went in.
         /// </summary>
         public bool Adopt(Color32[] texels)
         {
@@ -72,9 +90,17 @@ namespace CityX.Character
             {
                 return false;
             }
-            for (int i = 0; i < _pixels.Length; i++)
+
+            int width = PaintAtlas.Width;
+            int height = PaintAtlas.Height;
+            for (int y = 0; y < height; y++)
             {
-                _pixels[i] = texels[i];
+                int srcRowStart = y * width;
+                int dstRowStart = (height - 1 - y) * width;
+                for (int x = 0; x < width; x++)
+                {
+                    _pixels[dstRowStart + x] = texels[srcRowStart + x];
+                }
             }
             Apply();
             return true;

@@ -1,7 +1,5 @@
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
-using System.Threading;
 using CityX.Character;
 using CityX.CharacterEditor;
 using CityX.Core;
@@ -44,7 +42,7 @@ namespace CityX.Tests
                    + "playtime_seconds=40.5\n";
         }
 
-        private static byte[] PaintedAtlasPng(out Color32 corner)
+        private static byte[] PaintedAtlasPng(out Color32 mark)
         {
             var image = new Texture2D(PaintAtlas.Width, PaintAtlas.Height,
                 TextureFormat.RGBA32, false);
@@ -53,9 +51,21 @@ namespace CityX.Tests
             {
                 pixels[i] = new Color32(255, 255, 255, 255);
             }
-            // One deliberate mark, in the head's row, to follow through.
-            pixels[0] = new Color32(200, 40, 60, 255);
-            corner = pixels[0];
+
+            // Texture2D.SetPixels32's own index 0 is the BOTTOM-LEFT of the
+            // image (Unity's own convention, confirmed directly with an
+            // EncodeToPNG/LoadImage round trip) -- marking the LAST row
+            // here is what lands the mark at the visual TOP once this is
+            // encoded to a real PNG file, which is where a real Godot-
+            // authored atlas puts its head row (PaintAtlas.Parts[0]). See
+            // BodyPaint.Adopt's own comment for the full story; this
+            // fixture used to mark index 0 directly, which is the BOTTOM
+            // of the encoded PNG -- the last atlas row, not the head at
+            // all -- and only ever passed because Adopt had no flip yet
+            // either, so the two wrongs cancelled out.
+            int lastRowStart = (PaintAtlas.Height - 1) * PaintAtlas.Width;
+            mark = new Color32(200, 40, 60, 255);
+            pixels[lastRowStart] = mark;
 
             image.SetPixels32(pixels);
             image.Apply();
@@ -65,9 +75,9 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void ACharacterComesAcrossWithItsNamePlaytimeAndPaint()
+        public void ACharacterComesAcrossWithItsNameAndPaintButNotItsLevelOrPlaytime()
         {
-            byte[] png = PaintedAtlasPng(out Color32 corner);
+            byte[] png = PaintedAtlasPng(out Color32 mark);
 
             List<CharacterSave> imported =
                 GodotCharacterImport.Import(Fixture(png), out List<string> notes);
@@ -78,23 +88,32 @@ namespace CityX.Tests
 
             CharacterSave first = imported[0];
             Assert.AreEqual("dude guy", first.Name);
-            Assert.AreEqual(7, first.Level);
             Assert.AreEqual("embermane", first.HairStyle);
-            Assert.AreEqual(1023.383, first.PlaytimeSeconds, 0.01);
             Assert.IsTrue(first.HasPaint, "the painted atlas did not come across");
 
-            // And it is THAT paint, not merely some paint.
+            // A real explicit ask: bring across how a character LOOKS, not
+            // any of its progress -- even though the fixture says level 7
+            // and ~1023s played, the import should land as brand new.
+            Assert.AreEqual(1, first.Level, "level should not be carried over from the Godot save");
+            Assert.AreEqual(0.0, first.PlaytimeSeconds, 0.01,
+                "playtime should not be carried over from the Godot save");
+
+            // And it is THAT paint, landed on the HEAD specifically -- not
+            // merely some paint, and not merely landed somewhere. Index 0
+            // of the decoded atlas is exactly where PaintAtlas.RowOf(Head)
+            // == 0 / HeadMesh's own v0 starts sampling from.
             var paint = new BodyPaint(Color.white);
             Assert.IsTrue(paint.Decode(first.GetPaint()), "the imported paint will not load back");
             Color32 landed = paint.Atlas.GetPixels32()[0];
-            Assert.AreEqual(corner.r, landed.r);
-            Assert.AreEqual(corner.g, landed.g);
-            Assert.AreEqual(corner.b, landed.b);
+            Assert.AreEqual(mark.r, landed.r, "the mark did not land on the head's own row");
+            Assert.AreEqual(mark.g, landed.g, "the mark did not land on the head's own row");
+            Assert.AreEqual(mark.b, landed.b, "the mark did not land on the head's own row");
         }
 
         /// <summary>
-        /// A character with no atlas_png at all is still worth having -- name,
-        /// level and playtime are most of what a save is.
+        /// A character with no atlas_png at all is still worth having -- its
+        /// name and hairstyle are still real appearance, even with a plain
+        /// body underneath.
         /// </summary>
         [Test]
         public void ACharacterWithNoPaintStillComesAcross()
@@ -104,7 +123,7 @@ namespace CityX.Tests
 
             CharacterSave second = imported[1];
             Assert.AreEqual("Ayazi", second.Name);
-            Assert.AreEqual(1, second.Level, "an absent level should default rather than be zero");
+            Assert.AreEqual(1, second.Level, "a fresh import should always land at level 1");
             Assert.AreEqual("none", second.HairStyle);
             Assert.IsFalse(second.HasPaint);
             Assert.IsNotEmpty(notes, "importing a character with no atlas said nothing about it");
@@ -130,29 +149,6 @@ namespace CityX.Tests
             Assert.IsFalse(imported[0].HasPaint, "a 32x32 atlas was accepted onto a 384x448 body");
             Assert.IsNotEmpty(notes.FindAll(n => n.Contains("32x32")),
                 "refusing the atlas was not reported");
-        }
-
-        /// <summary>
-        /// Godot writes 1023.383333 with a dot whatever the machine's locale
-        /// is. On a comma-decimal locale a careless parse reads that as a
-        /// thousands separator and imports about thirty years of playtime.
-        /// </summary>
-        [Test]
-        public void PlaytimeParsesTheSameInACommaDecimalLocale()
-        {
-            CultureInfo original = Thread.CurrentThread.CurrentCulture;
-            try
-            {
-                Thread.CurrentThread.CurrentCulture = new CultureInfo("de-DE");
-                List<CharacterSave> imported =
-                    GodotCharacterImport.Import(Fixture(new byte[0]), out List<string> _);
-                Assert.AreEqual(1023.383, imported[0].PlaytimeSeconds, 0.01,
-                    "a comma-decimal locale misread the playtime");
-            }
-            finally
-            {
-                Thread.CurrentThread.CurrentCulture = original;
-            }
         }
 
         [Test]

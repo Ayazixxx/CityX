@@ -123,9 +123,14 @@ namespace CityX.CharacterEditor
             {
                 string name = Unquote(Value(section, "name")) ?? "Nobody";
 
+                // LEVEL AND PLAYTIME ARE DELIBERATELY NOT CARRIED OVER, unlike
+                // everything else here -- a real explicit ask: bring across
+                // how a character LOOKS, not any of its progress. Every
+                // import lands as a fresh level 1, 0-playtime character
+                // regardless of what the Godot save says, the same way it
+                // already carries no stat points, skill points or inventory
+                // (CharacterSave.Create's own defaults for all of those).
                 CharacterSave character = CharacterSave.Create(name, CharacterSave.DefaultSkin);
-                character.Level = (int)Number(section, "level", 1.0);
-                character.PlaytimeSeconds = Number(section, "playtime_seconds", 0.0);
                 character.HairStyle = Unquote(Value(section, "hair_style")) ?? "none";
 
                 byte[] png = Bytes(Value(section, "atlas_png"));
@@ -234,20 +239,6 @@ namespace CityX.CharacterEditor
                 return value;
             }
             return value.Substring(1, value.Length - 2);
-        }
-
-        /// <summary>
-        /// INVARIANT CULTURE, DELIBERATELY. Godot writes 1023.383333 with a
-        /// dot whatever the machine's locale is, and a comma-decimal locale
-        /// would read that as a thousands separator and import a playtime of
-        /// 1023383333 seconds -- about thirty years.
-        /// </summary>
-        private static double Number(Dictionary<string, string> section, string key,
-            double fallback)
-        {
-            string value = Value(section, key);
-            return double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture,
-                out double parsed) ? parsed : fallback;
         }
 
         /// <summary>Godot's PackedByteArray(1, 2, 3) literal.</summary>
