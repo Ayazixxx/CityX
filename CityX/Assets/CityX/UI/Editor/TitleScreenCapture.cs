@@ -27,6 +27,12 @@ namespace CityX.UIEditor
             Shoot("title", TitleScreen.Panel.Menu, seedCharacters: false);
         }
 
+        [MenuItem("CityX/Capture Settings Screenshot")]
+        public static void CaptureSettings()
+        {
+            Shoot("settings", TitleScreen.Panel.Settings, seedCharacters: false);
+        }
+
         /// <summary>
         /// The character list, with characters in it.
         ///

@@ -156,6 +156,11 @@ namespace CityX.Tests
                         Require(unwired, go, action.Select, "a CharacterSelect");
                         break;
 
+                    case ButtonAction.Kind.SettingsResolutionPrevious:
+                    case ButtonAction.Kind.SettingsResolutionNext:
+                        Require(unwired, go, action.Settings, "a TitleSettingsView");
+                        break;
+
                     case ButtonAction.Kind.CreatorAskName:
                     case ButtonAction.Kind.CreatorConfirmName:
                     case ButtonAction.Kind.CreatorTryBack:

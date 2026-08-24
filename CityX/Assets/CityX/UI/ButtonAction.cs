@@ -51,6 +51,9 @@ namespace CityX.UI
             SelectPlaySelected,
             SelectBeginDeleteSelected,
 
+            SettingsResolutionPrevious,
+            SettingsResolutionNext,
+
             CreatorTool,
             CreatorColour,
             CreatorBrushSize,
@@ -80,6 +83,8 @@ namespace CityX.UI
         public CharacterSelect Select;
 
         public CharacterCreator Creator;
+
+        public TitleSettingsView Settings;
 
         [Tooltip("So a palette press moves the colour wheel with it.")]
         public CreatorControls Controls;
@@ -141,6 +146,13 @@ namespace CityX.UI
                     break;
                 case Kind.SelectBeginDeleteSelected:
                     if (Select != null) Select.BeginDeleteSelected();
+                    break;
+
+                case Kind.SettingsResolutionPrevious:
+                    if (Settings != null) Settings.Previous();
+                    break;
+                case Kind.SettingsResolutionNext:
+                    if (Settings != null) Settings.Next();
                     break;
 
                 case Kind.CreatorTool:

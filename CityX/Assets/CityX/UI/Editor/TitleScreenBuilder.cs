@@ -42,6 +42,8 @@ namespace CityX.UIEditor
             SkyCycle.DaySeconds + SkyCycle.NightSeconds * 0.34f;
 
         private static readonly Color Gold = new Color(0.75f, 0.6f, 0.2f, 1.0f);
+        private static readonly Color Paper = new Color(0.82f, 0.82f, 0.84f, 1.0f);
+        private static readonly Color FieldInk = new Color(0.09f, 0.10f, 0.13f, 0.88f);
 
         [MenuItem("CityX/Rebuild Title Screen")]
         public static void Build()
@@ -282,8 +284,7 @@ namespace CityX.UIEditor
 
             title.MultiplayerPanel = BuildStub(root.transform, "MultiplayerPanel",
                 "MULTIPLAYER", "Host and join are not ported yet.", title);
-            title.SettingsPanel = BuildStub(root.transform, "SettingsPanel",
-                "SETTINGS", "Display and audio options are not ported yet.", title);
+            title.SettingsPanel = BuildSettings(root.transform, title);
 
             title.Show(TitleScreen.Panel.Menu);
             EnsureEventSystem();
@@ -385,6 +386,158 @@ namespace CityX.UIEditor
 
             MakeButton(panel.transform, "BackButton", "BACK", 2, title, ButtonAction.Kind.TitleBack);
             return panel;
+        }
+
+        /// <summary>
+        /// Master volume, fullscreen and a resolution stepper -- ported from
+        /// ui/settings_panel.gd, minus the voice chat device pickers (see
+        /// TitleSettingsView's own doc comment for why). All the load/save/
+        /// apply logic lives on TitleSettingsView itself, reusing the exact
+        /// GameSettings/DisplaySettings layer the in-game pause menu already
+        /// does -- this method only builds the hierarchy and hands the
+        /// component its control references, same division as every other
+        /// panel in this file.
+        /// </summary>
+        private static GameObject BuildSettings(Transform parent, TitleScreen title)
+        {
+            var panel = new GameObject("SettingsPanel", typeof(RectTransform));
+            var rect = (RectTransform)panel.transform;
+            rect.SetParent(parent, false);
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = new Vector2(0.0f, -70.0f);
+            rect.sizeDelta = new Vector2(460.0f, 340.0f);
+
+            TitleSettingsView view = panel.AddComponent<TitleSettingsView>();
+
+            MakeLabel(panel.transform, "Heading", "SETTINGS", 30, Gold,
+                new Vector2(0.0f, 138.0f), new Vector2(440.0f, 40.0f));
+
+            MakeLabel(panel.transform, "MasterLabel", "MASTER VOLUME", 17, Paper,
+                new Vector2(0.0f, 84.0f), new Vector2(440.0f, 30.0f));
+            view.MasterSlider = MakeSlider(panel.transform, "MasterSlider", new Vector2(0.0f, 58.0f));
+
+            MakeLabel(panel.transform, "FullscreenLabel", "FULLSCREEN", 17, Paper,
+                new Vector2(-110.0f, 10.0f), new Vector2(240.0f, 30.0f));
+            view.FullscreenToggle = MakeToggle(panel.transform, "FullscreenToggle", new Vector2(120.0f, 10.0f));
+
+            MakeLabel(panel.transform, "ResolutionLabel", "RESOLUTION", 17, Paper,
+                new Vector2(0.0f, -40.0f), new Vector2(440.0f, 30.0f));
+            view.ResolutionPrevButton = MakeArrowButton(panel.transform, "ResolutionPrev", "<",
+                new Vector2(-140.0f, -70.0f));
+            WireArrowButton(view.ResolutionPrevButton, view, ButtonAction.Kind.SettingsResolutionPrevious);
+            view.ResolutionLabel = MakeLabel(panel.transform, "ResolutionValue", "1920x1080", 17, Paper,
+                new Vector2(0.0f, -70.0f), new Vector2(200.0f, 30.0f));
+            view.ResolutionNextButton = MakeArrowButton(panel.transform, "ResolutionNext", ">",
+                new Vector2(140.0f, -70.0f));
+            WireArrowButton(view.ResolutionNextButton, view, ButtonAction.Kind.SettingsResolutionNext);
+
+            MakeButton(panel.transform, "BackButton", "BACK", 3, title, ButtonAction.Kind.TitleBack);
+
+            return panel;
+        }
+
+        /// <summary>Hand-built rather than from DefaultControls, matching PauseMenuBuilder's own copy of this.</summary>
+        private static Slider MakeSlider(Transform parent, string name, Vector2 position)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            var rect = (RectTransform)go.transform;
+            rect.SetParent(parent, false);
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = new Vector2(280.0f, 16.0f);
+
+            Image background = go.AddComponent<Image>();
+            background.color = FieldInk;
+
+            var fillArea = new GameObject("Fill", typeof(RectTransform));
+            var fillRect = (RectTransform)fillArea.transform;
+            fillRect.SetParent(go.transform, false);
+            Stretch(fillRect, 0.0f);
+            Image fill = fillArea.AddComponent<Image>();
+            fill.color = Gold;
+
+            var handle = new GameObject("Handle", typeof(RectTransform));
+            var handleRect = (RectTransform)handle.transform;
+            handleRect.SetParent(go.transform, false);
+            handleRect.sizeDelta = new Vector2(10.0f, 22.0f);
+            Image handleImage = handle.AddComponent<Image>();
+            handleImage.color = Paper;
+
+            Slider slider = go.AddComponent<Slider>();
+            slider.fillRect = fillRect;
+            slider.handleRect = handleRect;
+            slider.targetGraphic = handleImage;
+            slider.direction = Slider.Direction.LeftToRight;
+            slider.minValue = 0.0f;
+            slider.maxValue = 1.0f;
+            slider.wholeNumbers = false;
+            slider.value = 1.0f;
+            return slider;
+        }
+
+        /// <summary>A checkbox: background, a checkmark shown only while on, and the Toggle tying them together.</summary>
+        private static Toggle MakeToggle(Transform parent, string name, Vector2 position)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            var rect = (RectTransform)go.transform;
+            rect.SetParent(parent, false);
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = new Vector2(28.0f, 28.0f);
+
+            Image background = go.AddComponent<Image>();
+            background.color = FieldInk;
+
+            var checkmark = new GameObject("Checkmark", typeof(RectTransform));
+            var checkRect = (RectTransform)checkmark.transform;
+            checkRect.SetParent(go.transform, false);
+            checkRect.anchorMin = new Vector2(0.2f, 0.2f);
+            checkRect.anchorMax = new Vector2(0.8f, 0.8f);
+            checkRect.offsetMin = checkRect.offsetMax = Vector2.zero;
+            Image checkImage = checkmark.AddComponent<Image>();
+            checkImage.color = Gold;
+
+            Toggle toggle = go.AddComponent<Toggle>();
+            toggle.targetGraphic = background;
+            toggle.graphic = checkImage;
+            toggle.isOn = true;
+            return toggle;
+        }
+
+        private static Button MakeArrowButton(Transform parent, string name, string glyph, Vector2 position)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            var rect = (RectTransform)go.transform;
+            rect.SetParent(parent, false);
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = new Vector2(36.0f, 36.0f);
+
+            Image background = go.AddComponent<Image>();
+            background.color = FieldInk;
+
+            Button button = go.AddComponent<Button>();
+            button.targetGraphic = background;
+
+            MakeLabel(go.transform, "Glyph", glyph, 18, Paper, Vector2.zero, new Vector2(36.0f, 36.0f));
+            return button;
+        }
+
+        /// <summary>
+        /// A COMPONENT, NOT A LISTENER -- same reasoning as MakeButton's own
+        /// copy of this note. MakeArrowButton only builds the visual, so
+        /// the resolution stepper's two buttons get wired here instead.
+        /// </summary>
+        private static void WireArrowButton(Button button, TitleSettingsView settings, ButtonAction.Kind action)
+        {
+            var wiring = button.gameObject.AddComponent<ButtonAction>();
+            wiring.Action = action;
+            wiring.Settings = settings;
         }
 
         private static void MakeButton(Transform parent, string name, string label, int row,

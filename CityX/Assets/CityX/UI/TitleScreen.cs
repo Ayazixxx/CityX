@@ -73,12 +73,18 @@ namespace CityX.UI
             if (MultiplayerPanel != null) MultiplayerPanel.SetActive(panel == Panel.Multiplayer);
             if (SettingsPanel != null) SettingsPanel.SetActive(panel == Panel.Settings);
 
-            // The character list and the creator both fill the screen, and the
-            // logo sitting over them makes everything unreadable. The Godot
-            // build did the same thing.
+            // The character list, the creator, and settings all carry real
+            // controls dead centre -- exactly where the logo sits -- and the
+            // logo over them makes everything behind it unreadable
+            // (confirmed live: SETTINGS's own heading and resolution value
+            // both landed right under the X). The Godot build hid its logo
+            // the same way for its own equivalent screens. Multiplayer stays
+            // a sparse stub with nothing under the logo yet, so it is left
+            // alone rather than hidden pre-emptively.
             if (LogoGroup != null)
             {
-                LogoGroup.SetActive(panel != Panel.CharacterSelect && panel != Panel.Creator);
+                LogoGroup.SetActive(panel != Panel.CharacterSelect && panel != Panel.Creator
+                    && panel != Panel.Settings);
             }
         }
 
