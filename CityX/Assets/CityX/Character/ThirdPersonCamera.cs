@@ -33,7 +33,7 @@ namespace CityX.Character
             "square behind the head put anything small and close in front of the player -- a " +
             "dropped pistol on the ground being the concrete case -- right behind their own " +
             "silhouette, with nothing on screen to actually judge alignment against.")]
-        public float ShoulderOffset = 0.55f;
+        public float ShoulderOffset = 0.85f;
 
         [Tooltip("Layers the spring arm collides with. Should include the city.")]
         public LayerMask CollisionLayers = ~0;
