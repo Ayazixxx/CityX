@@ -199,12 +199,25 @@ namespace CityX.Weapons
                 return false;
             }
 
-            Transform lookSource = LookSourceFor(player);
-            Vector3 toSelf = transform.position - lookSource.position;
-            if (toSelf.sqrMagnitude > InteractRange * InteractRange)
+            // RANGE FROM THE PLAYER'S OWN BODY, NOT THE CAMERA. LookSourceFor
+            // falls back to Camera.main, which under the real ThirdPersonCamera
+            // trails Distance (4.5m) behind the player's own pivot -- measuring
+            // range from there means this can read 6+ metres to a pistol lying
+            // right at the player's feet, permanently failing the InteractRange
+            // gate no matter how close the player actually stands. Confirmed
+            // directly from a real play session's own CityX-PICKUP-DIAG output.
+            // Direction still reads the camera below -- "is the camera pointed
+            // at it" and "is the player's body close enough" are different
+            // questions, and conflating them into one vector from the camera
+            // is exactly what broke the second one.
+            Vector3 toPlayer = transform.position - player.position;
+            if (toPlayer.sqrMagnitude > InteractRange * InteractRange)
             {
                 return false;
             }
+
+            Transform lookSource = LookSourceFor(player);
+            Vector3 toSelf = transform.position - lookSource.position;
             if (toSelf.sqrMagnitude > 0.0001f &&
                 Vector3.Dot(lookSource.forward, toSelf.normalized) < LookDotThreshold)
             {
@@ -254,9 +267,19 @@ namespace CityX.Weapons
 
         private void OnTriggerEnter(Collider other)
         {
-            if (other.GetComponentInParent<PlayerVitals>() != null)
+            // THE PlayerVitals TRANSFORM ITSELF, NOT other.transform. The
+            // player's ragdoll carries a real collider on every bone (see
+            // RagdollBuilder), so whichever one actually swept into this
+            // trigger first can just as easily be "head" as the root --
+            // confirmed live via CityX-PICKUP-DIAG showing nearbyPlayer=head.
+            // TryPickup measures range from this transform directly, and a
+            // bone a metre away from the body's own centre is a much smaller
+            // error than the one it used to make, but there is no reason to
+            // keep it when the actual root is one hop away right here.
+            PlayerVitals vitals = other.GetComponentInParent<PlayerVitals>();
+            if (vitals != null)
             {
-                _nearbyPlayer = other.transform;
+                _nearbyPlayer = vitals.transform;
             }
         }
 

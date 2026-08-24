@@ -73,9 +73,14 @@ namespace CityX.Weapons
 
         private void OnTriggerEnter(Collider other)
         {
-            if (other.GetComponentInParent<PlayerVitals>() != null)
+            // See PistolWeapon.OnTriggerEnter's own comment -- the player's
+            // ragdoll carries a collider on every bone, so this has to be
+            // the PlayerVitals transform itself rather than whichever bone
+            // happened to sweep into the trigger first.
+            PlayerVitals vitals = other.GetComponentInParent<PlayerVitals>();
+            if (vitals != null)
             {
-                _nearbyPlayer = other.transform;
+                _nearbyPlayer = vitals.transform;
             }
         }
 
@@ -110,12 +115,18 @@ namespace CityX.Weapons
                 return false;
             }
 
-            Transform lookSource = PistolWeapon.LookSourceFor(player);
-            Vector3 toSelf = transform.position - lookSource.position;
-            if (toSelf.sqrMagnitude > InteractRange * InteractRange)
+            // See PistolWeapon.TryPickup's own comment -- range has to come
+            // from the player's own body, not the camera LookSourceFor falls
+            // back to, which trails Distance behind the player under the
+            // real ThirdPersonCamera and made this permanently unreachable.
+            Vector3 toPlayer = transform.position - player.position;
+            if (toPlayer.sqrMagnitude > InteractRange * InteractRange)
             {
                 return false;
             }
+
+            Transform lookSource = PistolWeapon.LookSourceFor(player);
+            Vector3 toSelf = transform.position - lookSource.position;
             if (toSelf.sqrMagnitude > 0.0001f &&
                 Vector3.Dot(lookSource.forward, toSelf.normalized) < LookDotThreshold)
             {
