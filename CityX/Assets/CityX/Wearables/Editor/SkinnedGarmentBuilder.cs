@@ -247,6 +247,8 @@ namespace CityX.WearablesEditor
                 Mesh baked = Object.Instantiate(source.sharedMesh);
                 baked.name = source.sharedMesh.name;
                 baked.bindposes = bindPoses;
+                MirrorX(baked);
+                SmoothNeckWeights(baked, source.bones);
 
                 Mesh existing = AssetDatabase.LoadAssetAtPath<Mesh>(path);
                 if (existing != null)
@@ -261,6 +263,169 @@ namespace CityX.WearablesEditor
             {
                 Object.DestroyImmediate(skeletonRoot);
             }
+        }
+
+        /// <summary>
+        /// "SLEEVES STUCK GOING UP AND BACKWARDS" -- a real reported bug,
+        /// confirmed to a specific cause rather than patched by trial: the
+        /// hooded_cloak.glb/skelli_jeans.glb export is left-right MIRRORED
+        /// relative to this project's own convention. Confirmed directly by
+        /// comparing the source file's own imported skeleton (never
+        /// otherwise read -- BakeMesh looks bones up by name, not
+        /// position) against BodyRig.RestBones(): the GLB's own bone named
+        /// "arm_l" sits at world X=+0.35, and this project's real arm_l
+        /// sits at -0.35 -- the exact mirror. The vertex data agrees with
+        /// its OWN (mirrored) skeleton, not this rig's, which is why
+        /// binding was mathematically consistent (nothing throws, nothing
+        /// looks randomly scrambled) but every bound vertex ends up on the
+        /// anatomically wrong side once a real, correctly-handed bone
+        /// drives it -- a sleeve authored for the right side, driven by
+        /// the real left arm, swings up and back through an arc that never
+        /// makes sense for it.
+        ///
+        /// A SIMPLE PER-VERTEX X NEGATION, not a bone-name swap -- tried
+        /// first and confirmed wrong: swapping which bone a name resolves
+        /// to only fixes the bindpose half of the problem, while
+        /// SkinnedGarment.Bones' own runtime rebind (a fixed positional
+        /// array, not a name lookup -- see its own doc comment) still
+        /// attaches the SAME index to the real, un-swapped bone, so the
+        /// two disagreed and the sleeves crossed to the wrong side instead
+        /// of just being wrong. Mirroring X on every vertex (and flipping
+        /// triangle winding, since a mirror always inverts it) needs no
+        /// change anywhere else: the mesh now agrees with this rig's own
+        /// handedness before it is ever bound to anything.
+        ///
+        /// Harmless on SkelliJeans, which shares this same bake step: legs
+        /// are symmetric left-to-right, so mirroring the whole mesh moves
+        /// nothing a viewer would ever notice.
+        /// </summary>
+        private static void MirrorX(Mesh mesh)
+        {
+            Vector3[] vertices = mesh.vertices;
+            for (int i = 0; i < vertices.Length; i++)
+            {
+                vertices[i] = new Vector3(-vertices[i].x, vertices[i].y, vertices[i].z);
+            }
+            mesh.vertices = vertices;
+
+            Vector3[] normals = mesh.normals;
+            if (normals != null && normals.Length == vertices.Length)
+            {
+                for (int i = 0; i < normals.Length; i++)
+                {
+                    normals[i] = new Vector3(-normals[i].x, normals[i].y, normals[i].z);
+                }
+                mesh.normals = normals;
+            }
+
+            for (int sub = 0; sub < mesh.subMeshCount; sub++)
+            {
+                int[] triangles = mesh.GetTriangles(sub);
+                for (int t = 0; t < triangles.Length; t += 3)
+                {
+                    (triangles[t + 1], triangles[t + 2]) = (triangles[t + 2], triangles[t + 1]);
+                }
+                mesh.SetTriangles(triangles, sub);
+            }
+        }
+
+        /// <summary>
+        /// THE REAL CAUSE OF THE HOOD/COLLAR TEARING -- confirmed directly
+        /// by dumping the imported mesh's own weights rather than assumed:
+        /// of 6351 vertices, 1692 are weighted to "head" and 820 to
+        /// "spine", and exactly ONE vertex anywhere in the whole mesh uses
+        /// "neck". The collar jumps from full-spine to full-head with
+        /// nothing bridging them. That was invisible in Godot, where spine
+        /// still moves with the animation same as head always has; it
+        /// tears in this build specifically because PlayerLocomotion
+        /// freezes spine's own rotation to identity every frame (see its
+        /// own LateUpdate doc comment, the real fix for a real reported
+        /// "butt wiggle" bug) while head keeps moving freely -- with no
+        /// neck-weighted vertices to blend across that growing gap, the
+        /// collar (pinned rigid) visibly tears away from the hood (still
+        /// tracking the head) the moment the two diverge, worst side-on.
+        ///
+        /// FIXED HERE, NOT BY TOUCHING THE FREEZE -- re-weighting the
+        /// collar band to route through "neck" fixes the garment without
+        /// reopening the wiggle the freeze exists to prevent.
+        ///
+        /// A synthetic replacement for exactly the vertices in the collar
+        /// band, not a general smoothing pass: everywhere else keeps
+        /// whatever weights the source mesh actually shipped with. The
+        /// band is BodyRig's own vertical span from shoulder height up
+        /// through the head's own centre -- below it is unambiguously
+        /// torso, above it unambiguously the crown of the hood -- and only
+        /// vertices near the body's own centreline (inside roughly the
+        /// torso's radius) qualify, so a sleeve vertex sitting at the same
+        /// height out at the shoulder is never touched.
+        /// </summary>
+        private static void SmoothNeckWeights(Mesh mesh, Transform[] sourceBones)
+        {
+            int spineIndex = System.Array.FindIndex(sourceBones, b => b != null && b.name == "spine");
+            int neckIndex = System.Array.FindIndex(sourceBones, b => b != null && b.name == "neck");
+            int headIndex = System.Array.FindIndex(sourceBones, b => b != null && b.name == "head");
+            if (spineIndex < 0 || neckIndex < 0 || headIndex < 0)
+            {
+                Debug.LogWarning("CityX: no spine/neck/head bone on this garment -- " +
+                                  "cannot smooth the collar transition.");
+                return;
+            }
+
+            const float bandBottom = BodyRig.ShoulderY - FusedBodyShape.TorsoRadius;
+            const float bandTop = BodyRig.HeadCentreY;
+            const float centrelineRadius = FusedBodyShape.TorsoRadius * 1.15f;
+
+            Vector3[] vertices = mesh.vertices;
+            BoneWeight[] weights = mesh.boneWeights;
+            int touched = 0;
+
+            for (int i = 0; i < vertices.Length; i++)
+            {
+                Vector3 v = vertices[i];
+                if (v.y < bandBottom || v.y > bandTop)
+                {
+                    continue;
+                }
+                if (Mathf.Sqrt(v.x * v.x + v.z * v.z) > centrelineRadius)
+                {
+                    continue;   // out past the torso's own width -- a sleeve, not the collar
+                }
+
+                BoneWeight w = weights[i];
+                bool onSpineOrHead =
+                    (w.boneIndex0 == spineIndex && w.weight0 > 0.0f) ||
+                    (w.boneIndex1 == spineIndex && w.weight1 > 0.0f) ||
+                    (w.boneIndex0 == headIndex && w.weight0 > 0.0f) ||
+                    (w.boneIndex1 == headIndex && w.weight1 > 0.0f);
+                if (!onSpineOrHead)
+                {
+                    continue;
+                }
+
+                // 0 at the bottom of the band (full spine) to 1 at the top
+                // (full head) -- a smooth hat-shaped neck weight peaking in
+                // the middle, spine and head splitting whatever is left in
+                // the same proportion the old hard cutoff favoured.
+                float t = Mathf.InverseLerp(bandBottom, bandTop, v.y);
+                float neckWeight = Mathf.Sin(t * Mathf.PI) * 0.6f;
+                float remainder = 1.0f - neckWeight;
+
+                weights[i] = new BoneWeight
+                {
+                    boneIndex0 = spineIndex,
+                    weight0 = remainder * (1.0f - t),
+                    boneIndex1 = neckIndex,
+                    weight1 = neckWeight,
+                    boneIndex2 = headIndex,
+                    weight2 = remainder * t,
+                    boneIndex3 = 0,
+                    weight3 = 0.0f,
+                };
+                touched++;
+            }
+
+            mesh.boneWeights = weights;
+            Debug.Log($"CityX: smoothed {touched} collar vertices through the neck bone.");
         }
 
         // --- visual verification ---
@@ -357,14 +522,21 @@ namespace CityX.WearablesEditor
             {
                 RenderSettings.fog = false;
                 RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
-                RenderSettings.ambientSkyColor = new Color(0.34f, 0.36f, 0.40f);
+                RenderSettings.ambientSkyColor = new Color(0.55f, 0.56f, 0.60f);
 
                 var sunObject = new GameObject("Sun");
                 sunObject.transform.SetParent(root.transform);
                 Light sun = sunObject.AddComponent<Light>();
                 sun.type = LightType.Directional;
-                sun.intensity = 1.0f;
+                sun.intensity = 2.2f;
                 sun.transform.rotation = Quaternion.Euler(35.0f, 150.0f + yaw, 0.0f);
+
+                var fillObject = new GameObject("Fill");
+                fillObject.transform.SetParent(root.transform);
+                Light fill = fillObject.AddComponent<Light>();
+                fill.type = LightType.Directional;
+                fill.intensity = 1.2f;
+                fill.transform.rotation = Quaternion.Euler(20.0f, -60.0f + yaw, 0.0f);
 
                 var body = (GameObject)PrefabUtility.InstantiatePrefab(bodyPrefab);
                 body.transform.SetParent(root.transform);
