@@ -73,6 +73,7 @@ namespace CityX.Character
         private GrabCarry _grabCarry;
         private Inventory _inventory;
         private GrappleSwing _grappleSwing;
+        private PlayerClimbing _climbing;
         private ThirdPersonCamera _orbitCamera;
         private readonly WeaponAimInput _weaponAim = new WeaponAimInput();
 
@@ -89,6 +90,7 @@ namespace CityX.Character
             _grabCarry = GetComponent<GrabCarry>();
             _inventory = GetComponent<Inventory>();
             _grappleSwing = GetComponent<GrappleSwing>();
+            _climbing = GetComponent<PlayerClimbing>();
         }
 
         /// <summary>
@@ -167,6 +169,20 @@ namespace CityX.Character
                 return;
             }
 
+            // FROZEN FOR THE ONE-SHOT MANTLE CLIP'S OWN DURATION, checked
+            // first of all -- matches player.gd's own _is_climb_topping_out
+            // early-return being the very first thing _physics_process
+            // checks, ahead of even the grapple. The animation's own root
+            // motion is what is moving the visible body; nothing here
+            // should fight it, and TickTopOut is what notices the clip has
+            // actually finished and relocates the real CharacterController.
+            if (_climbing != null && _climbing.IsToppingOut)
+            {
+                _climbing.TickTopOut();
+                _audio?.SilenceFootsteps();
+                return;
+            }
+
             // THE SWING OWNS THE WHOLE FRAME WHILE ACTIVE, matching
             // player.gd's own _physics_process early-return into
             // _process_grapple_swing -- placed above TickCombat and the
@@ -176,6 +192,11 @@ namespace CityX.Character
             // Godot's own version does, since the grapple has no other use
             // for them while it is active (see TickCombat's own weapon-
             // equipped branch, which this pre-empts by never being reached).
+            //
+            // CHECKED BEFORE CLIMBING, matching player.gd's own comment on
+            // this exact ordering: "a swing that carries you past a wall
+            // doesn't get hijacked into a wall-grab by the same held W
+            // that's pumping it."
             if (_grappleSwing != null && _grappleSwing.IsActive)
             {
                 Vector2 swingMove = Vector2.zero;
@@ -198,6 +219,43 @@ namespace CityX.Character
                     reelHeld, payoutHeld, deltaTime);
                 _audio?.SilenceFootsteps();
                 return;
+            }
+
+            // ALREADY ATTACHED TO A WALL OWNS THE WHOLE FRAME TOO, matching
+            // player.gd's own _is_climbing early-return into
+            // _process_climbing -- a real reported bug there ("the sprint
+            // noise is playing while climbing") is why footsteps are
+            // silenced here rather than only at grab time: nothing
+            // downstream ever runs again to turn them off otherwise.
+            if (_climbing != null && _climbing.IsClimbing)
+            {
+                _climbing.Tick(keyboard.spaceKey.wasPressedThisFrame,
+                    keyboard.wKey.isPressed, keyboard.sKey.isPressed, _vitals, deltaTime);
+                _audio?.SilenceFootsteps();
+                return;
+            }
+
+            // NOT YET CLIMBING -- try to grab on. Gated the same way
+            // player.gd's own _try_start_climb call is: not carrying
+            // something (both hands full) and not mid-dash (a committed
+            // burst nothing should interrupt). Checked ahead of TickCombat/
+            // ordinary movement, and if it succeeds THIS frame, returns
+            // immediately -- see PlayerClimbing.Tick's own doc comment on
+            // why the very first climbing frame must not also fall through
+            // to ordinary WASD movement computed from the same held W that
+            // just triggered the grab.
+            if (_climbing != null &&
+                (_grabCarry == null || !_grabCarry.IsCarrying) &&
+                !_locomotion.IsDashing)
+            {
+                float stamina = _vitals != null ? _vitals.Stamina : float.MaxValue;
+                if (_climbing.TryStart(keyboard.leftShiftKey.isPressed, keyboard.wKey.isPressed, stamina))
+                {
+                    _climbing.Tick(keyboard.spaceKey.wasPressedThisFrame,
+                        keyboard.wKey.isPressed, keyboard.sKey.isPressed, _vitals, deltaTime);
+                    _audio?.SilenceFootsteps();
+                    return;
+                }
             }
 
             TickCombat(deltaTime);

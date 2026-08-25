@@ -227,6 +227,7 @@ namespace CityX.CharacterEditor
             AddDashState(controller, root);
             AddChargedJumpState(controller, root);
             AddAimingState(controller, root);
+            AddClimbingStates(controller, root);
             AddPunchStates(root);
             AddCutsceneStates(root);
 
@@ -497,6 +498,130 @@ namespace CityX.CharacterEditor
             outOf.AddCondition(AnimatorConditionMode.IfNot, 0.0f, "Aiming");
             outOf.duration = 0.15f;
             outOf.hasExitTime = false;
+        }
+
+        /// <summary>
+        /// Wall climbing -- ported from player.gd/character.gd's own
+        /// start_climb_up/start_climb_down/hold_climb/play_climb_top_out.
+        /// See PlayerClimbing.cs for the movement/state-machine side; this
+        /// only builds what the Animator needs to show it.
+        ///
+        /// climbing_up_wall.fbx/climbing_down_wall.fbx/braced_hang_to_crouch.fbx
+        /// were already sitting retargeted and unused in the Animations
+        /// folder -- the same "already imported, never wired up" situation
+        /// AddAimingState's own doc comment found for pistol_aim_in.fbx.
+        ///
+        /// TWO LOOPING STATES, NOT THREE -- character.gd's own hold_climb()
+        /// has no dedicated held pose; it freezes whichever of climb_up/
+        /// climb_down was already showing by setting speed_scale to 0.
+        /// Unity's equivalent is a state's own Speed Parameter: both
+        /// ClimbUp and ClimbDown multiply their playback speed by
+        /// ClimbSpeedScale, which PlayerClimbing.Tick sets to 0 whenever
+        /// neither W nor S is held and 1 otherwise -- so "holding position"
+        /// is a frozen frame of whichever direction was last active, exactly
+        /// matching character.gd's own behaviour, with no third state
+        /// needed.
+        ///
+        /// BOTH DIRECTIONS ARE ANY-STATE ENTRIES, including from EACH OTHER
+        /// -- Unity re-evaluates Any State transitions every frame
+        /// regardless of the current state, so switching from ClimbUp to
+        /// ClimbDown mid-climb (or back) needs no direct transition between
+        /// the two, only their own independent entry conditions.
+        /// </summary>
+        private static void AddClimbingStates(AnimatorController controller, AnimatorStateMachine root)
+        {
+            AnimationClip up = FindClip("climbing_up_wall");
+            AnimationClip down = FindClip("climbing_down_wall");
+            AnimationClip topOut = FindClip("braced_hang_to_crouch");
+            AnimatorState locomotion = FindState(root, "Locomotion");
+            if (up == null || down == null || locomotion == null)
+            {
+                Debug.LogWarning("CityX: missing a climbing clip -- wall climbing will show no animation.");
+                return;
+            }
+            MakeLooping(up);
+            MakeLooping(down);
+
+            controller.AddParameter("Climbing", AnimatorControllerParameterType.Bool);
+            controller.AddParameter("ClimbDirection", AnimatorControllerParameterType.Int);
+            controller.AddParameter("ClimbTopOut", AnimatorControllerParameterType.Trigger);
+            // Defaults to 1 (playing normally), NOT Unity's usual 0-for-a-
+            // fresh-float-parameter -- PlayerClimbing.Tick only sets this
+            // every frame WHILE already climbing, so the very first frame of
+            // a fresh grab (before Tick has run once) would otherwise show
+            // ClimbUp frozen on its opening pose for a frame.
+            controller.AddParameter("ClimbSpeedScale", AnimatorControllerParameterType.Float);
+            AnimatorControllerParameter[] parameters = controller.parameters;
+            for (int i = 0; i < parameters.Length; i++)
+            {
+                if (parameters[i].name == "ClimbSpeedScale")
+                {
+                    parameters[i].defaultFloat = 1.0f;
+                }
+            }
+            controller.parameters = parameters;
+
+            AnimatorState climbUp = root.AddState("ClimbUp");
+            climbUp.motion = up;
+            climbUp.speedParameterActive = true;
+            climbUp.speedParameter = "ClimbSpeedScale";
+
+            AnimatorState climbDown = root.AddState("ClimbDown");
+            climbDown.motion = down;
+            climbDown.speedParameterActive = true;
+            climbDown.speedParameter = "ClimbSpeedScale";
+
+            AnimatorStateTransition intoUp = root.AddAnyStateTransition(climbUp);
+            intoUp.AddCondition(AnimatorConditionMode.If, 0.0f, "Climbing");
+            intoUp.AddCondition(AnimatorConditionMode.Greater, 0.0f, "ClimbDirection");
+            intoUp.duration = 0.1f;
+            intoUp.hasExitTime = false;
+            intoUp.canTransitionToSelf = false;
+
+            AnimatorStateTransition intoDown = root.AddAnyStateTransition(climbDown);
+            intoDown.AddCondition(AnimatorConditionMode.If, 0.0f, "Climbing");
+            intoDown.AddCondition(AnimatorConditionMode.Less, 0.0f, "ClimbDirection");
+            intoDown.duration = 0.1f;
+            intoDown.hasExitTime = false;
+            intoDown.canTransitionToSelf = false;
+
+            AnimatorStateTransition outOfUp = climbUp.AddTransition(locomotion);
+            outOfUp.AddCondition(AnimatorConditionMode.IfNot, 0.0f, "Climbing");
+            outOfUp.duration = 0.15f;
+            outOfUp.hasExitTime = false;
+
+            AnimatorStateTransition outOfDown = climbDown.AddTransition(locomotion);
+            outOfDown.AddCondition(AnimatorConditionMode.IfNot, 0.0f, "Climbing");
+            outOfDown.duration = 0.15f;
+            outOfDown.hasExitTime = false;
+
+            if (topOut == null)
+            {
+                Debug.LogWarning("CityX: no braced_hang_to_crouch clip -- topping out a climb will show no mantle.");
+                return;
+            }
+
+            AnimatorState climbTopOut = root.AddState("ClimbTopOut");
+            climbTopOut.motion = topOut;
+
+            AnimatorStateTransition intoTopOut = root.AddAnyStateTransition(climbTopOut);
+            intoTopOut.AddCondition(AnimatorConditionMode.If, 0.0f, "ClimbTopOut");
+            intoTopOut.duration = 0.1f;
+            intoTopOut.hasExitTime = false;
+            intoTopOut.canTransitionToSelf = false;
+
+            // OUT ON THE FULL CLIP, not a partial exit time like Dash's own
+            // 0.6 -- character.gd's own play_climb_top_out is a deliberate
+            // one-shot mantle player.gd waits out completely (real
+            // animation_finished, not a fixed fraction) before relocating
+            // the body; PlayerClimbing.TickTopOut polls this same clip
+            // finishing independently to know when to do that relocation,
+            // so the visual state exit and the actual repositioning land on
+            // the same frame.
+            AnimatorStateTransition outOfTopOut = climbTopOut.AddTransition(locomotion);
+            outOfTopOut.duration = 0.1f;
+            outOfTopOut.hasExitTime = true;
+            outOfTopOut.exitTime = 1.0f;
         }
 
         /// <summary>
@@ -788,6 +913,7 @@ namespace CityX.CharacterEditor
                 capsule.center = new Vector3(0.0f, BodyRig.StandingHeight * 0.5f, 0.0f);
 
                 root.AddComponent<PlayerLocomotion>();
+                root.AddComponent<PlayerClimbing>();
                 root.AddComponent<PlayerVitals>();
                 MeleeAttacker melee = root.AddComponent<MeleeAttacker>();
                 // player.gd's three punch impact samples, the same files. A
