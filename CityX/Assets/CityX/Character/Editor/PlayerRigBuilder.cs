@@ -289,13 +289,14 @@ namespace CityX.CharacterEditor
         private const float CrouchBlendSeconds = 0.2f;
 
         /// <summary>
-        /// Below this the body counts as standing still for the purposes of
-        /// deciding whether a crouch fold/unfold pose actually gets shown --
-        /// see AddCrouchStates' own doc comment on why that distinction
-        /// matters. Small rather than zero so residual float noise from a
-        /// stopped body can never read as "still moving."
+        /// Below this the body counts as standing still, for any Animator
+        /// state that only makes sense while stationary -- the crouch
+        /// fold/unfold pose (see AddCrouchStates' own doc comment) and the
+        /// charged-jump pose (see AddChargedJumpState's own doc comment)
+        /// both gate on it. Small rather than zero so residual float noise
+        /// from a stopped body can never read as "still moving."
         /// </summary>
-        private const float CrouchMovingSpeedThreshold = 0.1f;
+        private const float MovingSpeedThreshold = 0.1f;
 
         /// <summary>
         /// Going down, being down, and coming back up.
@@ -329,7 +330,7 @@ namespace CityX.CharacterEditor
         /// across the ground under a fold animation that was never meant to
         /// carry any actual travel. Gated on Speed rather than a separate
         /// "Moving" bool because Speed is already fed every Tick and reads
-        /// zero at rest to well within CrouchMovingSpeedThreshold.
+        /// zero at rest to well within MovingSpeedThreshold.
         /// </summary>
         private static void AddCrouchStates(AnimatorController controller,
             AnimatorStateMachine root)
@@ -402,9 +403,10 @@ namespace CityX.CharacterEditor
                 AnimatorConditionMode.Greater);
         }
 
-        private static void AddSpeedCondition(AnimatorStateTransition transition, AnimatorConditionMode mode)
+        private static AnimatorStateTransition AddSpeedCondition(AnimatorStateTransition transition, AnimatorConditionMode mode)
         {
-            transition.AddCondition(mode, CrouchMovingSpeedThreshold, "Speed");
+            transition.AddCondition(mode, MovingSpeedThreshold, "Speed");
+            return transition;
         }
 
         /// <summary>
@@ -501,6 +503,31 @@ namespace CityX.CharacterEditor
         /// PlayerLocomotion.ChargedJumpHeightMultiplier for the height math
         /// this feeds into.
         ///
+        /// ENTRY GATED TO STANDING STILL, same reasoning and same threshold
+        /// as AddCrouchStates' own fold/unfold pose -- a real reported bug
+        /// ("legs still move while holding space if you are moving while
+        /// charging your jump"): this is a single fixed held pose, not a
+        /// blend over Speed/MoveX/MoveZ like Locomotion, so entering it
+        /// while already moving froze the legs mid-stride for as long as
+        /// space stayed held. Already-moving-then-charging now stays in
+        /// Locomotion for exactly this reason.
+        ///
+        /// ONLY THE ENTRY IS GATED -- a charge that starts standing still
+        /// and THEN moves stays frozen in the held pose until release,
+        /// deliberately, not merely unhandled. A matching Speed-gated EXIT
+        /// was tried and measurably broke jump releases: with it wired,
+        /// releasing a charge on the same frame movement starts lands Speed
+        /// above the threshold and fires the Jump trigger simultaneously,
+        /// and Unity checks a state's own transitions before any-state ones
+        /// (see below), so the Speed exit fired instead of the any-state
+        /// Jump transition -- and the pending trigger was gone by the next
+        /// frame rather than still waiting to be consumed, so the jump was
+        /// silently swallowed. AnimatorConditionMode.IfNot cannot gate on a
+        /// Trigger parameter to defer to it either (confirmed by Unity's own
+        /// runtime validation error, not assumed) -- avoiding the whole
+        /// class of failure by not adding the exit is worth more than
+        /// covering the rarer reverse-order case.
+        ///
         /// NO WAY OUT IS WIRED HERE, on purpose. The only exit this state
         /// needs is the same "Jump" any-state transition every other state
         /// already has (added just above, if a jump clip exists) -- release
@@ -530,6 +557,7 @@ namespace CityX.CharacterEditor
 
             AnimatorStateTransition into = root.AddAnyStateTransition(charging);
             into.AddCondition(AnimatorConditionMode.If, 0.0f, "ChargingJump");
+            AddSpeedCondition(into, AnimatorConditionMode.Less);
             into.duration = 0.08f;
             into.hasExitTime = false;
             into.canTransitionToSelf = false;
