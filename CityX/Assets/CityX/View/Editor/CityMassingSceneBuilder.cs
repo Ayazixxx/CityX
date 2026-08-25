@@ -145,6 +145,7 @@ namespace CityX.ViewEditor
             GameObject bottlePrefab = CityX.WeaponsEditor.BottleBuilder.Build();
             GameObject skelliJeansPrefab = CityX.WearablesEditor.SkinnedGarmentBuilder.BuildJeans();
             GameObject hoodedCloakPrefab = CityX.WearablesEditor.SkinnedGarmentBuilder.BuildCloak();
+            GameObject midnightPatchworkCoatPrefab = CityX.WearablesEditor.MidnightPatchworkCoatBuilder.Build();
             GameObject grapplingHookPrefab = CityX.WeaponsEditor.GrapplingHookBuilder.Build();
             GameObject pistolPrefab = CityX.WeaponsEditor.PistolBuilder.Build();
 
@@ -275,6 +276,8 @@ namespace CityX.ViewEditor
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.HoodedCloak, Prefab = hoodedCloakPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.MidnightPatchworkCoat, Prefab = midnightPatchworkCoatPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.GrapplingHook, Prefab = grapplingHookPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.Pistol, Prefab = pistolPrefab },
@@ -348,7 +351,8 @@ namespace CityX.ViewEditor
                 Object.FindFirstObjectByType<PlayerInputReader>(),
                 Object.FindFirstObjectByType<ThirdPersonCamera>(),
                 grapplingHookPrefab,
-                pistolPrefab);
+                pistolPrefab,
+                midnightPatchworkCoatPrefab);
 
             // --- the pause menu. Escape opens it; it guards itself against
             // --- opening on top of the console above.

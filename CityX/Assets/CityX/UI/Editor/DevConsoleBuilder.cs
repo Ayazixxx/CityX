@@ -34,7 +34,8 @@ namespace CityX.UIEditor
             DayNightCycle cycle, FlyCamera fly, GameObject radioPrefab,
             GameObject bottlePrefab = null, GameObject skelliJeansPrefab = null, GameObject hoodedCloakPrefab = null,
             PlayerInputReader inputReader = null, ThirdPersonCamera orbitCamera = null,
-            GameObject grapplingHookPrefab = null, GameObject pistolPrefab = null)
+            GameObject grapplingHookPrefab = null, GameObject pistolPrefab = null,
+            GameObject midnightPatchworkCoatPrefab = null)
         {
             var root = new GameObject("DevConsole", typeof(RectTransform));
             Canvas canvas = root.AddComponent<Canvas>();
@@ -107,6 +108,7 @@ namespace CityX.UIEditor
             view.HoodedCloakPrefab = hoodedCloakPrefab;
             view.GrapplingHookPrefab = grapplingHookPrefab;
             view.PistolPrefab = pistolPrefab;
+            view.MidnightPatchworkCoatPrefab = midnightPatchworkCoatPrefab;
             view.InputReader = inputReader;
             view.OrbitCamera = orbitCamera;
 

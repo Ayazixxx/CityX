@@ -13,6 +13,7 @@ namespace CityX.Items
         public const string GlassBottle = "glass_bottle";
         public const string SkelliJeans = "skelli_jeans";
         public const string HoodedCloak = "hooded_cloak";
+        public const string MidnightPatchworkCoat = "midnight_patchwork_coat";
         public const string GrapplingHook = "grappling_hook";
         public const string Pistol = "pistol";
 
@@ -21,6 +22,8 @@ namespace CityX.Items
             [GlassBottle] = new ItemDefinition(GlassBottle, "Glass Bottle", "weapon", "hand_r", 1),
             [SkelliJeans] = new ItemDefinition(SkelliJeans, "Skelli Jeans", "wearable", "legs", 1),
             [HoodedCloak] = new ItemDefinition(HoodedCloak, "Hooded Cloak", "wearable", "top", 1),
+            [MidnightPatchworkCoat] = new ItemDefinition(
+                MidnightPatchworkCoat, "Midnight Patchwork Coat", "wearable", "top", 1),
             [GrapplingHook] = new ItemDefinition(GrapplingHook, "Grappling Hook", "weapon", "hand_r", 1),
             [Pistol] = new ItemDefinition(Pistol, "Pistol", "weapon", "hand_r", 1),
         };

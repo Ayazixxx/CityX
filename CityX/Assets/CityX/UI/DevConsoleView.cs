@@ -69,6 +69,9 @@ namespace CityX.UI
         public GameObject GrapplingHookPrefab;
         public GameObject PistolPrefab;
 
+        [Tooltip("What /spawn coat puts down, and what /equip coat equips.")]
+        public GameObject MidnightPatchworkCoatPrefab;
+
         [Tooltip("Movement/combat input. Disabled while the console is open.")]
         public PlayerInputReader InputReader;
 
@@ -373,6 +376,16 @@ namespace CityX.UI
                     Log("spawned a hooded cloak -- press E nearby to pick it up");
                     return;
 
+                case "coat":
+                    if (MidnightPatchworkCoatPrefab == null)
+                    {
+                        Log("no midnight patchwork coat prefab wired");
+                        return;
+                    }
+                    Instantiate(MidnightPatchworkCoatPrefab, where + Vector3.up * 0.05f, Quaternion.identity);
+                    Log("spawned a midnight patchwork coat -- press E nearby to pick it up");
+                    return;
+
                 case "grapple":
                     if (GrapplingHookPrefab == null)
                     {
@@ -507,6 +520,7 @@ namespace CityX.UI
                 case "bottle": return ItemRegistry.GlassBottle;
                 case "jeans": return ItemRegistry.SkelliJeans;
                 case "cloak": return ItemRegistry.HoodedCloak;
+                case "coat": return ItemRegistry.MidnightPatchworkCoat;
                 case "grapple": return ItemRegistry.GrapplingHook;
                 case "pistol": return ItemRegistry.Pistol;
                 default: return null;

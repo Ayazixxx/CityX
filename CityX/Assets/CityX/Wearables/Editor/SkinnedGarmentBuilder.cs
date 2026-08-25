@@ -33,6 +33,7 @@ namespace CityX.WearablesEditor
         private const string CloakMeshPath = "Assets/CityX/Wearables/HoodedCloakMesh.asset";
         private const string JeansPrefabPath = "Assets/CityX/Wearables/SkelliJeans.prefab";
         private const string CloakPrefabPath = "Assets/CityX/Wearables/HoodedCloak.prefab";
+        private const string CoatPrefabPath = "Assets/CityX/Wearables/MidnightPatchworkCoat.prefab";
 
         // Lying on the ground pre-pickup, shown tipped and shrunk so a
         // person-sized garment reads as a dropped item rather than half an
@@ -168,13 +169,34 @@ namespace CityX.WearablesEditor
             }
 
             Material usedMaterial = overrideMaterial != null ? overrideMaterial : sourceRenderer.sharedMaterial;
+            GameObject saved = BuildPrefabFromMesh(bakedMesh, usedMaterial, prefabPath, rootName,
+                groundScale, groundPitchDegrees, groundLift, configure);
+            if (saved != null)
+            {
+                Debug.Log($"CityX: {rootName} written to {prefabPath} -- " +
+                          $"{bakedMesh.vertexCount} vertices, {sourceRenderer.bones.Length} bones");
+            }
+            return saved;
+        }
 
+        /// <summary>
+        /// The part of Build&lt;T&gt; that has nothing to do with WHERE the
+        /// baked mesh came from -- pulled out so MidnightPatchworkCoatBuilder
+        /// can reuse the same root/preview/pickup-trigger/prefab scaffolding
+        /// for a mesh it bakes with its own, unrelated strip-and-rebind
+        /// logic, rather than duplicating it.
+        /// </summary>
+        internal static GameObject BuildPrefabFromMesh<T>(Mesh bakedMesh, Material material,
+            string prefabPath, string rootName,
+            float groundScale, float groundPitchDegrees, float groundLift,
+            System.Action<T> configure = null) where T : SkinnedGarment
+        {
             var root = new GameObject(rootName);
             try
             {
                 var garment = root.AddComponent<T>();
                 garment.GarmentMesh = bakedMesh;
-                garment.GarmentMaterial = usedMaterial;
+                garment.GarmentMaterial = material;
                 configure?.Invoke(garment);
 
                 // A non-skinned preview, shown lying on the ground pre-pickup
@@ -189,18 +211,14 @@ namespace CityX.WearablesEditor
                 var filter = preview.AddComponent<MeshFilter>();
                 filter.sharedMesh = bakedMesh;
                 var previewRenderer = preview.AddComponent<MeshRenderer>();
-                previewRenderer.sharedMaterial = usedMaterial;
+                previewRenderer.sharedMaterial = material;
                 garment.GroundPreview = preview;
 
                 var pickupTrigger = root.AddComponent<SphereCollider>();
                 pickupTrigger.isTrigger = true;
                 pickupTrigger.radius = SkinnedGarment.InteractRange;
 
-                GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
-                AssetDatabase.SaveAssets();
-                Debug.Log($"CityX: {rootName} written to {prefabPath} -- " +
-                          $"{bakedMesh.vertexCount} vertices, {sourceRenderer.bones.Length} bones");
-                return saved;
+                return PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
             }
             finally
             {
@@ -272,7 +290,7 @@ namespace CityX.WearablesEditor
         /// bindpose a pure translation, the same as every other non-shoulder
         /// bone here and the same as Godot's own _rebind().
         /// </summary>
-        private static void PoseBindSkeletonArmsDown(Dictionary<string, Transform> named)
+        internal static void PoseBindSkeletonArmsDown(Dictionary<string, Transform> named)
         {
             const float shoulderDegrees = 78.0f;
             if (named.TryGetValue("arm_l", out Transform armL))
@@ -581,6 +599,9 @@ namespace CityX.WearablesEditor
             Shoot(bodyPrefab, CloakPrefabPath, outputDirectory, "cloak-stride", 215.0f, StridePose);
             Shoot(bodyPrefab, JeansPrefabPath, outputDirectory, "jeans-front", 0.0f, RestPose);
             Shoot(bodyPrefab, JeansPrefabPath, outputDirectory, "jeans-stride", 215.0f, StridePose);
+            Shoot(bodyPrefab, CoatPrefabPath, outputDirectory, "coat-front", 0.0f, RestPose);
+            Shoot(bodyPrefab, CoatPrefabPath, outputDirectory, "coat-stride", 215.0f, StridePose);
+            Shoot(bodyPrefab, CoatPrefabPath, outputDirectory, "coat-back", 180.0f, RestPose);
 
             if (Application.isBatchMode)
             {
