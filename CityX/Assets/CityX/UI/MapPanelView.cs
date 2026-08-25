@@ -38,6 +38,9 @@ namespace CityX.UI
         [Tooltip("M is ignored while the C-menu is open -- opening a full panel on top of its own camera cut would strand its input/camera-disable state on close.")]
         public PlayerMenuView Menu;
 
+        [Tooltip("M is ignored while chat is open -- typing a message with the letter M in it should not also open the map.")]
+        public PlayerChat Chat;
+
         private bool _wasCursorCaptured;
 
         public bool IsOpen => Root != null && Root.activeSelf;
@@ -56,7 +59,7 @@ namespace CityX.UI
             }
 
             if ((Console != null && Console.IsOpen) || (Pause != null && Pause.IsOpen) ||
-                (Menu != null && Menu.IsOpen))
+                (Menu != null && Menu.IsOpen) || (Chat != null && Chat.IsOpen))
             {
                 return;
             }

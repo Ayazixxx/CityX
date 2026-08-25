@@ -427,6 +427,8 @@ namespace CityX.ViewEditor
                     map,
                     inventoryView);
                 pause.Chat = chat;
+                if (map != null) map.Chat = chat;
+                if (inventoryView != null) inventoryView.Chat = chat;
             }
 
             // --- the C-menu. C opens it; it guards itself against opening
