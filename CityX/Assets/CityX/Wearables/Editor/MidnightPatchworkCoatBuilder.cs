@@ -85,7 +85,7 @@ namespace CityX.WearablesEditor
             "thigh_r", "shin_r",
         };
 
-        private const int Hips = 0, Spine = 1, Neck = 2, ArmL = 4, ArmR = 7;
+        private const int Hips = 0, Spine = 1, Neck = 2;
 
         /// <summary>
         /// The source biped's own 24 joint names, mapped to a slot in
@@ -93,14 +93,34 @@ namespace CityX.WearablesEditor
         /// head_end, headfront, the whole LeftArm/RightArm chain, the whole
         /// leg chain) is the strip set, checked by absence rather than a
         /// second list, so the two can never drift out of sync.
+        ///
+        /// LeftShoulder/RightShoulder MAP TO SPINE, NOT ARM_L/ARM_R -- tried
+        /// first and confirmed wrong by an actual in-game screenshot: over a
+        /// third of this mesh's kept vertices (12650 of 37400) are
+        /// shoulder-dominant, and arm_l/arm_r is the one bone in this whole
+        /// bind that swings through a real rotation during ordinary
+        /// animation (hips/spine are frozen rotation-identity every frame
+        /// by PlayerLocomotion.LateUpdate -- see its own doc comment). Bound
+        /// to arm_l/arm_r, any difference between the live pose's actual
+        /// shoulder rotation and PoseBindSkeletonArmsDown's own fixed
+        /// 78-degree bind assumption swings every shoulder vertex through
+        /// that same angular error -- and for a flat panel sitting well out
+        /// from the shoulder pivot, a small angular error becomes a large
+        /// positional one, which is exactly what showed up: the coat's own
+        /// shoulder fabric bunched up near the collar instead of lying
+        /// against the torso. Spine is frozen every frame, so binding here
+        /// instead trades "the shoulder cap tracks the arm's own swing" (it
+        /// never did, this coat has no sleeves) for "the shoulder cap stays
+        /// glued to the torso regardless of what the arm is doing," which is
+        /// what a coat missing its sleeves actually needs.
         /// </summary>
         private static readonly Dictionary<string, int> KeepBoneTarget = new Dictionary<string, int>
         {
             ["Hips"] = Hips,
             ["Spine"] = Spine, ["Spine01"] = Spine, ["Spine02"] = Spine,
             ["neck"] = Neck,
-            ["LeftShoulder"] = ArmL,
-            ["RightShoulder"] = ArmR,
+            ["LeftShoulder"] = Spine,
+            ["RightShoulder"] = Spine,
         };
 
         [MenuItem("CityX/Rebuild Midnight Patchwork Coat")]
