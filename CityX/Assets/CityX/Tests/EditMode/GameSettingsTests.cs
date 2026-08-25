@@ -38,7 +38,11 @@ namespace CityX.Tests
             GameSettingsData data = GameSettings.Load();
 
             Assert.AreEqual(1.0f, data.MasterVolume, 0.001f);
+            Assert.AreEqual(1.0f, data.MusicVolume, 0.001f);
             Assert.IsTrue(data.Fullscreen);
+            Assert.AreEqual("Default", data.InputDevice);
+            Assert.AreEqual("Default", data.OutputDevice);
+            Assert.IsTrue(data.PushToTalk);
         }
 
         [Test]
@@ -47,16 +51,24 @@ namespace CityX.Tests
             var saved = new GameSettingsData
             {
                 MasterVolume = 0.42f,
+                MusicVolume = 0.31f,
                 Fullscreen = false,
                 ResolutionIndex = 1,
+                InputDevice = "Scratchy USB Mic",
+                OutputDevice = "Default",
+                PushToTalk = false,
             };
             GameSettings.Save(saved);
 
             GameSettingsData loaded = GameSettings.Load();
 
             Assert.AreEqual(0.42f, loaded.MasterVolume, 0.001f);
+            Assert.AreEqual(0.31f, loaded.MusicVolume, 0.001f);
             Assert.IsFalse(loaded.Fullscreen);
             Assert.AreEqual(1, loaded.ResolutionIndex);
+            Assert.AreEqual("Scratchy USB Mic", loaded.InputDevice);
+            Assert.AreEqual("Default", loaded.OutputDevice);
+            Assert.IsFalse(loaded.PushToTalk);
         }
 
         [Test]

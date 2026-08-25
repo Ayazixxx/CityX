@@ -1,3 +1,4 @@
+using CityX.Character;
 using CityX.Core;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -21,12 +22,19 @@ namespace CityX.UI
     /// the scaffolding, and every other control on this panel is already
     /// hand-built rather than pulled from DefaultControls.
     ///
-    /// NO VOICE CHAT SECTION. Godot's settings_panel.gd also picks an input/
-    /// output device and a push-to-talk mode -- there is no voice chat
-    /// system anywhere in this port to point those at, so porting the
-    /// picker would be UI for a feature that doesn't exist. Master volume,
-    /// fullscreen and resolution are the parts with something real behind
-    /// them.
+    /// THE OUTPUT DEVICE STEPPER IS SHOWN BUT PERMANENTLY INERT. Unlike
+    /// Input Device (real, backed by Microphone.devices), Unity has no API
+    /// to enumerate or select a specific audio OUTPUT device -- see
+    /// VoiceDeviceOptions.OutputOptions's own doc comment. It stays on the
+    /// panel for visual parity with ui/settings_panel.gd rather than being
+    /// silently dropped.
+    ///
+    /// VOICE CHAT ITSELF DOES NOT EXIST YET. PlayerVoiceCapture proves the
+    /// local microphone path works (Push-to-Talk/Open Mic actually starts
+    /// and stops a real Microphone recording), but nothing sends that audio
+    /// anywhere -- this port's real player has no networking at all yet, so
+    /// there is nowhere to send it to. See PlayerVoiceCapture's own doc
+    /// comment.
     ///
     /// ALL LISTENERS ARE WIRED HERE, IN AWAKE -- NOT BY THE SCENE BUILDER.
     /// <see cref="ButtonAction"/>'s own doc comment explains why: an
@@ -50,11 +58,26 @@ namespace CityX.UI
         public Button BackButton;
 
         public Slider MasterSlider;
+        public Slider MusicSlider;
         public Toggle FullscreenToggle;
 
         public Text ResolutionLabel;
         public Button ResolutionPrevButton;
         public Button ResolutionNextButton;
+
+        public Text InputDeviceLabel;
+        public Button InputDevicePrevButton;
+        public Button InputDeviceNextButton;
+
+        [Tooltip("Shown for parity with the Godot original; always \"Default\" -- see this class's own doc comment.")]
+        public Text OutputDeviceLabel;
+        public Button OutputDevicePrevButton;
+        public Button OutputDeviceNextButton;
+
+        public Toggle PushToTalkToggle;
+
+        [Tooltip("Told to re-read its settings when the Input Device stepper or Push-to-Talk toggle changes.")]
+        public PlayerVoiceCapture VoiceCapture;
 
         [Tooltip("Escape is ignored while this is open -- typing a command should not also pause the game.")]
         public DevConsoleView Console;
@@ -67,6 +90,8 @@ namespace CityX.UI
 
         private bool _wasCursorCaptured;
         private int _resolutionIndex = DisplaySettings.DefaultIndex;
+        private int _inputDeviceIndex;
+        private int _outputDeviceIndex;
 
         public bool IsOpen => Dim != null && Dim.activeSelf;
 
@@ -78,9 +103,15 @@ namespace CityX.UI
             if (QuitButton != null) QuitButton.onClick.AddListener(QuitToTitle);
 
             if (MasterSlider != null) MasterSlider.onValueChanged.AddListener(OnMasterVolumeChanged);
+            if (MusicSlider != null) MusicSlider.onValueChanged.AddListener(OnMusicVolumeChanged);
             if (FullscreenToggle != null) FullscreenToggle.onValueChanged.AddListener(OnFullscreenToggled);
             if (ResolutionPrevButton != null) ResolutionPrevButton.onClick.AddListener(() => StepResolution(-1));
             if (ResolutionNextButton != null) ResolutionNextButton.onClick.AddListener(() => StepResolution(1));
+            if (InputDevicePrevButton != null) InputDevicePrevButton.onClick.AddListener(() => StepInputDevice(-1));
+            if (InputDeviceNextButton != null) InputDeviceNextButton.onClick.AddListener(() => StepInputDevice(1));
+            if (OutputDevicePrevButton != null) OutputDevicePrevButton.onClick.AddListener(() => StepOutputDevice(-1));
+            if (OutputDeviceNextButton != null) OutputDeviceNextButton.onClick.AddListener(() => StepOutputDevice(1));
+            if (PushToTalkToggle != null) PushToTalkToggle.onValueChanged.AddListener(OnPushToTalkToggled);
 
             LoadSettings();
             Close();
@@ -214,6 +245,41 @@ namespace CityX.UI
             if (ResolutionNextButton != null) ResolutionNextButton.interactable = interactable;
         }
 
+        /// <summary>
+        /// No live gameplay music track to push into (see this class's own
+        /// doc comment) -- only saved, so it is what IntroCutscene reads the
+        /// next time it starts its own music.
+        /// </summary>
+        private void OnMusicVolumeChanged(float value)
+        {
+            SaveSettings();
+        }
+
+        private void StepInputDevice(int direction)
+        {
+            string[] options = VoiceDeviceOptions.InputOptions();
+            int count = options.Length;
+            _inputDeviceIndex = ((_inputDeviceIndex + direction) % count + count) % count;
+            if (InputDeviceLabel != null) InputDeviceLabel.text = options[_inputDeviceIndex];
+            SaveSettings();
+            if (VoiceCapture != null) VoiceCapture.ReloadSettings();
+        }
+
+        private void StepOutputDevice(int direction)
+        {
+            string[] options = VoiceDeviceOptions.OutputOptions();
+            int count = options.Length;
+            _outputDeviceIndex = ((_outputDeviceIndex + direction) % count + count) % count;
+            if (OutputDeviceLabel != null) OutputDeviceLabel.text = options[_outputDeviceIndex];
+            SaveSettings();
+        }
+
+        private void OnPushToTalkToggled(bool _)
+        {
+            SaveSettings();
+            if (VoiceCapture != null) VoiceCapture.ReloadSettings();
+        }
+
         private void LoadSettings()
         {
             GameSettingsData data = GameSettings.Load();
@@ -232,6 +298,18 @@ namespace CityX.UI
             if (MasterSlider != null) MasterSlider.value = data.MasterVolume;
             else AudioListener.volume = data.MasterVolume;
 
+            if (MusicSlider != null) MusicSlider.value = data.MusicVolume;
+
+            string[] inputOptions = VoiceDeviceOptions.InputOptions();
+            _inputDeviceIndex = VoiceDeviceOptions.IndexOf(inputOptions, data.InputDevice);
+            if (InputDeviceLabel != null) InputDeviceLabel.text = inputOptions[_inputDeviceIndex];
+
+            string[] outputOptions = VoiceDeviceOptions.OutputOptions();
+            _outputDeviceIndex = VoiceDeviceOptions.IndexOf(outputOptions, data.OutputDevice);
+            if (OutputDeviceLabel != null) OutputDeviceLabel.text = outputOptions[_outputDeviceIndex];
+
+            if (PushToTalkToggle != null) PushToTalkToggle.isOn = data.PushToTalk;
+
             // Set last: its own listener re-applies fullscreen mode and, if
             // not fullscreen, re-applies the resolution above using the
             // index already loaded -- redundant with the block above but
@@ -241,15 +319,25 @@ namespace CityX.UI
             else Screen.fullScreenMode = data.Fullscreen
                 ? FullScreenMode.FullScreenWindow
                 : FullScreenMode.Windowed;
+
+            if (VoiceCapture != null) VoiceCapture.ReloadSettings();
         }
 
         private void SaveSettings()
         {
+            string[] inputOptions = VoiceDeviceOptions.InputOptions();
+            string[] outputOptions = VoiceDeviceOptions.OutputOptions();
             GameSettings.Save(new GameSettingsData
             {
                 MasterVolume = MasterSlider != null ? MasterSlider.value : AudioListener.volume,
+                MusicVolume = MusicSlider != null ? MusicSlider.value : 1.0f,
                 Fullscreen = FullscreenToggle != null && FullscreenToggle.isOn,
                 ResolutionIndex = _resolutionIndex,
+                InputDevice = _inputDeviceIndex >= 0 && _inputDeviceIndex < inputOptions.Length
+                    ? inputOptions[_inputDeviceIndex] : VoiceDeviceOptions.DefaultDevice,
+                OutputDevice = _outputDeviceIndex >= 0 && _outputDeviceIndex < outputOptions.Length
+                    ? outputOptions[_outputDeviceIndex] : VoiceDeviceOptions.DefaultDevice,
+                PushToTalk = PushToTalkToggle != null ? PushToTalkToggle.isOn : true,
             });
         }
     }

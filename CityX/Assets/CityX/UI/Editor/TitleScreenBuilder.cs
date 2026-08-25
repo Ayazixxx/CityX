@@ -406,10 +406,27 @@ namespace CityX.UIEditor
             rect.anchorMin = new Vector2(0.5f, 0.5f);
             rect.anchorMax = new Vector2(0.5f, 0.5f);
             rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = new Vector2(0.0f, -70.0f);
-            rect.sizeDelta = new Vector2(460.0f, 340.0f);
+            // Grown from (0,-70)/460x340 to fit the five new Voice Chat rows
+            // below Resolution -- Heading/Master/Fullscreen/Resolution keep
+            // their own original positions relative to the panel's centre
+            // unchanged. Confirmed by rendering CityX/Capture Settings
+            // Screenshot: this screen's own 1152x648 reference resolution
+            // gives only +-324 design units of real vertical room (the
+            // capture is a real 1280x720 render at the same aspect ratio,
+            // so what does not fit there does not fit on a real screen
+            // either), which the first version of this panel's five new
+            // rows -- two-line device pickers, a full "VOICE CHAT" section
+            // heading, an unshortened Push-to-Talk label -- ran well past.
+            // Output/Input Device and Push-to-Talk are single-line rows
+            // here (label left, control right, matching Fullscreen's own
+            // shape) rather than label-above-stepper like Resolution, and
+            // the panel's own centre moved up slightly (-30 instead of -70)
+            // to balance the extra rows underneath.
+            rect.anchoredPosition = new Vector2(0.0f, -15.0f);
+            rect.sizeDelta = new Vector2(460.0f, 640.0f);
 
             TitleSettingsView view = panel.AddComponent<TitleSettingsView>();
+            view.MusicPlayer = title.MusicPlayer;
 
             MakeLabel(panel.transform, "Heading", "SETTINGS", 30, Gold,
                 new Vector2(0.0f, 138.0f), new Vector2(440.0f, 40.0f));
@@ -433,7 +450,42 @@ namespace CityX.UIEditor
                 new Vector2(140.0f, -70.0f));
             WireArrowButton(view.ResolutionNextButton, view, ButtonAction.Kind.SettingsResolutionNext);
 
-            MakeButton(panel.transform, "BackButton", "BACK", 3, title, ButtonAction.Kind.TitleBack);
+            MakeLabel(panel.transform, "MusicLabel", "MUSIC VOLUME", 15, Paper,
+                new Vector2(0.0f, -108.0f), new Vector2(440.0f, 24.0f));
+            view.MusicSlider = MakeSlider(panel.transform, "MusicSlider", new Vector2(0.0f, -132.0f));
+
+            MakeLabel(panel.transform, "OutputDeviceLabel", "OUTPUT DEVICE", 12, Paper,
+                new Vector2(-140.0f, -168.0f), new Vector2(180.0f, 22.0f));
+            view.OutputDevicePrevButton = MakeArrowButton(panel.transform, "OutputDevicePrev", "<",
+                new Vector2(30.0f, -168.0f));
+            WireArrowButton(view.OutputDevicePrevButton, view, ButtonAction.Kind.SettingsOutputDevicePrevious);
+            view.OutputDeviceLabel = MakeLabel(panel.transform, "OutputDeviceValue", "Default", 12, Paper,
+                new Vector2(105.0f, -168.0f), new Vector2(90.0f, 22.0f));
+            view.OutputDeviceNextButton = MakeArrowButton(panel.transform, "OutputDeviceNext", ">",
+                new Vector2(180.0f, -168.0f));
+            WireArrowButton(view.OutputDeviceNextButton, view, ButtonAction.Kind.SettingsOutputDeviceNext);
+
+            // 40 below Output Device, not 36 -- MakeArrowButton is 36 tall,
+            // so a 36-unit gap between two of them (18+18 half-heights)
+            // touches with zero clearance, confirmed as a visibly merged
+            // seam once PauseMenuBuilder's own copy of this same layout was
+            // rendered and checked pixel-by-pixel.
+            MakeLabel(panel.transform, "InputDeviceLabel", "INPUT DEVICE", 12, Paper,
+                new Vector2(-140.0f, -208.0f), new Vector2(180.0f, 22.0f));
+            view.InputDevicePrevButton = MakeArrowButton(panel.transform, "InputDevicePrev", "<",
+                new Vector2(30.0f, -208.0f));
+            WireArrowButton(view.InputDevicePrevButton, view, ButtonAction.Kind.SettingsInputDevicePrevious);
+            view.InputDeviceLabel = MakeLabel(panel.transform, "InputDeviceValue", "Default", 12, Paper,
+                new Vector2(105.0f, -208.0f), new Vector2(90.0f, 22.0f));
+            view.InputDeviceNextButton = MakeArrowButton(panel.transform, "InputDeviceNext", ">",
+                new Vector2(180.0f, -208.0f));
+            WireArrowButton(view.InputDeviceNextButton, view, ButtonAction.Kind.SettingsInputDeviceNext);
+
+            MakeLabel(panel.transform, "PushToTalkLabel", "PUSH TO TALK (HOLD V)", 13, Paper,
+                new Vector2(-90.0f, -244.0f), new Vector2(280.0f, 22.0f));
+            view.PushToTalkToggle = MakeToggle(panel.transform, "PushToTalkToggle", new Vector2(140.0f, -244.0f));
+
+            MakeButton(panel.transform, "BackButton", "BACK", 6, title, ButtonAction.Kind.TitleBack);
 
             return panel;
         }

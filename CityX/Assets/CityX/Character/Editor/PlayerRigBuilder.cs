@@ -150,6 +150,8 @@ namespace CityX.CharacterEditor
             {
                 Debug.LogWarning("CityX: footstep clips missing -- walking will be silent.");
             }
+
+            root.AddComponent<CityX.Character.PlayerVoiceCapture>();
         }
 
         private static AnimatorController BuildController(

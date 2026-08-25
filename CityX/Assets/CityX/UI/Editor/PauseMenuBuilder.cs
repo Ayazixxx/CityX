@@ -1,3 +1,4 @@
+using CityX.Character;
 using CityX.UI;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -28,7 +29,7 @@ namespace CityX.UIEditor
         private static readonly Color PanelInk = new Color(0.06f, 0.07f, 0.09f, 0.92f);
         private static readonly Color FieldInk = new Color(0.12f, 0.13f, 0.16f, 0.95f);
 
-        public static PauseMenuView AddToScene(DevConsoleView console)
+        public static PauseMenuView AddToScene(DevConsoleView console, PlayerVoiceCapture voiceCapture = null)
         {
             var root = new GameObject("PauseMenu", typeof(RectTransform));
             Canvas canvas = root.AddComponent<Canvas>();
@@ -46,6 +47,7 @@ namespace CityX.UIEditor
 
             PauseMenuView view = root.AddComponent<PauseMenuView>();
             view.Console = console;
+            view.VoiceCapture = voiceCapture;
 
             var dim = new GameObject("Dim", typeof(RectTransform));
             var dimRect = (RectTransform)dim.transform;
@@ -75,7 +77,19 @@ namespace CityX.UIEditor
 
         private static GameObject BuildSettingsPanel(Transform parent, PauseMenuView view)
         {
-            GameObject panel = MakeCenteredPanel(parent, "SettingsPanel", new Vector2(360.0f, 320.0f));
+            // Grown from 360x320 to fit the four new Voice Chat rows below
+            // Resolution -- Heading/Master/Fullscreen/Resolution keep their
+            // own original positions unchanged. Output/Input Device and
+            // Push-to-Talk are single-line rows (label left, control right,
+            // matching Fullscreen's own shape) rather than label-above-
+            // stepper like Resolution -- this screen's own 1152x648
+            // reference resolution gives only +-324 design units of real
+            // vertical room (confirmed by rendering the equivalent title
+            // screen panel and finding its own first, more spread-out
+            // version of these same rows ran past the bottom of the actual
+            // frame), which label-above-stepper for three more rows plus a
+            // "VOICE CHAT" section heading did not fit inside.
+            GameObject panel = MakeCenteredPanel(parent, "SettingsPanel", new Vector2(360.0f, 620.0f));
             panel.SetActive(false);
 
             MakeLabel(panel.transform, "Heading", "SETTINGS", 24, Gold, new Vector2(0.0f, 130.0f));
@@ -91,7 +105,27 @@ namespace CityX.UIEditor
             view.ResolutionLabel = MakeLabel(panel.transform, "ResolutionValue", "1920x1080", 15, Paper, new Vector2(0.0f, -62.0f));
             view.ResolutionNextButton = MakeArrowButton(panel.transform, "ResolutionNext", ">", new Vector2(110.0f, -62.0f));
 
-            view.BackButton = MakeButton(panel.transform, "BackButton", "BACK", Paper, new Vector2(0.0f, -128.0f));
+            MakeLabel(panel.transform, "MusicLabel", "MUSIC VOLUME", 13, Paper, new Vector2(0.0f, -100.0f));
+            view.MusicSlider = MakeSlider(panel.transform, "MusicSlider", new Vector2(0.0f, -124.0f));
+
+            MakeLabel(panel.transform, "OutputDeviceLabel", "OUTPUT DEVICE", 11, Paper, new Vector2(-100.0f, -158.0f));
+            view.OutputDevicePrevButton = MakeArrowButton(panel.transform, "OutputDevicePrev", "<", new Vector2(40.0f, -158.0f));
+            view.OutputDeviceLabel = MakeLabel(panel.transform, "OutputDeviceValue", "Default", 11, Paper, new Vector2(95.0f, -158.0f));
+            view.OutputDeviceNextButton = MakeArrowButton(panel.transform, "OutputDeviceNext", ">", new Vector2(150.0f, -158.0f));
+
+            // 40 below Output Device, not 32 -- MakeArrowButton is 36 tall,
+            // so a 32-unit gap between two of them (18+18 half-heights)
+            // touches with zero clearance and rendered as one merged block
+            // with no visible gap, confirmed via a real capture.
+            MakeLabel(panel.transform, "InputDeviceLabel", "INPUT DEVICE", 11, Paper, new Vector2(-100.0f, -198.0f));
+            view.InputDevicePrevButton = MakeArrowButton(panel.transform, "InputDevicePrev", "<", new Vector2(40.0f, -198.0f));
+            view.InputDeviceLabel = MakeLabel(panel.transform, "InputDeviceValue", "Default", 11, Paper, new Vector2(95.0f, -198.0f));
+            view.InputDeviceNextButton = MakeArrowButton(panel.transform, "InputDeviceNext", ">", new Vector2(150.0f, -198.0f));
+
+            MakeLabel(panel.transform, "PushToTalkLabel", "PUSH TO TALK (HOLD V)", 12, Paper, new Vector2(-75.0f, -234.0f));
+            view.PushToTalkToggle = MakeToggle(panel.transform, "PushToTalkToggle", new Vector2(115.0f, -234.0f));
+
+            view.BackButton = MakeButton(panel.transform, "BackButton", "BACK", Paper, new Vector2(0.0f, -274.0f));
 
             return panel;
         }

@@ -15,6 +15,7 @@ namespace CityX.Core
     public sealed class GameSettingsData
     {
         public float MasterVolume = 1.0f;
+        public float MusicVolume = 1.0f;
         public bool Fullscreen = true;
 
         /// <summary>
@@ -24,6 +25,28 @@ namespace CityX.Core
         /// even before that list exists to check it against.
         /// </summary>
         public int ResolutionIndex = 3; // must match CityX.UI.DisplaySettings.DefaultIndex
+
+        /// <summary>
+        /// Device NAMES rather than indices, unlike ResolutionIndex -- a
+        /// plugged-in microphone can vanish between sessions and an index
+        /// would silently point at whatever happens to be at that slot
+        /// next time; "Default" is always index 0 in
+        /// CityX.UI.VoiceDeviceOptions and is exactly what a saved name
+        /// that no longer exists falls back to.
+        /// </summary>
+        public string InputDevice = GameSettings.DefaultDevice;
+
+        /// <summary>
+        /// Carried for parity with ui/settings_panel.gd's own Output Device
+        /// picker, but Unity has no API to enumerate or select a specific
+        /// audio OUTPUT device (only input/recording devices, via
+        /// Microphone.devices) -- see VoiceDeviceOptions.OutputOptions's own
+        /// doc comment. This is saved and shown, never anything else.
+        /// </summary>
+        public string OutputDevice = GameSettings.DefaultDevice;
+
+        /// <summary>Matches settings_panel.gd's own default -- push_to_talk starts true.</summary>
+        public bool PushToTalk = true;
     }
 
     /// <summary>
@@ -35,6 +58,17 @@ namespace CityX.Core
     public static class GameSettings
     {
         public const string FileName = "settings.json";
+
+        /// <summary>
+        /// What a saved InputDevice/OutputDevice name of "the OS's own
+        /// default" looks like. Lives here, in Core, rather than on
+        /// CityX.UI.VoiceDeviceOptions where the rest of the device-list
+        /// logic lives -- CityX.Character.PlayerVoiceCapture needs this
+        /// same constant and Character cannot reference UI (only the
+        /// reverse), the identical reason GameSettingsData.ResolutionIndex
+        /// is a bare int rather than a CityX.UI.DisplaySettings.Resolution.
+        /// </summary>
+        public const string DefaultDevice = "Default";
 
         /// <summary>Overridable so tests write to a scratch directory instead of the real one.</summary>
         public static string DirectoryOverride;

@@ -1,3 +1,4 @@
+using CityX.Core;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -236,6 +237,11 @@ namespace CityX.Character
                 _musicSource.clip = RuinsMusic;
                 _musicSource.spatialBlend = 0.0f;
                 _musicSource.loop = false;
+                // Read fresh rather than held onto, since this source is
+                // created new every time and there is no live settings view
+                // watching it -- the Music Volume slider only ever writes
+                // GameSettings, never this specific AudioSource.
+                _musicSource.volume = GameSettings.Load().MusicVolume;
                 _musicSource.Play();
                 // Not this cutscene's own destruction -- see this class's
                 // own [Tooltip] on RuinsMusic. Self-frees once the track

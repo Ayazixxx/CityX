@@ -53,6 +53,10 @@ namespace CityX.UI
 
             SettingsResolutionPrevious,
             SettingsResolutionNext,
+            SettingsInputDevicePrevious,
+            SettingsInputDeviceNext,
+            SettingsOutputDevicePrevious,
+            SettingsOutputDeviceNext,
 
             CreatorTool,
             CreatorColour,
@@ -153,6 +157,18 @@ namespace CityX.UI
                     break;
                 case Kind.SettingsResolutionNext:
                     if (Settings != null) Settings.Next();
+                    break;
+                case Kind.SettingsInputDevicePrevious:
+                    if (Settings != null) Settings.PreviousInputDevice();
+                    break;
+                case Kind.SettingsInputDeviceNext:
+                    if (Settings != null) Settings.NextInputDevice();
+                    break;
+                case Kind.SettingsOutputDevicePrevious:
+                    if (Settings != null) Settings.PreviousOutputDevice();
+                    break;
+                case Kind.SettingsOutputDeviceNext:
+                    if (Settings != null) Settings.NextOutputDevice();
                     break;
 
                 case Kind.CreatorTool:

@@ -352,7 +352,8 @@ namespace CityX.ViewEditor
 
             // --- the pause menu. Escape opens it; it guards itself against
             // --- opening on top of the console above.
-            CityX.UI.PauseMenuView pause = CityX.UIEditor.PauseMenuBuilder.AddToScene(console);
+            CityX.UI.PauseMenuView pause = CityX.UIEditor.PauseMenuBuilder.AddToScene(
+                console, Object.FindFirstObjectByType<CityX.Character.PlayerVoiceCapture>());
 
             GameObject streamerObject = new GameObject("CityStreamer");
             CityStreamer streamer = streamerObject.AddComponent<CityStreamer>();

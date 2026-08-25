@@ -158,6 +158,10 @@ namespace CityX.Tests
 
                     case ButtonAction.Kind.SettingsResolutionPrevious:
                     case ButtonAction.Kind.SettingsResolutionNext:
+                    case ButtonAction.Kind.SettingsInputDevicePrevious:
+                    case ButtonAction.Kind.SettingsInputDeviceNext:
+                    case ButtonAction.Kind.SettingsOutputDevicePrevious:
+                    case ButtonAction.Kind.SettingsOutputDeviceNext:
                         Require(unwired, go, action.Settings, "a TitleSettingsView");
                         break;
 
