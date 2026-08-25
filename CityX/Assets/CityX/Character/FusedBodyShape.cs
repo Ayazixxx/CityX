@@ -230,6 +230,90 @@ namespace CityX.Character
         /// </summary>
         public const float HandFraction = 0.7f;
 
+        // --- fused_body.gd's own stub-body constants (is_stub_point/stub_mesh) ---
+        //
+        // Which triangles survive when a full-length garment like the hooded
+        // cloak swaps the whole body for "hands, feet and a collar only" so
+        // there is no independently-moving limb left to poke through rigid
+        // cloth. See fused_body.gd's own STUB_* doc comment for how each
+        // number was arrived at -- these are its exact values, not re-tuned
+        // for this port.
+
+        /// <summary>Fraction along the arm (shoulder=0, hand=1) where the visible hand/forearm stub begins.</summary>
+        public const float StubHandFraction = 0.62f;
+
+        /// <summary>Fraction along the leg (hip=0, foot=1) where the visible foot stub begins.</summary>
+        public const float StubFootFraction = 0.80f;
+
+        /// <summary>How far down the chest the collar slice reaches, in metres at ReferenceHeight.</summary>
+        public const float StubCollarY = 1.72f;
+
+        /// <summary>How wide a slice of chest the collar keeps, in metres at ReferenceHeight.</summary>
+        public const float StubCollarRadius = 0.32f;
+
+        /// <summary>
+        /// Whether a point (in the same rest-pose local space the body mesh
+        /// itself is built in) survives into the stub body. Ported from
+        /// fused_body.gd's own is_stub_point(): a point can sit near more
+        /// than one limb (the shoulder belongs to both torso and arm), so
+        /// this is a union -- any limb whose rule says "keep" keeps it.
+        ///
+        /// <paramref name="limbCapsules"/> must be the SAME list (and the
+        /// same height/scale) the mesh being filtered was built from --
+        /// StubCollarY/StubCollarRadius are absolute metres at
+        /// ReferenceHeight, scaled here exactly the way LimbCapsules scales
+        /// its own radii, so a taller or shorter rig's collar slice still
+        /// lines up with that rig's own shoulder line.
+        /// </summary>
+        public static bool IsStubPoint(Vector3 p, List<Segment> limbCapsules, float height)
+        {
+            float scale = height / ReferenceHeight;
+            float collarY = StubCollarY * scale;
+            float collarR = StubCollarRadius * scale;
+
+            foreach (Segment limb in limbCapsules)
+            {
+                Vector3 ab = limb.B - limb.A;
+                float denominator = Vector3.Dot(ab, ab);
+                float t = denominator > 1e-9f
+                    ? Mathf.Clamp01(Vector3.Dot(p - limb.A, ab) / denominator)
+                    : 0.0f;
+                // BlendRadius's worth of slack because the smooth union
+                // rounds each joint outward past the raw capsule -- without
+                // it the fused surface right at a wrist reads as belonging
+                // to no limb at all and gets dropped.
+                if (Vector3.Distance(p, limb.A + ab * t) > limb.Radius + BlendRadius)
+                {
+                    continue;
+                }
+
+                switch (limb.Bone)
+                {
+                    case HumanBodyBones.Hips:
+                    case HumanBodyBones.Neck:
+                        if (p.y >= collarY && new Vector2(p.x, p.z).magnitude <= collarR)
+                        {
+                            return true;
+                        }
+                        break;
+                    case HumanBodyBones.LeftUpperArm:
+                    case HumanBodyBones.RightUpperArm:
+                        if (t >= StubHandFraction)
+                        {
+                            return true;
+                        }
+                        break;
+                    default:
+                        if (t >= StubFootFraction)
+                        {
+                            return true;
+                        }
+                        break;
+                }
+            }
+            return false;
+        }
+
         private static void AddLimb(List<Segment> segments,
             System.Func<HumanBodyBones, Vector3> bonePosition, float radius, float endFraction,
             HumanBodyBones upper, HumanBodyBones lower, HumanBodyBones end)

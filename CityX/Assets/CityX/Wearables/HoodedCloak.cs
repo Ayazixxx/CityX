@@ -9,19 +9,23 @@ namespace CityX.Wearables
     /// Ported from wearables/hooded_cloak.gd. Covers the whole body in one
     /// mesh, so unlike SkelliJeans there is no rigid-piece seam to hide.
     ///
-    /// HIDES THE BODY UNDERNEATH, the way the Godot original's
-    /// set_body_stubs_only(true) does -- that class's own comment names
-    /// exactly why this is not optional for a full-coverage garment:
-    /// "rigid cloth over a mesh that moves on its own will always let a
-    /// limb through somewhere, and no amount of fitting fixes that." Godot
-    /// swaps in a stub mesh that still shows hands, feet and a chest
-    /// collar; this just switches the body's own "Skin" renderer off
-    /// outright while worn, a simpler trade for the same result (no bare
-    /// skin visible) at the cost of hands/feet disappearing too.
+    /// SWAPS THE BODY FOR A STUB MESH UNDERNEATH, the way the Godot
+    /// original's set_body_stubs_only(true) does -- that class's own
+    /// comment names exactly why this is not optional for a full-coverage
+    /// garment: "rigid cloth over a mesh that moves on its own will always
+    /// let a limb through somewhere, and no amount of fitting fixes that."
+    /// The fix that holds is having no independently-posed body there to
+    /// poke through: FusedBodyBuilder.BuildStub bakes a filtered copy that
+    /// keeps only hands, feet and a collar under the chin -- exactly what
+    /// showed anyway -- and this swaps the body's own renderer to it while
+    /// worn, restoring the full mesh on unequip.
     /// </summary>
     public sealed class HoodedCloak : SkinnedGarment
     {
         public override string ItemId => ItemRegistry.HoodedCloak;
+
+        [Tooltip("Baked by FusedBodyBuilder -- hands, feet and a chest collar only. Set by SkinnedGarmentBuilder.BuildCloak.")]
+        public Mesh BodyStubMesh;
 
         /// <summary>
         /// hooded_cloak.gd's own SLEEVE_ARM_ROTATION_DEGREES.Z -- a pure
@@ -42,7 +46,8 @@ namespace CityX.Wearables
         /// </summary>
         private const float SleeveArmSpreadDegrees = 15.0f;
 
-        private GameObject _bodySkin;
+        private SkinnedMeshRenderer _bodySkin;
+        private Mesh _fullBodyMesh;
         private Transform _leftUpperArm;
         private Transform _rightUpperArm;
 
@@ -51,8 +56,22 @@ namespace CityX.Wearables
             Transform skin = FindDeep(player.transform, "Skin");
             if (skin != null)
             {
-                _bodySkin = skin.gameObject;
-                _bodySkin.SetActive(false);
+                _bodySkin = skin.GetComponent<SkinnedMeshRenderer>();
+            }
+            if (_bodySkin != null)
+            {
+                if (BodyStubMesh != null)
+                {
+                    _fullBodyMesh = _bodySkin.sharedMesh;
+                    _bodySkin.sharedMesh = BodyStubMesh;
+                }
+                else
+                {
+                    // No stub baked (BuildCloak never ran, or the prefab
+                    // predates it) -- fall back to hiding the whole body
+                    // rather than leaving bare skin visible under the cloak.
+                    _bodySkin.gameObject.SetActive(false);
+                }
             }
 
             var animator = player.GetComponentInChildren<Animator>();
@@ -127,9 +146,17 @@ namespace CityX.Wearables
         {
             if (_bodySkin != null)
             {
-                _bodySkin.SetActive(true);
+                if (_fullBodyMesh != null)
+                {
+                    _bodySkin.sharedMesh = _fullBodyMesh;
+                }
+                else
+                {
+                    _bodySkin.gameObject.SetActive(true);
+                }
             }
             _bodySkin = null;
+            _fullBodyMesh = null;
             // Stops LateUpdate from applying one more frame of spread after
             // unequip has already started -- clear_worn_top()'s own
             // "restores the normal stance" from the Godot original.

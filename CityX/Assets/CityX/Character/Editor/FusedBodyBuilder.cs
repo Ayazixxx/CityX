@@ -24,6 +24,14 @@ namespace CityX.CharacterEditor
     {
         private const string MeshPath = "Assets/CityX/Character/FusedBody.asset";
 
+        /// <summary>
+        /// "Hands, feet and a collar only" -- fused_body.gd's own stub_mesh(),
+        /// swapped in by a full-length garment so there is no independently
+        /// posed limb left for rigid cloth to fail to cover. See
+        /// FusedBodyShape.IsStubPoint's own doc comment.
+        /// </summary>
+        private const string StubMeshPath = "Assets/CityX/Character/FusedBodyStub.asset";
+
         private const string HeadPath = "Assets/CityX/Character/Head.asset";
 
         /// <summary>The child of the head bone that carries the skull.</summary>
@@ -199,7 +207,96 @@ namespace CityX.CharacterEditor
             Debug.Log($"CityX: body mesh built -- {vertices.Count} vertices, " +
                       $"{triangles.Count / 3} triangles, {skinBones.Count} bones, " +
                       $"standing {BodyRig.StandingHeight:0.00}m");
+
+            BuildStub(mesh, limbCapsules);
             return mesh;
+        }
+
+        /// <summary>
+        /// Filters the just-built body mesh down to "hands, feet and a
+        /// collar only" and saves it alongside the full body, updated in
+        /// place the same way Build() itself updates FusedBody.asset -- see
+        /// FusedBodyShape.IsStubPoint's own doc comment for what survives.
+        ///
+        /// A TRIANGLE SURVIVES OR IT DOES NOT, decided by its own centroid --
+        /// matches fused_body.gd's own stub_mesh() exactly, including
+        /// duplicating fresh vertices per surviving triangle rather than
+        /// trying to reuse the source's indices, since a source triangle
+        /// that fails the test can share a vertex with one that passes.
+        /// </summary>
+        private static void BuildStub(Mesh source, List<FusedBodyShape.Segment> limbCapsules)
+        {
+            Vector3[] vertices = source.vertices;
+            Vector3[] normals = source.normals;
+            Vector2[] uvs = source.uv;
+            BoneWeight[] weights = source.boneWeights;
+            int[] triangles = source.triangles;
+
+            var outVertices = new List<Vector3>();
+            var outNormals = new List<Vector3>();
+            var outUvs = new List<Vector2>();
+            var outWeights = new List<BoneWeight>();
+            var outTriangles = new List<int>();
+
+            int triCount = triangles.Length / 3;
+            for (int tri = 0; tri < triCount; tri++)
+            {
+                int i0 = triangles[tri * 3];
+                int i1 = triangles[tri * 3 + 1];
+                int i2 = triangles[tri * 3 + 2];
+                Vector3 centroid = (vertices[i0] + vertices[i1] + vertices[i2]) / 3.0f;
+                if (!FusedBodyShape.IsStubPoint(centroid, limbCapsules, FusedBodyShape.ReferenceHeight))
+                {
+                    continue;
+                }
+
+                foreach (int vi in new[] { i0, i1, i2 })
+                {
+                    outTriangles.Add(outVertices.Count);
+                    outVertices.Add(vertices[vi]);
+                    outNormals.Add(normals[vi]);
+                    outUvs.Add(uvs[vi]);
+                    outWeights.Add(weights[vi]);
+                }
+            }
+
+            var stub = new Mesh
+            {
+                name = "FusedBodyStub",
+                indexFormat = outVertices.Count > 65000
+                    ? UnityEngine.Rendering.IndexFormat.UInt32
+                    : UnityEngine.Rendering.IndexFormat.UInt16,
+            };
+            stub.SetVertices(outVertices);
+            stub.SetTriangles(outTriangles, 0);
+            stub.SetNormals(outNormals);
+            stub.SetUVs(0, outUvs);
+            stub.boneWeights = outWeights.ToArray();
+            stub.bindposes = source.bindposes;
+            stub.RecalculateBounds();
+
+            Mesh existing = AssetDatabase.LoadAssetAtPath<Mesh>(StubMeshPath);
+            if (existing == null)
+            {
+                AssetDatabase.CreateAsset(stub, StubMeshPath);
+            }
+            else
+            {
+                existing.Clear();
+                existing.indexFormat = stub.indexFormat;
+                existing.SetVertices(outVertices);
+                existing.SetTriangles(outTriangles, 0);
+                existing.SetNormals(outNormals);
+                existing.SetUVs(0, outUvs);
+                existing.boneWeights = outWeights.ToArray();
+                existing.bindposes = source.bindposes;
+                existing.RecalculateBounds();
+                EditorUtility.SetDirty(existing);
+                Object.DestroyImmediate(stub);
+            }
+            AssetDatabase.SaveAssets();
+
+            Debug.Log($"CityX: body stub built -- kept {outTriangles.Count / 3} of {triCount} triangles");
         }
 
         /// <summary>

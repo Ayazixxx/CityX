@@ -115,6 +115,8 @@ namespace CityX.WearablesEditor
             return material;
         }
 
+        private const string BodyStubMeshPath = "Assets/CityX/Character/FusedBodyStub.asset";
+
         [MenuItem("CityX/Rebuild Hooded Cloak")]
         public static GameObject BuildCloak()
         {
@@ -125,13 +127,24 @@ namespace CityX.WearablesEditor
             // would read as holes -- matches the ground truth's own
             // CULL_DISABLED.
             cloakMaterial.SetFloat("_Cull", 0.0f);
+
+            Mesh bodyStub = AssetDatabase.LoadAssetAtPath<Mesh>(BodyStubMeshPath);
+            if (bodyStub == null)
+            {
+                Debug.LogWarning($"CityX: no body stub at {BodyStubMeshPath} -- run " +
+                                  "CityX/Rebuild Body Mesh first. The cloak will fall back to " +
+                                  "hiding the whole body while worn.");
+            }
+
             return Build<HoodedCloak>(CloakGlbPath, CloakMeshPath, CloakPrefabPath, "HoodedCloak",
-                cloakMaterial, CloakGroundScale, CloakGroundPitchDegrees, CloakGroundLift);
+                cloakMaterial, CloakGroundScale, CloakGroundPitchDegrees, CloakGroundLift,
+                cloak => cloak.BodyStubMesh = bodyStub);
         }
 
         private static GameObject Build<T>(string glbPath, string meshPath, string prefabPath,
             string rootName, Material overrideMaterial,
-            float groundScale, float groundPitchDegrees, float groundLift) where T : SkinnedGarment
+            float groundScale, float groundPitchDegrees, float groundLift,
+            System.Action<T> configure = null) where T : SkinnedGarment
         {
             GameObject source = AssetDatabase.LoadAssetAtPath<GameObject>(glbPath);
             if (source == null)
@@ -162,6 +175,7 @@ namespace CityX.WearablesEditor
                 var garment = root.AddComponent<T>();
                 garment.GarmentMesh = bakedMesh;
                 garment.GarmentMaterial = usedMaterial;
+                configure?.Invoke(garment);
 
                 // A non-skinned preview, shown lying on the ground pre-pickup
                 // and hidden by SkinnedGarment.OnEquip -- its raw, unposed
