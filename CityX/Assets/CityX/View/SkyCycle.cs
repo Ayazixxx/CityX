@@ -187,15 +187,32 @@ namespace CityX.View
         /// </summary>
         public const float MinShadowElevationSine = 0.35f; // ~20.5 degrees
 
-        /// <summary>How far the glow around a body reaches, in degrees.</summary>
-        public const float GlowRadiusDegrees = 30.0f;
+        /// <summary>
+        /// How far the glow around a body reaches, in degrees. Reported
+        /// directly as "the sun is too big" against the original 30 --
+        /// wide enough, combined with GlowCurve's own inverted exponent (see
+        /// its own doc comment), to wash a good third of the sky rather than
+        /// read as a sun with a soft corona around it.
+        /// </summary>
+        public const float GlowRadiusDegrees = 6.0f;
 
         /// <summary>
-        /// The glow's falloff exponent is the reciprocal of this, so a small
-        /// number keeps the glow tight against the disc rather than washing a
-        /// third of the sky.
+        /// The glow's falloff exponent is the reciprocal of this -- CONFIRMED
+        /// BACKWARDS FROM ITS OWN ORIGINAL COMMENT, not just retuned: with
+        /// the exponent n = 1/GlowCurve, (1 - t^n) sits close to 1 (full
+        /// brightness) for MOST of t in [0,1) whenever n is large, i.e.
+        /// whenever GlowCurve is SMALL, and only drops sharply right at the
+        /// outer edge -- a flat plateau then a cliff, not a glow tight
+        /// against the disc. The old value (0.08, n=12.5) is exactly that
+        /// plateau, which combined with GlowRadiusDegrees' own old 30 is
+        /// what actually washed a third of the sky the original comment said
+        /// this exponent was there to prevent. 1.0 is this shader's own
+        /// Range(0.001, 1) ceiling -- the largest GlowCurve, smallest
+        /// exponent, and so the tightest falloff this parameterisation can
+        /// reach: a straight linear fade from the disc's own edge to
+        /// GlowRadiusDegrees, not the old near-flat plateau.
         /// </summary>
-        public const float GlowCurve = 0.08f;
+        public const float GlowCurve = 1.0f;
 
         /// <summary>city.tscn's own sky_curve / ground_curve.</summary>
         public const float SkyGradientCurve = 0.09f;

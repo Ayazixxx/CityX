@@ -113,8 +113,9 @@ Shader "CityX/ProceduralSky"
 
             /// One body's contribution: a solid disc out to its angular radius,
             /// then a glow falling off to nothing at _SunAngleMax. The curve
-            /// exponent is what keeps that falloff tight against the disc
-            /// instead of washing a third of the sky.
+            /// exponent is 1/_SunCurve -- see SkyCycle.GlowCurve's own doc
+            /// comment for why LARGER _SunCurve (a SMALLER exponent) is what
+            /// keeps that falloff tight against the disc, not smaller.
             float3 Body(float3 eye, float3 towards, float3 colour, float energy,
                 float angularRadius)
             {

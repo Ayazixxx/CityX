@@ -54,6 +54,17 @@ namespace CityX.UIEditor
         private const float StaminaBorder = 4.0f;
 
         /// <summary>
+        /// Reported directly: the portrait and health/stamina bars, carried
+        /// straight over from hud.tscn's own numbers, read as too big on
+        /// screen. Scaling the whole StatusFrame around its own top-left
+        /// pivot (see BuildStatusFrame's own TopLeft call) shrinks the
+        /// portrait and both bars together, in proportion, without having to
+        /// re-derive every individual offset and size hud.tscn's own layout
+        /// carried over.
+        /// </summary>
+        private const float StatusFrameScale = 0.85f;
+
+        /// <summary>
         /// The Unity layer PortraitCamera's own cullingMask is restricted
         /// to -- Godot instead OR's a second layer BIT onto every body-part
         /// mesh (character.gd's own PORTRAIT_VISUAL_LAYER), so the same
@@ -258,6 +269,7 @@ namespace CityX.UIEditor
             var frame = new GameObject("StatusFrame", typeof(RectTransform));
             RectTransform rect = Attach(frame, parent);
             TopLeft(rect, new Vector2(20.0f, -20.0f), new Vector2(500.0f, 130.0f));
+            rect.localScale = Vector3.one * StatusFrameScale;
 
             // hud.tscn's own numbers: the bars indent 115px, which does NOT
             // fully clear the 130px portrait -- it overlaps it by 15px, in
