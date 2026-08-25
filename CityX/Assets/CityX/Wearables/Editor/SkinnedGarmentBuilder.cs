@@ -220,12 +220,79 @@ namespace CityX.WearablesEditor
         /// the actual cause of the cloak's sleeves visibly tearing away
         /// from the arms: see RestBones's own doc comment for the numbers.
         /// </summary>
+        /// <summary>
+        /// hooded_cloak.gd/skelli_jeans.gd's own rest never needed this: Godot's
+        /// body has no T-pose at all, it just sits arms-down, so a plain
+        /// translation-only bind (Basis(), -origin -- see _rebind()) was always
+        /// enough. BodyRigBuilder.BuildSkeleton forces EVERY bone to identity
+        /// WORLD rotation regardless of which pose list it is handed (see its
+        /// own doc comment), because RestBones()'s "arms down" is encoded
+        /// entirely as bone POSITIONS -- Vector3.Lerp(shoulder, hand, t) --
+        /// never rotation. That is fine for the body itself, which is built
+        /// fresh from those same positions every time. It is wrong for THIS
+        /// bind skeleton, because the LIVE rig this garment actually gets worn
+        /// on cannot reach "arms down" by sitting at identity rotation: it is
+        /// built in a T-pose (BodyRig.Bones(), for Unity's own humanoid
+        /// retargeting -- see that method's doc comment), and the Animator
+        /// only ever reaches "arms down" by rotating the shoulder roughly 78
+        /// degrees away from that T-pose -- PistolBuilder.PoseArmsDown and
+        /// CharacterSelect's own copy of it are the same number for the same
+        /// reason. Baking the sleeve against a shoulder sitting at identity
+        /// rotation, then driving it at runtime by a bone that is ACTUALLY 78
+        /// degrees into its rotation, adds that whole 78 degrees again on top
+        /// of the correct pose every single frame -- confirmed directly by
+        /// rendering the equipped cloak on the real player rig, which tore at
+        /// exactly the shoulder seam even though a bare bind-pose render of
+        /// the same baked mesh, sitting untouched at its own bind rotation,
+        /// came out perfectly clean. 78 is not a guess pasted in to match: it
+        /// is the exact angle a shoulder at T-pose (arm pointing straight out
+        /// along X) has to turn to face RestBones()'s own hand target,
+        /// confirmed by solving that rotation directly against ShoulderX/
+        /// HandX/HandY.
+        ///
+        /// Only the shoulder itself is rotated. RestBones() places forearm_l/
+        /// hand_l by lerping straight from the shoulder to the hand target
+        /// with no elbow bend, so a shoulder-only rotation already carries
+        /// them to the exact position that lerp specifies once re-snapped
+        /// below -- and leaving their OWN rotation at identity keeps their
+        /// bindpose a pure translation, the same as every other non-shoulder
+        /// bone here and the same as Godot's own _rebind().
+        /// </summary>
+        private static void PoseBindSkeletonArmsDown(Dictionary<string, Transform> named)
+        {
+            const float shoulderDegrees = 78.0f;
+            if (named.TryGetValue("arm_l", out Transform armL))
+            {
+                armL.localRotation = Quaternion.Euler(0.0f, 0.0f, shoulderDegrees);
+            }
+            if (named.TryGetValue("arm_r", out Transform armR))
+            {
+                armR.localRotation = Quaternion.Euler(0.0f, 0.0f, -shoulderDegrees);
+            }
+
+            // Rotating the shoulder carried its children (already positioned
+            // at RestBones()'s own arms-down targets) away with it -- snap
+            // them back to those exact world positions rather than leaving
+            // them wherever the rotation happened to swing them.
+            foreach (BodyRig.Bone bone in BodyRig.RestBones())
+            {
+                if ((bone.Name == "forearm_l" || bone.Name == "hand_l" ||
+                     bone.Name == "forearm_r" || bone.Name == "hand_r") &&
+                    named.TryGetValue(bone.Name, out Transform joint))
+                {
+                    joint.position = bone.Position;
+                }
+            }
+        }
+
         private static Mesh BakeMesh(SkinnedMeshRenderer source, string path)
         {
             GameObject skeletonRoot = BodyRigBuilder.BuildSkeleton(
                 "GarmentBindSkeleton", out Dictionary<string, Transform> named, BodyRig.RestBones());
             try
             {
+                PoseBindSkeletonArmsDown(named);
+
                 var bindPoses = new Matrix4x4[source.bones.Length];
                 for (int i = 0; i < source.bones.Length; i++)
                 {
