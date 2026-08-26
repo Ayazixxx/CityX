@@ -77,6 +77,7 @@ namespace CityX.UI
 
         [Tooltip("What /spawn sword puts down, and what /equip sword equips.")]
         public GameObject SwordPrefab;
+        public GameObject TopHatPrefab;
 
         [Tooltip("Movement/combat input. Disabled while the console is open.")]
         public PlayerInputReader InputReader;
@@ -412,6 +413,17 @@ namespace CityX.UI
                     Log("spawned a sword -- press E nearby to pick it up");
                     return;
 
+                case "top_hat":
+                case "tophat":
+                    if (TopHatPrefab == null)
+                    {
+                        Log("no top hat prefab wired");
+                        return;
+                    }
+                    Instantiate(TopHatPrefab, where + Vector3.up * 0.05f, Quaternion.identity);
+                    Log("spawned a top hat -- press E nearby to pick it up");
+                    return;
+
                 case "grapple":
                     if (GrapplingHookPrefab == null)
                     {
@@ -551,6 +563,8 @@ namespace CityX.UI
                 case "grapple": return ItemRegistry.GrapplingHook;
                 case "pistol": return ItemRegistry.Pistol;
                 case "sword": return ItemRegistry.Sword;
+                case "top_hat":
+                case "tophat": return ItemRegistry.TopHat;
                 default: return null;
             }
         }

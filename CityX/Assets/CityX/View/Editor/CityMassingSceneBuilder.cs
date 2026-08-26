@@ -150,6 +150,7 @@ namespace CityX.ViewEditor
             GameObject pistolPrefab = CityX.WeaponsEditor.PistolBuilder.Build();
             GameObject jetpackPrefab = CityX.WeaponsEditor.JetpackBuilder.Build();
             GameObject swordPrefab = CityX.WeaponsEditor.SwordBuilder.Build();
+            GameObject topHatPrefab = CityX.WearablesEditor.TopHatBuilder.Build();
 
             // --- the player. The flycam stays on the same object but disabled,
             // --- so switching between walking the city and flying over it is a
@@ -287,6 +288,8 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.Jetpack, Prefab = jetpackPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.Sword, Prefab = swordPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.TopHat, Prefab = topHatPrefab },
                 };
 
                 // --- the grapple swing. Aim (left-click while a grappling
@@ -367,7 +370,8 @@ namespace CityX.ViewEditor
                 pistolPrefab,
                 midnightPatchworkCoatPrefab,
                 jetpackPrefab,
-                swordPrefab);
+                swordPrefab,
+                topHatPrefab);
 
             // --- the pause menu. Escape opens it; it guards itself against
             // --- opening on top of the console above.
