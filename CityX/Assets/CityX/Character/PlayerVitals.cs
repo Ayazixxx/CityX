@@ -381,6 +381,21 @@ namespace CityX.Character
         }
 
         /// <summary>
+        /// Called every frame a jetpack is actively thrusting -- continuously
+        /// refreshes TickFallDamage's own peak-height reference to wherever
+        /// the player currently is, so letting go afterward only ever
+        /// measures the genuine unpowered fall from THAT point, never the
+        /// whole powered climb. No jetpack exists to port this from; this is
+        /// the direct mechanical reading of the explicit ask ("it negates
+        /// fall damage from the last height it was on").
+        /// </summary>
+        public void ResetFallTracking(float currentY)
+        {
+            _wasAirborne = true;
+            _highestAirborneY = currentY;
+        }
+
+        /// <summary>
         /// Watches height to work out fall damage, and applies it on landing.
         /// Returns the damage dealt, which is zero for a safe landing.
         ///

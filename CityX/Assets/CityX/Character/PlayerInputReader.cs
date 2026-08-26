@@ -32,6 +32,13 @@ namespace CityX.Character
         public IEquippableGun EquippedGun;
 
         /// <summary>
+        /// Set by Jetpack's own OnEquip/OnUnequip, same pattern as
+        /// EquippedGun. While non-null, Space thrusts instead of charging a
+        /// jump -- see the Update() dispatch and IJetpack's own doc comment.
+        /// </summary>
+        public IJetpack EquippedJetpack;
+
+        /// <summary>
         /// How long after tapping sprint a second tap still counts as a dash.
         ///
         /// A press-release-press inside this window is the double-tap; a single
@@ -290,8 +297,27 @@ namespace CityX.Character
 
             float yawDegrees = yawSource != null ? yawSource.eulerAngles.y : 0.0f;
             TickDash(keyboard, move, yawDegrees, deltaTime);
-            TickJumpCharge(keyboard, _locomotion.IsGrounded, deltaTime,
-                out bool chargingJumpNow, out bool jumpReleased, out float jumpChargeFraction);
+
+            bool chargingJumpNow = false;
+            bool jumpReleased = false;
+            float jumpChargeFraction = 0.0f;
+            // A JETPACK TAKES SPACE OVER ENTIRELY WHILE EQUIPPED, the same
+            // way a gun/grapple hook already take over click -- Space means
+            // thrust now, not a charged jump, so TickJumpCharge (and the
+            // pose it would have driven) never runs at all. Left/right/
+            // sprint/crouch above are untouched: WASD keeps steering
+            // horizontally exactly the way ordinary falling already lets
+            // it, matching the explicit ask ("mixed with wasd to move
+            // around").
+            if (EquippedJetpack != null)
+            {
+                EquippedJetpack.Tick(keyboard.spaceKey.isPressed, deltaTime);
+            }
+            else
+            {
+                TickJumpCharge(keyboard, _locomotion.IsGrounded, deltaTime,
+                    out chargingJumpNow, out jumpReleased, out jumpChargeFraction);
+            }
 
             var input = new LocomotionInput
             {
