@@ -214,110 +214,6 @@ namespace CityX.WearablesEditor
             return material;
         }
 
-        [System.Serializable]
-        private class GltfBufferView
-        {
-            public int buffer;
-            public int byteOffset;
-            public int byteLength;
-        }
-
-        [System.Serializable]
-        private class GltfImage
-        {
-            public int bufferView;
-            public string mimeType;
-            public string name;
-        }
-
-        [System.Serializable]
-        private class GltfRoot
-        {
-            public GltfBufferView[] bufferViews;
-            public GltfImage[] images;
-        }
-
-        /// <summary>
-        /// How white a sampled paint colour has to be before a vertex is
-        /// vetoed regardless of what its bone weight said -- pure unpainted
-        /// UV space reads at or near (1,1,1); the actual black fabric reads
-        /// far below this (confirmed by eye against the extracted PNG,
-        /// roughly 0.05-0.15 per channel), and the coat's own grey/silver
-        /// hardware (buttons, zipper) reads as a mid-tone comfortably below
-        /// this too -- checked directly rather than assumed, so this stays
-        /// high enough to spare them.
-        /// </summary>
-        private const float WhiteVetoThreshold = 0.85f;
-
-        /// <summary>
-        /// Reads the coat's own baseColorTexture directly out of the .glb's
-        /// binary chunks, bypassing Unity's own glTFast import entirely --
-        /// confirmed necessary by dumping AssetDatabase's own imported copy
-        /// of this exact texture and finding a 4x4 stub instead of the
-        /// real, valid 4096x4096 PNG the file itself actually embeds (see
-        /// BuildMaterial's own doc comment for the full story). Used ONLY
-        /// to veto vertices by paint colour during stripping, never for
-        /// display -- the texture's own painted regions are still an
-        /// incomplete, jagged bake, just usable enough to tell "was this
-        /// ever painted at all" from "was this left blank", which bone
-        /// weight alone has no way to know: a fold of fabric can end up
-        /// weighted to a kept bone by the auto-rig without Meshy's own
-        /// texture bake having ever actually painted it, and those are
-        /// exactly the leftover-looking, torn patches reported worn
-        /// in-game.
-        /// </summary>
-        private static Texture2D LoadRealBaseColorTexture(string glbAssetPath)
-        {
-            string fullPath = System.IO.Path.Combine(
-                System.IO.Directory.GetParent(Application.dataPath).FullName, glbAssetPath);
-            if (!System.IO.File.Exists(fullPath))
-            {
-                Debug.LogWarning($"CityX: {fullPath} not found on disk -- proceeding without a paint-colour veto.");
-                return null;
-            }
-
-            byte[] fileBytes = System.IO.File.ReadAllBytes(fullPath);
-            using (var stream = new System.IO.MemoryStream(fileBytes))
-            using (var reader = new System.IO.BinaryReader(stream))
-            {
-                reader.ReadUInt32(); // magic "glTF"
-                reader.ReadUInt32(); // version
-                reader.ReadUInt32(); // total file length
-
-                uint jsonChunkLength = reader.ReadUInt32();
-                reader.ReadUInt32(); // chunk type, "JSON"
-                byte[] jsonBytes = reader.ReadBytes((int)jsonChunkLength);
-                string json = System.Text.Encoding.UTF8.GetString(jsonBytes);
-
-                reader.ReadUInt32(); // bin chunk length
-                reader.ReadUInt32(); // chunk type, "BIN"
-                long binChunkStart = stream.Position;
-
-                GltfRoot root = JsonUtility.FromJson<GltfRoot>(json);
-                if (root?.images == null || root.images.Length == 0 || root.bufferViews == null)
-                {
-                    Debug.LogWarning("CityX: could not find an image inside the coat's own glb -- " +
-                                      "proceeding without a paint-colour veto.");
-                    return null;
-                }
-
-                GltfImage image = root.images[0];
-                GltfBufferView bufferView = root.bufferViews[image.bufferView];
-
-                stream.Seek(binChunkStart + bufferView.byteOffset, System.IO.SeekOrigin.Begin);
-                byte[] pngBytes = reader.ReadBytes(bufferView.byteLength);
-
-                var texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
-                if (!texture.LoadImage(pngBytes))
-                {
-                    Debug.LogWarning("CityX: the coat's own embedded PNG failed to decode -- " +
-                                      "proceeding without a paint-colour veto.");
-                    return null;
-                }
-                return texture;
-            }
-        }
-
         private static Mesh StripAndRebind(SkinnedMeshRenderer source, string path)
         {
             Transform[] sourceBones = source.bones;
@@ -370,10 +266,6 @@ namespace CityX.WearablesEditor
             int[] triangles = sourceMesh.triangles;
 
             int vertexCount = positions.Length;
-
-            Texture2D paintMask = LoadRealBaseColorTexture(GlbPath);
-            bool canVetoByPaint = paintMask != null && uvs != null && uvs.Length == vertexCount;
-            int vetoedByPaint = 0;
             var kept = new bool[vertexCount];
             var oldToNew = new int[vertexCount];
             var newPositions = new List<Vector3>(vertexCount / 3);
@@ -391,23 +283,6 @@ namespace CityX.WearablesEditor
                 if (dominantTarget < 0)
                 {
                     continue;   // head, an arm, or a leg -- stripped per the user's own request
-                }
-
-                // A SECOND VETO, BY PAINT COLOUR -- bone weight alone kept
-                // some vertices the auto-rig happened to weight to a coat
-                // bone but that Meshy's own texture bake never actually
-                // painted (still blank/white UV space), which is exactly
-                // what read in-game as torn, leftover-looking patches. Only
-                // ever narrows the kept set further; it can't rescue a
-                // vertex bone weight already dropped.
-                if (canVetoByPaint)
-                {
-                    Color paint = paintMask.GetPixelBilinear(uvs[i].x, uvs[i].y);
-                    if (paint.r > WhiteVetoThreshold && paint.g > WhiteVetoThreshold && paint.b > WhiteVetoThreshold)
-                    {
-                        vetoedByPaint++;
-                        continue;
-                    }
                 }
 
                 var slot = new float[TargetBoneNames.Length];
@@ -449,15 +324,6 @@ namespace CityX.WearablesEditor
                 }
             }
 
-            // Done being read -- freed here rather than deferred to this
-            // method's own skeleton try/finally below, which has nothing
-            // to do with this texture and would otherwise be the only
-            // thing standing between it and a leak if anything above threw.
-            if (paintMask != null)
-            {
-                Object.DestroyImmediate(paintMask);
-            }
-
             GameObject skeletonRoot = BodyRigBuilder.BuildSkeleton(
                 "CoatBindSkeleton", out Dictionary<string, Transform> named, BodyRig.RestBones());
             try
@@ -496,8 +362,8 @@ namespace CityX.WearablesEditor
                 }
                 AssetDatabase.CreateAsset(baked, path);
                 AssetDatabase.SaveAssets();
-                Debug.Log($"CityX: coat strip kept {newPositions.Count}/{vertexCount} vertices " +
-                          $"({vetoedByPaint} further vetoed as unpainted), {newTriangles.Count / 3} triangles.");
+                Debug.Log($"CityX: coat strip kept {newPositions.Count}/{vertexCount} vertices, " +
+                          $"{newTriangles.Count / 3} triangles.");
                 return baked;
             }
             finally
