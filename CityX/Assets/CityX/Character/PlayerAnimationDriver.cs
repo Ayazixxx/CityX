@@ -56,10 +56,18 @@ namespace CityX.Character
         /// </summary>
         private void OnBlockThrown()
         {
-            if (_animator != null)
+            if (_animator == null)
             {
-                _animator.CrossFadeInFixedTime("Block", SwingBlendSeconds, 0);
+                return;
             }
+            // WHICH BLOCK POSE, DECIDED HERE, the same "told by name" split
+            // this whole class already uses -- MeleeAttacker.PlayBlock
+            // doesn't know or care what a block looks like, only that one
+            // was thrown; this is the one place that already asks
+            // EquippedWeapon anything for animation purposes.
+            string moveset = _melee != null ? _melee.EquippedWeapon?.MovesetId : null;
+            string blockState = moveset == ComboChain.Sword ? "SwordBlock" : "Block";
+            _animator.CrossFadeInFixedTime(blockState, SwingBlendSeconds, 0);
         }
 
         private void OnSwingStarted(ComboStage stage)

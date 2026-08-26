@@ -159,6 +159,11 @@ namespace CityX.Weapons
 
         public float MeleeCooldownSeconds => MeleeCooldownSecondsConst;
 
+        // No chain, no heavy variant -- exactly what a bottle already did
+        // before IEquippableWeapon grew these two members for the sword.
+        public string MovesetId => null;
+        public ComboStage? HeavyStage => null;
+
         public void RegisterLandedMeleeHit()
         {
             switch (State)

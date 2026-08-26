@@ -50,14 +50,32 @@ namespace CityX.Character
     /// punch then moves the whole chain with it instead of leaving four
     /// stages quietly disagreeing.
     ///
-    /// Only unarmed is carried over. Sword had its own separate two-hit
-    /// mechanic in Godot and a known bug (task #292, a swing that never
-    /// released its in-progress flag); porting the bug would be silly, and
-    /// porting the fix is a decision for when swords exist here at all.
+    /// Unarmed was carried over from Godot's combo_data.gd. Sword is NOT a
+    /// port -- it is new-built on this exact same table, deliberately not
+    /// Godot's own separate two-hit mechanic (weapons/two_handed_sword.gd's
+    /// _sword_combo_ready/_sword_combo_timer), which had a real, twice-
+    /// rediscovered bug class (tests/test_sword_hit_interrupt_check.gd and
+    /// tests/test_sword_action_interrupt_check.gd, both chasing the same
+    /// _sword_swing_in_progress flag getting stuck true because some new
+    /// call site -- a jump, a dash, a crouch -- forgot to clear it). Sword
+    /// swings through the exact same MeleeAttacker/ComboChain machinery
+    /// unarmed does, where IsSwinging is a countdown derived from a timer
+    /// rather than a flag anyone has to remember to release, so that whole
+    /// bug class cannot recur here by construction.
     /// </summary>
     public static class ComboChain
     {
         public const string Unarmed = "unarmed";
+
+        /// <summary>
+        /// Two stages, not more -- matches the two real attack clips that
+        /// exist (2hsw_attack.fbx, 2hsw_attack2.fbx), rather than inventing
+        /// a third stage with no animation to back it. Still a genuine
+        /// improvement on Godot's own two-hit shape: the same two swings,
+        /// but driven by MeleeAttacker's delta-based window/finisher timing
+        /// instead of a hand-rolled flag and a 5-second timer variable.
+        /// </summary>
+        public const string Sword = "sword";
 
         private static readonly Dictionary<string, ComboStage[]> Chains =
             new Dictionary<string, ComboStage[]>
@@ -72,6 +90,15 @@ namespace CityX.Character
                     // ragdolls the target instead, so hitstun would be a second
                     // competing reaction to the same hit.
                     new ComboStage("punch_heavy", 1.5f, 0.0f, 0.0f, true),
+                },
+                [Sword] = new[]
+                {
+                    new ComboStage("sword_attack", 1.0f, 1.0f, 0.9f, false),
+                    // The finisher hits harder than the opener, same shape
+                    // as unarmed's own rising damage through its chain, and
+                    // ragdolls rather than stunning for the same reason the
+                    // unarmed finisher does.
+                    new ComboStage("sword_attack2", 1.4f, 0.0f, 0.0f, true),
                 },
             };
 
@@ -122,6 +149,16 @@ namespace CityX.Character
         /// </summary>
         public static readonly ComboStage HeavyPunch =
             new ComboStage("punch_heavy", 1.5f, 1.5f, 0.0f, false);
+
+        /// <summary>
+        /// The sword's own held-attack variant, played from
+        /// 2hsw_chargedattack.fbx -- same relationship to the sword chain
+        /// that HeavyPunch has to the unarmed one: not a member of
+        /// ComboChain.Sword, hits harder, and resets the chain rather than
+        /// advancing it.
+        /// </summary>
+        public static readonly ComboStage SwordHeavyAttack =
+            new ComboStage("sword_charged_attack", 1.6f, 1.0f, 0.0f, false);
 
         /// <summary>player.gd STRENGTH_DAMAGE_PERCENT_PER_POINT</summary>
         public const float StrengthDamagePerPoint = 0.02f;

@@ -101,7 +101,7 @@ namespace CityX.Tests
         [Test]
         public void AnUnknownMovesetGivesAnEmptyChainRatherThanThrowing()
         {
-            Assert.IsEmpty(ComboChain.For("sword"), "sword is deliberately not ported yet");
+            Assert.IsEmpty(ComboChain.For("a moveset that does not exist"));
             Assert.IsEmpty(ComboChain.For(""));
             Assert.IsFalse(ComboChain.Has("nonsense"));
         }

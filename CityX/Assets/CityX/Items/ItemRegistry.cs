@@ -17,6 +17,7 @@ namespace CityX.Items
         public const string GrapplingHook = "grappling_hook";
         public const string Pistol = "pistol";
         public const string Jetpack = "jetpack";
+        public const string Sword = "sword";
 
         private static readonly Dictionary<string, ItemDefinition> Items = new Dictionary<string, ItemDefinition>
         {
@@ -32,6 +33,7 @@ namespace CityX.Items
             // there to have defined one), so it can be worn at the same time
             // as a coat/cloak rather than competing with it for the slot.
             [Jetpack] = new ItemDefinition(Jetpack, "Jetpack", "tool", "back", 1),
+            [Sword] = new ItemDefinition(Sword, "Sword", "weapon", "hand_r", 1),
         };
 
         public static bool TryGet(string itemId, out ItemDefinition definition)

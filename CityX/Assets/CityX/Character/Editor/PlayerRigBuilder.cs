@@ -229,6 +229,11 @@ namespace CityX.CharacterEditor
             AddAimingState(controller, root);
             AddClimbingStates(controller, root);
             AddPunchStates(root);
+            // AFTER AddPunchStates: AddSwordLocomotion has to exist before
+            // AddSwordStates looks its state up by name for the sword
+            // swings' own exit transition.
+            AddSwordLocomotion(controller, root);
+            AddSwordStates(root);
             AddCutsceneStates(root);
 
             EditorUtility.SetDirty(controller);
@@ -885,6 +890,138 @@ namespace CityX.CharacterEditor
                 case "punch_left": return FindClip("boxing_left_jab");
                 case "punch_heavy": return FindClip("heavy_punch");
                 case "Block": return FindClip("body_block");
+                default: return null;
+            }
+        }
+
+        /// <summary>
+        /// A whole-body alternate locomotion set for while a sword is
+        /// equipped -- 2hsw_idle/walk/sprint/backwardwalk/left/right were
+        /// already sitting retargeted and unused in the Animations folder,
+        /// the same "already imported, never wired up" situation
+        /// AddAimingState's own doc comment found for pistol_aim_in.fbx and
+        /// AddClimbingStates found for its own three clips.
+        ///
+        /// SAME SHAPE AS THE MAIN LOCOMOTION TREE, not a smaller one --
+        /// FreeformCartesian2D over MoveX/MoveZ, the same blend parameters
+        /// PlayerLocomotion already feeds every frame regardless of what is
+        /// equipped, so nothing about how movement itself works has to
+        /// change for this to slot in.
+        ///
+        /// BOOL-GATED BOTH WAYS, matching AddAimingState's own reasoning
+        /// verbatim: there is no other transition this can piggyback on to
+        /// get back out, so it needs its own explicit "SwordEquipped went
+        /// false" exit.
+        ///
+        /// DOES NOT TOUCH CROUCH OR JUMP -- a sword-specific crouch/jump
+        /// set exists too (2hsw_crouch/uncrouch/jump) but composing three
+        /// independent bool/speed gates (Crouching x SwordEquipped x
+        /// moving) is a real increase in the transition graph's own size
+        /// for a detail nobody asked for; left as a known, deliberate gap
+        /// rather than attempted half-way.
+        /// </summary>
+        private static void AddSwordLocomotion(AnimatorController controller, AnimatorStateMachine root)
+        {
+            AnimationClip idle = FindClip("2hsw_idle");
+            AnimationClip walk = FindClip("2hsw_walk");
+            AnimatorState locomotion = FindState(root, "Locomotion");
+            if (idle == null || walk == null || locomotion == null)
+            {
+                Debug.LogWarning("CityX: sword locomotion clips missing -- " +
+                                  "equipping a sword will not change the walk cycle.");
+                return;
+            }
+
+            AnimationClip sprint = FindClip("2hsw_sprint");
+            AnimationClip back = FindClip("2hsw_backwardwalk");
+            AnimationClip left = FindClip("2hsw_left");
+            AnimationClip right = FindClip("2hsw_right");
+
+            controller.AddParameter("SwordEquipped", AnimatorControllerParameterType.Bool);
+
+            controller.CreateBlendTreeInController("SwordLocomotion", out BlendTree swordLocomotion, 0);
+            swordLocomotion.blendType = BlendTreeType.FreeformCartesian2D;
+            swordLocomotion.blendParameter = "MoveX";
+            swordLocomotion.blendParameterY = "MoveZ";
+            swordLocomotion.AddChild(idle, Vector2.zero);
+            swordLocomotion.AddChild(walk, new Vector2(0.0f, WalkSpeed));
+            if (sprint != null) swordLocomotion.AddChild(sprint, new Vector2(0.0f, SprintSpeed));
+            if (back != null) swordLocomotion.AddChild(back, new Vector2(0.0f, -WalkSpeed));
+            if (left != null) swordLocomotion.AddChild(left, new Vector2(-WalkSpeed, 0.0f));
+            if (right != null) swordLocomotion.AddChild(right, new Vector2(WalkSpeed, 0.0f));
+
+            AnimatorState swordLocomotionState = FindState(root, "SwordLocomotion");
+
+            Link(locomotion, swordLocomotionState, 0.15f, "SwordEquipped", true);
+            Link(swordLocomotionState, locomotion, 0.15f, "SwordEquipped", false);
+        }
+
+        /// <summary>
+        /// One state per sword-chain animation, named to match
+        /// ComboStage.Animation -- same "no triggers, no conditions in"
+        /// shape AddPunchStates already uses, and the same reason: the
+        /// chain (here ComboChain.Sword, driven by MeleeAttacker exactly
+        /// like unarmed is) already decides which swing plays and when.
+        ///
+        /// EXITS TO SwordLocomotion, NOT Locomotion -- unlike a bare-fisted
+        /// swing, the sword is still in hand once the animation ends, so
+        /// the body should settle back into the sword's own idle/walk
+        /// rather than popping the weapon out of frame into the bare-handed
+        /// cycle for one frame before SwordEquipped's own transition (which
+        /// only fires on a CHANGE, not every frame) catches up.
+        /// </summary>
+        private static void AddSwordStates(AnimatorStateMachine root)
+        {
+            AnimatorState swordLocomotion = FindState(root, "SwordLocomotion");
+            if (swordLocomotion == null)
+            {
+                return;   // AddSwordLocomotion already warned why.
+            }
+
+            var swings = new List<ComboStage>(ComboChain.For(ComboChain.Sword))
+            {
+                CombatTuning.SwordHeavyAttack,
+                new ComboStage("SwordBlock", 0.0f, 0.0f, 0.0f, false),
+            };
+
+            foreach (ComboStage stage in swings)
+            {
+                if (FindState(root, stage.Animation) != null)
+                {
+                    continue;
+                }
+
+                AnimationClip clip = ClipForSword(stage.Animation);
+                if (clip == null)
+                {
+                    Debug.LogWarning($"CityX: no clip for '{stage.Animation}' -- that stage of the " +
+                                     "sword chain will still hit, but the character will not swing.");
+                    continue;
+                }
+
+                AnimatorState state = root.AddState(stage.Animation);
+                state.motion = clip;
+
+                AnimatorStateTransition back = state.AddTransition(swordLocomotion);
+                back.hasExitTime = true;
+                back.exitTime = 0.85f;
+                back.duration = 0.12f;
+            }
+        }
+
+        /// <summary>
+        /// Maps a sword-chain animation name to the Mixamo file that
+        /// provides it -- same explicit-map reasoning ClipForPunch's own
+        /// doc comment gives.
+        /// </summary>
+        private static AnimationClip ClipForSword(string animation)
+        {
+            switch (animation)
+            {
+                case "sword_attack": return FindClip("2hsw_attack");
+                case "sword_attack2": return FindClip("2hsw_attack2");
+                case "sword_charged_attack": return FindClip("2hsw_chargedattack");
+                case "SwordBlock": return FindClip("2hsw_blocking");
                 default: return null;
             }
         }

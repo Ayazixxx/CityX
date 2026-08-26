@@ -76,6 +76,16 @@ namespace CityX.Character
         /// </summary>
         public bool Aiming;
 
+        /// <summary>
+        /// True whenever the equipped weapon's own MovesetId is
+        /// ComboChain.Sword -- see PlayerInputReader's own read of
+        /// MeleeAttacker.EquippedWeapon. Drives the Animator's
+        /// "SwordEquipped" bool, which swaps Locomotion for SwordLocomotion
+        /// (see PlayerRigBuilder.AddSwordLocomotion), the same "carry the
+        /// answer, decide nothing here" split Aiming already uses.
+        /// </summary>
+        public bool SwordEquipped;
+
         /// <summary>The world-space direction the player wants to travel, flat and normalised.</summary>
         public Vector3 WorldDirection()
         {

@@ -1860,6 +1860,7 @@ MonoBehaviour:
   ChargedJumpHeightMultiplier: 15
   Gravity: 9.8
   TurnDegreesPerSecond: 720
+  HorizontalAcceleration: 60
   StandingHeight: 2.6
 --- !u!114 &2773703700834389877
 MonoBehaviour:

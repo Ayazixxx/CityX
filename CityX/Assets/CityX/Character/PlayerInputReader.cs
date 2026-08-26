@@ -332,6 +332,8 @@ namespace CityX.Character
                 JumpReleased = jumpReleased,
                 JumpChargeFraction = jumpChargeFraction,
                 Aiming = _isAimingGun,
+                SwordEquipped = _melee != null && _melee.EquippedWeapon != null &&
+                                _melee.EquippedWeapon.MovesetId == ComboChain.Sword,
             };
 
             _locomotion.Tick(input, deltaTime);

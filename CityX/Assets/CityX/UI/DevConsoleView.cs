@@ -75,6 +75,9 @@ namespace CityX.UI
         [Tooltip("What /spawn jetpack puts down, and what /equip jetpack equips.")]
         public GameObject JetpackPrefab;
 
+        [Tooltip("What /spawn sword puts down, and what /equip sword equips.")]
+        public GameObject SwordPrefab;
+
         [Tooltip("Movement/combat input. Disabled while the console is open.")]
         public PlayerInputReader InputReader;
 
@@ -399,6 +402,16 @@ namespace CityX.UI
                     Log("spawned a jetpack -- press E nearby to pick it up");
                     return;
 
+                case "sword":
+                    if (SwordPrefab == null)
+                    {
+                        Log("no sword prefab wired");
+                        return;
+                    }
+                    Instantiate(SwordPrefab, where + Vector3.up * 0.05f, Quaternion.identity);
+                    Log("spawned a sword -- press E nearby to pick it up");
+                    return;
+
                 case "grapple":
                     if (GrapplingHookPrefab == null)
                     {
@@ -537,6 +550,7 @@ namespace CityX.UI
                 case "jetpack": return ItemRegistry.Jetpack;
                 case "grapple": return ItemRegistry.GrapplingHook;
                 case "pistol": return ItemRegistry.Pistol;
+                case "sword": return ItemRegistry.Sword;
                 default: return null;
             }
         }

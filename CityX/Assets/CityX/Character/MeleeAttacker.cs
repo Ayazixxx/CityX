@@ -135,12 +135,62 @@ namespace CityX.Character
                 return false;
             }
 
-            // A WEAPON SWING IS ITS OWN THING, not a combo stage -- there is
-            // no chain, no window, no heavy variant here in this pass (the
-            // ground truth's own bottle-melee description never mentions
-            // one). The weapon supplies its own damage and cooldown.
             if (EquippedWeapon != null)
             {
+                // A HELD SWING PLAYS THE WEAPON'S OWN HEAVY VARIANT, if it
+                // has one -- same "commit, don't advance" shape
+                // CombatTuning.HeavyPunch already uses for unarmed.
+                if (heavy && EquippedWeapon.HeavyStage.HasValue)
+                {
+                    _currentStage = EquippedWeapon.HeavyStage.Value;
+                    _activeSwingSeconds = EquippedWeapon.MeleeCooldownSeconds;
+                    _swingRemaining = _activeSwingSeconds;
+                    _contactDone = false;
+                    _nextStage = 0;
+                    _windowRemaining = 0.0f;
+                    SwingStarted?.Invoke(_currentStage);
+                    return true;
+                }
+
+                string moveset = EquippedWeapon.MovesetId;
+                ComboStage[] weaponChain = string.IsNullOrEmpty(moveset)
+                    ? System.Array.Empty<ComboStage>()
+                    : ComboChain.For(moveset);
+
+                if (weaponChain.Length > 0)
+                {
+                    // A WEAPON'S OWN CHAIN, same window/advance/finisher
+                    // rules the unarmed chain below uses -- see
+                    // ComboChain.Sword's own doc comment for why a sword
+                    // gets this instead of a flat single swing.
+                    if (_windowRemaining <= 0.0f)
+                    {
+                        _nextStage = 0;
+                    }
+
+                    _currentStage = weaponChain[_nextStage];
+                    _activeSwingSeconds = EquippedWeapon.MeleeCooldownSeconds;
+                    _swingRemaining = _activeSwingSeconds;
+                    _contactDone = false;
+
+                    if (_currentStage.IsFinisher)
+                    {
+                        _nextStage = 0;
+                        _windowRemaining = 0.0f;
+                    }
+                    else
+                    {
+                        _nextStage++;
+                        _windowRemaining = _activeSwingSeconds + _currentStage.WindowSeconds;
+                    }
+
+                    SwingStarted?.Invoke(_currentStage);
+                    return true;
+                }
+
+                // THE FLAT PATH, unchanged from before MovesetId/HeavyStage
+                // existed -- one cooldown, one silent swing, no stages. What
+                // the bottle still uses.
                 _currentStage = default;
                 _activeSwingSeconds = EquippedWeapon.MeleeCooldownSeconds;
                 _swingRemaining = _activeSwingSeconds;
@@ -340,10 +390,26 @@ namespace CityX.Character
             float hitstun;
             if (EquippedWeapon != null)
             {
-                damage = CombatTuning.DamageFor(EquippedWeapon.GetMeleeDamage(), strength);
-                // No weapon-specific figure in the ground truth -- reuses
-                // the fist's own base hitstun rather than inventing one.
-                hitstun = CombatTuning.HitstunSeconds;
+                // A CHAINED OR HEAVY WEAPON SWING carries a real stage --
+                // TryAttack only ever leaves _currentStage at its default
+                // (null Animation) for the flat, no-chain path a weapon
+                // like the bottle still uses. Checking the stage itself
+                // rather than re-deriving "was this chained" from
+                // EquippedWeapon again keeps this in exact lockstep with
+                // whatever TryAttack actually decided.
+                if (!string.IsNullOrEmpty(_currentStage.Animation))
+                {
+                    damage = CombatTuning.DamageFor(
+                        EquippedWeapon.GetMeleeDamage() * _currentStage.DamageScale, strength);
+                    hitstun = CombatTuning.HitstunSeconds * _currentStage.HitstunScale;
+                }
+                else
+                {
+                    damage = CombatTuning.DamageFor(EquippedWeapon.GetMeleeDamage(), strength);
+                    // No weapon-specific figure in the ground truth -- reuses
+                    // the fist's own base hitstun rather than inventing one.
+                    hitstun = CombatTuning.HitstunSeconds;
+                }
             }
             else
             {
