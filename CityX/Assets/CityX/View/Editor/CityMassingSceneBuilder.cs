@@ -294,6 +294,13 @@ namespace CityX.ViewEditor
                 // --- movement frame for as long as the rope is attached --
                 // --- see GrappleSwing's own doc comment.
                 player.AddComponent<CityX.Character.GrappleSwing>();
+
+                // --- the fireball spell. Innate, not equipped -- see
+                // --- FireballCaster's own doc comment for why this lives
+                // --- directly on the player rather than behind a pickup
+                // --- like the sword/jetpack above.
+                var fireballCaster = player.AddComponent<CityX.Weapons.FireballCaster>();
+                fireballCaster.FireballPrefab = CityX.WeaponsEditor.FireballProjectileBuilder.Build();
             }
             else
             {

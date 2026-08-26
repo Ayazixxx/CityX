@@ -39,6 +39,15 @@ namespace CityX.Character
         public IJetpack EquippedJetpack;
 
         /// <summary>
+        /// Found once via GetComponent in Awake, not set externally like
+        /// EquippedGun/EquippedJetpack -- see IFireballCaster's own doc
+        /// comment for why: the spell is an innate ability with no equip
+        /// event to hang the wiring off, so this is discovered the same
+        /// way PlayerVitals/MeleeAttacker already are.
+        /// </summary>
+        private IFireballCaster _fireballCaster;
+
+        /// <summary>
         /// How long after tapping sprint a second tap still counts as a dash.
         ///
         /// A press-release-press inside this window is the double-tap; a single
@@ -98,6 +107,7 @@ namespace CityX.Character
             _inventory = GetComponent<Inventory>();
             _grappleSwing = GetComponent<GrappleSwing>();
             _climbing = GetComponent<PlayerClimbing>();
+            _fireballCaster = GetComponent<IFireballCaster>();
         }
 
         /// <summary>
@@ -129,6 +139,7 @@ namespace CityX.Character
             {
                 _melee.Tick(deltaTime);
             }
+            _fireballCaster?.Tick(deltaTime);
 
             // DEATH IS POLLED HERE, NOT EVENT-DRIVEN -- see GrabCarry's own
             // doc comment for why an OnEnable subscription to
@@ -277,6 +288,24 @@ namespace CityX.Character
                 ? YawSource
                 : (Camera.main != null ? Camera.main.transform : null);
 
+            // THE FIREBALL SPELL, independent of whatever is equipped --
+            // press 1 and it fires regardless of fists, bottle, sword or
+            // gun, since it is an innate ability rather than something in
+            // the weapon slot. Placed after every early-return above
+            // (ragdoll/dead/stunned/topping-out/grapple-active all bail out
+            // of Update long before reaching here), so those states block
+            // a cast the same way they already block everything else.
+            if (_fireballCaster != null && keyboard.digit1Key.wasPressedThisFrame && yawSource != null)
+            {
+                // Roughly chest height, matching the same fraction
+                // MeleeAttacker.SwingOrigin/the weapon-throw origin below
+                // already use for "a sensible point on the body to launch
+                // something from."
+                float height = (_locomotion != null ? _locomotion.StandingHeight : 1.8f) * 0.68f;
+                Vector3 origin = transform.position + Vector3.up * height;
+                _fireballCaster.TryCast(origin, yawSource.forward, GetComponentsInChildren<Collider>());
+            }
+
             // Sprint only forwards. Sprinting sideways or backwards has no
             // animation and reads as a glitch rather than as speed.
             bool wantsSprint = keyboard.leftShiftKey.isPressed && move.y > 0.0f;
@@ -331,7 +360,12 @@ namespace CityX.Character
                 ChargingJump = chargingJumpNow,
                 JumpReleased = jumpReleased,
                 JumpChargeFraction = jumpChargeFraction,
-                Aiming = _isAimingGun,
+                // Casting reuses the exact same arm-forward pose a gun's
+                // own aim-in already shows -- "raise the hand toward the
+                // target" is exactly what that pose is, so this folds in
+                // rather than duplicating it as a second near-identical
+                // state (see IFireballCaster.IsCasting's own doc comment).
+                Aiming = _isAimingGun || (_fireballCaster != null && _fireballCaster.IsCasting),
                 SwordEquipped = _melee != null && _melee.EquippedWeapon != null &&
                                 _melee.EquippedWeapon.MovesetId == ComboChain.Sword,
             };
