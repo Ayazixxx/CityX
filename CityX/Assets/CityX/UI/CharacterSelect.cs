@@ -430,15 +430,18 @@ namespace CityX.UI
         /// make it walk, swing, ragdoll or physically collide with the
         /// pedestal has to come off. The same order and the same list
         /// CharacterCreatorBuilder.BuildStage already uses for its own
-        /// preview body, and for the same reason: PlayerLocomotion requires
-        /// the CharacterController and PlayerAnimationDriver requires
-        /// MeleeAttacker, so the thing depended on has to go second or Unity
-        /// silently refuses to remove the one that needs it.
+        /// preview body, and for the same reason: PlayerLocomotion,
+        /// PlayerClimbing and GrappleSwing all require the CharacterController
+        /// and PlayerAnimationDriver requires MeleeAttacker, so the thing
+        /// depended on has to go second or Unity silently refuses to remove
+        /// the one that needs it.
         /// </summary>
         private static void StripWorldComponents(GameObject body)
         {
             Strip<PlayerInputReader>(body);
             Strip<PlayerLocomotion>(body);
+            Strip<PlayerClimbing>(body);
+            Strip<GrappleSwing>(body);
             Strip<CharacterController>(body);
             Strip<PlayerAnimationDriver>(body);
             Strip<MeleeAttacker>(body);

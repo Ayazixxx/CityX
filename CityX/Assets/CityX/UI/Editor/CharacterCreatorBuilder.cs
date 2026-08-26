@@ -106,10 +106,13 @@ namespace CityX.UIEditor
             // remove a component another one declares it needs, and it refuses
             // with a console line rather than an exception -- so the wrong
             // order leaves the component behind and nothing stops the build.
-            // PlayerLocomotion requires the CharacterController;
-            // PlayerAnimationDriver requires the MeleeAttacker.
+            // PlayerLocomotion, PlayerClimbing and GrappleSwing all require
+            // the CharacterController; PlayerAnimationDriver requires the
+            // MeleeAttacker.
             Strip<PlayerInputReader>(body);
             Strip<PlayerLocomotion>(body);
+            Strip<PlayerClimbing>(body);
+            Strip<GrappleSwing>(body);
             Strip<CharacterController>(body);
             Strip<PlayerAnimationDriver>(body);
             Strip<MeleeAttacker>(body);

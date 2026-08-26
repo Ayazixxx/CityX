@@ -132,11 +132,12 @@ namespace CityX.UI
             body.transform.localScale = Vector3.one;
 
             // DEPENDANTS BEFORE WHAT THEY DEPEND ON, matching
-            // CharacterCreatorBuilder.BuildStage's own order -- PlayerLocomotion
-            // requires the CharacterController, PlayerAnimationDriver requires
-            // the MeleeAttacker. Destroy() defers to end of frame rather than
-            // refusing the way DestroyImmediate can, but the order still keeps
-            // this predictable rather than relying on that.
+            // CharacterCreatorBuilder.BuildStage's own order -- PlayerLocomotion,
+            // PlayerClimbing and GrappleSwing all require the CharacterController,
+            // PlayerAnimationDriver requires the MeleeAttacker. Destroy() defers
+            // to end of frame rather than refusing the way DestroyImmediate can,
+            // but the order still keeps this predictable rather than relying on
+            // that.
             // PlayerRedrawStarter FIRST -- the clone is Instantiate()'d from
             // the LIVE player, which carries PlayerRedrawStarter itself, and
             // that component's own [RequireComponent(CharacterIdentity)]
@@ -144,6 +145,8 @@ namespace CityX.UI
             Strip<PlayerRedrawStarter>(body);
             Strip<PlayerInputReader>(body);
             Strip<PlayerLocomotion>(body);
+            Strip<PlayerClimbing>(body);
+            Strip<GrappleSwing>(body);
             Strip<CharacterController>(body);
             Strip<PlayerAnimationDriver>(body);
             Strip<MeleeAttacker>(body);
