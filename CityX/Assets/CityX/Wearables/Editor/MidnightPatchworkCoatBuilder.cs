@@ -24,13 +24,15 @@ namespace CityX.WearablesEditor
     ///    feet and a full pair of legs are baked into the exact same
     ///    139,443-vertex "char1" mesh as the coat itself, with nothing to
     ///    key off but bone weight (see StripAndRebind). Cut by whichever
-    ///    bone most influences each vertex, keeping only the torso
-    ///    (Hips/Spine/Spine01/Spine02/neck) plus the two shoulder bones
-    ///    (LeftShoulder/RightShoulder -- the only surviving attachment for
-    ///    the coat's own shoulder seam once the sleeve itself, LeftArm and
-    ///    everything below it, is stripped along with the rest of the
-    ///    body). Removing head/arms/legs was the user's own explicit
-    ///    request, not a limitation being worked around.
+    ///    bone most influences each vertex, keeping the torso (Hips/Spine/
+    ///    Spine01/Spine02/neck) and both full sleeves (LeftShoulder/LeftArm/
+    ///    LeftForeArm and the right-side mirror), stripping the head, both
+    ///    hands and both legs. Removing the head and legs, and the hands at
+    ///    the sleeve cuff, was the user's own explicit request; the
+    ///    sleeves themselves were stripped in an earlier version too, on
+    ///    the same request, and put back after seeing the result worn
+    ///    in-game -- see KeepBoneTarget's own doc comment for why keeping
+    ///    them also fixed a real tearing bug, not just an aesthetic one.
     ///
     /// 2. IT IS REAL-HUMAN SCALE, NOT THIS RIG'S SCALE. hooded_cloak.glb and
     ///    skelli_jeans.glb were authored specifically for fused_body.gd's
@@ -85,42 +87,46 @@ namespace CityX.WearablesEditor
             "thigh_r", "shin_r",
         };
 
-        private const int Hips = 0, Spine = 1, Neck = 2;
+        private const int Hips = 0, Spine = 1, Neck = 2, ArmL = 4, ForearmL = 5, ArmR = 7, ForearmR = 8;
 
         /// <summary>
         /// The source biped's own 24 joint names, mapped to a slot in
         /// TargetBoneNames above -- everything NOT listed here (Head,
-        /// head_end, headfront, the whole LeftArm/RightArm chain, the whole
-        /// leg chain) is the strip set, checked by absence rather than a
-        /// second list, so the two can never drift out of sync.
+        /// head_end, headfront, both hands, the whole leg chain) is the
+        /// strip set, checked by absence rather than a second list, so the
+        /// two can never drift out of sync.
         ///
-        /// LeftShoulder/RightShoulder MAP TO SPINE, NOT ARM_L/ARM_R -- tried
-        /// first and confirmed wrong by an actual in-game screenshot: over a
-        /// third of this mesh's kept vertices (12650 of 37400) are
-        /// shoulder-dominant, and arm_l/arm_r is the one bone in this whole
-        /// bind that swings through a real rotation during ordinary
-        /// animation (hips/spine are frozen rotation-identity every frame
-        /// by PlayerLocomotion.LateUpdate -- see its own doc comment). Bound
-        /// to arm_l/arm_r, any difference between the live pose's actual
-        /// shoulder rotation and PoseBindSkeletonArmsDown's own fixed
-        /// 78-degree bind assumption swings every shoulder vertex through
-        /// that same angular error -- and for a flat panel sitting well out
-        /// from the shoulder pivot, a small angular error becomes a large
-        /// positional one, which is exactly what showed up: the coat's own
-        /// shoulder fabric bunched up near the collar instead of lying
-        /// against the torso. Spine is frozen every frame, so binding here
-        /// instead trades "the shoulder cap tracks the arm's own swing" (it
-        /// never did, this coat has no sleeves) for "the shoulder cap stays
-        /// glued to the torso regardless of what the arm is doing," which is
-        /// what a coat missing its sleeves actually needs.
+        /// THE SLEEVES ARE KEPT, per an explicit follow-up ask after seeing
+        /// the first stripped version worn in-game: LeftArm/LeftForeArm/
+        /// RightArm/RightForeArm bind to this rig's own arm_l/forearm_l/
+        /// arm_r/forearm_r, the same bones the shoulder itself binds to (see
+        /// below) -- only the hands are stripped, so the coat ends at the
+        /// wrist like a real sleeve cuff rather than continuing onto bare
+        /// fingers.
+        ///
+        /// LeftShoulder/RightShoulder MAP TO ARM_L/ARM_R, not spine, NOW
+        /// THAT THE SLEEVE IS KEPT -- this is the second version of this
+        /// mapping, not the first. Spine was tried when the arm was still
+        /// being stripped entirely: with nothing below it, the shoulder was
+        /// a dead-end flap cantilevered off whatever bone it was bound to,
+        /// and binding it to the rotating arm_l/arm_r swung that whole
+        /// unattached flap through the live pose's own angular mismatch
+        /// against PoseBindSkeletonArmsDown's fixed 78-degree assumption --
+        /// confirmed by an actual in-game screenshot showing it bunched up
+        /// near the collar. With the sleeve now kept, the shoulder is the
+        /// TOP of a continuous tube that already has to move with arm_l for
+        /// the sleeve below it to hang together as one piece -- binding it
+        /// to spine instead would reintroduce the identical tear at the
+        /// shoulder/upper-arm seam this fix just removed, just one joint
+        /// higher up.
         /// </summary>
         private static readonly Dictionary<string, int> KeepBoneTarget = new Dictionary<string, int>
         {
             ["Hips"] = Hips,
             ["Spine"] = Spine, ["Spine01"] = Spine, ["Spine02"] = Spine,
             ["neck"] = Neck,
-            ["LeftShoulder"] = Spine,
-            ["RightShoulder"] = Spine,
+            ["LeftShoulder"] = ArmL, ["LeftArm"] = ArmL, ["LeftForeArm"] = ForearmL,
+            ["RightShoulder"] = ArmR, ["RightArm"] = ArmR, ["RightForeArm"] = ForearmR,
         };
 
         [MenuItem("CityX/Rebuild Midnight Patchwork Coat")]
@@ -227,6 +233,20 @@ namespace CityX.WearablesEditor
             var targetHips = new Vector3(0.0f, BodyRig.HipY, 0.0f);
             Vector3 Reposition(Vector3 v) => (v - hipsWorld) * scale + targetHips;
 
+            // WHERE THE ARM PIVOT ACTUALLY LANDS ONCE SCALED, not
+            // BodyRig.ShoulderX -- the scale above is calibrated purely on
+            // vertical (hip-to-shoulder) span, so this mesh's own natural
+            // width after that same uniform scale does not necessarily
+            // land on this rig's own shoulder-width constant. Confirmed
+            // wrong directly: BodyRig.ShoulderX is 0.35, this source's own
+            // LeftArm bone scales to roughly 0.44. SmoothShoulderWeights
+            // needs the REAL number, or its own blend band sits entirely
+            // outside where the seam actually is and smooths nothing.
+            Transform leftArm = System.Array.Find(sourceBones, b => b != null && b.name == "LeftArm");
+            float shoulderPivotX = leftArm != null
+                ? Mathf.Abs(Reposition(leftArm.position).x)
+                : BodyRig.ShoulderX;
+
             var targetIndexForSourceBone = new int[sourceBones.Length];
             for (int i = 0; i < sourceBones.Length; i++)
             {
@@ -329,6 +349,7 @@ namespace CityX.WearablesEditor
                 baked.bindposes = bindPoses;
                 baked.SetTriangles(newTriangles, 0);
                 baked.RecalculateBounds();
+                SmoothShoulderWeights(baked, shoulderPivotX);
 
                 Mesh existing = AssetDatabase.LoadAssetAtPath<Mesh>(path);
                 if (existing != null)
@@ -345,6 +366,83 @@ namespace CityX.WearablesEditor
             {
                 Object.DestroyImmediate(skeletonRoot);
             }
+        }
+
+        /// <summary>
+        /// THE REAL CAUSE OF THE SLEEVE TEARING AT THE SHOULDER -- confirmed
+        /// directly by rendering the equipped coat mid-stride: the arm
+        /// swung forward and the sleeve visibly split away from the torso
+        /// at the shoulder seam, exactly where spine-bound vertices meet
+        /// arm_l-bound ones. SkinnedGarmentBuilder's own SmoothNeckWeights
+        /// hit an identical bug on the cloak's collar for an identical
+        /// reason, confirmed there by dumping the source's own weights
+        /// directly: a Meshy auto-rig, unlike hooded_cloak.glb/
+        /// skelli_jeans.glb's own hand-authored skinning, assigns each
+        /// vertex a single dominant bone with no blend across a joint that
+        /// is about to move -- fine at the bind pose, guaranteed to tear
+        /// the instant spine (frozen every frame by PlayerLocomotion) and
+        /// arm_l (which actually rotates) diverge.
+        ///
+        /// A SYNTHETIC BLEND ACROSS A HORIZONTAL BAND, not a vertical one
+        /// like the neck's -- the shoulder seam runs along the arm's own
+        /// axis, not the spine's, so what stands in for "distance across
+        /// the joint" here is a vertex's horizontal (X) distance from the
+        /// body's own centreline: BodyRig's own torso radius is fully
+        /// spine, <paramref name="bandOuterX"/> (this specific mesh's own
+        /// scaled arm-pivot X, NOT BodyRig.ShoulderX -- see StripAndRebind's
+        /// own comment on why the two differ) is fully arm_l/arm_r, and
+        /// everything between blends linearly. Only vertices already on
+        /// spine or the relevant arm, and only near shoulder height, are
+        /// touched -- a sleeve cuff far down the arm, or a hip vertex
+        /// nowhere near the shoulder, is left exactly as StripAndRebind
+        /// already weighted it.
+        /// </summary>
+        private static void SmoothShoulderWeights(Mesh mesh, float bandOuterX)
+        {
+            const float bandInnerX = FusedBodyShape.TorsoRadius;
+            const float bandHalfHeight = 0.35f;
+
+            Vector3[] vertices = mesh.vertices;
+            BoneWeight[] weights = mesh.boneWeights;
+            int touched = 0;
+
+            for (int i = 0; i < vertices.Length; i++)
+            {
+                Vector3 v = vertices[i];
+                if (Mathf.Abs(v.y - BodyRig.ShoulderY) > bandHalfHeight)
+                {
+                    continue;
+                }
+
+                float absX = Mathf.Abs(v.x);
+                if (absX < bandInnerX || absX > bandOuterX)
+                {
+                    continue;   // fully inside the torso, or already well out into the sleeve
+                }
+
+                int armIndex = v.x < 0.0f ? ArmL : ArmR;
+                BoneWeight w = weights[i];
+                bool onSpineOrArm =
+                    (w.boneIndex0 == Spine && w.weight0 > 0.0f) || (w.boneIndex1 == Spine && w.weight1 > 0.0f) ||
+                    (w.boneIndex0 == armIndex && w.weight0 > 0.0f) || (w.boneIndex1 == armIndex && w.weight1 > 0.0f);
+                if (!onSpineOrArm)
+                {
+                    continue;
+                }
+
+                float t = Mathf.InverseLerp(bandInnerX, bandOuterX, absX);
+                weights[i] = new BoneWeight
+                {
+                    boneIndex0 = Spine, weight0 = 1.0f - t,
+                    boneIndex1 = armIndex, weight1 = t,
+                    boneIndex2 = 0, weight2 = 0.0f,
+                    boneIndex3 = 0, weight3 = 0.0f,
+                };
+                touched++;
+            }
+
+            mesh.boneWeights = weights;
+            Debug.Log($"CityX: smoothed {touched} shoulder vertices between spine and arm.");
         }
 
         private static int DominantBoneIndex(BoneWeight w)
