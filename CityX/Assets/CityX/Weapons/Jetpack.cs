@@ -50,6 +50,23 @@ namespace CityX.Weapons
 
         public static readonly Vector3 BackRotationEuler = Vector3.zero;
 
+        /// <summary>
+        /// How far the body leans at full WASD deflection, in degrees --
+        /// "tilts SLIGHTLY", from the explicit ask, so this stays well
+        /// short of anything that would read as falling over.
+        /// </summary>
+        public const float TiltMaxDegrees = 12.0f;
+
+        /// <summary>
+        /// How fast the lean eases toward its target, in degrees per
+        /// second -- fast enough that tapping a direction reads as an
+        /// immediate lean rather than a sluggish drift, matching the same
+        /// "fast enough to stay invisible on a stopwatch" reasoning
+        /// PlayerLocomotion.HorizontalAcceleration's own doc comment gives.
+        /// At this rate the full 12-degree lean is reached in 12/90 = 0.13s.
+        /// </summary>
+        public const float TiltDegreesPerSecond = 90.0f;
+
         [Tooltip("Set by JetpackBuilder -- plays while thrusting, stopped otherwise.")]
         public ParticleSystem FlameEffect;
 
@@ -58,6 +75,10 @@ namespace CityX.Weapons
         private bool _equipped;
         private PlayerLocomotion _locomotion;
         private PlayerVitals _vitals;
+        private Transform _animatorTransform;
+
+        /// <summary>Current eased lean, X = pitch (forward/back), Z = roll (strafe).</summary>
+        private Vector2 _currentTilt;
 
         private void Awake()
         {
@@ -123,6 +144,13 @@ namespace CityX.Weapons
                 transform.localPosition = BackPosition;
                 transform.localEulerAngles = BackRotationEuler;
             }
+            // The whole visual body, leaned as one rigid piece -- nothing
+            // else drives this transform's own localRotation (root motion
+            // is off, so animation clips only move bones under it), the
+            // same reason PlayerLocomotion's own ApplyHeight is free to
+            // drive its localScale unopposed.
+            _animatorTransform = animator != null ? animator.transform : null;
+            _currentTilt = Vector2.zero;
 
             _equipped = true;
             if (_pickupTrigger != null)
@@ -152,6 +180,12 @@ namespace CityX.Weapons
             {
                 input.EquippedJetpack = null;
             }
+            // Otherwise the body stays leaned from whatever WASD was held
+            // the instant the jetpack came off.
+            if (_animatorTransform != null)
+            {
+                _animatorTransform.localRotation = Quaternion.identity;
+            }
             Destroy(gameObject);
         }
 
@@ -168,7 +202,7 @@ namespace CityX.Weapons
         /// shaves one frame's worth off the thrust speed rather than
         /// stacking a whole extra frame of unopposed fall first.
         /// </summary>
-        public void Tick(bool thrustHeld, float deltaTime)
+        public void Tick(bool thrustHeld, Vector2 moveInput, float deltaTime)
         {
             if (thrustHeld)
             {
@@ -182,6 +216,8 @@ namespace CityX.Weapons
                 }
             }
 
+            TickTilt(moveInput, deltaTime);
+
             if (FlameEffect != null)
             {
                 if (thrustHeld && !FlameEffect.isEmitting)
@@ -192,6 +228,64 @@ namespace CityX.Weapons
                 {
                     FlameEffect.Stop();
                 }
+            }
+        }
+
+        /// <summary>
+        /// Where the lean is headed for a given WASD reading, in degrees --
+        /// X = pitch (forward/back), Y = roll (strafe). Pure and static so
+        /// the direction/scale of the lean is testable without a real
+        /// Animator, the same reasoning PlayerInputReader.TickJumpCharge and
+        /// PlayerVoiceCapture.ShouldCapture split their own decisions out
+        /// for.
+        ///
+        /// BOTH SIGNS CHECKED DIRECTLY, not derived by hand and trusted --
+        /// a mirror-image sign error here would be invisible in a still
+        /// render and only show up as "leans backwards from what you'd
+        /// expect" once actually played. Confirmed with a scratch script
+        /// printing Quaternion.Euler(10,0,0)*forward = (0, -0.17, 0.98) and
+        /// Euler(0,0,10)*right = (0.98, 0.17, 0): a POSITIVE local-X angle
+        /// carries forward DOWN (a forward dive/pitch), and a POSITIVE
+        /// local-Z angle carries the right side UP (a bank toward the
+        /// character's own left).
+        ///
+        /// PITCH MATCHES SIGN ON moveInput.y (forward/back): a positive
+        /// angle is exactly the "dive into the direction of travel" lean
+        /// pressing W should produce, confirmed above -- no negation
+        /// needed.
+        ///
+        /// ROLL IS NEGATED ON moveInput.x (strafe): a positive angle banks
+        /// left (confirmed above), so strafing RIGHT (positive x) needs a
+        /// NEGATIVE angle to bank the right side down -- leaning into the
+        /// strafe direction rather than away from it.
+        /// </summary>
+        public static Vector2 TiltTarget(Vector2 moveInput)
+        {
+            return new Vector2(moveInput.y * TiltMaxDegrees, -moveInput.x * TiltMaxDegrees);
+        }
+
+        /// <summary>
+        /// Eases the current lean toward its target, one axis at a time --
+        /// pure and static for the same testability reason TiltTarget is.
+        /// Independent per-axis MoveTowards, not a single blended lerp, so
+        /// releasing just one of two held keys (e.g. W+D, then letting go
+        /// of D) drops only that axis back to zero rather than re-easing
+        /// the whole lean vector toward a new diagonal target.
+        /// </summary>
+        public static Vector2 EaseTilt(Vector2 current, Vector2 target, float deltaTime)
+        {
+            float maxDelta = TiltDegreesPerSecond * deltaTime;
+            return new Vector2(
+                Mathf.MoveTowards(current.x, target.x, maxDelta),
+                Mathf.MoveTowards(current.y, target.y, maxDelta));
+        }
+
+        private void TickTilt(Vector2 moveInput, float deltaTime)
+        {
+            _currentTilt = EaseTilt(_currentTilt, TiltTarget(moveInput), deltaTime);
+            if (_animatorTransform != null)
+            {
+                _animatorTransform.localRotation = Quaternion.Euler(_currentTilt.x, 0.0f, _currentTilt.y);
             }
         }
     }

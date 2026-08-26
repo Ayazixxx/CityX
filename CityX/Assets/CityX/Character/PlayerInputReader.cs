@@ -311,7 +311,7 @@ namespace CityX.Character
             // around").
             if (EquippedJetpack != null)
             {
-                EquippedJetpack.Tick(keyboard.spaceKey.isPressed, deltaTime);
+                EquippedJetpack.Tick(keyboard.spaceKey.isPressed, move, deltaTime);
             }
             else
             {

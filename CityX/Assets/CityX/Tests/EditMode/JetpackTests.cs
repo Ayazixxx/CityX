@@ -57,7 +57,7 @@ namespace CityX.Tests
             float yBefore = _player.transform.position.y;
             for (int i = 0; i < 10; i++)
             {
-                _jetpack.Tick(thrustHeld: true, deltaTime: 1.0f / 60.0f);
+                _jetpack.Tick(thrustHeld: true, moveInput: Vector2.zero, deltaTime: 1.0f / 60.0f);
                 _locomotion.Tick(default, 1.0f / 60.0f);
             }
 
@@ -70,7 +70,7 @@ namespace CityX.Tests
         {
             for (int i = 0; i < 10; i++)
             {
-                _jetpack.Tick(true, 1.0f / 60.0f);
+                _jetpack.Tick(true, Vector2.zero, 1.0f / 60.0f);
                 _locomotion.Tick(default, 1.0f / 60.0f);
             }
             Assert.Greater(_locomotion.Velocity.y, 0.0f, "setup failed -- thrust didn't leave the body rising");
@@ -86,7 +86,7 @@ namespace CityX.Tests
             // go negative once thrust stops decelerating it.
             for (int i = 0; i < 60; i++)
             {
-                _jetpack.Tick(false, 1.0f / 60.0f);
+                _jetpack.Tick(false, Vector2.zero, 1.0f / 60.0f);
                 _locomotion.Tick(default, 1.0f / 60.0f);
             }
 
@@ -111,7 +111,7 @@ namespace CityX.Tests
             // exactly as Jetpack.Tick's own real path does every frame
             // thrust is held.
             _player.transform.position = new Vector3(0.0f, 100.5f, 0.0f);
-            _jetpack.Tick(true, 1.0f / 60.0f);
+            _jetpack.Tick(true, Vector2.zero, 1.0f / 60.0f);
 
             // Still thrusting, now descended under control to just above
             // the ground -- this is the LAST reset before letting go, and
@@ -119,7 +119,7 @@ namespace CityX.Tests
             // 100m climb behind it is irrelevant, only what happens from
             // here on is real unpowered fall.
             _player.transform.position = new Vector3(0.0f, 2.0f, 0.0f);
-            _jetpack.Tick(true, 1.0f / 60.0f);
+            _jetpack.Tick(true, Vector2.zero, 1.0f / 60.0f);
 
             // Thrust released -- a genuine 2m drop to the ground, well
             // inside any reasonable safe-fall distance.
@@ -144,6 +144,109 @@ namespace CityX.Tests
 
             Assert.Greater(damage, 0.0f,
                 "a 100m drop with no fall-tracking reset should have hurt -- the control case is broken");
+        }
+
+        /// <summary>
+        /// TiltTarget/EaseTilt are pure and static specifically so the
+        /// lean's own direction and magnitude are checkable without a real
+        /// Animator -- both signs below were confirmed against Unity's own
+        /// rotation convention with a scratch script before being pinned
+        /// here (see TiltTarget's own doc comment), not just assumed from
+        /// how the numbers read.
+        /// </summary>
+        [Test]
+        public void TiltTargetLeansForwardOnW()
+        {
+            Assert.Greater(Jetpack.TiltTarget(new Vector2(0.0f, 1.0f)).x, 0.0f,
+                "pressing W should pitch the body forward, not back or not at all");
+        }
+
+        [Test]
+        public void TiltTargetLeansBackOnS()
+        {
+            Assert.Less(Jetpack.TiltTarget(new Vector2(0.0f, -1.0f)).x, 0.0f,
+                "pressing S should pitch the body back");
+        }
+
+        [Test]
+        public void TiltTargetBanksIntoARightStrafe()
+        {
+            Assert.Less(Jetpack.TiltTarget(new Vector2(1.0f, 0.0f)).y, 0.0f,
+                "pressing D should bank the body's right side down, into the strafe");
+        }
+
+        [Test]
+        public void TiltTargetBanksIntoALeftStrafe()
+        {
+            Assert.Greater(Jetpack.TiltTarget(new Vector2(-1.0f, 0.0f)).y, 0.0f,
+                "pressing A should bank the body's left side down, into the strafe");
+        }
+
+        [Test]
+        public void TiltTargetIsStraightWithNoInput()
+        {
+            Assert.AreEqual(Vector2.zero, Jetpack.TiltTarget(Vector2.zero));
+        }
+
+        [Test]
+        public void TiltTargetScalesWithHowHardTheStickIsPushed()
+        {
+            // A half-deflected input should not lean as far as a full one --
+            // otherwise a gentle nudge and a full press would look identical.
+            Vector2 half = Jetpack.TiltTarget(new Vector2(0.0f, 0.5f));
+            Vector2 full = Jetpack.TiltTarget(new Vector2(0.0f, 1.0f));
+            Assert.Less(half.x, full.x);
+            Assert.Greater(half.x, 0.0f);
+        }
+
+        [Test]
+        public void EaseTiltDoesNotJumpStraightToItsTarget()
+        {
+            // One ordinary frame at the full easing rate covers only a
+            // fraction of the max lean -- an instant snap here would be the
+            // exact "teleport to speed" problem PlayerLocomotion's own
+            // HorizontalAcceleration was written to avoid, just for tilt
+            // instead of movement.
+            Vector2 target = Jetpack.TiltTarget(new Vector2(0.0f, 1.0f));
+            Vector2 eased = Jetpack.EaseTilt(Vector2.zero, target, 1.0f / 60.0f);
+            Assert.Greater(eased.x, 0.0f);
+            Assert.Less(eased.x, target.x);
+        }
+
+        [Test]
+        public void EaseTiltReachesItsTargetGivenEnoughTime()
+        {
+            Vector2 target = Jetpack.TiltTarget(new Vector2(0.0f, 1.0f));
+            Vector2 tilt = Vector2.zero;
+            for (int i = 0; i < 30; i++)
+            {
+                tilt = Jetpack.EaseTilt(tilt, target, 1.0f / 60.0f);
+            }
+            Assert.AreEqual(target.x, tilt.x, 0.01f);
+        }
+
+        /// <summary>
+        /// Letting go of W (or D) drops that axis's OWN target back to
+        /// zero, straightening the body -- the explicit "when you let go of
+        /// one of those keys it goes back to straight" ask.
+        /// </summary>
+        [Test]
+        public void EaseTiltStraightensOutOnceTheKeyIsReleased()
+        {
+            Vector2 held = Jetpack.TiltTarget(new Vector2(0.0f, 1.0f));
+            Vector2 tilt = Vector2.zero;
+            for (int i = 0; i < 30; i++)
+            {
+                tilt = Jetpack.EaseTilt(tilt, held, 1.0f / 60.0f);
+            }
+            Assert.Greater(tilt.x, 1.0f, "setup failed -- the body never actually leaned");
+
+            Vector2 released = Jetpack.TiltTarget(Vector2.zero);
+            for (int i = 0; i < 30; i++)
+            {
+                tilt = Jetpack.EaseTilt(tilt, released, 1.0f / 60.0f);
+            }
+            Assert.AreEqual(0.0f, tilt.x, 0.01f, "letting go of W never straightened the body back out");
         }
     }
 }
