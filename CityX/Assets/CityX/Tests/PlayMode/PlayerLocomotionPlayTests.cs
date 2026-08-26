@@ -42,8 +42,15 @@ namespace CityX.Tests
         [TearDown]
         public void TearDown()
         {
-            if (_player != null) Object.Destroy(_player);
-            if (_ground != null) Object.Destroy(_ground);
+            // IMMEDIATE, NOT Destroy. This fixture's own tests share one
+            // scene without a reload between them, and Destroy defers the
+            // actual removal to end of frame -- a collider "torn down" here
+            // can still be solid for the very next test's first physics
+            // step. Found via SprintingIsFasterThanWalkingByTheStatedRatio
+            // occasionally walking into the previous test's own leaked
+            // wall (see that test's neighbour below) and coming up short.
+            if (_player != null) Object.DestroyImmediate(_player);
+            if (_ground != null) Object.DestroyImmediate(_ground);
         }
 
         /// <summary>
@@ -217,27 +224,27 @@ namespace CityX.Tests
                 $"walked at {measured:0.00} m/s but WalkSpeed says {_locomotion.WalkSpeed}");
         }
 
+        /// <summary>
+        /// Both legs of this comparison go through Drive, not a raw
+        /// Time.deltaTime loop -- HorizontalAcceleration means distance now
+        /// depends on how simulated time is actually chopped into frames,
+        /// and batch mode's real frame time is nowhere near 1/60s (see
+        /// Step's own doc comment). A tight Time.deltaTime loop here used to
+        /// be harmless because the old instant-snap speed model made
+        /// distance a pure function of total elapsed time regardless of how
+        /// it was diced into frames; now that speed ramps, it is not.
+        /// </summary>
         [UnityTest]
         public IEnumerator SprintingIsFasterThanWalkingByTheStatedRatio()
         {
             yield return Drive(default, 30);
 
             Vector3 walkStart = _player.transform.position;
-            var walk = new LocomotionInput { Move = new Vector2(0.0f, 1.0f) };
-            for (int i = 0; i < 60; i++)
-            {
-                _locomotion.Tick(walk, Time.deltaTime);
-                yield return null;
-            }
+            yield return Drive(new LocomotionInput { Move = new Vector2(0.0f, 1.0f) }, 60);
             float walked = Vector3.Distance(walkStart, _player.transform.position);
 
             Vector3 sprintStart = _player.transform.position;
-            var sprint = new LocomotionInput { Move = new Vector2(0.0f, 1.0f), Sprint = true };
-            for (int i = 0; i < 60; i++)
-            {
-                _locomotion.Tick(sprint, Time.deltaTime);
-                yield return null;
-            }
+            yield return Drive(new LocomotionInput { Move = new Vector2(0.0f, 1.0f), Sprint = true }, 60);
             float sprinted = Vector3.Distance(sprintStart, _player.transform.position);
 
             float ratio = sprinted / walked;
@@ -456,7 +463,13 @@ namespace CityX.Tests
             }
             finally
             {
-                Object.Destroy(wall);
+                // IMMEDIATE -- see TearDown's own note. Destroy leaves this
+                // wall's collider solid through the next test's first
+                // frame, which is exactly what let it clip
+                // SprintingIsFasterThanWalkingByTheStatedRatio's own walk
+                // phase, run right after this one alphabetically, into a
+                // wall that should already have been gone.
+                Object.DestroyImmediate(wall);
             }
         }
 

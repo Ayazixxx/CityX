@@ -52,6 +52,29 @@ namespace CityX.Character
         [Tooltip("How fast the body turns to face where it is going, in degrees per second.")]
         public float TurnDegreesPerSecond = 720.0f;
 
+        /// <summary>
+        /// How quickly horizontal speed catches up to its target, in
+        /// metres per second squared -- not ported from player.gd, which
+        /// has none (WASD there is the same instant direction*speed snap
+        /// this file's own previous version carried over verbatim). An
+        /// explicit smoothness ask, same footing as ChargedJumpHeightMultiplier:
+        /// a real feel change, not a faithfulness one.
+        ///
+        /// FAST ENOUGH TO STAY INVISIBLE ON A STOPWATCH, not slow enough to
+        /// read as sluggish -- reaching SprintSpeed (7.5) from a dead stop
+        /// takes 7.5/60 = 0.125s at this value, well under the existing
+        /// speed tests' own measurement windows (WalkingCoversGroundAtTheStatedSpeed
+        /// averages over 2 real seconds; the ramp costs a few percent of
+        /// that at most, comfortably inside their own tolerance). What it
+        /// actually fixes is the abrupt teleport-to-speed snap on the
+        /// first frame of any new direction -- starting from a stand,
+        /// stopping dead, or reversing all used to hit full speed the very
+        /// same frame the key changed, which reads as weightless rather
+        /// than as a body with any real momentum.
+        /// </summary>
+        [Tooltip("How quickly horizontal speed catches up to its target, in metres per second squared.")]
+        public float HorizontalAcceleration = 60.0f;
+
         [Header("Scale")]
         [Tooltip(
             "Standing height in metres. The default is the CITY X body's own measured height, " +
@@ -77,6 +100,9 @@ namespace CityX.Character
         private Transform _rightFoot;
         private float _verticalVelocity;
         private float _appliedHeight = -1.0f;
+
+        /// <summary>The smoothed horizontal velocity HorizontalAcceleration eases toward its target -- see that field's own doc comment.</summary>
+        private Vector3 _horizontalVelocity;
 
         private static readonly int SpeedParameter = Animator.StringToHash("Speed");
         private static readonly int MoveXParameter = Animator.StringToHash("MoveX");
@@ -397,7 +423,8 @@ namespace CityX.Character
             IsCrouching = input.Crouch && !input.Sprint;
 
             float speed = sprinting ? SprintSpeed : WalkSpeed;
-            Vector3 horizontal = direction * speed;
+            Vector3 targetHorizontal = direction * speed;
+            Vector3 horizontal;
 
             // THE DASH OVERRIDES WASD ENTIRELY for its burst, along the
             // direction it was started with. Placed here so everything below --
@@ -416,6 +443,20 @@ namespace CityX.Character
                 _dashRemaining -= used;
                 horizontal = _dashDirection * DashSpeed *
                     (deltaTime > 0.0f ? used / deltaTime : 1.0f);
+                // Kept in sync with the dash's own instant speed, not left
+                // wherever it was before the dash started -- otherwise the
+                // very first post-dash frame would ease FROM whatever
+                // ordinary walk speed was already smoothed to, undoing the
+                // dash's own burst for one frame instead of decelerating
+                // out of it. See HorizontalAcceleration's own doc comment
+                // for why this whole smoothing exists in the first place.
+                _horizontalVelocity = horizontal;
+            }
+            else
+            {
+                _horizontalVelocity = Vector3.MoveTowards(
+                    _horizontalVelocity, targetHorizontal, HorizontalAcceleration * deltaTime);
+                horizontal = _horizontalVelocity;
             }
 
             CurrentSpeed = horizontal.magnitude;

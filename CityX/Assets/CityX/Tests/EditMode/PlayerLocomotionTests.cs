@@ -47,6 +47,24 @@ namespace CityX.Tests
             };
         }
 
+        /// <summary>
+        /// Ticks the same input enough times for HorizontalAcceleration to
+        /// actually reach it -- a single 0.016s tick from a dead stop only
+        /// covers 60*0.016=0.96 m/s of a possibly much larger target, which
+        /// used to be irrelevant when speed snapped to its target in one
+        /// step but now genuinely takes real (if short) time. 20 ticks
+        /// covers up to 20 m/s of acceleration, comfortably past
+        /// SprintSpeed, so every settled-speed assertion below reads the
+        /// body once it has actually arrived rather than mid-ramp.
+        /// </summary>
+        private void Settle(LocomotionInput input, int ticks = 20)
+        {
+            for (int i = 0; i < ticks; i++)
+            {
+                _locomotion.Tick(input, 0.016f);
+            }
+        }
+
         [Test]
         public void HoldingCrouchCrouches()
         {
@@ -66,7 +84,7 @@ namespace CityX.Tests
         [Test]
         public void SprintBeatsCrouch()
         {
-            _locomotion.Tick(Forward(sprint: true, crouch: true), 0.016f);
+            Settle(Forward(sprint: true, crouch: true));
 
             Assert.IsFalse(_locomotion.IsCrouching);
             Assert.IsTrue(_locomotion.IsSprinting);
@@ -79,11 +97,33 @@ namespace CityX.Tests
             // Godot's crouch is a pose, not a speed -- there is no crouch speed
             // constant anywhere in player.gd. Pinned because "crouch should be
             // slower" is an easy assumption to add later by accident.
-            _locomotion.Tick(Forward(crouch: true), 0.016f);
+            //
+            // BOTH SIDES SETTLED FROM THEIR OWN FRESH START, not one read
+            // mid-ramp against the other one tick further along -- crouched
+            // and uncrouched share the exact same target (WalkSpeed), so
+            // the only way to compare them fairly is once HorizontalAcceleration
+            // has actually finished closing the gap on both, from identical
+            // starting conditions. A second body, not a reused one, keeps
+            // this independent of whatever state the first left behind.
+            Settle(Forward(crouch: true));
             float crouched = _locomotion.CurrentSpeed;
 
-            _locomotion.Tick(Forward(), 0.016f);
-            Assert.AreEqual(_locomotion.CurrentSpeed, crouched, 0.001f);
+            var secondObject = new GameObject("SecondBody");
+            try
+            {
+                secondObject.AddComponent<CharacterController>();
+                PlayerLocomotion second = secondObject.AddComponent<PlayerLocomotion>();
+                second.Bind();
+                for (int i = 0; i < 20; i++)
+                {
+                    second.Tick(Forward(), 0.016f);
+                }
+                Assert.AreEqual(second.CurrentSpeed, crouched, 0.01f);
+            }
+            finally
+            {
+                Object.DestroyImmediate(secondObject);
+            }
         }
 
         [Test]
@@ -100,9 +140,19 @@ namespace CityX.Tests
             _locomotion.Tick(default, PlayerLocomotion.DashSeconds);
             Assert.IsFalse(_locomotion.IsDashing);
 
-            _locomotion.Tick(default, 0.016f);
+            // NOT INSTANT ANY MORE, DELIBERATELY -- HorizontalAcceleration
+            // decelerates the dash's own high exit speed back down toward
+            // zero the same way it eases INTO any other speed change now,
+            // rather than the dash cutting to a dead stop the instant its
+            // timer runs out. Settled here (20 ticks, the same margin
+            // Settle's own doc comment uses) rather than asserting on the
+            // very next frame, which is now genuinely still mid-deceleration.
+            for (int i = 0; i < 20; i++)
+            {
+                _locomotion.Tick(default, 0.016f);
+            }
             Assert.AreEqual(0.0f, _locomotion.CurrentSpeed, 0.001f,
-                "the body kept the dash speed after the burst ended");
+                "the body never actually stopped after the dash ended");
         }
 
         /// <summary>
