@@ -40,6 +40,19 @@ namespace CityX.Character
         HitResponse ApplyHit(float amount, Vector3 fromPosition, float hitstunSeconds);
     }
 
+    /// <summary>
+    /// Optional add-on for something IDamageable that owes XP to whoever lands
+    /// the killing blow. Not part of IDamageable itself: most damageable
+    /// things (the player, a sparring dummy) have nothing to award, and
+    /// civilian.gd's own take_damage() checks for an add_xp method by
+    /// duck-typing rather than every target carrying a reward field it
+    /// usually leaves at zero.
+    /// </summary>
+    public interface IXpReward
+    {
+        int XpReward { get; }
+    }
+
     /// <summary>What a target did with a hit.</summary>
     public enum HitResponse
     {

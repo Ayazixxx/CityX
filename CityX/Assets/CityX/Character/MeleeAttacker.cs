@@ -432,6 +432,18 @@ namespace CityX.Character
                 Landed?.Invoke(contact.Target, damage);
                 connected = true;
 
+                // THE KILLING BLOW, DETECTED AFTER THE FACT rather than off
+                // the response value -- Civilian.ApplyHit returns Landed
+                // whether or not that hit was fatal, only Ignored tells you
+                // it was already dead beforehand. So IsAlive flipping false
+                // here can only mean this exact swing did it, matching
+                // civilian.gd's own _die() granting XP to whoever's attack
+                // parameter it was called with.
+                if (!contact.Target.IsAlive && contact.Target is IXpReward xpSource)
+                {
+                    _vitals?.AddXp(xpSource.XpReward);
+                }
+
                 if (response == HitResponse.Blocked)
                 {
                     blocked = true;

@@ -152,6 +152,61 @@ namespace CityX.Tests
         }
 
         /// <summary>
+        /// Mirrors civilian.gd's own _die() granting XP to whoever's attack
+        /// parameter it was called with -- the killing punch, specifically,
+        /// not any punch. Goes through a real MeleeAttacker rather than
+        /// calling ApplyHit directly, since the grant lives in
+        /// MeleeAttacker.LandBlow, not in Civilian itself.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheKillingBlowGrantsTheAttackerXpButAnEarlierOneDoesNot()
+        {
+            // NOT YIELDING BEFORE THE SWING. Civilian.Update() runs the wander
+            // brain every real frame, and letting even one frame pass here
+            // let it walk far enough on the very first (inflated-deltaTime)
+            // frame after a heavy SetUp to fall out of range before the
+            // swing ever landed. Awake() already ran synchronously inside
+            // AddComponent, so nothing here actually needs a frame to settle.
+            Civilian civilian = MakeCivilian(6);
+            civilian.transform.position = new Vector3(0.0f, 0.1f, 1.5f);
+            Physics.SyncTransforms();
+
+            var attackerObject = new GameObject("Attacker");
+            attackerObject.transform.position = Vector3.zero;
+            attackerObject.transform.rotation = Quaternion.identity;
+            var vitals = attackerObject.AddComponent<PlayerVitals>();
+            vitals.Revive();
+            // Re-fetch: MeleeAttacker looked for vitals in its own Awake,
+            // which has already run (see MeleeCombatPlayTests' identical fix).
+            var attacker = attackerObject.AddComponent<MeleeAttacker>();
+
+            // Softened, but not killed, by a hit that never goes through
+            // MeleeAttacker -- proves a non-fatal hit alone is not what
+            // grants XP.
+            ((IDamageable)civilian).ApplyHit(Civilian.MaxHealth - 1.0f, Vector3.zero, 0.0f);
+            Assert.IsTrue(civilian.IsAlive);
+            Assert.AreEqual(0, vitals.Experience, "softening the target already granted XP");
+
+            Assert.AreEqual(1, attacker.TargetsInReach().Count,
+                "the civilian was not in reach before swinging");
+
+            Assert.IsTrue(attacker.TryAttack(), "the attacker refused to swing");
+            float slice = 1.0f / 60.0f;
+            for (float t = 0.0f; t < attacker.SwingSeconds + 0.05f; t += slice)
+            {
+                attacker.Tick(slice);
+            }
+
+            Assert.IsFalse(civilian.IsAlive,
+                $"the punch should have finished them off (health now {civilian.Health})");
+            Assert.AreEqual(Civilian.XpRewardAmount, vitals.Experience,
+                "the killing blow did not grant XP");
+
+            Object.DestroyImmediate(attackerObject);
+            yield return null;
+        }
+
+        /// <summary>
         /// NOTHING PUTS A CROWD IN THE STREETS. The ambient population was
         /// removed on purpose, and "on purpose" is the part worth pinning --
         /// a spawner is exactly the kind of thing that gets added back by

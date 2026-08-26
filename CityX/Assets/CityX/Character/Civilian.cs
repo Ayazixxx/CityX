@@ -21,9 +21,12 @@ namespace CityX.Character
     /// far longer and give a worse answer to that question.
     /// </summary>
     [RequireComponent(typeof(CharacterController))]
-    public sealed class Civilian : MonoBehaviour, IDamageable
+    public sealed class Civilian : MonoBehaviour, IDamageable, IXpReward
     {
         public const float MaxHealth = 100.0f;
+
+        /// <summary>Matches civilian.gd's own XP_REWARD, copied from wolf.gd's convention.</summary>
+        public const int XpRewardAmount = 20;
 
         [Tooltip("Seeds the wander. Different values give different routes from the same spot.")]
         public int Seed;
@@ -57,6 +60,8 @@ namespace CityX.Character
         public bool IsAlive => !IsDead;
 
         public float Health => _health;
+
+        int IXpReward.XpReward => XpRewardAmount;
 
         private void Awake()
         {
