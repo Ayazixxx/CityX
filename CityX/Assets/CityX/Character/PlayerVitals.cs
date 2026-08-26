@@ -249,10 +249,10 @@ namespace CityX.Character
         /// <summary>
         /// Grants XP, ported from player.gd's own add_xp(). Loops rather than
         /// a single if so one big grant can trigger several level-ups at
-        /// once. Godot also awards a skill point every few levels here; the
-        /// skill tree is not ported yet (see PlayerSubmenuView's own doc
-        /// comment), so that half is left out rather than silently building
-        /// toward a system that does not exist.
+        /// once. Godot also awards a skill point every few levels here, but
+        /// there is no skill tree on either side to spend it on (see
+        /// PlayerSubmenuView's own doc comment), so that half is left out
+        /// rather than silently building toward a system that does not exist.
         /// </summary>
         public void AddXp(int amount)
         {
