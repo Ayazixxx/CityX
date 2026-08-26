@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 using CityX.Character;
 using CityX.CharacterEditor;
 using CityX.Wearables;
@@ -167,31 +166,36 @@ namespace CityX.WearablesEditor
         }
 
         /// <summary>
-        /// A plain URP Lit material off the embedded texture, not glTFast's
-        /// own imported material -- same reasoning BuildJeansMaterial gives:
-        /// this source's own material (emissiveTexture set to the SAME
-        /// image as the base colour, emissiveFactor 1/1/1, a specular
-        /// factor of 2) is Meshy's own baked-lighting export convention,
-        /// not something that reads correctly as a real-time PBR material
-        /// -- imported literally it would self-illuminate and blow out
-        /// under this game's own directional lighting.
+        /// A plain, UNTEXTURED URP Lit material -- flat "midnight" near-
+        /// black, not the embedded texture. Checked directly, not assumed:
+        /// the source .glb's own baseColorTexture decodes to a valid PNG at
+        /// its declared 4096x4096 (confirmed by extracting its raw bytes
+        /// from the glb's BIN chunk and reading the PNG header), but
+        /// Unity's own glTFast import of that exact file silently produces
+        /// a 4x4 Texture2D instead -- an import-time failure, not a missing
+        /// or corrupt source asset. Worse, the 4096x4096 PNG itself, viewed
+        /// directly, is not usable art anyway: large rectangular patches of
+        /// its own UV layout are blank white, and the painted regions are a
+        /// jagged, faceted mess rather than a clean fabric photo -- Meshy's
+        /// auto-bake failing on this mesh's many overlapping quilted-square
+        /// panels, confirmed by extracting and viewing that PNG directly
+        /// rather than guessing from the in-game result. That mottled,
+        /// shredded look is exactly what showed up worn in-game once this
+        /// was traced all the way through, not a skinning bug. Fixing
+        /// glTFast's own decode would still hand back unusable art, so
+        /// this uses the coat's own name instead: a flat near-black reads
+        /// as "midnight" on its own, and the mesh's own quilted-square
+        /// geometry (see this file's class comment) still shows the
+        /// patchwork shape through normal-based shading with no texture at
+        /// all -- the same way the reference render of this coat on a bare
+        /// white material already reads as a coat.
         /// </summary>
         private static Material BuildMaterial()
         {
-            Texture2D baseMap = AssetDatabase.LoadAllAssetsAtPath(GlbPath)
-                .OfType<Texture2D>()
-                .FirstOrDefault();
-            if (baseMap == null)
-            {
-                Debug.LogWarning($"CityX: no embedded texture found in {GlbPath} -- " +
-                                  "the coat will render untextured.");
-            }
-
             Shader shader = Shader.Find("Universal Render Pipeline/Lit");
             var material = new Material(shader) { name = "MidnightPatchworkCoatFabric" };
-            material.SetTexture("_BaseMap", baseMap);
-            material.SetColor("_BaseColor", Color.white);
-            material.SetFloat("_Smoothness", 0.15f);
+            material.SetColor("_BaseColor", new Color(0.04f, 0.04f, 0.05f));
+            material.SetFloat("_Smoothness", 0.25f);
             material.SetFloat("_Metallic", 0.0f);
             // The armholes, hem and collar are all freshly-cut open
             // boundaries -- back-face culled (Unity's own default) they
