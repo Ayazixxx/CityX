@@ -422,6 +422,8 @@ namespace CityX.Character
                     out chargingJumpNow, out jumpReleased, out jumpChargeFraction);
             }
 
+            bool isAiming = _isAimingGun || (_fireballCaster != null && _fireballCaster.IsCasting);
+
             var input = new LocomotionInput
             {
                 Move = move,
@@ -439,10 +441,23 @@ namespace CityX.Character
                 // target" is exactly what that pose is, so this folds in
                 // rather than duplicating it as a second near-identical
                 // state (see IFireballCaster.IsCasting's own doc comment).
-                Aiming = _isAimingGun || (_fireballCaster != null && _fireballCaster.IsCasting),
+                Aiming = isAiming,
                 SwordEquipped = _melee != null && _melee.EquippedWeapon != null &&
                                 _melee.EquippedWeapon.MovesetId == ComboChain.Sword,
-                JetpackThrusting = jetpackThrusting,
+                // AIMING WINS, not jetpackThrusting raw -- "aim and shoot
+                // while using the jetpack starts glitching", an explicit
+                // report. Aiming and JetpackThrusting are both bool-gated
+                // Any State entries (see PlayerRigBuilder's own
+                // AddAimingState/AddJetpackIdleState); Unity re-evaluates
+                // every Any State condition every frame regardless of the
+                // current state, and with both true at once there is no
+                // single well-defined winner, which is exactly what reads
+                // as glitching -- the state machine has no reason to settle
+                // on one over the other. This only gates the ANIMATION bool;
+                // EquippedJetpack.Tick above still gets the real,
+                // un-suppressed jetpackThrusting, so holding right-click
+                // never weakens the actual thrust/lean it's flying on.
+                JetpackThrusting = jetpackThrusting && !isAiming,
                 Dancing = _isDancing,
                 Breakdancing = _isBreakdancing,
             };
