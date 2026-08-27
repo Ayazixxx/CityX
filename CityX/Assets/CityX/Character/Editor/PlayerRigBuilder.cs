@@ -238,6 +238,23 @@ namespace CityX.CharacterEditor
             AddSwordStates(root);
             AddCutsceneStates(root);
 
+            // FOOT IK ON THE BLENDED LOCOMOTION STATES was tried here as a
+            // mitigation for a reported "the running animation feels
+            // choppy" -- and reverted. Turning on iKOnFeet + the layer's own
+            // IK pass measurably broke something already relied on:
+            // PlayerLocomotionGroundClampPlayTests.HoldingTheChargeNeverSinks
+            // TheFeetBelowGround went from passing to a foot bone sinking to
+            // -0.057 against ground contact at 0.030, confirmed by the full
+            // suite, not a guess -- Unity's own foot-IK pass fights
+            // PlayerLocomotion's own hand-rolled ClampFeetAboveGround for
+            // control of the same bones. The choppy-running report itself
+            // was never verified either way (a motion-quality effect,
+            // invisible in the single-frame stills this project's own
+            // capture tooling produces, unlike every other render-backed
+            // fix in this codebase's history) -- a confirmed regression
+            // against an unconfirmed fix is not a trade worth making, so
+            // this reverts clean rather than shipping half of it.
+
             EditorUtility.SetDirty(controller);
             return controller;
         }

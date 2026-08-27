@@ -334,22 +334,47 @@ namespace CityX.ViewEditor
             volume.priority = 0.0f;
             volume.sharedProfile = grade;
 
-            // Distance fog. city.tscn's own fog_depth_begin/fog_depth_end (35m/
-            // 88m) -- the port had these at 140/330, a range chosen only to
-            // hide the streamed edge (336m out at RadiusChunks=14) rather than
-            // to match the reference at all, and the difference is most of why
-            // the city read as clearer and flatter than Godot's own hazy,
-            // overcast look. 88m of full fog hides the streamed edge just as
-            // well (it is already fully fogged well before 336m) while also
-            // giving the skyline the atmospheric falloff city.tscn actually
-            // has. Godot's own fog_depth_curve (1.5, non-linear) and
-            // volumetric fog layer have no direct URP equivalent without a
-            // custom shader; plain linear fog at the right distances is the
-            // closest faithful match available off the shelf.
+            // Distance fog -- pushed back out again, an explicit ask to move
+            // AWAY from city.tscn's own hazy/overcast reference look this
+            // time ("increase the render distance, get rid of the fog...
+            // as real as possible"), the opposite direction from the fog
+            // history above this comment used to explain. 35m/88m (city.tscn's
+            // own fog_depth_begin/fog_depth_end) fogged out a city block
+            // before you could see across it; not zeroed out entirely,
+            // since a true zero-fog horizon reads flatter and LESS real
+            // than a AAA reference like this was asked to match, not
+            // more -- a light, distant haze is itself part of what makes a
+            // skyline read as atmospheric depth rather than a cardboard
+            // cutout. Timed to the new RadiusChunks below: fog is
+            // essentially invisible at ordinary street-level sightlines and
+            // only softens the skyline right around where the streamed
+            // world actually ends, so raising the render distance doesn't
+            // just trade a fog wall for a pop-in wall at a farther radius.
+            // A GENUINE COMPROMISE, not a value chosen with total confidence.
+            // DayNightCycle.Apply's own comment on Sky.backgroundColor names
+            // the reason fog existed at all: "the streamed world ends at a
+            // hard edge, and the only thing hiding it is fog the same colour
+            // as what is behind it." Confirmed directly by rendering from an
+            // elevated vantage with fog pushed out to 720m -- the edge is
+            // NOT primarily a distance problem (extending fogEndDistance
+            // made no visible difference), it's an ANGLE problem: the sky
+            // dome's own ground-facing hemisphere (GroundBottomColour, also
+            // used as rooftop reflection ambient -- see DayNightCycle's own
+            // comment -- so not a colour safe to just flatten to match the
+            // horizon without risking every roof's own lighting) shows
+            // through at a shallow downward look from height at distances
+            // well under any fog end distance still worth having for a
+            // clear street-level view. Linear distance fog cannot solve an
+            // angle-shaped problem. 150m/380m is short enough to still mask
+            // that seam at ordinary jetpack-rooftop heights while being a
+            // real, clearly-visible improvement over the original 35m/88m
+            // at street level (confirmed by render) -- a proper fix would
+            // need something angle-aware or a ground plane that actually
+            // extends to the horizon, both bigger jobs than this pass.
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.Linear;
-            RenderSettings.fogStartDistance = 35.0f;
-            RenderSettings.fogEndDistance = 88.0f;
+            RenderSettings.fogStartDistance = 150.0f;
+            RenderSettings.fogEndDistance = 380.0f;
 
             // --- the dev console. Backtick opens it. Wired here rather than
             // --- shipped as a prefab because half of what it drives only
@@ -381,7 +406,13 @@ namespace CityX.ViewEditor
             GameObject streamerObject = new GameObject("CityStreamer");
             CityStreamer streamer = streamerObject.AddComponent<CityStreamer>();
             streamer.WorldSeed = 20260810;
-            streamer.RadiusChunks = 14;
+            // 24, not the original 14 (336m -> 576m) -- an explicit "increase
+            // the render distance" ask. ChunkBuildBudgetPerFrame already caps
+            // new chunks built per frame regardless of radius, so this raises
+            // steady-state chunk count/memory, not a one-frame hitch when the
+            // streamed edge moves. See the fog comment above for how its own
+            // distances were retimed to this new edge.
+            streamer.RadiusChunks = 24;
             streamer.GroundMaterial = ground;
             streamer.PavementMaterial = pavement;
             streamer.StructureMaterial = structure;
@@ -706,6 +737,24 @@ namespace CityX.ViewEditor
             adjustments.contrast.value = 8.0f;
             adjustments.saturation.overrideState = true;
             adjustments.saturation.value = 8.0f;
+
+            // Bloom, new -- no Godot equivalent to port (city.tscn has none),
+            // an explicit ask alongside the fog/render-distance change to
+            // read as a more modern, realistic lighting reference rather
+            // than a straight match of the original scene. Modest: a real
+            // window strip or a car's headlights should glow slightly, nothing
+            // should wash out into a soft-focus haze.
+            if (!profile.TryGet(out Bloom bloom))
+            {
+                bloom = profile.Add<Bloom>();
+            }
+            bloom.active = true;
+            bloom.threshold.overrideState = true;
+            bloom.threshold.value = 1.05f;
+            bloom.intensity.overrideState = true;
+            bloom.intensity.value = 0.35f;
+            bloom.scatter.overrideState = true;
+            bloom.scatter.value = 0.6f;
 
             EditorUtility.SetDirty(profile);
             return profile;
