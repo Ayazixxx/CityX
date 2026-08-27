@@ -57,7 +57,7 @@ namespace CityX.Tests
             float yBefore = _player.transform.position.y;
             for (int i = 0; i < 10; i++)
             {
-                _jetpack.Tick(thrustHeld: true, moveInput: Vector2.zero, deltaTime: 1.0f / 60.0f);
+                _jetpack.Tick(thrustHeld: true, moveInput: Vector2.zero, boostHeld: false, deltaTime: 1.0f / 60.0f);
                 _locomotion.Tick(default, 1.0f / 60.0f);
             }
 
@@ -70,7 +70,7 @@ namespace CityX.Tests
         {
             for (int i = 0; i < 10; i++)
             {
-                _jetpack.Tick(true, Vector2.zero, 1.0f / 60.0f);
+                _jetpack.Tick(true, Vector2.zero, false, 1.0f / 60.0f);
                 _locomotion.Tick(default, 1.0f / 60.0f);
             }
             Assert.Greater(_locomotion.Velocity.y, 0.0f, "setup failed -- thrust didn't leave the body rising");
@@ -86,7 +86,7 @@ namespace CityX.Tests
             // go negative once thrust stops decelerating it.
             for (int i = 0; i < 60; i++)
             {
-                _jetpack.Tick(false, Vector2.zero, 1.0f / 60.0f);
+                _jetpack.Tick(false, Vector2.zero, false, 1.0f / 60.0f);
                 _locomotion.Tick(default, 1.0f / 60.0f);
             }
 
@@ -111,7 +111,7 @@ namespace CityX.Tests
             // exactly as Jetpack.Tick's own real path does every frame
             // thrust is held.
             _player.transform.position = new Vector3(0.0f, 100.5f, 0.0f);
-            _jetpack.Tick(true, Vector2.zero, 1.0f / 60.0f);
+            _jetpack.Tick(true, Vector2.zero, false, 1.0f / 60.0f);
 
             // Still thrusting, now descended under control to just above
             // the ground -- this is the LAST reset before letting go, and
@@ -119,7 +119,7 @@ namespace CityX.Tests
             // 100m climb behind it is irrelevant, only what happens from
             // here on is real unpowered fall.
             _player.transform.position = new Vector3(0.0f, 2.0f, 0.0f);
-            _jetpack.Tick(true, Vector2.zero, 1.0f / 60.0f);
+            _jetpack.Tick(true, Vector2.zero, false, 1.0f / 60.0f);
 
             // Thrust released -- a genuine 2m drop to the ground, well
             // inside any reasonable safe-fall distance.
@@ -247,6 +247,66 @@ namespace CityX.Tests
                 tilt = Jetpack.EaseTilt(tilt, released, 1.0f / 60.0f);
             }
             Assert.AreEqual(0.0f, tilt.x, 0.01f, "letting go of W never straightened the body back out");
+        }
+
+        /// <summary>
+        /// "shift is a boost when midair using jetpack" -- holding a
+        /// direction spends the boost on a further lean, checked directly
+        /// against TiltTarget's own two constants rather than just "greater
+        /// than the plain lean" so a future TiltMaxDegrees tweak can't
+        /// silently satisfy this without BoostTiltMaxDegrees actually being
+        /// the one in effect.
+        /// </summary>
+        [Test]
+        public void TiltTargetAmplifiesWhenBoosting()
+        {
+            Vector2 boosted = Jetpack.TiltTarget(new Vector2(0.0f, 1.0f), boosting: true);
+            Assert.AreEqual(Jetpack.BoostTiltMaxDegrees, boosted.x, 0.001f);
+        }
+
+        [Test]
+        public void TiltTargetUsesThePlainMaxWhenNotBoosting()
+        {
+            Vector2 plain = Jetpack.TiltTarget(new Vector2(0.0f, 1.0f), boosting: false);
+            Assert.AreEqual(Jetpack.TiltMaxDegrees, plain.x, 0.001f);
+        }
+
+        /// <summary>
+        /// Boosting with nothing to lean toward must not manufacture a lean
+        /// out of thin air -- see Jetpack.Tick's own "spends on either lean
+        /// or climb, never both" doc comment.
+        /// </summary>
+        [Test]
+        public void TiltTargetIgnoresBoostingWithNoDirectionHeld()
+        {
+            Assert.AreEqual(Vector2.zero, Jetpack.TiltTarget(Vector2.zero, boosting: true));
+        }
+
+        [Test]
+        public void BoostWithNoDirectionClimbsFasterThanPlainThrust()
+        {
+            _jetpack.Tick(true, Vector2.zero, boostHeld: true, deltaTime: 1.0f / 60.0f);
+            _locomotion.Tick(default, 1.0f / 60.0f);
+
+            Assert.Greater(_locomotion.Velocity.y, Jetpack.ThrustSpeed,
+                "boosting straight up should climb faster than plain thrust");
+        }
+
+        /// <summary>
+        /// The explicit ask reads as an either/or ("if not holding wasd
+        /// keys then just make it go up faster") -- holding a direction
+        /// spends the boost on the amplified lean instead, so the climb
+        /// speed here must stay at the ordinary ThrustSpeed rather than
+        /// also picking up BoostThrustSpeed on top of it.
+        /// </summary>
+        [Test]
+        public void BoostWithADirectionHeldDoesNotAlsoClimbFaster()
+        {
+            _jetpack.Tick(true, new Vector2(0.0f, 1.0f), boostHeld: true, deltaTime: 1.0f / 60.0f);
+            _locomotion.Tick(default, 1.0f / 60.0f);
+
+            Assert.LessOrEqual(_locomotion.Velocity.y, Jetpack.ThrustSpeed,
+                "boosting while holding a direction should spend the boost on lean, not extra climb");
         }
     }
 }

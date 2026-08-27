@@ -114,6 +114,7 @@ namespace CityX.Character
         private static readonly int ChargingJumpParameter = Animator.StringToHash("ChargingJump");
         private static readonly int AimingParameter = Animator.StringToHash("Aiming");
         private static readonly int SwordEquippedParameter = Animator.StringToHash("SwordEquipped");
+        private static readonly int JetpackThrustingParameter = Animator.StringToHash("JetpackThrusting");
 
         /// <summary>Horizontal speed after the last tick, in metres per second.</summary>
         public float CurrentSpeed { get; private set; }
@@ -571,6 +572,7 @@ namespace CityX.Character
                 _animator.SetBool(ChargingJumpParameter, input.ChargingJump);
                 _animator.SetBool(AimingParameter, input.Aiming);
                 _animator.SetBool(SwordEquippedParameter, input.SwordEquipped);
+                _animator.SetBool(JetpackThrustingParameter, input.JetpackThrusting);
             }
         }
     }

@@ -227,6 +227,7 @@ namespace CityX.CharacterEditor
             AddDashState(controller, root);
             AddChargedJumpState(controller, root);
             AddAimingState(controller, root);
+            AddJetpackIdleState(controller, root, idle);
             AddClimbingStates(controller, root);
             AddPunchStates(root);
             // AFTER AddPunchStates: AddSwordLocomotion has to exist before
@@ -501,6 +502,45 @@ namespace CityX.CharacterEditor
 
             AnimatorStateTransition outOf = aiming.AddTransition(locomotion);
             outOf.AddCondition(AnimatorConditionMode.IfNot, 0.0f, "Aiming");
+            outOf.duration = 0.15f;
+            outOf.hasExitTime = false;
+        }
+
+        /// <summary>
+        /// Forces Idle over whatever Locomotion would otherwise show while
+        /// the jetpack is actually thrusting -- an explicit new-mechanic ask
+        /// ("get rid of the walking and running animation... just when the
+        /// jetpack is activated or when space is being held"). A walk/run
+        /// cycle reads as wrong the moment the body is actually airborne
+        /// under thrust, which happens almost immediately once thrust
+        /// starts (ThrustSpeed comfortably beats gravity), so this is gated
+        /// on the thrust key itself rather than on IsGrounded.
+        ///
+        /// BOOL-GATED BOTH WAYS, the same shape AddAimingState's own doc
+        /// comment already explains: nothing else exits back to Locomotion
+        /// for this bool to piggyback on.
+        /// </summary>
+        private static void AddJetpackIdleState(AnimatorController controller, AnimatorStateMachine root, AnimationClip idle)
+        {
+            AnimatorState locomotion = FindState(root, "Locomotion");
+            if (idle == null || locomotion == null)
+            {
+                return;
+            }
+
+            controller.AddParameter("JetpackThrusting", AnimatorControllerParameterType.Bool);
+
+            AnimatorState jetpackIdle = root.AddState("JetpackIdle");
+            jetpackIdle.motion = idle;
+
+            AnimatorStateTransition into = root.AddAnyStateTransition(jetpackIdle);
+            into.AddCondition(AnimatorConditionMode.If, 0.0f, "JetpackThrusting");
+            into.duration = 0.12f;
+            into.hasExitTime = false;
+            into.canTransitionToSelf = false;
+
+            AnimatorStateTransition outOf = jetpackIdle.AddTransition(locomotion);
+            outOf.AddCondition(AnimatorConditionMode.IfNot, 0.0f, "JetpackThrusting");
             outOf.duration = 0.15f;
             outOf.hasExitTime = false;
         }

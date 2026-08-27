@@ -306,9 +306,20 @@ namespace CityX.Character
                 _fireballCaster.TryCast(origin, yawSource.forward, GetComponentsInChildren<Collider>());
             }
 
+            // A JETPACK TAKES SHIFT OVER TOO WHILE ACTUALLY THRUSTING, not
+            // just Space -- the explicit ask ("shift is a boost when midair
+            // using jetpack") redefines what the key means the instant
+            // thrust is live, the same way Space already stopped meaning
+            // "charged jump" the moment EquippedJetpack was assigned.
+            // Computed before wantsSprint below so that check can exclude
+            // this case rather than double-booking one key with two
+            // unrelated meanings and draining stamina for a mechanic that
+            // is not supposed to cost any.
+            bool jetpackThrusting = EquippedJetpack != null && keyboard.spaceKey.isPressed;
+
             // Sprint only forwards. Sprinting sideways or backwards has no
             // animation and reads as a glitch rather than as speed.
-            bool wantsSprint = keyboard.leftShiftKey.isPressed && move.y > 0.0f;
+            bool wantsSprint = !jetpackThrusting && keyboard.leftShiftKey.isPressed && move.y > 0.0f;
 
             // Stamina decides, not the key. Asking rather than checking a flag
             // keeps the exhaustion latch in one place.
@@ -334,13 +345,12 @@ namespace CityX.Character
             // way a gun/grapple hook already take over click -- Space means
             // thrust now, not a charged jump, so TickJumpCharge (and the
             // pose it would have driven) never runs at all. Left/right/
-            // sprint/crouch above are untouched: WASD keeps steering
-            // horizontally exactly the way ordinary falling already lets
-            // it, matching the explicit ask ("mixed with wasd to move
-            // around").
+            // crouch above are untouched: WASD keeps steering horizontally
+            // exactly the way ordinary falling already lets it, matching
+            // the explicit ask ("mixed with wasd to move around").
             if (EquippedJetpack != null)
             {
-                EquippedJetpack.Tick(keyboard.spaceKey.isPressed, move, deltaTime);
+                EquippedJetpack.Tick(jetpackThrusting, move, keyboard.leftShiftKey.isPressed, deltaTime);
             }
             else
             {
@@ -368,6 +378,7 @@ namespace CityX.Character
                 Aiming = _isAimingGun || (_fireballCaster != null && _fireballCaster.IsCasting),
                 SwordEquipped = _melee != null && _melee.EquippedWeapon != null &&
                                 _melee.EquippedWeapon.MovesetId == ComboChain.Sword,
+                JetpackThrusting = jetpackThrusting,
             };
 
             _locomotion.Tick(input, deltaTime);

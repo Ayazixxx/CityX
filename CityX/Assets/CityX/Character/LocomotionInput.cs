@@ -86,6 +86,17 @@ namespace CityX.Character
         /// </summary>
         public bool SwordEquipped;
 
+        /// <summary>
+        /// True whenever a jetpack is equipped and the thrust key is
+        /// physically held -- see PlayerInputReader's own dispatch to
+        /// IJetpack.Tick. Drives the Animator's "JetpackThrusting" bool,
+        /// which forces Idle over whatever Locomotion would otherwise show
+        /// (see PlayerRigBuilder.AddJetpackIdleState): a walk/run/sprint
+        /// cycle reads as wrong the instant the body actually leaves the
+        /// ground under power, which thrusting does almost immediately.
+        /// </summary>
+        public bool JetpackThrusting;
+
         /// <summary>The world-space direction the player wants to travel, flat and normalised.</summary>
         public Vector3 WorldDirection()
         {

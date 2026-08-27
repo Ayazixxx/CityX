@@ -40,6 +40,15 @@ namespace CityX.Weapons
         public const float ThrustSpeed = 7.0f;
 
         /// <summary>
+        /// Vertical speed while boosting with no WASD direction held --
+        /// "if not holding wasd keys then just make it go up faster",
+        /// from the explicit ask. Only applies with nothing to lean
+        /// toward; holding a direction spends the boost on lean instead
+        /// (see TickTilt's own doc comment).
+        /// </summary>
+        public const float BoostThrustSpeed = 11.0f;
+
+        /// <summary>
         /// Sits flush against the spine, between the shoulder blades --
         /// pushed out to -0.34, not just past the torso's own ~0.26 radius
         /// (FusedBodyShape.TorsoRadius), confirmed necessary by rendering
@@ -56,6 +65,14 @@ namespace CityX.Weapons
         /// short of anything that would read as falling over.
         /// </summary>
         public const float TiltMaxDegrees = 12.0f;
+
+        /// <summary>
+        /// How far the body leans instead, while boosting with a WASD
+        /// direction held -- "tilt a little further in whatever direction
+        /// you are holding", from the explicit ask. Still short of anything
+        /// reading as falling over, just more pronounced than the plain lean.
+        /// </summary>
+        public const float BoostTiltMaxDegrees = 20.0f;
 
         /// <summary>
         /// How fast the lean eases toward its target, in degrees per
@@ -201,12 +218,20 @@ namespace CityX.Weapons
         /// integration (which always fires first inside Tick) only ever
         /// shaves one frame's worth off the thrust speed rather than
         /// stacking a whole extra frame of unopposed fall first.
+        ///
+        /// BOOST SPENDS ON EITHER LEAN OR CLIMB, NEVER BOTH -- "if not
+        /// holding wasd keys then just make it go up faster", from the
+        /// explicit ask, which only makes sense read as an else: WASD held
+        /// means there is a direction to lean toward, so the boost goes
+        /// into TickTilt's own amplified lean instead of also stacking a
+        /// faster climb on top of it.
         /// </summary>
-        public void Tick(bool thrustHeld, Vector2 moveInput, float deltaTime)
+        public void Tick(bool thrustHeld, Vector2 moveInput, bool boostHeld, float deltaTime)
         {
+            bool boostingStraightUp = boostHeld && moveInput.sqrMagnitude < 0.0001f;
             if (thrustHeld)
             {
-                _locomotion?.SetVerticalVelocity(ThrustSpeed);
+                _locomotion?.SetVerticalVelocity(boostingStraightUp ? BoostThrustSpeed : ThrustSpeed);
                 // See PlayerVitals.ResetFallTracking's own doc comment --
                 // this is the whole mechanism behind "negates fall damage
                 // from the last height it was on."
@@ -216,7 +241,7 @@ namespace CityX.Weapons
                 }
             }
 
-            TickTilt(moveInput, deltaTime);
+            TickTilt(moveInput, boostHeld, deltaTime);
 
             if (FlameEffect != null)
             {
@@ -259,9 +284,10 @@ namespace CityX.Weapons
         /// NEGATIVE angle to bank the right side down -- leaning into the
         /// strafe direction rather than away from it.
         /// </summary>
-        public static Vector2 TiltTarget(Vector2 moveInput)
+        public static Vector2 TiltTarget(Vector2 moveInput, bool boosting = false)
         {
-            return new Vector2(moveInput.y * TiltMaxDegrees, -moveInput.x * TiltMaxDegrees);
+            float maxDegrees = boosting ? BoostTiltMaxDegrees : TiltMaxDegrees;
+            return new Vector2(moveInput.y * maxDegrees, -moveInput.x * maxDegrees);
         }
 
         /// <summary>
@@ -280,9 +306,17 @@ namespace CityX.Weapons
                 Mathf.MoveTowards(current.y, target.y, maxDelta));
         }
 
-        private void TickTilt(Vector2 moveInput, float deltaTime)
+        /// <summary>
+        /// Boosting only amplifies the lean while there is a direction to
+        /// lean toward -- with no WASD held, Tick spends the same boost on
+        /// a faster climb instead (see its own doc comment), so this must
+        /// not also treat "boosting straight up" as "lean further toward
+        /// nothing," which would just widen dead-zone jitter around zero.
+        /// </summary>
+        private void TickTilt(Vector2 moveInput, bool boostHeld, float deltaTime)
         {
-            _currentTilt = EaseTilt(_currentTilt, TiltTarget(moveInput), deltaTime);
+            bool amplify = boostHeld && moveInput.sqrMagnitude > 0.0001f;
+            _currentTilt = EaseTilt(_currentTilt, TiltTarget(moveInput, amplify), deltaTime);
             if (_animatorTransform != null)
             {
                 _animatorTransform.localRotation = Quaternion.Euler(_currentTilt.x, 0.0f, _currentTilt.y);
