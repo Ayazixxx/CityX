@@ -268,14 +268,28 @@ namespace CityX.WearablesEditor
             int vertexCount = positions.Length;
             var kept = new bool[vertexCount];
             var oldToNew = new int[vertexCount];
-            var newPositions = new List<Vector3>(vertexCount / 3);
-            var newNormals = new List<Vector3>(vertexCount / 3);
-            var newUVs = new List<Vector2>(vertexCount / 3);
-            var newWeights = new List<BoneWeight>(vertexCount / 3);
+            var resolvedWeights = new float[vertexCount][];
 
             for (int i = 0; i < vertexCount; i++)
             {
                 BoneWeight w = weights[i];
+
+                // DOMINANT BONE ONLY, NOT "ANY WEIGHT AT ALL" -- tried the
+                // looser version first (any nonzero weight on a kept bone)
+                // on the theory that a smooth blend was being cut too
+                // strictly. Confirmed wrong by an actual render: it kept
+                // 125,934/139,443 vertices (barely 4,640 of which were the
+                // targeted rescue below), because plenty of leg/head
+                // vertices carry a small real bleed onto Hips/Spine even
+                // though their own dominant bone is nowhere near the coat
+                // -- pulling in most of a leg, bound to the torso, showed
+                // up as a long warped flap hanging off the hem. Bone
+                // assignment here IS effectively single-dominant (see
+                // SmoothShoulderWeights' own doc comment); the strict gate
+                // is what that fact actually calls for, with the rescue
+                // pass below doing the real, targeted work of closing the
+                // few-vertex notches the boundary's own inconsistency
+                // leaves behind, instead of loosening admission everywhere.
                 int dominantSource = DominantBoneIndex(w);
                 int dominantTarget = (dominantSource >= 0 && dominantSource < targetIndexForSourceBone.Length)
                     ? targetIndexForSourceBone[dominantSource]
@@ -300,13 +314,34 @@ namespace CityX.WearablesEditor
                 for (int s = 0; s < slot.Length; s++) slot[s] /= total;
 
                 kept[i] = true;
+                resolvedWeights[i] = slot;
+            }
+
+            var repositioned = new Vector3[vertexCount];
+            for (int i = 0; i < vertexCount; i++)
+            {
+                repositioned[i] = Reposition(positions[i]);
+            }
+            RescueSingleVertexNotches(triangles, kept, resolvedWeights, repositioned);
+
+            var newPositions = new List<Vector3>(vertexCount / 3);
+            var newNormals = new List<Vector3>(vertexCount / 3);
+            var newUVs = new List<Vector2>(vertexCount / 3);
+            var newWeights = new List<BoneWeight>(vertexCount / 3);
+
+            for (int i = 0; i < vertexCount; i++)
+            {
+                if (!kept[i])
+                {
+                    continue;
+                }
                 oldToNew[i] = newPositions.Count;
                 newPositions.Add(Reposition(positions[i]));
                 // A uniform scale never changes a normal's direction, only
                 // its magnitude -- copied as-is rather than rescaled.
                 newNormals.Add((normals != null && normals.Length == vertexCount) ? normals[i] : Vector3.up);
                 newUVs.Add((uvs != null && uvs.Length == vertexCount) ? uvs[i] : Vector2.zero);
-                newWeights.Add(PackTop4(slot));
+                newWeights.Add(PackTop4(resolvedWeights[i]));
             }
 
             var newTriangles = new List<int>(triangles.Length / 2);
@@ -447,6 +482,121 @@ namespace CityX.WearablesEditor
 
             mesh.boneWeights = weights;
             Debug.Log($"CityX: smoothed {touched} shoulder vertices between spine and arm.");
+        }
+
+        /// <summary>
+        /// CLOSES SINGLE-VERTEX NOTCHES ALONG THE CUT BOUNDARY. The source
+        /// rig assigns each vertex to a single dominant bone with no blend
+        /// across a joint (see SmoothShoulderWeights' own doc comment) --
+        /// so the strict per-vertex classification above does not cut a
+        /// clean topological ring at the neckline/cuffs/hem, it follows
+        /// wherever the auto-rigger's own (imprecise, per-panel) weight
+        /// assignment happens to flip from a kept bone to a stripped one,
+        /// vertex by vertex. A triangle whose assignment flips mid-triangle
+        /// -- two corners on a kept bone, one isolated corner assigned to
+        /// the stripped bone right next to them -- had its one discarded
+        /// corner drop the whole triangle under the "all three kept" rule
+        /// below, which is where the reported holes at those exact
+        /// boundaries came from: confirmed by dumping the per-vertex
+        /// classification along the hem and finding it interleaved rather
+        /// than a clean ring, not a smooth gradient crossing (a smooth
+        /// blend would have made a lower keep-threshold the right fix
+        /// instead of this).
+        ///
+        /// PROMOTES THE ISOLATED CORNER RATHER THAN DROPPING THE TRIANGLE:
+        /// any triangle with exactly two kept corners gets its third pulled
+        /// in too, inheriting the average of its two already-resolved
+        /// neighbours' bone weights -- never its own, since that vertex's
+        /// own weight pointed at a stripped bone, which is the entire
+        /// reason it needed rescuing.
+        ///
+        /// A HARD GEOMETRIC FENCE, NOT JUST A PASS CAP -- run uncapped, this
+        /// does not converge: confirmed directly by logging every pass, which
+        /// kept rescuing hundreds of vertices a pass for 59 passes straight,
+        /// climbing from 77,746 kept toward 101,872/139,443 with no sign of
+        /// stopping. The auto-rig's own weight noise is not confined to a
+        /// thin ring around the true seam -- it is scattered widely enough
+        /// that majority-vote dilation alone tunnels straight down into the
+        /// actual legs and up into the actual head a vertex at a time, which
+        /// is exactly how the very first, ungated version of this rescue
+        /// produced the long stretched flap a raw render caught. Only a
+        /// candidate whose OWN repositioned position already falls in the
+        /// hem or collar band below can be promoted, however many passes
+        /// run -- capping is therefore about closing the true boundary
+        /// completely rather than stopping a runaway partway through it.
+        /// </summary>
+        // Lower than a plain hem needs -- this coat hangs OPEN at the
+        // front (confirmed directly by rendering the raw, untouched source:
+        // a buttoned placket with both flaps left open, the gap between
+        // them showing the legs by design, not a hole). Those two flaps
+        // reach well below the hip line, so the rescue band has to reach
+        // that far too or their own ragged edges are simply out of its
+        // reach regardless of pass count.
+        private const float HemBandLowY = BodyRig.HipY - 0.60f;
+        private const float HemBandHighY = BodyRig.HipY + 0.25f;
+        private const float CollarBandLowY = BodyRig.ShoulderY - 0.15f;
+        private static readonly float CollarBandHighY = BodyRig.HeadCentreY - 0.05f;
+        private const float BoundaryBandMaxAbsX = 0.30f;
+
+        private static bool InBoundaryBand(Vector3 position)
+        {
+            if (Mathf.Abs(position.x) > BoundaryBandMaxAbsX)
+            {
+                return false;   // out along a sleeve, not near the hem/collar centreline
+            }
+            return (position.y >= HemBandLowY && position.y <= HemBandHighY) ||
+                   (position.y >= CollarBandLowY && position.y <= CollarBandHighY);
+        }
+
+        private static void RescueSingleVertexNotches(
+            int[] triangles, bool[] kept, float[][] resolvedWeights, Vector3[] repositioned)
+        {
+            const int MaxPasses = 40;
+            int totalRescued = 0;
+            for (int pass = 0; pass < MaxPasses; pass++)
+            {
+                int rescuedThisPass = 0;
+                for (int t = 0; t < triangles.Length; t += 3)
+                {
+                    int a = triangles[t], b = triangles[t + 1], c = triangles[t + 2];
+                    rescuedThisPass += TryRescue(a, b, c, kept, resolvedWeights, repositioned);
+                    rescuedThisPass += TryRescue(b, c, a, kept, resolvedWeights, repositioned);
+                    rescuedThisPass += TryRescue(c, a, b, kept, resolvedWeights, repositioned);
+                }
+                totalRescued += rescuedThisPass;
+                if (rescuedThisPass == 0)
+                {
+                    break;
+                }
+            }
+            Debug.Log($"CityX: rescued {totalRescued} single-vertex notches along the coat's hem/collar boundary.");
+        }
+
+        /// <summary>
+        /// Promotes <paramref name="candidate"/> if it is the lone unkept
+        /// corner of a triangle whose other two corners are both already
+        /// kept AND it falls inside the hem/collar boundary band -- checked
+        /// once per corner as the candidate (three calls per triangle,
+        /// rotating which corner is which), since which one is the isolated
+        /// corner is not known ahead of time.
+        /// </summary>
+        private static int TryRescue(
+            int candidate, int otherA, int otherB, bool[] kept, float[][] resolvedWeights, Vector3[] repositioned)
+        {
+            if (kept[candidate] || !kept[otherA] || !kept[otherB] || !InBoundaryBand(repositioned[candidate]))
+            {
+                return 0;
+            }
+            float[] weightsA = resolvedWeights[otherA];
+            float[] weightsB = resolvedWeights[otherB];
+            var averaged = new float[weightsA.Length];
+            for (int s = 0; s < averaged.Length; s++)
+            {
+                averaged[s] = (weightsA[s] + weightsB[s]) * 0.5f;
+            }
+            kept[candidate] = true;
+            resolvedWeights[candidate] = averaged;
+            return 1;
         }
 
         private static int DominantBoneIndex(BoneWeight w)
