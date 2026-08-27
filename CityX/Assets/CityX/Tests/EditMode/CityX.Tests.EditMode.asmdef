@@ -13,6 +13,7 @@
         "CityX.UI",
         "CityX.Weapons",
         "CityX.Wearables",
+        "CityX.Vehicles",
         "UnityEngine.UI"
     ],
     "includePlatforms": [

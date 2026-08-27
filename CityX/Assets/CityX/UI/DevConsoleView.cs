@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using CityX.Character;
 using CityX.Items;
+using CityX.Vehicles;
 using CityX.View;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -78,6 +79,9 @@ namespace CityX.UI
         [Tooltip("What /spawn sword puts down, and what /equip sword equips.")]
         public GameObject SwordPrefab;
         public GameObject TopHatPrefab;
+
+        [Tooltip("What /spawn mustang puts down.")]
+        public GameObject MustangPrefab;
 
         [Tooltip("Movement/combat input. Disabled while the console is open.")]
         public PlayerInputReader InputReader;
@@ -225,6 +229,10 @@ namespace CityX.UI
 
                 case "spawn":
                     Spawn(line.Argument(0));
+                    return;
+
+                case "car":
+                    CarCommand(line.Argument(0));
                     return;
 
                 case "celshade":
@@ -444,6 +452,28 @@ namespace CityX.UI
                     Log("spawned a pistol -- walk up, look at it and press E");
                     return;
 
+                case "mustang":
+                    if (MustangPrefab == null)
+                    {
+                        Log("no mustang prefab wired");
+                        return;
+                    }
+                    // A bigger distance and drop height than every other
+                    // /spawn target (6m and 1.2m, not SpawnDistance's own
+                    // 3m at ground level) -- matches car.gd's own
+                    // _spawn_mustang: a much bigger object needs more room,
+                    // and it settles onto the ground via gravity rather
+                    // than being placed exactly on it. Facing the SAME
+                    // direction the player already faces, not back toward
+                    // them like every other spawn -- a car is walked up to
+                    // and entered from the side, not looked at like a
+                    // picked-up prop.
+                    Vector3 mustangWhere = origin.position + origin.forward * 6.0f + Vector3.up * 1.2f;
+                    Quaternion mustangFacing = Quaternion.Euler(0.0f, origin.eulerAngles.y, 0.0f);
+                    Instantiate(MustangPrefab, mustangWhere, mustangFacing);
+                    Log("spawned a Mustang in front of you -- WASD to drive, Space to handbrake");
+                    return;
+
                 case "dummy":
                     // BUILT HERE RATHER THAN INSTANTIATED, because a sparring
                     // dummy has no prefab -- the scene builder makes its own out
@@ -461,6 +491,50 @@ namespace CityX.UI
                     Log(DevCommands.UsageFor("spawn"));
                     return;
             }
+        }
+
+        /// <summary>
+        /// "/car pose" -- ported from dev_console.gd's own _car_command.
+        /// Logs the nearest car's own DriverSeat/PassengerSeat local
+        /// position/rotation so they can be nudged directly by dragging
+        /// the two child objects in the Editor on Mustang.prefab (or on a
+        /// spawned instance) and re-checking here, the same "cheap to
+        /// correct once actually seen" workflow the Godot source's own
+        /// comment describes for its own Remote-tab equivalent.
+        /// </summary>
+        private void CarCommand(string sub)
+        {
+            if (sub != "pose")
+            {
+                Log(DevCommands.UsageFor("car"));
+                return;
+            }
+
+            Transform origin = Vitals != null ? Vitals.transform : transform;
+            Car nearest = null;
+            float nearestDistanceSquared = float.MaxValue;
+            foreach (Car candidate in FindObjectsByType<Car>(FindObjectsSortMode.None))
+            {
+                float distanceSquared = (candidate.transform.position - origin.position).sqrMagnitude;
+                if (distanceSquared < nearestDistanceSquared)
+                {
+                    nearestDistanceSquared = distanceSquared;
+                    nearest = candidate;
+                }
+            }
+            if (nearest == null)
+            {
+                Log("no car nearby -- spawn one with /spawn mustang first");
+                return;
+            }
+
+            Log($"DriverSeat local pos {FormatVector3(nearest.DriverSeat.localPosition)}");
+            Log($"PassengerSeat local pos {FormatVector3(nearest.PassengerSeat.localPosition)}");
+        }
+
+        private static string FormatVector3(Vector3 v)
+        {
+            return $"({v.x:0.00}, {v.y:0.00}, {v.z:0.00})";
         }
 
         /// <summary>

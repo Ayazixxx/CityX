@@ -1862,6 +1862,7 @@ MonoBehaviour:
   TurnDegreesPerSecond: 720
   HorizontalAcceleration: 60
   StandingHeight: 2.6
+  InCarSeat: 0
 --- !u!114 &2773703700834389877
 MonoBehaviour:
   m_ObjectHideFlags: 0

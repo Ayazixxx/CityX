@@ -151,6 +151,7 @@ namespace CityX.ViewEditor
             GameObject jetpackPrefab = CityX.WeaponsEditor.JetpackBuilder.Build();
             GameObject swordPrefab = CityX.WeaponsEditor.SwordBuilder.Build();
             GameObject topHatPrefab = CityX.WearablesEditor.TopHatBuilder.Build();
+            GameObject mustangPrefab = CityX.VehiclesEditor.CarBuilder.Build();
 
             // --- the player. The flycam stays on the same object but disabled,
             // --- so switching between walking the city and flying over it is a
@@ -405,7 +406,8 @@ namespace CityX.ViewEditor
                 midnightPatchworkCoatPrefab,
                 jetpackPrefab,
                 swordPrefab,
-                topHatPrefab);
+                topHatPrefab,
+                mustangPrefab);
 
             // --- the pause menu. Escape opens it; it guards itself against
             // --- opening on top of the console above.

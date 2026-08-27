@@ -131,6 +131,7 @@ namespace CityX.UI
             "infinitesprint",
             "xp",
             "spawn",
+            "car",
             "celshade",
             "equip",
             "unequip",
@@ -148,7 +149,8 @@ namespace CityX.UI
                 case "infinitehealth": return "/infinitehealth -- toggles";
                 case "infinitesprint": return "/infinitesprint -- toggles";
                 case "xp": return "/xp <amount>";
-                case "spawn": return "/spawn <dummy|civilian|radio|bottle|jeans|cloak|grapple>";
+                case "spawn": return "/spawn <dummy|civilian|radio|bottle|jeans|cloak|grapple|mustang>";
+                case "car": return "/car pose -- logs the nearest car's seat positions (drag them in the Editor to nudge)";
                 case "celshade": return "/celshade -- toggles toon shading on every character skin";
                 case "equip": return "/equip <bottle|jeans|cloak|grapple>";
                 case "unequip": return "/unequip <hand_r|legs|top>";

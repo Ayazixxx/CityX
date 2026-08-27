@@ -1,0 +1,21 @@
+{
+    "name": "CityX.Vehicles.Editor",
+    "rootNamespace": "CityX.VehiclesEditor",
+    "references": [
+        "CityX.Character",
+        "CityX.Character.Editor",
+        "CityX.Core",
+        "CityX.Vehicles"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

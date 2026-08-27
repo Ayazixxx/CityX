@@ -230,6 +230,7 @@ namespace CityX.CharacterEditor
             AddJetpackIdleState(controller, root, idle);
             AddDanceStates(controller, root);
             AddClimbingStates(controller, root);
+            AddCarSeatStates(controller, root);
             AddPunchStates(root);
             // AFTER AddPunchStates: AddSwordLocomotion has to exist before
             // AddSwordStates looks its state up by name for the sword
@@ -741,6 +742,74 @@ namespace CityX.CharacterEditor
             outOfTopOut.duration = 0.1f;
             outOfTopOut.hasExitTime = true;
             outOfTopOut.exitTime = 1.0f;
+        }
+
+        /// <summary>
+        /// Entering/exiting a car -- ported from character.gd's own
+        /// play_enter_car()/play_exit_car(). entering_car.fbx/exiting_car.fbx
+        /// were already sitting retargeted and unused in the Animations
+        /// folder, the same "already imported, never wired up" situation
+        /// AddAimingState's own doc comment found for pistol_aim_in.fbx.
+        ///
+        /// NOT MakeLooping -- these are LOOP_NONE in Godot too (character.gd's
+        /// own comment: "once it finishes, anim_player just holds its own
+        /// last frame indefinitely"). EnteringCar's OWN held last frame IS
+        /// the seated driving pose for the whole rest of the drive -- see
+        /// its own missing outgoing transition below.
+        ///
+        /// TRIGGERS, NOT BOOLS, unlike Dance/Breakdance's own toggleable
+        /// pair -- a Trigger is auto-consumed by whichever transition
+        /// actually reads it, which is what keeps ExitingCar's own exit-time
+        /// return to Locomotion (below) safe: a stale Bool left sitting
+        /// true would immediately re-fire the Any State entry into
+        /// ExitingCar the instant Locomotion became current again (Any
+        /// State conditions are evaluated every frame regardless of the
+        /// current state), replaying the clip forever. A Trigger cannot do
+        /// that -- it is gone the moment this same transition consumes it.
+        /// </summary>
+        private static void AddCarSeatStates(AnimatorController controller, AnimatorStateMachine root)
+        {
+            AnimationClip entering = FindClip("entering_car");
+            AnimationClip exiting = FindClip("exiting_car");
+            AnimatorState locomotion = FindState(root, "Locomotion");
+            if (entering == null || exiting == null || locomotion == null)
+            {
+                Debug.LogWarning("CityX: missing a car seat clip -- entering/exiting a car will show no animation.");
+                return;
+            }
+
+            controller.AddParameter("EnteringCar", AnimatorControllerParameterType.Trigger);
+            controller.AddParameter("ExitingCar", AnimatorControllerParameterType.Trigger);
+
+            AnimatorState enteringState = root.AddState("EnteringCar");
+            enteringState.motion = entering;
+            AnimatorStateTransition intoEntering = root.AddAnyStateTransition(enteringState);
+            intoEntering.AddCondition(AnimatorConditionMode.If, 0.0f, "EnteringCar");
+            intoEntering.duration = 0.1f;
+            intoEntering.hasExitTime = false;
+            intoEntering.canTransitionToSelf = false;
+            // NO OUTGOING TRANSITION -- EnteringCar holds its own last frame
+            // for the whole drive (see Vehicles/Car.cs's own seat-occupancy
+            // gate), matching character.gd's own comment exactly. The only
+            // way out is the Any State transition into ExitingCar below.
+
+            AnimatorState exitingState = root.AddState("ExitingCar");
+            exitingState.motion = exiting;
+            AnimatorStateTransition intoExiting = root.AddAnyStateTransition(exitingState);
+            intoExiting.AddCondition(AnimatorConditionMode.If, 0.0f, "ExitingCar");
+            intoExiting.duration = 0.1f;
+            intoExiting.hasExitTime = false;
+            intoExiting.canTransitionToSelf = false;
+
+            // OUT ON THE FULL CLIP, unconditional -- matches ClimbTopOut's
+            // own precedent above: a real, deliberate one-shot player.gd
+            // waits out completely (PlayerLocomotion.IsCarAnimatorStateFinished
+            // polls this same clip finishing independently) before actually
+            // completing the exit.
+            AnimatorStateTransition outOfExiting = exitingState.AddTransition(locomotion);
+            outOfExiting.duration = 0.1f;
+            outOfExiting.hasExitTime = true;
+            outOfExiting.exitTime = 1.0f;
         }
 
         /// <summary>
