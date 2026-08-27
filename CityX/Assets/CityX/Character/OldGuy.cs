@@ -16,20 +16,10 @@ namespace CityX.Character
     /// TUTORIAL STATE IS SESSION-ONLY, like the claim it waits on.
     /// Quitting and reloading puts him back to his opening line.
     ///
-    /// TWO DELIBERATE SIMPLIFICATIONS FROM THE GODOT SOURCE, both named
-    /// rather than silently dropped:
+    /// ONE DELIBERATE SIMPLIFICATION FROM THE GODOT SOURCE, named rather
+    /// than silently dropped:
     ///
-    /// 1. NO OUT-OF-VIEW STAGING TELEPORT. Godot's own MAX_WALK_SECONDS/
-    /// STAGING_DISTANCE machinery moves him to a closer, camera-frustum-
-    /// checked starting point before a genuinely long walk, so a building
-    /// claimed on the far side of an infinite city never reads as several
-    /// real minutes of nothing. This port always has him walk the whole
-    /// real distance under UniqueNpc's own WalkTimeoutSeconds safety net
-    /// instead -- a claim far from wherever he was left standing costs a
-    /// longer wait, not a broken tutorial, but it is a real gap from the
-    /// polish the reference has.
-    ///
-    /// 2. A SIMPLER STROLL. Godot's own indoor wander tests real room with
+    /// A SIMPLER STROLL. Godot's own indoor wander tests real room with
     /// a sphere-cast and a clear-run raycast, specifically to reject the
     /// staircase and a partition wall by testing rather than assuming
     /// where they are. This port picks a random point within a radius of
@@ -81,6 +71,22 @@ namespace CityX.Character
         private const int WanderAttempts = 10;
         private const float GroundProbeUp = 3.0f;
         private const float GroundProbeDown = 2.0f;
+
+        /// <summary>The longest he'll be left walking before being staged in closer instead.</summary>
+        private const float MaxWalkSeconds = 40.0f;
+
+        /// <summary>How far out he's staged from when the real walk would be too long.</summary>
+        private const float StagingDistance = 30.0f;
+
+        /// <summary>How many points around the destination to consider staging him at.</summary>
+        private const int StagingCandidates = 12;
+
+        /// <summary>
+        /// Height the line-of-sight and visibility checks are run at --
+        /// chest, not the feet, so a kerb doesn't read as a wall and a
+        /// point isn't called visible because its ankles are.
+        /// </summary>
+        private const float StagingEyeHeight = 1.3f;
 
         private const float DoorApproachDistance = 2.2f;
         private const float DoorEntryDepth = 3.0f;
@@ -262,8 +268,16 @@ namespace CityX.Character
         /// <summary>
         /// Sets off for the building the player just claimed -- he WALKS
         /// there under his own power rather than appearing at it, so "I'll
-        /// meet you there" means what it says. See this class's own doc
-        /// comment on the out-of-view staging this port does not do.
+        /// meet you there" means what it says.
+        ///
+        /// OUT-OF-VIEW STAGING for a genuinely long walk, ported from
+        /// old_guy.gd's own MAX_WALK_SECONDS check: a building claimed on
+        /// the far side of an infinite city would otherwise read as several
+        /// real minutes of nothing, or -- if he were just teleported the
+        /// rest of the way instead -- as him popping into existence in
+        /// plain view. Staging him somewhere the player's own camera isn't
+        /// currently looking, then having him walk the last real stretch,
+        /// gets both: no long dead wait, and no visible pop.
         /// </summary>
         private void OnPlayerClaimedBuilding(Vector3 center, Vector3 size)
         {
@@ -276,12 +290,128 @@ namespace CityX.Character
             _homeSize = size;
             var outside = center + new Vector3(0.0f, ArrivalDropHeight, size.z * 0.5f + ArrivalDoorClearance);
 
+            float realWalkSeconds = FlatDistance(transform.position, outside) / WalkSpeed;
+            if (realWalkSeconds > MaxWalkSeconds)
+            {
+                Teleport(StagingPointNear(outside));
+            }
+
             // Which way to turn once he gets there: back toward the door
             // he's standing outside of, so he reads as waiting for you to
             // come out rather than staring off down the street.
             var face = new Vector3(center.x - outside.x, 0.0f, center.z - outside.z);
             WalkTo(outside, face);
             WalkFinishedOnce(OnArrivedAtBuilding);
+        }
+
+        /// <summary>
+        /// Moves the body directly rather than through WalkTo -- the
+        /// CharacterController has to be off for the duration, or it fights
+        /// the teleport and drags the body back toward where it was, the
+        /// same reasoning Civilian.Restart's own identical toggle gives.
+        /// </summary>
+        private void Teleport(Vector3 position)
+        {
+            bool wasEnabled = Controller.enabled;
+            Controller.enabled = false;
+            transform.position = position;
+            Controller.enabled = wasEnabled;
+        }
+
+        /// <summary>
+        /// Somewhere to start the walk from when the real one would take
+        /// longer than MaxWalkSeconds -- ported from old_guy.gd's own
+        /// _staging_point_near. Wants three things at once, in priority
+        /// order:
+        ///
+        ///  1. REAL GROUND under it, probed over a short vertical band so a
+        ///     point over a basement stair hole or off a ledge finds
+        ///     nothing and is skipped.
+        ///  2. OUT OF THE PLAYER'S VIEW. The whole point of staging is that
+        ///     the player never sees it happen; landing one in frame would
+        ///     be exactly the pop this exists to avoid.
+        ///  3. A CLEAR RUN to the destination. This is what keeps him out
+        ///     of building interiors: a candidate inside one has a wall
+        ///     between it and the door, so the line-of-sight cast fails and
+        ///     it's rejected.
+        ///
+        /// Each is dropped in turn rather than failing outright, because
+        /// standing him somewhere slightly wrong beats leaving him on the
+        /// far side of the city or dropping him into the void.
+        /// </summary>
+        private static Vector3 StagingPointNear(Vector3 destination)
+        {
+            Camera camera = Camera.main;
+            Vector3? groundedOnly = null;
+            Vector3? groundedWithSight = null;
+
+            for (int i = 0; i < StagingCandidates; i++)
+            {
+                float angle = Mathf.PI * 2.0f * i / StagingCandidates;
+                var candidate = destination +
+                                new Vector3(Mathf.Cos(angle), 0.0f, Mathf.Sin(angle)) * StagingDistance;
+                Vector3? spot = GroundPositionAt(candidate);
+                if (!spot.HasValue)
+                {
+                    continue;
+                }
+                groundedOnly ??= spot;
+                if (!HasClearRun(spot.Value, destination))
+                {
+                    continue;
+                }
+                groundedWithSight ??= spot;
+                if (camera == null || !IsInCameraFrustum(camera, spot.Value + Vector3.up * StagingEyeHeight))
+                {
+                    return spot.Value;
+                }
+            }
+
+            if (groundedWithSight.HasValue)
+            {
+                return groundedWithSight.Value;
+            }
+            if (groundedOnly.HasValue)
+            {
+                return groundedOnly.Value;
+            }
+            // Nothing anywhere round the ring had ground under it. Behind
+            // the destination is at least a real direction, and WalkTo's
+            // own timeout stops him if it turns out to be unreachable.
+            return destination - new Vector3(0.0f, 0.0f, StagingDistance);
+        }
+
+        /// <summary>
+        /// Whether there's an unobstructed walk between two points, cast at
+        /// chest height against world geometry -- ported from old_guy.gd's
+        /// own _has_clear_run.
+        /// </summary>
+        public static bool HasClearRun(Vector3 from, Vector3 to)
+        {
+            Vector3 a = from + Vector3.up * StagingEyeHeight;
+            Vector3 b = new Vector3(to.x, from.y + StagingEyeHeight, to.z);
+            Vector3 offset = b - a;
+            float distance = offset.magnitude;
+            if (distance < 0.001f)
+            {
+                return true;
+            }
+            return !Physics.Raycast(a, offset.normalized, distance, ~0, QueryTriggerInteraction.Ignore);
+        }
+
+        /// <summary>
+        /// Whether a world point falls inside the camera's view -- ported
+        /// from Godot's own Camera3D.is_position_in_frustum, which Unity has
+        /// no direct equivalent of. A point behind the camera (negative
+        /// viewport z) is never "in frame" regardless of its x/y, which a
+        /// bare viewport-rect check alone would get wrong.
+        /// </summary>
+        public static bool IsInCameraFrustum(Camera camera, Vector3 point)
+        {
+            Vector3 viewport = camera.WorldToViewportPoint(point);
+            return viewport.z > 0.0f &&
+                   viewport.x >= 0.0f && viewport.x <= 1.0f &&
+                   viewport.y >= 0.0f && viewport.y <= 1.0f;
         }
 
         private void OnArrivedAtBuilding()
