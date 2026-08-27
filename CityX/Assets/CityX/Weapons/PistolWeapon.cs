@@ -45,6 +45,20 @@ namespace CityX.Weapons
         /// <summary>Tighter while aiming down sights. Not zero -- a pistol is never laser-accurate.</summary>
         public const float AdsSpreadDegrees = 0.5f;
 
+        /// <summary>
+        /// How far each shot's own pitch is randomised, as a fraction either
+        /// side of 1.0 -- "still choppy if you spam shots", reported even
+        /// after PlayOneShot already stopped one shot's audio from cutting
+        /// another's off (see Fire's own comment on that fix). Overlapping
+        /// PLAYS OF THE IDENTICAL WAVEFORM, a few frames apart at this fire
+        /// rate, sum into audible comb-filtering -- a stutter baked into the
+        /// waveform itself, not a scheduling bug PlayOneShot could fix a
+        /// second time. A few percent of pitch jitter is enough to decorrelate
+        /// the overlapping copies without the variation itself being audible
+        /// as a pitch change.
+        /// </summary>
+        public const float ShotPitchJitter = 0.04f;
+
         public const float InteractRange = 2.5f;
         public const float LookDotThreshold = 0.82f; // cos(35 degrees)
 
@@ -55,12 +69,19 @@ namespace CityX.Weapons
         /// constant is in Godot's own radians/axis convention, and the
         /// bottle's grip (see BottleWeapon.GripHandRotationEuler) shows past
         /// sessions re-tuned rather than numerically converted these between
-        /// engines. A reasonable starting pose (barrel forward, grip natural)
-        /// rather than a false-precision conversion -- flagged, same as
-        /// pistol.gd's own history flags GRIP_HAND_ROTATION as something that
-        /// needed live in-hand tuning before it looked right.
+        /// engines.
+        ///
+        /// THE Z=180 IS LOAD-BEARING, not cosmetic -- the starting guess
+        /// this shipped with (X=-5, Y=90, Z=0) rendered the gun genuinely
+        /// upside down (slide at the bottom, grip up near the wrist),
+        /// confirmed by PistolBuilder.CaptureAiming against the real
+        /// pistol_aim_in pose, not just the arms-down carry. Adding the
+        /// 180-degree roll fixed both poses at once with this one constant --
+        /// no clip or bone offset needed rework. Reconfirm with
+        /// CaptureGrip/CaptureAiming before changing this again; a wrong
+        /// value here is not obvious from source alone.
         /// </summary>
-        public static readonly Vector3 GripHandRotationEuler = new Vector3(-5.0f, 90.0f, 0.0f);
+        public static readonly Vector3 GripHandRotationEuler = new Vector3(-5.0f, 90.0f, 180.0f);
 
         /// <summary>
         /// pistol.gd's own GRIP_SCALE, ported directly (a plain uniform
@@ -375,6 +396,12 @@ namespace CityX.Weapons
             // wrong where overlapping gunshot audio does not).
             if (ShotPlayer != null && ShotPlayer.clip != null)
             {
+                // See ShotPitchJitter's own doc comment -- PlayOneShot alone
+                // fixed shots CUTTING each other off; it does not stop
+                // several overlapping copies of the identical waveform from
+                // phase-cancelling into an audible stutter at this fire
+                // rate, which is a separate problem needing this separate fix.
+                ShotPlayer.pitch = RandomShotPitch();
                 ShotPlayer.PlayOneShot(ShotPlayer.clip);
             }
 
@@ -417,6 +444,16 @@ namespace CityX.Weapons
         /// axes perpendicular to direction, matching pistol.gd's own
         /// _apply_spread exactly.
         /// </summary>
+        /// <summary>
+        /// See ShotPitchJitter's own doc comment. Pure and static so the
+        /// jitter itself is directly testable without needing to fight
+        /// Fire's own cooldown gate to get several calls through it.
+        /// </summary>
+        public static float RandomShotPitch()
+        {
+            return 1.0f + Random.Range(-ShotPitchJitter, ShotPitchJitter);
+        }
+
         private static Vector3 ApplySpread(Vector3 direction, float spreadDegrees)
         {
             if (spreadDegrees <= 0.0f)
