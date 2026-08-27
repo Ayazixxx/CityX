@@ -163,11 +163,29 @@ namespace CityX.UI
         public static bool IsClaimCommand(string text) =>
             text != null && text.Trim().ToLowerInvariant() == "/claim";
 
+        /// <summary>Same normalization rule as IsClaimCommand, for /dance.</summary>
+        public static bool IsDanceCommand(string text) =>
+            text != null && text.Trim().ToLowerInvariant() == "/dance";
+
+        /// <summary>Same normalization rule as IsClaimCommand, for /breakdance.</summary>
+        public static bool IsBreakdanceCommand(string text) =>
+            text != null && text.Trim().ToLowerInvariant() == "/breakdance";
+
         private void Dispatch(string text)
         {
             if (IsClaimCommand(text))
             {
                 Claim?.TryClaim();
+                return;
+            }
+            if (IsDanceCommand(text))
+            {
+                InputReader?.StartDance();
+                return;
+            }
+            if (IsBreakdanceCommand(text))
+            {
+                InputReader?.StartBreakdance();
                 return;
             }
             Bubble?.Show(text);

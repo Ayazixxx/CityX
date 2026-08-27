@@ -81,6 +81,22 @@ namespace CityX.Character
         /// </summary>
         private bool _isAimingGun;
 
+        /// <summary>
+        /// Set by PlayerChat's own /dance and /breakdance commands (see
+        /// StartDance/StartBreakdance) -- ported from character.gd's own
+        /// _is_dancing, "loop an emote clip until something else takes
+        /// over." Godot clears it individually at the start of every other
+        /// action (punch, jump, block, shoot...); this port checks once,
+        /// up front in Update() (see RequestsDanceCancel), for the same
+        /// end result with one check instead of one scattered through every
+        /// action's own start.
+        /// </summary>
+        private bool _isDancing;
+        private bool _isBreakdancing;
+
+        public bool IsDancing => _isDancing;
+        public bool IsBreakdancing => _isBreakdancing;
+
         private PlayerLocomotion _locomotion;
         private PlayerVitals _vitals;
         private MeleeAttacker _melee;
@@ -122,12 +138,60 @@ namespace CityX.Character
             _orbitCamera = Object.FindFirstObjectByType<ThirdPersonCamera>();
         }
 
+        /// <summary>
+        /// Called by PlayerChat's own /dance command. No-op while airborne,
+        /// matching character.gd's own dance()/_play_emote guard -- dancing
+        /// mid-jump doesn't read as anything sensible, and the jump
+        /// animation already owns the body at that point anyway.
+        /// </summary>
+        public void StartDance()
+        {
+            if (_locomotion != null && !_locomotion.IsGrounded)
+            {
+                return;
+            }
+            _isDancing = true;
+            _isBreakdancing = false;
+        }
+
+        /// <summary>Called by PlayerChat's own /breakdance command. See StartDance's own doc comment.</summary>
+        public void StartBreakdance()
+        {
+            if (_locomotion != null && !_locomotion.IsGrounded)
+            {
+                return;
+            }
+            _isBreakdancing = true;
+            _isDancing = false;
+        }
+
+        /// <summary>
+        /// Whether this frame's input should end a dance in progress --
+        /// ported from character.gd's own "movement always cancels a dance"
+        /// rule, plus the individual _is_dancing=false clears its own
+        /// punch()/jump()/block() etc. each carry, folded into one check
+        /// here instead of one per action.
+        /// </summary>
+        private static bool RequestsDanceCancel(Keyboard keyboard)
+        {
+            return keyboard.wKey.isPressed || keyboard.aKey.isPressed ||
+                   keyboard.sKey.isPressed || keyboard.dKey.isPressed ||
+                   keyboard.spaceKey.isPressed || keyboard.leftShiftKey.isPressed ||
+                   keyboard.leftCtrlKey.isPressed;
+        }
+
         private void Update()
         {
             Keyboard keyboard = Keyboard.current;
             if (keyboard == null)
             {
                 return;
+            }
+
+            if ((_isDancing || _isBreakdancing) && RequestsDanceCancel(keyboard))
+            {
+                _isDancing = false;
+                _isBreakdancing = false;
             }
 
             float deltaTime = Time.deltaTime;
@@ -379,6 +443,8 @@ namespace CityX.Character
                 SwordEquipped = _melee != null && _melee.EquippedWeapon != null &&
                                 _melee.EquippedWeapon.MovesetId == ComboChain.Sword,
                 JetpackThrusting = jetpackThrusting,
+                Dancing = _isDancing,
+                Breakdancing = _isBreakdancing,
             };
 
             _locomotion.Tick(input, deltaTime);

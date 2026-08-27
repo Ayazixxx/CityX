@@ -17,6 +17,7 @@ namespace CityX.Tests
         private GameObject _chatObject;
         private GameObject _playerObject;
         private GameObject _cameraObject;
+        private GameObject _floor;
         private PlayerChat _chat;
         private PlayerInputReader _inputReader;
         private ThirdPersonCamera _orbitCamera;
@@ -48,6 +49,7 @@ namespace CityX.Tests
             Object.DestroyImmediate(_chatObject);
             Object.DestroyImmediate(_playerObject);
             Object.DestroyImmediate(_cameraObject);
+            if (_floor != null) Object.DestroyImmediate(_floor);
         }
 
         [Test]
@@ -186,6 +188,109 @@ namespace CityX.Tests
             _chat.Submit("anything");
 
             Assert.IsFalse(_chat.IsOpen);
+        }
+
+        [TestCase("/dance")]
+        [TestCase("/DANCE")]
+        [TestCase("  /dance  ")]
+        public void IsDanceCommandRecognisesTheDanceCommandRegardlessOfCaseOrWhitespace(string text)
+        {
+            Assert.IsTrue(PlayerChat.IsDanceCommand(text));
+        }
+
+        [TestCase("dance")]
+        [TestCase("/dancing")]
+        [TestCase("/breakdance")]
+        [TestCase("")]
+        [TestCase(null)]
+        public void IsDanceCommandRejectsEverythingElse(string text)
+        {
+            Assert.IsFalse(PlayerChat.IsDanceCommand(text));
+        }
+
+        [TestCase("/breakdance")]
+        [TestCase("/BREAKDANCE")]
+        [TestCase("  /breakdance  ")]
+        public void IsBreakdanceCommandRecognisesTheBreakdanceCommandRegardlessOfCaseOrWhitespace(string text)
+        {
+            Assert.IsTrue(PlayerChat.IsBreakdanceCommand(text));
+        }
+
+        [TestCase("breakdance")]
+        [TestCase("/dance")]
+        [TestCase("")]
+        [TestCase(null)]
+        public void IsBreakdanceCommandRejectsEverythingElse(string text)
+        {
+            Assert.IsFalse(PlayerChat.IsBreakdanceCommand(text));
+        }
+
+        /// <summary>
+        /// A real floor and a settling tick, since StartDance refuses while
+        /// airborne (see its own doc comment) and a fresh CharacterController
+        /// reports isGrounded false until it has actually moved onto
+        /// something.
+        /// </summary>
+        private void GroundThePlayer()
+        {
+            _floor = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            _floor.transform.position = new Vector3(0.0f, -0.5f, 0.0f);
+            _floor.transform.localScale = new Vector3(200.0f, 1.0f, 200.0f);
+            Physics.SyncTransforms();
+
+            var locomotion = _playerObject.GetComponent<PlayerLocomotion>();
+            locomotion.Bind();
+            for (int i = 0; i < 5; i++)
+            {
+                locomotion.Tick(default, 1.0f / 60.0f);
+            }
+            Assert.IsTrue(locomotion.IsGrounded, "setup failed -- the player never actually settled on the floor");
+        }
+
+        [Test]
+        public void SubmittingADanceCommandStartsDancingNotASpeechBubble()
+        {
+            GroundThePlayer();
+            var bubbleObject = new GameObject("Bubble");
+            var bubble = bubbleObject.AddComponent<SpeechBubble>();
+            bubble.Bind();
+            _chat.Bubble = bubble;
+
+            try
+            {
+                _chat.Open();
+                _chat.Submit("/dance");
+
+                Assert.IsTrue(_inputReader.IsDancing);
+                Assert.IsFalse(bubble.IsShowing, "/dance should never show as a speech bubble");
+            }
+            finally
+            {
+                Object.DestroyImmediate(bubbleObject);
+            }
+        }
+
+        [Test]
+        public void SubmittingABreakdanceCommandStartsBreakdancingNotASpeechBubble()
+        {
+            GroundThePlayer();
+            var bubbleObject = new GameObject("Bubble");
+            var bubble = bubbleObject.AddComponent<SpeechBubble>();
+            bubble.Bind();
+            _chat.Bubble = bubble;
+
+            try
+            {
+                _chat.Open();
+                _chat.Submit("/breakdance");
+
+                Assert.IsTrue(_inputReader.IsBreakdancing);
+                Assert.IsFalse(bubble.IsShowing, "/breakdance should never show as a speech bubble");
+            }
+            finally
+            {
+                Object.DestroyImmediate(bubbleObject);
+            }
         }
     }
 }

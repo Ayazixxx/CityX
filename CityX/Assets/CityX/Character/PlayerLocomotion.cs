@@ -115,6 +115,8 @@ namespace CityX.Character
         private static readonly int AimingParameter = Animator.StringToHash("Aiming");
         private static readonly int SwordEquippedParameter = Animator.StringToHash("SwordEquipped");
         private static readonly int JetpackThrustingParameter = Animator.StringToHash("JetpackThrusting");
+        private static readonly int DancingParameter = Animator.StringToHash("Dancing");
+        private static readonly int BreakdancingParameter = Animator.StringToHash("Breakdancing");
 
         /// <summary>Horizontal speed after the last tick, in metres per second.</summary>
         public float CurrentSpeed { get; private set; }
@@ -573,6 +575,8 @@ namespace CityX.Character
                 _animator.SetBool(AimingParameter, input.Aiming);
                 _animator.SetBool(SwordEquippedParameter, input.SwordEquipped);
                 _animator.SetBool(JetpackThrustingParameter, input.JetpackThrusting);
+                _animator.SetBool(DancingParameter, input.Dancing);
+                _animator.SetBool(BreakdancingParameter, input.Breakdancing);
             }
         }
     }

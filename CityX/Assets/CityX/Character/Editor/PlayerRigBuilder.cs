@@ -228,6 +228,7 @@ namespace CityX.CharacterEditor
             AddChargedJumpState(controller, root);
             AddAimingState(controller, root);
             AddJetpackIdleState(controller, root, idle);
+            AddDanceStates(controller, root);
             AddClimbingStates(controller, root);
             AddPunchStates(root);
             // AFTER AddPunchStates: AddSwordLocomotion has to exist before
@@ -543,6 +544,62 @@ namespace CityX.CharacterEditor
             outOf.AddCondition(AnimatorConditionMode.IfNot, 0.0f, "JetpackThrusting");
             outOf.duration = 0.15f;
             outOf.hasExitTime = false;
+        }
+
+        /// <summary>
+        /// The /dance and /breakdance chat emotes -- ported from
+        /// character.gd's own dance()/breakdance() ("loop an emote clip
+        /// until something else takes over"), dance.fbx/breakdance.fbx
+        /// already sitting retargeted and unused in the Animations folder,
+        /// the same "already imported, never wired up" situation
+        /// AddAimingState's own doc comment found for pistol_aim_in.fbx.
+        ///
+        /// BOTH DIRECTIONS ARE ANY-STATE ENTRIES, INCLUDING FROM EACH OTHER,
+        /// the same shape AddClimbingStates already uses for its own two
+        /// mutually-exclusive states -- typing /breakdance mid-dance needs
+        /// no direct Dance-to-Breakdance transition, only its own
+        /// independent entry condition, since Unity re-evaluates every Any
+        /// State transition every frame regardless of the current state.
+        /// </summary>
+        private static void AddDanceStates(AnimatorController controller, AnimatorStateMachine root)
+        {
+            AnimationClip dance = FindClip("dance");
+            AnimationClip breakdance = FindClip("breakdance");
+            AnimatorState locomotion = FindState(root, "Locomotion");
+            if (dance == null || breakdance == null || locomotion == null)
+            {
+                Debug.LogWarning("CityX: missing a dance clip -- the /dance emotes will show no animation.");
+                return;
+            }
+            MakeLooping(dance);
+            MakeLooping(breakdance);
+
+            controller.AddParameter("Dancing", AnimatorControllerParameterType.Bool);
+            controller.AddParameter("Breakdancing", AnimatorControllerParameterType.Bool);
+
+            AnimatorState danceState = root.AddState("Dance");
+            danceState.motion = dance;
+            AnimatorStateTransition intoDance = root.AddAnyStateTransition(danceState);
+            intoDance.AddCondition(AnimatorConditionMode.If, 0.0f, "Dancing");
+            intoDance.duration = 0.15f;
+            intoDance.hasExitTime = false;
+            intoDance.canTransitionToSelf = false;
+            AnimatorStateTransition outOfDance = danceState.AddTransition(locomotion);
+            outOfDance.AddCondition(AnimatorConditionMode.IfNot, 0.0f, "Dancing");
+            outOfDance.duration = 0.15f;
+            outOfDance.hasExitTime = false;
+
+            AnimatorState breakdanceState = root.AddState("Breakdance");
+            breakdanceState.motion = breakdance;
+            AnimatorStateTransition intoBreakdance = root.AddAnyStateTransition(breakdanceState);
+            intoBreakdance.AddCondition(AnimatorConditionMode.If, 0.0f, "Breakdancing");
+            intoBreakdance.duration = 0.15f;
+            intoBreakdance.hasExitTime = false;
+            intoBreakdance.canTransitionToSelf = false;
+            AnimatorStateTransition outOfBreakdance = breakdanceState.AddTransition(locomotion);
+            outOfBreakdance.AddCondition(AnimatorConditionMode.IfNot, 0.0f, "Breakdancing");
+            outOfBreakdance.duration = 0.15f;
+            outOfBreakdance.hasExitTime = false;
         }
 
         /// <summary>

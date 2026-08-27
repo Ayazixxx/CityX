@@ -97,6 +97,17 @@ namespace CityX.Character
         /// </summary>
         public bool JetpackThrusting;
 
+        /// <summary>
+        /// True for as long as the /dance chat emote is playing -- see
+        /// PlayerInputReader.StartDance/RequestsDanceCancel. Drives the
+        /// Animator's "Dancing" bool the same "carry the answer, decide
+        /// nothing here" way Aiming/SwordEquipped/JetpackThrusting already do.
+        /// </summary>
+        public bool Dancing;
+
+        /// <summary>Same as Dancing, for /breakdance.</summary>
+        public bool Breakdancing;
+
         /// <summary>The world-space direction the player wants to travel, flat and normalised.</summary>
         public Vector3 WorldDirection()
         {
