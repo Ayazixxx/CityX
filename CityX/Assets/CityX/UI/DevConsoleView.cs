@@ -79,6 +79,7 @@ namespace CityX.UI
         [Tooltip("What /spawn sword puts down, and what /equip sword equips.")]
         public GameObject SwordPrefab;
         public GameObject TopHatPrefab;
+        public GameObject FarmerHatPrefab;
 
         [Tooltip("What /spawn mustang puts down.")]
         public GameObject MustangPrefab;
@@ -432,6 +433,17 @@ namespace CityX.UI
                     Log("spawned a top hat -- press E nearby to pick it up");
                     return;
 
+                case "farmer_hat":
+                case "farmerhat":
+                    if (FarmerHatPrefab == null)
+                    {
+                        Log("no farmer hat prefab wired");
+                        return;
+                    }
+                    Instantiate(FarmerHatPrefab, where + Vector3.up * 0.05f, Quaternion.identity);
+                    Log("spawned a farmer hat -- press E nearby to pick it up");
+                    return;
+
                 case "grapple":
                     if (GrapplingHookPrefab == null)
                     {
@@ -639,6 +651,8 @@ namespace CityX.UI
                 case "sword": return ItemRegistry.Sword;
                 case "top_hat":
                 case "tophat": return ItemRegistry.TopHat;
+                case "farmer_hat":
+                case "farmerhat": return ItemRegistry.FarmerHat;
                 default: return null;
             }
         }

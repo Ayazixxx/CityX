@@ -151,6 +151,7 @@ namespace CityX.ViewEditor
             GameObject jetpackPrefab = CityX.WeaponsEditor.JetpackBuilder.Build();
             GameObject swordPrefab = CityX.WeaponsEditor.SwordBuilder.Build();
             GameObject topHatPrefab = CityX.WearablesEditor.TopHatBuilder.Build();
+            GameObject farmerHatPrefab = CityX.WearablesEditor.FarmerHatBuilder.Build();
             GameObject mustangPrefab = CityX.VehiclesEditor.CarBuilder.Build();
 
             // --- the player. The flycam stays on the same object but disabled,
@@ -300,6 +301,8 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.Sword, Prefab = swordPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.TopHat, Prefab = topHatPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.FarmerHat, Prefab = farmerHatPrefab },
                 };
 
                 // --- the grapple swing. Aim (left-click while a grappling
@@ -407,7 +410,8 @@ namespace CityX.ViewEditor
                 jetpackPrefab,
                 swordPrefab,
                 topHatPrefab,
-                mustangPrefab);
+                mustangPrefab,
+                farmerHatPrefab);
 
             // --- the pause menu. Escape opens it; it guards itself against
             // --- opening on top of the console above.

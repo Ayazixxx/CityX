@@ -23,6 +23,15 @@ namespace CityX.Tests
         }
 
         [Test]
+        public void TopHatAndFarmerHatShareTheHelmetSlot()
+        {
+            Assert.IsTrue(ItemRegistry.TryGet(ItemRegistry.TopHat, out ItemDefinition topHat));
+            Assert.IsTrue(ItemRegistry.TryGet(ItemRegistry.FarmerHat, out ItemDefinition farmerHat));
+            Assert.AreEqual("helmet", topHat.EquipSlot);
+            Assert.AreEqual("helmet", farmerHat.EquipSlot);
+        }
+
+        [Test]
         public void AnUnknownIdIsReportedRatherThanThrown()
         {
             Assert.IsFalse(ItemRegistry.Has("does_not_exist"));
