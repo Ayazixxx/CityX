@@ -41,6 +41,16 @@ namespace CityX.Character
         public AudioClip RuinsMusic;
         public AudioClip GroundImpactSound;
 
+        /// <summary>
+        /// Fired once the new-character entrance has handed control back --
+        /// whatever else in the scene needs to stay out of it (see
+        /// OldGuySpawner's own doc comment) waits on this rather than
+        /// polling IntroCutscene directly, the same "react to PlaySession,
+        /// don't couple to each other's internals" separation this class's
+        /// own doc comment already draws with CharacterIdentity.
+        /// </summary>
+        public event System.Action EntranceFinished;
+
         private IntroCutscene _cutscene;
 
         private void Start()
@@ -80,6 +90,8 @@ namespace CityX.Character
                 Destroy(_cutscene);
                 _cutscene = null;
             }
+
+            EntranceFinished?.Invoke();
         }
     }
 }

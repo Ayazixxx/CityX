@@ -210,24 +210,6 @@ namespace CityX.ViewEditor
                 claimSource.spatialBlend = 0.0f;
                 claim.AcquiredSoundSource = claimSource;
 
-                // --- Old Guy. Stands a few metres off, facing the spawn
-                // --- point -- "he watches you land" is the doc comment
-                // --- old_guy.gd itself opens with.
-                GameObject dialogueBoxPrefab = CityX.UIEditor.DialogueBoxBuilder.Build();
-                GameObject oldGuyPrefab = CityX.CharacterEditor.OldGuyBuilder.Build(dialogueBoxPrefab);
-                if (oldGuyPrefab != null)
-                {
-                    GameObject oldGuy = (GameObject)PrefabUtility.InstantiatePrefab(oldGuyPrefab);
-                    oldGuy.name = "OldGuy";
-                    oldGuy.transform.position = player.transform.position + new Vector3(3.0f, 0.0f, 3.0f);
-                    Vector3 facing = player.transform.position - oldGuy.transform.position;
-                    if (facing.sqrMagnitude > 0.0001f)
-                    {
-                        oldGuy.transform.rotation = Quaternion.LookRotation(
-                            new Vector3(facing.x, 0.0f, facing.z), Vector3.up);
-                    }
-                }
-
                 // --- the intro cutscene. Only actually starts for a
                 // --- genuinely new character (see IntroCutsceneStarter's
                 // --- own PlaySession check) -- pressing Play directly on
@@ -245,6 +227,33 @@ namespace CityX.ViewEditor
                     "Assets/CityX/UI/Audio/ruins1.mp3");
                 introStarter.GroundImpactSound = AssetDatabase.LoadAssetAtPath<AudioClip>(
                     "Assets/CityX/UI/Audio/cutscene_ground_impact.mp3");
+
+                // --- Old Guy. Stands a few metres off, facing the spawn
+                // --- point -- "he watches you land" is the doc comment
+                // --- old_guy.gd itself opens with. NOT instantiated
+                // --- directly -- OldGuySpawner defers that until the intro
+                // --- cutscene above has actually handed control back for a
+                // --- new character, matching main.gd's own
+                // --- _spawn_old_guy_when_playable (see that class's own
+                // --- doc comment): he must never be standing there, fully
+                // --- visible, for the whole of the player's own fall.
+                GameObject dialogueBoxPrefab = CityX.UIEditor.DialogueBoxBuilder.Build();
+                GameObject oldGuyPrefab = CityX.CharacterEditor.OldGuyBuilder.Build(dialogueBoxPrefab);
+                if (oldGuyPrefab != null)
+                {
+                    Vector3 oldGuySpawnPosition = player.transform.position + new Vector3(3.0f, 0.0f, 3.0f);
+                    Vector3 facing = player.transform.position - oldGuySpawnPosition;
+                    Quaternion oldGuySpawnRotation = facing.sqrMagnitude > 0.0001f
+                        ? Quaternion.LookRotation(new Vector3(facing.x, 0.0f, facing.z), Vector3.up)
+                        : Quaternion.identity;
+
+                    var oldGuySpawnerObject = new GameObject("OldGuySpawner");
+                    var oldGuySpawner = oldGuySpawnerObject.AddComponent<CityX.Character.OldGuySpawner>();
+                    oldGuySpawner.OldGuyPrefab = oldGuyPrefab;
+                    oldGuySpawner.SpawnPosition = oldGuySpawnPosition;
+                    oldGuySpawner.SpawnRotation = oldGuySpawnRotation;
+                    oldGuySpawner.IntroStarter = introStarter;
+                }
 
                 var bubbleObject = new GameObject("SpeechBubble");
                 bubbleObject.transform.SetParent(player.transform, false);
