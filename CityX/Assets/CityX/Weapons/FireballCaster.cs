@@ -4,9 +4,13 @@ using UnityEngine;
 namespace CityX.Weapons
 {
     /// <summary>
-    /// The fireball spell: press 1, aim the hand forward, launch a large
+    /// The fireball spell: press 1, raise the right hand, launch a large
     /// fireball that bursts into flame on impact. No Godot equivalent to
-    /// port -- an explicit new-mechanic ask, same footing as Jetpack.cs.
+    /// port -- an explicit new-mechanic ask, same footing as Jetpack.cs. The
+    /// raised-hand visual itself lives in PlayerLocomotion.SetCastPose/
+    /// ApplyCastingPose, driven by this class's own CastFraction -- a
+    /// dedicated procedural pose, not a reuse of the gun's own aim-in
+    /// animation the way an earlier version of this file's own wiring did.
     ///
     /// AN INNATE ABILITY, NOT AN EQUIPPABLE ITEM -- unlike a gun or a sword,
     /// nothing has to be picked up or equipped first; the explicit ask
@@ -54,6 +58,9 @@ namespace CityX.Weapons
         private PlayerVitals _vitals;
 
         public bool IsCasting => _castPoseRemaining > 0.0f;
+
+        public float CastFraction =>
+            CastPoseSeconds > 0.0f ? Mathf.Clamp01(_castPoseRemaining / CastPoseSeconds) : 0.0f;
 
         public bool CanCast => _cooldownRemaining <= 0.0f && (_vitals == null || !_vitals.IsDead);
 

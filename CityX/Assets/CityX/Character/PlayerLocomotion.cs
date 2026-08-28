@@ -100,6 +100,7 @@ namespace CityX.Character
         private Transform _rightFoot;
         private Transform _handL;
         private Transform _handR;
+        private Transform _rightUpperArm;
         private float _verticalVelocity;
 
         /// <summary>
@@ -139,6 +140,30 @@ namespace CityX.Character
         private Quaternion _drivingHandBaseL = Quaternion.identity;
         private Quaternion _drivingHandBaseR = Quaternion.identity;
         private float _appliedHeight = -1.0f;
+
+        /// <summary>
+        /// How far the right arm lifts at full cast, in degrees around the
+        /// arm's own local Z (Vector3.forward) -- NOT local X, which turned
+        /// out to be this rig's own twist/roll axis: an equal-magnitude
+        /// rotation there left the hand's own WORLD POSITION almost
+        /// unchanged (checked directly, since a static Edit Mode render
+        /// cannot show a skinned mesh's pose at all -- Unity only refreshes
+        /// skin buffers on a real player-loop frame tick, which a
+        /// synchronous out-of-band Camera.Render() call outside Play Mode
+        /// never gets). The AXIS was picked by comparing six axis/sign
+        /// candidates at 80 degrees against hand_r's own real-Play-Mode
+        /// world position -- +forward was the clear winner (hand moves
+        /// mostly up, with a natural outward swing and only a slight
+        /// forward lean, unlike every other candidate, which crossed the
+        /// hand over the body instead). That same real-pose measurement
+        /// showed 80 degrees only lifting the hand ~0.21m from its resting,
+        /// arm-hanging height -- a bit subtle for "raises his right hand" --
+        /// so the MAGNITUDE here was then raised past that to 130, verified
+        /// against PlayerLocomotionCastPosePlayTests' own >0.3m threshold.
+        /// </summary>
+        public const float CastRaiseDegrees = 130.0f;
+
+        private float _castPoseFraction;
 
         /// <summary>The smoothed horizontal velocity HorizontalAcceleration eases toward its target -- see that field's own doc comment.</summary>
         private Vector3 _horizontalVelocity;
@@ -284,6 +309,7 @@ namespace CityX.Character
             _rightFoot = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.RightFoot) : null;
             _handL = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.LeftHand) : null;
             _handR = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.RightHand) : null;
+            _rightUpperArm = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.RightUpperArm) : null;
             ApplyHeight();
         }
 
@@ -344,6 +370,7 @@ namespace CityX.Character
                 ClampFeetAboveGround();
             }
             ApplyDrivingWheelPose();
+            ApplyCastingPose();
         }
 
         /// <summary>
@@ -444,6 +471,38 @@ namespace CityX.Character
             Quaternion offset = Quaternion.AngleAxis(DrivingHandTurnDegrees * fraction, Vector3.right);
             _handL.localRotation = _drivingHandBaseL * offset;
             _handR.localRotation = _drivingHandBaseR * offset;
+        }
+
+        /// <summary>
+        /// Called every frame by PlayerInputReader with FireballCaster's own
+        /// CastFraction -- the explicit ask was "an animation where he
+        /// raises his right hand" for the fireball spell, so this layers an
+        /// additive raise onto the RightUpperArm bone rather than swapping
+        /// in a whole separate Animator state the way gun-aiming's own
+        /// pistol_aim_in does, matching ApplyDrivingWheelPose's own
+        /// procedural-pose shape for the same "no real animation clip fits"
+        /// reason.
+        /// </summary>
+        public void SetCastPose(float fraction)
+        {
+            _castPoseFraction = Mathf.Clamp01(fraction);
+        }
+
+        /// <summary>
+        /// Reads the arm's rotation FRESH every frame rather than capturing
+        /// a one-time base the way ApplyDrivingWheelPose does -- a cast can
+        /// happen mid-walk or mid-run, and the raise is meant to layer on
+        /// top of whatever the current locomotion pose is doing with that
+        /// arm, not freeze it to a snapshot from the moment the cast began.
+        /// </summary>
+        private void ApplyCastingPose()
+        {
+            if (_rightUpperArm == null || _castPoseFraction <= 0.0f)
+            {
+                return;
+            }
+            Quaternion offset = Quaternion.AngleAxis(CastRaiseDegrees * _castPoseFraction, Vector3.forward);
+            _rightUpperArm.localRotation = _rightUpperArm.localRotation * offset;
         }
 
         /// <summary>

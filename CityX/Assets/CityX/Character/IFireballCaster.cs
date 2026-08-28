@@ -20,11 +20,23 @@ namespace CityX.Character
         bool CanCast { get; }
 
         /// <summary>
-        /// True for a short cosmetic window after a successful cast --
-        /// drives the Animator's own aim-forward pose, folded into
-        /// LocomotionInput.Aiming by PlayerInputReader.
+        /// True for a short cosmetic window after a successful cast -- folded
+        /// into PlayerInputReader's own jetpack-suppression check the same
+        /// way gun-aiming already is, so a cast interrupts jetpack thrust the
+        /// same way aiming does. The actual visual (a raised right hand) is
+        /// driven by <see cref="CastFraction"/> instead, not this bool.
         /// </summary>
         bool IsCasting { get; }
+
+        /// <summary>
+        /// 1 immediately after a cast, easing to 0 as the same cosmetic
+        /// window <see cref="IsCasting"/> above tracks runs out -- drives
+        /// PlayerLocomotion.SetCastPose, which layers a raised-arm pose
+        /// scaled by this fraction on top of whatever the locomotion
+        /// animator is already doing, rather than replacing it with a whole
+        /// separate Animator state.
+        /// </summary>
+        float CastFraction { get; }
 
         void Tick(float deltaTime);
 

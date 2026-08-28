@@ -83,6 +83,21 @@ namespace CityX.Tests
         }
 
         [Test]
+        public void CastFractionStartsAtOneAndEasesToZeroWithTheAimPose()
+        {
+            Assert.AreEqual(0.0f, _fireball.CastFraction, "nothing has been cast yet");
+
+            _fireball.TryCast(Vector3.zero, Vector3.forward, null);
+            Assert.AreEqual(1.0f, _fireball.CastFraction, "just cast -- the raise should be at its peak");
+
+            _fireball.Tick(_fireball.CastPoseSeconds * 0.5f);
+            Assert.AreEqual(0.5f, _fireball.CastFraction, 0.001f, "halfway through the cosmetic window");
+
+            _fireball.Tick(_fireball.CastPoseSeconds * 0.5f + 0.01f);
+            Assert.AreEqual(0.0f, _fireball.CastFraction, "the cosmetic window ended");
+        }
+
+        [Test]
         public void AZeroDirectionRefusesToCast()
         {
             Assert.IsFalse(_fireball.TryCast(Vector3.zero, Vector3.zero, null),

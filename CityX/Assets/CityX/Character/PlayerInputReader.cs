@@ -511,7 +511,15 @@ namespace CityX.Character
                     out chargingJumpNow, out jumpReleased, out jumpChargeFraction);
             }
 
-            bool isAiming = _isAimingGun || (_fireballCaster != null && _fireballCaster.IsCasting);
+            // A CAST NO LONGER BORROWS THE GUN'S OWN AIM POSE -- the explicit
+            // ask was a dedicated animation (a raised right hand), so
+            // isCastingFireball now only feeds the jetpack-suppression check
+            // below, the same way gun-aiming does; the actual visual is a
+            // separate procedural pose (see PlayerLocomotion.SetCastPose)
+            // rather than a second state sharing LocomotionInput.Aiming.
+            bool isCastingFireball = _fireballCaster != null && _fireballCaster.IsCasting;
+            bool isAiming = _isAimingGun || isCastingFireball;
+            _locomotion.SetCastPose(_fireballCaster != null ? _fireballCaster.CastFraction : 0.0f);
 
             var input = new LocomotionInput
             {
@@ -525,12 +533,9 @@ namespace CityX.Character
                 ChargingJump = chargingJumpNow,
                 JumpReleased = jumpReleased,
                 JumpChargeFraction = jumpChargeFraction,
-                // Casting reuses the exact same arm-forward pose a gun's
-                // own aim-in already shows -- "raise the hand toward the
-                // target" is exactly what that pose is, so this folds in
-                // rather than duplicating it as a second near-identical
-                // state (see IFireballCaster.IsCasting's own doc comment).
-                Aiming = isAiming,
+                // Gun-aiming only now -- see isCastingFireball's own comment
+                // just above for why a cast no longer sets this too.
+                Aiming = _isAimingGun,
                 SwordEquipped = _melee != null && _melee.EquippedWeapon != null &&
                                 _melee.EquippedWeapon.MovesetId == ComboChain.Sword,
                 // AIMING WINS, not jetpackThrusting raw -- "aim and shoot
