@@ -7,7 +7,8 @@ namespace CityX.WeaponsEditor
 {
     /// <summary>
     /// Builds the jetpack prefab -- two tanks on a backplate, a downward
-    /// flame ParticleSystem, all procedural (matching BottleBuilder/
+    /// flame ParticleSystem, and a looping thrust AudioSource, all
+    /// procedural except the audio clip itself (matching BottleBuilder/
     /// GrapplingHookBuilder's own reasoning: no glTF importer exists in
     /// this project for a hand-authored jetpack mesh, so nothing here waits
     /// on one). No Godot source to port numbers from -- see Jetpack.cs's
@@ -16,6 +17,7 @@ namespace CityX.WeaponsEditor
     public static class JetpackBuilder
     {
         private const string PrefabPath = "Assets/CityX/Weapons/Jetpack.prefab";
+        private const string ThrustClipPath = "Assets/CityX/Weapons/Audio/jetpack_thrust_loop.mp3";
 
         private static readonly Color TankColour = new Color(0.55f, 0.56f, 0.58f);
         private static readonly Color PlateColour = new Color(0.12f, 0.12f, 0.13f);
@@ -78,6 +80,7 @@ namespace CityX.WeaponsEditor
 
                 var jetpack = root.AddComponent<Jetpack>();
                 jetpack.FlameEffect = flame;
+                jetpack.ThrustAudio = BuildThrustAudio(root);
 
                 GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
                 AssetDatabase.SaveAssets();
@@ -138,6 +141,29 @@ namespace CityX.WeaponsEditor
 
             particles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
             return particles;
+        }
+
+        /// <summary>
+        /// Directly on the root, not a positioned child the way Flame is --
+        /// spatialBlend 0 makes it non-positional (the sound of THIS BODY
+        /// thrusting, heard from inside it), matching PlayerAudio's own
+        /// AddLoop reasoning for footsteps/ambience, so there is no 3D
+        /// position for it to need. Jetpack.Tick starts/stops this by
+        /// calling Play()/Stop() directly, the same way it already does for
+        /// FlameEffect.
+        /// </summary>
+        private static AudioSource BuildThrustAudio(GameObject root)
+        {
+            var source = root.AddComponent<AudioSource>();
+            source.clip = AssetDatabase.LoadAssetAtPath<AudioClip>(ThrustClipPath);
+            if (source.clip == null)
+            {
+                Debug.LogWarning($"CityX: {ThrustClipPath} missing -- jetpack will thrust silently.");
+            }
+            source.loop = true;
+            source.playOnAwake = false;
+            source.spatialBlend = 0.0f;
+            return source;
         }
     }
 }

@@ -87,6 +87,9 @@ namespace CityX.Weapons
         [Tooltip("Set by JetpackBuilder -- plays while thrusting, stopped otherwise.")]
         public ParticleSystem FlameEffect;
 
+        [Tooltip("Set by JetpackBuilder (jetpack_thrust_loop.mp3) -- loops while thrusting, stopped otherwise.")]
+        public AudioSource ThrustAudio;
+
         private SphereCollider _pickupTrigger;
         private Transform _nearbyPlayer;
         private bool _equipped;
@@ -96,6 +99,9 @@ namespace CityX.Weapons
 
         /// <summary>Current eased lean, X = pitch (forward/back), Z = roll (strafe).</summary>
         private Vector2 _currentTilt;
+
+        /// <summary>Exposed for testing without a real Animator -- see TickTilt's own doc comment.</summary>
+        public Vector2 CurrentTilt => _currentTilt;
 
         private void Awake()
         {
@@ -241,7 +247,7 @@ namespace CityX.Weapons
                 }
             }
 
-            TickTilt(moveInput, boostHeld, deltaTime);
+            TickTilt(thrustHeld, moveInput, boostHeld, deltaTime);
 
             if (FlameEffect != null)
             {
@@ -252,6 +258,18 @@ namespace CityX.Weapons
                 else if (!thrustHeld && FlameEffect.isEmitting)
                 {
                     FlameEffect.Stop();
+                }
+            }
+
+            if (ThrustAudio != null)
+            {
+                if (thrustHeld && !ThrustAudio.isPlaying)
+                {
+                    ThrustAudio.Play();
+                }
+                else if (!thrustHeld && ThrustAudio.isPlaying)
+                {
+                    ThrustAudio.Stop();
                 }
             }
         }
@@ -307,16 +325,27 @@ namespace CityX.Weapons
         }
 
         /// <summary>
+        /// ONLY LEANS WHILE ACTUALLY THRUSTING -- an explicit correction:
+        /// this used to lean off WASD alone regardless of whether Space was
+        /// held, so simply air-steering a fall with the jetpack equipped
+        /// (but not thrusting) leaned the body as if flying. With thrust
+        /// not held the target is forced to level, easing the body back to
+        /// neutral the same way letting go of a single WASD key already
+        /// eases that axis back (see EaseTiltStraightensOutOnceTheKeyIsReleased),
+        /// so the model's own pose reads as idle/falling rather than banked
+        /// the instant thrust actually stops.
+        ///
         /// Boosting only amplifies the lean while there is a direction to
         /// lean toward -- with no WASD held, Tick spends the same boost on
         /// a faster climb instead (see its own doc comment), so this must
         /// not also treat "boosting straight up" as "lean further toward
         /// nothing," which would just widen dead-zone jitter around zero.
         /// </summary>
-        private void TickTilt(Vector2 moveInput, bool boostHeld, float deltaTime)
+        private void TickTilt(bool thrustHeld, Vector2 moveInput, bool boostHeld, float deltaTime)
         {
             bool amplify = boostHeld && moveInput.sqrMagnitude > 0.0001f;
-            _currentTilt = EaseTilt(_currentTilt, TiltTarget(moveInput, amplify), deltaTime);
+            Vector2 target = thrustHeld ? TiltTarget(moveInput, amplify) : Vector2.zero;
+            _currentTilt = EaseTilt(_currentTilt, target, deltaTime);
             if (_animatorTransform != null)
             {
                 _animatorTransform.localRotation = Quaternion.Euler(_currentTilt.x, 0.0f, _currentTilt.y);

@@ -53,6 +53,9 @@ namespace CityX.Weapons
 
         public GameObject FireballPrefab;
 
+        [Tooltip("fireball_cast.mp3 -- plays once per successful cast. Set directly by CityMassingSceneBuilder, since this component has no separate item builder of its own.")]
+        public AudioSource CastAudio;
+
         private float _cooldownRemaining;
         private float _castPoseRemaining;
         private PlayerVitals _vitals;
@@ -101,6 +104,17 @@ namespace CityX.Weapons
 
             _cooldownRemaining = CooldownSeconds;
             _castPoseRemaining = CastPoseSeconds;
+
+            // PlayOneShot, not Play() -- matching PistolWeapon.ShotPlayer's
+            // own reasoning: Play() restarts the SAME playback, so a cast
+            // fired again before the clip finishes would cut itself off.
+            // Never actually reachable at this spell's own 1.5s cooldown
+            // against a short cast clip, but costs nothing to get right the
+            // same way regardless.
+            if (CastAudio != null && CastAudio.clip != null)
+            {
+                CastAudio.PlayOneShot(CastAudio.clip);
+            }
 
             int strength = _vitals != null ? _vitals.Strength : 0;
             Vector3 forward = direction.normalized;

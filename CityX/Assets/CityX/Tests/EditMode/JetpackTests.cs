@@ -282,6 +282,69 @@ namespace CityX.Tests
             Assert.AreEqual(Vector2.zero, Jetpack.TiltTarget(Vector2.zero, boosting: true));
         }
 
+        /// <summary>
+        /// EXPLICIT CORRECTION: the lean used to follow WASD alone, so
+        /// air-steering a fall with the jetpack equipped but NOT thrusting
+        /// still leaned the body as if flying. Holding a direction with
+        /// thrust released must stay level instead -- the model should read
+        /// as idle/falling, not banked.
+        /// </summary>
+        [Test]
+        public void HoldingADirectionWithoutThrustNeverLeansTheBody()
+        {
+            for (int i = 0; i < 30; i++)
+            {
+                _jetpack.Tick(thrustHeld: false, moveInput: new Vector2(0.0f, 1.0f), boostHeld: false,
+                    deltaTime: 1.0f / 60.0f);
+            }
+
+            Assert.AreEqual(Vector2.zero, _jetpack.CurrentTilt,
+                "the body leaned even though thrust was never held");
+        }
+
+        /// <summary>
+        /// The control case, proving the test above isn't accidentally
+        /// passing because leaning is broken outright -- the exact same
+        /// held direction, but WITH thrust, must still lean.
+        /// </summary>
+        [Test]
+        public void HoldingADirectionWithThrustStillLeansTheBody()
+        {
+            for (int i = 0; i < 30; i++)
+            {
+                _jetpack.Tick(thrustHeld: true, moveInput: new Vector2(0.0f, 1.0f), boostHeld: false,
+                    deltaTime: 1.0f / 60.0f);
+            }
+
+            Assert.Greater(_jetpack.CurrentTilt.x, 1.0f,
+                "the body never leaned even with thrust held -- the control case is broken");
+        }
+
+        /// <summary>
+        /// Releasing thrust mid-lean must ease back to level, the same way
+        /// releasing a single WASD key already eases that axis back to zero
+        /// (see EaseTiltStraightensOutOnceTheKeyIsReleased) -- thrust ending
+        /// is just another way the target becomes zero.
+        /// </summary>
+        [Test]
+        public void ReleasingThrustStraightensOutAnExistingLean()
+        {
+            for (int i = 0; i < 30; i++)
+            {
+                _jetpack.Tick(thrustHeld: true, moveInput: new Vector2(0.0f, 1.0f), boostHeld: false,
+                    deltaTime: 1.0f / 60.0f);
+            }
+            Assert.Greater(_jetpack.CurrentTilt.x, 1.0f, "setup failed -- the body never actually leaned");
+
+            for (int i = 0; i < 30; i++)
+            {
+                _jetpack.Tick(thrustHeld: false, moveInput: new Vector2(0.0f, 1.0f), boostHeld: false,
+                    deltaTime: 1.0f / 60.0f);
+            }
+            Assert.AreEqual(0.0f, _jetpack.CurrentTilt.x, 0.01f,
+                "releasing thrust never straightened the body back out");
+        }
+
         [Test]
         public void BoostWithNoDirectionClimbsFasterThanPlainThrust()
         {

@@ -317,6 +317,17 @@ namespace CityX.ViewEditor
                 // --- like the sword/jetpack above.
                 var fireballCaster = player.AddComponent<CityX.Weapons.FireballCaster>();
                 fireballCaster.FireballPrefab = CityX.WeaponsEditor.FireballProjectileBuilder.Build();
+
+                // No separate builder for FireballCaster itself (it's added
+                // directly here, not behind a pickup item) -- so the cast
+                // sound is wired inline too, the same non-positional way
+                // PlayerAudio's own footstep/ambience loops are (this is
+                // the sound of THIS BODY casting, heard from inside it).
+                var castAudio = player.AddComponent<AudioSource>();
+                castAudio.clip = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/CityX/Weapons/Audio/fireball_cast.mp3");
+                castAudio.playOnAwake = false;
+                castAudio.spatialBlend = 0.0f;
+                fireballCaster.CastAudio = castAudio;
             }
             else
             {
