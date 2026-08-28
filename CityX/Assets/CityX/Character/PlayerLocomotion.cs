@@ -630,7 +630,11 @@ namespace CityX.Character
             // play a crouch walk over a body already travelling at 7.5 m/s.
             IsCrouching = input.Crouch && !input.Sprint;
 
-            float speed = sprinting ? SprintSpeed : WalkSpeed;
+            // JETPACK BOOSTING REACHES THE SAME SPEED AS SPRINT, but through
+            // its own flag rather than folding into `sprinting` above -- see
+            // LocomotionInput.JetpackBoosting's own doc comment for why: no
+            // stamina cost, and no forward-only restriction either.
+            float speed = (sprinting || input.JetpackBoosting) ? SprintSpeed : WalkSpeed;
             Vector3 targetHorizontal = direction * speed;
             Vector3 horizontal;
 

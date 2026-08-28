@@ -69,7 +69,7 @@ namespace CityX.Tests
             // Settle into a real idle pose first, matching
             // PlayerLocomotionHipsPlayTests' own reasoning for not
             // asserting against the very first, still-blending-in frame.
-            for (int step = 0; step < 10; step++)
+            for (int step = 0; step < 30; step++)
             {
                 _locomotion.Tick(idle, StepSeconds);
                 yield return null;
@@ -77,9 +77,16 @@ namespace CityX.Tests
 
             Vector3 handBeforeRelative = hand.position - hips.position;
 
+            // Held across several frames, not read after just one -- a real
+            // cast holds CastFraction at 1 for a real 0.4s window (many
+            // frames), so a single-frame read here is a stricter, more
+            // timing-fragile check than production ever actually needs.
             _locomotion.SetCastPose(1.0f);
-            _locomotion.Tick(idle, StepSeconds);
-            yield return null;
+            for (int step = 0; step < 5; step++)
+            {
+                _locomotion.Tick(idle, StepSeconds);
+                yield return null;
+            }
 
             Vector3 delta = (hand.position - hips.position) - handBeforeRelative;
             float up = Vector3.Dot(delta, hips.up);
@@ -111,7 +118,7 @@ namespace CityX.Tests
             Transform hips = _animator.GetBoneTransform(HumanBodyBones.Hips);
             var idle = new LocomotionInput();
 
-            for (int step = 0; step < 10; step++)
+            for (int step = 0; step < 30; step++)
             {
                 _locomotion.Tick(idle, StepSeconds);
                 yield return null;

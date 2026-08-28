@@ -552,6 +552,13 @@ namespace CityX.Character
                 // un-suppressed jetpackThrusting, so holding right-click
                 // never weakens the actual thrust/lean it's flying on.
                 JetpackThrusting = jetpackThrusting && !isAiming,
+                // UN-SUPPRESSED BY isAiming, matching JetpackThrusting's own
+                // comment just above on why EquippedJetpack.Tick's real
+                // thrust/lean never weakens while aiming -- this drives real
+                // movement speed, not an Animator Any-State bool, so there
+                // is no state-machine conflict here to suppress in the
+                // first place.
+                JetpackBoosting = jetpackThrusting && keyboard.leftShiftKey.isPressed,
                 Dancing = _isDancing,
                 Breakdancing = _isBreakdancing,
             };

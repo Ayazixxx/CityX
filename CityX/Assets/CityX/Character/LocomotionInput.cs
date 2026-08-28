@@ -98,6 +98,23 @@ namespace CityX.Character
         public bool JetpackThrusting;
 
         /// <summary>
+        /// True whenever a jetpack is thrusting AND shift is held -- the
+        /// same "boostHeld" flag IJetpack.Tick already gets for its own
+        /// lean/climb amplification, reused here to also raise horizontal
+        /// speed to SprintSpeed. NOT routed through Sprint/wantsSprint --
+        /// that path costs stamina, and the jetpack is explicitly "infinite
+        /// fuel, on purpose" (see Jetpack's own class comment), so boosting
+        /// with it must not drain a resource that would otherwise gate an
+        /// unrelated, on-foot mechanic. Also, unlike ground Sprint, this
+        /// applies in every direction, not just forward: JetpackThrusting
+        /// above already forces a fixed jetpack pose regardless of travel
+        /// direction (see that field's own doc comment), so there is no
+        /// missing walk/run clip for a sideways or backward burst of speed
+        /// to expose the way there would be on the ground.
+        /// </summary>
+        public bool JetpackBoosting;
+
+        /// <summary>
         /// True for as long as the /dance chat emote is playing -- see
         /// PlayerInputReader.StartDance/RequestsDanceCancel. Drives the
         /// Animator's "Dancing" bool the same "carry the answer, decide

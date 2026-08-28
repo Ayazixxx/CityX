@@ -91,6 +91,49 @@ namespace CityX.Tests
             Assert.AreEqual(_locomotion.SprintSpeed, _locomotion.CurrentSpeed, 0.01f);
         }
 
+        /// <summary>
+        /// The explicit ask: holding shift while the jetpack is thrusting
+        /// should reach sprint speed. Checked BACKWARD, not forward -- see
+        /// LocomotionInput.JetpackBoosting's own doc comment for why this
+        /// path is deliberately not restricted to forward the way ground
+        /// Sprint is: JetpackThrusting already forces a fixed pose
+        /// regardless of travel direction, so there is no missing clip for
+        /// a backward or sideways burst of speed to expose.
+        /// </summary>
+        [Test]
+        public void JetpackBoostingReachesSprintSpeedEvenGoingBackward()
+        {
+            var input = new LocomotionInput
+            {
+                Move = new Vector2(0.0f, -1.0f),
+                JetpackBoosting = true,
+            };
+            Settle(input);
+
+            Assert.AreEqual(_locomotion.SprintSpeed, _locomotion.CurrentSpeed, 0.01f);
+        }
+
+        /// <summary>
+        /// JetpackBoosting reaches the same SPEED as sprint, but is not
+        /// itself a sprint -- IsSprinting drives the ground run animation/
+        /// footstep loop, neither of which applies while airborne on a
+        /// jetpack (JetpackThrusting already forces its own fixed pose, and
+        /// footstep audio is separately gated on IsGrounded).
+        /// </summary>
+        [Test]
+        public void JetpackBoostingDoesNotCountAsSprintingForAnimationPurposes()
+        {
+            var input = new LocomotionInput
+            {
+                Move = new Vector2(0.0f, 1.0f),
+                JetpackBoosting = true,
+            };
+            Settle(input);
+
+            Assert.IsFalse(_locomotion.IsSprinting);
+            Assert.AreEqual(_locomotion.SprintSpeed, _locomotion.CurrentSpeed, 0.01f);
+        }
+
         [Test]
         public void CrouchingDoesNotSlowTheBody()
         {
