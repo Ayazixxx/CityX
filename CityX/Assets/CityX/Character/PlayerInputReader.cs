@@ -32,6 +32,15 @@ namespace CityX.Character
         public IEquippableGun EquippedGun;
 
         /// <summary>
+        /// Set by Flamethrower's own OnEquip/OnUnequip, same pattern as
+        /// EquippedGun. While non-null, left-click takes over entirely --
+        /// see TickCombat's own flamethrower branch and
+        /// IEquippableFlamethrower's own doc comment for why this is not
+        /// EquippedGun itself.
+        /// </summary>
+        public IEquippableFlamethrower EquippedFlamethrower;
+
+        /// <summary>
         /// Set by Jetpack's own OnEquip/OnUnequip, same pattern as
         /// EquippedGun. While non-null, Space thrusts instead of charging a
         /// jump -- see the Update() dispatch and IJetpack's own doc comment.
@@ -662,6 +671,26 @@ namespace CityX.Character
                 if (Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame)
                 {
                     EquippedGun.TryReload();
+                }
+                return;
+            }
+
+            // A FLAMETHROWER TAKES OVER LEFT-CLICK ENTIRELY WHILE EQUIPPED,
+            // same "exclusive dispatch" shape as EquippedGun just above --
+            // but HELD, not a single press: see
+            // IEquippableFlamethrower.Tick's own doc comment for why this
+            // isn't folded into EquippedGun itself. isPressed rather than
+            // wasPressedThisFrame is what makes the stream continuous for
+            // as long as the button stays down.
+            if (EquippedFlamethrower != null)
+            {
+                Transform flameYawSource = YawSource != null
+                    ? YawSource
+                    : (Camera.main != null ? Camera.main.transform : null);
+                if (flameYawSource != null)
+                {
+                    EquippedFlamethrower.Tick(Mouse.current.leftButton.isPressed,
+                        flameYawSource.position, flameYawSource.forward, gameObject, deltaTime);
                 }
                 return;
             }

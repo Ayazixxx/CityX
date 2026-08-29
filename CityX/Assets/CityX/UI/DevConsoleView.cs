@@ -69,6 +69,7 @@ namespace CityX.UI
         [Tooltip("What /spawn grapple puts down, and what /equip grapple equips.")]
         public GameObject GrapplingHookPrefab;
         public GameObject PistolPrefab;
+        public GameObject FlamethrowerPrefab;
 
         [Tooltip("What /spawn coat puts down, and what /equip coat equips.")]
         public GameObject MidnightPatchworkCoatPrefab;
@@ -464,6 +465,16 @@ namespace CityX.UI
                     Log("spawned a pistol -- walk up, look at it and press E");
                     return;
 
+                case "flamethrower":
+                    if (FlamethrowerPrefab == null)
+                    {
+                        Log("no flamethrower prefab wired");
+                        return;
+                    }
+                    Instantiate(FlamethrowerPrefab, where + Vector3.up * 0.1f, Quaternion.identity);
+                    Log("spawned a flamethrower -- walk up, look at it and press E");
+                    return;
+
                 case "mustang":
                     if (MustangPrefab == null)
                     {
@@ -649,6 +660,7 @@ namespace CityX.UI
                 case "grapple": return ItemRegistry.GrapplingHook;
                 case "pistol": return ItemRegistry.Pistol;
                 case "sword": return ItemRegistry.Sword;
+                case "flamethrower": return ItemRegistry.Flamethrower;
                 case "top_hat":
                 case "tophat": return ItemRegistry.TopHat;
                 case "farmer_hat":

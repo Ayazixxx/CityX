@@ -150,6 +150,7 @@ namespace CityX.ViewEditor
             GameObject pistolPrefab = CityX.WeaponsEditor.PistolBuilder.Build();
             GameObject jetpackPrefab = CityX.WeaponsEditor.JetpackBuilder.Build();
             GameObject swordPrefab = CityX.WeaponsEditor.SwordBuilder.Build();
+            GameObject flamethrowerPrefab = CityX.WeaponsEditor.FlamethrowerBuilder.Build();
             GameObject topHatPrefab = CityX.WearablesEditor.TopHatBuilder.Build();
             GameObject farmerHatPrefab = CityX.WearablesEditor.FarmerHatBuilder.Build();
             GameObject mustangPrefab = CityX.VehiclesEditor.CarBuilder.Build();
@@ -303,6 +304,8 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.TopHat, Prefab = topHatPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.FarmerHat, Prefab = farmerHatPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.Flamethrower, Prefab = flamethrowerPrefab },
                 };
 
                 // --- the grapple swing. Aim (left-click while a grappling
@@ -422,7 +425,8 @@ namespace CityX.ViewEditor
                 swordPrefab,
                 topHatPrefab,
                 mustangPrefab,
-                farmerHatPrefab);
+                farmerHatPrefab,
+                flamethrowerPrefab);
 
             // --- the pause menu. Escape opens it; it guards itself against
             // --- opening on top of the console above.

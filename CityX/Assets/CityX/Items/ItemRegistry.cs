@@ -18,6 +18,7 @@ namespace CityX.Items
         public const string Pistol = "pistol";
         public const string Jetpack = "jetpack";
         public const string Sword = "sword";
+        public const string Flamethrower = "flamethrower";
         public const string TopHat = "top_hat";
         public const string FarmerHat = "farmer_hat";
 
@@ -36,6 +37,7 @@ namespace CityX.Items
             // as a coat/cloak rather than competing with it for the slot.
             [Jetpack] = new ItemDefinition(Jetpack, "Jetpack", "tool", "back", 1),
             [Sword] = new ItemDefinition(Sword, "Sword", "weapon", "hand_r", 1),
+            [Flamethrower] = new ItemDefinition(Flamethrower, "Flamethrower", "weapon", "hand_r", 1),
             // "helmet" -- LoadoutPanelView's own slot list already has one,
             // unused until now. Godot's hat and mask occupy separate slots
             // and can be worn together, but Unity only has this single
