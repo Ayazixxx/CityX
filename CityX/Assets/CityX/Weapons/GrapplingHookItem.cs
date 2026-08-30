@@ -12,16 +12,29 @@ namespace CityX.Weapons
     /// GrappleSwing, which has to own the whole movement frame for as long
     /// as the rope is attached. Ported from items/grappling_hook.gd.
     ///
-    /// THE ROPE IS A SINGLE STRETCHED LINE RENDERER, re-drawn every frame
-    /// between the muzzle and the anchor, rather than a real segmented/
-    /// simulated rope -- matching the Godot original's own reasoning: a
-    /// rope that visibly sagged would need its own solver and a chain of
-    /// segments, and a taut line both looks like a grappling hook under
-    /// load and honestly represents the physics underneath (the swing's
-    /// own constraint is a rigid distance, not a spring). LineRenderer is
-    /// simply Unity's own dedicated tool for that exact "two points, drawn
-    /// as a tube" shape, in place of hand-orienting a scaled cylinder mesh
-    /// the way the Godot original does -- same visual, less code.
+    /// THE ROPE IS A SINGLE STRETCHED TUBE, re-drawn every frame between the
+    /// muzzle and the anchor, rather than a real segmented/simulated rope --
+    /// matching the Godot original's own reasoning: a rope that visibly
+    /// sagged would need its own solver and a chain of segments, and a taut
+    /// line both looks like a grappling hook under load and honestly
+    /// represents the physics underneath (the swing's own constraint is a
+    /// rigid distance, not a spring).
+    ///
+    /// A REAL PROCEDURAL TUBE MESH, NOT A LineRenderer. An earlier version
+    /// used one (Unity's own dedicated "two points, drawn as a strip" tool)
+    /// on the reasoning that it was the same visual for less code -- it is
+    /// not the same visual: a LineRenderer's strip is a single FLAT ribbon
+    /// that only ever gets reoriented to face the camera (or, with
+    /// TransformZ alignment, a fixed axis), and a flat ribbon viewed from
+    /// ANYWHERE within its own plane -- which happens constantly while
+    /// swinging, since the player and camera are often moving roughly
+    /// along the rope's own direction toward the anchor -- presents a true
+    /// zero-width edge and vanishes outright, confirmed directly with a
+    /// scratch render from a camera placed near the muzzle looking toward
+    /// the anchor. A real tube has actual cross-sectional volume and shows
+    /// SOME visible surface from every angle except looking exactly down
+    /// its own bore, which a flat strip cannot do no matter how its width
+    /// vector is computed.
     ///
     /// SAME PICKUP/EQUIP LIFECYCLE as every other held item (see
     /// BottleWeapon) -- proximity + look-check, Inventory reparents a fresh
@@ -68,8 +81,25 @@ namespace CityX.Weapons
         // bone that is being animated (and may carry its own scale) is the
         // wrong space to express that in. Built on ShowRope, destroyed on
         // HideRope -- the rope must never outlive the launcher.
-        private LineRenderer _rope;
+        private MeshFilter _rope;
+        private Mesh _ropeMesh;
         private Transform _hookHead;
+
+        /// <summary>
+        /// Low. This is a thin cord, not a showpiece -- just enough sides
+        /// that its silhouette reads as round rather than as an obviously
+        /// faceted rod, at a radius most players will never see up close.
+        /// </summary>
+        private const int RopeSides = 6;
+
+        // Reused every frame UpdateRope runs rather than reallocated --
+        // MarkDynamic + SetVertices/SetNormals on one persistent Mesh is
+        // the standard "this changes every frame" path; only the vertex
+        // POSITIONS change per frame (both endpoints move), never the
+        // triangle winding, so the arrays and the mesh's own triangles are
+        // built once in ShowRope and just overwritten in UpdateRope.
+        private Vector3[] _ropeVertices;
+        private Vector3[] _ropeNormals;
 
         private void Awake()
         {
@@ -162,13 +192,36 @@ namespace CityX.Weapons
             HideRope();
 
             var ropeObject = new GameObject("GrappleRope");
-            _rope = ropeObject.AddComponent<LineRenderer>();
-            _rope.sharedMaterial = RopeMaterial;
-            _rope.startWidth = RopeRadius * 2.0f;
-            _rope.endWidth = RopeRadius * 2.0f;
-            _rope.positionCount = 2;
-            _rope.receiveShadows = false;
-            _rope.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            _rope = ropeObject.AddComponent<MeshFilter>();
+            var renderer = ropeObject.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = RopeMaterial;
+            renderer.receiveShadows = false;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+
+            _ropeMesh = new Mesh { name = "GrappleRopeMesh" };
+            _ropeMesh.MarkDynamic();
+            _ropeVertices = new Vector3[RopeSides * 2];
+            _ropeNormals = new Vector3[RopeSides * 2];
+
+            var triangles = new int[RopeSides * 6];
+            for (int i = 0; i < RopeSides; i++)
+            {
+                int next = (i + 1) % RopeSides;
+                int a0 = i;
+                int b0 = i + RopeSides;
+                int a1 = next;
+                int b1 = next + RopeSides;
+                int t = i * 6;
+                triangles[t + 0] = a0;
+                triangles[t + 1] = b0;
+                triangles[t + 2] = b1;
+                triangles[t + 3] = a0;
+                triangles[t + 4] = b1;
+                triangles[t + 5] = a1;
+            }
+            _ropeMesh.vertices = _ropeVertices;
+            _ropeMesh.triangles = triangles;
+            _rope.sharedMesh = _ropeMesh;
 
             var headObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
             headObject.name = "GrappleHookHead";
@@ -181,7 +234,16 @@ namespace CityX.Weapons
             UpdateRope(anchor);
         }
 
-        /// <summary>Re-stretches the rope between the muzzle and the anchor. Called every frame by GrappleSwing while swinging, since both ends move.</summary>
+        /// <summary>
+        /// Re-stretches the rope tube between the muzzle and the anchor.
+        /// Called every frame by GrappleSwing while swinging, since both
+        /// ends move. Rebuilds the ring of vertices at each end around the
+        /// current muzzle-to-anchor axis -- the same tapered-tube technique
+        /// SwordBuilder's own AddTube uses at edit time, run live here
+        /// since both endpoints move every frame a real LineRenderer strip
+        /// could update by just moving two points, but a real tube needs
+        /// its whole cross-section re-oriented to the new axis instead.
+        /// </summary>
         public void UpdateRope(Vector3 anchor)
         {
             if (_rope == null)
@@ -189,8 +251,29 @@ namespace CityX.Weapons
                 return;
             }
             Vector3 from = Muzzle != null ? Muzzle.position : transform.position;
-            _rope.SetPosition(0, from);
-            _rope.SetPosition(1, anchor);
+
+            Vector3 axis = anchor - from;
+            float length = axis.magnitude;
+            Vector3 direction = length > 0.0001f ? axis / length : Vector3.up;
+            Vector3 helper = Mathf.Abs(Vector3.Dot(direction, Vector3.forward)) < 0.95f
+                ? Vector3.forward
+                : Vector3.right;
+            Vector3 xAxis = Vector3.Cross(direction, helper).normalized;
+            Vector3 zAxis = Vector3.Cross(xAxis, direction).normalized;
+
+            for (int i = 0; i < RopeSides; i++)
+            {
+                float angle = (float)i / RopeSides * Mathf.PI * 2.0f;
+                Vector3 radial = xAxis * Mathf.Cos(angle) + zAxis * Mathf.Sin(angle);
+                _ropeVertices[i] = from + radial * RopeRadius;
+                _ropeVertices[i + RopeSides] = anchor + radial * RopeRadius;
+                _ropeNormals[i] = radial;
+                _ropeNormals[i + RopeSides] = radial;
+            }
+            _ropeMesh.SetVertices(_ropeVertices);
+            _ropeMesh.SetNormals(_ropeNormals);
+            _ropeMesh.RecalculateBounds();
+
             if (_hookHead != null)
             {
                 _hookHead.position = anchor;
@@ -203,6 +286,11 @@ namespace CityX.Weapons
             {
                 Destroy(_rope.gameObject);
                 _rope = null;
+            }
+            if (_ropeMesh != null)
+            {
+                Destroy(_ropeMesh);
+                _ropeMesh = null;
             }
             if (_hookHead != null)
             {

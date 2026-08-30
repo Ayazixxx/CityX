@@ -168,6 +168,23 @@ namespace CityX.Character
         /// <summary>The smoothed horizontal velocity HorizontalAcceleration eases toward its target -- see that field's own doc comment.</summary>
         private Vector3 _horizontalVelocity;
 
+        /// <summary>
+        /// Extra horizontal velocity riding on top of whatever WASD/
+        /// HorizontalAcceleration computes -- real carried momentum from
+        /// something that briefly owned the whole movement frame itself,
+        /// currently only GrappleSwing's own Release (see
+        /// SetResidualVelocity's own doc comment). Kept as its OWN field
+        /// rather than folded into _horizontalVelocity because
+        /// _horizontalVelocity is rewritten from scratch every Tick by the
+        /// WASD blend above -- with no input that blend eases it to zero
+        /// within a quarter second (60 m/s^2), which is fine for ordinary
+        /// ground/air control but is exactly the "let go of the rope and
+        /// instantly stop" bug this exists to fix. Left untouched by that
+        /// blend entirely; cleared only on landing, so it behaves like real
+        /// momentum for as long as the body is actually in the air.
+        /// </summary>
+        private Vector3 _residualVelocity;
+
         private static readonly int SpeedParameter = Animator.StringToHash("Speed");
         private static readonly int MoveXParameter = Animator.StringToHash("MoveX");
         private static readonly int MoveZParameter = Animator.StringToHash("MoveZ");
@@ -260,14 +277,36 @@ namespace CityX.Character
         /// upward release kick is worth carrying into ordinary falling the
         /// same way a jump's own upward velocity already does, since both
         /// end up decaying under this same Gravity every Tick after. See
-        /// GrappleSwing's own doc comment for why horizontal momentum does
-        /// NOT get an equivalent hand-off -- WASD air control already
-        /// overwrites horizontal velocity from scratch every Tick, jump
-        /// included, so there is nothing here for it to carry into.
+        /// <see cref="SetResidualVelocity"/> for the horizontal half of the
+        /// same release.
         /// </summary>
         public void SetVerticalVelocity(float verticalVelocity)
         {
             _verticalVelocity = verticalVelocity;
+        }
+
+        /// <summary>
+        /// Adds a burst of horizontal momentum that persists untouched
+        /// until the body actually lands -- the horizontal half of a
+        /// GrappleSwing release. An EARLIER version of this file deliberately
+        /// did not do this, on the reasoning that WASD air control already
+        /// overwrites horizontal velocity from scratch every Tick (jump
+        /// included), so there was "nothing here for it to carry into" --
+        /// that was a real design choice, not an oversight, but it made
+        /// letting go of the rope feel like hitting a wall: the body kept
+        /// its vertical arc but its horizontal flight died within a quarter
+        /// second (HorizontalAcceleration's own 60 m/s^2 easing toward a
+        /// stationary target). Explicitly asked to change: a released swing
+        /// should keep flying at the speed and direction it let go at, the
+        /// same way a real body's momentum would, not snap back to a dead
+        /// stop the instant WASD stops actively pushing it. See
+        /// _residualVelocity's own doc comment for why this rides on top of
+        /// the ordinary WASD blend rather than replacing it.
+        /// </summary>
+        public void SetResidualVelocity(Vector3 horizontalVelocity)
+        {
+            horizontalVelocity.y = 0.0f;
+            _residualVelocity = horizontalVelocity;
         }
 
         public void StartDash(Vector3 direction)
@@ -675,6 +714,17 @@ namespace CityX.Character
 
             bool grounded = _controller.isGrounded;
 
+            // Landing is what "spends" carried momentum -- the moment the
+            // body actually touches back down, ordinary ground movement
+            // takes back over cleanly rather than leaving a permanent
+            // speed boost layered underneath every future WASD input. See
+            // SetResidualVelocity's own doc comment for where this comes
+            // from in the first place.
+            if (grounded)
+            {
+                _residualVelocity = Vector3.zero;
+            }
+
             // THE `_verticalVelocity <= 0` GUARD IS LOAD-BEARING. Resetting on
             // grounded alone eats the jump: one step at 4.5 m/s only lifts the
             // body 75mm, which is inside the controller's own ground tolerance,
@@ -737,7 +787,13 @@ namespace CityX.Character
                 }
             }
 
-            Vector3 motion = horizontal;
+            // _residualVelocity rides on top of the WASD-driven horizontal
+            // speed rather than replacing it -- carried momentum from a
+            // released swing plus fresh air-control input should add, the
+            // same way a real body's own inertia would layer under
+            // whatever new push it is given rather than being overridden
+            // by it.
+            Vector3 motion = horizontal + _residualVelocity;
             motion.y = _verticalVelocity;
             Velocity = motion;
             _controller.Move(motion * deltaTime);

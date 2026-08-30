@@ -30,11 +30,12 @@ namespace CityX.Character
     /// carries `_verticalVelocity` across frames for gravity. A rope
     /// constraint has nothing to hold onto without a real velocity that
     /// persists between ticks, so this keeps its own for the swing's
-    /// duration and hands only the release's own vertical kick back to
-    /// PlayerLocomotion (see <see cref="Release"/>) -- horizontal control
-    /// becomes ordinary WASD air control the instant the swing ends, the
-    /// same as this project's own jump already works, rather than a
-    /// residual-momentum system nothing else here has either.
+    /// duration and hands the WHOLE thing back to PlayerLocomotion on
+    /// release (see <see cref="Release"/>) -- vertical through
+    /// SetVerticalVelocity, horizontal through SetResidualVelocity, so a
+    /// released swing keeps flying at the speed and direction it let go
+    /// at instead of getting cut down to whatever WASD is doing that
+    /// instant.
     ///
     /// DEATH IS POLLED, NOT EVENT-DRIVEN -- see GrabCarry's own doc comment
     /// for why an OnEnable subscription to PlayerVitals.Died is unsafe in
@@ -202,11 +203,14 @@ namespace CityX.Character
                 _velocity.y += ReleaseBoost;
             }
             LastReleaseVelocity = _velocity;
-            // The vertical kick is the part actually worth preserving --
-            // horizontal becomes ordinary WASD air control the instant
-            // PlayerLocomotion.Tick runs again, same as this project's own
-            // jump already works (see this class's own doc comment).
+            // The WHOLE velocity carries into ordinary falling -- vertical
+            // through the same channel a jump already uses, horizontal
+            // through SetResidualVelocity so it survives PlayerLocomotion's
+            // own WASD-blend deceleration instead of dying within a
+            // quarter second of letting go (see this class's own doc
+            // comment).
             _locomotion?.SetVerticalVelocity(_velocity.y);
+            _locomotion?.SetResidualVelocity(_velocity);
             EquippedHook?.HideRope();
         }
 

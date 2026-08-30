@@ -13,9 +13,9 @@ namespace CityX.WeaponsEditor
     ///
     /// THE ROPE/HOOK-HEAD MATERIALS ARE BUILT HERE AND WIRED AS REFERENCES,
     /// not created at runtime -- GrapplingHookItem.ShowRope only ever
-    /// APPLIES RopeMaterial/HookHeadMaterial to a fresh LineRenderer/cube it
-    /// builds while playing, matching BottleWeapon's own "materials built
-    /// at edit time by the builder" convention.
+    /// APPLIES RopeMaterial/HookHeadMaterial to a fresh rope tube mesh/cube
+    /// it builds while playing, matching BottleWeapon's own "materials
+    /// built at edit time by the builder" convention.
     /// </summary>
     public static class GrapplingHookBuilder
     {

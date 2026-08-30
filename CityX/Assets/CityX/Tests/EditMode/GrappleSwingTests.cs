@@ -125,6 +125,36 @@ namespace CityX.Tests
                 "a forced (unboosted) release still added upward velocity");
         }
 
+        /// <summary>
+        /// The actual bug this exists to catch: letting go must send the
+        /// body on into free flight at the swing's own speed and direction,
+        /// not hand it back to PlayerLocomotion's own WASD-driven
+        /// deceleration and stop dead within a quarter second. Attaches a
+        /// real PlayerLocomotion to the same body -- GrappleSwingTests'
+        /// other tests never needed one, since they only check the rope's
+        /// own math, but this is specifically about the hand-off between
+        /// the two components.
+        /// </summary>
+        [Test]
+        public void ReleasingHandsTheFullVelocityToLocomotionAsRealMomentum()
+        {
+            var locomotion = _object.AddComponent<PlayerLocomotion>();
+            locomotion.Bind();
+            _swing.Bind();
+
+            _object.transform.position = new Vector3(0.0f, 20.0f, 0.0f);
+            var releaseVelocity = new Vector3(14.0f, 0.0f, 3.0f);
+            _swing.Attach(new Vector3(0.0f, 30.0f, 0.0f), releaseVelocity);
+
+            _swing.Release(false);
+            locomotion.Tick(new LocomotionInput(), 1.0f / 60.0f);
+
+            float expected = new Vector2(releaseVelocity.x, releaseVelocity.z).magnitude;
+            float actual = new Vector2(locomotion.Velocity.x, locomotion.Velocity.z).magnitude;
+            Assert.GreaterOrEqual(actual, expected * 0.95f,
+                $"letting go killed the swing's own horizontal momentum (down to {actual:0.0} of {expected:0.0} m/s)");
+        }
+
         /// <summary>Reeling in shortens the rope -- how you climb to a roof -- and stops at the minimum rather than winding into the wall.</summary>
         [Test]
         public void ReelingInShortensTheRopeAndStopsAtTheMinimum()
