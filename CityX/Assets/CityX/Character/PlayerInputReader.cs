@@ -379,6 +379,19 @@ namespace CityX.Character
             // that's pumping it."
             if (_grappleSwing != null && _grappleSwing.IsActive)
             {
+                // "Ragdolling until he reaches land or dashes" -- the SAME
+                // double-tap gesture ground movement already dashes on, not
+                // a second key. Checked before anything else in this block:
+                // a dash is a deliberate bail-out, worth honouring even on
+                // the exact frame reel/payout also reads the held half of
+                // this same shift key.
+                if (ConsumeDoubleTapShift(keyboard, deltaTime))
+                {
+                    _grappleSwing.Release(false);
+                    _audio?.SilenceFootsteps();
+                    return;
+                }
+
                 Vector2 swingMove = Vector2.zero;
                 if (keyboard.wKey.isPressed) swingMove.y += 1.0f;
                 if (keyboard.sKey.isPressed) swingMove.y -= 1.0f;
@@ -394,6 +407,22 @@ namespace CityX.Character
                 bool plainRelease = Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame;
                 bool reelHeld = keyboard.leftShiftKey.isPressed;
                 bool payoutHeld = keyboard.leftCtrlKey.isPressed;
+
+                // THE GRAPPLE GUN OWNS THE RIGHT HAND, so a cast while
+                // swinging goes through the left instead -- explicit ask:
+                // "it still works just comes from your left hand". Same
+                // digit1Key/origin-height/ignore-colliders shape as the
+                // ordinary ground cast below; GrappleSwing's own Tick reads
+                // CastFraction straight off _fireballCaster every frame to
+                // drive the left arm's held pose (see Ragdoll.SetLeftArmPose's
+                // own doc comment), so nothing else needs passing through
+                // here beyond actually firing the cast.
+                if (_fireballCaster != null && keyboard.digit1Key.wasPressedThisFrame && swingYawSource != null)
+                {
+                    float height = (_locomotion != null ? _locomotion.StandingHeight : 1.8f) * 0.68f;
+                    Vector3 origin = transform.position + Vector3.up * height;
+                    _fireballCaster.TryCast(origin, swingYawSource.forward, GetComponentsInChildren<Collider>());
+                }
 
                 _grappleSwing.Tick(swingMove, swingYaw, boostedRelease, plainRelease,
                     reelHeld, payoutHeld, deltaTime);
@@ -528,7 +557,13 @@ namespace CityX.Character
             // rather than a second state sharing LocomotionInput.Aiming.
             bool isCastingFireball = _fireballCaster != null && _fireballCaster.IsCasting;
             bool isAiming = _isAimingGun || isCastingFireball;
-            _locomotion.SetCastPose(_fireballCaster != null ? _fireballCaster.CastFraction : 0.0f);
+            // THE GRAPPLE GUN OWNS THE RIGHT HAND -- see SetCastPose's own
+            // doc comment. EquippedHook alone, not GrappleSwing.IsActive:
+            // the gun is in that hand whether or not a rope currently
+            // happens to be attached.
+            bool castRaisesLeftArm = _grappleSwing != null && _grappleSwing.EquippedHook != null;
+            _locomotion.SetCastPose(
+                _fireballCaster != null ? _fireballCaster.CastFraction : 0.0f, castRaisesLeftArm);
 
             var input = new LocomotionInput
             {
@@ -857,6 +892,38 @@ namespace CityX.Character
         }
 
         /// <summary>
+        /// The shared double-tap-shift GESTURE, split out from what it DOES
+        /// (start a ground dash) so a grapple swing can react to the exact
+        /// same gesture a different way -- explicit ask: dashing should cut
+        /// a swing's own ragdoll short, the same "land or dash" exit a
+        /// released/grounded swing already has. Only one of TickDash and the
+        /// swing-active branch runs on a given frame (GrappleSwing.IsActive
+        /// owns the whole frame while true, same as everywhere else it
+        /// early-returns), so _sprintTapWindow's own decrement below still
+        /// only happens once per frame either way.
+        /// </summary>
+        private bool ConsumeDoubleTapShift(Keyboard keyboard, float deltaTime)
+        {
+            _sprintTapWindow = Mathf.Max(0.0f, _sprintTapWindow - deltaTime);
+
+            if (!keyboard.leftShiftKey.wasPressedThisFrame)
+            {
+                return false;
+            }
+
+            if (_sprintTapWindow <= 0.0f)
+            {
+                // The first tap only opens the window. Holding sprint down
+                // never gets here twice, which is what keeps hold-to-sprint and
+                // double-tap-to-dash from fighting over the same key.
+                _sprintTapWindow = DoubleTapSeconds;
+                return false;
+            }
+            _sprintTapWindow = 0.0f;
+            return true;
+        }
+
+        /// <summary>
         /// Double-tap sprint to dash.
         ///
         /// WHICH WAY IT GOES IS WHATEVER WAS HELD AT THAT INSTANT, and a bare
@@ -866,22 +933,10 @@ namespace CityX.Character
         /// </summary>
         private void TickDash(Keyboard keyboard, Vector2 move, float yawDegrees, float deltaTime)
         {
-            _sprintTapWindow = Mathf.Max(0.0f, _sprintTapWindow - deltaTime);
-
-            if (!keyboard.leftShiftKey.wasPressedThisFrame)
+            if (!ConsumeDoubleTapShift(keyboard, deltaTime))
             {
                 return;
             }
-
-            if (_sprintTapWindow <= 0.0f)
-            {
-                // The first tap only opens the window. Holding sprint down
-                // never gets here twice, which is what keeps hold-to-sprint and
-                // double-tap-to-dash from fighting over the same key.
-                _sprintTapWindow = DoubleTapSeconds;
-                return;
-            }
-            _sprintTapWindow = 0.0f;
 
             if (_locomotion.IsDashing)
             {

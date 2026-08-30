@@ -104,6 +104,64 @@ namespace CityX.Tests
 #endif
         }
 
+        /// <summary>
+        /// The grapple gun's own hand -- explicit ask: casting while it is
+        /// equipped raises the LEFT arm instead, since the right one is
+        /// holding the gun. Same shape as the right-hand test above, but
+        /// the "swings out to its own side" check is mirrored: the left
+        /// arm's own side is the NEGATIVE hips.right direction.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator CastingWithTheLeftArmRaisesTheLeftHandUpAndOutToItsOwnSide()
+        {
+#if UNITY_EDITOR
+            GameObject playerPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/CityX/Character/Player.prefab");
+            Assert.IsNotNull(playerPrefab, "Player.prefab is missing");
+
+            _player = Object.Instantiate(playerPrefab, new Vector3(0.0f, 0.5f, 0.0f), Quaternion.identity);
+            _locomotion = _player.GetComponent<PlayerLocomotion>();
+            _animator = _player.GetComponentInChildren<Animator>();
+            Assert.IsNotNull(_animator, "Player.prefab has no Animator");
+
+            Transform hand = _animator.GetBoneTransform(HumanBodyBones.LeftHand);
+            Transform hips = _animator.GetBoneTransform(HumanBodyBones.Hips);
+            Assert.IsNotNull(hand, "Player.prefab's Animator has no LeftHand bone mapped");
+            Assert.IsNotNull(hips, "Player.prefab's Animator has no Hips bone mapped");
+
+            var idle = new LocomotionInput();
+
+            for (int step = 0; step < 30; step++)
+            {
+                _locomotion.Tick(idle, StepSeconds);
+                yield return null;
+            }
+
+            Vector3 handBeforeRelative = hand.position - hips.position;
+
+            _locomotion.SetCastPose(1.0f, useLeftArm: true);
+            for (int step = 0; step < 5; step++)
+            {
+                _locomotion.Tick(idle, StepSeconds);
+                yield return null;
+            }
+
+            Vector3 delta = (hand.position - hips.position) - handBeforeRelative;
+            float up = Vector3.Dot(delta, hips.up);
+            float right = Vector3.Dot(delta, hips.right);
+
+            Assert.Greater(up, 0.3f, $"a full cast should visibly lift the left hand -- moved {up:0.000}m up");
+            Assert.Less(right, 0.0f,
+                $"the raised left hand should swing out to ITS OWN side, not cross the body -- moved {right:0.000}m along hips.right");
+
+            Object.Destroy(_player);
+            _player = null;
+#else
+            Assert.Ignore("Player.prefab can only be loaded by path inside the editor.");
+            yield break;
+#endif
+        }
+
         [UnityTest]
         public IEnumerator ZeroFractionLeavesTheArmWhereLocomotionAlonePutIt()
         {

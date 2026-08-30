@@ -43,13 +43,6 @@ namespace CityX.Weapons
     [RequireComponent(typeof(Rigidbody))]
     public sealed class GrapplingHookItem : MonoBehaviour, IEquippableItem, IGrappleLauncher
     {
-        public const float BodyLength = 0.22f;
-        public const float BodyRadius = 0.035f;
-        public const float BarrelLength = 0.16f;
-        public const float BarrelRadius = 0.018f;
-
-        public static readonly Color BodyColour = new Color(0.2f, 0.22f, 0.26f);
-        public static readonly Color BarrelColour = new Color(0.5f, 0.52f, 0.56f);
         public static readonly Color HookColour = new Color(0.62f, 0.64f, 0.68f);
         public static readonly Color RopeColour = new Color(0.14f, 0.13f, 0.12f);
 
@@ -59,8 +52,23 @@ namespace CityX.Weapons
         public const float HookHeadSize = 0.09f;
 
         public const float HookMass = 1.1f;
-        public static readonly Vector3 GripHandPosition = new Vector3(0.0f, 0.03f, -0.05f);
-        public static readonly Vector3 GripHandRotationEuler = new Vector3(-90.0f, 0.0f, 0.0f);
+
+        /// <summary>
+        /// THE SAME NUMBERS AS PistolWeapon's OWN, by explicit request --
+        /// "make it so he holds it the same as the pistol". A one-handed
+        /// grip low against the hip, not the old procedural body's own
+        /// two-handed (-90,0,0) pose built around a straight cylinder body
+        /// with no real grip shape to speak of. GrapplingHookBuilder's own
+        /// Visual child carries a fixed corrective rotation (see its own
+        /// BuildVisual doc comment) so THIS root's grip transform can be
+        /// identical to the pistol's while the differently-modelled mesh
+        /// underneath still points its own muzzle the same way the
+        /// Beretta model's does.
+        /// </summary>
+        public static readonly Vector3 GripHandPosition = PistolWeapon.GripHandPosition;
+
+        public static readonly Vector3 GripHandRotationEuler = PistolWeapon.GripHandRotationEuler;
+
         public const float InteractRange = 2.5f;
 
         [Tooltip("Where the rope is drawn FROM -- tracks the barrel tip through whatever animation the hand happens to be playing.")]

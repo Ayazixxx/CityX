@@ -62,12 +62,29 @@ namespace CityX.Character
         [Tooltip("Switched off while limp so the animation stops fighting physics.")]
         public Animator Animator;
 
+        // --- named individually for GrappleSwing's own partial ragdoll --
+        // --- see ActivateSwing's own doc comment for why these specific
+        // --- five bodies (not the rest) need to be addressable on their
+        // --- own rather than just living in the flat Bodies array.
+        [Tooltip("Filled in by RagdollBuilder. Kept kinematic and driven to the swing's own position during a partial ragdoll.")]
+        public Rigidbody Chest;
+
+        public Rigidbody Head;
+        public Rigidbody LeftUpperArm;
+        public Rigidbody LeftLowerArm;
+        public Rigidbody RightUpperArm;
+        public Rigidbody RightLowerArm;
+
         private CharacterController _controller;
         private PlayerLocomotion _locomotion;
         private PlayerVitals _vitals;
         private bool _limp;
+        private bool _swinging;
 
         public bool IsLimp => _limp;
+
+        /// <summary>True during GrappleSwing's own partial ragdoll -- see ActivateSwing's own doc comment.</summary>
+        public bool IsSwinging => _swinging;
 
         private void Awake()
         {
@@ -175,6 +192,14 @@ namespace CityX.Character
                 return;   // a second killing blow must not re-launch the corpse
             }
             _limp = true;
+            // A death mid-swing supersedes the partial ragdoll outright --
+            // the loop below already forces every body non-kinematic
+            // (chest/right arm included), so nothing here needs to treat
+            // them specially the way ActivateSwing does. Cleared so
+            // GrappleSwing's own still-in-flight TickSwingPose/
+            // SetLeftArmPose calls this same frame become no-ops instead of
+            // calling MovePosition on a body that is no longer kinematic.
+            _swinging = false;
 
             if (Animator != null)
             {
@@ -205,6 +230,179 @@ namespace CityX.Character
             {
                 Torso.angularVelocity =
                     Random.onUnitSphere * (TorsoSpinDegreesPerSecond * Mathf.Deg2Rad);
+            }
+        }
+
+        /// <summary>
+        /// Goes PARTLY limp for a grapple swing -- explicit ask: "his right
+        /// hand stay attached to it but the rest of his body is ragdolling".
+        /// The Animator goes off exactly like a death ragdoll (nothing here
+        /// should fight physics), but only the hips, head, legs and left arm
+        /// actually become physics-driven. Chest and the whole right arm
+        /// STAY kinematic -- GrappleSwing's own TickSwingPose drives Chest's
+        /// position/rotation directly every frame to match the swing's own
+        /// computed transform, and the CharacterJoint already connecting
+        /// Chest to the (now non-kinematic) hips drags the hips -- and
+        /// through their own joints, the legs and head -- along for the
+        /// ride, exactly the way a real ragdoll gets dragged by whatever
+        /// part of it is anchored. The right arm rides along with Chest
+        /// through ordinary parent-child transform inheritance (it is
+        /// kinematic too, so nothing fights that), holding whatever pose
+        /// TickSwingPose gives it -- a reaching-for-the-rope shape rather
+        /// than flailing loose, which is the whole visual point of keeping
+        /// it out of the ragdoll at all.
+        ///
+        /// THE LEFT ARM IS THE ONE EXCEPTION THAT CAN FLIP BACK. It starts
+        /// ragdolling like the hips/legs/head, but SetLeftArmPose can pull
+        /// it back to kinematic for as long as a fireball cast's own raised-
+        /// hand pose needs to hold -- see that method's own doc comment.
+        /// </summary>
+        public void ActivateSwing(Vector3 velocity)
+        {
+            if (_limp || _swinging)
+            {
+                return;
+            }
+            _swinging = true;
+
+            if (Animator != null)
+            {
+                Animator.enabled = false;
+            }
+
+            SetBodyKinematic(Chest, true);
+            SetBodyKinematic(RightUpperArm, true);
+            SetBodyKinematic(RightLowerArm, true);
+
+            foreach (Rigidbody body in Bodies)
+            {
+                if (body == null || body == Chest || body == RightUpperArm || body == RightLowerArm)
+                {
+                    continue;
+                }
+                SetBodyKinematic(body, false);
+                body.linearVelocity = velocity;
+            }
+
+            if (Torso != null && !Torso.isKinematic)
+            {
+                Torso.angularVelocity =
+                    Random.onUnitSphere * (TorsoSpinDegreesPerSecond * 0.5f * Mathf.Deg2Rad);
+            }
+        }
+
+        /// <summary>
+        /// Called every frame by GrappleSwing while a swing is active --
+        /// drags Chest to the swing's own live position/rotation (see
+        /// ActivateSwing's own doc comment for why that alone is enough to
+        /// carry the whole ragdolling half of the rig with it), and holds
+        /// the right arm in a fixed reaching pose relative to Chest. THE
+        /// EXACT ANGLES ARE A FIRST GUESS, not yet checked against a real
+        /// rendered pose the way every other procedural grip in this project
+        /// eventually was (PistolWeapon.GripHandRotationEuler's own doc
+        /// comment, etc.) -- reasonable starting values, meant to be
+        /// render-tuned once actually seen swinging.
+        /// </summary>
+        public void TickSwingPose(Vector3 chestWorldPosition, Quaternion chestWorldRotation,
+            Quaternion rightUpperArmLocalRotation, Quaternion rightLowerArmLocalRotation)
+        {
+            if (!_swinging)
+            {
+                return;
+            }
+            if (Chest != null)
+            {
+                Chest.MovePosition(chestWorldPosition);
+                Chest.MoveRotation(chestWorldRotation);
+            }
+            if (RightUpperArm != null)
+            {
+                RightUpperArm.transform.localRotation = rightUpperArmLocalRotation;
+            }
+            if (RightLowerArm != null)
+            {
+                RightLowerArm.transform.localRotation = rightLowerArmLocalRotation;
+            }
+        }
+
+        /// <summary>
+        /// Pulls the left arm out of the swing's own ragdoll for as long as
+        /// a fireball cast's own raised-hand pose needs it -- explicit ask:
+        /// casting "still works, just comes from your left hand", which
+        /// only reads as a deliberate cast rather than a loose flail if the
+        /// arm actually holds the pose instead of following physics for
+        /// that moment. Safe to call every frame with the same value; only
+        /// touches kinematic state (and gives the flailing arm a
+        /// non-explosive starting velocity on the way back OUT of kinematic,
+        /// matching ActivateSwing's own "seed real velocity" reasoning)
+        /// rather than resetting anything else about the swing.
+        /// </summary>
+        public void SetLeftArmPose(bool kinematic, Quaternion upperLocalRotation, Quaternion lowerLocalRotation)
+        {
+            if (!_swinging || LeftUpperArm == null || LeftLowerArm == null)
+            {
+                return;
+            }
+            if (kinematic)
+            {
+                SetBodyKinematic(LeftUpperArm, true);
+                SetBodyKinematic(LeftLowerArm, true);
+                LeftUpperArm.transform.localRotation = upperLocalRotation;
+                LeftLowerArm.transform.localRotation = lowerLocalRotation;
+            }
+            else if (LeftUpperArm.isKinematic)
+            {
+                // Coming OUT of the held cast pose back into the ragdoll --
+                // give it the chest's own current velocity rather than a
+                // dead stop, the same "carry real motion into physics"
+                // reasoning ActivateSwing/Activate already use.
+                Vector3 velocity = Chest != null ? Chest.linearVelocity : Vector3.zero;
+                SetBodyKinematic(LeftUpperArm, false);
+                SetBodyKinematic(LeftLowerArm, false);
+                LeftUpperArm.linearVelocity = velocity;
+                LeftLowerArm.linearVelocity = velocity;
+            }
+        }
+
+        /// <summary>Ends the swing's own partial ragdoll -- landed, released, or dashed out of it. Restores full animated control, same end state Deactivate leaves a death ragdoll in.</summary>
+        public void DeactivateSwing()
+        {
+            if (!_swinging)
+            {
+                return;
+            }
+            _swinging = false;
+
+            // Dying mid-swing already made Activate() take over (a full
+            // ragdoll, not this partial one) -- Update ordering between
+            // PlayerInputReader's own death check and PlayerVitals.Died
+            // is not something to rely on, so this only clears the flag in
+            // that case rather than undoing the real death ragdoll's own
+            // kinematic state and Animator.
+            if (_limp)
+            {
+                return;
+            }
+
+            SetKinematic(true);
+
+            if (Animator != null)
+            {
+                Animator.enabled = true;
+            }
+        }
+
+        private static void SetBodyKinematic(Rigidbody body, bool kinematic)
+        {
+            if (body == null)
+            {
+                return;
+            }
+            body.isKinematic = kinematic;
+            if (!kinematic)
+            {
+                body.linearVelocity = Vector3.zero;
+                body.angularVelocity = Vector3.zero;
             }
         }
 

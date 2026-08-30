@@ -101,6 +101,7 @@ namespace CityX.Character
         private Transform _handL;
         private Transform _handR;
         private Transform _rightUpperArm;
+        private Transform _leftUpperArm;
         private float _verticalVelocity;
 
         /// <summary>
@@ -167,6 +168,9 @@ namespace CityX.Character
 
         /// <summary>The smoothed horizontal velocity HorizontalAcceleration eases toward its target -- see that field's own doc comment.</summary>
         private Vector3 _horizontalVelocity;
+
+        /// <summary>Which arm ApplyCastingPose raises -- see SetCastPose's own doc comment.</summary>
+        private bool _castUsesLeftArm;
 
         /// <summary>
         /// Extra horizontal velocity riding on top of whatever WASD/
@@ -349,6 +353,7 @@ namespace CityX.Character
             _handL = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.LeftHand) : null;
             _handR = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.RightHand) : null;
             _rightUpperArm = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.RightUpperArm) : null;
+            _leftUpperArm = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.LeftUpperArm) : null;
             ApplyHeight();
         }
 
@@ -521,10 +526,19 @@ namespace CityX.Character
         /// pistol_aim_in does, matching ApplyDrivingWheelPose's own
         /// procedural-pose shape for the same "no real animation clip fits"
         /// reason.
+        ///
+        /// <paramref name="useLeftArm"/>: A LATER, SEPARATE ask -- the
+        /// grapple gun occupies the right hand, so casting while it is
+        /// equipped raises the left arm instead ("it still works just comes
+        /// from your left hand"). PlayerInputReader passes
+        /// GrappleSwing.EquippedHook != null for this every frame it calls
+        /// SetCastPose, so the raised arm follows whichever hand is
+        /// actually free without this needing to know about weapons itself.
         /// </summary>
-        public void SetCastPose(float fraction)
+        public void SetCastPose(float fraction, bool useLeftArm = false)
         {
             _castPoseFraction = Mathf.Clamp01(fraction);
+            _castUsesLeftArm = useLeftArm;
         }
 
         /// <summary>
@@ -533,15 +547,30 @@ namespace CityX.Character
         /// happen mid-walk or mid-run, and the raise is meant to layer on
         /// top of whatever the current locomotion pose is doing with that
         /// arm, not freeze it to a snapshot from the moment the cast began.
+        ///
+        /// THE LEFT ARM'S OWN RAISE IS THE MIRROR IMAGE, not the same
+        /// signed angle -- confirmed by this rig's own established mirror
+        /// convention: PlayerRigBuilder/CaptureGrip's own PoseArmsDown pose
+        /// already rotates arm_l by +78 degrees and arm_r by -78 for what
+        /// is visually the SAME hanging-down shape on both sides, so a
+        /// raise that reads as "up and out" on the right needs the opposite
+        /// sign on the left to read the same way rather than folding the
+        /// arm across the chest.
         /// </summary>
         private void ApplyCastingPose()
         {
-            if (_rightUpperArm == null || _castPoseFraction <= 0.0f)
+            if (_castPoseFraction <= 0.0f)
             {
                 return;
             }
-            Quaternion offset = Quaternion.AngleAxis(CastRaiseDegrees * _castPoseFraction, Vector3.forward);
-            _rightUpperArm.localRotation = _rightUpperArm.localRotation * offset;
+            Transform arm = _castUsesLeftArm ? _leftUpperArm : _rightUpperArm;
+            if (arm == null)
+            {
+                return;
+            }
+            float sign = _castUsesLeftArm ? -1.0f : 1.0f;
+            Quaternion offset = Quaternion.AngleAxis(CastRaiseDegrees * _castPoseFraction * sign, Vector3.forward);
+            arm.localRotation = arm.localRotation * offset;
         }
 
         /// <summary>

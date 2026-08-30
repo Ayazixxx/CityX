@@ -143,16 +143,20 @@ namespace CityX.CharacterEditor
             // --- limbs.
             AddLimb(animator, bodies, chestBody, rigHeight,
                 HumanBodyBones.LeftUpperArm, HumanBodyBones.LeftLowerArm, HumanBodyBones.LeftHand,
-                UpperArmRadius, LowerArmRadius, UpperArmLimits, LowerArmLimits);
+                UpperArmRadius, LowerArmRadius, UpperArmLimits, LowerArmLimits,
+                out Rigidbody leftUpperArmBody, out Rigidbody leftLowerArmBody);
             AddLimb(animator, bodies, chestBody, rigHeight,
                 HumanBodyBones.RightUpperArm, HumanBodyBones.RightLowerArm, HumanBodyBones.RightHand,
-                UpperArmRadius, LowerArmRadius, UpperArmLimits, LowerArmLimits);
+                UpperArmRadius, LowerArmRadius, UpperArmLimits, LowerArmLimits,
+                out Rigidbody rightUpperArmBody, out Rigidbody rightLowerArmBody);
             AddLimb(animator, bodies, hipBody, rigHeight,
                 HumanBodyBones.LeftUpperLeg, HumanBodyBones.LeftLowerLeg, HumanBodyBones.LeftFoot,
-                UpperLegRadius, LowerLegRadius, UpperLegLimits, LowerLegLimits);
+                UpperLegRadius, LowerLegRadius, UpperLegLimits, LowerLegLimits,
+                out _, out _);
             AddLimb(animator, bodies, hipBody, rigHeight,
                 HumanBodyBones.RightUpperLeg, HumanBodyBones.RightLowerLeg, HumanBodyBones.RightFoot,
-                UpperLegRadius, LowerLegRadius, UpperLegLimits, LowerLegLimits);
+                UpperLegRadius, LowerLegRadius, UpperLegLimits, LowerLegLimits,
+                out _, out _);
 
             Ragdoll ragdoll = root.GetComponent<Ragdoll>();
             if (ragdoll == null)
@@ -163,6 +167,18 @@ namespace CityX.CharacterEditor
             ragdoll.Torso = hipBody;
             ragdoll.Animator = animator;
 
+            // Named individually (rather than only living in the flat Bodies
+            // array) for GrappleSwing's own partial-ragdoll swing pose -- see
+            // Ragdoll.ActivateSwing's own doc comment for why the chest and
+            // right arm need to be addressable on their own rather than
+            // walking Bodies looking for them by position.
+            ragdoll.Chest = chestBody;
+            ragdoll.Head = headBody;
+            ragdoll.LeftUpperArm = leftUpperArmBody;
+            ragdoll.LeftLowerArm = leftLowerArmBody;
+            ragdoll.RightUpperArm = rightUpperArmBody;
+            ragdoll.RightLowerArm = rightLowerArmBody;
+
             Debug.Log($"CityX: ragdoll built from {bodies.Count} bones " +
                       $"(rig measures {rigHeight:0.00} in its own units)");
             return ragdoll;
@@ -170,8 +186,12 @@ namespace CityX.CharacterEditor
 
         private static void AddLimb(Animator animator, List<Rigidbody> bodies, Rigidbody parent,
             float rigHeight, HumanBodyBones upper, HumanBodyBones lower, HumanBodyBones end,
-            float upperRadius, float lowerRadius, Limits upperLimits, Limits lowerLimits)
+            float upperRadius, float lowerRadius, Limits upperLimits, Limits lowerLimits,
+            out Rigidbody upperBody, out Rigidbody lowerBody)
         {
+            upperBody = null;
+            lowerBody = null;
+
             Transform upperBone = animator.GetBoneTransform(upper);
             Transform lowerBone = animator.GetBoneTransform(lower);
             Transform endBone = animator.GetBoneTransform(end);
@@ -182,11 +202,11 @@ namespace CityX.CharacterEditor
                 return;
             }
 
-            Rigidbody upperBody = MakeCapsule(upperBone, lowerBone, rigHeight * upperRadius);
+            upperBody = MakeCapsule(upperBone, lowerBone, rigHeight * upperRadius);
             bodies.Add(upperBody);
             Join(upperBody, parent, upperBone, upperLimits);
 
-            Rigidbody lowerBody = MakeCapsule(lowerBone, endBone, rigHeight * lowerRadius);
+            lowerBody = MakeCapsule(lowerBone, endBone, rigHeight * lowerRadius);
             bodies.Add(lowerBody);
             Join(lowerBody, upperBody, lowerBone, lowerLimits);
         }

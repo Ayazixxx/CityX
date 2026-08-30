@@ -73,8 +73,6 @@ namespace CityX.Character
         /// </summary>
         public const float MaxGroundSeconds = 0.35f;
 
-        private static readonly int JumpParameter = Animator.StringToHash("Jump");
-
         /// <summary>Set by GrapplingHookItem.OnEquip/OnUnequip -- null means nothing is equipped to fire or draw a rope with.</summary>
         public IGrappleLauncher EquippedHook;
 
@@ -83,7 +81,33 @@ namespace CityX.Character
 
         private CharacterController _controller;
         private PlayerLocomotion _locomotion;
-        private Animator _animator;
+        private Ragdoll _ragdoll;
+        private IFireballCaster _fireballCaster;
+
+        /// <summary>
+        /// How far above the CharacterController's own root the chest
+        /// SHOULD sit -- read once from PlayerLocomotion's own StandingHeight
+        /// in Bind, not hardcoded, so a differently-scaled body keeps a
+        /// sensible chest height instead of this drifting out of sync with
+        /// ApplyHeight's own scaling. A fraction of standing height rather
+        /// than a fixed metre offset for the same reason.
+        /// </summary>
+        private float _chestHeightOffset = 1.35f;
+
+        /// <summary>
+        /// FIRST-GUESS POSES, not yet checked against a real rendered swing
+        /// the way this project's other procedural poses eventually were
+        /// (PistolWeapon.GripHandRotationEuler's own doc comment, etc.) --
+        /// a reaching-up-and-forward shape for the pinned arm, relative to
+        /// Chest's own live rotation (which itself faces the anchor -- see
+        /// UpdateRagdollPose), and its mirror for the left arm's own cast
+        /// pose.
+        /// </summary>
+        private static readonly Quaternion RightUpperArmSwingPose = Quaternion.Euler(-10.0f, 15.0f, -150.0f);
+
+        private static readonly Quaternion RightLowerArmSwingPose = Quaternion.Euler(60.0f, 0.0f, 0.0f);
+        private static readonly Quaternion LeftUpperArmCastPose = Quaternion.Euler(-10.0f, -15.0f, 150.0f);
+        private static readonly Quaternion LeftLowerArmCastPose = Quaternion.Euler(60.0f, 0.0f, 0.0f);
 
         private Vector3 _velocity;
         private Vector3 _anchor;
@@ -116,11 +140,13 @@ namespace CityX.Character
         public void Bind()
         {
             _controller = GetComponent<CharacterController>();
-            _animator = GetComponentInChildren<Animator>();
             _locomotion = GetComponent<PlayerLocomotion>();
+            _ragdoll = GetComponent<Ragdoll>();
+            _fireballCaster = GetComponent<IFireballCaster>();
             if (_locomotion != null)
             {
                 Gravity = _locomotion.Gravity;
+                _chestHeightOffset = _locomotion.StandingHeight * 0.6f;
             }
         }
 
@@ -175,13 +201,16 @@ namespace CityX.Character
             _groundTime = 0.0f;
 
             EquippedHook?.ShowRope(anchor);
-            // The held pose for the whole swing. Reuses the same "Jump"
-            // trigger PlayerLocomotion's own jump already fires: an upright,
-            // non-looping airborne clip that settles on its last frame and
-            // holds there, exactly what a fixed swing pose needs -- see this
-            // class's own doc comment on why nothing here re-touches
-            // rotation to correct a tilted pose the way player.gd had to.
-            _animator?.SetTrigger(JumpParameter);
+            // THE HELD POSE IS NOW A PARTIAL RAGDOLL, not the Animator --
+            // explicit ask: "his right hand stay attached to it but the
+            // rest of his body is ragdolling". An earlier version of this
+            // file fired the same "Jump" trigger every ordinary jump uses,
+            // holding on the clip's own last frame; ActivateSwing disables
+            // the Animator outright, so that trigger would never actually
+            // play a frame of it now. See Ragdoll.ActivateSwing's own doc
+            // comment for what stays kinematic (chest, right arm) versus
+            // what actually ragdolls.
+            _ragdoll?.ActivateSwing(_velocity);
         }
 
         /// <summary>
@@ -212,6 +241,10 @@ namespace CityX.Character
             _locomotion?.SetVerticalVelocity(_velocity.y);
             _locomotion?.SetResidualVelocity(_velocity);
             EquippedHook?.HideRope();
+            // Landed, let go, or dashed out -- every one of those calls
+            // Release, so restoring full animated control has exactly one
+            // place to live rather than being duplicated at each call site.
+            _ragdoll?.DeactivateSwing();
         }
 
         /// <summary>
@@ -294,6 +327,7 @@ namespace CityX.Character
             EquippedHook?.UpdateRope(_anchor);
 
             _controller.Move(_velocity * deltaTime + correction);
+            UpdateRagdollPose();
 
             // Landing on your feet ends the swing on its own. TWO ways out,
             // because a speed test alone isn't enough: this function keeps
@@ -320,6 +354,33 @@ namespace CityX.Character
             {
                 Release(false);
             }
+        }
+
+        /// <summary>
+        /// Drives the swing's own partial ragdoll every frame -- see
+        /// Ragdoll.ActivateSwing's own doc comment for the underlying
+        /// mechanism (Chest is the anchor everything else gets dragged
+        /// from). Chest faces the anchor, which is what makes the right
+        /// arm's own fixed RightUpperArmSwingPose read as reaching for the
+        /// rope rather than reaching in some direction unrelated to it.
+        /// </summary>
+        private void UpdateRagdollPose()
+        {
+            if (_ragdoll == null)
+            {
+                return;
+            }
+
+            Vector3 chestPosition = transform.position + Vector3.up * _chestHeightOffset;
+            Vector3 toAnchor = _anchor - chestPosition;
+            Quaternion chestRotation = toAnchor.sqrMagnitude > 0.0001f
+                ? Quaternion.LookRotation(toAnchor.normalized, Vector3.up)
+                : transform.rotation;
+
+            _ragdoll.TickSwingPose(chestPosition, chestRotation, RightUpperArmSwingPose, RightLowerArmSwingPose);
+
+            bool casting = _fireballCaster != null && _fireballCaster.IsCasting;
+            _ragdoll.SetLeftArmPose(casting, LeftUpperArmCastPose, LeftLowerArmCastPose);
         }
     }
 }

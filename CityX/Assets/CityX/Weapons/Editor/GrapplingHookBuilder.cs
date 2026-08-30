@@ -6,69 +6,88 @@ using UnityEngine;
 namespace CityX.WeaponsEditor
 {
     /// <summary>
-    /// Builds the grappling hook prefab, from items/grappling_hook.gd's own
-    /// numbers -- body + barrel + muzzle marker, all procedural (matching
-    /// BottleBuilder's own reasoning: no glTF importer exists in this
-    /// project, so nothing here waits on one).
+    /// Builds the grappling hook prefab from a Meshy AI "Grapple Blaster"
+    /// export -- a real pistol-grip sci-fi launcher with an open claw/hook
+    /// mechanism at the muzzle, replacing an earlier procedural
+    /// body+barrel+muzzle build that read as a plain grey cylinder with no
+    /// real grip shape. Same "load the real model, override its broken
+    /// material, normalize its scale" pattern PistolBuilder's own
+    /// Beretta_M9.obj already uses.
     ///
-    /// THE ROPE/HOOK-HEAD MATERIALS ARE BUILT HERE AND WIRED AS REFERENCES,
-    /// not created at runtime -- GrapplingHookItem.ShowRope only ever
-    /// APPLIES RopeMaterial/HookHeadMaterial to a fresh rope tube mesh/cube
-    /// it builds while playing, matching BottleWeapon's own "materials
-    /// built at edit time by the builder" convention.
+    /// THE EMBEDDED TEXTURE IS UNUSABLE, for the exact reason the
+    /// meshy-ai-import-quirks memory already documents twice over
+    /// (FarmerHat, MidnightPatchworkCoat): confirmed directly that
+    /// glTFast imports this file's base_color/normal/metallicRoughness
+    /// textures as silently stubbed 4x4 Texture2Ds, not the real (extracted
+    /// from the .glb's own binary chunk by scanning for JPEG signatures,
+    /// then viewed directly) full-resolution art the source actually
+    /// carries -- a dark charcoal gunmetal with lighter worn-steel
+    /// highlights, colour-matched here the same flat-material way.
+    ///
+    /// THE MODEL'S OWN NATIVE FORWARD AXIS IS +X, NOT +Z -- confirmed by a
+    /// raw render before assuming otherwise (a lesson the same memory
+    /// already paid for once): the pistol grip sits at one end, the open
+    /// claw mechanism at the other, spread out along the source mesh's own
+    /// local X axis. Beretta_M9.obj's own muzzle already sits at +Z
+    /// natively (confirmed by PistolBuilder's own fixed +Z muzzle-flash
+    /// offset, applied with no rotation), so BuildVisual applies a fixed
+    /// corrective -90 degree yaw here to match that same +Z-forward
+    /// convention -- the point of doing so is that GrapplingHookItem's own
+    /// GripHandPosition/GripHandRotationEuler can then be the literal same
+    /// numbers as PistolWeapon's, satisfying "hold it the same as the
+    /// pistol" exactly rather than needing its own independently-tuned grip.
     /// </summary>
     public static class GrapplingHookBuilder
     {
         private const string PrefabPath = "Assets/CityX/Weapons/GrapplingHook.prefab";
+        private const string ModelPath = "Assets/CityX/Weapons/Models/GrappleBlaster.glb";
+
+        /// <summary>
+        /// Claw-tip to grip-butt. A bit longer than the Beretta's real
+        /// 21.7cm -- this is a chunky two-part sci-fi launcher with an open
+        /// claw mechanism riding past the end of an ordinary pistol's own
+        /// barrel, not a real-world sidearm to match exactly.
+        /// </summary>
+        private const float TargetLengthMeters = 0.34f;
+
+        /// <summary>
+        /// Eyeballed off the source .glb's own real base_color JPEG (see
+        /// this file's own class comment) -- a dark, near-black charcoal
+        /// gunmetal with lighter worn-steel highlights. This single flat
+        /// colour stands in for the whole texture, the same fix
+        /// FarmerHatBuilder/MidnightPatchworkCoatBuilder already use for
+        /// the identical glTFast stub bug.
+        /// </summary>
+        private static readonly Color MetalColour = new Color(0.11f, 0.11f, 0.12f);
 
         [MenuItem("CityX/Rebuild Grappling Hook")]
         public static GameObject Build()
         {
+            GameObject model = AssetDatabase.LoadAssetAtPath<GameObject>(ModelPath);
+            if (model == null)
+            {
+                Debug.LogError($"CityX: {ModelPath} missing -- no grappling hook built.");
+                return null;
+            }
+
             var root = new GameObject("GrapplingHook");
             try
             {
-                Material bodyMaterial = CharacterSkin.Ensure("GrappleBody", GrapplingHookItem.BodyColour);
-                bodyMaterial.SetFloat("_Metallic", 0.4f);
-                bodyMaterial.SetFloat("_Smoothness", 0.45f);
+                BuildVisual(root.transform, model, out Bounds rotatedBounds);
 
-                var body = new GameObject("Body");
-                body.transform.SetParent(root.transform, false);
-                var bodyFilter = body.AddComponent<MeshFilter>();
-                bodyFilter.sharedMesh = BoxMesh(new Vector3(
-                    GrapplingHookItem.BodyRadius * 2.0f,
-                    GrapplingHookItem.BodyRadius * 2.4f,
-                    GrapplingHookItem.BodyLength));
-                body.AddComponent<MeshRenderer>().sharedMaterial = bodyMaterial;
-
-                Material barrelMaterial = CharacterSkin.Ensure("GrappleBarrel", GrapplingHookItem.BarrelColour);
-                barrelMaterial.SetFloat("_Metallic", 0.8f);
-                barrelMaterial.SetFloat("_Smoothness", 0.7f);
-
-                var barrel = new GameObject("Barrel");
-                barrel.transform.SetParent(root.transform, false);
-                // Laid along -Z (the aiming direction) rather than the
-                // cylinder's own +Y -- matching the Godot original's own
-                // barrel.rotation.
-                barrel.transform.localRotation = Quaternion.Euler(90.0f, 0.0f, 0.0f);
-                barrel.transform.localPosition = new Vector3(0.0f, 0.0f,
-                    -(GrapplingHookItem.BodyLength * 0.5f + GrapplingHookItem.BarrelLength * 0.5f));
-                var barrelFilter = barrel.AddComponent<MeshFilter>();
-                barrelFilter.sharedMesh = CylinderMesh(
-                    GrapplingHookItem.BarrelRadius, GrapplingHookItem.BarrelLength);
-                barrel.AddComponent<MeshRenderer>().sharedMaterial = barrelMaterial;
-
-                // Where the rope is drawn FROM -- a plain marker, no
-                // geometry, so its own origin tracks the barrel tip through
-                // whatever animation the hand happens to be playing.
                 var muzzle = new GameObject("Muzzle");
                 muzzle.transform.SetParent(root.transform, false);
-                muzzle.transform.localPosition = new Vector3(0.0f, 0.0f,
-                    -(GrapplingHookItem.BodyLength * 0.5f + GrapplingHookItem.BarrelLength));
+                // The claw-tip end, not a guessed half-length -- see
+                // BuildVisual's own doc comment for why an asymmetric mesh
+                // (grip at one end, claw at the other) means this cannot
+                // just be TargetLengthMeters * 0.5.
+                muzzle.transform.localPosition = new Vector3(0.0f, 0.0f, rotatedBounds.max.z);
 
                 var collision = root.AddComponent<CapsuleCollider>();
-                collision.radius = GrapplingHookItem.BodyRadius;
-                collision.height = GrapplingHookItem.BodyLength + GrapplingHookItem.BarrelLength;
-                collision.direction = 2; // Z axis, matching the barrel's own aim axis.
+                collision.radius = Mathf.Max(rotatedBounds.extents.x, rotatedBounds.extents.y) * 0.6f;
+                collision.height = rotatedBounds.size.z;
+                collision.direction = 2; // Z axis, matching the muzzle's own aim axis.
+                collision.center = new Vector3(0.0f, 0.0f, rotatedBounds.center.z);
 
                 var rigidbody = root.AddComponent<Rigidbody>();
                 rigidbody.mass = GrapplingHookItem.HookMass;
@@ -96,43 +115,167 @@ namespace CityX.WeaponsEditor
             }
         }
 
-        private static Mesh BoxMesh(Vector3 size)
+        /// <summary>
+        /// Instantiates the real model, applies the fixed corrective yaw
+        /// (native +X-forward -> +Z-forward, see this file's own class
+        /// comment), normalizes scale and recentres exactly the way
+        /// PistolBuilder's own NormalizeScale does, and overrides the
+        /// broken imported material with a flat gunmetal one. Returns the
+        /// visual's own rotated-and-scaled bounds, in <paramref name="parent"/>'s
+        /// local space, so Build can place the muzzle/collider from real
+        /// geometry instead of a guessed half-length -- the mesh is not
+        /// symmetric front-to-back (grip at one end, claw at the other),
+        /// so its own local origin after recentring is not its midpoint
+        /// along the aim axis either.
+        /// </summary>
+        private static void BuildVisual(Transform parent, GameObject model, out Bounds rotatedBounds)
         {
-            var mesh = new Mesh { name = "GrappleBodyMesh" };
-            var box = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            Mesh source = box.GetComponent<MeshFilter>().sharedMesh;
-            mesh.vertices = ScaleVertices(source.vertices, size);
-            mesh.normals = source.normals;
-            mesh.uv = source.uv;
-            mesh.triangles = source.triangles;
-            mesh.RecalculateBounds();
-            Object.DestroyImmediate(box);
-            return mesh;
-        }
+            var visual = (GameObject)PrefabUtility.InstantiatePrefab(model);
+            visual.name = "Visual";
+            visual.transform.SetParent(parent, false);
+            visual.transform.localRotation = Quaternion.Euler(0.0f, -90.0f, 0.0f);
 
-        private static Vector3[] ScaleVertices(Vector3[] vertices, Vector3 size)
-        {
-            var scaled = new Vector3[vertices.Length];
-            for (int i = 0; i < vertices.Length; i++)
+            Renderer[] renderers = visual.GetComponentsInChildren<Renderer>(true);
+            Bounds worldBounds = renderers[0].bounds;
+            for (int i = 1; i < renderers.Length; i++)
             {
-                scaled[i] = Vector3.Scale(vertices[i], size);
+                worldBounds.Encapsulate(renderers[i].bounds);
             }
-            return scaled;
+
+            float largestDimension = Mathf.Max(worldBounds.size.x, Mathf.Max(worldBounds.size.y, worldBounds.size.z));
+            float normalizeScale = largestDimension > 0.0001f ? TargetLengthMeters / largestDimension : 1.0f;
+
+            Vector3 centreLocal = visual.transform.InverseTransformPoint(worldBounds.center);
+            visual.transform.localScale = Vector3.one * normalizeScale;
+            visual.transform.localPosition = -centreLocal * normalizeScale;
+
+            Material metal = CharacterSkin.Ensure("GrappleBlasterMetal", MetalColour);
+            metal.SetFloat("_Metallic", 0.75f);
+            metal.SetFloat("_Smoothness", 0.6f);
+            foreach (MeshRenderer meshRenderer in visual.GetComponentsInChildren<MeshRenderer>(true))
+            {
+                meshRenderer.sharedMaterial = metal;
+            }
+
+            Bounds newWorldBounds = renderers[0].bounds;
+            for (int i = 1; i < renderers.Length; i++)
+            {
+                newWorldBounds.Encapsulate(renderers[i].bounds);
+            }
+            rotatedBounds = new Bounds(
+                parent.InverseTransformPoint(newWorldBounds.center),
+                newWorldBounds.size);
         }
 
-        private static Mesh CylinderMesh(float radius, float height)
+        /// <summary>
+        /// Renders the grappling hook equipped on the real player prefab,
+        /// close on the hand -- the only way to actually judge whether
+        /// reusing PistolWeapon's own grip numbers on a differently-shaped
+        /// mesh actually looks held, not just numerically identical. Copied
+        /// from PistolBuilder's own CaptureGrip almost verbatim; not shared,
+        /// since that one is private to its own file.
+        /// </summary>
+        [MenuItem("CityX/Capture Grapple Grip")]
+        public static void CaptureGrip()
         {
-            var mesh = new Mesh { name = "GrappleBarrelMesh" };
-            var cylinder = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            Mesh source = cylinder.GetComponent<MeshFilter>().sharedMesh;
-            // Unity's primitive cylinder is 2 units tall with radius 1.
-            mesh.vertices = ScaleVertices(source.vertices, new Vector3(radius * 2.0f, height * 0.5f, radius * 2.0f));
-            mesh.normals = source.normals;
-            mesh.uv = source.uv;
-            mesh.triangles = source.triangles;
-            mesh.RecalculateBounds();
-            Object.DestroyImmediate(cylinder);
-            return mesh;
+            var playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab");
+            var hookPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath);
+            if (playerPrefab == null || hookPrefab == null)
+            {
+                Debug.LogError("CityX: need both Player.prefab and GrapplingHook.prefab built first.");
+                return;
+            }
+
+            string outputDirectory = System.IO.Path.Combine(
+                System.IO.Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
+            System.IO.Directory.CreateDirectory(outputDirectory);
+
+            var root = new GameObject("GrappleGripRig");
+            RenderTexture target = null;
+            try
+            {
+                var sunObject = new GameObject("Sun");
+                sunObject.transform.SetParent(root.transform);
+                Light sun = sunObject.AddComponent<Light>();
+                sun.type = LightType.Directional;
+                sun.intensity = 1.2f;
+                sun.transform.rotation = Quaternion.Euler(35.0f, 150.0f, 0.0f);
+
+                var player = (GameObject)PrefabUtility.InstantiatePrefab(playerPrefab);
+                player.transform.SetParent(root.transform);
+                player.transform.position = Vector3.zero;
+                player.transform.rotation = Quaternion.Euler(0.0f, 200.0f, 0.0f);
+
+                PoseArmsDown(player.transform);
+
+                var hookInstance = (GameObject)PrefabUtility.InstantiatePrefab(hookPrefab);
+                var hook = hookInstance.GetComponent<GrapplingHookItem>();
+                hook.OnEquip(player, CityX.Items.ItemInstanceData.None);
+
+                foreach (SkinnedMeshRenderer skin in player.GetComponentsInChildren<SkinnedMeshRenderer>())
+                {
+                    skin.updateWhenOffscreen = true;
+                }
+
+                Vector3 gripPosition = hookInstance.transform.position;
+
+                var cameraObject = new GameObject("Camera");
+                cameraObject.transform.SetParent(root.transform);
+                Camera camera = cameraObject.AddComponent<Camera>();
+                camera.clearFlags = CameraClearFlags.SolidColor;
+                camera.backgroundColor = new Color(0.10f, 0.11f, 0.15f);
+                camera.fieldOfView = 35.0f;
+                camera.nearClipPlane = 0.05f;
+                cameraObject.transform.position =
+                    player.transform.position + Vector3.up * 1.0f - player.transform.forward * 1.6f;
+                cameraObject.transform.LookAt(gripPosition);
+
+                target = new RenderTexture(800, 800, 24, RenderTextureFormat.ARGB32) { antiAliasing = 8 };
+                camera.targetTexture = target;
+                camera.Render();
+                RenderTexture.active = target;
+                var image = new Texture2D(800, 800, TextureFormat.RGB24, false);
+                image.ReadPixels(new Rect(0, 0, 800, 800), 0, 0);
+                image.Apply();
+                string path = System.IO.Path.Combine(outputDirectory, "grapple-grip.png");
+                System.IO.File.WriteAllBytes(path, image.EncodeToPNG());
+                Object.DestroyImmediate(image);
+                Debug.Log($"CityX: wrote {path}");
+            }
+            finally
+            {
+                if (target != null) { target.Release(); Object.DestroyImmediate(target); }
+                Object.DestroyImmediate(root);
+            }
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        private static void PoseArmsDown(Transform root)
+        {
+            SetLocalRotation(root, "arm_l", new Vector3(0.0f, 0.0f, 78.0f));
+            SetLocalRotation(root, "forearm_l", new Vector3(0.0f, 0.0f, 12.0f));
+            SetLocalRotation(root, "arm_r", new Vector3(0.0f, 0.0f, -78.0f));
+            SetLocalRotation(root, "forearm_r", new Vector3(0.0f, 0.0f, -12.0f));
+        }
+
+        private static void SetLocalRotation(Transform root, string boneName, Vector3 euler)
+        {
+            Transform bone = FindDeep(root, boneName);
+            if (bone != null)
+            {
+                bone.localRotation = Quaternion.Euler(euler);
+            }
+        }
+
+        private static Transform FindDeep(Transform root, string name)
+        {
+            if (root.name == name) return root;
+            foreach (Transform child in root)
+            {
+                Transform hit = FindDeep(child, name);
+                if (hit != null) return hit;
+            }
+            return null;
         }
     }
 }
