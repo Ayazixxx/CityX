@@ -146,8 +146,10 @@ namespace CityX.Character
         private Quaternion _leftLowerArmBase = Quaternion.identity;
         private Quaternion _leftUpperLegBase = Quaternion.identity;
         private Quaternion _rightUpperLegBase = Quaternion.identity;
+        private Quaternion _rightUpperArmBase = Quaternion.identity;
+        private Quaternion _rightLowerArmBase = Quaternion.identity;
 
-        /// <summary>The right arm's own CURRENT local rotation, eased toward RightUpperArmReachPose/RightLowerArmReachPose every frame -- an absolute target, not an additive offset, since "reach for the rope" means a specific pose regardless of whatever the Animator last had it doing.</summary>
+        /// <summary>The right arm's own CURRENT local rotation, eased toward a reach pose layered on _rightUpperArmBase/_rightLowerArmBase every frame -- see RightUpperArmReachDegrees's own doc comment for why this is relative to that captured base rather than an absolute target.</summary>
         private Quaternion _rightUpperArmCurrent = Quaternion.identity;
 
         private Quaternion _rightLowerArmCurrent = Quaternion.identity;
@@ -172,17 +174,31 @@ namespace CityX.Character
         private const float ArmPoseDegreesPerSecond = 240.0f;
 
         /// <summary>
-        /// FIRST-GUESS POSES, not yet checked against a real rendered swing
-        /// the way this project's other procedural poses eventually were
-        /// (PistolWeapon.GripHandRotationEuler's own doc comment, etc.) --
-        /// a reaching-up-and-forward shape for the pinned arm and its
-        /// mirror for the left arm's own cast pose.
+        /// How far the right arm reaches for the rope, layered ADDITIVELY
+        /// on top of the pose captured at Attach (_rightUpperArmBase) --
+        /// NOT an absolute fixed orientation, which is what this file
+        /// originally used and which rendered as a grotesquely stretched
+        /// limb (confirmed directly with GrapplingHookBuilder.CaptureSwing,
+        /// a live bug report: "the body stays still and starts
+        /// stretching"). This rig's skin is bound relative to whatever
+        /// pose a bone is already in, the same reason
+        /// PlayerLocomotion.ApplyCastingPose layers its own raise onto the
+        /// CURRENT rotation instead of replacing it outright -- a fixed
+        /// absolute target overwrites the Animator's own X/Y shoulder
+        /// positioning entirely and can land on an orientation this rig's
+        /// simple capsule-limb skin weights were never bound for, which is
+        /// exactly what stretches. Z-only (Vector3.forward), the same axis
+        /// CastRaiseDegrees's own doc comment already found safe on this
+        /// rig -- local X there turned out to be a twist/roll axis.
+        /// Positive, matching CastRaiseDegrees's own sign for the right arm
+        /// (raises the hand); the left arm's own cast pose mirrors it
+        /// negative, matching ApplyCastingPose's left/right sign flip.
         /// </summary>
-        private static readonly Quaternion RightUpperArmReachPose = Quaternion.Euler(-10.0f, 15.0f, -150.0f);
+        private const float RightUpperArmReachDegrees = 150.0f;
 
-        private static readonly Quaternion RightLowerArmReachPose = Quaternion.Euler(60.0f, 0.0f, 0.0f);
-        private static readonly Quaternion LeftUpperArmCastPose = Quaternion.Euler(-10.0f, -15.0f, 150.0f);
-        private static readonly Quaternion LeftLowerArmCastPose = Quaternion.Euler(60.0f, 0.0f, 0.0f);
+        private const float RightLowerArmReachDegrees = 60.0f;
+        private const float LeftUpperArmCastDegrees = -150.0f;
+        private const float LeftLowerArmCastDegrees = 60.0f;
 
         private Vector3 _velocity;
         private Vector3 _anchor;
@@ -318,6 +334,8 @@ namespace CityX.Character
             CaptureBase(_leftLowerArmBone, ref _leftLowerArmBase);
             CaptureBase(_leftUpperLegBone, ref _leftUpperLegBase);
             CaptureBase(_rightUpperLegBone, ref _rightUpperLegBase);
+            CaptureBase(_rightUpperArmBone, ref _rightUpperArmBase);
+            CaptureBase(_rightLowerArmBone, ref _rightLowerArmBase);
             _rightUpperArmCurrent = _rightUpperArmBone != null ? _rightUpperArmBone.localRotation : Quaternion.identity;
             _rightLowerArmCurrent = _rightLowerArmBone != null ? _rightLowerArmBone.localRotation : Quaternion.identity;
             _leftUpperArmCurrent = _leftUpperArmBone != null ? _leftUpperArmBone.localRotation : Quaternion.identity;
@@ -493,7 +511,9 @@ namespace CityX.Character
         /// physics. Head/legs/free-arm sway off the swing's own smoothed
         /// local velocity, reading as a loose flail without ever touching a
         /// Rigidbody or a joint; the right arm (and the left, while
-        /// actually casting) eases toward a fixed reach/cast pose instead.
+        /// actually casting) eases toward a reach/cast pose layered onto
+        /// its own captured base instead -- see RightUpperArmReachDegrees's
+        /// own doc comment for why that base matters.
         /// </summary>
         private void UpdateSwingPose(float deltaTime)
         {
@@ -516,9 +536,14 @@ namespace CityX.Character
 
             float maxDelta = ArmPoseDegreesPerSecond * deltaTime;
 
-            // The right arm always reaches for the rope.
-            _rightUpperArmCurrent = Quaternion.RotateTowards(_rightUpperArmCurrent, RightUpperArmReachPose, maxDelta);
-            _rightLowerArmCurrent = Quaternion.RotateTowards(_rightLowerArmCurrent, RightLowerArmReachPose, maxDelta);
+            // The right arm always reaches for the rope -- see
+            // RightUpperArmReachDegrees's own doc comment for why the
+            // target is layered on _rightUpperArmBase/_rightLowerArmBase
+            // rather than a fixed absolute orientation.
+            Quaternion rightUpperTarget = _rightUpperArmBase * Quaternion.Euler(0.0f, 0.0f, RightUpperArmReachDegrees);
+            Quaternion rightLowerTarget = _rightLowerArmBase * Quaternion.Euler(RightLowerArmReachDegrees, 0.0f, 0.0f);
+            _rightUpperArmCurrent = Quaternion.RotateTowards(_rightUpperArmCurrent, rightUpperTarget, maxDelta);
+            _rightLowerArmCurrent = Quaternion.RotateTowards(_rightLowerArmCurrent, rightLowerTarget, maxDelta);
             if (_rightUpperArmBone != null) _rightUpperArmBone.localRotation = _rightUpperArmCurrent;
             if (_rightLowerArmBone != null) _rightLowerArmBone.localRotation = _rightLowerArmCurrent;
 
@@ -529,10 +554,10 @@ namespace CityX.Character
             // head and legs.
             bool casting = _fireballCaster != null && _fireballCaster.IsCasting;
             Quaternion leftUpperTarget = casting
-                ? LeftUpperArmCastPose
+                ? _leftUpperArmBase * Quaternion.Euler(0.0f, 0.0f, LeftUpperArmCastDegrees)
                 : _leftUpperArmBase * Quaternion.Euler(forwardBack * -30.0f, 0.0f, sideways * 25.0f);
             Quaternion leftLowerTarget = casting
-                ? LeftLowerArmCastPose
+                ? _leftLowerArmBase * Quaternion.Euler(LeftLowerArmCastDegrees, 0.0f, 0.0f)
                 : _leftLowerArmBase * Quaternion.Euler(Mathf.Abs(forwardBack) * 20.0f, 0.0f, 0.0f);
             _leftUpperArmCurrent = Quaternion.RotateTowards(_leftUpperArmCurrent, leftUpperTarget, maxDelta);
             _leftLowerArmCurrent = Quaternion.RotateTowards(_leftLowerArmCurrent, leftLowerTarget, maxDelta);

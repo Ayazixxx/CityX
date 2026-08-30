@@ -1,3 +1,4 @@
+using CityX.Character;
 using CityX.CharacterEditor;
 using CityX.Weapons;
 using UnityEditor;
@@ -241,6 +242,104 @@ namespace CityX.WeaponsEditor
                 System.IO.File.WriteAllBytes(path, image.EncodeToPNG());
                 Object.DestroyImmediate(image);
                 Debug.Log($"CityX: wrote {path}");
+            }
+            finally
+            {
+                if (target != null) { target.Release(); Object.DestroyImmediate(target); }
+                Object.DestroyImmediate(root);
+            }
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        /// <summary>
+        /// Renders the player mid-swing after real simulated Tick()s, not a
+        /// static pose -- a live bug report ("the body stays still and
+        /// starts stretching, the camera keeps moving") described something
+        /// no single-frame capture could ever show, and CaptureGrip's own
+        /// static arms-down pose never runs GrappleSwing.Tick at all. This
+        /// drives the exact same rope/pose code a real swing does for
+        /// several simulated seconds -- CharacterController.Move works
+        /// outside Play Mode the same way GrappleSwingTests' own EditMode
+        /// suite already relies on -- then renders once from a
+        /// third-person-ish angle so the WHOLE body is visible, not just the
+        /// grip.
+        /// </summary>
+        [MenuItem("CityX/Capture Grapple Swing")]
+        public static void CaptureSwing()
+        {
+            var playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab");
+            if (playerPrefab == null)
+            {
+                Debug.LogError("CityX: need Player.prefab built first.");
+                return;
+            }
+
+            string outputDirectory = System.IO.Path.Combine(
+                System.IO.Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
+            System.IO.Directory.CreateDirectory(outputDirectory);
+
+            var root = new GameObject("GrappleSwingRig");
+            RenderTexture target = null;
+            try
+            {
+                var sunObject = new GameObject("Sun");
+                sunObject.transform.SetParent(root.transform);
+                Light sun = sunObject.AddComponent<Light>();
+                sun.type = LightType.Directional;
+                sun.intensity = 1.2f;
+                sun.transform.rotation = Quaternion.Euler(35.0f, 150.0f, 0.0f);
+
+                var player = (GameObject)PrefabUtility.InstantiatePrefab(playerPrefab);
+                player.transform.SetParent(root.transform);
+                player.transform.position = new Vector3(0.0f, 20.0f, 0.0f);
+                player.transform.rotation = Quaternion.identity;
+                Physics.SyncTransforms();
+
+                GrappleSwing swing = player.GetComponent<GrappleSwing>();
+                if (swing == null) swing = player.AddComponent<GrappleSwing>();
+                swing.Bind();
+                swing.Attach(player.transform.position + new Vector3(6.0f, 8.0f, 4.0f));
+
+                // Held forward with a slowly sweeping yaw, the same "pump
+                // the swing while looking around" a real player actually
+                // does -- 240 ticks at a real 1/60 step is a genuine 4
+                // seconds of swinging, long enough for the sway smoothing
+                // and the arm's own RotateTowards easing to fully settle
+                // rather than being caught mid-transition.
+                for (int i = 0; i < 240; i++)
+                {
+                    float yaw = i * 0.5f;
+                    swing.Tick(new Vector2(0.0f, 1.0f), yaw, false, false, false, false, 1.0f / 60.0f);
+                }
+
+                foreach (SkinnedMeshRenderer skin in player.GetComponentsInChildren<SkinnedMeshRenderer>())
+                {
+                    skin.updateWhenOffscreen = true;
+                }
+
+                var cameraObject = new GameObject("Camera");
+                cameraObject.transform.SetParent(root.transform);
+                Camera camera = cameraObject.AddComponent<Camera>();
+                camera.clearFlags = CameraClearFlags.SolidColor;
+                camera.backgroundColor = new Color(0.10f, 0.11f, 0.15f);
+                camera.fieldOfView = 50.0f;
+                camera.nearClipPlane = 0.05f;
+                camera.farClipPlane = 500.0f;
+                cameraObject.transform.position =
+                    player.transform.position + Vector3.up * 1.4f - player.transform.forward * 4.0f;
+                cameraObject.transform.LookAt(player.transform.position + Vector3.up * 1.0f);
+
+                target = new RenderTexture(900, 900, 24, RenderTextureFormat.ARGB32) { antiAliasing = 8 };
+                camera.targetTexture = target;
+                camera.Render();
+                RenderTexture.active = target;
+                var image = new Texture2D(900, 900, TextureFormat.RGB24, false);
+                image.ReadPixels(new Rect(0, 0, 900, 900), 0, 0);
+                image.Apply();
+                string path = System.IO.Path.Combine(outputDirectory, "grapple-swing.png");
+                System.IO.File.WriteAllBytes(path, image.EncodeToPNG());
+                Object.DestroyImmediate(image);
+                Debug.Log($"CityX: wrote {path} -- swing position {player.transform.position:F2}, velocity {swing.Velocity:F2}");
             }
             finally
             {

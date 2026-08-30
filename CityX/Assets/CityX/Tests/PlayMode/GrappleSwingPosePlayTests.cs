@@ -99,6 +99,55 @@ namespace CityX.Tests
         }
 
         /// <summary>
+        /// AN ABSOLUTE FIXED TARGET for the reach pose (this feature's own
+        /// original design) rendered live as a grotesquely stretched limb --
+        /// confirmed directly with GrapplingHookBuilder.CaptureSwing against
+        /// a bug report that the body "stays still and starts stretching".
+        /// This rig's skin is bound relative to whatever pose a bone is
+        /// already in, so overwriting it outright can land on an
+        /// orientation the skin weights were never bound for. Checked here
+        /// by settling the SAME reach from two DELIBERATELY DIFFERENT
+        /// starting poses -- composed relative to its own captured base,
+        /// both settle the identical distance from their own very different
+        /// starting points (a quaternion identity: Angle(q, q*delta) is
+        /// delta's own angle no matter what q is); a fixed absolute target
+        /// would settle two very different distances instead, since the two
+        /// starting poses were picked to be nowhere near each other.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheRightArmReachSettlesRelativeToItsOwnCapturedPoseNotAFixedAbsoluteOrientation()
+        {
+            SpawnPlayer();
+            Transform rightUpperArm = _animator.GetBoneTransform(HumanBodyBones.RightUpperArm);
+            Vector3 anchor = _player.transform.position + new Vector3(3.0f, 6.0f, 2.0f);
+
+            rightUpperArm.localRotation = Quaternion.Euler(20.0f, -40.0f, 10.0f);
+            Quaternion baseA = rightUpperArm.localRotation;
+            _swing.Attach(anchor);
+            for (int i = 0; i < 90; i++)
+            {
+                _swing.Tick(Vector2.zero, 0.0f, false, false, false, false, StepSeconds);
+                yield return null;
+            }
+            float deltaA = Quaternion.Angle(baseA, rightUpperArm.localRotation);
+            _swing.Release(false);
+
+            rightUpperArm.localRotation = Quaternion.Euler(-35.0f, 60.0f, -25.0f);
+            Quaternion baseB = rightUpperArm.localRotation;
+            _swing.Attach(anchor);
+            for (int i = 0; i < 90; i++)
+            {
+                _swing.Tick(Vector2.zero, 0.0f, false, false, false, false, StepSeconds);
+                yield return null;
+            }
+            float deltaB = Quaternion.Angle(baseB, rightUpperArm.localRotation);
+
+            Assert.AreEqual(deltaA, deltaB, 2.0f,
+                $"the settled reach pose moved {deltaA:0.0} degrees from one starting pose but {deltaB:0.0} " +
+                "degrees from another very different one -- the reach target is not relative to its own captured base any more");
+        }
+
+        /// <summary>
         /// The grapple gun owns the right hand -- explicit ask: casting a
         /// fireball mid-swing should come from the LEFT hand instead, held
         /// in place rather than left flailing with the rest of the body,
