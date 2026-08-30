@@ -75,14 +75,23 @@ namespace CityX.Weapons
         public const float BoostTiltMaxDegrees = 20.0f;
 
         /// <summary>
-        /// How fast the lean eases toward its target, in degrees per
-        /// second -- fast enough that tapping a direction reads as an
-        /// immediate lean rather than a sluggish drift, matching the same
-        /// "fast enough to stay invisible on a stopwatch" reasoning
-        /// PlayerLocomotion.HorizontalAcceleration's own doc comment gives.
-        /// At this rate the full 12-degree lean is reached in 12/90 = 0.13s.
+        /// Roughly how long the lean takes to settle into a new target, in
+        /// seconds, via Mathf.SmoothDamp -- EXPLICIT CORRECTION: this used
+        /// to be a plain constant-rate Mathf.MoveTowards ramp
+        /// (TiltDegreesPerSecond, 90 degrees/second), which reaches its
+        /// target at a constant angular velocity and then stops dead the
+        /// instant it arrives -- a real discontinuity in speed, not just a
+        /// fast one, which is exactly what reads as the body "jumping into
+        /// place" rather than settling into the lean. SmoothDamp's own
+        /// critically-damped curve eases out approaching the target the
+        /// same way it eases in leaving the last one, so both ends of the
+        /// motion are gradual. Also slower than the old rate on top of
+        /// that, per the explicit ask -- the old constant rate reached the
+        /// full 12-degree lean in 12/90 = 0.13s; this settles close to a
+        /// target in roughly 2-3x TiltSmoothTime, noticeably more relaxed
+        /// without reading as sluggish.
         /// </summary>
-        public const float TiltDegreesPerSecond = 90.0f;
+        public const float TiltSmoothTime = 0.25f;
 
         [Tooltip("Set by JetpackBuilder -- plays while thrusting, stopped otherwise.")]
         public ParticleSystem FlameEffect;
@@ -99,6 +108,9 @@ namespace CityX.Weapons
 
         /// <summary>Current eased lean, X = pitch (forward/back), Z = roll (strafe).</summary>
         private Vector2 _currentTilt;
+
+        /// <summary>SmoothDamp's own persistent per-axis rate of change -- see EaseTilt's own doc comment for why this has to be carried between calls rather than derived fresh each frame.</summary>
+        private Vector2 _tiltVelocity;
 
         /// <summary>Exposed for testing without a real Animator -- see TickTilt's own doc comment.</summary>
         public Vector2 CurrentTilt => _currentTilt;
@@ -174,6 +186,7 @@ namespace CityX.Weapons
             // drive its localScale unopposed.
             _animatorTransform = animator != null ? animator.transform : null;
             _currentTilt = Vector2.zero;
+            _tiltVelocity = Vector2.zero;
 
             _equipped = true;
             if (_pickupTrigger != null)
@@ -310,18 +323,28 @@ namespace CityX.Weapons
 
         /// <summary>
         /// Eases the current lean toward its target, one axis at a time --
-        /// pure and static for the same testability reason TiltTarget is.
-        /// Independent per-axis MoveTowards, not a single blended lerp, so
-        /// releasing just one of two held keys (e.g. W+D, then letting go
-        /// of D) drops only that axis back to zero rather than re-easing
-        /// the whole lean vector toward a new diagonal target.
+        /// pure and static for the same testability reason TiltTarget is,
+        /// just with the smoothing's own persistent rate-of-change threaded
+        /// through explicitly (<paramref name="velocity"/>) rather than
+        /// hidden in an instance field, so a test can still drive this with
+        /// nothing but plain values. Independent per-axis SmoothDamp, not a
+        /// single blended one, so releasing just one of two held keys (e.g.
+        /// W+D, then letting go of D) drops only that axis back to zero
+        /// rather than re-easing the whole lean vector toward a new
+        /// diagonal target.
+        ///
+        /// SmoothDamp OVER MoveTowards -- see TiltSmoothTime's own doc
+        /// comment for why a constant-rate ramp reads as snapping into
+        /// place the instant it arrives. SmoothDamp needs a velocity to
+        /// carry between calls (that is what makes it decelerate into the
+        /// target instead of stopping dead), which is the whole reason this
+        /// is no longer quite as stateless as a plain MoveTowards call was.
         /// </summary>
-        public static Vector2 EaseTilt(Vector2 current, Vector2 target, float deltaTime)
+        public static Vector2 EaseTilt(Vector2 current, Vector2 target, ref Vector2 velocity, float deltaTime)
         {
-            float maxDelta = TiltDegreesPerSecond * deltaTime;
             return new Vector2(
-                Mathf.MoveTowards(current.x, target.x, maxDelta),
-                Mathf.MoveTowards(current.y, target.y, maxDelta));
+                Mathf.SmoothDamp(current.x, target.x, ref velocity.x, TiltSmoothTime, Mathf.Infinity, deltaTime),
+                Mathf.SmoothDamp(current.y, target.y, ref velocity.y, TiltSmoothTime, Mathf.Infinity, deltaTime));
         }
 
         /// <summary>
@@ -345,7 +368,7 @@ namespace CityX.Weapons
         {
             bool amplify = boostHeld && moveInput.sqrMagnitude > 0.0001f;
             Vector2 target = thrustHeld ? TiltTarget(moveInput, amplify) : Vector2.zero;
-            _currentTilt = EaseTilt(_currentTilt, target, deltaTime);
+            _currentTilt = EaseTilt(_currentTilt, target, ref _tiltVelocity, deltaTime);
             if (_animatorTransform != null)
             {
                 _animatorTransform.localRotation = Quaternion.Euler(_currentTilt.x, 0.0f, _currentTilt.y);

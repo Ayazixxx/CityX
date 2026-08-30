@@ -208,7 +208,8 @@ namespace CityX.Tests
             // HorizontalAcceleration was written to avoid, just for tilt
             // instead of movement.
             Vector2 target = Jetpack.TiltTarget(new Vector2(0.0f, 1.0f));
-            Vector2 eased = Jetpack.EaseTilt(Vector2.zero, target, 1.0f / 60.0f);
+            Vector2 velocity = Vector2.zero;
+            Vector2 eased = Jetpack.EaseTilt(Vector2.zero, target, ref velocity, 1.0f / 60.0f);
             Assert.Greater(eased.x, 0.0f);
             Assert.Less(eased.x, target.x);
         }
@@ -218,9 +219,15 @@ namespace CityX.Tests
         {
             Vector2 target = Jetpack.TiltTarget(new Vector2(0.0f, 1.0f));
             Vector2 tilt = Vector2.zero;
-            for (int i = 0; i < 30; i++)
+            Vector2 velocity = Vector2.zero;
+            // SmoothDamp settles more gradually than the old constant-rate
+            // ramp did (see TiltSmoothTime's own doc comment) -- 30 frames
+            // (half a second) covered the old rate's own full lean easily,
+            // but is not long enough for a curve that eases OUT approaching
+            // its target too; this loop runs long enough to actually settle.
+            for (int i = 0; i < 180; i++)
             {
-                tilt = Jetpack.EaseTilt(tilt, target, 1.0f / 60.0f);
+                tilt = Jetpack.EaseTilt(tilt, target, ref velocity, 1.0f / 60.0f);
             }
             Assert.AreEqual(target.x, tilt.x, 0.01f);
         }
@@ -235,18 +242,54 @@ namespace CityX.Tests
         {
             Vector2 held = Jetpack.TiltTarget(new Vector2(0.0f, 1.0f));
             Vector2 tilt = Vector2.zero;
-            for (int i = 0; i < 30; i++)
+            Vector2 velocity = Vector2.zero;
+            for (int i = 0; i < 180; i++)
             {
-                tilt = Jetpack.EaseTilt(tilt, held, 1.0f / 60.0f);
+                tilt = Jetpack.EaseTilt(tilt, held, ref velocity, 1.0f / 60.0f);
             }
             Assert.Greater(tilt.x, 1.0f, "setup failed -- the body never actually leaned");
 
             Vector2 released = Jetpack.TiltTarget(Vector2.zero);
-            for (int i = 0; i < 30; i++)
+            for (int i = 0; i < 180; i++)
             {
-                tilt = Jetpack.EaseTilt(tilt, released, 1.0f / 60.0f);
+                tilt = Jetpack.EaseTilt(tilt, released, ref velocity, 1.0f / 60.0f);
             }
             Assert.AreEqual(0.0f, tilt.x, 0.01f, "letting go of W never straightened the body back out");
+        }
+
+        /// <summary>
+        /// The actual bug report this exists to catch: a constant-rate ramp
+        /// arrives at its target at full speed and stops dead on the very
+        /// next frame -- a real discontinuity, which is what "jumps into
+        /// place" describes. A SmoothDamp curve decelerates as it
+        /// approaches, so the last stretch before settling should cover
+        /// LESS ground per frame than an earlier stretch further from the
+        /// target, not the same fixed amount every frame the way
+        /// MoveTowards would.
+        /// </summary>
+        [Test]
+        public void EaseTiltDeceleratesApproachingItsTargetRatherThanArrivingAtFullSpeed()
+        {
+            Vector2 target = Jetpack.TiltTarget(new Vector2(0.0f, 1.0f));
+            Vector2 tilt = Vector2.zero;
+            Vector2 velocity = Vector2.zero;
+
+            float midDelta = 0.0f;
+            for (int i = 0; i < 180; i++)
+            {
+                float before = tilt.x;
+                tilt = Jetpack.EaseTilt(tilt, target, ref velocity, 1.0f / 60.0f);
+                if (i == 10)
+                {
+                    midDelta = tilt.x - before;
+                }
+            }
+            float before2 = tilt.x;
+            tilt = Jetpack.EaseTilt(tilt, target, ref velocity, 1.0f / 60.0f);
+            float lateDelta = tilt.x - before2;
+
+            Assert.Less(lateDelta, midDelta,
+                "the lean is still moving at the same rate right up to the target -- that reads as snapping into place");
         }
 
         /// <summary>
@@ -336,7 +379,11 @@ namespace CityX.Tests
             }
             Assert.Greater(_jetpack.CurrentTilt.x, 1.0f, "setup failed -- the body never actually leaned");
 
-            for (int i = 0; i < 30; i++)
+            // SmoothDamp settles more gradually than the old constant-rate
+            // ramp did (see TiltSmoothTime's own doc comment) -- 30 frames
+            // (half a second) was plenty against the old rate, but is not
+            // long enough for a curve that also eases OUT approaching zero.
+            for (int i = 0; i < 180; i++)
             {
                 _jetpack.Tick(thrustHeld: false, moveInput: new Vector2(0.0f, 1.0f), boostHeld: false,
                     deltaTime: 1.0f / 60.0f);
