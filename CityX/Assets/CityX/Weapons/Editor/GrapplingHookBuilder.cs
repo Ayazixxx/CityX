@@ -1,5 +1,7 @@
 using CityX.Character;
 using CityX.CharacterEditor;
+using CityX.Items;
+using CityX.Wearables;
 using CityX.Weapons;
 using UnityEditor;
 using UnityEngine;
@@ -340,6 +342,125 @@ namespace CityX.WeaponsEditor
                 System.IO.File.WriteAllBytes(path, image.EncodeToPNG());
                 Object.DestroyImmediate(image);
                 Debug.Log($"CityX: wrote {path} -- swing position {player.transform.position:F2}, velocity {swing.Velocity:F2}");
+            }
+            finally
+            {
+                if (target != null) { target.Release(); Object.DestroyImmediate(target); }
+                Object.DestroyImmediate(root);
+            }
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        /// <summary>
+        /// Same as CaptureSwing, but with a Hooded Cloak equipped first --
+        /// a live bug report of the swing pose looking "contorted" persisted
+        /// after CaptureSwing's own bare-body render already confirmed the
+        /// arm reach pose itself was fixed. HoodedCloak.ApplySleeveArmSpread
+        /// runs every LateUpdate regardless of what else is posing the arm,
+        /// and its sleeve mesh is a SEPARATE SkinnedMeshRenderer bound to the
+        /// same arm bones but authored only against ordinary locomotion's
+        /// narrow swing range -- worth checking directly whether the reach
+        /// pose's own ~150 degree rotation, which the bare body tolerates
+        /// fine, crumples a sleeve tube never built to flex that far.
+        /// </summary>
+        [MenuItem("CityX/Capture Grapple Swing With Cloak")]
+        public static void CaptureSwingWithCloak()
+        {
+            var playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab");
+            var cloakPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Wearables/HoodedCloak.prefab");
+            if (playerPrefab == null || cloakPrefab == null)
+            {
+                Debug.LogError("CityX: need both Player.prefab and HoodedCloak.prefab built first.");
+                return;
+            }
+
+            string outputDirectory = System.IO.Path.Combine(
+                System.IO.Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
+            System.IO.Directory.CreateDirectory(outputDirectory);
+
+            var root = new GameObject("GrappleSwingCloakRig");
+            RenderTexture target = null;
+            try
+            {
+                var sunObject = new GameObject("Sun");
+                sunObject.transform.SetParent(root.transform);
+                Light sun = sunObject.AddComponent<Light>();
+                sun.type = LightType.Directional;
+                sun.intensity = 1.2f;
+                sun.transform.rotation = Quaternion.Euler(35.0f, 150.0f, 0.0f);
+
+                var player = (GameObject)PrefabUtility.InstantiatePrefab(playerPrefab);
+                player.transform.SetParent(root.transform);
+                player.transform.position = new Vector3(0.0f, 20.0f, 0.0f);
+                player.transform.rotation = Quaternion.identity;
+                Physics.SyncTransforms();
+
+                // GrappleSwing added BEFORE the cloak is equipped --
+                // HoodedCloak.OnEquipped caches player.GetComponent<GrappleSwing>()
+                // once, at equip time, the same way it caches the arm bones;
+                // equipping the cloak first left that cache permanently null
+                // and silently defeated UpdateSwingHiding, exactly the kind
+                // of ordering mistake a real Player.prefab (built with
+                // GrappleSwing already on it) would never hit.
+                GrappleSwing swing = player.GetComponent<GrappleSwing>();
+                if (swing == null) swing = player.AddComponent<GrappleSwing>();
+                swing.Bind();
+
+                var cloakInstance = (GameObject)PrefabUtility.InstantiatePrefab(cloakPrefab);
+                cloakInstance.transform.SetParent(root.transform);
+                var cloak = cloakInstance.GetComponent<HoodedCloak>();
+                cloak.OnEquip(player, ItemInstanceData.None);
+
+                swing.Attach(player.transform.position + new Vector3(6.0f, 8.0f, 4.0f));
+
+                for (int i = 0; i < 240; i++)
+                {
+                    float yaw = i * 0.5f;
+                    swing.Tick(new Vector2(0.0f, 1.0f), yaw, false, false, false, false, 1.0f / 60.0f);
+                    // HoodedCloak's own LateUpdate never runs from this batch
+                    // loop -- driven by hand, in the same order LateUpdate
+                    // itself uses, so the capture actually reflects what a
+                    // real frame would show. See UpdateSwingHiding's own doc
+                    // comment for why both are public in the first place.
+                    cloak.UpdateSwingHiding();
+                    if (!swing.IsActive)
+                    {
+                        cloak.ApplySleeveArmSpread();
+                    }
+                }
+
+                foreach (SkinnedMeshRenderer skin in player.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+                {
+                    skin.updateWhenOffscreen = true;
+                }
+                foreach (SkinnedMeshRenderer skin in cloakInstance.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+                {
+                    skin.updateWhenOffscreen = true;
+                }
+
+                var cameraObject = new GameObject("Camera");
+                cameraObject.transform.SetParent(root.transform);
+                Camera camera = cameraObject.AddComponent<Camera>();
+                camera.clearFlags = CameraClearFlags.SolidColor;
+                camera.backgroundColor = new Color(0.10f, 0.11f, 0.15f);
+                camera.fieldOfView = 50.0f;
+                camera.nearClipPlane = 0.05f;
+                camera.farClipPlane = 500.0f;
+                cameraObject.transform.position =
+                    player.transform.position + Vector3.up * 1.4f - player.transform.forward * 4.0f;
+                cameraObject.transform.LookAt(player.transform.position + Vector3.up * 1.0f);
+
+                target = new RenderTexture(900, 900, 24, RenderTextureFormat.ARGB32) { antiAliasing = 8 };
+                camera.targetTexture = target;
+                camera.Render();
+                RenderTexture.active = target;
+                var image = new Texture2D(900, 900, TextureFormat.RGB24, false);
+                image.ReadPixels(new Rect(0, 0, 900, 900), 0, 0);
+                image.Apply();
+                string path = System.IO.Path.Combine(outputDirectory, "grapple-swing-cloak.png");
+                System.IO.File.WriteAllBytes(path, image.EncodeToPNG());
+                Object.DestroyImmediate(image);
+                Debug.Log($"CityX: wrote {path}");
             }
             finally
             {

@@ -188,6 +188,20 @@ namespace CityX.Wearables
         {
         }
 
+        /// <summary>
+        /// Shows or hides the live worn skin without tearing it down --
+        /// HoodedCloak's own doc comment on why a sleeve mesh baked against
+        /// ordinary locomotion's narrow arm range needs to disappear rather
+        /// than be shown crumpled during a pose far outside that range.
+        /// </summary>
+        protected void SetSkinVisible(bool visible)
+        {
+            if (_skinInstance != null)
+            {
+                _skinInstance.SetActive(visible);
+            }
+        }
+
         /// <summary>Plain clothing carries no per-instance state.</summary>
         public ItemInstanceData GetInstanceData() => ItemInstanceData.None;
     }

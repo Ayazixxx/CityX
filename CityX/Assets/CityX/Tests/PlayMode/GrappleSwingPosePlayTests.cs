@@ -1,5 +1,7 @@
 using System.Collections;
 using CityX.Character;
+using CityX.Items;
+using CityX.Wearables;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -96,6 +98,68 @@ namespace CityX.Tests
             Assert.Greater(moved, 5.0f,
                 $"the right arm barely moved ({moved:0.0} degrees) after half a second of swinging -- " +
                 "it should be visibly reaching for the rope");
+        }
+
+        /// <summary>
+        /// THE SLEEVE MESH CANNOT FOLLOW THE REACH POSE -- see HoodedCloak's
+        /// own UpdateSwingHiding doc comment: a cloth tube baked and
+        /// weighted for ordinary locomotion's narrow arm swing crumples into
+        /// a flat, wing-shaped mess when the arm reaches this far, confirmed
+        /// directly by rendering one (GrapplingHookBuilder's own
+        /// CaptureSwingWithCloak) -- a live bug report ("all contorted")
+        /// that survived the reach-pose fix above because the bug was never
+        /// in the body at all. Checked here by watching the cloak's own worn
+        /// skin renderer, not by trying to measure "does the mesh look
+        /// crumpled" from a test.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator AHoodedCloakHidesItselfWhileSwingingAndReappearsOnRelease()
+        {
+            SpawnPlayer();
+#if UNITY_EDITOR
+            GameObject cloakPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/CityX/Wearables/HoodedCloak.prefab");
+            Assert.IsNotNull(cloakPrefab, "HoodedCloak.prefab is missing");
+            var cloakInstance = Object.Instantiate(cloakPrefab);
+            var cloak = cloakInstance.GetComponent<HoodedCloak>();
+            cloak.OnEquip(_player, ItemInstanceData.None);
+
+            SkinnedMeshRenderer cloakSkin = FindSkinByMesh(_player, cloak.GarmentMesh);
+            Assert.IsNotNull(cloakSkin, "couldn't find the cloak's own worn skin renderer");
+            Assert.IsTrue(cloakSkin.gameObject.activeSelf, "setup failed -- the cloak should start showing");
+
+            _swing.Attach(_player.transform.position + new Vector3(3.0f, 6.0f, 2.0f));
+            for (int i = 0; i < 10; i++)
+            {
+                _swing.Tick(Vector2.zero, 0.0f, false, false, false, false, StepSeconds);
+                cloak.UpdateSwingHiding();
+                yield return null;
+            }
+            Assert.IsFalse(cloakSkin.gameObject.activeSelf,
+                "the cloak's own sleeve is still showing mid-swing -- it will crumple against the reach pose");
+
+            _swing.Release(false);
+            cloak.UpdateSwingHiding();
+            yield return null;
+
+            Assert.IsTrue(cloakSkin.gameObject.activeSelf, "the cloak never came back after the swing ended");
+
+            Object.Destroy(cloakInstance);
+#else
+            yield break;
+#endif
+        }
+
+        private static SkinnedMeshRenderer FindSkinByMesh(GameObject root, Mesh mesh)
+        {
+            foreach (SkinnedMeshRenderer renderer in root.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+            {
+                if (renderer.sharedMesh == mesh)
+                {
+                    return renderer;
+                }
+            }
+            return null;
         }
 
         /// <summary>
