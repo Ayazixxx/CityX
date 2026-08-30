@@ -216,6 +216,48 @@ namespace CityX.Tests
                 $"holding forward while paying out reached {_swing.Velocity.magnitude:0.0} m/s -- the swing has no speed ceiling");
         }
 
+        /// <summary>
+        /// THE WALL-STICK FIX -- confirmed live and directly, firing at
+        /// geometry a real player can actually reach: CharacterController.Move
+        /// correctly blocks the body against the wall, but nothing here ever
+        /// checked whether that Move actually happened, so _velocity kept
+        /// climbing every frame forever regardless -- a real bug report
+        /// described the visible symptom as the body getting "distorted to
+        /// lengths that shouldn't be possible" while stuck in one place (the
+        /// runaway velocity feeding straight into UpdateSwingPose's own
+        /// sway, which pins the head/legs to their maximum tilt and holds
+        /// them there for as long as the divergence keeps growing). Checked
+        /// here by putting a wall directly between the body and its own
+        /// anchor and confirming velocity actually settles once blocked
+        /// rather than climbing without limit.
+        /// </summary>
+        [Test]
+        public void HittingAWallStopsVelocityFromClimbingForever()
+        {
+            var wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            wall.transform.position = new Vector3(0.0f, 10.0f, 10.0f);
+            wall.transform.localScale = new Vector3(20.0f, 20.0f, 1.0f);
+            try
+            {
+                _object.transform.position = new Vector3(0.0f, 5.0f, 0.0f);
+                Physics.SyncTransforms();
+                _swing.Attach(new Vector3(0.0f, 12.0f, 9.5f));
+
+                for (int i = 0; i < 90; i++)
+                {
+                    _swing.Tick(new Vector2(0.0f, 1.0f), 0.0f, false, false, false, false, 1.0f / 60.0f);
+                }
+
+                Assert.Less(_swing.Velocity.magnitude, 1.0f,
+                    $"velocity kept climbing to {_swing.Velocity.magnitude:0.0} m/s while stuck against a wall " +
+                    "instead of settling once actually blocked");
+            }
+            finally
+            {
+                Object.DestroyImmediate(wall);
+            }
+        }
+
         /// <summary>A plain release (left-click again) drops the rope without the height boost.</summary>
         [Test]
         public void APlainReleaseInputEndsTheSwingWithoutABoost()

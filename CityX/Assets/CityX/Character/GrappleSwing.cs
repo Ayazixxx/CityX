@@ -475,7 +475,40 @@ namespace CityX.Character
 
             EquippedHook?.UpdateRope(_anchor);
 
-            _controller.Move(_velocity * deltaTime + correction);
+            Vector3 beforeMove = transform.position;
+            Vector3 intendedMotion = _velocity * deltaTime + correction;
+            _controller.Move(intendedMotion);
+
+            // THE WALL-STICK FIX -- confirmed directly, live: firing at a
+            // wall a real player can actually reach freezes the body's own
+            // position (CharacterController.Move is correctly blocked by
+            // real collision) while _velocity, with nothing here ever
+            // checking whether the Move it just asked for actually
+            // happened, keeps climbing every single frame forever -- a
+            // 90-frame test firing point-blank at a wall showed position
+            // frozen from frame ~60 on while Velocity.z climbed past 17 m/s
+            // with no ceiling until MaxSwingSpeed's own cap eventually
+            // caught it. That runaway then poisons two other things reading
+            // _velocity: UpdateSwingPose's own sway pins the head/legs to
+            // their maximum tilt and holds them there (the reported "gets
+            // distorted to lengths that shouldn't be possible" -- a real,
+            // if bounded, symptom of a swing whose own internal state has
+            // completely decoupled from where the body actually is), and a
+            // release right after hitting the wall would launch the body at
+            // a phantom speed it was never actually travelling at. Scaled
+            // down by however much of THIS frame's own intended motion
+            // actually happened -- fully blocked reduces it to zero (an
+            // immovable wall kills the swing's momentum outright, the same
+            // way a real body's would), fully free leaves it untouched, and
+            // ordinary taut-rope correction (which always fully succeeds
+            // with nothing in the way) never triggers this at all.
+            Vector3 achievedMotion = transform.position - beforeMove;
+            float intendedDistance = intendedMotion.magnitude;
+            if (intendedDistance > 0.0001f)
+            {
+                _velocity *= Mathf.Clamp01(achievedMotion.magnitude / intendedDistance);
+            }
+
             UpdateSwingPose(deltaTime);
 
             // Landing on your feet ends the swing on its own. TWO ways out,

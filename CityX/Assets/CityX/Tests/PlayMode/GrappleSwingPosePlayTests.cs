@@ -185,10 +185,21 @@ namespace CityX.Tests
             Transform rightUpperArm = _animator.GetBoneTransform(HumanBodyBones.RightUpperArm);
             Vector3 anchor = _player.transform.position + new Vector3(3.0f, 6.0f, 2.0f);
 
+            // 180 frames (a full 3 simulated seconds), not the 90 an earlier
+            // version of this test used -- confirmed directly that 90 was
+            // too tight a margin: RightUpperArmReachDegrees' own 150 degree
+            // rotation only fully settles around frame 86 in practice
+            // (RotateTowards converges more slowly than ArmPoseDegreesPerSecond's
+            // own nominal rate alone would suggest once other per-frame
+            // rope/velocity work is in the same loop), which occasionally
+            // measured a still-mid-transition angle instead of the fully
+            // settled one and made this test flaky rather than wrong.
+            const int settleFrames = 180;
+
             rightUpperArm.localRotation = Quaternion.Euler(20.0f, -40.0f, 10.0f);
             Quaternion baseA = rightUpperArm.localRotation;
             _swing.Attach(anchor);
-            for (int i = 0; i < 90; i++)
+            for (int i = 0; i < settleFrames; i++)
             {
                 _swing.Tick(Vector2.zero, 0.0f, false, false, false, false, StepSeconds);
                 yield return null;
@@ -199,7 +210,7 @@ namespace CityX.Tests
             rightUpperArm.localRotation = Quaternion.Euler(-35.0f, 60.0f, -25.0f);
             Quaternion baseB = rightUpperArm.localRotation;
             _swing.Attach(anchor);
-            for (int i = 0; i < 90; i++)
+            for (int i = 0; i < settleFrames; i++)
             {
                 _swing.Tick(Vector2.zero, 0.0f, false, false, false, false, StepSeconds);
                 yield return null;
