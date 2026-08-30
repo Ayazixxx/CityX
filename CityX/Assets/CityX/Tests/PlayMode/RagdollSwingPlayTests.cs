@@ -92,6 +92,51 @@ namespace CityX.Tests
             return rigid;
         }
 
+        /// <summary>
+        /// The actual bug report this exists to catch: "the character just
+        /// stretches out and disappears". Root-caused to GrappleSwing's own
+        /// UpdateRagdollPose computing Chest's target position from scratch
+        /// (transform.position + a guessed height) rather than from wherever
+        /// the animated chest bone actually already was -- the very first
+        /// TickSwingPose call snapped a KINEMATIC Chest away from a
+        /// NON-KINEMATIC Hips still jointed to it, and the joint solver's
+        /// attempt to close that gap in a single physics step is what flung
+        /// the rig apart.
+        ///
+        /// The whole rig is moved to an arbitrary point (not the world
+        /// origin, and not matching the old buggy formula) by moving
+        /// root/Hips, NOT by moving Chest alone -- Chest's own joint got
+        /// its anchor auto-configured from Hips/Chest's ORIGINAL relative
+        /// offset back in MakeSwingRig, so repositioning Chest by itself
+        /// relative to a stationary Hips would leave that anchor stale and
+        /// genuinely violated for a reason that has nothing to do with the
+        /// bug under test. Moving the whole rig together preserves that
+        /// relative offset exactly the way a real animated skeleton always
+        /// does, which is what makes this a fair test of GrappleSwing's own
+        /// continuity fix rather than of an unrelated joint setup issue.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator AttachingDoesNotSnapChestAwayFromWhereverItActuallyWas()
+        {
+            Ragdoll ragdoll = MakeSwingRig();
+            _body.transform.position = new Vector3(2.0f, 1.3f, -3.5f);
+            Vector3 chestStart = ragdoll.Chest.transform.position;
+
+            _body.AddComponent<CharacterController>();
+            var swing = _body.AddComponent<GrappleSwing>();
+            swing.Bind();
+
+            swing.Attach(chestStart + Vector3.up * 5.0f);
+            swing.Tick(Vector2.zero, 0.0f, false, false, false, false, 1.0f / 60.0f);
+            yield return new WaitForFixedUpdate();
+
+            float moved = Vector3.Distance(ragdoll.Chest.transform.position, chestStart);
+            Assert.Less(moved, 0.5f,
+                $"Chest moved {moved:0.00}m away from its own actual starting pose on the very first " +
+                "frame -- this is exactly what made the joints see an already-violated constraint and " +
+                "fling the rig apart");
+        }
+
         [Test]
         public void ActivateSwingKeepsChestAndTheRightArmKinematicButRagdollsEverythingElse()
         {

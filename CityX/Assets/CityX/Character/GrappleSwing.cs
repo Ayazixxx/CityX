@@ -85,29 +85,55 @@ namespace CityX.Character
         private IFireballCaster _fireballCaster;
 
         /// <summary>
-        /// How far above the CharacterController's own root the chest
-        /// SHOULD sit -- read once from PlayerLocomotion's own StandingHeight
-        /// in Bind, not hardcoded, so a differently-scaled body keeps a
-        /// sensible chest height instead of this drifting out of sync with
-        /// ApplyHeight's own scaling. A fraction of standing height rather
-        /// than a fixed metre offset for the same reason.
+        /// Chest's own position relative to this transform, captured the
+        /// INSTANT the swing starts (see Attach) and held fixed for its
+        /// whole duration -- NOT a freshly-computed "where the chest should
+        /// sit" guess. An earlier version of this file computed
+        /// transform.position + Vector3.up * a guessed height fraction
+        /// fresh every frame instead: the very first time that ran, it
+        /// placed Chest somewhere different from wherever the Animator's
+        /// own last pose had actually left it, and since Chest is
+        /// kinematic while Hips/legs/head/left-arm are now real physics
+        /// bodies jointed to it, that sudden mismatch made the joint solver
+        /// try to close the gap in a single physics step -- confirmed live:
+        /// the body visibly stretched out and the flung pieces vanished at
+        /// extreme velocity, the classic "ragdoll explodes because its own
+        /// joints started already-violated" failure TheRigDoesNotExplodeOnItsFirstStep
+        /// already guards the death ragdoll against, just triggered here by
+        /// a POSITION discontinuity instead of an overlapping collider.
+        /// Capturing the real starting offset and carrying it along with
+        /// root's own movement keeps Chest exactly where the rig already
+        /// had it, so the joints never see a violation to correct at all.
         /// </summary>
-        private float _chestHeightOffset = 1.35f;
+        private Vector3 _chestLocalOffset;
+
+        /// <summary>Chest's own rotation relative to this transform, captured alongside _chestLocalOffset for the same reason.</summary>
+        private Quaternion _chestLocalRotationOffset = Quaternion.identity;
 
         /// <summary>
         /// FIRST-GUESS POSES, not yet checked against a real rendered swing
         /// the way this project's other procedural poses eventually were
         /// (PistolWeapon.GripHandRotationEuler's own doc comment, etc.) --
         /// a reaching-up-and-forward shape for the pinned arm, relative to
-        /// Chest's own live rotation (which itself faces the anchor -- see
-        /// UpdateRagdollPose), and its mirror for the left arm's own cast
-        /// pose.
+        /// Chest's own live rotation. Eased into from the arm's own actual
+        /// starting local rotation (see _rightUpperArmCurrent's own doc
+        /// comment) rather than snapped to, for the same continuity reason
+        /// _chestLocalOffset exists -- a smaller pop than the chest one,
+        /// but the same kind of mistake.
         /// </summary>
         private static readonly Quaternion RightUpperArmSwingPose = Quaternion.Euler(-10.0f, 15.0f, -150.0f);
 
         private static readonly Quaternion RightLowerArmSwingPose = Quaternion.Euler(60.0f, 0.0f, 0.0f);
         private static readonly Quaternion LeftUpperArmCastPose = Quaternion.Euler(-10.0f, -15.0f, 150.0f);
         private static readonly Quaternion LeftLowerArmCastPose = Quaternion.Euler(60.0f, 0.0f, 0.0f);
+
+        /// <summary>How fast the arms ease into their own swing/cast pose, in degrees per second -- fast enough to read as an immediate reach, not slow enough to look like it is lagging behind the chest's own instant continuity.</summary>
+        private const float ArmPoseDegreesPerSecond = 360.0f;
+
+        /// <summary>The right arm's own current eased local rotation -- starts from wherever the animated pose actually left it (captured in Attach) and eases toward RightUpperArmSwingPose/RightLowerArmSwingPose, rather than snapping the instant the swing begins.</summary>
+        private Quaternion _rightUpperArmCurrent = Quaternion.identity;
+
+        private Quaternion _rightLowerArmCurrent = Quaternion.identity;
 
         private Vector3 _velocity;
         private Vector3 _anchor;
@@ -146,7 +172,6 @@ namespace CityX.Character
             if (_locomotion != null)
             {
                 Gravity = _locomotion.Gravity;
-                _chestHeightOffset = _locomotion.StandingHeight * 0.6f;
             }
         }
 
@@ -210,6 +235,24 @@ namespace CityX.Character
             // play a frame of it now. See Ragdoll.ActivateSwing's own doc
             // comment for what stays kinematic (chest, right arm) versus
             // what actually ragdolls.
+            //
+            // CAPTURED BEFORE ActivateSwing, from the bones' own real,
+            // still-animated current pose -- see _chestLocalOffset's own
+            // doc comment for why starting anywhere else made the ragdoll
+            // explode on its first frame.
+            if (_ragdoll != null && _ragdoll.Chest != null)
+            {
+                _chestLocalOffset = transform.InverseTransformPoint(_ragdoll.Chest.position);
+                _chestLocalRotationOffset = Quaternion.Inverse(transform.rotation) * _ragdoll.Chest.rotation;
+            }
+            if (_ragdoll != null && _ragdoll.RightUpperArm != null)
+            {
+                _rightUpperArmCurrent = _ragdoll.RightUpperArm.transform.localRotation;
+            }
+            if (_ragdoll != null && _ragdoll.RightLowerArm != null)
+            {
+                _rightLowerArmCurrent = _ragdoll.RightLowerArm.transform.localRotation;
+            }
             _ragdoll?.ActivateSwing(_velocity);
         }
 
@@ -327,7 +370,7 @@ namespace CityX.Character
             EquippedHook?.UpdateRope(_anchor);
 
             _controller.Move(_velocity * deltaTime + correction);
-            UpdateRagdollPose();
+            UpdateRagdollPose(deltaTime);
 
             // Landing on your feet ends the swing on its own. TWO ways out,
             // because a speed test alone isn't enough: this function keeps
@@ -360,24 +403,28 @@ namespace CityX.Character
         /// Drives the swing's own partial ragdoll every frame -- see
         /// Ragdoll.ActivateSwing's own doc comment for the underlying
         /// mechanism (Chest is the anchor everything else gets dragged
-        /// from). Chest faces the anchor, which is what makes the right
-        /// arm's own fixed RightUpperArmSwingPose read as reaching for the
-        /// rope rather than reaching in some direction unrelated to it.
+        /// from). Chest tracks root's own movement at the FIXED offset
+        /// captured in Attach, not a value recomputed from scratch every
+        /// frame -- see _chestLocalOffset's own doc comment for why that
+        /// distinction is exactly what keeps the ragdoll from exploding the
+        /// instant it starts. The right arm's own pose eases in for the
+        /// same continuity reason, just a smaller pop to begin with.
         /// </summary>
-        private void UpdateRagdollPose()
+        private void UpdateRagdollPose(float deltaTime)
         {
             if (_ragdoll == null)
             {
                 return;
             }
 
-            Vector3 chestPosition = transform.position + Vector3.up * _chestHeightOffset;
-            Vector3 toAnchor = _anchor - chestPosition;
-            Quaternion chestRotation = toAnchor.sqrMagnitude > 0.0001f
-                ? Quaternion.LookRotation(toAnchor.normalized, Vector3.up)
-                : transform.rotation;
+            Vector3 chestPosition = transform.TransformPoint(_chestLocalOffset);
+            Quaternion chestRotation = transform.rotation * _chestLocalRotationOffset;
 
-            _ragdoll.TickSwingPose(chestPosition, chestRotation, RightUpperArmSwingPose, RightLowerArmSwingPose);
+            float maxDelta = ArmPoseDegreesPerSecond * deltaTime;
+            _rightUpperArmCurrent = Quaternion.RotateTowards(_rightUpperArmCurrent, RightUpperArmSwingPose, maxDelta);
+            _rightLowerArmCurrent = Quaternion.RotateTowards(_rightLowerArmCurrent, RightLowerArmSwingPose, maxDelta);
+
+            _ragdoll.TickSwingPose(chestPosition, chestRotation, _rightUpperArmCurrent, _rightLowerArmCurrent);
 
             bool casting = _fireballCaster != null && _fireballCaster.IsCasting;
             _ragdoll.SetLeftArmPose(casting, LeftUpperArmCastPose, LeftLowerArmCastPose);
