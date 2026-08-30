@@ -187,6 +187,54 @@ namespace CityX.Character
             HitstunRemaining = Mathf.Max(HitstunRemaining, seconds);
         }
 
+        /// <summary>
+        /// player.gd FINISHER_RAGDOLL_SECONDS -- how long a landed combo
+        /// finisher (the last swing of a chain, unarmed or sword) keeps the
+        /// target limp before it stands back up on its own.
+        /// </summary>
+        public const float FinisherRagdollSeconds = 1.5f;
+
+        /// <summary>player.gd POST_FINISHER_INVULN_SECONDS -- granted once the body stands back up, not during the knockdown itself.</summary>
+        public const float PostFinisherInvulnerabilitySeconds = 1.0f;
+
+        public const float FinisherKnockbackSpeed = 9.0f;
+        public const float FinisherKnockbackUpSpeed = 4.0f;
+
+        private Ragdoll _ragdoll;
+        private float _finisherRagdollRemaining;
+
+        /// <summary>
+        /// Called by MeleeAttacker when a landed hit's own ComboStage is
+        /// IsFinisher -- see take_damage()'s own `if is_finisher:
+        /// _begin_finisher_ragdoll(attacker)` in player.gd. Deliberately
+        /// NOT threaded through IDamageable.ApplyHit's own hitstunSeconds
+        /// parameter (e.g. as a sentinel value): that parameter cannot
+        /// distinguish "this hit has no hitstun because it's a committed
+        /// heavy attack, which never ragdolls" (see HeavyPunch/
+        /// SwordHeavyAttack's own hitstun_scale=0) from "this hit has no
+        /// hitstun because it's a chain finisher, which ragdolls instead"
+        /// -- both would arrive as hitstunSeconds==0 with nothing else to
+        /// tell them apart, so MeleeAttacker calls this directly instead,
+        /// since it already knows _currentStage.IsFinisher.
+        ///
+        /// A NO-OP WITHOUT A REAL Ragdoll COMPONENT, same tolerance
+        /// Civilian.ApplyHit's own `if (_ragdoll != null)` already
+        /// establishes -- not every IDamageable-carrying body needs to
+        /// support this.
+        /// </summary>
+        public void TriggerFinisherKnockdown(Vector3 awayDirection)
+        {
+            if (_ragdoll == null || IsDead)
+            {
+                return;
+            }
+            Vector3 flat = awayDirection;
+            flat.y = 0.0f;
+            Vector3 direction = flat.sqrMagnitude > 0.0001f ? flat.normalized : Vector3.back;
+            _ragdoll.Activate(direction * FinisherKnockbackSpeed + Vector3.up * FinisherKnockbackUpSpeed);
+            _finisherRagdollRemaining = FinisherRagdollSeconds;
+        }
+
         HitResponse IDamageable.ApplyHit(float amount, Vector3 fromPosition, float hitstunSeconds)
         {
             if (IsDead || IsInvulnerable)
@@ -227,12 +275,23 @@ namespace CityX.Character
             {
                 BlockRemaining = Mathf.Max(0.0f, BlockRemaining - deltaTime);
             }
+            if (_finisherRagdollRemaining > 0.0f)
+            {
+                _finisherRagdollRemaining -= deltaTime;
+                if (_finisherRagdollRemaining <= 0.0f)
+                {
+                    _finisherRagdollRemaining = 0.0f;
+                    _ragdoll?.Deactivate();
+                    GrantInvulnerability(PostFinisherInvulnerabilitySeconds);
+                }
+            }
         }
 
         private void Awake()
         {
             _health = MaxHealth;
             _stamina = MaxStamina;
+            _ragdoll = GetComponent<Ragdoll>();
         }
 
         /// <summary>Restores everything, for respawn.</summary>

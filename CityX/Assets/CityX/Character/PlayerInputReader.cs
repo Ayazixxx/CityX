@@ -718,17 +718,32 @@ namespace CityX.Character
                 return;
             }
 
-            // A WEAPON EQUIPPED IN THE RIGHT HAND TAKES OVER LEFT/RIGHT-CLICK
-            // ENTIRELY, matching the bottle's own aim/melee/throw sequencing
-            // in player.gd: hold right = aim, release right without ever
+            // A THROWABLE WEAPON TAKES OVER LEFT/RIGHT-CLICK ENTIRELY,
+            // matching the bottle's own aim/melee/throw sequencing in
+            // player.gd: hold right = aim, release right without ever
             // pressing left = cancel free, left while aiming = throw, left
             // while not aiming = melee swing. Nothing below this branch --
             // the ordinary block/punch-hold logic -- ever runs while a
-            // weapon is equipped.
+            // throwable weapon is equipped.
+            //
+            // GATED ON weapon.CanThrow(), NOT JUST weapon != null -- a
+            // sword can't be thrown (CanThrow() is false), so it has no
+            // aim-to-throw sequence to run at all. Routing it through here
+            // anyway was a real bug: right-click held it in a permanent
+            // "aiming to throw" pose that could never resolve (nowhere for
+            // Action.Throw to go), and left-click fired Action.Melee on the
+            // very first frame of a press with no hold-for-heavy timing --
+            // silently eating both the block button and the charged-attack
+            // hold. A sword falls through to the ordinary dispatch below
+            // instead, unchanged from bare fists: _melee.TryAttack()/
+            // TryAttack(heavy: true) already branch on EquippedWeapon
+            // internally (see MeleeAttacker's own doc comment), so nothing
+            // here needs to know a sword is equipped at all -- it already
+            // gets its own moveset/chain/heavy stage for free.
             IEquippableWeapon weapon = _inventory != null
                 ? _inventory.EquippedInstance("hand_r")?.GetComponent<IEquippableWeapon>()
                 : null;
-            if (weapon != null)
+            if (weapon != null && weapon.CanThrow())
             {
                 WeaponAimInput.Action action = _weaponAim.Tick(
                     Mouse.current.rightButton.wasPressedThisFrame,

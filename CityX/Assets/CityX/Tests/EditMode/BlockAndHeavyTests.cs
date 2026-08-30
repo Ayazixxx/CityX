@@ -143,16 +143,26 @@ namespace CityX.Tests
         /// the same reason. What must not be shared is the stage itself: the
         /// finisher ragdolls and closes the chain, and a haymaker that inherited
         /// either of those would be a very different move.
+        ///
+        /// ZERO HITSTUN, NOT A DIFFERENT REACTION -- an earlier version of
+        /// this test asserted the opposite ("unlike the finisher, it stuns"),
+        /// on the reasoning that a hit which neither stuns nor ragdolls gives
+        /// the target nothing to react to. Checked directly against
+        /// player.gd instead of trusting that reasoning: `_punch()` seeds
+        /// `var hitstun := 0.0` and only overwrites it from
+        /// get_last_attack_combo_info() `if not is_heavy` -- a heavy punch
+        /// (or its sword equivalent, sword_heavy_attack, which runs through
+        /// the identical is_heavy=true path) keeps that zero unconditionally.
+        /// The real trade is real damage (1.5x) for real follow-up-window,
+        /// full stop -- no consolation stun.
         /// </summary>
         [Test]
         public void TheHaymakerOpensNoFollowUpWindow()
         {
             Assert.AreEqual(0.0f, CombatTuning.HeavyPunch.WindowSeconds);
             Assert.IsFalse(CombatTuning.HeavyPunch.IsFinisher);
-
-            // Unlike the finisher, it stuns -- because it does not ragdoll, and
-            // a hit that does neither gives the target nothing to react to.
-            Assert.Greater(CombatTuning.HitstunFor(CombatTuning.HeavyPunch), 0.0f);
+            Assert.AreEqual(0.0f, CombatTuning.HitstunFor(CombatTuning.HeavyPunch),
+                "a heavy punch should deal real damage with zero hitstun, matching player.gd exactly");
 
             foreach (ComboStage stage in ComboChain.For(ComboChain.Unarmed))
             {

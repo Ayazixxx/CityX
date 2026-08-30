@@ -454,6 +454,17 @@ namespace CityX.Character
                 // "away from the surface that got hit" means when the surface
                 // is a body facing you. Nothing bleeds off a blocked hit.
                 BloodSplatter.Spawn(BloodPrefab, contact.Point, origin - contact.Point);
+
+                // THE FINISHER RAGDOLLS INSTEAD OF STUNNING -- see
+                // PlayerVitals.TriggerFinisherKnockdown's own doc comment
+                // for why this is a direct call rather than threaded
+                // through ApplyHit's own hitstunSeconds parameter. A no-op
+                // against anything that isn't a real PlayerVitals (a
+                // Civilian already ragdolls on any hit at all, unconditionally).
+                if (_currentStage.IsFinisher && contact.Target is PlayerVitals targetVitals)
+                {
+                    targetVitals.TriggerFinisherKnockdown(contact.Point - origin);
+                }
             }
 
             // THE PUNISH. Whoever threw a punch into a timed block is locked out

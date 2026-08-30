@@ -81,8 +81,21 @@ namespace CityX.Tests
             Assert.AreEqual(0, _attacker.NextStageIndex, "the sword chain did not reset after its finisher");
         }
 
+        /// <summary>
+        /// SAME damage, not more -- an earlier version of this test asserted
+        /// the opposite ("the finisher hits harder"), on the reasoning that a
+        /// two-stage chain should escalate like the unarmed one's own
+        /// haymaker does. Checked directly against combo_data.gd instead of
+        /// trusting that reasoning: sword_attack and sword_attack2 both carry
+        /// damage_scale = 1.0, with no escalation between them at all. What
+        /// makes sword_attack2 a finisher is that it ragdolls the target and
+        /// closes the chain (see ComboChain.Sword's own doc comment), not
+        /// that it hits harder -- the real trade the chain offers is
+        /// "commit to two matching swings for a knockdown", not "grind
+        /// toward one big number".
+        /// </summary>
         [Test]
-        public void TheFinisherHitsHarderThanTheOpener()
+        public void TheFinisherDealsTheSameDamageAsTheOpener()
         {
             ComboStage[] chain = ComboChain.For(ComboChain.Sword);
             Assert.IsTrue(chain.Length >= 2, "this test needs a real multi-stage chain to compare");
@@ -95,7 +108,7 @@ namespace CityX.Tests
             Step(_sword.MeleeCooldownSeconds + 0.01f);
             float finisher = _dummy.TotalDamageTaken - opener;
 
-            Assert.Greater(finisher, opener,
+            Assert.AreEqual(opener, finisher, 0.001f,
                 $"the sword finisher did {finisher:0.0} against an opener's {opener:0.0}");
             Assert.AreEqual(0.0f, _dummy.LastHitstun, 0.001f,
                 "the sword finisher applied hitstun as well as ragdolling");

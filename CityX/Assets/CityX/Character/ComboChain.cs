@@ -50,30 +50,46 @@ namespace CityX.Character
     /// punch then moves the whole chain with it instead of leaving four
     /// stages quietly disagreeing.
     ///
-    /// Unarmed was carried over from Godot's combo_data.gd. Sword is NOT a
-    /// port -- it is new-built on this exact same table, deliberately not
-    /// Godot's own separate two-hit mechanic (weapons/two_handed_sword.gd's
-    /// _sword_combo_ready/_sword_combo_timer), which had a real, twice-
-    /// rediscovered bug class (tests/test_sword_hit_interrupt_check.gd and
-    /// tests/test_sword_action_interrupt_check.gd, both chasing the same
-    /// _sword_swing_in_progress flag getting stuck true because some new
-    /// call site -- a jump, a dash, a crouch -- forgot to clear it). Sword
-    /// swings through the exact same MeleeAttacker/ComboChain machinery
-    /// unarmed does, where IsSwinging is a countdown derived from a timer
-    /// rather than a flag anyone has to remember to release, so that whole
-    /// bug class cannot recur here by construction.
+    /// Unarmed was carried over from Godot's combo_data.gd. Sword is a REAL
+    /// PORT now, not an invented replacement -- an earlier version of this
+    /// file deliberately built a different shape here (this exact chain
+    /// architecture instead of Godot's own separate two-hit
+    /// _sword_combo_ready/_sword_combo_timer flag pair in character.gd),
+    /// reasoning that the flag pair had a real, twice-rediscovered bug class
+    /// (a stuck flag from some new call site -- jump, dash, crouch --
+    /// forgetting to clear it, see tests/test_sword_hit_interrupt_check.gd
+    /// and tests/test_sword_action_interrupt_check.gd). That reasoning was
+    /// sound but the numbers it landed on were not checked against the real
+    /// ones -- confirmed directly by reading character.gd/player.gd: the
+    /// combo window is 5 seconds (SWORD_COMBO_WINDOW_SECONDS), not 0.9, and
+    /// sword_attack2 deals the SAME damage as sword_attack (both just
+    /// PUNCH_DAMAGE, no per-swing scaling) rather than hitting 1.4x harder.
+    /// This keeps the timer-based chain architecture (still correct that
+    /// IsSwinging as a countdown cannot get stuck the way a flag can), but
+    /// the numbers themselves now match Godot's real values exactly.
     /// </summary>
     public static class ComboChain
     {
         public const string Unarmed = "unarmed";
 
         /// <summary>
-        /// Two stages, not more -- matches the two real attack clips that
-        /// exist (2hsw_attack.fbx, 2hsw_attack2.fbx), rather than inventing
-        /// a third stage with no animation to back it. Still a genuine
-        /// improvement on Godot's own two-hit shape: the same two swings,
-        /// but driven by MeleeAttacker's delta-based window/finisher timing
-        /// instead of a hand-rolled flag and a 5-second timer variable.
+        /// Two stages -- sword_attack then sword_attack2 -- matching
+        /// character.gd's own punch()/get_last_attack_combo_info(): a
+        /// second swing within SWORD_COMBO_WINDOW_SECONDS of the first
+        /// plays sword_attack2 and ends the combo (finisher); a third
+        /// click after that restarts at sword_attack. Both swings deal
+        /// IDENTICAL damage (damage_scale 1.0 on both -- there is no
+        /// "finisher hits harder" for sword the way unarmed's own chain
+        /// has). sword_attack2's hitstun_scale is 0 not because Godot's own
+        /// hitstun_scale is 0 (it's actually 1.0, same as sword_attack) but
+        /// because player.gd's take_damage() checks `if is_finisher: ...
+        /// elif hitstun_seconds > 0: ...` -- is_finisher always wins, so a
+        /// real sword_attack2 hit never actually applies hitstun at all, it
+        /// ragdolls instead (see MeleeAttacker's own ApplyHit contract: zero
+        /// hitstun is this codebase's own signal for "ragdoll instead").
+        /// The OBSERVABLE outcome matches exactly; the numeric hitstun_scale
+        /// value along the way does not need to, since Godot's own value is
+        /// unreachable in play.
         /// </summary>
         public const string Sword = "sword";
 
@@ -93,12 +109,10 @@ namespace CityX.Character
                 },
                 [Sword] = new[]
                 {
-                    new ComboStage("sword_attack", 1.0f, 1.0f, 0.9f, false),
-                    // The finisher hits harder than the opener, same shape
-                    // as unarmed's own rising damage through its chain, and
-                    // ragdolls rather than stunning for the same reason the
-                    // unarmed finisher does.
-                    new ComboStage("sword_attack2", 1.4f, 0.0f, 0.0f, true),
+                    // SWORD_COMBO_WINDOW_SECONDS in character.gd -- a real 5
+                    // seconds, not the unarmed chain's own 0.9s window.
+                    new ComboStage("sword_attack", 1.0f, 1.0f, 5.0f, false),
+                    new ComboStage("sword_attack2", 1.0f, 0.0f, 0.0f, true),
                 },
             };
 
@@ -146,19 +160,32 @@ namespace CityX.Character
         /// takes longer, and it opens no follow-up window -- so throwing one is
         /// a decision to commit rather than a free upgrade to whichever jab was
         /// coming next.
+        ///
+        /// HITSTUN SCALE IS 0, NOT 1.5 -- an earlier version of this file had
+        /// this at 1.5 (matching the damage scale), which was never actually
+        /// checked against player.gd: `_punch()` seeds `var hitstun := 0.0`
+        /// and only overwrites it from get_last_attack_combo_info() when
+        /// `not is_heavy` -- a heavy/haymaker punch keeps that zero default
+        /// unconditionally, real damage but no hitstun at all, same shape the
+        /// unarmed chain's own finisher already uses here for the opposite
+        /// reason (ragdoll instead). Confirmed by reading player.gd directly.
         /// </summary>
         public static readonly ComboStage HeavyPunch =
-            new ComboStage("punch_heavy", 1.5f, 1.5f, 0.0f, false);
+            new ComboStage("punch_heavy", 1.5f, 0.0f, 0.0f, false);
 
         /// <summary>
         /// The sword's own held-attack variant, played from
-        /// 2hsw_chargedattack.fbx -- same relationship to the sword chain
-        /// that HeavyPunch has to the unarmed one: not a member of
-        /// ComboChain.Sword, hits harder, and resets the chain rather than
-        /// advancing it.
+        /// 2hsw_chargedattack.fbx. Godot's sword_heavy_attack runs through
+        /// the exact same `_punch(character, is_heavy=true)` path as the
+        /// unarmed haymaker -- there is no separate sword-heavy damage
+        /// constant, it is HEAVY_PUNCH_DAMAGE (1.5x PUNCH_DAMAGE) same as
+        /// HeavyPunch above, with the same zero hitstun for the same reason.
+        /// An earlier version of this file had 1.6x damage and full hitstun,
+        /// neither of which is real -- confirmed by reading player.gd
+        /// directly, same as HeavyPunch's own correction.
         /// </summary>
         public static readonly ComboStage SwordHeavyAttack =
-            new ComboStage("sword_charged_attack", 1.6f, 1.0f, 0.0f, false);
+            new ComboStage("sword_charged_attack", 1.5f, 0.0f, 0.0f, false);
 
         /// <summary>player.gd STRENGTH_DAMAGE_PERCENT_PER_POINT</summary>
         public const float StrengthDamagePerPoint = 0.02f;

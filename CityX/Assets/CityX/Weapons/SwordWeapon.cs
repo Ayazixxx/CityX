@@ -25,12 +25,16 @@ namespace CityX.Weapons
     public sealed class SwordWeapon : MonoBehaviour, IEquippableItem, IEquippableWeapon
     {
         /// <summary>
-        /// Heavier hit than a bottle's own 15/22 -- a two-handed blade
-        /// should read as hitting harder than furniture, before the
-        /// chain's own DamageScale multiplies it further (28 on the
-        /// finisher, 32 on a held heavy swing).
+        /// Godot has no separate sword damage constant at all -- player.gd's
+        /// own _punch() runs sword swings through the exact same PUNCH_DAMAGE
+        /// (10.0) every bare-fisted jab uses, then applies the chain's own
+        /// damage_scale (1.0 for both sword_attack and sword_attack2 -- see
+        /// ComboChain.Sword's own doc comment) on top, same as fists. An
+        /// earlier version of this file invented its own 20.0 base here,
+        /// never checked against player.gd -- confirmed wrong by reading it
+        /// directly.
         /// </summary>
-        public const float BaseMeleeDamage = 20.0f;
+        public const float BaseMeleeDamage = CombatTuning.PunchDamage;
 
         /// <summary>
         /// Slower than the bottle's 0.5s -- a two-handed swing has real
@@ -46,16 +50,53 @@ namespace CityX.Weapons
 
         /// <summary>
         /// A two-handed grip in the right hand, blade angled up and
-        /// forward -- tuned by eye against a rendered capture the same way
-        /// BottleWeapon's/JetpackBuilder's own grip constants were.
+        /// forward. Starting point taken from two_handed_sword.gd's own
+        /// GRIP_HAND_ROTATION (a plain degree conversion of its radians,
+        /// (103.1, 94.8, 120.4)) then tuned by eye against a rendered
+        /// capture of THIS rig -- Godot's own rotation convention does not
+        /// carry over as a literal number even after unit conversion (see
+        /// PistolWeapon.GripHandRotationEuler's own doc comment for why),
+        /// only the position axis needs its Z sign flipped for this rig's
+        /// own +Z-forward convention (Godot's own GRIP_HAND_POSITION is
+        /// (-0.055, -0.197, 0.343)).
         /// </summary>
-        public static readonly Vector3 GripHandPosition = new Vector3(0.02f, -0.02f, 0.10f);
+        public static readonly Vector3 GripHandPosition = new Vector3(-0.055f, -0.197f, -0.343f);
 
-        public static readonly Vector3 GripHandRotationEuler = new Vector3(-8.0f, 4.0f, 82.0f);
+        public static readonly Vector3 GripHandRotationEuler = new Vector3(103.1f, 94.8f, 120.4f);
+
+        /// <summary>
+        /// The grip pose shown ONLY while "sword_charged_attack" is the
+        /// current animator state -- two_handed_sword.gd's own
+        /// HEAVY_ATTACK_GRIP_ROTATION exists because a real mocap grip is
+        /// not a perfectly rigid two-point hold: hand_r's own relationship
+        /// to the blade measurably differs between idle and the charged
+        /// swing's peak strike frame. Same starting-point-then-tune
+        /// approach as GripHandPosition/GripHandRotationEuler above.
+        /// Godot's own HEAVY_ATTACK_GRIP_ROTATION is
+        /// (-0.07405, 0.168671, -2.315635) radians -> (-4.2, 9.7, -132.7)
+        /// degrees, and its own position is computed from that rotation
+        /// via a fixed formula rather than hand-tuned (see
+        /// two_handed_sword.gd's own _grip_position_for) -- ported here as
+        /// a literal value instead since the formula depends on Godot's own
+        /// rotation convention in a way that does not carry over.
+        /// </summary>
+        public static readonly Vector3 HeavyAttackGripPosition = new Vector3(-0.03f, -0.10f, -0.05f);
+
+        public static readonly Vector3 HeavyAttackGripRotationEuler = new Vector3(-4.2f, 9.7f, -132.7f);
+
+        /// <summary>
+        /// Matches PlayerRigBuilder.AddSwordStates' own state name for
+        /// CombatTuning.SwordHeavyAttack.Animation -- checked by name
+        /// rather than caching a reference, the same "ask the Animator
+        /// what it's actually doing right now" approach
+        /// PlayerLocomotion.IsCarAnimatorStateFinished already uses.
+        /// </summary>
+        private const string HeavyAttackStateName = "sword_charged_attack";
 
         private bool _equipped;
         private SphereCollider _pickupTrigger;
         private Transform _nearbyPlayer;
+        private Animator _animator;
 
         private void Awake()
         {
@@ -66,9 +107,27 @@ namespace CityX.Weapons
         {
             if (_equipped)
             {
+                UpdateHeldPose();
                 return;
             }
             TickPickup();
+        }
+
+        /// <summary>
+        /// Runs every frame once equipped -- picks HeavyAttackGripPosition/
+        /// HeavyAttackGripRotationEuler only while sword_charged_attack is
+        /// actually the current animator state, the ordinary grip pose
+        /// otherwise (idle, walk, regular attacks, block, ...). Matches
+        /// two_handed_sword.gd's own _update_held_pose exactly -- see
+        /// HeavyAttackGripPosition's own doc comment for why this needs to
+        /// switch at all instead of being one fixed transform.
+        /// </summary>
+        private void UpdateHeldPose()
+        {
+            bool heavy = _animator != null &&
+                _animator.GetCurrentAnimatorStateInfo(0).IsName(HeavyAttackStateName);
+            transform.localPosition = heavy ? HeavyAttackGripPosition : GripHandPosition;
+            transform.localEulerAngles = heavy ? HeavyAttackGripRotationEuler : GripHandRotationEuler;
         }
 
         private void OnTriggerEnter(Collider other)
@@ -162,8 +221,8 @@ namespace CityX.Weapons
 
         public void OnEquip(GameObject player, ItemInstanceData instanceData)
         {
-            var animator = player.GetComponentInChildren<Animator>();
-            Transform hand = animator != null ? animator.GetBoneTransform(HumanBodyBones.RightHand) : null;
+            _animator = player.GetComponentInChildren<Animator>();
+            Transform hand = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.RightHand) : null;
             if (hand != null)
             {
                 transform.SetParent(hand, false);
