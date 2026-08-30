@@ -98,11 +98,27 @@ namespace CityX.UI
         private Shader _litShader;
         private Shader _toonShader;
         private bool _celShadeOn;
+        private Animator _playerAnimator;
 
         public bool IsOpen => Panel != null && Panel.activeSelf;
 
         private void Awake()
         {
+            Bind();
+        }
+
+        /// <summary>
+        /// Public and idempotent, callable by hand in EditMode tests where
+        /// Awake never runs -- the same idiom PlayerLocomotion.Bind/
+        /// GrappleSwing.Bind already use for the exact same reason. Found
+        /// here rather than wired through DevConsoleBuilder's own already-
+        /// long parameter list -- Vitals is already wired, and its own
+        /// Animator is exactly the one whatever-you-were-doing pose lives
+        /// on.
+        /// </summary>
+        public void Bind()
+        {
+            _playerAnimator = Vitals != null ? Vitals.GetComponentInChildren<Animator>() : null;
             Close();
         }
 
@@ -155,6 +171,16 @@ namespace CityX.UI
 
             if (InputReader != null) InputReader.enabled = false;
             if (OrbitCamera != null) OrbitCamera.enabled = false;
+            // EXPLICIT BUG REPORT: opening the console left whatever
+            // animation was already playing (walking, punching, a swing's
+            // own held pose) running in place. Disabling InputReader alone
+            // only stops NEW input from being read -- it does not stop the
+            // Animator itself, which keeps evaluating its current state
+            // machine (and looping) with whatever parameters it was last
+            // given, since nothing else was ever telling it to stop. Same
+            // "freeze the pose, not just the input" fix Ragdoll.Activate
+            // already applies for death.
+            if (_playerAnimator != null) _playerAnimator.enabled = false;
         }
 
         public void Close()
@@ -168,6 +194,15 @@ namespace CityX.UI
 
             if (InputReader != null) InputReader.enabled = true;
             if (OrbitCamera != null) OrbitCamera.enabled = true;
+            // NOT if the player died while the console happened to be open
+            // -- Ragdoll.Activate already turned this same Animator off for
+            // a real reason (the corpse's own bones need to be free for
+            // physics), and blindly re-enabling it here would fight that
+            // the instant the console closes.
+            if (_playerAnimator != null && (Vitals == null || !Vitals.IsDead))
+            {
+                _playerAnimator.enabled = true;
+            }
         }
 
         public void Submit(string text)
