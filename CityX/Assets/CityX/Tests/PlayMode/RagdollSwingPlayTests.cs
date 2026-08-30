@@ -7,13 +7,27 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// The grapple swing's own partial ragdoll -- explicit ask: "his right
-    /// hand stay attached to it but the rest of his body is ragdolling
-    /// until he reaches land or dashes". Separate from RagdollPlayTests,
-    /// which only exercises the full death ragdoll (Activate/Deactivate);
-    /// this is specifically about ActivateSwing/TickSwingPose/
-    /// SetLeftArmPose/DeactivateSwing keeping Chest and the right arm
-    /// kinematic while everything else goes limp.
+    /// The grapple swing's own ragdoll -- explicit ask: "his right hand
+    /// stay attached to it but the rest of his body is ragdolling until he
+    /// reaches land or dashes". Separate from RagdollPlayTests, which only
+    /// exercises the full death ragdoll (Activate/Deactivate); this is
+    /// specifically about ActivateSwing/SetSwingPullTarget/SetLeftArmPose/
+    /// DeactivateSwing.
+    ///
+    /// TWO EARLIER VERSIONS OF THIS MECHANISM BOTH STRETCHED THE RIG APART
+    /// LIVE -- first a version that computed Chest's target pose fresh
+    /// every frame while keeping it kinematic, then a version that captured
+    /// Chest's own starting pose for continuity but still kept it kinematic.
+    /// Both failed for the same underlying reason: a kinematic body forced
+    /// through a real swing's own fast, curving motion gives the joint
+    /// solver connecting it to non-kinematic neighbours an impossible job
+    /// EVERY physics step, not just at the start. The current design makes
+    /// the whole rig genuinely non-kinematic (a real, ordinary ragdoll) and
+    /// pulls RightLowerArm toward the swing's own target with a bounded,
+    /// damped FORCE instead -- a normal input to the same solver, not an
+    /// override fighting it. SwingingDoesNotStretchTheRigApartOrFlingItAway
+    /// is the regression test for that whole class of bug, simulating a
+    /// real multi-second swing rather than a single frame.
     /// </summary>
     public class RagdollSwingPlayTests
     {
@@ -28,9 +42,9 @@ namespace CityX.Tests
         /// <summary>
         /// A stand-in rig with the SAME named bones RagdollBuilder wires on
         /// the real one -- Hips/Chest/Head plus both arms -- since the
-        /// logic under test is specifically about which of THOSE stay
-        /// kinematic, not the physics itself (RagdollPlayTests' own stand-in
-        /// rig already covers that). No legs: nothing here reads them.
+        /// logic under test is specifically about those bones, not the
+        /// physics itself (RagdollPlayTests' own stand-in rig already
+        /// covers that).
         /// </summary>
         private Ragdoll MakeSwingRig()
         {
@@ -93,92 +107,127 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// The actual bug report this exists to catch: "the character just
-        /// stretches out and disappears". Root-caused to GrappleSwing's own
-        /// UpdateRagdollPose computing Chest's target position from scratch
-        /// (transform.position + a guessed height) rather than from wherever
-        /// the animated chest bone actually already was -- the very first
-        /// TickSwingPose call snapped a KINEMATIC Chest away from a
-        /// NON-KINEMATIC Hips still jointed to it, and the joint solver's
-        /// attempt to close that gap in a single physics step is what flung
-        /// the rig apart.
-        ///
-        /// The whole rig is moved to an arbitrary point (not the world
-        /// origin, and not matching the old buggy formula) by moving
-        /// root/Hips, NOT by moving Chest alone -- Chest's own joint got
-        /// its anchor auto-configured from Hips/Chest's ORIGINAL relative
-        /// offset back in MakeSwingRig, so repositioning Chest by itself
-        /// relative to a stationary Hips would leave that anchor stale and
-        /// genuinely violated for a reason that has nothing to do with the
-        /// bug under test. Moving the whole rig together preserves that
-        /// relative offset exactly the way a real animated skeleton always
-        /// does, which is what makes this a fair test of GrappleSwing's own
-        /// continuity fix rather than of an unrelated joint setup issue.
+        /// The actual bug report this exists to catch, reproduced as
+        /// faithfully as a stand-in rig allows: "he just starts stretching
+        /// apart and his limbs start flying all over the place when i use
+        /// the grappling hook". Runs a real multi-second simulated swing
+        /// (not just one frame -- the earlier, kinematic-Chest design could
+        /// pass a single-frame check and still destabilise continuously
+        /// once the anchor kept moving) and checks the two things "the rig
+        /// stayed together" actually means: neighbouring joints did not
+        /// drift apart, and nothing reached an unreasonable velocity.
         /// </summary>
         [UnityTest]
-        public IEnumerator AttachingDoesNotSnapChestAwayFromWhereverItActuallyWas()
+        public IEnumerator SwingingDoesNotStretchTheRigApartOrFlingItAway()
         {
             Ragdoll ragdoll = MakeSwingRig();
             _body.transform.position = new Vector3(2.0f, 1.3f, -3.5f);
-            Vector3 chestStart = ragdoll.Chest.transform.position;
 
             _body.AddComponent<CharacterController>();
             var swing = _body.AddComponent<GrappleSwing>();
             swing.Bind();
 
-            swing.Attach(chestStart + Vector3.up * 5.0f);
-            swing.Tick(Vector2.zero, 0.0f, false, false, false, false, 1.0f / 60.0f);
-            yield return new WaitForFixedUpdate();
+            swing.Attach(_body.transform.position + new Vector3(3.0f, 6.0f, 2.0f));
 
-            float moved = Vector3.Distance(ragdoll.Chest.transform.position, chestStart);
-            Assert.Less(moved, 0.5f,
-                $"Chest moved {moved:0.00}m away from its own actual starting pose on the very first " +
-                "frame -- this is exactly what made the joints see an already-violated constraint and " +
-                "fling the rig apart");
+            for (int i = 0; i < 180; i++)
+            {
+                swing.Tick(Vector2.zero, 0.0f, false, false, false, false, 1.0f / 60.0f);
+                yield return new WaitForFixedUpdate();
+            }
+
+            float chestToHips = Vector3.Distance(ragdoll.Chest.position, ragdoll.Torso.position);
+            Assert.Less(chestToHips, 1.0f,
+                $"Chest and Hips ended up {chestToHips:0.00}m apart -- a real joint between them should " +
+                "never let that happen no matter what pulls on the rest of the rig");
+
+            foreach (Rigidbody body in ragdoll.Bodies)
+            {
+                Assert.Less(body.linearVelocity.magnitude, 30.0f,
+                    $"'{body.name}' is travelling at {body.linearVelocity.magnitude:0}m/s after three seconds " +
+                    "of swinging -- that reads as the rig being flung apart, not hanging from a rope");
+            }
         }
 
         [Test]
-        public void ActivateSwingKeepsChestAndTheRightArmKinematicButRagdollsEverythingElse()
+        public void ActivateSwingMakesEveryBodyNonKinematic()
         {
             Ragdoll ragdoll = MakeSwingRig();
 
             ragdoll.ActivateSwing(Vector3.zero);
 
             Assert.IsTrue(ragdoll.IsSwinging);
-            Assert.IsTrue(ragdoll.Chest.isKinematic, "Chest should stay driven, not ragdoll");
-            Assert.IsTrue(ragdoll.RightUpperArm.isKinematic, "the pinned arm's own upper segment should stay driven");
-            Assert.IsTrue(ragdoll.RightLowerArm.isKinematic, "the pinned arm's own lower segment should stay driven");
-
-            Assert.IsFalse(ragdoll.Torso.isKinematic, "the hips should be ragdolling");
-            Assert.IsFalse(ragdoll.Head.isKinematic, "the head should be ragdolling");
-            Assert.IsFalse(ragdoll.LeftUpperArm.isKinematic, "the free arm should start ragdolling");
-            Assert.IsFalse(ragdoll.LeftLowerArm.isKinematic, "the free arm should start ragdolling");
+            // EVERY body, Chest and the right arm included -- see this
+            // file's own class comment for why an earlier version kept
+            // those two kinematic and what that broke.
+            foreach (Rigidbody body in ragdoll.Bodies)
+            {
+                Assert.IsFalse(body.isKinematic, $"'{body.name}' should be a real physics body while swinging");
+            }
         }
 
         [UnityTest]
-        public IEnumerator TickSwingPoseDragsChestToTheGivenTransformAndHoldsTheRightArmPose()
+        public IEnumerator SetSwingPullTargetPullsTheRightHandTowardItOverTime()
+        {
+            // Gravity off for this one -- real GrappleSwing usage never
+            // fights it in isolation like this test does (the swing's own
+            // pendulum physics, which already accounts for gravity, is
+            // what moves the target every frame in the real game), so an
+            // unsupported rig free-falling under REAL gravity for a full
+            // second while this asks it to climb straight up would test
+            // "does gravity beat an isolated upward pull", not "does the
+            // pull mechanism work" -- confirmed directly: it failed for
+            // exactly that reason before gravity was excluded here.
+            Vector3 realGravity = Physics.gravity;
+            Physics.gravity = Vector3.zero;
+            try
+            {
+                Ragdoll ragdoll = MakeSwingRig();
+                ragdoll.ActivateSwing(Vector3.zero);
+
+                Vector3 target = ragdoll.RightLowerArm.position + new Vector3(2.0f, 1.0f, 0.0f);
+                float startDistance = Vector3.Distance(ragdoll.RightLowerArm.position, target);
+
+                for (int i = 0; i < 60; i++)
+                {
+                    ragdoll.SetSwingPullTarget(target);
+                    yield return new WaitForFixedUpdate();
+                }
+
+                float endDistance = Vector3.Distance(ragdoll.RightLowerArm.position, target);
+                Assert.Less(endDistance, startDistance,
+                    $"the pull never closed any distance to its own target ({startDistance:0.00}m -> {endDistance:0.00}m)");
+            }
+            finally
+            {
+                Physics.gravity = realGravity;
+            }
+        }
+
+        /// <summary>
+        /// The other half of SwingPullMaxAcceleration's own job: even a
+        /// target placed absurdly far away must not fling the hand at
+        /// extreme speed -- the cap exists specifically so a stale or
+        /// otherwise wrong target cannot explode the rig the way an
+        /// unbounded spring force could.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator SetSwingPullTargetNeverExceedsTheAccelerationCap()
         {
             Ragdoll ragdoll = MakeSwingRig();
             ragdoll.ActivateSwing(Vector3.zero);
 
-            var targetPosition = new Vector3(3.0f, 5.0f, -2.0f);
-            var targetRotation = Quaternion.Euler(0.0f, 90.0f, 0.0f);
-            var upperPose = Quaternion.Euler(-10.0f, 15.0f, -150.0f);
-            var lowerPose = Quaternion.Euler(60.0f, 0.0f, 0.0f);
+            Vector3 farTarget = ragdoll.RightLowerArm.position + new Vector3(500.0f, 0.0f, 0.0f);
 
-            ragdoll.TickSwingPose(targetPosition, targetRotation, upperPose, lowerPose);
-            // MovePosition/MoveRotation on a kinematic body only actually
-            // lands on the transform at the next physics step.
-            yield return new WaitForFixedUpdate();
+            for (int i = 0; i < 5; i++)
+            {
+                ragdoll.SetSwingPullTarget(farTarget);
+                yield return new WaitForFixedUpdate();
+            }
 
-            Assert.Less(Vector3.Distance(ragdoll.Chest.position, targetPosition), 0.01f,
-                "TickSwingPose did not move Chest to the swing's own live position");
-            Assert.Less(Quaternion.Angle(ragdoll.Chest.rotation, targetRotation), 1.0f,
-                "TickSwingPose did not turn Chest to face the swing's own direction");
-            Assert.AreEqual(upperPose, ragdoll.RightUpperArm.transform.localRotation,
-                "the right upper arm did not hold the given swing pose");
-            Assert.AreEqual(lowerPose, ragdoll.RightLowerArm.transform.localRotation,
-                "the right lower arm did not hold the given swing pose");
+            float maxExpectedSpeed = Ragdoll.SwingPullMaxAcceleration * Time.fixedDeltaTime * 6.0f;
+            Assert.Less(ragdoll.RightLowerArm.linearVelocity.magnitude, maxExpectedSpeed,
+                $"the hand reached {ragdoll.RightLowerArm.linearVelocity.magnitude:0}m/s pulling toward a " +
+                "far target -- the acceleration cap did not hold");
         }
 
         [Test]

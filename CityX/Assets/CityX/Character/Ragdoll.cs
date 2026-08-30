@@ -62,11 +62,12 @@ namespace CityX.Character
         [Tooltip("Switched off while limp so the animation stops fighting physics.")]
         public Animator Animator;
 
-        // --- named individually for GrappleSwing's own partial ragdoll --
-        // --- see ActivateSwing's own doc comment for why these specific
-        // --- five bodies (not the rest) need to be addressable on their
-        // --- own rather than just living in the flat Bodies array.
-        [Tooltip("Filled in by RagdollBuilder. Kept kinematic and driven to the swing's own position during a partial ragdoll.")]
+        // --- named individually for GrappleSwing's own use -- RightLowerArm
+        // --- is what FixedUpdate's own swing-pull force actually pulls on,
+        // --- LeftUpperArm/LeftLowerArm are what SetLeftArmPose can hold
+        // --- kinematic for a fireball cast -- rather than walking Bodies
+        // --- looking for them by position.
+        [Tooltip("Filled in by RagdollBuilder.")]
         public Rigidbody Chest;
 
         public Rigidbody Head;
@@ -75,11 +76,40 @@ namespace CityX.Character
         public Rigidbody RightUpperArm;
         public Rigidbody RightLowerArm;
 
+        /// <summary>
+        /// How hard the swing pulls RightLowerArm toward SetSwingPullTarget's
+        /// own target point, as an ACCELERATION per metre of distance (so it
+        /// applies the same regardless of the arm's own mass -- see
+        /// FixedUpdate's own ForceMode.Acceleration). Paired with
+        /// SwingPullDamping for critical damping (damping =
+        /// 2*sqrt(stiffness)): strong enough to keep the hand generally
+        /// near the rope through an ordinary swing's own speeds, gentle
+        /// enough that a semi-implicit-Euler physics step at Unity's
+        /// default 0.02s timestep stays comfortably stable
+        /// (stiffness*dt^2 = 120*0.0004 = 0.048, well under the ~4 rule-of-
+        /// thumb ceiling for a damped spring integrated this way).
+        /// </summary>
+        public const float SwingPullStiffness = 120.0f;
+
+        /// <summary>2*sqrt(SwingPullStiffness), for critical damping -- fast convergence with no oscillation.</summary>
+        public const float SwingPullDamping = 21.9f;
+
+        /// <summary>
+        /// A safety ceiling on the pull's own acceleration, independent of
+        /// how far the target ever ends up -- the same "cap the correction
+        /// so a large error cannot fling anything" reasoning
+        /// RagdollBuilder.MakeBody's own maxDepenetrationVelocity already
+        /// applies to overlapping colliders, just for this force instead.
+        /// </summary>
+        public const float SwingPullMaxAcceleration = 60.0f;
+
         private CharacterController _controller;
         private PlayerLocomotion _locomotion;
         private PlayerVitals _vitals;
         private bool _limp;
         private bool _swinging;
+        private Vector3 _swingPullTarget;
+        private bool _hasSwingPullTarget;
 
         public bool IsLimp => _limp;
 
@@ -193,13 +223,14 @@ namespace CityX.Character
             }
             _limp = true;
             // A death mid-swing supersedes the partial ragdoll outright --
-            // the loop below already forces every body non-kinematic
-            // (chest/right arm included), so nothing here needs to treat
-            // them specially the way ActivateSwing does. Cleared so
-            // GrappleSwing's own still-in-flight TickSwingPose/
-            // SetLeftArmPose calls this same frame become no-ops instead of
-            // calling MovePosition on a body that is no longer kinematic.
+            // the loop below already forces every body non-kinematic, same
+            // as ActivateSwing's own now does, so nothing here needs any
+            // special-casing. Cleared so GrappleSwing's own still-in-flight
+            // SetSwingPullTarget/SetLeftArmPose calls this same frame
+            // become no-ops (the _swinging guard on each) instead of
+            // fighting the death ragdoll's own control of these bodies.
             _swinging = false;
+            _hasSwingPullTarget = false;
 
             if (Animator != null)
             {
@@ -234,28 +265,42 @@ namespace CityX.Character
         }
 
         /// <summary>
-        /// Goes PARTLY limp for a grapple swing -- explicit ask: "his right
-        /// hand stay attached to it but the rest of his body is ragdolling".
-        /// The Animator goes off exactly like a death ragdoll (nothing here
-        /// should fight physics), but only the hips, head, legs and left arm
-        /// actually become physics-driven. Chest and the whole right arm
-        /// STAY kinematic -- GrappleSwing's own TickSwingPose drives Chest's
-        /// position/rotation directly every frame to match the swing's own
-        /// computed transform, and the CharacterJoint already connecting
-        /// Chest to the (now non-kinematic) hips drags the hips -- and
-        /// through their own joints, the legs and head -- along for the
-        /// ride, exactly the way a real ragdoll gets dragged by whatever
-        /// part of it is anchored. The right arm rides along with Chest
-        /// through ordinary parent-child transform inheritance (it is
-        /// kinematic too, so nothing fights that), holding whatever pose
-        /// TickSwingPose gives it -- a reaching-for-the-rope shape rather
-        /// than flailing loose, which is the whole visual point of keeping
-        /// it out of the ragdoll at all.
+        /// Goes limp for a grapple swing -- explicit ask: "his right hand
+        /// stay attached to it but the rest of his body is ragdolling".
         ///
-        /// THE LEFT ARM IS THE ONE EXCEPTION THAT CAN FLIP BACK. It starts
-        /// ragdolling like the hips/legs/head, but SetLeftArmPose can pull
-        /// it back to kinematic for as long as a fireball cast's own raised-
-        /// hand pose needs to hold -- see that method's own doc comment.
+        /// EVERY BODY GOES NON-KINEMATIC, Chest and the right arm included
+        /// -- an EARLIER version of this kept Chest/RightUpperArm/
+        /// RightLowerArm kinematic and forcibly MovePosition'd Chest to the
+        /// swing's own live transform every frame, on the reasoning that
+        /// the CharacterJoint linking Chest to hips would just drag the
+        /// (non-kinematic) rest of the rig along for the ride. Confirmed
+        /// broken live, twice: a kinematic body FORCED through a real
+        /// swing's own fast, curving arc gives the joint solver an
+        /// impossible job every single physics step, not just once at the
+        /// start -- it has to find whatever force closes the gap between
+        /// "where the rigid joint insists Chest's neighbour should be" and
+        /// "where Chest was just teleported to" within one step, continuously,
+        /// which is exactly what reads as the body stretching apart and
+        /// limbs flying everywhere rather than a coherent ragdoll. A real
+        /// ragdoll only holds together because PhysX solves every joint in
+        /// the SAME body together; forcing one piece kinematically outside
+        /// that solve is what breaks it.
+        ///
+        /// THE FIX: nothing is kinematic. The whole rig is a real, ordinary
+        /// ragdoll (same joints, same limits, same solve RagdollBuilder
+        /// already built for death), and the "hand stays attached" feel
+        /// comes from FixedUpdate's own separate, bounded, damped PULL
+        /// force on RightLowerArm toward whatever SetSwingPullTarget was
+        /// last given -- a normal force the SAME solver integrates
+        /// alongside gravity and every joint, rather than a kinematic
+        /// override fighting it from outside.
+        ///
+        /// THE LEFT ARM IS THE ONE EXCEPTION THAT GOES KINEMATIC, briefly --
+        /// SetLeftArmPose can pull it there for as long as a fireball
+        /// cast's own held pose needs, same as before -- see that method's
+        /// own doc comment for why a short, static hold is a fundamentally
+        /// different (and safe) case from forcing a body through continuous
+        /// fast motion.
         /// </summary>
         public void ActivateSwing(Vector3 velocity)
         {
@@ -264,65 +309,35 @@ namespace CityX.Character
                 return;
             }
             _swinging = true;
+            _hasSwingPullTarget = false;
 
             if (Animator != null)
             {
                 Animator.enabled = false;
             }
 
-            SetBodyKinematic(Chest, true);
-            SetBodyKinematic(RightUpperArm, true);
-            SetBodyKinematic(RightLowerArm, true);
-
+            SetKinematic(false);
             foreach (Rigidbody body in Bodies)
             {
-                if (body == null || body == Chest || body == RightUpperArm || body == RightLowerArm)
+                if (body != null)
                 {
-                    continue;
+                    body.linearVelocity = velocity;
                 }
-                SetBodyKinematic(body, false);
-                body.linearVelocity = velocity;
-            }
-
-            if (Torso != null && !Torso.isKinematic)
-            {
-                Torso.angularVelocity =
-                    Random.onUnitSphere * (TorsoSpinDegreesPerSecond * 0.5f * Mathf.Deg2Rad);
             }
         }
 
         /// <summary>
         /// Called every frame by GrappleSwing while a swing is active --
-        /// drags Chest to the swing's own live position/rotation (see
-        /// ActivateSwing's own doc comment for why that alone is enough to
-        /// carry the whole ragdolling half of the rig with it), and holds
-        /// the right arm in a fixed reaching pose relative to Chest. THE
-        /// EXACT ANGLES ARE A FIRST GUESS, not yet checked against a real
-        /// rendered pose the way every other procedural grip in this project
-        /// eventually was (PistolWeapon.GripHandRotationEuler's own doc
-        /// comment, etc.) -- reasonable starting values, meant to be
-        /// render-tuned once actually seen swinging.
+        /// just records where the swing's own logic currently wants the
+        /// hand to be; FixedUpdate is what actually pulls RightLowerArm
+        /// toward it. Split out from applying the pull directly so the
+        /// force only ever gets computed on a real physics step (this can
+        /// be, and is, called from an ordinary Update at a different rate).
         /// </summary>
-        public void TickSwingPose(Vector3 chestWorldPosition, Quaternion chestWorldRotation,
-            Quaternion rightUpperArmLocalRotation, Quaternion rightLowerArmLocalRotation)
+        public void SetSwingPullTarget(Vector3 targetPosition)
         {
-            if (!_swinging)
-            {
-                return;
-            }
-            if (Chest != null)
-            {
-                Chest.MovePosition(chestWorldPosition);
-                Chest.MoveRotation(chestWorldRotation);
-            }
-            if (RightUpperArm != null)
-            {
-                RightUpperArm.transform.localRotation = rightUpperArmLocalRotation;
-            }
-            if (RightLowerArm != null)
-            {
-                RightLowerArm.transform.localRotation = rightLowerArmLocalRotation;
-            }
+            _swingPullTarget = targetPosition;
+            _hasSwingPullTarget = true;
         }
 
         /// <summary>
@@ -372,6 +387,7 @@ namespace CityX.Character
                 return;
             }
             _swinging = false;
+            _hasSwingPullTarget = false;
 
             // Dying mid-swing already made Activate() take over (a full
             // ragdoll, not this partial one) -- Update ordering between
@@ -433,21 +449,33 @@ namespace CityX.Character
 
         private void FixedUpdate()
         {
-            if (!_limp || Bodies == null)
+            if (_limp && Bodies != null)
             {
-                return;
+                // See ExtraGravityScale. Applied as acceleration rather than
+                // force so it pulls every body equally regardless of mass --
+                // gravity does not care what a forearm weighs.
+                Vector3 extra = Physics.gravity * ExtraGravityScale;
+                foreach (Rigidbody body in Bodies)
+                {
+                    if (body != null)
+                    {
+                        body.AddForce(extra, ForceMode.Acceleration);
+                    }
+                }
             }
 
-            // See ExtraGravityScale. Applied as acceleration rather than force
-            // so it pulls every body equally regardless of mass -- gravity does
-            // not care what a forearm weighs.
-            Vector3 extra = Physics.gravity * ExtraGravityScale;
-            foreach (Rigidbody body in Bodies)
+            if (_swinging && _hasSwingPullTarget && RightLowerArm != null && !RightLowerArm.isKinematic)
             {
-                if (body != null)
-                {
-                    body.AddForce(extra, ForceMode.Acceleration);
-                }
+                // A critically-damped spring toward the swing's own target,
+                // not a rigid position lock -- see SwingPullStiffness's own
+                // doc comment for why forcing an exact match every step is
+                // exactly what made the rig stretch apart instead of
+                // holding together. ForceMode.Acceleration so the pull's
+                // own strength does not depend on RightLowerArm's mass.
+                Vector3 toTarget = _swingPullTarget - RightLowerArm.position;
+                Vector3 pull = toTarget * SwingPullStiffness - RightLowerArm.linearVelocity * SwingPullDamping;
+                pull = Vector3.ClampMagnitude(pull, SwingPullMaxAcceleration);
+                RightLowerArm.AddForce(pull, ForceMode.Acceleration);
             }
         }
 
