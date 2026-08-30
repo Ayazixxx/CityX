@@ -84,6 +84,24 @@ namespace CityX.Character
         public const float ReleaseBoost = 3.5f;
 
         /// <summary>
+        /// A HARD CEILING ON THE SWING'S OWN VELOCITY -- without this,
+        /// holding a movement key while also holding payout keeps the rope
+        /// permanently longer than the distance to the anchor, so it never
+        /// goes taut and RopeDamping/the outward-cancel below never engage.
+        /// SwingAccel then adds speed every single frame with nothing ever
+        /// bleeding it back off -- given enough real playtime that reaches
+        /// speeds the CharacterController and camera were never built to
+        /// track, which reads live as the body rocketing through the camera
+        /// and vanishing: the reported "stretches the character out into
+        /// being invisible" bug. Ordinary swinging never gets remotely
+        /// close to this ceiling -- held taut, pushing the whole time
+        /// settles to roughly SwingAccel / RopeDamping = 16/0.015 ≈ 18 m/s
+        /// on its own -- so this only ever clips the exploit, not the
+        /// normal feel.
+        /// </summary>
+        public const float MaxSwingSpeed = 35.0f;
+
+        /// <summary>
         /// How long the player may stay grounded mid-swing before the rope
         /// cuts on its own. Long enough that briefly touching down while
         /// skimming a rooftop keeps the swing alive, short enough that
@@ -205,7 +223,12 @@ namespace CityX.Character
                 Gravity = _locomotion.Gravity;
             }
 
-            if (_animator != null)
+            // isHuman, NOT just != null -- GetBoneTransform throws on an
+            // Animator with no Avatar (or a non-Humanoid one) rather than
+            // returning null, and unlike a proper Player.prefab, a bare
+            // Animator with no Avatar is exactly what a test fixture (or a
+            // half-built body mid-construction) can legitimately have.
+            if (_animator != null && _animator.isHuman)
             {
                 _headBone = _animator.GetBoneTransform(HumanBodyBones.Head);
                 _leftUpperArmBone = _animator.GetBoneTransform(HumanBodyBones.LeftUpperArm);
@@ -375,6 +398,15 @@ namespace CityX.Character
             else if (payoutHeld)
             {
                 _ropeLength = Mathf.Min(MaxRopeLength, _ropeLength + PayoutSpeed * deltaTime);
+            }
+
+            // See MaxSwingSpeed's own doc comment -- clamped here, before
+            // release even gets a chance to read _velocity, so a runaway
+            // speed can never be "banked" into SetResidualVelocity/
+            // SetVerticalVelocity on release either.
+            if (_velocity.magnitude > MaxSwingSpeed)
+            {
+                _velocity = _velocity.normalized * MaxSwingSpeed;
             }
 
             // Both release inputs still take one more real step below with

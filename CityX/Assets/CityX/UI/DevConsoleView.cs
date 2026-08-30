@@ -91,6 +91,9 @@ namespace CityX.UI
         [Tooltip("Mouse-look. Disabled while the console is open -- otherwise typing WASD into a command also walks the player.")]
         public ThirdPersonCamera OrbitCamera;
 
+        [Tooltip("The grapple swing. While a rope is attached it owns the player's Animator via its own procedural swing pose -- closing the console must not hand it back mid-swing.")]
+        public GrappleSwing Swing;
+
         /// <summary>How far in front of the player something spawns.</summary>
         public const float SpawnDistance = 3.0f;
 
@@ -194,12 +197,20 @@ namespace CityX.UI
 
             if (InputReader != null) InputReader.enabled = true;
             if (OrbitCamera != null) OrbitCamera.enabled = true;
-            // NOT if the player died while the console happened to be open
-            // -- Ragdoll.Activate already turned this same Animator off for
-            // a real reason (the corpse's own bones need to be free for
-            // physics), and blindly re-enabling it here would fight that
-            // the instant the console closes.
-            if (_playerAnimator != null && (Vitals == null || !Vitals.IsDead))
+            // NOT if the player died while the console happened to be open,
+            // and NOT while a grapple swing still has the rope attached --
+            // Ragdoll.Activate and GrappleSwing.Attach both already turned
+            // this same Animator off for their own real reasons (a corpse's
+            // bones need to be free for physics; the swing's own procedural
+            // pose owns every bone it touches every frame), and blindly
+            // re-enabling it here would fight either the instant the
+            // console closes. EXPLICIT BUG REPORT: opening then closing the
+            // console mid-swing sometimes left the character looking
+            // "stretched"/distorted -- the re-enabled Animator and
+            // GrappleSwing.UpdateSwingPose were both writing the same
+            // bones every frame from then on.
+            if (_playerAnimator != null && (Vitals == null || !Vitals.IsDead) &&
+                (Swing == null || !Swing.IsActive))
             {
                 _playerAnimator.enabled = true;
             }

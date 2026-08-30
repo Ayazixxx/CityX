@@ -191,6 +191,31 @@ namespace CityX.Tests
                 "the rope paid out past its own maximum");
         }
 
+        /// <summary>
+        /// THE ACTUAL EXPLOIT MaxSwingSpeed exists to close: holding payout
+        /// keeps the rope longer than the distance to the anchor, so it
+        /// never goes taut and the outward-cancel/RopeDamping below never
+        /// get a chance to run at all -- pushing the same direction the
+        /// whole time then has nothing ever bleeding SwingAccel back off.
+        /// A live bug report described exactly this: the body "stretching
+        /// out into being invisible" after sustained holding of a movement
+        /// key together with payout.
+        /// </summary>
+        [Test]
+        public void PushingWhilePayingOutNeverExceedsTheSpeedCeiling()
+        {
+            _object.transform.position = new Vector3(0.0f, 5.0f, 0.0f);
+            _swing.Attach(new Vector3(0.0f, 8.0f, -4.0f));
+
+            for (int i = 0; i < 300; i++)
+            {
+                _swing.Tick(new Vector2(0.0f, 1.0f), 0.0f, false, false, false, true, 1.0f / 60.0f);
+            }
+
+            Assert.LessOrEqual(_swing.Velocity.magnitude, GrappleSwing.MaxSwingSpeed + 0.01f,
+                $"holding forward while paying out reached {_swing.Velocity.magnitude:0.0} m/s -- the swing has no speed ceiling");
+        }
+
         /// <summary>A plain release (left-click again) drops the rope without the height boost.</summary>
         [Test]
         public void APlainReleaseInputEndsTheSwingWithoutABoost()
