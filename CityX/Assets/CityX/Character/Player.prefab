@@ -2007,12 +2007,6 @@ MonoBehaviour:
   - {fileID: 3242004262988159011}
   Torso: {fileID: 1338443506510413375}
   Animator: {fileID: 1527691548654838634}
-  Chest: {fileID: 6010434333696763830}
-  Head: {fileID: 6857740579645167720}
-  LeftUpperArm: {fileID: 8634816842056062589}
-  LeftLowerArm: {fileID: 5721917860501738942}
-  RightUpperArm: {fileID: 3930108678213077817}
-  RightLowerArm: {fileID: 6932870340142354369}
 --- !u!114 &4230536320211725702
 MonoBehaviour:
   m_ObjectHideFlags: 0

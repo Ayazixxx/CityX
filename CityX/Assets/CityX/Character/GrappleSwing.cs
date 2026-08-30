@@ -37,6 +37,24 @@ namespace CityX.Character
     /// at instead of getting cut down to whatever WASD is doing that
     /// instant.
     ///
+    /// THE HELD POSE IS PURE PROCEDURAL BONE ROTATION, NOT PHYSICS -- see
+    /// UpdateSwingPose's own doc comment. THREE earlier versions of this
+    /// file tried real rigidbody/joint ragdoll physics for "the body
+    /// flails while swinging" (a kinematic Chest forced through the
+    /// swing's own motion; a bounded force pulling a fully dynamic rig),
+    /// and every one of them was reported broken live -- stretching apart,
+    /// limbs flying off, the body distorting wildly. Real constraint-based
+    /// physics driven by a script that ALSO forces the character through
+    /// arbitrary, fast, curving motion is fundamentally fragile in ways
+    /// that are hard to fully predict or verify without live iteration
+    /// (joint solving under continuous forced motion, and colliders on
+    /// every ragdoll body part now able to snag on world geometry the
+    /// CharacterController itself slides past). Directly rotating bones --
+    /// the same technique PlayerLocomotion.ApplyCastingPose/
+    /// ApplyDrivingWheelPose and Jetpack.TickTilt already use, all proven
+    /// stable -- cannot explode, stretch, or get stuck on anything, because
+    /// nothing is being simulated at all.
+    ///
     /// DEATH IS POLLED, NOT EVENT-DRIVEN -- see GrabCarry's own doc comment
     /// for why an OnEnable subscription to PlayerVitals.Died is unsafe in
     /// this codebase's own scene-builder field-assignment order.
@@ -81,37 +99,71 @@ namespace CityX.Character
 
         private CharacterController _controller;
         private PlayerLocomotion _locomotion;
-        private Ragdoll _ragdoll;
         private IFireballCaster _fireballCaster;
+        private Animator _animator;
+
+        // --- bones the swing pose touches. Head/legs/left-arm flail off
+        // --- the swing's own velocity; the right arm eases toward a fixed
+        // --- reach pose instead (see UpdateSwingPose's own doc comment).
+        private Transform _headBone;
+        private Transform _leftUpperArmBone;
+        private Transform _leftLowerArmBone;
+        private Transform _rightUpperArmBone;
+        private Transform _rightLowerArmBone;
+        private Transform _leftUpperLegBone;
+        private Transform _rightUpperLegBone;
 
         /// <summary>
-        /// How far above the player's own root the swing's pull target sits
-        /// -- roughly hand-height on an arm reached up toward a rope. Only
-        /// has to be reasonable, not exact: TWO different, more elaborate
-        /// versions of this file tried to pin an exact chest transform
-        /// (first a fresh guess every frame, then a captured-continuity
-        /// offset) with Chest itself kept kinematic, and BOTH still
-        /// stretched the rig apart live -- a kinematic body forced through
-        /// a real swing's own fast, curving motion gives the joint solver
-        /// an impossible job every physics step, not just once. See
-        /// Ragdoll.ActivateSwing's own doc comment for the actual fix: the
-        /// whole rig is now a real, ordinary (fully non-kinematic) ragdoll,
-        /// and this is just the TARGET a bounded, damped FORCE pulls
-        /// RightLowerArm toward -- a real spring the same PhysX solve
-        /// integrates alongside gravity and every joint, so it settles
-        /// instead of fighting them.
+        /// Each bone's OWN local rotation the instant the Animator was
+        /// switched off, captured in Attach -- the flailing bones sway
+        /// ADDITIVELY on top of this (base * sway), the same "layer on top
+        /// of whatever pose was already there" idiom
+        /// PlayerLocomotion.ApplyCastingPose already uses, rather than
+        /// assuming a fixed bind pose that a mid-stride Attach would not
+        /// actually be in.
         /// </summary>
-        private const float SwingPullHeight = 1.3f;
+        private Quaternion _headBase = Quaternion.identity;
+
+        private Quaternion _leftUpperArmBase = Quaternion.identity;
+        private Quaternion _leftLowerArmBase = Quaternion.identity;
+        private Quaternion _leftUpperLegBase = Quaternion.identity;
+        private Quaternion _rightUpperLegBase = Quaternion.identity;
+
+        /// <summary>The right arm's own CURRENT local rotation, eased toward RightUpperArmReachPose/RightLowerArmReachPose every frame -- an absolute target, not an additive offset, since "reach for the rope" means a specific pose regardless of whatever the Animator last had it doing.</summary>
+        private Quaternion _rightUpperArmCurrent = Quaternion.identity;
+
+        private Quaternion _rightLowerArmCurrent = Quaternion.identity;
+
+        /// <summary>The left arm's own current local rotation -- eases toward LeftUpperArmCastPose/LeftLowerArmCastPose while actually casting, or back toward its own flailing sway otherwise.</summary>
+        private Quaternion _leftUpperArmCurrent = Quaternion.identity;
+
+        private Quaternion _leftLowerArmCurrent = Quaternion.identity;
+
+        /// <summary>The swing's own velocity, smoothed, in the BODY'S OWN local space -- what the flail actually reacts to. Smoothed rather than read raw so a single jittery frame of rope-constraint correction does not read as a limb twitch.</summary>
+        private Vector3 _localVelocitySmoothed;
+
+        private Vector3 _localVelocitySmoothVelocity;
+
+        /// <summary>How long the local-velocity smoothing takes to settle, in seconds.</summary>
+        private const float SwaySmoothTime = 0.18f;
+
+        /// <summary>The local speed, in m/s, at which the flail reaches its own full swing -- not a hard cap on speed itself, just where the sway maxes out.</summary>
+        private const float SwayReferenceSpeed = 8.0f;
+
+        /// <summary>How fast the right/left arm eases toward its own target pose, in degrees per second.</summary>
+        private const float ArmPoseDegreesPerSecond = 240.0f;
 
         /// <summary>
-        /// FIRST-GUESS POSE, not yet checked against a real rendered cast
-        /// mid-swing -- a raised-and-out shape for the left arm while a
-        /// fireball cast holds it kinematic (see Ragdoll.SetLeftArmPose's
-        /// own doc comment for why that short, static hold is safe where
-        /// forcing the right arm through continuous motion was not).
+        /// FIRST-GUESS POSES, not yet checked against a real rendered swing
+        /// the way this project's other procedural poses eventually were
+        /// (PistolWeapon.GripHandRotationEuler's own doc comment, etc.) --
+        /// a reaching-up-and-forward shape for the pinned arm and its
+        /// mirror for the left arm's own cast pose.
         /// </summary>
+        private static readonly Quaternion RightUpperArmReachPose = Quaternion.Euler(-10.0f, 15.0f, -150.0f);
+
+        private static readonly Quaternion RightLowerArmReachPose = Quaternion.Euler(60.0f, 0.0f, 0.0f);
         private static readonly Quaternion LeftUpperArmCastPose = Quaternion.Euler(-10.0f, -15.0f, 150.0f);
-
         private static readonly Quaternion LeftLowerArmCastPose = Quaternion.Euler(60.0f, 0.0f, 0.0f);
 
         private Vector3 _velocity;
@@ -135,22 +187,33 @@ namespace CityX.Character
         }
 
         /// <summary>
-        /// Finds the controller/animator/locomotion. Public because Awake
-        /// never runs in EditMode -- see PlayerLocomotion's own Bind for the
-        /// same reasoning -- and the rope's own physics (no-stretch, keeps
-        /// tangential speed, momentum on release, reel clamps to minimum)
-        /// is exactly the kind of thing that needs to be testable without a
-        /// scene. Calling it twice is harmless.
+        /// Finds the controller/animator/locomotion/bones. Public because
+        /// Awake never runs in EditMode -- see PlayerLocomotion's own Bind
+        /// for the same reasoning -- and the rope's own physics (no-stretch,
+        /// keeps tangential speed, momentum on release, reel clamps to
+        /// minimum) is exactly the kind of thing that needs to be testable
+        /// without a scene. Calling it twice is harmless.
         /// </summary>
         public void Bind()
         {
             _controller = GetComponent<CharacterController>();
             _locomotion = GetComponent<PlayerLocomotion>();
-            _ragdoll = GetComponent<Ragdoll>();
             _fireballCaster = GetComponent<IFireballCaster>();
+            _animator = GetComponentInChildren<Animator>();
             if (_locomotion != null)
             {
                 Gravity = _locomotion.Gravity;
+            }
+
+            if (_animator != null)
+            {
+                _headBone = _animator.GetBoneTransform(HumanBodyBones.Head);
+                _leftUpperArmBone = _animator.GetBoneTransform(HumanBodyBones.LeftUpperArm);
+                _leftLowerArmBone = _animator.GetBoneTransform(HumanBodyBones.LeftLowerArm);
+                _rightUpperArmBone = _animator.GetBoneTransform(HumanBodyBones.RightUpperArm);
+                _rightLowerArmBone = _animator.GetBoneTransform(HumanBodyBones.RightLowerArm);
+                _leftUpperLegBone = _animator.GetBoneTransform(HumanBodyBones.LeftUpperLeg);
+                _rightUpperLegBone = _animator.GetBoneTransform(HumanBodyBones.RightUpperLeg);
             }
         }
 
@@ -203,18 +266,47 @@ namespace CityX.Character
             _velocity = initialVelocity ?? (_locomotion != null ? _locomotion.Velocity : Vector3.zero);
             IsActive = true;
             _groundTime = 0.0f;
+            _localVelocitySmoothed = Vector3.zero;
+            _localVelocitySmoothVelocity = Vector3.zero;
 
             EquippedHook?.ShowRope(anchor);
-            // THE HELD POSE IS NOW A REAL RAGDOLL, not the Animator --
-            // explicit ask: "his right hand stay attached to it but the
-            // rest of his body is ragdolling". An earlier version of this
-            // file fired the same "Jump" trigger every ordinary jump uses,
-            // holding on the clip's own last frame; ActivateSwing disables
-            // the Animator outright, so that trigger would never actually
-            // play a frame of it now. See Ragdoll.ActivateSwing's own doc
-            // comment for the whole design (nothing stays kinematic; the
-            // hand is a bounded, damped pull force instead).
-            _ragdoll?.ActivateSwing(_velocity);
+
+            // THE HELD POSE IS THE PROCEDURAL FLAIL FROM HERE, not the
+            // Animator -- see this class's own doc comment for why. Nothing
+            // else should be posing these bones while the Animator is off,
+            // matching how PlayerLocomotion.ApplyHeight is the sole owner
+            // of its own localScale.
+            if (_animator != null)
+            {
+                _animator.enabled = false;
+            }
+            // PlayerLocomotion itself stays enabled and running throughout
+            // a swing (it owns feet-clamp/hips-freeze even then), which
+            // means its own LateUpdate keeps calling ApplyCastingPose every
+            // frame regardless of GrappleSwing's own state -- if a ground
+            // cast's raise was still fading out (CastPoseSeconds has not
+            // fully decayed) right as a grapple fires, that leftover
+            // fraction would fight UpdateSwingPose for the exact same arm
+            // bone. Cleared here so the swing's own pose is never sharing
+            // an arm with a stale ground-cast raise.
+            _locomotion?.SetCastPose(0.0f);
+            CaptureBase(_headBone, ref _headBase);
+            CaptureBase(_leftUpperArmBone, ref _leftUpperArmBase);
+            CaptureBase(_leftLowerArmBone, ref _leftLowerArmBase);
+            CaptureBase(_leftUpperLegBone, ref _leftUpperLegBase);
+            CaptureBase(_rightUpperLegBone, ref _rightUpperLegBase);
+            _rightUpperArmCurrent = _rightUpperArmBone != null ? _rightUpperArmBone.localRotation : Quaternion.identity;
+            _rightLowerArmCurrent = _rightLowerArmBone != null ? _rightLowerArmBone.localRotation : Quaternion.identity;
+            _leftUpperArmCurrent = _leftUpperArmBone != null ? _leftUpperArmBone.localRotation : Quaternion.identity;
+            _leftLowerArmCurrent = _leftLowerArmBone != null ? _leftLowerArmBone.localRotation : Quaternion.identity;
+        }
+
+        private static void CaptureBase(Transform bone, ref Quaternion baseRotation)
+        {
+            if (bone != null)
+            {
+                baseRotation = bone.localRotation;
+            }
         }
 
         /// <summary>
@@ -248,7 +340,10 @@ namespace CityX.Character
             // Landed, let go, or dashed out -- every one of those calls
             // Release, so restoring full animated control has exactly one
             // place to live rather than being duplicated at each call site.
-            _ragdoll?.DeactivateSwing();
+            if (_animator != null)
+            {
+                _animator.enabled = true;
+            }
         }
 
         /// <summary>
@@ -331,7 +426,7 @@ namespace CityX.Character
             EquippedHook?.UpdateRope(_anchor);
 
             _controller.Move(_velocity * deltaTime + correction);
-            UpdateRagdollPose();
+            UpdateSwingPose(deltaTime);
 
             // Landing on your feet ends the swing on its own. TWO ways out,
             // because a speed test alone isn't enough: this function keeps
@@ -361,23 +456,64 @@ namespace CityX.Character
         }
 
         /// <summary>
-        /// Drives the swing's own ragdoll every frame -- see
-        /// Ragdoll.ActivateSwing's own doc comment for the underlying
-        /// mechanism. Just a target point roughly hand-height above root;
-        /// Ragdoll's own FixedUpdate is what actually pulls RightLowerArm
-        /// toward it with a bounded, damped force, not this.
+        /// Drives the swing's own held pose every frame -- see this class's
+        /// own doc comment for why this is plain bone rotation rather than
+        /// physics. Head/legs/free-arm sway off the swing's own smoothed
+        /// local velocity, reading as a loose flail without ever touching a
+        /// Rigidbody or a joint; the right arm (and the left, while
+        /// actually casting) eases toward a fixed reach/cast pose instead.
         /// </summary>
-        private void UpdateRagdollPose()
+        private void UpdateSwingPose(float deltaTime)
         {
-            if (_ragdoll == null)
+            if (_animator == null)
             {
                 return;
             }
 
-            _ragdoll.SetSwingPullTarget(transform.position + Vector3.up * SwingPullHeight);
+            Vector3 localVelocity = transform.InverseTransformDirection(_velocity);
+            _localVelocitySmoothed = Vector3.SmoothDamp(
+                _localVelocitySmoothed, localVelocity, ref _localVelocitySmoothVelocity,
+                SwaySmoothTime, Mathf.Infinity, deltaTime);
 
+            float sideways = Mathf.Clamp(_localVelocitySmoothed.x / SwayReferenceSpeed, -1.0f, 1.0f);
+            float forwardBack = Mathf.Clamp(_localVelocitySmoothed.z / SwayReferenceSpeed, -1.0f, 1.0f);
+
+            ApplySway(_headBone, _headBase, new Vector3(0.0f, 0.0f, -sideways * 12.0f));
+            ApplySway(_leftUpperLegBone, _leftUpperLegBase, new Vector3(forwardBack * -20.0f, 0.0f, sideways * 10.0f));
+            ApplySway(_rightUpperLegBone, _rightUpperLegBase, new Vector3(forwardBack * -20.0f, 0.0f, -sideways * 10.0f));
+
+            float maxDelta = ArmPoseDegreesPerSecond * deltaTime;
+
+            // The right arm always reaches for the rope.
+            _rightUpperArmCurrent = Quaternion.RotateTowards(_rightUpperArmCurrent, RightUpperArmReachPose, maxDelta);
+            _rightLowerArmCurrent = Quaternion.RotateTowards(_rightLowerArmCurrent, RightLowerArmReachPose, maxDelta);
+            if (_rightUpperArmBone != null) _rightUpperArmBone.localRotation = _rightUpperArmCurrent;
+            if (_rightLowerArmBone != null) _rightLowerArmBone.localRotation = _rightLowerArmCurrent;
+
+            // THE GRAPPLE GUN OWNS THE RIGHT HAND, so a cast while swinging
+            // holds the LEFT arm in its own cast pose instead of letting it
+            // flail -- explicit ask: "it still works just comes from your
+            // left hand". Otherwise the left arm sways loosely like the
+            // head and legs.
             bool casting = _fireballCaster != null && _fireballCaster.IsCasting;
-            _ragdoll.SetLeftArmPose(casting, LeftUpperArmCastPose, LeftLowerArmCastPose);
+            Quaternion leftUpperTarget = casting
+                ? LeftUpperArmCastPose
+                : _leftUpperArmBase * Quaternion.Euler(forwardBack * -30.0f, 0.0f, sideways * 25.0f);
+            Quaternion leftLowerTarget = casting
+                ? LeftLowerArmCastPose
+                : _leftLowerArmBase * Quaternion.Euler(Mathf.Abs(forwardBack) * 20.0f, 0.0f, 0.0f);
+            _leftUpperArmCurrent = Quaternion.RotateTowards(_leftUpperArmCurrent, leftUpperTarget, maxDelta);
+            _leftLowerArmCurrent = Quaternion.RotateTowards(_leftLowerArmCurrent, leftLowerTarget, maxDelta);
+            if (_leftUpperArmBone != null) _leftUpperArmBone.localRotation = _leftUpperArmCurrent;
+            if (_leftLowerArmBone != null) _leftLowerArmBone.localRotation = _leftLowerArmCurrent;
+        }
+
+        private static void ApplySway(Transform bone, Quaternion baseRotation, Vector3 swayEuler)
+        {
+            if (bone != null)
+            {
+                bone.localRotation = baseRotation * Quaternion.Euler(swayEuler);
+            }
         }
     }
 }

@@ -413,10 +413,11 @@ namespace CityX.Character
                 // "it still works just comes from your left hand". Same
                 // digit1Key/origin-height/ignore-colliders shape as the
                 // ordinary ground cast below; GrappleSwing's own Tick reads
-                // CastFraction straight off _fireballCaster every frame to
-                // drive the left arm's held pose (see Ragdoll.SetLeftArmPose's
-                // own doc comment), so nothing else needs passing through
-                // here beyond actually firing the cast.
+                // IsCasting straight off _fireballCaster every frame to
+                // drive the left arm's own procedural held pose (see
+                // GrappleSwing.UpdateSwingPose's own doc comment), so
+                // nothing else needs passing through here beyond actually
+                // firing the cast.
                 if (_fireballCaster != null && keyboard.digit1Key.wasPressedThisFrame && swingYawSource != null)
                 {
                     float height = (_locomotion != null ? _locomotion.StandingHeight : 1.8f) * 0.68f;
