@@ -115,6 +115,36 @@ namespace CityX.Character
         [Tooltip("Gravity while swinging. Defaults to PlayerLocomotion's own, read once in Awake so the two never drift apart.")]
         public float Gravity = 9.8f;
 
+        [Tooltip("Pulled back while swinging -- see SwingCameraDistance's own doc comment. Optional: a null reference just skips the pull-back.")]
+        public ThirdPersonCamera OrbitCamera;
+
+        /// <summary>
+        /// EXPLICIT BUG REPORT, confirmed by direct measurement: a real
+        /// varied swing anchored on a real nearby building brought the
+        /// swinging hand within 1.23m of the camera (open-air swinging with
+        /// the same input only ever got it to 4.48m) -- every grapple
+        /// anchor is on a wall (see ThirdPersonCamera.MinDistance's own
+        /// comment), so the camera is ALSO already pulled toward its own
+        /// MinDistance floor by the nearby geometry while this happens,
+        /// stacking both effects. A hand or arm a little over a metre from
+        /// a normal-FOV camera reads as a huge, warped, foreground shape
+        /// that dominates the frame -- exactly the "stretched/contorted"
+        /// screenshots this was found from, and exactly why it only ever
+        /// happens near buildings. Not a pose bug at all: the reach pose
+        /// itself is a normal, bounded arm extension (see
+        /// RightUpperArmReachDegrees) -- the camera was simply sitting too
+        /// close to begin with for that arm to ever have room to move
+        /// through. Same fixed-distance-for-the-duration idiom
+        /// PlayerInputReader.BeginCarTransition/EndCarTransition already
+        /// uses for DrivingCameraDistance, applied here from Attach/Release
+        /// instead so it covers every release path (boosted, plain,
+        /// grounded-auto, max-ground-time-auto, double-tap bail) through
+        /// the one place they all funnel through already.
+        /// </summary>
+        public const float SwingCameraDistance = 6.5f;
+
+        private float _savedCameraDistance;
+
         private CharacterController _controller;
         private PlayerLocomotion _locomotion;
         private IFireballCaster _fireballCaster;
@@ -343,6 +373,13 @@ namespace CityX.Character
 
             EquippedHook?.ShowRope(anchor);
 
+            // See SwingCameraDistance's own doc comment.
+            if (OrbitCamera != null)
+            {
+                _savedCameraDistance = OrbitCamera.Distance;
+                OrbitCamera.Distance = SwingCameraDistance;
+            }
+
             // THE HELD POSE IS THE PROCEDURAL FLAIL FROM HERE, not the
             // Animator -- see this class's own doc comment for why. Nothing
             // else should be posing these bones while the Animator is off,
@@ -418,6 +455,10 @@ namespace CityX.Character
             _locomotion?.SetResidualVelocity(_velocity);
             _locomotion?.SetGroundClampSuspended(false);
             EquippedHook?.HideRope();
+            if (OrbitCamera != null)
+            {
+                OrbitCamera.Distance = _savedCameraDistance;
+            }
             // Landed, let go, or dashed out -- every one of those calls
             // Release, so restoring full animated control has exactly one
             // place to live rather than being duplicated at each call site.
