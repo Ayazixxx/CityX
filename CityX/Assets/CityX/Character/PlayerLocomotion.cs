@@ -173,6 +173,16 @@ namespace CityX.Character
         private bool _castUsesLeftArm;
 
         /// <summary>
+        /// The raising arm's own animated pose, BEFORE this frame's cast
+        /// offset is layered onto it -- see ApplyCastingPose's own doc
+        /// comment for why this has to be refreshed only while the
+        /// Animator is actually live, not read back off the bone itself
+        /// every frame.
+        /// </summary>
+        private Quaternion _castBaseRotation = Quaternion.identity;
+        private bool _castBaseIsLeftArm;
+
+        /// <summary>
         /// Extra horizontal velocity riding on top of whatever WASD/
         /// HorizontalAcceleration computes -- real carried momentum from
         /// something that briefly owned the whole movement frame itself,
@@ -542,11 +552,33 @@ namespace CityX.Character
         }
 
         /// <summary>
-        /// Reads the arm's rotation FRESH every frame rather than capturing
-        /// a one-time base the way ApplyDrivingWheelPose does -- a cast can
-        /// happen mid-walk or mid-run, and the raise is meant to layer on
-        /// top of whatever the current locomotion pose is doing with that
-        /// arm, not freeze it to a snapshot from the moment the cast began.
+        /// Layers onto the arm's LIVE animated rotation, refreshed fresh
+        /// every frame rather than a one-time captured base the way
+        /// ApplyDrivingWheelPose uses -- a cast can happen mid-walk or
+        /// mid-run, and the raise is meant to track whatever the current
+        /// locomotion pose is doing with that arm, not freeze it to a
+        /// snapshot from the moment the cast began.
+        ///
+        /// "LIVE" ONLY WHILE THE ANIMATOR IS ACTUALLY EVALUATING IT, THOUGH.
+        /// EXPLICIT BUG REPORT ("stretched out... until I left console" /
+        /// mid-swing contortion): this used to read arm.localRotation back
+        /// off the bone itself every frame and multiply the offset onto
+        /// THAT -- which is only ever the clean, un-offset clip pose
+        /// because the Animator overwrites this same bone with it earlier
+        /// in the very same frame, every frame, while it is enabled. The
+        /// instant the Animator is disabled for consecutive frames (the
+        /// dev console freezing the pose, or a grapple swing owning it) and
+        /// a cast is still in progress, nothing refreshes the bone between
+        /// frames any more, so that read-back was re-multiplying last
+        /// frame's OWN already-offset output into itself -- a genuine
+        /// runaway, same shape as GrappleSwing's own leg-sway/ground-clamp
+        /// feedback loop (see PlayerLocomotion.ClampFeetAboveGround's own
+        /// doc comment) but from an unrelated cause. Fixed by only
+        /// refreshing the captured base while the Animator is actually
+        /// live, and composing off THAT rather than off the bone's own
+        /// current (possibly already-compounded) value -- matches
+        /// ApplyDrivingWheelPose's own base-capture shape, just re-captured
+        /// every live frame instead of once per drive.
         ///
         /// THE LEFT ARM'S OWN RAISE IS THE MIRROR IMAGE, not the same
         /// signed angle -- confirmed by this rig's own established mirror
@@ -568,9 +600,14 @@ namespace CityX.Character
             {
                 return;
             }
+            if ((_animator != null && _animator.enabled) || _castUsesLeftArm != _castBaseIsLeftArm)
+            {
+                _castBaseRotation = arm.localRotation;
+                _castBaseIsLeftArm = _castUsesLeftArm;
+            }
             float sign = _castUsesLeftArm ? -1.0f : 1.0f;
             Quaternion offset = Quaternion.AngleAxis(CastRaiseDegrees * _castPoseFraction * sign, Vector3.forward);
-            arm.localRotation = arm.localRotation * offset;
+            arm.localRotation = _castBaseRotation * offset;
         }
 
         /// <summary>
