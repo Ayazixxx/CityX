@@ -51,6 +51,9 @@ namespace CityX.Wearables
         private Mesh _fullBodyMesh;
         private Transform _leftUpperArm;
         private Transform _rightUpperArm;
+        private Animator _animator;
+        private Quaternion _leftUpperArmBase = Quaternion.identity;
+        private Quaternion _rightUpperArmBase = Quaternion.identity;
         private GrappleSwing _swing;
         private bool _hiddenForSwing;
 
@@ -77,11 +80,11 @@ namespace CityX.Wearables
                 }
             }
 
-            var animator = player.GetComponentInChildren<Animator>();
-            if (animator != null)
+            _animator = player.GetComponentInChildren<Animator>();
+            if (_animator != null)
             {
-                _leftUpperArm = animator.GetBoneTransform(HumanBodyBones.LeftUpperArm);
-                _rightUpperArm = animator.GetBoneTransform(HumanBodyBones.RightUpperArm);
+                _leftUpperArm = _animator.GetBoneTransform(HumanBodyBones.LeftUpperArm);
+                _rightUpperArm = _animator.GetBoneTransform(HumanBodyBones.RightUpperArm);
             }
             _swing = player.GetComponent<GrappleSwing>();
         }
@@ -161,16 +164,42 @@ namespace CityX.Wearables
         /// sides to hang symmetrically down from a T-pose, so a spread in
         /// the opposite direction along that same axis needs the opposite
         /// pair of signs too.
+        ///
+        /// COMPOSES OFF A BASE RE-CAPTURED ONLY WHILE THE ANIMATOR IS LIVE,
+        /// not off the bone's own current value -- see
+        /// PlayerLocomotion.ApplyCastingPose's own doc comment for the full
+        /// mechanism, since this used to be the exact same bug: multiplying
+        /// the spread onto arm.localRotation every frame is only safe
+        /// because the Animator overwrites this same bone with the clean
+        /// clip pose earlier in the very same frame, every frame, while it
+        /// is enabled. EXPLICIT BUG REPORT: wearing the cloak while opening
+        /// the dev console (which disables the Animator the same way
+        /// Ragdoll.Activate and GrappleSwing.Attach already do, for its own
+        /// unrelated reason -- see DevConsoleView.Open's own comment) left
+        /// the arms compounding this spread every frame with nothing to
+        /// reset them, spinning them away until the console closed and
+        /// re-enabled the Animator -- "stretched out for a sec... until I
+        /// left console," with no grapple and no fireball cast involved at
+        /// all.
         /// </summary>
         public void ApplySleeveArmSpread()
         {
+            bool animatorLive = _animator != null && _animator.enabled;
             if (_leftUpperArm != null)
             {
-                _leftUpperArm.localRotation *= Quaternion.Euler(0.0f, 0.0f, -SleeveArmSpreadDegrees);
+                if (animatorLive)
+                {
+                    _leftUpperArmBase = _leftUpperArm.localRotation;
+                }
+                _leftUpperArm.localRotation = _leftUpperArmBase * Quaternion.Euler(0.0f, 0.0f, -SleeveArmSpreadDegrees);
             }
             if (_rightUpperArm != null)
             {
-                _rightUpperArm.localRotation *= Quaternion.Euler(0.0f, 0.0f, SleeveArmSpreadDegrees);
+                if (animatorLive)
+                {
+                    _rightUpperArmBase = _rightUpperArm.localRotation;
+                }
+                _rightUpperArm.localRotation = _rightUpperArmBase * Quaternion.Euler(0.0f, 0.0f, SleeveArmSpreadDegrees);
             }
         }
 
@@ -215,6 +244,7 @@ namespace CityX.Wearables
             // "restores the normal stance" from the Godot original.
             _leftUpperArm = null;
             _rightUpperArm = null;
+            _animator = null;
             _swing = null;
             _hiddenForSwing = false;
         }
