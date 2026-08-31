@@ -204,6 +204,38 @@ namespace CityX.Character
         private Vector3 _anchor;
         private float _ropeLength;
         private float _groundTime;
+        private float _elapsedSeconds;
+
+        /// <summary>
+        /// THE ACTUAL BUG behind a live report ("the character stays in
+        /// place... the more you move around... the more contorted he
+        /// gets"): firing the grapple while standing on the ground -- an
+        /// entirely normal thing to do, not an edge case -- starts the
+        /// swing at whatever velocity the player already had, which for
+        /// someone standing still is near zero. The grounded+low-speed
+        /// auto-release below had NO grace period at all (faithfully
+        /// ported from player.gd's own identical check, which never
+        /// surfaced this because Godot's own swing just plays a "jump"
+        /// clip throughout -- an instant no-op attach+release is nearly
+        /// invisible there), so it fired on literally the FIRST tick after
+        /// Attach, before the rope ever had a chance to pull anyone
+        /// anywhere. Confirmed directly, live, through the real
+        /// PlayerInputReader dispatch: IsActive went true then false again
+        /// one frame later with zero player movement in between. Repeated
+        /// firing attempts against that (a real player naturally keeps
+        /// trying when a grapple visibly does nothing) toggle the Animator
+        /// off and back on every couple of frames, each time capturing a
+        /// fresh, never-fully-settled base pose for GrappleSwing's own
+        /// relative arm poses -- which is what actually produces a
+        /// creeping, worsening contortion the longer someone keeps trying,
+        /// even though no single Attach/Release pair is unbounded on its
+        /// own. Gives every swing a real, if brief, window to prove itself
+        /// airborne before the low-speed check can end it at all -- the
+        /// grounded-TIMEOUT release (MaxGroundSeconds) is untouched and
+        /// still the guaranteed backstop for a swing that lands and stays
+        /// down.
+        /// </summary>
+        public const float AttachGraceSeconds = 0.2f;
 
         public bool IsActive { get; private set; }
 
@@ -305,6 +337,7 @@ namespace CityX.Character
             _velocity = initialVelocity ?? (_locomotion != null ? _locomotion.Velocity : Vector3.zero);
             IsActive = true;
             _groundTime = 0.0f;
+            _elapsedSeconds = 0.0f;
             _localVelocitySmoothed = Vector3.zero;
             _localVelocitySmoothVelocity = Vector3.zero;
 
@@ -406,7 +439,32 @@ namespace CityX.Character
                 return;
             }
 
-            _velocity.y -= Gravity * deltaTime;
+            _elapsedSeconds += deltaTime;
+
+            // THE THIRD BUG behind the same live report: a rope's own
+            // length IS the exact distance measured at the instant of
+            // Attach, so it starts flush against its own taut threshold --
+            // the constraint below only ever does anything once
+            // distance > _ropeLength, strictly. Firing while standing on
+            // the ground (again, the normal case) means gravity can't
+            // actually move the body down at all -- the ground blocks
+            // it -- so distance from the anchor never grows past that
+            // threshold and the rope constraint never gets a single
+            // chance to engage. With nothing here recognising that,
+            // _velocity.y just kept accumulating more and more negative
+            // forever, every frame spent touching the ground, while the
+            // body visibly went nowhere. Matches PlayerLocomotion.Tick's
+            // own identical fix for the identical problem, same guard and
+            // same reasoning: only while already falling or level, so an
+            // upward release/rope-pull already in progress is never eaten.
+            if (_controller.isGrounded && _velocity.y <= 0.0f)
+            {
+                _velocity.y = -2.0f;
+            }
+            else
+            {
+                _velocity.y -= Gravity * deltaTime;
+            }
 
             Vector3 push = new LocomotionInput { Move = moveInput, YawDegrees = yawDegrees }.WorldDirection();
             if (push.sqrMagnitude > 0.0001f)
@@ -484,6 +542,10 @@ namespace CityX.Character
 
             Vector3 beforeMove = transform.position;
             Vector3 intendedMotion = _velocity * deltaTime + correction;
+            // Read BEFORE Move() call below overwrites it for this frame --
+            // see the wall-stick reconciliation's own doc comment for why
+            // this matters.
+            bool wasGroundedBeforeThisMove = _controller.isGrounded;
             _controller.Move(intendedMotion);
 
             // THE WALL-STICK FIX -- confirmed directly, live: firing at a
@@ -509,9 +571,30 @@ namespace CityX.Character
             // way a real body's would), fully free leaves it untouched, and
             // ordinary taut-rope correction (which always fully succeeds
             // with nothing in the way) never triggers this at all.
+            //
+            // SKIPPED ENTIRELY WHILE ALREADY GROUNDED GOING INTO THIS
+            // MOVE -- a second, real bug this same reconciliation
+            // introduced, confirmed live through the real
+            // PlayerInputReader dispatch (every earlier check of this fix
+            // called GrappleSwing.Tick directly from a player spawned
+            // already airborne, which never exercises this at all): firing
+            // the grapple while standing on the ground -- the completely
+            // normal case, not an edge case -- has gravity pulling
+            // _velocity.y down every frame while the ground legitimately
+            // blocks that SAME downward component, exactly like a wall
+            // blocks a horizontal one. The reconciliation above cannot
+            // tell "genuinely stuck in every direction" apart from
+            // "perfectly free horizontally, blocked only downward by the
+            // ground under your own feet" -- it only compares overall
+            // magnitudes -- so it was scaling the WHOLE velocity vector
+            // down every single grounded frame, including the horizontal
+            // component that should have been completely free to build
+            // into a swing. The character could never accelerate enough to
+            // actually leave the ground: "the character stays in place...
+            // the more you move around... the more contorted he gets".
             Vector3 achievedMotion = transform.position - beforeMove;
             float intendedDistance = intendedMotion.magnitude;
-            if (intendedDistance > 0.0001f)
+            if (!wasGroundedBeforeThisMove && intendedDistance > 0.0001f)
             {
                 _velocity *= Mathf.Clamp01(achievedMotion.magnitude / intendedDistance);
             }
@@ -538,7 +621,7 @@ namespace CityX.Character
             {
                 Release(false);
             }
-            else if (_controller.isGrounded &&
+            else if (_elapsedSeconds >= AttachGraceSeconds && _controller.isGrounded &&
                      new Vector2(_velocity.x, _velocity.z).magnitude < 1.0f)
             {
                 Release(false);
