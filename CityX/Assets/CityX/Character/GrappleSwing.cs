@@ -329,6 +329,12 @@ namespace CityX.Character
             // bone. Cleared here so the swing's own pose is never sharing
             // an arm with a stale ground-cast raise.
             _locomotion?.SetCastPose(0.0f);
+            // See PlayerLocomotion.ClampFeetAboveGround's own doc comment --
+            // that correction has no job while dangling from a rope and,
+            // confirmed live, actively runs away into the thousands of
+            // metres if left running during a swing's own continuous leg
+            // sway.
+            _locomotion?.SetGroundClampSuspended(true);
             CaptureBase(_headBone, ref _headBase);
             CaptureBase(_leftUpperArmBone, ref _leftUpperArmBase);
             CaptureBase(_leftLowerArmBone, ref _leftLowerArmBase);
@@ -377,6 +383,7 @@ namespace CityX.Character
             // comment).
             _locomotion?.SetVerticalVelocity(_velocity.y);
             _locomotion?.SetResidualVelocity(_velocity);
+            _locomotion?.SetGroundClampSuspended(false);
             EquippedHook?.HideRope();
             // Landed, let go, or dashed out -- every one of those calls
             // Release, so restoring full animated control has exactly one

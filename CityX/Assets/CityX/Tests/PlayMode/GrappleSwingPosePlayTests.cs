@@ -101,6 +101,67 @@ namespace CityX.Tests
         }
 
         /// <summary>
+        /// THE ACTUAL ROOT CAUSE of a live bug report ("distorted to
+        /// lengths that shouldn't be possible", "the character doesn't
+        /// follow the camera") that survived several other real, separately
+        /// confirmed fixes -- nothing to do with the swing's own pose or
+        /// velocity at all. PlayerLocomotion.ClampFeetAboveGround exists
+        /// purely to fix a badly calibrated GROUNDED clip (see its own doc
+        /// comment) and has no job while dangling from a rope -- left
+        /// running during a real, varied swing, its own "reset to zero,
+        /// recompute from the live foot position" pattern turned into a
+        /// genuine runaway: confirmed directly, live, the visual rig's own
+        /// offset climbed from single digits to over 1000 METRES within
+        /// about 20 real frames while the actual character root stayed
+        /// completely normal. The camera (correctly tracking the real
+        /// root) and the visible mesh (flung a kilometre straight up) came
+        /// apart -- exactly what "the character doesn't follow the camera"
+        /// describes, backwards from how it reads: the camera was right
+        /// the whole time. Fixed by suspending the clamp entirely for as
+        /// long as GrappleSwing owns the pose (SetGroundClampSuspended),
+        /// plus a hard ceiling on the correction itself as a second line of
+        /// defence. Checked here with the SAME realistic, continuously
+        /// varying input (sweeping yaw, alternating reel/payout) that
+        /// reproduced the runaway live -- a simpler, single-direction
+        /// swing never triggered it.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheVisualRigNeverDriftsFromTheRootDuringARealVariedSwing()
+        {
+            SpawnPlayer();
+            Transform animatorTransform = _animator.transform;
+
+            _swing.Attach(_player.transform.position + new Vector3(6.0f, 8.0f, 4.0f));
+
+            float worstOffset = 0.0f;
+            for (int i = 0; i < 300; i++)
+            {
+                float t = i / 60.0f;
+                Vector2 move = new Vector2(Mathf.Sin(t * 0.7f), Mathf.Cos(t * 0.5f) * 0.5f + 0.5f);
+                float yaw = i * 2.0f;
+                bool reel = (i / 30) % 4 == 0;
+                bool payout = (i / 30) % 4 == 2;
+                _swing.Tick(move, yaw, false, false, reel, payout, StepSeconds);
+                yield return null;
+
+                float offset = animatorTransform.localPosition.magnitude;
+                if (offset > worstOffset)
+                {
+                    worstOffset = offset;
+                }
+
+                if (!_swing.IsActive)
+                {
+                    break;
+                }
+            }
+
+            Assert.Less(worstOffset, 0.5f,
+                $"the visual rig drifted {worstOffset:0.0}m from the root during a real varied swing -- " +
+                "ClampFeetAboveGround's own runaway is back");
+        }
+
+        /// <summary>
         /// THE SLEEVE MESH CANNOT FOLLOW THE REACH POSE -- see HoodedCloak's
         /// own UpdateSwingHiding doc comment: a cloth tube baked and
         /// weighted for ordinary locomotion's narrow arm swing crumples into

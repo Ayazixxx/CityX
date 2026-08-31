@@ -599,10 +599,42 @@ namespace CityX.Character
         /// looks like a crouch, just standing on the ground instead of
         /// through it) instead of distorting the leg chain by forcing one
         /// joint's position independently of the others.
+        ///
+        /// SKIPPED ENTIRELY WHILE A GRAPPLE SWING OWNS THE POSE. This
+        /// exists to fix a GROUNDED clip's own bad calibration -- it has no
+        /// job to do while dangling from a rope in mid-air, and confirmed
+        /// directly, live, it is actively dangerous there: with the swing's
+        /// own leg sway continuously rotating the legs by fractions of a
+        /// degree per frame, this method's own "reset to zero, then
+        /// recompute from the live foot position" pattern turned into a
+        /// genuine runaway feedback loop -- a real bug report's "distorted
+        /// to lengths that shouldn't be possible" traced to this exact
+        /// method live-testing a real swing: the visual rig's own offset
+        /// climbed from single digits to over 1000 METRES within about 20
+        /// frames while the actual character root stayed completely
+        /// normal, which is what let the camera (correctly tracking the
+        /// real root) and the visible body (flung a kilometre straight up)
+        /// come apart -- "the character doesn't follow the camera" is
+        /// exactly backwards from what it looks like: the camera was right
+        /// the whole time, and the VISIBLE MESH was the thing rocketing
+        /// away. See GrappleSwing.Attach/Release's own calls into
+        /// SetGroundClampSuspended.
         /// </summary>
+        private bool _groundClampSuspended;
+
+        /// <summary>
+        /// Called by GrappleSwing.Attach/Release -- see ClampFeetAboveGround's
+        /// own doc comment for why this ground-only correction has to stand
+        /// down for as long as the swing owns the pose.
+        /// </summary>
+        public void SetGroundClampSuspended(bool suspended)
+        {
+            _groundClampSuspended = suspended;
+        }
+
         private void ClampFeetAboveGround()
         {
-            if (_animator == null || _leftFoot == null || _rightFoot == null)
+            if (_groundClampSuspended || _animator == null || _leftFoot == null || _rightFoot == null)
             {
                 return;
             }
@@ -611,9 +643,18 @@ namespace CityX.Character
             float penetration = transform.position.y - lowestFootY;
             if (penetration > 0.0f)
             {
-                _animator.transform.localPosition = new Vector3(0.0f, penetration, 0.0f);
+                // NEVER TRUSTED UNCLAMPED -- see this method's own doc
+                // comment on the runaway this guards against. 2m is well
+                // past the worst calibration error ever actually measured
+                // (charged_jump's own "over a metre") with real headroom,
+                // while a hundred-metre-plus correction is never a
+                // legitimate clip fix, only a symptom of something else
+                // gone wrong.
+                _animator.transform.localPosition = new Vector3(0.0f, Mathf.Min(penetration, MaxGroundClampCorrection), 0.0f);
             }
         }
+
+        private const float MaxGroundClampCorrection = 2.0f;
 
         /// <summary>
         /// Resizes the capsule and the visible body together.
