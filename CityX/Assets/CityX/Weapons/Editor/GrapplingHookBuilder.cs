@@ -470,6 +470,277 @@ namespace CityX.WeaponsEditor
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 
+        /// <summary>
+        /// DIAGNOSTIC, NOT A PERMANENT TOOL -- unlike CaptureSwing/
+        /// CaptureSwingWithCloak, this exists to answer one live question:
+        /// the user's own explicit report is "it gets more distorted the
+        /// more I move around when the grapple rope is attached to wall",
+        /// which neither of the other two capture rigs can ever reproduce --
+        /// both swing in open air with nothing to collide with. This anchors
+        /// the rope ON a real wall right beside the player and drives a real
+        /// varied swing (sweeping yaw AND alternating push toward/away from
+        /// the wall) through the REAL CharacterController.Move(), logging
+        /// the numbers every 10 ticks so a runaway shows up in the log even
+        /// if the final rendered frame does not happen to catch it.
+        /// </summary>
+        [MenuItem("CityX/Diagnose Grapple Swing Against A Wall")]
+        public static void DiagnoseSwingAgainstWall()
+        {
+            var playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab");
+            if (playerPrefab == null)
+            {
+                Debug.LogError("CityX: need Player.prefab built first.");
+                return;
+            }
+
+            string outputDirectory = System.IO.Path.Combine(
+                System.IO.Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
+            System.IO.Directory.CreateDirectory(outputDirectory);
+
+            var root = new GameObject("GrappleWallDiagnosticRig");
+            RenderTexture target = null;
+            try
+            {
+                var sunObject = new GameObject("Sun");
+                sunObject.transform.SetParent(root.transform);
+                Light sun = sunObject.AddComponent<Light>();
+                sun.type = LightType.Directional;
+                sun.intensity = 1.2f;
+                sun.transform.rotation = Quaternion.Euler(35.0f, 150.0f, 0.0f);
+
+                // A real wall, 2m to the player's own +X, tall and wide
+                // enough that the swing cannot possibly swing around its
+                // edges -- the anchor sits directly on its face.
+                var wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                wall.name = "Wall";
+                wall.transform.SetParent(root.transform);
+                wall.transform.position = new Vector3(2.0f, 24.0f, 0.0f);
+                wall.transform.localScale = new Vector3(0.5f, 30.0f, 30.0f);
+
+                var player = (GameObject)PrefabUtility.InstantiatePrefab(playerPrefab);
+                player.transform.SetParent(root.transform);
+                player.transform.position = new Vector3(0.0f, 20.0f, 0.0f);
+                player.transform.rotation = Quaternion.identity;
+                Physics.SyncTransforms();
+
+                GrappleSwing swing = player.GetComponent<GrappleSwing>();
+                if (swing == null) swing = player.AddComponent<GrappleSwing>();
+                swing.Bind();
+
+                // Equip a real sword too -- visible in the user's own
+                // screenshots during a swing, and SwordWeapon.OnEquip
+                // parents it directly onto RightHand, the same bone
+                // GrappleSwing's own reach pose rotates -- worth ruling in
+                // or out directly rather than only reasoning about it from
+                // the source.
+                GameObject swordPrefab = CityX.WeaponsEditor.SwordBuilder.Build();
+                if (swordPrefab != null)
+                {
+                    var swordInstance = (GameObject)PrefabUtility.InstantiatePrefab(swordPrefab);
+                    swordInstance.transform.SetParent(root.transform);
+                    SwordWeapon sword = swordInstance.GetComponent<SwordWeapon>();
+                    sword.OnEquip(player, ItemInstanceData.None);
+                }
+
+                Animator animator = player.GetComponentInChildren<Animator>();
+                Transform headBone = animator.GetBoneTransform(HumanBodyBones.Head);
+                Transform rightHand = animator.GetBoneTransform(HumanBodyBones.RightHand);
+
+                // ANCHOR DIRECTLY ON THE WALL'S FACE -- this is what "the
+                // grapple rope is attached to wall" means: the wall's -X
+                // face sits at x=1.75 (centre 2.0 minus half-scale 0.25).
+                Vector3 anchor = new Vector3(1.75f, 22.0f, 0.0f);
+                swing.Attach(anchor);
+
+                Debug.Log($"CityX DIAGNOSTIC: anchor={anchor:F2} ropeLength={swing.RopeLength:F2} " +
+                    $"start pos={player.transform.position:F2}");
+
+                float maxRigOffset = 0.0f;
+                float maxHeadDistanceFromRoot = 0.0f;
+                float maxHandDistanceFromRoot = 0.0f;
+                float maxVelocityMagnitude = 0.0f;
+
+                // A REAL VARIED SWING AGAINST THE WALL: sweeping yaw so the
+                // player keeps trying to swing past the wall's own face, and
+                // alternating push toward/away from it every half-second --
+                // exactly "moving around" while attached, the one input
+                // shape neither of the other two capture rigs ever drives.
+                for (int i = 0; i < 600; i++)
+                {
+                    float yaw = i * 0.7f;
+                    float pushZ = Mathf.Sin(i * 0.05f);
+                    float pushX = ((i / 30) % 2 == 0) ? 1.0f : -1.0f;
+                    swing.Tick(new Vector2(pushX, pushZ), yaw, false, false, false, false, 1.0f / 60.0f);
+
+                    if (!swing.IsActive)
+                    {
+                        Debug.Log($"CityX DIAGNOSTIC: swing released itself at tick {i}");
+                        break;
+                    }
+
+                    float rigOffset = animator.transform.localPosition.magnitude;
+                    float headDistance = headBone != null
+                        ? Vector3.Distance(headBone.position, player.transform.position) : 0.0f;
+                    float handDistance = rightHand != null
+                        ? Vector3.Distance(rightHand.position, player.transform.position) : 0.0f;
+                    float velocityMagnitude = swing.Velocity.magnitude;
+
+                    maxRigOffset = Mathf.Max(maxRigOffset, rigOffset);
+                    maxHeadDistanceFromRoot = Mathf.Max(maxHeadDistanceFromRoot, headDistance);
+                    maxHandDistanceFromRoot = Mathf.Max(maxHandDistanceFromRoot, handDistance);
+                    maxVelocityMagnitude = Mathf.Max(maxVelocityMagnitude, velocityMagnitude);
+
+                    if (i % 10 == 0)
+                    {
+                        Debug.Log($"CityX DIAGNOSTIC tick={i} pos={player.transform.position:F2} " +
+                            $"velocity={swing.Velocity:F2} (mag {velocityMagnitude:F2}) " +
+                            $"rigOffset={rigOffset:F3} headDist={headDistance:F2} handDist={handDistance:F2} " +
+                            $"distToAnchor={Vector3.Distance(player.transform.position, anchor):F2} " +
+                            $"ropeLength={swing.RopeLength:F2}");
+                    }
+                }
+
+                Debug.Log($"CityX DIAGNOSTIC SUMMARY: maxRigOffset={maxRigOffset:F3} " +
+                    $"maxHeadDistanceFromRoot={maxHeadDistanceFromRoot:F2} " +
+                    $"maxHandDistanceFromRoot={maxHandDistanceFromRoot:F2} " +
+                    $"maxVelocityMagnitude={maxVelocityMagnitude:F2} " +
+                    $"finalPos={player.transform.position:F2}");
+
+                foreach (SkinnedMeshRenderer skin in player.GetComponentsInChildren<SkinnedMeshRenderer>())
+                {
+                    skin.updateWhenOffscreen = true;
+                }
+
+                var cameraObject = new GameObject("Camera");
+                cameraObject.transform.SetParent(root.transform);
+                Camera camera = cameraObject.AddComponent<Camera>();
+                camera.clearFlags = CameraClearFlags.SolidColor;
+                camera.backgroundColor = new Color(0.10f, 0.11f, 0.15f);
+                camera.fieldOfView = 60.0f;
+                camera.nearClipPlane = 0.05f;
+                camera.farClipPlane = 500.0f;
+                cameraObject.transform.position =
+                    player.transform.position + Vector3.up * 1.4f - Vector3.forward * 5.0f - Vector3.right * 2.0f;
+                cameraObject.transform.LookAt(player.transform.position + Vector3.up * 1.0f);
+
+                target = new RenderTexture(900, 900, 24, RenderTextureFormat.ARGB32) { antiAliasing = 8 };
+                camera.targetTexture = target;
+                camera.Render();
+                RenderTexture.active = target;
+                var image = new Texture2D(900, 900, TextureFormat.RGB24, false);
+                image.ReadPixels(new Rect(0, 0, 900, 900), 0, 0);
+                image.Apply();
+                string path = System.IO.Path.Combine(outputDirectory, "grapple-swing-wall-diagnostic.png");
+                System.IO.File.WriteAllBytes(path, image.EncodeToPNG());
+                Object.DestroyImmediate(image);
+                Debug.Log($"CityX: wrote {path}");
+            }
+            finally
+            {
+                if (target != null) { target.Release(); Object.DestroyImmediate(target); }
+                Object.DestroyImmediate(root);
+            }
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        /// <summary>
+        /// DIAGNOSTIC, NOT A PERMANENT TOOL -- tests a hypothesis GrappleSwing's
+        /// own AttachGraceSeconds doc comment names directly: "Repeated firing
+        /// attempts... toggle the Animator off and back on every couple of
+        /// frames, each time capturing a fresh, never-fully-settled base pose".
+        /// AttachGraceSeconds only fixes the INSTANT no-op grounded case;
+        /// nothing has ever tested a player rapid-firing the grapple against a
+        /// wall/ground where each attempt runs a short but real few frames
+        /// before auto-releasing, then immediately fires again -- exactly what
+        /// a frustrated real player does when a swing does not go anywhere,
+        /// and exactly what "gets more distorted the more I move around"
+        /// would look like if each cycle's captured base pose drifts a little
+        /// from the last. Logs the right-arm base rotation captured at EVERY
+        /// Attach across many rapid cycles.
+        /// </summary>
+        [MenuItem("CityX/Diagnose Repeated Grapple Fire")]
+        public static void DiagnoseRepeatedFire()
+        {
+            var playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab");
+            if (playerPrefab == null)
+            {
+                Debug.LogError("CityX: need Player.prefab built first.");
+                return;
+            }
+
+            var root = new GameObject("GrappleRepeatedFireDiagnosticRig");
+            try
+            {
+                var player = (GameObject)PrefabUtility.InstantiatePrefab(playerPrefab);
+                player.transform.SetParent(root.transform);
+                // On solid ground, not airborne -- the exact "normal" case
+                // the AttachGraceSeconds fix targets, and the one a real
+                // player spam-firing near a wall/rooftop edge is actually in.
+                player.transform.position = new Vector3(0.0f, 0.0f, 0.0f);
+                Physics.SyncTransforms();
+
+                var ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                ground.transform.SetParent(root.transform);
+                ground.transform.position = new Vector3(0.0f, -0.5f, 0.0f);
+                ground.transform.localScale = new Vector3(50.0f, 1.0f, 50.0f);
+
+                GrappleSwing swing = player.GetComponent<GrappleSwing>();
+                if (swing == null) swing = player.AddComponent<GrappleSwing>();
+                swing.Bind();
+
+                Animator animator = player.GetComponentInChildren<Animator>();
+                Transform rightUpperArm = animator.GetBoneTransform(HumanBodyBones.RightUpperArm);
+                Quaternion firstCapturedBase = Quaternion.identity;
+                float maxDriftFromFirst = 0.0f;
+
+                // 40 rapid attach/release cycles: fire at a point 4m up and
+                // ahead, let the swing run for HALF A SECOND (past
+                // AttachGraceSeconds -- this is not the instant no-op case),
+                // then release exactly like a plain-release keypress would,
+                // and fire again immediately -- a real player mashing the
+                // grapple key when it does not seem to be working.
+                for (int cycle = 0; cycle < 40; cycle++)
+                {
+                    Vector3 anchor = player.transform.position + new Vector3(3.0f, 4.0f, 0.0f);
+                    swing.Attach(anchor);
+
+                    for (int i = 0; i < 30; i++)
+                    {
+                        swing.Tick(new Vector2(0.0f, 1.0f), 0.0f, false, false, false, false, 1.0f / 60.0f);
+                        if (!swing.IsActive) break;
+                    }
+                    if (swing.IsActive)
+                    {
+                        swing.Release(false);
+                    }
+
+                    if (rightUpperArm != null)
+                    {
+                        if (cycle == 0)
+                        {
+                            firstCapturedBase = rightUpperArm.localRotation;
+                        }
+                        float drift = Quaternion.Angle(firstCapturedBase, rightUpperArm.localRotation);
+                        maxDriftFromFirst = Mathf.Max(maxDriftFromFirst, drift);
+                        Debug.Log($"CityX DIAGNOSTIC cycle={cycle} rightUpperArm.localRotation={rightUpperArm.localRotation.eulerAngles:F1} " +
+                            $"driftFromFirstCapture={drift:F2}deg playerPos={player.transform.position:F2}");
+                    }
+
+                    // A real player's next press does not wait for the
+                    // Animator to settle back into a clean idle frame --
+                    // it can land the very next frame after release.
+                }
+
+                Debug.Log($"CityX DIAGNOSTIC SUMMARY: maxDriftFromFirstCapture={maxDriftFromFirst:F2}deg " +
+                    $"over 40 rapid attach/release cycles, finalPos={player.transform.position:F2}");
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
         private static void PoseArmsDown(Transform root)
         {
             SetLocalRotation(root, "arm_l", new Vector3(0.0f, 0.0f, 78.0f));

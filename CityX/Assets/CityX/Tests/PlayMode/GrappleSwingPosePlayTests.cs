@@ -162,6 +162,69 @@ namespace CityX.Tests
         }
 
         /// <summary>
+        /// EXPLICIT BUG REPORT, matched almost word for word by this class's
+        /// own AttachGraceSeconds doc comment ("the character stays in
+        /// place... the more you move around... the more contorted he
+        /// gets"): a player whose swing does not seem to be working
+        /// naturally keeps trying, firing again soon after a release.
+        /// Release re-enables the Animator but does not force it to
+        /// actually evaluate before returning -- confirmed directly, live:
+        /// 40 rapid attach/release cycles with a real Player.prefab drifted
+        /// the right arm's own captured base rotation by a further ~120
+        /// degrees EVERY single cycle (cycling through 120/240/360 without
+        /// ever actually resetting), because each Attach's CaptureBase read
+        /// whatever the PREVIOUS swing's own UpdateSwingPose last left the
+        /// bone at, not a clean animated pose. Fixed with a forced
+        /// zero-delta Animator.Update in Release, so even a same-frame
+        /// re-Attach always captures a genuinely fresh pose.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator RepeatedlyFiringAndReleasingNeverDriftsTheCapturedArmBase()
+        {
+            SpawnPlayer();
+            Transform rightUpperArm = _animator.GetBoneTransform(HumanBodyBones.RightUpperArm);
+
+            // Cycle 0's own captured base is deliberately EXCLUDED from the
+            // comparison: it can land on whatever pose existed before the
+            // real Animator has ever evaluated a single frame (this test
+            // fires immediately on spawn), which is a one-time cold-start
+            // detail unrelated to the actual bug -- COMPOUNDING drift across
+            // repeated cycles once the Animator is already live and settled.
+            Quaternion previousCaptured = Quaternion.identity;
+            float maxDriftBetweenCycles = 0.0f;
+
+            for (int cycle = 0; cycle < 20; cycle++)
+            {
+                Vector3 anchor = _player.transform.position + new Vector3(3.0f, 4.0f, 0.0f);
+                _swing.Attach(anchor);
+
+                if (cycle >= 1)
+                {
+                    float drift = cycle == 1 ? 0.0f : Quaternion.Angle(previousCaptured, rightUpperArm.localRotation);
+                    maxDriftBetweenCycles = Mathf.Max(maxDriftBetweenCycles, drift);
+                    previousCaptured = rightUpperArm.localRotation;
+                }
+
+                for (int i = 0; i < 15 && _swing.IsActive; i++)
+                {
+                    _swing.Tick(Vector2.zero, 0.0f, false, false, false, false, StepSeconds);
+                    yield return null;
+                }
+                if (_swing.IsActive)
+                {
+                    _swing.Release(false);
+                }
+                // NO YIELD HERE -- the very next cycle's Attach happens on
+                // the same frame Release just ran on, exactly the
+                // zero-frames-between-attempts case that reproduced the bug.
+            }
+
+            Assert.Less(maxDriftBetweenCycles, 2.0f,
+                $"the captured arm base drifted {maxDriftBetweenCycles:0.0} degrees between two consecutive rapid " +
+                "attach/release cycles -- each re-fire is capturing the previous swing's own leftover pose instead of a clean one");
+        }
+
+        /// <summary>
         /// THE SLEEVE MESH CANNOT FOLLOW THE REACH POSE -- see HoodedCloak's
         /// own UpdateSwingHiding doc comment: a cloth tube baked and
         /// weighted for ordinary locomotion's narrow arm swing crumples into

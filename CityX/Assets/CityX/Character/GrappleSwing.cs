@@ -465,6 +465,28 @@ namespace CityX.Character
             if (_animator != null)
             {
                 _animator.enabled = true;
+                // FORCED SYNCHRONOUSLY, NOT LEFT FOR THE NEXT REAL FRAME --
+                // confirmed live with a repeated-fire diagnostic: a player
+                // re-firing the grapple soon after a release (the entirely
+                // normal "that didn't work, try again" case) can call
+                // Attach again before Unity's own Animator system has ever
+                // actually evaluated a frame since `enabled` flipped back
+                // to true. CaptureBase then reads whatever this swing's OWN
+                // UpdateSwingPose last left the bone at -- not a clean
+                // animated pose -- and eases the reach rotation a FURTHER
+                // ~120 degrees on top of that already-rotated value.
+                // Measured directly: 40 rapid attach/release cycles with
+                // zero real frames between them drifted the right arm's own
+                // captured base by 120 degrees EVERY cycle, cycling through
+                // 120/240/360 without ever actually returning to a clean
+                // pose -- the live "gets more distorted the more I move
+                // around" report, reproduced exactly. A zero-delta manual
+                // Update forces the Animator to write its OWN current
+                // state's pose to every bone right now, synchronously, so
+                // the very next Attach -- even one called this same frame
+                // -- always captures a genuinely fresh pose regardless of
+                // when Unity's own Animator phase would otherwise have run.
+                _animator.Update(0.0f);
             }
         }
 
