@@ -84,6 +84,18 @@ namespace CityX.Tests
             Assert.IsNotNull(swing, "no GrappleSwing in the real scene");
             var ragdoll = console.Vitals.GetComponent<Ragdoll>();
             Assert.IsNotNull(ragdoll, "no Ragdoll on the real player");
+            var controller = console.Vitals.GetComponent<CharacterController>();
+
+            // GENUINELY GROUNDED BEFORE FIRING -- this test needs the
+            // ordinary PROCEDURAL swing path specifically (it is testing
+            // Ragdoll.Activate interrupting THAT), not
+            // GrappleSwing.BeginRagdollSwing's own mid-air path, which a
+            // player still settling from the scene's own small spawn-height
+            // offset (see CityMassingSceneBuilder's own "a little above the
+            // road" comment) could otherwise still be airborne for on the
+            // very first couple of frames after load.
+            for (int i = 0; i < 60 && !controller.isGrounded; i++) { yield return null; }
+            Assert.IsTrue(controller.isGrounded, "the player never settled onto the ground after scene load");
 
             Vector3 anchor = swing.transform.position + new Vector3(15.0f, 25.0f, 10.0f);
             swing.EquippedHook = new RagdollDuringSwingFixedAnchorLauncher(anchor);
