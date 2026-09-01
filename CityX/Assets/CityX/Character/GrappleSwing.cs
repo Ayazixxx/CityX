@@ -84,6 +84,24 @@ namespace CityX.Character
         public const float ReleaseBoost = 3.5f;
 
         /// <summary>
+        /// A HARD CEILING ON THE SWING'S OWN VELOCITY -- without this,
+        /// holding a movement key while also holding payout keeps the rope
+        /// permanently longer than the distance to the anchor, so it never
+        /// goes taut and RopeDamping/the outward-cancel below never engage.
+        /// SwingAccel then adds speed every single frame with nothing ever
+        /// bleeding it back off -- given enough real playtime that reaches
+        /// speeds the CharacterController and camera were never built to
+        /// track, which reads live as the body rocketing through the camera
+        /// and vanishing: the reported "stretches the character out into
+        /// being invisible" bug. Ordinary swinging never gets remotely
+        /// close to this ceiling -- held taut, pushing the whole time
+        /// settles to roughly SwingAccel / RopeDamping = 16/0.015 ≈ 18 m/s
+        /// on its own -- so this only ever clips the exploit, not the
+        /// normal feel.
+        /// </summary>
+        public const float MaxSwingSpeed = 35.0f;
+
+        /// <summary>
         /// How long the player may stay grounded mid-swing before the rope
         /// cuts on its own. Long enough that briefly touching down while
         /// skimming a rooftop keeps the swing alive, short enough that
@@ -96,6 +114,36 @@ namespace CityX.Character
 
         [Tooltip("Gravity while swinging. Defaults to PlayerLocomotion's own, read once in Awake so the two never drift apart.")]
         public float Gravity = 9.8f;
+
+        [Tooltip("Pulled back while swinging -- see SwingCameraDistance's own doc comment. Optional: a null reference just skips the pull-back.")]
+        public ThirdPersonCamera OrbitCamera;
+
+        /// <summary>
+        /// EXPLICIT BUG REPORT, confirmed by direct measurement: a real
+        /// varied swing anchored on a real nearby building brought the
+        /// swinging hand within 1.23m of the camera (open-air swinging with
+        /// the same input only ever got it to 4.48m) -- every grapple
+        /// anchor is on a wall (see ThirdPersonCamera.MinDistance's own
+        /// comment), so the camera is ALSO already pulled toward its own
+        /// MinDistance floor by the nearby geometry while this happens,
+        /// stacking both effects. A hand or arm a little over a metre from
+        /// a normal-FOV camera reads as a huge, warped, foreground shape
+        /// that dominates the frame -- exactly the "stretched/contorted"
+        /// screenshots this was found from, and exactly why it only ever
+        /// happens near buildings. Not a pose bug at all: the reach pose
+        /// itself is a normal, bounded arm extension (see
+        /// RightUpperArmReachDegrees) -- the camera was simply sitting too
+        /// close to begin with for that arm to ever have room to move
+        /// through. Same fixed-distance-for-the-duration idiom
+        /// PlayerInputReader.BeginCarTransition/EndCarTransition already
+        /// uses for DrivingCameraDistance, applied here from Attach/Release
+        /// instead so it covers every release path (boosted, plain,
+        /// grounded-auto, max-ground-time-auto, double-tap bail) through
+        /// the one place they all funnel through already.
+        /// </summary>
+        public const float SwingCameraDistance = 6.5f;
+
+        private float _savedCameraDistance;
 
         private CharacterController _controller;
         private PlayerLocomotion _locomotion;
@@ -128,8 +176,10 @@ namespace CityX.Character
         private Quaternion _leftLowerArmBase = Quaternion.identity;
         private Quaternion _leftUpperLegBase = Quaternion.identity;
         private Quaternion _rightUpperLegBase = Quaternion.identity;
+        private Quaternion _rightUpperArmBase = Quaternion.identity;
+        private Quaternion _rightLowerArmBase = Quaternion.identity;
 
-        /// <summary>The right arm's own CURRENT local rotation, eased toward RightUpperArmReachPose/RightLowerArmReachPose every frame -- an absolute target, not an additive offset, since "reach for the rope" means a specific pose regardless of whatever the Animator last had it doing.</summary>
+        /// <summary>The right arm's own CURRENT local rotation, eased toward a reach pose layered on _rightUpperArmBase/_rightLowerArmBase every frame -- see RightUpperArmReachDegrees's own doc comment for why this is relative to that captured base rather than an absolute target.</summary>
         private Quaternion _rightUpperArmCurrent = Quaternion.identity;
 
         private Quaternion _rightLowerArmCurrent = Quaternion.identity;
@@ -154,22 +204,68 @@ namespace CityX.Character
         private const float ArmPoseDegreesPerSecond = 240.0f;
 
         /// <summary>
-        /// FIRST-GUESS POSES, not yet checked against a real rendered swing
-        /// the way this project's other procedural poses eventually were
-        /// (PistolWeapon.GripHandRotationEuler's own doc comment, etc.) --
-        /// a reaching-up-and-forward shape for the pinned arm and its
-        /// mirror for the left arm's own cast pose.
+        /// How far the right arm reaches for the rope, layered ADDITIVELY
+        /// on top of the pose captured at Attach (_rightUpperArmBase) --
+        /// NOT an absolute fixed orientation, which is what this file
+        /// originally used and which rendered as a grotesquely stretched
+        /// limb (confirmed directly with GrapplingHookBuilder.CaptureSwing,
+        /// a live bug report: "the body stays still and starts
+        /// stretching"). This rig's skin is bound relative to whatever
+        /// pose a bone is already in, the same reason
+        /// PlayerLocomotion.ApplyCastingPose layers its own raise onto the
+        /// CURRENT rotation instead of replacing it outright -- a fixed
+        /// absolute target overwrites the Animator's own X/Y shoulder
+        /// positioning entirely and can land on an orientation this rig's
+        /// simple capsule-limb skin weights were never bound for, which is
+        /// exactly what stretches. Z-only (Vector3.forward), the same axis
+        /// CastRaiseDegrees's own doc comment already found safe on this
+        /// rig -- local X there turned out to be a twist/roll axis.
+        /// Positive, matching CastRaiseDegrees's own sign for the right arm
+        /// (raises the hand); the left arm's own cast pose mirrors it
+        /// negative, matching ApplyCastingPose's left/right sign flip.
         /// </summary>
-        private static readonly Quaternion RightUpperArmReachPose = Quaternion.Euler(-10.0f, 15.0f, -150.0f);
+        private const float RightUpperArmReachDegrees = 150.0f;
 
-        private static readonly Quaternion RightLowerArmReachPose = Quaternion.Euler(60.0f, 0.0f, 0.0f);
-        private static readonly Quaternion LeftUpperArmCastPose = Quaternion.Euler(-10.0f, -15.0f, 150.0f);
-        private static readonly Quaternion LeftLowerArmCastPose = Quaternion.Euler(60.0f, 0.0f, 0.0f);
+        private const float RightLowerArmReachDegrees = 60.0f;
+        private const float LeftUpperArmCastDegrees = -150.0f;
+        private const float LeftLowerArmCastDegrees = 60.0f;
 
         private Vector3 _velocity;
         private Vector3 _anchor;
         private float _ropeLength;
         private float _groundTime;
+        private float _elapsedSeconds;
+
+        /// <summary>
+        /// THE ACTUAL BUG behind a live report ("the character stays in
+        /// place... the more you move around... the more contorted he
+        /// gets"): firing the grapple while standing on the ground -- an
+        /// entirely normal thing to do, not an edge case -- starts the
+        /// swing at whatever velocity the player already had, which for
+        /// someone standing still is near zero. The grounded+low-speed
+        /// auto-release below had NO grace period at all (faithfully
+        /// ported from player.gd's own identical check, which never
+        /// surfaced this because Godot's own swing just plays a "jump"
+        /// clip throughout -- an instant no-op attach+release is nearly
+        /// invisible there), so it fired on literally the FIRST tick after
+        /// Attach, before the rope ever had a chance to pull anyone
+        /// anywhere. Confirmed directly, live, through the real
+        /// PlayerInputReader dispatch: IsActive went true then false again
+        /// one frame later with zero player movement in between. Repeated
+        /// firing attempts against that (a real player naturally keeps
+        /// trying when a grapple visibly does nothing) toggle the Animator
+        /// off and back on every couple of frames, each time capturing a
+        /// fresh, never-fully-settled base pose for GrappleSwing's own
+        /// relative arm poses -- which is what actually produces a
+        /// creeping, worsening contortion the longer someone keeps trying,
+        /// even though no single Attach/Release pair is unbounded on its
+        /// own. Gives every swing a real, if brief, window to prove itself
+        /// airborne before the low-speed check can end it at all -- the
+        /// grounded-TIMEOUT release (MaxGroundSeconds) is untouched and
+        /// still the guaranteed backstop for a swing that lands and stays
+        /// down.
+        /// </summary>
+        public const float AttachGraceSeconds = 0.2f;
 
         public bool IsActive { get; private set; }
 
@@ -205,7 +301,12 @@ namespace CityX.Character
                 Gravity = _locomotion.Gravity;
             }
 
-            if (_animator != null)
+            // isHuman, NOT just != null -- GetBoneTransform throws on an
+            // Animator with no Avatar (or a non-Humanoid one) rather than
+            // returning null, and unlike a proper Player.prefab, a bare
+            // Animator with no Avatar is exactly what a test fixture (or a
+            // half-built body mid-construction) can legitimately have.
+            if (_animator != null && _animator.isHuman)
             {
                 _headBone = _animator.GetBoneTransform(HumanBodyBones.Head);
                 _leftUpperArmBone = _animator.GetBoneTransform(HumanBodyBones.LeftUpperArm);
@@ -266,10 +367,18 @@ namespace CityX.Character
             _velocity = initialVelocity ?? (_locomotion != null ? _locomotion.Velocity : Vector3.zero);
             IsActive = true;
             _groundTime = 0.0f;
+            _elapsedSeconds = 0.0f;
             _localVelocitySmoothed = Vector3.zero;
             _localVelocitySmoothVelocity = Vector3.zero;
 
             EquippedHook?.ShowRope(anchor);
+
+            // See SwingCameraDistance's own doc comment.
+            if (OrbitCamera != null)
+            {
+                _savedCameraDistance = OrbitCamera.Distance;
+                OrbitCamera.Distance = SwingCameraDistance;
+            }
 
             // THE HELD POSE IS THE PROCEDURAL FLAIL FROM HERE, not the
             // Animator -- see this class's own doc comment for why. Nothing
@@ -290,11 +399,19 @@ namespace CityX.Character
             // bone. Cleared here so the swing's own pose is never sharing
             // an arm with a stale ground-cast raise.
             _locomotion?.SetCastPose(0.0f);
+            // See PlayerLocomotion.ClampFeetAboveGround's own doc comment --
+            // that correction has no job while dangling from a rope and,
+            // confirmed live, actively runs away into the thousands of
+            // metres if left running during a swing's own continuous leg
+            // sway.
+            _locomotion?.SetGroundClampSuspended(true);
             CaptureBase(_headBone, ref _headBase);
             CaptureBase(_leftUpperArmBone, ref _leftUpperArmBase);
             CaptureBase(_leftLowerArmBone, ref _leftLowerArmBase);
             CaptureBase(_leftUpperLegBone, ref _leftUpperLegBase);
             CaptureBase(_rightUpperLegBone, ref _rightUpperLegBase);
+            CaptureBase(_rightUpperArmBone, ref _rightUpperArmBase);
+            CaptureBase(_rightLowerArmBone, ref _rightLowerArmBase);
             _rightUpperArmCurrent = _rightUpperArmBone != null ? _rightUpperArmBone.localRotation : Quaternion.identity;
             _rightLowerArmCurrent = _rightLowerArmBone != null ? _rightLowerArmBone.localRotation : Quaternion.identity;
             _leftUpperArmCurrent = _leftUpperArmBone != null ? _leftUpperArmBone.localRotation : Quaternion.identity;
@@ -336,7 +453,12 @@ namespace CityX.Character
             // comment).
             _locomotion?.SetVerticalVelocity(_velocity.y);
             _locomotion?.SetResidualVelocity(_velocity);
+            _locomotion?.SetGroundClampSuspended(false);
             EquippedHook?.HideRope();
+            if (OrbitCamera != null)
+            {
+                OrbitCamera.Distance = _savedCameraDistance;
+            }
             // Landed, let go, or dashed out -- every one of those calls
             // Release, so restoring full animated control has exactly one
             // place to live rather than being duplicated at each call site.
@@ -358,7 +480,32 @@ namespace CityX.Character
                 return;
             }
 
-            _velocity.y -= Gravity * deltaTime;
+            _elapsedSeconds += deltaTime;
+
+            // THE THIRD BUG behind the same live report: a rope's own
+            // length IS the exact distance measured at the instant of
+            // Attach, so it starts flush against its own taut threshold --
+            // the constraint below only ever does anything once
+            // distance > _ropeLength, strictly. Firing while standing on
+            // the ground (again, the normal case) means gravity can't
+            // actually move the body down at all -- the ground blocks
+            // it -- so distance from the anchor never grows past that
+            // threshold and the rope constraint never gets a single
+            // chance to engage. With nothing here recognising that,
+            // _velocity.y just kept accumulating more and more negative
+            // forever, every frame spent touching the ground, while the
+            // body visibly went nowhere. Matches PlayerLocomotion.Tick's
+            // own identical fix for the identical problem, same guard and
+            // same reasoning: only while already falling or level, so an
+            // upward release/rope-pull already in progress is never eaten.
+            if (_controller.isGrounded && _velocity.y <= 0.0f)
+            {
+                _velocity.y = -2.0f;
+            }
+            else
+            {
+                _velocity.y -= Gravity * deltaTime;
+            }
 
             Vector3 push = new LocomotionInput { Move = moveInput, YawDegrees = yawDegrees }.WorldDirection();
             if (push.sqrMagnitude > 0.0001f)
@@ -375,6 +522,15 @@ namespace CityX.Character
             else if (payoutHeld)
             {
                 _ropeLength = Mathf.Min(MaxRopeLength, _ropeLength + PayoutSpeed * deltaTime);
+            }
+
+            // See MaxSwingSpeed's own doc comment -- clamped here, before
+            // release even gets a chance to read _velocity, so a runaway
+            // speed can never be "banked" into SetResidualVelocity/
+            // SetVerticalVelocity on release either.
+            if (_velocity.magnitude > MaxSwingSpeed)
+            {
+                _velocity = _velocity.normalized * MaxSwingSpeed;
             }
 
             // Both release inputs still take one more real step below with
@@ -425,7 +581,65 @@ namespace CityX.Character
 
             EquippedHook?.UpdateRope(_anchor);
 
-            _controller.Move(_velocity * deltaTime + correction);
+            Vector3 beforeMove = transform.position;
+            Vector3 intendedMotion = _velocity * deltaTime + correction;
+            // Read BEFORE Move() call below overwrites it for this frame --
+            // see the wall-stick reconciliation's own doc comment for why
+            // this matters.
+            bool wasGroundedBeforeThisMove = _controller.isGrounded;
+            _controller.Move(intendedMotion);
+
+            // THE WALL-STICK FIX -- confirmed directly, live: firing at a
+            // wall a real player can actually reach freezes the body's own
+            // position (CharacterController.Move is correctly blocked by
+            // real collision) while _velocity, with nothing here ever
+            // checking whether the Move it just asked for actually
+            // happened, keeps climbing every single frame forever -- a
+            // 90-frame test firing point-blank at a wall showed position
+            // frozen from frame ~60 on while Velocity.z climbed past 17 m/s
+            // with no ceiling until MaxSwingSpeed's own cap eventually
+            // caught it. That runaway then poisons two other things reading
+            // _velocity: UpdateSwingPose's own sway pins the head/legs to
+            // their maximum tilt and holds them there (the reported "gets
+            // distorted to lengths that shouldn't be possible" -- a real,
+            // if bounded, symptom of a swing whose own internal state has
+            // completely decoupled from where the body actually is), and a
+            // release right after hitting the wall would launch the body at
+            // a phantom speed it was never actually travelling at. Scaled
+            // down by however much of THIS frame's own intended motion
+            // actually happened -- fully blocked reduces it to zero (an
+            // immovable wall kills the swing's momentum outright, the same
+            // way a real body's would), fully free leaves it untouched, and
+            // ordinary taut-rope correction (which always fully succeeds
+            // with nothing in the way) never triggers this at all.
+            //
+            // SKIPPED ENTIRELY WHILE ALREADY GROUNDED GOING INTO THIS
+            // MOVE -- a second, real bug this same reconciliation
+            // introduced, confirmed live through the real
+            // PlayerInputReader dispatch (every earlier check of this fix
+            // called GrappleSwing.Tick directly from a player spawned
+            // already airborne, which never exercises this at all): firing
+            // the grapple while standing on the ground -- the completely
+            // normal case, not an edge case -- has gravity pulling
+            // _velocity.y down every frame while the ground legitimately
+            // blocks that SAME downward component, exactly like a wall
+            // blocks a horizontal one. The reconciliation above cannot
+            // tell "genuinely stuck in every direction" apart from
+            // "perfectly free horizontally, blocked only downward by the
+            // ground under your own feet" -- it only compares overall
+            // magnitudes -- so it was scaling the WHOLE velocity vector
+            // down every single grounded frame, including the horizontal
+            // component that should have been completely free to build
+            // into a swing. The character could never accelerate enough to
+            // actually leave the ground: "the character stays in place...
+            // the more you move around... the more contorted he gets".
+            Vector3 achievedMotion = transform.position - beforeMove;
+            float intendedDistance = intendedMotion.magnitude;
+            if (!wasGroundedBeforeThisMove && intendedDistance > 0.0001f)
+            {
+                _velocity *= Mathf.Clamp01(achievedMotion.magnitude / intendedDistance);
+            }
+
             UpdateSwingPose(deltaTime);
 
             // Landing on your feet ends the swing on its own. TWO ways out,
@@ -448,7 +662,7 @@ namespace CityX.Character
             {
                 Release(false);
             }
-            else if (_controller.isGrounded &&
+            else if (_elapsedSeconds >= AttachGraceSeconds && _controller.isGrounded &&
                      new Vector2(_velocity.x, _velocity.z).magnitude < 1.0f)
             {
                 Release(false);
@@ -461,7 +675,9 @@ namespace CityX.Character
         /// physics. Head/legs/free-arm sway off the swing's own smoothed
         /// local velocity, reading as a loose flail without ever touching a
         /// Rigidbody or a joint; the right arm (and the left, while
-        /// actually casting) eases toward a fixed reach/cast pose instead.
+        /// actually casting) eases toward a reach/cast pose layered onto
+        /// its own captured base instead -- see RightUpperArmReachDegrees's
+        /// own doc comment for why that base matters.
         /// </summary>
         private void UpdateSwingPose(float deltaTime)
         {
@@ -484,9 +700,14 @@ namespace CityX.Character
 
             float maxDelta = ArmPoseDegreesPerSecond * deltaTime;
 
-            // The right arm always reaches for the rope.
-            _rightUpperArmCurrent = Quaternion.RotateTowards(_rightUpperArmCurrent, RightUpperArmReachPose, maxDelta);
-            _rightLowerArmCurrent = Quaternion.RotateTowards(_rightLowerArmCurrent, RightLowerArmReachPose, maxDelta);
+            // The right arm always reaches for the rope -- see
+            // RightUpperArmReachDegrees's own doc comment for why the
+            // target is layered on _rightUpperArmBase/_rightLowerArmBase
+            // rather than a fixed absolute orientation.
+            Quaternion rightUpperTarget = _rightUpperArmBase * Quaternion.Euler(0.0f, 0.0f, RightUpperArmReachDegrees);
+            Quaternion rightLowerTarget = _rightLowerArmBase * Quaternion.Euler(RightLowerArmReachDegrees, 0.0f, 0.0f);
+            _rightUpperArmCurrent = Quaternion.RotateTowards(_rightUpperArmCurrent, rightUpperTarget, maxDelta);
+            _rightLowerArmCurrent = Quaternion.RotateTowards(_rightLowerArmCurrent, rightLowerTarget, maxDelta);
             if (_rightUpperArmBone != null) _rightUpperArmBone.localRotation = _rightUpperArmCurrent;
             if (_rightLowerArmBone != null) _rightLowerArmBone.localRotation = _rightLowerArmCurrent;
 
@@ -497,10 +718,10 @@ namespace CityX.Character
             // head and legs.
             bool casting = _fireballCaster != null && _fireballCaster.IsCasting;
             Quaternion leftUpperTarget = casting
-                ? LeftUpperArmCastPose
+                ? _leftUpperArmBase * Quaternion.Euler(0.0f, 0.0f, LeftUpperArmCastDegrees)
                 : _leftUpperArmBase * Quaternion.Euler(forwardBack * -30.0f, 0.0f, sideways * 25.0f);
             Quaternion leftLowerTarget = casting
-                ? LeftLowerArmCastPose
+                ? _leftLowerArmBase * Quaternion.Euler(LeftLowerArmCastDegrees, 0.0f, 0.0f)
                 : _leftLowerArmBase * Quaternion.Euler(Mathf.Abs(forwardBack) * 20.0f, 0.0f, 0.0f);
             _leftUpperArmCurrent = Quaternion.RotateTowards(_leftUpperArmCurrent, leftUpperTarget, maxDelta);
             _leftLowerArmCurrent = Quaternion.RotateTowards(_leftLowerArmCurrent, leftLowerTarget, maxDelta);

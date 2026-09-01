@@ -65,6 +65,7 @@ namespace CityX.Character
         private CharacterController _controller;
         private PlayerLocomotion _locomotion;
         private PlayerVitals _vitals;
+        private GrappleSwing _swing;
         private bool _limp;
 
         public bool IsLimp => _limp;
@@ -74,6 +75,7 @@ namespace CityX.Character
             _controller = GetComponent<CharacterController>();
             _locomotion = GetComponent<PlayerLocomotion>();
             _vitals = GetComponent<PlayerVitals>();
+            _swing = GetComponent<GrappleSwing>();
 
             if (Animator == null)
             {
@@ -175,6 +177,27 @@ namespace CityX.Character
                 return;   // a second killing blow must not re-launch the corpse
             }
             _limp = true;
+
+            // EXPLICIT BUG REPORT: "the ragdolled body with arm attached to
+            // grapple gun fully [stretched]" -- a finisher hit (see
+            // PlayerVitals.TriggerFinisherKnockdown) or death can both land
+            // while a grapple rope is still attached, and neither used to
+            // check for the other. Left alone, GrappleSwing's own Tick (via
+            // PlayerInputReader, which nothing here disables) keeps writing
+            // these SAME bones' local rotations directly every frame, while
+            // the lines below simultaneously hand those same bones to real,
+            // non-kinematic Rigidbodies and joints -- a kinematic transform
+            // write and a live physics solver fighting over one skeleton,
+            // which is exactly what stretches a ragdoll's joints to their
+            // limit rather than letting it settle. Released BEFORE the
+            // bodies go non-kinematic below, same "stop everything else
+            // touching these bones before taking them over" ordering
+            // Attach's own doc comment already establishes for the opposite
+            // direction.
+            if (_swing != null && _swing.IsActive)
+            {
+                _swing.Release(false);
+            }
 
             if (Animator != null)
             {

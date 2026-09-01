@@ -1,3 +1,4 @@
+using CityX.Character;
 using CityX.Items;
 using UnityEngine;
 
@@ -50,6 +51,11 @@ namespace CityX.Wearables
         private Mesh _fullBodyMesh;
         private Transform _leftUpperArm;
         private Transform _rightUpperArm;
+        private Animator _animator;
+        private Quaternion _leftUpperArmBase = Quaternion.identity;
+        private Quaternion _rightUpperArmBase = Quaternion.identity;
+        private GrappleSwing _swing;
+        private bool _hiddenForSwing;
 
         protected override void OnEquipped(GameObject player)
         {
@@ -74,12 +80,13 @@ namespace CityX.Wearables
                 }
             }
 
-            var animator = player.GetComponentInChildren<Animator>();
-            if (animator != null)
+            _animator = player.GetComponentInChildren<Animator>();
+            if (_animator != null)
             {
-                _leftUpperArm = animator.GetBoneTransform(HumanBodyBones.LeftUpperArm);
-                _rightUpperArm = animator.GetBoneTransform(HumanBodyBones.RightUpperArm);
+                _leftUpperArm = _animator.GetBoneTransform(HumanBodyBones.LeftUpperArm);
+                _rightUpperArm = _animator.GetBoneTransform(HumanBodyBones.RightUpperArm);
             }
+            _swing = player.GetComponent<GrappleSwing>();
         }
 
         /// <summary>
@@ -90,10 +97,59 @@ namespace CityX.Wearables
         /// MonoBehaviour cannot set a bone's rotation once at equip time and
         /// have it stick, because the very next Animator update overwrites
         /// it with whatever the current locomotion clip says.
+        ///
+        /// SKIPPED ENTIRELY WHILE A GRAPPLE SWING OWNS THE ARM -- see
+        /// UpdateSwingHiding's own doc comment for why the cloak has nothing
+        /// to show during a swing at all, let alone a 15 degree spread on
+        /// top of whatever GrappleSwing's own reach pose just set.
         /// </summary>
         private void LateUpdate()
         {
-            ApplySleeveArmSpread();
+            UpdateSwingHiding();
+            if (_swing == null || !_swing.IsActive)
+            {
+                ApplySleeveArmSpread();
+            }
+        }
+
+        /// <summary>
+        /// PUBLIC FOR THE SAME REASON ApplySleeveArmSpread IS -- LateUpdate
+        /// never runs outside Play Mode, and GrapplingHookBuilder's own
+        /// CaptureSwingWithCloak (an EditMode batch render) needs to drive
+        /// this by hand to actually show whether the hide-while-swinging fix
+        /// works, the same gap that let the sleeve-crumple bug this exists
+        /// to fix go unnoticed in the first place.
+        ///
+        /// THE SLEEVE MESH CANNOT FOLLOW A GRAPPLE SWING'S OWN REACH POSE --
+        /// confirmed directly by rendering one (GrapplingHookBuilder's own
+        /// CaptureSwingWithCloak): baked and weighted against ordinary
+        /// locomotion's narrow arm range (plus this file's own fixed 15
+        /// degree spread), the tube crumples into a flat, wing-shaped mess
+        /// at the shoulder when the arm reaches GrappleSwing's own ~150
+        /// degrees for the rope -- a real bug report ("the body stays still
+        /// and starts stretching") that survived a full audit of the
+        /// swing's own pose code because the bug was never in the body at
+        /// all. No amount of re-weighting fixes a rigid cone stretched that
+        /// far without real cloth simulation, so this hides the cloak's own
+        /// worn skin for the swing's duration instead -- the same
+        /// stub-body/full-body swap OnEquipped/OnUnequipped already do,
+        /// just triggered by the swing starting or ending rather than by
+        /// the garment itself going on or off.
+        /// </summary>
+        public void UpdateSwingHiding()
+        {
+            bool swinging = _swing != null && _swing.IsActive;
+            if (swinging == _hiddenForSwing)
+            {
+                return;
+            }
+            _hiddenForSwing = swinging;
+
+            SetSkinVisible(!swinging);
+            if (_bodySkin != null && _fullBodyMesh != null && BodyStubMesh != null)
+            {
+                _bodySkin.sharedMesh = swinging ? _fullBodyMesh : BodyStubMesh;
+            }
         }
 
         /// <summary>
@@ -108,16 +164,42 @@ namespace CityX.Wearables
         /// sides to hang symmetrically down from a T-pose, so a spread in
         /// the opposite direction along that same axis needs the opposite
         /// pair of signs too.
+        ///
+        /// COMPOSES OFF A BASE RE-CAPTURED ONLY WHILE THE ANIMATOR IS LIVE,
+        /// not off the bone's own current value -- see
+        /// PlayerLocomotion.ApplyCastingPose's own doc comment for the full
+        /// mechanism, since this used to be the exact same bug: multiplying
+        /// the spread onto arm.localRotation every frame is only safe
+        /// because the Animator overwrites this same bone with the clean
+        /// clip pose earlier in the very same frame, every frame, while it
+        /// is enabled. EXPLICIT BUG REPORT: wearing the cloak while opening
+        /// the dev console (which disables the Animator the same way
+        /// Ragdoll.Activate and GrappleSwing.Attach already do, for its own
+        /// unrelated reason -- see DevConsoleView.Open's own comment) left
+        /// the arms compounding this spread every frame with nothing to
+        /// reset them, spinning them away until the console closed and
+        /// re-enabled the Animator -- "stretched out for a sec... until I
+        /// left console," with no grapple and no fireball cast involved at
+        /// all.
         /// </summary>
         public void ApplySleeveArmSpread()
         {
+            bool animatorLive = _animator != null && _animator.enabled;
             if (_leftUpperArm != null)
             {
-                _leftUpperArm.localRotation *= Quaternion.Euler(0.0f, 0.0f, -SleeveArmSpreadDegrees);
+                if (animatorLive)
+                {
+                    _leftUpperArmBase = _leftUpperArm.localRotation;
+                }
+                _leftUpperArm.localRotation = _leftUpperArmBase * Quaternion.Euler(0.0f, 0.0f, -SleeveArmSpreadDegrees);
             }
             if (_rightUpperArm != null)
             {
-                _rightUpperArm.localRotation *= Quaternion.Euler(0.0f, 0.0f, SleeveArmSpreadDegrees);
+                if (animatorLive)
+                {
+                    _rightUpperArmBase = _rightUpperArm.localRotation;
+                }
+                _rightUpperArm.localRotation = _rightUpperArmBase * Quaternion.Euler(0.0f, 0.0f, SleeveArmSpreadDegrees);
             }
         }
 
@@ -162,6 +244,9 @@ namespace CityX.Wearables
             // "restores the normal stance" from the Godot original.
             _leftUpperArm = null;
             _rightUpperArm = null;
+            _animator = null;
+            _swing = null;
+            _hiddenForSwing = false;
         }
     }
 }
