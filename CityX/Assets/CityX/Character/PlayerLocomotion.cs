@@ -408,9 +408,43 @@ namespace CityX.Character
         /// never calls LateUpdate on a disabled MonoBehaviour, so a limp
         /// body's hips and spine stay free for physics to actually throw
         /// around.
+        ///
+        /// GATED ON THE ANIMATOR ITSELF BEING ENABLED, not on any one
+        /// caller remembering to suspend any one piece of this. TWO
+        /// SEPARATE REAL BUGS were found living in this exact method
+        /// (ClampFeetAboveGround's own doc comment; ApplyCastingPose's
+        /// own doc comment) with the identical root shape: something here
+        /// reads a bone's CURRENT value and recomputes/re-layers onto it
+        /// every frame, which is only ever safe because the Animator
+        /// overwrites that same bone with a clean pose earlier in the very
+        /// same frame, every frame, while it is enabled. Both were fixed
+        /// with their own point patch (a suspend flag; a captured base),
+        /// and BOTH bugs still reached the user live after those patches
+        /// shipped -- proof that patching each symptom as it is found does
+        /// not close off the category, because anything else touching a
+        /// bone here has the exact same latent failure mode the instant
+        /// something ELSE disables the Animator for consecutive frames
+        /// (dev console, a swing, a ragdoll, a future feature nobody has
+        /// written yet). A live Animator is what makes every correction in
+        /// this method well-defined in the first place -- without one
+        /// refreshing the pose, "clamp the feet to the ground" and "hold
+        /// hips at identity" and "raise the cast arm off its current
+        /// rotation" are not stale, they are MEANINGLESS, since there is no
+        /// live pose left to correct. So the method now does nothing at
+        /// all whenever the Animator is not actively evaluating -- not
+        /// "nothing new", NOTHING -- which makes the frozen skeleton
+        /// literally a rigid, un-touched shape for exactly as long as it
+        /// stays frozen, the same guarantee a plain non-deformable prop
+        /// has, rather than one more bone-touching method for the next
+        /// frozen-Animator caller to remember to guard against.
         /// </summary>
         private void LateUpdate()
         {
+            if (_animator == null || !_animator.enabled)
+            {
+                return;
+            }
+
             if (!InCarSeat)
             {
                 if (_hips != null)
