@@ -115,6 +115,31 @@ namespace CityX.Character
             }
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
+
+            // POSITIONED HERE TOO, NOT ONLY IN LateUpdate. EXPLICIT BUG
+            // REPORT, confirmed directly in CityMassingSceneBuilder: this
+            // component lands on the SAME camera GameObject the FlyCamera
+            // editor preview already positioned at a street-level walking
+            // view for opening the scene without pressing play -- that
+            // leftover transform is nowhere near the "4.5m behind the
+            // shoulder" shot this component is actually meant to produce,
+            // and until now nothing corrected it until the first LateUpdate
+            // ran. Ordinarily that is one invisible frame. But
+            // DevConsoleView.Open() (opened immediately on spawning in, to
+            // gear up before playing -- the reported repro, every time)
+            // disables this component from its own Update(), which runs
+            // BEFORE LateUpdate in the same frame -- Unity skips a
+            // component's remaining scheduled calls for a frame the instant
+            // it is disabled, so LateUpdate never ran even once. The camera
+            // was then stuck rendering from that raw, leftover position for
+            // as long as the console stayed open -- coincident with the
+            // player's own spawn point, looking wherever the editor preview
+            // last faced -- which is a point-blank, warped close-up of
+            // whatever part of the body happened to be in front of the
+            // lens: exactly "opening the console to spawn the grappler"
+            // looked like. Calling the same positioning logic once here
+            // closes the window entirely rather than racing to win it.
+            ApplyCameraTransform();
         }
 
         /// <summary>
@@ -124,11 +149,6 @@ namespace CityX.Character
         /// </summary>
         private void LateUpdate()
         {
-            if (Target == null)
-            {
-                return;
-            }
-
             Mouse mouse = Mouse.current;
             if (mouse != null)
             {
@@ -146,6 +166,22 @@ namespace CityX.Character
             // sets Cursor.lockState in the same frame -- whichever ran last
             // would win by accident, sometimes leaving the cursor free right
             // after the menu closed.
+
+            ApplyCameraTransform();
+        }
+
+        /// <summary>
+        /// The whole camera-placement job -- pivot, orbit rotation, shoulder
+        /// offset, wall-collision pull-in, field of view -- pulled out of
+        /// LateUpdate so Start can run it once immediately (see Start's own
+        /// doc comment for why a single un-positioned frame matters here).
+        /// </summary>
+        private void ApplyCameraTransform()
+        {
+            if (Target == null)
+            {
+                return;
+            }
 
             float height = _player != null ? _player.StandingHeight : 1.8f;
             Vector3 pivot = Target.position + Vector3.up * (height * PivotHeightFraction);

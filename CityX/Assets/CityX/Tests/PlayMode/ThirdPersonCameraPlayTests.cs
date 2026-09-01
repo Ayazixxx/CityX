@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Reflection;
 using CityX.Character;
 using NUnit.Framework;
 using UnityEngine;
@@ -97,6 +98,49 @@ namespace CityX.Tests
             {
                 Object.Destroy(wall);
             }
+        }
+
+        /// <summary>
+        /// EXPLICIT BUG REPORT, root-caused directly in CityMassingSceneBuilder:
+        /// the real gameplay camera GameObject is first positioned by the
+        /// FlyCamera editor preview (a street-level walking view, nowhere near
+        /// "4.5m behind the shoulder") and ThirdPersonCamera is added
+        /// afterward without ever repositioning it -- so before this fix, the
+        /// camera only ever moved to its real position inside LateUpdate,
+        /// leaving it parked at that leftover transform for however many
+        /// frames pass before LateUpdate first runs. Ordinarily that is one
+        /// invisible frame. DevConsoleView.Open() (pressed immediately on
+        /// spawning in, to gear up before playing) disables this component
+        /// from its own Update -- which runs BEFORE LateUpdate in the same
+        /// frame -- so LateUpdate never ran even once, and the camera stayed
+        /// stuck rendering from a point coincident with the player's own
+        /// spawn, facing wherever the editor preview last looked: a
+        /// point-blank, warped close-up of the player's own body. Testing
+        /// Start() directly via reflection rather than yielding a frame,
+        /// since yielding lets BOTH Start and LateUpdate run either way and
+        /// would pass even without this fix -- what actually matters is that
+        /// Start's own positioning already lands correctly before any
+        /// Update/LateUpdate has had a chance to run at all.
+        /// </summary>
+        [Test]
+        public void StartPositionsTheCameraImmediatelyRatherThanWaitingForLateUpdate()
+        {
+            // Deliberately left far from Target and facing a random direction
+            // -- exactly what a leftover FlyCamera transform looks like next
+            // to a player spawned somewhere else entirely.
+            _cameraObject.transform.position = _target.transform.position + new Vector3(500.0f, 500.0f, 500.0f);
+            _cameraObject.transform.rotation = Quaternion.Euler(4.0f, 35.0f, 0.0f);
+
+            MethodInfo start = typeof(ThirdPersonCamera).GetMethod(
+                "Start", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.IsNotNull(start, "ThirdPersonCamera should still declare a private Start()");
+            start.Invoke(_camera, null);
+
+            float distance = Vector3.Distance(_cameraObject.transform.position, _target.transform.position);
+            Assert.Less(distance, _camera.Distance + _camera.ShoulderOffset + 1.0f,
+                $"Start() left the camera {distance:0.0}m from the target -- it should already be " +
+                "at roughly its normal orbit distance before LateUpdate ever runs, not stuck at " +
+                "whatever raw transform it was created with");
         }
 
         /// <summary>
