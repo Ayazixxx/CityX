@@ -38,26 +38,6 @@ namespace CityX.Character
         [Tooltip("Layers the spring arm collides with. Should include the city.")]
         public LayerMask CollisionLayers = ~0;
 
-        /// <summary>
-        /// NEVER PULLS CLOSER THAN THIS, even against a wall right on top of
-        /// the pivot -- a live bug report, confirmed directly with a
-        /// screenshot: swinging near buildings (which is to say, swinging
-        /// at all, since every anchor is on one) let this clamp down to its
-        /// old 0.4m, which combined with the camera's own 0.15m near clip
-        /// plane left almost no headroom -- an outstretched limb (the
-        /// swing's own arm reach pose, in particular) or a nearby wall
-        /// corner would end up partly inside the near clip plane or so
-        /// close the lens shows nothing but a warped close-up, which is
-        /// exactly what "gets distorted to lengths that shouldn't be
-        /// possible" and "the camera keeps moving, the character stays
-        /// still" describe -- the character never moved or deformed at
-        /// all; the CAMERA was the thing sitting somewhere absurd. 1.5m
-        /// still lets the camera work in this city's own narrow alleys
-        /// (see this class's own doc comment) without ever getting close
-        /// enough to clip through anything it is trying to look at.
-        /// </summary>
-        public float MinDistance = 1.5f;
-
         [Tooltip(
             "Field of view while aiming (see IsAiming). Narrower than the ordinary field of " +
             "view, which is read from whatever the Camera component already starts at rather " +
@@ -197,7 +177,7 @@ namespace CityX.Character
 
             if (nearest < wantedDistance)
             {
-                wanted = pivot + direction * Mathf.Max(MinDistance, nearest - 0.1f);
+                wanted = pivot + direction * Mathf.Max(0.4f, nearest - 0.1f);
             }
 
             transform.position = wanted;

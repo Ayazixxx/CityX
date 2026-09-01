@@ -15,8 +15,6 @@
         "CityX.View",
         "CityX.UI",
         "UnityEngine.UI",
-        "Unity.InputSystem",
-        "Unity.InputSystem.TestFramework",
         "FishNet.Runtime"
     ],
     "includePlatforms": [],

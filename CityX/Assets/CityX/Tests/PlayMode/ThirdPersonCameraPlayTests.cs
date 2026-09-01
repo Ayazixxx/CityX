@@ -65,41 +65,6 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// THE ACTUAL BUG this exists to catch: a wall right on top of the
-        /// pivot used to clamp the camera down to its old 0.4m minimum,
-        /// which combined with the camera's own 0.15m near clip plane left
-        /// almost no headroom before nearby geometry (or the grapple
-        /// swing's own outstretched reach pose) ended up partly inside the
-        /// lens -- a live bug report described this as the character
-        /// "getting distorted to lengths that shouldn't be possible" while
-        /// the camera itself was the thing sitting somewhere absurd, close
-        /// enough to warp or clip whatever was in view.
-        /// </summary>
-        [UnityTest]
-        public IEnumerator NeverPullsCloserThanMinDistanceEvenAgainstAWallRightOnTopOfThePivot()
-        {
-            var wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            wall.transform.position = _target.transform.position - Vector3.forward * 0.5f;
-            wall.transform.localScale = new Vector3(20.0f, 20.0f, 0.5f);
-            try
-            {
-                yield return null;
-
-                const float fallbackHeight = 1.8f;
-                Vector3 pivot = _target.transform.position +
-                    Vector3.up * (_camera.PivotHeightFraction * fallbackHeight);
-                float actualDistance = Vector3.Distance(_cameraObject.transform.position, pivot);
-                Assert.GreaterOrEqual(actualDistance, _camera.MinDistance - 0.01f,
-                    $"the camera sat {actualDistance:0.00}m from the pivot against a wall right on top " +
-                    "of it -- closer than its own MinDistance, exactly the near-clip distortion this guards against");
-            }
-            finally
-            {
-                Object.Destroy(wall);
-            }
-        }
-
-        /// <summary>
         /// THE AIM-IN FEATURE ITSELF: PlayerInputReader sets IsAiming true
         /// for as long as right-click is held on an equipped gun (or a
         /// melee weapon's own WeaponAimInput.IsAiming), and this component's

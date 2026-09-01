@@ -120,7 +120,6 @@ namespace CityX.UIEditor
             view.FlamethrowerPrefab = flamethrowerPrefab;
             view.InputReader = inputReader;
             view.OrbitCamera = orbitCamera;
-            view.Swing = inputReader != null ? inputReader.GetComponent<GrappleSwing>() : null;
 
             EnsureEventSystem();
             return view;

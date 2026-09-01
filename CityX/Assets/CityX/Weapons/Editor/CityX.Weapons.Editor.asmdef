@@ -6,7 +6,6 @@
         "CityX.Character.Editor",
         "CityX.Core",
         "CityX.Items",
-        "CityX.Wearables",
         "CityX.Weapons"
     ],
     "includePlatforms": [

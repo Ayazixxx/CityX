@@ -312,12 +312,7 @@ namespace CityX.ViewEditor
                 // --- hook is equipped), fire, and it owns the whole
                 // --- movement frame for as long as the rope is attached --
                 // --- see GrappleSwing's own doc comment.
-                var grappleSwing = player.AddComponent<CityX.Character.GrappleSwing>();
-                // See GrappleSwing.SwingCameraDistance's own doc comment --
-                // pulls the camera back for the duration of a swing so the
-                // reach pose never has to fight for room this close to a
-                // wall-pulled-in camera.
-                grappleSwing.OrbitCamera = follow;
+                player.AddComponent<CityX.Character.GrappleSwing>();
 
                 // --- the fireball spell. Innate, not equipped -- see
                 // --- FireballCaster's own doc comment for why this lives

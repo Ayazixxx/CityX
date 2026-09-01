@@ -85,32 +85,6 @@ namespace CityX.Tests
             Assert.IsFalse(animator.enabled, "closing the console revived the animator on a dead body");
         }
 
-        /// <summary>
-        /// GrappleSwing.Attach already disabled this same Animator for a
-        /// real reason (its own procedural swing pose owns every bone it
-        /// touches) -- closing the console mid-swing must not undo that,
-        /// the same guard as the death case above. EXPLICIT BUG REPORT:
-        /// opening then closing the console mid-swing sometimes left the
-        /// character looking stretched/distorted, because the re-enabled
-        /// Animator and GrappleSwing.UpdateSwingPose were both writing the
-        /// same bones from then on.
-        /// </summary>
-        [Test]
-        public void ClosingTheConsoleDoesNotReEnableTheAnimatorMidSwing()
-        {
-            DevConsoleView view = MakeConsoleWithAnimator(out Animator animator, out _);
-            GrappleSwing swing = _bodyObject.AddComponent<GrappleSwing>();
-            swing.Bind();
-            view.Swing = swing;
-            swing.Attach(_bodyObject.transform.position + Vector3.up * 5.0f);
-            Assert.IsFalse(animator.enabled, "setup failed -- attaching the swing should already have disabled the animator");
-            view.Open();
-
-            view.Close();
-
-            Assert.IsFalse(animator.enabled, "closing the console re-enabled the animator while the grapple swing still owned it");
-        }
-
         private static Material LitMaterial(float surface)
         {
             var material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
