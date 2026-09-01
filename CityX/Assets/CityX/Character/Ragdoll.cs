@@ -194,16 +194,7 @@ namespace CityX.Character
             // touching these bones before taking them over" ordering
             // Attach's own doc comment already establishes for the opposite
             // direction.
-            //
-            // NOT IF THE SWING ITSELF ALREADY OWNS THIS RAGDOLL, though --
-            // see GrappleSwing.BeginRagdollSwing's own doc comment: a
-            // mid-air grapple catch calls THIS SAME Activate deliberately,
-            // and releasing here would undo the hand joint it is about to
-            // set up before it ever exists. IsRagdollSwinging distinguishes
-            // "GrappleSwing is procedurally posing bones I'm about to take
-            // over" (release it) from "GrappleSwing already handed me
-            // these bones on purpose" (leave it alone).
-            if (_swing != null && _swing.IsActive && !_swing.IsRagdollSwinging)
+            if (_swing != null && _swing.IsActive)
             {
                 _swing.Release(false);
             }

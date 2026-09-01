@@ -318,17 +318,7 @@ namespace CityX.Character
                 _grappleSwing.Release(false);
             }
 
-            // NOT IF THE SWING ITSELF OWNS THIS RAGDOLL, though -- see
-            // GrappleSwing.TickRagdollSwing's own doc comment: a mid-air
-            // catch still needs its own Tick every frame even while limp,
-            // to keep the (disabled) CharacterController the camera tracks
-            // following the ragdoll's own hips, and to watch for the
-            // release input or the ground that are the only two ways out
-            // of it. An ordinary death/finisher ragdoll has no such thing
-            // to reach and correctly still wants every input path shut off
-            // below.
-            if (_ragdoll != null && _ragdoll.IsLimp &&
-                !(_grappleSwing != null && _grappleSwing.IsRagdollSwinging))
+            if (_ragdoll != null && _ragdoll.IsLimp)
             {
                 // Physics owns the body now. Ticking locomotion here would call
                 // Move on a CharacterController the ragdoll has just disabled,
