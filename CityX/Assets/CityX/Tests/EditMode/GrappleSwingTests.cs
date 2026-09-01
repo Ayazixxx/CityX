@@ -32,13 +32,6 @@ namespace CityX.Tests
             // EditMode never calls Awake -- see GrappleSwing.Bind's own
             // doc comment.
             _swing.Bind();
-            // A fresh CharacterController has never had Move() called on
-            // it, so isGrounded defaults to false -- which would silently
-            // route every Attach below into GrappleSwing.BeginRagdollSwing
-            // instead of the rope physics this whole file exists to check.
-            // See GrappleSwingPosePlayTests' own doc comment for the same
-            // reasoning applied there.
-            _swing.AllowRagdollSwing = false;
         }
 
         [TearDown]

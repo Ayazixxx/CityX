@@ -37,38 +37,23 @@ namespace CityX.Character
     /// at instead of getting cut down to whatever WASD is doing that
     /// instant.
     ///
-    /// GROUNDED FIRE: THE HELD POSE IS PURE PROCEDURAL BONE ROTATION, NOT
-    /// PHYSICS -- see UpdateSwingPose's own doc comment. THREE earlier
-    /// versions of this file tried real rigidbody/joint ragdoll physics for
-    /// "the body flails while swinging" (a kinematic Chest forced through
-    /// the swing's own motion; a bounded force pulling a fully dynamic
-    /// rig), and every one of them was reported broken live -- stretching
-    /// apart, limbs flying off, the body distorting wildly. Real
-    /// constraint-based physics driven by a script that ALSO forces the
-    /// character through arbitrary, fast, curving motion is fundamentally
-    /// fragile in ways that are hard to fully predict or verify without
-    /// live iteration (joint solving under continuous forced motion, and
-    /// colliders on every ragdoll body part now able to snag on world
-    /// geometry the CharacterController itself slides past). Directly
-    /// rotating bones -- the same technique PlayerLocomotion.
-    /// ApplyCastingPose/ApplyDrivingWheelPose and Jetpack.TickTilt already
-    /// use, all proven stable -- cannot explode, stretch, or get stuck on
-    /// anything, because nothing is being simulated at all.
-    ///
-    /// MID-AIR CATCH: A REAL, SINGLE-BODY PHYSICS HANG -- see
-    /// _ragdollSwinging's own doc comment for the fourth and final design
-    /// this went through. Real gravity and a hard distance clamp
-    /// (identical in spirit to this comment's own opening paragraph) drive
-    /// a standalone, jointless proxy Rigidbody -- nothing steers it, and
-    /// nothing is connected to it for a correction to fight, which is what
-    /// finally holds after a REAL multi-body Ragdoll.Activate plus the
-    /// same clamp still measured a genuine instability (a rigidbody
-    /// hitting 72 m/s from the correction perturbing its own joints). The
-    /// visible limbs keep using the SAME procedural flail
-    /// (UpdateSwingPose) the grounded case already relies on, driven by
-    /// the proxy's own real velocity, so it still reads as a limp body
-    /// with real momentum even though no bone is individually, dynamically
-    /// jointed.
+    /// THE HELD POSE IS PURE PROCEDURAL BONE ROTATION, NOT PHYSICS -- see
+    /// UpdateSwingPose's own doc comment. THREE earlier versions of this
+    /// file tried real rigidbody/joint ragdoll physics for "the body
+    /// flails while swinging" (a kinematic Chest forced through the
+    /// swing's own motion; a bounded force pulling a fully dynamic rig),
+    /// and every one of them was reported broken live -- stretching apart,
+    /// limbs flying off, the body distorting wildly. Real constraint-based
+    /// physics driven by a script that ALSO forces the character through
+    /// arbitrary, fast, curving motion is fundamentally fragile in ways
+    /// that are hard to fully predict or verify without live iteration
+    /// (joint solving under continuous forced motion, and colliders on
+    /// every ragdoll body part now able to snag on world geometry the
+    /// CharacterController itself slides past). Directly rotating bones --
+    /// the same technique PlayerLocomotion.ApplyCastingPose/
+    /// ApplyDrivingWheelPose and Jetpack.TickTilt already use, all proven
+    /// stable -- cannot explode, stretch, or get stuck on anything, because
+    /// nothing is being simulated at all.
     ///
     /// DEATH IS POLLED, NOT EVENT-DRIVEN -- see GrabCarry's own doc comment
     /// for why an OnEnable subscription to PlayerVitals.Died is unsafe in
@@ -159,64 +144,6 @@ namespace CityX.Character
         public const float SwingCameraDistance = 6.5f;
 
         private float _savedCameraDistance;
-
-        /// <summary>
-        /// EXPLICIT ASK, revisited twice now: "if hes in mid air AND
-        /// attached to a wall via grapple hook. then he goes ragdoll...
-        /// his limp body swings with the momentum of the gravity and he is
-        /// attached to the rope by his right hand." This class's own
-        /// header comment already explains why three earlier attempts at
-        /// REAL multi-body rigdoll/joint physics for this feature all
-        /// stretched and exploded -- a script forcing the body through
-        /// fast, arbitrary, WASD-steered motion while a constraint solver
-        /// also tries to hold a whole jointed rig together. A FOURTH
-        /// attempt this session (a real Ragdoll.Activate plus a hard
-        /// script-enforced distance clamp on the hand, no WASD steering at
-        /// all) STILL measured a genuine instability live -- a rigidbody
-        /// reaching 72 m/s, the same class of failure as the first three,
-        /// just from a different cause: correcting one connected body's
-        /// position/velocity in a live multi-joint network perturbs the
-        /// OTHER joints in that network too, regardless of how carefully
-        /// the correction itself is written. Multi-body ragdoll solving
-        /// under ANY kind of external correction is fragile, not just
-        /// under WASD-style forcing.
-        ///
-        /// THIS DESIGN SIDESTEPS THE JOINT NETWORK ENTIRELY. Nothing here
-        /// touches Ragdoll.cs or its real, multi-body rig at all -- the
-        /// ACTUAL swing physics runs on ONE standalone, jointless
-        /// Rigidbody (_ragdollProxy) with nothing connected to it and
-        /// nothing to fight: gravity plus the exact same hard distance
-        /// clamp the ordinary procedural swing already uses (see this
-        /// class's own header comment), which is a MATHEMATICAL GUARANTEE
-        /// against a single free body precisely because there is no joint
-        /// solver around it to react to the correction. The VISIBLE body
-        /// keeps using the SAME procedural limb sway the grounded swing
-        /// already relies on (UpdateSwingPose, proven stable all session)
-        /// to read as "limp" -- driven by the proxy's own velocity instead
-        /// of GrappleSwing's own tracked one, so the flail still reflects
-        /// real, physically simulated momentum even though no bone is
-        /// individually, dynamically jointed.
-        /// </summary>
-        private bool _ragdollSwinging;
-
-        private Rigidbody _ragdollProxy;
-
-        /// <summary>How close the proxy has to get to the ground before a ragdoll swing ends on its own, matching an ordinary swing's own "landing ends it" rule.</summary>
-        private const float RagdollSwingGroundCheckDistance = 0.6f;
-
-        /// <summary>
-        /// Off only for GrappleSwingPosePlayTests, which needs a genuinely
-        /// AIRBORNE, SUSTAINED swing to exercise the procedural pose this
-        /// class also still supports for a grounded fire -- see that
-        /// file's own class doc comment for why grounding those tests
-        /// instead is not the fix (Phase 10's own grounded-auto-release
-        /// would end them in ~12 frames). True everywhere else, including
-        /// the real game.
-        /// </summary>
-        public bool AllowRagdollSwing = true;
-
-        /// <summary>True once BeginRagdollSwing has taken the pose over -- lets external callers (none currently) and this class's own tests tell a ragdoll swing apart from an ordinary procedural one.</summary>
-        public bool IsRagdollSwinging => _ragdollSwinging;
 
         private CharacterController _controller;
         private PlayerLocomotion _locomotion;
@@ -453,17 +380,6 @@ namespace CityX.Character
                 OrbitCamera.Distance = SwingCameraDistance;
             }
 
-            // See BeginRagdollSwing's own doc comment -- only a MID-AIR
-            // catch goes ragdoll. Firing while grounded (the far more
-            // common case, and the one Phase 10's own grounded-start fixes
-            // already cover) keeps the procedural sway below entirely
-            // untouched.
-            if (AllowRagdollSwing && _controller != null && !_controller.isGrounded)
-            {
-                BeginRagdollSwing();
-                return;
-            }
-
             // THE HELD POSE IS THE PROCEDURAL FLAIL FROM HERE, not the
             // Animator -- see this class's own doc comment for why. Nothing
             // else should be posing these bones while the Animator is off,
@@ -511,183 +427,10 @@ namespace CityX.Character
         }
 
         /// <summary>
-        /// Turns a mid-air catch into a real, physically simulated hang --
-        /// see _ragdollSwinging's own doc comment for the full design
-        /// reasoning behind why this uses a standalone proxy rather than
-        /// the real Ragdoll rig.
-        ///
-        /// DISABLES ANIMATOR/LOCOMOTION/CONTROLLER ITSELF, matching exactly
-        /// what Ragdoll.Activate would have done for the same three, but
-        /// without touching Ragdoll.cs at all -- this path owns its own
-        /// cleanup in Release below.
-        ///
-        /// THE PROXY SPAWNS AT ROUGHLY CHEST HEIGHT, not at the
-        /// CharacterController's own ground-contact point (what
-        /// transform.position actually means -- see PlayerLocomotion.
-        /// ApplyHeight's own comment) -- TickRagdollSwing converts back
-        /// when following it, the same offset applied in reverse.
-        ///
-        /// VELOCITY CLAMPED BEFORE THE PROXY EVER MOVES -- see
-        /// RagdollActivationSpeedCap's own doc comment for why even a
-        /// single jointless body still needs this: EnforceRagdollRopeClamp
-        /// corrects it AFTER each physics step already happened, and a
-        /// fast enough starting fall covers real distance within that one
-        /// step no matter what enforces the rope afterward.
-        /// </summary>
-        private const float RagdollActivationSpeedCap = 12.0f;
-
-        private void BeginRagdollSwing()
-        {
-            _ragdollSwinging = true;
-            if (_velocity.magnitude > RagdollActivationSpeedCap)
-            {
-                _velocity = _velocity.normalized * RagdollActivationSpeedCap;
-            }
-
-            if (_animator != null)
-            {
-                _animator.enabled = false;
-            }
-            _locomotion?.SetCastPose(0.0f);
-            _locomotion?.SetGroundClampSuspended(true);
-            if (_locomotion != null)
-            {
-                _locomotion.enabled = false;
-            }
-            if (_controller != null)
-            {
-                _controller.enabled = false;
-            }
-
-            float bodyHeight = _locomotion != null ? _locomotion.StandingHeight * 0.5f : 1.0f;
-            var proxyObject = new GameObject("GrappleRagdollSwingProxy");
-            proxyObject.transform.position = transform.position + Vector3.up * bodyHeight;
-            _ragdollProxy = proxyObject.AddComponent<Rigidbody>();
-            _ragdollProxy.linearDamping = 0.0f;
-            _ragdollProxy.angularDamping = 0.0f;
-            _ragdollProxy.linearVelocity = _velocity;
-            _ragdollProxy.interpolation = RigidbodyInterpolation.None;
-
-            // The SAME visual flail the grounded swing already uses --
-            // see UpdateSwingPose's own doc comment. Captured here exactly
-            // like the procedural path's own Attach does, so the limbs
-            // read as limp/swaying rather than frozen mid-pose.
-            CaptureBase(_headBone, ref _headBase);
-            CaptureBase(_leftUpperArmBone, ref _leftUpperArmBase);
-            CaptureBase(_leftLowerArmBone, ref _leftLowerArmBase);
-            CaptureBase(_leftUpperLegBone, ref _leftUpperLegBase);
-            CaptureBase(_rightUpperLegBone, ref _rightUpperLegBase);
-            CaptureBase(_rightUpperArmBone, ref _rightUpperArmBase);
-            CaptureBase(_rightLowerArmBone, ref _rightLowerArmBase);
-            _rightUpperArmCurrent = _rightUpperArmBone != null ? _rightUpperArmBone.localRotation : Quaternion.identity;
-            _rightLowerArmCurrent = _rightLowerArmBone != null ? _rightLowerArmBone.localRotation : Quaternion.identity;
-            _leftUpperArmCurrent = _leftUpperArmBone != null ? _leftUpperArmBone.localRotation : Quaternion.identity;
-            _leftLowerArmCurrent = _leftLowerArmBone != null ? _leftLowerArmBone.localRotation : Quaternion.identity;
-        }
-
-        private void FixedUpdate()
-        {
-            EnforceRagdollRopeClamp();
-        }
-
-        /// <summary>
-        /// RUN AGAIN HERE TOO, AFTER PHYSICS FOR THE FRAME HAS ALREADY
-        /// HAPPENED -- confirmed live that FixedUpdate's own clamp alone
-        /// still let a small residual through on some frames: gravity
-        /// keeps acting for the whole of Time.fixedDeltaTime, so real
-        /// distance is covered even within one physics step, and a frame
-        /// can render (or a test can measure) the proxy at whatever point
-        /// that step left it at, before FixedUpdate gets another chance to
-        /// correct it. LateUpdate runs after every physics step for the
-        /// frame has already happened, so re-enforcing the SAME clamp here
-        /// guarantees whatever actually gets rendered this frame is
-        /// clamped, not just whatever FixedUpdate last computed.
-        /// </summary>
-        private void LateUpdate()
-        {
-            EnforceRagdollRopeClamp();
-        }
-
-        /// <summary>
-        /// THE ROPE'S OWN HARD CLAMP -- EXACTLY the same "cancel the
-        /// outward component of velocity, then snap the overshoot itself
-        /// back onto the sphere" technique this class's own header comment
-        /// already describes for the ordinary procedural swing, applied to
-        /// a real, standalone Rigidbody instead of a CharacterController.
-        /// A SINGLE, JOINTLESS BODY -- unlike the real Ragdoll rig this
-        /// used to enforce the clamp on (see _ragdollSwinging's own doc
-        /// comment for why that measurably destabilised), there is nothing
-        /// else connected to this proxy for the correction to fight, so
-        /// one pass resolves the distance exactly every time it runs.
-        /// </summary>
-        private void EnforceRagdollRopeClamp()
-        {
-            if (!_ragdollSwinging || _ragdollProxy == null)
-            {
-                return;
-            }
-
-            Vector3 toAnchor = _anchor - _ragdollProxy.position;
-            float distance = toAnchor.magnitude;
-            if (distance > _ropeLength && distance > 0.0001f)
-            {
-                Vector3 direction = toAnchor / distance;
-                float outward = Vector3.Dot(_ragdollProxy.linearVelocity, -direction);
-                if (outward > 0.0f)
-                {
-                    _ragdollProxy.linearVelocity += direction * outward;
-                }
-                float overshoot = distance - _ropeLength;
-                _ragdollProxy.position += direction * overshoot;
-            }
-        }
-
-        /// <summary>
-        /// The ENTIRE per-frame update while ragdoll-swinging -- see
-        /// FixedUpdate/LateUpdate's own doc comments for the rope's own
-        /// distance clamp, which runs there instead of here for a
-        /// stricter guarantee. Follows the proxy's own real physics with
-        /// the invisible, disabled CharacterController's own transform
-        /// (which the camera tracks -- see ThirdPersonCamera.Target),
-        /// keeps the SAME procedural limb flail the grounded swing uses
-        /// running off the proxy's own real velocity instead of a
-        /// hand-tracked one, and watches for a release input or the body
-        /// settling near the ground, the two ways out.
-        /// </summary>
-        private void TickRagdollSwing(bool boostedReleasePressed, bool plainReleasePressed)
-        {
-            bool nearGround = false;
-            if (_ragdollProxy != null)
-            {
-                float bodyHeight = _locomotion != null ? _locomotion.StandingHeight * 0.5f : 1.0f;
-                transform.position = _ragdollProxy.position - Vector3.up * bodyHeight;
-                _velocity = _ragdollProxy.linearVelocity;
-
-                nearGround = Physics.Raycast(_ragdollProxy.position, Vector3.down,
-                    bodyHeight + RagdollSwingGroundCheckDistance);
-            }
-
-            UpdateSwingPose(Time.deltaTime);
-
-            if (boostedReleasePressed || plainReleasePressed || nearGround)
-            {
-                Release(boostedReleasePressed);
-            }
-        }
-
-        /// <summary>
         /// Lets go. <paramref name="boosted"/> adds the upward kick that
         /// makes releasing at the top of an arc worth timing; a release
         /// forced by something else (death, unequipping) passes false and
         /// just drops the rope.
-        ///
-        /// THE ONE FUNNEL EVERY EXIT PATH GOES THROUGH -- including a
-        /// ragdoll swing's own ground-contact/manual-release exits inside
-        /// TickRagdollSwing AND PlayerInputReader's own double-tap-shift
-        /// bail (which calls this directly, bypassing Tick entirely) --
-        /// which is why the ragdoll-specific cleanup lives here rather than
-        /// only in TickRagdollSwing: whichever path let go, the rig must
-        /// stand back up exactly once.
         /// </summary>
         public void Release(bool boosted)
         {
@@ -697,44 +440,6 @@ namespace CityX.Character
             }
             IsActive = false;
             _groundTime = 0.0f;
-
-            if (_ragdollSwinging)
-            {
-                _ragdollSwinging = false;
-                // The proxy's own real, physically-carried momentum --
-                // exactly the same "carry it into ordinary falling" idea
-                // the procedural swing's own velocity gets below, just
-                // read off a real Rigidbody instead of tracked by hand.
-                _velocity = _ragdollProxy != null ? _ragdollProxy.linearVelocity : Vector3.zero;
-                if (_ragdollProxy != null)
-                {
-                    // Application.isPlaying gate because EditMode tests
-                    // (GrappleSwingTests, driving this class with no scene
-                    // at all) can reach a ragdoll swing too -- Destroy is a
-                    // Play Mode only API and logs an error outside it.
-                    if (Application.isPlaying)
-                    {
-                        Destroy(_ragdollProxy.gameObject);
-                    }
-                    else
-                    {
-                        DestroyImmediate(_ragdollProxy.gameObject);
-                    }
-                    _ragdollProxy = null;
-                }
-                // BeginRagdollSwing disabled these itself (no Ragdoll.cs
-                // involved for this path at all -- see that method's own
-                // doc comment), so they come back the same way.
-                if (_locomotion != null)
-                {
-                    _locomotion.enabled = true;
-                }
-                if (_controller != null)
-                {
-                    _controller.enabled = true;
-                }
-            }
-
             if (boosted)
             {
                 _velocity.y += ReleaseBoost;
@@ -772,16 +477,6 @@ namespace CityX.Character
         {
             if (!IsActive)
             {
-                return;
-            }
-
-            if (_ragdollSwinging)
-            {
-                // Deliberately none of moveInput/yawDegrees/reelHeld/
-                // payoutHeld/deltaTime reach the ragdoll -- see
-                // TickRagdollSwing's own doc comment for why nothing
-                // steers it once it's limp.
-                TickRagdollSwing(boostedReleasePressed, plainReleasePressed);
                 return;
             }
 
