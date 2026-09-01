@@ -9,19 +9,34 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// The grapple swing's own held pose -- explicit ask: "his right hand
-    /// stay attached to it but the rest of his body is ragdolling". THREE
-    /// earlier versions of this used real Rigidbody/CharacterJoint physics
-    /// and were all reported broken live (the body stretching apart, limbs
-    /// flying off) -- see GrappleSwing's own class doc comment for why a
-    /// script forcing a character through fast, arbitrary motion is a bad
-    /// fit for a real constraint solver. This is a fourth, deliberately
-    /// much simpler design: plain procedural bone rotation, the same
-    /// technique PlayerLocomotionCastPosePlayTests already proves stable
-    /// for PlayerLocomotion.ApplyCastingPose. Nothing here is physics, so
-    /// there is no joint/collision failure mode left to test for -- what
-    /// actually needs checking is that the Animator hands off and back
-    /// cleanly, and that the bones move the way the pose is supposed to.
+    /// The grapple swing's OWN GROUNDED-FIRE pose -- explicit ask: "his
+    /// right hand stay attached to it but the rest of his body is
+    /// ragdolling". THREE earlier versions of this used real Rigidbody/
+    /// CharacterJoint physics and were all reported broken live (the body
+    /// stretching apart, limbs flying off) -- see GrappleSwing's own class
+    /// doc comment for why a script forcing a character through fast,
+    /// arbitrary motion is a bad fit for a real constraint solver. This is
+    /// a fourth, deliberately much simpler design: plain procedural bone
+    /// rotation, the same technique PlayerLocomotionCastPosePlayTests
+    /// already proves stable for PlayerLocomotion.ApplyCastingPose. Nothing
+    /// here is physics, so there is no joint/collision failure mode left to
+    /// test for -- what actually needs checking is that the Animator hands
+    /// off and back cleanly, and that the bones move the way the pose is
+    /// supposed to.
+    ///
+    /// AIRBORNE, THE SAME AS ALWAYS -- but with GrappleSwing.
+    /// AllowRagdollSwing turned off right after spawning. See
+    /// GrappleSwing.BeginRagdollSwing's own doc comment: firing while
+    /// genuinely mid-air now goes ragdoll instead (a real second attempt
+    /// at the ask this class's own header quotes) -- and grounding these
+    /// tests instead is NOT the fix, because Phase 10's own
+    /// grounded+low-speed auto-release (GrappleSwing.AttachGraceSeconds)
+    /// would end the swing after roughly 12 frames regardless, well before
+    /// most of these tests finish ticking. Turning the ragdoll path off
+    /// instead keeps every test here on EXACTLY the procedural path it
+    /// always exercised, airborne and sustained, same as before this
+    /// feature existed. See RagdollSwingPlayTests for the ragdoll path's
+    /// own coverage.
     /// </summary>
     public sealed class GrappleSwingPosePlayTests
     {
@@ -50,6 +65,10 @@ namespace CityX.Tests
 
             _swing = _player.AddComponent<GrappleSwing>();
             _swing.Bind();
+            // See this class's own doc comment -- keeps every Attach here
+            // on the ordinary procedural path regardless of this airborne
+            // spawn height.
+            _swing.AllowRagdollSwing = false;
 #else
             Assert.Ignore("Player.prefab can only be loaded by path inside the editor.");
 #endif
