@@ -741,6 +741,224 @@ namespace CityX.WeaponsEditor
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 
+        /// <summary>
+        /// DIAGNOSTIC, NOT A PERMANENT TOOL -- renders exactly what a
+        /// player sees the instant the console opens mid-stride, from the
+        /// real ThirdPersonCamera's own computed shot rather than an
+        /// external angle, to directly judge whether "frozen at whatever
+        /// frame the walk cycle happened to be on" is itself a visible
+        /// problem worth chasing further, separately from any of the
+        /// compounding bugs already fixed.
+        /// </summary>
+        [MenuItem("CityX/Diagnose Console Freeze Mid Walk")]
+        public static void DiagnoseConsoleFreezeMidWalk()
+        {
+            var playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab");
+            if (playerPrefab == null)
+            {
+                Debug.LogError("CityX: need Player.prefab built first.");
+                return;
+            }
+
+            string outputDirectory = System.IO.Path.Combine(
+                System.IO.Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
+            System.IO.Directory.CreateDirectory(outputDirectory);
+
+            var root = new GameObject("ConsoleFreezeDiagnosticRig");
+            RenderTexture target = null;
+            try
+            {
+                var sunObject = new GameObject("Sun");
+                sunObject.transform.SetParent(root.transform);
+                Light sun = sunObject.AddComponent<Light>();
+                sun.type = LightType.Directional;
+                sun.intensity = 1.2f;
+                sun.transform.rotation = Quaternion.Euler(35.0f, 150.0f, 0.0f);
+
+                var ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                ground.transform.SetParent(root.transform);
+                ground.transform.position = new Vector3(0.0f, -0.5f, 0.0f);
+                ground.transform.localScale = new Vector3(100.0f, 1.0f, 100.0f);
+
+                var player = (GameObject)PrefabUtility.InstantiatePrefab(playerPrefab);
+                player.transform.SetParent(root.transform);
+                player.transform.position = Vector3.zero;
+                Physics.SyncTransforms();
+
+                PlayerLocomotion locomotion = player.GetComponent<PlayerLocomotion>();
+                locomotion.Bind();
+                Animator animator = player.GetComponentInChildren<Animator>();
+
+                var cameraObject = new GameObject("Camera");
+                cameraObject.transform.SetParent(root.transform);
+                Camera camera = cameraObject.AddComponent<Camera>();
+                ThirdPersonCamera orbitCamera = cameraObject.AddComponent<ThirdPersonCamera>();
+                orbitCamera.Target = player.transform;
+
+                // Real sustained forward walking through the real component,
+                // exactly like real WASD input held for a while -- long
+                // enough that the walk cycle is well underway rather than
+                // still on its own opening transition.
+                var lateUpdate = typeof(PlayerLocomotion).GetMethod("LateUpdate",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                for (int i = 0; i < 90; i++)
+                {
+                    locomotion.Tick(new LocomotionInput { Move = new Vector2(0.0f, 1.0f), YawDegrees = 0.0f }, 1.0f / 60.0f);
+                    // THE PIECE A PURE EDITOR BATCH SCRIPT NEVER GETS FOR
+                    // FREE: real Play Mode calls Animator.Update() itself,
+                    // automatically, every frame -- nothing here does that
+                    // outside Play Mode, so without this explicit call the
+                    // Animator never evaluates a single frame at all and
+                    // the skeleton just sits at its raw import bind pose
+                    // (confirmed directly: the first version of this
+                    // diagnostic, missing this line, rendered a T-pose after
+                    // 90 full ticks of "walking").
+                    animator.Update(1.0f / 60.0f);
+                    lateUpdate.Invoke(locomotion, null);
+                }
+
+                Debug.Log($"CityX DIAGNOSTIC: mid-walk pose before freeze, player pos={player.transform.position:F2}");
+
+                // THE FREEZE ITSELF -- exactly DevConsoleView.Open's own job.
+                animator.enabled = false;
+
+                var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+                var cameraStart = typeof(ThirdPersonCamera).GetMethod("Start", flags);
+                var cameraLateUpdate = typeof(ThirdPersonCamera).GetMethod("LateUpdate", flags);
+                cameraStart.Invoke(orbitCamera, null);
+                for (int i = 0; i < 10; i++)
+                {
+                    cameraLateUpdate.Invoke(orbitCamera, null);
+                }
+
+                foreach (SkinnedMeshRenderer skin in player.GetComponentsInChildren<SkinnedMeshRenderer>())
+                {
+                    skin.updateWhenOffscreen = true;
+                }
+
+                target = new RenderTexture(900, 900, 24, RenderTextureFormat.ARGB32) { antiAliasing = 8 };
+                camera.targetTexture = target;
+                camera.Render();
+                RenderTexture.active = target;
+                var image = new Texture2D(900, 900, TextureFormat.RGB24, false);
+                image.ReadPixels(new Rect(0, 0, 900, 900), 0, 0);
+                image.Apply();
+                string path = System.IO.Path.Combine(outputDirectory, "console-freeze-mid-walk.png");
+                System.IO.File.WriteAllBytes(path, image.EncodeToPNG());
+                Object.DestroyImmediate(image);
+                Debug.Log($"CityX: wrote {path}");
+            }
+            finally
+            {
+                if (target != null) { target.Release(); Object.DestroyImmediate(target); }
+                Object.DestroyImmediate(root);
+            }
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        /// <summary>
+        /// DIAGNOSTIC, NOT A PERMANENT TOOL -- renders the single frame
+        /// right BEFORE and the single frame right AFTER a grapple release,
+        /// to directly measure whether handing control back from the
+        /// swing's own reach pose to the Animator's live pose is a visible,
+        /// instant snap rather than a smooth handoff -- something none of
+        /// the earlier diagnostics checked, since they all measured
+        /// SUSTAINED states (mid-swing, mid-freeze), never the transition
+        /// moment itself.
+        /// </summary>
+        [MenuItem("CityX/Diagnose Grapple Release Snap")]
+        public static void DiagnoseReleaseSnap()
+        {
+            var playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab");
+            if (playerPrefab == null)
+            {
+                Debug.LogError("CityX: need Player.prefab built first.");
+                return;
+            }
+
+            string outputDirectory = System.IO.Path.Combine(
+                System.IO.Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
+            System.IO.Directory.CreateDirectory(outputDirectory);
+
+            var root = new GameObject("ReleaseSnapDiagnosticRig");
+            RenderTexture target = null;
+            try
+            {
+                var sunObject = new GameObject("Sun");
+                sunObject.transform.SetParent(root.transform);
+                Light sun = sunObject.AddComponent<Light>();
+                sun.type = LightType.Directional;
+                sun.intensity = 1.2f;
+                sun.transform.rotation = Quaternion.Euler(35.0f, 150.0f, 0.0f);
+
+                var player = (GameObject)PrefabUtility.InstantiatePrefab(playerPrefab);
+                player.transform.SetParent(root.transform);
+                player.transform.position = new Vector3(0.0f, 20.0f, 0.0f);
+                Physics.SyncTransforms();
+
+                GrappleSwing swing = player.GetComponent<GrappleSwing>();
+                if (swing == null) swing = player.AddComponent<GrappleSwing>();
+                swing.Bind();
+                Animator animator = player.GetComponentInChildren<Animator>();
+
+                swing.Attach(player.transform.position + new Vector3(6.0f, 8.0f, 4.0f));
+                for (int i = 0; i < 90; i++)
+                {
+                    swing.Tick(new Vector2(0.0f, 1.0f), i * 0.5f, false, false, false, false, 1.0f / 60.0f);
+                }
+
+                var cameraObject = new GameObject("Camera");
+                cameraObject.transform.SetParent(root.transform);
+                Camera camera = cameraObject.AddComponent<Camera>();
+                camera.fieldOfView = 50.0f;
+                camera.nearClipPlane = 0.05f;
+                camera.farClipPlane = 500.0f;
+                cameraObject.transform.position =
+                    player.transform.position + Vector3.up * 1.4f - Vector3.forward * 4.0f;
+                cameraObject.transform.LookAt(player.transform.position + Vector3.up * 1.0f);
+
+                foreach (SkinnedMeshRenderer skin in player.GetComponentsInChildren<SkinnedMeshRenderer>())
+                {
+                    skin.updateWhenOffscreen = true;
+                }
+
+                target = new RenderTexture(900, 900, 24, RenderTextureFormat.ARGB32) { antiAliasing = 8 };
+                camera.targetTexture = target;
+
+                void RenderTo(string filename)
+                {
+                    camera.Render();
+                    RenderTexture.active = target;
+                    var image = new Texture2D(900, 900, TextureFormat.RGB24, false);
+                    image.ReadPixels(new Rect(0, 0, 900, 900), 0, 0);
+                    image.Apply();
+                    string path = System.IO.Path.Combine(outputDirectory, filename);
+                    System.IO.File.WriteAllBytes(path, image.EncodeToPNG());
+                    Object.DestroyImmediate(image);
+                    Debug.Log($"CityX: wrote {path}");
+                }
+
+                Transform rightUpperArm = animator.GetBoneTransform(HumanBodyBones.RightUpperArm);
+                Transform leftUpperArm = animator.GetBoneTransform(HumanBodyBones.LeftUpperArm);
+                Debug.Log($"CityX DIAGNOSTIC BEFORE: rightUpperArm={rightUpperArm.localRotation.eulerAngles:F1} " +
+                    $"leftUpperArm={leftUpperArm.localRotation.eulerAngles:F1} animatorEnabled={animator.enabled}");
+                RenderTo("release-snap-before.png");
+
+                swing.Release(false);
+                player.GetComponent<CharacterController>().Move(swing.LastReleaseVelocity * (1.0f / 60.0f));
+
+                Debug.Log($"CityX DIAGNOSTIC AFTER: rightUpperArm={rightUpperArm.localRotation.eulerAngles:F1} " +
+                    $"leftUpperArm={leftUpperArm.localRotation.eulerAngles:F1} animatorEnabled={animator.enabled}");
+                RenderTo("release-snap-after.png");
+            }
+            finally
+            {
+                if (target != null) { target.Release(); Object.DestroyImmediate(target); }
+                Object.DestroyImmediate(root);
+            }
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
         private static void PoseArmsDown(Transform root)
         {
             SetLocalRotation(root, "arm_l", new Vector3(0.0f, 0.0f, 78.0f));
