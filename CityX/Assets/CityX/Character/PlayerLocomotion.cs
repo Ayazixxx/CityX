@@ -992,5 +992,46 @@ namespace CityX.Character
                 _animator.SetBool(BreakdancingParameter, input.Breakdancing);
             }
         }
+
+        /// <summary>
+        /// How hard walking into a real, non-kinematic body (a hanging
+        /// ragdoll dummy, in particular) shoves it. Purely a feel constant,
+        /// tuned by eye against HangingRagdollDummy -- there is no ported
+        /// value to match, CharacterController has no built-in push at all.
+        /// </summary>
+        public const float PushForce = 3.5f;
+
+        /// <summary>
+        /// CharacterController NEVER PUSHES A RIGIDBODY ON ITS OWN -- it is
+        /// a kinematic capsule that solves its own collisions by sliding,
+        /// the exact same reason PlayerLocomotion uses one at all (see this
+        /// class's own doc comment). Unity calls this once per real contact
+        /// during Move, and without it a real Rigidbody in the world --
+        /// HangingRagdollDummy's own dangling body, in particular -- simply
+        /// blocks the player like a wall instead of swinging away like
+        /// something that actually has mass, which is exactly what "walk
+        /// into it and it should react" needs and nothing in this project
+        /// provided before now.
+        /// </summary>
+        private void OnControllerColliderHit(ControllerColliderHit hit)
+        {
+            Rigidbody body = hit.collider.attachedRigidbody;
+            if (body == null || body.isKinematic)
+            {
+                return;
+            }
+
+            // ONLY THE HORIZONTAL PUSH, and only while moving roughly level
+            // into it -- a hit registered while falling onto something (a
+            // steep downward moveDirection) is landing on it, not shoving
+            // it, and pushing straight down would just launch a ragdoll's
+            // own body into the ground.
+            if (hit.moveDirection.y < -0.3f)
+            {
+                return;
+            }
+            Vector3 push = new Vector3(hit.moveDirection.x, 0.0f, hit.moveDirection.z);
+            body.AddForceAtPosition(push * PushForce, hit.point, ForceMode.Impulse);
+        }
     }
 }

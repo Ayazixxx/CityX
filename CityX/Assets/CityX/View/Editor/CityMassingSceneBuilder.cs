@@ -192,6 +192,15 @@ namespace CityX.ViewEditor
                 // the scale screenshots.
                 AddSparringDummies(groundHeight, structure);
 
+                // A real, permanently-limp ragdoll hanging from a rope tied
+                // to its own hand, near spawn -- see HangingRagdollDummy's
+                // own class doc comment for why this exists as a live
+                // reference. Offset the OPPOSITE way from the sparring
+                // dummies (-Z, not +Z) so the two do not overlap.
+                CityX.CharacterEditor.HangingRagdollDummyBuilder.Build(
+                    new Vector3(CityLayout.ChunkSize * 0.5f - 3.0f, groundHeight, CityLayout.ChunkSize * 0.5f - 5.0f),
+                    null);
+
                 // --- /claim. Reuses PlayerAudio.CurrentBuilding for "which
                 // --- building is this," and orbits the same single camera
                 // --- FlyCamera/ThirdPersonCamera already share -- see

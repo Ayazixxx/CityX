@@ -491,5 +491,44 @@ namespace CityX.Tests
             Assert.AreEqual(1.1f, controller.center.y, 0.01f);
             Assert.Less(controller.radius * 2.0f, controller.height, "capsule wider than tall");
         }
+
+        /// <summary>
+        /// EXPLICIT ASK: a hanging ragdoll dummy near spawn should "move
+        /// like it's a real object" when walked into. CharacterController
+        /// never pushes a Rigidbody on its own -- it is a kinematic capsule
+        /// that solves its own collisions by sliding, the same reason
+        /// PlayerLocomotion uses one at all -- so without
+        /// OnControllerColliderHit explicitly applying a force, a real
+        /// Rigidbody in the world simply blocks the player like a wall
+        /// instead of reacting like something that has mass. Checked with
+        /// a plain box, not the ragdoll itself, so this proves
+        /// PlayerLocomotion's own general push behaviour rather than
+        /// depending on ragdoll joint physics working correctly too.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator WalkingIntoARealRigidbodyPushesItRatherThanJustBlocking()
+        {
+            var box = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            box.transform.position = new Vector3(0.0f, 0.9f, 2.0f);
+            Rigidbody body = box.AddComponent<Rigidbody>();
+            body.mass = 5.0f;
+            Physics.SyncTransforms();
+
+            try
+            {
+                var input = new LocomotionInput { Move = new Vector2(0.0f, 1.0f), YawDegrees = 0.0f, Sprint = true };
+                yield return Drive(input, 90);
+
+                Assert.Greater(body.linearVelocity.sqrMagnitude, 0.01f,
+                    "walking into a real Rigidbody left it with no velocity at all -- " +
+                    "the player is only blocking it, not pushing it");
+                Assert.Greater(box.transform.position.z, 2.0f,
+                    $"the box never actually moved from its own start position (z={box.transform.position.z:0.00})");
+            }
+            finally
+            {
+                Object.DestroyImmediate(box);
+            }
+        }
     }
 }

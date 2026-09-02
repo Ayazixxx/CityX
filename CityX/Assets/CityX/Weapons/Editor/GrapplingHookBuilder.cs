@@ -1976,6 +1976,187 @@ namespace CityX.WeaponsEditor
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 
+        /// <summary>
+        /// DIAGNOSTIC, NOT A PERMANENT TOOL -- verifies HangingRagdollDummy
+        /// settles into a real, stable hang under real physics rather than
+        /// exploding on activation, the same "does not explode on its own
+        /// first step" question RagdollPlayTests already asks for the
+        /// death case, checked here for the standalone hanging prop
+        /// instead.
+        /// </summary>
+        [MenuItem("CityX/Diagnose Hanging Ragdoll Dummy")]
+        public static void DiagnoseHangingRagdollDummy()
+        {
+            string outputDirectory = System.IO.Path.Combine(
+                System.IO.Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
+            System.IO.Directory.CreateDirectory(outputDirectory);
+
+            var ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            ground.name = "Ground";
+            ground.transform.position = new Vector3(0.0f, -0.5f, 0.0f);
+            ground.transform.localScale = new Vector3(20.0f, 1.0f, 20.0f);
+            Physics.SyncTransforms();
+
+            RenderTexture target = null;
+            var previousSimMode = Physics.simulationMode;
+            try
+            {
+                GameObject dummyRoot = CityX.CharacterEditor.HangingRagdollDummyBuilder.Build(Vector3.zero, null);
+                if (dummyRoot == null)
+                {
+                    Debug.LogError("CityX DIAGNOSTIC: HangingRagdollDummyBuilder.Build returned null.");
+                    return;
+                }
+
+                HangingRagdollDummy dummy = dummyRoot.GetComponent<HangingRagdollDummy>();
+                Transform bodyTransform = dummyRoot.transform.Find("Dummy");
+                Rigidbody hipBody = dummy.Ragdoll.Torso;
+
+                var startMethod = typeof(HangingRagdollDummy).GetMethod("Start",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                startMethod.Invoke(dummy, null);
+
+                Physics.simulationMode = SimulationMode.Script;
+                float worstHipSpeed = 0.0f;
+                Vector3 startHipPos = hipBody.position;
+
+                var sunObject = new GameObject("Sun");
+                Light sun = sunObject.AddComponent<Light>();
+                sun.type = LightType.Directional;
+                sun.intensity = 1.2f;
+                sun.transform.rotation = Quaternion.Euler(35.0f, 150.0f, 0.0f);
+
+                var cameraObject = new GameObject("Camera");
+                Camera camera = cameraObject.AddComponent<Camera>();
+                camera.clearFlags = CameraClearFlags.SolidColor;
+                camera.backgroundColor = new Color(0.10f, 0.11f, 0.15f);
+                camera.fieldOfView = 55.0f;
+                camera.nearClipPlane = 0.05f;
+                camera.farClipPlane = 500.0f;
+                cameraObject.transform.position = new Vector3(2.5f, 1.8f, -3.0f);
+                cameraObject.transform.LookAt(new Vector3(0.3f, 1.2f, 0.0f));
+                foreach (SkinnedMeshRenderer skin in dummyRoot.GetComponentsInChildren<SkinnedMeshRenderer>())
+                {
+                    skin.updateWhenOffscreen = true;
+                }
+                target = new RenderTexture(800, 800, 24, RenderTextureFormat.ARGB32) { antiAliasing = 8 };
+                camera.targetTexture = target;
+
+                for (int i = 0; i < 180; i++)
+                {
+                    Physics.Simulate(1.0f / 60.0f);
+                    dummy.UpdateRope();
+                    worstHipSpeed = Mathf.Max(worstHipSpeed, hipBody.linearVelocity.magnitude);
+
+                    if (i % 20 == 0)
+                    {
+                        Debug.Log($"CityX DIAGNOSTIC tick={i} hipPos={hipBody.position:F2} " +
+                            $"hipVelocity={hipBody.linearVelocity.magnitude:F2} " +
+                            $"driftFromStart={Vector3.Distance(hipBody.position, startHipPos):F2}");
+                    }
+                }
+
+                camera.Render();
+                RenderTexture.active = target;
+                var image = new Texture2D(800, 800, TextureFormat.RGB24, false);
+                image.ReadPixels(new Rect(0, 0, 800, 800), 0, 0);
+                image.Apply();
+                string path = System.IO.Path.Combine(outputDirectory, "hanging-ragdoll-dummy.png");
+                System.IO.File.WriteAllBytes(path, image.EncodeToPNG());
+                Object.DestroyImmediate(image);
+                Debug.Log($"CityX: wrote {path} -- worstHipSpeed={worstHipSpeed:F2} " +
+                    $"finalHipPos={hipBody.position:F2}");
+            }
+            finally
+            {
+                Physics.simulationMode = previousSimMode;
+                if (target != null) { target.Release(); Object.DestroyImmediate(target); }
+            }
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        /// <summary>
+        /// DIAGNOSTIC, NOT A PERMANENT TOOL -- confirms the hanging ragdoll
+        /// dummy actually landed correctly in the REAL saved scene (not
+        /// just the isolated builder), near the real player's own spawn
+        /// point, after letting real physics settle it for real.
+        /// </summary>
+        [MenuItem("CityX/Diagnose Hanging Dummy In Real Scene")]
+        public static void DiagnoseHangingDummyInRealScene()
+        {
+            Scene scene = EditorSceneManager.OpenScene(
+                "Assets/CityX/Scenes/CityMassing.unity", OpenSceneMode.Single);
+
+            string outputDirectory = System.IO.Path.Combine(
+                System.IO.Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
+            System.IO.Directory.CreateDirectory(outputDirectory);
+
+            RenderTexture target = null;
+            var previousSimMode = Physics.simulationMode;
+            try
+            {
+                GameObject dummyRoot = null;
+                GameObject playerObject = null;
+                foreach (GameObject rootObj in scene.GetRootGameObjects())
+                {
+                    if (rootObj.name == "HangingRagdollDummy") dummyRoot = rootObj;
+                    if (rootObj.name == "Player") playerObject = rootObj;
+                }
+                if (dummyRoot == null)
+                {
+                    Debug.LogError("CityX DIAGNOSTIC: no \"HangingRagdollDummy\" found in the real saved scene.");
+                    return;
+                }
+                Debug.Log($"CityX DIAGNOSTIC: found dummy at {dummyRoot.transform.position:F2}, " +
+                    $"player spawns at {(playerObject != null ? playerObject.transform.position.ToString("F2") : "?")}, " +
+                    $"distance apart={(playerObject != null ? Vector3.Distance(dummyRoot.transform.position, playerObject.transform.position) : -1.0f):F2}");
+
+                var startMethod = typeof(HangingRagdollDummy).GetMethod("Start",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                HangingRagdollDummy dummy = dummyRoot.GetComponent<HangingRagdollDummy>();
+                startMethod.Invoke(dummy, null);
+
+                Physics.simulationMode = SimulationMode.Script;
+                Rigidbody hipBody = dummy.Ragdoll.Torso;
+                for (int i = 0; i < 180; i++)
+                {
+                    Physics.Simulate(1.0f / 60.0f);
+                    dummy.UpdateRope();
+                }
+                Debug.Log($"CityX DIAGNOSTIC: settled hip velocity={hipBody.linearVelocity.magnitude:F2}, " +
+                    $"position={hipBody.position:F2}");
+
+                var cameraObject = new GameObject("Camera");
+                Camera camera = cameraObject.AddComponent<Camera>();
+                camera.fieldOfView = 55.0f;
+                camera.nearClipPlane = 0.05f;
+                camera.farClipPlane = 500.0f;
+                cameraObject.transform.position = dummyRoot.transform.position + new Vector3(-2.5f, 2.2f, -3.0f);
+                cameraObject.transform.LookAt(dummyRoot.transform.position + Vector3.up * 1.3f);
+                foreach (SkinnedMeshRenderer skin in dummyRoot.GetComponentsInChildren<SkinnedMeshRenderer>())
+                {
+                    skin.updateWhenOffscreen = true;
+                }
+                target = new RenderTexture(900, 900, 24, RenderTextureFormat.ARGB32) { antiAliasing = 8 };
+                camera.targetTexture = target;
+                camera.Render();
+                RenderTexture.active = target;
+                var image = new Texture2D(900, 900, TextureFormat.RGB24, false);
+                image.ReadPixels(new Rect(0, 0, 900, 900), 0, 0);
+                image.Apply();
+                string path = System.IO.Path.Combine(outputDirectory, "hanging-dummy-real-scene.png");
+                System.IO.File.WriteAllBytes(path, image.EncodeToPNG());
+                Object.DestroyImmediate(image);
+                Debug.Log($"CityX: wrote {path}");
+            }
+            finally
+            {
+                Physics.simulationMode = previousSimMode;
+                if (target != null) { target.Release(); Object.DestroyImmediate(target); }
+                if (Application.isBatchMode) EditorApplication.Exit(0);
+            }
+        }
+
         private static void PoseArmsDown(Transform root)
         {
             SetLocalRotation(root, "arm_l", new Vector3(0.0f, 0.0f, 78.0f));
