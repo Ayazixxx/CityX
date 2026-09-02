@@ -1796,6 +1796,186 @@ namespace CityX.WeaponsEditor
             }
         }
 
+        /// <summary>
+        /// DIAGNOSTIC, NOT A PERMANENT TOOL -- EXPLICIT BUG REPORT: "just
+        /// imagine the character immediately glitches out... upon opening
+        /// menu and grapple swinging." Every earlier diagnostic tonight
+        /// drove the Animator through many real ticks of a SETTLED
+        /// steady-state clip before freezing it -- none of them ever froze
+        /// within the first few frames after a fresh spawn, which is
+        /// exactly when a Mecanim AnimatorController is still running its
+        /// own ENTRY TRANSITION (default/empty state blending into real
+        /// idle/locomotion), a real, normal-duration blend that a
+        /// consistent "spawn in, immediately open console to gear up"
+        /// habit would reliably catch every single time -- not a rare
+        /// fluke, a habitually-hit window. Freezes at ticks 0 through 20
+        /// after a fresh Instantiate, logging bone rotations at each one,
+        /// to check directly whether an early freeze catches a genuinely
+        /// different (and possibly much worse) pose than a settled one.
+        /// </summary>
+        [MenuItem("CityX/Diagnose Freeze Immediately After Spawn")]
+        public static void DiagnoseFreezeImmediatelyAfterSpawn()
+        {
+            var playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab");
+            if (playerPrefab == null)
+            {
+                Debug.LogError("CityX: need Player.prefab built first.");
+                return;
+            }
+
+            string outputDirectory = System.IO.Path.Combine(
+                System.IO.Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
+            System.IO.Directory.CreateDirectory(outputDirectory);
+
+            // A FRESH INSTANTIATE FOR EVERY SINGLE FREEZE POINT -- each
+            // trial has to be a genuinely fresh spawn (its own Awake/Start,
+            // its own from-scratch AnimatorController state), not the same
+            // instance ticked further and further, or this would just
+            // re-measure "settled pose at different times" all over again.
+            for (int freezeAtTick = 0; freezeAtTick <= 20; freezeAtTick += 2)
+            {
+                var root = new GameObject($"FreezeAfterSpawnRig_{freezeAtTick}");
+                RenderTexture target = null;
+                try
+                {
+                    var sunObject = new GameObject("Sun");
+                    sunObject.transform.SetParent(root.transform);
+                    Light sun = sunObject.AddComponent<Light>();
+                    sun.type = LightType.Directional;
+                    sun.intensity = 1.2f;
+                    sun.transform.rotation = Quaternion.Euler(35.0f, 150.0f, 0.0f);
+
+                    var ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    ground.transform.SetParent(root.transform);
+                    ground.transform.position = new Vector3(0.0f, -0.5f, 0.0f);
+                    ground.transform.localScale = new Vector3(50.0f, 1.0f, 50.0f);
+
+                    var player = (GameObject)PrefabUtility.InstantiatePrefab(playerPrefab);
+                    player.transform.SetParent(root.transform);
+                    player.transform.position = Vector3.zero;
+                    Physics.SyncTransforms();
+
+                    PlayerLocomotion locomotion = player.GetComponent<PlayerLocomotion>();
+                    locomotion.Bind();
+                    Animator animator = player.GetComponentInChildren<Animator>();
+                    Transform rightUpperArm = animator.GetBoneTransform(HumanBodyBones.RightUpperArm);
+                    Transform leftUpperArm = animator.GetBoneTransform(HumanBodyBones.LeftUpperArm);
+                    Transform head = animator.GetBoneTransform(HumanBodyBones.Head);
+
+                    var lateUpdate = typeof(PlayerLocomotion).GetMethod("LateUpdate",
+                        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+                    // STANDING STILL, not walking -- matching "just spawned
+                    // in, immediately opened console" before ever pressing
+                    // a movement key at all.
+                    for (int i = 0; i < freezeAtTick; i++)
+                    {
+                        locomotion.Tick(new LocomotionInput(), 1.0f / 60.0f);
+                        animator.Update(1.0f / 60.0f);
+                        lateUpdate.Invoke(locomotion, null);
+                    }
+
+                    AnimatorStateInfo state = animator.GetCurrentAnimatorStateInfo(0);
+                    bool inTransition = animator.IsInTransition(0);
+
+                    // THE FREEZE ITSELF -- exactly DevConsoleView.Open's own job.
+                    animator.enabled = false;
+                    lateUpdate.Invoke(locomotion, null);
+
+                    Debug.Log($"CityX DIAGNOSTIC freezeAtTick={freezeAtTick} " +
+                        $"animatorState={state.shortNameHash} normalizedTime={state.normalizedTime:F2} " +
+                        $"inTransition={inTransition} " +
+                        $"rightUpperArm={rightUpperArm.localRotation.eulerAngles:F1} " +
+                        $"leftUpperArm={leftUpperArm.localRotation.eulerAngles:F1} " +
+                        $"headPos={head.position:F2}");
+
+                    var cameraObject = new GameObject("Camera");
+                    cameraObject.transform.SetParent(root.transform);
+                    Camera camera = cameraObject.AddComponent<Camera>();
+                    camera.clearFlags = CameraClearFlags.SolidColor;
+                    camera.backgroundColor = new Color(0.10f, 0.11f, 0.15f);
+                    camera.fieldOfView = 50.0f;
+                    camera.nearClipPlane = 0.05f;
+                    camera.farClipPlane = 500.0f;
+                    cameraObject.transform.position = player.transform.position + new Vector3(0.0f, 1.4f, -4.0f);
+                    cameraObject.transform.LookAt(player.transform.position + Vector3.up * 1.0f);
+                    foreach (SkinnedMeshRenderer skin in player.GetComponentsInChildren<SkinnedMeshRenderer>())
+                    {
+                        skin.updateWhenOffscreen = true;
+                    }
+                    target = new RenderTexture(700, 700, 24, RenderTextureFormat.ARGB32) { antiAliasing = 8 };
+                    camera.targetTexture = target;
+                    camera.Render();
+                    RenderTexture.active = target;
+                    var image = new Texture2D(700, 700, TextureFormat.RGB24, false);
+                    image.ReadPixels(new Rect(0, 0, 700, 700), 0, 0);
+                    image.Apply();
+                    string path = System.IO.Path.Combine(outputDirectory, $"freeze-after-spawn-tick{freezeAtTick:D2}.png");
+                    System.IO.File.WriteAllBytes(path, image.EncodeToPNG());
+                    Object.DestroyImmediate(image);
+                }
+                finally
+                {
+                    if (target != null) { target.Release(); Object.DestroyImmediate(target); }
+                    Object.DestroyImmediate(root);
+                }
+            }
+
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        /// <summary>
+        /// DIAGNOSTIC, NOT A PERMANENT TOOL -- verifies the fix for the
+        /// unevaluated-Animator bind-pose glitch directly: fires a rope the
+        /// INSTANT a fresh Player.prefab instance exists (freezeAtTick=0,
+        /// zero real ticks, zero Animator.Update calls before Attach), and
+        /// logs the captured base rotations Attach's own CaptureBase reads
+        /// right after. Before the fix these were a raw all-zero bind
+        /// pose; after it, they should already be a real, sensible idle
+        /// pose.
+        /// </summary>
+        [MenuItem("CityX/Diagnose Attach Immediately After Spawn")]
+        public static void DiagnoseAttachImmediatelyAfterSpawn()
+        {
+            var playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab");
+            if (playerPrefab == null)
+            {
+                Debug.LogError("CityX: need Player.prefab built first.");
+                return;
+            }
+
+            var root = new GameObject("AttachAfterSpawnDiagnosticRig");
+            try
+            {
+                var player = (GameObject)PrefabUtility.InstantiatePrefab(playerPrefab);
+                player.transform.SetParent(root.transform);
+                player.transform.position = new Vector3(0.0f, 20.0f, 0.0f);
+                Physics.SyncTransforms();
+
+                GrappleSwing swing = player.GetComponent<GrappleSwing>();
+                if (swing == null) swing = player.AddComponent<GrappleSwing>();
+                swing.Bind();
+                Animator animator = player.GetComponentInChildren<Animator>();
+                Transform rightUpperArm = animator.GetBoneTransform(HumanBodyBones.RightUpperArm);
+                Transform leftUpperArm = animator.GetBoneTransform(HumanBodyBones.LeftUpperArm);
+
+                // ZERO real ticks, zero Animator.Update calls -- fires
+                // literally the instant the rig exists, exactly the
+                // spawn-in-then-immediately-fire repro.
+                swing.Attach(player.transform.position + new Vector3(3.0f, 6.0f, 2.0f));
+
+                Debug.Log($"CityX DIAGNOSTIC: immediately after Attach on a fresh spawn -- " +
+                    $"rightUpperArm.localRotation={rightUpperArm.localRotation.eulerAngles:F1} " +
+                    $"leftUpperArm.localRotation={leftUpperArm.localRotation.eulerAngles:F1} " +
+                    $"(all-zero would mean the raw bind pose was captured as the swing's own base)");
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
         private static void PoseArmsDown(Transform root)
         {
             SetLocalRotation(root, "arm_l", new Vector3(0.0f, 0.0f, 78.0f));

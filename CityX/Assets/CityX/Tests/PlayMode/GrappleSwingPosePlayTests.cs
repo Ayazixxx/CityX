@@ -71,6 +71,46 @@ namespace CityX.Tests
         }
 
         /// <summary>
+        /// EXPLICIT BUG REPORT: "just imagine the character immediately
+        /// glitches out... upon opening menu and grapple swinging."
+        /// Root-caused directly with a diagnostic across a freshly
+        /// instantiated rig: an Animator that has never actually evaluated
+        /// a single real frame yet sits at the raw imported BIND POSE
+        /// (confirmed: a stark, all-zero-rotation T-pose) and only snaps to
+        /// a real pose on its own first Update. Firing the instant control
+        /// is gained -- spawning in and immediately firing at the nearest
+        /// wall is a completely normal first action, not an edge case --
+        /// disabled the Animator before it ever got that first Update, and
+        /// CaptureBase reads the CURRENT bone rotation as the swing's own
+        /// base to sway and reach relative to, so a T-pose base did not
+        /// just freeze one bad frame, it corrupted the base the entire
+        /// swing's pose built on. Checked here by attaching with ZERO real
+        /// frames elapsed since Instantiate (matching the diagnostic's own
+        /// repro exactly, and the live report of it happening
+        /// "immediately") and confirming the captured base is not the
+        /// all-zero bind pose.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator AttachingTheInstantAfterSpawnDoesNotCaptureTheRawBindPose()
+        {
+            SpawnPlayer();
+            Transform rightUpperArm = _animator.GetBoneTransform(HumanBodyBones.RightUpperArm);
+            Transform leftUpperArm = _animator.GetBoneTransform(HumanBodyBones.LeftUpperArm);
+
+            // NO yield HERE -- zero real frames, zero real Animator
+            // evaluations, matching the exact repro: fire the instant the
+            // rig exists.
+            _swing.Attach(_player.transform.position + new Vector3(3.0f, 6.0f, 2.0f));
+
+            Assert.Greater(
+                Quaternion.Angle(Quaternion.identity, rightUpperArm.localRotation) +
+                Quaternion.Angle(Quaternion.identity, leftUpperArm.localRotation), 1.0f,
+                "the captured base is the raw all-zero bind pose -- the swing's whole pose is now " +
+                "built on a T-pose instead of a real evaluated one");
+            yield break;
+        }
+
+        /// <summary>
         /// EXPLICIT BUG REPORT, confirmed directly by rendering the exact
         /// frame before and after a release: the right arm jumped from
         /// UpdateSwingPose's own ~150 degree reach pose straight to
@@ -367,9 +407,23 @@ namespace CityX.Tests
             // settled one and made this test flaky rather than wrong.
             const int settleFrames = 180;
 
-            rightUpperArm.localRotation = Quaternion.Euler(20.0f, -40.0f, 10.0f);
-            Quaternion baseA = rightUpperArm.localRotation;
+            // TWO GENUINELY DIFFERENT REAL ANIMATOR STATES, not a raw bone
+            // override -- Attach's own forced Animator.Update (see its own
+            // doc comment: a never-yet-evaluated Animator sits at the raw
+            // import bind pose, a real, separately fixed bug) always
+            // re-evaluates the LIVE Animator regardless of a bone's own
+            // current value, including overwriting a manually-set rotation
+            // -- Animator.Update forces evaluation unconditionally, it does
+            // not check `enabled` the way Unity's own automatic per-frame
+            // call does. So the only way to give GrappleSwing two
+            // deliberately different starting poses to capture is to make
+            // the ANIMATOR itself actually be in two different real states;
+            // baseA/baseB are read back AFTER Attach, from whatever it
+            // actually captured, rather than asserted in advance.
+            _animator.Play("Falling", 0, 0.2f);
+            _animator.Update(0.0f);
             _swing.Attach(anchor);
+            Quaternion baseA = rightUpperArm.localRotation;
             for (int i = 0; i < settleFrames; i++)
             {
                 _swing.Tick(Vector2.zero, 0.0f, false, false, false, false, StepSeconds);
@@ -378,9 +432,10 @@ namespace CityX.Tests
             float deltaA = Quaternion.Angle(baseA, rightUpperArm.localRotation);
             _swing.Release(false);
 
-            rightUpperArm.localRotation = Quaternion.Euler(-35.0f, 60.0f, -25.0f);
-            Quaternion baseB = rightUpperArm.localRotation;
+            _animator.Play("Locomotion", 0, 0.6f);
+            _animator.Update(0.0f);
             _swing.Attach(anchor);
+            Quaternion baseB = rightUpperArm.localRotation;
             for (int i = 0; i < settleFrames; i++)
             {
                 _swing.Tick(Vector2.zero, 0.0f, false, false, false, false, StepSeconds);

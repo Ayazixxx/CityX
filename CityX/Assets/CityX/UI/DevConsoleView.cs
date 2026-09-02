@@ -183,7 +183,31 @@ namespace CityX.UI
             // given, since nothing else was ever telling it to stop. Same
             // "freeze the pose, not just the input" fix Ragdoll.Activate
             // already applies for death.
-            if (_playerAnimator != null) _playerAnimator.enabled = false;
+            if (_playerAnimator != null)
+            {
+                // EXPLICIT BUG REPORT, root-caused directly with a
+                // diagnostic across a freshly instantiated rig: an Animator
+                // that has never actually evaluated a single real frame
+                // yet sits at the raw imported BIND POSE -- confirmed
+                // directly, a stark, all-zero-rotation T-pose -- and only
+                // snaps to a real, sensible pose on its own FIRST Update.
+                // Opening the console on that exact window (console-open
+                // is realistically the very first thing pressed after
+                // spawning in, to gear up before playing at all) disables
+                // the Animator before it has ever had that first Update,
+                // freezing the character at the bind pose for as long as
+                // the console stays open -- exactly what "immediately
+                // glitches out" describes, and immediate because there is
+                // no accumulation involved at all, just a component that
+                // was never given its first real frame. A zero-delta
+                // manual Update forces that first evaluation synchronously,
+                // right here, so disabling immediately afterward can never
+                // catch it in this unevaluated state -- same fix, same
+                // reasoning, GrappleSwing.Attach's own doc comment gives
+                // for the identical hazard on the swing's own trigger path.
+                _playerAnimator.Update(0.0f);
+                _playerAnimator.enabled = false;
+            }
         }
 
         public void Close()

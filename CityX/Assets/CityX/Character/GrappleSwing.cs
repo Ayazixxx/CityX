@@ -423,6 +423,25 @@ namespace CityX.Character
             // of its own localScale.
             if (_animator != null)
             {
+                // EXPLICIT BUG REPORT, root-caused directly with a
+                // diagnostic across a freshly instantiated rig: an Animator
+                // that has never actually evaluated a single real frame yet
+                // sits at the raw imported BIND POSE -- confirmed directly,
+                // a stark, all-zero-rotation T-pose -- and only snaps to a
+                // real pose on its own first Update. A rope fired the
+                // instant control is gained (spawning in, immediately
+                // firing at the nearest wall, a completely normal thing to
+                // try first) disables the Animator before it has ever had
+                // that first Update -- and CaptureBase below reads the
+                // CURRENT bone rotation as the swing's own base to sway and
+                // reach relative to, so a T-pose base does not just freeze
+                // one bad frame, it corrupts the base the ENTIRE swing's
+                // pose builds on for as long as the rope stays attached.
+                // Exactly "immediately glitches out... upon... grapple
+                // swinging". A zero-delta manual Update forces that first
+                // evaluation synchronously, right here, so CaptureBase can
+                // never read a bone that has not actually been posed yet.
+                _animator.Update(0.0f);
                 _animator.enabled = false;
             }
             // PlayerLocomotion itself stays enabled and running throughout
