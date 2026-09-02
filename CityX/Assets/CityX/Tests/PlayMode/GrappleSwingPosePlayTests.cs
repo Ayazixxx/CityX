@@ -158,6 +158,121 @@ namespace CityX.Tests
         }
 
         /// <summary>
+        /// EXPLICIT USER REPORT: "why does it do it in the console
+        /// sometimes now... i never saw that happen in console before the
+        /// grapple hook was implemented." DiagnoseConsoleOpenedMidSwing
+        /// already covers the console opening WHILE actively swinging
+        /// (stable) -- this covers a different moment that leaves no other
+        /// coverage: the console opened just AFTER releasing, during
+        /// GrappleSwing's own 0.15s ReleaseBlendSeconds window.
+        ///
+        /// WHY THIS WINDOW IS SUSPECT SPECIFICALLY: BlendBone's own doc
+        /// comment says it reads bone.localRotation itself as the blend's
+        /// moving target, on the assumption the Animator keeps writing a
+        /// fresh pose there every real frame. DevConsoleView.Open disables
+        /// that Animator (never GrappleSwing itself, which it does not
+        /// touch at all) -- once the Animator stops writing, LateUpdate
+        /// (which the console never stops, unlike Tick) keeps slerping a
+        /// bone toward whatever ITS OWN PREVIOUS OUTPUT was, every frame,
+        /// rather than toward a genuinely live pose. This whole mechanism
+        /// is part of the grapple hook feature itself, matching "never saw
+        /// it before the grapple hook was implemented" exactly. Tried at
+        /// several different delays between Release and the console
+        /// opening -- "sometimes" implies this is timing-sensitive, so one
+        /// single delay could get lucky and miss the real failure window.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator OpeningTheConsoleDuringTheReleaseBlendNeverProducesAWildPose()
+        {
+            SpawnPlayer();
+            Transform rightUpperArm = _animator.GetBoneTransform(HumanBodyBones.RightUpperArm);
+            Transform head = _animator.GetBoneTransform(HumanBodyBones.Head);
+            Vector3 anchor = _player.transform.position + new Vector3(3.0f, 6.0f, 2.0f);
+
+            int[] delaysBeforeConsoleOpens = { 0, 1, 2, 3, 5, 8, 12 };
+            foreach (int delay in delaysBeforeConsoleOpens)
+            {
+                _swing.Attach(anchor);
+                // Vector2.zero, matching ReleasingBlendsAwayFromTheReachPoseRatherThanSnapping's
+                // own proven-stable setup -- real movement input here let the
+                // character swing down, land, and go grounded-with-low-speed
+                // well inside AttachGraceSeconds (0.2s), which Tick's own
+                // auto-release check then ended on its own partway through
+                // this loop; the explicit Release below then found
+                // IsActive already false and did nothing at all, so every
+                // trial was silently measuring an already-long-settled pose
+                // instead of the actual release moment.
+                for (int i = 0; i < 90; i++)
+                {
+                    _swing.Tick(Vector2.zero, 0.0f, false, false, false, false, StepSeconds);
+                    yield return null;
+                }
+                Assert.IsTrue(_swing.IsActive, $"delay={delay}: setup failed -- the swing auto-released itself " +
+                    "before the test's own explicit Release, so this trial measured the wrong moment entirely");
+                Quaternion armAtRelease = rightUpperArm.localRotation;
+                _swing.Release(false);
+
+                // A REAL, BIG, CONTINUOUSLY CHANGING WALK-CYCLE POSE for the
+                // blend to chase, not a static falling pose -- EXPLICIT ASK
+                // this is modelling: "gets more distorted the more you
+                // move". Driven directly through Animator.Play + a
+                // zero-delta Update (the same forced-evaluation technique
+                // this whole file already relies on elsewhere), not real
+                // PlayerLocomotion/CharacterController physics -- the
+                // player is still mid-air this soon after a swing, so
+                // physics-driven walking would not actually be grounded yet
+                // within a handful of frames, and what is under test here
+                // is BlendBone's own reaction to a moving target, not
+                // whether the character has landed.
+                for (int i = 0; i < delay; i++)
+                {
+                    float walkT = ((i + 1) * 0.07f) % 1.0f;
+                    _animator.Play("Locomotion", 0, walkT);
+                    _animator.Update(0.0f);
+                    yield return null;
+                }
+                Quaternion armWhenConsoleOpens = rightUpperArm.localRotation;
+
+                // THE CONSOLE OPENING -- DevConsoleView.Open's own exact
+                // effect on the Animator, mid-blend this time rather than
+                // mid-swing. GrappleSwing itself is untouched, so its own
+                // LateUpdate keeps running automatically every real frame
+                // below, exactly like the genuine console does.
+                _animator.enabled = false;
+
+                // Held well past the whole 0.15s blend window (0.5s real
+                // time) -- long enough to see where this actually settles.
+                for (int i = 0; i < 30; i++)
+                {
+                    yield return null;
+                }
+
+                float armDistortion = Quaternion.Angle(armAtRelease, rightUpperArm.localRotation);
+                float armMovementSinceConsoleOpened = Quaternion.Angle(armWhenConsoleOpens, rightUpperArm.localRotation);
+                float headDistortion = Quaternion.Angle(Quaternion.identity, head.localRotation);
+                Debug.Log($"CityX TEST delay={delay}: armDistortionFromReleasePose={armDistortion:F1}deg " +
+                    $"armMovementWhileConsoleHeldOpen={armMovementSinceConsoleOpened:F1}deg " +
+                    $"headFromIdentity={headDistortion:F1}deg animatorEnabled={_animator.enabled}");
+
+                // A GENEROUS SANITY BOUND, not a tight one -- this is the
+                // first real measurement of this specific window, so the
+                // point right now is finding out whether it is bounded at
+                // all, the same spirit DiagnoseConsoleOpenedMidSwing's own
+                // rigOffset check has. Anything past a lazy full 180-degree
+                // swing from the release pose is not "a slightly stale
+                // blend," it is the reported "wildly distorted."
+                Assert.Less(armDistortion, 180.0f,
+                    $"delay={delay}: the arm ended up {armDistortion:0.0} degrees from its own release pose " +
+                    "after the console froze the animator mid-blend -- that is a wild pose, not a stale one");
+
+                // Close the console, exactly like real gameplay before the
+                // next trial's own fresh Attach.
+                _animator.enabled = true;
+                _animator.Update(0.0f);
+            }
+        }
+
+        /// <summary>
         /// The right arm's own job the whole time a rope is attached: ease
         /// toward its fixed reach pose. Checked by ANGLE TO THE TARGET
         /// shrinking over real ticks, not an exact value, since the exact
