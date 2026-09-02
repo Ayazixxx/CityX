@@ -71,6 +71,53 @@ namespace CityX.Tests
         }
 
         /// <summary>
+        /// EXPLICIT BUG REPORT, confirmed directly by rendering the exact
+        /// frame before and after a release: the right arm jumped from
+        /// UpdateSwingPose's own ~150 degree reach pose straight to
+        /// whatever the Animator's live state evaluated to in a single
+        /// frame, with nothing blending between them -- a real, visible
+        /// discontinuity distinct from any of the compounding bugs already
+        /// fixed elsewhere. Checked here by watching the FIRST real frame
+        /// after release actually land close to the pre-release pose
+        /// (not jump the full distance to the animator's own target
+        /// outright) and the arm settling smoothly rather than snapping.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ReleasingBlendsAwayFromTheReachPoseRatherThanSnapping()
+        {
+            SpawnPlayer();
+            Transform rightUpperArm = _animator.GetBoneTransform(HumanBodyBones.RightUpperArm);
+
+            _swing.Attach(_player.transform.position + new Vector3(3.0f, 6.0f, 2.0f));
+            for (int i = 0; i < 90; i++)
+            {
+                _swing.Tick(Vector2.zero, 0.0f, false, false, false, false, StepSeconds);
+                yield return null;
+            }
+            Quaternion reachPose = rightUpperArm.localRotation;
+
+            _swing.Release(false);
+            yield return null;
+
+            float jumpOnFirstFrame = Quaternion.Angle(reachPose, rightUpperArm.localRotation);
+            Assert.Less(jumpOnFirstFrame, 20.0f,
+                $"the arm jumped {jumpOnFirstFrame:0.0} degrees on the very first frame after release -- " +
+                "that is a snap, not a blend");
+
+            // Let the rest of the (short) blend window pass -- the arm
+            // should keep moving toward the animator's own pose rather
+            // than getting stuck at the captured release pose forever.
+            for (int i = 0; i < 30; i++)
+            {
+                yield return null;
+            }
+            float totalDrift = Quaternion.Angle(reachPose, rightUpperArm.localRotation);
+            Assert.Greater(totalDrift, jumpOnFirstFrame,
+                "the arm never kept moving away from the reach pose after the first frame -- " +
+                "the blend is stuck rather than actually easing toward the animator");
+        }
+
+        /// <summary>
         /// The right arm's own job the whole time a rope is attached: ease
         /// toward its fixed reach pose. Checked by ANGLE TO THE TARGET
         /// shrinking over real ticks, not an exact value, since the exact

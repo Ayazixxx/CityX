@@ -149,6 +149,7 @@ namespace CityX.Character
         private PlayerLocomotion _locomotion;
         private IFireballCaster _fireballCaster;
         private Animator _animator;
+        private Ragdoll _ragdoll;
 
         // --- bones the swing pose touches. Head/legs/left-arm flail off
         // --- the swing's own velocity; the right arm eases toward a fixed
@@ -237,6 +238,34 @@ namespace CityX.Character
         private float _elapsedSeconds;
 
         /// <summary>
+        /// EXPLICIT BUG REPORT, confirmed directly by rendering the exact
+        /// frame before and after a release: the right arm jumped from
+        /// UpdateSwingPose's own ~150 degree reach pose straight to
+        /// whatever the Animator's live state evaluated to (a completely
+        /// different rotation) with nothing blending between them --
+        /// Release re-enables the Animator and forces one evaluation, but
+        /// a forced evaluation is still an instant, un-eased pop from
+        /// whatever the swing's own procedural pose just was. Blended over
+        /// a short window instead, the same "layer on top of the live
+        /// pose" idiom UpdateSwingPose's own reach easing already uses,
+        /// just running in the opposite direction (handing weight BACK to
+        /// the Animator instead of taking it away). Short enough to read
+        /// as a quick recovery rather than a lingering puppet effect once
+        /// the player already has full control back.
+        /// </summary>
+        private const float ReleaseBlendSeconds = 0.15f;
+
+        private bool _releaseBlendActive;
+        private float _releaseBlendElapsed;
+        private Quaternion _releaseBlendHead;
+        private Quaternion _releaseBlendLeftUpperArm;
+        private Quaternion _releaseBlendLeftLowerArm;
+        private Quaternion _releaseBlendRightUpperArm;
+        private Quaternion _releaseBlendRightLowerArm;
+        private Quaternion _releaseBlendLeftUpperLeg;
+        private Quaternion _releaseBlendRightUpperLeg;
+
+        /// <summary>
         /// THE ACTUAL BUG behind a live report ("the character stays in
         /// place... the more you move around... the more contorted he
         /// gets"): firing the grapple while standing on the ground -- an
@@ -296,6 +325,7 @@ namespace CityX.Character
             _locomotion = GetComponent<PlayerLocomotion>();
             _fireballCaster = GetComponent<IFireballCaster>();
             _animator = GetComponentInChildren<Animator>();
+            _ragdoll = GetComponent<Ragdoll>();
             if (_locomotion != null)
             {
                 Gravity = _locomotion.Gravity;
@@ -361,6 +391,12 @@ namespace CityX.Character
         /// </summary>
         public void Attach(Vector3 anchor, Vector3? initialVelocity = null)
         {
+            // CANCELLED, NOT LEFT TO FINISH -- a new swing starting takes
+            // full, immediate ownership of these same bones. Left running,
+            // a release blend still mid-transition from the PREVIOUS swing
+            // would fight this one's own CaptureBase/UpdateSwingPose for
+            // control every frame until its own 0.15s ran out.
+            _releaseBlendActive = false;
             _anchor = anchor;
             _ropeLength = Mathf.Clamp(
                 Vector3.Distance(transform.position, anchor), MinRopeLength, MaxRopeLength);
@@ -464,6 +500,22 @@ namespace CityX.Character
             // place to live rather than being duplicated at each call site.
             if (_animator != null)
             {
+                // CAPTURED BEFORE RE-ENABLING -- see ReleaseBlendSeconds'
+                // own doc comment. This is the swing's own last procedural
+                // pose, about to be handed back to the Animator; LateUpdate
+                // eases away from it over the next few frames instead of
+                // letting the very next line's forced evaluation overwrite
+                // it outright.
+                _releaseBlendHead = _headBone != null ? _headBone.localRotation : Quaternion.identity;
+                _releaseBlendLeftUpperArm = _leftUpperArmBone != null ? _leftUpperArmBone.localRotation : Quaternion.identity;
+                _releaseBlendLeftLowerArm = _leftLowerArmBone != null ? _leftLowerArmBone.localRotation : Quaternion.identity;
+                _releaseBlendRightUpperArm = _rightUpperArmBone != null ? _rightUpperArmBone.localRotation : Quaternion.identity;
+                _releaseBlendRightLowerArm = _rightLowerArmBone != null ? _rightLowerArmBone.localRotation : Quaternion.identity;
+                _releaseBlendLeftUpperLeg = _leftUpperLegBone != null ? _leftUpperLegBone.localRotation : Quaternion.identity;
+                _releaseBlendRightUpperLeg = _rightUpperLegBone != null ? _rightUpperLegBone.localRotation : Quaternion.identity;
+                _releaseBlendActive = true;
+                _releaseBlendElapsed = 0.0f;
+
                 _animator.enabled = true;
                 // FORCED SYNCHRONOUSLY, NOT LEFT FOR THE NEXT REAL FRAME --
                 // confirmed live with a repeated-fire diagnostic: a player
@@ -487,6 +539,73 @@ namespace CityX.Character
                 // -- always captures a genuinely fresh pose regardless of
                 // when Unity's own Animator phase would otherwise have run.
                 _animator.Update(0.0f);
+            }
+        }
+
+        /// <summary>
+        /// Eases the just-released pose back to the Animator's own live
+        /// pose over ReleaseBlendSeconds -- see that constant's own doc
+        /// comment for the bug this fixes. Runs every frame regardless of
+        /// IsActive, unlike Tick (PlayerInputReader stops calling Tick the
+        /// instant IsActive goes false, but Unity keeps calling a plain
+        /// MonoBehaviour LateUpdate on its own).
+        ///
+        /// BAILS OUT IMMEDIATELY IF THE RAGDOLL HAS TAKEN OVER THESE SAME
+        /// BONES -- Ragdoll.Activate calls Release(false) on an active
+        /// swing before making every body non-kinematic; writing
+        /// bone.localRotation from here on the very next frame would fight
+        /// PhysX for a Transform it no longer owns, the same "script versus
+        /// physics" conflict this project's own ragdoll history already
+        /// spent a great deal of effort avoiding elsewhere.
+        /// </summary>
+        private void LateUpdate()
+        {
+            if (!_releaseBlendActive)
+            {
+                return;
+            }
+            if (_ragdoll != null && _ragdoll.IsLimp)
+            {
+                _releaseBlendActive = false;
+                return;
+            }
+
+            _releaseBlendElapsed += Time.deltaTime;
+            float t = ReleaseBlendSeconds > 0.0f
+                ? Mathf.Clamp01(_releaseBlendElapsed / ReleaseBlendSeconds)
+                : 1.0f;
+
+            BlendBone(_headBone, _releaseBlendHead, t);
+            BlendBone(_leftUpperArmBone, _releaseBlendLeftUpperArm, t);
+            BlendBone(_leftLowerArmBone, _releaseBlendLeftLowerArm, t);
+            BlendBone(_rightUpperArmBone, _releaseBlendRightUpperArm, t);
+            BlendBone(_rightLowerArmBone, _releaseBlendRightLowerArm, t);
+            BlendBone(_leftUpperLegBone, _releaseBlendLeftUpperLeg, t);
+            BlendBone(_rightUpperLegBone, _releaseBlendRightUpperLeg, t);
+
+            if (t >= 1.0f)
+            {
+                _releaseBlendActive = false;
+            }
+        }
+
+        /// <summary>
+        /// READS THE BONE'S OWN CURRENT VALUE AS THE BLEND TARGET, not a
+        /// second captured field -- by the time this runs (LateUpdate,
+        /// after the Animator's own evaluation for this same frame), the
+        /// Animator has already written its live pose here, the same
+        /// "Animator runs between Update and LateUpdate" ordering
+        /// PlayerLocomotion.ApplyCastingPose's own doc comment already
+        /// relies on. Slerping from the captured release pose toward
+        /// THAT, every frame, is what makes this track a moving target
+        /// (a walk cycle's own arm swing, in particular) instead of
+        /// easing toward one single frozen snapshot of it.
+        /// </summary>
+        private static void BlendBone(Transform bone, Quaternion from, float t)
+        {
+            if (bone != null)
+            {
+                bone.localRotation = Quaternion.Slerp(from, bone.localRotation, t);
             }
         }
 

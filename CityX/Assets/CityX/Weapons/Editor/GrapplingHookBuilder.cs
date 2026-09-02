@@ -940,6 +940,7 @@ namespace CityX.WeaponsEditor
 
                 Transform rightUpperArm = animator.GetBoneTransform(HumanBodyBones.RightUpperArm);
                 Transform leftUpperArm = animator.GetBoneTransform(HumanBodyBones.LeftUpperArm);
+                Quaternion beforeRotation = rightUpperArm.localRotation;
                 Debug.Log($"CityX DIAGNOSTIC BEFORE: rightUpperArm={rightUpperArm.localRotation.eulerAngles:F1} " +
                     $"leftUpperArm={leftUpperArm.localRotation.eulerAngles:F1} animatorEnabled={animator.enabled}");
                 RenderTo("release-snap-before.png");
@@ -947,9 +948,27 @@ namespace CityX.WeaponsEditor
                 swing.Release(false);
                 player.GetComponent<CharacterController>().Move(swing.LastReleaseVelocity * (1.0f / 60.0f));
 
-                Debug.Log($"CityX DIAGNOSTIC AFTER: rightUpperArm={rightUpperArm.localRotation.eulerAngles:F1} " +
-                    $"leftUpperArm={leftUpperArm.localRotation.eulerAngles:F1} animatorEnabled={animator.enabled}");
+                Debug.Log($"CityX DIAGNOSTIC RIGHT AFTER RELEASE (frame 0 of blend): " +
+                    $"rightUpperArm={rightUpperArm.localRotation.eulerAngles:F1} " +
+                    $"jumpFromBefore={Quaternion.Angle(beforeRotation, rightUpperArm.localRotation):F1}deg " +
+                    $"animatorEnabled={animator.enabled}");
                 RenderTo("release-snap-after.png");
+
+                // Step the blend forward by hand -- LateUpdate never runs
+                // outside Play Mode, same reasoning every other bone-posing
+                // class in this project already documents its own public
+                // Tick/Update wrapper for.
+                var lateUpdate = typeof(GrappleSwing).GetMethod("LateUpdate",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                Quaternion previous = rightUpperArm.localRotation;
+                for (int i = 0; i < 12; i++)
+                {
+                    lateUpdate.Invoke(swing, null);
+                    float step = Quaternion.Angle(previous, rightUpperArm.localRotation);
+                    Debug.Log($"CityX DIAGNOSTIC blend frame={i} rightUpperArm={rightUpperArm.localRotation.eulerAngles:F1} stepDelta={step:F2}deg");
+                    previous = rightUpperArm.localRotation;
+                }
+                RenderTo("release-snap-blended.png");
             }
             finally
             {
