@@ -192,15 +192,6 @@ namespace CityX.ViewEditor
                 // the scale screenshots.
                 AddSparringDummies(groundHeight, structure);
 
-                // A real, permanently-limp ragdoll hanging from a rope tied
-                // to its own hand, near spawn -- see HangingRagdollDummy's
-                // own class doc comment for why this exists as a live
-                // reference. Offset the OPPOSITE way from the sparring
-                // dummies (-Z, not +Z) so the two do not overlap.
-                CityX.CharacterEditor.HangingRagdollDummyBuilder.Build(
-                    new Vector3(CityLayout.ChunkSize * 0.5f - 3.0f, groundHeight, CityLayout.ChunkSize * 0.5f - 5.0f),
-                    null);
-
                 // --- /claim. Reuses PlayerAudio.CurrentBuilding for "which
                 // --- building is this," and orbits the same single camera
                 // --- FlyCamera/ThirdPersonCamera already share -- see
@@ -476,6 +467,31 @@ namespace CityX.ViewEditor
             breaker.BreakSounds = new[] { LoadClip("glass_break") };
             breaker.ShardPrefab = shards;
             streamer.Viewer = cameraObject.transform;
+
+            // A real, permanently-limp ragdoll hanging from a rope tied to
+            // its own hand, near spawn -- see HangingRagdollDummy's own
+            // class doc comment for why this exists as a live reference.
+            // MUST HAPPEN HERE, AFTER THE STREAMER EXISTS, NOT UP WHERE
+            // THE PLAYER WAS BUILT -- confirmed directly, live: the saved
+            // scene never contains real building geometry at all (see
+            // CityStreamer's own class doc -- chunks are built lazily at
+            // runtime, on purpose, and nothing bakes them into this file),
+            // so a wall search run any earlier finds zero colliders to hit
+            // no matter how wide its own search parameters are. Streaming
+            // real chunks in just long enough to find a real wall, then
+            // rolling the streamer back to empty with Rebuild(), keeps the
+            // SAVED scene starting exactly as empty as every other one
+            // this builder produces -- the dummy itself is parented at the
+            // scene root, not under any streamed chunk, so it survives
+            // that rollback untouched.
+            Vector3 spawnPosition = new Vector3(
+                CityLayout.ChunkSize * 0.5f, groundHeight, CityLayout.ChunkSize * 0.5f);
+            streamer.StreamAround(spawnPosition, 200);
+            Physics.SyncTransforms();
+            CityX.CharacterEditor.HangingRagdollDummyBuilder.Build(
+                new Vector3(CityLayout.ChunkSize * 0.5f - 3.0f, groundHeight, CityLayout.ChunkSize * 0.5f - 5.0f),
+                null);
+            streamer.Rebuild();
 
             // --- the map. M opens it; it guards itself against opening on
             // --- top of the console or while the game is paused.

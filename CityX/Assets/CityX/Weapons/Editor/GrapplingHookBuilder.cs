@@ -1,6 +1,7 @@
 using CityX.Character;
 using CityX.CharacterEditor;
 using CityX.Items;
+using CityX.View;
 using CityX.Wearables;
 using CityX.Weapons;
 using UnityEditor;
@@ -1995,6 +1996,21 @@ namespace CityX.WeaponsEditor
             ground.name = "Ground";
             ground.transform.position = new Vector3(0.0f, -0.5f, 0.0f);
             ground.transform.localScale = new Vector3(20.0f, 1.0f, 20.0f);
+
+            // A SYNTHETIC "BUILDING" for the builder's own wall-facade
+            // search to find -- HangingRagdollDummyBuilder now anchors on a
+            // real WALL near its own spawn-position argument (a horizontal
+            // raycast, the same shape GrapplingHookItem.FindAnchor already
+            // uses) rather than a fixed pole or a rooftop centre, so a bare
+            // flat ground plane (this diagnostic's own original setup)
+            // gives it nothing to find at all. Placed directly along +X so
+            // the search's own 90-degree ring angle hits its near face
+            // cleanly, with the whole standoff hang position (StandoffFromWall
+            // out along -X) landing well clear of the building's own footprint.
+            var building = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            building.name = "Building";
+            building.transform.position = new Vector3(10.0f, 7.5f, 0.0f);
+            building.transform.localScale = new Vector3(8.0f, 15.0f, 8.0f);
             Physics.SyncTransforms();
 
             RenderTexture target = null;
@@ -2033,8 +2049,18 @@ namespace CityX.WeaponsEditor
                 camera.fieldOfView = 55.0f;
                 camera.nearClipPlane = 0.05f;
                 camera.farClipPlane = 500.0f;
-                cameraObject.transform.position = new Vector3(2.5f, 1.8f, -3.0f);
-                cameraObject.transform.LookAt(new Vector3(0.3f, 1.2f, 0.0f));
+                // Framed dynamically off the dummy's own root position, not
+                // a hardcoded point -- that root is now wherever the real
+                // wall search actually landed, not a fixed 0.3/1.2 spot a
+                // short pole always sat at. Pulled back along -X/+Z (out
+                // into the open street, away from the building's own
+                // footprint at x=[6,14]) -- an offset that leant INTO the
+                // building's own x range put the camera embedded in solid
+                // geometry, rendering nothing but a flat inside-the-mesh
+                // grey.
+                Vector3 dummyPos = dummyRoot.transform.position;
+                cameraObject.transform.position = dummyPos + new Vector3(-5.0f, 2.5f, 4.5f);
+                cameraObject.transform.LookAt(dummyPos + Vector3.up * 1.0f);
                 foreach (SkinnedMeshRenderer skin in dummyRoot.GetComponentsInChildren<SkinnedMeshRenderer>())
                 {
                     skin.updateWhenOffscreen = true;
@@ -2111,6 +2137,21 @@ namespace CityX.WeaponsEditor
                     $"player spawns at {(playerObject != null ? playerObject.transform.position.ToString("F2") : "?")}, " +
                     $"distance apart={(playerObject != null ? Vector3.Distance(dummyRoot.transform.position, playerObject.transform.position) : -1.0f):F2}");
 
+                // The saved scene deliberately carries NO building geometry
+                // (see CityStreamer's own class doc / CityMassingSceneBuilder's
+                // own comment where it streams-then-rolls-back around the
+                // dummy's own build step) -- so without this, the wall the
+                // dummy is actually hanging next to simply is not there yet,
+                // and the render below shows the dummy floating over an empty
+                // black street. Stream the real chunk back in, same as
+                // gameplay would the moment the player got this close.
+                CityStreamer streamer = Object.FindFirstObjectByType<CityStreamer>();
+                if (streamer != null)
+                {
+                    streamer.StreamAround(dummyRoot.transform.position, 200);
+                    Physics.SyncTransforms();
+                }
+
                 var startMethod = typeof(HangingRagdollDummy).GetMethod("Start",
                     System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
                 HangingRagdollDummy dummy = dummyRoot.GetComponent<HangingRagdollDummy>();
@@ -2131,7 +2172,20 @@ namespace CityX.WeaponsEditor
                 camera.fieldOfView = 55.0f;
                 camera.nearClipPlane = 0.05f;
                 camera.farClipPlane = 500.0f;
-                cameraObject.transform.position = dummyRoot.transform.position + new Vector3(-2.5f, 2.2f, -3.0f);
+                // Pulled back along the SAME outward direction the builder
+                // itself hung the dummy on (anchor -> body, flattened to
+                // horizontal), not a fixed offset -- a fixed (-2.5,2.2,-3.0)
+                // only happened to face the right way for the synthetic
+                // diagnostic's own fixed building placement; against a real
+                // wall at an arbitrary angle it just as often points the
+                // camera back INTO the facade instead of out into the open
+                // street the dummy is actually hanging in.
+                Vector3 outward = dummyRoot.transform.position - dummy.AnchorPoint.position;
+                outward.y = 0.0f;
+                outward = outward.sqrMagnitude > 0.01f ? outward.normalized : Vector3.back;
+                Vector3 side = Vector3.Cross(Vector3.up, outward);
+                cameraObject.transform.position = dummyRoot.transform.position
+                    + outward * 6.0f + side * 4.0f + Vector3.up * 2.0f;
                 cameraObject.transform.LookAt(dummyRoot.transform.position + Vector3.up * 1.3f);
                 foreach (SkinnedMeshRenderer skin in dummyRoot.GetComponentsInChildren<SkinnedMeshRenderer>())
                 {
