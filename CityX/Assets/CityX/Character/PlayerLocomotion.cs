@@ -409,42 +409,41 @@ namespace CityX.Character
         /// body's hips and spine stay free for physics to actually throw
         /// around.
         ///
-        /// GATED ON THE ANIMATOR ITSELF BEING ENABLED, not on any one
-        /// caller remembering to suspend any one piece of this. TWO
-        /// SEPARATE REAL BUGS were found living in this exact method
-        /// (ClampFeetAboveGround's own doc comment; ApplyCastingPose's
-        /// own doc comment) with the identical root shape: something here
-        /// reads a bone's CURRENT value and recomputes/re-layers onto it
-        /// every frame, which is only ever safe because the Animator
-        /// overwrites that same bone with a clean pose earlier in the very
-        /// same frame, every frame, while it is enabled. Both were fixed
-        /// with their own point patch (a suspend flag; a captured base),
-        /// and BOTH bugs still reached the user live after those patches
-        /// shipped -- proof that patching each symptom as it is found does
-        /// not close off the category, because anything else touching a
-        /// bone here has the exact same latent failure mode the instant
-        /// something ELSE disables the Animator for consecutive frames
-        /// (dev console, a swing, a ragdoll, a future feature nobody has
-        /// written yet). A live Animator is what makes every correction in
-        /// this method well-defined in the first place -- without one
-        /// refreshing the pose, "clamp the feet to the ground" and "hold
-        /// hips at identity" and "raise the cast arm off its current
-        /// rotation" are not stale, they are MEANINGLESS, since there is no
-        /// live pose left to correct. So the method now does nothing at
-        /// all whenever the Animator is not actively evaluating -- not
-        /// "nothing new", NOTHING -- which makes the frozen skeleton
-        /// literally a rigid, un-touched shape for exactly as long as it
-        /// stays frozen, the same guarantee a plain non-deformable prop
-        /// has, rather than one more bone-touching method for the next
-        /// frozen-Animator caller to remember to guard against.
+        /// THE HIPS/SPINE IDENTITY LOCK STAYS UNCONDITIONAL -- a plain
+        /// absolute assignment (= identity) every frame, never a read of
+        /// the bone's own current value, so it cannot compound and was
+        /// never the failure mode described below. It is also load-bearing
+        /// WHILE FROZEN, by original design (see GrappleSwing.Attach's own
+        /// comment: "PlayerLocomotion itself stays enabled... it owns
+        /// feet-clamp/hips-freeze even then") -- a mid-stride clip's own
+        /// hips retargeting wiggle is exactly what this exists to hold
+        /// still, and that wiggle does not stop needing to be held still
+        /// just because the Animator stopped refreshing it. AN EARLIER
+        /// VERSION OF THIS METHOD GATED THE WHOLE BODY, THIS INCLUDED, ON
+        /// the Animator being enabled -- confirmed live as a real
+        /// regression: it silently let hips/spine sit at whatever
+        /// off-identity wiggle the last live frame happened to leave them
+        /// at for the WHOLE of a swing or console freeze, instead of
+        /// locked flat, which is a real, if subtle, source of exactly the
+        /// "distorted" look reported live.
+        ///
+        /// EVERYTHING ELSE HERE STAYS GATED ON THE ANIMATOR ITSELF BEING
+        /// ENABLED, not on any one caller remembering to suspend any one
+        /// piece of it. TWO SEPARATE REAL BUGS were found living in this
+        /// exact method (ClampFeetAboveGround's own doc comment;
+        /// ApplyCastingPose's own doc comment) with the identical root
+        /// shape: something here reads a bone's CURRENT value and
+        /// recomputes/re-layers onto it every frame, which is only ever
+        /// safe because the Animator overwrites that same bone with a
+        /// clean pose earlier in the very same frame, every frame, while
+        /// it is enabled. A live Animator is what makes THOSE corrections
+        /// well-defined in the first place -- without one refreshing the
+        /// pose, "clamp the feet to the ground" and "raise the cast arm
+        /// off its current rotation" are not stale, they are MEANINGLESS,
+        /// since there is no live pose left to correct.
         /// </summary>
         private void LateUpdate()
         {
-            if (_animator == null || !_animator.enabled)
-            {
-                return;
-            }
-
             if (!InCarSeat)
             {
                 if (_hips != null)
@@ -455,6 +454,15 @@ namespace CityX.Character
                 {
                     _spine.localRotation = Quaternion.identity;
                 }
+            }
+
+            if (_animator == null || !_animator.enabled)
+            {
+                return;
+            }
+
+            if (!InCarSeat)
+            {
                 ClampFeetAboveGround();
             }
             ApplyDrivingWheelPose();
