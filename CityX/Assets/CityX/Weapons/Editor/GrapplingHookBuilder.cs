@@ -1,6 +1,7 @@
 using CityX.Character;
 using CityX.CharacterEditor;
 using CityX.Items;
+using CityX.UI;
 using CityX.View;
 using CityX.Wearables;
 using CityX.Weapons;
@@ -2209,6 +2210,55 @@ namespace CityX.WeaponsEditor
                 if (target != null) { target.Release(); Object.DestroyImmediate(target); }
                 if (Application.isBatchMode) EditorApplication.Exit(0);
             }
+        }
+
+        /// <summary>
+        /// DIAGNOSTIC, NOT A PERMANENT TOOL -- confirms PlayerChat's own
+        /// Ragdoll field actually points at the PLAYER's own Ragdoll, not
+        /// some other Civilian-based body in the scene.
+        ///
+        /// EXPLICIT BUG REPORT this exists for: "/sleep isnt working" --
+        /// root-caused directly: the scene ends up with SEVERAL Ragdoll
+        /// components (the sparring dummies and the hanging dummy are
+        /// Civilian.prefab-based too, each carrying its own), and the
+        /// original wiring used Object.FindFirstObjectByType&lt;Ragdoll&gt;()
+        /// AFTER all of them already existed in the scene -- genuinely
+        /// ambiguous about which one it would find, and it found some NPC's,
+        /// not the player's. Fixed by capturing the player's own Ragdoll
+        /// directly off the player GameObject at the moment it's built,
+        /// before any other Ragdoll exists to be confused with it.
+        /// </summary>
+        [MenuItem("CityX/Diagnose Sleep Command")]
+        public static void DiagnoseSleepCommand()
+        {
+            Scene scene = EditorSceneManager.OpenScene(
+                "Assets/CityX/Scenes/CityMassing.unity", OpenSceneMode.Single);
+
+            GameObject playerObject = null;
+            PlayerChat chat = null;
+            foreach (GameObject rootObj in scene.GetRootGameObjects())
+            {
+                if (rootObj.name == "Player") playerObject = rootObj;
+                if (chat == null) chat = rootObj.GetComponentInChildren<PlayerChat>(true);
+            }
+
+            if (playerObject == null || chat == null)
+            {
+                Debug.LogError($"CityX DIAGNOSTIC: playerObject={playerObject}, chat={chat} -- can't verify.");
+                if (Application.isBatchMode) EditorApplication.Exit(1);
+                return;
+            }
+
+            Ragdoll playerRagdoll = playerObject.GetComponent<Ragdoll>();
+            bool wiredCorrectly = chat.Ragdoll == playerRagdoll;
+            Debug.Log($"CityX DIAGNOSTIC: chat.Ragdoll == player's own Ragdoll? {wiredCorrectly} " +
+                $"(chat.Ragdoll={chat.Ragdoll}, player's={playerRagdoll})");
+
+            chat.Ragdoll.Bind();
+            chat.Submit("/sleep");
+            Debug.Log($"CityX DIAGNOSTIC: after /sleep, PLAYER's own Ragdoll.IsLimp={playerRagdoll.IsLimp}");
+
+            if (Application.isBatchMode) EditorApplication.Exit(wiredCorrectly && playerRagdoll.IsLimp ? 0 : 1);
         }
 
         private static void PoseArmsDown(Transform root)

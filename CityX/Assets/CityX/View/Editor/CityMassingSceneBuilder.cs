@@ -135,6 +135,16 @@ namespace CityX.ViewEditor
             // Chunk (0,0) is a street on both axes, so this is a road junction
             // with buildings on every side -- the view worth opening on.
             float groundHeight = terrain.PadHeightFor(0, 0);
+            // Captured here, not looked up later with FindFirstObjectByType --
+            // the scene ends up with SEVERAL Ragdoll components (the sparring
+            // dummies and the hanging dummy are Civilian.prefab-based too, and
+            // each carries its own), so a type-only lookup after they all
+            // exist is genuinely ambiguous about which one it finds. EXPLICIT
+            // BUG REPORT this caused: "/sleep" wired to whichever Ragdoll
+            // FindFirstObjectByType happened to return first -- some NPC
+            // somewhere, never the player -- so typing it visibly did nothing
+            // to the character actually being watched.
+            Ragdoll playerRagdoll = null;
             cameraObject.transform.position = new Vector3(
                 CityLayout.ChunkSize * 0.5f, groundHeight + 1.7f, CityLayout.ChunkSize * 0.5f);
             cameraObject.transform.rotation = Quaternion.Euler(4.0f, 35.0f, 0.0f);
@@ -167,6 +177,7 @@ namespace CityX.ViewEditor
                 // rather than starting intersecting it.
                 player.transform.position = new Vector3(
                     CityLayout.ChunkSize * 0.5f, groundHeight + 0.5f, CityLayout.ChunkSize * 0.5f);
+                playerRagdoll = player.GetComponent<Ragdoll>();
 
                 cameraObject.GetComponent<FlyCamera>().enabled = false;
                 var follow = cameraObject.AddComponent<ThirdPersonCamera>();
@@ -541,7 +552,7 @@ namespace CityX.ViewEditor
                     pause,
                     map,
                     inventoryView,
-                    Object.FindFirstObjectByType<CityX.Character.Ragdoll>());
+                    playerRagdoll);
                 pause.Chat = chat;
                 if (map != null) map.Chat = chat;
                 if (inventoryView != null) inventoryView.Chat = chat;
