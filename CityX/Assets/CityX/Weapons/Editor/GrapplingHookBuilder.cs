@@ -4,7 +4,9 @@ using CityX.Items;
 using CityX.Wearables;
 using CityX.Weapons;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace CityX.WeaponsEditor
 {
@@ -1447,6 +1449,351 @@ namespace CityX.WeaponsEditor
                 Object.DestroyImmediate(root);
             }
             if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        /// <summary>
+        /// DIAGNOSTIC, NOT A PERMANENT TOOL -- EXPLICIT BUG REPORT, the most
+        /// specific one yet: "gets more distorted the more you move... gets
+        /// LESS distorted if you move back to original position while
+        /// grapple rope is still attached... as soon as grapple rope is
+        /// detached... the character goes back to normal." That is a
+        /// REVERSIBLE, DISTANCE-DEPENDENT signature -- not a one-way
+        /// compounding bug (which cannot un-happen by moving back) and not
+        /// a frozen-bad-pose bug (which would not care about position at
+        /// all). Something scales with how far the player has travelled
+        /// from wherever the swing/freeze began, in both directions. Fully
+        /// instrumented: swings OUT for half the run, then
+        /// explicitly steers back toward the start for the other half,
+        /// logging distance-from-start ALONGSIDE every candidate metric
+        /// (visual rig offset, camera-to-pivot distance, right arm
+        /// rotation, sway angles, raw velocity) every single tick, so
+        /// whichever one actually tracks distance-from-start shows up
+        /// directly in the correlation rather than needing to be guessed.
+        /// </summary>
+        [MenuItem("CityX/Diagnose Distance Based Distortion")]
+        public static void DiagnoseDistanceBasedDistortion()
+        {
+            var playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab");
+            if (playerPrefab == null)
+            {
+                Debug.LogError("CityX: need Player.prefab built first.");
+                return;
+            }
+
+            var root = new GameObject("DistanceDistortionDiagnosticRig");
+            try
+            {
+                var sunObject = new GameObject("Sun");
+                sunObject.transform.SetParent(root.transform);
+                Light sun = sunObject.AddComponent<Light>();
+                sun.type = LightType.Directional;
+                sun.intensity = 1.2f;
+                sun.transform.rotation = Quaternion.Euler(35.0f, 150.0f, 0.0f);
+
+                // A real wall FAR ENOUGH AWAY for a genuinely long rope --
+                // a first pass of this diagnostic anchored only 2.66m away,
+                // which let the player travel almost nowhere before
+                // settling at the rope's own taut limit right next to the
+                // wall, nothing like a real swing's actual tens-of-metres
+                // arc. 20m gives real room to swing out and back.
+                var wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                wall.transform.SetParent(root.transform);
+                wall.transform.position = new Vector3(20.0f, 24.0f, 0.0f);
+                wall.transform.localScale = new Vector3(0.5f, 30.0f, 30.0f);
+
+                var player = (GameObject)PrefabUtility.InstantiatePrefab(playerPrefab);
+                player.transform.SetParent(root.transform);
+                player.transform.position = new Vector3(0.0f, 20.0f, 0.0f);
+                Physics.SyncTransforms();
+                Vector3 startPosition = player.transform.position;
+
+                GrappleSwing swing = player.GetComponent<GrappleSwing>();
+                if (swing == null) swing = player.AddComponent<GrappleSwing>();
+
+                var cameraObject = new GameObject("Camera");
+                Camera camera = cameraObject.AddComponent<Camera>();
+                ThirdPersonCamera orbitCamera = cameraObject.AddComponent<ThirdPersonCamera>();
+                orbitCamera.Target = player.transform;
+                swing.OrbitCamera = orbitCamera;
+                swing.Bind();
+
+                Animator animator = player.GetComponentInChildren<Animator>();
+                Transform rightUpperArm = animator.GetBoneTransform(HumanBodyBones.RightUpperArm);
+                Transform head = animator.GetBoneTransform(HumanBodyBones.Head);
+
+                var cameraLateUpdate = typeof(ThirdPersonCamera).GetMethod("LateUpdate",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+                Vector3 anchor = new Vector3(19.75f, 22.0f, 0.0f);
+                swing.Attach(anchor);
+                cameraLateUpdate.Invoke(orbitCamera, null);
+
+                // OUT for 300 ticks (push consistently away from the wall
+                // and sideways -- a real player swinging further and
+                // further from where they started), then BACK for 300
+                // ticks (push consistently the OPPOSITE way, steering
+                // toward the start position) -- exactly the reported
+                // repro shape, not a smooth sine sweep. Yaw held fixed
+                // within each half so "push" stays a consistent world
+                // direction throughout that half, rather than sweeping
+                // through arbitrary directions the way earlier diagnostics
+                // deliberately did to maximise chaos -- this one needs
+                // controlled, monotonic outbound-then-inbound travel.
+                for (int i = 0; i < 600; i++)
+                {
+                    bool outbound = i < 300;
+                    Vector2 move = outbound ? new Vector2(-1.0f, -1.0f) : new Vector2(1.0f, 1.0f);
+                    float yaw = 0.0f;
+                    swing.Tick(move, yaw, false, false, false, false, 1.0f / 60.0f);
+                    if (!swing.IsActive)
+                    {
+                        break;
+                    }
+                    cameraLateUpdate.Invoke(orbitCamera, null);
+
+                    if (i % 20 == 0)
+                    {
+                        float distanceFromStart = Vector3.Distance(player.transform.position, startPosition);
+                        float rigOffset = animator.transform.localPosition.magnitude;
+                        float cameraDistance = Vector3.Distance(cameraObject.transform.position, head.position);
+                        Debug.Log($"CityX DIAGNOSTIC {(outbound ? "OUT" : "BACK")} tick={i} " +
+                            $"distanceFromStart={distanceFromStart:F2} rigOffset={rigOffset:F3} " +
+                            $"cameraToHead={cameraDistance:F2} cameraDistanceField={orbitCamera.Distance:F2} " +
+                            $"velocity={swing.Velocity.magnitude:F2} " +
+                            $"rightUpperArm={rightUpperArm.localRotation.eulerAngles:F1} " +
+                            $"headLocalRot={head.localRotation.eulerAngles:F1} " +
+                            $"playerPos={player.transform.position:F2}");
+                    }
+                }
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        /// <summary>
+        /// DIAGNOSTIC, NOT A PERMANENT TOOL -- every earlier diagnostic
+        /// tonight tested "swinging" and "console open" as two SEPARATE
+        /// scenarios, and both came back stable in isolation. Re-reading
+        /// the user's own exact report closely: "it does the same glitch
+        /// when console is open then goes back" could equally describe
+        /// opening the console WHILE ALREADY MID-SWING (the console-open
+        /// itself, not a separate standing-still repro), with "the more
+        /// you move" describing how far into the swing's own arc it was
+        /// opened at -- a genuinely different, never-yet-tested combined
+        /// scenario, since GrappleSwing itself is never disabled by
+        /// DevConsoleView (only InputReader/OrbitCamera/the Animator are),
+        /// so GrappleSwing's own LateUpdate (including the new release
+        /// blend) keeps running throughout. Fires a real swing, lets it
+        /// run out to a real distance, freezes it exactly like opening the
+        /// console would (disable InputReader/Animator, leave GrappleSwing
+        /// itself alone), holds the freeze for a while, then unfreezes --
+        /// logging every candidate metric through the whole sequence.
+        /// </summary>
+        [MenuItem("CityX/Diagnose Console Opened Mid Swing")]
+        public static void DiagnoseConsoleOpenedMidSwing()
+        {
+            var playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab");
+            if (playerPrefab == null)
+            {
+                Debug.LogError("CityX: need Player.prefab built first.");
+                return;
+            }
+
+            var root = new GameObject("ConsoleMidSwingDiagnosticRig");
+            try
+            {
+                var sunObject = new GameObject("Sun");
+                sunObject.transform.SetParent(root.transform);
+                Light sun = sunObject.AddComponent<Light>();
+                sun.type = LightType.Directional;
+                sun.intensity = 1.2f;
+                sun.transform.rotation = Quaternion.Euler(35.0f, 150.0f, 0.0f);
+
+                var wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                wall.transform.SetParent(root.transform);
+                wall.transform.position = new Vector3(20.0f, 24.0f, 0.0f);
+                wall.transform.localScale = new Vector3(0.5f, 30.0f, 30.0f);
+
+                var player = (GameObject)PrefabUtility.InstantiatePrefab(playerPrefab);
+                player.transform.SetParent(root.transform);
+                player.transform.position = new Vector3(0.0f, 20.0f, 0.0f);
+                Physics.SyncTransforms();
+
+                GrappleSwing swing = player.GetComponent<GrappleSwing>();
+                if (swing == null) swing = player.AddComponent<GrappleSwing>();
+                swing.Bind();
+                Animator animator = player.GetComponentInChildren<Animator>();
+                Transform rightUpperArm = animator.GetBoneTransform(HumanBodyBones.RightUpperArm);
+                Transform head = animator.GetBoneTransform(HumanBodyBones.Head);
+
+                var lateUpdateMethod = typeof(GrappleSwing).GetMethod("LateUpdate",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+                Vector3 anchor = new Vector3(19.75f, 22.0f, 0.0f);
+                swing.Attach(anchor);
+
+                void LogState(string phase, int tick)
+                {
+                    Debug.Log($"CityX DIAGNOSTIC {phase} tick={tick} " +
+                        $"animatorEnabled={animator.enabled} swingActive={swing.IsActive} " +
+                        $"rigOffset={animator.transform.localPosition.magnitude:F3} " +
+                        $"playerPos={player.transform.position:F2} velocity={swing.Velocity.magnitude:F2} " +
+                        $"rightUpperArm={rightUpperArm.localRotation.eulerAngles:F1} " +
+                        $"headLocalRot={head.localRotation.eulerAngles:F1}");
+                }
+
+                // Real swing, moving well away from the start, for 150
+                // ticks (2.5 real seconds) -- a genuine mid-swing moment,
+                // not the very first frame.
+                for (int i = 0; i < 150; i++)
+                {
+                    swing.Tick(new Vector2(-1.0f, -1.0f), 0.0f, false, false, false, false, 1.0f / 60.0f);
+                    if (i % 30 == 0) LogState("SWINGING", i);
+                }
+
+                // THE FREEZE ITSELF -- exactly DevConsoleView.Open's own
+                // job. GrappleSwing itself is NOT disabled (DevConsoleView
+                // never touches it directly) -- only InputReader (which
+                // means nothing calls swing.Tick any more), OrbitCamera and
+                // the Animator, matching the real console exactly.
+                animator.enabled = false;
+                Debug.Log("CityX DIAGNOSTIC: console OPENED mid-swing here");
+
+                // Held frozen for 60 ticks (1 real second) -- GrappleSwing's
+                // own LateUpdate (which the console never disables) keeps
+                // running throughout, same as real gameplay.
+                for (int i = 0; i < 60; i++)
+                {
+                    lateUpdateMethod.Invoke(swing, null);
+                    if (i % 15 == 0) LogState("CONSOLE_OPEN", 150 + i);
+                }
+
+                // THE UNFREEZE -- exactly DevConsoleView.Close's own job
+                // (Swing.IsActive is still true, so the real Close() would
+                // also leave the Animator off, matching this).
+                animator.enabled = swing.IsActive ? false : true;
+                Debug.Log($"CityX DIAGNOSTIC: console CLOSED here (animator re-enabled={animator.enabled})");
+
+                for (int i = 0; i < 90; i++)
+                {
+                    swing.Tick(new Vector2(-1.0f, -1.0f), 0.0f, false, false, false, false, 1.0f / 60.0f);
+                    if (i % 15 == 0) LogState("RESUMED", 210 + i);
+                }
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        /// <summary>
+        /// DIAGNOSTIC, NOT A PERMANENT TOOL -- every diagnostic tonight
+        /// used a plain flat box for a wall. The real city is built from
+        /// FusedBodyBuilder-style facade meshes with real decorative
+        /// geometry hanging off them (fins, balconies, railings, window
+        /// ribs) -- worth checking directly whether firing at a REAL
+        /// building's real collision mesh, in the REAL saved scene,
+        /// behaves any differently than a simple box ever could.
+        /// </summary>
+        [MenuItem("CityX/Diagnose Swing In Real City")]
+        public static void DiagnoseSwingInRealCity()
+        {
+            Scene scene = EditorSceneManager.OpenScene(
+                "Assets/CityX/Scenes/CityMassing.unity", OpenSceneMode.Single);
+            try
+            {
+                GameObject playerObject = null;
+                foreach (GameObject rootObj in scene.GetRootGameObjects())
+                {
+                    if (rootObj.name == "Player")
+                    {
+                        playerObject = rootObj;
+                        break;
+                    }
+                }
+                if (playerObject == null)
+                {
+                    Debug.LogError("CityX DIAGNOSTIC: no \"Player\" root object found in CityMassing.unity.");
+                    return;
+                }
+
+                GrappleSwing swing = playerObject.GetComponent<GrappleSwing>();
+                if (swing == null) swing = playerObject.AddComponent<GrappleSwing>();
+                swing.Bind();
+                Animator animator = playerObject.GetComponentInChildren<Animator>();
+                Transform rightUpperArm = animator.GetBoneTransform(HumanBodyBones.RightUpperArm);
+                Transform head = animator.GetBoneTransform(HumanBodyBones.Head);
+
+                Vector3 origin = playerObject.transform.position + Vector3.up * 1.5f;
+                Debug.Log($"CityX DIAGNOSTIC: player found at {playerObject.transform.position:F2}");
+
+                // Raycast forward and to each side looking for REAL nearby
+                // building geometry to actually anchor on, rather than
+                // assuming a fixed offset that might land in open air in
+                // this specific generated layout.
+                Vector3 anchor = Vector3.zero;
+                bool found = false;
+                foreach (Vector3 direction in new[]
+                {
+                    playerObject.transform.forward, playerObject.transform.right,
+                    -playerObject.transform.right, -playerObject.transform.forward
+                })
+                {
+                    if (Physics.Raycast(origin, direction, out RaycastHit hit, 40.0f, ~0, QueryTriggerInteraction.Ignore)
+                        && !hit.transform.IsChildOf(playerObject.transform))
+                    {
+                        anchor = hit.point;
+                        found = true;
+                        Debug.Log($"CityX DIAGNOSTIC: real anchor found at {anchor:F2} on \"{hit.collider.name}\", " +
+                            $"{hit.distance:F1}m away");
+                        break;
+                    }
+                }
+                if (!found)
+                {
+                    Debug.LogError("CityX DIAGNOSTIC: no real building surface found nearby to anchor on.");
+                    return;
+                }
+
+                swing.Attach(anchor);
+                Vector3 startPos = playerObject.transform.position;
+                float worstRigOffset = 0.0f;
+
+                for (int i = 0; i < 400; i++)
+                {
+                    bool outbound = i < 200;
+                    Vector2 move = outbound ? new Vector2(-1.0f, -1.0f) : new Vector2(1.0f, 1.0f);
+                    swing.Tick(move, 0.0f, false, false, false, false, 1.0f / 60.0f);
+                    if (!swing.IsActive)
+                    {
+                        Debug.Log($"CityX DIAGNOSTIC: swing ended itself at tick {i}");
+                        break;
+                    }
+
+                    float rigOffset = animator.transform.localPosition.magnitude;
+                    worstRigOffset = Mathf.Max(worstRigOffset, rigOffset);
+
+                    if (i % 25 == 0)
+                    {
+                        Debug.Log($"CityX DIAGNOSTIC {(outbound ? "OUT" : "BACK")} tick={i} " +
+                            $"distanceFromStart={Vector3.Distance(playerObject.transform.position, startPos):F2} " +
+                            $"rigOffset={rigOffset:F3} velocity={swing.Velocity.magnitude:F2} " +
+                            $"rightUpperArm={rightUpperArm.localRotation.eulerAngles:F1} " +
+                            $"headLocalRot={head.localRotation.eulerAngles:F1} " +
+                            $"playerPos={playerObject.transform.position:F2}");
+                    }
+                }
+
+                Debug.Log($"CityX DIAGNOSTIC SUMMARY: worstRigOffset={worstRigOffset:F3}");
+            }
+            finally
+            {
+                if (Application.isBatchMode) EditorApplication.Exit(0);
+            }
         }
 
         private static void PoseArmsDown(Transform root)
