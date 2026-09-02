@@ -978,6 +978,477 @@ namespace CityX.WeaponsEditor
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 
+        /// <summary>
+        /// DIAGNOSTIC, NOT A PERMANENT TOOL -- EXPLICIT BUG REPORT:
+        /// "stretched elongated sometimes head gets detached." "Sometimes"
+        /// points at something timing/input-dependent that none of the
+        /// earlier smooth, predictable diagnostics (steady sine sweeps)
+        /// ever drove -- a real player's mouse produces much more sudden,
+        /// erratic yaw changes than any of those. Zooms in tight on the
+        /// neck/head junction specifically, across many varied erratic
+        /// swings, to look directly for a skinning gap rather than
+        /// inferring one from bone rotation numbers alone.
+        /// </summary>
+        [MenuItem("CityX/Diagnose Head Detachment")]
+        public static void DiagnoseHeadDetachment()
+        {
+            var playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab");
+            if (playerPrefab == null)
+            {
+                Debug.LogError("CityX: need Player.prefab built first.");
+                return;
+            }
+
+            string outputDirectory = System.IO.Path.Combine(
+                System.IO.Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
+            System.IO.Directory.CreateDirectory(outputDirectory);
+
+            var root = new GameObject("HeadDetachDiagnosticRig");
+            RenderTexture target = null;
+            try
+            {
+                var sunObject = new GameObject("Sun");
+                sunObject.transform.SetParent(root.transform);
+                Light sun = sunObject.AddComponent<Light>();
+                sun.type = LightType.Directional;
+                sun.intensity = 1.2f;
+                sun.transform.rotation = Quaternion.Euler(35.0f, 150.0f, 0.0f);
+
+                var wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                wall.transform.SetParent(root.transform);
+                wall.transform.position = new Vector3(2.0f, 24.0f, 0.0f);
+                wall.transform.localScale = new Vector3(0.5f, 30.0f, 30.0f);
+
+                var player = (GameObject)PrefabUtility.InstantiatePrefab(playerPrefab);
+                player.transform.SetParent(root.transform);
+                player.transform.position = new Vector3(0.0f, 20.0f, 0.0f);
+                Physics.SyncTransforms();
+
+                GrappleSwing swing = player.GetComponent<GrappleSwing>();
+                if (swing == null) swing = player.AddComponent<GrappleSwing>();
+                swing.Bind();
+
+                Animator animator = player.GetComponentInChildren<Animator>();
+                Transform head = animator.GetBoneTransform(HumanBodyBones.Head);
+                Transform neck = animator.GetBoneTransform(HumanBodyBones.Neck);
+                Transform chest = animator.GetBoneTransform(HumanBodyBones.Chest);
+                Transform spine = animator.GetBoneTransform(HumanBodyBones.Spine);
+                Transform hips = animator.GetBoneTransform(HumanBodyBones.Hips);
+
+                Vector3 anchor = new Vector3(1.75f, 22.0f, 0.0f);
+                swing.Attach(anchor);
+
+                var random = new System.Random(20260901);
+                float maxHeadGap = 0.0f;
+                Vector3 lastHeadPos = head.position;
+
+                var cameraObject = new GameObject("Camera");
+                cameraObject.transform.SetParent(root.transform);
+                Camera camera = cameraObject.AddComponent<Camera>();
+                camera.clearFlags = CameraClearFlags.SolidColor;
+                camera.backgroundColor = new Color(0.10f, 0.11f, 0.15f);
+                camera.fieldOfView = 35.0f;
+                camera.nearClipPlane = 0.02f;
+                camera.farClipPlane = 500.0f;
+
+                foreach (SkinnedMeshRenderer skin in player.GetComponentsInChildren<SkinnedMeshRenderer>())
+                {
+                    skin.updateWhenOffscreen = true;
+                }
+
+                target = new RenderTexture(900, 900, 24, RenderTextureFormat.ARGB32) { antiAliasing = 8 };
+                camera.targetTexture = target;
+
+                // ERRATIC, NOT SMOOTH -- random large yaw jumps and random
+                // WASD combinations every few ticks, mimicking a real mouse
+                // whipped around fast rather than a steady predictable
+                // sweep, over 400 ticks (6.6 real seconds).
+                float yaw = 0.0f;
+                Vector2 move = Vector2.zero;
+                for (int i = 0; i < 400; i++)
+                {
+                    if (i % 5 == 0)
+                    {
+                        yaw += (float)(random.NextDouble() * 180.0 - 90.0);
+                        move = new Vector2((float)(random.NextDouble() * 2.0 - 1.0), (float)(random.NextDouble() * 2.0 - 1.0));
+                    }
+                    bool reel = random.NextDouble() < 0.05;
+                    bool payout = !reel && random.NextDouble() < 0.05;
+                    swing.Tick(move, yaw, false, false, reel, payout, 1.0f / 60.0f);
+                    if (!swing.IsActive)
+                    {
+                        swing.Attach(anchor);
+                    }
+
+                    // Neck-to-chest and chest-to-hips gap, measured directly
+                    // in world space rather than inferred from rotation --
+                    // this is what a real skinning separation would show up
+                    // as: adjacent joints ending up further apart than the
+                    // rig's own bone LENGTHS allow, which a pure rotation
+                    // reading could never catch on its own.
+                    if (neck != null && chest != null)
+                    {
+                        float gap = Vector3.Distance(neck.position, chest.position);
+                        maxHeadGap = Mathf.Max(maxHeadGap, gap);
+                    }
+
+                    if (i % 40 == 0)
+                    {
+                        Debug.Log($"CityX DIAGNOSTIC tick={i} yaw={yaw:F0} " +
+                            $"headPos={head.position:F2} neckPos={(neck != null ? neck.position : Vector3.zero):F2} " +
+                            $"chestPos={(chest != null ? chest.position : Vector3.zero):F2} " +
+                            $"spinePos={(spine != null ? spine.position : Vector3.zero):F2} " +
+                            $"hipsPos={(hips != null ? hips.position : Vector3.zero):F2} " +
+                            $"headToChest={(chest != null ? Vector3.Distance(head.position, chest.position) : -1.0f):F3}");
+
+                        // TRACKS THE HIPS, NOT THE HEAD -- a camera centred
+                        // on the head itself hides exactly the thing being
+                        // checked for, since it re-frames every shot around
+                        // wherever the head is regardless of whether that is
+                        // still attached to the body. Framed from a fixed
+                        // offset behind the whole upper body instead, so a
+                        // real separation shows up as the head visibly NOT
+                        // where a neck/shoulders would put it.
+                        cameraObject.transform.position = hips.position + new Vector3(0.0f, 1.0f, -2.5f);
+                        cameraObject.transform.LookAt(hips.position + Vector3.up * 1.0f);
+                        camera.Render();
+                        RenderTexture.active = target;
+                        var image = new Texture2D(900, 900, TextureFormat.RGB24, false);
+                        image.ReadPixels(new Rect(0, 0, 900, 900), 0, 0);
+                        image.Apply();
+                        string path = System.IO.Path.Combine(outputDirectory, $"head-detach-tick{i:D3}.png");
+                        System.IO.File.WriteAllBytes(path, image.EncodeToPNG());
+                        Object.DestroyImmediate(image);
+                    }
+                }
+
+                Debug.Log($"CityX DIAGNOSTIC SUMMARY: maxNeckToChestDistance={maxHeadGap:F3} " +
+                    "(compare against the rig's own resting neck-to-chest bone length to judge a real gap)");
+            }
+            finally
+            {
+                if (target != null) { target.Release(); Object.DestroyImmediate(target); }
+                Object.DestroyImmediate(root);
+            }
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        /// <summary>
+        /// DIAGNOSTIC, NOT A PERMANENT TOOL -- the Neck bone (distinct from
+        /// Head) has no protection anywhere in this project: no identity
+        /// lock like hips/spine, no captured base like GrappleSwing's own
+        /// head sway. hips/spine needed their own lock specifically because
+        /// this rig has a KNOWN retargeting wiggle; if Neck has an
+        /// analogous one, freezing mid-animation (console or grapple, at
+        /// an arbitrary real moment -- including mid-TRANSITION between two
+        /// states, which a steady walk-cycle diagnostic never catches)
+        /// could catch it at an extreme, never-normally-visible angle. The
+        /// head is a separate, non-skinned rigid sphere that "slides
+        /// through the torso" (HeadMesh's own doc comment) rather than
+        /// blending into it, so a real neck excursion would show as an
+        /// actual visible gap, not just deformation. Freezes at MANY
+        /// random real moments across varied real input (walk, stop, turn,
+        /// jump) via the real PlayerLocomotion + Animator, logging the
+        /// neck's own rotation and the head-to-chest world distance each
+        /// time, to catch a transition-timing issue no steady-state test
+        /// would ever trigger.
+        /// </summary>
+        [MenuItem("CityX/Diagnose Neck Freeze Angle")]
+        public static void DiagnoseNeckFreezeAngle()
+        {
+            var playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab");
+            if (playerPrefab == null)
+            {
+                Debug.LogError("CityX: need Player.prefab built first.");
+                return;
+            }
+
+            string outputDirectory = System.IO.Path.Combine(
+                System.IO.Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
+            System.IO.Directory.CreateDirectory(outputDirectory);
+
+            var root = new GameObject("NeckFreezeDiagnosticRig");
+            RenderTexture target = null;
+            try
+            {
+                var sunObject = new GameObject("Sun");
+                sunObject.transform.SetParent(root.transform);
+                Light sun = sunObject.AddComponent<Light>();
+                sun.type = LightType.Directional;
+                sun.intensity = 1.2f;
+                sun.transform.rotation = Quaternion.Euler(35.0f, 150.0f, 0.0f);
+
+                var ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                ground.transform.SetParent(root.transform);
+                ground.transform.position = new Vector3(0.0f, -0.5f, 0.0f);
+                ground.transform.localScale = new Vector3(100.0f, 1.0f, 100.0f);
+
+                var player = (GameObject)PrefabUtility.InstantiatePrefab(playerPrefab);
+                player.transform.SetParent(root.transform);
+                player.transform.position = Vector3.zero;
+                Physics.SyncTransforms();
+
+                PlayerLocomotion locomotion = player.GetComponent<PlayerLocomotion>();
+                locomotion.Bind();
+                Animator animator = player.GetComponentInChildren<Animator>();
+                Transform neck = animator.GetBoneTransform(HumanBodyBones.Neck);
+                Transform head = animator.GetBoneTransform(HumanBodyBones.Head);
+                Transform hips = animator.GetBoneTransform(HumanBodyBones.Hips);
+
+                if (neck == null)
+                {
+                    Debug.LogError("CityX DIAGNOSTIC: this rig has no mapped Neck bone at all.");
+                    return;
+                }
+
+                var lateUpdateMethod = typeof(PlayerLocomotion).GetMethod("LateUpdate",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                var random = new System.Random(20260901);
+
+                float worstNeckAngle = 0.0f;
+                float worstHeadToHipsRatio = 0.0f;
+                float restingHeadToHips = Vector3.Distance(head.position, hips.position);
+
+                var cameraObject = new GameObject("Camera");
+                cameraObject.transform.SetParent(root.transform);
+                Camera camera = cameraObject.AddComponent<Camera>();
+                camera.clearFlags = CameraClearFlags.SolidColor;
+                camera.backgroundColor = new Color(0.10f, 0.11f, 0.15f);
+                camera.fieldOfView = 45.0f;
+                camera.nearClipPlane = 0.05f;
+                camera.farClipPlane = 500.0f;
+                foreach (SkinnedMeshRenderer skin in player.GetComponentsInChildren<SkinnedMeshRenderer>())
+                {
+                    skin.updateWhenOffscreen = true;
+                }
+                target = new RenderTexture(700, 700, 24, RenderTextureFormat.ARGB32) { antiAliasing = 8 };
+                camera.targetTexture = target;
+
+                // VARIED, RANDOM REAL INPUT -- walk, stop, turn, jump,
+                // sprint, all switching unpredictably, exactly what would
+                // put the AnimatorController through real transitions
+                // rather than settling into one steady-state loop.
+                int worstFreezeTick = -1;
+                for (int trial = 0; trial < 60; trial++)
+                {
+                    for (int i = 0; i < random.Next(5, 40); i++)
+                    {
+                        var input = new LocomotionInput
+                        {
+                            Move = new Vector2((float)(random.NextDouble() * 2.0 - 1.0), (float)(random.NextDouble() * 2.0 - 1.0)),
+                            YawDegrees = (float)(random.NextDouble() * 360.0),
+                            Sprint = random.NextDouble() < 0.3,
+                            Jump = random.NextDouble() < 0.05,
+                        };
+                        locomotion.Tick(input, 1.0f / 60.0f);
+                        animator.Update(1.0f / 60.0f);
+                        lateUpdateMethod.Invoke(locomotion, null);
+                    }
+
+                    // THE FREEZE ITSELF, at this unpredictable real moment --
+                    // exactly DevConsoleView.Open's own job.
+                    animator.enabled = false;
+                    lateUpdateMethod.Invoke(locomotion, null);
+
+                    float neckAngle = Quaternion.Angle(Quaternion.identity, neck.localRotation);
+                    float headToHips = Vector3.Distance(head.position, hips.position);
+                    float ratio = headToHips / Mathf.Max(restingHeadToHips, 0.001f);
+                    if (neckAngle > worstNeckAngle)
+                    {
+                        worstNeckAngle = neckAngle;
+                        worstFreezeTick = trial;
+                    }
+                    worstHeadToHipsRatio = Mathf.Max(worstHeadToHipsRatio, ratio);
+
+                    if (trial % 10 == 0 || neckAngle > 30.0f)
+                    {
+                        Debug.Log($"CityX DIAGNOSTIC trial={trial} neckLocalRot={neck.localRotation.eulerAngles:F1} " +
+                            $"neckAngleFromIdentity={neckAngle:F1}deg headToHips={headToHips:F2} " +
+                            $"(resting {restingHeadToHips:F2}, ratio {ratio:F2})");
+
+                        cameraObject.transform.position = hips.position + new Vector3(0.0f, 1.2f, -2.2f);
+                        cameraObject.transform.LookAt(hips.position + Vector3.up * 1.2f);
+                        camera.Render();
+                        RenderTexture.active = target;
+                        var image = new Texture2D(700, 700, TextureFormat.RGB24, false);
+                        image.ReadPixels(new Rect(0, 0, 700, 700), 0, 0);
+                        image.Apply();
+                        string path = System.IO.Path.Combine(outputDirectory, $"neck-freeze-trial{trial:D2}.png");
+                        System.IO.File.WriteAllBytes(path, image.EncodeToPNG());
+                        Object.DestroyImmediate(image);
+                    }
+
+                    // Re-enable for the next trial's own real animation to run.
+                    animator.enabled = true;
+                }
+
+                Debug.Log($"CityX DIAGNOSTIC SUMMARY: worstNeckAngleFromIdentity={worstNeckAngle:F1}deg " +
+                    $"(at trial {worstFreezeTick}), worstHeadToHipsRatio={worstHeadToHipsRatio:F2} " +
+                    $"(restingDistance={restingHeadToHips:F2})");
+            }
+            finally
+            {
+                if (target != null) { target.Release(); Object.DestroyImmediate(target); }
+                Object.DestroyImmediate(root);
+            }
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        /// <summary>
+        /// DIAGNOSTIC, NOT A PERMANENT TOOL -- RagdollPlayTests' own doc
+        /// comment admits it never tests the REAL imported skeleton's own
+        /// ragdoll rig at all, only a synthetic 3-box stand-in ("a PlayMode
+        /// test cannot load the real skeleton"), so the real 15-body rig
+        /// with its real joint limits has never actually been stress-tested
+        /// under a real, violent velocity. Getting hit or dying WHILE
+        /// swinging feeds the swing's own velocity (up to MaxSwingSpeed,
+        /// 35 m/s -- far more violent than an ordinary fall or sprint)
+        /// straight into Ragdoll.Activate. This project's own documented
+        /// history is six separate failed attempts at driving THIS SAME
+        /// multi-joint rig through fast, forced motion, every one ending
+        /// in joint instability -- worth checking directly whether a
+        /// single violent Activate (no forcing afterward, just the real
+        /// PhysX solver settling it) can violate the neck joint's own
+        /// limits badly enough to look like the head separating.
+        /// </summary>
+        [MenuItem("CityX/Diagnose Ragdoll At Swing Speed")]
+        public static void DiagnoseRagdollAtSwingSpeed()
+        {
+            var playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab");
+            if (playerPrefab == null)
+            {
+                Debug.LogError("CityX: need Player.prefab built first.");
+                return;
+            }
+
+            string outputDirectory = System.IO.Path.Combine(
+                System.IO.Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
+            System.IO.Directory.CreateDirectory(outputDirectory);
+
+            var root = new GameObject("RagdollSwingSpeedDiagnosticRig");
+            RenderTexture target = null;
+            var previousSimMode = Physics.simulationMode;
+            try
+            {
+                var sunObject = new GameObject("Sun");
+                sunObject.transform.SetParent(root.transform);
+                Light sun = sunObject.AddComponent<Light>();
+                sun.type = LightType.Directional;
+                sun.intensity = 1.2f;
+                sun.transform.rotation = Quaternion.Euler(35.0f, 150.0f, 0.0f);
+
+                // CLOSE ENOUGH TO GUARANTEE IMPACT WITHIN THE TEST WINDOW --
+                // the classic ragdoll failure point is the moment of ground
+                // contact, not free-fall, and a first pass of this
+                // diagnostic (ground far below, never reached in 120 ticks)
+                // only ever checked free-fall stability.
+                var ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                ground.transform.SetParent(root.transform);
+                ground.transform.position = new Vector3(0.0f, -0.5f, 0.0f);
+                ground.transform.localScale = new Vector3(100.0f, 1.0f, 100.0f);
+
+                var player = (GameObject)PrefabUtility.InstantiatePrefab(playerPrefab);
+                player.transform.SetParent(root.transform);
+                player.transform.position = new Vector3(0.0f, 3.0f, 0.0f);
+                Physics.SyncTransforms();
+
+                Ragdoll ragdoll = player.GetComponent<Ragdoll>();
+                if (ragdoll == null || ragdoll.Bodies == null || ragdoll.Bodies.Length == 0)
+                {
+                    Debug.LogError("CityX DIAGNOSTIC: Player.prefab has no built ragdoll rig -- run the player rig builder first.");
+                    return;
+                }
+
+                Animator animator = player.GetComponentInChildren<Animator>();
+                Transform head = animator.GetBoneTransform(HumanBodyBones.Head);
+                Transform neck = animator.GetBoneTransform(HumanBodyBones.Neck);
+                // FALLS BACK TO SPINE -- matching RagdollBuilder.Build's own
+                // "chest ?? spine" exactly: this rig has no bone mapped to
+                // HumanBodyBones.Chest at all, so the actual "chest body"
+                // Ragdoll.cs joins the head/neck chain onto IS the spine
+                // bone's own rigidbody on this specific rig.
+                Transform chest = animator.GetBoneTransform(HumanBodyBones.Chest)
+                    ?? animator.GetBoneTransform(HumanBodyBones.Spine);
+                Rigidbody headBody = head.GetComponent<Rigidbody>();
+                Rigidbody chestBody = chest != null ? chest.GetComponent<Rigidbody>() : null;
+                float restingHeadToChest = chest != null ? Vector3.Distance(head.position, chest.position) : -1.0f;
+
+                Debug.Log($"CityX DIAGNOSTIC: restingHeadToChest={restingHeadToChest:F3} " +
+                    $"headBody={(headBody != null ? "found" : "MISSING")} chestBody={(chestBody != null ? "found" : "MISSING")}");
+
+                // THE EXACT SCENARIO: swinging at full MaxSwingSpeed (35 m/s)
+                // horizontally when a killing hit lands -- Ragdoll.Activate
+                // carries that same velocity into every body in the rig,
+                // matching OnDied's own "_locomotion.Velocity" hand-off.
+                Vector3 swingVelocity = new Vector3(35.0f, 0.0f, 0.0f);
+                ragdoll.Activate(swingVelocity);
+
+                Physics.simulationMode = SimulationMode.Script;
+                float worstHeadToChest = restingHeadToChest;
+                float worstHeadSpeed = 0.0f;
+
+                var cameraObject = new GameObject("Camera");
+                cameraObject.transform.SetParent(root.transform);
+                Camera camera = cameraObject.AddComponent<Camera>();
+                camera.clearFlags = CameraClearFlags.SolidColor;
+                camera.backgroundColor = new Color(0.10f, 0.11f, 0.15f);
+                camera.fieldOfView = 60.0f;
+                camera.nearClipPlane = 0.05f;
+                camera.farClipPlane = 500.0f;
+                foreach (SkinnedMeshRenderer skin in player.GetComponentsInChildren<SkinnedMeshRenderer>())
+                {
+                    skin.updateWhenOffscreen = true;
+                }
+                target = new RenderTexture(800, 800, 24, RenderTextureFormat.ARGB32) { antiAliasing = 8 };
+                camera.targetTexture = target;
+
+                for (int i = 0; i < 120; i++)
+                {
+                    Physics.Simulate(1.0f / 60.0f);
+
+                    if (chest != null)
+                    {
+                        float headToChest = Vector3.Distance(head.position, chest.position);
+                        worstHeadToChest = Mathf.Max(worstHeadToChest, headToChest);
+                    }
+                    if (headBody != null)
+                    {
+                        worstHeadSpeed = Mathf.Max(worstHeadSpeed, headBody.linearVelocity.magnitude);
+                    }
+
+                    if (i % 3 == 0)
+                    {
+                        float headToChestNow = chest != null ? Vector3.Distance(head.position, chest.position) : -1.0f;
+                        Debug.Log($"CityX DIAGNOSTIC tick={i} headPos={head.position:F2} " +
+                            $"headToChest={headToChestNow:F3} (resting {restingHeadToChest:F3}, ratio {headToChestNow / Mathf.Max(restingHeadToChest, 0.001f):F2}) " +
+                            $"headVelocity={(headBody != null ? headBody.linearVelocity.magnitude : -1.0f):F2}");
+
+                        cameraObject.transform.position = player.transform.position + new Vector3(0.0f, 2.0f, -6.0f);
+                        cameraObject.transform.LookAt(head.position);
+                        camera.Render();
+                        RenderTexture.active = target;
+                        var image = new Texture2D(800, 800, TextureFormat.RGB24, false);
+                        image.ReadPixels(new Rect(0, 0, 800, 800), 0, 0);
+                        image.Apply();
+                        string path = System.IO.Path.Combine(outputDirectory, $"ragdoll-swing-speed-tick{i:D3}.png");
+                        System.IO.File.WriteAllBytes(path, image.EncodeToPNG());
+                        Object.DestroyImmediate(image);
+                    }
+                }
+
+                Debug.Log($"CityX DIAGNOSTIC SUMMARY: restingHeadToChest={restingHeadToChest:F3} " +
+                    $"worstHeadToChest={worstHeadToChest:F3} (ratio {worstHeadToChest / Mathf.Max(restingHeadToChest, 0.001f):F2}) " +
+                    $"worstHeadSpeed={worstHeadSpeed:F2}");
+            }
+            finally
+            {
+                Physics.simulationMode = previousSimMode;
+                if (target != null) { target.Release(); Object.DestroyImmediate(target); }
+                Object.DestroyImmediate(root);
+            }
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
         private static void PoseArmsDown(Transform root)
         {
             SetLocalRotation(root, "arm_l", new Vector3(0.0f, 0.0f, 78.0f));
