@@ -66,18 +66,28 @@ namespace CityX.CharacterEditor
         private static readonly float[] SearchHeightsAboveNear = { 3.0f, 8.0f, 15.0f, 24.0f, 35.0f };
 
         /// <summary>
-        /// A full 16-direction ring, not just the 8 cardinal/diagonal
-        /// compass points -- confirmed necessary directly: at spawn's own
-        /// street intersection, only the off-axis diagonals ever leave the
-        /// street at all, so finer angular resolution is what actually
-        /// finds the nearest real building rather than skipping past it
-        /// between two coarse diagonals.
+        /// A full 36-direction ring (every 10 degrees), not just the 8
+        /// cardinal/diagonal compass points -- confirmed necessary
+        /// directly: at spawn's own street intersection, only the
+        /// off-axis diagonals ever leave the street at all, so finer
+        /// angular resolution is what actually finds the nearest real
+        /// building rather than skipping past it between two coarse
+        /// diagonals. Fine enough that the CLOSEST hit found across the
+        /// whole ring (see FindWallAnchor) is genuinely the closest real
+        /// building, not just whichever one a coarse sample happened to
+        /// graze first.
         /// </summary>
-        private static readonly float[] SearchAngles =
+        private static readonly float[] SearchAngles = BuildSearchAngles();
+
+        private static float[] BuildSearchAngles()
         {
-            0f, 22.5f, 45f, 67.5f, 90f, 112.5f, 135f, 157.5f,
-            180f, 202.5f, 225f, 247.5f, 270f, 292.5f, 315f, 337.5f,
-        };
+            var angles = new float[36];
+            for (int i = 0; i < angles.Length; i++)
+            {
+                angles[i] = i * 10.0f;
+            }
+            return angles;
+        }
 
         /// <summary>
         /// How far down the wall the dummy hangs -- explicit ask: "just
@@ -181,11 +191,25 @@ namespace CityX.CharacterEditor
 
         /// <summary>
         /// Casts forward in a ring of directions from
-        /// <paramref name="near"/>, at a real height above it rather than
-        /// eye level, until one hits a real wall with real clear space in
-        /// front of it -- the same "aim outward and see what a real shot
-        /// would hit" shape GrapplingHookItem.FindAnchor already uses for
-        /// an actual grapple shot, not a rooftop search.
+        /// <paramref name="near"/>, at several real heights above it, and
+        /// returns the CLOSEST real wall with real clear space in front of
+        /// it -- the same "aim outward and see what a real shot would
+        /// hit" shape GrapplingHookItem.FindAnchor already uses for an
+        /// actual grapple shot, not a rooftop search.
+        ///
+        /// EXPLICIT ASK after the first version landed 41m from spawn on a
+        /// building the player had to go hunting for: "make it the
+        /// closest building to spawn facing toward the player." Scans the
+        /// WHOLE ring/height grid and keeps the nearest valid hit rather
+        /// than returning the first one the iteration order happens to
+        /// reach -- a coarse "first hit wins" search has no reason to
+        /// prefer near over far, and confirmed directly, it didn't
+        /// (landed on a building 47m away on the very first candidate
+        /// tried, while a much closer one existed). "Facing toward the
+        /// player" falls out of the search shape for free: every ray
+        /// fires OUTWARD from spawn, so whatever face it hits first is
+        /// necessarily the one looking back at spawn, never the far side
+        /// of the building.
         ///
         /// THE STANDOFF POSITION IS WHAT ACTUALLY GETS VALIDATED, not the
         /// wall hit itself -- confirmed directly, live, on an earlier
@@ -196,6 +220,11 @@ namespace CityX.CharacterEditor
         /// </summary>
         private static bool FindWallAnchor(Vector3 near, out Vector3 anchorPoint, out Vector3 outward)
         {
+            bool found = false;
+            float bestDistanceSqr = float.MaxValue;
+            Vector3 bestAnchor = Vector3.zero;
+            Vector3 bestOutward = Vector3.zero;
+
             foreach (float height in SearchHeightsAboveNear)
             {
                 Vector3 origin = near + Vector3.up * height;
@@ -210,18 +239,33 @@ namespace CityX.CharacterEditor
 
                     Vector3 normal = wallHit.normal.sqrMagnitude > 0.01f ? wallHit.normal.normalized : -direction;
                     Vector3 standoffPosition = wallHit.point - Vector3.up * RopeLength + normal * StandoffFromWall;
-                    if (!Physics.CheckSphere(standoffPosition, 0.6f, ~0, QueryTriggerInteraction.Ignore))
+                    if (Physics.CheckSphere(standoffPosition, 0.6f, ~0, QueryTriggerInteraction.Ignore))
                     {
-                        anchorPoint = wallHit.point;
-                        outward = normal;
-                        return true;
+                        continue;
+                    }
+
+                    // Flattened, not the raw ray distance -- the search
+                    // fires from several different heights above `near`,
+                    // and comparing straight-line ray lengths across those
+                    // would bias toward whichever height happened to be
+                    // closest to the wall vertically rather than which
+                    // building is actually nearest on the ground.
+                    Vector3 flatOffset = wallHit.point - near;
+                    flatOffset.y = 0.0f;
+                    float distanceSqr = flatOffset.sqrMagnitude;
+                    if (distanceSqr < bestDistanceSqr)
+                    {
+                        bestDistanceSqr = distanceSqr;
+                        bestAnchor = wallHit.point;
+                        bestOutward = normal;
+                        found = true;
                     }
                 }
             }
 
-            anchorPoint = Vector3.zero;
-            outward = Vector3.zero;
-            return false;
+            anchorPoint = bestAnchor;
+            outward = bestOutward;
+            return found;
         }
     }
 }
