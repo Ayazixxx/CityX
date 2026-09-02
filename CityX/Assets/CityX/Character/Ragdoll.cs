@@ -72,6 +72,22 @@ namespace CityX.Character
 
         private void Awake()
         {
+            Bind();
+        }
+
+        /// <summary>
+        /// Finds the controller/locomotion/vitals/swing/animator siblings.
+        ///
+        /// PUBLIC BECAUSE AWAKE IS NOT AVAILABLE OUTSIDE PLAY MODE, same
+        /// reasoning as PlayerLocomotion.Bind()'s own doc comment -- an
+        /// EditMode test can add this component but never gets Awake run
+        /// on it, so without a way in by hand Activate() would silently
+        /// skip disabling locomotion/the controller (both fields staying
+        /// null) rather than actually failing loud. Calling it twice is
+        /// harmless.
+        /// </summary>
+        public void Bind()
+        {
             _controller = GetComponent<CharacterController>();
             _locomotion = GetComponent<PlayerLocomotion>();
             _vitals = GetComponent<PlayerVitals>();

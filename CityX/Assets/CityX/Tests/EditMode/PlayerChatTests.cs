@@ -292,5 +292,60 @@ namespace CityX.Tests
                 Object.DestroyImmediate(bubbleObject);
             }
         }
+
+        [TestCase("/sleep")]
+        [TestCase("/SLEEP")]
+        [TestCase("  /sleep  ")]
+        public void IsSleepCommandRecognisesTheSleepCommandRegardlessOfCaseOrWhitespace(string text)
+        {
+            Assert.IsTrue(PlayerChat.IsSleepCommand(text));
+        }
+
+        [TestCase("sleep")]
+        [TestCase("/sleeping")]
+        [TestCase("")]
+        [TestCase(null)]
+        public void IsSleepCommandRejectsEverythingElse(string text)
+        {
+            Assert.IsFalse(PlayerChat.IsSleepCommand(text));
+        }
+
+        /// <summary>
+        /// EXPLICIT ASK: "the character just goes limp and ragdolls
+        /// immediately no animation... lets see if its something do it with
+        /// it being playable" -- Bodies is an empty array rather than a real
+        /// built rig, matching HangingRagdollDummyPlayTests' own reasoning
+        /// for why the DISPATCH path is what's under test here (does /sleep
+        /// actually reach Ragdoll.Activate), not RagdollBuilder's own rig
+        /// construction, which RagdollPlayTests already owns.
+        /// </summary>
+        [Test]
+        public void SubmittingASleepCommandActivatesTheRagdollNotASpeechBubble()
+        {
+            var ragdoll = _playerObject.AddComponent<Ragdoll>();
+            ragdoll.Bodies = new Rigidbody[0];
+            ragdoll.Bind(); // Awake never runs in an EditMode test -- see Bind's own doc comment
+            _chat.Ragdoll = ragdoll;
+
+            var bubbleObject = new GameObject("Bubble");
+            var bubble = bubbleObject.AddComponent<SpeechBubble>();
+            bubble.Bind();
+            _chat.Bubble = bubble;
+
+            try
+            {
+                _chat.Open();
+                _chat.Submit("/sleep");
+
+                Assert.IsTrue(ragdoll.IsLimp);
+                Assert.IsFalse(_playerObject.GetComponent<PlayerLocomotion>().enabled,
+                    "going limp should stop normal locomotion too, not just play dead visually");
+                Assert.IsFalse(bubble.IsShowing, "/sleep should never show as a speech bubble");
+            }
+            finally
+            {
+                Object.DestroyImmediate(bubbleObject);
+            }
+        }
     }
 }

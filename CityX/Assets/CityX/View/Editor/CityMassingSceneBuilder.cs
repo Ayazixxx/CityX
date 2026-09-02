@@ -540,7 +540,8 @@ namespace CityX.ViewEditor
                     console,
                     pause,
                     map,
-                    inventoryView);
+                    inventoryView,
+                    Object.FindFirstObjectByType<CityX.Character.Ragdoll>());
                 pause.Chat = chat;
                 if (map != null) map.Chat = chat;
                 if (inventoryView != null) inventoryView.Chat = chat;

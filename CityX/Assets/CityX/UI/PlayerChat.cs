@@ -53,6 +53,9 @@ namespace CityX.UI
         public MapPanelView Map;
         public InventoryPanelView Inventory;
 
+        [Tooltip("/sleep goes straight limp through this, bypassing PlayerVitals entirely -- there is no death, no HP change, just Ragdoll.Activate.")]
+        public Ragdoll Ragdoll;
+
         [Tooltip("Enter is ignored while the C-menu is open -- see MapPanelView's own Menu field for why.")]
         public PlayerMenuView Menu;
 
@@ -171,6 +174,18 @@ namespace CityX.UI
         public static bool IsBreakdanceCommand(string text) =>
             text != null && text.Trim().ToLowerInvariant() == "/breakdance";
 
+        /// <summary>
+        /// Same normalization rule as IsClaimCommand, for /sleep -- a diagnostic,
+        /// not a real feature: EXPLICIT ASK, "make it so if you press enter and
+        /// open text chat and type '/sleep' the character just goes limp and
+        /// ragdolls immediately no animation... lets see if its something do it
+        /// with it being playable." The grapple-swing distortion investigation
+        /// had proven Ragdoll.cs stable on a standalone, non-playable dummy;
+        /// this checks the same physics on the actual live player rig instead.
+        /// </summary>
+        public static bool IsSleepCommand(string text) =>
+            text != null && text.Trim().ToLowerInvariant() == "/sleep";
+
         private void Dispatch(string text)
         {
             if (IsClaimCommand(text))
@@ -186,6 +201,11 @@ namespace CityX.UI
             if (IsBreakdanceCommand(text))
             {
                 InputReader?.StartBreakdance();
+                return;
+            }
+            if (IsSleepCommand(text))
+            {
+                Ragdoll?.Activate(Vector3.zero);
                 return;
             }
             Bubble?.Show(text);
