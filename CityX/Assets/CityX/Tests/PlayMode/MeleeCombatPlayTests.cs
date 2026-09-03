@@ -1,6 +1,8 @@
+using System.Collections;
 using CityX.Character;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace CityX.Tests
 {
@@ -311,6 +313,197 @@ namespace CityX.Tests
             vitals.TakeDamage(10000.0f);
             Assert.IsTrue(vitals.IsDead);
             Assert.IsFalse(_attacker.TryAttack(), "a corpse threw a punch");
+        }
+
+        /// <summary>Bare-minimum sword: MovesetId routes TrySpinAttack's own gate to accept it.</summary>
+        private sealed class FakeSwordWeapon : IEquippableWeapon
+        {
+            public float GetMeleeDamage() => 20.0f;
+            public float MeleeCooldownSeconds => 0.4f;
+            public void RegisterLandedMeleeHit() { }
+            public bool CanThrow() => false;
+            public float ThrowSpeed => 0.0f;
+            public void Throw(GameObject player, Vector3 origin, Vector3 direction) { }
+            public string MovesetId => ComboChain.Sword;
+            public ComboStage? HeavyStage => null;
+        }
+
+        /// <summary>A non-sword weapon -- proves TrySpinAttack's gate checks MovesetId specifically, not just "something is equipped".</summary>
+        private sealed class FakeBottleWeapon : IEquippableWeapon
+        {
+            public float GetMeleeDamage() => 5.0f;
+            public float MeleeCooldownSeconds => 0.3f;
+            public void RegisterLandedMeleeHit() { }
+            public bool CanThrow() => true;
+            public float ThrowSpeed => 10.0f;
+            public void Throw(GameObject player, Vector3 origin, Vector3 direction) { }
+            public string MovesetId => null;
+            public ComboStage? HeavyStage => null;
+        }
+
+        /// <summary>
+        /// EXPLICIT ASK: "add a spin attack with the sword press 2 to use
+        /// it. its like links up special in smash bros he just spins
+        /// around with the sword for a bit."
+        /// </summary>
+        [Test]
+        public void SpinAttackRequiresASwordSpecifically()
+        {
+            Assert.IsFalse(_attacker.TrySpinAttack(), "spun with bare fists");
+
+            _attacker.EquippedWeapon = new FakeBottleWeapon();
+            Assert.IsFalse(_attacker.TrySpinAttack(), "spun with a non-sword weapon equipped");
+
+            _attacker.EquippedWeapon = new FakeSwordWeapon();
+            Assert.IsTrue(_attacker.TrySpinAttack(), "refused to spin with a real sword equipped");
+        }
+
+        /// <summary>
+        /// THE WHOLE POINT of a spin over an ordinary swing -- ATargetBehindTheAttackerIsNotHit
+        /// already proves an ordinary swing's own forward arc misses this
+        /// exact position.
+        /// </summary>
+        [Test]
+        public void SpinAttackHitsAllTheWayAroundNotJustInFront()
+        {
+            _attacker.EquippedWeapon = new FakeSwordWeapon();
+            _dummyObject.transform.position = new Vector3(0.0f, 1.0f, -1.5f);
+            Physics.SyncTransforms();
+
+            Assert.IsTrue(_attacker.TrySpinAttack());
+            Step(_attacker.SpinAttackSeconds + 0.05f);
+
+            Assert.Greater(_dummy.TimesHit, 0, "a target directly behind the attacker was never hit by the spin");
+        }
+
+        [Test]
+        public void SpinAttackLandsSeveralHitsOverItsOwnDuration()
+        {
+            _attacker.EquippedWeapon = new FakeSwordWeapon();
+            Assert.IsTrue(_attacker.TrySpinAttack());
+            Step(_attacker.SpinAttackSeconds + 0.05f);
+
+            int expectedHits = Mathf.FloorToInt(_attacker.SpinAttackSeconds / _attacker.SpinAttackDamageIntervalSeconds);
+            Assert.GreaterOrEqual(_dummy.TimesHit, 2,
+                $"a spin lasting {_attacker.SpinAttackSeconds}s at a hit every {_attacker.SpinAttackDamageIntervalSeconds}s " +
+                $"(expected around {expectedHits}) landed only {_dummy.TimesHit} time(s) -- reads as one swing, not a spin");
+        }
+
+        /// <summary>Matches PlayerInputReader's own "Swinging roots the body" movement gate, which reads this same flag.</summary>
+        [Test]
+        public void SpinAttackRootsTheBodyAndRefusesToRestartWhileSpinning()
+        {
+            _attacker.EquippedWeapon = new FakeSwordWeapon();
+            Assert.IsTrue(_attacker.TrySpinAttack());
+            Assert.IsTrue(_attacker.IsSwinging, "IsSwinging should cover an active spin, the same flag movement already checks");
+            Assert.IsTrue(_attacker.IsSpinAttacking);
+
+            Assert.IsFalse(_attacker.TrySpinAttack(), "restarted a spin while one was already in progress");
+            Assert.IsFalse(_attacker.TryAttack(), "threw an ordinary swing while spinning");
+
+            Step(_attacker.SpinAttackSeconds + 0.05f);
+            Assert.IsFalse(_attacker.IsSpinAttacking, "the spin never released the body");
+        }
+
+        [Test]
+        public void SpinAttackHasACooldownAfterItEnds()
+        {
+            _attacker.EquippedWeapon = new FakeSwordWeapon();
+            Assert.IsTrue(_attacker.TrySpinAttack());
+            Step(_attacker.SpinAttackSeconds + 0.05f);
+
+            Assert.IsFalse(_attacker.IsSpinAttacking, "setup failed -- the spin should have finished");
+            Assert.IsFalse(_attacker.TrySpinAttack(), "spun again immediately with no cooldown at all");
+
+            Step(_attacker.SpinAttackCooldownSeconds + 0.05f);
+            Assert.IsTrue(_attacker.TrySpinAttack(), "still refused to spin after its own cooldown fully elapsed");
+        }
+
+        /// <summary>The actual "spins around" -- without this, "press 2 to spin" would just be a stationary 360-degree hit with nothing to look at.</summary>
+        [Test]
+        public void SpinAttackActuallyRotatesTheBody()
+        {
+            _attacker.EquippedWeapon = new FakeSwordWeapon();
+            Quaternion before = _attackerObject.transform.rotation;
+
+            Assert.IsTrue(_attacker.TrySpinAttack());
+            Step(_attacker.SpinAttackSeconds * 0.5f);
+
+            float rotated = Quaternion.Angle(before, _attackerObject.transform.rotation);
+            Assert.Greater(rotated, 45.0f,
+                $"the body only turned {rotated:0.0} degrees halfway through the spin -- that reads as standing still, not spinning");
+        }
+
+        [Test]
+        public void ADeadAttackerCannotSpin()
+        {
+            var vitals = _attackerObject.AddComponent<PlayerVitals>();
+            vitals.Revive();
+            Object.DestroyImmediate(_attacker);
+            _attacker = _attackerObject.AddComponent<MeleeAttacker>();
+            _attacker.EquippedWeapon = new FakeSwordWeapon();
+
+            vitals.TakeDamage(10000.0f);
+            Assert.IsTrue(vitals.IsDead);
+            Assert.IsFalse(_attacker.TrySpinAttack(), "a corpse spun with its sword");
+        }
+
+        /// <summary>
+        /// EXPLICIT BUG REPORT, root-caused directly with the spin attack's
+        /// own diagnostic render: an Animator that has never actually
+        /// evaluated a single real frame yet sits at the raw imported BIND
+        /// POSE, same root cause GrappleSwing.Attach/DevConsoleView.Open
+        /// already fixed for the identical reason -- spinning the instant
+        /// control is gained (equip the sword, press 2 immediately) is a
+        /// completely normal thing to try, not an edge case. Checked here
+        /// with the REAL Player.prefab in REAL Play Mode -- the diagnostic
+        /// render that found this uses a pure editor batch script instead,
+        /// which (confirmed separately this same session, see
+        /// PoseDistortionWatchdog's own commit and its Time.deltaTime bug)
+        /// does not always behave the same as a genuine Play Mode frame for
+        /// this class of Animator warm-up question, so a real PlayMode test
+        /// is what actually proves or disproves this for the game as
+        /// players experience it.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator SpinningTheInstantAfterSpawnDoesNotFreezeARawBindPose()
+        {
+#if UNITY_EDITOR
+            GameObject playerPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/CityX/Character/Player.prefab");
+            Assert.IsNotNull(playerPrefab, "Player.prefab is missing");
+
+            GameObject player = Object.Instantiate(playerPrefab, new Vector3(0.0f, 20.0f, 0.0f), Quaternion.identity);
+            Animator animator = player.GetComponentInChildren<Animator>();
+            Assert.IsNotNull(animator, "Player.prefab has no Animator");
+            Transform rightUpperArm = animator.GetBoneTransform(HumanBodyBones.RightUpperArm);
+            Transform leftUpperArm = animator.GetBoneTransform(HumanBodyBones.LeftUpperArm);
+
+            try
+            {
+                MeleeAttacker melee = player.GetComponent<MeleeAttacker>();
+                Assert.IsNotNull(melee, "Player.prefab has no MeleeAttacker");
+                melee.EquippedWeapon = new FakeSwordWeapon();
+
+                // NO yield HERE -- zero real frames, zero real Animator
+                // evaluations, matching GrappleSwingPosePlayTests' own
+                // AttachingTheInstantAfterSpawnDoesNotCaptureTheRawBindPose
+                // exactly: fire the instant the rig exists.
+                Assert.IsTrue(melee.TrySpinAttack(), "setup failed -- could not start the spin");
+
+                float armDeviation = Quaternion.Angle(Quaternion.identity, rightUpperArm.localRotation) +
+                                      Quaternion.Angle(Quaternion.identity, leftUpperArm.localRotation);
+                Assert.Greater(armDeviation, 1.0f,
+                    "both arms are still at the raw all-zero bind pose immediately after starting a spin attack");
+            }
+            finally
+            {
+                Object.Destroy(player);
+            }
+            yield break;
+#else
+            yield break;
+#endif
         }
     }
 }

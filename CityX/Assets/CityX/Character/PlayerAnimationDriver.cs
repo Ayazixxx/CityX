@@ -77,6 +77,20 @@ namespace CityX.Character
                 return;
             }
 
+            // EXPLICIT BUG REPORT, root-caused directly with the sword spin
+            // attack's own diagnostic render: a real swing thrown before the
+            // Animator has ever actually evaluated a single frame crossfades
+            // FROM the raw imported bind pose (a T-pose) rather than from a
+            // real idle pose -- confirmed directly, rendered, on the very
+            // first frame a fresh spin attack was triggered. Same fix, same
+            // reasoning GrappleSwing.Attach/DevConsoleView.Open already
+            // apply for the identical hazard: a forced zero-delta Update
+            // guarantees a real evaluation has happened before anything
+            // else touches this Animator, so the blend below always starts
+            // from a genuine pose rather than whatever the raw import left
+            // bones at.
+            _animator.Update(0.0f);
+
             // CrossFadeInFixedTime, not CrossFade: the normalised version scales
             // the blend by the CURRENT state's length, so the same call blends
             // over a different real duration depending on whether you were

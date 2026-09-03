@@ -861,6 +861,145 @@ namespace CityX.WeaponsEditor
         }
 
         /// <summary>
+        /// DIAGNOSTIC, NOT A PERMANENT TOOL -- a quick visual check that
+        /// MeleeAttacker's own new spin attack (EXPLICIT ASK: "add a spin
+        /// attack with the sword press 2 to use it. its like links up
+        /// special in smash bros he just spins around with the sword for a
+        /// bit") actually reads as spinning rather than just passing its
+        /// own assertions -- MeleeCombatPlayTests already proves the
+        /// numbers (rotation, hit count, cooldown) are correct; this is
+        /// only here to confirm what the retriggered sword_attack clip
+        /// plus the body's own fast yaw rotation actually LOOKS like
+        /// together, at three points through one use.
+        /// </summary>
+        [MenuItem("CityX/Diagnose Sword Spin Attack")]
+        public static void DiagnoseSwordSpinAttack()
+        {
+            var playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab");
+            if (playerPrefab == null)
+            {
+                Debug.LogError("CityX: need Player.prefab built first.");
+                return;
+            }
+
+            string outputDirectory = System.IO.Path.Combine(
+                System.IO.Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
+            System.IO.Directory.CreateDirectory(outputDirectory);
+
+            var root = new GameObject("SwordSpinDiagnosticRig");
+            try
+            {
+                var sunObject = new GameObject("Sun");
+                sunObject.transform.SetParent(root.transform);
+                Light sun = sunObject.AddComponent<Light>();
+                sun.type = LightType.Directional;
+                sun.intensity = 1.2f;
+                sun.transform.rotation = Quaternion.Euler(35.0f, 150.0f, 0.0f);
+
+                var ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                ground.transform.SetParent(root.transform);
+                ground.transform.position = new Vector3(0.0f, -0.5f, 0.0f);
+                ground.transform.localScale = new Vector3(50.0f, 1.0f, 50.0f);
+
+                var player = (GameObject)PrefabUtility.InstantiatePrefab(playerPrefab);
+                player.transform.SetParent(root.transform);
+                player.transform.position = Vector3.zero;
+                Physics.SyncTransforms();
+
+                GameObject swordPrefab = SwordBuilder.Build();
+                if (swordPrefab == null)
+                {
+                    Debug.LogError("CityX: need the sword built first.");
+                    return;
+                }
+                var swordInstance = (GameObject)PrefabUtility.InstantiatePrefab(swordPrefab);
+                swordInstance.transform.SetParent(root.transform);
+                SwordWeapon sword = swordInstance.GetComponent<SwordWeapon>();
+                sword.OnEquip(player, ItemInstanceData.None);
+
+                MeleeAttacker melee = player.GetComponent<MeleeAttacker>();
+                Animator animator = player.GetComponentInChildren<Animator>();
+
+                var cameraObject = new GameObject("Camera");
+                cameraObject.transform.SetParent(root.transform);
+                Camera camera = cameraObject.AddComponent<Camera>();
+                cameraObject.transform.position = new Vector3(0.0f, 1.5f, -3.5f);
+                cameraObject.transform.LookAt(new Vector3(0.0f, 1.0f, 0.0f));
+
+                foreach (SkinnedMeshRenderer skin in player.GetComponentsInChildren<SkinnedMeshRenderer>())
+                {
+                    skin.updateWhenOffscreen = true;
+                }
+
+                // THE "start" AND "end" FRAMES CAN SHOW A RAW BIND POSE --
+                // confirmed directly this same session to be a batch-mode-
+                // only artifact, not a real bug: Animator.Update(0f) inside
+                // PlayerAnimationDriver.OnSwingStarted (added specifically
+                // for this) does not reliably warm up a genuinely
+                // never-evaluated Humanoid Animator in a pure editor batch
+                // script the way it does in real Play Mode, matching this
+                // session's own separate Time.deltaTime-in-batch-mode
+                // finding for the exact same "batch mode behaves
+                // differently" reason. Proven fine for real gameplay by
+                // MeleeCombatPlayTests.SpinningTheInstantAfterSpawnDoesNotFreezeARawBindPose,
+                // a genuine PlayMode test -- the "half" frame below is what
+                // actually matters for judging the spin's own look.
+                bool started = melee.TrySpinAttack();
+
+                void RenderAt(string label)
+                {
+                    RenderTexture target = new RenderTexture(900, 900, 24, RenderTextureFormat.ARGB32) { antiAliasing = 8 };
+                    camera.targetTexture = target;
+                    camera.Render();
+                    RenderTexture.active = target;
+                    var image = new Texture2D(900, 900, TextureFormat.RGB24, false);
+                    image.ReadPixels(new Rect(0, 0, 900, 900), 0, 0);
+                    image.Apply();
+                    string path = System.IO.Path.Combine(outputDirectory, $"sword-spin-{label}.png");
+                    System.IO.File.WriteAllBytes(path, image.EncodeToPNG());
+                    Object.DestroyImmediate(image);
+                    target.Release();
+                    Object.DestroyImmediate(target);
+                    camera.targetTexture = null;
+                    Debug.Log($"CityX: wrote {path} -- yaw={player.transform.eulerAngles.y:F0} " +
+                        $"IsSpinAttacking={melee.IsSpinAttacking}");
+                }
+
+                float stepSeconds = 1.0f / 60.0f;
+                float elapsed = 0.0f;
+                float renderAtQuarter = melee.SpinAttackSeconds * 0.25f;
+                float renderAtHalf = melee.SpinAttackSeconds * 0.5f;
+                bool renderedQuarter = false;
+                bool renderedHalf = false;
+                RenderAt("start");
+
+                while (melee.IsSpinAttacking)
+                {
+                    melee.Tick(stepSeconds);
+                    animator.Update(stepSeconds);
+                    elapsed += stepSeconds;
+
+                    if (!renderedQuarter && elapsed >= renderAtQuarter)
+                    {
+                        renderedQuarter = true;
+                        RenderAt("quarter");
+                    }
+                    if (!renderedHalf && elapsed >= renderAtHalf)
+                    {
+                        renderedHalf = true;
+                        RenderAt("half");
+                    }
+                }
+                RenderAt("end");
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        /// <summary>
         /// DIAGNOSTIC, NOT A PERMANENT TOOL -- EXPLICIT PUSHBACK on a
         /// theory this session floated and the user rejected outright:
         /// "0 reason why i should be stretching eliminate that." Renders

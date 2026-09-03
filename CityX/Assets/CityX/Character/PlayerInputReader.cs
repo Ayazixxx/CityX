@@ -820,6 +820,20 @@ namespace CityX.Character
                 _melee.PlayBlock();
             }
 
+            // THE SWORD'S OWN SPIN ATTACK -- explicit ask: "press 2 to use
+            // it. its like links up special in smash bros he just spins
+            // around with the sword for a bit". TrySpinAttack itself
+            // refuses without a sword equipped (MeleeAttacker.EquippedWeapon
+            // .MovesetId == ComboChain.Sword), so pressing 2 bare-handed or
+            // with any other weapon silently does nothing -- same "ask,
+            // decide nothing here" split digit1Key's own fireball check
+            // above already uses, just scoped to melee instead of an
+            // innate ability available regardless of loadout.
+            if (Keyboard.current != null && Keyboard.current.digit2Key.wasPressedThisFrame)
+            {
+                _melee.TrySpinAttack();
+            }
+
             if (Mouse.current.leftButton.wasPressedThisFrame)
             {
                 _punchHeld = true;

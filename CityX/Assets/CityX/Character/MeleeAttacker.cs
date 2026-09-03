@@ -46,6 +46,27 @@ namespace CityX.Character
         [Tooltip("Fraction into the swing at which the blow actually lands.")]
         public float ContactFraction = 0.45f;
 
+        [Header("Sword Spin Attack")]
+        [Tooltip("How long the whole spin lasts, in seconds.")]
+        public float SpinAttackSeconds = 1.2f;
+
+        [Tooltip("How fast the body spins during the attack, in degrees per second.")]
+        public float SpinAttackDegreesPerSecond = 720.0f;
+
+        [Tooltip("How often, in seconds, a spinning blade actually lands a hit -- several landings per use, not one.")]
+        public float SpinAttackDamageIntervalSeconds = 0.3f;
+
+        [Tooltip("Cooldown, counted from the moment a spin starts, before another can begin.")]
+        public float SpinAttackCooldownSeconds = 4.0f;
+
+        /// <summary>
+        /// Scaled down from an ordinary sword swing -- a full spin lands
+        /// several hits (SpinAttackSeconds / SpinAttackDamageIntervalSeconds
+        /// worth), so per-hit damage has to give something back for that or
+        /// spamming 2 would strictly outclass the ordinary combo.
+        /// </summary>
+        public float SpinAttackDamageScale = 0.6f;
+
         [Header("Feedback (ported from player.gd)")]
         [Tooltip("player.gd PunchImpactSounds -- one is picked at random per LANDED hit.")]
         public AudioClip[] ImpactSounds;
@@ -73,6 +94,20 @@ namespace CityX.Character
         private bool _contactDone;
         private ComboStage _currentStage;
 
+        private float _spinRemaining;
+        private float _spinCooldownRemaining;
+        private float _spinDamageTimer;
+
+        /// <summary>
+        /// Reuses sword_attack's own clip rather than inventing a new one --
+        /// there is no dedicated spin animation asset, and retriggering a
+        /// real swing clip every SpinAttackDamageIntervalSeconds while the
+        /// body itself physically rotates (see Tick) is what reads as
+        /// "spinning with the sword" using only what already exists.
+        /// </summary>
+        private static readonly ComboStage SpinAttackStage =
+            new ComboStage("sword_attack", 1.0f, 1.0f, 0.0f, false);
+
         /// <summary>
         /// The swing duration actually in effect for the swing in progress.
         /// A weapon supplies its own cooldown; jab and heavy both use
@@ -85,8 +120,18 @@ namespace CityX.Character
         /// <summary>Which stage of the chain the next swing would play.</summary>
         public int NextStageIndex => _nextStage;
 
-        /// <summary>True while a swing is occupying the body.</summary>
-        public bool IsSwinging => _swingRemaining > 0.0f;
+        /// <summary>
+        /// True while a swing OR a spin attack is occupying the body --
+        /// PlayerInputReader's own movement gate ("Swinging roots the
+        /// body") already reads this one flag, so folding the spin into it
+        /// here is what makes a spin attack root you in place too, for
+        /// free, matching Smash's own up-special commitment rather than
+        /// needing a second gate wired through separately.
+        /// </summary>
+        public bool IsSwinging => _swingRemaining > 0.0f || _spinRemaining > 0.0f;
+
+        /// <summary>True while the sword's own spin attack is spinning.</summary>
+        public bool IsSpinAttacking => _spinRemaining > 0.0f;
 
         /// <summary>The stage currently being swung. Meaningless when not swinging.</summary>
         public ComboStage CurrentStage => _currentStage;
@@ -257,11 +302,87 @@ namespace CityX.Character
         }
 
         /// <summary>
+        /// Asks to spin. Sword only -- explicit ask: "press 2 to use it.
+        /// its like links up special in smash bros he just spins around
+        /// with the sword for a bit." Refuses while already swinging/
+        /// spinning (IsSwinging covers both) or on cooldown, same shape
+        /// TryAttack's own busy-body guard uses.
+        /// </summary>
+        public bool TrySpinAttack()
+        {
+            if (IsSwinging || (_vitals != null && _vitals.IsDead))
+            {
+                return false;
+            }
+            if (_spinCooldownRemaining > 0.0f)
+            {
+                return false;
+            }
+            if (EquippedWeapon == null || EquippedWeapon.MovesetId != ComboChain.Sword)
+            {
+                return false;
+            }
+
+            _spinRemaining = SpinAttackSeconds;
+            _spinDamageTimer = SpinAttackDamageIntervalSeconds;
+            // Counted from NOW, covering the spin's own duration plus the
+            // cooldown after it -- so the very next TrySpinAttack call
+            // (which IsSwinging above already refuses on its own while
+            // spinning) still finds a real cooldown waiting once the spin
+            // ends, rather than being free to restart the instant
+            // _spinRemaining reaches zero.
+            _spinCooldownRemaining = SpinAttackSeconds + SpinAttackCooldownSeconds;
+            _currentStage = SpinAttackStage;
+            SwingStarted?.Invoke(_currentStage);
+            return true;
+        }
+
+        /// <summary>
         /// Advances swing and window timers, and lands the blow at the contact
         /// moment. Call once per frame.
         /// </summary>
         public void Tick(float deltaTime)
         {
+            if (_spinCooldownRemaining > 0.0f)
+            {
+                _spinCooldownRemaining -= deltaTime;
+            }
+
+            if (_spinRemaining > 0.0f)
+            {
+                // WORLD SPACE, not local -- Space.Self would spin around
+                // whatever local up the body currently has, which does not
+                // matter here since the character always stands upright,
+                // but World is the same axis PlayerLocomotion's own facing
+                // turn (Quaternion.Euler(0, yaw, 0)) already uses, so a spin
+                // reads as the same kind of turn, just much faster and not
+                // player-steered.
+                transform.Rotate(Vector3.up, SpinAttackDegreesPerSecond * deltaTime, Space.World);
+
+                _spinRemaining -= deltaTime;
+                _spinDamageTimer -= deltaTime;
+                if (_spinDamageTimer <= 0.0f)
+                {
+                    _spinDamageTimer += SpinAttackDamageIntervalSeconds;
+                    LandSpinBlow();
+                    // RETRIGGERS THE SAME SWING CLIP -- a single CrossFade
+                    // at the start of a 1.2s spin would play one short swing
+                    // and then sit idle in whatever state follows it for
+                    // the rest of the rotation. Firing SwingStarted again on
+                    // every damage tick keeps a real swing animation
+                    // playing in sync with each landed hit for the whole
+                    // spin, using the exact same "told by name" listener
+                    // PlayerAnimationDriver already has -- no new wiring
+                    // needed there at all.
+                    SwingStarted?.Invoke(_currentStage);
+                }
+                if (_spinRemaining <= 0.0f)
+                {
+                    _spinRemaining = 0.0f;
+                }
+                return;
+            }
+
             if (_windowRemaining > 0.0f)
             {
                 _windowRemaining -= deltaTime;
@@ -336,7 +457,13 @@ namespace CityX.Character
             }
         }
 
-        private List<Contact> ContactsInReach()
+        /// <summary>
+        /// <paramref name="fullCircle"/> skips the forward-arc check
+        /// entirely -- the spin attack's own whole point, matching Smash's
+        /// up-special hitting all around rather than only what an ordinary
+        /// swing's HalfArcDegrees would let it reach.
+        /// </summary>
+        private List<Contact> ContactsInReach(bool fullCircle = false)
         {
             var found = new List<Contact>();
             Vector3 origin = SwingOrigin();
@@ -364,12 +491,15 @@ namespace CityX.Character
                     continue;
                 }
 
-                Vector3 toTarget = collider.transform.position - origin;
-                toTarget.y = 0.0f;
-                if (toTarget.sqrMagnitude > 0.0001f &&
-                    Vector3.Dot(toTarget.normalized, transform.forward) < cosLimit)
+                if (!fullCircle)
                 {
-                    continue;   // behind, or too far round the side
+                    Vector3 toTarget = collider.transform.position - origin;
+                    toTarget.y = 0.0f;
+                    if (toTarget.sqrMagnitude > 0.0001f &&
+                        Vector3.Dot(toTarget.normalized, transform.forward) < cosLimit)
+                    {
+                        continue;   // behind, or too far round the side
+                    }
                 }
                 found.Add(new Contact(target, collider.ClosestPoint(origin)));
             }
@@ -486,6 +616,63 @@ namespace CityX.Character
             if (EquippedWeapon == null)
             {
                 connected |= PunchGlass(origin);
+            }
+
+            if (connected)
+            {
+                PlayImpact();
+                EquippedWeapon?.RegisterLandedMeleeHit();
+            }
+        }
+
+        /// <summary>
+        /// One landed pulse of the spin attack -- FULL CIRCLE, not the
+        /// forward arc LandBlow's own ContactsInReach uses, which is the
+        /// entire point of a spin. Deliberately much simpler than LandBlow:
+        /// no combo/chain/finisher/window bookkeeping, no glass-punching,
+        /// no block handling -- TrySpinAttack's own gate already guarantees
+        /// a real EquippedWeapon.MovesetId == ComboChain.Sword every time
+        /// this runs, so there is no unarmed/bottle path to branch on
+        /// either, unlike LandBlow.
+        /// </summary>
+        private void LandSpinBlow()
+        {
+            // BELT AND BRACES: TrySpinAttack already refuses without a
+            // sword equipped, but nothing stops the sword being unequipped
+            // WHILE the spin it started is still running -- this guard is
+            // what stands between that and a null EquippedWeapon.GetMeleeDamage()
+            // crash mid-spin.
+            if (EquippedWeapon == null)
+            {
+                return;
+            }
+            int strength = _vitals != null ? _vitals.Strength : 0;
+            float damage = CombatTuning.DamageFor(EquippedWeapon.GetMeleeDamage() * SpinAttackDamageScale, strength);
+
+            bool connected = false;
+            Vector3 origin = SwingOrigin();
+            foreach (Contact contact in ContactsInReach(fullCircle: true))
+            {
+                HitResponse response = contact.Target.ApplyHit(damage, transform.position, CombatTuning.HitstunSeconds);
+                if (response == HitResponse.Ignored)
+                {
+                    continue;
+                }
+
+                Landed?.Invoke(contact.Target, damage);
+                connected = true;
+
+                if (!contact.Target.IsAlive && contact.Target is IXpReward xpSource)
+                {
+                    _vitals?.AddXp(xpSource.XpReward);
+                }
+
+                if (response == HitResponse.Blocked)
+                {
+                    continue;
+                }
+
+                BloodSplatter.Spawn(BloodPrefab, contact.Point, origin - contact.Point);
             }
 
             if (connected)
