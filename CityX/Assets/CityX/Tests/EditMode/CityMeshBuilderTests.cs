@@ -455,6 +455,163 @@ namespace CityX.Tests
             Assert.Fail("no street terrace drop found to check determinism against");
         }
 
+        /// <summary>
+        /// EXPLICIT ASK: "keep making the city more citylike". A lamp needs
+        /// nowhere else to stand than the sidewalk AddSidewalks already
+        /// builds, so this checks the SAME condition that logic already
+        /// relies on: any street chunk with at least one real (non-street)
+        /// neighbour gets lamp geometry, regardless of whether that edge
+        /// also happens to be a terrace drop -- unlike the guard rail
+        /// above, a lamp does not need one.
+        /// </summary>
+        [Test]
+        public void EveryStreetChunkWithARealSidewalkGetsAtLeastOneLamp()
+        {
+            int casesFound = 0;
+
+            for (int x = -20; x <= 20; x++)
+            {
+                for (int y = -20; y <= 20; y++)
+                {
+                    if (!CityLayout.IsStreetChunk(x, y))
+                    {
+                        continue;
+                    }
+                    bool hasRealNeighbour = !CityLayout.IsStreetChunk(x - 1, y) ||
+                                             !CityLayout.IsStreetChunk(x + 1, y) ||
+                                             !CityLayout.IsStreetChunk(x, y - 1) ||
+                                             !CityLayout.IsStreetChunk(x, y + 1);
+                    if (!hasRealNeighbour)
+                    {
+                        continue;
+                    }
+
+                    BuildStreetEdge(x, y, out _, out MeshBuffer guardRail);
+                    casesFound++;
+                    Assert.IsFalse(guardRail.IsEmpty,
+                        $"street chunk ({x},{y}) has a real sidewalk but built no lamp");
+                }
+            }
+
+            Assert.Greater(casesFound, 0, "no ordinary street edge in the sweep");
+        }
+
+        /// <summary>
+        /// A 4-way junction has no sidewalk anywhere (AddSidewalks' own
+        /// rule), so it should have no lamp floating in its own middle
+        /// either. EXCLUDES a junction that also drops to a lower
+        /// neighbour -- that legitimately puts UNRELATED guard-rail
+        /// geometry (AddStreetEdgeFeatures, pre-existing) in this same
+        /// shared buffer regardless of lamps, so "the buffer is non-empty"
+        /// would not actually be testing lamp placement on that case.
+        /// </summary>
+        [Test]
+        public void AFourWayJunctionGetsNoLamp()
+        {
+            CityWorld world = new CityWorld(Seed);
+            int casesFound = 0;
+
+            for (int x = -20; x <= 20; x++)
+            {
+                for (int y = -20; y <= 20; y++)
+                {
+                    bool junction = CityLayout.IsStreetChunk(x, y) &&
+                                    CityLayout.IsStreetChunk(x - 1, y) &&
+                                    CityLayout.IsStreetChunk(x + 1, y) &&
+                                    CityLayout.IsStreetChunk(x, y - 1) &&
+                                    CityLayout.IsStreetChunk(x, y + 1);
+                    if (!junction)
+                    {
+                        continue;
+                    }
+                    float pad = world.Terrain.PadHeightFor(x, y);
+                    bool anyDrop = world.Terrain.PadHeightFor(x - 1, y) < pad ||
+                                    world.Terrain.PadHeightFor(x + 1, y) < pad ||
+                                    world.Terrain.PadHeightFor(x, y - 1) < pad ||
+                                    world.Terrain.PadHeightFor(x, y + 1) < pad;
+                    if (anyDrop)
+                    {
+                        continue;
+                    }
+
+                    BuildStreetEdge(x, y, out _, out MeshBuffer guardRail);
+                    casesFound++;
+                    Assert.IsTrue(guardRail.IsEmpty,
+                        $"junction ({x},{y}) has no sidewalk to stand on but built a lamp anyway");
+                }
+            }
+
+            Assert.Greater(casesFound, 0, "no junction in the sweep");
+        }
+
+        /// <summary>Same chunk, same world -- a lamp has to land in the same place every time, not flip on a rebuild.</summary>
+        [Test]
+        public void StreetLampsAreDeterministic()
+        {
+            for (int x = -20; x <= 20; x++)
+            {
+                for (int y = -20; y <= 20; y++)
+                {
+                    if (!CityLayout.IsStreetChunk(x, y))
+                    {
+                        continue;
+                    }
+                    bool hasRealNeighbour = !CityLayout.IsStreetChunk(x - 1, y) ||
+                                             !CityLayout.IsStreetChunk(x + 1, y) ||
+                                             !CityLayout.IsStreetChunk(x, y - 1) ||
+                                             !CityLayout.IsStreetChunk(x, y + 1);
+                    if (!hasRealNeighbour)
+                    {
+                        continue;
+                    }
+
+                    BuildStreetEdge(x, y, out _, out MeshBuffer guardRailA);
+                    BuildStreetEdge(x, y, out _, out MeshBuffer guardRailB);
+                    CollectionAssert.AreEqual(guardRailA.Vertices, guardRailB.Vertices,
+                        $"chunk ({x},{y}) built different lamp geometry on a second, identical rebuild");
+                    return;
+                }
+            }
+
+            Assert.Fail("no ordinary street edge found to check determinism against");
+        }
+
+        /// <summary>The pole actually stands tall rather than being a degenerate sliver -- the lamp head has to clear head height by a real margin to read as a lamp at all.</summary>
+        [Test]
+        public void AStreetLampReachesItsFullPoleHeight()
+        {
+            CityWorld world = new CityWorld(Seed);
+
+            for (int x = -20; x <= 20; x++)
+            {
+                for (int y = -20; y <= 20; y++)
+                {
+                    if (!CityLayout.IsStreetChunk(x, y))
+                    {
+                        continue;
+                    }
+                    bool hasRealNeighbour = !CityLayout.IsStreetChunk(x - 1, y) ||
+                                             !CityLayout.IsStreetChunk(x + 1, y) ||
+                                             !CityLayout.IsStreetChunk(x, y - 1) ||
+                                             !CityLayout.IsStreetChunk(x, y + 1);
+                    if (!hasRealNeighbour)
+                    {
+                        continue;
+                    }
+
+                    BuildStreetEdge(x, y, out _, out MeshBuffer guardRail);
+                    float pad = world.Terrain.PadHeightFor(x, y);
+                    float expectedHeadTop = pad + CityMeshBuilder.KerbHeight
+                        + CityMeshBuilder.LampPoleHeight + CityMeshBuilder.LampHeadHeight;
+                    Assert.IsTrue(HasVertexNear(guardRail, expectedHeadTop),
+                        $"chunk ({x},{y}) has no lamp geometry reaching the expected head height {expectedHeadTop:0.00}");
+                    return;
+                }
+            }
+
+            Assert.Fail("no ordinary street edge found to check lamp height against");
+        }
+
         [Test]
         public void ABuildingsBoxMatchesItsFootprintAndHeight()
         {

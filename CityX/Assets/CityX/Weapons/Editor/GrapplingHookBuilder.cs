@@ -2382,6 +2382,79 @@ namespace CityX.WeaponsEditor
         }
 
         /// <summary>
+        /// DIAGNOSTIC, NOT A PERMANENT TOOL -- a street-level look at the
+        /// new CityMeshBuilder.AddStreetLamps in the REAL streamed city,
+        /// not just the geometry-only EditMode tests (EXPLICIT ASK: "keep
+        /// making the city more citylike"). Same "open the real scene,
+        /// stream real chunks in around a point, render" shape
+        /// DiagnoseHangingDummyInRealScene already uses.
+        /// </summary>
+        [MenuItem("CityX/Diagnose Street Lamps In Real Scene")]
+        public static void DiagnoseStreetLampsInRealScene()
+        {
+            Scene scene = EditorSceneManager.OpenScene(
+                "Assets/CityX/Scenes/CityMassing.unity", OpenSceneMode.Single);
+
+            string outputDirectory = System.IO.Path.Combine(
+                System.IO.Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
+            System.IO.Directory.CreateDirectory(outputDirectory);
+
+            RenderTexture target = null;
+            try
+            {
+                GameObject playerObject = null;
+                foreach (GameObject rootObj in scene.GetRootGameObjects())
+                {
+                    if (rootObj.name == "Player") playerObject = rootObj;
+                }
+                if (playerObject == null)
+                {
+                    Debug.LogError("CityX DIAGNOSTIC: no \"Player\" found in the real saved scene.");
+                    return;
+                }
+                Vector3 spawn = playerObject.transform.position;
+
+                CityStreamer streamer = Object.FindFirstObjectByType<CityStreamer>();
+                if (streamer == null)
+                {
+                    Debug.LogError("CityX DIAGNOSTIC: no CityStreamer in the real saved scene.");
+                    return;
+                }
+                streamer.StreamAround(spawn, 400);
+                Physics.SyncTransforms();
+
+                // Off the spawn intersection and down one of the real
+                // streets -- chunk (0,0) is a 4-way junction (no sidewalk,
+                // no lamp, by design), so a shot centred there would prove
+                // nothing about the new feature.
+                Vector3 alongStreet = spawn + new Vector3(30.0f, 0.0f, 3.0f);
+                var cameraObject = new GameObject("Camera");
+                Camera camera = cameraObject.AddComponent<Camera>();
+                camera.farClipPlane = 500.0f;
+                camera.nearClipPlane = 0.1f;
+                cameraObject.transform.position = alongStreet + new Vector3(0.0f, 1.7f, 0.0f);
+                cameraObject.transform.rotation = Quaternion.Euler(5.0f, 90.0f, 0.0f);
+
+                target = new RenderTexture(1280, 720, 24, RenderTextureFormat.ARGB32) { antiAliasing = 8 };
+                camera.targetTexture = target;
+                camera.Render();
+                RenderTexture.active = target;
+                var image = new Texture2D(1280, 720, TextureFormat.RGB24, false);
+                image.ReadPixels(new Rect(0, 0, 1280, 720), 0, 0);
+                image.Apply();
+                string path = System.IO.Path.Combine(outputDirectory, "street-lamps-real-scene.png");
+                System.IO.File.WriteAllBytes(path, image.EncodeToPNG());
+                Object.DestroyImmediate(image);
+                Debug.Log($"CityX: wrote {path} -- camera at {cameraObject.transform.position:F2}");
+            }
+            finally
+            {
+                if (target != null) { target.Release(); Object.DestroyImmediate(target); }
+            }
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        /// <summary>
         /// DIAGNOSTIC, NOT A PERMANENT TOOL -- confirms the hanging ragdoll
         /// dummy actually landed correctly in the REAL saved scene (not
         /// just the isolated builder), near the real player's own spawn

@@ -1915,6 +1915,11 @@ MonoBehaviour:
   SwingSeconds: 0.35
   HeavySwingSeconds: 0.55
   ContactFraction: 0.45
+  SpinAttackSeconds: 1.2
+  SpinAttackDegreesPerSecond: 720
+  SpinAttackDamageIntervalSeconds: 0.3
+  SpinAttackCooldownSeconds: 4
+  SpinAttackDamageScale: 0.6
   ImpactSounds:
   - {fileID: 8300000, guid: 2653802eb30c13044b5710cc20f73b48, type: 3}
   - {fileID: 8300000, guid: 26785f141b5374340a94ed5a3e1adb79, type: 3}

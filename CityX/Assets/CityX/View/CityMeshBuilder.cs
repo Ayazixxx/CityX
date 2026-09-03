@@ -238,6 +238,76 @@ namespace CityX.View
                 new Vector3(x1, y, z1 - CornerSkirtReach), Vector3.right, ground);
 
             AddSidewalks(chunkX, chunkY, x0, z0, x1, z1, y, pavement);
+            AddStreetLamps(chunkX, chunkY, x0, z0, x1, z1, y, guardRail);
+        }
+
+        /// <summary>Pole height, from the sidewalk surface to the base of the lamp head.</summary>
+        public const float LampPoleHeight = 4.2f;
+
+        /// <summary>Pole cross-section, square -- same shape idiom as GuardRailPostSize.</summary>
+        public const float LampPoleSize = 0.09f;
+
+        public const float LampHeadWidth = 0.34f;
+        public const float LampHeadHeight = 0.22f;
+
+        /// <summary>
+        /// One lamp post centred along each real sidewalk edge -- EXPLICIT
+        /// ASK: "keep making the city more citylike". Reuses guardRail's own
+        /// dark steel buffer/material rather than adding a new one: a lamp
+        /// post is the same municipal steel object a guard rail already is,
+        /// and sharing the buffer means this needed no new material or
+        /// buffer wiring anywhere else in the streaming pipeline at all.
+        ///
+        /// THE SAME FOUR CONDITIONS AddSidewalks ALREADY USES -- a lamp can
+        /// only stand where a real sidewalk slab does, so a junction
+        /// (street on all four sides, no sidewalk anywhere) correctly gets
+        /// none, matching how a real intersection has no lamp floating in
+        /// its own middle.
+        ///
+        /// CENTRED ON THE SIDEWALK'S OWN WIDTH, not the chunk edge -- 2m
+        /// in from the raw corner AddStreetEdgeFeatures' own guard-rail
+        /// posts sit on, so the two coexist without touching on the rare
+        /// street edge that also happens to be a terrace drop.
+        /// </summary>
+        private static void AddStreetLamps(int chunkX, int chunkY,
+            float x0, float z0, float x1, float z1, float y, MeshBuffer guardRail)
+        {
+            if (guardRail == null || !CityLayout.IsStreetChunk(chunkX, chunkY))
+            {
+                return;
+            }
+
+            float baseY = y + KerbHeight;
+            float inset = SidewalkWidth * 0.5f;
+
+            if (!CityLayout.IsStreetChunk(chunkX - 1, chunkY))
+            {
+                AddStreetLamp(guardRail, new Vector3(x0 + inset, baseY, (z0 + z1) * 0.5f));
+            }
+            if (!CityLayout.IsStreetChunk(chunkX + 1, chunkY))
+            {
+                AddStreetLamp(guardRail, new Vector3(x1 - inset, baseY, (z0 + z1) * 0.5f));
+            }
+            if (!CityLayout.IsStreetChunk(chunkX, chunkY - 1))
+            {
+                AddStreetLamp(guardRail, new Vector3((x0 + x1) * 0.5f, baseY, z0 + inset));
+            }
+            if (!CityLayout.IsStreetChunk(chunkX, chunkY + 1))
+            {
+                AddStreetLamp(guardRail, new Vector3((x0 + x1) * 0.5f, baseY, z1 - inset));
+            }
+        }
+
+        /// <summary>A pole plus a boxy head cap, standing on <paramref name="baseCentre"/>.</summary>
+        private static void AddStreetLamp(MeshBuffer guardRail, Vector3 baseCentre)
+        {
+            Vector3 poleHalf = new Vector3(LampPoleSize, LampPoleHeight, LampPoleSize) * 0.5f;
+            Vector3 poleCentre = baseCentre + new Vector3(0.0f, LampPoleHeight * 0.5f, 0.0f);
+            guardRail.AddBox(poleCentre - poleHalf, poleCentre + poleHalf);
+
+            Vector3 headHalf = new Vector3(LampHeadWidth, LampHeadHeight, LampHeadWidth) * 0.5f;
+            Vector3 headCentre = baseCentre + new Vector3(0.0f, LampPoleHeight + LampHeadHeight * 0.5f, 0.0f);
+            guardRail.AddBox(headCentre - headHalf, headCentre + headHalf);
         }
 
         /// <summary>
