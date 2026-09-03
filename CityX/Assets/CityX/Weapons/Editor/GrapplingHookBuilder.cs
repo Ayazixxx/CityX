@@ -861,6 +861,146 @@ namespace CityX.WeaponsEditor
         }
 
         /// <summary>
+        /// DIAGNOSTIC, NOT A PERMANENT TOOL -- EXPLICIT PUSHBACK on a
+        /// theory this session floated and the user rejected outright:
+        /// "0 reason why i should be stretching eliminate that." Renders
+        /// the console-freeze at MANY different points through a real
+        /// jump arc (takeoff, early air, apex, descent, just before
+        /// landing) rather than DiagnoseConsoleFreezeMidWalk's own single
+        /// steady-walk moment -- if a real, unremarkable animator
+        /// transition (Locomotion -> Falling -> Locomotion) is ever going
+        /// to look like something is wrong when frozen, this is exactly
+        /// where it would show up. Every frame is saved, not just one, so
+        /// they can be looked at directly rather than guessed about.
+        /// </summary>
+        [MenuItem("CityX/Diagnose Console Freeze Through A Jump Arc")]
+        public static void DiagnoseConsoleFreezeThroughAJumpArc()
+        {
+            var playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab");
+            if (playerPrefab == null)
+            {
+                Debug.LogError("CityX: need Player.prefab built first.");
+                return;
+            }
+
+            string outputDirectory = System.IO.Path.Combine(
+                System.IO.Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
+            System.IO.Directory.CreateDirectory(outputDirectory);
+
+            var root = new GameObject("JumpArcFreezeDiagnosticRig");
+            try
+            {
+                var sunObject = new GameObject("Sun");
+                sunObject.transform.SetParent(root.transform);
+                Light sun = sunObject.AddComponent<Light>();
+                sun.type = LightType.Directional;
+                sun.intensity = 1.2f;
+                sun.transform.rotation = Quaternion.Euler(35.0f, 150.0f, 0.0f);
+
+                var ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                ground.transform.SetParent(root.transform);
+                ground.transform.position = new Vector3(0.0f, -0.5f, 0.0f);
+                ground.transform.localScale = new Vector3(100.0f, 1.0f, 100.0f);
+
+                var player = (GameObject)PrefabUtility.InstantiatePrefab(playerPrefab);
+                player.transform.SetParent(root.transform);
+                player.transform.position = Vector3.zero;
+                Physics.SyncTransforms();
+
+                PlayerLocomotion locomotion = player.GetComponent<PlayerLocomotion>();
+                locomotion.Bind();
+                Animator animator = player.GetComponentInChildren<Animator>();
+
+                var cameraObject = new GameObject("Camera");
+                cameraObject.transform.SetParent(root.transform);
+                Camera camera = cameraObject.AddComponent<Camera>();
+                ThirdPersonCamera orbitCamera = cameraObject.AddComponent<ThirdPersonCamera>();
+                orbitCamera.Target = player.transform;
+                var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+                var cameraStart = typeof(ThirdPersonCamera).GetMethod("Start", flags);
+                var cameraLateUpdate = typeof(ThirdPersonCamera).GetMethod("LateUpdate", flags);
+                cameraStart.Invoke(orbitCamera, null);
+
+                foreach (SkinnedMeshRenderer skin in player.GetComponentsInChildren<SkinnedMeshRenderer>())
+                {
+                    skin.updateWhenOffscreen = true;
+                }
+
+                // A moment of ordinary walking first, so this is a jump OUT
+                // OF real forward motion, not a jump from a cold standstill.
+                var locomotionLateUpdate = typeof(PlayerLocomotion).GetMethod("LateUpdate", flags);
+                var input = new LocomotionInput { Move = new Vector2(0.0f, 1.0f), YawDegrees = 0.0f };
+                for (int i = 0; i < 30; i++)
+                {
+                    locomotion.Tick(input, 1.0f / 60.0f);
+                    animator.Update(1.0f / 60.0f);
+                    locomotionLateUpdate.Invoke(locomotion, null);
+                }
+
+                // Jump on this exact tick, then keep running ordinary
+                // forward-walk input through the whole arc -- Jump only
+                // needs to be true for the one frame it takes effect on.
+                input.Jump = true;
+                locomotion.Tick(input, 1.0f / 60.0f);
+                animator.Update(1.0f / 60.0f);
+                locomotionLateUpdate.Invoke(locomotion, null);
+                input.Jump = false;
+
+                // JumpVelocity/Gravity puts the apex/landing well inside a
+                // 100-tick (1.6s) window -- freezing and rendering at 10
+                // evenly spread points across it covers takeoff, early air,
+                // apex, descent and landing without guessing which single
+                // tick matters.
+                const int totalTicks = 100;
+                int[] freezeAtTick = { 2, 6, 12, 20, 30, 45, 60, 75, 88, 96 };
+                int nextFreezeIndex = 0;
+
+                for (int tick = 0; tick < totalTicks; tick++)
+                {
+                    if (nextFreezeIndex < freezeAtTick.Length && tick == freezeAtTick[nextFreezeIndex])
+                    {
+                        // THE FREEZE ITSELF -- exactly DevConsoleView.Open's own job.
+                        animator.enabled = false;
+                        for (int i = 0; i < 5; i++)
+                        {
+                            cameraLateUpdate.Invoke(orbitCamera, null);
+                        }
+
+                        RenderTexture target = new RenderTexture(900, 900, 24, RenderTextureFormat.ARGB32) { antiAliasing = 8 };
+                        camera.targetTexture = target;
+                        camera.Render();
+                        RenderTexture.active = target;
+                        var image = new Texture2D(900, 900, TextureFormat.RGB24, false);
+                        image.ReadPixels(new Rect(0, 0, 900, 900), 0, 0);
+                        image.Apply();
+                        string path = System.IO.Path.Combine(outputDirectory, $"console-freeze-jump-tick{tick:D3}.png");
+                        System.IO.File.WriteAllBytes(path, image.EncodeToPNG());
+                        Object.DestroyImmediate(image);
+                        target.Release();
+                        Object.DestroyImmediate(target);
+                        camera.targetTexture = null;
+                        Debug.Log($"CityX: wrote {path} -- grounded={locomotion.IsGrounded} playerY={player.transform.position.y:F2}");
+
+                        // THE UNFREEZE -- back to ordinary play before the next tick.
+                        animator.enabled = true;
+                        animator.Update(0.0f);
+                        nextFreezeIndex++;
+                    }
+
+                    locomotion.Tick(input, 1.0f / 60.0f);
+                    animator.Update(1.0f / 60.0f);
+                    locomotionLateUpdate.Invoke(locomotion, null);
+                    cameraLateUpdate.Invoke(orbitCamera, null);
+                }
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        /// <summary>
         /// DIAGNOSTIC, NOT A PERMANENT TOOL -- renders the single frame
         /// right BEFORE and the single frame right AFTER a grapple release,
         /// to directly measure whether handing control back from the

@@ -145,6 +145,13 @@ namespace CityX.ViewEditor
             // somewhere, never the player -- so typing it visibly did nothing
             // to the character actually being watched.
             Ragdoll playerRagdoll = null;
+            // Same reasoning, same fix shape: captured off the player
+            // directly rather than looked up by type later, once the
+            // watchdog needs GrappleSwing/PlayerLocomotion to log which
+            // systems were in play when something looked wrong.
+            GrappleSwing playerGrappleSwing = null;
+            PlayerLocomotion playerLocomotion = null;
+            GameObject playerObjectForWatchdog = null;
             cameraObject.transform.position = new Vector3(
                 CityLayout.ChunkSize * 0.5f, groundHeight + 1.7f, CityLayout.ChunkSize * 0.5f);
             cameraObject.transform.rotation = Quaternion.Euler(4.0f, 35.0f, 0.0f);
@@ -178,6 +185,8 @@ namespace CityX.ViewEditor
                 player.transform.position = new Vector3(
                     CityLayout.ChunkSize * 0.5f, groundHeight + 0.5f, CityLayout.ChunkSize * 0.5f);
                 playerRagdoll = player.GetComponent<Ragdoll>();
+                playerLocomotion = player.GetComponent<PlayerLocomotion>();
+                playerObjectForWatchdog = player;
 
                 cameraObject.GetComponent<FlyCamera>().enabled = false;
                 var follow = cameraObject.AddComponent<ThirdPersonCamera>();
@@ -324,6 +333,7 @@ namespace CityX.ViewEditor
                 // --- movement frame for as long as the rope is attached --
                 // --- see GrappleSwing's own doc comment.
                 var grappleSwing = player.AddComponent<CityX.Character.GrappleSwing>();
+                playerGrappleSwing = grappleSwing;
                 // See GrappleSwing.SwingCameraDistance's own doc comment --
                 // pulls the camera back for the duration of a swing so the
                 // reach pose never has to fight for room this close to a
@@ -443,6 +453,18 @@ namespace CityX.ViewEditor
                 mustangPrefab,
                 farmerHatPrefab,
                 flamethrowerPrefab);
+
+            // Watches the player's own rig every real frame during ordinary
+            // play and logs a full snapshot the instant it looks distorted
+            // -- see PoseDistortionWatchdog's own class doc comment for why
+            // this exists instead of another synthetic diagnostic.
+            if (playerObjectForWatchdog != null)
+            {
+                var watchdog = playerObjectForWatchdog.AddComponent<PoseDistortionWatchdog>();
+                watchdog.Swing = playerGrappleSwing;
+                watchdog.IsConsoleOpen = () => console.IsOpen;
+                watchdog.Locomotion = playerLocomotion;
+            }
 
             // --- the pause menu. Escape opens it; it guards itself against
             // --- opening on top of the console above.
