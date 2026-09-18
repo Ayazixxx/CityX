@@ -7,10 +7,12 @@
                        "CityX.Character",
                        "CityX.View",
                        "CityX.World",
+                       "CityX.Net",
                        "UnityEngine.UI",
                        "Unity.InputSystem",
                        "Unity.RenderPipelines.Core.Runtime",
-                       "Unity.RenderPipelines.Universal.Runtime"
+                       "Unity.RenderPipelines.Universal.Runtime",
+                       "FishNet.Runtime"
                    ],
     "includePlatforms":  [
                              "Editor"

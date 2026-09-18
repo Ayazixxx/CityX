@@ -65,7 +65,39 @@ namespace CityX.Vehicles
         public const int MinGroundedRays = 2;
         public const float InteractRange = 4.0f;
         public const float SeatXFraction = 0.32f;
-        public const float SeatYFraction = -0.32f;
+
+        /// <summary>
+        /// EXPLICIT ASK: "make it so when you sit in the car your butt is
+        /// in the seat hands on the steering wheel and your character is
+        /// stuck there but cant collide with the car." Investigated live:
+        /// the "stuck"/"no collision" halves were already correct
+        /// (CompleteEnter already parents onto DriverSeat and disables the
+        /// CharacterController) -- what actually needed fixing was the pose
+        /// itself, and the real cause turned out to be a genuine SCALE
+        /// MISMATCH, not a bad seat offset: this project's own player rig
+        /// stands roughly 2.6m tall (a deliberate stylized proportion, see
+        /// [[character_proportions_decision]]), while Mustang.prefab is
+        /// only a real-world car scaled up 1.3x (CarBuilder.
+        /// TargetLengthMeters) -- nowhere near enough cabin headroom for a
+        /// rider that tall. Explicitly asked the user whether to scale the
+        /// car up further, shrink the character while seated, or just tune
+        /// the pose as close as it can get and accept some clipping --
+        /// they chose the third option.
+        ///
+        /// -0.32 -> -0.46, LOWERED not raised -- a real render comparison
+        /// across several candidate offsets (0, -0.3, -0.5, -0.7m, on top
+        /// of the original) showed head-through-roof is the more visually
+        /// jarring artifact than hips/shoulders sitting low relative to an
+        /// implied cushion, so this trades toward head clearance: at the
+        /// old fraction the head reached into the roof/window line; -0.3m
+        /// (this new fraction) clears it while the torso still reads as
+        /// sitting rather than sunk. -0.5m and beyond made the shoulders
+        /// visibly sink INTO the seat/floor geometry -- picked the least
+        /// bad point on the curve, not a perfect fit, since no seat
+        /// position can be a perfect fit at these relative scales.
+        /// </summary>
+        public const float SeatYFraction = -0.46f;
+
         public const float SeatZFraction = -0.04f;
         public const float ExitSideMargin = 1.0f;
 

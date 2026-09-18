@@ -150,7 +150,7 @@ namespace CityX.WeaponsEditor
         /// that this apparently never got noticed there; a sustained,
         /// closely-watched stream can't get away with it.
         /// </summary>
-        private static Material BuildFlameMaterial(Texture2D particleTexture)
+        internal static Material BuildFlameMaterial(Texture2D particleTexture)
         {
             var material = new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit"));
             material.color = Color.white;
@@ -204,7 +204,7 @@ namespace CityX.WeaponsEditor
         /// this file's own class comment on why FireBurstBuilder's plain-
         /// white-material choice worked without one).
         /// </summary>
-        private static Texture2D BuildParticleTexture()
+        internal static Texture2D BuildParticleTexture()
         {
             const int size = 64;
             var pixels = new Color32[size * size];
@@ -254,7 +254,7 @@ namespace CityX.WeaponsEditor
         /// embers) the way a real flame jet expands mixing with the air
         /// around it.
         /// </summary>
-        private static ParticleSystem BuildOuterFlame(Transform parent, Material material)
+        internal static ParticleSystem BuildOuterFlame(Transform parent, Material material)
         {
             var go = new GameObject("OuterFlame");
             go.transform.SetParent(parent, false);
@@ -304,7 +304,7 @@ namespace CityX.WeaponsEditor
         /// billows around rather than two identical cones stacked on each
         /// other.
         /// </summary>
-        private static void BuildCoreFlame(Transform parent, Material material)
+        internal static void BuildCoreFlame(Transform parent, Material material)
         {
             var go = new GameObject("CoreFlame");
             go.transform.SetParent(parent, false);

@@ -38,7 +38,7 @@ namespace CityX.UIEditor
             GameObject midnightPatchworkCoatPrefab = null, GameObject jetpackPrefab = null,
             GameObject swordPrefab = null, GameObject topHatPrefab = null,
             GameObject mustangPrefab = null, GameObject farmerHatPrefab = null,
-            GameObject flamethrowerPrefab = null)
+            GameObject flamethrowerPrefab = null, GameObject parachutePrefab = null)
         {
             var root = new GameObject("DevConsole", typeof(RectTransform));
             Canvas canvas = root.AddComponent<Canvas>();
@@ -105,6 +105,10 @@ namespace CityX.UIEditor
             view.Fly = fly;
             view.CivilianPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
                 "Assets/CityX/Character/Civilian.prefab");
+            view.FlyingNpcPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/CityX/Character/FlyingNpc.prefab");
+            view.CrimsonClawPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/CityX/Character/CrimsonClaw.prefab");
             view.RadioPrefab = radioPrefab;
             view.BottlePrefab = bottlePrefab;
             view.SkelliJeansPrefab = skelliJeansPrefab;
@@ -113,6 +117,7 @@ namespace CityX.UIEditor
             view.PistolPrefab = pistolPrefab;
             view.MidnightPatchworkCoatPrefab = midnightPatchworkCoatPrefab;
             view.JetpackPrefab = jetpackPrefab;
+            view.ParachutePrefab = parachutePrefab;
             view.SwordPrefab = swordPrefab;
             view.TopHatPrefab = topHatPrefab;
             view.MustangPrefab = mustangPrefab;

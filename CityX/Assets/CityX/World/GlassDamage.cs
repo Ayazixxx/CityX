@@ -110,6 +110,16 @@ namespace CityX.World
         private readonly Dictionary<PaneKey, PaneState> _broken =
             new Dictionary<PaneKey, PaneState>();
 
+        /// <summary>
+        /// Where, within a CRACKED pane's own rectangle (0..1 on each axis),
+        /// the blow that cracked it actually landed -- so the mesh builder can
+        /// put a real hole there instead of just frosting the whole pane.
+        /// Only ever meaningful for Cracked; a Shattered pane draws nothing at
+        /// all, so nobody reads this once a pane gets that far.
+        /// </summary>
+        private readonly Dictionary<PaneKey, Vector2> _impactPoints =
+            new Dictionary<PaneKey, Vector2>();
+
         /// <summary>Raised after a pane changes state, so a chunk can rebuild.</summary>
         public event Action<PaneKey, PaneState> Changed;
 
@@ -120,14 +130,48 @@ namespace CityX.World
             return _broken.TryGetValue(key, out PaneState state) ? state : PaneState.Intact;
         }
 
+        public bool TryGetImpact(PaneKey key, out Vector2 localUV)
+        {
+            return _impactPoints.TryGetValue(key, out localUV);
+        }
+
+        /// <summary>
+        /// Where a world point actually landed within a pane's own rectangle,
+        /// 0..1 on each axis. Called only AFTER TryPaneAt has already
+        /// confirmed `key` is real, so it re-derives the same row/column
+        /// geometry from `key` itself rather than threading an extra out
+        /// parameter through TryPaneAt's own eight call sites, most of which
+        /// (GlassDamageTests included) only ever care whether a punch landed
+        /// on glass at all, not where on it.
+        /// </summary>
+        public static Vector2 FractionWithinPane(BuildingSite site, PaneKey key, Vector3 point)
+        {
+            bool runsInZ = key.Wall == WindowGrid.Wall.West || key.Wall == WindowGrid.Wall.East;
+            float span = runsInZ ? site.Params.Depth : site.Params.Width;
+            float along = runsInZ ? point.z - (float)site.MinZ : point.x - (float)site.MinX;
+            float aboveFloor = point.y - site.BaseHeight;
+
+            CellLayout rows = WindowGrid.RowsFor(site.Params.Height);
+            CellLayout columns = WindowGrid.ColumnsFor(span);
+
+            float u = Mathf.Clamp01((along - key.Column * columns.Size) / columns.Size);
+            float v = Mathf.Clamp01((aboveFloor - key.Row * rows.Size) / rows.Size);
+            return new Vector2(u, v);
+        }
+
         /// <summary>
         /// One hit. Intact cracks, cracked shatters, shattered stays gone.
         ///
         /// Returns the state it moved TO, or Shattered again if it was already
         /// there -- callers use the change to decide whether to make a noise,
         /// so <see cref="Changed"/> only fires when something actually moved.
+        ///
+        /// `impactUV`, WHEN GIVEN, records where on the pane this particular
+        /// blow landed (see FractionWithinPane) -- optional so every existing
+        /// caller and test that only cares about the state machine keeps
+        /// compiling unchanged.
         /// </summary>
-        public PaneState Hit(PaneKey key)
+        public PaneState Hit(PaneKey key, Vector2? impactUV = null)
         {
             PaneState was = StateOf(key);
             if (was == PaneState.Shattered)
@@ -137,6 +181,10 @@ namespace CityX.World
 
             PaneState now = was == PaneState.Intact ? PaneState.Cracked : PaneState.Shattered;
             _broken[key] = now;
+            if (impactUV.HasValue)
+            {
+                _impactPoints[key] = impactUV.Value;
+            }
             Changed?.Invoke(key, now);
             return now;
         }
@@ -155,6 +203,7 @@ namespace CityX.World
             if (state == PaneState.Intact)
             {
                 _broken.Remove(key);
+                _impactPoints.Remove(key);
             }
             else
             {
@@ -169,6 +218,7 @@ namespace CityX.World
         public void Clear()
         {
             _broken.Clear();
+            _impactPoints.Clear();
         }
 
         // --- addressing ---

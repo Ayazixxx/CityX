@@ -365,49 +365,63 @@ namespace CityX.Tests
         private const float Roomy = 8.0f;
 
         /// <summary>
-        /// A wing grows off a real wall, stays within it, and never off the
-        /// entrance side.
+        /// Every wing a building grows sits on a real wall, stays within it,
+        /// and never on the entrance side -- checked over every wing in the
+        /// list now that a roomy building can grow more than one (see
+        /// BuildingDecor.WingsFor's own doc comment).
         /// </summary>
         [Test]
         public void AWingSitsOnOneWallAndStaysWithinIt()
         {
             int grown = 0;
+            int buildingsWithAWing = 0;
 
             for (int seed = 0; seed < 500; seed++)
             {
-                BuildingDecor.Wing wing = BuildingDecor.WingFor(
+                List<BuildingDecor.Wing> wings = BuildingDecor.WingsFor(
                     seed, Width, Depth, Height, Roomy, Roomy, Roomy);
-                if (!wing.Exists)
+                if (wings.Count == 0)
                 {
                     continue;
                 }
-                grown++;
+                buildingsWithAWing++;
 
-                Assert.AreEqual(1.0f, wing.Normal.magnitude, 0.001f);
-                Assert.AreEqual(0.0f, wing.Normal.y, 0.001f);
-                Assert.Less(wing.Normal.z, 0.5f, "a wing grew across the entrance");
+                foreach (BuildingDecor.Wing wing in wings)
+                {
+                    grown++;
 
-                float span = Mathf.Abs(wing.Normal.x) > 0.5f ? Depth : Width;
-                Assert.Greater(wing.Width, 0.0f);
-                Assert.LessOrEqual(wing.Width, span * BuildingDecor.WingMaxWidthFraction + 0.001f);
+                    Assert.AreEqual(1.0f, wing.Normal.magnitude, 0.001f);
+                    Assert.AreEqual(0.0f, wing.Normal.y, 0.001f);
+                    Assert.Less(wing.Normal.z, 0.5f, "a wing grew across the entrance");
 
-                // Inside the wall it grows from, with the stated margin left at
-                // the corner -- unless the wing is so wide there is none to
-                // leave, in which case it centres rather than overhanging.
-                float reach = Mathf.Abs(wing.Along) + wing.Width * 0.5f;
-                Assert.LessOrEqual(reach, span * 0.5f + 0.001f,
-                    "a wing runs off the end of the wall it grew from");
+                    float span = Mathf.Abs(wing.Normal.x) > 0.5f ? Depth : Width;
+                    Assert.Greater(wing.Width, 0.0f);
+                    Assert.LessOrEqual(wing.Width, span * BuildingDecor.WingMaxWidthFraction + 0.001f);
 
-                Assert.GreaterOrEqual(wing.Depth, BuildingDecor.WingLeastUsefulDepth);
-                Assert.LessOrEqual(wing.Depth, BuildingDecor.WingMaxDepth + 0.001f);
+                    // Inside the wall it grows from, with the stated margin left at
+                    // the corner -- unless the wing is so wide there is none to
+                    // leave, in which case it centres rather than overhanging.
+                    float reach = Mathf.Abs(wing.Along) + wing.Width * 0.5f;
+                    Assert.LessOrEqual(reach, span * 0.5f + 0.001f,
+                        "a wing runs off the end of the wall it grew from");
 
-                Assert.GreaterOrEqual(wing.Height, Height * BuildingDecor.WingMinHeightFraction - 0.001f);
-                Assert.LessOrEqual(wing.Height, Height * BuildingDecor.WingMaxHeightFraction + 0.001f);
+                    Assert.GreaterOrEqual(wing.Depth, BuildingDecor.WingLeastUsefulDepth);
+                    Assert.LessOrEqual(wing.Depth, BuildingDecor.WingMaxDepth + 0.001f);
+
+                    Assert.GreaterOrEqual(wing.Height, Height * BuildingDecor.WingMinHeightFraction - 0.001f);
+                    Assert.LessOrEqual(wing.Height, Height * BuildingDecor.WingMaxHeightFraction + 0.001f);
+                }
             }
 
-            float share = grown / 500.0f;
-            TestContext.WriteLine($"{share:0.00} of roomy buildings grew a wing");
-            Assert.AreEqual(BuildingDecor.WingChance, share, 0.06, "the wing share drifted");
+            double buildingShare = buildingsWithAWing / 500.0;
+            // Each of the 3 walls is an independent WingChance roll, so at
+            // least one surviving is 1-(1-WingChance)^3, not WingChance itself.
+            double expectedBuildingShare = 1.0 - System.Math.Pow(1.0 - BuildingDecor.WingChance, 3);
+            TestContext.WriteLine($"{buildingShare:0.00} of roomy buildings grew at least one wing, " +
+                $"{grown} wings total");
+            Assert.AreEqual(expectedBuildingShare, buildingShare, 0.06, "the wing share drifted");
+            Assert.Greater(grown, buildingsWithAWing,
+                "no roomy building grew more than one wing -- the multi-wall roll is not actually independent");
         }
 
         /// <summary>
@@ -428,23 +442,26 @@ namespace CityX.Tests
             {
                 // A landlocked building: a party wall's worth of room on every
                 // side, which is not enough for a wing on any of them.
-                Assert.IsFalse(
-                    BuildingDecor.WingFor(seed, Width, Depth, Height, 0.8f, 0.8f, 0.8f).Exists,
+                Assert.IsEmpty(
+                    BuildingDecor.WingsFor(seed, Width, Depth, Height, 0.8f, 0.8f, 0.8f),
                     "a wing grew into the building next door");
                 refused++;
 
                 // One street-facing wall and two party walls. Whatever grows
                 // must be on the wall with the room, and must fit in it.
-                BuildingDecor.Wing wing =
-                    BuildingDecor.WingFor(seed, Width, Depth, Height, 0.8f, 4.0f, 0.8f);
-                if (!wing.Exists)
+                List<BuildingDecor.Wing> wings =
+                    BuildingDecor.WingsFor(seed, Width, Depth, Height, 0.8f, 4.0f, 0.8f);
+                if (wings.Count == 0)
                 {
                     continue;
                 }
                 clamped++;
-                Assert.AreEqual(Vector3.right, wing.Normal,
-                    "a wing grew off a wall with no room beside a wall that had some");
-                Assert.LessOrEqual(wing.Depth, 4.0f + 0.001f);
+                foreach (BuildingDecor.Wing wing in wings)
+                {
+                    Assert.AreEqual(Vector3.right, wing.Normal,
+                        "a wing grew off a wall with no room beside walls that had none");
+                    Assert.LessOrEqual(wing.Depth, 4.0f + 0.001f);
+                }
             }
 
             TestContext.WriteLine($"{refused} landlocked refused, {clamped} clamped to one wall");
@@ -462,27 +479,148 @@ namespace CityX.Tests
         {
             for (int seed = 0; seed < 200; seed++)
             {
-                BuildingDecor.Wing first =
-                    BuildingDecor.WingFor(seed, Width, Depth, Height, Roomy, Roomy, Roomy);
-                BuildingDecor.Wing again =
-                    BuildingDecor.WingFor(seed, Width, Depth, Height, Roomy, Roomy, Roomy);
+                List<BuildingDecor.Wing> first =
+                    BuildingDecor.WingsFor(seed, Width, Depth, Height, Roomy, Roomy, Roomy);
+                List<BuildingDecor.Wing> again =
+                    BuildingDecor.WingsFor(seed, Width, Depth, Height, Roomy, Roomy, Roomy);
 
-                Assert.AreEqual(first.Exists, again.Exists);
-                Assert.AreEqual(first.Normal, again.Normal);
-                Assert.AreEqual(first.Along, again.Along);
-                Assert.AreEqual(first.Width, again.Width);
-
-                // Tighter clearances can only shrink or refuse a wing, never
-                // move it to another wall.
-                BuildingDecor.Wing tight =
-                    BuildingDecor.WingFor(seed, Width, Depth, Height, 2.0f, 2.0f, 2.0f);
-                if (tight.Exists)
+                Assert.AreEqual(first.Count, again.Count);
+                for (int i = 0; i < first.Count; i++)
                 {
-                    Assert.AreEqual(first.Normal, tight.Normal);
-                    Assert.AreEqual(first.Along, tight.Along);
-                    Assert.LessOrEqual(tight.Depth, first.Depth + 0.001f);
+                    Assert.AreEqual(first[i].Normal, again[i].Normal);
+                    Assert.AreEqual(first[i].Along, again[i].Along);
+                    Assert.AreEqual(first[i].Width, again[i].Width);
+                }
+
+                // Tighter clearances can only shrink or refuse each wall's own
+                // wing, never move it to another wall -- matched up by which
+                // wall each one is on, since a tighter roll can drop some
+                // walls' wings without dropping others'.
+                List<BuildingDecor.Wing> tight =
+                    BuildingDecor.WingsFor(seed, Width, Depth, Height, 2.0f, 2.0f, 2.0f);
+                foreach (BuildingDecor.Wing tightWing in tight)
+                {
+                    BuildingDecor.Wing roomyWing = first.Find(w => w.Normal == tightWing.Normal);
+                    Assert.IsTrue(roomyWing.Exists,
+                        "a tighter clearance grew a wing on a wall the roomy version did not");
+                    Assert.AreEqual(roomyWing.Along, tightWing.Along);
+                    Assert.LessOrEqual(tightWing.Depth, roomyWing.Depth + 0.001f);
                 }
             }
+        }
+
+        // --- entrance variety ---
+
+        [Test]
+        public void ASmallMismatchIsFlushWithNoStairs()
+        {
+            BuildingDecor.EntranceStyle flat = BuildingDecor.EntranceStyleFor(0.0f);
+            Assert.IsFalse(flat.NeedsStairs);
+            Assert.AreEqual(0.0f, flat.Rise);
+
+            BuildingDecor.EntranceStyle tiny = BuildingDecor.EntranceStyleFor(
+                BuildingDecor.EntranceFlushMaxMismatch * 0.5f);
+            Assert.IsFalse(tiny.NeedsStairs, "a mismatch well inside the flush threshold rolled stairs anyway");
+        }
+
+        [Test]
+        public void ANegativeMismatchIsAlsoFlush()
+        {
+            // The door standing BELOW the real ground outside it is not a
+            // shape this system has any style for -- clamped to zero rather
+            // than producing a negative rise that would build a nonsensical
+            // upside-down flight.
+            BuildingDecor.EntranceStyle style = BuildingDecor.EntranceStyleFor(-5.0f);
+            Assert.IsFalse(style.NeedsStairs);
+            Assert.AreEqual(0.0f, style.Rise);
+        }
+
+        [Test]
+        public void AMismatchPastTheFlushThresholdGetsStairsSizedToIt()
+        {
+            float mismatch = BuildingDecor.EntranceFlushMaxMismatch + 2.0f;
+            BuildingDecor.EntranceStyle style = BuildingDecor.EntranceStyleFor(mismatch);
+            Assert.IsTrue(style.NeedsStairs);
+            Assert.AreEqual(mismatch, style.Rise, 0.001f);
+        }
+
+        /// <summary>
+        /// EXPLICIT BUG REPORT reasoning, not a made-up number: a mismatch
+        /// bigger than a single stoop could sanely bridge must not send the
+        /// stairs running out over the sidewalk or into the street forever --
+        /// see EntranceMaxRise's own doc comment for why this is capped the
+        /// same way CityMeshBuilder.SkirtDepth caps a retaining wall's own
+        /// worst case.
+        /// </summary>
+        [Test]
+        public void AHugeMismatchIsCappedRatherThanBuildingAnEndlessStaircase()
+        {
+            BuildingDecor.EntranceStyle style = BuildingDecor.EntranceStyleFor(500.0f);
+            Assert.IsTrue(style.NeedsStairs);
+            Assert.AreEqual(BuildingDecor.EntranceMaxRise, style.Rise, 0.001f);
+        }
+
+        // --- entrance approach: sloped terrain vs. hard edge ---
+
+        /// <summary>Same seed, same answer -- a rebuild must not flip a building's own approach style.</summary>
+        [Test]
+        public void EntranceApproachIsSlopedIsDeterministic()
+        {
+            for (int seed = 0; seed < 50; seed++)
+            {
+                bool first = BuildingDecor.EntranceApproachIsSloped(seed);
+                bool second = BuildingDecor.EntranceApproachIsSloped(seed);
+                Assert.AreEqual(first, second, $"seed {seed} answered differently on a second call");
+            }
+        }
+
+        /// <summary>EXPLICIT ASK: "lets do 60%... the other 40%" -- a real split across many buildings, not always one answer.</summary>
+        [Test]
+        public void EntranceApproachIsSlopedSplitsRoughlySixtyForty()
+        {
+            int sloped = 0;
+            const int trials = 2000;
+            for (int seed = 0; seed < trials; seed++)
+            {
+                if (BuildingDecor.EntranceApproachIsSloped(seed))
+                {
+                    sloped++;
+                }
+            }
+
+            float fraction = sloped / (float)trials;
+            Assert.AreEqual(BuildingDecor.EntranceApproachSlopedChance, fraction, 0.05,
+                $"{sloped}/{trials} rolled sloped ({fraction:P1}) -- too far from the stated 60% chance");
+        }
+
+        /// <summary>
+        /// Independent of every OTHER per-building roll this codebase
+        /// already makes from the same building seed (balconies, ribs,
+        /// wings) -- EntranceApproachStream has to be its own salt, or
+        /// adding/removing one of those would silently flip a building's
+        /// own entrance style too.
+        /// </summary>
+        [Test]
+        public void EntranceApproachDoesNotCorrelateWithBalconyPlacement()
+        {
+            int agree = 0;
+            const int trials = 500;
+            for (int seed = 0; seed < trials; seed++)
+            {
+                bool sloped = BuildingDecor.EntranceApproachIsSloped(seed);
+                bool hasBalcony = BuildingDecor.Balconies(seed, Width, Depth, Height).Count > 0;
+                if (sloped == hasBalcony)
+                {
+                    agree++;
+                }
+            }
+
+            // Two independent ~coin-flip-ish booleans agree close to half
+            // the time purely by chance; a shared stream/seed bug would
+            // instead push this toward 0% or 100%.
+            float agreement = agree / (float)trials;
+            Assert.Greater(agreement, 0.3f, "entrance approach and balcony placement look correlated");
+            Assert.Less(agreement, 0.7f, "entrance approach and balcony placement look correlated");
         }
     }
 }

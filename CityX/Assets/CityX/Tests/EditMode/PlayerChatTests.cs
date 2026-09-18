@@ -314,10 +314,9 @@ namespace CityX.Tests
         /// EXPLICIT ASK: "the character just goes limp and ragdolls
         /// immediately no animation... lets see if its something do it with
         /// it being playable" -- Bodies is an empty array rather than a real
-        /// built rig, matching HangingRagdollDummyPlayTests' own reasoning
-        /// for why the DISPATCH path is what's under test here (does /sleep
-        /// actually reach Ragdoll.Activate), not RagdollBuilder's own rig
-        /// construction, which RagdollPlayTests already owns.
+        /// built rig, since the DISPATCH path is what's under test here
+        /// (does /sleep actually reach Ragdoll.Activate), not RagdollBuilder's
+        /// own rig construction, which RagdollPlayTests already owns.
         /// </summary>
         [Test]
         public void SubmittingASleepCommandActivatesTheRagdollNotASpeechBubble()
@@ -341,6 +340,12 @@ namespace CityX.Tests
                 Assert.IsFalse(_playerObject.GetComponent<PlayerLocomotion>().enabled,
                     "going limp should stop normal locomotion too, not just play dead visually");
                 Assert.IsFalse(bubble.IsShowing, "/sleep should never show as a speech bubble");
+
+                // EXPLICIT ASK: "make it so i can press space to get up at
+                // any time after /sleep is used" -- see Ragdoll.CanStandUp's
+                // own doc comment for why /sleep passes allowImmediateStandUp.
+                Assert.IsTrue(ragdoll.CanStandUp,
+                    "/sleep should let Space stand the body back up immediately, with no rest wait");
             }
             finally
             {

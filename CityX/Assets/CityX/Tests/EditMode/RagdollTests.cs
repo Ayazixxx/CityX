@@ -290,5 +290,308 @@ namespace CityX.Tests
                 Object.DestroyImmediate(floor);
             }
         }
+
+        // --- Stand-up recovery: EXPLICIT ASK, "once you are ragdolled from
+        // --- one of these events your are able to press space to stand up
+        // --- once your on the floor for 2.5 seconds" ---
+
+        /// <summary>
+        /// A minimal rig, built by hand rather than loaded from the prefab
+        /// -- JetpackTests' own "no Animator, deliberately" reasoning
+        /// applies here too: leaving Animator null skips BeginStandingUp's
+        /// visual Play("GettingUp") call entirely, which is what makes the
+        /// underlying timing/repositioning logic testable without a real
+        /// rig or a "GettingUp" state to actually exist.
+        /// </summary>
+        private static Ragdoll BuildTestRig(out GameObject player, out Rigidbody torso)
+        {
+            player = new GameObject("Player");
+            player.AddComponent<CharacterController>();
+            player.AddComponent<PlayerLocomotion>();
+            player.AddComponent<PlayerVitals>();
+
+            var torsoObject = new GameObject("Torso");
+            torsoObject.transform.SetParent(player.transform, false);
+            torso = torsoObject.AddComponent<Rigidbody>();
+            torsoObject.AddComponent<BoxCollider>();
+
+            var ragdoll = player.AddComponent<Ragdoll>();
+            ragdoll.Bodies = new[] { torso };
+            ragdoll.Torso = torso;
+            ragdoll.Bind();
+            return ragdoll;
+        }
+
+        [Test]
+        public void CanStandUpIsFalseRightAfterActivating()
+        {
+            Ragdoll ragdoll = BuildTestRig(out GameObject player, out _);
+            try
+            {
+                ragdoll.Activate(Vector3.zero);
+                Assert.IsFalse(ragdoll.CanStandUp, "no time has passed yet -- nothing to stand up from");
+            }
+            finally
+            {
+                Object.DestroyImmediate(player);
+            }
+        }
+
+        [Test]
+        public void CanStandUpBecomesTrueAfterRestingLongEnough()
+        {
+            Ragdoll ragdoll = BuildTestRig(out GameObject player, out Rigidbody torso);
+            try
+            {
+                ragdoll.Activate(Vector3.zero);
+                torso.linearVelocity = Vector3.zero;   // "at rest" the whole time
+
+                const float step = 1.0f / 60.0f;
+                int steps = Mathf.CeilToInt(Ragdoll.StandUpRestSeconds / step) + 5;
+                for (int i = 0; i < steps; i++)
+                {
+                    ragdoll.Tick(step);
+                }
+
+                Assert.IsTrue(ragdoll.CanStandUp,
+                    $"resting for over {Ragdoll.StandUpRestSeconds}s should have made standing up available");
+            }
+            finally
+            {
+                Object.DestroyImmediate(player);
+            }
+        }
+
+        /// <summary>
+        /// The control case: a ragdoll that never actually stops moving
+        /// (still tumbling/falling) must not let the rest timer accumulate
+        /// just because real time passed -- otherwise a body sliding down a
+        /// long slope could stand up mid-slide.
+        /// </summary>
+        [Test]
+        public void CanStandUpStaysFalseWhileStillMoving()
+        {
+            Ragdoll ragdoll = BuildTestRig(out GameObject player, out Rigidbody torso);
+            try
+            {
+                ragdoll.Activate(Vector3.zero);
+
+                const float step = 1.0f / 60.0f;
+                int steps = Mathf.CeilToInt(Ragdoll.StandUpRestSeconds / step) + 5;
+                for (int i = 0; i < steps; i++)
+                {
+                    // Re-set every tick -- nothing is actually simulating
+                    // physics in this test, so a one-time assignment would
+                    // otherwise just sit there unchanged either way.
+                    torso.linearVelocity = new Vector3(0.0f, 0.0f, Ragdoll.RestVelocityThreshold * 5.0f);
+                    ragdoll.Tick(step);
+                }
+
+                Assert.IsFalse(ragdoll.CanStandUp,
+                    "a torso that never stopped moving should never accumulate rest time");
+            }
+            finally
+            {
+                Object.DestroyImmediate(player);
+            }
+        }
+
+        /// <summary>
+        /// EXPLICIT ASK: "make it so i can press space to get up at any
+        /// time after /sleep is used" -- /sleep (PlayerChat.Dispatch) calls
+        /// Activate with allowImmediateStandUp:true specifically so it
+        /// skips the rest timer a real knockdown still has to sit through.
+        /// </summary>
+        [Test]
+        public void CanStandUpIsTrueImmediatelyWhenAllowedToSkipTheRestTimer()
+        {
+            Ragdoll ragdoll = BuildTestRig(out GameObject player, out _);
+            try
+            {
+                ragdoll.Activate(Vector3.zero, allowImmediateStandUp: true);
+                Assert.IsTrue(ragdoll.CanStandUp,
+                    "allowImmediateStandUp should let Space stand the body up with no wait at all");
+            }
+            finally
+            {
+                Object.DestroyImmediate(player);
+            }
+        }
+
+        /// <summary>The default -- every ordinary knockdown (crash, finisher) -- must still wait out the real timer.</summary>
+        [Test]
+        public void CanStandUpStillWaitsForTheRestTimerByDefault()
+        {
+            Ragdoll ragdoll = BuildTestRig(out GameObject player, out _);
+            try
+            {
+                ragdoll.Activate(Vector3.zero);
+                Assert.IsFalse(ragdoll.CanStandUp,
+                    "a real knockdown must not skip the rest timer just because /sleep's own flag exists");
+            }
+            finally
+            {
+                Object.DestroyImmediate(player);
+            }
+        }
+
+        [Test]
+        public void BeginStandingUpDoesNothingBeforeTheRestTimerIsUp()
+        {
+            Ragdoll ragdoll = BuildTestRig(out GameObject player, out Rigidbody torso);
+            try
+            {
+                ragdoll.Activate(Vector3.zero);
+                torso.linearVelocity = Vector3.zero;
+                ragdoll.Tick(0.1f);   // nowhere near StandUpRestSeconds
+
+                ragdoll.BeginStandingUp();
+
+                Assert.IsFalse(ragdoll.IsStandingUp, "standing up should not have started yet");
+                Assert.IsTrue(ragdoll.IsLimp, "the body should still be limp");
+            }
+            finally
+            {
+                Object.DestroyImmediate(player);
+            }
+        }
+
+        /// <summary>
+        /// Nothing moves the root transform during a ragdoll -- only the
+        /// individual Rigidbodies do -- so standing up has to reposition it
+        /// to wherever the torso actually ended up, not leave it frozen at
+        /// the original Activate() position. No real ground exists in this
+        /// test scene, so the downward raycast finds nothing and falls back
+        /// to the torso's own height -- still proves the X/Z move happened.
+        /// </summary>
+        [Test]
+        public void BeginStandingUpRepositionsToWhereTheTorsoSettled()
+        {
+            Ragdoll ragdoll = BuildTestRig(out GameObject player, out Rigidbody torso);
+            try
+            {
+                ragdoll.Activate(Vector3.zero);
+                torso.linearVelocity = Vector3.zero;
+
+                const float step = 1.0f / 60.0f;
+                int steps = Mathf.CeilToInt(Ragdoll.StandUpRestSeconds / step) + 5;
+                for (int i = 0; i < steps; i++)
+                {
+                    ragdoll.Tick(step);
+                }
+                Assert.IsTrue(ragdoll.CanStandUp, "setup failed -- never became eligible to stand up");
+
+                // The torso "settled" well away from where Activate() was
+                // originally called from.
+                torso.transform.position = new Vector3(12.0f, 3.0f, -7.0f);
+
+                ragdoll.BeginStandingUp();
+
+                Assert.AreEqual(12.0f, player.transform.position.x, 0.01f);
+                Assert.AreEqual(-7.0f, player.transform.position.z, 0.01f);
+                Assert.IsTrue(ragdoll.IsStandingUp);
+                Assert.IsTrue(ragdoll.IsLimp, "still limp/kinematic while the GettingUp clip plays");
+            }
+            finally
+            {
+                Object.DestroyImmediate(player);
+            }
+        }
+
+        [Test]
+        public void FinishesStandingUpAndReturnsControlAfterTheClipDuration()
+        {
+            Ragdoll ragdoll = BuildTestRig(out GameObject player, out Rigidbody torso);
+            var controller = player.GetComponent<CharacterController>();
+            var locomotion = player.GetComponent<PlayerLocomotion>();
+            try
+            {
+                ragdoll.Activate(Vector3.zero);
+                torso.linearVelocity = Vector3.zero;
+
+                const float step = 1.0f / 60.0f;
+                int restSteps = Mathf.CeilToInt(Ragdoll.StandUpRestSeconds / step) + 5;
+                for (int i = 0; i < restSteps; i++)
+                {
+                    ragdoll.Tick(step);
+                }
+                ragdoll.BeginStandingUp();
+                Assert.IsTrue(ragdoll.IsStandingUp, "setup failed -- standing up never actually started");
+
+                int clipSteps = Mathf.CeilToInt(Ragdoll.StandUpRecoverySeconds / step) + 5;
+                for (int i = 0; i < clipSteps; i++)
+                {
+                    ragdoll.Tick(step);
+                }
+
+                Assert.IsFalse(ragdoll.IsLimp, "the body should be back under control after the clip finished");
+                Assert.IsFalse(ragdoll.IsStandingUp);
+                Assert.IsTrue(controller.enabled, "the CharacterController was never handed back");
+                Assert.IsTrue(locomotion.enabled, "PlayerLocomotion was never handed back");
+            }
+            finally
+            {
+                Object.DestroyImmediate(player);
+            }
+        }
+
+        // --- Depenetration: EXPLICIT BUG REPORT, "whenever i fly into a
+        // --- wall i just get stuck in it" -- still true after a first,
+        // --- fixed-distance pull-back attempt (see JetpackWallCrashTests'
+        // --- own doc comment for the full history) ---
+
+        [Test]
+        public void ActivateClearsTheRigFromGeometryItWasOverlapping()
+        {
+            Ragdoll ragdoll = BuildTestRig(out GameObject player, out Rigidbody torso);
+            var wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            try
+            {
+                // Deliberately overlapping the torso's own BoxCollider
+                // (added by BuildTestRig) by a real amount -- standing in
+                // for a limb that tunnelled deep into a wall at full
+                // jetpack dive speed.
+                wall.transform.position = torso.transform.position;
+                wall.transform.localScale = Vector3.one * 3.0f;
+                Physics.SyncTransforms();
+
+                Bounds wallBoundsBefore = wall.GetComponent<Collider>().bounds;
+                Bounds torsoBoundsBefore = torso.GetComponent<Collider>().bounds;
+                Assert.IsTrue(wallBoundsBefore.Intersects(torsoBoundsBefore),
+                    "setup failed -- the torso was never actually overlapping the wall");
+
+                ragdoll.Activate(Vector3.zero);
+                Physics.SyncTransforms();
+
+                Bounds wallBounds = wall.GetComponent<Collider>().bounds;
+                Bounds torsoBounds = torso.GetComponent<Collider>().bounds;
+                Assert.IsFalse(wallBounds.Intersects(torsoBounds),
+                    "the torso is still overlapping the wall right after Activate -- " +
+                    "DepenetrateFromWorld did not clear it");
+            }
+            finally
+            {
+                Object.DestroyImmediate(player);
+                Object.DestroyImmediate(wall);
+            }
+        }
+
+        /// <summary>The common case -- an ordinary fall or finisher with nothing nearby -- must not get nudged for no reason.</summary>
+        [Test]
+        public void ActivateDoesNotMoveTheRigWhenNothingIsOverlapping()
+        {
+            Ragdoll ragdoll = BuildTestRig(out GameObject player, out _);
+            try
+            {
+                Vector3 before = player.transform.position;
+                ragdoll.Activate(Vector3.zero);
+                Assert.AreEqual(before, player.transform.position,
+                    "with nothing to clear, Activate should not move the rig at all");
+            }
+            finally
+            {
+                Object.DestroyImmediate(player);
+            }
+        }
     }
 }

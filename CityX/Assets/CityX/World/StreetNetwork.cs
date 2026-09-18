@@ -22,13 +22,6 @@ namespace CityX.World
     public static class StreetNetwork
     {
         /// <summary>
-        /// Distance between parallel streets: every fourth chunk is a street,
-        /// so 96m. Derived rather than typed, because if the block size changes
-        /// pedestrians must follow it.
-        /// </summary>
-        public const float LineSpacing = CityLayout.StreetPeriod * CityLayout.ChunkSize;
-
-        /// <summary>
         /// How far from a street's centreline a pedestrian walks. The mesh
         /// builder lays 4m of pavement along each edge of a 24m street, so its
         /// middle is 10m out -- walking the centreline would be walking down
@@ -47,26 +40,77 @@ namespace CityX.World
         /// <summary>Chance of turning at a junction rather than walking on through.</summary>
         public const double TurnChance = 0.45;
 
-        /// <summary>Which street line, by index, is nearest a given world coordinate.</summary>
-        public static int NearestLineIndex(float coordinate)
-        {
-            return Mathf.RoundToInt((coordinate - CityLayout.ChunkSize * 0.5f) / LineSpacing);
-        }
+        /// <summary>
+        /// How far outward (in chunks) a search for the nearest street chunk
+        /// ever needs to look on one axis. A district's own local streets are
+        /// never more than 5 chunks apart (LocalStreetPeriods tops out at 6),
+        /// and an arterial is never more than DistrictChunks away regardless
+        /// -- this is that outer bound, so the search below is provably
+        /// bounded rather than merely "probably fine in practice."
+        /// </summary>
+        private const int MaxSearchChunks = CityLayout.DistrictChunks;
 
-        /// <summary>The world coordinate of street line <paramref name="index"/>.</summary>
-        public static float LineCoordinate(int index)
+        /// <summary>
+        /// Nearest street chunk to (chunkX, chunkY) along one axis: the X
+        /// axis if <paramref name="alongX"/>, else Y. Replaces what used to
+        /// be closed-form arithmetic (one global LineSpacing) now that
+        /// CityLayout.LocalStreetPeriodFor makes street spacing a property of
+        /// which district a point is in, not a single number good everywhere
+        /// -- this just asks the real grid directly instead of assuming a
+        /// formula for it.
+        /// </summary>
+        private static int NearestStreetChunk(int chunkX, int chunkY, bool alongX)
         {
-            return index * LineSpacing + CityLayout.ChunkSize * 0.5f;
+            int fixedCoord = alongX ? chunkY : chunkX;
+            int searchFrom = alongX ? chunkX : chunkY;
+
+            for (int d = 0; d <= MaxSearchChunks; d++)
+            {
+                int minus = searchFrom - d;
+                int plus = searchFrom + d;
+                bool minusIsStreet = alongX
+                    ? CityLayout.IsStreetChunk(minus, fixedCoord)
+                    : CityLayout.IsStreetChunk(fixedCoord, minus);
+                if (minusIsStreet)
+                {
+                    return minus;
+                }
+                bool plusIsStreet = alongX
+                    ? CityLayout.IsStreetChunk(plus, fixedCoord)
+                    : CityLayout.IsStreetChunk(fixedCoord, plus);
+                if (plusIsStreet)
+                {
+                    return plus;
+                }
+            }
+
+            // Unreachable in practice -- an arterial guarantees a hit within
+            // MaxSearchChunks -- but a real value beats an infinite loop if
+            // that guarantee is ever violated by a future change.
+            return searchFrom;
         }
 
         /// <summary>
-        /// How far a point is from the nearest street line on one axis. Used to
-        /// decide which of the two crossing streets a pedestrian is standing
-        /// on, and how close they are to the junction.
+        /// How far a point is from the nearest street line on the X axis, and
+        /// which chunk that line is. Used to decide which of the two crossing
+        /// streets a pedestrian is standing on, and how close they are to the
+        /// junction.
         /// </summary>
-        public static float DistanceToNearestLine(float coordinate)
+        public static float DistanceToNearestLineX(Vector3 position)
         {
-            return Mathf.Abs(coordinate - LineCoordinate(NearestLineIndex(coordinate)));
+            int chunkX = Mathf.FloorToInt(position.x / CityLayout.ChunkSize);
+            int chunkY = Mathf.FloorToInt(position.z / CityLayout.ChunkSize);
+            int nearest = NearestStreetChunk(chunkX, chunkY, alongX: true);
+            return Mathf.Abs(position.x - (float)CityLayout.ChunkCentreX(nearest));
+        }
+
+        /// <summary>The Z-axis counterpart of <see cref="DistanceToNearestLineX"/>.</summary>
+        public static float DistanceToNearestLineZ(Vector3 position)
+        {
+            int chunkX = Mathf.FloorToInt(position.x / CityLayout.ChunkSize);
+            int chunkY = Mathf.FloorToInt(position.z / CityLayout.ChunkSize);
+            int nearest = NearestStreetChunk(chunkX, chunkY, alongX: false);
+            return Mathf.Abs(position.z - (float)CityLayout.ChunkCentreZ(nearest));
         }
 
         /// <summary>
@@ -80,7 +124,7 @@ namespace CityX.World
         /// </summary>
         public static bool RunsNorthSouth(Vector3 position)
         {
-            return DistanceToNearestLine(position.x) <= DistanceToNearestLine(position.z);
+            return DistanceToNearestLineX(position) <= DistanceToNearestLineZ(position);
         }
 
         /// <summary>
@@ -92,15 +136,18 @@ namespace CityX.World
         /// </summary>
         public static Vector3 SnapToPavement(Vector3 position)
         {
+            int chunkX = Mathf.FloorToInt(position.x / CityLayout.ChunkSize);
+            int chunkY = Mathf.FloorToInt(position.z / CityLayout.ChunkSize);
+
             if (RunsNorthSouth(position))
             {
-                float centre = LineCoordinate(NearestLineIndex(position.x));
+                float centre = (float)CityLayout.ChunkCentreX(NearestStreetChunk(chunkX, chunkY, alongX: true));
                 float side = position.x >= centre ? 1.0f : -1.0f;
                 return new Vector3(centre + side * PavementOffset, position.y, position.z);
             }
             else
             {
-                float centre = LineCoordinate(NearestLineIndex(position.z));
+                float centre = (float)CityLayout.ChunkCentreZ(NearestStreetChunk(chunkX, chunkY, alongX: false));
                 float side = position.z >= centre ? 1.0f : -1.0f;
                 return new Vector3(position.x, position.y, centre + side * PavementOffset);
             }
@@ -113,6 +160,16 @@ namespace CityX.World
         /// The result is ALWAYS on a street, by construction, which is the
         /// whole point. Nothing has to check afterwards whether it landed
         /// inside a building, because it cannot.
+        ///
+        /// A LOCAL STREET NO LONGER RUNS FOREVER. A district's own local
+        /// grid does not have to continue into its neighbour's (see
+        /// CityLayout.LocalStreetPeriodFor's own doc comment) -- a straight
+        /// step that used to always stay on the same infinite line can now
+        /// walk off the end of a short local one right at a district edge.
+        /// Re-snapping the raw step's target is what still guarantees "on a
+        /// street" here: in the ordinary case (nowhere near a district
+        /// edge) that re-snap is a no-op, since the raw target is already
+        /// sitting exactly on its own pavement lane.
         /// </summary>
         public static Vector3 NextTarget(Vector3 from, DeterministicRandom random,
             float minStep, float maxStep)
@@ -122,7 +179,7 @@ namespace CityX.World
 
             // At a junction, both streets are underfoot, so either is a legal
             // way to leave it.
-            bool atJunction = DistanceToNearestLine(northSouth ? start.z : start.x) <= TurnRadius;
+            bool atJunction = (northSouth ? DistanceToNearestLineZ(start) : DistanceToNearestLineX(start)) <= TurnRadius;
             if (atJunction && random.NextDouble() < TurnChance)
             {
                 northSouth = !northSouth;
@@ -138,9 +195,33 @@ namespace CityX.World
                 step = -step;
             }
 
-            return northSouth
+            Vector3 raw = northSouth
                 ? new Vector3(start.x, start.y, start.z + step)
                 : new Vector3(start.x + step, start.y, start.z);
+            Vector3 target = SnapToPavement(raw);
+
+            // The re-snap corrected a real discontinuity rather than just
+            // confirming the same point -- try stepping the other way
+            // before accepting whatever tiny (or backward) move it found,
+            // since only one direction along the old line was actually
+            // blocked.
+            float distance = Vector2.Distance(
+                new Vector2(start.x, start.z), new Vector2(target.x, target.z));
+            if (distance < minStep * 0.5f)
+            {
+                Vector3 rawOpposite = northSouth
+                    ? new Vector3(start.x, start.y, start.z - step)
+                    : new Vector3(start.x - step, start.y, start.z);
+                Vector3 targetOpposite = SnapToPavement(rawOpposite);
+                float distanceOpposite = Vector2.Distance(
+                    new Vector2(start.x, start.z), new Vector2(targetOpposite.x, targetOpposite.z));
+                if (distanceOpposite > distance)
+                {
+                    target = targetOpposite;
+                }
+            }
+
+            return target;
         }
 
         /// <summary>

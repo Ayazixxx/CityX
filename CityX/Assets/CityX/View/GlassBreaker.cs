@@ -81,13 +81,14 @@ namespace CityX.View
                     }
 
                     PaneState was = _streamer.Damage.StateOf(key);
-                    PaneState now = _streamer.Damage.Hit(key);
+                    Vector2 impactUV = GlassDamage.FractionWithinPane(site, key, point);
+                    PaneState now = _streamer.Damage.Hit(key, impactUV);
                     if (now == was)
                     {
                         return false;   // already gone
                     }
 
-                    Report(now, point);
+                    Report(now, point, key.Wall);
                     return true;
                 }
             }
@@ -97,10 +98,11 @@ namespace CityX.View
 
         /// <summary>
         /// The noise and the mess. A crack knocks; a shatter breaks and throws
-        /// shards -- city_chunk.gd's own two sounds and its own shard burst,
-        /// which is the only part of a broken window you actually see happen.
+        /// shards -- city_chunk.gd's own two sounds, now with a real physics
+        /// shard burst (GlassShardBurst) rather than a fading sprite, which is
+        /// the only part of a broken window you actually see happen.
         /// </summary>
-        private void Report(PaneState state, Vector3 point)
+        private void Report(PaneState state, Vector3 point, WindowGrid.Wall wall)
         {
             AudioClip[] bank = state == PaneState.Cracked ? CrackSounds : BreakSounds;
             if (bank != null && bank.Length > 0)
@@ -114,8 +116,7 @@ namespace CityX.View
 
             if (state == PaneState.Shattered && ShardPrefab != null)
             {
-                GameObject shards = Instantiate(ShardPrefab, point, Quaternion.identity);
-                Destroy(shards, 3.0f);
+                GlassShardBurst.Spawn(ShardPrefab, point, WindowGrid.OutwardNormal(wall));
             }
         }
     }

@@ -77,6 +77,18 @@ namespace CityX.Character
         public bool Aiming;
 
         /// <summary>
+        /// The camera's own current Pitch (ThirdPersonCamera.Pitch, same
+        /// -90..90 degrees convention, positive = looking down) -- only
+        /// meaningful while <see cref="Aiming"/> is true. Drives
+        /// PlayerLocomotion.ApplyGunAimPose, which tilts the raised gun arm
+        /// to track it, the same "carry the answer to the one place that
+        /// owns the pose" reasoning <see cref="Aiming"/>'s own doc comment
+        /// gives -- this struct still has no opinion on what aiming means,
+        /// only threads the number through.
+        /// </summary>
+        public float AimPitchDegrees;
+
+        /// <summary>
         /// True whenever the equipped weapon's own MovesetId is
         /// ComboChain.Sword -- see PlayerInputReader's own read of
         /// MeleeAttacker.EquippedWeapon. Drives the Animator's
@@ -113,6 +125,21 @@ namespace CityX.Character
         /// to expose the way there would be on the ground.
         /// </summary>
         public bool JetpackBoosting;
+
+        /// <summary>
+        /// True whenever a jetpack is thrusting, shift is held, AND there is
+        /// a forward (W) component to the held movement -- EXPLICIT ASK:
+        /// "when you hold w + shift while using jetpack your character
+        /// tilts all the way horizontally and the jetpack goes twice as
+        /// fast." A strict superset condition of JetpackBoosting (every
+        /// dive is also boosting), checked separately in PlayerLocomotion
+        /// so a dive's own even-higher speed wins over the plain boost
+        /// speed rather than the two competing. IJetpack.Tick reads the
+        /// same forward-component test directly off its own moveInput
+        /// rather than this flag, for the pose -- see TickTilt's own doc
+        /// comment.
+        /// </summary>
+        public bool JetpackDiving;
 
         /// <summary>
         /// True for as long as the /dance chat emote is playing -- see

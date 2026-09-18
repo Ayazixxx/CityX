@@ -49,9 +49,15 @@ namespace CityX.Tests
         private static void BuildStreetEdge(int chunkX, int chunkY,
             out MeshBuffer pavement, out MeshBuffer guardRail)
         {
+            BuildStreetEdge(chunkX, chunkY, out pavement, out guardRail, out _);
+        }
+
+        private static void BuildStreetEdge(int chunkX, int chunkY,
+            out MeshBuffer pavement, out MeshBuffer guardRail, out MeshBuffer ground)
+        {
             CityWorld world = new CityWorld(Seed);
             SkybridgeLayout bridges = new SkybridgeLayout(Seed);
-            var ground = new MeshBuffer();
+            ground = new MeshBuffer();
             pavement = new MeshBuffer();
             var structures = new MeshBuffer();
             guardRail = new MeshBuffer();
@@ -71,12 +77,117 @@ namespace CityX.Tests
             return false;
         }
 
+        private static bool HasVertexAbove(MeshBuffer buffer, float y)
+        {
+            foreach (Vector3 v in buffer.Vertices)
+            {
+                if (v.y >= y)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>Mirrors CityMeshBuilder's own private FloorDiv -- integer / rounds toward zero, not floor, and chunk coordinates can be negative.</summary>
+        private static int FloorDivForTest(int a, int b)
+        {
+            int q = a / b;
+            if (a % b != 0 && (a < 0) != (b < 0))
+            {
+                q--;
+            }
+            return q;
+        }
+
         /// <summary>
-        /// Pavement runs along streets and stops at junctions.
+        /// True if some vertex near height y has a genuinely downward-
+        /// facing normal -- proof a face is meant to be seen from
+        /// underneath, not just from above.
+        /// </summary>
+        private static bool HasDownwardNormalNear(MeshBuffer buffer, float y, float yTolerance)
+        {
+            for (int i = 0; i < buffer.Vertices.Count; i++)
+            {
+                if (Mathf.Abs(buffer.Vertices[i].y - y) <= yTolerance && buffer.Normals[i].y < -0.1f)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// The height of the deck at world Z, found among the real vertices
+        /// sitting there -- the HIGHEST one within a generous window of
+        /// approxY, not merely the first one encountered.
         ///
-        /// The junction case is the one worth pinning: it is not written as a
-        /// special case anywhere, it falls out of the street grid, and it would
-        /// silently stop being true if the street period ever changed.
+        /// EXPLICIT BUG, found live: the ordinary tilted street's own edge
+        /// sits at that exact same Z too (chunk corners are shared exactly,
+        /// by design), and its real height is often still within a window
+        /// wide enough to also catch the deck (a span's own flanking ends
+        /// are only guaranteed at least ElevatedBridgeMinDip below the
+        /// deck, not the whole window's radius). Returning whichever
+        /// vertex happened to be inserted first made this compare the
+        /// ORDINARY STREET's height in one chunk against the DECK's height
+        /// in its neighbour -- two genuinely different surfaces that were
+        /// never meant to match at all -- and reported that as "a gap."
+        /// The deck is elevated BY DEFINITION, so the true deck vertex
+        /// among any candidates at the same Z is always the highest one.
+        /// </summary>
+        private static float HeightOfVertexNearZ(MeshBuffer buffer, float z, float approxY)
+        {
+            const float zTolerance = 0.05f;
+            const float yWindow = 15.0f;
+            float best = float.NaN;
+            foreach (Vector3 v in buffer.Vertices)
+            {
+                if (Mathf.Abs(v.z - z) <= zTolerance && Mathf.Abs(v.y - approxY) <= yWindow)
+                {
+                    if (float.IsNaN(best) || v.y > best)
+                    {
+                        best = v.y;
+                    }
+                }
+            }
+            return best;
+        }
+
+        /// <summary>
+        /// Same as <see cref="HasVertexNear"/>, but also confined to an X/Z
+        /// footprint -- needed for anything checking a BUILDING chunk's own
+        /// pavement/flatConcrete buffer specifically, since (see
+        /// PavementRunsAlongStreetsAndStopsAtJunctions's own doc comment)
+        /// that buffer also carries the building's own roof and interior
+        /// floors/stairs at a wide spread of heights, which a bare height
+        /// check cannot tell apart from the thing actually being tested.
+        /// </summary>
+        private static bool HasVertexNearInRegion(MeshBuffer buffer, float y, Rect xzRegion,
+            float tolerance = 0.05f)
+        {
+            foreach (Vector3 v in buffer.Vertices)
+            {
+                if (Mathf.Abs(v.y - y) <= tolerance && xzRegion.Contains(new Vector2(v.x, v.z)))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Pavement runs along streets and stops at junctions -- EXCEPT the
+        /// four small corner squares AddSidewalkCorners now deliberately
+        /// fills wherever a junction's own diagonal neighbour is a building
+        /// (see that method's own doc comment: without them, the sidewalk
+        /// coming from one arm and the sidewalk coming from the other arm
+        /// never actually meet, leaving a bare notch of road right at the
+        /// corner -- a real reported bug). The CROSSING ITSELF -- everywhere
+        /// outside those four corner squares -- must still never carry
+        /// pavement, which is the actual invariant worth pinning: it is not
+        /// written as a special case anywhere, it falls out of the street
+        /// grid, and it would silently stop being true if the street period
+        /// ever changed.
         ///
         /// ONLY STREET CHUNKS ARE INSPECTED, deliberately. The flat-concrete
         /// buffer also carries roofs and walkway decks, so a buildable chunk
@@ -88,6 +199,8 @@ namespace CityX.Tests
         {
             int junctions = 0;
             int runs = 0;
+            float chunk = CityLayout.ChunkSize;
+            float sw = CityMeshBuilder.SidewalkWidth;
 
             for (int x = -24; x <= 24; x++)
             {
@@ -104,8 +217,21 @@ namespace CityX.Tests
                     if (junction)
                     {
                         junctions++;
-                        Assert.IsTrue(flatConcrete.IsEmpty,
-                            $"({x},{y}) is a junction -- pavement there would block the crossing");
+                        float x0 = x * chunk, z0 = y * chunk, x1 = x0 + chunk, z1 = z0 + chunk;
+                        const float margin = 0.01f;
+                        Rect nw = Rect.MinMaxRect(x0 - margin, z0 - margin, x0 + sw + margin, z0 + sw + margin);
+                        Rect ne = Rect.MinMaxRect(x1 - sw - margin, z0 - margin, x1 + margin, z0 + sw + margin);
+                        Rect sw2 = Rect.MinMaxRect(x0 - margin, z1 - sw - margin, x0 + sw + margin, z1 + margin);
+                        Rect se = Rect.MinMaxRect(x1 - sw - margin, z1 - sw - margin, x1 + margin, z1 + margin);
+                        foreach (Vector3 v in flatConcrete.Vertices)
+                        {
+                            Vector2 xz = new Vector2(v.x, v.z);
+                            bool inCornerSquare =
+                                nw.Contains(xz) || ne.Contains(xz) || sw2.Contains(xz) || se.Contains(xz);
+                            Assert.IsTrue(inCornerSquare,
+                                $"({x},{y}) is a junction -- pavement at ({v.x:0.00},{v.z:0.00}) sits outside " +
+                                "any real corner square and would block the crossing");
+                        }
                     }
                     else
                     {
@@ -120,6 +246,7 @@ namespace CityX.Tests
             Assert.Greater(junctions, 20, "not enough junctions sampled");
             Assert.Greater(runs, 100, "not enough street runs sampled");
         }
+
 
         /// <summary>
         /// No building wall may carry the roof. Directly guards the thing that
@@ -187,6 +314,35 @@ namespace CityX.Tests
                     Build(x, y, out MeshBuffer ground, out _);
                     Assert.IsFalse(ground.IsEmpty, $"chunk ({x},{y}) produced no ground at all");
 
+                    if (CityLayout.IsStreetChunk(x, y))
+                    {
+                        // A street's own ground now tilts to the smooth
+                        // continuous field instead of sitting flat at the
+                        // quantised pad -- see BuildGround's own "hillside
+                        // streets" comment. What still has to hold: the
+                        // ground actually reaches each of the chunk's own
+                        // four corner heights from that same field, the
+                        // same four corners AddTiltedStreetGround builds
+                        // its quad from.
+                        float chunk = CityLayout.ChunkSize;
+                        float minX = x * chunk;
+                        float minZ = y * chunk;
+                        float[] corners =
+                        {
+                            (float)world.Terrain.ContinuousHeightAt(minX, minZ),
+                            (float)world.Terrain.ContinuousHeightAt(minX + chunk, minZ),
+                            (float)world.Terrain.ContinuousHeightAt(minX + chunk, minZ + chunk),
+                            (float)world.Terrain.ContinuousHeightAt(minX, minZ + chunk),
+                        };
+                        foreach (float corner in corners)
+                        {
+                            Assert.IsTrue(HasVertexNear(ground, corner),
+                                $"street chunk ({x},{y}) has no ground vertex near its own corner " +
+                                $"height of {corner}m");
+                        }
+                        continue;
+                    }
+
                     float pad = world.Terrain.PadHeightFor(x, y);
                     int atPad = 0;
                     foreach (Vector3 v in ground.Vertices)
@@ -219,22 +375,76 @@ namespace CityX.Tests
             CityWorld world = new CityWorld(Seed);
             int edgesFound = 0;
 
-            for (int x = -30; x <= 30; x++)
+            // WIDENED FROM -30..30: TerrainField.RegionFlatnessFactor now
+            // clusters large flat regions among hilly ones (EXPLICIT ASK,
+            // "make the steepness and flat parts come in clusters"), each
+            // spanning many chunks (RegionWavelength ~2700m, well over 100
+            // chunks) -- the origin can land inside one of those flat
+            // clusters by chance, and the old -30..30 sweep (1464m) could
+            // sit entirely inside it, finding too few real terrace edges to
+            // mean anything. -60..60 (2880m) comfortably exceeds one full
+            // RegionWavelength, so it always crosses at least one
+            // flat-to-hilly transition regardless of where the origin
+            // happens to fall.
+            // A chunk's real height at a given world point -- ContinuousHeightAt
+            // if it is a street (the same tilted surface its own ground
+            // actually sits on), PadHeightFor if it is a building (flat, so
+            // that already IS its real height). Exactly
+            // CityMeshBuilder.NeighbourGroundHeightAt, duplicated rather than
+            // exposed, since this is also what "this chunk's own real edge
+            // height" needs now -- see that method's own doc comment for the
+            // gap this closes: two QUANTISED pads used to be compared
+            // instead of this, which could agree ("no drop") while the
+            // street's real, continuously-tilted surface still sat away
+            // from the building's flat one by however much the tilt had
+            // carried it.
+            float RealHeightAt(int cx, int cy, float worldX, float worldZ) =>
+                CityLayout.IsStreetChunk(cx, cy)
+                    ? (float)world.Terrain.ContinuousHeightAt(worldX, worldZ)
+                    : world.Terrain.PadHeightFor(cx, cy);
+
+            float chunkSize = CityLayout.ChunkSize;
+
+            for (int x = -60; x <= 60; x++)
             {
-                for (int y = -30; y <= 30; y++)
+                for (int y = -60; y <= 60; y++)
                 {
                     float pad = world.Terrain.PadHeightFor(x, y);
-                    float lowestNeighbour = pad;
-                    for (int dx = -1; dx <= 1; dx++)
+                    float x0 = x * chunkSize, z0 = y * chunkSize;
+                    float x1 = x0 + chunkSize, z1 = z0 + chunkSize;
+
+                    // The exact same corner each cardinal edge's own gate
+                    // uses (AddSkirtIfLower's top0) and each diagonal's own
+                    // corner post uses (AddCornerSkirtIfLower's corner) --
+                    // see their call sites in BuildGround. A street-vs-street
+                    // pair needs no separate exclusion here the way
+                    // BuildGround's own westToStreet/etc. skip it: both
+                    // sides evaluate ContinuousHeightAt at the literal same
+                    // world point, so they always come out exactly equal,
+                    // which already fails the strict "<" eligibility check
+                    // below on its own.
+                    var checks = new (int dx, int dy, float px, float pz)[]
                     {
-                        for (int dy = -1; dy <= 1; dy++)
+                        (-1, 0, x0, z0),
+                        (1, 0, x1, z1),
+                        (0, -1, x1, z0),
+                        (0, 1, x0, z1),
+                        (-1, -1, x0, z0),
+                        (1, -1, x1, z0),
+                        (-1, 1, x0, z1),
+                        (1, 1, x1, z1),
+                    };
+
+                    float lowestEligibleNeighbour = float.MaxValue;
+                    bool anyEligible = false;
+                    foreach (var (dx, dy, px, pz) in checks)
+                    {
+                        float thisHeight = RealHeightAt(x, y, px, pz);
+                        float neighbourHeight = RealHeightAt(x + dx, y + dy, px, pz);
+                        if (neighbourHeight < thisHeight)
                         {
-                            if (dx == 0 && dy == 0)
-                            {
-                                continue;
-                            }
-                            lowestNeighbour = Mathf.Min(lowestNeighbour,
-                                world.Terrain.PadHeightFor(x + dx, y + dy));
+                            anyEligible = true;
+                            lowestEligibleNeighbour = Mathf.Min(lowestEligibleNeighbour, neighbourHeight);
                         }
                     }
 
@@ -249,16 +459,32 @@ namespace CityX.Tests
                         }
                     }
 
-                    if (lowestNeighbour < pad)
+                    // A street chunk's own ground is tilted to the smooth
+                    // continuous field now (see BuildGround's "hillside
+                    // streets" comment), so with no skirt built anywhere its
+                    // own natural floor is whichever of its own four corners
+                    // sits lowest, not the flat quantised pad a building
+                    // sits on.
+                    float ownFloor = pad;
+                    if (CityLayout.IsStreetChunk(x, y))
+                    {
+                        ownFloor = Mathf.Min(
+                            Mathf.Min((float)world.Terrain.ContinuousHeightAt(x0, z0),
+                                      (float)world.Terrain.ContinuousHeightAt(x1, z0)),
+                            Mathf.Min((float)world.Terrain.ContinuousHeightAt(x1, z1),
+                                      (float)world.Terrain.ContinuousHeightAt(x0, z1)));
+                    }
+
+                    if (anyEligible)
                     {
                         edgesFound++;
-                        Assert.LessOrEqual(lowestVertex, lowestNeighbour + 0.001f,
-                            $"chunk ({x},{y}) sits at {pad}m beside ground at {lowestNeighbour}m, but its " +
-                            $"geometry stops at {lowestVertex}m -- there is a gap you can see through");
+                        Assert.LessOrEqual(lowestVertex, lowestEligibleNeighbour + 0.001f,
+                            $"chunk ({x},{y})'s geometry stops at {lowestVertex}m, short of the " +
+                            $"{lowestEligibleNeighbour}m real ground beside it -- there is a gap you can see through");
                     }
                     else
                     {
-                        Assert.AreEqual(pad, lowestVertex, 0.001f,
+                        Assert.AreEqual(ownFloor, lowestVertex, 0.001f,
                             $"chunk ({x},{y}) has no lower neighbour but still built a skirt down to " +
                             $"{lowestVertex}m -- that is a wall buried inside solid ground");
                     }
@@ -270,16 +496,95 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// Wherever a street keeps going but drops onto a lower street chunk
+        /// EXPLICIT BUG REPORT, WITH SCREENSHOTS: "we got to start bridging
+        /// this gaps between the roads and the buildings there is just
+        /// empty space." The bug this proves is fixed: AddSkirtIfLower used
+        /// to gate on two QUANTISED pads agreeing -- a street chunk and the
+        /// building lot next to it can sit on the exact same terrace level
+        /// while the street's own ground, now continuously tilted (see
+        /// BuildGround's "hillside streets" comment), still sits away from
+        /// the building's flat one by however much that tilt carried it.
+        /// The old gate never saw that: same pad meant "no wall," full
+        /// stop, regardless of what the real, rendered surfaces actually
+        /// did. Sweeps for a real occurrence of exactly that -- a street
+        /// chunk whose west neighbour is a building on the identical
+        /// quantised pad, but whose real edge height at the shared corner
+        /// differs from it by a real margin -- and confirms the built
+        /// ground now reaches all the way down to close it.
+        /// </summary>
+        [Test]
+        public void ASameQuantisedPadStreetAndBuildingStillGetAWallWhenTheirRealHeightsDiffer()
+        {
+            CityWorld world = new CityWorld(Seed);
+            float chunkSize = CityLayout.ChunkSize;
+            int found = 0;
+
+            for (int x = -60; x <= 60; x++)
+            {
+                for (int y = -60; y <= 60; y++)
+                {
+                    if (!CityLayout.IsStreetChunk(x, y))
+                    {
+                        continue;
+                    }
+                    int nx = x - 1, ny = y;
+                    if (CityLayout.IsStreetChunk(nx, ny))
+                    {
+                        continue;
+                    }
+
+                    float pad = world.Terrain.PadHeightFor(x, y);
+                    float neighbourPad = world.Terrain.PadHeightFor(nx, ny);
+                    float realHeight = (float)world.Terrain.ContinuousHeightAt(x * chunkSize, y * chunkSize);
+
+                    // The OLD gate (neighbourPad >= pad -> no wall) says
+                    // this edge is flush; the NEW one (neighbourPad >=
+                    // realHeight -> no wall) says it genuinely is not, by a
+                    // margin too big to be float noise.
+                    bool oldGateSaysFlush = neighbourPad >= pad - 0.0001f;
+                    bool newGateSaysGap = neighbourPad < realHeight - 0.05f;
+                    if (!oldGateSaysFlush || !newGateSaysGap)
+                    {
+                        continue;
+                    }
+
+                    found++;
+                    Build(x, y, out MeshBuffer ground, out _);
+                    float lowestVertex = ground.Vertices.Min(v => v.y);
+                    Assert.LessOrEqual(lowestVertex, neighbourPad + 0.001f,
+                        $"chunk ({x},{y}) and its west neighbour both sit on the {pad}m pad, but the " +
+                        $"street's own real edge height there is {realHeight}m against the building's " +
+                        $"{neighbourPad}m -- built ground stops at {lowestVertex}m, which does not reach " +
+                        "down far enough to close that gap");
+                }
+            }
+
+            Assert.Greater(found, 0,
+                "never found a same-pad, different-real-height case in this sweep -- widen it, or the " +
+                "gap this fix closes cannot be shown to actually occur");
+        }
+
+        /// <summary>
+        /// Wherever a street's terraced edge drops toward a BUILDING lot
         /// with a real sidewalk to carry it, there is a real flight of steps
         /// -- not just the sheer retaining wall -- reaching all the way from
         /// this chunk's own pad down to the lower one's.
+        ///
+        /// STREET-VS-STREET IS DELIBERATELY EXCLUDED FROM THIS SWEEP. Two
+        /// neighbouring street chunks now always meet through the same
+        /// continuous hillside tilt (see BuildGround's own "hillside
+        /// streets" comment), so BuildGround never even calls
+        /// AddStreetEdgeFeatures for that pair any more -- there is no drop
+        /// left there for a stair or ramp to cover. What is left eligible
+        /// for either treatment is exactly a street's edge against a
+        /// BUILDING lot (see AddStreetEdgeFeatures's own doc comment).
         /// </summary>
         [Test]
-        public void AStreetTerraceDropWithASidewalkGetsARealStaircase()
+        public void AStreetTerraceDropWithASidewalkGetsARealStaircaseOrASlopedRamp()
         {
             CityWorld world = new CityWorld(Seed);
-            int casesFound = 0;
+            int stairCases = 0;
+            int rampCases = 0;
 
             for (int x = -30; x <= 30; x++)
             {
@@ -290,52 +595,392 @@ namespace CityX.Tests
                         continue;
                     }
                     float pad = world.Terrain.PadHeightFor(x, y);
+                    bool chunkAlreadySloped = false;
 
                     foreach ((int nx, int ny) in new[] { (x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1) })
                     {
-                        if (!CityLayout.IsStreetChunk(nx, ny))
+                        // Not eligible at all any more -- BuildGround's own
+                        // westToStreet/etc. gating skips this pair entirely.
+                        if (CityLayout.IsStreetChunk(nx, ny))
                         {
                             continue;
                         }
+
                         float neighbourPad = world.Terrain.PadHeightFor(nx, ny);
                         if (neighbourPad >= pad)
                         {
                             continue;
                         }
-                        // A junction (both axes divisible by the street period)
-                        // gets no sidewalk on either side -- see AddSidewalks's
-                        // own doc comment -- so it never has anywhere to carve a
-                        // stair into. Only a straight run qualifies here.
-                        bool junction = CityLayout.IsStreetChunk(x - 1, y) &&
-                                        CityLayout.IsStreetChunk(x + 1, y) &&
-                                        CityLayout.IsStreetChunk(x, y - 1) &&
-                                        CityLayout.IsStreetChunk(x, y + 1);
-                        if (junction)
+
+                        // Mirrors AddStreetEdgeFeatures's own roll exactly --
+                        // seeded off the NEIGHBOUR's coordinate, and gated the
+                        // same "at most one sloped edge per chunk" way, so the
+                        // test knows in advance which of the two treatments
+                        // this edge is going to get.
+                        bool sloped = !chunkAlreadySloped &&
+                            new DeterministicRandom(world.ChunkSeed(nx, ny)).NextDouble() <
+                                CityMeshBuilder.SlopedStreetChance;
+                        if (sloped)
                         {
+                            chunkAlreadySloped = true;
+                        }
+
+                        BuildStreetEdge(x, y, out MeshBuffer pavement, out _, out MeshBuffer ground);
+
+                        if (sloped)
+                        {
+                            rampCases++;
+                            // Wide tolerance deliberately: the ramp starts
+                            // flush with this street chunk's own tilted
+                            // edge (ContinuousHeightAt), not this quantised
+                            // pad -- see AddSlopedStreetRamp's own "top0.y,
+                            // not pad" comment. TerraceStep is the
+                            // worst-case gap between the two by
+                            // construction (PadHeightFor floors
+                            // ContinuousHeightAt to the nearest step).
+                            Assert.IsTrue(HasVertexNear(ground, pad, tolerance: TerrainField.TerraceStep),
+                                $"chunk ({x},{y}) drops to ({nx},{ny}) with a sloped ramp, but no vertex " +
+                                $"reaches anywhere near its own pad at {pad}m");
+                            Assert.IsTrue(HasVertexNear(ground, neighbourPad, tolerance: 0.6f),
+                                $"chunk ({x},{y}) drops to ({nx},{ny}), but the ramp does not reach down " +
+                                $"anywhere near {neighbourPad}m");
                             continue;
                         }
 
-                        BuildStreetEdge(x, y, out MeshBuffer pavement, out _);
-                        casesFound++;
-                        Assert.IsTrue(HasVertexNear(pavement, pad),
+                        // No sidewalk-existence gate needed any more -- the
+                        // neighbour here is always a BUILDING (street-vs-
+                        // street is excluded above), which is exactly the
+                        // condition AddSidewalks itself builds THIS edge's
+                        // own sidewalk under, so it is always real. See
+                        // AddStreetEdgeFeatures's own doc comment.
+                        stairCases++;
+                        // Wide tolerance deliberately: the stair's own top
+                        // starts from wherever this street chunk's tilted
+                        // sidewalk actually sits at that point
+                        // (ContinuousHeightAt), not this quantised pad --
+                        // see AddStreetEdgeFeatures's own "wallPoint.y, not
+                        // pad" comment. TerraceStep is the worst-case gap
+                        // between the two by construction (PadHeightFor
+                        // floors ContinuousHeightAt to the nearest step).
+                        Assert.IsTrue(HasVertexNear(pavement, pad, tolerance: TerrainField.TerraceStep),
                             $"chunk ({x},{y}) drops to ({nx},{ny}) with a sidewalk to carry a stair, " +
-                            $"but no step reaches back up to its own pad at {pad}m");
-                        Assert.IsTrue(HasVertexNear(pavement, neighbourPad),
+                            $"but no step reaches anywhere near its own pad at {pad}m");
+                        // Same 0.6f the ramp check above allows: the chosen
+                        // slice's own rise is clamped to at least one step
+                        // (BuildingInterior.StairStepHeight) rather than
+                        // exactly wallPoint.y - neighbourPad whenever that
+                        // could go non-positive, so the flight can overshoot
+                        // slightly past neighbourPad rather than landing on
+                        // it to the millimetre -- see AddStreetEdgeFeatures's
+                        // own "still clamped, as a last resort" comment.
+                        Assert.IsTrue(HasVertexNear(pavement, neighbourPad, tolerance: 0.6f),
                             $"chunk ({x},{y}) drops to ({nx},{ny}), but no step reaches down to " +
                             $"{neighbourPad}m -- the flight stops short of the lower level");
                     }
                 }
             }
 
-            TestContext.WriteLine($"{casesFound} street-vs-street drops checked");
-            Assert.Greater(casesFound, 0, "no street-vs-street terrace drop with a sidewalk in the sweep");
+            TestContext.WriteLine($"{stairCases} staircases, {rampCases} sloped ramps checked");
+            Assert.Greater(stairCases, 0, "no street-vs-building staircase drop in the sweep");
+            Assert.Greater(rampCases, 0, "no street-vs-building sloped ramp drop in the sweep");
         }
 
         /// <summary>
-        /// A junction has no sidewalk on any side (AddSidewalks builds none
-        /// there), so even where two streets meet at different terrace
-        /// levels there is nowhere to carve a stair into -- just the plain
-        /// wall, correctly, rather than one floating over open roadway.
+        /// EXPLICIT BUG REPORT, with a screenshot: "make the sidewalks
+        /// sloped with the roads" -- a staircase was reported floating in
+        /// mid-air over a sloped street. AddSidewalks used to build a plain
+        /// flat MeshBuffer.AddBox at the chunk's own quantised PadHeightFor,
+        /// while the real street ground next to it (and the stairs/guard-
+        /// rails sitting on the sidewalk) already tilted to the continuous
+        /// field -- confirms directly that each sidewalk strip's own outer
+        /// corner now sits at the real ContinuousHeightAt (plus KerbHeight),
+        /// not the quantised pad, the same "own corner height" pattern
+        /// EveryChunkGetsGroundAtItsOwnPadHeight already checks for the
+        /// street ground itself.
+        /// </summary>
+        [Test]
+        public void SidewalksFollowTheRealTiltedGroundNotTheQuantisedPad()
+        {
+            CityWorld world = new CityWorld(Seed);
+            float chunk = CityLayout.ChunkSize;
+            int checkedSides = 0;
+
+            for (int x = -20; x <= 20; x++)
+            {
+                for (int y = -20; y <= 20; y++)
+                {
+                    if (!CityLayout.IsStreetChunk(x, y))
+                    {
+                        continue;
+                    }
+
+                    Build(x, y, out _, out MeshBuffer pavement, out _);
+
+                    float x0 = x * chunk;
+                    float z0 = y * chunk;
+                    float x1 = x0 + chunk;
+                    float z1 = z0 + chunk;
+
+                    void CheckCorner(float cx, float cz)
+                    {
+                        float expected =
+                            (float)world.Terrain.ContinuousHeightAt(cx, cz) + CityMeshBuilder.KerbHeight;
+                        Assert.IsTrue(HasVertexNear(pavement, expected, tolerance: 0.05f),
+                            $"sidewalk at chunk ({x},{y})'s corner ({cx},{cz}) has no vertex near its own " +
+                            $"real tilted height of {expected:0.00}m -- still sitting at a flat/quantised height");
+                    }
+
+                    if (!CityLayout.IsStreetChunk(x - 1, y))
+                    {
+                        checkedSides++;
+                        CheckCorner(x0, z0);
+                        CheckCorner(x0, z1);
+                    }
+                    if (!CityLayout.IsStreetChunk(x + 1, y))
+                    {
+                        checkedSides++;
+                        CheckCorner(x1, z0);
+                        CheckCorner(x1, z1);
+                    }
+                    if (!CityLayout.IsStreetChunk(x, y - 1))
+                    {
+                        checkedSides++;
+                        CheckCorner(x0, z0);
+                        CheckCorner(x1, z0);
+                    }
+                    if (!CityLayout.IsStreetChunk(x, y + 1))
+                    {
+                        checkedSides++;
+                        CheckCorner(x0, z1);
+                        CheckCorner(x1, z1);
+                    }
+                }
+            }
+
+            Assert.Greater(checkedSides, 0, "no sidewalk-bearing street edge in the sweep");
+        }
+
+        /// <summary>
+        /// EXPLICIT BUG REPORT, with a screenshot: a bare square notch of
+        /// road left uncovered right at a street corner, between the two
+        /// sidewalk strips that should meet there. See AddSidewalkCorners'
+        /// own doc comment for the full root-cause explanation -- in short,
+        /// a chunk's four edge strips only cover sides that border a
+        /// BUILDING, so at a real turn (two ADJACENT sides are street, not
+        /// building) neither matching strip ever reaches the small square
+        /// where an arm's sidewalk should meet the other arm's.
+        ///
+        /// Checks the corner square's OUTER point specifically (the actual
+        /// chunk corner, e.g. (x0,z0) for the NW case) -- AddTiltedSidewalkBox
+        /// samples that exact point through the same topAt closure the rest
+        /// of this chunk's sidewalks use, so it has to land at precisely the
+        /// real ContinuousHeightAt there (plus KerbHeight), the same
+        /// invariant SidewalksFollowTheRealTiltedGroundNotTheQuantisedPad
+        /// already checks for the ordinary edge strips.
+        /// </summary>
+        [Test]
+        public void SidewalkCornersFillTheGapAtARealStreetTurn()
+        {
+            CityWorld world = new CityWorld(Seed);
+            float chunk = CityLayout.ChunkSize;
+            int casesFound = 0;
+
+            for (int x = -40; x <= 40; x++)
+            {
+                for (int y = -40; y <= 40; y++)
+                {
+                    if (!CityLayout.IsStreetChunk(x, y))
+                    {
+                        continue;
+                    }
+
+                    float x0 = x * chunk;
+                    float z0 = y * chunk;
+                    float x1 = x0 + chunk;
+                    float z1 = z0 + chunk;
+                    float sw = CityMeshBuilder.SidewalkWidth;
+
+                    var corners = new[]
+                    {
+                        (west: x - 1, northSouth: y - 1, diag: (x - 1, y - 1), outerX: x0, outerZ: z0),
+                        (west: x + 1, northSouth: y - 1, diag: (x + 1, y - 1), outerX: x1, outerZ: z0),
+                        (west: x - 1, northSouth: y + 1, diag: (x - 1, y + 1), outerX: x0, outerZ: z1),
+                        (west: x + 1, northSouth: y + 1, diag: (x + 1, y + 1), outerX: x1, outerZ: z1),
+                    };
+
+                    foreach (var c in corners)
+                    {
+                        if (!CityLayout.IsStreetChunk(c.west, y) || !CityLayout.IsStreetChunk(x, c.northSouth)
+                            || CityLayout.IsStreetChunk(c.diag.Item1, c.diag.Item2))
+                        {
+                            continue;
+                        }
+
+                        Build(x, y, out _, out MeshBuffer pavement, out _);
+                        float expected =
+                            (float)world.Terrain.ContinuousHeightAt(c.outerX, c.outerZ) + CityMeshBuilder.KerbHeight;
+                        float minX = Mathf.Min(c.outerX, c.outerX + (c.outerX == x0 ? sw : -sw)) - 0.01f;
+                        float maxX = Mathf.Max(c.outerX, c.outerX + (c.outerX == x0 ? sw : -sw)) + 0.01f;
+                        float minZ = Mathf.Min(c.outerZ, c.outerZ + (c.outerZ == z0 ? sw : -sw)) - 0.01f;
+                        float maxZ = Mathf.Max(c.outerZ, c.outerZ + (c.outerZ == z0 ? sw : -sw)) + 0.01f;
+                        Rect region = Rect.MinMaxRect(minX, minZ, maxX, maxZ);
+
+                        casesFound++;
+                        Assert.IsTrue(HasVertexNearInRegion(pavement, expected, region, tolerance: 0.05f),
+                            $"turn at chunk ({x},{y})'s corner ({c.outerX},{c.outerZ}) has no sidewalk vertex " +
+                            "near its own real tilted height -- the corner gap was not filled");
+                    }
+                }
+            }
+
+            TestContext.WriteLine($"{casesFound} street-turn corners checked");
+            Assert.Greater(casesFound, 0, "no real street-turn corner found in the sweep");
+        }
+
+        /// <summary>
+        /// EXPLICIT ASK: "and curve" -- confirms two neighbouring curving
+        /// street chunks meet EXACTLY at their shared boundary, the same
+        /// "sampling the same pure function of world position from either
+        /// side always agrees" guarantee AddCurvingStreetGround's own doc
+        /// comment claims. AddCurvingStreetGround is the FIRST thing
+        /// BuildGround ever writes to a fresh `ground` buffer for a street
+        /// chunk, so a freshly-built chunk's own first (segments * 4)
+        /// vertices are always exactly its ribbon's own corners, in the
+        /// exact per-segment order [near0, near1, far1, far0] -- no other
+        /// geometry mixed in yet to filter out.
+        /// </summary>
+        [Test]
+        public void AdjacentCurvingChunksShareTheExactSameGroundAtTheirBoundary()
+        {
+            CityWorld world = new CityWorld(Seed);
+            int segments = Mathf.RoundToInt(CityLayout.ChunkSize / CityMeshBuilder.StreetCurveSegmentLength);
+            bool found = false;
+
+            for (int x = -40; x <= 40 && !found; x++)
+            {
+                for (int y = -40; y <= 40 && !found; y++)
+                {
+                    if (!CityLayout.IsStreetChunk(x, y) || !CityLayout.IsStreetChunk(x, y + 1))
+                    {
+                        continue;
+                    }
+                    // Both genuinely north-south and neither a junction --
+                    // StreetRunsAlongX's own doc comment says it is only
+                    // meaningful for a real, non-junction street chunk.
+                    if (CityLayout.StreetRunsAlongX(x, y) || CityLayout.StreetRunsAlongX(x, y + 1))
+                    {
+                        continue;
+                    }
+
+                    Build(x, y, out MeshBuffer groundHere, out _);
+                    Build(x, y + 1, out MeshBuffer groundNext, out _);
+                    if (groundHere.Vertices.Count < segments * 4 || groundNext.Vertices.Count < segments * 4)
+                    {
+                        continue;
+                    }
+
+                    found = true;
+                    Vector3 hereNear1 = groundHere.Vertices[(segments - 1) * 4 + 1];
+                    Vector3 hereFar1 = groundHere.Vertices[(segments - 1) * 4 + 2];
+                    Vector3 nextNear0 = groundNext.Vertices[0];
+                    Vector3 nextFar0 = groundNext.Vertices[3];
+
+                    Assert.AreEqual(hereNear1.x, nextNear0.x, 0.001f, "west edge X disagrees across the boundary");
+                    Assert.AreEqual(hereNear1.y, nextNear0.y, 0.001f, "west edge height disagrees across the boundary");
+                    Assert.AreEqual(hereFar1.x, nextFar0.x, 0.001f, "east edge X disagrees across the boundary");
+                    Assert.AreEqual(hereFar1.y, nextFar0.y, 0.001f, "east edge height disagrees across the boundary");
+                }
+            }
+
+            Assert.IsTrue(found, "no adjacent pair of plain north-south street chunks found in the sweep");
+        }
+
+        /// <summary>
+        /// EXPLICIT ASK: "and curve" -- the curve has to reach EXACTLY zero
+        /// approaching a junction (StreetCurveTaperDistanceMetres's own doc
+        /// comment) so cross streets still meet at clean right angles, not
+        /// a lateral jump where the curve suddenly stops.
+        /// </summary>
+        [Test]
+        public void TheCurveReachesZeroRightAtAJunction()
+        {
+            CityWorld world = new CityWorld(Seed);
+            int segments = Mathf.RoundToInt(CityLayout.ChunkSize / CityMeshBuilder.StreetCurveSegmentLength);
+            bool found = false;
+
+            for (int x = -40; x <= 40 && !found; x++)
+            {
+                for (int y = -40; y <= 40 && !found; y++)
+                {
+                    if (!CityLayout.IsStreetChunk(x, y))
+                    {
+                        continue;
+                    }
+                    bool junction = CityLayout.IsStreetChunk(x - 1, y) && CityLayout.IsStreetChunk(x + 1, y) &&
+                                     CityLayout.IsStreetChunk(x, y - 1) && CityLayout.IsStreetChunk(x, y + 1);
+                    if (!junction)
+                    {
+                        continue;
+                    }
+
+                    Build(x, y, out MeshBuffer ground, out _);
+                    if (ground.Vertices.Count < segments * 4)
+                    {
+                        continue;
+                    }
+
+                    found = true;
+                    float chunk = CityLayout.ChunkSize;
+                    float expectedX0 = x * chunk;
+                    float expectedX1 = expectedX0 + chunk;
+                    float expectedZ0 = y * chunk;
+                    float expectedZ1 = expectedZ0 + chunk;
+
+                    // ONLY the chunk's own two OUTER edges -- vertices[0]/
+                    // [3] are segment 0's own a0 edge (the chunk's real
+                    // near boundary), and vertices[(segments-1)*4+1]/[+2]
+                    // are the LAST segment's own a1 edge (the chunk's real
+                    // far boundary). vertices[1]/[2] are NOT chunk-boundary
+                    // points -- EXPLICIT BUG, found live: they are segment
+                    // 0's own a1 edge, only StreetCurveSegmentLength (1.5m)
+                    // into the chunk, and asserting THOSE sit on the plain
+                    // grid line is simply the wrong claim, whether or not
+                    // the curve is actually behaving correctly.
+                    //
+                    // A junction's own ribbon runs along whichever axis
+                    // StreetRunsAlongX happens to report for it, but every
+                    // one of these real boundary corners has to sit at the
+                    // plain, un-offset grid position regardless -- a
+                    // junction sits at the intersection of BOTH lanes' own
+                    // taper zones.
+                    foreach (Vector3 v in new[]
+                             {
+                                 ground.Vertices[0], ground.Vertices[3],
+                                 ground.Vertices[(segments - 1) * 4 + 1], ground.Vertices[(segments - 1) * 4 + 2],
+                             })
+                    {
+                        bool onXBoundary = Mathf.Abs(v.x - expectedX0) < 0.01f || Mathf.Abs(v.x - expectedX1) < 0.01f;
+                        bool onZBoundary = Mathf.Abs(v.z - expectedZ0) < 0.01f || Mathf.Abs(v.z - expectedZ1) < 0.01f;
+                        Assert.IsTrue(onXBoundary && onZBoundary,
+                            $"junction ({x},{y}) has a ground corner at ({v.x:0.000},{v.z:0.000}) that has " +
+                            "drifted off the plain grid position -- the curve did not reach zero at the junction");
+                    }
+                }
+            }
+
+            Assert.IsTrue(found, "no junction chunk found in the sweep");
+        }
+
+        /// <summary>
+        /// A junction is street on all four sides, and a street chunk never
+        /// gets AddStreetEdgeFeatures called against ANOTHER street
+        /// neighbour any more -- BuildGround's own westToStreet/etc. gating
+        /// routes every such edge through the continuous hillside tilt
+        /// instead (see its "hillside streets" comment), seamlessly, with
+        /// nothing left to carve a stair into even where the two chunks'
+        /// own quantised pads disagree. So a junction never gets a stair on
+        /// any of its four sides, correctly, rather than one floating over
+        /// open roadway.
         /// </summary>
         [Test]
         public void AJunctionTerraceDropGetsNoStaircase()
@@ -343,10 +988,28 @@ namespace CityX.Tests
             CityWorld world = new CityWorld(Seed);
             int casesFound = 0;
 
-            for (int x = -40; x <= 40; x += 4)
+            // A junction is no longer every 4th coordinate on both axes --
+            // CityLayout.LocalStreetPeriodFor makes street spacing vary by
+            // neighbourhood, so this sweeps every coordinate in range and
+            // filters for the real thing, the same "street on all four
+            // sides" definition AddSidewalks itself relies on.
+            for (int x = -60; x <= 60; x++)
             {
-                for (int y = -40; y <= 40; y += 4)
+                for (int y = -60; y <= 60; y++)
                 {
+                    if (!CityLayout.IsStreetChunk(x, y))
+                    {
+                        continue;
+                    }
+                    bool junction = CityLayout.IsStreetChunk(x - 1, y) &&
+                                    CityLayout.IsStreetChunk(x + 1, y) &&
+                                    CityLayout.IsStreetChunk(x, y - 1) &&
+                                    CityLayout.IsStreetChunk(x, y + 1);
+                    if (!junction)
+                    {
+                        continue;
+                    }
+
                     float pad = world.Terrain.PadHeightFor(x, y);
                     foreach ((int nx, int ny) in new[] { (x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1) })
                     {
@@ -370,15 +1033,25 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// The short guardrail is there wherever a street-level drop is,
-        /// not just wherever a stair happens to be -- a street meeting a
-        /// building lot's own lower edge is still a real ledge.
+        /// The short guardrail is there wherever a street drops toward a
+        /// BUILDING lot's own lower edge and did NOT roll sloped -- a real
+        /// ledge, worth fencing, when it is not a hillside. EXPLICIT ASK:
+        /// "make it like 90% slopes 10% hard cutoffs with fencing and
+        /// stairs" widened the sloped roll to cover a building neighbour
+        /// too (see AddStreetEdgeFeatures's own doc comment), so a
+        /// guardrail is no longer unconditional here the way it used to
+        /// be -- this mirrors the same roll AStreetTerraceDropWithA
+        /// SidewalkGetsARealStaircaseOrASlopedRamp already has to, in the
+        /// same per-chunk edge order, so it knows in advance which drops
+        /// are still expected to fence.
         /// </summary>
         [Test]
-        public void AStreetTerraceDropAlwaysGetsAGuardRail()
+        public void AStreetTerraceDropAgainstABuildingGetsAGuardRailUnlessItRolledSloped()
         {
             CityWorld world = new CityWorld(Seed);
             int casesFound = 0;
+            int slopedCases = 0;
+            float chunkSize = CityLayout.ChunkSize;
 
             for (int x = -30; x <= 30; x++)
             {
@@ -388,29 +1061,598 @@ namespace CityX.Tests
                     {
                         continue;
                     }
-                    float pad = world.Terrain.PadHeightFor(x, y);
-                    bool anyDrop = false;
-                    foreach ((int nx, int ny) in new[] { (x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1) })
+                    float x0 = x * chunkSize, z0 = y * chunkSize;
+                    float x1 = x0 + chunkSize, z1 = z0 + chunkSize;
+                    bool chunkAlreadySloped = false;
+                    bool anyBuildingDrop = false;
+                    bool expectRail = false;
+
+                    // top0 for each cardinal edge, exactly as BuildGround's own
+                    // four AddSkirtIfLower/AddStreetEdgeFeatures call sites
+                    // pass it -- see AddStreetEdgeFeatures's own "real heights,
+                    // not quantised pads" gate this now has to mirror (the
+                    // Phase 2 gap fix): a street chunk's REAL edge here is
+                    // ContinuousHeightAt at that exact corner, which can differ
+                    // from PadHeightFor even when the quantised pads agree.
+                    var edges = new (int nx, int ny, float px, float pz)[]
                     {
-                        if (world.Terrain.PadHeightFor(nx, ny) < pad)
+                        (x - 1, y, x0, z0),
+                        (x + 1, y, x1, z1),
+                        (x, y - 1, x1, z0),
+                        (x, y + 1, x0, z1),
+                    };
+
+                    foreach (var (nx, ny, px, pz) in edges)
+                    {
+                        float top0Y = (float)world.Terrain.ContinuousHeightAt(px, pz);
+                        float neighbourHeight = CityLayout.IsStreetChunk(nx, ny)
+                            ? (float)world.Terrain.ContinuousHeightAt(px, pz)
+                            : world.Terrain.PadHeightFor(nx, ny);
+                        if (neighbourHeight >= top0Y)
                         {
-                            anyDrop = true;
+                            continue;
+                        }
+
+                        bool sloped = !chunkAlreadySloped &&
+                            new DeterministicRandom(world.ChunkSeed(nx, ny)).NextDouble() <
+                                CityMeshBuilder.SlopedStreetChance;
+                        if (sloped)
+                        {
+                            chunkAlreadySloped = true;
+                        }
+
+                        if (!CityLayout.IsStreetChunk(nx, ny))
+                        {
+                            anyBuildingDrop = true;
+                            if (sloped)
+                            {
+                                slopedCases++;
+                            }
+                            else
+                            {
+                                expectRail = true;
+                            }
                         }
                     }
+
+                    if (!anyBuildingDrop)
+                    {
+                        continue;
+                    }
+                    casesFound++;
+
+                    if (!expectRail)
+                    {
+                        continue;
+                    }
+                    BuildStreetEdge(x, y, out _, out MeshBuffer guardRail);
+                    Assert.IsFalse(guardRail.IsEmpty,
+                        $"street chunk ({x},{y}) drops to a building lot and did not roll sloped, " +
+                        "but built no guardrail");
+                }
+            }
+
+            TestContext.WriteLine($"{casesFound} street-vs-building drops checked, " +
+                $"{slopedCases} rolled sloped instead of a guardrail");
+            Assert.Greater(casesFound, 0, "no street-vs-building terrace drop in the sweep");
+            Assert.Greater(casesFound - slopedCases, 0,
+                "every street-vs-building drop rolled sloped -- nothing exercised the guardrail case");
+        }
+
+        /// <summary>
+        /// EXPLICIT ASK: "if there is a drop that would cause fall damage
+        /// like a hard corner make a fence around it and have a staircase."
+        /// Confirmed root cause before this fix: AddStreetEdgeFeatures
+        /// bailed immediately for any non-street chunk, so
+        /// AddSkirtIfLower's bare retaining wall was the ONLY thing a
+        /// BUILDING chunk's own edge against a lower neighbour (another lot
+        /// on a different terrace, OR a lower street) ever got -- a real,
+        /// fall-damage-worthy drop with no fence and no way down. Mirrors
+        /// AStreetTerraceDropAgainstABuildingGetsAGuardRailUnlessItRolledSloped's
+        /// own roll simulation, but sweeping BUILDING chunks as "this" one
+        /// instead of street chunks.
+        /// </summary>
+        [Test]
+        public void ABuildingTerraceDropAgainstAnyLowerNeighbourGetsAGuardRailUnlessItRolledSloped()
+        {
+            CityWorld world = new CityWorld(Seed);
+            float chunkSize = CityLayout.ChunkSize;
+            int casesFound = 0;
+            int slopedCases = 0;
+
+            for (int x = -30; x <= 30; x++)
+            {
+                for (int y = -30; y <= 30; y++)
+                {
+                    if (CityLayout.IsStreetChunk(x, y))
+                    {
+                        continue;
+                    }
+                    float pad = world.Terrain.PadHeightFor(x, y);
+                    float x0 = x * chunkSize, z0 = y * chunkSize;
+                    float x1 = x0 + chunkSize, z1 = z0 + chunkSize;
+                    bool chunkAlreadySloped = false;
+                    bool anyDrop = false;
+                    bool expectRail = false;
+
+                    // (neighbourX, neighbourY, gateCornerX, gateCornerZ) --
+                    // the exact corner AddStreetEdgeFeatures/AddSkirtIfLower
+                    // gate each cardinal edge off (top0), matching their own
+                    // call sites in BuildGround.
+                    var edges = new (int nx, int ny, float px, float pz)[]
+                    {
+                        (x - 1, y, x0, z0),
+                        (x + 1, y, x1, z1),
+                        (x, y - 1, x1, z0),
+                        (x, y + 1, x0, z1),
+                    };
+
+                    BuildingSite site = world.BuildingAt(x, y);
+
+                    foreach (var (nx, ny, px, pz) in edges)
+                    {
+                        float neighbourHeight = CityLayout.IsStreetChunk(nx, ny)
+                            ? (float)world.Terrain.ContinuousHeightAt(px, pz)
+                            : world.Terrain.PadHeightFor(nx, ny);
+                        if (neighbourHeight >= pad)
+                        {
+                            continue;
+                        }
+
+                        // The ORIGINAL street-ramp roll (SlopedStreetChance)
+                        // is vestigial here and always effectively false in
+                        // real behaviour -- AddSlopedStreetRamp itself is
+                        // gated on CityLayout.IsStreetChunk(chunkX, chunkY),
+                        // which this whole sweep has already excluded (see
+                        // the continue above). The one REAL way a building
+                        // chunk's own edge skips the guardrail is the
+                        // door-facing (north, py == z1) edge specifically,
+                        // when its neighbour is a real street and
+                        // BuildingDecor.EntranceApproachIsSloped rolls true
+                        // -- see AddStreetEdgeFeatures's own matching gate.
+                        bool isDoorFacingEdge = ny == y + 1;
+                        bool sloped = isDoorFacingEdge && CityLayout.IsStreetChunk(nx, ny) &&
+                            site.Exists && site.AnchorX == x && site.AnchorY == y &&
+                            BuildingDecor.EntranceApproachIsSloped(world.ChunkSeed(site.AnchorX, site.AnchorY));
+
+                        anyDrop = true;
+                        if (sloped)
+                        {
+                            slopedCases++;
+                        }
+                        else
+                        {
+                            expectRail = true;
+                        }
+                    }
+
                     if (!anyDrop)
                     {
                         continue;
                     }
-
-                    BuildStreetEdge(x, y, out _, out MeshBuffer guardRail);
                     casesFound++;
+
+                    if (!expectRail)
+                    {
+                        continue;
+                    }
+                    BuildStreetEdge(x, y, out _, out MeshBuffer guardRail);
                     Assert.IsFalse(guardRail.IsEmpty,
-                        $"street chunk ({x},{y}) drops to a lower neighbour but built no guardrail");
+                        $"building chunk ({x},{y}) drops to a lower neighbour and did not roll sloped, " +
+                        "but built no guardrail");
                 }
             }
 
-            TestContext.WriteLine($"{casesFound} street drops checked for a guardrail");
-            Assert.Greater(casesFound, 0, "no street terrace drop in the sweep");
+            TestContext.WriteLine($"{casesFound} building terrace drops checked, " +
+                $"{slopedCases} rolled sloped instead of a guardrail");
+            Assert.Greater(casesFound, 0, "no building terrace drop in the sweep");
+            Assert.Greater(casesFound - slopedCases, 0,
+                "every building terrace drop rolled sloped -- nothing exercised the guardrail case");
+        }
+
+        /// <summary>
+        /// EXPLICIT ASK: "the windows/entrances should never be cut off
+        /// always have like a stairway entrance or some transition to
+        /// flatness." Sweeps for a real multi-chunk building whose door row
+        /// sits on a lower pad than whichever row set BaseHeight (see
+        /// BuildBuilding's own doorRowPad comment) -- which would otherwise
+        /// leave its own threshold floating over open air -- and confirms
+        /// real stair geometry now reaches all the way down to the real
+        /// ground outside it.
+        ///
+        /// WIDE SWEEP, DELIBERATELY: this is a compound rarity -- a
+        /// multi-chunk building (TowerChance is the largest single share at
+        /// 0.45, but still well under half of all lots) whose own internal
+        /// terrace mismatch (confirmed separately to often be zero even
+        /// among multi-chunk buildings, since a 48m span rarely crosses a
+        /// whole 6.4m TerraceStep) ALSO happens to put the low pad
+        /// specifically under the door's own row rather than the other one.
+        /// A +/-40 chunk sweep found zero genuine cases; +/-150 reliably
+        /// does, the same "the origin can land inside one region cluster by
+        /// chance" reasoning ATerraceEdgeAlwaysGetsARetainingWall's own
+        /// widened sweep already documents.
+        /// </summary>
+        [Test]
+        public void ADoorOnASlopedLotGetsRealStairsReachingTheGroundOutsideIt()
+        {
+            CityWorld world = new CityWorld(Seed);
+            int found = 0;
+
+            for (int x = -150; x <= 150 && found == 0; x++)
+            {
+                for (int y = -150; y <= 150 && found == 0; y++)
+                {
+                    BuildingSite site = world.BuildingAt(x, y);
+                    if (!site.Exists || site.AnchorX != x || site.AnchorY != y)
+                    {
+                        continue;
+                    }
+
+                    // Mirrors BuildBuilding's own calculation exactly: the
+                    // highest pad along the door's own row (MaxZ), which is
+                    // routinely a different, lower row than whichever one
+                    // set BaseHeight for a multi-chunk building.
+                    float doorRowPad = float.MinValue;
+                    for (int dx = 0; dx < site.Role.SpanX; dx++)
+                    {
+                        doorRowPad = Mathf.Max(doorRowPad,
+                            world.Terrain.PadHeightFor(x + dx, y + site.Role.SpanY - 1));
+                    }
+                    float mismatch = site.BaseHeight - doorRowPad;
+                    if (mismatch <= BuildingDecor.EntranceFlushMaxMismatch + 0.5f)
+                    {
+                        continue;   // want a real, unambiguous case, not a borderline one
+                    }
+
+                    found++;
+                    Build(x, y, out MeshBuffer ground, out MeshBuffer pavement, out MeshBuffer structures);
+
+                    float expectedFloor = site.BaseHeight - Mathf.Min(mismatch, BuildingDecor.EntranceMaxRise);
+                    Assert.IsTrue(HasVertexNear(pavement, expectedFloor, tolerance: 0.05f),
+                        $"building at ({x},{y}) has a {mismatch:0.0}m door mismatch but no stair geometry " +
+                        $"reaches down to {expectedFloor:0.0}m -- the door is left floating");
+                }
+            }
+
+            Assert.Greater(found, 0, "never found a building with a real door mismatch worth checking");
+        }
+
+        /// <summary>
+        /// EXPLICIT ASK: "make it transitions from door to street more
+        /// smoothly lets do 60% have the terrain slope into the entrance
+        /// sometimes with some sort of staircase that could be built into
+        /// the terrain if needed but if its flat enough then no
+        /// staircase... the other 40%... hard edges and fencing and
+        /// staircases." Sweeps real buildings whose door-facing edge meets
+        /// a real, lower street, mirrors BuildingDecor.EntranceApproachIsSloped
+        /// (the same roll AddStreetEdgeFeatures itself makes) and the same
+        /// grade math AddSlopedEntranceApproach uses, and confirms each of
+        /// the three real outcomes it should produce:
+        /// - not sloped (40%): the ordinary guardrail, unchanged.
+        /// - sloped and flat enough: a ramp reaching both real ends, with
+        ///   no vertex at all near the midpoint height -- a plain quad has
+        ///   none, only individual stair-step boxes would add one.
+        /// - sloped and too steep: the same ramp, PLUS a vertex near the
+        ///   midpoint height, proving real embedded stair geometry exists.
+        /// </summary>
+        [Test]
+        public void ADoorFacingEdgeGetsTheApproachItsOwnRollAndGradeSay()
+        {
+            CityWorld world = new CityWorld(Seed);
+            float chunkSize = CityLayout.ChunkSize;
+            int hardEdgeCases = 0;
+            int flatRampCases = 0;
+            int steppedRampCases = 0;
+
+            for (int x = -40; x <= 40; x++)
+            {
+                for (int y = -40; y <= 40; y++)
+                {
+                    BuildingSite site = world.BuildingAt(x, y);
+                    if (!site.Exists || site.AnchorX != x || site.AnchorY != y)
+                    {
+                        continue;
+                    }
+                    if (!CityLayout.IsStreetChunk(x, y + 1))
+                    {
+                        continue;   // door does not face a real street here
+                    }
+
+                    float pad = world.Terrain.PadHeightFor(x, y);
+                    float x0 = x * chunkSize;
+                    float x1 = x0 + chunkSize;
+                    float z1 = y * chunkSize + chunkSize;
+                    float neighbourHeight = (float)world.Terrain.ContinuousHeightAt(x0, z1);
+                    if (neighbourHeight >= pad)
+                    {
+                        continue;   // flush -- nothing to build either way
+                    }
+
+                    bool sloped = BuildingDecor.EntranceApproachIsSloped(world.ChunkSeed(x, y));
+                    BuildStreetEdge(x, y, out MeshBuffer pavement, out MeshBuffer guardRail);
+
+                    if (!sloped)
+                    {
+                        hardEdgeCases++;
+                        Assert.IsFalse(guardRail.IsEmpty,
+                            $"({x},{y}) rolled the hard-edge approach but built no guardrail");
+                        continue;
+                    }
+
+                    // Confined to the real margin strip -- this chunk's
+                    // full width, from the building's own true wall out to
+                    // the chunk boundary -- rather than scanning the whole
+                    // pavement buffer for a height. That buffer also
+                    // carries this SAME building's own roof and interior
+                    // floors/stairs (see PavementRunsAlongStreetsAndStops
+                    // AtJunctions's own doc comment), spread across a wide
+                    // range of heights that a bare height check cannot
+                    // tell apart from the entrance approach actually being
+                    // tested here -- confirmed live, a real interior floor
+                    // slab at a real building nearly triggered a false
+                    // "stairs where there should be none" failure.
+                    // Padded a hair past the exact boundary -- the ramp's
+                    // own low edge sits AT z1 exactly (see
+                    // AddSlopedEntranceApproach's own low0/low1, built from
+                    // top0/top1's real x/z unchanged), and Rect.Contains
+                    // excludes a point sitting exactly on its max edge.
+                    const float regionPad = 0.1f;
+                    var approachRegion = Rect.MinMaxRect(
+                        x0 - regionPad, (float)site.MaxZ - regionPad, x1 + regionPad, z1 + regionPad);
+
+                    // Sloped -- the ramp must reach both real ends
+                    // regardless of grade (same wide tolerances the sibling
+                    // street-ramp/stair sweep above already establishes).
+                    Assert.IsTrue(HasVertexNearInRegion(pavement, pad, approachRegion, TerrainField.TerraceStep),
+                        $"({x},{y})'s sloped approach never reaches its own pad at {pad}m");
+                    Assert.IsTrue(HasVertexNearInRegion(pavement, neighbourHeight, approachRegion, 0.6f),
+                        $"({x},{y})'s sloped approach never reaches down to {neighbourHeight}m");
+
+                    // Mirrors AddSlopedEntranceApproach's own grade math
+                    // exactly: run is the REAL measured margin (site.MaxZ
+                    // to the chunk boundary), not an assumed constant --
+                    // see that function's own "measured, not assumed"
+                    // comment for the bug this guards against.
+                    float rise = pad - neighbourHeight;
+                    float run = z1 - (float)site.MaxZ;
+                    float worstAngleDeg = Mathf.Atan2(Mathf.Max(rise, 0.0f), run) * Mathf.Rad2Deg;
+                    float midHeight = neighbourHeight + rise * 0.5f;
+
+                    if (worstAngleDeg <= CityMeshBuilder.EntranceRampMaxAngleDeg)
+                    {
+                        flatRampCases++;
+                        // Only meaningful once the midpoint sits clearly
+                        // apart from both real endpoints -- for a tiny
+                        // rise (this case is the near-flush end of "flat
+                        // enough"), the midpoint can land within the SAME
+                        // tolerance window as the endpoints themselves,
+                        // which the plain ramp quad's own two corner
+                        // vertices already legitimately satisfy. That is a
+                        // property of how close together the two heights
+                        // are, not evidence of stair geometry.
+                        if (rise > 0.5f)
+                        {
+                            Assert.IsFalse(HasVertexNearInRegion(pavement, midHeight, approachRegion, 0.1f),
+                                $"({x},{y})'s approach is flat enough ({worstAngleDeg:0.0} deg) for a " +
+                                "plain ramp, but contains stair-like geometry at its own midpoint height");
+                        }
+                    }
+                    else
+                    {
+                        steppedRampCases++;
+                        Assert.IsTrue(HasVertexNearInRegion(pavement, midHeight, approachRegion, 0.3f),
+                            $"({x},{y})'s approach is steep ({worstAngleDeg:0.0} deg) but has no embedded " +
+                            "stair geometry near its own midpoint height");
+                    }
+                }
+            }
+
+            TestContext.WriteLine($"{hardEdgeCases} hard-edge, {flatRampCases} flat ramp, " +
+                $"{steppedRampCases} stepped ramp");
+            Assert.Greater(hardEdgeCases + flatRampCases + steppedRampCases, 0,
+                "no door-facing street edge drop found in the sweep");
+        }
+
+        /// <summary>
+        /// EXPLICIT ASK: "make some areas that the street generates so
+        /// high that there is open space under the street at entrance
+        /// level and theres essentially a second street under the street
+        /// like a bridge." Mirrors CityMeshBuilder.TryGetElevatedBridge-
+        /// DeckHeight's own detection exactly (a real terrain dip between
+        /// two flanking high points, gated by the same rare roll) to find
+        /// a genuine qualifying span, then confirms the real chunk built
+        /// there has BOTH the ordinary lower street (the "second street,"
+        /// left completely alone) AND a real elevated deck with genuine
+        /// headroom above it.
+        /// </summary>
+        [Test]
+        public void AGenuineTerrainDipOccasionallyGetsAnElevatedBridgeDeckWithTheRealStreetStillUnderneath()
+        {
+            CityWorld world = new CityWorld(Seed);
+            const int half = CityMeshBuilder.ElevatedBridgeHalfLengthChunks;
+            // Mirrors CityMeshBuilder's own private ElevatedBridgeBlockChunks
+            // (half * 4) exactly -- see that constant's own doc comment for
+            // why a centre may only be chosen from the middle of its block,
+            // never the block's own edge margin: a candidate whose full
+            // [centre-half, centre+half] reach would cross into the
+            // neighbouring block is never picked by the real code, so this
+            // sweep must skip those positions too or it will "find" a dip
+            // the real code deliberately never builds a deck for.
+            const int block = half * 4;
+            int found = 0;
+
+            for (int x = -60; x <= 60 && found == 0; x++)
+            {
+                for (int centreY = -300; centreY <= 300 && found == 0; centreY++)
+                {
+                    if (!CityLayout.IsStreetChunk(x, centreY) || CityLayout.StreetRunsAlongX(x, centreY))
+                    {
+                        continue;
+                    }
+
+                    int blockStart = FloorDivForTest(centreY, block) * block;
+                    if (centreY < blockStart + half || centreY > blockStart + block - 1 - half)
+                    {
+                        continue;
+                    }
+
+                    // Mirrors CityMeshBuilder.IsElevatedBridgeSpanCentre
+                    // exactly: only the two flanking endpoints have to sit
+                    // meaningfully higher than the centre, then the same
+                    // rare roll.
+                    double columnX = CityLayout.ChunkCentreX(x);
+                    double heightCentre = world.Terrain.ContinuousHeightAt(columnX, CityLayout.ChunkCentreZ(centreY));
+                    double heightBefore =
+                        world.Terrain.ContinuousHeightAt(columnX, CityLayout.ChunkCentreZ(centreY - half));
+                    double heightAfter =
+                        world.Terrain.ContinuousHeightAt(columnX, CityLayout.ChunkCentreZ(centreY + half));
+
+                    if (heightBefore - heightCentre < CityMeshBuilder.ElevatedBridgeMinDip ||
+                        heightAfter - heightCentre < CityMeshBuilder.ElevatedBridgeMinDip)
+                    {
+                        continue;
+                    }
+
+                    var roll = new DeterministicRandom(world.ChunkSeed(x, centreY));
+                    if (roll.NextDouble() >= CityMeshBuilder.ElevatedBridgeChance)
+                    {
+                        continue;
+                    }
+
+                    found++;
+                    // BuildStreetEdge, not Build -- the bridge feature is
+                    // gated on `guardRail != null` (CityMeshBuilder.cs's
+                    // own BuildGround), and Build's own overload never
+                    // supplies one (defaults to null), which would silently
+                    // skip the whole feature regardless of a genuine dip.
+                    BuildStreetEdge(x, centreY, out MeshBuffer pavement, out MeshBuffer guardRail,
+                        out MeshBuffer ground);
+
+                    // NOT necessarily interpolated from THIS exact
+                    // centreY's own before/after -- CityMeshBuilder's real
+                    // search may land on a different, overlapping centre
+                    // within its own search window and use that one
+                    // instead (both are genuine qualifying valleys; which
+                    // one wins is an implementation detail neither side
+                    // needs to agree on, now that IsElevatedBridgeSpanCentre
+                    // no longer requires a single STRICT local minimum).
+                    // What must hold regardless: the deck never dips below
+                    // (this chunk's own real street height + MinDip)
+                    // anywhere, since it is a straight line between two
+                    // points that are both at least that high by
+                    // construction.
+                    float minPossibleDeckY = (float)heightCentre + (float)CityMeshBuilder.ElevatedBridgeMinDip;
+                    Assert.IsTrue(HasVertexAbove(ground, minPossibleDeckY - 0.5f),
+                        $"({x},{centreY}) should have an elevated deck reaching at least " +
+                        $"{minPossibleDeckY:0.0}m but none found");
+
+                    // The real, lower street must still be there too --
+                    // "the second street under the bridge," unchanged.
+                    float realStreetY = (float)heightCentre;
+                    Assert.IsTrue(HasVertexNear(ground, realStreetY, 0.6f),
+                        $"({x},{centreY}) lost its own real street surface under the new deck");
+
+                    // EXPLICIT BUG REPORT, with screenshots: "also is
+                    // invisible from the bottom." A quad built with only an
+                    // upward normal is exactly what back-face culling would
+                    // hide from underneath -- confirms a genuinely
+                    // downward-facing normal exists somewhere near the
+                    // deck's own height, not just an upward one.
+                    Assert.IsTrue(HasDownwardNormalNear(ground, minPossibleDeckY, 6.0f),
+                        $"({x},{centreY})'s deck has no downward-facing geometry -- " +
+                        "invisible from underneath");
+
+                    // EXPLICIT BUG REPORT, with screenshots: "gaps in it
+                    // where it doesnt tilt properly and larger gap." The
+                    // immediately preceding chunk, still well inside this
+                    // same span, must compute the IDENTICAL height at their
+                    // shared edge -- confirmed by construction
+                    // (DeckHeightAtWorldZ interpolates by the real world Z,
+                    // so two chunks sharing an edge's exact world position
+                    // always agree, the same reason the real street below
+                    // never needed stitching either).
+                    BuildStreetEdge(x, centreY - 1, out _, out _, out MeshBuffer neighbourGround);
+                    float sharedEdgeZ = centreY * CityLayout.ChunkSize;
+                    float sharedEdgeHeightHere = HeightOfVertexNearZ(ground, sharedEdgeZ, minPossibleDeckY);
+                    float sharedEdgeHeightNeighbour =
+                        HeightOfVertexNearZ(neighbourGround, sharedEdgeZ, minPossibleDeckY);
+                    if (!float.IsNaN(sharedEdgeHeightHere) && !float.IsNaN(sharedEdgeHeightNeighbour))
+                    {
+                        Assert.AreEqual(sharedEdgeHeightHere, sharedEdgeHeightNeighbour, 0.05f,
+                            $"({x},{centreY})'s deck does not meet its own neighbour's deck at their " +
+                            "shared edge -- a real gap between two chunks of the same bridge");
+                    }
+                }
+            }
+
+            TestContext.WriteLine($"{found} elevated bridge span(s) found in the sweep");
+            Assert.Greater(found, 0, "never found a genuinely qualifying dip in the sweep");
+        }
+
+        /// <summary>
+        /// EXPLICIT BUG REPORT, WITH SCREENSHOT: "the highway is going into
+        /// the street underground make that impossible." The highway
+        /// deck's vertical profile was changed to a smoothed, 900m-averaged
+        /// reference (TerrainField.SmoothedHeightAt, see
+        /// HighwayVerticalSmoothingWindowMetres's own doc comment) so it
+        /// undulates less often -- but a wide average has no lower bound
+        /// relative to the REAL ground at any one point, so over a local
+        /// rise the smoothed reference could sit well below the actual
+        /// terrain there, letting the deck's computed height drop below the
+        /// real street surface. Fixed by taking Max(smoothed, real) as the
+        /// ground reference everywhere (DeckCornerAt's own doc comment).
+        ///
+        /// Builds several real chunks along the x=0 highway line (a
+        /// structural fact of CityLayout.IsHighwayChunk, true for every
+        /// world seed) and checks every clearly-elevated ground vertex
+        /// (more than 3m above the real local ground at its own x/z --
+        /// comfortably separating deck geometry from the ordinary street
+        /// surface/markings sharing the same buffer) sits at or above the
+        /// worst-case floor clearance above that same real local ground.
+        /// This is the exact invariant CityLayout.HighwayClearanceTaperAt's
+        /// own "no true touchdown anywhere, ever" fix already established
+        /// for the taper multiplier -- this test catches the SAME class of
+        /// bug reappearing through a different mechanism (the ground
+        /// reference itself, not the multiplier).
+        /// </summary>
+        [Test]
+        public void TheHighwayDeckNeverDipsBelowTheFloorClearanceAboveTheRealLocalGround()
+        {
+            CityWorld world = new CityWorld(Seed);
+            const int highwayX = 0;
+            float minimumClearance = CityMeshBuilder.HighwayClearance * CityMeshBuilder.HighwayMinimumClearanceFraction;
+            int checkedVertices = 0;
+
+            for (int y = 0; y <= 40; y++)
+            {
+                Assert.IsTrue(CityLayout.IsHighwayChunk(highwayX, y),
+                    $"test assumption broken -- chunk ({highwayX},{y}) is no longer a highway chunk");
+
+                // BuildStreetEdge, not Build -- AddHighwayDeck (like the
+                // elevated bridge deck) is only called when guardRail !=
+                // null (BuildChunk's own BuildGround), and Build's overload
+                // never supplies one, which would silently skip the whole
+                // feature (same gotcha the elevated bridge test above
+                // already documents).
+                BuildStreetEdge(highwayX, y, out _, out _, out MeshBuffer ground);
+                foreach (Vector3 v in ground.Vertices)
+                {
+                    double realGround = world.Terrain.ContinuousHeightAt(v.x, v.z);
+                    float heightAboveRealGround = (float)(v.y - realGround);
+                    if (heightAboveRealGround <= 3.0f)
+                    {
+                        continue; // ordinary street-level surface, not the deck
+                    }
+
+                    checkedVertices++;
+                    Assert.GreaterOrEqual(heightAboveRealGround, minimumClearance - 0.1f,
+                        $"chunk ({highwayX},{y}): a deck vertex at world ({v.x:F1},{v.z:F1}) sits only " +
+                        $"{heightAboveRealGround:F2}m above the real local ground -- below the " +
+                        $"{minimumClearance:F2}m floor, i.e. it has dipped into the street");
+                }
+            }
+
+            Assert.Greater(checkedVertices, 0, "never found an elevated deck vertex in the swept stretch");
         }
 
         /// <summary>Same chunk, same world -- the stair has to pick the same side every time, not flip on a rebuild.</summary>
@@ -441,13 +1683,15 @@ namespace CityX.Tests
                         continue;
                     }
 
-                    BuildStreetEdge(x, y, out MeshBuffer pavementA, out MeshBuffer guardRailA);
-                    BuildStreetEdge(x, y, out MeshBuffer pavementB, out MeshBuffer guardRailB);
+                    BuildStreetEdge(x, y, out MeshBuffer pavementA, out MeshBuffer guardRailA, out MeshBuffer groundA);
+                    BuildStreetEdge(x, y, out MeshBuffer pavementB, out MeshBuffer guardRailB, out MeshBuffer groundB);
 
                     CollectionAssert.AreEqual(pavementA.Vertices, pavementB.Vertices,
                         $"chunk ({x},{y}) built a different staircase on a second, identical rebuild");
                     CollectionAssert.AreEqual(guardRailA.Vertices, guardRailB.Vertices,
                         $"chunk ({x},{y}) built a different guardrail on a second, identical rebuild");
+                    CollectionAssert.AreEqual(groundA.Vertices, groundB.Vertices,
+                        $"chunk ({x},{y}) built a different sloped ramp on a second, identical rebuild");
                     return;
                 }
             }
@@ -456,160 +1700,17 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// EXPLICIT ASK: "keep making the city more citylike". A lamp needs
-        /// nowhere else to stand than the sidewalk AddSidewalks already
-        /// builds, so this checks the SAME condition that logic already
-        /// relies on: any street chunk with at least one real (non-street)
-        /// neighbour gets lamp geometry, regardless of whether that edge
-        /// also happens to be a terrace drop -- unlike the guard rail
-        /// above, a lamp does not need one.
+        /// EXPLICIT ASK: "never so steep that you can walk or run up it."
+        /// Player/Civilian/OldGuy's CharacterController.slopeLimit is 50
+        /// degrees (see PlayerRigBuilder.cs, CivilianBuilder.cs,
+        /// OldGuyBuilder.cs) -- a tripwire against ever tuning
+        /// SlopedStreetMinAngleDeg down to or below that by accident.
         /// </summary>
         [Test]
-        public void EveryStreetChunkWithARealSidewalkGetsAtLeastOneLamp()
+        public void SlopedStreetRampsAreAlwaysSteeperThanACharacterCanClimb()
         {
-            int casesFound = 0;
-
-            for (int x = -20; x <= 20; x++)
-            {
-                for (int y = -20; y <= 20; y++)
-                {
-                    if (!CityLayout.IsStreetChunk(x, y))
-                    {
-                        continue;
-                    }
-                    bool hasRealNeighbour = !CityLayout.IsStreetChunk(x - 1, y) ||
-                                             !CityLayout.IsStreetChunk(x + 1, y) ||
-                                             !CityLayout.IsStreetChunk(x, y - 1) ||
-                                             !CityLayout.IsStreetChunk(x, y + 1);
-                    if (!hasRealNeighbour)
-                    {
-                        continue;
-                    }
-
-                    BuildStreetEdge(x, y, out _, out MeshBuffer guardRail);
-                    casesFound++;
-                    Assert.IsFalse(guardRail.IsEmpty,
-                        $"street chunk ({x},{y}) has a real sidewalk but built no lamp");
-                }
-            }
-
-            Assert.Greater(casesFound, 0, "no ordinary street edge in the sweep");
-        }
-
-        /// <summary>
-        /// A 4-way junction has no sidewalk anywhere (AddSidewalks' own
-        /// rule), so it should have no lamp floating in its own middle
-        /// either. EXCLUDES a junction that also drops to a lower
-        /// neighbour -- that legitimately puts UNRELATED guard-rail
-        /// geometry (AddStreetEdgeFeatures, pre-existing) in this same
-        /// shared buffer regardless of lamps, so "the buffer is non-empty"
-        /// would not actually be testing lamp placement on that case.
-        /// </summary>
-        [Test]
-        public void AFourWayJunctionGetsNoLamp()
-        {
-            CityWorld world = new CityWorld(Seed);
-            int casesFound = 0;
-
-            for (int x = -20; x <= 20; x++)
-            {
-                for (int y = -20; y <= 20; y++)
-                {
-                    bool junction = CityLayout.IsStreetChunk(x, y) &&
-                                    CityLayout.IsStreetChunk(x - 1, y) &&
-                                    CityLayout.IsStreetChunk(x + 1, y) &&
-                                    CityLayout.IsStreetChunk(x, y - 1) &&
-                                    CityLayout.IsStreetChunk(x, y + 1);
-                    if (!junction)
-                    {
-                        continue;
-                    }
-                    float pad = world.Terrain.PadHeightFor(x, y);
-                    bool anyDrop = world.Terrain.PadHeightFor(x - 1, y) < pad ||
-                                    world.Terrain.PadHeightFor(x + 1, y) < pad ||
-                                    world.Terrain.PadHeightFor(x, y - 1) < pad ||
-                                    world.Terrain.PadHeightFor(x, y + 1) < pad;
-                    if (anyDrop)
-                    {
-                        continue;
-                    }
-
-                    BuildStreetEdge(x, y, out _, out MeshBuffer guardRail);
-                    casesFound++;
-                    Assert.IsTrue(guardRail.IsEmpty,
-                        $"junction ({x},{y}) has no sidewalk to stand on but built a lamp anyway");
-                }
-            }
-
-            Assert.Greater(casesFound, 0, "no junction in the sweep");
-        }
-
-        /// <summary>Same chunk, same world -- a lamp has to land in the same place every time, not flip on a rebuild.</summary>
-        [Test]
-        public void StreetLampsAreDeterministic()
-        {
-            for (int x = -20; x <= 20; x++)
-            {
-                for (int y = -20; y <= 20; y++)
-                {
-                    if (!CityLayout.IsStreetChunk(x, y))
-                    {
-                        continue;
-                    }
-                    bool hasRealNeighbour = !CityLayout.IsStreetChunk(x - 1, y) ||
-                                             !CityLayout.IsStreetChunk(x + 1, y) ||
-                                             !CityLayout.IsStreetChunk(x, y - 1) ||
-                                             !CityLayout.IsStreetChunk(x, y + 1);
-                    if (!hasRealNeighbour)
-                    {
-                        continue;
-                    }
-
-                    BuildStreetEdge(x, y, out _, out MeshBuffer guardRailA);
-                    BuildStreetEdge(x, y, out _, out MeshBuffer guardRailB);
-                    CollectionAssert.AreEqual(guardRailA.Vertices, guardRailB.Vertices,
-                        $"chunk ({x},{y}) built different lamp geometry on a second, identical rebuild");
-                    return;
-                }
-            }
-
-            Assert.Fail("no ordinary street edge found to check determinism against");
-        }
-
-        /// <summary>The pole actually stands tall rather than being a degenerate sliver -- the lamp head has to clear head height by a real margin to read as a lamp at all.</summary>
-        [Test]
-        public void AStreetLampReachesItsFullPoleHeight()
-        {
-            CityWorld world = new CityWorld(Seed);
-
-            for (int x = -20; x <= 20; x++)
-            {
-                for (int y = -20; y <= 20; y++)
-                {
-                    if (!CityLayout.IsStreetChunk(x, y))
-                    {
-                        continue;
-                    }
-                    bool hasRealNeighbour = !CityLayout.IsStreetChunk(x - 1, y) ||
-                                             !CityLayout.IsStreetChunk(x + 1, y) ||
-                                             !CityLayout.IsStreetChunk(x, y - 1) ||
-                                             !CityLayout.IsStreetChunk(x, y + 1);
-                    if (!hasRealNeighbour)
-                    {
-                        continue;
-                    }
-
-                    BuildStreetEdge(x, y, out _, out MeshBuffer guardRail);
-                    float pad = world.Terrain.PadHeightFor(x, y);
-                    float expectedHeadTop = pad + CityMeshBuilder.KerbHeight
-                        + CityMeshBuilder.LampPoleHeight + CityMeshBuilder.LampHeadHeight;
-                    Assert.IsTrue(HasVertexNear(guardRail, expectedHeadTop),
-                        $"chunk ({x},{y}) has no lamp geometry reaching the expected head height {expectedHeadTop:0.00}");
-                    return;
-                }
-            }
-
-            Assert.Fail("no ordinary street edge found to check lamp height against");
+            const float CharacterControllerSlopeLimitDeg = 50.0f;
+            Assert.Greater(CityMeshBuilder.SlopedStreetMinAngleDeg, CharacterControllerSlopeLimitDeg);
         }
 
         [Test]
@@ -660,10 +1761,11 @@ namespace CityX.Tests
 
                     // A wing is a second volume attached to one wall, so on the
                     // wall it grew from the facade reaches out to the wing's
-                    // own far face instead.
+                    // own far face instead -- and a building can now grow more
+                    // than one, so take whichever reaches furthest on each axis.
                     double westFace = site.MinX - westFins;
                     double southFace = site.MinZ - southFins;
-                    if (CityMeshBuilder.TryWingBox(world, site, out Bounds wing))
+                    foreach (Bounds wing in CityMeshBuilder.WingBoxesFor(world, site))
                     {
                         westFace = System.Math.Min(westFace, wing.min.x);
                         southFace = System.Math.Min(southFace, wing.min.z);
@@ -716,21 +1818,20 @@ namespace CityX.Tests
             foreach ((int x, int y, Rect _) in footprints)
             {
                 BuildingSite site = world.BuildingAt(x, y);
-                if (!CityMeshBuilder.TryWingBox(world, site, out Bounds box))
+                foreach (Bounds box in CityMeshBuilder.WingBoxesFor(world, site))
                 {
-                    continue;
-                }
-                wings++;
+                    wings++;
 
-                Rect plan = Rect.MinMaxRect(box.min.x, box.min.z, box.max.x, box.max.z);
-                foreach ((int otherX, int otherY, Rect other) in footprints)
-                {
-                    if (otherX == x && otherY == y)
+                    Rect plan = Rect.MinMaxRect(box.min.x, box.min.z, box.max.x, box.max.z);
+                    foreach ((int otherX, int otherY, Rect other) in footprints)
                     {
-                        continue;
+                        if (otherX == x && otherY == y)
+                        {
+                            continue;
+                        }
+                        Assert.IsFalse(plan.Overlaps(other),
+                            $"({x},{y})'s wing at {plan} runs into ({otherX},{otherY}) at {other}");
                     }
-                    Assert.IsFalse(plan.Overlaps(other),
-                        $"({x},{y})'s wing at {plan} runs into ({otherX},{otherY}) at {other}");
                 }
             }
 
@@ -1169,6 +2270,17 @@ namespace CityX.Tests
                         continue;
                     }
 
+                    // A car-free pedestrian zone gets no driving-lane paint
+                    // at all -- see CityLayout.IsPedestrianZoneChunk's own
+                    // doc comment ("nobody paints a driving lane down the
+                    // middle of a street nobody is allowed to drive on"),
+                    // the one legitimate exception to every other street
+                    // chunk having some marking.
+                    if (CityLayout.IsPedestrianZoneChunk(x, y))
+                    {
+                        continue;
+                    }
+
                     Assert.IsFalse(markings.IsEmpty, $"({x},{y}) is a street with no markings");
 
                     bool junction = CityLayout.IsStreetChunk(x - 1, y) && CityLayout.IsStreetChunk(x + 1, y) &&
@@ -1185,16 +2297,36 @@ namespace CityX.Tests
                     float chunk = CityLayout.ChunkSize;
                     float minX = x * chunk;
                     float minZ = y * chunk;
-                    float pad = world.Terrain.PadHeightFor(x, y);
 
+                    // Paint now tilts with its street (see BuildGround's own
+                    // "hillside streets" comment), and EVERY marking -- a
+                    // junction's crossings included -- samples
+                    // ContinuousHeightAt DIRECTLY at its own real position
+                    // rather than a coarse bilinear interpolation of the
+                    // chunk's own 4 corners. EXPLICIT BUG REPORT (with a
+                    // screenshot): "some decals... are still not sloping
+                    // with the roads" -- the road surface under a junction's
+                    // own crossings already samples the real terrain this
+                    // finely (AddCurvingStreetGround, unconditional for
+                    // every street chunk), so paint using the coarser
+                    // bilinear approximation could visibly diverge from it
+                    // wherever the real terrain isn't perfectly flat between
+                    // the chunk's 4 corners.
                     foreach (Vector3 v in markings.Vertices)
                     {
-                        Assert.AreEqual(pad + CityMeshBuilder.MarkingLift, v.y, 0.001f,
-                            "paint is not lying on the road");
-                        Assert.GreaterOrEqual(v.x, minX - 0.001f);
-                        Assert.LessOrEqual(v.x, minX + chunk + 0.001f);
-                        Assert.GreaterOrEqual(v.z, minZ - 0.001f);
-                        Assert.LessOrEqual(v.z, minZ + chunk + 0.001f);
+                        double expectedY = world.Terrain.ContinuousHeightAt(v.x, v.z) + CityMeshBuilder.MarkingLift;
+                        Assert.AreEqual(expectedY, v.y, 0.01,
+                            $"({x},{y}) paint at {v} is not lying on the road");
+                        // A curving straight run's own paint can wobble up
+                        // to StreetCurveAmplitudeMetres sideways within its
+                        // corridor -- generous bounds instead of the exact
+                        // chunk edge for that case; a junction's crossings
+                        // are unaffected and keep the exact bound.
+                        float lateralSlack = junction ? 0.001f : CityMeshBuilder.StreetCurveAmplitudeMetres + 0.1f;
+                        Assert.GreaterOrEqual(v.x, minX - lateralSlack);
+                        Assert.LessOrEqual(v.x, minX + chunk + lateralSlack);
+                        Assert.GreaterOrEqual(v.z, minZ - lateralSlack);
+                        Assert.LessOrEqual(v.z, minZ + chunk + lateralSlack);
 
                         // The crossings are sized against the street they cross,
                         // so nothing may reach out onto a pavement.
@@ -1279,10 +2411,50 @@ namespace CityX.Tests
                 "the wall grew back over a window somebody smashed");
         }
 
+        /// <summary>
+        /// EXPLICIT ASK: "when you shoot the glass make it shatter but also
+        /// have a hole in it where you shot." A cracked pane with a KNOWN
+        /// impact point (GlassDamage.Hit's own optional second argument)
+        /// frames a real opening -- four quads, not one -- unlike the case
+        /// above, where an impact-less Hit still frosts the whole rectangle
+        /// flat because nothing ever recorded where to put a hole.
+        /// </summary>
+        [Test]
+        public void AShotThatCracksAWindowLeavesARealHoleAtTheImpactPoint()
+        {
+            CityWorld world = new CityWorld(Seed);
+            SkybridgeLayout bridges = new SkybridgeLayout(Seed);
+
+            (int x, int y) = FirstBuilding(world);
+            BuildingSite site = world.BuildingAt(x, y);
+            var damage = new GlassDamage();
+
+            PaneKey key = AnyPaneOn(world, site);
+            Assert.AreEqual(PaneState.Cracked, damage.Hit(key, new Vector2(0.5f, 0.5f)));
+
+            // One quad, which is six indices, framed into four -- see the
+            // test above for why this is index count, not triangle count.
+            const int Quad = 6;
+
+            var decals = new MeshBuffer();
+            BuildWith(world, bridges, x, y, damage,
+                out int lit, out int dark, out int cracked, crackDecals: decals);
+
+            Assert.AreEqual(Quad * 4, cracked,
+                "a shot pane with a known impact point should frame a hole, not draw one flat quad");
+
+            // EXPLICIT ASK: replace the plain square hole with a real crack-
+            // texture decal (BulletHoleCrack.png) on top of it -- one quad,
+            // in its own buffer so it can sit proud of the base glass
+            // without the two systems' alpha blending z-fighting.
+            Assert.AreEqual(Quad, decals.Triangles.Count,
+                "a shot pane with a known impact point should get exactly one crack decal quad");
+        }
+
         /// <summary>Builds one chunk against a damage record and counts triangles.</summary>
         private static int BuildWith(CityWorld world, SkybridgeLayout bridges, int x, int y,
             GlassDamage damage, out int lit, out int dark, out int cracked,
-            List<CityMeshBuilder.CrackedOpening> openings = null)
+            List<CityMeshBuilder.CrackedOpening> openings = null, MeshBuffer crackDecals = null)
         {
             var ground = new MeshBuffer();
             var pavement = new MeshBuffer();
@@ -1292,7 +2464,8 @@ namespace CityX.Tests
             var crackedGlass = new MeshBuffer();
 
             CityMeshBuilder.BuildChunk(world, bridges, x, y, Vector3.zero,
-                ground, pavement, structures, litGlass, darkGlass, crackedGlass, damage, openings);
+                ground, pavement, structures, litGlass, darkGlass, crackedGlass, damage, openings,
+                crackDecals: crackDecals);
 
             lit = litGlass.Triangles.Count;
             dark = darkGlass.Triangles.Count;

@@ -5,7 +5,9 @@
                        "CityX.Core",
                        "CityX.Items",
                        "CityX.World",
-                       "Unity.InputSystem"
+                       "CityX.Net",
+                       "Unity.InputSystem",
+                       "FishNet.Runtime"
                    ],
     "includePlatforms":  [
 

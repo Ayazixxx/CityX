@@ -3,7 +3,10 @@
     "rootNamespace": "CityX.View",
     "references": [
         "CityX.World",
-        "Unity.InputSystem"
+        "CityX.Character",
+        "Unity.InputSystem",
+        "Unity.RenderPipelines.Core.Runtime",
+        "Unity.RenderPipelines.Universal.Runtime"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

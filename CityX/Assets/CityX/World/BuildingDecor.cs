@@ -287,11 +287,19 @@ namespace CityX.World
 
         // --- attached secondary massing ---
 
-        public const double WingChance = 0.35;
+        /// <summary>
+        /// Rolled INDEPENDENTLY per candidate wall (see WingsFor), not once
+        /// per building -- EXPLICIT ASK: "different sized buildings too dont
+        /// have to have 4 corners." One shared roll could only ever produce a
+        /// plain box or a single L; checking each of the three walls on its
+        /// own is what lets a roomy corner lot grow wings on two or even all
+        /// three, reading as a T or a U instead of always an L.
+        /// </summary>
+        public const double WingChance = 0.4;
         public const float WingMinWidthFraction = 0.35f;
         public const float WingMaxWidthFraction = 0.65f;
         public const float WingMinDepth = 3.0f;
-        public const float WingMaxDepth = 6.0f;
+        public const float WingMaxDepth = 8.0f;
         public const float WingMinHeightFraction = 0.35f;
         public const float WingMaxHeightFraction = 0.8f;
 
@@ -339,7 +347,11 @@ namespace CityX.World
         }
 
         /// <summary>
-        /// The L-shaped massing volume a third of buildings grow, or none.
+        /// The L/T/U-shaped massing volumes a building grows off its own
+        /// walls, or none. Zero, one, two or all three of the candidate
+        /// walls can grow one -- EXPLICIT ASK: "different sized buildings
+        /// too dont have to have 4 corners", which a single shared pick
+        /// could only ever answer with a plain box or one L.
         ///
         /// THE ONE PLACE THIS DEPARTS FROM city_chunk.gd, deliberately and for
         /// a structural reason. Godot picks a wall and protrudes 3 to 6 metres
@@ -349,57 +361,162 @@ namespace CityX.World
         /// away. Protruding six metres blind would push a solid volume through
         /// the building next door.
         ///
-        /// So the wall is still picked blind, in Godot's own draw order, and
-        /// the depth is then clamped to whatever room that wall actually has.
-        /// A wall with no room grows nothing -- which is why a landlocked lot
-        /// in the middle of a block stays a plain box, and a lot facing the
-        /// street is the one that gets a wing. That is the right answer for
-        /// this city rather than a compromise: the wings appear exactly where
-        /// there is space for them to be seen.
+        /// So each wall is still checked in Godot's own draw order (-X, +X,
+        /// back), and each one's depth is clamped to whatever room that wall
+        /// actually has. A wall with no room grows nothing -- which is why a
+        /// landlocked lot in the middle of a block stays a plain box, and a
+        /// corner lot facing two open streets is the one that can grow wings
+        /// on both. That is the right answer for this city rather than a
+        /// compromise: wings appear exactly where there is space for them to
+        /// be seen, and a lot with room on every side can genuinely read as a
+        /// U rather than being capped at one protrusion.
+        ///
+        /// ONE SHARED RNG, DRAWN WALL BY WALL, not three independent
+        /// generators -- so the whole sequence (and therefore every wall's
+        /// own answer) still depends on nothing but the building's own seed,
+        /// matching every other per-building roll in this file.
         ///
         /// Clearances are the clear ground beyond each wall, which the caller
         /// measures -- this stays a pure function of numbers.
         /// </summary>
-        public static Wing WingFor(int buildingSeed, float width, float depth, float height,
+        public static List<Wing> WingsFor(int buildingSeed, float width, float depth, float height,
             float clearanceMinusX, float clearancePlusX, float clearanceMinusZ)
         {
             var rng = new DeterministicRandom(unchecked((ulong)(long)buildingSeed), WingStream);
-            if (rng.NextDouble() >= WingChance)
-            {
-                return default;
-            }
+            var wings = new List<Wing>(3);
 
             float halfX = width * 0.5f;
             float halfZ = depth * 0.5f;
-            float wingHeight = height *
-                               (float)rng.Range(WingMinHeightFraction, WingMaxHeightFraction);
-            float wingDepth = (float)rng.Range(WingMinDepth, WingMaxDepth);
 
-            // Godot's own wall_choice: 0 is -X, 1 is +X, 2 is the back wall at
-            // -Z. The door wall is never a choice.
-            int wall = rng.Below(3);
-            Vector3 normal;
-            float clearance;
-            float span;
-            switch (wall)
+            var candidates = new (Vector3 normal, float clearance, float span)[]
             {
-                case 0: normal = Vector3.left; clearance = clearanceMinusX; span = halfZ; break;
-                case 1: normal = Vector3.right; clearance = clearancePlusX; span = halfZ; break;
-                default: normal = Vector3.back; clearance = clearanceMinusZ; span = halfX; break;
+                (Vector3.left, clearanceMinusX, halfZ),
+                (Vector3.right, clearancePlusX, halfZ),
+                (Vector3.back, clearanceMinusZ, halfX),
+            };
+
+            foreach ((Vector3 normal, float clearance, float span) in candidates)
+            {
+                if (rng.NextDouble() >= WingChance)
+                {
+                    continue;
+                }
+
+                float wingHeight = height *
+                                   (float)rng.Range(WingMinHeightFraction, WingMaxHeightFraction);
+                float wingDepth = Mathf.Min(
+                    (float)rng.Range(WingMinDepth, WingMaxDepth), clearance);
+                if (wingDepth < WingLeastUsefulDepth)
+                {
+                    continue;
+                }
+
+                float wingWidth = span * 2.0f *
+                                  (float)rng.Range(WingMinWidthFraction, WingMaxWidthFraction);
+                float slack = Mathf.Max(0.0f, span - WingMargin - wingWidth * 0.5f);
+                float along = (float)rng.Range(-slack, slack);
+
+                wings.Add(new Wing(normal, along, wingWidth, wingDepth, wingHeight));
             }
 
-            wingDepth = Mathf.Min(wingDepth, clearance);
-            if (wingDepth < WingLeastUsefulDepth)
+            return wings;
+        }
+
+        // --- entrance variety ---
+
+        /// <summary>
+        /// Ground mismatch at or below this reads as flush -- an ordinary
+        /// door standing right at real ground level, no stairs needed.
+        /// </summary>
+        public const float EntranceFlushMaxMismatch = 0.4f;
+
+        /// <summary>
+        /// Ceiling on how far a single entrance stoop climbs, regardless of
+        /// how much bigger the real mismatch is -- the same "cap it and
+        /// accept the residual" idiom CityMeshBuilder.SkirtDepth already
+        /// uses for a retaining wall's own worst case. Past this and the
+        /// stairs would run out over the sidewalk or into the street rather
+        /// than reading as part of the building's own stoop -- the existing
+        /// solid podium wall below the door (see BuildBuilding's own
+        /// "buried on the uphill side" comment) already reads as
+        /// intentional hillside construction for whatever gap is left.
+        /// </summary>
+        public const float EntranceMaxRise = 6.0f;
+
+        /// <summary>Whether a building's own entrance sits flush with the real ground outside it, or needs stairs up to reach it, and by how much.</summary>
+        public readonly struct EntranceStyle
+        {
+            /// <summary>True whenever real exterior steps are needed to reach the door.</summary>
+            public readonly bool NeedsStairs;
+
+            /// <summary>Total height the entrance climbs from real ground up to the door. Zero when NeedsStairs is false.</summary>
+            public readonly float Rise;
+
+            public EntranceStyle(bool needsStairs, float rise)
             {
-                return default;
+                NeedsStairs = needsStairs;
+                Rise = rise;
             }
+        }
 
-            float wingWidth = span * 2.0f *
-                              (float)rng.Range(WingMinWidthFraction, WingMaxWidthFraction);
-            float slack = Mathf.Max(0.0f, span - WingMargin - wingWidth * 0.5f);
-            float along = (float)rng.Range(-slack, slack);
+        /// <summary>
+        /// EXPLICIT ASK: "generate a bunch of different types of entrances
+        /// like san francisco style that fit with the steepness of the
+        /// hill... the windows/entrances should never be cut off, always
+        /// have like a stairway entrance or some transition to flatness."
+        ///
+        /// <paramref name="groundMismatch"/> is how far the door's own
+        /// threshold sits above the real ground right outside it -- see
+        /// CityMeshBuilder.BuildBuilding's own call site for how that is
+        /// measured: the highest pad specifically along the door's own row,
+        /// not the whole footprint's. BuildingSite.BaseHeight (what the door
+        /// actually stands on) is the HIGHEST pad the WHOLE footprint
+        /// covers, so a multi-chunk building on a slope routinely has its
+        /// own front door standing on a row that is NOT the one that set
+        /// BaseHeight -- a real drop between the door's threshold and the
+        /// ground its own row actually sits on, exactly the "cut off"
+        /// doorway the ask called out. This is deliberately NOT a
+        /// randomised roll between invented look categories: the real
+        /// mismatch itself already produces the variety asked for --
+        /// nothing for a flush lot, a short stoop for a modest one, a real
+        /// climbing staircase for a steep one -- without inventing a look a
+        /// specific building's own real grade would not actually justify.
+        /// </summary>
+        public static EntranceStyle EntranceStyleFor(float groundMismatch)
+        {
+            float rise = Mathf.Clamp(groundMismatch, 0.0f, EntranceMaxRise);
+            return new EntranceStyle(rise > EntranceFlushMaxMismatch, rise);
+        }
 
-            return new Wing(normal, along, wingWidth, wingDepth, wingHeight);
+        // --- entrance approach: sloped terrain vs. hard edge ---
+
+        /// <summary>
+        /// Independent of every other per-building stream (balconies, ribs,
+        /// wings), same reasoning as <see cref="BalconyStream"/>: this
+        /// building's own entrance-approach choice must not shift if a
+        /// balcony or a rib is added or removed later.
+        /// </summary>
+        private const ulong EntranceApproachStream = 0x41505052UL;   // "APPR"
+
+        /// <summary>
+        /// EXPLICIT ASK: "lets do 60% have the terrain slope into the
+        /// entrance... the other 40% of entrances will be more like how you
+        /// have them now with hard edges and fencing and staircases." One
+        /// roll per building (not per edge) -- a whole frontage reads as one
+        /// consistent approach, the same way a real building's own entrance
+        /// is one design, not a different one on each side.
+        /// </summary>
+        public const double EntranceApproachSlopedChance = 0.6;
+
+        /// <summary>
+        /// True 60% of the time, deterministically, per building. See
+        /// CityMeshBuilder.AddSlopedEntranceApproach for what the two
+        /// outcomes actually build.
+        /// </summary>
+        public static bool EntranceApproachIsSloped(int buildingSeed)
+        {
+            var rng = new DeterministicRandom(unchecked((ulong)(long)buildingSeed), EntranceApproachStream);
+            return rng.NextDouble() < EntranceApproachSlopedChance;
         }
     }
 }

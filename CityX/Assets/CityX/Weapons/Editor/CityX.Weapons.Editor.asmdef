@@ -9,7 +9,8 @@
         "CityX.UI",
         "CityX.View",
         "CityX.Wearables",
-        "CityX.Weapons"
+        "CityX.Weapons",
+        "CityX.World"
     ],
     "includePlatforms": [
         "Editor"

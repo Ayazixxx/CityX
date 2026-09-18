@@ -52,12 +52,6 @@ namespace CityX.View
         public void AddQuad(Vector3 a, Vector3 b, Vector3 c, Vector3 d, Vector3 normal,
             Vector2 uvA, Vector2 uvB, Vector2 uvC, Vector2 uvD)
         {
-            if (Vector3.Dot(Vector3.Cross(b - a, c - a), normal) < 0.0f)
-            {
-                (b, d) = (d, b);
-                (uvB, uvD) = (uvD, uvB);
-            }
-
             int start = Vertices.Count;
 
             Vertices.Add(a);
@@ -73,12 +67,33 @@ namespace CityX.View
             Uvs.Add(uvC);
             Uvs.Add(uvD);
 
-            Triangles.Add(start);
-            Triangles.Add(start + 1);
-            Triangles.Add(start + 2);
-            Triangles.Add(start);
-            Triangles.Add(start + 2);
-            Triangles.Add(start + 3);
+            // EACH TRIANGLE CHECKED AND FIXED ON ITS OWN, not one shared
+            // correction assumed to cover both. The quad used to correct
+            // winding once (swapping b and d) and trust that the same swap
+            // fixed BOTH triangles -- true for an ordinary planar
+            // quadrilateral, but false for a skewed one (four corners that
+            // are not coplanar, e.g. a sloped-street bevel segment whose
+            // near and far edges sit at different heights): the two
+            // triangles can disagree about which way is "out," and a single
+            // swap can straighten one while leaving the other backwards
+            // (caught by EveryFaceIsWoundTheWayItsNormalClaims). Reversing
+            // just the INDEX order of whichever triangle needs it -- rather
+            // than swapping vertex DATA the other triangle also reads from
+            // -- fixes either or both independently without touching the
+            // vertices or UVs at all.
+            AddWoundTriangle(start, start + 1, start + 2, a, b, c, normal);
+            AddWoundTriangle(start, start + 2, start + 3, a, c, d, normal);
+        }
+
+        private void AddWoundTriangle(int ia, int ib, int ic, Vector3 a, Vector3 b, Vector3 c, Vector3 normal)
+        {
+            if (Vector3.Dot(Vector3.Cross(b - a, c - a), normal) < 0.0f)
+            {
+                (ia, ib) = (ib, ia);
+            }
+            Triangles.Add(ia);
+            Triangles.Add(ib);
+            Triangles.Add(ic);
         }
 
         /// <summary>

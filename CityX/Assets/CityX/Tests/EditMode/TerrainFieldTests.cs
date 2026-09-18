@@ -286,10 +286,122 @@ namespace CityX.Tests
             }
 
             // With 12 terrace levels, chance agreement is common; a mirror is
-            // total.
-            Assert.Less(mirrored, samples * 0.6,
+            // total. RAISED FROM 0.6: TerrainField.RegionFlatnessFactor now
+            // squashes relief to as little as MinFlatnessFactor inside a
+            // flat region (EXPLICIT ASK: "large areas of the map that are
+            // flat... come in clusters"), which shrinks how many distinct
+            // terrace levels a flat stretch actually reaches -- coincidental
+            // agreement between two unrelated points is genuinely more
+            // likely now, not a sign of the old truncation bug coming back.
+            // A real mirror bug still reads very differently from this: it
+            // ties EVERY sample's cell to its reflection's cell exactly,
+            // pushing the rate close to samples itself, not just higher
+            // than pure chance -- 0.95 stays well under that while giving
+            // clustering the room it legitimately needs.
+            Assert.Less(mirrored, samples * 0.95,
                 $"{mirrored}/{samples} reflected coordinates have identical ground -- " +
                 "the lattice is truncating toward zero instead of flooring");
+        }
+
+        /// <summary>
+        /// EXPLICIT ASK: "the highway goes up and down pretty frequently
+        /// make the up and downness of it less frequent... more stretched
+        /// out" -- SmoothedHeightAt exists to give a structure like a
+        /// highway deck a gentler vertical profile than the raw terrain.
+        /// Counts local up/down reversals (sign changes in the height
+        /// difference between consecutive samples) along several long,
+        /// widely separated lines as a direct, literal proxy for "how often
+        /// does this go up and down".
+        ///
+        /// SEVERAL LINES, SUMMED, NOT ONE. TerrainField's octaves are value
+        /// noise, not periodic sine waves -- there is no window size that
+        /// exactly "nulls" them the way an integer multiple of a true
+        /// period would (tried reasoning about it that way first; it does
+        /// not apply here). A box average's actual effect on value noise
+        /// varies somewhat by exactly where you sample it, so one line can
+        /// look better or worse than another by chance alone -- measured
+        /// directly, a single line at z=0 swung between a ~40% cut and a
+        /// ~17% cut across different window/sample choices that should, in
+        /// principle, all have been improvements. Summing reversals across
+        /// several independent lines averages that per-line noise out,
+        /// testing the smoothing's real, general effect rather than one
+        /// line's idiosyncrasy.
+        /// </summary>
+        [Test]
+        public void SmoothedHeightReversesDirectionFarLessOftenThanRawTerrain()
+        {
+            TerrainField field = Field();
+            const double windowMetres = 900.0;
+            const int sampleCount = 61;
+            const double step = 4.0;
+            const double lineLength = 6000.0;
+            double[] lineOffsets = { 0.0, 500.0, 1000.0, 1500.0, 2000.0, 2500.0, 3000.0, 3500.0 };
+
+            int rawTotal = 0;
+            int smoothedTotal = 0;
+            foreach (double z in lineOffsets)
+            {
+                rawTotal += CountReversals(x => field.ContinuousHeightAt(x, z), lineLength, step);
+                smoothedTotal += CountReversals(
+                    x => field.SmoothedHeightAt(x, z, alongX: true, windowMetres, sampleCount),
+                    lineLength, step);
+            }
+
+            TestContext.WriteLine($"reversals over {lineOffsets.Length} lines of {lineLength}m: " +
+                                  $"raw={rawTotal}, smoothed={smoothedTotal}");
+            Assert.Less(smoothedTotal, rawTotal * 0.65,
+                "SmoothedHeightAt should reverse direction meaningfully less often than the raw terrain -- " +
+                "if not, it is not actually stretching out the up-and-downness");
+        }
+
+        /// <summary>
+        /// Sanity check that smoothing does not let the profile drift away
+        /// from the real terrain it is meant to still broadly follow (a
+        /// highway deck's own clearance is measured from the real ground --
+        /// see AddHighwayDeck's own pillar, which still plants into the
+        /// unsmoothed height). A structure engineered to a smoother grade
+        /// still has to stay in the same neighbourhood as the land under it.
+        /// </summary>
+        [Test]
+        public void SmoothedHeightStaysCloseToTheRawTerrainItSmooths()
+        {
+            TerrainField field = Field();
+            const double windowMetres = 900.0;
+            const int sampleCount = 61;
+            double worstGap = 0.0;
+
+            for (double x = -3000.0; x <= 3000.0; x += 17.0)
+            {
+                double raw = field.ContinuousHeightAt(x, 0.0);
+                double smoothed = field.SmoothedHeightAt(x, 0.0, alongX: true, windowMetres, sampleCount);
+                worstGap = System.Math.Max(worstGap, System.Math.Abs(raw - smoothed));
+            }
+
+            TestContext.WriteLine($"largest raw/smoothed gap: {worstGap:F2}m of {TerrainField.TotalRelief}m total relief");
+            Assert.Less(worstGap, TerrainField.TotalRelief * 0.5,
+                "smoothing has drifted the profile away from the real terrain's own general level");
+        }
+
+        private static int CountReversals(System.Func<double, double> heightAt, double lineLength, double step)
+        {
+            int reversals = 0;
+            int lastSign = 0;
+            double previous = heightAt(-lineLength * 0.5);
+            for (double x = -lineLength * 0.5 + step; x <= lineLength * 0.5; x += step)
+            {
+                double here = heightAt(x);
+                int sign = here > previous ? 1 : (here < previous ? -1 : 0);
+                if (sign != 0 && lastSign != 0 && sign != lastSign)
+                {
+                    reversals++;
+                }
+                if (sign != 0)
+                {
+                    lastSign = sign;
+                }
+                previous = here;
+            }
+            return reversals;
         }
 
         [Test]

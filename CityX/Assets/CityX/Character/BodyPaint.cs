@@ -217,56 +217,100 @@ namespace CityX.Character
             // edge and simply fails to paint.
             uv.x = Mathf.Repeat(uv.x, 1.0f);
 
-            // Floors at 0.5, not 0, so brush size 1 still gets a real
-            // anisotropic correction. Hardcoding size 1 to isotropic meant it
-            // never compensated for local distortion at all, and on the sphere
-            // head near the pole -- where the wrap is most compressed -- single
-            // dots rendered as visible diamonds.
-            float baseR = Mathf.Max(brushRadiusPixels - 1.0f, 0.5f);
+            // EXPLICIT ASK: "make paint size 1 just 1 pixel." No radius, no
+            // anisotropic correction, no legibility floor -- literally the
+            // single atlas texel the tap landed on, full stop. Every
+            // brush-size-2-and-up stamp below still gets the real
+            // anisotropic ellipse (a genuinely round shape needs several
+            // pixels of radius to read as round at all once rasterised),
+            // but "1 pixel" has no such requirement: a single texel is
+            // already the smallest possible mark, on any surface, by
+            // definition -- there is nothing left to make rounder.
+            if (brushRadiusPixels <= 1)
+            {
+                int row = RowOfV(uv.y);
+                int y0 = row * PaintAtlas.Cell;
+                int y1 = (row + 1) * PaintAtlas.Cell - 1;
+                int px = ((Mathf.FloorToInt(uv.x * PaintAtlas.Width) % PaintAtlas.Width) + PaintAtlas.Width)
+                    % PaintAtlas.Width;
+                int py = Mathf.Clamp(Mathf.FloorToInt(uv.y * PaintAtlas.Height), y0, y1);
+                _pixels[PixelIndex(px, py)] = colour;
+                return;
+            }
+
+            float baseR = brushRadiusPixels - 1.0f;
 
             TangentLengths(a, b, c, ua, ub, uc, out float tangent, out float bitangent);
             float rawU = baseR * _referenceBrush / tangent;
             float rawV = baseR * _referenceBrush / bitangent;
 
-            // How far the axes may diverge. Measured on the real body: torso
-            // ~3.9:1 naturally, the neck/shoulder junction ~6:1, the head near
-            // its pole ~8.4:1, an arm ~12.6:1. A cap below the torso's own
-            // ratio flattens torso paint into an oval; no cap at all lets the
-            // neck and head stretch into slivers that stop reading as a brush.
-            //
-            // Loosened as the brush shrinks. The correction is a local linear
-            // approximation of a non-linear compression, so it only diverges
-            // once the footprint is big enough to reach past the triangle it
-            // was measured on. At size 1-2 the whole stamp is under one atlas
-            // pixel and the raw correction is essentially exact.
-            float maxAspect = Mathf.Lerp(30.0f, 3.0f, Mathf.Clamp01((baseR - 0.5f) / 2.5f));
+            // NO RATIO CAP HERE ANYMORE -- EXPLICIT BUG REPORT, with a
+            // screenshot: "using brush size 1 doing single taps... it shows
+            // up as lines or ovels instead of a dot... its also too large
+            // for size 1." A previous fix here capped how far rawU and rawV
+            // could diverge (down to 1.5:1), reasoning that "tightening
+            // toward 1:1 is what actually makes it round." That reasoning
+            // was backwards, and this screenshot is the proof: rawU/rawV
+            // are not an arbitrary shape choice, they are the ONLY thing
+            // that cancels the surface's own real UV anisotropy (see
+            // _referenceBrush's own doc comment above) -- painting rawU
+            // atlas pixels along U and rawV along V is precisely what makes
+            // BOTH axes cover the SAME real-world distance once mapped
+            // through this triangle's own tangent/bitangent. Capping that
+            // ratio down to 1.5:1 does not make the ON-BODY shape rounder;
+            // it makes it WORSE, because it throws away most of the
+            // compensation the true ratio (12.6:1 on a real arm, worse on
+            // some seams) was providing -- confirmed directly: rendering a
+            // capped stamp on this file's own most-anisotropic test surface
+            // still came out a thin sliver, because the cap discarded the
+            // very asymmetry that would have cancelled the surface's own
+            // stretch. The actual sliver bug that motivated the 1.5:1 cap
+            // in the first place was never really about the RATIO -- it was
+            // that baseR was so small at brush size 1 that even the
+            // correctly-compensated smaller axis fell under a pixel. That
+            // is what the floor just below fixes directly, without needing
+            // to sacrifice the ratio at all.
             float rU = rawU;
             float rV = rawV;
-            if (rawU > rawV * maxAspect)
+
+            // A round shape needs a handful of pixels of radius before it
+            // reads as round AT ALL, rasterised or not. SCALED TOGETHER,
+            // NOT CLAMPED INDEPENDENTLY: growing both axes by the same
+            // factor to bring the smaller one up to a legible floor
+            // preserves the true compensation ratio computed above exactly
+            // (multiplying both by the same number never changes their
+            // ratio), instead of the old code's independent per-axis clamp,
+            // which -- confirmed directly -- silently collapsed both axes
+            // back to nearly the SAME value at small brush sizes and
+            // reintroduced the exact oval this whole mechanism exists to
+            // prevent.
+            const float minRoundRadius = 2.75f;
+            float smallerAxis = Mathf.Min(rU, rV);
+            if (smallerAxis < minRoundRadius)
             {
-                rU = rawV * maxAspect;
-            }
-            else if (rawV > rawU * maxAspect)
-            {
-                rV = rawU * maxAspect;
+                float growth = minRoundRadius / Mathf.Max(smallerAxis, 0.0001f);
+                rU *= growth;
+                rV *= growth;
             }
 
-            // A ratio cap alone still lets the axes drift far apart in ABSOLUTE
-            // pixels once the brush is big -- at size 15, inside the ratio cap,
-            // one axis came out about nine pixels bigger than the other and
-            // read as an elongated blob rather than a big circle.
-            const float maxAxisDifference = 4.0f;
-            if (rU - rV > maxAxisDifference)
+            // A SANITY CEILING ONLY, not a shape control -- guards against a
+            // truly pathological seam triangle rather than expressing any
+            // opinion about what a normal stamp should look like. Real body
+            // anisotropy tops out around 12.6:1 (an arm) and TangentLengths
+            // already falls back to the torso reference on a genuinely
+            // degenerate triangle, so this should never engage on anything
+            // this project's own geometry actually produces; it exists so a
+            // future UV bug fails loud (a stamp that stops appearing near
+            // brush-size big) rather than silently painting across half the
+            // atlas.
+            const float maxRadius = 80.0f;
+            float largerAxis = Mathf.Max(rU, rV);
+            if (largerAxis > maxRadius)
             {
-                rU = rV + maxAxisDifference;
+                float shrink = maxRadius / largerAxis;
+                rU *= shrink;
+                rV *= shrink;
             }
-            else if (rV - rU > maxAxisDifference)
-            {
-                rV = rU + maxAxisDifference;
-            }
-
-            rU = Mathf.Clamp(rU, 0.5f, baseR * 6.0f);
-            rV = Mathf.Clamp(rV, 0.5f, baseR * 6.0f);
 
             Stamp(uv, colour, rU, rV, RowOfV(uv.y));
         }

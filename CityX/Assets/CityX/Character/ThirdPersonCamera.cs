@@ -16,6 +16,25 @@ namespace CityX.Character
         public Transform Target;
 
         [Tooltip(
+            "Optional. While this is limp, the camera follows its own Torso rigidbody " +
+            "instead of Target -- see ApplyCameraTransform's own doc comment.")]
+        public Ragdoll Ragdoll;
+
+        /// <summary>
+        /// EXPLICIT ASK: "make the camera follow the ragdoll when /sleep is
+        /// used and the ragdoll is moved." Nothing moves the player's own
+        /// root transform while limp (Ragdoll's own doc comment: "only the
+        /// individual Rigidbodies do"), so Target alone leaves the camera
+        /// frozen wherever the body went limp while physics carries the
+        /// actual ragdoll somewhere else entirely -- down a slope, pushed,
+        /// tumbling from a crash. A small fixed height rather than
+        /// PivotHeightFraction * standing height: that fraction assumes a
+        /// STANDING body (roughly chest height), which would aim the pivot
+        /// well above a body lying flat on the ground.
+        /// </summary>
+        public const float RagdollPivotHeight = 0.4f;
+
+        [Tooltip(
             "Where the camera pivots on the body, as a fraction of standing height. " +
             "0.73 puts it at 1.6m on a 2.2m body, matching player.gd's own " +
             "BASE_CAMERA_PIVOT_HEIGHT -- a fraction rather than a metre value so it stays " +
@@ -24,8 +43,25 @@ namespace CityX.Character
 
         public float Distance = 4.5f;
         public float LookDegreesPerPixel = 0.12f;
-        public float MinPitch = -35.0f;
-        public float MaxPitch = 70.0f;
+
+        /// <summary>
+        /// EXPLICIT BUG REPORT: "its not letting me all the way straight up
+        /// it cuts off at a certain point. make it so I can look all the way
+        /// up and down." Was -35/70 -- barely past the horizon looking up,
+        /// and short of straight down too.
+        ///
+        /// The true +/-90, not just short of it -- Jetpack.
+        /// JetpackMinPitchDegrees/MaxPitchDegrees already settled this exact
+        /// question for its own equipped-flight widening: this camera builds
+        /// its rotation from a plain Quaternion.Euler(pitch, yaw, 0) rather
+        /// than a LookRotation(forward, up), so there is no forward-
+        /// parallel-to-up degeneracy at the pole the way a margin would
+        /// otherwise guard against -- yaw is simply visually meaningless for
+        /// the one frame the camera sits exactly at the pole, same as any
+        /// first/third-person camera, and never a real bug.
+        /// </summary>
+        public float MinPitch = -90.0f;
+        public float MaxPitch = 90.0f;
 
         [Tooltip(
             "Metres to the right of the spine the camera sits, Fortnite/GTA-style, so the body " +
@@ -34,6 +70,26 @@ namespace CityX.Character
             "dropped pistol on the ground being the concrete case -- right behind their own " +
             "silhouette, with nothing on screen to actually judge alignment against.")]
         public float ShoulderOffset = 0.85f;
+
+        /// <summary>
+        /// EXPLICIT BUG REPORT: "the pistol aimed in pose is like positioned
+        /// to the left slightly make it point forward." The gun is held in
+        /// the RIGHT hand, roughly along the body's own forward line (see
+        /// PlayerLocomotion.ApplyGunAimPose) -- but the ordinary hip-fire
+        /// ShoulderOffset above pushes the CROSSHAIR (frame centre, which
+        /// PistolWeapon.Fire's own hitscan actually uses) even further right
+        /// again, past where the raised arm reaches. The gun visually reads
+        /// as left-of-crosshair not because it points wrong, but because the
+        /// crosshair itself sits further right than the gun barrel while
+        /// aiming. Pulling the camera in closer to centred (not all the way
+        /// to 0 -- a real ADS view still favours the gun side a little, and
+        /// 0 would put the pivot back inside the head) brings the two back
+        /// into visual agreement. Tune by eye once played for real.
+        /// </summary>
+        public float AimShoulderOffset = 0.25f;
+
+        [Tooltip("Metres per second ShoulderOffset eases toward AimShoulderOffset when the aim state changes -- mirrors AimZoomDegreesPerSecond's own shape for FOV.")]
+        public float AimShoulderOffsetMetresPerSecond = 3.0f;
 
         [Tooltip("Layers the spring arm collides with. Should include the city.")]
         public LayerMask CollisionLayers = ~0;
@@ -81,6 +137,7 @@ namespace CityX.Character
         private PlayerLocomotion _player;
         private Camera _camera;
         private float _restFieldOfView;
+        private float _currentShoulderOffset;
 
         /// <summary>
         /// Settable so IntroCutscene can hand the camera back on the same
@@ -113,6 +170,7 @@ namespace CityX.Character
             {
                 _restFieldOfView = _camera.fieldOfView;
             }
+            _currentShoulderOffset = ShoulderOffset;
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
 
@@ -183,8 +241,25 @@ namespace CityX.Character
                 return;
             }
 
-            float height = _player != null ? _player.StandingHeight : 1.8f;
-            Vector3 pivot = Target.position + Vector3.up * (height * PivotHeightFraction);
+            bool followingRagdoll = Ragdoll != null && Ragdoll.IsLimp && Ragdoll.Torso != null;
+
+            Vector3 pivot;
+            if (followingRagdoll)
+            {
+                // .transform.position, NOT the Rigidbody's own .position --
+                // the latter is the physics-synced value, which can lag a
+                // frame behind whatever the Transform was just set to
+                // (Ragdoll.RepositionToRagdollRest reads the same
+                // .transform.position for the identical reason). A camera
+                // reacting to where the body visually is should never wait
+                // on a physics sync it has no other reason to depend on.
+                pivot = Ragdoll.Torso.transform.position + Vector3.up * RagdollPivotHeight;
+            }
+            else
+            {
+                float height = _player != null ? _player.StandingHeight : 1.8f;
+                pivot = Target.position + Vector3.up * (height * PivotHeightFraction);
+            }
 
             Quaternion rotation = Quaternion.Euler(_pitch, _yaw, 0.0f);
 
@@ -195,7 +270,10 @@ namespace CityX.Character
             // behind the player's own centreline still pulls the shoulder-shot
             // camera in correctly rather than missing it because the cast
             // started somewhere already past the collider.
-            Vector3 shoulderPivot = pivot + rotation * Vector3.right * ShoulderOffset;
+            _currentShoulderOffset = Mathf.MoveTowards(
+                _currentShoulderOffset, IsAiming ? AimShoulderOffset : ShoulderOffset,
+                AimShoulderOffsetMetresPerSecond * Time.deltaTime);
+            Vector3 shoulderPivot = pivot + rotation * Vector3.right * _currentShoulderOffset;
             Vector3 wanted = shoulderPivot - rotation * Vector3.forward * Distance;
 
             // Pull in if a wall is in the way. The sphere radius keeps the near

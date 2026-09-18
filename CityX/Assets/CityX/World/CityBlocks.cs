@@ -95,8 +95,17 @@ namespace CityX.World
         /// <summary>
         /// Relative weights for a block's massing. Deliberately does not sum to
         /// 1 in the "one of these always happens" sense -- see NoSuperlotChance.
+        ///
+        /// RAISED FROM 0.34 -- EXPLICIT ASK: "separate areas by neighborhood
+        /// ... not everything should be a blocky grid" introduced districts
+        /// whose own local block size varies (CityLayout.LocalStreetPeriodFor),
+        /// and a single 2x2 tower covers a much smaller SHARE of a large,
+        /// sparse district's own block than it does a small, dense one's --
+        /// confirmed directly, live: the same 0.34 that used to clear the
+        /// art direction's own "the skyline has nothing in it" floor measured
+        /// only 1.7% city-wide once bigger blocks started diluting it.
         /// </summary>
-        public const double TowerChance = 0.34;   // 2x2
+        public const double TowerChance = 0.45;   // 2x2
 
         public const double SlabWideChance = 0.20;   // 2x1, long east-west
         public const double SlabDeepChance = 0.20;   // 1x2, long north-south
@@ -141,7 +150,38 @@ namespace CityX.World
         /// What this chunk should do. Total: every chunk in the world is
         /// exactly one of Street, Consumed or Building, with no gaps and no
         /// overlaps.
+        ///
+        /// BLOCK IDENTITY IS NOW A REAL CHUNK COORDINATE, NOT A SEQUENTIAL
+        /// INDEX -- since CityLayout.LocalStreetPeriodFor lets a
+        /// neighbourhood's own block size vary, blocks in two different
+        /// districts can no longer share one linearly-scaled index space
+        /// without colliding (district A's "block 3" and district B's own
+        /// "block 3" would otherwise roll identical buildings). Using each
+        /// block's own low-corner chunk coordinate as the hash key instead
+        /// is exactly as deterministic and never collides, because two
+        /// blocks never share a low corner.
         /// </summary>
+        /// <summary>
+        /// Which block a (buildable) chunk belongs to, as the real chunk
+        /// coordinate of that block's own low corner, plus how many chunks
+        /// deep its buildable interior runs. Public so tests can enumerate
+        /// and group blocks the same way RoleFor itself does, rather than
+        /// re-deriving the district/period maths a second time and risking
+        /// the two drifting apart.
+        /// </summary>
+        public void BlockOriginFor(int chunkX, int chunkY, out int blockX, out int blockY, out int buildableSpan)
+        {
+            int districtX = CityLayout.DistrictIndex(chunkX);
+            int districtY = CityLayout.DistrictIndex(chunkY);
+            int period = CityLayout.LocalStreetPeriodFor(districtX, districtY);
+            buildableSpan = period - 1;
+
+            int localX = chunkX - districtX * CityLayout.DistrictChunks;
+            int localY = chunkY - districtY * CityLayout.DistrictChunks;
+            blockX = chunkX - CityLayout.PositiveMod(localX, period);
+            blockY = chunkY - CityLayout.PositiveMod(localY, period);
+        }
+
         public LotRole RoleFor(int chunkX, int chunkY)
         {
             if (CityLayout.IsStreetChunk(chunkX, chunkY))
@@ -149,25 +189,26 @@ namespace CityX.World
                 return LotRole.Street;
             }
 
-            int blockX = CityLayout.BlockIndex(chunkX);
-            int blockY = CityLayout.BlockIndex(chunkY);
+            BlockOriginFor(chunkX, chunkY, out int blockX, out int blockY, out int buildableSpan);
+            int inBlockX = chunkX - blockX;
+            int inBlockY = chunkY - blockY;
 
             if (IsOpenBlock(blockX, blockY))
             {
                 return new LotRole(LotKind.Open, 1, 1, chunkX, chunkY);
             }
 
-            // Position within the block's buildable interior, 0..2.
-            int interiorX = CityLayout.IndexInBlock(chunkX) - 1;
-            int interiorY = CityLayout.IndexInBlock(chunkY) - 1;
+            // Position within the block's buildable interior, 0..buildableSpan-1.
+            int interiorX = inBlockX - 1;
+            int interiorY = inBlockY - 1;
 
-            ShapeFor(blockX, blockY, out int spanX, out int spanY);
+            ShapeFor(blockX, blockY, buildableSpan, out int spanX, out int spanY);
             if (spanX == 1 && spanY == 1)
             {
                 return new LotRole(LotKind.Building, 1, 1, chunkX, chunkY);
             }
 
-            AnchorFor(blockX, blockY, spanX, spanY, out int anchorInteriorX, out int anchorInteriorY);
+            AnchorFor(blockX, blockY, buildableSpan, spanX, spanY, out int anchorInteriorX, out int anchorInteriorY);
 
             bool insideX = interiorX >= anchorInteriorX && interiorX < anchorInteriorX + spanX;
             bool insideY = interiorY >= anchorInteriorY && interiorY < anchorInteriorY + spanY;
@@ -177,8 +218,8 @@ namespace CityX.World
                 return new LotRole(LotKind.Building, 1, 1, chunkX, chunkY);
             }
 
-            int anchorChunkX = blockX * CityLayout.StreetPeriod + 1 + anchorInteriorX;
-            int anchorChunkY = blockY * CityLayout.StreetPeriod + 1 + anchorInteriorY;
+            int anchorChunkX = blockX + 1 + anchorInteriorX;
+            int anchorChunkY = blockY + 1 + anchorInteriorY;
 
             if (interiorX == anchorInteriorX && interiorY == anchorInteriorY)
             {
@@ -200,24 +241,29 @@ namespace CityX.World
         /// <summary>
         /// The block's big-building shape, in chunks. 1x1 means the block has no
         /// superlot at all and is nine ordinary buildings.
+        ///
+        /// A superlot's own span (up to 2x2) never exceeds the smallest
+        /// possible buildableSpan (2, from a period-3 district's own
+        /// 2-chunk interior) -- so this needs no bound check itself, the
+        /// same way it never did when every district shared one period.
         /// </summary>
-        private void ShapeFor(int blockX, int blockY, out int spanX, out int spanY)
+        private void ShapeFor(int blockX, int blockY, int buildableSpan, out int spanX, out int spanY)
         {
             double roll = WorldHash.Unit01(blockX, blockY, ShapeSalt, _seed);
 
-            if (roll < TowerChance)
+            if (roll < TowerChance && buildableSpan >= 2)
             {
                 spanX = 2;
                 spanY = 2;
                 return;
             }
-            if (roll < TowerChance + SlabWideChance)
+            if (roll < TowerChance + SlabWideChance && buildableSpan >= 2)
             {
                 spanX = 2;
                 spanY = 1;
                 return;
             }
-            if (roll < TowerChance + SlabWideChance + SlabDeepChance)
+            if (roll < TowerChance + SlabWideChance + SlabDeepChance && buildableSpan >= 2)
             {
                 spanX = 1;
                 spanY = 2;
@@ -229,16 +275,16 @@ namespace CityX.World
         }
 
         /// <summary>
-        /// Where in the 3x3 interior the big building's low corner sits. The
-        /// range is clamped by the span so it can never overhang into the
-        /// street -- a tower half in the road would be a bug that only appears
-        /// on some seeds, which is the worst kind.
+        /// Where in the block's own buildable interior the big building's low
+        /// corner sits. The range is clamped by the span so it can never
+        /// overhang into the street -- a tower half in the road would be a
+        /// bug that only appears on some seeds, which is the worst kind.
         /// </summary>
-        private void AnchorFor(int blockX, int blockY, int spanX, int spanY,
+        private void AnchorFor(int blockX, int blockY, int buildableSpan, int spanX, int spanY,
             out int anchorX, out int anchorY)
         {
-            int slotsX = CityLayout.BuildableSpan - spanX + 1;
-            int slotsY = CityLayout.BuildableSpan - spanY + 1;
+            int slotsX = buildableSpan - spanX + 1;
+            int slotsY = buildableSpan - spanY + 1;
 
             anchorX = (int)(WorldHash.Unit01(blockX, blockY, AnchorXSalt, _seed) * slotsX);
             anchorY = (int)(WorldHash.Unit01(blockX, blockY, AnchorYSalt, _seed) * slotsY);

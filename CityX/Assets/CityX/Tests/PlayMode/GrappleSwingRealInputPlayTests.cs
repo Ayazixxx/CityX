@@ -139,6 +139,7 @@ namespace CityX.Tests
             {
                 yield return null;
             }
+
             Assert.IsTrue(swing.IsActive, "the real click through the real Input System never fired the grapple");
 
             Press(_keyboard.wKey);

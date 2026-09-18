@@ -1,0 +1,516 @@
+using UnityEngine;
+
+namespace CityX.Character
+{
+    /// <summary>
+    /// Hostile "Crimson Claw Monster" enemy -- spawned via the dev console's
+    /// own /spawn crimsonclaw. Ported from npc/crimson_claw_monster.gd.
+    ///
+    /// Like FlyingNpc, this has NO CharacterController -- it hovers (no legs
+    /// to stand on) and moves by translating the transform directly, with
+    /// NpcSteering (the same local obstacle avoidance Civilian/UniqueNpc use)
+    /// keeping it from walking straight into a building. Unlike FlyingNpc, it
+    /// is a real combatant: IDamageable, with a multi-phase claw swing attack
+    /// that only lands if the target is still in reach DURING the swing
+    /// phase, not a guaranteed hit on trigger -- same "distance-to-body, not
+    /// per-claw swept tip" reasoning the source file's own class comment
+    /// gives (the claws have no skeleton to derive an exact swept position
+    /// from).
+    ///
+    /// HOVER HEIGHT IS GROUND-RELATIVE, NOT AN ABSOLUTE WORLD Y -- the one
+    /// deliberate deviation from the source. Godot's own HOVER_HEIGHT (1.5)
+    /// was a flat world Y, fine for the relatively flat area it was built
+    /// against, but this world has genuine hillside terrain (see
+    /// [[city_art_direction_chongqing]]) that a fixed world Y would clip
+    /// through or float absurdly above depending on where it spawns. Ground
+    /// height is found the same way FlyingNpcSteering already finds it for
+    /// the OTHER hovering NPC in this project: a downward raycast, not a
+    /// query into the procedural terrain field directly.
+    ///
+    /// NO SKELETON, SO NO SKELETAL RAGDOLL -- the visual body is 3 separate,
+    /// pre-built mesh pieces (Body/LeftClaw/RightClaw, wired by
+    /// CrimsonClawBuilder). Death detaches each into its own independent
+    /// Rigidbody debris piece, keeping whatever pose it was actually in
+    /// (mid-swing included) via Transform.SetParent's own keep-world-
+    /// transform default -- the coarsest ragdoll granularity available, one
+    /// rigid piece per mesh island, matching the source file's own
+    /// _spawn_ragdoll_pieces exactly.
+    ///
+    /// NO LOOT -- EXPLICIT SCOPE CUT. The source's own LootComponent
+    /// ("press E to loot a corpse") has no equivalent anywhere in this
+    /// Unity port yet; building that whole interaction from nothing is a
+    /// separate task from porting the creature itself.
+    ///
+    /// TICK IS PUBLIC, SEPARATE FROM UPDATE -- same reason WallStick.Tick is:
+    /// an EditMode test can drive the whole state machine by calling this
+    /// directly with an explicit deltaTime, without needing a real Unity
+    /// Update loop pumping.
+    /// </summary>
+    public sealed class CrimsonClaw : MonoBehaviour, IDamageable
+    {
+        public const float MaxHealth = 150.0f;
+        public const float DetectionRange = 16.0f;
+        public const float ChaseSpeed = 5.0f;
+        public const float AttackRange = 3.0f;
+        public const float AttackCooldownSeconds = 1.6f;
+        public const float AttackDamage = 15.0f;
+
+        // --- attack phases: see Tick's own attack-state handling. ---
+        public const float WindupSeconds = 0.18f;
+        public const float SwingSeconds = 0.22f;
+        public const float RecoverSeconds = 0.28f;
+        public const float WindupAngleDegrees = 35.0f;
+        public const float SwingAngleDegrees = 75.0f;
+
+        /// <summary>
+        /// How close the TARGET must be to this body during the swing phase
+        /// to actually land a hit -- see this class's own doc comment on why
+        /// that is a distance-to-body check, not a per-claw swept-tip check.
+        /// </summary>
+        public const float ClawHitRadius = 2.5f;
+
+        public const float HoverHeightAboveGround = 1.5f;
+        public const float HoverCorrectionSpeed = 6.0f;
+        public const float GroundProbeDistance = 300.0f;
+
+        public const float NoticeGrowlIntervalSeconds = 5.0f;
+
+        public const float ModelScale = 2.0f;
+        public const float RagdollTossSpeed = 1.8f;
+        public const float RagdollLinearDamp = 0.4f;
+        public const float RagdollAngularDamp = 0.4f;
+
+        [Header("Wired by CrimsonClawBuilder")]
+        public Transform LeftClawPivot;
+        public Transform RightClawPivot;
+        public Transform BodyVisual;
+        public BoxCollider MainCollision;
+        public AudioSource GrowlAudio;
+        public AudioSource AttackAudio;
+        public AudioSource DeathAudio;
+        public AudioClip[] NoticeSounds = System.Array.Empty<AudioClip>();
+        public AudioClip AttackSound;
+        public AudioClip DeathSound;
+
+        [Tooltip("What counts as ground/a wall to steer around. World geometry by default.")]
+        public LayerMask ObstacleMask = ~0;
+
+        private enum AttackState
+        {
+            Idle,
+            Windup,
+            Swing,
+            Recover,
+        }
+
+        private readonly NpcSteering _steering = new NpcSteering();
+
+        private float _health = MaxHealth;
+        private bool _isDead;
+        private PlayerVitals _target;
+
+        private float _attackCooldownRemaining;
+        private AttackState _attackState = AttackState.Idle;
+        private float _attackPhaseTimer;
+        private float _attackPhaseDuration;
+        private float _attackFromAngleDegrees;
+        private float _attackToAngleDegrees;
+        private bool _attackHitLanded;
+        private bool _nextAttackHandIsLeft = true;
+        private Transform _activeClawPivot;
+
+        private bool _hadTargetLastFrame;
+        private float _growlTimerRemaining;
+
+        private bool _bound;
+
+        public bool IsAlive => !_isDead;
+        public float Health => _health;
+
+        /// <summary>Exposed for tests -- which hand the NEXT attack swings.</summary>
+        public bool NextAttackHandIsLeft => _nextAttackHandIsLeft;
+
+        private void Awake()
+        {
+            Bind();
+        }
+
+        /// <summary>
+        /// The real setup Awake() normally does -- public and idempotent,
+        /// matching Radio.Bind()/UniqueNpc.Bind()'s own established
+        /// precedent, since Awake never runs on a bare AddComponent in an
+        /// EditMode test.
+        /// </summary>
+        public void Bind()
+        {
+            if (_bound)
+            {
+                return;
+            }
+            _bound = true;
+            // Sized off the collision box CrimsonClawBuilder gives this body
+            // (1.8 x 1.3 x 2.0, scaled) rather than a CharacterController
+            // that does not exist here.
+            _steering.Configure(width: 1.8f, topY: 1.3f, reach: 2.0f);
+        }
+
+        private void Update()
+        {
+            Tick(Time.deltaTime);
+        }
+
+        public void Tick(float deltaTime)
+        {
+            if (_isDead)
+            {
+                return;
+            }
+
+            HoverCorrect(deltaTime);
+            _attackCooldownRemaining = Mathf.Max(0.0f, _attackCooldownRemaining - deltaTime);
+
+            if (_target == null || !_target.IsAlive)
+            {
+                _target = FindNearestPlayer();
+            }
+
+            TickGrowl(deltaTime);
+
+            if (_attackState != AttackState.Idle)
+            {
+                TickAttack(deltaTime);
+                if (_target != null)
+                {
+                    FaceTowards(_target.transform.position);
+                }
+                return;
+            }
+
+            if (_target == null)
+            {
+                return;
+            }
+
+            Vector3 toTarget = _target.transform.position - transform.position;
+            toTarget.y = 0.0f;
+            float distance = toTarget.magnitude;
+            if (distance > DetectionRange)
+            {
+                _target = null;
+            }
+            else if (distance > AttackRange)
+            {
+                Vector3 direction = _steering.Steer(transform, toTarget / distance, deltaTime);
+                FaceAlong(direction);
+                transform.position += direction * ChaseSpeed * deltaTime;
+            }
+            else
+            {
+                FaceTowards(_target.transform.position);
+                if (_attackCooldownRemaining <= 0.0f)
+                {
+                    StartAttack();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Eases toward HoverHeightAboveGround over the REAL ground beneath
+        /// this body every frame -- see this class's own doc comment on why
+        /// that is ground-relative rather than a flat world Y. Same
+        /// exponential-ease-toward-target shape the source's own
+        /// `(HOVER_HEIGHT - y) * HOVER_CORRECTION_SPEED` velocity produces
+        /// once integrated over one physics step.
+        /// </summary>
+        private void HoverCorrect(float deltaTime)
+        {
+            float groundY = transform.position.y - HoverHeightAboveGround;
+            if (Physics.Raycast(transform.position, Vector3.down, out RaycastHit hit,
+                    GroundProbeDistance, ObstacleMask, QueryTriggerInteraction.Ignore))
+            {
+                groundY = hit.point.y;
+            }
+            float targetY = groundY + HoverHeightAboveGround;
+            Vector3 position = transform.position;
+            position.y += (targetY - position.y) * HoverCorrectionSpeed * deltaTime;
+            transform.position = position;
+        }
+
+        /// <summary>
+        /// Simplified from the source's own "search every node in the
+        /// players group, keep the nearest" -- this Unity port has no such
+        /// group (NPCs are not networked at all yet, see
+        /// [[multiplayer_sync_roadmap]]), and every other system here
+        /// already treats "the player" as the one FindFirstObjectByType
+        /// PlayerVitals singleton. A real multi-player scan would replace
+        /// this the same day multiplayer NPCs become real.
+        /// </summary>
+        private PlayerVitals FindNearestPlayer()
+        {
+            PlayerVitals player = Object.FindFirstObjectByType<PlayerVitals>();
+            if (player == null || !player.IsAlive)
+            {
+                return null;
+            }
+            float distance = Vector3.Distance(transform.position, player.transform.position);
+            return distance <= DetectionRange ? player : null;
+        }
+
+        private void TickGrowl(float deltaTime)
+        {
+            bool hasTargetNow = _target != null;
+            if (hasTargetNow && !_hadTargetLastFrame)
+            {
+                PlayRandomGrowl();
+                _growlTimerRemaining = NoticeGrowlIntervalSeconds;
+            }
+            else if (hasTargetNow)
+            {
+                _growlTimerRemaining -= deltaTime;
+                if (_growlTimerRemaining <= 0.0f)
+                {
+                    PlayRandomGrowl();
+                    _growlTimerRemaining = NoticeGrowlIntervalSeconds;
+                }
+            }
+            _hadTargetLastFrame = hasTargetNow;
+        }
+
+        private void PlayRandomGrowl()
+        {
+            if (GrowlAudio == null || NoticeSounds.Length == 0)
+            {
+                return;
+            }
+            GrowlAudio.clip = NoticeSounds[Random.Range(0, NoticeSounds.Length)];
+            GrowlAudio.Play();
+        }
+
+        private void FaceTowards(Vector3 worldPoint)
+        {
+            FaceAlong(worldPoint - transform.position);
+        }
+
+        /// <summary>Instant snap, matching the source's own look_at -- no turn-rate smoothing exists there to port.</summary>
+        private void FaceAlong(Vector3 direction)
+        {
+            direction.y = 0.0f;
+            if (direction.sqrMagnitude < 0.0001f)
+            {
+                return;
+            }
+            transform.rotation = Quaternion.LookRotation(direction.normalized, Vector3.up);
+        }
+
+        // --- attack state machine ---
+
+        private void StartAttack()
+        {
+            _attackCooldownRemaining = AttackCooldownSeconds;
+            _attackState = AttackState.Windup;
+            _attackPhaseTimer = 0.0f;
+            _attackPhaseDuration = WindupSeconds;
+            _attackHitLanded = false;
+            _activeClawPivot = _nextAttackHandIsLeft ? LeftClawPivot : RightClawPivot;
+            float windupSign = _nextAttackHandIsLeft ? -1.0f : 1.0f;
+            _attackFromAngleDegrees = 0.0f;
+            _attackToAngleDegrees = WindupAngleDegrees * windupSign;
+
+            if (AttackAudio != null && AttackSound != null)
+            {
+                AttackAudio.clip = AttackSound;
+                AttackAudio.Play();
+            }
+        }
+
+        private void TickAttack(float deltaTime)
+        {
+            _attackPhaseTimer += deltaTime;
+            ApplyClawAngleForCurrentPhase();
+
+            if (_attackPhaseTimer < _attackPhaseDuration)
+            {
+                if (_attackState == AttackState.Swing)
+                {
+                    CheckClawHit();
+                }
+                return;
+            }
+
+            float swingSign = _nextAttackHandIsLeft ? 1.0f : -1.0f;
+            switch (_attackState)
+            {
+                case AttackState.Windup:
+                    _attackState = AttackState.Swing;
+                    _attackPhaseTimer = 0.0f;
+                    _attackPhaseDuration = SwingSeconds;
+                    _attackFromAngleDegrees = _attackToAngleDegrees;
+                    _attackToAngleDegrees = SwingAngleDegrees * swingSign;
+                    break;
+
+                case AttackState.Swing:
+                    _attackState = AttackState.Recover;
+                    _attackPhaseTimer = 0.0f;
+                    _attackPhaseDuration = RecoverSeconds;
+                    _attackFromAngleDegrees = _attackToAngleDegrees;
+                    _attackToAngleDegrees = 0.0f;
+                    break;
+
+                case AttackState.Recover:
+                    _attackState = AttackState.Idle;
+                    _activeClawPivot = null;
+                    _nextAttackHandIsLeft = !_nextAttackHandIsLeft;
+                    break;
+            }
+        }
+
+        private void ApplyClawAngleForCurrentPhase()
+        {
+            if (_activeClawPivot == null)
+            {
+                return;
+            }
+            float t = _attackPhaseDuration > 0.0f
+                ? Mathf.Clamp01(_attackPhaseTimer / _attackPhaseDuration)
+                : 1.0f;
+            float eased = _attackState switch
+            {
+                AttackState.Windup => EaseOutSine(t),
+                AttackState.Swing => EaseOutQuad(t),
+                _ => EaseInOutSine(t),
+            };
+            float angle = Mathf.Lerp(_attackFromAngleDegrees, _attackToAngleDegrees, eased);
+            _activeClawPivot.localRotation = Quaternion.Euler(0.0f, angle, 0.0f);
+        }
+
+        private static float EaseOutSine(float t) => Mathf.Sin(t * Mathf.PI * 0.5f);
+        private static float EaseOutQuad(float t) => 1.0f - (1.0f - t) * (1.0f - t);
+        private static float EaseInOutSine(float t) => -(Mathf.Cos(Mathf.PI * t) - 1.0f) * 0.5f;
+
+        /// <summary>
+        /// Only ever lands ONE hit per attack (_attackHitLanded), so staying
+        /// close for several frames in a row cannot multi-hit off a single
+        /// swing -- matches the source exactly.
+        /// </summary>
+        private void CheckClawHit()
+        {
+            if (_attackHitLanded || _target == null || !_target.IsAlive)
+            {
+                return;
+            }
+            Vector3 toTarget = _target.transform.position - transform.position;
+            toTarget.y = 0.0f;
+            if (toTarget.magnitude <= ClawHitRadius)
+            {
+                _attackHitLanded = true;
+                ((IDamageable)_target).ApplyHit(AttackDamage, transform.position, CombatTuning.HitstunSeconds);
+            }
+        }
+
+        // --- IDamageable ---
+
+        bool IDamageable.IsAlive => IsAlive;
+
+        HitResponse IDamageable.ApplyHit(float amount, Vector3 fromPosition, float hitstunSeconds)
+        {
+            if (_isDead || amount <= 0.0f)
+            {
+                return HitResponse.Ignored;
+            }
+            _health = Mathf.Max(0.0f, _health - amount);
+            if (_health <= 0.0f)
+            {
+                Die();
+            }
+            return HitResponse.Landed;
+        }
+
+        private void Die()
+        {
+            _isDead = true;
+            _target = null;
+            _attackState = AttackState.Idle;
+            _activeClawPivot = null;
+            if (MainCollision != null)
+            {
+                MainCollision.enabled = false;
+            }
+            if (DeathAudio != null && DeathSound != null)
+            {
+                DeathAudio.clip = DeathSound;
+                DeathAudio.Play();
+            }
+            SpawnRagdollPieces();
+        }
+
+        /// <summary>
+        /// Detaches Body and both claw pivots into 3 independent Rigidbody
+        /// debris pieces -- Transform.SetParent's own keepWorldTransform (true) is
+        /// what makes this simple: each piece keeps its exact current world
+        /// pose without any manual transform math, mid-swing pose included.
+        /// Matches the source's own _spawn_ragdoll_pieces.
+        /// </summary>
+        private void SpawnRagdollPieces()
+        {
+            if (BodyVisual != null)
+            {
+                GameObject headBody = MakeRagdollBody(BodyVisual.position, BodyVisual.rotation);
+                BodyVisual.SetParent(headBody.transform, true);
+                AddRagdollCollision(headBody, new Vector3(1.3f, 1.0f, 1.4f) * ModelScale * 0.5f);
+            }
+
+            if (LeftClawPivot != null)
+            {
+                GameObject leftBody = MakeRagdollBody(LeftClawPivot.position, LeftClawPivot.rotation);
+                LeftClawPivot.SetParent(leftBody.transform, true);
+                AddRagdollCollision(leftBody, Vector3.one * ModelScale * 0.4f);
+            }
+
+            if (RightClawPivot != null)
+            {
+                GameObject rightBody = MakeRagdollBody(RightClawPivot.position, RightClawPivot.rotation);
+                RightClawPivot.SetParent(rightBody.transform, true);
+                AddRagdollCollision(rightBody, Vector3.one * ModelScale * 0.4f);
+            }
+        }
+
+        /// <summary>
+        /// A small random toss/tumble rather than a limp drop straight down
+        /// -- reads as a genuine collapse, matching the source's own
+        /// RAGDOLL_TOSS_SPEED comment. Grabbable so GrabCarry's own hold-E
+        /// pickup works on the debris, same as any other loose Rigidbody in
+        /// this project.
+        /// </summary>
+        private static GameObject MakeRagdollBody(Vector3 position, Quaternion rotation)
+        {
+            var body = new GameObject("CrimsonClawDebris");
+            body.transform.SetPositionAndRotation(position, rotation);
+            Rigidbody rb = body.AddComponent<Rigidbody>();
+            rb.linearDamping = RagdollLinearDamp;
+            rb.angularDamping = RagdollAngularDamp;
+            rb.linearVelocity = new Vector3(
+                Random.Range(-1.0f, 1.0f), Random.Range(0.6f, 1.4f), Random.Range(-1.0f, 1.0f)) * RagdollTossSpeed;
+            rb.angularVelocity = new Vector3(
+                Random.Range(-3.0f, 3.0f), Random.Range(-3.0f, 3.0f), Random.Range(-3.0f, 3.0f));
+            var physicsMaterial = new PhysicsMaterial("CrimsonClawDebris")
+            {
+                bounciness = 0.25f,
+                dynamicFriction = 0.7f,
+                staticFriction = 0.7f,
+            };
+            BoxCollider collider = body.AddComponent<BoxCollider>();
+            collider.material = physicsMaterial;
+            collider.enabled = false; // re-sized and enabled by AddRagdollCollision right after
+            body.AddComponent<Grabbable>();
+            return body;
+        }
+
+        /// <summary>A single box centred on the piece's own origin -- close enough for a few seconds of tumbling debris, matching the source's own comment on why this isn't a precise per-mesh fit.</summary>
+        private static void AddRagdollCollision(GameObject body, Vector3 boxSize)
+        {
+            BoxCollider collider = body.GetComponent<BoxCollider>();
+            collider.size = boxSize;
+            collider.enabled = true;
+        }
+    }
+}

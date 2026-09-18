@@ -27,7 +27,12 @@ namespace CityX.ViewEditor
     {
         private const int Width = 1280;
         private const int Height = 720;
-        private const int WorldSeed = 20260810;
+        // Must match CityMassingSceneBuilder.WorldSeed exactly -- otherwise
+        // these screenshots stop being screenshots OF the real game.
+        // EXPLICIT ASK: "generate a new world every time you make a change
+        // to the city generation" -- change this alongside that constant
+        // (and TitleScreenBuilder's own copy), never alone.
+        private const int WorldSeed = 29481073;
 
         /// <summary>Matches PC_RPAsset's own m_MSAA -- see Shoot's own comment.</summary>
         private const int PC_MsaaSamples = 4;
@@ -69,6 +74,7 @@ namespace CityX.ViewEditor
                 Light sun = sunObject.AddComponent<Light>();
                 sun.type = LightType.Directional;
                 sun.shadows = LightShadows.Soft;
+                AttachSunFlare(sun);
 
                 var moonObject = new GameObject("CaptureMoon");
                 moonObject.transform.SetParent(root.transform);
@@ -137,9 +143,11 @@ namespace CityX.ViewEditor
                 // of it, so this hunts for the biggest step in the area and
                 // frames that rather than hoping one lands in shot.
                 ShootTerraceEdge(streamer, camera, outputDirectory, terrain);
+                ShootSlopedStreet(streamer, camera, outputDirectory, terrain);
                 ShootInterior(streamer, camera, outputDirectory);
                 ShootFacade(streamer, camera, outputDirectory);
                 ShootEntrance(streamer, camera, outputDirectory);
+                ShootClosedJunction(streamer, camera, outputDirectory, terrain);
 
                 Debug.Log($"CityX: massing shots written to {outputDirectory}");
             }
@@ -190,6 +198,7 @@ namespace CityX.ViewEditor
                 Light sun = sunObject.AddComponent<Light>();
                 sun.type = LightType.Directional;
                 sun.shadows = LightShadows.Soft;
+                AttachSunFlare(sun);
 
                 var streamerObject = new GameObject("Streamer");
                 streamerObject.transform.SetParent(root.transform);
@@ -321,6 +330,7 @@ namespace CityX.ViewEditor
                 sunObject.transform.SetParent(root.transform);
                 Light sun = sunObject.AddComponent<Light>();
                 sun.type = LightType.Directional;
+                AttachSunFlare(sun);
 
                 var moonObject = new GameObject("Moon");
                 moonObject.transform.SetParent(root.transform);
@@ -435,6 +445,166 @@ namespace CityX.ViewEditor
 
             Debug.Log($"CityX: terrace shot at chunk ({bestX},{bestY}), a {bestDrop}m step");
             Shoot(streamer, camera, directory, "terrace", position, new Vector3(-6.0f, 0.0f, 0.0f), 14);
+        }
+
+        /// <summary>
+        /// Standing partway up the steepest continuous run of street this
+        /// world's own hillside grading produces, looking down it.
+        ///
+        /// ShootTerraceEdge answers "does a wall exist"; this answers the
+        /// question the whole continuous-tilt system exists for -- "does a
+        /// street read as San Francisco hills, not a staircase of flat
+        /// plateaus". A single chunk's own corner-to-corner drop is a poor
+        /// proxy for that (it says nothing about whether the NEXT chunk
+        /// keeps descending the same way or levels right back out), so this
+        /// scans RUNS of consecutive same-axis street chunks and scores each
+        /// by its total drop end to end, the same "continuously graded, not
+        /// a single tall step" thing a real hillside street is.
+        /// </summary>
+        private static void ShootSlopedStreet(CityStreamer streamer, Camera camera, string directory,
+            TerrainField terrain)
+        {
+            const int RunLength = 8;
+            float chunk = CityLayout.ChunkSize;
+
+            int bestX = 0, bestY = 0;
+            bool bestAlongX = false;
+            double bestDrop = 0.0;
+
+            for (int x = -40; x <= 40; x++)
+            {
+                for (int y = -40; y <= 40; y++)
+                {
+                    if (!CityLayout.IsStreetChunk(x, y))
+                    {
+                        continue;
+                    }
+
+                    if (CityLayout.StreetRunsAlongX(x, y))
+                    {
+                        bool runIsStreet = true;
+                        for (int i = 1; i < RunLength && runIsStreet; i++)
+                        {
+                            runIsStreet = CityLayout.IsStreetChunk(x + i, y);
+                        }
+                        if (runIsStreet)
+                        {
+                            double drop = terrain.ContinuousHeightAt(x * (double)chunk, (y + 0.5) * chunk) -
+                                terrain.ContinuousHeightAt((x + RunLength) * (double)chunk, (y + 0.5) * chunk);
+                            if (drop > bestDrop)
+                            {
+                                bestDrop = drop;
+                                bestX = x;
+                                bestY = y;
+                                bestAlongX = true;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        bool runIsStreet = true;
+                        for (int i = 1; i < RunLength && runIsStreet; i++)
+                        {
+                            runIsStreet = CityLayout.IsStreetChunk(x, y + i);
+                        }
+                        if (runIsStreet)
+                        {
+                            double drop = terrain.ContinuousHeightAt((x + 0.5) * chunk, y * (double)chunk) -
+                                terrain.ContinuousHeightAt((x + 0.5) * chunk, (y + RunLength) * (double)chunk);
+                            if (drop > bestDrop)
+                            {
+                                bestDrop = drop;
+                                bestX = x;
+                                bestY = y;
+                                bestAlongX = false;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (bestDrop <= 0.0)
+            {
+                Debug.LogWarning("CityX: no continuously-descending street run found near the origin.");
+                return;
+            }
+
+            // Two chunks up the run, standing on the street's own tilted
+            // surface (ContinuousHeightAt, not the quantised pad -- see
+            // BuildGround's own "hillside streets" comment), looking down
+            // the remaining length of the drop.
+            Vector3 position;
+            Vector3 euler;
+            if (bestAlongX)
+            {
+                double px = (bestX + 2.0) * chunk;
+                double pz = (bestY + 0.5) * chunk;
+                position = new Vector3((float)px, (float)terrain.ContinuousHeightAt(px, pz) + 1.7f, (float)pz);
+                euler = new Vector3(8.0f, 90.0f, 0.0f);
+            }
+            else
+            {
+                double px = (bestX + 0.5) * chunk;
+                double pz = (bestY + 2.0) * chunk;
+                position = new Vector3((float)px, (float)terrain.ContinuousHeightAt(px, pz) + 1.7f, (float)pz);
+                euler = new Vector3(8.0f, 0.0f, 0.0f);
+            }
+
+            Debug.Log($"CityX: sloped-street shot from chunk ({bestX},{bestY}), " +
+                $"{bestDrop:0.0}m of continuous drop over {RunLength} chunks");
+            Shoot(streamer, camera, directory, "sloped-street", position, euler, 16);
+        }
+
+        /// <summary>
+        /// A real T-junction: one arm of a 4-way crossing closed off with a
+        /// barrier instead of a crosswalk -- CityLayout.IsClosedJunctionArm's
+        /// own answer to explicit feedback: "roads shouldnt be just wiggly
+        /// for no reason... a turn or dead end or 4 way intersection."
+        /// Scans outward from the origin for the first one rather than
+        /// hoping a fixed shot happens to land on one -- chunk (0,0) itself
+        /// never qualifies, since IsArterialChunk chunks never close.
+        /// Stands in the CLOSED arm's own chunk looking back at the
+        /// junction, the approach where the barrier actually reads as
+        /// blocking the way rather than as a fence glimpsed side-on.
+        /// </summary>
+        private static void ShootClosedJunction(CityStreamer streamer, Camera camera, string directory,
+            TerrainField terrain)
+        {
+            float chunk = CityLayout.ChunkSize;
+            (int dx, int dy)[] arms = { (1, 0), (-1, 0), (0, 1), (0, -1) };
+
+            for (int x = -30; x <= 30; x++)
+            {
+                for (int y = -30; y <= 30; y++)
+                {
+                    if (!CityLayout.IsStreetChunk(x - 1, y) || !CityLayout.IsStreetChunk(x + 1, y) ||
+                        !CityLayout.IsStreetChunk(x, y - 1) || !CityLayout.IsStreetChunk(x, y + 1))
+                    {
+                        continue;
+                    }
+
+                    foreach ((int dx, int dy) in arms)
+                    {
+                        if (!CityLayout.IsClosedJunctionArm(x, y, dx, dy))
+                        {
+                            continue;
+                        }
+
+                        double px = (x + dx + 0.5) * chunk;
+                        double pz = (y + dy + 0.5) * chunk;
+                        Vector3 position = new Vector3(
+                            (float)px, (float)terrain.ContinuousHeightAt(px, pz) + 1.7f, (float)pz);
+                        float yaw = Mathf.Atan2(-dx, -dy) * Mathf.Rad2Deg;
+
+                        Debug.Log($"CityX: closed-junction shot -- junction ({x},{y}), arm ({dx},{dy})");
+                        Shoot(streamer, camera, directory, "closed-junction", position,
+                            new Vector3(2.0f, yaw, 0.0f), 10);
+                        return;
+                    }
+                }
+            }
+
+            Debug.LogWarning("CityX: no closed junction arm found near the origin.");
         }
 
         /// <summary>
@@ -720,12 +890,31 @@ namespace CityX.ViewEditor
             streamer.DoorMaterial = Material_("BuildingDoor");
             streamer.DoorHandleMaterial = Material_("BuildingDoorHandle");
             streamer.GuardRailMaterial = Material_("CityGuardRail");
+            streamer.BenchMaterial = Material_("CityBenchWood");
         }
 
         private static Material Material_(string name)
         {
             return AssetDatabase.LoadAssetAtPath<Material>(
                 $"Assets/CityX/View/Materials/{name}.mat");
+        }
+
+        /// <summary>
+        /// Same reason as <see cref="Dress"/> and <see cref="AttachEnvironment"/>:
+        /// the capture rig builds its own Sun rather than reusing the scene's,
+        /// so anything the real Sun grows has to be repeated here by hand or
+        /// this stops photographing the actual game. Loads the real,
+        /// on-disk flare asset CityMassingSceneBuilder builds rather than
+        /// improvising a second one.
+        /// </summary>
+        private static void AttachSunFlare(Light sun)
+        {
+            LensFlareComponentSRP flare = sun.gameObject.AddComponent<LensFlareComponentSRP>();
+            flare.lensFlareData = CityMassingSceneBuilder.EnsureSunLensFlareData();
+            flare.intensity = 1.4f;
+            flare.useOcclusion = true;
+            flare.occlusionRadius = 0.2f;
+            flare.sampleCount = 16;
         }
 
         /// <summary>
@@ -802,6 +991,12 @@ namespace CityX.ViewEditor
             }
             cameraData.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
             cameraData.antialiasingQuality = AntialiasingQuality.High;
+            // Same renderPostProcessing gap as the real camera in
+            // CityMassingSceneBuilder -- without it these screenshots would
+            // have kept "confirming" tonemapping/bloom/vignette/grain/flare
+            // that was never actually rendering, in either the real game or
+            // the picture meant to verify it.
+            cameraData.renderPostProcessing = true;
             camera.allowMSAA = true;
 
             RenderTexture target = RenderTexture.GetTemporary(

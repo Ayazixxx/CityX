@@ -138,11 +138,12 @@ namespace CityX.Tests
                 }
             }
 
-            // And nothing buildable was left out. Inset by one block so the
-            // sweep edge does not count anchors whose footprint runs off it.
-            for (int x = -Sweep + CityLayout.StreetPeriod; x < Sweep - CityLayout.StreetPeriod; x++)
+            // And nothing buildable was left out. Inset by one district, not
+            // one block -- blocks no longer have one uniform width, and a
+            // district is the largest a block's own footprint can ever be.
+            for (int x = -Sweep + CityLayout.DistrictChunks; x < Sweep - CityLayout.DistrictChunks; x++)
             {
-                for (int y = -Sweep + CityLayout.StreetPeriod; y < Sweep - CityLayout.StreetPeriod; y++)
+                for (int y = -Sweep + CityLayout.DistrictChunks; y < Sweep - CityLayout.DistrictChunks; y++)
                 {
                     LotKind kind = blocks.RoleFor(x, y).Kind;
                     if (kind == LotKind.Street || kind == LotKind.Open)
@@ -166,28 +167,39 @@ namespace CityX.Tests
         public void OpenBlocksAreOpenAllTheWayAcross()
         {
             CityBlocks blocks = Blocks();
+            var seenBlocks = new HashSet<(int, int)>();
             int openBlocks = 0;
             int totalBlocks = 0;
 
-            for (int bx = -60; bx < 60; bx++)
+            for (int x = -Sweep; x < Sweep; x++)
             {
-                for (int by = -60; by < 60; by++)
+                for (int y = -Sweep; y < Sweep; y++)
                 {
+                    if (CityLayout.IsStreetChunk(x, y))
+                    {
+                        continue;
+                    }
+
+                    blocks.BlockOriginFor(x, y, out int blockX, out int blockY, out int buildableSpan);
+                    if (!seenBlocks.Add((blockX, blockY)))
+                    {
+                        continue;   // already accounted for via an earlier chunk in the same block
+                    }
                     totalBlocks++;
-                    if (!blocks.IsOpenBlock(bx, by))
+                    if (!blocks.IsOpenBlock(blockX, blockY))
                     {
                         continue;
                     }
                     openBlocks++;
 
-                    for (int ix = 0; ix < CityLayout.BuildableSpan; ix++)
+                    for (int ix = 0; ix < buildableSpan; ix++)
                     {
-                        for (int iy = 0; iy < CityLayout.BuildableSpan; iy++)
+                        for (int iy = 0; iy < buildableSpan; iy++)
                         {
-                            int cx = bx * CityLayout.StreetPeriod + 1 + ix;
-                            int cy = by * CityLayout.StreetPeriod + 1 + iy;
+                            int cx = blockX + 1 + ix;
+                            int cy = blockY + 1 + iy;
                             Assert.AreEqual(LotKind.Open, blocks.RoleFor(cx, cy).Kind,
-                                $"block ({bx},{by}) is open but chunk ({cx},{cy}) inside it is not");
+                                $"block ({blockX},{blockY}) is open but chunk ({cx},{cy}) inside it is not");
                         }
                     }
                 }
@@ -210,24 +222,55 @@ namespace CityX.Tests
         {
             CityBlocks blocks = Blocks();
             int worstRun = 0;
+            int worstRunMetres = 0;
 
-            for (int by = -60; by < 60; by++)
+            // Several fixed rows rather than one -- with block width now
+            // varying by district, a single row no longer stands in for
+            // every row's own block layout the way it did under one global
+            // period.
+            for (int y = -Sweep; y < Sweep; y += 7)
             {
                 int run = 0;
-                for (int bx = -60; bx < 60; bx++)
+                int runMetres = 0;
+                (int blockX, int blockY)? lastBlock = null;
+
+                for (int x = -Sweep; x < Sweep; x++)
                 {
-                    run = blocks.IsOpenBlock(bx, by) ? run + 1 : 0;
+                    if (CityLayout.IsStreetChunk(x, y))
+                    {
+                        continue;
+                    }
+
+                    blocks.BlockOriginFor(x, y, out int blockX, out int blockY, out _);
+                    if (lastBlock == (blockX, blockY))
+                    {
+                        continue;   // still the same block as the last chunk
+                    }
+                    lastBlock = (blockX, blockY);
+
+                    if (blocks.IsOpenBlock(blockX, blockY))
+                    {
+                        run++;
+                        runMetres += CityLayout.DistrictChunks; // a safe per-block upper bound
+                    }
+                    else
+                    {
+                        run = 0;
+                        runMetres = 0;
+                    }
+
                     if (run > worstRun)
                     {
                         worstRun = run;
+                        worstRunMetres = runMetres;
                     }
                 }
             }
 
             TestContext.WriteLine($"longest unbroken row of open blocks: {worstRun}");
             Assert.LessOrEqual(worstRun, 4,
-                $"{worstRun} open blocks in a row -- that is {worstRun * 96}m of nothing, which reads " +
-                "as the city failing to generate rather than as a park");
+                $"{worstRun} open blocks in a row -- that is at least {worstRunMetres * (int)CityLayout.ChunkSize}m " +
+                "of nothing, which reads as the city failing to generate rather than as a park");
         }
 
         /// <summary>
@@ -265,31 +308,40 @@ namespace CityX.Tests
         public void BlockShapesFollowTheirWeights()
         {
             CityBlocks blocks = Blocks();
+            var seenBlocks = new HashSet<(int, int)>();
             var shapes = new Dictionary<string, int>();
             int blockCount = 0;
 
             // One probe per block, at its own interior origin, so each block is
             // counted once regardless of what it turned out to be.
-            for (int bx = -60; bx < 60; bx++)
+            for (int x = -Sweep; x < Sweep; x++)
             {
-                for (int by = -60; by < 60; by++)
+                for (int y = -Sweep; y < Sweep; y++)
                 {
+                    if (CityLayout.IsStreetChunk(x, y))
+                    {
+                        continue;
+                    }
+                    blocks.BlockOriginFor(x, y, out int blockX, out int blockY, out int buildableSpan);
+                    if (!seenBlocks.Add((blockX, blockY)))
+                    {
+                        continue;
+                    }
+
                     // Open blocks never reach the massing roll, so counting
                     // them would report them as "1x1" and inflate that share by
                     // the whole open-block rate.
-                    if (blocks.IsOpenBlock(bx, by))
+                    if (blocks.IsOpenBlock(blockX, blockY))
                     {
                         continue;
                     }
                     blockCount++;
                     string shape = "1x1";
-                    for (int ix = 0; ix < CityLayout.BuildableSpan; ix++)
+                    for (int ix = 0; ix < buildableSpan; ix++)
                     {
-                        for (int iy = 0; iy < CityLayout.BuildableSpan; iy++)
+                        for (int iy = 0; iy < buildableSpan; iy++)
                         {
-                            LotRole role = blocks.RoleFor(
-                                bx * CityLayout.StreetPeriod + 1 + ix,
-                                by * CityLayout.StreetPeriod + 1 + iy);
+                            LotRole role = blocks.RoleFor(blockX + 1 + ix, blockY + 1 + iy);
                             if (role.IsMultiChunk)
                             {
                                 shape = $"{role.SpanX}x{role.SpanY}";
@@ -322,19 +374,28 @@ namespace CityX.Tests
         public void BigBuildingsAreNotAlwaysInTheSameCornerOfTheirBlock()
         {
             CityBlocks blocks = Blocks();
+            var seenBlocks = new HashSet<(int, int)>();
             var corners = new Dictionary<(int, int), int>();
 
-            for (int bx = -60; bx < 60; bx++)
+            for (int x = -Sweep; x < Sweep; x++)
             {
-                for (int by = -60; by < 60; by++)
+                for (int y = -Sweep; y < Sweep; y++)
                 {
-                    for (int ix = 0; ix < CityLayout.BuildableSpan; ix++)
+                    if (CityLayout.IsStreetChunk(x, y))
                     {
-                        for (int iy = 0; iy < CityLayout.BuildableSpan; iy++)
+                        continue;
+                    }
+                    blocks.BlockOriginFor(x, y, out int blockX, out int blockY, out int buildableSpan);
+                    if (!seenBlocks.Add((blockX, blockY)))
+                    {
+                        continue;
+                    }
+
+                    for (int ix = 0; ix < buildableSpan; ix++)
+                    {
+                        for (int iy = 0; iy < buildableSpan; iy++)
                         {
-                            LotRole role = blocks.RoleFor(
-                                bx * CityLayout.StreetPeriod + 1 + ix,
-                                by * CityLayout.StreetPeriod + 1 + iy);
+                            LotRole role = blocks.RoleFor(blockX + 1 + ix, blockY + 1 + iy);
                             if (!role.Builds || !role.IsMultiChunk)
                             {
                                 continue;
@@ -409,36 +470,38 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// Blocks have to tile into negative space. BlockIndex truncating
-        /// instead of flooring would make block -1 four chunks wide on one side
-        /// of the origin and misalign every block west or south of it.
+        /// Districts have to tile into negative space. DistrictIndex
+        /// truncating instead of flooring would make district -1 one
+        /// district wide on one side of the origin and misalign every
+        /// district west or south of it -- and every block (whose own
+        /// origin is computed relative to its district's own origin) with it.
         /// </summary>
         [Test]
-        public void BlocksTileCorrectlyThroughTheOrigin()
+        public void DistrictsTileCorrectlyThroughTheOrigin()
         {
-            Assert.AreEqual(0, CityLayout.BlockIndex(0));
-            Assert.AreEqual(0, CityLayout.BlockIndex(3));
-            Assert.AreEqual(1, CityLayout.BlockIndex(4));
-            Assert.AreEqual(-1, CityLayout.BlockIndex(-1));
-            Assert.AreEqual(-1, CityLayout.BlockIndex(-4));
-            Assert.AreEqual(-2, CityLayout.BlockIndex(-5));
+            Assert.AreEqual(0, CityLayout.DistrictIndex(0));
+            Assert.AreEqual(0, CityLayout.DistrictIndex(CityLayout.DistrictChunks - 1));
+            Assert.AreEqual(1, CityLayout.DistrictIndex(CityLayout.DistrictChunks));
+            Assert.AreEqual(-1, CityLayout.DistrictIndex(-1));
+            Assert.AreEqual(-1, CityLayout.DistrictIndex(-CityLayout.DistrictChunks));
+            Assert.AreEqual(-2, CityLayout.DistrictIndex(-CityLayout.DistrictChunks - 1));
 
-            // Every block must own exactly StreetPeriod consecutive chunks.
+            // Every district must own exactly DistrictChunks consecutive chunks.
             var widths = new Dictionary<int, int>();
-            for (int c = -40; c < 40; c++)
+            for (int c = -CityLayout.DistrictChunks * 10; c < CityLayout.DistrictChunks * 10; c++)
             {
-                int block = CityLayout.BlockIndex(c);
-                widths.TryGetValue(block, out int count);
-                widths[block] = count + 1;
+                int district = CityLayout.DistrictIndex(c);
+                widths.TryGetValue(district, out int count);
+                widths[district] = count + 1;
             }
             foreach (var pair in widths)
             {
-                if (pair.Key <= -10 || pair.Key >= 9)
+                if (pair.Key <= -9 || pair.Key >= 9)
                 {
-                    continue;   // partial blocks at the ends of the sweep
+                    continue;   // partial districts at the ends of the sweep
                 }
-                Assert.AreEqual(CityLayout.StreetPeriod, pair.Value,
-                    $"block {pair.Key} owns {pair.Value} chunks instead of {CityLayout.StreetPeriod}");
+                Assert.AreEqual(CityLayout.DistrictChunks, pair.Value,
+                    $"district {pair.Key} owns {pair.Value} chunks instead of {CityLayout.DistrictChunks}");
             }
         }
 

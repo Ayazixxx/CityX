@@ -16,7 +16,8 @@
         "CityX.Vehicles",
         "CityX.Vehicles.Editor",
         "Unity.RenderPipelines.Core.Runtime",
-        "Unity.RenderPipelines.Universal.Runtime"
+        "Unity.RenderPipelines.Universal.Runtime",
+        "FishNet.Runtime"
     ],
     "includePlatforms": [
         "Editor"

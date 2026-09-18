@@ -165,6 +165,12 @@ namespace CityX.Tests
                         Require(unwired, go, action.Settings, "a TitleSettingsView");
                         break;
 
+                    case ButtonAction.Kind.MultiplayerHost:
+                    case ButtonAction.Kind.MultiplayerJoin:
+                    case ButtonAction.Kind.MultiplayerBack:
+                        Require(unwired, go, action.Multiplayer, "a TitleMultiplayerView");
+                        break;
+
                     case ButtonAction.Kind.CreatorAskName:
                     case ButtonAction.Kind.CreatorConfirmName:
                     case ButtonAction.Kind.CreatorTryBack:

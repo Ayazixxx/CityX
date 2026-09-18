@@ -1,8 +1,13 @@
 using System.Collections.Generic;
 using System.IO;
+using CityX.Core;
+using CityX.Net;
 using CityX.UI;
 using CityX.View;
 using CityX.World;
+using FishNet.Managing;
+using FishNet.Managing.Object;
+using FishNet.Transporting.Tugboat;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -13,14 +18,20 @@ using UnityEngine.UI;
 namespace CityX.UIEditor
 {
     /// <summary>
-    /// Builds the title screen: the real city at night, drifting, with the logo
-    /// over it and a menu.
+    /// Builds the title screen: the real city at night, held still, with the
+    /// logo over it and a menu.
     ///
     /// THE BACKDROP IS THE ACTUAL GAME WORLD. The Godot original hand-listed a
-    /// skyline just for this screen, because generating its city was expensive.
-    /// This one is arithmetic and streams itself, so the menu can fly over the
-    /// real thing -- which means the title screen can never drift out of sync
-    /// with how the game looks, and there is no second skyline to maintain.
+    /// small fixed skyline just for this screen, because generating its city
+    /// was expensive -- but its own camera never moved either way. This one is
+    /// arithmetic and streams itself, so the menu can look out over the real
+    /// thing instead of a second, separately-maintained skyline -- but
+    /// EXPLICIT ASK, after an earlier pass added a slow drifting/turning/
+    /// bobbing camera here: "recreate the godot title screen with the still
+    /// city." A moving establishing shot was this project's own addition, not
+    /// something Godot's title screen ever had; the camera is now placed once,
+    /// at build time, and never touched again, matching the original's actual
+    /// stillness while keeping the real-world-not-a-duplicate architecture.
     ///
     /// Run headlessly:
     ///   Unity.exe -batchmode -quit -projectPath &lt;proj&gt;
@@ -31,7 +42,16 @@ namespace CityX.UIEditor
         private const string ScenePath = "Assets/CityX/Scenes/Title.unity";
         private const string LogoPath = "Assets/CityX/UI/Textures/LogoCityX.png";
 
-        private const int WorldSeed = 20260810;
+        /// <summary>The one project-wide FishNet prefab collection -- see BuildNetworkRoot's own comment.</summary>
+        private const string DefaultPrefabObjectsPath = "Assets/DefaultPrefabObjects.asset";
+
+        // Must match CityMassingSceneBuilder.WorldSeed exactly -- this is
+        // the SAME real, played game world, just viewed from the title
+        // screen's own drifting camera instead of the player's. EXPLICIT
+        // ASK: "generate a new world every time you make a change to the
+        // city generation" -- change this alongside that constant (and
+        // CityMassingCapture's own copy), never alone.
+        private const int WorldSeed = 29481073;
 
         /// <summary>
         /// Deep into the night, where the lit windows carry the picture. Not
@@ -102,7 +122,39 @@ namespace CityX.UIEditor
             cameraData.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
             cameraData.antialiasingQuality = AntialiasingQuality.High;
             cameraObject.AddComponent<AudioListener>();
-            cameraObject.AddComponent<TitleBackdrop>();
+
+            // A RAINY CITY AT NIGHT -- EXPLICIT ASK: "recreate the godot
+            // title screen instead of the one you have now." title_screen.gd
+            // played rain_noises.mp3 the instant the screen loaded and never
+            // stopped it until Singleplayer was actually pressed; the real
+            // in-game weather system (RainEffect, normally toggled by
+            // /weather rain/clear) is reused here rather than rebuilding a
+            // second rain effect from scratch, hanging off this still
+            // camera in place of a player. Grade/
+            // WetGroundMaterials are deliberately left unset: those are the
+            // SAME shared material assets the real playable city uses, and
+            // mutating them here (RainEffect wets/darkens them in place)
+            // would leave the game world looking rain-wetted the moment a
+            // player left this screen, before any real in-game weather ever
+            // ran -- Sun alone is enough for the rain itself plus its own
+            // lightning (RainEffect's sun-intensity flash, automatic while
+            // active, needs nothing further built here).
+            var rainObject = new GameObject("Rain");
+            rainObject.transform.SetParent(cameraObject.transform, false);
+            RainEffect rain = rainObject.AddComponent<RainEffect>();
+            rain.RainSound = AssetDatabase.LoadAssetAtPath<AudioClip>(
+                "Assets/CityX/UI/Audio/rain_noises.mp3");
+            rain.DropMaterial = AssetDatabase.LoadAssetAtPath<Material>(
+                "Assets/CityX/View/Materials/Raindrop.mat");
+            rain.SplashMaterial = AssetDatabase.LoadAssetAtPath<Material>(
+                "Assets/CityX/View/Materials/Splash.mat");
+            rain.Sun = sun;
+            if (rain.DropMaterial == null || rain.SplashMaterial == null)
+            {
+                Debug.LogWarning("CityX: rain materials missing -- run CityX/Rebuild Massing Scene " +
+                                 "first so Raindrop.mat/Splash.mat exist.");
+            }
+            rain.SetActive(true);
 
             var terrain = new TerrainField(WorldSeed);
             float chunk = CityLayout.ChunkSize;
@@ -147,7 +199,8 @@ namespace CityX.UIEditor
             streamer.CrackedGlassMaterial = crackedGlass;
             streamer.Viewer = cameraObject.transform;
 
-            BuildInterface();
+            NetworkBootstrap bootstrap = BuildNetworkRoot();
+            BuildInterface(bootstrap);
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             EnsureBuildScenes();
@@ -202,7 +255,87 @@ namespace CityX.UIEditor
             EditorBuildSettings.scenes = scenes.ToArray();
         }
 
-        private static void BuildInterface()
+        /// <summary>
+        /// NetworkManager + Transport + NetworkBootstrap, for the Multiplayer
+        /// panel's own Host/Join buttons to drive. AutoStartOnPlay is OFF --
+        /// EXPLICIT ASK: "get the multiplayer part of the menu working" --
+        /// a menu decides when to connect, not Start() on its own.
+        ///
+        /// DOES NOT CALL DontDestroyOnLoad HERE -- and just as importantly,
+        /// NEITHER DOES THE NetworkManager COMPONENT ITSELF (see the
+        /// _dontDestroyOnLoad override just below). Tried "don't call it
+        /// ourselves" alone first (moving a PersistAcrossSceneLoad-style
+        /// call into TitleMultiplayerView.Host()/Join(), gated on an actual
+        /// button press) and it did NOT fix the ~30 unrelated PlayMode test
+        /// failures (NetworkBootstrapPlayTests, SpikeWorldPlayTests,
+        /// InterestManagementPlayTests, and every real-scene test that loads
+        /// CityMassing.unity) -- because FishNet's own NetworkManager.Awake()
+        /// calls DontDestroyOnLoad(this) UNCONDITIONALLY whenever its own
+        /// private _dontDestroyOnLoad field is true, which is its default,
+        /// completely independent of anything this project's own code does.
+        /// So the Title screen's NetworkRoot was persisting itself the
+        /// instant ANY test merely OPENED Title.unity (most of
+        /// TitleFlowPlayTests does, just to click around the menu) --
+        /// nobody had to press Host or Join at all. Unity's PlayMode Test
+        /// Runner does NOT reset the DontDestroyOnLoad scene between
+        /// separate test methods within one batch run, so that leftover
+        /// NetworkManager survived into every LATER test in the same run,
+        /// and FishNet's own NetworkManager persistence (_persistence
+        /// defaults to DestroyNewest) then silently destroyed each of those
+        /// tests' own, completely unrelated NetworkManager on the spot.
+        /// The real fix is here: force this NetworkManager's own
+        /// _dontDestroyOnLoad off, so it behaves like an ordinary scene
+        /// object (destroyed with Title.unity, same as every other test
+        /// fixture) unless TitleMultiplayerView.Host()/Join() explicitly
+        /// calls DontDestroyOnLoad on it themselves, right before actually
+        /// starting a connection -- the one thing no pre-existing test ever
+        /// does, so ordinary navigation through the title screen (including
+        /// every existing test that does exactly that) never triggers it.
+        /// </summary>
+        private static NetworkBootstrap BuildNetworkRoot()
+        {
+            var networkObject = new GameObject("NetworkRoot");
+            NetworkManager manager = networkObject.AddComponent<NetworkManager>();
+            networkObject.AddComponent<Tugboat>();
+
+            {
+                var so = new SerializedObject(manager);
+                SerializedProperty dontDestroy = so.FindProperty("_dontDestroyOnLoad");
+                if (dontDestroy != null)
+                {
+                    dontDestroy.boolValue = false;
+                    so.ApplyModifiedPropertiesWithoutUndo();
+                }
+            }
+
+            // Same collection CityX.Spike's own generated NetworkManager
+            // prefab points at -- there is exactly one of these per project,
+            // and FishNet's own tooling keeps it populated with every
+            // NetworkObject prefab it finds (the Player prefab, once
+            // PlayerRigBuilder gives it one).
+            PrefabObjects defaultPrefabs = AssetDatabase.LoadAssetAtPath<PrefabObjects>(DefaultPrefabObjectsPath);
+            if (defaultPrefabs != null)
+            {
+                var so = new SerializedObject(manager);
+                SerializedProperty prefabs = so.FindProperty("_spawnablePrefabs");
+                if (prefabs != null)
+                {
+                    prefabs.objectReferenceValue = defaultPrefabs;
+                    so.ApplyModifiedPropertiesWithoutUndo();
+                }
+            }
+            else
+            {
+                Debug.LogWarning($"CityX: no prefab collection at {DefaultPrefabObjectsPath} -- " +
+                                  "networked player spawns will fail until one exists.");
+            }
+
+            NetworkBootstrap bootstrap = networkObject.AddComponent<NetworkBootstrap>();
+            bootstrap.AutoStartOnPlay = false;
+            return bootstrap;
+        }
+
+        private static void BuildInterface(NetworkBootstrap bootstrap)
         {
             var root = new GameObject("TitleInterface", typeof(RectTransform));
             Canvas canvas = root.AddComponent<Canvas>();
@@ -260,6 +393,7 @@ namespace CityX.UIEditor
             title.LogoGroup = logoGroup;
 
             title.Logo = BuildLogo(logoGroup.transform);
+            title.PromptLabel = BuildPromptLabel(root.transform);
             title.MenuPanel = BuildMenu(root.transform, title);
 
             // Loaded once, up here, because both the select carousel and the
@@ -282,8 +416,7 @@ namespace CityX.UIEditor
                     root.transform, title, playerPrefab);
             }
 
-            title.MultiplayerPanel = BuildStub(root.transform, "MultiplayerPanel",
-                "MULTIPLAYER", "Host and join are not ported yet.", title);
+            title.MultiplayerPanel = BuildMultiplayerPanel(root.transform, title, bootstrap);
             title.SettingsPanel = BuildSettings(root.transform, title);
 
             title.Show(TitleScreen.Panel.Menu);
@@ -338,6 +471,40 @@ namespace CityX.UIEditor
             return image;
         }
 
+        /// <summary>
+        /// title_screen.gd's own PromptLabel: "PRESS ANY KEY TO START",
+        /// bottom-centre, pulsing (TitleScreen.TickPrompt drives the alpha).
+        /// A soft blue Shadow behind the text matches the Godot original's
+        /// own theme_override_colors/font_shadow_color -- legacy UI.Text has
+        /// no shadow colour of its own, so it needs a real Shadow component
+        /// rather than a Text property.
+        /// </summary>
+        private static Text BuildPromptLabel(Transform parent)
+        {
+            var labelObject = new GameObject("PromptLabel", typeof(RectTransform));
+            var rect = (RectTransform)labelObject.transform;
+            rect.SetParent(parent, false);
+            rect.anchorMin = new Vector2(0.5f, 0.0f);
+            rect.anchorMax = new Vector2(0.5f, 0.0f);
+            rect.pivot = new Vector2(0.5f, 0.0f);
+            rect.anchoredPosition = new Vector2(0.0f, 40.0f);
+            rect.sizeDelta = new Vector2(400.0f, 40.0f);
+
+            Text text = labelObject.AddComponent<Text>();
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.fontSize = 20;
+            text.color = new Color(0.812f, 0.839f, 1.0f, 0.15f);
+            text.alignment = TextAnchor.MiddleCenter;
+            text.raycastTarget = false;
+            text.text = "PRESS ANY KEY TO START";
+
+            Shadow shadow = labelObject.AddComponent<Shadow>();
+            shadow.effectColor = new Color(0.55f, 0.63f, 1.0f, 0.6f);
+            shadow.effectDistance = new Vector2(1.5f, -1.5f);
+
+            return text;
+        }
+
         private static GameObject BuildMenu(Transform parent, TitleScreen title)
         {
             var panel = new GameObject("MenuPanel", typeof(RectTransform));
@@ -360,32 +527,128 @@ namespace CityX.UIEditor
         }
 
         /// <summary>
-        /// A panel that exists, is reachable, and says what it will be.
-        ///
-        /// A button that does nothing is worse than one that admits it: the
-        /// first reads as broken, the second as unfinished. The panel structure
-        /// and the back navigation are real, so filling these in later is
-        /// adding contents rather than rebuilding the screen.
+        /// Host/Join, direct-IP -- ported from title_screen.gd's own
+        /// identical panel (see that file's own comments on why a blank
+        /// port field means NetworkBootstrap's default, why the two fields
+        /// are separate ports rather than one shared one, and why a pasted
+        /// "1.2.3.4:port" address is accepted directly). EXPLICIT ASK: "get
+        /// the multiplayer part of the menu working" -- this replaces the
+        /// former placeholder ("Host and join are not ported yet.").
         /// </summary>
-        private static GameObject BuildStub(Transform parent, string name, string heading,
-            string body, TitleScreen title)
+        private static GameObject BuildMultiplayerPanel(Transform parent, TitleScreen title, NetworkBootstrap bootstrap)
         {
-            var panel = new GameObject(name, typeof(RectTransform));
+            var panel = new GameObject("MultiplayerPanel", typeof(RectTransform));
             var rect = (RectTransform)panel.transform;
             rect.SetParent(parent, false);
             rect.anchorMin = new Vector2(0.5f, 0.5f);
             rect.anchorMax = new Vector2(0.5f, 0.5f);
             rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = new Vector2(0.0f, -70.0f);
-            rect.sizeDelta = new Vector2(460.0f, 190.0f);
+            rect.anchoredPosition = new Vector2(0.0f, -30.0f);
+            rect.sizeDelta = new Vector2(460.0f, 340.0f);
 
-            MakeLabel(panel.transform, "Heading", heading, 30, Gold,
-                new Vector2(0.0f, 60.0f), new Vector2(440.0f, 40.0f));
-            MakeLabel(panel.transform, "Body", body, 17, new Color(0.82f, 0.82f, 0.84f),
-                new Vector2(0.0f, 14.0f), new Vector2(440.0f, 46.0f));
+            TitleMultiplayerView view = panel.AddComponent<TitleMultiplayerView>();
+            view.Title = title;
+            view.Bootstrap = bootstrap;
 
-            MakeButton(panel.transform, "BackButton", "BACK", 2, title, ButtonAction.Kind.TitleBack);
+            MakeLabel(panel.transform, "Heading", "MULTIPLAYER", 30, Gold,
+                new Vector2(0.0f, 138.0f), new Vector2(440.0f, 40.0f));
+
+            MakeLabel(panel.transform, "HostLabel", "HOST A GAME", 17, Paper,
+                new Vector2(0.0f, 88.0f), new Vector2(440.0f, 26.0f));
+            MakeLabel(panel.transform, "HostPortLabel", "PORT", 14, Paper,
+                new Vector2(-150.0f, 48.0f), new Vector2(80.0f, 26.0f));
+            view.HostPortField = MakeInputField(panel.transform, "HostPortField",
+                new Vector2(-50.0f, 48.0f), new Vector2(110.0f, 36.0f), string.Empty,
+                LaunchArgs.DefaultPort.ToString());
+            MakeMultiplayerButton(panel.transform, "HostButton", "HOST",
+                new Vector2(100.0f, 48.0f), new Vector2(140.0f, 40.0f), view, ButtonAction.Kind.MultiplayerHost);
+
+            MakeLabel(panel.transform, "JoinLabel", "JOIN A GAME", 17, Paper,
+                new Vector2(0.0f, -8.0f), new Vector2(440.0f, 26.0f));
+            view.JoinAddressField = MakeInputField(panel.transform, "JoinAddressField",
+                new Vector2(-70.0f, -48.0f), new Vector2(230.0f, 36.0f), string.Empty, "Address");
+            view.JoinPortField = MakeInputField(panel.transform, "JoinPortField",
+                new Vector2(115.0f, -48.0f), new Vector2(100.0f, 36.0f), string.Empty, "Port");
+            MakeMultiplayerButton(panel.transform, "JoinButton", "JOIN",
+                new Vector2(0.0f, -96.0f), new Vector2(160.0f, 40.0f), view, ButtonAction.Kind.MultiplayerJoin);
+
+            view.StatusLabel = MakeLabel(panel.transform, "StatusLabel", string.Empty, 15,
+                new Color(1.0f, 0.55f, 0.55f), new Vector2(0.0f, -136.0f), new Vector2(440.0f, 46.0f));
+
+            MakeMultiplayerButton(panel.transform, "BackButton", "BACK",
+                new Vector2(0.0f, -162.0f), new Vector2(160.0f, 40.0f), view, ButtonAction.Kind.MultiplayerBack);
+
             return panel;
+        }
+
+        /// <summary>
+        /// A single-line text field -- background, placeholder, live text,
+        /// tied together by an InputField -- matching CharacterSelectBuilder's
+        /// own MakeNameField exactly, just parameterised by position/size/
+        /// placeholder instead of hardcoded for a character name.
+        /// </summary>
+        private static InputField MakeInputField(Transform parent, string name,
+            Vector2 position, Vector2 size, string initialText, string placeholderText)
+        {
+            var fieldObject = new GameObject(name, typeof(RectTransform));
+            var rect = (RectTransform)fieldObject.transform;
+            rect.SetParent(parent, false);
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
+
+            Image background = fieldObject.AddComponent<Image>();
+            background.color = FieldInk;
+
+            Text text = MakeLabel(fieldObject.transform, "Text", initialText, 16, Paper,
+                Vector2.zero, size - new Vector2(16.0f, 6.0f));
+
+            Text placeholder = MakeLabel(fieldObject.transform, "Placeholder", placeholderText, 16,
+                new Color(0.45f, 0.45f, 0.48f), Vector2.zero, size - new Vector2(16.0f, 6.0f));
+            placeholder.fontStyle = FontStyle.Italic;
+
+            InputField field = fieldObject.AddComponent<InputField>();
+            field.targetGraphic = background;
+            field.textComponent = text;
+            field.placeholder = placeholder;
+            field.lineType = InputField.LineType.SingleLine;
+            return field;
+        }
+
+        /// <summary>
+        /// MakeButton's own styling at an explicit position/size instead of
+        /// its fixed row formula -- Host/Join have to sit beside a field
+        /// rather than centred in their own row, and carry a
+        /// TitleMultiplayerView instead of a TitleScreen.
+        /// </summary>
+        private static void MakeMultiplayerButton(Transform parent, string name, string label,
+            Vector2 position, Vector2 size, TitleMultiplayerView view, ButtonAction.Kind action)
+        {
+            var buttonObject = new GameObject(name, typeof(RectTransform));
+            var rect = (RectTransform)buttonObject.transform;
+            rect.SetParent(parent, false);
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
+
+            Image background = buttonObject.AddComponent<Image>();
+            background.color = FieldInk;
+
+            Button button = buttonObject.AddComponent<Button>();
+            button.targetGraphic = background;
+
+            var wiring = buttonObject.AddComponent<ButtonAction>();
+            wiring.Action = action;
+            wiring.Multiplayer = view;
+
+            ColorBlock colours = button.colors;
+            colours.highlightedColor = new Color(0.22f, 0.20f, 0.12f, 1.0f);
+            colours.pressedColor = Gold;
+            button.colors = colours;
+
+            MakeLabel(buttonObject.transform, "Label", label, 18, Gold, Vector2.zero, size);
         }
 
         /// <summary>

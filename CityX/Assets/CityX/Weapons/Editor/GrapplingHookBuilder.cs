@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using CityX.Character;
 using CityX.CharacterEditor;
 using CityX.Items;
@@ -5,6 +6,7 @@ using CityX.UI;
 using CityX.View;
 using CityX.Wearables;
 using CityX.Weapons;
+using CityX.World;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -2258,139 +2260,16 @@ namespace CityX.WeaponsEditor
         }
 
         /// <summary>
-        /// DIAGNOSTIC, NOT A PERMANENT TOOL -- verifies HangingRagdollDummy
-        /// settles into a real, stable hang under real physics rather than
-        /// exploding on activation, the same "does not explode on its own
-        /// first step" question RagdollPlayTests already asks for the
-        /// death case, checked here for the standalone hanging prop
-        /// instead.
+        /// DIAGNOSTIC, NOT A PERMANENT TOOL -- a street-level look at
+        /// CityMeshBuilder.AddSlopedStreetRamp in the REAL streamed city
+        /// (EXPLICIT ASK: "make these cut off streets sloped like san
+        /// francisco... never so steep that you can walk or run up it").
+        /// Mirrors AddStreetEdgeFeatures's own roll to find a real
+        /// street-vs-street terrace drop that actually came out sloped,
+        /// rather than pointing the camera at an arbitrary spot and hoping.
         /// </summary>
-        [MenuItem("CityX/Diagnose Hanging Ragdoll Dummy")]
-        public static void DiagnoseHangingRagdollDummy()
-        {
-            string outputDirectory = System.IO.Path.Combine(
-                System.IO.Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
-            System.IO.Directory.CreateDirectory(outputDirectory);
-
-            var ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            ground.name = "Ground";
-            ground.transform.position = new Vector3(0.0f, -0.5f, 0.0f);
-            ground.transform.localScale = new Vector3(20.0f, 1.0f, 20.0f);
-
-            // A SYNTHETIC "BUILDING" for the builder's own wall-facade
-            // search to find -- HangingRagdollDummyBuilder now anchors on a
-            // real WALL near its own spawn-position argument (a horizontal
-            // raycast, the same shape GrapplingHookItem.FindAnchor already
-            // uses) rather than a fixed pole or a rooftop centre, so a bare
-            // flat ground plane (this diagnostic's own original setup)
-            // gives it nothing to find at all. Placed directly along +X so
-            // the search's own 90-degree ring angle hits its near face
-            // cleanly, with the whole standoff hang position (StandoffFromWall
-            // out along -X) landing well clear of the building's own footprint.
-            var building = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            building.name = "Building";
-            building.transform.position = new Vector3(10.0f, 7.5f, 0.0f);
-            building.transform.localScale = new Vector3(8.0f, 15.0f, 8.0f);
-            Physics.SyncTransforms();
-
-            RenderTexture target = null;
-            var previousSimMode = Physics.simulationMode;
-            try
-            {
-                GameObject dummyRoot = CityX.CharacterEditor.HangingRagdollDummyBuilder.Build(Vector3.zero, null);
-                if (dummyRoot == null)
-                {
-                    Debug.LogError("CityX DIAGNOSTIC: HangingRagdollDummyBuilder.Build returned null.");
-                    return;
-                }
-
-                HangingRagdollDummy dummy = dummyRoot.GetComponent<HangingRagdollDummy>();
-                Transform bodyTransform = dummyRoot.transform.Find("Dummy");
-                Rigidbody hipBody = dummy.Ragdoll.Torso;
-
-                var startMethod = typeof(HangingRagdollDummy).GetMethod("Start",
-                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-                startMethod.Invoke(dummy, null);
-
-                Physics.simulationMode = SimulationMode.Script;
-                float worstHipSpeed = 0.0f;
-                Vector3 startHipPos = hipBody.position;
-
-                var sunObject = new GameObject("Sun");
-                Light sun = sunObject.AddComponent<Light>();
-                sun.type = LightType.Directional;
-                sun.intensity = 1.2f;
-                sun.transform.rotation = Quaternion.Euler(35.0f, 150.0f, 0.0f);
-
-                var cameraObject = new GameObject("Camera");
-                Camera camera = cameraObject.AddComponent<Camera>();
-                camera.clearFlags = CameraClearFlags.SolidColor;
-                camera.backgroundColor = new Color(0.10f, 0.11f, 0.15f);
-                camera.fieldOfView = 55.0f;
-                camera.nearClipPlane = 0.05f;
-                camera.farClipPlane = 500.0f;
-                // Framed dynamically off the dummy's own root position, not
-                // a hardcoded point -- that root is now wherever the real
-                // wall search actually landed, not a fixed 0.3/1.2 spot a
-                // short pole always sat at. Pulled back along -X/+Z (out
-                // into the open street, away from the building's own
-                // footprint at x=[6,14]) -- an offset that leant INTO the
-                // building's own x range put the camera embedded in solid
-                // geometry, rendering nothing but a flat inside-the-mesh
-                // grey.
-                Vector3 dummyPos = dummyRoot.transform.position;
-                cameraObject.transform.position = dummyPos + new Vector3(-5.0f, 2.5f, 4.5f);
-                cameraObject.transform.LookAt(dummyPos + Vector3.up * 1.0f);
-                foreach (SkinnedMeshRenderer skin in dummyRoot.GetComponentsInChildren<SkinnedMeshRenderer>())
-                {
-                    skin.updateWhenOffscreen = true;
-                }
-                target = new RenderTexture(800, 800, 24, RenderTextureFormat.ARGB32) { antiAliasing = 8 };
-                camera.targetTexture = target;
-
-                for (int i = 0; i < 180; i++)
-                {
-                    Physics.Simulate(1.0f / 60.0f);
-                    dummy.UpdateRope();
-                    worstHipSpeed = Mathf.Max(worstHipSpeed, hipBody.linearVelocity.magnitude);
-
-                    if (i % 20 == 0)
-                    {
-                        Debug.Log($"CityX DIAGNOSTIC tick={i} hipPos={hipBody.position:F2} " +
-                            $"hipVelocity={hipBody.linearVelocity.magnitude:F2} " +
-                            $"driftFromStart={Vector3.Distance(hipBody.position, startHipPos):F2}");
-                    }
-                }
-
-                camera.Render();
-                RenderTexture.active = target;
-                var image = new Texture2D(800, 800, TextureFormat.RGB24, false);
-                image.ReadPixels(new Rect(0, 0, 800, 800), 0, 0);
-                image.Apply();
-                string path = System.IO.Path.Combine(outputDirectory, "hanging-ragdoll-dummy.png");
-                System.IO.File.WriteAllBytes(path, image.EncodeToPNG());
-                Object.DestroyImmediate(image);
-                Debug.Log($"CityX: wrote {path} -- worstHipSpeed={worstHipSpeed:F2} " +
-                    $"finalHipPos={hipBody.position:F2}");
-            }
-            finally
-            {
-                Physics.simulationMode = previousSimMode;
-                if (target != null) { target.Release(); Object.DestroyImmediate(target); }
-            }
-            if (Application.isBatchMode) EditorApplication.Exit(0);
-        }
-
-        /// <summary>
-        /// DIAGNOSTIC, NOT A PERMANENT TOOL -- a street-level look at the
-        /// new CityMeshBuilder.AddStreetLamps in the REAL streamed city,
-        /// not just the geometry-only EditMode tests (EXPLICIT ASK: "keep
-        /// making the city more citylike"). Same "open the real scene,
-        /// stream real chunks in around a point, render" shape
-        /// DiagnoseHangingDummyInRealScene already uses.
-        /// </summary>
-        [MenuItem("CityX/Diagnose Street Lamps In Real Scene")]
-        public static void DiagnoseStreetLampsInRealScene()
+        [MenuItem("CityX/Diagnose Sloped Street In Real Scene")]
+        public static void DiagnoseSlopedStreetInRealScene()
         {
             Scene scene = EditorSceneManager.OpenScene(
                 "Assets/CityX/Scenes/CityMassing.unity", OpenSceneMode.Single);
@@ -2402,17 +2281,50 @@ namespace CityX.WeaponsEditor
             RenderTexture target = null;
             try
             {
-                GameObject playerObject = null;
-                foreach (GameObject rootObj in scene.GetRootGameObjects())
+                CityWorld world = new CityWorld(29481073);
+                int foundX = 0, foundY = 0, foundNx = 0, foundNy = 0;
+                float foundPad = 0.0f, foundNeighbourPad = 0.0f;
+                bool found = false;
+                double bestDistance = double.MaxValue;
+                int totalRamps = 0;
+                for (int x = -20; x <= 20; x++)
                 {
-                    if (rootObj.name == "Player") playerObject = rootObj;
+                    for (int y = -20; y <= 20; y++)
+                    {
+                        if (!CityLayout.IsStreetChunk(x, y)) continue;
+                        float pad = world.Terrain.PadHeightFor(x, y);
+                        foreach ((int nx, int ny) in new[] { (x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1) })
+                        {
+                            float neighbourPad = world.Terrain.PadHeightFor(nx, ny);
+                            if (neighbourPad >= pad) continue;
+                            bool sloped = new DeterministicRandom(world.ChunkSeed(nx, ny)).NextDouble() <
+                                CityMeshBuilder.SlopedStreetChance;
+                            if (!sloped) continue;
+                            totalRamps++;
+                            double cx = CityLayout.ChunkCentreX(x);
+                            double cz = CityLayout.ChunkCentreZ(y);
+                            double distance = System.Math.Sqrt(cx * cx + cz * cz);
+                            if (distance < bestDistance)
+                            {
+                                bestDistance = distance;
+                                foundX = x; foundY = y; foundNx = nx; foundNy = ny;
+                                foundPad = pad; foundNeighbourPad = neighbourPad;
+                                found = true;
+                            }
+                        }
+                    }
                 }
-                if (playerObject == null)
+                if (!found)
                 {
-                    Debug.LogError("CityX DIAGNOSTIC: no \"Player\" found in the real saved scene.");
+                    Debug.LogError("CityX DIAGNOSTIC: no sloped street edge found within the search radius.");
                     return;
                 }
-                Vector3 spawn = playerObject.transform.position;
+                Debug.Log($"CityX DIAGNOSTIC: {totalRamps} sloped ramps within the +/-20 chunk search " +
+                    $"({20 * 48}m box) around spawn -- closest is {bestDistance:F0}m away at chunk " +
+                    $"({foundX},{foundY}) dropping to ({foundNx},{foundNy}).");
+
+                Vector3 chunkCentre = new Vector3(
+                    (float)CityLayout.ChunkCentreX(foundX), foundPad, (float)CityLayout.ChunkCentreZ(foundY));
 
                 CityStreamer streamer = Object.FindFirstObjectByType<CityStreamer>();
                 if (streamer == null)
@@ -2420,20 +2332,26 @@ namespace CityX.WeaponsEditor
                     Debug.LogError("CityX DIAGNOSTIC: no CityStreamer in the real saved scene.");
                     return;
                 }
-                streamer.StreamAround(spawn, 400);
+                streamer.StreamAround(chunkCentre, 400);
                 Physics.SyncTransforms();
 
-                // Off the spawn intersection and down one of the real
-                // streets -- chunk (0,0) is a 4-way junction (no sidewalk,
-                // no lamp, by design), so a shot centred there would prove
-                // nothing about the new feature.
-                Vector3 alongStreet = spawn + new Vector3(30.0f, 0.0f, 3.0f);
+                // Elevated three-quarter view, offset a little to the side
+                // of the centre line -- a steep ramp seen dead-on from eye
+                // height just reads as a brink with sky beyond it, the same
+                // way a real cliff edge does. Looking down and slightly
+                // across is what actually shows the sloped FACE.
+                Vector3 towardNeighbour = new Vector3(foundNx - foundX, 0.0f, foundNy - foundY).normalized;
+                Vector3 perp = Vector3.Cross(Vector3.up, towardNeighbour);
+                Vector3 cameraPos = chunkCentre - towardNeighbour * 8.0f + perp * 3.0f + new Vector3(0.0f, 18.0f, 0.0f);
+                Vector3 lookTarget = chunkCentre + towardNeighbour * 10.0f;
+                lookTarget.y = foundNeighbourPad - 3.0f;
+
                 var cameraObject = new GameObject("Camera");
                 Camera camera = cameraObject.AddComponent<Camera>();
                 camera.farClipPlane = 500.0f;
                 camera.nearClipPlane = 0.1f;
-                cameraObject.transform.position = alongStreet + new Vector3(0.0f, 1.7f, 0.0f);
-                cameraObject.transform.rotation = Quaternion.Euler(5.0f, 90.0f, 0.0f);
+                cameraObject.transform.position = cameraPos;
+                cameraObject.transform.LookAt(lookTarget);
 
                 target = new RenderTexture(1280, 720, 24, RenderTextureFormat.ARGB32) { antiAliasing = 8 };
                 camera.targetTexture = target;
@@ -2442,7 +2360,214 @@ namespace CityX.WeaponsEditor
                 var image = new Texture2D(1280, 720, TextureFormat.RGB24, false);
                 image.ReadPixels(new Rect(0, 0, 1280, 720), 0, 0);
                 image.Apply();
-                string path = System.IO.Path.Combine(outputDirectory, "street-lamps-real-scene.png");
+                string path = System.IO.Path.Combine(outputDirectory, "sloped-street-real-scene.png");
+                System.IO.File.WriteAllBytes(path, image.EncodeToPNG());
+                Object.DestroyImmediate(image);
+                Debug.Log($"CityX: wrote {path} -- chunk ({foundX},{foundY}) drops to " +
+                    $"({foundNx},{foundNy}), camera at {cameraObject.transform.position:F2}");
+            }
+            finally
+            {
+                if (target != null) { target.Release(); Object.DestroyImmediate(target); }
+            }
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        /// <summary>
+        /// DIAGNOSTIC, NOT A PERMANENT TOOL -- a birds-eye look at a real
+        /// district boundary in the streamed city, framed to show two
+        /// neighbouring districts with visibly different local block sizes
+        /// on either side of the same arterial street (EXPLICIT ASK:
+        /// "separate areas by neighborhood and having main streets
+        /// connecting them. not everything should be a blocky grid").
+        /// </summary>
+        [MenuItem("CityX/Diagnose District Boundary In Real Scene")]
+        public static void DiagnoseDistrictBoundaryInRealScene()
+        {
+            Scene scene = EditorSceneManager.OpenScene(
+                "Assets/CityX/Scenes/CityMassing.unity", OpenSceneMode.Single);
+
+            string outputDirectory = System.IO.Path.Combine(
+                System.IO.Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
+            System.IO.Directory.CreateDirectory(outputDirectory);
+
+            RenderTexture target = null;
+            try
+            {
+                int bestDistrictX = 0, bestDistrictY = 0, bestPeriodA = 0, bestPeriodB = 0;
+                double bestScore = -1.0;
+                for (int dx = -6; dx <= 6; dx++)
+                {
+                    for (int dy = -6; dy <= 6; dy++)
+                    {
+                        int periodA = CityLayout.LocalStreetPeriodFor(dx, dy);
+                        int periodB = CityLayout.LocalStreetPeriodFor(dx + 1, dy);
+                        double score = System.Math.Abs(periodA - periodB) -
+                            0.01 * (dx * dx + dy * dy); // prefer contrast, then closeness to spawn
+                        if (score > bestScore)
+                        {
+                            bestScore = score;
+                            bestDistrictX = dx;
+                            bestDistrictY = dy;
+                            bestPeriodA = periodA;
+                            bestPeriodB = periodB;
+                        }
+                    }
+                }
+
+                CityWorld world = new CityWorld(29481073);
+                // The arterial line between district (bestDistrictX, *) and
+                // (bestDistrictX+1, *), at a chunk comfortably inside the
+                // district's own Y span so both sides show real interior.
+                int arterialChunkX = (bestDistrictX + 1) * CityLayout.DistrictChunks;
+                int chunkY = bestDistrictY * CityLayout.DistrictChunks + CityLayout.DistrictChunks / 2;
+                float pad = world.Terrain.PadHeightFor(arterialChunkX, chunkY);
+                Vector3 centre = new Vector3(
+                    (float)CityLayout.ChunkCentreX(arterialChunkX), pad, (float)CityLayout.ChunkCentreZ(chunkY));
+
+                CityStreamer streamer = Object.FindFirstObjectByType<CityStreamer>();
+                if (streamer == null)
+                {
+                    Debug.LogError("CityX DIAGNOSTIC: no CityStreamer in the real saved scene.");
+                    return;
+                }
+                streamer.StreamAround(centre, 3000);
+                Physics.SyncTransforms();
+
+                var cameraObject = new GameObject("Camera");
+                Camera camera = cameraObject.AddComponent<Camera>();
+                camera.farClipPlane = 2000.0f;
+                camera.nearClipPlane = 0.1f;
+                cameraObject.transform.position = centre + new Vector3(0.0f, 260.0f, -1.0f);
+                cameraObject.transform.rotation = Quaternion.Euler(89.0f, 0.0f, 0.0f);
+
+                target = new RenderTexture(1280, 1280, 24, RenderTextureFormat.ARGB32) { antiAliasing = 8 };
+                camera.targetTexture = target;
+                camera.Render();
+                RenderTexture.active = target;
+                var image = new Texture2D(1280, 1280, TextureFormat.RGB24, false);
+                image.ReadPixels(new Rect(0, 0, 1280, 1280), 0, 0);
+                image.Apply();
+                string path = System.IO.Path.Combine(outputDirectory, "district-boundary-real-scene.png");
+                System.IO.File.WriteAllBytes(path, image.EncodeToPNG());
+                Object.DestroyImmediate(image);
+                Debug.Log($"CityX: wrote {path} -- district ({bestDistrictX},{bestDistrictY}) period " +
+                    $"{bestPeriodA} next to district ({bestDistrictX + 1},{bestDistrictY}) period {bestPeriodB}, " +
+                    $"arterial at chunk x={arterialChunkX}, camera at {cameraObject.transform.position:F2}");
+            }
+            finally
+            {
+                if (target != null) { target.Release(); Object.DestroyImmediate(target); }
+            }
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
+        /// <summary>
+        /// DIAGNOSTIC, NOT A PERMANENT TOOL -- a street-level look at a real
+        /// multi-wing building in the streamed city (EXPLICIT ASK: "you can
+        /// make different sized buildings too dont have to have 4 corners").
+        /// Searches for a building that grew wings on two or three walls at
+        /// once, not just one, since that is the case most likely to actually
+        /// read as a T or U shape rather than a plain L.
+        /// </summary>
+        [MenuItem("CityX/Diagnose Multi Wing Building In Real Scene")]
+        public static void DiagnoseMultiWingBuildingInRealScene()
+        {
+            Scene scene = EditorSceneManager.OpenScene(
+                "Assets/CityX/Scenes/CityMassing.unity", OpenSceneMode.Single);
+
+            string outputDirectory = System.IO.Path.Combine(
+                System.IO.Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
+            System.IO.Directory.CreateDirectory(outputDirectory);
+
+            RenderTexture target = null;
+            try
+            {
+                CityWorld world = new CityWorld(29481073);
+                BuildingSite bestSite = default;
+                Bounds bestWingBox = default;
+                int bestWingCount = 0;
+                for (int x = -25; x <= 25; x++)
+                {
+                    for (int y = -25; y <= 25; y++)
+                    {
+                        BuildingSite site = world.BuildingAt(x, y);
+                        if (!site.Exists || site.AnchorX != x || site.AnchorY != y)
+                        {
+                            continue;
+                        }
+                        // Prefer a corner/edge lot: IsStreetChunk next door on
+                        // two sides means open sky to shoot the wing against,
+                        // not another tower's own facade filling the frame.
+                        int openSides = 0;
+                        if (CityLayout.IsStreetChunk(x - 1, y)) openSides++;
+                        if (CityLayout.IsStreetChunk(x + 1, y)) openSides++;
+                        if (CityLayout.IsStreetChunk(x, y - 1)) openSides++;
+                        if (CityLayout.IsStreetChunk(x, y + 1)) openSides++;
+
+                        List<Bounds> wings = CityMeshBuilder.WingBoxesFor(world, site);
+                        if (wings.Count == 0 || openSides < 2)
+                        {
+                            continue;
+                        }
+                        int score = wings.Count * 10 + openSides;
+                        if (score > bestWingCount)
+                        {
+                            bestWingCount = score;
+                            bestSite = site;
+                            bestWingBox = wings[0];
+                        }
+                    }
+                }
+                if (bestWingCount == 0)
+                {
+                    Debug.LogError("CityX DIAGNOSTIC: no open-sided multi-wing building found within the search radius.");
+                    return;
+                }
+                Debug.Log($"CityX DIAGNOSTIC: building at ({bestSite.AnchorX},{bestSite.AnchorY}) has " +
+                    $"footprint {bestSite.Params.Width:F1}x{bestSite.Params.Depth:F1}, wing box {bestWingBox}.");
+
+                Vector3 centre = new Vector3((float)bestSite.CentreX, (float)bestSite.BaseHeight,
+                    (float)bestSite.CentreZ);
+
+                CityStreamer streamer = Object.FindFirstObjectByType<CityStreamer>();
+                if (streamer == null)
+                {
+                    Debug.LogError("CityX DIAGNOSTIC: no CityStreamer in the real saved scene.");
+                    return;
+                }
+                streamer.StreamAround(centre, 800);
+                Physics.SyncTransforms();
+
+                var cameraObject = new GameObject("Camera");
+                Camera camera = cameraObject.AddComponent<Camera>();
+                camera.farClipPlane = 1000.0f;
+                camera.nearClipPlane = 0.1f;
+                // High and well back, looking down at an angle -- a ground-
+                // level dolly shot this close to a dense downtown block just
+                // as often lands inside or against the NEXT building over
+                // (confirmed directly, live: a first attempt at this exact
+                // shot rendered nothing but a neighbour's ribbed facade
+                // filling the frame). Height clears every neighbour instead
+                // of gambling on which diagonal happens to be open street.
+                // Straight down from well above the roof -- the one framing
+                // that does not need to guess which direction is open sky
+                // versus another tower's own wall (confirmed directly, live:
+                // two different angled approaches each ended up aimed
+                // straight into a neighbour instead). A true plan view shows
+                // the footprint's own outline directly regardless.
+                cameraObject.transform.position =
+                    centre + Vector3.up * (bestSite.Params.Height + 45.0f);
+                cameraObject.transform.rotation = Quaternion.Euler(90.0f, 0.0f, 0.0f);
+
+                target = new RenderTexture(1280, 960, 24, RenderTextureFormat.ARGB32) { antiAliasing = 8 };
+                camera.targetTexture = target;
+                camera.Render();
+                RenderTexture.active = target;
+                var image = new Texture2D(1280, 960, TextureFormat.RGB24, false);
+                image.ReadPixels(new Rect(0, 0, 1280, 960), 0, 0);
+                image.Apply();
+                string path = System.IO.Path.Combine(outputDirectory, "multi-wing-building-real-scene.png");
                 System.IO.File.WriteAllBytes(path, image.EncodeToPNG());
                 Object.DestroyImmediate(image);
                 Debug.Log($"CityX: wrote {path} -- camera at {cameraObject.transform.position:F2}");
@@ -2455,130 +2580,20 @@ namespace CityX.WeaponsEditor
         }
 
         /// <summary>
-        /// DIAGNOSTIC, NOT A PERMANENT TOOL -- confirms the hanging ragdoll
-        /// dummy actually landed correctly in the REAL saved scene (not
-        /// just the isolated builder), near the real player's own spawn
-        /// point, after letting real physics settle it for real.
-        /// </summary>
-        [MenuItem("CityX/Diagnose Hanging Dummy In Real Scene")]
-        public static void DiagnoseHangingDummyInRealScene()
-        {
-            Scene scene = EditorSceneManager.OpenScene(
-                "Assets/CityX/Scenes/CityMassing.unity", OpenSceneMode.Single);
-
-            string outputDirectory = System.IO.Path.Combine(
-                System.IO.Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
-            System.IO.Directory.CreateDirectory(outputDirectory);
-
-            RenderTexture target = null;
-            var previousSimMode = Physics.simulationMode;
-            try
-            {
-                GameObject dummyRoot = null;
-                GameObject playerObject = null;
-                foreach (GameObject rootObj in scene.GetRootGameObjects())
-                {
-                    if (rootObj.name == "HangingRagdollDummy") dummyRoot = rootObj;
-                    if (rootObj.name == "Player") playerObject = rootObj;
-                }
-                if (dummyRoot == null)
-                {
-                    Debug.LogError("CityX DIAGNOSTIC: no \"HangingRagdollDummy\" found in the real saved scene.");
-                    return;
-                }
-                Debug.Log($"CityX DIAGNOSTIC: found dummy at {dummyRoot.transform.position:F2}, " +
-                    $"player spawns at {(playerObject != null ? playerObject.transform.position.ToString("F2") : "?")}, " +
-                    $"distance apart={(playerObject != null ? Vector3.Distance(dummyRoot.transform.position, playerObject.transform.position) : -1.0f):F2}");
-
-                // The saved scene deliberately carries NO building geometry
-                // (see CityStreamer's own class doc / CityMassingSceneBuilder's
-                // own comment where it streams-then-rolls-back around the
-                // dummy's own build step) -- so without this, the wall the
-                // dummy is actually hanging next to simply is not there yet,
-                // and the render below shows the dummy floating over an empty
-                // black street. Stream the real chunk back in, same as
-                // gameplay would the moment the player got this close.
-                CityStreamer streamer = Object.FindFirstObjectByType<CityStreamer>();
-                if (streamer != null)
-                {
-                    streamer.StreamAround(dummyRoot.transform.position, 200);
-                    Physics.SyncTransforms();
-                }
-
-                var startMethod = typeof(HangingRagdollDummy).GetMethod("Start",
-                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-                HangingRagdollDummy dummy = dummyRoot.GetComponent<HangingRagdollDummy>();
-                startMethod.Invoke(dummy, null);
-
-                Physics.simulationMode = SimulationMode.Script;
-                Rigidbody hipBody = dummy.Ragdoll.Torso;
-                for (int i = 0; i < 180; i++)
-                {
-                    Physics.Simulate(1.0f / 60.0f);
-                    dummy.UpdateRope();
-                }
-                Debug.Log($"CityX DIAGNOSTIC: settled hip velocity={hipBody.linearVelocity.magnitude:F2}, " +
-                    $"position={hipBody.position:F2}");
-
-                var cameraObject = new GameObject("Camera");
-                Camera camera = cameraObject.AddComponent<Camera>();
-                camera.fieldOfView = 55.0f;
-                camera.nearClipPlane = 0.05f;
-                camera.farClipPlane = 500.0f;
-                // Pulled back along the SAME outward direction the builder
-                // itself hung the dummy on (anchor -> body, flattened to
-                // horizontal), not a fixed offset -- a fixed (-2.5,2.2,-3.0)
-                // only happened to face the right way for the synthetic
-                // diagnostic's own fixed building placement; against a real
-                // wall at an arbitrary angle it just as often points the
-                // camera back INTO the facade instead of out into the open
-                // street the dummy is actually hanging in.
-                Vector3 outward = dummyRoot.transform.position - dummy.AnchorPoint.position;
-                outward.y = 0.0f;
-                outward = outward.sqrMagnitude > 0.01f ? outward.normalized : Vector3.back;
-                Vector3 side = Vector3.Cross(Vector3.up, outward);
-                cameraObject.transform.position = dummyRoot.transform.position
-                    + outward * 6.0f + side * 4.0f + Vector3.up * 2.0f;
-                cameraObject.transform.LookAt(dummyRoot.transform.position + Vector3.up * 1.3f);
-                foreach (SkinnedMeshRenderer skin in dummyRoot.GetComponentsInChildren<SkinnedMeshRenderer>())
-                {
-                    skin.updateWhenOffscreen = true;
-                }
-                target = new RenderTexture(900, 900, 24, RenderTextureFormat.ARGB32) { antiAliasing = 8 };
-                camera.targetTexture = target;
-                camera.Render();
-                RenderTexture.active = target;
-                var image = new Texture2D(900, 900, TextureFormat.RGB24, false);
-                image.ReadPixels(new Rect(0, 0, 900, 900), 0, 0);
-                image.Apply();
-                string path = System.IO.Path.Combine(outputDirectory, "hanging-dummy-real-scene.png");
-                System.IO.File.WriteAllBytes(path, image.EncodeToPNG());
-                Object.DestroyImmediate(image);
-                Debug.Log($"CityX: wrote {path}");
-            }
-            finally
-            {
-                Physics.simulationMode = previousSimMode;
-                if (target != null) { target.Release(); Object.DestroyImmediate(target); }
-                if (Application.isBatchMode) EditorApplication.Exit(0);
-            }
-        }
-
-        /// <summary>
         /// DIAGNOSTIC, NOT A PERMANENT TOOL -- confirms PlayerChat's own
         /// Ragdoll field actually points at the PLAYER's own Ragdoll, not
         /// some other Civilian-based body in the scene.
         ///
         /// EXPLICIT BUG REPORT this exists for: "/sleep isnt working" --
         /// root-caused directly: the scene ends up with SEVERAL Ragdoll
-        /// components (the sparring dummies and the hanging dummy are
-        /// Civilian.prefab-based too, each carrying its own), and the
-        /// original wiring used Object.FindFirstObjectByType&lt;Ragdoll&gt;()
-        /// AFTER all of them already existed in the scene -- genuinely
-        /// ambiguous about which one it would find, and it found some NPC's,
-        /// not the player's. Fixed by capturing the player's own Ragdoll
-        /// directly off the player GameObject at the moment it's built,
-        /// before any other Ragdoll exists to be confused with it.
+        /// components (the sparring dummies are Civilian.prefab-based too,
+        /// each carrying its own), and the original wiring used
+        /// Object.FindFirstObjectByType&lt;Ragdoll&gt;() AFTER all of them
+        /// already existed in the scene -- genuinely ambiguous about which
+        /// one it would find, and it found some NPC's, not the player's.
+        /// Fixed by capturing the player's own Ragdoll directly off the
+        /// player GameObject at the moment it's built, before any other
+        /// Ragdoll exists to be confused with it.
         /// </summary>
         [MenuItem("CityX/Diagnose Sleep Command")]
         public static void DiagnoseSleepCommand()

@@ -67,6 +67,49 @@ namespace CityX.Tests
             if (_logPath != null && File.Exists(_logPath)) File.Delete(_logPath);
         }
 
+        /// <summary>
+        /// STILL FAILS, HONESTLY LEFT THAT WAY -- see grapple_swing_deprioritized
+        /// memory for the full investigation trail. GrappleSwing was rebuilt
+        /// from square one to stop touching the Animator/bones entirely (see
+        /// its own class doc comment); this test's own bone-rotation-rate
+        /// check (not the position/scale ones, which pass cleanly with this
+        /// SAME input -- see GrappleSwingAnimatorPlayTests.
+        /// SwingingNeverDriftsTheVisualRigFromTheRoot) still occasionally logs a
+        /// snap on RightUpperArm during this specific 5-second, perfectly
+        /// smooth, continuously-rotating-yaw stress pattern. Three
+        /// production fixes were made along the way and are all real,
+        /// justified improvements kept regardless (PlayerLocomotion.
+        /// DriveAnimatorFromExternalVelocity: clamped to SprintSpeed, always
+        /// fed as local-forward, eased through the same _horizontalVelocity
+        /// field ordinary Tick uses) -- none of them eliminated this one.
+        /// A control test (an ordinary long fall, zero GrappleSwing
+        /// involvement, fed this exact same smooth input through
+        /// PlayerLocomotion.Tick directly) never tripped the watchdog,
+        /// ruling out "any sufficiently long fall" as the cause. The
+        /// leading hypothesis, based on reading PlayerLocomotion.
+        /// SuppressBoneSnap's own "accept unconditionally the frame after a
+        /// hold" design (a deliberate Round 7 fix for a real permanent-
+        /// lockup bug): if Mecanim's own transition into/through a
+        /// multi-second-held Falling state genuinely spans MORE than one
+        /// frame, the correction's hold-then-unconditional-accept pattern
+        /// can let a real, multi-frame transition's SECOND half through
+        /// with zero validation, which THIS watchdog (a separate observer
+        /// with its own frame-to-frame reference) still sees as one large
+        /// jump even though PlayerLocomotion's own bookkeeping considers it
+        /// resolved. Nothing in this whole codebase ever held Grounded=false
+        /// with a LIVE Animator for multiple continuous seconds before this
+        /// rebuild (the old GrappleSwing disabled the Animator outright, and
+        /// no ordinary fall lasts this long) -- if true, this is a
+        /// pre-existing characteristic of an already-many-times-revised core
+        /// system, newly exposed by a genuinely novel scenario, not a new
+        /// bug in GrappleSwing's own code. NOT CONFIRMED, and deliberately
+        /// not "fixed" by touching SuppressBoneSnap itself -- that system
+        /// has already been revised many times chasing this exact saga, and
+        /// a further change needs its own dedicated verification, not a
+        /// guess bolted on at the end of an unrelated rebuild. See this
+        /// test's own doc comment history / grapple_swing_deprioritized
+        /// memory before touching it again.
+        /// </summary>
         [UnityTest]
         public IEnumerator ARealVariedSwingNeverTriggersTheWatchdog()
         {
@@ -155,16 +198,17 @@ namespace CityX.Tests
             // frame (between this test's own injection and the watchdog's
             // LateUpdate), silently overwriting the injected snap before
             // the watchdog could ever see it. Matches how a genuine snap
-            // would actually be visible in this rig -- GrappleSwing/
-            // Ragdoll both disable the Animator before taking a bone over
-            // for exactly this reason.
+            // would actually be visible in this rig -- Ragdoll disables the
+            // Animator before taking a bone over for exactly this reason
+            // (GrappleSwing used to as well; rebuilt from square one to
+            // never touch a bone or the Animator at all -- see its own
+            // class doc comment).
             _animator.enabled = false;
             yield return null;
 
             // An instantaneous 170-degree jump in one frame -- nothing in
             // this project's own real pose systems moves a bone this far
-            // in a single frame (GrappleSwing's own reach eases at 240
-            // degrees per SECOND).
+            // in a single frame.
             rightUpperArm.localRotation = rightUpperArm.localRotation * Quaternion.Euler(170.0f, 0.0f, 0.0f);
             yield return null;
 

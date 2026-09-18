@@ -80,6 +80,67 @@ namespace CityX.World
         private static readonly double[] OctaveWeights = { 0.7, 0.3 };
 
         /// <summary>
+        /// A third, much-larger-wavelength noise sample -- not another
+        /// octave of relief, but an ENVELOPE that scales the two octaves
+        /// above up or down by place. EXPLICIT ASK: "not every part of the
+        /// world should be on a hill, there should be some large areas of
+        /// the map that are flat like multiple blocks large... make the
+        /// steepness and flat parts come in clusters."
+        ///
+        /// ~2700m is many districts wide (CityLayout.DistrictChunks worth
+        /// of chunks is 576m), so a "flat" or "hilly" patch reads as a
+        /// whole region of the city, not per-block noise -- the same
+        /// "wavelengths long compared to a chunk" reasoning
+        /// OctaveWavelengths' own comment gives, just one level up in
+        /// scale.
+        /// </summary>
+        private const double RegionWavelength = 2700.0;
+
+        /// <summary>
+        /// A salt distinct from every OctaveWavelengths index (which use
+        /// 1, 2, ...) and from RegionFlatnessFactor's own internal choices
+        /// below -- an independent lattice, not a resample of the terrain
+        /// octaves at a third scale.
+        /// </summary>
+        private const ulong RegionSalt = 1000UL;
+
+        /// <summary>
+        /// RegionFlatnessFactor's raw [0,1) noise is remapped through
+        /// Smoothstep between these two thresholds -- below
+        /// RegionFlatThreshold is fully flat, above RegionHillyThreshold is
+        /// fully hilly, and the gap between them is where a cluster
+        /// gradually eases from one into the other rather than meeting at
+        /// a hard seam. The gap is deliberately wide (0.3 of the whole
+        /// [0,1) range) so the transition band itself spans a meaningful
+        /// distance rather than reading as a sudden edge.
+        /// </summary>
+        private const double RegionFlatThreshold = 0.35;
+
+        private const double RegionHillyThreshold = 0.65;
+
+        /// <summary>
+        /// Even a "flat" region keeps this fraction of the ordinary terrain
+        /// amplitude -- a perfectly billiard-table plane reads as a bug,
+        /// not a place; real flat ground still has gentle undulation.
+        ///
+        /// RAISED FROM 0.12: EXPLICIT BUG REPORT, "it seems there are no
+        /// sloped roads now." The world's fixed spawn point (chunk (0,0),
+        /// every new game) happened to land deep inside one of
+        /// RegionWavelength's own flat clusters -- at 0.12 the nearest real
+        /// sloped street to spawn was 266m away, easily read as "none at
+        /// all" during ordinary early play. 0.4 still keeps a flat region
+        /// visibly calmer than a hilly one (well under half amplitude), but
+        /// pulls that same nearest slope in to roughly 60m -- see
+        /// DiagnoseSlopedStreetInRealScene's own "N sloped ramps... closest
+        /// is Xm away" log line, the tool this was actually measured with.
+        /// Provably free to change on its own: MaxSlope's own derivation
+        /// already assumes flatness=1 (fully hilly) for its worst case, so
+        /// this constant does not appear in EnvelopeSlope or TerrainSlope
+        /// at all -- see MaxSlope's own doc comment.
+        /// </summary>
+        private const double MinFlatnessFactor = 0.4;
+
+        /// <summary>
         /// Provable upper bound on the steepness of the CONTINUOUS field, in
         /// metres of rise per metre travelled along an axis.
         ///
@@ -88,9 +149,30 @@ namespace CityX.World
         /// So that octave's slope is at most 1.5/wavelength per unit amplitude.
         /// Summing over the octaves and scaling by the relief:
         ///
-        ///     MaxSlope = TotalRelief * 1.5 * SUM(weight_i / wavelength_i)
-        ///              = 72 * 1.5 * (0.7/384 + 0.3/144)
-        ///              = 0.421875 m/m
+        ///     TerrainSlope = TotalRelief * 1.5 * SUM(weight_i / wavelength_i)
+        ///                  = 72 * 1.5 * (0.7/384 + 0.3/144)
+        ///                  = 0.421875 m/m
+        ///
+        /// RegionFlatnessFactor multiplies the octave sum by a value in
+        /// [MinFlatnessFactor, 1] wherever it is 1 this term vanishes and
+        /// TerrainSlope alone bounds the field exactly as before, but the
+        /// envelope itself varies in space too (across the transition band
+        /// between RegionFlatThreshold and RegionHillyThreshold), and that
+        /// variation multiplies the noise's own [-0.5, 0.5) centred swing
+        /// (see ContinuousHeightAt's own "centred around its own mean" step).
+        /// The envelope's own worst-case slope, by the identical smoothstep
+        /// derivation above, is bounded by
+        ///
+        ///     EnvelopeSlope = TotalRelief * 0.5 * 1.5 /
+        ///                     (RegionWavelength * (RegionHillyThreshold - RegionFlatThreshold))
+        ///
+        /// (0.5 for the centred swing's own half-range, RegionWavelength
+        /// standing in for "wavelength", and the threshold gap standing in
+        /// for "how much of one lattice cell the whole transition is
+        /// stretched across", since Smoothstep's own s'(t) assumes t spans
+        /// a full [0,1) already). Summing the two keeps this a true,
+        /// provable upper bound rather than a guess -- verified numerically
+        /// by TerrainFieldTests.ContinuousFieldNeverExceedsItsDerivedSlopeBound.
         ///
         /// Which is the property that matters: over one 24m chunk the ground can
         /// rise at most 10.125m, so two neighbouring platforms can differ by at
@@ -140,7 +222,72 @@ namespace CityX.World
                 // up everywhere.
                 sum += OctaveWeights[i] * ValueNoise(worldX, worldZ, OctaveWavelengths[i], (ulong)(i + 1));
             }
-            return SeaLevel + TotalRelief * sum;
+
+            // Flattened AROUND ITS OWN MEAN (0.5), not toward SeaLevel --
+            // scaling sum directly toward 0 would pull every flat region
+            // down to sea level instead of flattening it wherever it
+            // already happens to sit. A flat plateau can be high, low, or
+            // anywhere in between; only its own local RELIEF shrinks.
+            double flatness = RegionFlatnessFactor(worldX, worldZ);
+            double centred = 0.5 + (sum - 0.5) * flatness;
+            return SeaLevel + TotalRelief * centred;
+        }
+
+        /// <summary>
+        /// A version of ContinuousHeightAt averaged over several samples
+        /// spread along one axis, for a structure engineered to a gentler
+        /// vertical profile than the raw terrain -- continuing the exact use
+        /// case ContinuousHeightAt's own doc comment already names ("a road
+        /// ramp, a rail viaduct"): such a structure travels in one direction
+        /// and, in reality, never chases every short bump the ground makes,
+        /// only the broader trend.
+        ///
+        /// Averaging along ONE axis rather than a 2D blur matches that a
+        /// viaduct/highway only travels one way -- the cross-axis coordinate
+        /// stays exact, only the along-axis neighbourhood is sampled.
+        /// windowMetres should be chosen relative to OctaveWavelengths (see
+        /// that field's own doc comment): a window comparable to or larger
+        /// than an octave's wavelength damps that octave's contribution
+        /// substantially, which is the whole point -- shorter wavelengths
+        /// average toward their own local mean over the window, longer ones
+        /// pass through relatively unaffected.
+        /// </summary>
+        public double SmoothedHeightAt(double worldX, double worldZ, bool alongX,
+            double windowMetres, int sampleCount)
+        {
+            double sum = 0.0;
+            for (int i = 0; i < sampleCount; i++)
+            {
+                double t = sampleCount == 1 ? 0.0 : (double)i / (sampleCount - 1) - 0.5;
+                double offset = t * windowMetres;
+                double sx = alongX ? worldX + offset : worldX;
+                double sz = alongX ? worldZ : worldZ + offset;
+                sum += ContinuousHeightAt(sx, sz);
+            }
+            return sum / sampleCount;
+        }
+
+        /// <summary>
+        /// How much of the ordinary terrain relief applies here, in
+        /// [MinFlatnessFactor, 1.0] -- 1.0 is a fully hilly region, near
+        /// MinFlatnessFactor is a fully flat one, smoothly blended across
+        /// the transition band between RegionFlatThreshold and
+        /// RegionHillyThreshold. See RegionWavelength's own doc comment for
+        /// why "large multi-block clusters" falls out of just using a much
+        /// longer wavelength than the terrain octaves themselves.
+        ///
+        /// Public for the same reason ContinuousHeightAt is: a diagnostic,
+        /// a future biome system, or a capture tool that wants to know
+        /// "how hilly is it here" without re-deriving this from height
+        /// samples should be able to ask directly.
+        /// </summary>
+        public double RegionFlatnessFactor(double worldX, double worldZ)
+        {
+            double raw = ValueNoise(worldX, worldZ, RegionWavelength, RegionSalt);
+            double t = (raw - RegionFlatThreshold) / (RegionHillyThreshold - RegionFlatThreshold);
+            t = Math.Max(0.0, Math.Min(1.0, t));
+            double smooth = Smoothstep(t);
+            return MinFlatnessFactor + (1.0 - MinFlatnessFactor) * smooth;
         }
 
         /// <summary>
@@ -260,7 +407,15 @@ namespace CityX.World
             {
                 sum += OctaveWeights[i] / OctaveWavelengths[i];
             }
-            return TotalRelief * 1.5 * sum;
+            double terrainSlope = TotalRelief * 1.5 * sum;
+
+            // See MaxSlope's own doc comment for the derivation -- the
+            // flatness envelope varies in space too and contributes its
+            // own, smaller, slope term on top of the terrain octaves'.
+            double envelopeSlope = TotalRelief * 0.5 * 1.5 /
+                (RegionWavelength * (RegionHillyThreshold - RegionFlatThreshold));
+
+            return terrainSlope + envelopeSlope;
         }
     }
 }

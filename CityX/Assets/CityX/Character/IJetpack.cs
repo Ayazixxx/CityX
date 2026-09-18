@@ -30,7 +30,31 @@ namespace CityX.Character
         /// see its own wantsSprint comment for why that would double up on
         /// one key with two unrelated meanings and drain stamina for a
         /// mechanic the explicit ask says should not cost any.
+        /// <paramref name="cameraPitchDegrees"/> is ThirdPersonCamera's own
+        /// Pitch for this frame -- EXPLICIT ASK, "make it curve and turn
+        /// with where your looking": flying forward angles the climb/dive
+        /// rate to it instead of always pushing straight up (see
+        /// Jetpack.ClimbVelocityFor's own doc comment for the actual math).
         /// </summary>
-        void Tick(bool thrustHeld, Vector2 moveInput, bool boostHeld, float deltaTime);
+        void Tick(bool thrustHeld, Vector2 moveInput, bool boostHeld, float deltaTime,
+            float cameraPitchDegrees = 0.0f);
+
+        /// <summary>
+        /// Force-stops the flame/thrust audio without a full Tick call --
+        /// see Jetpack.StopThrustEffects' own doc comment. PlayerInputReader
+        /// calls this every frame while the ragdoll is limp, since Tick (the
+        /// only other place that stops these) never runs again once the
+        /// player goes limp, regardless of whether the thrust key is still held.
+        /// </summary>
+        void StopThrustEffects();
+
+        /// <summary>
+        /// Snaps the body's own lean back to upright immediately -- see
+        /// Jetpack.ResetTilt's own doc comment. PlayerInputReader calls this
+        /// every frame while the ragdoll is limp, alongside StopThrustEffects,
+        /// since Tick (the only other place that eases this back out) never
+        /// runs again once the player goes limp either.
+        /// </summary>
+        void ResetTilt();
     }
 }

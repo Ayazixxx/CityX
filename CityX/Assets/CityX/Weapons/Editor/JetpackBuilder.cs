@@ -17,11 +17,35 @@ namespace CityX.WeaponsEditor
     public static class JetpackBuilder
     {
         private const string PrefabPath = "Assets/CityX/Weapons/Jetpack.prefab";
-        private const string ThrustClipPath = "Assets/CityX/Weapons/Audio/jetpack_thrust_loop.mp3";
+
+        /// <summary>
+        /// WAV, not the original MP3 -- EXPLICIT BUG REPORT: "the jetpack
+        /// has been sounding choppy for awhile." The original
+        /// jetpack_thrust_loop.mp3 (0.86s) had no seamless loop point at
+        /// all -- MP3 encoding also pads real, measured leading silence
+        /// (LAME encoder delay, confirmed directly building the wind loop
+        /// -- see WindClipPath's own doc comment), which on a clip this
+        /// short repeats often enough for the resulting click/gap to read
+        /// as constant "chugging" rather than a rare, easy-to-miss pop.
+        /// Rebuilt with the exact same sample-aligned self-crossfade
+        /// technique as the wind loop and re-exported as WAV -- no codec
+        /// framing delay, so the loop point stays exactly what it was built
+        /// to be. The old .mp3 is gone; nothing else in the project
+        /// referenced it directly by path except this constant.
+        /// </summary>
+        private const string ThrustClipPath = "Assets/CityX/Weapons/Audio/jetpack_thrust_loop.wav";
+
+        /// <summary>
+        /// WAV, not MP3 -- see Jetpack.WindAudio's own doc comment for why:
+        /// this clip was built as a seamless loop with an exact crossfade
+        /// at the splice point, and MP3 encoding pads a real, measured gap
+        /// of silence at the start of the file that would reintroduce a
+        /// click on every loop.
+        /// </summary>
+        private const string WindClipPath = "Assets/CityX/Weapons/Audio/jetpack_wind_loop.wav";
 
         private static readonly Color TankColour = new Color(0.55f, 0.56f, 0.58f);
         private static readonly Color PlateColour = new Color(0.12f, 0.12f, 0.13f);
-        private static readonly Color FlameColour = new Color(1.0f, 0.55f, 0.1f);
 
         private const float TankRadius = 0.09f;
         private const float TankHeight = 0.42f;
@@ -72,7 +96,7 @@ namespace CityX.WeaponsEditor
                 flameObject.transform.SetParent(root.transform, false);
                 flameObject.transform.localPosition = new Vector3(0.0f, -TankHeight * 0.5f - 0.02f, PlateThickness * 0.5f);
                 flameObject.transform.localRotation = Quaternion.Euler(90.0f, 0.0f, 0.0f);
-                ParticleSystem flame = BuildFlame(flameObject);
+                ParticleSystem flame = BuildFlame(flameObject.transform);
 
                 var pickupTrigger = root.AddComponent<SphereCollider>();
                 pickupTrigger.isTrigger = true;
@@ -81,6 +105,7 @@ namespace CityX.WeaponsEditor
                 var jetpack = root.AddComponent<Jetpack>();
                 jetpack.FlameEffect = flame;
                 jetpack.ThrustAudio = BuildThrustAudio(root);
+                jetpack.WindAudio = BuildWindAudio(root);
 
                 GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
                 AssetDatabase.SaveAssets();
@@ -108,39 +133,38 @@ namespace CityX.WeaponsEditor
         }
 
         /// <summary>
-        /// A small, cheap cone of orange particles -- Jetpack.Tick starts/
-        /// stops this by calling Play()/Stop() directly, so looping is what
-        /// keeps it going for as long as thrust is held rather than firing
-        /// once per call.
+        /// THE SAME FLAME FlamethrowerBuilder BUILDS, EXPLICIT ASK: "replace
+        /// the flame effect... with the same one you used for the
+        /// flamethrower it looks way better." The old jetpack flame was one
+        /// flat, untextured cone -- Unity's Particles/Unlit shader with no
+        /// texture assigned renders a hard-edged square per particle rather
+        /// than a soft flame-like blob (see FlamethrowerBuilder's own
+        /// BuildFlameMaterial doc comment, confirmed there directly by
+        /// rendering without one first). Reuses FlamethrowerBuilder's own
+        /// outer+core layers verbatim (promoted to internal for exactly
+        /// this call) rather than copying their setup by hand, so the two
+        /// stay identical for free if that tuning ever changes.
+        ///
+        /// NO SMOKE OR MUZZLE LIGHT, unlike the flamethrower's own build --
+        /// those read as a WEAPON being fired, not a thrust exhaust the
+        /// player flies around with continuously; "the flame effect" is the
+        /// two fire layers themselves, which is what actually got the "way
+        /// better" verdict.
+        ///
+        /// Parented under flameObject exactly as the old single-layer cone
+        /// was -- flameObject's own transform (pointed straight down, see
+        /// the call site) is what aims it, unchanged.
         /// </summary>
-        private static ParticleSystem BuildFlame(GameObject flameObject)
+        private static ParticleSystem BuildFlame(Transform flameObject)
         {
-            ParticleSystem particles = flameObject.AddComponent<ParticleSystem>();
-            ParticleSystem.MainModule main = particles.main;
-            main.loop = true;
-            main.playOnAwake = false;
-            main.startLifetime = 0.25f;
-            main.startSpeed = 3.0f;
-            main.startSize = 0.06f;
-            main.startColor = FlameColour;
-            main.simulationSpace = ParticleSystemSimulationSpace.Local;
+            Texture2D particleTexture = FlamethrowerBuilder.BuildParticleTexture();
+            Material flameMaterial = FlamethrowerBuilder.BuildFlameMaterial(particleTexture);
 
-            ParticleSystem.EmissionModule emission = particles.emission;
-            emission.rateOverTime = 60.0f;
+            ParticleSystem outer = FlamethrowerBuilder.BuildOuterFlame(flameObject, flameMaterial);
+            FlamethrowerBuilder.BuildCoreFlame(outer.transform, flameMaterial);
 
-            ParticleSystem.ShapeModule shape = particles.shape;
-            shape.shapeType = ParticleSystemShapeType.Cone;
-            shape.angle = 12.0f;
-            shape.radius = TankRadius * 0.6f;
-
-            var renderer = flameObject.GetComponent<ParticleSystemRenderer>();
-            renderer.material = CharacterSkin.Ensure("JetpackFlameParticle", FlameColour);
-            renderer.sharedMaterial.SetFloat("_Surface", 1.0f); // transparent, matching an emissive flame rather than a lit solid
-            renderer.sharedMaterial.SetFloat("_Metallic", 0.0f);
-            renderer.sharedMaterial.SetFloat("_Smoothness", 0.0f);
-
-            particles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
-            return particles;
+            outer.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            return outer;
         }
 
         /// <summary>
@@ -159,6 +183,32 @@ namespace CityX.WeaponsEditor
             if (source.clip == null)
             {
                 Debug.LogWarning($"CityX: {ThrustClipPath} missing -- jetpack will thrust silently.");
+            }
+            source.loop = true;
+            source.playOnAwake = false;
+            source.spatialBlend = 0.0f;
+            return source;
+        }
+
+        /// <summary>
+        /// A SEPARATE AudioSource from ThrustAudio, not the same one with a
+        /// swapped clip -- Jetpack.Tick starts/stops each independently
+        /// (ThrustAudio on thrustHeld alone, this on thrustHeld AND
+        /// boostHeld), so an ordinary unboosted thrust needs ThrustAudio's
+        /// own engine loop to keep playing uninterrupted while this one
+        /// stays silent. EXPLICIT ASK: "add this wind noise as a looping
+        /// sound when flying through the air at shift speed using
+        /// jetpack." Same non-positional spatialBlend reasoning as
+        /// BuildThrustAudio -- the sound of air rushing past THIS BODY,
+        /// not a positioned effect.
+        /// </summary>
+        private static AudioSource BuildWindAudio(GameObject root)
+        {
+            var source = root.AddComponent<AudioSource>();
+            source.clip = AssetDatabase.LoadAssetAtPath<AudioClip>(WindClipPath);
+            if (source.clip == null)
+            {
+                Debug.LogWarning($"CityX: {WindClipPath} missing -- boosted jetpack flight will have no wind.");
             }
             source.loop = true;
             source.playOnAwake = false;

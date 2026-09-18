@@ -51,6 +51,16 @@ namespace CityX.Net
 
         private NetworkManager _networkManager;
 
+        /// <summary>
+        /// The NetworkManager this bootstrap drives. Public so a caller that
+        /// needs to know WHEN a connection attempt actually succeeds or fails
+        /// (the title screen's own Join button, which -- unlike Host -- has
+        /// no synchronous answer) can subscribe to its ClientManager's own
+        /// OnClientConnectionState directly, rather than this class growing
+        /// a duplicate event for everything FishNet already exposes.
+        /// </summary>
+        public NetworkManager Manager => _networkManager;
+
         /// <summary>The topology this process resolved to. Set before anything starts.</summary>
         public GameMode Mode { get; private set; }
 
@@ -96,8 +106,17 @@ namespace CityX.Net
         /// <summary>
         /// Starts the topology for <paramref name="mode"/>. Public and
         /// parameterised so tests can drive it without a command line.
+        ///
+        /// Returns whether every socket this topology needs actually came up.
+        /// A dedicated shard's own startup path has always ignored this (a
+        /// misconfigured shard already refuses loudly above, in Start()), but
+        /// a menu that just asked to host on a specific port needs to know
+        /// synchronously whether that port was actually free -- ENet-style
+        /// peers (and FishNet's own StartConnection) report a bind failure
+        /// immediately, not asynchronously, so there is a real answer to
+        /// give here rather than an optimistic assumption.
         /// </summary>
-        public void Begin(GameMode mode, LaunchArgs args)
+        public bool Begin(GameMode mode, LaunchArgs args)
         {
             Mode = mode;
             Args = args;
@@ -105,17 +124,18 @@ namespace CityX.Net
             if (_networkManager == null)
             {
                 Debug.LogError("[CityX] NetworkBootstrap has no NetworkManager; nothing started.");
-                return;
+                return false;
             }
 
             Transport transport = _networkManager.TransportManager.Transport;
             if (transport == null)
             {
                 Debug.LogError("[CityX] NetworkManager has no Transport assigned; nothing started.");
-                return;
+                return false;
             }
 
             transport.SetPort(args.Port);
+            bool ok = true;
 
             if (GameModeInfo.RunsServer(mode))
             {
@@ -126,7 +146,7 @@ namespace CityX.Net
                     ? _publicBindAddress
                     : LoopbackBindAddress;
                 transport.SetServerBindAddress(bind, IPAddressType.IPv4);
-                _networkManager.ServerManager.StartConnection(args.Port);
+                ok &= _networkManager.ServerManager.StartConnection(args.Port);
             }
 
             if (GameModeInfo.RunsClient(mode))
@@ -135,10 +155,18 @@ namespace CityX.Net
                 // private-session host take the same path here -- they differ
                 // only in who else can get in.
                 string address = GameModeInfo.RunsServer(mode) ? LoopbackBindAddress : args.Address;
-                _networkManager.ClientManager.StartConnection(address, args.Port);
+                ok &= _networkManager.ClientManager.StartConnection(address, args.Port);
             }
 
-            Debug.Log($"[CityX] started {mode} -- {DescribeTopology(mode, args)}");
+            if (ok)
+            {
+                Debug.Log($"[CityX] started {mode} -- {DescribeTopology(mode, args)}");
+            }
+            else
+            {
+                Debug.LogWarning($"[CityX] failed to start {mode} -- {DescribeTopology(mode, args)}");
+            }
+            return ok;
         }
 
         /// <summary>Stops whatever is running. Safe to call when nothing is.</summary>

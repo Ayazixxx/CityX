@@ -135,6 +135,7 @@ namespace CityX.UI
             "celshade",
             "equip",
             "unequip",
+            "goto",
         };
 
         public static string UsageFor(string verb)
@@ -149,11 +150,12 @@ namespace CityX.UI
                 case "infinitehealth": return "/infinitehealth -- toggles";
                 case "infinitesprint": return "/infinitesprint -- toggles";
                 case "xp": return "/xp <amount>";
-                case "spawn": return "/spawn <dummy|civilian|radio|bottle|jeans|cloak|grapple|mustang>";
+                case "spawn": return "/spawn <dummy|civilian|flyer|crimsonclaw|radio|bottle|jeans|cloak|grapple|mustang|jetpack|parachute|book>";
                 case "car": return "/car pose -- logs the nearest car's seat positions (drag them in the Editor to nudge)";
                 case "celshade": return "/celshade -- toggles toon shading on every character skin";
-                case "equip": return "/equip <bottle|jeans|cloak|grapple>";
+                case "equip": return "/equip <bottle|jeans|cloak|grapple|jetpack|parachute>";
                 case "unequip": return "/unequip <hand_r|legs|top>";
+                case "goto": return "/goto <slope|district> -- teleports to the nearest one";
                 default: return null;
             }
         }

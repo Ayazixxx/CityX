@@ -205,7 +205,11 @@ namespace CityX.UI
             }
             if (IsSleepCommand(text))
             {
-                Ragdoll?.Activate(Vector3.zero);
+                // EXPLICIT ASK: "make it so i can press space to get up at
+                // any time after /sleep is used" -- see Ragdoll.CanStandUp's
+                // own doc comment for why /sleep specifically skips the
+                // ordinary rest timer real knockdowns use.
+                Ragdoll?.Activate(Vector3.zero, allowImmediateStandUp: true);
                 return;
             }
             Bubble?.Show(text);

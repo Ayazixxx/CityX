@@ -812,6 +812,20 @@ namespace CityX.CharacterEditor
             outOfExiting.exitTime = 1.0f;
         }
 
+        // Sitting on a BenchSeat (View/BenchSeat.cs) does NOT get an
+        // Animator state here -- a first version reused entering_car.fbx's
+        // own held pose (a real Bool state, matching Dance/Breakdance's
+        // toggle shape rather than AddCarSeatStates' one-shot Triggers),
+        // but a scratch capture showed it looking broken no matter where
+        // the root was placed: that clip's own hip/leg shape is built for
+        // reaching a car's low wheel with legs stretched flat, not for
+        // sitting upright with bent knees -- EXPLICIT FEEDBACK confirmed
+        // it ("make him sit on his but[t]"). PlayerLocomotion.
+        // ApplySittingPose now bends the real leg bones directly instead,
+        // the same procedural-pose idiom ApplyCastingPose/
+        // ApplyDrivingWheelPose already use for "no real clip fits" --
+        // nothing for this editor script to build.
+
         /// <summary>
         /// The charge-up pose for a held jump. Saints Row 4's own charge
         /// jump, with no Godot equivalent to port -- see
@@ -1234,6 +1248,7 @@ namespace CityX.CharacterEditor
 
                 root.AddComponent<PlayerLocomotion>();
                 root.AddComponent<PlayerClimbing>();
+                root.AddComponent<WallStick>();
                 root.AddComponent<PlayerVitals>();
                 MeleeAttacker melee = root.AddComponent<MeleeAttacker>();
                 // player.gd's three punch impact samples, the same files. A
@@ -1257,6 +1272,29 @@ namespace CityX.CharacterEditor
                 // Added last: it looks for the others in Awake.
                 root.AddComponent<PlayerInputReader>();
 
+                // DELIBERATELY NOT NetworkObject/NetworkTransform/
+                // NetworkedPlayerIdentity/NetworkedAnimatorSync here. Tried
+                // that first; it broke ~80 pre-existing PlayMode tests that
+                // Object.Instantiate this exact prefab directly with no
+                // FishNet spawn pipeline or NetworkManager involved at all
+                // (the vast majority of this project's own test suite, all
+                // written before networking existed) -- FishNet's own
+                // NetworkObject.Awake() unconditionally logs an error
+                // ("is expected to be initialized but was not") for ANY
+                // instance that is neither a real scene object (a baked,
+                // SceneId-bearing placement) nor spawned through FishNet's
+                // own object pool (NetworkManager.GetPooledInstantiated),
+                // and Unity's Test Framework fails a test on any unexpected
+                // error log. A plain Object.Instantiate always hits that
+                // exact gap, no matter how the prefab was reserialized.
+                // See NetworkedPlayerSpawner's own doc comment for where the
+                // networking components actually get added instead: the ONE
+                // baked scene instance directly (a genuine scene object,
+                // which does get a valid SceneId), and a SEPARATE derived
+                // prefab used only for spawned clones (never this shared
+                // one, so every existing single-player test keeps
+                // Instantiating a completely plain Player prefab, exactly
+                // as before this feature ever existed).
                 GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
                 return saved;
             }

@@ -2,6 +2,8 @@ using System.IO;
 using CityX.Character;
 using CityX.View;
 using CityX.World;
+using FishNet.Component.Transforming;
+using FishNet.Object;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -30,6 +32,22 @@ namespace CityX.ViewEditor
         private const string ScenePath = SceneDirectory + "/CityMassing.unity";
         private const string MaterialDirectory = "Assets/CityX/View/Materials";
 
+        /// <summary>
+        /// The real, played game world's own seed. EXPLICIT ASK: "generate
+        /// a new world every time you make a change to the city
+        /// generation" -- was two separate hardcoded 54145500 literals
+        /// (TerrainField and CityStreamer.WorldSeed below) that had to be
+        /// kept in sync by hand; a single named constant here is what
+        /// actually makes rerolling it, going forward, a one-line, can't-
+        /// miss-a-spot change. TitleScreenBuilder/CityMassingCapture/
+        /// GrapplingHookBuilder each still carry their OWN copy of this
+        /// same number (different files, no shared constant to reference
+        /// across assemblies) -- change all of them together, or the title
+        /// screen's backdrop and the massing scene's own city stop
+        /// matching.
+        /// </summary>
+        private const int WorldSeed = 29481073;
+
         [MenuItem("CityX/Rebuild Massing Scene")]
         public static void Build()
         {
@@ -53,6 +71,7 @@ namespace CityX.ViewEditor
             Material darkGlass = EnsureGlassMaterial("CityGlassDark", false);
             Material litGlass = EnsureGlassMaterial("CityGlassLit", true);
             Material crackedGlass = EnsureGlassMaterial("CityGlassCracked", false, cracked: true);
+            Material crackDecal = EnsureCrackDecalMaterial();
             GameObject shards = GlassShardsBuilder.Build();
 
             // building_door.gd's own DOOR_COLOR / HANDLE_COLOR. Lit, unlike the
@@ -72,6 +91,13 @@ namespace CityX.ViewEditor
             // not just a different shape.
             Material guardRail = EnsureLitMaterial("CityGuardRail", new Color(0.28f, 0.30f, 0.33f));
 
+            // Warm wood, the same "park furniture" brown a real bench slat
+            // is painted or stained -- distinct from the guardrail's cool
+            // steel and the pavement's light concrete for the same reason.
+            Material benchWood = EnsureLitMaterial("CityBenchWood", new Color(0.42f, 0.28f, 0.16f));
+            // Darker, aged wood -- a reading stand reads as furniture in
+            // its own right, distinct from a bench's own lighter warm brown.
+            Material bookStand = EnsureLitMaterial("CityBookStand", new Color(0.24f, 0.16f, 0.10f));
 
             Material skyDome = EnsureSkyMaterial();
             VolumeProfile grade = EnsureGradeProfile();
@@ -104,6 +130,20 @@ namespace CityX.ViewEditor
             sun.type = LightType.Directional;
             sun.shadows = LightShadows.Soft;
 
+            // Screen-space lens flare -- the RP asset already has
+            // m_SupportScreenSpaceLensFlare on, but nothing was ever
+            // attached to make use of it. useOcclusion matters more here
+            // than it would in an open scene: this is a dense city of
+            // narrow canyons, so most of the time the sun is behind a
+            // building, and without occlusion the flare would shine
+            // straight through it.
+            LensFlareComponentSRP sunFlare = sunObject.AddComponent<LensFlareComponentSRP>();
+            sunFlare.lensFlareData = EnsureSunLensFlareData();
+            sunFlare.intensity = 1.4f;
+            sunFlare.useOcclusion = true;
+            sunFlare.occlusionRadius = 0.2f;
+            sunFlare.sampleCount = 16;
+
             GameObject moonObject = new GameObject("Moon");
             Light moon = moonObject.AddComponent<Light>();
             moon.type = LightType.Directional;
@@ -128,18 +168,39 @@ namespace CityX.ViewEditor
             UniversalAdditionalCameraData cameraData = cameraObject.AddComponent<UniversalAdditionalCameraData>();
             cameraData.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
             cameraData.antialiasingQuality = AntialiasingQuality.High;
+            // EXPLICIT BUG, the camera-side twin of the Volume persistence bug
+            // documented on EnsureGradeProfile: UniversalAdditionalCameraData's
+            // own renderPostProcessing defaults to FALSE, and nothing here ever
+            // set it true. The grade Volume below has been correctly wired and
+            // correctly persisted since that earlier fix, but this camera was
+            // never actually asking to use it -- so tonemapping, bloom,
+            // vignette, chromatic aberration and film grain have never actually
+            // rendered in the real game at all. Confirmed directly against the
+            // committed scene file: m_RenderPostProcessing serialized as 0 on
+            // both cameras in CityMassing.unity.
+            cameraData.renderPostProcessing = true;
             cameraObject.AddComponent<FlyCamera>();
             cameraObject.AddComponent<AudioListener>();
 
-            TerrainField terrain = new TerrainField(20260810);
+            TerrainField terrain = new TerrainField(WorldSeed);
             // Chunk (0,0) is a street on both axes, so this is a road junction
             // with buildings on every side -- the view worth opening on.
-            float groundHeight = terrain.PadHeightFor(0, 0);
+            //
+            // ContinuousHeightAt, not PadHeightFor -- a street chunk's own
+            // ground is tilted to the smooth continuous field now, not flat
+            // at the quantised pad (see CityMeshBuilder.BuildGround's own
+            // "hillside streets" comment). Spawning at the old flat pad
+            // height could land the player below the REAL tilted road
+            // surface, with nothing there to catch a CharacterController
+            // that starts already under the ground -- which is exactly what
+            // read as "load in and fall through the floor forever."
+            float groundHeight = (float)terrain.ContinuousHeightAt(
+                CityLayout.ChunkSize * 0.5, CityLayout.ChunkSize * 0.5);
             // Captured here, not looked up later with FindFirstObjectByType --
             // the scene ends up with SEVERAL Ragdoll components (the sparring
-            // dummies and the hanging dummy are Civilian.prefab-based too, and
-            // each carries its own), so a type-only lookup after they all
-            // exist is genuinely ambiguous about which one it finds. EXPLICIT
+            // dummies are Civilian.prefab-based too, and each carries its
+            // own), so a type-only lookup after they all exist is genuinely
+            // ambiguous about which one it finds. EXPLICIT
             // BUG REPORT this caused: "/sleep" wired to whichever Ragdoll
             // FindFirstObjectByType happened to return first -- some NPC
             // somewhere, never the player -- so typing it visibly did nothing
@@ -166,6 +227,7 @@ namespace CityX.ViewEditor
             GameObject grapplingHookPrefab = CityX.WeaponsEditor.GrapplingHookBuilder.Build();
             GameObject pistolPrefab = CityX.WeaponsEditor.PistolBuilder.Build();
             GameObject jetpackPrefab = CityX.WeaponsEditor.JetpackBuilder.Build();
+            GameObject parachutePrefab = CityX.WeaponsEditor.ParachuteBuilder.Build();
             GameObject swordPrefab = CityX.WeaponsEditor.SwordBuilder.Build();
             GameObject flamethrowerPrefab = CityX.WeaponsEditor.FlamethrowerBuilder.Build();
             GameObject topHatPrefab = CityX.WearablesEditor.TopHatBuilder.Build();
@@ -176,14 +238,46 @@ namespace CityX.ViewEditor
             // --- so switching between walking the city and flying over it is a
             // --- checkbox rather than a scene edit.
             GameObject playerPrefab = CityX.CharacterEditor.PlayerRigBuilder.Build();
+
+            // --- the flying NPC. Run after the player rig (whose animator
+            // --- controller asset it shares) and after the jetpack built
+            // --- just above (whose prefab it wears, permanently equipped).
+            // --- Not placed in the scene here -- like Civilian.prefab, it
+            // --- is only ever spawned deliberately, via /spawn flyer.
+            CityX.CharacterEditor.FlyingNpcBuilder.Build(jetpackPrefab);
+
+            // --- the Crimson Claw monster. Not placed in the scene here --
+            // --- like Civilian.prefab/FlyingNpc.prefab, only ever spawned
+            // --- deliberately, via /spawn crimsonclaw.
+            CityX.CharacterEditor.CrimsonClawBuilder.Build();
             if (playerPrefab != null)
             {
                 GameObject player = (GameObject)PrefabUtility.InstantiatePrefab(playerPrefab);
                 player.name = "Player";
                 // A little above the road so the controller settles onto it
                 // rather than starting intersecting it.
+                //
+                // Z OFFSET BY +6m, NOT DEAD CENTRE -- EXPLICIT BUG REPORT:
+                // "the game is spawning me inside a pole." Chunk (0,0)'s own
+                // centre (ChunkSize * 0.5 on both axes) is, by construction,
+                // ALWAYS a highway chunk (CityLayout.IsHighwayChunk fires on
+                // x % HighwayChunks == 0, which x=0 satisfies unconditionally
+                // for every world seed) -- and AddHighwayDeck plants one
+                // support pillar at EVERY highway chunk's own along-centre,
+                // which for chunk row y=0 is exactly world Z=12, the same
+                // point this spawn used to sit on. The pillar's cross-axis
+                // centre is likewise pinned to the fixed lane centreline at
+                // world X=12 (see AddHighwayDeck's own "pillarWx" comment on
+                // why it never follows the deck's lateral sweep) -- also
+                // exactly this spawn's own X. Both coordinates matched
+                // exactly, so the player's capsule spawned embedded in the
+                // pillar's own 0.6m box. Only Z moves: X stays at the
+                // chunk's own centre (still safely inside the paved
+                // carriageway, nowhere near the sidewalk edges), while +6m
+                // of Z clears the pillar (0.3m half-width) by a wide margin
+                // without leaving the same chunk or its street surface.
                 player.transform.position = new Vector3(
-                    CityLayout.ChunkSize * 0.5f, groundHeight + 0.5f, CityLayout.ChunkSize * 0.5f);
+                    CityLayout.ChunkSize * 0.5f, groundHeight + 0.5f, CityLayout.ChunkSize * 0.5f + 6.0f);
                 playerRagdoll = player.GetComponent<Ragdoll>();
                 playerLocomotion = player.GetComponent<PlayerLocomotion>();
                 playerObjectForWatchdog = player;
@@ -191,6 +285,7 @@ namespace CityX.ViewEditor
                 cameraObject.GetComponent<FlyCamera>().enabled = false;
                 var follow = cameraObject.AddComponent<ThirdPersonCamera>();
                 follow.Target = player.transform;
+                follow.Ragdoll = playerRagdoll;
 
                 CityX.UIEditor.PlayerHudBuilder.AddToScene(player.GetComponent<PlayerVitals>());
 
@@ -202,6 +297,7 @@ namespace CityX.ViewEditor
                 rain.RainSound = AssetDatabase.LoadAssetAtPath<AudioClip>(
                     "Assets/CityX/UI/Audio/rain_noises.mp3");
                 rain.DropMaterial = EnsureRainMaterial();
+                rain.SplashMaterial = EnsureSplashMaterial();
 
                 // NO AMBIENT CROWD. There was one -- a pooled dozen recycled
                 // around the viewer as they walked -- and it went at the user's
@@ -210,7 +306,13 @@ namespace CityX.ViewEditor
                 // the same reason. Nothing places a pedestrian automatically
                 // now; Civilian is still built and still placed deliberately by
                 // the scale screenshots.
-                AddSparringDummies(groundHeight, structure);
+                //
+                // NO SPARRING DUMMIES AT SPAWN EITHER -- EXPLICIT ASK: "get
+                // rid of these objects from spawn." Still fully available on
+                // demand via the real console (`/spawn dummy`, see
+                // DevConsoleView.Spawn's own identical capsule-building
+                // case), just not dropped in the player's own path
+                // automatically every time the scene builds.
 
                 // --- /claim. Reuses PlayerAudio.CurrentBuilding for "which
                 // --- building is this," and orbits the same single camera
@@ -289,15 +391,18 @@ namespace CityX.ViewEditor
                 }
 
                 // --- grab/carry. Hold E on a Grabbable rigidbody (a limp
-                // --- ragdoll bone, or the crate below) to lift it; a tap
-                // --- while carrying drops it. Movement/looking stay free --
-                // --- see GrabCarry's own doc comment for why it never
-                // --- touches PlayerInputReader/ThirdPersonCamera.enabled.
+                // --- ragdoll bone) to lift it; a tap while carrying drops
+                // --- it. Movement/looking stay free -- see GrabCarry's own
+                // --- doc comment for why it never touches
+                // --- PlayerInputReader/ThirdPersonCamera.enabled.
+                //
+                // NO DEMO CRATE AT SPAWN -- EXPLICIT ASK: "get rid of these
+                // objects from spawn." A knocked-out ragdoll already gives
+                // Grabbable something real to pick up; the crate was only
+                // ever a stand-in for testing this before ragdolls existed.
                 var grabCarry = player.AddComponent<CityX.Character.GrabCarry>();
                 grabCarry.Vitals = player.GetComponent<PlayerVitals>();
                 grabCarry.Eye = cameraObject.transform;
-
-                AddGrabbableCrate(groundHeight, structure);
 
                 // --- inventory. /equip and /unequip in the dev console still
                 // --- work too -- both go through the same Inventory calls.
@@ -318,6 +423,8 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.Pistol, Prefab = pistolPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.Jetpack, Prefab = jetpackPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.Parachute, Prefab = parachutePrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.Sword, Prefab = swordPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
@@ -429,13 +536,37 @@ namespace CityX.ViewEditor
             RenderSettings.fogStartDistance = 150.0f;
             RenderSettings.fogEndDistance = 380.0f;
 
+            // --- rain's own environmental reach, wired here rather than
+            // --- where Rain itself was built above: `rain` there is a local
+            // --- variable scoped inside the earlier `if (playerPrefab !=
+            // --- null)` block, and Sun/grade/fog all only exist (or are
+            // --- only in their final form) by this point in the method --
+            // --- same FindFirstObjectByType late-wiring idiom the console
+            // --- lookup just below already uses, and unambiguous for the
+            // --- same reason: there is only ever one RainEffect in this
+            // --- scene, unlike the several Ragdolls the comment above
+            // --- Ragdoll playerRagdoll already warns about.
+            RainEffect rainEffect = Object.FindFirstObjectByType<RainEffect>();
+            if (rainEffect != null)
+            {
+                rainEffect.Sun = sun;
+                rainEffect.Grade = grade;
+                rainEffect.WetGroundMaterials = new[] { ground, pavement, structure };
+                // The EXACT same numbers set on RenderSettings two lines
+                // above -- see RainEffect.ClearFogStart's own doc comment
+                // for why these are passed in explicitly rather than read
+                // back from RenderSettings at runtime.
+                rainEffect.ClearFogStart = RenderSettings.fogStartDistance;
+                rainEffect.ClearFogEnd = RenderSettings.fogEndDistance;
+            }
+
             // --- the dev console. Backtick opens it. Wired here rather than
             // --- shipped as a prefab because half of what it drives only
             // --- exists in a scene, and a prefab of empty slots is the exact
             // --- class of mistake the capture rig has already been caught by.
             CityX.UI.DevConsoleView console = CityX.UIEditor.DevConsoleBuilder.AddToScene(
                 Object.FindFirstObjectByType<PlayerVitals>(),
-                Object.FindFirstObjectByType<RainEffect>(),
+                rainEffect,
                 cycle,
                 cameraObject.GetComponent<FlyCamera>(),
                 RadioBuilder.Build(),
@@ -452,18 +583,88 @@ namespace CityX.ViewEditor
                 topHatPrefab,
                 mustangPrefab,
                 farmerHatPrefab,
-                flamethrowerPrefab);
+                flamethrowerPrefab,
+                parachutePrefab);
 
             // Watches the player's own rig every real frame during ordinary
             // play and logs a full snapshot the instant it looks distorted
             // -- see PoseDistortionWatchdog's own class doc comment for why
             // this exists instead of another synthetic diagnostic.
+            //
+            // IsConsoleOpen IS DELIBERATELY NOT WIRED HERE -- EXPLICIT BUG,
+            // found chasing the grapple/console distortion report: a
+            // System.Func<bool> field can never survive Unity's own scene
+            // serialization, so an assignment made here, while BUILDING the
+            // scene in batch mode, is silently gone the moment this saved
+            // scene is reopened for real play -- every real session ran with
+            // it permanently null. See DevConsoleView.Bind's own doc comment
+            // for the real fix: wired at ACTUAL RUNTIME instead, from the
+            // console's own Awake, which is not scene-serialization-dependent.
             if (playerObjectForWatchdog != null)
             {
                 var watchdog = playerObjectForWatchdog.AddComponent<PoseDistortionWatchdog>();
                 watchdog.Swing = playerGrappleSwing;
-                watchdog.IsConsoleOpen = () => console.IsOpen;
                 watchdog.Locomotion = playerLocomotion;
+            }
+
+            // --- multiplayer: turns a live FishNet session into more than
+            // --- one visible player. No-op for Singleplayer (checked at
+            // --- runtime, see NetworkedPlayerSpawner's own doc comment) --
+            // --- the baked player above works exactly as it always has when
+            // --- nobody hosted or joined anything on the title screen.
+            //
+            // NETWORKING COMPONENTS GO DIRECTLY ON THIS ONE SCENE INSTANCE,
+            // NOT ON Player.prefab ITSELF -- Player.prefab is Object.
+            // Instantiate'd by roughly 80 pre-existing PlayMode tests with
+            // no NetworkManager involved at all, and FishNet's own
+            // NetworkObject.Awake() unconditionally errors for any instance
+            // that is neither a real scene object nor spawned through
+            // FishNet's own object pool. THIS instance IS a real scene
+            // object once OnValidate assigns it a genuine SceneId (which
+            // only happens with it parented into an actual, loaded scene --
+            // a prefab asset in isolation has no scene to assign one from),
+            // so it does not hit that gap. Joining peers get a SEPARATE
+            // derived prefab instead (NetworkedPlayerBuilder), spawned
+            // through the object pool -- see NetworkedPlayerSpawner's own
+            // doc comment for why a clone needs that different mechanism
+            // even though it is never this exact GameObject.
+            if (playerObjectForWatchdog != null)
+            {
+                NetworkObject bakedNetworkObject = playerObjectForWatchdog.AddComponent<NetworkObject>();
+                playerObjectForWatchdog.AddComponent<NetworkTransform>();
+                playerObjectForWatchdog.AddComponent<CityX.Character.NetworkedPlayerIdentity>();
+                playerObjectForWatchdog.AddComponent<CityX.Character.NetworkedAnimatorSync>();
+                // OnValidate is what actually assigns a real SceneId (and
+                // the WasActiveDuringEdit flag) -- Unity calls it
+                // automatically after an Editor AddComponent normally, but
+                // never during a headless -batchmode script's own call, so
+                // it is forced directly. Internal, not private -- and
+                // reflection, not SendMessage, reaches it: see
+                // NetworkedPlayerReserialize's own doc comment for why
+                // SendMessage("OnValidate", ...) looked like it worked but
+                // silently never actually ran (this is also why every real
+                // Play session logged "is expected to be initialized but
+                // was not" regardless of this call -- SceneId stayed 0).
+                // ReserializeSceneObject, not the plain per-object call --
+                // THIS instance is a real scene object and needs an actual
+                // SceneId assigned (see that method's own doc comment for
+                // why the obvious "setSceneId: true" one-liner silently
+                // does nothing). The derived NetworkedPlayer.prefab built
+                // just below is a pure prefab asset and must NOT get one,
+                // hence its own call in NetworkedPlayerBuilder uses the
+                // plain per-object path instead.
+                CityX.CharacterEditor.NetworkedPlayerReserialize.ReserializeSceneObject(
+                    bakedNetworkObject, scene);
+
+                GameObject networkedPlayerPrefab = CityX.CharacterEditor.NetworkedPlayerBuilder.Build();
+
+                var spawnPointObject = new GameObject("NetworkSpawnPoint");
+                spawnPointObject.transform.position = playerObjectForWatchdog.transform.position;
+
+                var spawner = new GameObject("NetworkedPlayerSpawner").AddComponent<CityX.Character.NetworkedPlayerSpawner>();
+                spawner.LocalPlayer = bakedNetworkObject;
+                spawner.PlayerPrefab = networkedPlayerPrefab;
+                spawner.SpawnPoint = spawnPointObject.transform;
             }
 
             // --- the pause menu. Escape opens it; it guards itself against
@@ -473,7 +674,7 @@ namespace CityX.ViewEditor
 
             GameObject streamerObject = new GameObject("CityStreamer");
             CityStreamer streamer = streamerObject.AddComponent<CityStreamer>();
-            streamer.WorldSeed = 20260810;
+            streamer.WorldSeed = WorldSeed;
             // 24, not the original 14 (336m -> 576m) -- an explicit "increase
             // the render distance" ask. ChunkBuildBudgetPerFrame already caps
             // new chunks built per frame regardless of radius, so this raises
@@ -487,11 +688,14 @@ namespace CityX.ViewEditor
             streamer.DarkGlassMaterial = darkGlass;
             streamer.LitGlassMaterial = litGlass;
             streamer.CrackedGlassMaterial = crackedGlass;
+            streamer.CrackDecalMaterial = crackDecal;
             streamer.RoadLineMaterial = roadLine;
             streamer.CrosswalkMaterial = crosswalk;
             streamer.DoorMaterial = door;
             streamer.DoorHandleMaterial = doorHandle;
             streamer.GuardRailMaterial = guardRail;
+            streamer.BenchMaterial = benchWood;
+            streamer.BookMaterial = bookStand;
 
             // Punching a window is the streamer's business because the damage
             // is: chunks come and go, the record of what is broken does not.
@@ -500,31 +704,7 @@ namespace CityX.ViewEditor
             breaker.BreakSounds = new[] { LoadClip("glass_break") };
             breaker.ShardPrefab = shards;
             streamer.Viewer = cameraObject.transform;
-
-            // A real, permanently-limp ragdoll hanging from a rope tied to
-            // its own hand, near spawn -- see HangingRagdollDummy's own
-            // class doc comment for why this exists as a live reference.
-            // MUST HAPPEN HERE, AFTER THE STREAMER EXISTS, NOT UP WHERE
-            // THE PLAYER WAS BUILT -- confirmed directly, live: the saved
-            // scene never contains real building geometry at all (see
-            // CityStreamer's own class doc -- chunks are built lazily at
-            // runtime, on purpose, and nothing bakes them into this file),
-            // so a wall search run any earlier finds zero colliders to hit
-            // no matter how wide its own search parameters are. Streaming
-            // real chunks in just long enough to find a real wall, then
-            // rolling the streamer back to empty with Rebuild(), keeps the
-            // SAVED scene starting exactly as empty as every other one
-            // this builder produces -- the dummy itself is parented at the
-            // scene root, not under any streamed chunk, so it survives
-            // that rollback untouched.
-            Vector3 spawnPosition = new Vector3(
-                CityLayout.ChunkSize * 0.5f, groundHeight, CityLayout.ChunkSize * 0.5f);
-            streamer.StreamAround(spawnPosition, 200);
-            Physics.SyncTransforms();
-            CityX.CharacterEditor.HangingRagdollDummyBuilder.Build(
-                new Vector3(CityLayout.ChunkSize * 0.5f - 3.0f, groundHeight, CityLayout.ChunkSize * 0.5f - 5.0f),
-                null);
-            streamer.Rebuild();
+            console.Streamer = streamer;
 
             // --- the map. M opens it; it guards itself against opening on
             // --- top of the console or while the game is paused.
@@ -587,6 +767,14 @@ namespace CityX.ViewEditor
             // --- otherwise closing one while the other is still "open"
             // --- would stomp the shared input/camera-enabled state.
             var placeholder = CityX.UIEditor.PlaceholderPanelBuilder.AddToScene(
+                Object.FindFirstObjectByType<PlayerInputReader>(),
+                Object.FindFirstObjectByType<ThirdPersonCamera>());
+
+            // The book-reading page -- EXPLICIT ASK: "add books and when
+            // you press E on them it opens a page on screen with text ive
+            // prepared but just make the system for now." Same one-shared-
+            // instance shape as the placeholder above.
+            CityX.UIEditor.BookPanelBuilder.AddToScene(
                 Object.FindFirstObjectByType<PlayerInputReader>(),
                 Object.FindFirstObjectByType<ThirdPersonCamera>());
 
@@ -668,57 +856,6 @@ namespace CityX.ViewEditor
             AssetDatabase.SaveAssets();
 
             Debug.Log($"CityX: massing scene written to {ScenePath}");
-        }
-
-        /// <summary>
-        /// Puts a few things to punch in the street outside the spawn.
-        ///
-        /// Combat cannot be judged against nothing -- reach, arc, how many hits
-        /// a chain takes to fell something, whether the finisher reads as
-        /// heavier. None of that needs an AI to be felt, and adding one first
-        /// would mean tuning the swing and the chasing at once with no way to
-        /// tell which was wrong.
-        /// </summary>
-        private static void AddSparringDummies(float groundHeight, Material material)
-        {
-            var parent = new GameObject("SparringDummies");
-            float chunk = CityLayout.ChunkSize;
-
-            // Spread down the street the player spawns on, at increasing
-            // distance, so reach can be judged by walking up to them.
-            float[] distances = { 4.0f, 9.0f, 15.0f };
-            for (int i = 0; i < distances.Length; i++)
-            {
-                var dummy = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-                dummy.name = $"Dummy {i + 1}";
-                dummy.transform.SetParent(parent.transform);
-                dummy.transform.position = new Vector3(
-                    chunk * 0.5f, groundHeight + 1.0f, chunk * 0.5f + distances[i]);
-                dummy.GetComponent<MeshRenderer>().sharedMaterial = material;
-                dummy.AddComponent<SparringDummy>();
-            }
-        }
-
-        /// <summary>
-        /// A loose physics prop to pick up and carry -- there is no ported
-        /// glass_bottle.gd yet (no Unity weapon/wearable component layer
-        /// exists at all today) and nothing in this scene naturally dies
-        /// into a limp, grabbable ragdoll, so grab/carry would otherwise
-        /// have nothing to demonstrate itself on. A plain crate, not a fake
-        /// stand-in for a specific Godot item.
-        /// </summary>
-        private static void AddGrabbableCrate(float groundHeight, Material material)
-        {
-            float chunk = CityLayout.ChunkSize;
-            var crate = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            crate.name = "GrabbableCrate";
-            crate.transform.position = new Vector3(chunk * 0.5f + 1.5f, groundHeight + 0.4f, chunk * 0.5f + 2.5f);
-            crate.transform.localScale = Vector3.one * 0.8f;
-            crate.GetComponent<MeshRenderer>().sharedMaterial = material;
-
-            Rigidbody body = crate.AddComponent<Rigidbody>();
-            body.mass = 8.0f;
-            crate.AddComponent<CityX.Character.Grabbable>();
         }
 
         /// <summary>
@@ -811,9 +948,29 @@ namespace CityX.ViewEditor
                 AssetDatabase.CreateAsset(profile, path);
             }
 
+            // EXPLICIT BUG, found and fixed in the same session as the
+            // vignette/chromatic-aberration additions below: VolumeProfile.
+            // Add<T> only appends the new component to the profile's own
+            // in-memory list -- it never calls AssetDatabase.AddObjectToAsset,
+            // so a component created this way was NEVER actually written
+            // into CityGrade.asset as a real sub-asset. Confirmed directly
+            // in the committed file (git history back to the commit that
+            // introduced this method): its own `components:` list has
+            // always serialized as three `{fileID: 0}` NULLS. Loading that
+            // file back gives a VolumeProfile with ZERO real overrides, so
+            // this method's own tonemapping/bloom/etc. were being rebuilt
+            // in memory and thrown away on every single scene rebuild --
+            // the tonemap, the bloom, the colour grade have never actually
+            // been active in the real game, exactly the "HDR simply
+            // clamped, every sunlit face flat white" failure mode
+            // Tonemapping's own doc comment already warned about, just
+            // never actually prevented. AddObjectToAsset ONLY on first
+            // creation (the guard below already only enters when the
+            // component does not exist yet) is what actually embeds it.
             if (!profile.TryGet(out Tonemapping tonemapping))
             {
                 tonemapping = profile.Add<Tonemapping>();
+                AssetDatabase.AddObjectToAsset(tonemapping, profile);
             }
             tonemapping.active = true;
             tonemapping.mode.overrideState = true;
@@ -825,6 +982,7 @@ namespace CityX.ViewEditor
             if (!profile.TryGet(out ColorAdjustments adjustments))
             {
                 adjustments = profile.Add<ColorAdjustments>();
+                AssetDatabase.AddObjectToAsset(adjustments, profile);
             }
             adjustments.active = true;
             adjustments.contrast.overrideState = true;
@@ -841,6 +999,7 @@ namespace CityX.ViewEditor
             if (!profile.TryGet(out Bloom bloom))
             {
                 bloom = profile.Add<Bloom>();
+                AssetDatabase.AddObjectToAsset(bloom, profile);
             }
             bloom.active = true;
             bloom.threshold.overrideState = true;
@@ -850,8 +1009,131 @@ namespace CityX.ViewEditor
             bloom.scatter.overrideState = true;
             bloom.scatter.value = 0.6f;
 
+            // Vignette and a touch of chromatic aberration, new -- same
+            // "read as a modern AAA reference" ask Bloom's own comment
+            // above names. Both kept deliberately subtle: this is a frame
+            // finish, not a stylistic filter, and a heavy vignette would
+            // fight the wide street canyons this world is built around
+            // (their own corners already go dark from the buildings
+            // themselves without any help from a post effect).
+            if (!profile.TryGet(out Vignette vignette))
+            {
+                vignette = profile.Add<Vignette>();
+                AssetDatabase.AddObjectToAsset(vignette, profile);
+            }
+            vignette.active = true;
+            vignette.intensity.overrideState = true;
+            vignette.intensity.value = 0.2f;
+            vignette.smoothness.overrideState = true;
+            vignette.smoothness.value = 0.5f;
+
+            if (!profile.TryGet(out ChromaticAberration chromaticAberration))
+            {
+                chromaticAberration = profile.Add<ChromaticAberration>();
+                AssetDatabase.AddObjectToAsset(chromaticAberration, profile);
+            }
+            chromaticAberration.active = true;
+            chromaticAberration.intensity.overrideState = true;
+            // 0.08 until this session -- tuned by eye against the maths alone,
+            // since renderPostProcessing being off on the camera (see the fix
+            // in Build's own camera setup) meant nobody had actually SEEN this
+            // effect composited before. At 0.08 the fringing on this city's
+            // own hard-edged window grids reads as a lens-error artefact by
+            // the time it reaches the frame edge in a wide shot (confirmed via
+            // CityMassingCapture's skyline/rooftops screenshots), not as the
+            // subtle filmic touch the value was chosen for.
+            chromaticAberration.intensity.value = 0.04f;
+
+            // Film grain, new -- same "read as a modern AAA reference" ask as
+            // Bloom/Vignette above. Thin preset kept deliberately faint: this
+            // is meant to be felt as film texture in flat, evenly-lit
+            // surfaces (sky, concrete facades) rather than seen as noise.
+            if (!profile.TryGet(out FilmGrain filmGrain))
+            {
+                filmGrain = profile.Add<FilmGrain>();
+                AssetDatabase.AddObjectToAsset(filmGrain, profile);
+            }
+            filmGrain.active = true;
+            filmGrain.type.overrideState = true;
+            filmGrain.type.value = FilmGrainLookup.Thin1;
+            filmGrain.intensity.overrideState = true;
+            filmGrain.intensity.value = 0.12f;
+            filmGrain.response.overrideState = true;
+            filmGrain.response.value = 0.8f;
+
             EditorUtility.SetDirty(profile);
+            AssetDatabase.SaveAssets();
             return profile;
+        }
+
+        /// <summary>
+        /// The sun's screen-space flare: a bright core, a soft surrounding
+        /// halo, and two small off-axis ghosts. All four are procedural SDF
+        /// shapes (Circle/Ring), not textures -- there is no flare art in
+        /// this project, and URP's own procedural shapes already read as a
+        /// convincing disc/ghost without needing any. modulateByLightColor
+        /// on the core and halo ties them into SkyCycle's own sun colour for
+        /// free, so the flare goes warm at dawn/dusk and white at noon along
+        /// with everything else, with no per-frame code needed here.
+        /// </summary>
+        internal static LensFlareDataSRP EnsureSunLensFlareData()
+        {
+            string path = $"{MaterialDirectory}/SunLensFlare.asset";
+            var data = AssetDatabase.LoadAssetAtPath<LensFlareDataSRP>(path);
+            if (data == null)
+            {
+                data = ScriptableObject.CreateInstance<LensFlareDataSRP>();
+                AssetDatabase.CreateAsset(data, path);
+            }
+
+            var core = new LensFlareDataElementSRP
+            {
+                flareType = SRPLensFlareType.Circle,
+                position = 0.0f,
+                localIntensity = 1.0f,
+                uniformScale = 0.25f,
+                fallOff = 0.6f,
+                tint = new Color(1.0f, 0.95f, 0.85f),
+                modulateByLightColor = true,
+                blendMode = SRPLensFlareBlendMode.Additive,
+            };
+            var halo = new LensFlareDataElementSRP
+            {
+                flareType = SRPLensFlareType.Circle,
+                position = 0.0f,
+                localIntensity = 0.35f,
+                uniformScale = 1.4f,
+                fallOff = 1.0f,
+                tint = new Color(1.0f, 0.9f, 0.75f),
+                modulateByLightColor = true,
+                blendMode = SRPLensFlareBlendMode.Additive,
+            };
+            var ghost1 = new LensFlareDataElementSRP
+            {
+                flareType = SRPLensFlareType.Circle,
+                position = 0.6f,
+                localIntensity = 0.18f,
+                uniformScale = 0.12f,
+                fallOff = 0.5f,
+                tint = new Color(0.7f, 0.85f, 1.0f),
+                blendMode = SRPLensFlareBlendMode.Additive,
+            };
+            var ghost2 = new LensFlareDataElementSRP
+            {
+                flareType = SRPLensFlareType.Ring,
+                position = -0.4f,
+                localIntensity = 0.15f,
+                uniformScale = 0.2f,
+                ringThickness = 0.35f,
+                fallOff = 0.4f,
+                tint = new Color(0.85f, 0.75f, 1.0f),
+                blendMode = SRPLensFlareBlendMode.Additive,
+            };
+            data.elements = new[] { core, halo, ghost1, ghost2 };
+
+            EditorUtility.SetDirty(data);
+            AssetDatabase.SaveAssets();
+            return data;
         }
 
         /// <summary>
@@ -892,6 +1174,144 @@ namespace CityX.ViewEditor
             material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
             material.SetColor("_BaseColor", RainEffect.DropColour);
             material.color = RainEffect.DropColour;
+            // A soft vertical streak, not a flat solid-alpha rectangle --
+            // EXPLICIT ASK ("make it look reallllly good"). Without this the
+            // stretched quad has hard rectangular edges and reads as a
+            // little grey bar falling rather than as a drop of rain.
+            Texture2D streak = EnsureRainStreakTexture();
+            material.SetTexture("_BaseMap", streak);
+            material.mainTexture = streak;
+            EditorUtility.SetDirty(material);
+            return material;
+        }
+
+        /// <summary>
+        /// A soft vertical gradient -- bright along the centre of the
+        /// stretch, fading to nothing at both ends and at the side edges.
+        /// Same Texture2D/EncodeToPNG/AssetDatabase.ImportAsset technique
+        /// FlamethrowerBuilder.BuildParticleTexture already establishes for
+        /// a radial dot, adapted here for an elongated streak instead, built
+        /// fresh rather than shared cross-assembly since this file already
+        /// builds its own rain material independently.
+        /// </summary>
+        private static Texture2D EnsureRainStreakTexture()
+        {
+            string path = $"{MaterialDirectory}/RaindropStreak.png";
+            Texture2D existing = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+            if (existing != null)
+            {
+                return existing;
+            }
+
+            const int width = 16;
+            const int height = 64;
+            var pixels = new Color32[width * height];
+            for (int y = 0; y < height; y++)
+            {
+                float t = (y + 0.5f) / height;
+                // 1 at the centre, 0 at both ends -- a softer taper than
+                // linear so the streak keeps most of its length looking
+                // solid rather than fading immediately off both tips.
+                float lengthFade = Mathf.Clamp01(1.0f - Mathf.Pow(Mathf.Abs(t - 0.5f) * 2.0f, 1.4f));
+                for (int x = 0; x < width; x++)
+                {
+                    float xt = (x + 0.5f) / width;
+                    float widthFade = Mathf.Clamp01(1.0f - Mathf.Pow(Mathf.Abs(xt - 0.5f) * 2.0f, 2.0f));
+                    pixels[y * width + x] = new Color(1.0f, 1.0f, 1.0f, lengthFade * widthFade);
+                }
+            }
+            return SaveGeneratedTexture(pixels, width, height, path);
+        }
+
+        /// <summary>A soft radial dot -- the same shape a splash burst needs, just its own asset from the rain streak.</summary>
+        private static Texture2D EnsureSplashTexture()
+        {
+            string path = $"{MaterialDirectory}/Splash.png";
+            Texture2D existing = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+            if (existing != null)
+            {
+                return existing;
+            }
+
+            const int size = 32;
+            var pixels = new Color32[size * size];
+            Vector2 center = new Vector2(size * 0.5f, size * 0.5f);
+            float maxDist = size * 0.5f;
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float dist = Vector2.Distance(new Vector2(x + 0.5f, y + 0.5f), center) / maxDist;
+                    float alpha = Mathf.Pow(Mathf.Clamp01(1.0f - dist), 1.6f);
+                    pixels[y * size + x] = new Color(1.0f, 1.0f, 1.0f, alpha);
+                }
+            }
+            return SaveGeneratedTexture(pixels, size, size, path);
+        }
+
+        /// <summary>Shared write-to-disk/import step for EnsureRainStreakTexture/EnsureSplashTexture.</summary>
+        private static Texture2D SaveGeneratedTexture(Color32[] pixels, int width, int height, string assetPath)
+        {
+            var texture = new Texture2D(width, height, TextureFormat.RGBA32, false);
+            texture.SetPixels32(pixels);
+            texture.Apply();
+            byte[] png = texture.EncodeToPNG();
+            Object.DestroyImmediate(texture);
+
+            string directory = Path.GetDirectoryName(assetPath);
+            if (!AssetDatabase.IsValidFolder(directory))
+            {
+                Directory.CreateDirectory(Path.Combine(Directory.GetParent(Application.dataPath).FullName, directory));
+            }
+            File.WriteAllBytes(
+                Path.Combine(Directory.GetParent(Application.dataPath).FullName, assetPath), png);
+            AssetDatabase.ImportAsset(assetPath);
+
+            var importer = (TextureImporter)AssetImporter.GetAtPath(assetPath);
+            importer.textureType = TextureImporterType.Default;
+            importer.alphaIsTransparency = true;
+            importer.mipmapEnabled = false;
+            importer.wrapMode = TextureWrapMode.Clamp;
+            importer.filterMode = FilterMode.Bilinear;
+            importer.SaveAndReimport();
+
+            return AssetDatabase.LoadAssetAtPath<Texture2D>(assetPath);
+        }
+
+        /// <summary>The ground-splash burst material -- same unlit/transparent recipe as EnsureRainMaterial, its own texture and colour.</summary>
+        private static Material EnsureSplashMaterial()
+        {
+            string path = $"{MaterialDirectory}/Splash.mat";
+            Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material == null)
+            {
+                Shader shader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
+                if (shader == null)
+                {
+                    shader = Shader.Find("Universal Render Pipeline/Unlit");
+                }
+                if (shader == null)
+                {
+                    Debug.LogError("CityX: no URP unlit shader -- splashes will render magenta.");
+                    return null;
+                }
+                material = new Material(shader);
+                AssetDatabase.CreateAsset(material, path);
+            }
+
+            material.SetFloat("_Surface", 1.0f);
+            material.SetFloat("_Blend", 0.0f);
+            material.SetFloat("_ZWrite", 0.0f);
+            material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            material.SetOverrideTag("RenderType", "Transparent");
+            material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            material.SetColor("_BaseColor", RainEffect.SplashColour);
+            material.color = RainEffect.SplashColour;
+            Texture2D dot = EnsureSplashTexture();
+            material.SetTexture("_BaseMap", dot);
+            material.mainTexture = dot;
             EditorUtility.SetDirty(material);
             return material;
         }
@@ -1019,6 +1439,78 @@ namespace CityX.ViewEditor
                 material.DisableKeyword("_EMISSION");
                 material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.EmissiveIsBlack;
             }
+
+            EditorUtility.SetDirty(material);
+            return material;
+        }
+
+        /// <summary>
+        /// The real crack-texture decal a shot's own impact point gets --
+        /// EXPLICIT ASK: replacing the plain square hole with the user's own
+        /// reference PNG (radial cracks with a real see-through centre),
+        /// checked into Assets/CityX/View/Textures/BulletHoleCrack.png
+        /// rather than procedurally generated like every other texture in
+        /// this file -- a hand-authored photo reference has no "regenerate
+        /// from code" equivalent the way a tiling facade pattern does.
+        ///
+        /// SAME TRANSPARENT BLEND SETTINGS AS EnsureGlassMaterial, because
+        /// this decal sits directly on top of that same Cracked glass and
+        /// has to composite over it the same way. White base colour so the
+        /// texture's own colours/alpha show through unmodified.
+        /// </summary>
+        private static Material EnsureCrackDecalMaterial()
+        {
+            const string texturePath = "Assets/CityX/View/Textures/BulletHoleCrack.png";
+            string path = $"{MaterialDirectory}/BulletHoleDecal.mat";
+
+            Texture2D texture = AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath);
+            if (texture == null)
+            {
+                Debug.LogError($"CityX: {texturePath} missing -- bullet holes will show as blank quads.");
+            }
+            else if (AssetImporter.GetAtPath(texturePath) is TextureImporter importer)
+            {
+                // CLAMP, NOT REPEAT -- this quad shows the WHOLE image once,
+                // never tiled, and Repeat would smear the crack's own edge
+                // pixels across the opposite side under any filtering.
+                importer.alphaIsTransparency = true;
+                importer.wrapMode = TextureWrapMode.Clamp;
+                importer.mipmapEnabled = false;
+                importer.SaveAndReimport();
+            }
+
+            Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material == null)
+            {
+                Shader shader = Shader.Find("Universal Render Pipeline/Lit");
+                if (shader == null)
+                {
+                    Debug.LogError("CityX: URP Lit shader not found -- is the Universal Render " +
+                                   "Pipeline asset assigned in Graphics settings?");
+                    shader = Shader.Find("Standard");
+                }
+                material = new Material(shader);
+                AssetDatabase.CreateAsset(material, path);
+            }
+
+            material.SetFloat("_Surface", 1.0f);              // transparent
+            material.SetFloat("_Blend", 0.0f);                // alpha
+            material.SetFloat("_ZWrite", 0.0f);
+            material.SetFloat("_Cull", 0.0f);                 // both sides -- seen from inside the building too
+            material.SetFloat("_AlphaClip", 0.0f);
+            material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            material.SetOverrideTag("RenderType", "Transparent");
+            material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            material.DisableKeyword("_ALPHATEST_ON");
+            material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+
+            material.SetTexture("_BaseMap", texture);
+            material.SetColor("_BaseColor", Color.white);
+            material.SetFloat("_Smoothness", 0.18f);   // matches the frosted Cracked glass around it
+            material.SetFloat("_Metallic", 0.0f);
+            material.DisableKeyword("_EMISSION");
+            material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.EmissiveIsBlack;
 
             EditorUtility.SetDirty(material);
             return material;

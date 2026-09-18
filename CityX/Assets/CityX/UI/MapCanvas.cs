@@ -39,6 +39,23 @@ namespace CityX.UI
         public const float BuildingMaxHeight = 96.0f;
         public const float PlayerMarkerSize = 7.0f;
 
+        /// <summary>
+        /// A street tile never draws thinner than this many panel pixels,
+        /// however small its own true pixelSize (chunkSize * scale) works
+        /// out to -- EXPLICIT ASK: "make the streets thicker than 1 pixel
+        /// they are too thin." A street is exactly one chunk wide in world
+        /// space, so at any zoom level modest enough to see a real
+        /// neighbourhood at once it reads as a hairline next to buildings
+        /// several chunks across -- true to scale, but the whole point of a
+        /// legible map is contrast a viewer can actually see, not literal
+        /// metric accuracy. Grown symmetrically around the tile's own
+        /// centre (see the grow/drawTopLeft maths below), so a thickened
+        /// tile can only ever OVERLAP its own street-tile neighbours along
+        /// the same line (harmless -- two opaque quads of the same colour
+        /// merge seamlessly) and never leaves a gap.
+        /// </summary>
+        public const float StreetMinPixelWidth = 3.5f;
+
         [Tooltip("Whose explored chunks and world seed the map reads.")]
         public CityStreamer Streamer;
 
@@ -184,7 +201,15 @@ namespace CityX.UI
                 }
 
                 bool isStreet = CityLayout.IsStreetChunk(coord.x, coord.y);
-                AddPanelQuad(vh, rect, topLeft, new Vector2(pixelSize, pixelSize), isStreet ? RoadColour : LotColour);
+                Vector2 drawTopLeft = topLeft;
+                float drawSize = pixelSize;
+                if (isStreet && pixelSize < StreetMinPixelWidth)
+                {
+                    float grow = (StreetMinPixelWidth - pixelSize) * 0.5f;
+                    drawTopLeft -= new Vector2(grow, grow);
+                    drawSize = StreetMinPixelWidth;
+                }
+                AddPanelQuad(vh, rect, drawTopLeft, new Vector2(drawSize, drawSize), isStreet ? RoadColour : LotColour);
                 if (isStreet)
                 {
                     continue;

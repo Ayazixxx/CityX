@@ -197,5 +197,47 @@ namespace CityX.Tests
 
             Object.Destroy(rig);
         }
+
+        /// <summary>
+        /// EXPLICIT ASK: "make the camera follow the ragdoll when /sleep is
+        /// used and the ragdoll is moved." Nothing moves the player's own
+        /// root transform while limp (see Ragdoll's own doc comment: "only
+        /// the individual Rigidbodies do"), so without this the camera
+        /// would stay pinned at Target's frozen position while physics
+        /// carries the actual body somewhere else entirely -- a slope
+        /// slide, a push, a crash tumble.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator FollowsTheRagdollsTorsoInsteadOfTheFrozenTargetWhileLimp()
+        {
+            var torsoObject = new GameObject("Torso");
+            torsoObject.transform.SetParent(_target.transform, false);
+            Rigidbody torso = torsoObject.AddComponent<Rigidbody>();
+            torsoObject.AddComponent<BoxCollider>();
+
+            Ragdoll ragdoll = _target.AddComponent<Ragdoll>();
+            ragdoll.Bodies = new[] { torso };
+            ragdoll.Torso = torso;
+            ragdoll.Bind();
+            _camera.Ragdoll = ragdoll;
+
+            ragdoll.Activate(Vector3.zero);
+
+            // Moved by hand rather than simulated -- physics owns the torso
+            // now, and this stands in for wherever a real crash/push/slide
+            // would have actually carried it, well away from the frozen root.
+            torso.transform.position = _target.transform.position + new Vector3(6.0f, 0.0f, 9.0f);
+
+            yield return null;
+
+            float distanceToTorso = Vector3.Distance(
+                _cameraObject.transform.position, torso.transform.position);
+            float distanceToFrozenTarget = Vector3.Distance(
+                _cameraObject.transform.position, _target.transform.position);
+            Assert.Less(distanceToTorso, distanceToFrozenTarget,
+                "the camera should have followed the ragdoll's own torso, not stayed near the frozen root");
+            Assert.Less(distanceToTorso, _camera.Distance + _camera.ShoulderOffset + 1.0f,
+                "the camera should be orbiting close to the torso itself, not merely closer by coincidence");
+        }
     }
 }

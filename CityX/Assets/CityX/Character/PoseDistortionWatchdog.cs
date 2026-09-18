@@ -38,7 +38,15 @@ namespace CityX.Character
     /// PURELY OBSERVATIONAL. Never writes to a bone, never disables
     /// anything, never changes behaviour -- this cannot be the cause of
     /// anything it reports, only a witness to it.
+    ///
+    /// RUNS LATE, ON PURPOSE -- see PlayerLocomotion's own
+    /// [DefaultExecutionOrder] doc comment: this MUST observe
+    /// PlayerLocomotion's (and GrappleSwing's) own already-corrected bone
+    /// values, never a pre-correction raw one, or this "purely
+    /// observational" witness can itself manufacture a false positive
+    /// purely from Unity's own unguaranteed LateUpdate ordering.
     /// </summary>
+    [DefaultExecutionOrder(100)]
     public sealed class PoseDistortionWatchdog : MonoBehaviour
     {
         [Tooltip("Found automatically in Bind() if left null.")]
@@ -46,6 +54,25 @@ namespace CityX.Character
 
         public GrappleSwing Swing;
         public PlayerLocomotion Locomotion;
+
+        /// <summary>
+        /// Found automatically in Bind() if left null. Used ONLY to skip
+        /// the bone-snap check below while limp -- EXPLICIT BUG, found
+        /// live: a real, live, non-kinematic ragdoll's own ordinary joint
+        /// physics (settling from depenetration forces, a violent first
+        /// step, an actual tumble) can easily exceed MaxBoneDegreesPerSecond
+        /// in a single frame, and confirmed directly, this is NOT a
+        /// distortion -- it is exactly what real ragdoll physics looks
+        /// like. This watchdog exists to catch ANIMATOR/pose bugs; once
+        /// the Animator is no longer posing these bones at all (real
+        /// Rigidbodies are), comparing their frame-to-frame rotation
+        /// against a threshold calibrated for animated motion is a
+        /// category error, not a meaningful check. The rig-offset/scale
+        /// checks above are left running regardless -- those track the
+        /// Animator's own transform, not physics-driven bones, and stay
+        /// meaningful either way.
+        /// </summary>
+        public Ragdoll Ragdoll;
 
         /// <summary>
         /// A DELEGATE, NOT A DIRECT DevConsoleView REFERENCE -- DevConsoleView
@@ -85,14 +112,13 @@ namespace CityX.Character
 
         /// <summary>
         /// A FLOOR ON THE DIVISOR, not a real frame rate -- confirmed
-        /// directly, live: batch-mode test runs render frames uncapped
-        /// (documented project-wide, see HangingRagdollDummyPlayTests's own
-        /// doc comment), so Time.deltaTime can be small enough that
-        /// dividing by it turns a completely ordinary few-degree sway into
-        /// an apparent "4722 deg/s" false positive during a ordinary real
-        /// swing. 1/240s is far faster than any real display ever runs, so
-        /// this only ever clamps degenerate near-zero batch-mode frames,
-        /// never a genuinely fast real one.
+        /// directly, live: batch-mode test runs render frames uncapped, so
+        /// Time.deltaTime can be small enough that dividing by it turns a
+        /// completely ordinary few-degree sway into an apparent "4722
+        /// deg/s" false positive during an ordinary real swing. 1/240s is
+        /// far faster than any real display ever runs, so this only ever
+        /// clamps degenerate near-zero batch-mode frames, never a
+        /// genuinely fast real one.
         /// </summary>
         private const float MinDeltaTimeForSnapCheck = 1.0f / 240.0f;
 
@@ -121,6 +147,10 @@ namespace CityX.Character
             if (Animator == null)
             {
                 Animator = GetComponentInChildren<Animator>();
+            }
+            if (Ragdoll == null)
+            {
+                Ragdoll = GetComponent<Ragdoll>();
             }
             if (Animator != null && Animator.isHuman)
             {
@@ -165,7 +195,7 @@ namespace CityX.Character
             {
                 reason = $"visual rig scale = {actualScale:F3} (expected ~{expectedScale:F3})";
             }
-            else if (_havePrevious)
+            else if (_havePrevious && (Ragdoll == null || !Ragdoll.IsLimp))
             {
                 float degreesPerSecond = WorstBoneSnapDegrees() / Mathf.Max(Time.deltaTime, MinDeltaTimeForSnapCheck);
                 if (degreesPerSecond > MaxBoneDegreesPerSecond)

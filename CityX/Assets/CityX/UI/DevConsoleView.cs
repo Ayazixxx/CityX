@@ -1,9 +1,12 @@
 using System.Collections.Generic;
 using System.Globalization;
 using CityX.Character;
+using CityX.Core;
 using CityX.Items;
+using CityX.Net;
 using CityX.Vehicles;
 using CityX.View;
+using CityX.World;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
@@ -54,6 +57,12 @@ namespace CityX.UI
         [Tooltip("What /spawn civilian puts down. A dummy is built from a capsule instead.")]
         public GameObject CivilianPrefab;
 
+        [Tooltip("What /spawn flyer puts down -- a white player-model NPC that flies around with a jetpack.")]
+        public GameObject FlyingNpcPrefab;
+
+        [Tooltip("What /spawn crimsonclaw puts down -- a hostile hovering claw monster.")]
+        public GameObject CrimsonClawPrefab;
+
         [Tooltip("What /spawn radio puts down.")]
         public GameObject RadioPrefab;
 
@@ -77,6 +86,9 @@ namespace CityX.UI
         [Tooltip("What /spawn jetpack puts down, and what /equip jetpack equips.")]
         public GameObject JetpackPrefab;
 
+        [Tooltip("What /spawn parachute puts down, and what /equip parachute equips.")]
+        public GameObject ParachutePrefab;
+
         [Tooltip("What /spawn sword puts down, and what /equip sword equips.")]
         public GameObject SwordPrefab;
         public GameObject TopHatPrefab;
@@ -94,6 +106,9 @@ namespace CityX.UI
         [Tooltip("The grapple swing. While a rope is attached it owns the player's Animator via its own procedural swing pose -- closing the console must not hand it back mid-swing.")]
         public GrappleSwing Swing;
 
+        [Tooltip("What /goto streams real chunks in around the destination before moving the player there.")]
+        public CityStreamer Streamer;
+
         /// <summary>How far in front of the player something spawns.</summary>
         public const float SpawnDistance = 3.0f;
 
@@ -101,7 +116,10 @@ namespace CityX.UI
         private Shader _litShader;
         private Shader _toonShader;
         private bool _celShadeOn;
-        private Animator _playerAnimator;
+        private PlayerLocomotion _playerLocomotion;
+        private NetworkBootstrap _bootstrap;
+        private bool _pausedGameOnOpen;
+        private float _timeScaleBeforeOpen = 1.0f;
 
         public bool IsOpen => Panel != null && Panel.activeSelf;
 
@@ -114,14 +132,41 @@ namespace CityX.UI
         /// Public and idempotent, callable by hand in EditMode tests where
         /// Awake never runs -- the same idiom PlayerLocomotion.Bind/
         /// GrappleSwing.Bind already use for the exact same reason. Found
-        /// here rather than wired through DevConsoleBuilder's own already-
-        /// long parameter list -- Vitals is already wired, and its own
-        /// Animator is exactly the one whatever-you-were-doing pose lives
-        /// on.
+        /// here rather than wired through DevConsoleBuilder's own
+        /// already-long parameter list -- Vitals is already wired, and the
+        /// watchdog hook below only needs finding at real runtime, not at
+        /// scene-build time (see that hook's own doc comment).
         /// </summary>
         public void Bind()
         {
-            _playerAnimator = Vitals != null ? Vitals.GetComponentInChildren<Animator>() : null;
+            _playerLocomotion = Vitals != null ? Vitals.GetComponent<PlayerLocomotion>() : null;
+            _bootstrap = FindAnyObjectByType<NetworkBootstrap>();
+
+            // REAL RUNTIME WIRING, not a scene-build-time one -- EXPLICIT BUG,
+            // found chasing the long-running grapple/console distortion
+            // report via PoseDistortionWatchdog's own log: every recorded
+            // entry said "no console hook wired," even ones from real play.
+            // CityMassingSceneBuilder used to assign this exact delegate
+            // (`watchdog.IsConsoleOpen = () => console.IsOpen`) while BUILDING
+            // the scene in batch mode -- but a System.Func<bool> field is
+            // never Unity-serializable, so that assignment could not survive
+            // the scene actually being saved to disk and reopened for real
+            // play; it only ever existed for the single in-memory instant the
+            // builder script held both objects. Every real session since has
+            // silently run with this hook permanently null, which means the
+            // watchdog's own "is the console open" column has never once
+            // been true evidence either way for the exact bug it exists to
+            // chase down. Bind() runs for real every time this component
+            // actually wakes up (Awake, not a batch build step), so the
+            // closure it creates here lives in real memory for the whole
+            // session instead of dying the moment the scene is saved.
+            PoseDistortionWatchdog watchdog =
+                Vitals != null ? Vitals.GetComponent<PoseDistortionWatchdog>() : null;
+            if (watchdog != null)
+            {
+                watchdog.IsConsoleOpen = () => IsOpen;
+            }
+
             Close();
         }
 
@@ -174,39 +219,85 @@ namespace CityX.UI
 
             if (InputReader != null) InputReader.enabled = false;
             if (OrbitCamera != null) OrbitCamera.enabled = false;
-            // EXPLICIT BUG REPORT: opening the console left whatever
-            // animation was already playing (walking, punching, a swing's
-            // own held pose) running in place. Disabling InputReader alone
-            // only stops NEW input from being read -- it does not stop the
-            // Animator itself, which keeps evaluating its current state
-            // machine (and looping) with whatever parameters it was last
-            // given, since nothing else was ever telling it to stop. Same
-            // "freeze the pose, not just the input" fix Ragdoll.Activate
-            // already applies for death.
-            if (_playerAnimator != null)
+
+            // THE ANIMATOR IS NO LONGER DISABLED HERE -- EXPLICIT ASK, after
+            // seven rounds of trying to make freezing it SAFE (forced
+            // resyncs, rate-based snap suppression, ownership checks, an
+            // execution-order fix) never fully worked: "remove the console
+            // function and rebuild it entirely if you have to, just get rid
+            // of it." The freeze was never load-bearing -- it existed purely
+            // to stop the character visibly looping whatever animation was
+            // playing (running in place) while the console stayed open, a
+            // cosmetic nicety. Every version of "freeze the pose" carried
+            // the same structural risk: Mecanim can occasionally produce an
+            // implausible one-frame pose during an ordinary blend-tree
+            // transition (confirmed directly, see PlayerLocomotion.
+            // SuppressImplausibleArmSnaps's own doc comment), and freezing
+            // the Animator on that exact frame makes an otherwise invisible,
+            // self-correcting glitch visible and PERMANENT for as long as
+            // the console stays open. Simply never freezing it removes the
+            // entire class of bug at the root: the Animator keeps evaluating
+            // normally the whole time the console is open (the character
+            // keeps playing whatever it was doing -- run-in-place if they
+            // were running, which is a look, not a bug), so there is no
+            // frozen instant for a bad transitional frame to ever get stuck
+            // on. GrappleSwing's own ownership of these bones during an
+            // active swing is untouched by this change -- it already
+            // disables the Animator itself for its own, unrelated reason
+            // (needing exclusive control of the bones for its procedural
+            // sway), so a console opened mid-swing still shows whatever the
+            // swing itself is doing, exactly as before.
+
+            // EXPLICIT BUG REPORT: "pressing console mid jump plays the
+            // rest of the jump animation after the console freezes the
+            // rest of the game" -- a real, if cosmetic, consequence of the
+            // Animator being left live above: nothing calls PlayerLocomotion.
+            // Tick any more once InputReader is disabled, so whatever
+            // action was already playing keeps running to its own natural
+            // end while everything else (movement, physics) is genuinely
+            // paused, reading as visibly out of sync. See SettleAnimatorToIdle's
+            // own doc comment for why forcing idle parameters here is a
+            // safe, ordinary Mecanim transition, not a repeat of the same
+            // freeze-on-a-bad-frame risk this whole file's history is
+            // about. Harmless to call even mid-swing (GrappleSwing already
+            // has the Animator disabled then, so nothing re-evaluates
+            // these parameters until it hands control back).
+            _playerLocomotion?.SettleAnimatorToIdle();
+
+            // SINGLEPLAYER ONLY PAUSES REAL TIME -- EXPLICIT ASK. Called
+            // AFTER SettleAnimatorToIdle on purpose: this frame's Animator
+            // update (which runs after Update() returns, using the
+            // deltaTime this frame already locked in before timeScale
+            // changed) still takes one small, ordinary step toward idle,
+            // and only the FOLLOWING frame actually freezes at deltaTime
+            // zero -- so the game pauses on a clean, normally-computed
+            // pose, not an arbitrary mid-transition snapshot. That
+            // distinction is the entire lesson of this file's own
+            // multi-week distortion saga: freezing the ANIMATOR
+            // (`enabled = false`) on an arbitrary frame was the bug;
+            // freezing TIME while the Animator keeps evaluating normally
+            // is a completely different, safe mechanism -- Mecanim is
+            // never disabled or bypassed, it simply stops being given any
+            // more deltaTime to advance with.
+            //
+            // Time.timeScale governs this WHOLE PROCESS, not just the
+            // local view -- in Singleplayer that process is exactly one
+            // player's own private simulation, so pausing it is invisible
+            // to anyone else by construction (there is no one else).
+            // Every other GameMode either runs other real players'
+            // simulation in this same process (HostedWorld) or has no
+            // standing to freeze somebody else's server at all
+            // (RemoteClient, DedicatedShard) -- pausing there would
+            // silently freeze other people's game from a debug console
+            // they cannot even see. _bootstrap == null (no networking
+            // wired at all, e.g. most tests) is treated as Singleplayer,
+            // matching every other null-bootstrap fallback in this
+            // codebase (see NetworkedPlayerSpawner's own check).
+            _pausedGameOnOpen = _bootstrap == null || _bootstrap.Mode == GameMode.Singleplayer;
+            if (_pausedGameOnOpen)
             {
-                // EXPLICIT BUG REPORT, root-caused directly with a
-                // diagnostic across a freshly instantiated rig: an Animator
-                // that has never actually evaluated a single real frame
-                // yet sits at the raw imported BIND POSE -- confirmed
-                // directly, a stark, all-zero-rotation T-pose -- and only
-                // snaps to a real, sensible pose on its own FIRST Update.
-                // Opening the console on that exact window (console-open
-                // is realistically the very first thing pressed after
-                // spawning in, to gear up before playing at all) disables
-                // the Animator before it has ever had that first Update,
-                // freezing the character at the bind pose for as long as
-                // the console stays open -- exactly what "immediately
-                // glitches out" describes, and immediate because there is
-                // no accumulation involved at all, just a component that
-                // was never given its first real frame. A zero-delta
-                // manual Update forces that first evaluation synchronously,
-                // right here, so disabling immediately afterward can never
-                // catch it in this unevaluated state -- same fix, same
-                // reasoning, GrappleSwing.Attach's own doc comment gives
-                // for the identical hazard on the swing's own trigger path.
-                _playerAnimator.Update(0.0f);
-                _playerAnimator.enabled = false;
+                _timeScaleBeforeOpen = Time.timeScale;
+                Time.timeScale = 0.0f;
             }
         }
 
@@ -221,22 +312,25 @@ namespace CityX.UI
 
             if (InputReader != null) InputReader.enabled = true;
             if (OrbitCamera != null) OrbitCamera.enabled = true;
-            // NOT if the player died while the console happened to be open,
-            // and NOT while a grapple swing still has the rope attached --
-            // Ragdoll.Activate and GrappleSwing.Attach both already turned
-            // this same Animator off for their own real reasons (a corpse's
-            // bones need to be free for physics; the swing's own procedural
-            // pose owns every bone it touches every frame), and blindly
-            // re-enabling it here would fight either the instant the
-            // console closes. EXPLICIT BUG REPORT: opening then closing the
-            // console mid-swing sometimes left the character looking
-            // "stretched"/distorted -- the re-enabled Animator and
-            // GrappleSwing.UpdateSwingPose were both writing the same
-            // bones every frame from then on.
-            if (_playerAnimator != null && (Vitals == null || !Vitals.IsDead) &&
-                (Swing == null || !Swing.IsActive))
+
+            // NOTHING TO DO WITH _playerAnimator HERE ANY MORE -- Open() no
+            // longer disables it (see Open's own doc comment), so there is
+            // nothing for Close() to undo. If the Animator happens to be
+            // disabled right now for an unrelated, still-active reason
+            // (Ragdoll.Activate on death, or GrappleSwing.Attach owning the
+            // bones for an active swing), it stays exactly as those systems
+            // left it -- correctly untouched, the same as before.
+
+            // Restores whatever timeScale actually was before this Open(),
+            // not a hardcoded 1.0 -- and only when THIS console is the one
+            // that paused it. If something else already had time frozen
+            // (nothing does today, but PauseMenuView's own Escape pause
+            // uses this same mechanism) that state is left exactly as it
+            // was rather than being stomped by an unrelated Close().
+            if (_pausedGameOnOpen)
             {
-                _playerAnimator.enabled = true;
+                Time.timeScale = _timeScaleBeforeOpen;
+                _pausedGameOnOpen = false;
             }
         }
 
@@ -319,6 +413,10 @@ namespace CityX.UI
                     Unequip(line.Argument(0));
                     return;
 
+                case "goto":
+                    Goto(line.Argument(0));
+                    return;
+
                 default:
                     Log("unknown command: " + line.Verb + "   (try /help)");
                     return;
@@ -381,6 +479,171 @@ namespace CityX.UI
             Log("fly " + (Fly.enabled ? "on" : "off"));
         }
 
+        /// <summary>
+        /// Teleports to the nearest real example of a generated feature --
+        /// EXPLICIT ASK, after repeated reports of "there are no sloped
+        /// roads" that kept turning out to mean "I have not walked to one
+        /// yet": rather than hand out chunk coordinates and hope, jump the
+        /// player there directly so the feature can be checked on the spot.
+        /// </summary>
+        private void Goto(string what)
+        {
+            if (Vitals == null)
+            {
+                Log("no body here");
+                return;
+            }
+            if (Streamer == null)
+            {
+                Log("no city streamer in this scene");
+                return;
+            }
+            if (what != "slope" && what != "district")
+            {
+                Log(DevCommands.UsageFor("goto"));
+                return;
+            }
+
+            Vector3 from = Vitals.transform.position;
+            int originX = Mathf.FloorToInt(from.x / CityLayout.ChunkSize);
+            int originY = Mathf.FloorToInt(from.z / CityLayout.ChunkSize);
+            var world = new CityWorld(Streamer.WorldSeed);
+
+            Vector3 destination;
+            string found;
+            if (what == "slope")
+            {
+                if (!TryFindNearestSlope(world, originX, originY, out destination, out int foundX, out int foundY))
+                {
+                    Log("no sloped street found within a reasonable radius -- try again from somewhere else");
+                    return;
+                }
+                found = $"sloped street at chunk ({foundX},{foundY})";
+            }
+            else
+            {
+                destination = NearestDistrictBoundary(world, originX, originY, out int arterialX, out int arterialY);
+                found = $"district boundary near chunk ({arterialX},{arterialY})";
+            }
+
+            Streamer.StreamAround(destination, 800);
+            Physics.SyncTransforms();
+
+            CharacterController controller = Vitals.GetComponent<CharacterController>();
+            if (controller != null)
+            {
+                controller.enabled = false;
+            }
+            Vitals.transform.position = destination;
+            if (controller != null)
+            {
+                controller.enabled = true;
+            }
+            Physics.SyncTransforms();
+
+            Log($"teleported to the nearest {found}");
+        }
+
+        /// <summary>
+        /// Mirrors AddStreetEdgeFeatures's own roll exactly (CityMeshBuilder.cs)
+        /// -- seeded off the neighbour's coordinate -- so this finds a street
+        /// edge that will actually render as a sloped ramp, not merely a
+        /// terrace drop that happened to keep its stairs.
+        /// </summary>
+        private static bool TryFindNearestSlope(CityWorld world, int originX, int originY,
+            out Vector3 destination, out int foundX, out int foundY)
+        {
+            const int SearchRadius = 60;
+            double bestDistance = double.MaxValue;
+            foundX = 0;
+            foundY = 0;
+            bool found = false;
+
+            for (int dx = -SearchRadius; dx <= SearchRadius; dx++)
+            {
+                for (int dy = -SearchRadius; dy <= SearchRadius; dy++)
+                {
+                    int x = originX + dx;
+                    int y = originY + dy;
+                    if (!CityLayout.IsStreetChunk(x, y))
+                    {
+                        continue;
+                    }
+                    float pad = world.Terrain.PadHeightFor(x, y);
+                    foreach ((int nx, int ny) in new[] { (x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1) })
+                    {
+                        if (!CityLayout.IsStreetChunk(nx, ny))
+                        {
+                            continue;
+                        }
+                        float neighbourPad = world.Terrain.PadHeightFor(nx, ny);
+                        if (neighbourPad >= pad)
+                        {
+                            continue;
+                        }
+                        bool sloped = new DeterministicRandom(world.ChunkSeed(nx, ny)).Below(2) == 0;
+                        if (!sloped)
+                        {
+                            continue;
+                        }
+                        double distance = (double)dx * dx + (double)dy * dy;
+                        if (distance < bestDistance)
+                        {
+                            bestDistance = distance;
+                            foundX = x;
+                            foundY = y;
+                            found = true;
+                        }
+                    }
+                }
+            }
+
+            // ContinuousHeightAt, not foundPad -- foundX/foundY is always a
+            // street chunk (the IsStreetChunk check above), whose actual
+            // ground is tilted to the smooth continuous field now, not flat
+            // at the quantised pad (see CityMeshBuilder.BuildGround's own
+            // "hillside streets" comment). Teleporting to the old flat pad
+            // height could land the player below the real road surface --
+            // the same "load in and fall through the floor forever" bug
+            // this command exists to help demonstrate, not reproduce.
+            destination = found
+                ? new Vector3((float)CityLayout.ChunkCentreX(foundX),
+                    (float)world.Terrain.ContinuousHeightAt(
+                        CityLayout.ChunkCentreX(foundX), CityLayout.ChunkCentreZ(foundY)) + 2.0f,
+                    (float)CityLayout.ChunkCentreZ(foundY))
+                : Vector3.zero;
+            return found;
+        }
+
+        /// <summary>The nearest wide arterial street to (originX, originY), on whichever axis is closer.</summary>
+        private static Vector3 NearestDistrictBoundary(CityWorld world, int originX, int originY,
+            out int arterialX, out int arterialY)
+        {
+            int nearestX = Mathf.RoundToInt(originX / (float)CityLayout.DistrictChunks) * CityLayout.DistrictChunks;
+            int nearestY = Mathf.RoundToInt(originY / (float)CityLayout.DistrictChunks) * CityLayout.DistrictChunks;
+
+            if (Mathf.Abs(originX - nearestX) <= Mathf.Abs(originY - nearestY))
+            {
+                arterialX = nearestX;
+                arterialY = originY;
+            }
+            else
+            {
+                arterialX = originX;
+                arterialY = nearestY;
+            }
+
+            // ContinuousHeightAt, not PadHeightFor -- an arterial chunk is
+            // always a street chunk (CityLayout.IsArterialChunk implies
+            // IsStreetChunk), so the same "tilted, not flat" reasoning
+            // TryFindNearestSlope's own destination just got applies here
+            // too.
+            double worldX = CityLayout.ChunkCentreX(arterialX);
+            double worldZ = CityLayout.ChunkCentreZ(arterialY);
+            float height = (float)world.Terrain.ContinuousHeightAt(worldX, worldZ);
+            return new Vector3((float)worldX, height + 2.0f, (float)worldZ);
+        }
+
         private void Experience(string amount)
         {
             if (Vitals == null)
@@ -419,6 +682,33 @@ namespace CityX.UI
                     }
                     Instantiate(CivilianPrefab, where, facing);
                     Log("spawned civilian");
+                    return;
+
+                case "flyer":
+                    if (FlyingNpcPrefab == null)
+                    {
+                        Log("no flying npc prefab wired");
+                        return;
+                    }
+                    // Airborne, not at ground level like every other /spawn
+                    // case -- it is a flier, and dropping it on the street
+                    // would just mean watching it climb to altitude before
+                    // it does anything interesting.
+                    Instantiate(FlyingNpcPrefab, where + Vector3.up * 30.0f, facing);
+                    Log("spawned a flying npc");
+                    return;
+
+                case "crimsonclaw":
+                    if (CrimsonClawPrefab == null)
+                    {
+                        Log("no crimson claw prefab wired");
+                        return;
+                    }
+                    // A few metres up, like the flyer -- it hovers rather
+                    // than falls, and HoverCorrect eases it down to its own
+                    // ground-relative height the moment it ticks.
+                    Instantiate(CrimsonClawPrefab, where + Vector3.up * 3.0f, facing);
+                    Log("spawned a crimson claw -- it will chase and attack you");
                     return;
 
                 case "radio":
@@ -481,6 +771,16 @@ namespace CityX.UI
                     }
                     Instantiate(JetpackPrefab, where + Vector3.up * 0.05f, Quaternion.identity);
                     Log("spawned a jetpack -- press E nearby to pick it up");
+                    return;
+
+                case "parachute":
+                    if (ParachutePrefab == null)
+                    {
+                        Log("no parachute prefab wired");
+                        return;
+                    }
+                    Instantiate(ParachutePrefab, where + Vector3.up * 0.05f, Quaternion.identity);
+                    Log("spawned a parachute -- press E nearby to pick it up");
                     return;
 
                 case "sword":
@@ -578,6 +878,22 @@ namespace CityX.UI
                         where + Vector3.up * 1.0f, facing);
                     dummy.AddComponent<SparringDummy>();
                     Log("spawned dummy");
+                    return;
+
+                case "book":
+                    // BUILT HERE TOO, same reason as dummy -- Book has no
+                    // prefab, CityStreamer.AddBooks builds one procedurally
+                    // the same way, and Streamer is already wired here for
+                    // /goto so its own BookMaterial needs no new field.
+                    if (Streamer == null || Streamer.BookMaterial == null)
+                    {
+                        Log("no book material wired");
+                        return;
+                    }
+                    GameObject book = new GameObject("Book");
+                    book.transform.SetPositionAndRotation(where, facing);
+                    book.AddComponent<Book>().Build(Streamer.BookMaterial);
+                    Log("spawned a book -- press E to read it");
                     return;
 
                 default:
@@ -727,6 +1043,7 @@ namespace CityX.UI
                 case "cloak": return ItemRegistry.HoodedCloak;
                 case "coat": return ItemRegistry.MidnightPatchworkCoat;
                 case "jetpack": return ItemRegistry.Jetpack;
+                case "parachute": return ItemRegistry.Parachute;
                 case "grapple": return ItemRegistry.GrapplingHook;
                 case "pistol": return ItemRegistry.Pistol;
                 case "sword": return ItemRegistry.Sword;

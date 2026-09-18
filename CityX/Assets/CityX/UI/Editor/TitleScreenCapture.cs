@@ -27,6 +27,17 @@ namespace CityX.UIEditor
             Shoot("title", TitleScreen.Panel.Menu, seedCharacters: false);
         }
 
+        /// <summary>
+        /// The idle "PRESS ANY KEY TO START" state -- rain, the flickering
+        /// logo, the pulsing prompt, no menu yet. EXPLICIT ASK: "recreate
+        /// the godot title screen instead of the one you have now."
+        /// </summary>
+        [MenuItem("CityX/Capture Title Idle Screenshot")]
+        public static void CaptureIdle()
+        {
+            Shoot("title-idle", TitleScreen.Panel.Menu, seedCharacters: false, showIdlePrompt: true);
+        }
+
         [MenuItem("CityX/Capture Settings Screenshot")]
         public static void CaptureSettings()
         {
@@ -58,7 +69,7 @@ namespace CityX.UIEditor
 
         private static void Shoot(string name, TitleScreen.Panel panel, bool seedCharacters,
             CharacterSelect.Mode selectMode = CharacterSelect.Mode.List,
-            string hairStyle = null)
+            string hairStyle = null, bool showIdlePrompt = false)
         {
             string outputDirectory = Path.Combine(
                 Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
@@ -112,13 +123,34 @@ namespace CityX.UIEditor
                 cycle.Apply(View.SkyCycle.At(cycle.TimeOfDay));
             }
 
+            // SAME REASON AS THE STREAMER AND THE SKY ABOVE: RainEffect.
+            // SetActive was called once, at scene-BUILD time, but a particle
+            // system's own live emission state is not part of the saved
+            // scene -- reopening it fresh (exactly what this capture just
+            // did) leaves the rain sitting inert. Calling SetActive(true)
+            // again here is also what pre-fills the drops across their own
+            // fall (RainEffect.SetActive's own Simulate call) rather than
+            // starting the shot from an empty box.
+            var rain = Object.FindFirstObjectByType<View.RainEffect>();
+            if (rain != null)
+            {
+                rain.SetActive(true);
+            }
+
             // The panel's OnEnable is what loads the character list, and
             // OnEnable does not run in edit mode -- so Show alone would render
             // an empty screen. Refresh is what actually reads the store.
             var title = Object.FindFirstObjectByType<TitleScreen>();
             if (title != null)
             {
-                title.Show(panel);
+                if (showIdlePrompt)
+                {
+                    title.ShowIdlePrompt();
+                }
+                else
+                {
+                    title.Show(panel);
+                }
                 if (panel == TitleScreen.Panel.CharacterSelect && title.Select != null)
                 {
                     title.Select.Refresh();

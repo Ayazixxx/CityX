@@ -224,6 +224,18 @@ namespace CityX.Tests
                     {
                         continue;
                     }
+                    // The door is on the north wall (see WalkingAtTheDoorwayGetsYouInside's
+                    // own doc comment) and the player spawns just north of it --
+                    // level ground alone is not enough now that
+                    // CityLayout.LocalStreetPeriodFor varies block size by
+                    // neighbourhood: the first level-ground match near the origin
+                    // can have ANOTHER BUILDING to the north instead of open
+                    // street, which spawns the player embedded in that facade
+                    // rather than in the open. Real street or open ground only.
+                    if (!CityLayout.IsStreetChunk(x, y + 1))
+                    {
+                        continue;
+                    }
                     return site;
                 }
             }

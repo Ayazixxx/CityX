@@ -17,6 +17,7 @@ namespace CityX.Items
         public const string GrapplingHook = "grappling_hook";
         public const string Pistol = "pistol";
         public const string Jetpack = "jetpack";
+        public const string Parachute = "parachute";
         public const string Sword = "sword";
         public const string Flamethrower = "flamethrower";
         public const string TopHat = "top_hat";
@@ -36,6 +37,15 @@ namespace CityX.Items
             // there to have defined one), so it can be worn at the same time
             // as a coat/cloak rather than competing with it for the slot.
             [Jetpack] = new ItemDefinition(Jetpack, "Jetpack", "tool", "back", 1),
+            // Same "back" slot as Jetpack, deliberately -- EXPLICIT ASK:
+            // "add a parachute as an item parachute backpack." Wearing a
+            // parachute and a jetpack at once would not mean anything
+            // (which one does Space even talk to?), and reusing Jetpack's
+            // own slot means Inventory's existing slot-eviction logic
+            // already makes the two mutually exclusive for free, the same
+            // way putting on a second coat already replaces the first --
+            // no new code needed anywhere for that.
+            [Parachute] = new ItemDefinition(Parachute, "Parachute", "tool", "back", 1),
             [Sword] = new ItemDefinition(Sword, "Sword", "weapon", "hand_r", 1),
             [Flamethrower] = new ItemDefinition(Flamethrower, "Flamethrower", "weapon", "hand_r", 1),
             // "helmet" -- LoadoutPanelView's own slot list already has one,

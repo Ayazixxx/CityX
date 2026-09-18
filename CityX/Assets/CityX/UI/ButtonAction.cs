@@ -78,6 +78,23 @@ namespace CityX.UI
 
             /// <summary>ReDraw's own SAVE button -- see CreatorOverlays.SaveRedraw.</summary>
             CreatorRedrawSave,
+
+            // ADDED AT THE END, NOT ALPHABETICALLY/THEMATICALLY GROUPED WITH
+            // ShowMultiplayer ABOVE -- EXPLICIT BUG, caught by
+            // TitleScreenWiringTests.EveryButtonActionHasWhateverItActsOn:
+            // Title.unity is a SAVED scene, and Unity serializes an enum
+            // field by its raw ordinal, not its name. Inserting new members
+            // in the MIDDLE of this enum (tried first, reads more naturally
+            // next to ShowMultiplayer) shifted every later member's ordinal
+            // by three, so the already-saved scene's own stored integers for
+            // SelectBeginCreate/SelectChooseSkin/etc. silently deserialized
+            // as whichever member now happened to occupy that same number --
+            // every button past the insertion point came back wired to the
+            // wrong kind of view. New members must only ever be appended
+            // here, never inserted, until the whole enum is retired.
+            MultiplayerHost,
+            MultiplayerJoin,
+            MultiplayerBack,
         }
 
         public Kind Action;
@@ -89,6 +106,8 @@ namespace CityX.UI
         public CharacterCreator Creator;
 
         public TitleSettingsView Settings;
+
+        public TitleMultiplayerView Multiplayer;
 
         [Tooltip("So a palette press moves the colour wheel with it.")]
         public CreatorControls Controls;
@@ -122,6 +141,16 @@ namespace CityX.UI
 
                 case Kind.TitleBack:
                     if (Title != null) Title.Back();
+                    break;
+
+                case Kind.MultiplayerHost:
+                    if (Multiplayer != null) Multiplayer.Host();
+                    break;
+                case Kind.MultiplayerJoin:
+                    if (Multiplayer != null) Multiplayer.Join();
+                    break;
+                case Kind.MultiplayerBack:
+                    if (Multiplayer != null) Multiplayer.Back();
                     break;
 
                 case Kind.SelectBeginCreate:

@@ -4,7 +4,9 @@
     "references": [
         "CityX.Character",
         "CityX.Core",
-        "CityX.Weapons"
+        "CityX.Items",
+        "CityX.Weapons",
+        "FishNet.Runtime"
     ],
     "includePlatforms": [
         "Editor"

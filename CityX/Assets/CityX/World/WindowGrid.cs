@@ -59,6 +59,23 @@ namespace CityX.World
         }
 
         /// <summary>
+        /// Which way a wall faces the street -- matches CityMeshBuilder's own
+        /// AddWindowedWall call sites exactly (Vector3.left/right/back/forward
+        /// per wall), so anything spawned off a broken pane flies the same
+        /// way the glass itself was ever facing.
+        /// </summary>
+        public static Vector3 OutwardNormal(Wall wall)
+        {
+            switch (wall)
+            {
+                case Wall.West: return Vector3.left;
+                case Wall.East: return Vector3.right;
+                case Wall.South: return Vector3.back;
+                default: return Vector3.forward;
+            }
+        }
+
+        /// <summary>
         /// Whether a cell carries a window.
         ///
         /// Hashed rather than drawn from a sequence because chunks are built in

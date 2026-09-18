@@ -48,6 +48,80 @@ namespace CityX.Character
         public IJetpack EquippedJetpack;
 
         /// <summary>
+        /// Set by Parachute's own OnEquip/OnUnequip, same pattern as
+        /// EquippedJetpack. While non-null, a fresh press of Space while
+        /// airborne toggles it open/closed instead of doing nothing -- see
+        /// the Update() dispatch and IParachute's own doc comment. Shares
+        /// Jetpack's own "back" equip slot (see ItemRegistry.Parachute's
+        /// own doc comment), so Inventory's own slot eviction already
+        /// guarantees this and EquippedJetpack are never both non-null at
+        /// once -- no extra mutual-exclusion needed here.
+        /// </summary>
+        public IParachute EquippedParachute;
+
+        /// <summary>
+        /// Edge-detects a jetpack wall hit (see the crash-damage block in
+        /// Update()) so a player held against a wall under thrust takes
+        /// ONE impact, not the same damage re-applied every single frame
+        /// they stay pinned there. Reset to false the instant CollisionFlags.
+        /// Sides stops appearing, so backing off and hitting something else
+        /// later is a fresh crash.
+        /// </summary>
+        private bool _wasJetpackCrashing;
+
+        /// <summary>
+        /// The wall normal _wasJetpackCrashing's own gate was last armed
+        /// against -- see NewWallContactAngleDegrees' own doc comment for
+        /// why a plain bool isn't enough on its own.
+        /// </summary>
+        private Vector3 _lastJetpackCrashNormal;
+
+        /// <summary>
+        /// How much a contact's own normal has to rotate from
+        /// _lastJetpackCrashNormal before this counts as hitting a
+        /// DIFFERENT wall rather than continuing to press into the same
+        /// one -- EXPLICIT BUG REPORT: "i bugged out when running into the
+        /// corner of the building with jetpack and got stuck into it
+        /// instead ragdolling." A plain "was I touching A wall last frame"
+        /// bool cannot tell a genuinely new impact apart from continuing to
+        /// touch the SAME wall: flying at an angle into a building corner
+        /// typically grazes one face first (a shallow, low-damage or
+        /// zero-damage touch that still sets HitWallThisFrame, arming
+        /// _wasJetpackCrashing), then immediately slams into the SECOND,
+        /// near-perpendicular face a frame or two later -- a real, hard,
+        /// damage-worthy impact that the edge-detection gate silently
+        /// swallowed because it still believed the player was mid-way
+        /// through the SAME wall-touch as the earlier graze. With the real
+        /// crash knockdown never firing, the player never gets
+        /// Ragdoll.Activate's own DepenetrateFromWorld correction either
+        /// (see its own doc comment -- that is what actually clears a body
+        /// stuck overlapping geometry), leaving them visibly wedged in the
+        /// corner with no automatic fix and no ragdoll. 90 degrees is a
+        /// square building corner's own angle; comfortably lower catches
+        /// off-square architecture too, while staying comfortably above
+        /// the near-zero jitter a static flat wall's own reported normal
+        /// has frame to frame.
+        /// </summary>
+        public const float NewWallContactAngleDegrees = 45.0f;
+
+        /// <summary>
+        /// Whether this frame's own wall touch is a fresh impact worth
+        /// checking for crash damage -- see NewWallContactAngleDegrees' own
+        /// doc comment for the building-corner bug this exists to fix.
+        /// A PURE, STATIC decision extracted specifically so a test can
+        /// drive the exact geometric cases (continuing to touch the same
+        /// wall, a genuine corner's second face, the very first touch)
+        /// directly, without needing a real keyboard, jetpack, or physics
+        /// scene just to reach a few lines of vector math.
+        /// </summary>
+        public static bool IsNewWallContact(
+            bool hitWall, bool wasJetpackCrashing, Vector3 currentWallNormal, Vector3 lastCrashWallNormal)
+        {
+            return hitWall && (!wasJetpackCrashing ||
+                Vector3.Angle(currentWallNormal, lastCrashWallNormal) > NewWallContactAngleDegrees);
+        }
+
+        /// <summary>
         /// Found once via GetComponent in Awake, not set externally like
         /// EquippedGun/EquippedJetpack -- see IFireballCaster's own doc
         /// comment for why: the spell is an innate ability with no equip
@@ -115,8 +189,18 @@ namespace CityX.Character
         private Inventory _inventory;
         private GrappleSwing _grappleSwing;
         private PlayerClimbing _climbing;
+        private WallStick _wallStick;
         private ThirdPersonCamera _orbitCamera;
         private readonly WeaponAimInput _weaponAim = new WeaponAimInput();
+
+        /// <summary>
+        /// Exposed so Jetpack.OnEquip/OnUnequip can widen MinPitch/MaxPitch
+        /// for full-vertical flight without each doing its own scene-wide
+        /// Object.FindFirstObjectByType search for the one camera this
+        /// class already found -- see Jetpack.cs's own doc comment on why
+        /// jetpacking needs a wider pitch range than ordinary looking-around.
+        /// </summary>
+        public ThirdPersonCamera OrbitCamera => _orbitCamera;
 
         /// <summary>
         /// The car this body is seated in (driver or passenger), or null.
@@ -128,6 +212,17 @@ namespace CityX.Character
         /// frame right now.
         /// </summary>
         private GameObject _seatedCar;
+
+        /// <summary>
+        /// The BenchSeat this body is sitting on, or null. Same "something
+        /// else owns the frame right now" shape as _seatedCar, but its own
+        /// separate field rather than reusing that one: a bench needs none
+        /// of the car's own extra machinery (no camera-distance widening, no
+        /// transition-in-progress polling), and naming the field after a
+        /// car while a bench uses it would read as a bug to the next person
+        /// touching this file. See BenchSeat.cs's own doc comment.
+        /// </summary>
+        private GameObject _seatedBench;
 
         private float _savedCameraDistance;
 
@@ -155,6 +250,7 @@ namespace CityX.Character
             _inventory = GetComponent<Inventory>();
             _grappleSwing = GetComponent<GrappleSwing>();
             _climbing = GetComponent<PlayerClimbing>();
+            _wallStick = GetComponent<WallStick>();
             _fireballCaster = GetComponent<IFireballCaster>();
         }
 
@@ -236,6 +332,32 @@ namespace CityX.Character
             }
         }
 
+        /// <summary>
+        /// Called by BenchSeat the instant a player sits down -- no
+        /// transition-in-progress step to wait out, unlike
+        /// BeginCarTransition, since PlayerLocomotion.ApplySittingPose
+        /// bends the leg bones directly every frame rather than waiting on
+        /// an Animator clip to finish.
+        /// </summary>
+        public void BeginBenchSeat(GameObject bench)
+        {
+            _seatedBench = bench;
+            if (_locomotion != null)
+            {
+                _locomotion.SetSitting(true);
+            }
+        }
+
+        /// <summary>Called by BenchSeat the instant a player stands back up.</summary>
+        public void EndBenchSeat()
+        {
+            _seatedBench = null;
+            if (_locomotion != null)
+            {
+                _locomotion.SetSitting(false);
+            }
+        }
+
         /// <summary>Called by PlayerChat's own /breakdance command. See StartDance's own doc comment.</summary>
         public void StartBreakdance()
         {
@@ -281,7 +403,12 @@ namespace CityX.Character
             // itself, directly, entirely independently of this class -- the
             // same split car.gd's own Input.get_axis reads already have
             // from player.gd's own input handling.
-            if (_seatedCar != null)
+            //
+            // A BENCH OWNS THE FRAME THE SAME WAY, with no WASD reading of
+            // its own -- BenchSeat.Update() polls E/WASD only to decide when
+            // to stand back up, not to move anything, so there is genuinely
+            // nothing for this class to do while seated, same as the car.
+            if (_seatedCar != null || _seatedBench != null)
             {
                 return;
             }
@@ -327,6 +454,83 @@ namespace CityX.Character
                 // these early returns: they are loops, so they do not run out
                 // on their own, and a corpse walking on the spot is audible.
                 _audio?.SilenceFootsteps();
+
+                // SAME REASONING, FOR THE JETPACK -- EXPLICIT BUG REPORT:
+                // "when your using jetpack and crash into a surface and
+                // ragdoll, the jetpack also turns off even if your holding
+                // space." EquippedJetpack.Tick (the only place that stops
+                // its own flame/thrust audio) is never reached again while
+                // this branch keeps returning early below, so holding
+                // Space through the crash would otherwise leave the flame
+                // burning and the thrust loop playing over a body that
+                // is not flying anywhere any more.
+                EquippedJetpack?.StopThrustEffects();
+
+                // EXPLICIT BUG REPORT: "im still getting up at an angle when
+                // i ragdoll." Jetpack.Tick is the only thing that ever eases
+                // the body's own flight lean back toward upright, and it
+                // never runs while this branch keeps returning early -- so
+                // whatever lean was baked in at the exact instant of the
+                // crash used to sit there completely frozen through the
+                // whole limp ragdoll AND the entire "GettingUp" clip,
+                // several frames longer than it took the player to actually
+                // regain control. See ResetTilt's own doc comment for the
+                // full reasoning; called every frame while limp (same as
+                // StopThrustEffects just above) rather than once, so it also
+                // catches a jetpack that gets equipped mid-ragdoll.
+                EquippedJetpack?.ResetTilt();
+
+                // A DEATH RAGDOLL NEVER TICKS ANY OF THIS -- IsDead is
+                // checked here directly rather than relying on the ordinary
+                // IsDead early-return further down, which this branch's own
+                // `return` never reaches. Without this guard a dead body
+                // would still accumulate rest time and let Space stand it
+                // back up, which only makes sense for a knockdown, not a
+                // death -- death stays permanent until an explicit Revive.
+                bool dead = _vitals != null && _vitals.IsDead;
+                if (!dead)
+                {
+                    // Drives the rest-timer/GettingUp recovery -- see
+                    // Ragdoll.Tick's own doc comment for why this has to be
+                    // called explicitly from here rather than Ragdoll
+                    // running its own Update().
+                    _ragdoll.Tick(deltaTime);
+
+                    // EXPLICIT ASK: "the ragdoll can continue to take fall
+                    // damage." The torso's own Rigidbody is what is
+                    // actually falling now, not the (disabled)
+                    // CharacterController -- IsRestingOnGround is the
+                    // closest thing it has to isGrounded while limp (see
+                    // its own doc comment).
+                    //
+                    // RETURN VALUE NOW CHECKED -- EXPLICIT BUG REPORT: "no
+                    // second impact noise once i crash and then hit the
+                    // ground and take fall damage a second time." A wall
+                    // crash's own impact plays through the jetpackThrusting
+                    // branch further down, but that branch is never reached
+                    // again once ragdolled -- this call was already dealing
+                    // the real, second round of damage for a genuine second
+                    // impact (an initial wall crash knocking the body into a
+                    // ragdoll that then actually falls and lands for real),
+                    // it just silently discarded the return value instead of
+                    // playing anything, matching the exact same
+                    // "only a landing that actually hurt" rule the ordinary
+                    // grounded landing case already follows below.
+                    if (_vitals != null && _ragdoll.Torso != null)
+                    {
+                        float ragdollFallDamage =
+                            _vitals.TickFallDamage(_ragdoll.IsRestingOnGround, _ragdoll.Torso.position.y);
+                        if (ragdollFallDamage > 0.0f)
+                        {
+                            _audio?.PlayFallImpact();
+                        }
+                    }
+
+                    if (_ragdoll.CanStandUp && keyboard.spaceKey.wasPressedThisFrame)
+                    {
+                        _ragdoll.BeginStandingUp();
+                    }
+                }
                 return;
             }
 
@@ -412,18 +616,26 @@ namespace CityX.Character
                 // swinging goes through the left instead -- explicit ask:
                 // "it still works just comes from your left hand". Same
                 // digit1Key/origin-height/ignore-colliders shape as the
-                // ordinary ground cast below; GrappleSwing's own Tick reads
-                // IsCasting straight off _fireballCaster every frame to
-                // drive the left arm's own procedural held pose (see
-                // GrappleSwing.UpdateSwingPose's own doc comment), so
-                // nothing else needs passing through here beyond actually
-                // firing the cast.
+                // ordinary ground cast below.
                 if (_fireballCaster != null && keyboard.digit1Key.wasPressedThisFrame && swingYawSource != null)
                 {
                     float height = (_locomotion != null ? _locomotion.StandingHeight : 1.8f) * 0.68f;
                     Vector3 origin = transform.position + Vector3.up * height;
                     _fireballCaster.TryCast(origin, swingYawSource.forward, GetComponentsInChildren<Collider>());
                 }
+
+                // THE ORDINARY WASD-MOVEMENT BRANCH BELOW NEVER RUNS WHILE
+                // SWINGING (this whole block returns before reaching it),
+                // and that branch is the only other place SetCastPose gets
+                // called -- so without this, casting while swinging would
+                // fire the fireball but show no left-arm raise at all.
+                // GrappleSwing itself never touches this bone any more (see
+                // its own class doc comment), so PlayerLocomotion's normal
+                // ApplyCastingPose is free to layer this on top of whatever
+                // the swing's own DriveAnimatorFromExternalVelocity pose is,
+                // exactly like it would during ordinary ground movement.
+                _locomotion.SetCastPose(
+                    _fireballCaster != null ? _fireballCaster.CastFraction : 0.0f, useLeftArm: true);
 
                 _grappleSwing.Tick(swingMove, swingYaw, boostedRelease, plainRelease,
                     reelHeld, payoutHeld, deltaTime);
@@ -468,6 +680,46 @@ namespace CityX.Character
                 }
             }
 
+            // ALREADY STUCK TO A WALL OWNS THE WHOLE FRAME TOO -- same
+            // pattern as the climbing block above.
+            if (_wallStick != null && _wallStick.IsSticking)
+            {
+                Vector2 stickMove = Vector2.zero;
+                if (keyboard.wKey.isPressed) stickMove.y += 1.0f;
+                if (keyboard.sKey.isPressed) stickMove.y -= 1.0f;
+                if (keyboard.dKey.isPressed) stickMove.x += 1.0f;
+                if (keyboard.aKey.isPressed) stickMove.x -= 1.0f;
+
+                _wallStick.Tick(keyboard.spaceKey.wasPressedThisFrame, stickMove, _vitals, deltaTime);
+                _audio?.SilenceFootsteps();
+                return;
+            }
+
+            // NOT YET STICKING -- try to grab on. Checked AFTER climbing's
+            // own grab attempt above (see WallStick's own doc comment on why
+            // the two never fight over the same frame: this one is gated on
+            // being airborne, climbing's own grab is not gated on grounded
+            // at all, so an airborne sprint+W into a shallow-enough wall
+            // still climbs a ladder exactly as before this existed).
+            if (_wallStick != null &&
+                (_grabCarry == null || !_grabCarry.IsCarrying) &&
+                !_locomotion.IsDashing)
+            {
+                float stamina = _vitals != null ? _vitals.Stamina : float.MaxValue;
+                if (_wallStick.TryStart(keyboard.leftShiftKey.isPressed, _locomotion.IsGrounded, stamina))
+                {
+                    Vector2 stickMove = Vector2.zero;
+                    if (keyboard.wKey.isPressed) stickMove.y += 1.0f;
+                    if (keyboard.sKey.isPressed) stickMove.y -= 1.0f;
+                    if (keyboard.dKey.isPressed) stickMove.x += 1.0f;
+                    if (keyboard.aKey.isPressed) stickMove.x -= 1.0f;
+
+                    _wallStick.Tick(keyboard.spaceKey.wasPressedThisFrame, stickMove, _vitals, deltaTime);
+                    _audio?.SilenceFootsteps();
+                    return;
+                }
+            }
+
             TickCombat(deltaTime);
 
             Vector2 move = Vector2.zero;
@@ -501,13 +753,38 @@ namespace CityX.Character
             // A JETPACK TAKES SHIFT OVER TOO WHILE ACTUALLY THRUSTING, not
             // just Space -- the explicit ask ("shift is a boost when midair
             // using jetpack") redefines what the key means the instant
-            // thrust is live, the same way Space already stopped meaning
-            // "charged jump" the moment EquippedJetpack was assigned.
-            // Computed before wantsSprint below so that check can exclude
-            // this case rather than double-booking one key with two
-            // unrelated meanings and draining stamina for a mechanic that
-            // is not supposed to cost any.
-            bool jetpackThrusting = EquippedJetpack != null && keyboard.spaceKey.isPressed;
+            // thrust is live. Computed before wantsSprint below so that
+            // check can exclude this case rather than double-booking one
+            // key with two unrelated meanings and draining stamina for a
+            // mechanic that is not supposed to cost any.
+            //
+            // AIRBORNE ONLY -- EXPLICIT BUG REPORT: "when you press space on
+            // the floor with jetpack on it just does boost right away but
+            // make it so you can still jump with jetpack on and but when you
+            // hold space mid air then it activates." Space used to mean
+            // thrust the instant the jetpack was equipped, grounded or not,
+            // which left no way to jump at all while wearing it. Requiring
+            // !_locomotion.IsGrounded here is also what makes the dispatch
+            // just below correctly fall through to a jump instead while
+            // still standing on the ground.
+            bool jetpackThrusting = EquippedJetpack != null && keyboard.spaceKey.isPressed &&
+                !_locomotion.IsGrounded;
+
+            // A PARACHUTE TAKES A FRESH PRESS OF SPACE WHILE AIRBORNE, not a
+            // hold -- EXPLICIT ASK: "press space and open and close it."
+            // wasPressedThisFrame rather than isPressed, since this is a
+            // toggle (open, then a second press later closes it again), not
+            // a held state the way jetpack thrust is. Airborne-only for the
+            // same reason jetpackThrusting is: while grounded this stays
+            // false, so the dispatch below still falls through to an
+            // ordinary jump instead, and there is nothing to "open" while
+            // standing on the ground anyway. EquippedJetpack and
+            // EquippedParachute share Jetpack's own "back" equip slot (see
+            // ItemRegistry.Parachute's own doc comment), so Inventory's own
+            // slot eviction already guarantees at most one of them is ever
+            // equipped at once -- no extra mutual-exclusion needed here.
+            bool parachuteToggledThisFrame = EquippedParachute != null &&
+                keyboard.spaceKey.wasPressedThisFrame && !_locomotion.IsGrounded;
 
             // Sprint only forwards. Sprinting sideways or backwards has no
             // animation and reads as a glitch rather than as speed.
@@ -531,23 +808,69 @@ namespace CityX.Character
             TickDash(keyboard, move, yawDegrees, deltaTime);
 
             bool chargingJumpNow = false;
-            bool jumpReleased = false;
             float jumpChargeFraction = 0.0f;
-            // A JETPACK TAKES SPACE OVER ENTIRELY WHILE EQUIPPED, the same
-            // way a gun/grapple hook already take over click -- Space means
-            // thrust now, not a charged jump, so TickJumpCharge (and the
-            // pose it would have driven) never runs at all. Left/right/
-            // crouch above are untouched: WASD keeps steering horizontally
-            // exactly the way ordinary falling already lets it, matching
-            // the explicit ask ("mixed with wasd to move around").
+            // PLAIN JUMP, CHARGING KEPT IN THE VAULT -- EXPLICIT ASK: "get
+            // rid of charged jump for now that is going to be a skill tree
+            // ability keep it in the vault." TickJumpCharge itself is
+            // untouched and still fully correct, just not called from here
+            // for now -- a future skill unlock can route back through it.
+            // In its place, a bare tap of Space while grounded fires the
+            // jump immediately at PlayerLocomotion's own base JumpVelocity:
+            // JumpReleased with JumpChargeFraction left at 0 makes
+            // PlayerLocomotion.Tick's own height-multiplier lerp resolve to
+            // exactly 1 (no bonus height at all), which is precisely the
+            // un-charged jump this restores -- no changes needed in
+            // PlayerLocomotion itself. Computed unconditionally (not just
+            // when the jetpack skips its own Tick below) since it is
+            // already grounded-gated on its own and jetpackThrusting is
+            // already forced false while grounded (see its own doc comment
+            // just above), so a tap of Space always means jump there,
+            // jetpack equipped or not.
+            bool jumpReleased = _locomotion.IsGrounded && keyboard.spaceKey.wasPressedThisFrame;
+
+            // A JETPACK TAKES SPACE OVER ONLY ONCE ACTUALLY AIRBORNE --
+            // EXPLICIT BUG REPORT: "when you press space on the floor with
+            // jetpack on it just does boost right away but make it so you
+            // can still jump with jetpack on and but when you hold space
+            // mid air then it activates." While grounded, jetpackThrusting
+            // is already false (see its own doc comment above), so Tick
+            // below never reactivates thrust/flame/audio on the ground --
+            // WASD keeps steering horizontally exactly the way ordinary
+            // falling already lets it, matching the jetpack's own explicit
+            // ask ("mixed with wasd to move around").
+            //
+            // STILL CALLED EVERY FRAME WHILE EQUIPPED, GROUNDED OR NOT --
+            // EXPLICIT BUG REPORT: "after i crash and recover sometimes i
+            // am stuck at an angle." This used to be gated on
+            // `!_locomotion.IsGrounded`, so the instant the player landed
+            // (including standing back up from a crash ragdoll) Tick simply
+            // stopped being called at all -- and Tick's own TickTilt is the
+            // ONLY thing that ever eases _currentTilt/the spine's own
+            // localRotation back toward level (see TickTilt's own doc
+            // comment). Whatever lean the body had at the exact instant of
+            // the crash stayed baked into the spine transform forever,
+            // since nothing else ever touches it. Now Tick runs
+            // unconditionally while equipped; with thrustHeld already false
+            // on the ground, TickTilt's own target collapses to
+            // Vector2.zero and SmoothDamps the lean back to upright over
+            // TiltSmoothTime, the same graceful ease-out used everywhere
+            // else in this system -- not an instant snap.
             if (EquippedJetpack != null)
             {
-                EquippedJetpack.Tick(jetpackThrusting, move, keyboard.leftShiftKey.isPressed, deltaTime);
+                float cameraPitch = _orbitCamera != null ? _orbitCamera.Pitch : 0.0f;
+                EquippedJetpack.Tick(jetpackThrusting, move, keyboard.leftShiftKey.isPressed, deltaTime, cameraPitch);
             }
-            else
+
+            // CALLED EVERY FRAME WHILE EQUIPPED, GROUNDED OR NOT -- same
+            // reasoning EquippedJetpack.Tick just above is, per that block's
+            // own doc comment: Tick is also where a parachute notices it
+            // landed and auto-closes itself (see IParachute.Tick's own doc
+            // comment), which has to keep happening even after the toggle
+            // press itself is long past and even once grounded, not just on
+            // the one frame Space was actually pressed.
+            if (EquippedParachute != null)
             {
-                TickJumpCharge(keyboard, _locomotion.IsGrounded, deltaTime,
-                    out chargingJumpNow, out jumpReleased, out jumpChargeFraction);
+                EquippedParachute.Tick(parachuteToggledThisFrame, _locomotion.IsGrounded, deltaTime);
             }
 
             // A CAST NO LONGER BORROWS THE GUN'S OWN AIM POSE -- the explicit
@@ -572,15 +895,16 @@ namespace CityX.Character
                 YawDegrees = yawDegrees,
                 Sprint = sprinting,
                 Crouch = keyboard.leftCtrlKey.isPressed,
-                // Space no longer fires Jump directly -- see TickJumpCharge's
-                // own comment for why a tap and a hold are one mechanic now,
-                // not a plain press here plus a competing charge below it.
+                // Charging kept in the vault for now -- see the dispatch
+                // above (and TickJumpCharge's own doc comment) for why
+                // Space fires a plain, un-charged jump directly instead.
                 ChargingJump = chargingJumpNow,
                 JumpReleased = jumpReleased,
                 JumpChargeFraction = jumpChargeFraction,
                 // Gun-aiming only now -- see isCastingFireball's own comment
                 // just above for why a cast no longer sets this too.
                 Aiming = _isAimingGun,
+                AimPitchDegrees = _orbitCamera != null ? _orbitCamera.Pitch : 0.0f,
                 SwordEquipped = _melee != null && _melee.EquippedWeapon != null &&
                                 _melee.EquippedWeapon.MovesetId == ComboChain.Sword,
                 // AIMING WINS, not jetpackThrusting raw -- "aim and shoot
@@ -604,11 +928,92 @@ namespace CityX.Character
                 // is no state-machine conflict here to suppress in the
                 // first place.
                 JetpackBoosting = jetpackThrusting && keyboard.leftShiftKey.isPressed,
+                JetpackDiving = jetpackThrusting && keyboard.leftShiftKey.isPressed && move.y > 0.0f,
                 Dancing = _isDancing,
                 Breakdancing = _isBreakdancing,
             };
 
+            float horizontalSpeedBeforeMove = _locomotion.CurrentSpeed;
             _locomotion.Tick(input, deltaTime);
+
+            // EXPLICIT ASK: "horizontal 'fall damage' when using the jetpack
+            // and you crash into a wall... if the amount of damage you take
+            // doesnt kill you, you still ragdoll." Gated on jetpackThrusting
+            // specifically, not just EquippedJetpack != null -- an ordinary
+            // walk into a wall (no thrust) is not a crash, it is just
+            // bumping into something, and ApplyCrashDamage's own
+            // SafeFallDistance floor already makes a slow, harmless jetpack
+            // nudge deal no damage either way.
+            //
+            // EDGE-DETECTED via _wasJetpackCrashing -- a real contact
+            // reports true every frame the controller is still pressed into
+            // the wall, and applying fresh damage each of those frames
+            // would be continuous, not a single impact.
+            //
+            // HitWallThisFrame, NOT CollisionFlags.Sides -- EXPLICIT BUG
+            // REPORT: "the jetpack sideways fall damage thing still hasnt
+            // worked, make it do it upon my playermodel coming into
+            // contact with the wall or object." CollisionFlags is a coarse
+            // summary bitmask of the whole Move call; PlayerLocomotion's
+            // own OnControllerColliderHit now reads the actual per-contact
+            // normal Unity reports for the real hit, which is the more
+            // direct and reliable signal for "did the body really touch a
+            // wall" -- see PlayerLocomotion.HitWallThisFrame's own doc
+            // comment.
+            if (jetpackThrusting)
+            {
+                bool hitWall = _locomotion.HitWallThisFrame;
+                bool isNewWallContact = IsNewWallContact(
+                    hitWall, _wasJetpackCrashing, _locomotion.LastWallHitNormal, _lastJetpackCrashNormal);
+
+                if (isNewWallContact && _vitals != null)
+                {
+                    float damage = _vitals.ApplyCrashDamage(horizontalSpeedBeforeMove);
+                    if (damage > 0.0f)
+                    {
+                        _audio?.PlayFallImpact();
+                        if (!_vitals.IsDead)
+                        {
+                            // EXPLICIT BUG REPORT: "whenever i fly into a
+                            // wall or window i just get stuck in it" --
+                            // STILL true after a first attempt at a fixed
+                            // pull-back nudge here (a guess at how far a
+                            // limb tunnelled, which could not know how far
+                            // a Superman-dive's outstretched arm actually
+                            // reached past the wall on any given hit).
+                            // Ragdoll.Activate now measures and clears the
+                            // real overlap itself (see its own
+                            // DepenetrateFromWorld), so this only has to
+                            // hand it a knockback DIRECTION -- the real
+                            // contact normal Unity just gave us, preferred
+                            // over -velocity since velocity is often more
+                            // steeply angled into the wall than the surface
+                            // itself.
+                            Vector3 awayFromWall = _locomotion.LastWallHitNormal.sqrMagnitude > 0.0001f
+                                ? _locomotion.LastWallHitNormal
+                                : -_locomotion.Velocity;
+                            _vitals.TriggerCrashKnockdown(awayFromWall);
+                        }
+                    }
+                }
+
+                // Tracked whenever hitWall is true, not only when a fresh
+                // impact actually fired -- the NEXT frame's own angle check
+                // needs to compare against the MOST RECENT face touched
+                // (so smoothly sliding along one continuous curved surface
+                // never falsely accumulates into "a new wall" one small
+                // step at a time), not a stale snapshot from several frames
+                // back.
+                if (hitWall)
+                {
+                    _lastJetpackCrashNormal = _locomotion.LastWallHitNormal;
+                }
+                _wasJetpackCrashing = hitWall;
+            }
+            else
+            {
+                _wasJetpackCrashing = false;
+            }
 
             // AFTER the move, so grounded and height are this frame's, not the
             // previous one's. Checking before would measure the fall one frame
@@ -870,6 +1275,16 @@ namespace CityX.Character
         /// -- the moment the ground disappears out from under it, rather
         /// than letting a charge that started on solid ground pay out as a
         /// mid-air launch once it releases.
+        ///
+        /// KEPT IN THE VAULT, NOT CALLED FROM Update() RIGHT NOW -- EXPLICIT
+        /// ASK: "get rid of charged jump for now that is going to be a
+        /// skill tree ability keep it in the vault." Update's own dispatch
+        /// fires a plain, un-charged jump directly instead (JumpReleased
+        /// with JumpChargeFraction left at 0 -- see that call site's own
+        /// doc comment for why that alone is enough, with no changes needed
+        /// in PlayerLocomotion). This method is untouched and still fully
+        /// correct; a future skill-tree unlock can route back through it
+        /// exactly as before rather than rebuilding it.
         /// </summary>
         private void TickJumpCharge(Keyboard keyboard, bool grounded, float deltaTime,
             out bool chargingJumpNow, out bool jumpReleased, out float chargeFraction)

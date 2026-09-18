@@ -1,3 +1,4 @@
+using CityX.World;
 using UnityEngine;
 
 namespace CityX.Character
@@ -23,6 +24,21 @@ namespace CityX.Character
     /// network input without changing.
     /// </summary>
     [RequireComponent(typeof(CharacterController))]
+    // EARLIER THAN DEFAULT, ON PURPOSE -- EXPLICIT BUG, found live: Unity
+    // does not guarantee LateUpdate order between separate MonoBehaviours
+    // on the same GameObject (this project's own history already hit this
+    // once for GrappleSwing, see SuppressImplausibleArmSnaps's own doc
+    // comment). PoseDistortionWatchdog is meant to observe this class's
+    // OWN corrected output, never a pre-correction raw value -- if the
+    // watchdog's LateUpdate happened to run BEFORE this one on some frame,
+    // it would record the raw, uncorrected bone rotation as its own
+    // "previous," and the FOLLOWING frame's comparison (now against the
+    // real, corrected value) could then read as a fresh implausible jump
+    // that was never actually visible to a player -- a false positive
+    // indistinguishable, from the log alone, from a real bug. Forcing this
+    // class to run first guarantees the watchdog only ever sees this
+    // class's own already-corrected result.
+    [DefaultExecutionOrder(-100)]
     public sealed class PlayerLocomotion : MonoBehaviour
     {
         [Header("Movement (ported from player.gd)")]
@@ -31,6 +47,19 @@ namespace CityX.Character
 
         [Tooltip("player.gd SPRINT_SPEED")]
         public float SprintSpeed = 7.5f;
+
+        /// <summary>
+        /// How much faster than SprintSpeed a full W+shift jetpack dive
+        /// travels -- EXPLICIT ASK: "the jetpack goes twice as fast" for
+        /// that specific hold. Applied on top of the jetpack's own already-
+        /// boosted SprintSpeed rather than WalkSpeed, since JetpackDiving
+        /// only ever fires alongside JetpackBoosting (see LocomotionInput.
+        /// JetpackDiving's own doc comment) -- "twice as fast" reads as
+        /// twice however fast the jetpack was already making you go, not a
+        /// number pulled from the ordinary on-foot walk speed.
+        /// </summary>
+        [Tooltip("Multiplier on SprintSpeed while diving (W+shift on the jetpack).")]
+        public float JetpackDiveSpeedMultiplier = 2.0f;
 
         [Tooltip("player.gd JUMP_VELOCITY")]
         public float JumpVelocity = 4.5f;
@@ -102,6 +131,14 @@ namespace CityX.Character
         private Transform _handR;
         private Transform _rightUpperArm;
         private Transform _leftUpperArm;
+        private Transform _head;
+        private Transform _rightLowerArm;
+        private Transform _leftLowerArm;
+        private Transform _leftUpperLeg;
+        private Transform _rightUpperLeg;
+        private Transform _leftLowerLeg;
+        private Transform _rightLowerLeg;
+        private MeleeAttacker _melee;
         private float _verticalVelocity;
 
         /// <summary>
@@ -122,6 +159,16 @@ namespace CityX.Character
         /// with no separate "reset now" call needed.
         /// </summary>
         public bool InCarSeat;
+
+        /// <summary>
+        /// Sitting on a BenchSeat -- see that class's own doc comment.
+        /// Gated into LateUpdate's hips/spine reset and ClampFeetAboveGround
+        /// exactly like InCarSeat: ApplySittingPose bends the real leg
+        /// bones into a seated shape every frame, and freezing hips to
+        /// identity or clamping feet to the ground would fight that shape
+        /// exactly the way it would fight a car's own seated pose.
+        /// </summary>
+        public bool IsSitting;
 
         /// <summary>
         /// First-pass guess, not yet checked against a real hands-on-a-
@@ -180,6 +227,19 @@ namespace CityX.Character
         /// every frame.
         /// </summary>
         private Quaternion _castBaseRotation = Quaternion.identity;
+
+        /// <summary>Set every Tick from LocomotionInput.Aiming/AimPitchDegrees, applied later by ApplyGunAimPose.</summary>
+        private bool _isAimingGun;
+
+        private float _gunAimPitchDegrees;
+        private float _lastTickDeltaTime;
+
+        /// <summary>
+        /// Eases toward 1 while aiming, 0 otherwise -- see ApplyGunAimPose's
+        /// own doc comment for why this can't just snap straight to full
+        /// strength the instant Aiming flips true.
+        /// </summary>
+        private float _gunAimBlend;
         private bool _castBaseIsLeftArm;
 
         /// <summary>
@@ -239,6 +299,109 @@ namespace CityX.Character
         public Vector3 Velocity { get; private set; }
 
         public bool IsGrounded => _controller != null && _controller.isGrounded;
+
+        /// <summary>
+        /// CharacterController.Move's own return value from the most recent
+        /// Tick -- discarded everywhere else in this file, kept here so a
+        /// caller (PlayerInputReader's own jetpack-crash detection) can ask
+        /// "did this frame's move actually get blocked sideways" without
+        /// re-deriving it from a position-delta comparison the way
+        /// GrappleSwing's own wall-stick fix does. CollisionFlags.Sides
+        /// specifically -- Above/Below are the floor/ceiling a jetpack
+        /// flying under its own thrust brushes against constantly and
+        /// harmlessly; Sides is an actual wall.
+        /// </summary>
+        public CollisionFlags LastMoveCollisionFlags { get; private set; }
+
+        /// <summary>
+        /// A real, direct contact against a wall-like surface (a building,
+        /// a window -- anything roughly vertical) during THIS frame's own
+        /// Move -- set from OnControllerColliderHit's own per-contact
+        /// normal, not derived from CollisionFlags. EXPLICIT BUG REPORT:
+        /// "the jetpack sideways fall damage thing still hasnt worked...
+        /// make it do it upon my playermodel coming into contact with the
+        /// wall or object" -- CollisionFlags.Sides (LastMoveCollisionFlags
+        /// above) is documented by Unity as an approximate summary of the
+        /// whole Move sweep and proved unreliable for this in real play
+        /// (a glancing or corner hit can move the capsule sideways without
+        /// ever setting the Sides bit). OnControllerColliderHit instead
+        /// fires once per actual contact the capsule makes, with that
+        /// contact's own real surface normal, which is the more direct
+        /// signal for "what did the body really touch." Moving this read
+        /// to before OnControllerColliderHit's existing rigidbody-null
+        /// early return also matters on its own: a building has no
+        /// Rigidbody at all, so that early return used to skip ordinary
+        /// static geometry entirely for whatever ran after it.
+        /// </summary>
+        public bool HitWallThisFrame { get; private set; }
+
+        /// <summary>The world-space contact normal from HitWallThisFrame's own hit, valid only when it is true.</summary>
+        public Vector3 LastWallHitNormal { get; private set; }
+
+        /// <summary>
+        /// Below this, a contact's own normal is closer to "floor/ceiling"
+        /// than "wall" -- Vector3.up dot a vertical wall's normal is 0;
+        /// dot a level floor's is 1. 0.5 is roughly a 60 degree surface,
+        /// comfortably steeper than any real floor/ramp this project builds
+        /// (TerrainField.MaxSlope tops out well under 45 degrees) while
+        /// still catching a near-vertical wall approached at a shallow
+        /// glancing angle.
+        /// </summary>
+        public const float WallNormalMaxUpDot = 0.5f;
+
+        /// <summary>
+        /// A hard floor no legitimate ground ever sits below --
+        /// TerrainField.SeaLevel is 0 and TotalRelief tops out at 72, so
+        /// nothing in this world's own terrain, streets or building podiums
+        /// is ever built anywhere near this low. EXPLICIT BUG REPORT,
+        /// repeated after extensive investigation could not pin a single
+        /// reproducible cause on any of four different real-flow tests
+        /// (direct Tick, the real PlayerInputReader dispatch, a real
+        /// single-mode scene load with an existing character, and one with
+        /// a brand new character through the full intro cutscene -- all
+        /// four settled on the ground cleanly): "make me fucking spawn
+        /// above ground its still happening." This is the safety net
+        /// instead of the diagnosis -- whatever the real cause turns out to
+        /// be (a streaming race the tests never happened to hit, a stale
+        /// scene, something neither investigation found), a body this far
+        /// below the world gets rescued every single Tick rather than left
+        /// to fall forever.
+        /// </summary>
+        public const float FallThroughWorldY = -20.0f;
+
+        /// <summary>
+        /// Snaps back onto the real ground directly above wherever the body
+        /// currently is, using TerrainField.ContinuousHeightAt -- a pure
+        /// function of world coordinates that answers correctly regardless
+        /// of whether CityStreamer has actually built that chunk's own mesh
+        /// yet, unlike a downward raycast, which would find nothing at all
+        /// during exactly the kind of streaming-race window this exists to
+        /// recover from. Reads CurrentWorld rather than the streamer
+        /// directly -- CityX.Character has no reference to CityX.View (see
+        /// that assembly's own .asmdef), so CurrentWorld is the one thing
+        /// bridging the two, the same shape CityX.Core.PlaySession already
+        /// uses to bridge the title and world scenes.
+        /// </summary>
+        private void RecoverFromFallingThroughTheWorld()
+        {
+            TerrainField terrain = CurrentWorld.Instance?.Terrain;
+            if (terrain == null)
+            {
+                return;
+            }
+
+            Vector3 position = transform.position;
+            float safeY = (float)terrain.ContinuousHeightAt(position.x, position.z) + 2.0f;
+
+            _controller.enabled = false;
+            transform.position = new Vector3(position.x, safeY, position.z);
+            _controller.enabled = true;
+            // The CharacterController desync bug: a raw transform.position
+            // write is invisible to the very next Move() call without this
+            // -- see IntroCutscene.Begin's own identical comment.
+            Physics.SyncTransforms();
+            _verticalVelocity = 0.0f;
+        }
 
         /// <summary>
         /// Whether the last step was actually a sprint -- which is narrower
@@ -364,6 +527,14 @@ namespace CityX.Character
             _handR = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.RightHand) : null;
             _rightUpperArm = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.RightUpperArm) : null;
             _leftUpperArm = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.LeftUpperArm) : null;
+            _head = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.Head) : null;
+            _rightLowerArm = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.RightLowerArm) : null;
+            _leftLowerArm = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.LeftLowerArm) : null;
+            _leftUpperLeg = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.LeftUpperLeg) : null;
+            _rightUpperLeg = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.RightUpperLeg) : null;
+            _leftLowerLeg = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.LeftLowerLeg) : null;
+            _rightLowerLeg = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.RightLowerLeg) : null;
+            _melee = GetComponent<MeleeAttacker>();
             ApplyHeight();
         }
 
@@ -444,7 +615,7 @@ namespace CityX.Character
         /// </summary>
         private void LateUpdate()
         {
-            if (!InCarSeat)
+            if (!InCarSeat && !IsSitting)
             {
                 if (_hips != null)
                 {
@@ -461,12 +632,570 @@ namespace CityX.Character
                 return;
             }
 
-            if (!InCarSeat)
+            // Only guarded while the Animator is actually live: the whole
+            // point is to stop a bad Mecanim transition from ever reaching
+            // the bone in the first place, so a subsequent console/grapple
+            // freeze captures the good, corrected pose. EXPLICIT BUG, found
+            // live TWICE: an unconditional placement (matching hips/spine
+            // above) was tried both to keep tracking data fresh through an
+            // ownership window and to let a synthetic test-injected snap
+            // survive -- but "tracking" a bone while GrappleSwing/
+            // MeleeAttacker are the ones actively driving it captures THEIR
+            // pose, not the Animator's, which is the wrong reference frame
+            // entirely for judging a future Animator transition (broke
+            // RepeatedlyFiringAndReleasingNeverDriftsTheCapturedArmBase: a
+            // rapid re-fire's freshly re-evaluated Animator pose looked
+            // "implausible" only because it was being compared against the
+            // FIRST swing's own leftover reach pose). Gating the call here
+            // instead keeps this simple and correct: nothing legitimately
+            // moves these bones frame-to-frame while the Animator is
+            // disabled and GrappleSwing does NOT own them (a plain console
+            // freeze), so there is nothing useful to track in that window
+            // either -- only SuppressImplausibleArmSnapsNow, called
+            // explicitly at the one moment (Attach/Open's own forced
+            // Update(0f)) that needs protection despite the Animator being
+            // about to go dark, needs to run outside this gate.
+            SuppressImplausibleArmSnaps();
+
+            if (!InCarSeat && !IsSitting)
             {
                 ClampFeetAboveGround();
             }
             ApplyDrivingWheelPose();
             ApplyCastingPose();
+            ApplyGunAimPose();
+            if (IsSitting)
+            {
+                ApplySittingPose();
+            }
+        }
+
+        /// <summary>
+        /// How fast a watched bone may rotate, in degrees per second, before
+        /// SuppressImplausibleArmSnaps holds it at last frame's own real
+        /// pose instead of accepting the new one -- the SAME generous bound
+        /// PoseDistortionWatchdog.MaxBoneDegreesPerSecond already uses to
+        /// flag this exact class of glitch (a real swing's own reach eases
+        /// at 240 deg/s; this is meant to catch an instantaneous jump, not
+        /// flag ordinary fast movement).
+        /// </summary>
+        private const float MaxPlausibleArmDegreesPerSecond = 1500.0f;
+
+        private Quaternion _previousHeadRotation = Quaternion.identity;
+        private Quaternion _previousRightUpperArmRotation = Quaternion.identity;
+        private Quaternion _previousRightLowerArmRotation = Quaternion.identity;
+        private Quaternion _previousLeftUpperArmRotation = Quaternion.identity;
+        private Quaternion _previousLeftLowerArmRotation = Quaternion.identity;
+
+        /// <summary>
+        /// Belongs ONLY to the ordinary per-frame LateUpdate path -- the
+        /// separate, on-demand capture path (SuppressImplausibleArmSnapsNow,
+        /// used by GrappleSwing.Attach/DevConsoleView.Open) never reads or
+        /// writes these, by design; see SuppressImplausibleArmSnapsNowCore's
+        /// own doc comment for why sharing this exact state was a real,
+        /// shipped bug. If a bone was held last frame, THIS frame accepts
+        /// whatever the Animator is doing now unconditionally instead of
+        /// re-checking it against the same stale reference, so a real
+        /// glitch (self-corrects within a frame or two) still gets hidden,
+        /// but a legitimate fast transition can never lock up permanently.
+        /// </summary>
+        private bool _headSnapHeldLastFrame;
+        private bool _rightUpperArmSnapHeldLastFrame;
+        private bool _rightLowerArmSnapHeldLastFrame;
+        private bool _leftUpperArmSnapHeldLastFrame;
+        private bool _leftLowerArmSnapHeldLastFrame;
+
+        /// <summary>True once _previousXxx has been populated for real at least once -- the only case with nothing yet to plausibly compare against.</summary>
+        private bool _haveEverCapturedArmSnapBaseline;
+
+        /// <summary>
+        /// EXPLICIT BUG REPORT, with real screenshots: "the console and
+        /// grapple still wildly stretches the body" -- arms twisted into an
+        /// X, arms flung up and out. ROOT-CAUSED DIRECTLY: a new PlayMode
+        /// test (LocomotionAnimatorStabilityPlayTests) drove realistic,
+        /// changing movement input with the Animator completely live and
+        /// unmolested -- no console, no grapple, nothing ever disabling
+        /// anything -- and caught the locomotion Animator's OWN blend tree
+        /// snapping RightLowerArm 10627 degrees/s in a single frame on its
+        /// own, specifically while airborne (jump/fall) with changing
+        /// input, i.e. mid-transition between locomotion states. Unlike
+        /// hips/spine, NOTHING anywhere in this codebase ever corrects an
+        /// arm or head bone after the Animator writes it, so a bad
+        /// transitional frame like this is exactly what would render --
+        /// invisible for the one single frame it lasts during ordinary
+        /// unfrozen play, but exactly what a console/grapple freeze
+        /// disabling the Animator on that same frame would catch and hold
+        /// for as long as the freeze lasts. This is what actually explains
+        /// "random" (depends on exact freeze timing vs. the transition's
+        /// own timing), "movement-influenced" (only a moving, possibly-
+        /// airborne body is ever mid-transition), and "snaps back
+        /// instantly" (the very next live Animator.Update recomputes a
+        /// clean pose from the current, correct state).
+        ///
+        /// FIXED HERE RATHER THAN IN THE ANIMATOR CONTROLLER ITSELF: the
+        /// bad frame is a Mecanim blend-tree/transition artifact, not a
+        /// wrong C# value, so there is no single clip or transition setting
+        /// to correct -- the same class of fix hips/spine already uses
+        /// (LateUpdate holds a bone to a known-good value every frame,
+        /// unconditionally) is reused here instead: if a watched bone
+        /// rotates further in one frame than any real intentional motion
+        /// plausibly would, HOLD it at its own last real pose rather than
+        /// accepting the implausible jump. A real player is never meant to
+        /// see the difference either way -- a legitimate fast motion never
+        /// approaches this threshold (see MaxPlausibleArmDegreesPerSecond's
+        /// own doc comment), so this only ever intervenes on a frame that
+        /// was already a glitch, holding the PREVIOUS good frame instead of
+        /// however many further frames the same glitch might otherwise
+        /// have compounded across.
+        ///
+        /// SKIPPED WHILE A REAL MELEE SWING IS IN PROGRESS -- a sword
+        /// swing's own crossfade genuinely can move an arm fast over a
+        /// short blend, and this project has no measured, trustworthy
+        /// upper bound on that the way PoseDistortionWatchdog's own 1500
+        /// deg/s figure is measured against ordinary locomotion/swing-pose
+        /// motion specifically -- suppressing a real swing's own arm speed
+        /// would be a new, self-inflicted regression, not a fix.
+        ///
+        /// SKIPPED ENTIRELY WHILE MeleeAttacker/GrappleSwing OWN THESE SAME
+        /// BONES -- EXPLICIT BUG, found live (broke two established
+        /// GrappleSwing tests the first time this shipped): Unity does not
+        /// guarantee this component's own LateUpdate runs before or after
+        /// GrappleSwing's, and if this one ran FIRST, WRITING a bone back
+        /// to "last frame's value" here is exactly what GrappleSwing's own
+        /// release blend then read back as ITS OWN blend target, gluing
+        /// the blend in place instead of letting it ease toward the live
+        /// animator pose.
+        ///
+        /// TRACKING (updating _previousXxx without correcting, rather than
+        /// skipping outright) WAS TRIED AND REVERTED -- EXPLICIT BUG,
+        /// found live via a new randomised PlayMode test: while
+        /// GrappleSwing/MeleeAttacker actively drive these bones, the
+        /// value sitting on them is THEIR OWN pose, not the Animator's --
+        /// a fundamentally different reference frame. Tracking it as if it
+        /// were "the Animator's last plausible value" broke
+        /// RepeatedlyFiringAndReleasingNeverDriftsTheCapturedArmBase: a
+        /// rapid re-fire's freshly re-evaluated Animator pose looked
+        /// "implausible" only because it was being compared against the
+        /// FIRST swing's own leftover reach pose. Skipping outright avoids
+        /// this entirely -- there is nothing useful to compare a future
+        /// Animator transition against here anyway, since nothing legitimately
+        /// moves these bones frame-to-frame while the Animator is disabled
+        /// and nothing else owns them (a plain console freeze) either.
+        /// GetComponent, not a cached field bound once in Bind() --
+        /// GrappleSwing is added/removed dynamically as the hook is
+        /// equipped/unequipped, well after Bind() ever runs.
+        /// </summary>
+        private void SuppressImplausibleArmSnaps()
+        {
+            if (_melee != null && _melee.IsSwinging)
+            {
+                return;
+            }
+
+            // GrappleSwing used to need an exclusion here too -- it owned
+            // these same bones directly while a rope was attached. Rebuilt
+            // from square one to never touch a bone at all (see its own
+            // class doc comment), so a swing is just ordinary Animator
+            // output now, exactly like a fall, and this correction applies
+            // to it unconditionally like everything else.
+
+            // NOTE: gun-aiming does NOT get a blanket exclusion here the
+            // way swing/melee do -- see SuppressImplausibleArmSnapsCore's
+            // own doc comment for why a blanket skip was tried and
+            // reverted, and why only the ONE bone ApplyGunAimPose actually
+            // touches (_rightUpperArm) is excluded, inside Core, instead.
+            SuppressImplausibleArmSnapsCore();
+        }
+
+        /// <summary>
+        /// EXPLICIT GAP, found live after the user reported the distortion
+        /// still happening post-fix: SuppressImplausibleArmSnaps only ever
+        /// runs from THIS component's own LateUpdate, but GrappleSwing.
+        /// Attach and DevConsoleView.Open both force an EXTRA, synchronous
+        /// zero-delta `Animator.Update(0f)` evaluation of their own --
+        /// called from Update(), well before this frame's own LateUpdate
+        /// would otherwise run -- specifically to warm up an
+        /// never-evaluated Animator out of its raw bind pose (see either
+        /// method's own doc comment). That forced evaluation can land on
+        /// the exact same kind of implausible mid-transition blend-tree
+        /// snap SuppressImplausibleArmSnaps exists to catch, and both
+        /// GrappleSwing's CaptureBase and the console's freeze read the
+        /// bone straight off it with no correction ever applied -- meaning
+        /// a swing's ENTIRE held pose (or the console's whole frozen
+        /// pose) could be built on top of one bad snap for as long as it
+        /// stays engaged, not just a single invisible frame. Called
+        /// manually, right after that forced Update(0f) and before
+        /// anything reads the bones it just wrote.
+        ///
+        /// COMPARES AGAINST THE PERSISTENT _previousXxx STATE, NEVER A
+        /// FRESH READ TAKEN RIGHT BEFORE THE FORCED UPDATE -- a
+        /// `[UnityTest]` coroutine (and, by the same reasoning,
+        /// PlayerInputReader's own real Update dispatch) resumes AFTER
+        /// that frame's own automatic Mecanim evaluation but BEFORE that
+        /// frame's own LateUpdate (see LocomotionAnimatorStabilityPlayTests's
+        /// own doc comment for the full, separately-confirmed story) --
+        /// meaning a bone read at the exact moment Attach/Open gets called
+        /// can ALREADY be sitting on this frame's own raw, not-yet-corrected
+        /// transitional value. _previousXxx is safe from this: it is only
+        /// ever written from inside SuppressImplausibleArmSnaps's own
+        /// LateUpdate call, i.e. AFTER a frame's Animation phase has
+        /// already been corrected, so it always holds a genuinely safe,
+        /// already-rendered reference from the last ordinary frame
+        /// (SuppressImplausibleArmSnaps skips entirely while ownership is
+        /// elsewhere, so this can occasionally be a few frames old across
+        /// a swing -- acceptable here, since Attach/Open only calls this
+        /// once, right at the ownership boundary, not every frame).
+        ///
+        /// SKIPS THE MeleeAttacker/GrappleSwing OWNERSHIP CHECKS ON
+        /// PURPOSE, unlike the LateUpdate version -- this runs at the
+        /// exact moment GrappleSwing is ABOUT to take ownership (IsActive
+        /// is already true by the time Attach calls this) and needs a
+        /// clean bone to capture as its own base, not during its own
+        /// ongoing ownership.
+        /// </summary>
+        public void SuppressImplausibleArmSnapsNow()
+        {
+            SuppressImplausibleArmSnapsNowCore();
+        }
+
+        /// <summary>
+        /// EXPLICIT BUG REPORT: opening the console mid-jump "plays the
+        /// rest of the jump animation after the console freezes the rest
+        /// of the game" -- a real, if cosmetic, side effect of no longer
+        /// disabling the Animator on console-open at all (see
+        /// DevConsoleView.Open's own doc comment for why that freeze was
+        /// removed entirely). With the Animator left live but InputReader
+        /// disabled, nothing calls Tick any more to update Speed/Grounded/
+        /// etc, so whatever action was already playing (a jump, a fall)
+        /// keeps running to its own natural end while the rest of the game
+        /// -- movement, physics, everything else -- is genuinely paused,
+        /// reading as visibly out of sync. Called once, the instant the
+        /// console opens: forces the SAME parameters an ordinary standing-
+        /// still frame would have (zero speed, zero move axes, grounded),
+        /// so Mecanim's OWN normal blend tree eases into idle exactly the
+        /// way it would if the player had simply let go of every key --
+        /// an ordinary, safe transition, not a freeze, so the one-frame-
+        /// implausible-snap risk this whole file's history is about never
+        /// applies to it.
+        /// </summary>
+        public void SettleAnimatorToIdle()
+        {
+            if (_animator == null)
+            {
+                return;
+            }
+            _animator.SetFloat(SpeedParameter, 0.0f);
+            _animator.SetFloat(MoveXParameter, 0.0f);
+            _animator.SetFloat(MoveZParameter, 0.0f);
+            _animator.SetBool(GroundedParameter, true);
+            _animator.SetBool(ChargingJumpParameter, false);
+        }
+
+        /// <summary>
+        /// Feeds the exact same Speed/MoveX/MoveZ/Grounded parameters
+        /// ordinary WASD movement drives at the end of Tick, just computed
+        /// from a velocity this class did not itself produce -- what lets
+        /// GrappleSwing's own rope physics show up as a normal run/fall
+        /// pose through Mecanim's already-proven blend tree, without
+        /// GrappleSwing (or this class) ever touching a bone directly.
+        ///
+        /// THIS REPLACED DIRECT BONE ROTATION AS THE SWING'S WHOLE POSING
+        /// STRATEGY -- see GrappleSwing's own class doc comment for the
+        /// eight rounds of live pose-distortion bugs that came from the
+        /// old approach (disabling the Animator and rotating arm/head/leg
+        /// bones by hand every frame) and none from the rope physics
+        /// itself. Reusing the Animator's own normal drive path instead
+        /// means a swing carries zero new pose-related risk -- PROVIDED it
+        /// is fed the same way ordinary movement feeds it. It very nearly
+        /// was not: see ALWAYS FED AS STRAIGHT FORWARD's own doc comment
+        /// just below for the real bug two earlier, more "faithful"
+        /// versions of this method both had.
+        /// </summary>
+        public void DriveAnimatorFromExternalVelocity(Vector3 worldVelocity, bool grounded, float deltaTime)
+        {
+            if (_animator == null)
+            {
+                return;
+            }
+
+            // ALWAYS FED AS STRAIGHT FORWARD IN LOCAL SPACE -- never the
+            // swing's own true direction, even smoothed and magnitude-
+            // clamped. EXPLICIT BUG, found live by PoseDistortionWatchdogPlayTests.
+            // ARealVariedSwingNeverTriggersTheWatchdog, through TWO earlier
+            // versions of this method that both still failed it: the first
+            // fed the raw world velocity straight to Speed/MoveX/MoveZ; the
+            // second eased it through _horizontalVelocity AND clamped its
+            // magnitude to SprintSpeed. Neither was enough, and a control
+            // test pinned down why: an ordinary long fall fed the exact
+            // same smooth, continuous input this test uses (a sine-wave
+            // move direction under a steadily rotating yaw) through
+            // ordinary PlayerLocomotion.Tick -- never touching GrappleSwing
+            // at all -- never tripped the watchdog, because ordinary Tick
+            // also TURNS THE BODY to face wherever it is moving (see this
+            // method's own "ONLY WHILE MOVING" block), which keeps the
+            // LOCAL-space MoveX/MoveZ this Animator sees roughly stable
+            // (mostly forward, small side variance) even while the WORLD
+            // direction sweeps around. GrappleSwing never turns the body at
+            // all -- there is no reason to while a rope decides where the
+            // body actually goes -- so with the body held at a fixed
+            // orientation, a swing's own steadily rotating world-space
+            // velocity translates into MoveX/MoveZ sweeping through EVERY
+            // local direction in a slow, continuous circle: forward, to
+            // strafe-right, to backward, to strafe-left, and round again.
+            // That is a local movement pattern no real WASD player's own
+            // body-follows-movement behaviour can ever produce, and
+            // Mecanim's own directional blend tree has at least one seam
+            // somewhere in that full circle where crossing it snaps to a
+            // visibly different pose within a frame or two (logged: 2680,
+            // then 3655, then 7132 deg/s against the watchdog's own 1500
+            // limit, each WORSE than the last across the two failed
+            // attempts -- a strong sign the sweep itself, not the
+            // magnitude or the smoothing rate, was always the actual
+            // cause). The swing already looks and feels like flying
+            // through the air at speed from the actual CharacterController
+            // motion; the animation only ever needs to read as "moving
+            // forward," not visually reconstruct the swing's true
+            // direction, so always feeding local-forward costs nothing
+            // real and removes the sweep -- and the seam it crosses --
+            // entirely, the same way the SprintSpeed clamp removed the
+            // out-of-range magnitude without needing to know exactly which
+            // blend sample was misbehaving.
+            float targetSpeed = Mathf.Min(
+                new Vector3(worldVelocity.x, 0.0f, worldVelocity.z).magnitude, SprintSpeed);
+            Vector3 targetHorizontal = transform.forward * targetSpeed;
+
+            // EASED THROUGH _horizontalVelocity, THE SAME SMOOTHED FIELD
+            // ORDINARY Tick USES -- so a swing starting or ending never has
+            // to resync anything; Tick and this method are always easing
+            // the exact same persistent value, at the same
+            // HorizontalAcceleration ordinary WASD movement already trusts.
+            _horizontalVelocity = Vector3.MoveTowards(
+                _horizontalVelocity, targetHorizontal, HorizontalAcceleration * deltaTime);
+
+            Vector3 local = transform.InverseTransformDirection(_horizontalVelocity);
+            _animator.SetFloat(SpeedParameter, _horizontalVelocity.magnitude);
+            _animator.SetFloat(MoveXParameter, local.x);
+            _animator.SetFloat(MoveZParameter, local.z);
+            _animator.SetBool(GroundedParameter, grounded);
+        }
+
+        private void RememberCurrentArmRotationsWithoutCorrecting()
+        {
+            _previousHeadRotation = _head != null ? _head.localRotation : Quaternion.identity;
+            _previousRightUpperArmRotation = _rightUpperArm != null ? _rightUpperArm.localRotation : Quaternion.identity;
+            _previousRightLowerArmRotation = _rightLowerArm != null ? _rightLowerArm.localRotation : Quaternion.identity;
+            _previousLeftUpperArmRotation = _leftUpperArm != null ? _leftUpperArm.localRotation : Quaternion.identity;
+            _previousLeftLowerArmRotation = _leftLowerArm != null ? _leftLowerArm.localRotation : Quaternion.identity;
+            _headSnapHeldLastFrame = false;
+            _rightUpperArmSnapHeldLastFrame = false;
+            _rightLowerArmSnapHeldLastFrame = false;
+            _leftUpperArmSnapHeldLastFrame = false;
+            _leftLowerArmSnapHeldLastFrame = false;
+            _haveEverCapturedArmSnapBaseline = true;
+        }
+
+        /// <summary>
+        /// Shared by both the ordinary per-frame LateUpdate path and the
+        /// manual "Now" path. Guarded by _haveEverCapturedArmSnapBaseline
+        /// for the one true edge case: the literal first call this
+        /// component ever makes, with nothing yet to plausibly compare
+        /// against.
+        ///
+        /// _rightUpperArm IS SKIPPED SPECIFICALLY, NOT THE WHOLE METHOD --
+        /// EXPLICIT REGRESSION, found by the full suite: a first version of
+        /// this gun-aim exclusion skipped this entire method whenever
+        /// ApplyGunAimPose's own blend was nonzero, the same "something
+        /// else legitimately owns these bones" shape the swing/melee
+        /// exclusions in SuppressImplausibleArmSnaps use. That is too broad
+        /// here -- ApplyGunAimPose only ever rotates _rightUpperArm, never
+        /// head/leftArm/rightLowerArm, and RealisticChangingMovementNever
+        /// SnapsAnArmOrHeadBoneOnItsOwn's own randomised input flips Aiming
+        /// on a 20%-per-frame coin flip that keeps the gun-aim blend
+        /// hovering above zero for long stretches (unrealistic for a real
+        /// player holding right-click, but exactly what that stress test
+        /// does) -- disabling the WHOLE check for that long let the
+        /// pre-existing, already-documented rare Mecanim blend-tree glitch
+        /// this test exists to catch (on the HEAD or LEFT arm, or even
+        /// RightLowerArm, none of which gun-aiming ever touches) sneak
+        /// through uncorrected. Excluding only the one bone actually being
+        /// driven keeps every other bone's own protection fully intact.
+        /// </summary>
+        private void SuppressImplausibleArmSnapsCore()
+        {
+            if (!_haveEverCapturedArmSnapBaseline)
+            {
+                RememberCurrentArmRotationsWithoutCorrecting();
+                return;
+            }
+
+            float deltaTime = Mathf.Max(Time.deltaTime, 1.0f / 240.0f);
+            SuppressBoneSnap(_head, ref _previousHeadRotation, ref _headSnapHeldLastFrame, deltaTime);
+            if (_gunAimBlend > 0.0f)
+            {
+                // Keep the tracked baseline in sync with whatever
+                // ApplyGunAimPose just set, rather than comparing against
+                // it (or leaving it stale) -- the same "nothing useful to
+                // compare against while something else legitimately drives
+                // this bone" reasoning RememberCurrentArmRotationsWithout
+                // Correcting already uses for the bootstrap case, so the
+                // FIRST frame after aiming ends has a genuinely fresh,
+                // just-rendered reference instead of a stale pre-aim one.
+                if (_rightUpperArm != null)
+                {
+                    _previousRightUpperArmRotation = _rightUpperArm.localRotation;
+                }
+                _rightUpperArmSnapHeldLastFrame = false;
+            }
+            else
+            {
+                SuppressBoneSnap(_rightUpperArm, ref _previousRightUpperArmRotation, ref _rightUpperArmSnapHeldLastFrame, deltaTime);
+            }
+            SuppressBoneSnap(_rightLowerArm, ref _previousRightLowerArmRotation, ref _rightLowerArmSnapHeldLastFrame, deltaTime);
+            SuppressBoneSnap(_leftUpperArm, ref _previousLeftUpperArmRotation, ref _leftUpperArmSnapHeldLastFrame, deltaTime);
+            SuppressBoneSnap(_leftLowerArm, ref _previousLeftLowerArmRotation, ref _leftLowerArmSnapHeldLastFrame, deltaTime);
+        }
+
+        /// <summary>
+        /// The on-demand capture path (GrappleSwing.Attach/DevConsoleView.Open,
+        /// via SuppressImplausibleArmSnapsNow) used to share this exact
+        /// correction with the ordinary per-frame path above -- EXPLICIT
+        /// BUG, found live: that sharing meant an UNRELATED hold from the
+        /// ordinary path's own most recent LateUpdate (some earlier,
+        /// completely different frame-to-frame glitch, nothing to do with
+        /// this Attach/Open call at all) could leave its own
+        /// "accept-unconditionally-next-call" flag set, and an on-demand
+        /// call arriving right then would accept literally ANYTHING with
+        /// zero validation -- including a genuinely bad mid-transition
+        /// snap, at the EXACT moment (a capture or freeze) this whole
+        /// mechanism exists to protect. A bounded RotateTowards catch-up
+        /// was tried next to remove that cliff-edge, but that traded away
+        /// something just as important: a single bounded correction only
+        /// closes PART of a large jump, so a genuinely big glitch (the
+        /// 4000-12000+ deg/s snaps this file's own history has repeatedly
+        /// measured) still shows through substantially once frozen -- CONFIRMED
+        /// live, the user reported zero improvement (and, if anything,
+        /// more frequent visible distortion) after that version shipped.
+        ///
+        /// THE ACTUAL FIX: give this path its OWN independent hold state,
+        /// touched by nothing else. A full, unconditional hold here can
+        /// never be "wrong" the way the shared-state version was, because
+        /// this method only ever runs ONCE per Attach/Open call -- there is
+        /// no repeating per-frame process here to get permanently stuck,
+        /// so the ordinary path's whole reason for ever accepting a
+        /// still-implausible value (round 7's fix) does not apply. A
+        /// held-at-last-known-good value is exactly the right, final
+        /// answer for a one-shot capture: it can never read raw, unfiltered
+        /// live data, and it can never contaminate (or be contaminated by)
+        /// the ordinary path's own, separately-tracked recovery flags.
+        /// </summary>
+        private void SuppressImplausibleArmSnapsNowCore()
+        {
+            if (!_haveEverCapturedArmSnapBaseline)
+            {
+                RememberCurrentArmRotationsWithoutCorrecting();
+                return;
+            }
+
+            float deltaTime = Mathf.Max(Time.deltaTime, 1.0f / 240.0f);
+            SuppressBoneSnapForCapture(_head, ref _previousHeadRotation, deltaTime);
+            if (_gunAimBlend > 0.0f)
+            {
+                if (_rightUpperArm != null)
+                {
+                    _previousRightUpperArmRotation = _rightUpperArm.localRotation;
+                }
+            }
+            else
+            {
+                SuppressBoneSnapForCapture(_rightUpperArm, ref _previousRightUpperArmRotation, deltaTime);
+            }
+            SuppressBoneSnapForCapture(_rightLowerArm, ref _previousRightLowerArmRotation, deltaTime);
+            SuppressBoneSnapForCapture(_leftUpperArm, ref _previousLeftUpperArmRotation, deltaTime);
+            SuppressBoneSnapForCapture(_leftLowerArm, ref _previousLeftLowerArmRotation, deltaTime);
+        }
+
+        /// <summary>
+        /// Full, unconditional hold at `previous` -- no bounding, no
+        /// advancing, no flag. See SuppressImplausibleArmSnapsNowCore's own
+        /// doc comment for why a one-shot capture call needs none of the
+        /// ordinary per-frame path's own recovery machinery.
+        /// </summary>
+        private static void SuppressBoneSnapForCapture(Transform bone, ref Quaternion previous, float deltaTime)
+        {
+            if (bone == null)
+            {
+                return;
+            }
+            Quaternion current = bone.localRotation;
+            float degreesPerSecond = Quaternion.Angle(previous, current) / deltaTime;
+            if (degreesPerSecond > MaxPlausibleArmDegreesPerSecond)
+            {
+                bone.localRotation = previous;
+            }
+            else
+            {
+                previous = current;
+            }
+        }
+
+        /// <summary>
+        /// HOLD-THEN-ACCEPT-NEXT-FRAME. Holding a bone at `previous`
+        /// outright (leaving `previous` itself untouched) self-corrects a
+        /// genuine one-frame Mecanim glitch fine, but a LEGITIMATE fast
+        /// transition (landing, finishing a swing, a sharp direction
+        /// change -- not a glitch, a real new pose that just arrived in
+        /// one frame) trips the exact same check -- without this method's
+        /// own `heldLastFrame` flag, it would never recover: every later
+        /// frame's own ordinary continuation of that new pose would look
+        /// "implausible" against the same, increasingly stale reference
+        /// forever. `heldLastFrame` bounds the hold to exactly one frame:
+        /// the very next call accepts whatever the Animator is doing now
+        /// unconditionally instead of re-checking it, so a real glitch
+        /// (self-corrects within a frame or two) still gets hidden, but a
+        /// legitimate fast transition can never lock up permanently.
+        ///
+        /// SAFE TO DO THIS HERE, UNLIKE THE ON-DEMAND CAPTURE PATH --
+        /// EXPLICIT BUG, found live: an earlier version shared this exact
+        /// flag/logic with SuppressImplausibleArmSnapsNow (GrappleSwing.
+        /// Attach/DevConsoleView.Open's own one-shot capture call), and an
+        /// UNRELATED hold from this method's own most recent, completely
+        /// separate LateUpdate call could leave the flag set such that the
+        /// next on-demand call accepted literally anything with zero
+        /// validation -- at the exact moment (a capture or freeze) that
+        /// validation matters most. `heldLastFrame` is now private to THIS
+        /// per-frame path alone (see its own field doc comment); the
+        /// on-demand path has its own, completely separate, always-strict
+        /// SuppressBoneSnapForCapture instead. This method's own
+        /// one-frame grace period is safe specifically because nothing
+        /// else ever observes or acts on a single frame of this path's own
+        /// output the way a capture moment does -- ordinary unfrozen play
+        /// has no "instant" for a one-frame recovery lag to be visible in.
+        /// </summary>
+        private static void SuppressBoneSnap(Transform bone, ref Quaternion previous, ref bool heldLastFrame, float deltaTime)
+        {
+            if (bone == null)
+            {
+                return;
+            }
+            Quaternion current = bone.localRotation;
+
+            if (heldLastFrame)
+            {
+                previous = current;
+                heldLastFrame = false;
+                return;
+            }
+
+            float degreesPerSecond = Quaternion.Angle(previous, current) / deltaTime;
+            if (degreesPerSecond > MaxPlausibleArmDegreesPerSecond)
+            {
+                bone.localRotation = previous;
+                heldLastFrame = true;
+            }
+            else
+            {
+                previous = current;
+            }
         }
 
         /// <summary>
@@ -517,6 +1246,21 @@ namespace CityX.Character
         public void PlayExitCarAnimation()
         {
             _animator?.SetTrigger("ExitingCar");
+        }
+
+        /// <summary>
+        /// Sets/clears IsSitting -- just the flag; ApplySittingPose's own
+        /// procedural leg bend (LateUpdate) is what actually shows it. NOT
+        /// a swapped Animator state: EXPLICIT VISUAL FINDING (see
+        /// ApplySittingPose's own doc comment) that reusing entering_car's
+        /// baked hip/leg pose for a bench looked broken no matter how the
+        /// root was positioned -- that clip's own shape is built for
+        /// reaching a car's wheel, not sitting upright. Bending the real
+        /// leg bones directly gives full control over the result instead.
+        /// </summary>
+        public void SetSitting(bool sitting)
+        {
+            IsSitting = sitting;
         }
 
         /// <summary>
@@ -653,6 +1397,145 @@ namespace CityX.Character
         }
 
         /// <summary>
+        /// How far the gun-arm is allowed to tilt off the pistol_aim_in
+        /// clip's own level pose, in either direction -- a real arm aiming
+        /// a one-handed pistol has a genuine, comfortable range well short
+        /// of the camera's own full +/-90 pitch, so this clamps rather than
+        /// mapping 1:1 across the whole range (which would hyperextend the
+        /// shoulder looking straight up or down).
+        /// </summary>
+        public const float GunAimPitchClampDegrees = 55.0f;
+
+        /// <summary>How fast _gunAimBlend eases toward 1 (or back to 0) -- reaches full strength in ~1/6s, comfortably inside the Animator's own 0.12s crossfade into the Aiming state.</summary>
+        public const float GunAimBlendPerSecond = 6.0f;
+
+        /// <summary>
+        /// EXPLICIT BUG REPORT: "the pistol aimed in pose is like positioned
+        /// to the left slightly make it point forward and turn with the
+        /// mouse." pistol_aim_in is a single static clip with no pitch
+        /// tracking at all -- looking up or down while aiming left the arm,
+        /// and therefore the gun, always pointing along the same fixed
+        /// level line no matter where the camera (and the actual hitscan
+        /// direction PistolWeapon.Fire already uses) was really pointing.
+        ///
+        /// TARGETS AN ABSOLUTE WORLD DIRECTION (BendLimbToward), NOT an
+        /// additive offset on the animated base the way ApplyCastingPose
+        /// works -- a continuously-tracked aim needs to re-converge on the
+        /// true target every frame regardless of whatever the clip's own
+        /// pose is doing, the same reasoning ApplySittingPose's own doc
+        /// comment gives for the identical choice. transform.forward is
+        /// already the body's own facing direction, which snaps to the
+        /// camera's yaw the instant aiming starts (see the "AIMING WINS"
+        /// body-facing block above) -- tilting THAT by the camera's own
+        /// pitch around the body's local right axis gives the true 3D aim
+        /// ray, so re-aiming the upper arm at it corrects the reported
+        /// left-of-centre drift as the same fix that adds pitch tracking,
+        /// not a second, separate change.
+        ///
+        /// BLENDED IN OVER _gunAimBlend, NOT APPLIED AT FULL STRENGTH THE
+        /// INSTANT AIMING STARTS -- EXPLICIT REGRESSION, found by the full
+        /// suite (not the one new targeted test, which never exercised this
+        /// path): BendLimbToward is a hard re-target, and several
+        /// randomised PlayMode tests occasionally set Aiming=true as part
+        /// of realistic varied input with no gun equipped at all
+        /// (DevConsoleAnimatorFreezePlayTests/LocomotionAnimatorStability
+        /// PlayTests/etc.) -- PoseDistortionWatchdog correctly caught the
+        /// resulting one-frame snap the moment Aiming flipped true, exactly
+        /// the class of bug this project has spent a great deal of effort
+        /// eliminating elsewhere (see grapple_swing_deprioritized memory).
+        /// Easing the CORRECTION'S OWN STRENGTH in via Slerp, rather than
+        /// snapping the bone straight to the target, keeps the first frame's
+        /// rotation small regardless of how far the target direction is
+        /// from wherever the arm already was -- both fixing the test
+        /// failures and reading as a more natural "settling into aim"
+        /// motion than an instant teleport would have anyway.
+        /// </summary>
+        private void ApplyGunAimPose()
+        {
+            _gunAimBlend = Mathf.MoveTowards(
+                _gunAimBlend, _isAimingGun ? 1.0f : 0.0f, GunAimBlendPerSecond * Mathf.Max(_lastTickDeltaTime, 0.0f));
+            if (_gunAimBlend <= 0.0f || _rightUpperArm == null || _rightLowerArm == null)
+            {
+                return;
+            }
+            float clampedPitch = Mathf.Clamp(_gunAimPitchDegrees, -GunAimPitchClampDegrees, GunAimPitchClampDegrees);
+            Vector3 targetDirection = Quaternion.AngleAxis(clampedPitch, transform.right) * transform.forward;
+            Vector3 currentDirection = (_rightLowerArm.position - _rightUpperArm.position).normalized;
+            Vector3 blendedDirection = Vector3.Slerp(currentDirection, targetDirection, _gunAimBlend);
+            BendLimbToward(_rightUpperArm, _rightLowerArm.position, blendedDirection);
+        }
+
+        /// <summary>
+        /// How far below dead-horizontal the thigh's TARGET direction
+        /// points -- purely horizontal reads as the leg floating with no
+        /// weight actually on the seat; a slight downward cant looks like
+        /// the thigh genuinely resting on the cushion.
+        /// </summary>
+        private const float SittingThighDownwardDegrees = 8.0f;
+
+        /// <summary>
+        /// Bends the real leg bones into a seated shape every frame while
+        /// IsSitting -- EXPLICIT VISUAL FINDING, not a guess: a scratch
+        /// capture showed BenchSeat's original design (reusing
+        /// entering_car.fbx, this rig's only existing "seated" clip)
+        /// looking broken no matter where the root was placed, because
+        /// that clip's own hip/leg shape is built for reaching a car's low
+        /// wheel with legs stretched flat, not sitting upright with knees
+        /// bent -- EXPLICIT FEEDBACK confirmed it: "make him sit on his
+        /// but[t]." Rotating LeftUpperLeg/RightUpperLeg/LeftLowerLeg/
+        /// RightLowerLeg directly gives a real "seated, knees bent, feet
+        /// down" silhouette instead, the same additive-on-top-of-the-live-
+        /// Animator-pose idiom ApplyCastingPose/ApplyDrivingWheelPose
+        /// already use for the identical reason ("no real clip fits").
+        ///
+        /// TARGETS AN ABSOLUTE WORLD DIRECTION PER LIMB (BendLimbToward),
+        /// NOT a fixed "rotate by N degrees" delta -- a first version used
+        /// Transform.Rotate(axis, degrees, Space.World), and a scratch
+        /// numeric diagnostic caught it landing at wildly different
+        /// resulting angles for the SAME commanded degrees depending on
+        /// the leg's own live idle-sway starting rotation (86 degrees
+        /// commanded measured as a 22-degree real change; 172 measured as
+        /// 147). Aiming each bone at an absolute target direction instead
+        /// is self-correcting regardless of whatever the Animator's
+        /// current idle pose happens to be doing to that bone, which a
+        /// relative delta fundamentally cannot be.
+        /// </summary>
+        private void ApplySittingPose()
+        {
+            if (_leftUpperLeg == null || _rightUpperLeg == null ||
+                _leftLowerLeg == null || _rightLowerLeg == null ||
+                _leftFoot == null || _rightFoot == null)
+            {
+                return;
+            }
+
+            Vector3 thighTarget = Quaternion.AngleAxis(SittingThighDownwardDegrees, transform.right) * transform.forward;
+            BendLimbToward(_leftUpperLeg, _leftLowerLeg.position, thighTarget);
+            BendLimbToward(_rightUpperLeg, _rightLowerLeg.position, thighTarget);
+
+            // Read AFTER the thigh bend above -- _leftFoot/_rightFoot are
+            // grandchildren of the thigh, so their world positions already
+            // reflect the thigh's new rotation by the time these run.
+            BendLimbToward(_leftLowerLeg, _leftFoot.position, Vector3.down);
+            BendLimbToward(_rightLowerLeg, _rightFoot.position, Vector3.down);
+        }
+
+        /// <summary>
+        /// Rotates `bone` in world space so the vector from its own
+        /// position to `childPosition` (its child bone's CURRENT position,
+        /// wherever the Animator/parent rotation just left it) points at
+        /// `worldTargetDirection` instead of wherever it currently points.
+        /// An ABSOLUTE target, not a relative delta -- see
+        /// ApplySittingPose's own doc comment for why that matters here.
+        /// </summary>
+        private static void BendLimbToward(Transform bone, Vector3 childPosition, Vector3 worldTargetDirection)
+        {
+            Vector3 current = (childPosition - bone.position).normalized;
+            Quaternion delta = Quaternion.FromToRotation(current, worldTargetDirection.normalized);
+            bone.rotation = delta * bone.rotation;
+        }
+
+        /// <summary>
         /// THE GENERAL FLOOR CLAMP -- confirmed live on charged_jump: its
         /// hips carries a real, large local position drop (measured at
         /// roughly -0.31m on this rig, on top of an already-crouched pose),
@@ -679,41 +1562,22 @@ namespace CityX.Character
         /// through it) instead of distorting the leg chain by forcing one
         /// joint's position independently of the others.
         ///
-        /// SKIPPED ENTIRELY WHILE A GRAPPLE SWING OWNS THE POSE. This
-        /// exists to fix a GROUNDED clip's own bad calibration -- it has no
-        /// job to do while dangling from a rope in mid-air, and confirmed
-        /// directly, live, it is actively dangerous there: with the swing's
-        /// own leg sway continuously rotating the legs by fractions of a
-        /// degree per frame, this method's own "reset to zero, then
-        /// recompute from the live foot position" pattern turned into a
-        /// genuine runaway feedback loop -- a real bug report's "distorted
-        /// to lengths that shouldn't be possible" traced to this exact
-        /// method live-testing a real swing: the visual rig's own offset
-        /// climbed from single digits to over 1000 METRES within about 20
-        /// frames while the actual character root stayed completely
-        /// normal, which is what let the camera (correctly tracking the
-        /// real root) and the visible body (flung a kilometre straight up)
-        /// come apart -- "the character doesn't follow the camera" is
-        /// exactly backwards from what it looks like: the camera was right
-        /// the whole time, and the VISIBLE MESH was the thing rocketing
-        /// away. See GrappleSwing.Attach/Release's own calls into
-        /// SetGroundClampSuspended.
+        /// USED TO NEED SUSPENDING DURING A GRAPPLE SWING -- the old
+        /// GrappleSwing directly rotated the leg bones every frame while a
+        /// rope was attached, and this method's own "reset to zero, then
+        /// recompute from the live foot position" pattern turned that
+        /// continuous leg sway into a genuine runaway feedback loop (a real
+        /// bug report's "distorted to lengths that shouldn't be possible":
+        /// the visual rig's own offset climbed past 1000 METRES within
+        /// about 20 frames). GrappleSwing was rebuilt from square one to
+        /// never touch a bone at all (see its own class doc comment), so
+        /// there is no more leg sway for this to runaway against -- a
+        /// swing now looks exactly like an ordinary fall as far as this
+        /// method is concerned, which it already handles safely every day.
         /// </summary>
-        private bool _groundClampSuspended;
-
-        /// <summary>
-        /// Called by GrappleSwing.Attach/Release -- see ClampFeetAboveGround's
-        /// own doc comment for why this ground-only correction has to stand
-        /// down for as long as the swing owns the pose.
-        /// </summary>
-        public void SetGroundClampSuspended(bool suspended)
-        {
-            _groundClampSuspended = suspended;
-        }
-
         private void ClampFeetAboveGround()
         {
-            if (_groundClampSuspended || _animator == null || _leftFoot == null || _rightFoot == null)
+            if (_animator == null || _leftFoot == null || _rightFoot == null)
             {
                 return;
             }
@@ -797,6 +1661,29 @@ namespace CityX.Character
         /// </summary>
         public void Tick(LocomotionInput input, float deltaTime)
         {
+            // Used by ApplyGunAimPose (LateUpdate) to ease its own blend at
+            // the SAME cadence Tick is actually being driven at -- Time.
+            // deltaTime would silently disagree with it in any test (or
+            // real caller) that drives Tick with an explicit, non-real-time
+            // deltaTime, the same class of mismatch this file's own history
+            // already warns about elsewhere.
+            _lastTickDeltaTime = deltaTime;
+
+            // See FallThroughWorldY's own doc comment. Checked first, every
+            // Tick, unconditionally -- cheap when it never fires (which is
+            // every ordinary frame), and it must run before anything below
+            // that assumes the body is somewhere real.
+            if (transform.position.y < FallThroughWorldY)
+            {
+                RecoverFromFallingThroughTheWorld();
+            }
+
+            // Reset before this frame's own Move -- OnControllerColliderHit
+            // (called synchronously during Move, below) is what actually
+            // sets these back to true/valid for a real contact.
+            HitWallThisFrame = false;
+            LastWallHitNormal = Vector3.zero;
+
             ApplyHeight();
 
             Vector3 direction = input.WorldDirection();
@@ -822,7 +1709,14 @@ namespace CityX.Character
             // its own flag rather than folding into `sprinting` above -- see
             // LocomotionInput.JetpackBoosting's own doc comment for why: no
             // stamina cost, and no forward-only restriction either.
-            float speed = (sprinting || input.JetpackBoosting) ? SprintSpeed : WalkSpeed;
+            //
+            // DIVING WINS OVER PLAIN BOOSTING -- checked first, since
+            // JetpackDiving only ever fires alongside JetpackBoosting (see
+            // its own doc comment) and needs the bigger number to actually
+            // win rather than the two conditions racing in an OR.
+            float speed = input.JetpackDiving ? SprintSpeed * JetpackDiveSpeedMultiplier
+                : (sprinting || input.JetpackBoosting) ? SprintSpeed
+                : WalkSpeed;
             Vector3 targetHorizontal = direction * speed;
             Vector3 horizontal;
 
@@ -945,7 +1839,7 @@ namespace CityX.Character
             Vector3 motion = horizontal + _residualVelocity;
             motion.y = _verticalVelocity;
             Velocity = motion;
-            _controller.Move(motion * deltaTime);
+            LastMoveCollisionFlags = _controller.Move(motion * deltaTime);
 
             // THE BODY FACES THE CAMERA, NOT WHERE IT IS GOING.
             //
@@ -967,15 +1861,39 @@ namespace CityX.Character
             // turn. Here it is a real turn at TurnDegreesPerSecond, so a fast
             // flick of the mouse lets the body lag the camera for a few frames
             // instead of snapping.
+            //
+            // AIMING SNAPS INSTANTLY INSTEAD, EVEN WHILE STANDING STILL --
+            // EXPLICIT BUG REPORT: "fix the pistol make it so you hold it
+            // straight crosshair centered character not at weird angle."
+            // The gun is rigidly parented to the right hand (PistolWeapon.
+            // OnEquip), so it only ever points wherever the BODY faces --
+            // and the body used to only turn "ONLY WHILE MOVING" (see just
+            // above), meaning stopping to aim (the natural way to aim: stop,
+            // aim, shoot) left the body frozen facing wherever it last
+            // walked, with the crosshair/camera pointed somewhere else
+            // entirely. A real shooter's aim has to track the camera the
+            // INSTANT it starts, not ease in at TurnDegreesPerSecond like an
+            // ordinary walking turn -- a lagging catch-up would itself read
+            // as "at a weird angle" for the first several frames.
             if (moving)
             {
                 Quaternion facing = Quaternion.Euler(0.0f, input.YawDegrees, 0.0f);
                 transform.rotation = Quaternion.RotateTowards(
                     transform.rotation, facing, TurnDegreesPerSecond * deltaTime);
             }
+            else if (input.Aiming)
+            {
+                transform.rotation = Quaternion.Euler(0.0f, input.YawDegrees, 0.0f);
+            }
 
             Vector3 local = transform.InverseTransformDirection(horizontal);
             LocalVelocity = new Vector2(local.x, local.z);
+
+            // Read here, applied later in LateUpdate (ApplyGunAimPose) --
+            // same "carry the answer, apply it once the Animator has had
+            // its turn" shape every other procedural pose in this file uses.
+            _isAimingGun = input.Aiming;
+            _gunAimPitchDegrees = input.AimPitchDegrees;
 
             if (_animator != null)
             {
@@ -994,10 +1912,10 @@ namespace CityX.Character
         }
 
         /// <summary>
-        /// How hard walking into a real, non-kinematic body (a hanging
-        /// ragdoll dummy, in particular) shoves it. Purely a feel constant,
-        /// tuned by eye against HangingRagdollDummy -- there is no ported
-        /// value to match, CharacterController has no built-in push at all.
+        /// How hard walking into a real, non-kinematic body (a ragdoll or
+        /// a thrown prop) shoves it. Purely a feel constant, tuned by eye --
+        /// there is no ported value to match, CharacterController has no
+        /// built-in push at all.
         /// </summary>
         public const float PushForce = 3.5f;
 
@@ -1007,14 +1925,29 @@ namespace CityX.Character
         /// the exact same reason PlayerLocomotion uses one at all (see this
         /// class's own doc comment). Unity calls this once per real contact
         /// during Move, and without it a real Rigidbody in the world --
-        /// HangingRagdollDummy's own dangling body, in particular -- simply
-        /// blocks the player like a wall instead of swinging away like
-        /// something that actually has mass, which is exactly what "walk
-        /// into it and it should react" needs and nothing in this project
-        /// provided before now.
+        /// a ragdoll's own limp body, in particular -- simply blocks the
+        /// player like a wall instead of swinging away like something that
+        /// actually has mass, which is exactly what "walk into it and it
+        /// should react" needs and nothing in this project provided before
+        /// now.
         /// </summary>
         private void OnControllerColliderHit(ControllerColliderHit hit)
         {
+            // A REAL, DIRECT CONTACT CHECK, independent of the rigidbody
+            // push below -- ordinary city geometry (a building, a window)
+            // has no Rigidbody at all, so the early return just past this
+            // would otherwise skip it entirely. Keeps whichever contact
+            // this frame is MOST wall-like if Move reports more than one
+            // (Unity calls this once per contact), rather than just the
+            // last one, since a glancing hit alongside a squarer one
+            // should not overwrite the squarer one's normal.
+            if (Mathf.Abs(hit.normal.y) < WallNormalMaxUpDot &&
+                (!HitWallThisFrame || Mathf.Abs(hit.normal.y) < Mathf.Abs(LastWallHitNormal.y)))
+            {
+                HitWallThisFrame = true;
+                LastWallHitNormal = hit.normal;
+            }
+
             Rigidbody body = hit.collider.attachedRigidbody;
             if (body == null || body.isKinematic)
             {

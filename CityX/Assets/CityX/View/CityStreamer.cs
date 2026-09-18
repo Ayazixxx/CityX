@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using CityX.Character;
 using CityX.World;
 using UnityEngine;
 
@@ -16,13 +17,43 @@ namespace CityX.View
     public sealed class CityStreamer : MonoBehaviour
     {
         [Header("World")]
-        public int WorldSeed = 20260810;
+        // Matches CityMassingSceneBuilder.WorldSeed -- a fallback default
+        // for a CityStreamer added without one explicitly assigned; the
+        // real scenes always set this from that same constant at build
+        // time. EXPLICIT ASK: "generate a new world every time you make a
+        // change to the city generation."
+        public int WorldSeed = 29481073;
 
         [Tooltip("Chunks of radius kept loaded around the viewer.")]
         public int RadiusChunks = 14;
 
         [Tooltip("Most chunks built in one frame. Low keeps the frame smooth; high fills in faster.")]
         public int ChunkBuildBudgetPerFrame = 6;
+
+        /// <summary>
+        /// How many chunks around the real player get force-built
+        /// synchronously in Awake, before anyone's own Update can run at
+        /// all -- EXPLICIT BUG REPORT: "the thing where i fall through at
+        /// the beginning... occurs every time i enter the game." Ordinary
+        /// streaming is lazy and budgeted PER FRAME (see Update's own
+        /// StreamAround call, ChunkBuildBudgetPerFrame chunks at a time) --
+        /// on the very first frame this scene exists, zero chunks have
+        /// been built yet, and whichever of PlayerInputReader.Update or
+        /// this class's own Update happens to run first that frame is not
+        /// something either script controls. If gravity integrates even
+        /// once before the ground under the player's own feet exists, that
+        /// is a real, if brief, fall into empty space -- "temporary" is
+        /// exactly what a several-frame gap at 60fps reads as. Awake, not
+        /// Start or Update: Unity runs every object's own Awake before any
+        /// object's first Update, every frame including the first, which
+        /// is what actually closes this race rather than narrowing it.
+        /// 49 (a 7x7 grid) comfortably covers a spawn point and the
+        /// ground immediately around it at a one-time cost of roughly
+        /// 100ms (see BuildChunkObject's own "about two milliseconds"
+        /// comment) -- a brief load pause, not the stutter a much larger
+        /// synchronous build would be.
+        /// </summary>
+        public int SpawnPreStreamBudget = 49;
 
         [Header("Look")]
         public Material GroundMaterial;
@@ -40,6 +71,9 @@ namespace CityX.View
         [Tooltip("A window somebody has already put a fist through. Drawn, never collided with.")]
         public Material CrackedGlassMaterial;
 
+        [Tooltip("The real crack-texture decal at a known shot's own impact point. Drawn, never collided with.")]
+        public Material CrackDecalMaterial;
+
         [Header("Doors")]
         [Tooltip("The door leaf. Warm wood brown, a fixed prop accent.")]
         public Material DoorMaterial;
@@ -56,6 +90,13 @@ namespace CityX.View
         [Header("Terrace edges")]
         [Tooltip("The short guardrail along a street-level drop.")]
         public Material GuardRailMaterial;
+
+        [Header("Props")]
+        [Tooltip("Park benches -- see BenchSeat.cs. Leave empty to skip spawning them.")]
+        public Material BenchMaterial;
+
+        [Tooltip("Readable books -- see Book.cs. Leave empty to skip spawning them.")]
+        public Material BookMaterial;
 
         // A SPECIAL BUILDING WEARS NOTHING THAT SAYS SO, and that is a decision
         // rather than an omission. city_chunk.gd hangs a coloured sign band
@@ -77,9 +118,11 @@ namespace CityX.View
         private readonly MeshBuffer _litGlass = new MeshBuffer();
         private readonly MeshBuffer _darkGlass = new MeshBuffer();
         private readonly MeshBuffer _crackedGlass = new MeshBuffer();
+        private readonly MeshBuffer _crackDecals = new MeshBuffer();
         private readonly List<CityMeshBuilder.CrackedOpening> _crackedOpenings =
             new List<CityMeshBuilder.CrackedOpening>();
         private readonly MeshBuffer _markings = new MeshBuffer();
+        private readonly MeshBuffer _laneDividers = new MeshBuffer();
         private readonly MeshBuffer _guardRail = new MeshBuffer();
         private readonly HashSet<Vector2Int> _openDoors = new HashSet<Vector2Int>();
         private readonly List<Vector2Int> _wanted = new List<Vector2Int>();
@@ -89,6 +132,20 @@ namespace CityX.View
         private void Awake()
         {
             Rebuild();
+
+            // See SpawnPreStreamBudget's own doc comment. Looked up by
+            // PlayerInputReader specifically, not PlayerLocomotion -- the
+            // scene also has Old Guy and, potentially, several Civilians,
+            // every one of them carrying their own PlayerLocomotion, which
+            // makes a type-only lookup genuinely ambiguous about which
+            // body it finds (the same caution CityMassingSceneBuilder's
+            // own player/old-guy wiring already documents). Only the real,
+            // keyboard-driven player has a PlayerInputReader.
+            var player = FindFirstObjectByType<PlayerInputReader>();
+            if (player != null)
+            {
+                StreamAround(player.transform.position, SpawnPreStreamBudget);
+            }
         }
 
         /// <summary>
@@ -110,6 +167,12 @@ namespace CityX.View
             _loaded.Clear();
             // A different seed makes the old explored coordinates meaningless.
             _explored.Clear();
+
+            // See CurrentWorld's own doc comment: this is the one place the
+            // real, currently-running world actually gets built, so this is
+            // the one place that can publish it for CityX.Character (which
+            // has no reference to this assembly) to read.
+            CurrentWorld.Instance = _world;
         }
 
         /// <summary>Whether the player has ever stood within ExploredChunks.Radius of this chunk. Drives the map panel's fog of war.</summary>
@@ -241,8 +304,10 @@ namespace CityX.View
             _litGlass.Clear();
             _darkGlass.Clear();
             _crackedGlass.Clear();
+            _crackDecals.Clear();
             _crackedOpenings.Clear();
             _markings.Clear();
+            _laneDividers.Clear();
             _guardRail.Clear();
 
             // Chunks are built relative to their own corner and then placed, so
@@ -254,7 +319,7 @@ namespace CityX.View
 
             CityMeshBuilder.BuildChunk(_world, _bridges, key.x, key.y, origin,
                 _ground, _pavement, _structures, _litGlass, _darkGlass, _crackedGlass, Damage,
-                _crackedOpenings, _markings, _guardRail);
+                _crackedOpenings, _markings, _guardRail, _laneDividers, _crackDecals);
 
             GameObject go = new GameObject($"Chunk {key.x},{key.y}");
             go.transform.SetParent(transform, false);
@@ -319,11 +384,112 @@ namespace CityX.View
             collider.sharedMesh = mesh;
 
             AddCrackedGlass(go, key);
+            AddCrackDecals(go, key);
             AddMarkings(go, key);
             AddGuardRail(go, key);
             AddDoor(go, key);
             AddInteriorVolume(go, key);
+            AddBenches(go, key);
+            AddBooks(go, key);
             return go;
+        }
+
+        /// <summary>
+        /// One readable book on a pedestrian-zone chunk's own sidewalk --
+        /// EXPLICIT ASK: "add books and when you press E on them it opens a
+        /// page on screen with text ive prepared but just make the system
+        /// for now." Same placement idiom AddBenches already establishes
+        /// (real terrain height via ContinuousHeightAt, parented onto the
+        /// chunk with world position kept), just CityLayout.IsBookChunk's
+        /// own independent, rarer roll instead of every pedestrian zone,
+        /// and only ever one rather than one per side.
+        /// </summary>
+        private void AddBooks(GameObject chunk, Vector2Int key)
+        {
+            if (BookMaterial == null || !CityLayout.IsBookChunk(key.x, key.y))
+            {
+                return;
+            }
+
+            bool runsAlongX = CityLayout.StreetRunsAlongX(key.x, key.y);
+            float size = CityLayout.ChunkSize;
+            float half = size * 0.5f;
+            float sidewalkCentre = half - CityMeshBuilder.SidewalkWidth * 0.5f;
+            double worldAlong = (runsAlongX ? key.x : key.y) * (double)size + half;
+            double worldAcross = (runsAlongX ? key.y : key.x) * (double)size + half + sidewalkCentre;
+            double wx = runsAlongX ? worldAlong : worldAcross;
+            double wz = runsAlongX ? worldAcross : worldAlong;
+            float y = (float)_world.Terrain.ContinuousHeightAt(wx, wz);
+
+            Vector3 facing = runsAlongX ? Vector3.back : Vector3.left;
+
+            var go = new GameObject("Book");
+            go.transform.position = new Vector3((float)wx, y, (float)wz);
+            go.transform.rotation = Quaternion.LookRotation(facing, Vector3.up);
+            go.transform.SetParent(chunk.transform, true);
+
+            Book book = go.AddComponent<Book>();
+            book.Build(BookMaterial);
+        }
+
+        /// <summary>
+        /// Two park benches, one on each sidewalk, in a pedestrian zone
+        /// chunk -- EXPLICIT ASK: "add benches you can go up to and press E
+        /// to sit as well," layered onto the pedestrian-areas work. A real
+        /// GameObject with a live MonoBehaviour (BenchSeat), not baked into
+        /// the chunk mesh like the plaza/skatepark geometry CityMeshBuilder
+        /// already adds -- sitting needs a component to poll E, the same
+        /// reason AddDoor/AddInteriorVolume are also real spawned objects
+        /// rather than static mesh.
+        ///
+        /// QUERIES CityWorld/CityLayout DIRECTLY rather than routing bench
+        /// placement through CityMeshBuilder's own MeshBuffers -- exactly
+        /// how AddDoor already finds its own BuildingSite independently of
+        /// whatever CityMeshBuilder baked for that chunk. Keeps this prop
+        /// spawn decoupled from the baked-geometry pass entirely.
+        ///
+        /// PLACED ON THE SIDEWALK, FACING THE STREET -- the same real-world
+        /// arrangement a plaza bench actually has, sampled at the chunk's
+        /// own along-axis midpoint from the real terrain height
+        /// (ContinuousHeightAt), matching how every other real prop this
+        /// project spawns sits at genuine ground height rather than a
+        /// quantised pad.
+        /// </summary>
+        private void AddBenches(GameObject chunk, Vector2Int key)
+        {
+            if (BenchMaterial == null || !CityLayout.IsPedestrianZoneChunk(key.x, key.y))
+            {
+                return;
+            }
+
+            bool runsAlongX = CityLayout.StreetRunsAlongX(key.x, key.y);
+            float size = CityLayout.ChunkSize;
+            float half = size * 0.5f;
+            float sidewalkCentre = half - CityMeshBuilder.SidewalkWidth * 0.5f;
+            double worldAlong = (runsAlongX ? key.x : key.y) * (double)size + half;
+
+            for (int side = -1; side <= 1; side += 2)
+            {
+                double worldAcross = (runsAlongX ? key.y : key.x) * (double)size + half + side * sidewalkCentre;
+                double wx = runsAlongX ? worldAlong : worldAcross;
+                double wz = runsAlongX ? worldAcross : worldAlong;
+                float y = (float)_world.Terrain.ContinuousHeightAt(wx, wz);
+
+                // Facing INWARD, toward the street's own centreline -- a
+                // sidewalk bench's backrest is against the building side,
+                // its seat opens onto the street/plaza.
+                Vector3 facing = runsAlongX
+                    ? new Vector3(0.0f, 0.0f, -side)
+                    : new Vector3(-side, 0.0f, 0.0f);
+
+                var go = new GameObject("Bench");
+                go.transform.position = new Vector3((float)wx, y, (float)wz);
+                go.transform.rotation = Quaternion.LookRotation(facing, Vector3.up);
+                go.transform.SetParent(chunk.transform, true);
+
+                BenchSeat bench = go.AddComponent<BenchSeat>();
+                bench.Build(BenchMaterial);
+            }
         }
 
         /// <summary>
@@ -433,35 +599,49 @@ namespace CityX.View
         /// something you can stand on top of, it is part of the road that
         /// already holds you up.
         ///
-        /// A chunk gets yellow OR white, never both: a junction has crossings
-        /// and no centre line, a straight run has a centre line and no
-        /// crossings. One buffer carries either.
+        /// A chunk's MAIN markings buffer gets yellow OR white, never both: a
+        /// junction has crossings and no centre line, a straight run has a
+        /// centre line and no crossings. One buffer carries either.
+        ///
+        /// laneDividers is a separate, always-white third channel (see
+        /// CityMeshBuilder.AddRoadMarkings's own doc comment) -- an
+        /// arterial's dashed lane dividers coexist with that same chunk's own
+        /// yellow centreline, which the single yellow-or-white buffer above
+        /// has no way to express. Built as its own GameObject/mesh exactly
+        /// like _markings is, just keyed off CrosswalkMaterial unconditionally
+        /// rather than the junction test.
         /// </summary>
         private void AddMarkings(GameObject chunk, Vector2Int key)
         {
-            if (_markings.IsEmpty)
-            {
-                return;
-            }
+            BuildMarkingsMesh(chunk, key, _markings, "markings", MarkingsMaterialFor(key));
+            BuildMarkingsMesh(chunk, key, _laneDividers, "lane-dividers", CrosswalkMaterial);
+        }
 
+        private Material MarkingsMaterialFor(Vector2Int key)
+        {
             bool junction = CityLayout.IsStreetChunk(key.x - 1, key.y) &&
                             CityLayout.IsStreetChunk(key.x + 1, key.y) &&
                             CityLayout.IsStreetChunk(key.x, key.y - 1) &&
                             CityLayout.IsStreetChunk(key.x, key.y + 1);
-            Material material = junction ? CrosswalkMaterial : RoadLineMaterial;
-            if (material == null)
+            return junction ? CrosswalkMaterial : RoadLineMaterial;
+        }
+
+        private static void BuildMarkingsMesh(GameObject chunk, Vector2Int key, MeshBuffer buffer,
+            string name, Material material)
+        {
+            if (buffer.IsEmpty || material == null)
             {
                 return;
             }
 
-            var go = new GameObject("Markings");
+            var go = new GameObject(name);
             go.transform.SetParent(chunk.transform, false);
 
-            var mesh = new Mesh { name = $"markings-{key.x}-{key.y}" };
-            mesh.SetVertices(_markings.Vertices);
-            mesh.SetNormals(_markings.Normals);
-            mesh.SetUVs(0, _markings.Uvs);
-            mesh.SetTriangles(_markings.Triangles, 0);
+            var mesh = new Mesh { name = $"{name}-{key.x}-{key.y}" };
+            mesh.SetVertices(buffer.Vertices);
+            mesh.SetNormals(buffer.Normals);
+            mesh.SetUVs(0, buffer.Uvs);
+            mesh.SetTriangles(buffer.Triangles, 0);
             mesh.RecalculateBounds();
 
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
@@ -522,6 +702,39 @@ namespace CityX.View
             }
         }
 
+        /// <summary>
+        /// The real crack-texture decal (CityMeshBuilder.AddCrackDecal) at a
+        /// known shot's own impact point, on its own object exactly like
+        /// AddCrackedGlass -- same reason: it sits proud of the base glass
+        /// and has no business in the chunk's own collider.
+        ///
+        /// Almost always empty, same as AddCrackedGlass -- only a pane with
+        /// a KNOWN impact point (a real gunshot/punch, not a loaded/set
+        /// state with no recorded position) ever puts anything in this
+        /// buffer at all.
+        /// </summary>
+        private void AddCrackDecals(GameObject chunk, Vector2Int key)
+        {
+            if (_crackDecals.IsEmpty || CrackDecalMaterial == null)
+            {
+                return;
+            }
+
+            var go = new GameObject("CrackDecals");
+            go.transform.SetParent(chunk.transform, false);
+
+            var mesh = new Mesh { name = $"crack-decals-{key.x}-{key.y}" };
+            mesh.SetVertices(_crackDecals.Vertices);
+            mesh.SetNormals(_crackDecals.Normals);
+            mesh.SetUVs(0, _crackDecals.Uvs);
+            mesh.SetTriangles(_crackDecals.Triangles, 0);
+            mesh.RecalculateTangents();
+            mesh.RecalculateBounds();
+
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            go.AddComponent<MeshRenderer>().sharedMaterial = CrackDecalMaterial;
+        }
+
         private static void DestroyChunk(GameObject go)
         {
             if (go == null)
@@ -578,6 +791,20 @@ namespace CityX.View
                 DestroyChunk(pair.Value);
             }
             _loaded.Clear();
+
+            // Stops publishing once this streamer is gone -- otherwise a
+            // scene-load test that unloads CityMassing.unity leaves
+            // CurrentWorld pointing at a CityWorld with no live streamer
+            // behind it any more, which the NEXT, entirely unrelated test
+            // to run in the same batch would silently inherit. Guarded on
+            // reference equality rather than a blind null-out: a second
+            // streamer that has since taken over (a rebuild mid-session)
+            // must not have its own, still-current publish undone by the
+            // first one's teardown.
+            if (CurrentWorld.Instance == _world)
+            {
+                CurrentWorld.Instance = null;
+            }
         }
     }
 }

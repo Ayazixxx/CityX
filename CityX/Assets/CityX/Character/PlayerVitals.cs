@@ -58,6 +58,28 @@ namespace CityX.Character
         /// <summary>player.gd FALL_DAMAGE_PER_METER, as a fraction of base health.</summary>
         public const float FallDamagePerMetreFraction = 0.08f;
 
+        /// <summary>
+        /// How much of SafeFallDistance's own margin a horizontal crash
+        /// still gets, out of 1.0 -- deliberately less than a straight
+        /// drop's full two storeys. A fall's first two storeys are safe
+        /// because legs bend on landing and absorb it; ramming into an
+        /// immovable wall sideways has no equivalent give, the torso takes
+        /// it directly, so the same body should not get the same margin
+        /// both ways. CONCRETE BUG, found by
+        /// JetpackTests.TheRealTopDiveSpeedIsActuallyFastEnoughToTriggerCrashDamage:
+        /// reusing SafeFallDistance itself gave a threshold of 15.85 m/s
+        /// against a jetpack dive that only ever reaches 15.0 m/s (an
+        /// EXPLICIT ASK -- see PlayerLocomotion.JetpackDiveSpeedMultiplier's
+        /// own doc comment -- so the speed side is not this fix's to
+        /// change), meaning the single fastest way to hit a wall with this
+        /// jetpack could never clear the bar. This is what "the jetpack
+        /// sideways fall damage thing still hasnt workedt" actually was.
+        /// </summary>
+        public const float CrashSafeDistanceFraction = 0.5f;
+
+        /// <summary>ApplyCrashDamage's own safe threshold -- see CrashSafeDistanceFraction's own doc comment for why it differs from SafeFallDistance.</summary>
+        public static float SafeCrashDistance => SafeFallDistance * CrashSafeDistanceFraction;
+
         // --- stats ---
 
         [Header("Stats")]
@@ -233,6 +255,30 @@ namespace CityX.Character
             Vector3 direction = flat.sqrMagnitude > 0.0001f ? flat.normalized : Vector3.back;
             _ragdoll.Activate(direction * FinisherKnockbackSpeed + Vector3.up * FinisherKnockbackUpSpeed);
             _finisherRagdollRemaining = FinisherRagdollSeconds;
+        }
+
+        /// <summary>
+        /// EXPLICIT ASK: "if the amount of damage you take doesnt kill you,
+        /// you still ragdoll when you crash into something when using the
+        /// jetpack." Same knockback shape as TriggerFinisherKnockdown
+        /// (reuses its own speed constants -- a hard impact reads the same
+        /// whichever system caused it), but deliberately does NOT arm
+        /// FinisherRagdollSeconds' own timed auto-recovery: a jetpack crash
+        /// instead uses Ragdoll's own manual "press space once resting
+        /// StandUpRestSeconds" recovery (see Ragdoll.CanStandUp/
+        /// BeginStandingUp) -- EXPLICIT ASK, "press space to stand up once
+        /// your on the floor for 2.5 seconds."
+        /// </summary>
+        public void TriggerCrashKnockdown(Vector3 awayDirection)
+        {
+            if (_ragdoll == null || IsDead)
+            {
+                return;
+            }
+            Vector3 flat = awayDirection;
+            flat.y = 0.0f;
+            Vector3 direction = flat.sqrMagnitude > 0.0001f ? flat.normalized : Vector3.back;
+            _ragdoll.Activate(direction * FinisherKnockbackSpeed + Vector3.up * FinisherKnockbackUpSpeed);
         }
 
         HitResponse IDamageable.ApplyHit(float amount, Vector3 fromPosition, float hitstunSeconds)
@@ -491,6 +537,43 @@ namespace CityX.Character
             }
 
             float damage = (fallen - SafeFallDistance) * (BaseMaxHealth * FallDamagePerMetreFraction);
+            TakeDamage(damage);
+            return damage;
+        }
+
+        /// <summary>
+        /// Fall damage's own formula, applied to a jetpack crash into a wall
+        /// instead of a drop -- EXPLICIT ASK: "horizontal fall damage when
+        /// using the jetpack and you crash into a wall... calculated same
+        /// as fall damage but instead horizontal."
+        ///
+        /// A fall's own damage is a function of the DISTANCE dropped, but a
+        /// wall crash has no distance -- only a speed at the instant of
+        /// impact -- so this converts that speed into the equivalent
+        /// free-fall distance gravity would need to reach it (d = v^2 / 2g,
+        /// the same physics a fall's own landing speed is derived from in
+        /// reverse), then reuses TickFallDamage's own FallDamagePerMetreFraction
+        /// against THAT distance -- one damage RATE, read either way, rather
+        /// than a second unrelated formula with its own tuning to keep in
+        /// step. The safe THRESHOLD itself is SafeCrashDistance, not
+        /// SafeFallDistance directly -- see SafeCrashDistance's own doc
+        /// comment for why a sideways slam does not get the same margin a
+        /// two-storey drop onto your own feet does.
+        /// </summary>
+        public float ApplyCrashDamage(float horizontalSpeed)
+        {
+            float gravity = Physics.gravity.magnitude;
+            if (gravity <= 0.0f)
+            {
+                return 0.0f;
+            }
+            float equivalentFallDistance = (horizontalSpeed * horizontalSpeed) / (2.0f * gravity);
+            if (equivalentFallDistance <= SafeCrashDistance)
+            {
+                return 0.0f;
+            }
+
+            float damage = (equivalentFallDistance - SafeCrashDistance) * (BaseMaxHealth * FallDamagePerMetreFraction);
             TakeDamage(damage);
             return damage;
         }

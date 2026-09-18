@@ -134,6 +134,27 @@ namespace CityX.Tests
             Assert.AreEqual(_locomotion.SprintSpeed, _locomotion.CurrentSpeed, 0.01f);
         }
 
+        /// <summary>
+        /// EXPLICIT ASK: "the jetpack goes twice as fast" while diving
+        /// (w+shift). Checked against SprintSpeed * JetpackDiveSpeedMultiplier
+        /// directly, the same "pin the real constant, not just greater-than"
+        /// reasoning JetpackBoostingReachesSprintSpeedEvenGoingBackward uses.
+        /// </summary>
+        [Test]
+        public void JetpackDivingReachesTwiceSprintSpeed()
+        {
+            var input = new LocomotionInput
+            {
+                Move = new Vector2(0.0f, 1.0f),
+                JetpackBoosting = true,
+                JetpackDiving = true,
+            };
+            Settle(input);
+
+            Assert.AreEqual(_locomotion.SprintSpeed * _locomotion.JetpackDiveSpeedMultiplier,
+                _locomotion.CurrentSpeed, 0.01f);
+        }
+
         [Test]
         public void CrouchingDoesNotSlowTheBody()
         {
@@ -254,6 +275,73 @@ namespace CityX.Tests
 
             Assert.IsFalse(_locomotion.IsDashing);
             Assert.IsFalse(float.IsNaN(_locomotion.Velocity.x));
+        }
+
+        /// <summary>
+        /// EXPLICIT BUG REPORT: "fix the pistol make it so you hold it
+        /// straight crosshair centered character not at weird angle." The
+        /// body used to only ever turn to face the camera WHILE MOVING --
+        /// stopping to aim (the natural way to aim: stop, aim, shoot) left
+        /// it frozen facing wherever it last walked, with the pistol
+        /// (rigidly parented to the right hand) pointing off at whatever
+        /// angle that happened to be relative to the actual crosshair.
+        /// </summary>
+        [Test]
+        public void AimingWhileStandingStillTurnsTheBodyToFaceTheCamera()
+        {
+            var input = new LocomotionInput
+            {
+                Move = Vector2.zero,
+                YawDegrees = 90.0f,
+                Aiming = true,
+            };
+
+            _locomotion.Tick(input, 0.016f);
+
+            Assert.AreEqual(90.0f, _locomotion.transform.eulerAngles.y, 0.01f,
+                "aiming while standing still should turn the body to face the camera");
+        }
+
+        /// <summary>
+        /// SNAPS, DOES NOT EASE -- a gradual TurnDegreesPerSecond-style catch
+        /// up (the ordinary walking-turn rate) would itself read as "at a
+        /// weird angle" for the first several frames after aiming starts
+        /// from a large angle mismatch, which is exactly the reported bug.
+        /// </summary>
+        [Test]
+        public void AimingSnapsInstantlyRatherThanEasingLikeAnOrdinaryWalkingTurn()
+        {
+            var input = new LocomotionInput
+            {
+                Move = Vector2.zero,
+                YawDegrees = 179.0f,
+                Aiming = true,
+            };
+
+            // One tick, deliberately -- an easing turn would only cover a
+            // few degrees in a single 0.016s step; a snap covers the whole
+            // 179 in that same step.
+            _locomotion.Tick(input, 0.016f);
+
+            Assert.AreEqual(179.0f, _locomotion.transform.eulerAngles.y, 0.01f);
+        }
+
+        /// <summary>Scoped to aiming specifically -- standing still and NOT aiming must keep the old behaviour untouched.</summary>
+        [Test]
+        public void StandingStillAndNotAimingLeavesFacingUntouched()
+        {
+            _locomotion.transform.rotation = Quaternion.Euler(0.0f, 45.0f, 0.0f);
+            var input = new LocomotionInput
+            {
+                Move = Vector2.zero,
+                YawDegrees = 90.0f,
+                Aiming = false,
+            };
+
+            _locomotion.Tick(input, 0.016f);
+
+            Assert.AreEqual(45.0f, _locomotion.transform.eulerAngles.y, 0.01f,
+                "standing still without aiming should leave the body facing wherever it already was");
         }
     }
 }

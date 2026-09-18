@@ -48,6 +48,16 @@ namespace CityX.Core
         public static LaunchArgs Default =>
             new LaunchArgs(GameMode.Singleplayer, DefaultAddress, DefaultPort, 0, null);
 
+        /// <summary>
+        /// Builds a valid LaunchArgs directly, for a caller that already has
+        /// its own configuration (the title screen's own Host/Join UI) rather
+        /// than an argv to parse. The constructor is private so every value
+        /// this type can hold either came from Parse's own validation or from
+        /// here -- there is no third, unvalidated way to build one.
+        /// </summary>
+        public static LaunchArgs For(GameMode mode, string address, ushort port, int worldSeed = 0) =>
+            new LaunchArgs(mode, address, port, worldSeed, null);
+
         private static LaunchArgs Invalid(string error) =>
             new LaunchArgs(GameMode.Singleplayer, DefaultAddress, DefaultPort, 0, error);
 

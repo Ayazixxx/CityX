@@ -29,6 +29,7 @@ namespace CityX.UI
 
         private static readonly Color Stroke = new Color(0.9f, 0.92f, 1.0f, 1.0f);
         private static readonly Color Accent = new Color(0.55f, 0.75f, 1.0f, 1.0f);
+        private static readonly Color Metal = new Color(0.62f, 0.64f, 0.7f, 1.0f);
 
         public static Texture2D Build(string kind)
         {
@@ -43,19 +44,55 @@ namespace CityX.UI
         }
 
         /// <summary>
-        /// A diagonal handle, a metal ferrule band near the tip, a fanned-out
-        /// bristle tip and a small paint dab under it.
+        /// A diagonal handle, a wide flat-tipped bristle wedge, a metal
+        /// ferrule band CROSSING both, and a paint tint merged onto the
+        /// bristle tip itself.
+        ///
+        /// SAME BUG REPORT TWICE NOW: "change the paintbrush icon into a
+        /// paintbrush instead of a toothbrush." The previous fix drew the
+        /// ferrule BEFORE the bristle polygon -- <see cref="Rasterise"/>
+        /// paints shapes in order, so the bristle polygon painted directly
+        /// on top of it and completely hid it (confirmed by actually
+        /// rendering it upscaled: no crossing band is visible at all, just
+        /// a thin shaft smoothly widening into a triangle -- an ice-cream
+        /// cone / lollipop silhouette, not a paintbrush). Fixed by drawing
+        /// the ferrule LAST, on top of the bristles, so the crossing band
+        /// is actually visible. Also blunted the bristle tip (a trapezoid,
+        /// not a triangle to a single point) since a real brush's bristles
+        /// end in a short flat/rounded edge, not a needle -- a sharp point
+        /// is what made it read as a cone even with the ferrule restored.
+        /// The paint accent now tints the tip trapezoid directly rather
+        /// than floating a separate circle past it, which used to read as
+        /// a candy stuck on top of the cone.
         /// </summary>
         private static void Brush(List<Shape> shapes)
         {
-            shapes.Add(Shape.Line(new Vector2(10, 54), new Vector2(32, 32), Stroke, 6.0f));
-            shapes.Add(Shape.Line(new Vector2(28, 36), new Vector2(38, 26), Accent, 7.0f));
+            // Handle: a plain diagonal shaft, narrow.
+            shapes.Add(Shape.Line(new Vector2(10, 56), new Vector2(26, 38), Stroke, 5.0f));
+
+            // Bristles: a wedge from a wide base near the handle's own end
+            // to a shorter, blunt (flat, not pointed) tip -- wider than the
+            // handle at the base, and not tapering to a single spike.
             shapes.Add(Shape.Polygon(new[]
             {
-                new Vector2(34, 30), new Vector2(52, 12),
-                new Vector2(45, 7), new Vector2(28, 24),
+                new Vector2(20, 32), new Vector2(32, 44),
+                new Vector2(50, 20), new Vector2(44, 15),
             }, Stroke));
-            shapes.Add(Shape.Circle(new Vector2(50, 16), 3.0f, Accent));
+
+            // The last inch of bristle, tinted as if freshly dipped --
+            // overlapping the bristle wedge's own tip rather than a
+            // separate shape floating past it.
+            shapes.Add(Shape.Polygon(new[]
+            {
+                new Vector2(29, 40), new Vector2(35, 45),
+                new Vector2(50, 20), new Vector2(44, 15),
+            }, Accent));
+
+            // Ferrule: a short metal band CROSSING the handle/bristle
+            // boundary (perpendicular to the handle, not parallel to it),
+            // drawn LAST so it actually shows up over both instead of
+            // being painted over.
+            shapes.Add(Shape.Line(new Vector2(21, 33), new Vector2(33, 45), Metal, 7.0f));
         }
 
         /// <summary>A trapezoid pail with a rim, a top handle arc and a drip below.</summary>
