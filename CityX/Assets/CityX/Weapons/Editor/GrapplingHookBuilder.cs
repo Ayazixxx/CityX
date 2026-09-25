@@ -49,7 +49,6 @@ namespace CityX.WeaponsEditor
     public static class GrapplingHookBuilder
     {
         private const string PrefabPath = "Assets/CityX/Weapons/GrapplingHook.prefab";
-        private const string ModelPath = "Assets/CityX/Weapons/Models/GrappleBlaster.glb";
 
         /// <summary>
         /// Claw-tip to grip-butt. A bit longer than the Beretta's real
@@ -72,17 +71,10 @@ namespace CityX.WeaponsEditor
         [MenuItem("CityX/Rebuild Grappling Hook")]
         public static GameObject Build()
         {
-            GameObject model = AssetDatabase.LoadAssetAtPath<GameObject>(ModelPath);
-            if (model == null)
-            {
-                Debug.LogError($"CityX: {ModelPath} missing -- no grappling hook built.");
-                return null;
-            }
-
             var root = new GameObject("GrapplingHook");
             try
             {
-                BuildVisual(root.transform, model, out Bounds rotatedBounds);
+                BuildVisual(root.transform, out Bounds rotatedBounds);
 
                 var muzzle = new GameObject("Muzzle");
                 muzzle.transform.SetParent(root.transform, false);
@@ -125,55 +117,29 @@ namespace CityX.WeaponsEditor
         }
 
         /// <summary>
-        /// Instantiates the real model, applies the fixed corrective yaw
-        /// (native +X-forward -> +Z-forward, see this file's own class
-        /// comment), normalizes scale and recentres exactly the way
-        /// PistolBuilder's own NormalizeScale does, and overrides the
-        /// broken imported material with a flat gunmetal one. Returns the
-        /// visual's own rotated-and-scaled bounds, in <paramref name="parent"/>'s
-        /// local space, so Build can place the muzzle/collider from real
-        /// geometry instead of a guessed half-length -- the mesh is not
-        /// symmetric front-to-back (grip at one end, claw at the other),
-        /// so its own local origin after recentring is not its midpoint
-        /// along the aim axis either.
+        /// The launcher's visual: a plain metal rectangle, TargetLengthMeters
+        /// long with the muzzle at its +Z end. EXPLICIT ASK: "just replace it
+        /// with a rectangle" -- the old sci-fi blaster model (a 118 MB .glb) was
+        /// deleted, and a simpler one is to be made later. Dropping a real model
+        /// back in means replacing this box; the muzzle, collider and grip all
+        /// read from the bounds returned here, so nothing else needs to change.
         /// </summary>
-        private static void BuildVisual(Transform parent, GameObject model, out Bounds rotatedBounds)
+        private static void BuildVisual(Transform parent, out Bounds rotatedBounds)
         {
-            var visual = (GameObject)PrefabUtility.InstantiatePrefab(model);
+            var visual = GameObject.CreatePrimitive(PrimitiveType.Cube);
             visual.name = "Visual";
+            Object.DestroyImmediate(visual.GetComponent<Collider>());
             visual.transform.SetParent(parent, false);
-            visual.transform.localRotation = Quaternion.Euler(0.0f, -90.0f, 0.0f);
-
-            Renderer[] renderers = visual.GetComponentsInChildren<Renderer>(true);
-            Bounds worldBounds = renderers[0].bounds;
-            for (int i = 1; i < renderers.Length; i++)
-            {
-                worldBounds.Encapsulate(renderers[i].bounds);
-            }
-
-            float largestDimension = Mathf.Max(worldBounds.size.x, Mathf.Max(worldBounds.size.y, worldBounds.size.z));
-            float normalizeScale = largestDimension > 0.0001f ? TargetLengthMeters / largestDimension : 1.0f;
-
-            Vector3 centreLocal = visual.transform.InverseTransformPoint(worldBounds.center);
-            visual.transform.localScale = Vector3.one * normalizeScale;
-            visual.transform.localPosition = -centreLocal * normalizeScale;
+            var size = new Vector3(0.07f, 0.11f, TargetLengthMeters);
+            visual.transform.localScale = size;
+            visual.transform.localPosition = Vector3.zero;
 
             Material metal = CharacterSkin.Ensure("GrappleBlasterMetal", MetalColour);
             metal.SetFloat("_Metallic", 0.75f);
             metal.SetFloat("_Smoothness", 0.6f);
-            foreach (MeshRenderer meshRenderer in visual.GetComponentsInChildren<MeshRenderer>(true))
-            {
-                meshRenderer.sharedMaterial = metal;
-            }
+            visual.GetComponent<MeshRenderer>().sharedMaterial = metal;
 
-            Bounds newWorldBounds = renderers[0].bounds;
-            for (int i = 1; i < renderers.Length; i++)
-            {
-                newWorldBounds.Encapsulate(renderers[i].bounds);
-            }
-            rotatedBounds = new Bounds(
-                parent.InverseTransformPoint(newWorldBounds.center),
-                newWorldBounds.size);
+            rotatedBounds = new Bounds(Vector3.zero, size);
         }
 
         /// <summary>

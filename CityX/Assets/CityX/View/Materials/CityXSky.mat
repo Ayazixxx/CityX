@@ -34,15 +34,15 @@ Material:
     - _SunAngleMax: 6
     - _SunAngularRadius: 1
     - _SunCurve: 1
-    - _SunEnergy: 1.9834808
+    - _SunEnergy: 1.9855393
     m_Colors:
     - _GroundBottomColour: {r: 0.16, g: 0.16, b: 0.18, a: 1}
     - _GroundHorizonColour: {r: 0.64, g: 0.76, b: 0.91, a: 1}
     - _MoonColour: {r: 0.62, g: 0.72, b: 1, a: 1}
-    - _MoonDirection: {r: 0.40557986, g: -0.7071067, b: -0.579228, a: 0}
+    - _MoonDirection: {r: 0.40481275, g: -0.7084415, b: -0.57813257, a: 0}
     - _SkyHorizonColour: {r: 0.64, g: 0.76, b: 0.91, a: 1}
     - _SkyTopColour: {r: 0.22, g: 0.42, b: 0.82, a: 1}
     - _SunColour: {r: 1, g: 0.955, b: 0.885, a: 1}
-    - _SunDirection: {r: -0.40557975, g: 0.70710677, b: 0.57922786, a: 0}
+    - _SunDirection: {r: -0.40481275, g: 0.70844156, b: 0.5781325, a: 0}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
