@@ -1,0 +1,36 @@
+﻿{
+    "name":  "CityX.UI.Editor",
+    "rootNamespace":  "CityX.UIEditor",
+    "references":  [
+                       "CityX.Core",
+                       "CityX.UI",
+                       "CityX.Character",
+                       "CityX.View",
+                       "CityX.World",
+                       "CityX.Net",
+                       "UnityEngine.UI",
+                       "Unity.InputSystem",
+                       "Unity.RenderPipelines.Core.Runtime",
+                       "Unity.RenderPipelines.Universal.Runtime",
+                       "FishNet.Runtime"
+                   ],
+    "includePlatforms":  [
+                             "Editor"
+                         ],
+    "excludePlatforms":  [
+
+                         ],
+    "allowUnsafeCode":  false,
+    "overrideReferences":  false,
+    "precompiledReferences":  [
+
+                              ],
+    "autoReferenced":  true,
+    "defineConstraints":  [
+
+                          ],
+    "versionDefines":  [
+
+                       ],
+    "noEngineReferences":  false
+}

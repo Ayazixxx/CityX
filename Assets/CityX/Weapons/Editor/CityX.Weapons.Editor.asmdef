@@ -1,0 +1,26 @@
+{
+    "name": "CityX.Weapons.Editor",
+    "rootNamespace": "CityX.WeaponsEditor",
+    "references": [
+        "CityX.Character",
+        "CityX.Character.Editor",
+        "CityX.Core",
+        "CityX.Items",
+        "CityX.UI",
+        "CityX.View",
+        "CityX.Wearables",
+        "CityX.Weapons",
+        "CityX.World"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -1,0 +1,35 @@
+{
+    "name": "CityX.Tests.EditMode",
+    "rootNamespace": "CityX.Tests",
+    "references": [
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner",
+        "CityX.Core",
+        "CityX.Items",
+        "CityX.World",
+        "CityX.View",
+        "CityX.Character",
+        "CityX.Character.Editor",
+        "CityX.UI",
+        "CityX.UI.Editor",
+        "CityX.Weapons",
+        "CityX.Wearables",
+        "CityX.Vehicles",
+        "UnityEngine.UI"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

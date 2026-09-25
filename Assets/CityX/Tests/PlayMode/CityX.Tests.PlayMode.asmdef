@@ -1,0 +1,35 @@
+{
+    "name": "CityX.Tests.PlayMode",
+    "rootNamespace": "CityX.Tests",
+    "references": [
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner",
+        "CityX.Core",
+        "CityX.Items",
+        "CityX.Net",
+        "CityX.Spike",
+        "CityX.Character",
+        "CityX.Weapons",
+        "CityX.Wearables",
+        "CityX.World",
+        "CityX.View",
+        "CityX.UI",
+        "UnityEngine.UI",
+        "Unity.InputSystem",
+        "Unity.InputSystem.TestFramework",
+        "FishNet.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

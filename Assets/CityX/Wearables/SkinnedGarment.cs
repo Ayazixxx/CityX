@@ -1,0 +1,210 @@
+using CityX.Character;
+using CityX.Items;
+using UnityEngine;
+using UnityEngine.InputSystem;
+
+namespace CityX.Wearables
+{
+    /// <summary>
+    /// Base for garments that deform with the body across several joints at
+    /// once -- skelli jeans (hip and knee) and the hooded cloak (the whole
+    /// body) -- rather than the coarse rigid per-bone attachment the old
+    /// t-shirt/hoodie used, which could not span a joint without tearing.
+    ///
+    /// Ported from wearables/skelli_jeans.gd's and hooded_cloak.gd's own
+    /// wear_on(): SkinnedGarmentBuilder pre-bakes the garment mesh, in the
+    /// editor, against this rig's own 14 named bones AT REST -- the exact
+    /// bindpose convention FusedBodyBuilder uses for the body itself. The
+    /// bake and the live pose agree exactly at rest, and deform together
+    /// identically to the body from there, because both were bound the same
+    /// way against the same rest geometry.
+    ///
+    /// PUTTING THE GARMENT ON DOES NOT BUILD ITS OWN RENDERER -- it registers
+    /// with SkinnedGarmentCombiner instead, which owns ONE shared
+    /// SkinnedMeshRenderer for whatever is currently worn. See that class's
+    /// own doc comment for why: a real skin evaluation runs once per
+    /// renderer, and this project expects "100s if not 1000s" of items
+    /// across many players in one area eventually, so the per-character
+    /// rendering cost has to stay bounded by slot count, not catalog size.
+    /// </summary>
+    public abstract class SkinnedGarment : MonoBehaviour, IEquippableItem
+    {
+        public const float InteractRange = 2.5f;
+
+        /// <summary>
+        /// The 14 bones every garment mesh is baked against, in bind order --
+        /// matches skelli_jeans.glb's and hooded_cloak.glb's own imported
+        /// bone list exactly (confirmed by inspecting both). Bind ORDER is
+        /// load-bearing: BoneWeight.boneIndexN are indices into this array,
+        /// not names, so SkinnedGarmentBuilder and this file must agree on it.
+        /// </summary>
+        public static readonly HumanBodyBones[] Bones =
+        {
+            HumanBodyBones.Hips, HumanBodyBones.Spine, HumanBodyBones.Neck, HumanBodyBones.Head,
+            HumanBodyBones.LeftUpperArm, HumanBodyBones.LeftLowerArm, HumanBodyBones.LeftHand,
+            HumanBodyBones.RightUpperArm, HumanBodyBones.RightLowerArm, HumanBodyBones.RightHand,
+            HumanBodyBones.LeftUpperLeg, HumanBodyBones.LeftLowerLeg,
+            HumanBodyBones.RightUpperLeg, HumanBodyBones.RightLowerLeg,
+        };
+
+        [Tooltip("Baked by SkinnedGarmentBuilder against this rig's own rest pose.")]
+        public Mesh GarmentMesh;
+
+        public Material GarmentMaterial;
+
+        [Tooltip("The non-skinned, tipped-over ground pose. Hidden on equip -- " +
+                 "left showing, it sits in its raw bind pose overlapping the live " +
+                 "skin and the two z-fight into a flickering, wrong-shaded mess.")]
+        public GameObject GroundPreview;
+
+        public abstract string ItemId { get; }
+
+        /// <summary>
+        /// Protected, not private -- BlackPufferJacket's own live-placement
+        /// re-tuning (see its class comment) needs to re-Register itself
+        /// with the same combiner an ordinary equip already found.
+        /// </summary>
+        protected SkinnedGarmentCombiner Combiner { get; private set; }
+
+        private Transform _nearbyPlayer;
+        private bool _equipped;
+
+        private void Update()
+        {
+            if (_equipped)
+            {
+                return;
+            }
+            TickPickup();
+        }
+
+        private void OnTriggerEnter(Collider other)
+        {
+            if (other.GetComponentInParent<PlayerVitals>() != null)
+            {
+                _nearbyPlayer = other.transform;
+            }
+        }
+
+        private void OnTriggerExit(Collider other)
+        {
+            if (other.transform == _nearbyPlayer || (other.GetComponentInParent<PlayerVitals>() != null))
+            {
+                _nearbyPlayer = null;
+            }
+        }
+
+        /// <summary>Proximity only -- no look-direction check, matching the ground truth.</summary>
+        private void TickPickup()
+        {
+            if (_nearbyPlayer == null)
+            {
+                return;
+            }
+            Keyboard keyboard = Keyboard.current;
+            if (keyboard == null || !keyboard.eKey.wasPressedThisFrame)
+            {
+                return;
+            }
+
+            Vector3 toSelf = transform.position - _nearbyPlayer.position;
+            if (toSelf.sqrMagnitude > InteractRange * InteractRange)
+            {
+                return;
+            }
+
+            var inventory = _nearbyPlayer.GetComponentInParent<Inventory>();
+            if (inventory == null)
+            {
+                return;
+            }
+            if (inventory.AddItem(ItemId, 1))
+            {
+                Destroy(gameObject);
+            }
+        }
+
+        public void OnEquip(GameObject player, ItemInstanceData instanceData)
+        {
+            _equipped = true;
+            // Left showing, the ground pose's own raw, unposed mesh sits
+            // right where the live skin also renders and the two z-fight
+            // into a flickering, wrongly-shaded mess -- confirmed by
+            // rendering it before this fix, which looked like a rainbow
+            // texture failure until the actual cause (two overlapping
+            // copies of the same mesh) turned up.
+            if (GroundPreview != null)
+            {
+                GroundPreview.SetActive(false);
+            }
+
+            var animator = player.GetComponentInChildren<Animator>();
+            // GetBoneTransform THROWS rather than returning null when the
+            // Animator has no avatar at all (as opposed to an avatar that
+            // simply lacks one particular bone, which it tolerates) -- so
+            // this has to be checked up front rather than only null-checked
+            // after the fact.
+            if (animator == null || animator.avatar == null || GarmentMesh == null)
+            {
+                return;
+            }
+
+            // Shared by every worn garment, not built per-item -- see
+            // SkinnedGarmentCombiner's own class comment: a real GPU skin
+            // evaluation runs once per SkinnedMeshRenderer, and with
+            // "100s if not 1000s" of items eventually in the catalog that
+            // cost has to stay bounded by how many SLOTS exist (at most a
+            // top and legs go through this), not by catalog size.
+            Combiner = player.GetComponent<SkinnedGarmentCombiner>();
+            if (Combiner == null)
+            {
+                Combiner = player.AddComponent<SkinnedGarmentCombiner>();
+            }
+            Combiner.Register(ItemId, GarmentMesh, GarmentMaterial);
+            OnEquipped(player);
+        }
+
+        /// <summary>Unregisters from the shared combiner, then destroys the (by then bare) root.</summary>
+        public void OnUnequip(GameObject player)
+        {
+            OnUnequipped(player);
+            if (Combiner != null)
+            {
+                Combiner.Unregister(ItemId);
+            }
+            Combiner = null;
+            Destroy(gameObject);
+        }
+
+        /// <summary>
+        /// Called once the live skin is built and showing. A plain garment
+        /// has nothing further to do; HoodedCloak overrides this to hide
+        /// the body's own skin underneath (see that class's own comment).
+        /// </summary>
+        protected virtual void OnEquipped(GameObject player)
+        {
+        }
+
+        /// <summary>The reverse of OnEquipped, called before the skin is torn down.</summary>
+        protected virtual void OnUnequipped(GameObject player)
+        {
+        }
+
+        /// <summary>
+        /// Shows or hides the live worn skin without tearing it down --
+        /// HoodedCloak's own doc comment on why a sleeve mesh baked against
+        /// ordinary locomotion's narrow arm range needs to disappear rather
+        /// than be shown crumpled during a pose far outside that range.
+        /// </summary>
+        protected void SetSkinVisible(bool visible)
+        {
+            if (Combiner != null)
+            {
+                Combiner.SetVisible(ItemId, visible);
+            }
+        }
+
+        /// <summary>Plain clothing carries no per-instance state.</summary>
+        public ItemInstanceData GetInstanceData() => ItemInstanceData.None;
+    }
+}

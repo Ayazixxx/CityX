@@ -1,0 +1,33 @@
+{
+    "name": "CityX.View.Editor",
+    "rootNamespace": "CityX.ViewEditor",
+    "references": [
+        "CityX.View",
+        "CityX.World",
+        "CityX.Character",
+        "CityX.Character.Editor",
+        "CityX.Items",
+        "CityX.Weapons",
+        "CityX.Weapons.Editor",
+        "CityX.Wearables",
+        "CityX.Wearables.Editor",
+        "CityX.UI",
+        "CityX.UI.Editor",
+        "CityX.Vehicles",
+        "CityX.Vehicles.Editor",
+        "Unity.RenderPipelines.Core.Runtime",
+        "Unity.RenderPipelines.Universal.Runtime",
+        "FishNet.Runtime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
