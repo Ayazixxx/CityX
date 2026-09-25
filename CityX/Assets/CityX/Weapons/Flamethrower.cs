@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using CityX.Character;
 using CityX.Items;
+using CityX.World;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -284,8 +285,16 @@ namespace CityX.Weapons
         /// </summary>
         private void ApplyStreamDamage(Vector3 origin, Vector3 direction, GameObject wielder, float deltaTime)
         {
-            Vector3 center = origin + direction * (Range * 0.5f);
-            Collider[] hits = Physics.OverlapSphere(center, Range * 0.5f, TargetLayers, QueryTriggerInteraction.Ignore);
+            // RAIN PUTS FIRE OUT -- open-world games from Breath of the Wild
+            // on treat rain as a real opponent of flame. A stream falling out
+            // in the rain loses half its bite and a quarter of its reach in a
+            // downpour; the same flamethrower under a roof or a highway deck
+            // is unaffected (CurrentWeather.RainOn is zero under cover).
+            float flame = Weather.FlameStrength(CurrentWeather.RainOn(origin));
+            float reach = Range * (0.5f + 0.5f * flame);
+
+            Vector3 center = origin + direction * (reach * 0.5f);
+            Collider[] hits = Physics.OverlapSphere(center, reach * 0.5f, TargetLayers, QueryTriggerInteraction.Ignore);
             if (hits.Length == 0)
             {
                 return;
@@ -294,7 +303,7 @@ namespace CityX.Weapons
             float cosLimit = Mathf.Cos(ConeHalfAngleDegrees * Mathf.Deg2Rad);
             IDamageable self = wielder != null ? wielder.GetComponent<IDamageable>() : null;
             int strength = wielder != null ? (wielder.GetComponent<PlayerVitals>()?.Strength ?? 0) : 0;
-            float damageThisTick = CombatTuning.DamageFor(DamagePerSecond * deltaTime, strength);
+            float damageThisTick = CombatTuning.DamageFor(DamagePerSecond * deltaTime, strength) * flame;
 
             _hitThisTick.Clear();
             foreach (Collider collider in hits)

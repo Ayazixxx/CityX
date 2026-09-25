@@ -33,25 +33,23 @@ namespace CityX.WearablesEditor
         private const float BandRadius = 0.295f;
         private const float BandHeight = 0.06f;
 
-        private static readonly Color HatColour = new Color(0.03f, 0.03f, 0.035f);
-        private static readonly Color BandColour = new Color(0.09f, 0.02f, 0.02f);
-
         [MenuItem("CityX/Rebuild Top Hat")]
         public static GameObject Build()
         {
             var root = new GameObject("TopHat");
             try
             {
-                Material hatMaterial = CharacterSkin.Ensure("TopHatFabric", HatColour);
-                hatMaterial.SetFloat("_Smoothness", 0.4f);
+                // ONE material shared with every other helmet-slot wearable
+                // (see CharacterSkin.EnsureSharedCategory's own doc comment)
+                // -- each piece keeps its own colour via TopHat.Awake's own
+                // WearableTint.Apply call instead of a unique Material asset
+                // per piece.
+                Material sharedMaterial = CharacterSkin.EnsureSharedCategory("Helmet");
 
-                Material bandMaterial = CharacterSkin.Ensure("TopHatBand", BandColour);
-                bandMaterial.SetFloat("_Smoothness", 0.5f);
-
-                BuildPiece(root.transform, hatMaterial, "Brim", BrimRadius, BrimHeight, BrimHeight * 0.5f);
-                BuildPiece(root.transform, hatMaterial, "Crown", CrownRadius, CrownHeight,
+                BuildPiece(root.transform, sharedMaterial, "Brim", BrimRadius, BrimHeight, BrimHeight * 0.5f);
+                BuildPiece(root.transform, sharedMaterial, "Crown", CrownRadius, CrownHeight,
                     BrimHeight + CrownHeight * 0.5f);
-                BuildPiece(root.transform, bandMaterial, "Band", BandRadius, BandHeight,
+                BuildPiece(root.transform, sharedMaterial, "Band", BandRadius, BandHeight,
                     BrimHeight + BandHeight * 0.5f);
 
                 var pickupTrigger = root.AddComponent<SphereCollider>();

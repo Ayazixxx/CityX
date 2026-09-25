@@ -86,6 +86,14 @@ namespace CityX.UI
             {
                 Target = GetComponentInParent<PlayerVitals>();
             }
+
+            // The reticle's shooting reactions (hit marker, blocked state,
+            // reload dim) live in their own component, added here so no HUD
+            // prefab has to be rebuilt for them.
+            if (GetComponent<GunReticleView>() == null)
+            {
+                gameObject.AddComponent<GunReticleView>();
+            }
         }
 
         private void OnEnable()

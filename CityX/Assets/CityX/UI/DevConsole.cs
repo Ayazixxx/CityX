@@ -136,6 +136,11 @@ namespace CityX.UI
             "equip",
             "unequip",
             "goto",
+            "jacket",
+            "pistol",
+            "aim",
+            "sword",
+            "gun",
         };
 
         public static string UsageFor(string verb)
@@ -143,19 +148,37 @@ namespace CityX.UI
             switch (verb)
             {
                 case "help": return "/help -- this list";
-                case "weather": return "/weather <rain|clear>";
+                case "weather": return "/weather <rain [light|moderate|heavy|0.1-1]|clear|dry|lightning [metres]|status>";
                 case "time":
                     return "/time <sunrise|morning|noon|afternoon|sunset|night|midnight|0.0-1.0>";
                 case "fly": return "/fly -- toggles the free camera";
                 case "infinitehealth": return "/infinitehealth -- toggles";
                 case "infinitesprint": return "/infinitesprint -- toggles";
                 case "xp": return "/xp <amount>";
-                case "spawn": return "/spawn <dummy|civilian|flyer|crimsonclaw|radio|bottle|jeans|cloak|grapple|mustang|jetpack|parachute|book>";
+                case "spawn": return "/spawn <dummy|civilian|flyer|crimsonclaw|radio|bottle|jeans|cloak|coat|jacket|" +
+                    "grapple|pistol|sword|flamethrower|jetpack|parachute|top_hat|farmer_hat|mustang|book>";
                 case "car": return "/car pose -- logs the nearest car's seat positions (drag them in the Editor to nudge)";
                 case "celshade": return "/celshade -- toggles toon shading on every character skin";
-                case "equip": return "/equip <bottle|jeans|cloak|grapple|jetpack|parachute>";
-                case "unequip": return "/unequip <hand_r|legs|top>";
+                case "equip": return "/equip <bottle|jeans|cloak|coat|jacket|grapple|pistol|sword|flamethrower|" +
+                    "jetpack|parachute|top_hat|farmer_hat>";
+                case "unequip": return "/unequip <hand_r|legs|top|back|helmet>";
                 case "goto": return "/goto <slope|district> -- teleports to the nearest one";
+                case "jacket": return "/jacket <scale|offset> <value>, or /jacket pose -- " +
+                    "live-tunes the equipped top's own size/vertical position (wear only one top while tuning)";
+                case "pistol": return "/pistol <pos|rot> <x> <y> <z>, /pistol scale <value>, or /pistol pose -- " +
+                    "live-tunes the equipped pistol's own grip in the hand";
+                case "aim": return "/aim offset <metres>, /aim yaw <degrees>, /aim armyaw <degrees>, or /aim pose -- " +
+                    "live-tunes the aim camera's shoulder offset while aiming. /aim yaw rotates the WHOLE " +
+                    "character (body, arm, and head together); /aim armyaw nudges just the arm/gun's own " +
+                    "angle without moving the body";
+                case "sword": return "/sword -- lists every sword-combat number; /sword <name> <value> sets one " +
+                    "(e.g. /sword BufferSeconds 0.3, /sword Heavy.Startup 0.8, /sword Light1.Recovery 0.5). " +
+                    "Needs a sword equipped. Startup/Active/Recovery are seconds; Active is when the blade can hurt";
+                case "gun": return "/gun -- lists the pistol's feel numbers; /gun <name> <value> sets one: " +
+                    "recoil (camera kick, degrees), adsrecoil (aiming multiplier), shake (roll jolt), " +
+                    "kick / kickangle (the pistol's own snap-back), recover (camera settle rate), " +
+                    "sens (mouse scale while aiming), aimspeed (walk-speed scale while aiming). " +
+                    "/gun shoulder swaps the camera shoulder (Q). Needs a pistol equipped";
                 default: return null;
             }
         }

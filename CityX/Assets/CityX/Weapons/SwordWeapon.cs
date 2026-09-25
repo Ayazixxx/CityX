@@ -22,7 +22,7 @@ namespace CityX.Weapons
     /// dispatch (gated on CanThrow first) will never actually reach.
     /// </summary>
     [RequireComponent(typeof(SphereCollider))]
-    public sealed class SwordWeapon : MonoBehaviour, IEquippableItem, IEquippableWeapon
+    public sealed class SwordWeapon : MonoBehaviour, IEquippableItem, IEquippableWeapon, ISwordBlade
     {
         /// <summary>
         /// Godot has no separate sword damage constant at all -- player.gd's
@@ -60,6 +60,20 @@ namespace CityX.Weapons
         /// own +Z-forward convention (Godot's own GRIP_HAND_POSITION is
         /// (-0.055, -0.197, 0.343)).
         /// </summary>
+        /// <summary>
+        /// Blade length in the sword root's own space: SwordBuilder's
+        /// BladeLength (1.05) times its ModelScale (2.0). The blade runs
+        /// along the root's local +Y from the grip (SwordBuilder centres the
+        /// pickup trigger at half this height on +Y).
+        /// </summary>
+        public const float BladeLocalLength = 2.1f;
+
+        /// <summary>Where the blade meets the grip, in world space.</summary>
+        public Vector3 BladeBaseWorld => transform.position;
+
+        /// <summary>The blade's tip, in world space -- what a swing actually sweeps.</summary>
+        public Vector3 BladeTipWorld => transform.TransformPoint(new Vector3(0.0f, BladeLocalLength, 0.0f));
+
         public static readonly Vector3 GripHandPosition = new Vector3(-0.055f, -0.197f, -0.343f);
 
         public static readonly Vector3 GripHandRotationEuler = new Vector3(103.1f, 94.8f, 120.4f);
@@ -241,6 +255,17 @@ namespace CityX.Weapons
             {
                 melee.EquippedWeapon = this;
             }
+
+            // THE SWORD FIGHTS THE SOULSLIKE WAY (SoulsSwordCombat): committed
+            // attacks with startup/active/recovery, a stamina cost, buffered
+            // chaining and a swept blade hitbox. Added on equip rather than
+            // baked into Player.prefab so nothing else about the body changes.
+            var souls = player.GetComponent<SoulsSwordCombat>();
+            if (souls == null)
+            {
+                souls = player.AddComponent<SoulsSwordCombat>();
+            }
+            souls.Equip(this);
         }
 
         public void OnUnequip(GameObject player)
@@ -249,6 +274,11 @@ namespace CityX.Weapons
             if (melee != null && ReferenceEquals(melee.EquippedWeapon, this))
             {
                 melee.EquippedWeapon = null;
+            }
+            var souls = player.GetComponent<SoulsSwordCombat>();
+            if (souls != null)
+            {
+                souls.Unequip(this);
             }
             Destroy(gameObject);
         }

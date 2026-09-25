@@ -77,16 +77,36 @@ namespace CityX.Character
         public bool Aiming;
 
         /// <summary>
-        /// The camera's own current Pitch (ThirdPersonCamera.Pitch, same
-        /// -90..90 degrees convention, positive = looking down) -- only
-        /// meaningful while <see cref="Aiming"/> is true. Drives
-        /// PlayerLocomotion.ApplyGunAimPose, which tilts the raised gun arm
-        /// to track it, the same "carry the answer to the one place that
-        /// owns the pose" reasoning <see cref="Aiming"/>'s own doc comment
-        /// gives -- this struct still has no opinion on what aiming means,
-        /// only threads the number through.
+        /// The camera's own current world position/forward while aiming --
+        /// EXPLICIT BUG REPORT: "the pose he goes in when you hold right
+        /// click is aimed to the left slightly he isnt even pointing the
+        /// gun forward." AimPitchDegrees alone only ever pitched the arm
+        /// around the BODY's own forward axis, which ignores the camera's
+        /// own lateral shoulder offset while aiming (ThirdPersonCamera's
+        /// own AimShoulderOffset) -- a shot fires along the CAMERA's own
+        /// ray (see PlayerInputReader's own EquippedGun.Fire call), so an
+        /// arm merely pitched around the body's centreline visibly diverges
+        /// from where the gun is actually about to shoot, exactly the real
+        /// parallax an over-the-shoulder camera creates. PlayerLocomotion.
+        /// ApplyGunAimPose uses these two instead, to aim the arm AT the
+        /// same point the crosshair itself converges on.
         /// </summary>
-        public float AimPitchDegrees;
+        public Vector3 AimCameraPosition;
+
+        public Vector3 AimCameraForward;
+
+        /// <summary>
+        /// The world point the crosshair ray actually ends on (what the gun would
+        /// hit, or a far point along the ray on a miss), with HasGunAimPoint.
+        /// The arm aims at THIS when it is supplied, instead of a fixed 15m along
+        /// the ray -- at close range the fixed point leaves the barrel visibly off
+        /// the target (a 1.4m shoulder offset is 20 degrees at 4m), so the bullet
+        /// tracer, which runs muzzle to hit point, left the gun at an angle that
+        /// had nothing to do with where the barrel pointed.
+        /// </summary>
+        public Vector3 GunAimPoint;
+
+        public bool HasGunAimPoint;
 
         /// <summary>
         /// True whenever the equipped weapon's own MovesetId is
@@ -97,6 +117,43 @@ namespace CityX.Character
         /// answer, decide nothing here" split Aiming already uses.
         /// </summary>
         public bool SwordEquipped;
+
+        /// <summary>
+        /// True whenever a pistol is equipped (EquippedGun != null),
+        /// regardless of whether right-click is currently held -- unlike
+        /// Aiming, this stays true the whole time the gun is holstered in
+        /// hand. Drives the Animator's "GunEquipped" bool, which swaps
+        /// Locomotion for GunLocomotion (see PlayerRigBuilder.
+        /// AddGunLocomotion) the moment the character is actually moving,
+        /// same "carry the answer, decide nothing here" split SwordEquipped
+        /// already uses. EXPLICIT BUG REPORT: "the legs move as you hold
+        /// the pistol and aim in if you are walking [in Godot] which it
+        /// doesnt do in unity" -- character.gd's own set_walking() plays a
+        /// full-body "gun_walk"/"gun_run" cycle (raised, ready arms +
+        /// stepping legs) any time _holding_gun is true AND the character
+        /// is moving, REGARDLESS of whether right-click (_is_aiming) is
+        /// also held -- the static aim-in pose is reserved for standing
+        /// completely still. Unity had no equivalent: the Animator's
+        /// "Aiming" Any State transition (see AddAimingState) fired
+        /// unconditionally on Aiming alone, freezing the WHOLE body
+        /// (including legs) on the static pistol_aim_in pose the instant
+        /// right-click was held, even while the CharacterController kept
+        /// sliding the transform forward underneath it -- read exactly as
+        /// "legs lock up." GunEquipped alone (not Aiming) is what should
+        /// gate the moving pose, since Godot's own gun_walk plays during
+        /// ordinary hip-fire movement too, not just while aiming.
+        /// </summary>
+        public bool GunEquipped;
+
+        /// <summary>
+        /// True while the camera is locked onto a target (Tab). The body then
+        /// faces YawDegrees -- which the camera is steering at the target --
+        /// whether it is moving or not, so WASD becomes strafing around the
+        /// enemy (the directional walk clips read the body's LOCAL velocity)
+        /// instead of the body turning to run wherever it is pushed. Carries
+        /// the answer only; unlike Aiming it does not raise a gun pose.
+        /// </summary>
+        public bool LockedOn;
 
         /// <summary>
         /// True whenever a jetpack is equipped and the thrust key is

@@ -63,5 +63,14 @@ namespace CityX.Character
 
         /// <summary>Caught on a timed block. The attacker gets punished for it.</summary>
         Blocked = 2,
+
+        /// <summary>
+        /// Soaked by a HELD guard (the soulslike sword's block): the defender
+        /// paid stamina for it and took reduced damage, but the attacker is NOT
+        /// punished -- only a well-timed block does that. Keeping it separate
+        /// from Blocked is what stops an ordinary held guard from stunning
+        /// everything that hits it.
+        /// </summary>
+        Guarded = 3,
     }
 }

@@ -206,8 +206,16 @@ namespace CityX.Tests
             Texture2D atlas = _creator.Paint.Atlas;
             Color32[] before = atlas.GetPixels32();
 
-            // Straight at the middle of the skull, which is the head bone.
-            Vector3 face = _creator.HeadCollider.transform.position;
+            // At the middle of the skull, which is the head bone -- but a few
+            // centimetres OFF it. A ray aimed exactly at the sphere's centre from
+            // the creator camera can pass exactly through the equator vertex
+            // where the front triangles meet, and PhysX lets a ray through an
+            // exact vertex or edge (measured: dead centre missed, a hand's
+            // breadth above or below hit at the same distance). Whether the
+            // camera lines up with a vertex depends on the exact framing the
+            // title scene was built with, so an exact-centre aim can flip from
+            // pass to fail just by rebuilding that scene.
+            Vector3 face = _creator.HeadCollider.transform.position + new Vector3(0.03f, 0.04f, 0.0f);
             _creator.PressAt(_creator.Camera.WorldToScreenPoint(face));
             yield return null;
 

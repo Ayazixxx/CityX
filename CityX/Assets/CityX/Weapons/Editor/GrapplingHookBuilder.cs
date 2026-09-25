@@ -2281,7 +2281,7 @@ namespace CityX.WeaponsEditor
             RenderTexture target = null;
             try
             {
-                CityWorld world = new CityWorld(29481073);
+                CityWorld world = new CityWorld(58316047);
                 int foundX = 0, foundY = 0, foundNx = 0, foundNy = 0;
                 float foundPad = 0.0f, foundNeighbourPad = 0.0f;
                 bool found = false;
@@ -2400,8 +2400,14 @@ namespace CityX.WeaponsEditor
                 {
                     for (int dy = -6; dy <= 6; dy++)
                     {
-                        int periodA = CityLayout.LocalStreetPeriodFor(dx, dy);
-                        int periodB = CityLayout.LocalStreetPeriodFor(dx + 1, dy);
+                        // Districts are irregular now; probe each nominal
+                        // district at its middle and its eastern neighbour
+                        // just past the arterial that bounds it.
+                        int probeX = dx * CityLayout.DistrictChunks + CityLayout.DistrictChunks / 2;
+                        int probeY = dy * CityLayout.DistrictChunks + CityLayout.DistrictChunks / 2;
+                        CityLayout.GetDistrictExtent(probeX, probeY, out _, out int eastEdge, out _, out _);
+                        int periodA = CityLayout.DistrictPeriod(probeX, probeY);
+                        int periodB = CityLayout.DistrictPeriod(eastEdge + 1, probeY);
                         double score = System.Math.Abs(periodA - periodB) -
                             0.01 * (dx * dx + dy * dy); // prefer contrast, then closeness to spawn
                         if (score > bestScore)
@@ -2415,12 +2421,13 @@ namespace CityX.WeaponsEditor
                     }
                 }
 
-                CityWorld world = new CityWorld(29481073);
+                CityWorld world = new CityWorld(58316047);
                 // The arterial line between district (bestDistrictX, *) and
                 // (bestDistrictX+1, *), at a chunk comfortably inside the
                 // district's own Y span so both sides show real interior.
-                int arterialChunkX = (bestDistrictX + 1) * CityLayout.DistrictChunks;
+                int bestProbeX = bestDistrictX * CityLayout.DistrictChunks + CityLayout.DistrictChunks / 2;
                 int chunkY = bestDistrictY * CityLayout.DistrictChunks + CityLayout.DistrictChunks / 2;
+                CityLayout.GetDistrictExtent(bestProbeX, chunkY, out _, out int arterialChunkX, out _, out _);
                 float pad = world.Terrain.PadHeightFor(arterialChunkX, chunkY);
                 Vector3 centre = new Vector3(
                     (float)CityLayout.ChunkCentreX(arterialChunkX), pad, (float)CityLayout.ChunkCentreZ(chunkY));
@@ -2483,7 +2490,7 @@ namespace CityX.WeaponsEditor
             RenderTexture target = null;
             try
             {
-                CityWorld world = new CityWorld(29481073);
+                CityWorld world = new CityWorld(58316047);
                 BuildingSite bestSite = default;
                 Bounds bestWingBox = default;
                 int bestWingCount = 0;

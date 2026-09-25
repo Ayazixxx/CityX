@@ -291,6 +291,28 @@ namespace CityX.Character
             bool blocked = IsBlocking;
             TakeDamage(amount, blocked);
 
+            // SOULS GUARD: a held block pays for what it stops in stamina, and
+            // a hit it cannot afford breaks the guard -- you eat the reduced
+            // damage anyway and are staggered wide open. Only when the sword
+            // combat has switched this on; the classic timed block is untouched.
+            if (blocked && BlockDrainsStamina && !InfiniteStamina)
+            {
+                float drain = amount * BlockStaminaPerDamage;
+                if (drain >= _stamina)
+                {
+                    _stamina = 0.0f;
+                    _exhausted = true;
+                    BlockRemaining = 0.0f;
+                    HitstunRemaining = Mathf.Max(HitstunRemaining, GuardBreakStunSeconds);
+                    DelayStaminaRegen(GuardBreakStunSeconds);
+                    GuardBroken?.Invoke();
+                    Hit?.Invoke(fromPosition);
+                    return HitResponse.Landed;
+                }
+                _stamina -= drain;
+                DelayStaminaRegen(0.5f);
+            }
+
             // A BLOCKED HIT DOES NOT STUN THE DEFENDER. Eating the hitstun as
             // well as a quarter of the damage would make blocking a worse dodge
             // rather than a punish -- and the punish is the whole point of
@@ -303,7 +325,11 @@ namespace CityX.Character
             }
 
             Hit?.Invoke(fromPosition);
-            return blocked ? HitResponse.Blocked : HitResponse.Landed;
+            if (!blocked)
+            {
+                return HitResponse.Landed;
+            }
+            return BlockDrainsStamina ? HitResponse.Guarded : HitResponse.Blocked;
         }
 
         /// <summary>Counts hitstun and i-frames down. Call once per frame.</summary>
@@ -436,9 +462,19 @@ namespace CityX.Character
                     sprinting = false;
                 }
             }
+            else if (StaminaRegenDelayRemaining > 0.0f)
+            {
+                // SOULS-STYLE: spending stamina on a combat action pauses
+                // recovery briefly, so chaining actions back to back is
+                // what drains the bar rather than a free trickle refill.
+                StaminaRegenDelayRemaining = Mathf.Max(0.0f, StaminaRegenDelayRemaining - deltaTime);
+            }
             else
             {
-                _stamina = Mathf.Min(MaxStamina, _stamina + StaminaRegenPerSecond * deltaTime);
+                float regen = StaminaRegenPerSecondOverride > 0.0f
+                    ? StaminaRegenPerSecondOverride
+                    : StaminaRegenPerSecond;
+                _stamina = Mathf.Min(MaxStamina, _stamina + regen * deltaTime);
                 if (_exhausted && _stamina >= MaxStamina * ExhaustedRecoverFraction)
                 {
                     _exhausted = false;
@@ -446,6 +482,76 @@ namespace CityX.Character
             }
 
             return sprinting;
+        }
+
+        /// <summary>
+        /// Seconds after a combat spend before stamina starts coming back.
+        /// Zero unless something called <see cref="TrySpendCombatStamina"/> or
+        /// <see cref="DelayStaminaRegen"/>, so plain sprinting behaves exactly
+        /// as it always has.
+        /// </summary>
+        public float StaminaRegenDelayRemaining { get; private set; }
+
+        /// <summary>
+        /// When above zero, replaces StaminaRegenPerSecond. The sword combat
+        /// sets this to Dark Souls' 45/s while a sword is equipped and clears
+        /// it again on unequip; zero means "use the normal rate".
+        /// </summary>
+        public float StaminaRegenPerSecondOverride;
+
+        /// <summary>Holds stamina recovery off for at least this long.</summary>
+        public void DelayStaminaRegen(float seconds)
+        {
+            StaminaRegenDelayRemaining = Mathf.Max(StaminaRegenDelayRemaining, seconds);
+        }
+
+        /// <summary>
+        /// Spends stamina the SOULS way: an action is allowed as long as ANY
+        /// stamina is left, even if the cost is bigger than what remains --
+        /// the bar just bottoms out (and exhausts), which is the risk of
+        /// swinging on empty. Refused only when already at zero/exhausted.
+        /// TrySpendStamina, by contrast, refuses whenever the cost exceeds the
+        /// bar, which is right for a dash but wrong for "one more swing".
+        /// </summary>
+        public bool TrySpendCombatStamina(float cost, float regenDelaySeconds)
+        {
+            if (InfiniteStamina)
+            {
+                return true;
+            }
+            if (_exhausted || _stamina <= 0.0f)
+            {
+                return false;
+            }
+            _stamina = Mathf.Max(0.0f, _stamina - cost);
+            if (_stamina <= 0.0f)
+            {
+                _exhausted = true;
+            }
+            DelayStaminaRegen(regenDelaySeconds);
+            return true;
+        }
+
+        /// <summary>
+        /// While true, a hit that lands on a raised block drains stamina
+        /// instead of only being reduced -- Souls' guard. Set by the sword
+        /// combat while the block button is held.
+        /// </summary>
+        public bool BlockDrainsStamina;
+
+        /// <summary>Stamina lost per point of damage absorbed by a held block.</summary>
+        public float BlockStaminaPerDamage = 1.0f;
+
+        /// <summary>How long a GUARD BREAK (block hit with too little stamina to hold) leaves you staggered.</summary>
+        public float GuardBreakStunSeconds = 1.0f;
+
+        /// <summary>Raised when a block is broken by a hit it could not afford.</summary>
+        public event Action GuardBroken;
+
+        /// <summary>Drops a raised block immediately (a held block is released, not timed out).</summary>
+        public void EndBlock()
+        {
+            BlockRemaining = 0.0f;
         }
 
         /// <summary>Spends stamina if there is enough. Returns whether it was paid.</summary>

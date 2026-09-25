@@ -239,5 +239,88 @@ namespace CityX.Tests
             Assert.Less(distanceToTorso, _camera.Distance + _camera.ShoulderOffset + 1.0f,
                 "the camera should be orbiting close to the torso itself, not merely closer by coincidence");
         }
+
+        // --- third-person-shooter feel (docs/THIRD_PERSON_PISTOL.md) ---
+
+        [UnityTest]
+        public IEnumerator ARecoilKickRaisesTheViewThenSettlesBackToExactlyWhereYouWereAiming()
+        {
+            yield return null;
+            float restPitch = _cameraObject.transform.eulerAngles.x;
+
+            _camera.AddRecoil(3.0f, 0.0f);
+            yield return null;
+            float kickedPitch = Mathf.DeltaAngle(0.0f, _cameraObject.transform.eulerAngles.x);
+            Assert.Less(kickedPitch, Mathf.DeltaAngle(0.0f, restPitch) - 1.0f,
+                "a recoil kick did not raise the view (a raised view is a LOWER pitch angle)");
+
+            float waited = 0.0f;
+            while (waited < 1.5f)
+            {
+                waited += Time.deltaTime;
+                yield return null;
+            }
+
+            Assert.AreEqual(0.0f, _camera.RecoilPitch, 0.01f, "the kick never fully settled");
+            Assert.AreEqual(Mathf.DeltaAngle(0.0f, restPitch),
+                Mathf.DeltaAngle(0.0f, _cameraObject.transform.eulerAngles.x), 0.05f,
+                "recoil left the view somewhere other than where you were aiming");
+            Assert.AreEqual(0.0f, _camera.Pitch, 0.0001f, "recoil was written into the real aim pitch");
+        }
+
+        [Test]
+        public void ARapidBurstCannotKickTheCameraPastTheCap()
+        {
+            for (int i = 0; i < 50; i++)
+            {
+                _camera.AddRecoil(1.2f, 0.0f);
+            }
+
+            Assert.LessOrEqual(_camera.RecoilPitch, _camera.MaxRecoilPitchDegrees + 0.0001f);
+        }
+
+        [Test]
+        public void ANegativeKickIsIgnoredSoTheViewNeverDipsDown()
+        {
+            _camera.AddRecoil(-5.0f, 0.0f);
+
+            Assert.AreEqual(0.0f, _camera.RecoilPitch, 0.0001f);
+        }
+
+        [UnityTest]
+        public IEnumerator SwappingShouldersMovesTheCameraToTheOtherSideOfTheSpine()
+        {
+            yield return null;
+            Assert.Greater(_cameraObject.transform.position.x, 0.05f, "setup: should start over the right shoulder");
+            Assert.AreEqual(1.0f, _camera.ShoulderSide);
+
+            _camera.ToggleShoulder();
+            float waited = 0.0f;
+            while (waited < 1.0f)
+            {
+                waited += Time.deltaTime;
+                yield return null;
+            }
+
+            Assert.AreEqual(-1.0f, _camera.ShoulderSide);
+            Assert.Less(_cameraObject.transform.position.x, -0.05f,
+                "the camera never crossed to the left of the player's centreline");
+            Assert.Less(_cameraObject.transform.position.z, _target.transform.position.z,
+                "swapping shoulders moved the camera off from behind the player");
+        }
+
+        [UnityTest]
+        public IEnumerator SwappingBackReturnsToTheOriginalShoulder()
+        {
+            yield return null;
+            Vector3 original = _cameraObject.transform.position;
+
+            _camera.ToggleShoulder();
+            yield return new WaitForSeconds(0.6f);
+            _camera.ToggleShoulder();
+            yield return new WaitForSeconds(0.6f);
+
+            Assert.Less(Vector3.Distance(original, _cameraObject.transform.position), 0.02f);
+        }
     }
 }

@@ -70,6 +70,28 @@ namespace CityX.Weapons
             _rigidbody = GetComponent<Rigidbody>();
         }
 
+        /// <summary>
+        /// Keeps facing wherever it is CURRENTLY flying, not just where it
+        /// was thrown from. Spawn() only sets transform.rotation once, from
+        /// the launch velocity -- fine for a straight shot, since nothing
+        /// else here ever changes _rigidbody.linearVelocity afterward, but
+        /// a future reflect ability will: the trail is authored as a fixed
+        /// local rotation pointing backward off THIS transform (see
+        /// FireballProjectileBuilder.BuildTrail), not something that
+        /// re-aims itself independently, so if a reflection changes the
+        /// velocity without this the trail would keep streaming out of
+        /// wherever the ball ORIGINALLY faced instead of "out of the back"
+        /// relative to its new, reflected direction.
+        /// </summary>
+        private void Update()
+        {
+            Vector3 velocity = _rigidbody.linearVelocity;
+            if (velocity.sqrMagnitude > 0.0001f)
+            {
+                transform.rotation = Quaternion.LookRotation(velocity.normalized);
+            }
+        }
+
         private void OnCollisionEnter(Collision collision)
         {
             if (_consumed)

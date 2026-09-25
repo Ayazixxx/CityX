@@ -14,12 +14,18 @@ namespace CityX.Wearables
     /// Ported from wearables/skelli_jeans.gd's and hooded_cloak.gd's own
     /// wear_on(): SkinnedGarmentBuilder pre-bakes the garment mesh, in the
     /// editor, against this rig's own 14 named bones AT REST -- the exact
-    /// bindpose convention FusedBodyBuilder uses for the body itself. Putting
-    /// the garment on a character at runtime is then only building a fresh
-    /// SkinnedMeshRenderer whose bones[] point at THAT character's own live
-    /// bone transforms: the bake and the live pose agree exactly at rest, and
-    /// deform together identically to the body from there, because both were
-    /// bound the same way against the same rest geometry.
+    /// bindpose convention FusedBodyBuilder uses for the body itself. The
+    /// bake and the live pose agree exactly at rest, and deform together
+    /// identically to the body from there, because both were bound the same
+    /// way against the same rest geometry.
+    ///
+    /// PUTTING THE GARMENT ON DOES NOT BUILD ITS OWN RENDERER -- it registers
+    /// with SkinnedGarmentCombiner instead, which owns ONE shared
+    /// SkinnedMeshRenderer for whatever is currently worn. See that class's
+    /// own doc comment for why: a real skin evaluation runs once per
+    /// renderer, and this project expects "100s if not 1000s" of items
+    /// across many players in one area eventually, so the per-character
+    /// rendering cost has to stay bounded by slot count, not catalog size.
     /// </summary>
     public abstract class SkinnedGarment : MonoBehaviour, IEquippableItem
     {
@@ -53,7 +59,13 @@ namespace CityX.Wearables
 
         public abstract string ItemId { get; }
 
-        private GameObject _skinInstance;
+        /// <summary>
+        /// Protected, not private -- BlackPufferJacket's own live-placement
+        /// re-tuning (see its class comment) needs to re-Register itself
+        /// with the same combiner an ordinary equip already found.
+        /// </summary>
+        protected SkinnedGarmentCombiner Combiner { get; private set; }
+
         private Transform _nearbyPlayer;
         private bool _equipped;
 
@@ -137,40 +149,30 @@ namespace CityX.Wearables
                 return;
             }
 
-            var boneTransforms = new Transform[Bones.Length];
-            for (int i = 0; i < Bones.Length; i++)
+            // Shared by every worn garment, not built per-item -- see
+            // SkinnedGarmentCombiner's own class comment: a real GPU skin
+            // evaluation runs once per SkinnedMeshRenderer, and with
+            // "100s if not 1000s" of items eventually in the catalog that
+            // cost has to stay bounded by how many SLOTS exist (at most a
+            // top and legs go through this), not by catalog size.
+            Combiner = player.GetComponent<SkinnedGarmentCombiner>();
+            if (Combiner == null)
             {
-                boneTransforms[i] = animator.GetBoneTransform(Bones[i]);
+                Combiner = player.AddComponent<SkinnedGarmentCombiner>();
             }
-
-            var holder = new GameObject(ItemId + "Skin");
-            holder.transform.SetParent(player.transform, false);
-
-            var renderer = holder.AddComponent<SkinnedMeshRenderer>();
-            renderer.sharedMesh = GarmentMesh;
-            renderer.bones = boneTransforms;
-            renderer.rootBone = boneTransforms[0];   // Hips
-            renderer.sharedMaterial = GarmentMaterial;
-            // Four bones per vertex, explicitly -- matches FusedBodyBuilder's
-            // own body renderer, since a garment sharing a joint with the
-            // body has to deform by the same rule or the two visibly diverge
-            // wherever more than one bone influences a vertex.
-            renderer.quality = SkinQuality.Bone4;
-            renderer.updateWhenOffscreen = true;
-
-            _skinInstance = holder;
+            Combiner.Register(ItemId, GarmentMesh, GarmentMaterial);
             OnEquipped(player);
         }
 
-        /// <summary>Destroys the live skin instance, then the (by then bare) root.</summary>
+        /// <summary>Unregisters from the shared combiner, then destroys the (by then bare) root.</summary>
         public void OnUnequip(GameObject player)
         {
             OnUnequipped(player);
-            if (_skinInstance != null)
+            if (Combiner != null)
             {
-                Destroy(_skinInstance);
+                Combiner.Unregister(ItemId);
             }
-            _skinInstance = null;
+            Combiner = null;
             Destroy(gameObject);
         }
 
@@ -196,9 +198,9 @@ namespace CityX.Wearables
         /// </summary>
         protected void SetSkinVisible(bool visible)
         {
-            if (_skinInstance != null)
+            if (Combiner != null)
             {
-                _skinInstance.SetActive(visible);
+                Combiner.SetVisible(ItemId, visible);
             }
         }
 

@@ -21,8 +21,67 @@ namespace CityX.Character
         [Tooltip("Cross-fade time into a swing. Short -- a punch should start now, not ease in.")]
         public float SwingBlendSeconds = 0.06f;
 
+        [Tooltip("Cross-fade time handing the arms back to the walk cycle when a sword swing or guard ends.")]
+        public float UpperBodyReleaseBlendSeconds = 0.15f;
+
+        // The sword's swings and guard live on a masked UPPER-BODY layer so the
+        // legs keep walking under them (see PlayerRigBuilder.AddSwordUpperBodyLayer).
+        // These names are that layer's contract with the controller.
+        public const string UpperBodyLayerName = "UpperBody";
+
+        /// <summary>The upper-body layer's empty default state: playing it hands the arms back to the base layer.</summary>
+        public const string UpperEmptyStateName = "UpperEmpty";
+
+        /// <summary>Per-state speed multiplier for upper-body states -- NOT Animator.speed, which would also race the legs.</summary>
+        public const string UpperSpeedParameterName = "UpperSpeed";
+
+        private static readonly int UpperSpeedHash = Animator.StringToHash(UpperSpeedParameterName);
+
         private Animator _animator;
         private MeleeAttacker _melee;
+        private int _upperLayer = -2;   // -2 = not looked up yet, -1 = this controller has none
+
+        /// <summary>
+        /// Which layer plays this state: the upper-body layer if it has a
+        /// state by that name (the sword's swings, guard and "UpperEmpty"),
+        /// otherwise the base layer (0). Asked of the Animator itself, so an
+        /// older controller with no upper-body layer simply plays everything
+        /// on the base layer as before.
+        /// </summary>
+        public int LayerFor(string stateName)
+        {
+            if (_animator == null || string.IsNullOrEmpty(stateName))
+            {
+                return 0;
+            }
+            if (_upperLayer == -2)
+            {
+                _upperLayer = _animator.GetLayerIndex(UpperBodyLayerName);
+            }
+            return _upperLayer > 0 && _animator.HasState(_upperLayer, Animator.StringToHash(stateName))
+                ? _upperLayer
+                : 0;
+        }
+
+        /// <summary>True while the named state is playing (or being blended into) on whichever layer owns it.</summary>
+        public bool IsPlaying(string stateName)
+        {
+            if (_animator == null)
+            {
+                return false;
+            }
+            int layer = LayerFor(stateName);
+            return _animator.GetCurrentAnimatorStateInfo(layer).IsName(stateName)
+                || _animator.GetNextAnimatorStateInfo(layer).IsName(stateName);
+        }
+
+        /// <summary>
+        /// Raised with the Animator state name every time THIS body starts a
+        /// swing or block itself (never for one merely replayed from the
+        /// network) -- NetworkedAnimatorSync listens so other players' copies
+        /// of this body can play the same state.
+        /// </summary>
+        public event System.Action<string> StatePlayed;
 
         private void Awake()
         {
@@ -67,7 +126,9 @@ namespace CityX.Character
             // EquippedWeapon anything for animation purposes.
             string moveset = _melee != null ? _melee.EquippedWeapon?.MovesetId : null;
             string blockState = moveset == ComboChain.Sword ? "SwordBlock" : "Block";
-            _animator.CrossFadeInFixedTime(blockState, SwingBlendSeconds, 0);
+            _animator.speed = 1.0f;
+            PlayState(blockState);
+            StatePlayed?.Invoke(blockState);
         }
 
         private void OnSwingStarted(ComboStage stage)
@@ -75,6 +136,103 @@ namespace CityX.Character
             if (_animator == null || string.IsNullOrEmpty(stage.Animation))
             {
                 return;
+            }
+
+            _animator.speed = 1.0f;
+            PlayState(stage.Animation);
+            StatePlayed?.Invoke(stage.Animation);
+        }
+
+        /// <summary>
+        /// Like <see cref="StatePlayed"/> but carrying HOW the state is played:
+        /// the animator speed and the clip offset (seconds in) it starts from.
+        /// The soulslike sword stretches and trims its swing clips to fit its
+        /// own timing, so another player's copy has to play the same fitted
+        /// swing or it would see a differently-paced one.
+        /// </summary>
+        public event System.Action<string, float, float> TimedStatePlayed;
+
+        /// <summary>
+        /// Plays a state on THIS body and announces it (so other players'
+        /// copies replay it) -- for a caller that decides its own animation
+        /// rather than going through MeleeAttacker's chain: the soulslike
+        /// sword combat. Same effect as a swing starting, minus the chain.
+        /// </summary>
+        /// <param name="speed">Animator playback speed for as long as this state plays (1 = the clip's own pace).</param>
+        /// <param name="startSeconds">How far into the clip to start, so the boring lead-in can be skipped.</param>
+        public void PlayLocalState(string stateName, float speed = 1.0f, float startSeconds = 0.0f)
+        {
+            if (_animator == null || string.IsNullOrEmpty(stateName))
+            {
+                return;
+            }
+            ApplySpeed(stateName, speed);
+            PlayState(stateName, startSeconds);
+            TimedStatePlayed?.Invoke(stateName, speed, startSeconds);
+        }
+
+        /// <summary>
+        /// The playback speed for a state. An UPPER-BODY state gets it as its
+        /// own per-state multiplier and leaves Animator.speed at 1, so the legs
+        /// keep walking at their own pace under a swing that is being stretched
+        /// or squeezed to fit its timing; a base-layer state has only the global
+        /// Animator.speed to use.
+        /// </summary>
+        private void ApplySpeed(string stateName, float speed)
+        {
+            if (LayerFor(stateName) > 0)
+            {
+                _animator.speed = 1.0f;
+                _animator.SetFloat(UpperSpeedHash, speed);
+            }
+            else
+            {
+                _animator.speed = speed;
+            }
+        }
+
+        /// <summary>The playback speeds a remote copy will accept -- a garbled packet cannot freeze or blur an animator.</summary>
+        public const float MinRemoteSpeed = 0.1f;
+
+        public const float MaxRemoteSpeed = 4.0f;
+
+        /// <summary>
+        /// Plays a swing/block state that another player's copy of this body
+        /// just played, WITHOUT re-announcing it (that would echo it straight
+        /// back over the network). Ignored if this Animator has no state by
+        /// that name, so a garbled or stale name from the wire can't do
+        /// anything.
+        /// </summary>
+        public void PlayRemoteState(string stateName)
+        {
+            PlayRemoteState(stateName, 1.0f, 0.0f);
+        }
+
+        /// <summary>Same, with the fitted speed and clip offset the owner used.</summary>
+        public void PlayRemoteState(string stateName, float speed, float startSeconds)
+        {
+            if (_animator == null || string.IsNullOrEmpty(stateName))
+            {
+                return;
+            }
+            if (!_animator.HasState(LayerFor(stateName), Animator.StringToHash(stateName)))
+            {
+                return;
+            }
+            if (float.IsNaN(speed) || float.IsNaN(startSeconds))
+            {
+                return;
+            }
+            ApplySpeed(stateName, Mathf.Clamp(speed, MinRemoteSpeed, MaxRemoteSpeed));
+            PlayState(stateName, Mathf.Max(0.0f, startSeconds));
+        }
+
+        private void PlayState(string stateName, float startSeconds = 0.0f)
+        {
+            int layer = LayerFor(stateName);
+            if (!_animator.HasState(layer, Animator.StringToHash(stateName)))
+            {
+                return;   // e.g. "UpperEmpty" on a controller that predates the upper-body layer
             }
 
             // EXPLICIT BUG REPORT, root-caused directly with the sword spin
@@ -95,7 +253,11 @@ namespace CityX.Character
             // the blend by the CURRENT state's length, so the same call blends
             // over a different real duration depending on whether you were
             // idling or sprinting when you threw the punch.
-            _animator.CrossFadeInFixedTime(stage.Animation, SwingBlendSeconds, 0);
+            //
+            // Handing the arms BACK to the walk cycle blends slower than a
+            // swing snaps in.
+            float blend = stateName == UpperEmptyStateName ? UpperBodyReleaseBlendSeconds : SwingBlendSeconds;
+            _animator.CrossFadeInFixedTime(stateName, blend, layer, startSeconds);
         }
     }
 }

@@ -18,11 +18,24 @@ namespace CityX.Character
     /// reason the Godot original is called a FUSED body, and it is why the
     /// shape has to be extracted rather than built.
     ///
-    /// PROPORTIONS COME FROM THE SKELETON, THICKNESSES COME FROM HERE. The
-    /// limb lengths are read off whatever humanoid rig is passed in, so the
-    /// body has real human proportions and the Mixamo clips fit it; the radii,
-    /// the blend and the head are the Godot build's own numbers. That is the
-    /// split asked for: human arms and legs, head sphere unchanged.
+    /// PROPORTIONS COME FROM THE SKELETON, THICKNESSES COME FROM HERE.
+    ///
+    /// STALE AS OF 2026-09-20, CORRECTED HERE: this used to mean "read limb
+    /// lengths off whatever humanoid rig is passed in, so the body has real
+    /// human/Mixamo proportions" -- that was BodyRig's own documented FIRST
+    /// ATTEMPT, abandoned because it broke both the silhouette and the skin
+    /// (see BodyRig.cs's own "WHY NOT JUST USE THE MIXAMO SKELETON"). The
+    /// caller today (BodyRigBuilder.Segments/LimbCapsules) passes
+    /// BodyRig.PositionOf, and BodyRig's own joint coordinates
+    /// (HipY/ShoulderY/ShoulderX/HandX/HandY/...) ARE fused_body.gd's exact
+    /// numbers -- so "the skeleton" this reads from is already
+    /// Godot-proportioned, not human-proportioned. Confirmed directly after
+    /// a Blender reference export ("give me the model") was built by baking
+    /// a live SkinnedMeshRenderer bent through hand-tuned bone rotations
+    /// instead of reusing this pipeline: it measured 21% short on arm reach
+    /// and visibly pinched at the shoulder ("armpit gaps") purely from that
+    /// approximation, not from any real proportions difference -- see
+    /// PlayerBodyReferenceExporter.cs's own doc comment.
     /// </summary>
     public static class FusedBodyShape
     {
@@ -689,6 +702,67 @@ namespace CityX.Character
             }
             bounds.Expand(BlendRadius * 4.0f);
             return bounds;
+        }
+
+        /// <summary>
+        /// fused_body.gd's own hand-authored grid origin (BOUNDS_MIN in
+        /// fused_body.gd, confirmed by reading it directly: Vector3(-0.75,
+        /// -0.05, -0.35)). NOT reused as an actual bounding limit -- Unity's
+        /// own bounds must stay dynamically wider than this to also fit the
+        /// T-pose Mixamo retargeting needs (see BoundsOf's own callers,
+        /// which build segments from BodyRig.Bones(), a T-pose layout) --
+        /// only as a PHASE REFERENCE for PhaseAlignedOrigin below.
+        ///
+        /// EXPLICIT REPORT: "the shoulders on godot look way better they
+        /// arent like morphed into torso" / "the head... sunken into the
+        /// torso." Every constant governing the SDF field itself (BlendRadius/
+        /// fused_body.gd's BLEND_K, CellSize/CELL_SIZE, TorsoRadius, every
+        /// bone position) was re-checked directly against fused_body.gd this
+        /// session and confirmed identical -- the underlying shape MATH is
+        /// not the difference. What differs is WHERE the marching-tetrahedra
+        /// grid starts sampling that identical field: Extract()'s own origin
+        /// is just bounds.min, unsnapped, and Unity's bounds.min is whatever
+        /// the CURRENT rig's T-pose happens to measure to -- an essentially
+        /// arbitrary float, in general agreeing with Godot's own fixed
+        /// BOUNDS_MIN at NONE of the three axes' phase (value mod CellSize).
+        /// Two grids sampling the identical SDF at different phases place
+        /// their marching-tetrahedra vertices at different points along the
+        /// isosurface -- most visible exactly where this report points,
+        /// blend junctions with real curvature (the neck/shoulder area),
+        /// least visible on a limb's own straight run. Confirmed this is not
+        /// the previously-found-and-fixed "double smin" shoulder defect
+        /// (fused_body.gd's own history, see LimbCapsules' doc comment) --
+        /// this project's own LimbCapsules already builds the torso as ONE
+        /// capsule, matching fused_body.gd's current (already-fixed) shape
+        /// exactly.
+        /// </summary>
+        private static readonly Vector3 GodotGridPhaseReference = new Vector3(-0.75f, -0.05f, -0.35f);
+
+        /// <summary>
+        /// Snaps <paramref name="boundsMin"/> DOWN (never up -- flooring
+        /// only extends the sampled region, it can never clip it) to the
+        /// nearest point that shares Godot's own grid phase on every axis,
+        /// so this engine's marching-tetrahedra grid samples the SDF field
+        /// at the SAME relative offsets Godot's grid does, despite starting
+        /// from a different, dynamically-measured bounding box. Assumes the
+        /// reference body scale (1.0, matching fused_body.gd's own units
+        /// directly) -- the one case this actually needs to match Godot
+        /// exactly; a scaled character (Civilian at a different height,
+        /// say) has no Godot reference to phase-align against in the first
+        /// place.
+        /// </summary>
+        public static Vector3 PhaseAlignedOrigin(Vector3 boundsMin, float cellSize)
+        {
+            return new Vector3(
+                SnapDownToPhase(boundsMin.x, GodotGridPhaseReference.x, cellSize),
+                SnapDownToPhase(boundsMin.y, GodotGridPhaseReference.y, cellSize),
+                SnapDownToPhase(boundsMin.z, GodotGridPhaseReference.z, cellSize));
+        }
+
+        private static float SnapDownToPhase(float value, float phase, float cellSize)
+        {
+            float steps = Mathf.Floor((value - phase) / cellSize);
+            return phase + steps * cellSize;
         }
     }
 }

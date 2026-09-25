@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://tests/scratch_render_body_head_seam.gd" id="1"]
+
+[node name="RenderBodyHeadSeam" type="Node3D"]
+script = ExtResource("1")

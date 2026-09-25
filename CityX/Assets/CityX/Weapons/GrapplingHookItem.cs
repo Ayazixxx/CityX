@@ -69,9 +69,20 @@ namespace CityX.Weapons
 
         public static readonly Vector3 GripHandRotationEuler = PistolWeapon.GripHandRotationEuler;
 
+        /// <summary>
+        /// EXPLICIT ASK: "scale up the grapple gun size by 1.5x." Applied
+        /// on top of whatever GrapplingHookBuilder's own NormalizeScale
+        /// already baked into the Visual child at build time -- this is a
+        /// runtime multiplier on the WHOLE held item's root, not a change
+        /// to that baked value, so it stays a single, easy-to-retune
+        /// number here rather than needing an editor rebuild to adjust
+        /// again.
+        /// </summary>
+        public const float GripScale = 1.5f;
+
         public const float InteractRange = 2.5f;
 
-        [Tooltip("Where the rope is drawn FROM -- tracks the barrel tip through whatever animation the hand happens to be playing.")]
+        [Tooltip("Fallback rope origin, only used before OnEquip has ever run (see RopeOrigin's own doc comment) -- otherwise the rope draws from the wearer's own stable root instead.")]
         public Transform Muzzle;
 
         [Tooltip("Built once by GrapplingHookBuilder -- runtime code only applies these, matching BottleWeapon's own materials-built-at-edit-time convention.")]
@@ -83,6 +94,15 @@ namespace CityX.Weapons
         private SphereCollider _pickupTrigger;
         private Transform _nearbyPlayer;
         private bool _equipped;
+
+        /// <summary>
+        /// The wearer's own root -- set in OnEquip, used ONLY to draw the
+        /// rope from a stable point. See RopeOrigin's own doc comment for
+        /// why the hand bone itself stopped being safe to use for this.
+        /// </summary>
+        private Transform _wearerRoot;
+
+        private PlayerLocomotion _wearerLocomotion;
 
         // Rope + hook head live in the WORLD, not under this item: both span
         // from the hand to an anchor tens of metres away, and a child of a
@@ -258,7 +278,7 @@ namespace CityX.Weapons
             {
                 return;
             }
-            Vector3 from = Muzzle != null ? Muzzle.position : transform.position;
+            Vector3 from = RopeOrigin();
 
             Vector3 axis = anchor - from;
             float length = axis.magnitude;
@@ -286,6 +306,38 @@ namespace CityX.Weapons
             {
                 _hookHead.position = anchor;
             }
+        }
+
+        /// <summary>
+        /// EXPLICIT BUG REPORT: "the rope is glitching disappearing and
+        /// tweaking out" / "teleporting all over the place." Muzzle (and
+        /// the fallback, this item's own transform) are both parented to
+        /// the RightHand bone -- fine when the old GrappleSwing held that
+        /// hand in one fixed reach pose for the rope's whole duration, but
+        /// GrappleSwing was rebuilt to never pose the arm at all any more
+        /// (see its own class doc comment): the hand now swings through
+        /// whatever the ORDINARY running/falling animation does with it, a
+        /// real, fairly wide swing under normal locomotion. Rebuilding this
+        /// tube's own vertices from a point riding that swing every frame
+        /// is what read as the rope itself glitching/teleporting -- the
+        /// geometry was correct, its own moving ORIGIN was the problem.
+        /// Rebuilt from the wearer's own ROOT transform instead -- moved
+        /// only by CharacterController.Move, never touched by the Animator
+        /// -- plus a fixed local offset approximating a held gun's
+        /// position. Since GrappleSwing also never rotates the body during
+        /// a swing, this point is completely stationary relative to the
+        /// character for the swing's whole duration, moving only as the
+        /// body itself actually travels, matching "make it stay still".
+        /// </summary>
+        private Vector3 RopeOrigin()
+        {
+            if (_wearerRoot == null)
+            {
+                return Muzzle != null ? Muzzle.position : transform.position;
+            }
+            float height = (_wearerLocomotion != null ? _wearerLocomotion.StandingHeight : 1.8f) * 0.68f;
+            Vector3 sideAndForward = _wearerRoot.TransformDirection(new Vector3(0.3f, 0.0f, 0.35f));
+            return _wearerRoot.position + Vector3.up * height + sideAndForward;
         }
 
         public void HideRope()
@@ -316,6 +368,7 @@ namespace CityX.Weapons
                 transform.SetParent(hand, false);
                 transform.localPosition = GripHandPosition;
                 transform.localEulerAngles = GripHandRotationEuler;
+                transform.localScale = Vector3.one * GripScale;
             }
 
             _equipped = true;
@@ -328,6 +381,12 @@ namespace CityX.Weapons
             {
                 _pickupTrigger.enabled = false;
             }
+
+            // See RopeOrigin's own doc comment -- the rope draws from the
+            // wearer's own root, never the animated hand, so it needs to
+            // know who that is.
+            _wearerRoot = player.transform;
+            _wearerLocomotion = player.GetComponent<PlayerLocomotion>();
 
             var swing = player.GetComponent<GrappleSwing>();
             if (swing != null)

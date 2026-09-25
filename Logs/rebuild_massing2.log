@@ -1,0 +1,1649 @@
+[Licensing::Module] Trying to connect to existing licensing client channel...
+Built from '6000.3/staging' branch; Version is '6000.3.21f1 (c02631ffc030) revision 12592689'; Using compiler version '194234433'; Build Type 'Release'
+OS: 'Windows 11  (10.0.26200) Core' Language: 'en' Physical Memory: 16236 MB
+BatchMode: 1, IsHumanControllingUs: 0, StartBugReporterOnCrash: 0, Is64bit: 1
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-Lenovo" at "2026-08-25T15:33:37.8098056Z"
+System  architecture: x64
+Process architecture: x64
+Date: 2026-08-25T15:33:37Z
+
+COMMAND LINE ARGUMENTS:
+C:\Program Files\Unity\Hub\Editor\6000.3.21f1\Editor\Unity.exe
+-batchmode
+-nographics=false
+-projectPath
+CityX
+-executeMethod
+CityX.ViewEditor.CityMassingSceneBuilder.Build
+-logFile
+Logs/rebuild_massing2.log
+-quit
+Successfully changed project path to: C:/Users/Lenovo/Downloads/the game/CityX
+C:/Users/Lenovo/Downloads/the game/CityX
+[UnityMemory] Configuration Parameters - Can be set up in boot.config
+    "memorysetup-temp-allocator-size-nav-mesh-worker=65536"
+    "memorysetup-temp-allocator-size-audio-worker=65536"
+    "memorysetup-temp-allocator-size-gfx=262144"
+    "memorysetup-allocator-temp-initial-block-size-main=262144"
+    "memorysetup-allocator-temp-initial-block-size-worker=262144"
+    "memorysetup-temp-allocator-size-background-worker=32768"
+    "memorysetup-temp-allocator-size-job-worker=262144"
+    "memorysetup-temp-allocator-size-preload-manager=33554432"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-bucket-allocator-granularity=16"
+    "memorysetup-bucket-allocator-bucket-count=8"
+    "memorysetup-bucket-allocator-block-size=33554432"
+    "memorysetup-bucket-allocator-block-count=8"
+    "memorysetup-main-allocator-block-size=16777216"
+    "memorysetup-thread-allocator-block-size=16777216"
+    "memorysetup-gfx-main-allocator-block-size=16777216"
+    "memorysetup-gfx-thread-allocator-block-size=16777216"
+    "memorysetup-cache-allocator-block-size=4194304"
+    "memorysetup-typetree-allocator-block-size=2097152"
+    "memorysetup-profiler-bucket-allocator-granularity=16"
+    "memorysetup-profiler-bucket-allocator-bucket-count=8"
+    "memorysetup-profiler-bucket-allocator-block-size=33554432"
+    "memorysetup-profiler-bucket-allocator-block-count=8"
+    "memorysetup-profiler-allocator-block-size=16777216"
+    "memorysetup-profiler-editor-allocator-block-size=1048576"
+    "memorysetup-temp-allocator-size-main=16777216"
+    "memorysetup-job-temp-allocator-block-size=2097152"
+    "memorysetup-job-temp-allocator-block-size-background=1048576"
+    "memorysetup-job-temp-allocator-reduction-small-platforms=262144"
+    "memorysetup-temp-allocator-size-cloud-worker=32768"
+Player connection [48240]  Target information:
+
+Player connection [48240]  * "[IP] 192.168.56.1 [Port] 55504 [Flags] 2 [Guid] 1053191457 [EditorId] 1053191457 [Version] 1048832 [Id] WindowsEditor(7,LAPTOP-GJAGRBSK) [Debug] 1 [PackageName] WindowsEditor [ProjectName] Editor" 
+
+Player connection [48240]  * "[IP] 192.168.1.80 [Port] 55504 [Flags] 2 [Guid] 1053191457 [EditorId] 1053191457 [Version] 1048832 [Id] WindowsEditor(7,LAPTOP-GJAGRBSK) [Debug] 1 [PackageName] WindowsEditor [ProjectName] Editor" 
+
+Player connection [48240] Host joined multi-casting on [225.0.0.222:54997]...
+Player connection [48240] Host joined alternative multi-casting on [225.0.0.222:34997]...
+Input System module state changed to: Initialized.
+[Physics::Module] Initialized fallback backend.
+[Physics::Module] Id: 0xdecafbad
+[Package Manager] Connected to IPC stream "Upm-52444" after 0.3 seconds.
+[Licensing::Module] Licensing is not yet initialized.
+[Licensing::Client] Error: HandshakeResponse reported an error:
+	ResponseCode: 505
+	ResponseStatus: Unsupported protocol version '1.18.1'.
+[Licensing::Module] Error: Failed to handshake to channel: "LicenseClient-Lenovo"
+[Licensing::IpcConnector] LicenseClient-Lenovo channel disconnected successfully.
+[Licensing::IpcConnector] Channel LicenseClient-Lenovo-6000.3.21 doesn't exist
+[Licensing::Module] Successfully launched the LicensingClient (PId: 4120)
+Starting IPC server.
+Waiting for clients to connect on \\.\pipe\Unity-LicenseClient-Lenovo-6000.3.21, press Ctrl-C to exit.
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-Lenovo-6000.3.21" at "2026-08-25T15:33:41.5827279Z"
+[Licensing::Client] Code 10 while verifying Licensing Client signature (process Id: 4120, path: "C:/Program Files/Unity/Hub/Editor/6000.3.21f1/Editor/Data/Resources/Licensing/Client/Unity.Licensing.Client.exe")
+[Licensing::Module] LicensingClient has failed validation; ignoring
+[Licensing::Client] Handshaking with LicensingClient:
+  Version:                 1.18.1+9fbee8e
+  Session Id:              e56b297ffd7149a289c0fd13ddb342e4
+  Correlation Id:          868fdeb582c05a00f3e30767f177bdf6
+  External correlation Id: 1055658660017199113
+  Machine Id:              nEEwX+VXEAtWXOUgyOSeGma+T1U=
+[Licensing::Module] Successfully connected to LicensingClient on channel: "LicenseClient-Lenovo-6000.3.21" (connect: 0.37s, validation: 0.17s, handshake: 0.02s)
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-Lenovo-6000.3.21-notifications" at "2026-08-25T15:33:41.7708101Z"
+[Licensing::Module] Connected to LicensingClient (PId: 4120, launch time: 0.01, total connection time: 0.56s)
+[Licensing::Module] Error: Access token is unavailable; failed to update
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] License group:
+  Id: F4-RXFE-CHZB-SWUP-S2BD-XXXX
+  Product: Unity Personal
+  Type: ULF
+  Expiration: Unlimited
+[Licensing::Module] License group:
+  Id: 20067636004034-UnityPersXXXX
+  Product: Unity Personal
+  Type: Assigned
+  Expiration: Unlimited
+[Licensing::Client] Successfully updated license, isAsync: True, time: 0.01
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] License group:
+  Id: F4-RXFE-CHZB-SWUP-S2BD-XXXX
+  Product: Unity Personal
+  Type: ULF
+  Expiration: Unlimited
+[Licensing::Module] License group:
+  Id: 20067636004034-UnityPersXXXX
+  Product: Unity Personal
+  Type: Assigned
+  Expiration: Unlimited
+[Licensing::Module] Licensing Background thread has ended after 4.05s
+[Licensing::Module] Licensing is initialized (took 3.23s).
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] License group:
+  Id: F4-RXFE-CHZB-SWUP-S2BD-XXXX
+  Product: Unity Personal
+  Type: ULF
+  Expiration: Unlimited
+[Licensing::Module] License group:
+  Id: 20067636004034-UnityPersXXXX
+  Product: Unity Personal
+  Type: Assigned
+  Expiration: Unlimited
+Library Redirect Path: Library/
+Unable to parse file ProjectSettings/TagManager.asset: [Parser Failure at line 41: Expect ':' between key and value within mapping]
+[Physics::Module] Selected backend.
+[Physics::Module] Name: PhysX
+[Physics::Module] Id: 0xf2b8ea05
+[Physics::Module] SDK Version: 4.1.2
+[Physics::Module] Integration Version: 1.0.0
+[Physics::Module] Threading Mode: Multi-Threaded
+Refreshing native plugins compatible for Editor in 1.13 ms, found 0 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Initialize engine version: 6000.3.21f1 (c02631ffc030)
+[Subsystems] Discovering subsystems at path C:/Program Files/Unity/Hub/Editor/6000.3.21f1/Editor/Data/Resources/UnitySubsystems
+[Subsystems] Discovering subsystems at path C:/Users/Lenovo/Downloads/the game/CityX/Assets
+GfxDevice: creating device client; kGfxThreadingModeNonThreaded
+d3d12: failed to query info queue interface (0x80004002).
+Direct3D:
+    Version:         Direct3D 12 [level 12.2]
+    Renderer:        NVIDIA GeForce RTX 3070 Laptop GPU (ID=0x24dd)
+    Vendor:          NVIDIA
+    VRAM:            8020 MB
+    App VRAM Budget: 7252 MB
+    Driver:          32.0.15.8129
+Initialize mono
+Mono path[0] = 'C:/Program Files/Unity/Hub/Editor/6000.3.21f1/Editor/Data/Managed'
+Mono path[1] = 'C:/Program Files/Unity/Hub/Editor/6000.3.21f1/Editor/Data/MonoBleedingEdge/lib/mono/unityjit-win32'
+Mono config path = 'C:/Program Files/Unity/Hub/Editor/6000.3.21f1/Editor/Data/MonoBleedingEdge/etc'
+Using monoOptions --debugger-agent=transport=dt_socket,embedding=1,server=y,suspend=n,address=127.0.0.1:56444
+Using cacheserver namespaces - metadata:defaultmetadata, artifacts:defaultartifacts
+Using cacheserver namespaces - metadata:defaultmetadata, artifacts:defaultartifacts
+ImportWorker Server TCP listen port: 0
+AcceleratorClientConnectionCallback - disconnected - :0
+Begin MonoManager ReloadAssembly
+Registering precompiled unity dll's ...
+Register platform support module: C:/Program Files/Unity/Hub/Editor/6000.3.21f1/Editor/Data/PlaybackEngines/WindowsStandaloneSupport/UnityEditor.WindowsStandalone.Extensions.dll
+Register platform support module: C:/Program Files/Unity/Hub/Editor/6000.3.21f1/Editor/Data/PlaybackEngines/LinuxStandaloneSupport/UnityEditor.LinuxStandalone.Extensions.dll
+Registered in 0.007244 seconds.
+- Loaded All Assemblies, in  0.589 seconds
+Native extension for LinuxStandalone target not found
+Native extension for WindowsStandalone target not found
+Package Manager log level set to [2]
+[Licensing::Client] Successfully resolved entitlement details
+ScheduleIndexationOnStartup MainProcess:False IndexOnStartup:True
+Mono: successfully reloaded assembly
+- Finished resetting the current domain, in  1.791 seconds
+Domain Reload Profiling: 2372ms
+	BeginReloadAssembly (244ms)
+		ExecutionOrderSort (0ms)
+		DisableScriptedObjects (0ms)
+		BackupInstance (0ms)
+		ReleaseScriptingObjects (0ms)
+		CreateAndSetChildDomain (13ms)
+	RebuildCommonClasses (46ms)
+	RebuildNativeTypeToScriptingClass (15ms)
+	initialDomainReloadingComplete (72ms)
+	LoadAllAssembliesAndSetupDomain (203ms)
+		LoadAssemblies (226ms)
+		RebuildTransferFunctionScriptingTraits (0ms)
+		AnalyzeDomain (197ms)
+			TypeCache.Refresh (195ms)
+				TypeCache.ScanAssembly (179ms)
+			BuildScriptInfoCaches (0ms)
+			ResolveRequiredComponents (1ms)
+	FinalizeReload (1791ms)
+		ReleaseScriptCaches (0ms)
+		RebuildScriptCaches (0ms)
+		SetupLoadedEditorAssemblies (1750ms)
+			LogAssemblyErrors (0ms)
+			InitializePlatformSupportModulesInManaged (105ms)
+			SetLoadedEditorAssemblies (4ms)
+			BeforeProcessingInitializeOnLoad (96ms)
+			ProcessInitializeOnLoadAttributes (157ms)
+			ProcessInitializeOnLoadMethodAttributes (1387ms)
+			AfterProcessingInitializeOnLoad (0ms)
+			EditorAssembliesLoaded (0ms)
+		ExecutionOrderSort2 (0ms)
+		AwakeInstancesAfterBackupRestoration (0ms)
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] License group:
+  Id: F4-RXFE-CHZB-SWUP-S2BD-XXXX
+  Product: Unity Personal
+  Type: ULF
+  Expiration: Unlimited
+[Licensing::Module] License group:
+  Id: 20067636004034-UnityPersXXXX
+  Product: Unity Personal
+  Type: Assigned
+  Expiration: Unlimited
+Application.AssetDatabase Initial Refresh Start
+[Package Manager] Restoring resolved packages state from cache
+[Licensing::Client] Successfully resolved entitlement details
+[Package Manager] Registered 37 packages:
+  Packages from [https://packages.unity.com]:
+    com.unity.ai.navigation@2.0.14 (location: C:\Users\Lenovo\Downloads\the game\CityX\Library\PackageCache\com.unity.ai.navigation@134dd6a3b97b)
+    com.unity.cloud.gltfast@6.11.0 (location: C:\Users\Lenovo\Downloads\the game\CityX\Library\PackageCache\com.unity.cloud.gltfast@a9682cacd60d)
+    com.unity.collab-proxy@2.12.4 (location: C:\Users\Lenovo\Downloads\the game\CityX\Library\PackageCache\com.unity.collab-proxy@0b1559bcd34e)
+    com.unity.ide.rider@3.0.40 (location: C:\Users\Lenovo\Downloads\the game\CityX\Library\PackageCache\com.unity.ide.rider@e4950c6d131b)
+    com.unity.ide.visualstudio@2.0.26 (location: C:\Users\Lenovo\Downloads\the game\CityX\Library\PackageCache\com.unity.ide.visualstudio@a99d56dec63f)
+    com.unity.inputsystem@1.20.0 (location: C:\Users\Lenovo\Downloads\the game\CityX\Library\PackageCache\com.unity.inputsystem@7a4e1a2a8194)
+    com.unity.timeline@1.8.12 (location: C:\Users\Lenovo\Downloads\the game\CityX\Library\PackageCache\com.unity.timeline@8cd8509afae5)
+    com.unity.visualscripting@1.9.12 (location: C:\Users\Lenovo\Downloads\the game\CityX\Library\PackageCache\com.unity.visualscripting@4edfcc09512f)
+    com.unity.burst@1.8.30 (location: C:\Users\Lenovo\Downloads\the game\CityX\Library\PackageCache\com.unity.burst@2f3d916873ea)
+    com.unity.collections@2.6.8 (location: C:\Users\Lenovo\Downloads\the game\CityX\Library\PackageCache\com.unity.collections@84e8eb3fc12e)
+    com.unity.mathematics@1.3.3 (location: C:\Users\Lenovo\Downloads\the game\CityX\Library\PackageCache\com.unity.mathematics@19a9377c4ffa)
+    com.unity.nuget.newtonsoft-json@3.2.2 (location: C:\Users\Lenovo\Downloads\the game\CityX\Library\PackageCache\com.unity.nuget.newtonsoft-json@4dfd81071c64)
+    com.unity.searcher@4.9.4 (location: C:\Users\Lenovo\Downloads\the game\CityX\Library\PackageCache\com.unity.searcher@d45a78918735)
+    com.unity.nuget.mono-cecil@1.11.6 (location: C:\Users\Lenovo\Downloads\the game\CityX\Library\PackageCache\com.unity.nuget.mono-cecil@ecb9724e46ff)
+    com.unity.test-framework.performance@3.5.0 (location: C:\Users\Lenovo\Downloads\the game\CityX\Library\PackageCache\com.unity.test-framework.performance@8b56083ec0f0)
+  Built-in packages:
+    com.unity.render-pipelines.universal@17.3.0 (location: C:\Users\Lenovo\Downloads\the game\CityX\Library\PackageCache\com.unity.render-pipelines.universal@8aa8d736cba6)
+    com.unity.test-framework@1.6.0 (location: C:\Users\Lenovo\Downloads\the game\CityX\Library\PackageCache\com.unity.test-framework@bd7f943e9647)
+    com.unity.ugui@2.0.0 (location: C:\Users\Lenovo\Downloads\the game\CityX\Library\PackageCache\com.unity.ugui@e20f1880fa04)
+    com.unity.modules.jsonserialize@1.0.0 (location: C:\Users\Lenovo\Downloads\the game\CityX\Library\PackageCache\com.unity.modules.jsonserialize)
+    com.unity.modules.ui@1.0.0 (location: C:\Users\Lenovo\Downloads\the game\CityX\Library\PackageCache\com.unity.modules.ui)
+    com.unity.modules.imgui@1.0.0 (location: C:\Users\Lenovo\Downloads\the game\CityX\Library\PackageCache\com.unity.modules.imgui)
+    com.unity.modules.audio@1.0.0 (location: C:\Users\Lenovo\Downloads\the game\CityX\Library\PackageCache\com.unity.modules.audio)
+    com.unity.modules.director@1.0.0 (location: C:\Users\Lenovo\Downloads\the game\CityX\Library\PackageCache\com.unity.modules.director)
+    com.unity.modules.animation@1.0.0 (location: C:\Users\Lenovo\Downloads\the game\CityX\Library\PackageCache\com.unity.modules.animation)
+    com.unity.modules.particlesystem@1.0.0 (location: C:\Users\Lenovo\Downloads\the game\CityX\Library\PackageCache\com.unity.modules.particlesystem)
+    com.unity.ext.nunit@2.0.5 (location: C:\Users\Lenovo\Downloads\the game\CityX\Library\PackageCache\com.unity.ext.nunit@d8c07649098d)
+    com.unity.render-pipelines.core@17.3.0 (location: C:\Users\Lenovo\Downloads\the game\CityX\Library\PackageCache\com.unity.render-pipelines.core@c67c01575725)
+    com.unity.shadergraph@17.3.0 (location: C:\Users\Lenovo\Downloads\the game\CityX\Library\PackageCache\com.unity.shadergraph@aa8306cf39d6)
+    com.unity.render-pipelines.universal-config@17.0.3 (location: C:\Users\Lenovo\Downloads\the game\CityX\Library\PackageCache\com.unity.render-pipelines.universal-config@8dc1aab4af1d)
+    com.unity.modules.uielements@1.0.0 (location: C:\Users\Lenovo\Downloads\the game\CityX\Library\PackageCache\com.unity.modules.uielements)
+    com.unity.modules.unitywebrequest@1.0.0 (location: C:\Users\Lenovo\Downloads\the game\CityX\Library\PackageCache\com.unity.modules.unitywebrequest)
+    com.unity.modules.ai@1.0.0 (location: C:\Users\Lenovo\Downloads\the game\CityX\Library\PackageCache\com.unity.modules.ai)
+    com.unity.modules.physics@1.0.0 (location: C:\Users\Lenovo\Downloads\the game\CityX\Library\PackageCache\com.unity.modules.physics)
+    com.unity.modules.physics2d@1.0.0 (location: C:\Users\Lenovo\Downloads\the game\CityX\Library\PackageCache\com.unity.modules.physics2d)
+    com.unity.modules.terrain@1.0.0 (location: C:\Users\Lenovo\Downloads\the game\CityX\Library\PackageCache\com.unity.modules.terrain)
+    com.unity.modules.hierarchycore@1.0.0 (location: C:\Users\Lenovo\Downloads\the game\CityX\Library\PackageCache\com.unity.modules.hierarchycore)
+  Git packages:
+    com.firstgeargames.fishnet@https://github.com/FirstGearGames/FishNet.git?path=Assets/FishNet (location: C:\Users\Lenovo\Downloads\the game\CityX\Library\PackageCache\com.firstgeargames.fishnet@40557feed011)
+[Subsystems] No new subsystems found in resolved package list.
+[Package Manager] Done registering packages in 0.03 seconds
+Script 'Packages/com.firstgeargames.fishnet/Upgrading/MirrorUpgrade.cs' will not be compiled because it exists outside the Assets folder and does not to belong to any assembly definition file.
+Script 'Packages/com.firstgeargames.fishnet/Upgrading/UpgradeFromMirrorMenu.cs' will not be compiled because it exists outside the Assets folder and does not to belong to any assembly definition file.
+Script 'Packages/com.firstgeargames.fishnet/Upgrading/MirrorUpgrade.cs' will not be compiled because it exists outside the Assets folder and does not to belong to any assembly definition file.
+Script 'Packages/com.firstgeargames.fishnet/Upgrading/UpgradeFromMirrorMenu.cs' will not be compiled because it exists outside the Assets folder and does not to belong to any assembly definition file.
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://localhost:80
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Production
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: C:\Users\Lenovo\Downloads\the game\CityX\
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/Ping application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/Ping'
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/Ping'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/Ping application/grpc - - 200 - application/grpc 45.5324ms
+Starting: C:\Program Files\Unity\Hub\Editor\6000.3.21f1\Editor\Data\Tools\BuildPipeline\bee_backend.exe --ipc --defer-dag-verification --dagfile="Library/Bee/1900b0aE.dag" --continue-on-failure --profile="Library/Bee/backend1.traceevents" ScriptAssemblies
+WorkingDir: C:/Users/Lenovo/Downloads/the game/CityX
+DisplayProgressbar: Compiling Scripts
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/ConfigurePostProcessors application/grpc -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'gRPC - /UnityILPP.PostProcessing/ConfigurePostProcessors'
+warn: Unity.ILPP.Runner.PostProcessingAssemblyLoadContext[0]
+      Assembly system.runtime.interopservices.windowsruntime has duplicate hint path. Ignoring "C:\Program Files\Unity\Hub\Editor\6000.3.21f1\Editor\Data\UnityReferenceAssemblies\unity-4.8-api\Facades\System.Runtime.InteropServices.WindowsRuntime.dll" in favor of "C:\Program Files\Unity\Hub\Editor\6000.3.21f1\Editor\Data\NetStandard\Extensions\2.0.0\System.Runtime.InteropServices.WindowsRuntime.dll"
+warn: Unity.ILPP.Runner.PostProcessingAssemblyLoadContext[0]
+      Assembly system.componentmodel.composition has duplicate hint path. Ignoring "C:\Program Files\Unity\Hub\Editor\6000.3.21f1\Editor\Data\UnityReferenceAssemblies\unity-4.8-api\System.ComponentModel.Composition.dll" in favor of "C:\Program Files\Unity\Hub\Editor\6000.3.21f1\Editor\Data\NetStandard\compat\2.1.0\shims\netfx\System.ComponentModel.Composition.dll"
+info: Unity.ILPP.Runner.PostProcessingAssemblyLoadContext[0]
+      Resolved Unity.Burst.Cecil, Version=0.11.6.0, Culture=neutral, PublicKeyToken=50cebf1cceb9d05e with Library\PackageCache\com.unity.burst@2f3d916873ea\Unity.Burst.CodeGen\Unity.Burst.Cecil.dll
+info: Unity.ILPP.Runner.PostProcessingAssemblyLoadContext[0]
+      Resolved Mono.Cecil, Version=0.11.5.0, Culture=neutral, PublicKeyToken=50cebf1cceb9d05e with Library\PackageCache\com.unity.nuget.mono-cecil@ecb9724e46ff\Mono.Cecil.dll
+info: Unity.ILPP.Runner.PostProcessingAssemblyLoadContext[0]
+      Resolved FishNet.Codegen.Cecil, Version=0.11.4.0, Culture=neutral, PublicKeyToken=null with Library\Bee\artifacts\1900b0aE.dag\FishNet.Codegen.Cecil.dll
+info: Unity.ILPP.Runner.PostProcessingAssemblyLoadContext[0]
+      Resolved FishNet.Runtime, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null with Library\Bee\artifacts\1900b0aE.dag\FishNet.Runtime.dll
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'gRPC - /UnityILPP.PostProcessing/ConfigurePostProcessors'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/2 POST http://ilpp/UnityILPP.PostProcessing/ConfigurePostProcessors application/grpc - - 200 - application/grpc 287.9108ms
+ExitCode: 0 Duration: 0s700ms
+[ 887/1155  0s] ILPP-Configuration Library/ilpp-configuration.nevergeneratedoutput
+*** Tundra build success (0.63 seconds), 1 items updated, 1155 evaluated
+AssetDatabase: script compilation time: 1.757273s
+Begin MonoManager ReloadAssembly
+Symbol file LoadedFromMemory is not a mono symbol file
+- Loaded All Assemblies, in  1.442 seconds
+Refreshing native plugins compatible for Editor in 7.12 ms, found 4 plugins.
+Native extension for LinuxStandalone target not found
+Native extension for WindowsStandalone target not found
+Script 'Packages/com.firstgeargames.fishnet/Upgrading/MirrorUpgrade.cs' will not be compiled because it exists outside the Assets folder and does not to belong to any assembly definition file.
+Script 'Packages/com.firstgeargames.fishnet/Upgrading/UpgradeFromMirrorMenu.cs' will not be compiled because it exists outside the Assets folder and does not to belong to any assembly definition file.
+Refreshing native plugins compatible for Editor in 4.42 ms, found 4 plugins.
+ScheduleIndexationOnStartup MainProcess:True IndexOnStartup:True
+Mono: successfully reloaded assembly
+- Finished resetting the current domain, in  4.579 seconds
+Domain Reload Profiling: 6006ms
+	BeginReloadAssembly (379ms)
+		ExecutionOrderSort (0ms)
+		DisableScriptedObjects (42ms)
+		BackupInstance (0ms)
+		ReleaseScriptingObjects (0ms)
+		CreateAndSetChildDomain (153ms)
+	RebuildCommonClasses (45ms)
+	RebuildNativeTypeToScriptingClass (13ms)
+	initialDomainReloadingComplete (52ms)
+	LoadAllAssembliesAndSetupDomain (938ms)
+		LoadAssemblies (746ms)
+		RebuildTransferFunctionScriptingTraits (0ms)
+		AnalyzeDomain (329ms)
+			TypeCache.Refresh (242ms)
+				TypeCache.ScanAssembly (225ms)
+			BuildScriptInfoCaches (67ms)
+			ResolveRequiredComponents (14ms)
+	FinalizeReload (4580ms)
+		ReleaseScriptCaches (0ms)
+		RebuildScriptCaches (0ms)
+		SetupLoadedEditorAssemblies (4146ms)
+			LogAssemblyErrors (0ms)
+			InitializePlatformSupportModulesInManaged (45ms)
+			SetLoadedEditorAssemblies (5ms)
+			BeforeProcessingInitializeOnLoad (241ms)
+			ProcessInitializeOnLoadAttributes (3664ms)
+			ProcessInitializeOnLoadMethodAttributes (161ms)
+			AfterProcessingInitializeOnLoad (26ms)
+			EditorAssembliesLoaded (4ms)
+		ExecutionOrderSort2 (0ms)
+		AwakeInstancesAfterBackupRestoration (44ms)
+Asset Pipeline Refresh (id=ef610d832ff5b4544a129dca0c43a09c): Total: 8.825 seconds - Initiated by InitialRefreshV2(ForceSynchronousImport)
+	Summary:
+		Imports: total=0 (actual=0, local cache=0, cache server=0)
+		Asset DB Process Time: managed=0 ms, native=5423 ms
+		Asset DB Callback time: managed=43 ms, native=37 ms
+		Scripting: domain reloads=1, domain reload time=1443 ms, compile time=1759 ms, other=117 ms
+		Project Asset Count: scripts=1564, non-scripts=2698
+		Asset File Changes: new=0, changed=0, moved=0, deleted=0
+		Scan Filter Count: 0
+	InvokeCustomDependenciesCallbacks: 0.002ms
+	InvokePackagesCallback: 41.331ms
+	ApplyChangesToAssetFolders: 0.874ms
+	Scan: 235.128ms
+	OnSourceAssetsModified: 0.003ms
+	CategorizeAssetsWithTransientArtifact: 84.869ms
+	ProcessAssetsWithTransientArtifactChanges: 132.735ms
+	CategorizeAssets: 88.688ms
+	ImportOutOfDateAssets: 4601.549ms (2840.483ms without children)
+		CompileScripts: 1759.100ms
+		ReloadNativeAssets: 0.038ms
+		UnloadImportedAssets: 0.807ms
+		EnsureUptoDateAssetsAreRegisteredWithGuidPM: 0.727ms
+		InitializingProgressBar: 0.000ms
+		PostProcessAllAssetNotificationsAddChangedAssets: 0.000ms
+		OnDemandSchedulerStart: 0.393ms
+	PostProcessAllAssets: 43.287ms
+	GatherAllCurrentPrimaryArtifactRevisions: 0.003ms
+	UnloadStreamsBegin: 3.139ms
+	PersistCurrentRevisions: 0.215ms
+	UnloadStreamsEnd: 0.004ms
+	GenerateScriptTypeHashes: 5.118ms
+	Untracked: 3592.974ms
+
+Application.AssetDatabase Initial Refresh End
+Launched and connected shader compiler UnityShaderCompiler.exe after 0.03 seconds
+Scanning for USB devices : 3.284ms
+Initializing Unity extensions:
+[MODES] ModeService[none].Initialize
+[MODES] ModeService[none].LoadModes
+[MODES] Loading mode Default (0) for mode-current-id-com.unity.template.urp-blank
+Unloading 19 Unused Serialized files (Serialized files now loaded: 0)
+Unloading 7727 unused Assets / (5.6 MB). Loaded Objects now: 8598.
+Memory consumption went from 228.8 MB to 223.3 MB.
+Total: 17.439400 ms (FindLiveObjects: 1.103500 ms CreateObjectMapping: 1.153700 ms MarkObjects: 11.011200 ms  DeleteObjects: 4.167900 ms)
+
+Start importing Assets/CityX/View/Textures/CityFacade.png using Guid(dc5ba8cd19e23994c87bcc13f753fb54) (TextureImporter) -> (artifact id: '77436034729cca5e731b21aa5ca15641') in 0.1895441 seconds
+Default prefab generator found 3 prefabs in 169ms.
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+FishNet.Editing.PrefabCollectionGenerator.Generator:GenerateFull (FishNet.Configuring.PrefabGeneratorConfigurations,bool,bool) (at ./Library/PackageCache/com.firstgeargames.fishnet@40557feed011/Runtime/Editor/PrefabCollectionGenerator/Generator.cs:369)
+FishNet.Editing.PrefabCollectionGenerator.Generator:OnPostprocessAllAssets (string[],string[],string[],string[]) (at ./Library/PackageCache/com.firstgeargames.fishnet@40557feed011/Runtime/Editor/PrefabCollectionGenerator/Generator.cs:680)
+System.Reflection.RuntimeMethodInfo:Invoke (object,System.Reflection.BindingFlags,System.Reflection.Binder,object[],System.Globalization.CultureInfo)
+System.Reflection.MethodBase:Invoke (object,object[])
+UnityEditor.AssetPostprocessingInternal:InvokeMethod (System.Reflection.MethodInfo,object[])
+UnityEditor.AssetPostprocessingInternal:PostprocessAllAssets (string[],string[],string[],string[],string[],bool)
+UnityEditor.AssetDatabase:ImportAsset (string,UnityEditor.ImportAssetOptions)
+CityX.ViewEditor.CityFacadeTextures:SaveTexture (string,int,int,UnityEngine.Color[],bool) (at Assets/CityX/View/Editor/CityFacadeTextures.cs:250)
+CityX.ViewEditor.CityFacadeTextures:BuildFacade () (at Assets/CityX/View/Editor/CityFacadeTextures.cs:141)
+CityX.ViewEditor.CityFacadeTextures:Build () (at Assets/CityX/View/Editor/CityFacadeTextures.cs:68)
+CityX.ViewEditor.CityMassingSceneBuilder:Build () (at Assets/CityX/View/Editor/CityMassingSceneBuilder.cs:39)
+
+(Filename: ./Library/PackageCache/com.firstgeargames.fishnet@40557feed011/Runtime/Editor/PrefabCollectionGenerator/Generator.cs Line: 369)
+
+Start importing Assets/DefaultPrefabObjects.asset using Guid(bd6917a794bc9a34cb0ec26d34ef643a) (NativeFormatImporter) -> (artifact id: '26f8a22053abffe48903a96b0ea94221') in 0.008087 seconds
+Refreshing native plugins compatible for Editor in 4.28 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=ec15a13c7ea8c0d46b5be4bbfc98b980): Total: 0.695 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+	Summary:
+		Imports: total=2 (actual=2, local cache=0, cache server=0)
+		Asset DB Process Time: managed=6 ms, native=316 ms
+		Asset DB Callback time: managed=355 ms, native=16 ms
+		Scripting: domain reloads=0, domain reload time=0 ms, compile time=0 ms, other=0 ms
+		Project Asset Count: scripts=1564, non-scripts=2698
+		Asset File Changes: new=0, changed=0, moved=0, deleted=0
+		Scan Filter Count: 2
+	InvokeCustomDependenciesCallbacks: 0.001ms
+	InvokePackagesCallback: 0.002ms
+	ApplyChangesToAssetFolders: 0.227ms
+	Scan: 50.914ms
+	OnSourceAssetsModified: 0.002ms
+	CategorizeAssetsWithTransientArtifact: 0.038ms
+	ProcessAssetsWithTransientArtifactChanges: 0.225ms
+	CategorizeAssets: 45.404ms
+	ImportOutOfDateAssets: 207.315ms (0.768ms without children)
+		ImportManagerImport: 203.319ms (2.331ms without children)
+			ImportInProcess: 200.900ms
+			UpdateCategorizedAssets: 0.089ms
+		ReloadNativeAssets: 0.164ms
+		UnloadImportedAssets: 0.802ms
+		ReloadImportedAssets: 0.001ms
+		EnsureUptoDateAssetsAreRegisteredWithGuidPM: 1.390ms
+		InitializingProgressBar: 0.020ms
+		PostProcessAllAssetNotificationsAddChangedAssets: 0.002ms
+		OnDemandSchedulerStart: 0.848ms
+	PostProcessAllAssets: 399.206ms
+	Hotreload: 5.480ms
+	GatherAllCurrentPrimaryArtifactRevisions: 0.314ms
+	UnloadStreamsBegin: 0.661ms
+	PersistCurrentRevisions: 0.276ms
+	UnloadStreamsEnd: 0.005ms
+	Untracked: -14.896ms
+
+Start importing Assets/CityX/View/Textures/CityFacade.png using Guid(dc5ba8cd19e23994c87bcc13f753fb54) (TextureImporter) -> (artifact id: '77436034729cca5e731b21aa5ca15641') in 0.1445823 seconds
+Refreshing native plugins compatible for Editor in 4.74 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=f34336bd874820041b1f5f3589f9e0f1): Total: 0.182 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/View/Textures/CityFacadeNormal.png using Guid(1532a18e755bb254fbe2acac232743ca) (TextureImporter) -> (artifact id: 'ecbc8a33f421cc5dc8f813c95159eb42') in 0.1366857 seconds
+Refreshing native plugins compatible for Editor in 3.95 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=e423ef279a2cf4d4ba506e6122516c38): Total: 0.188 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/View/Textures/CityFacadeNormal.png using Guid(1532a18e755bb254fbe2acac232743ca) (TextureImporter) -> (artifact id: 'ecbc8a33f421cc5dc8f813c95159eb42') in 0.130665 seconds
+Refreshing native plugins compatible for Editor in 4.53 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=b6238141d1e0ff745821406cb459b05d): Total: 0.162 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/View/Textures/CityRoad.png using Guid(09b9137a1fb522446a9eed3baeb10dfb) (TextureImporter) -> (artifact id: '79cd0bd7a04a7bb13bc64d0ed7115d09') in 0.0140322 seconds
+Refreshing native plugins compatible for Editor in 4.58 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=0e8e94483b65660478a1d33fba0029ab): Total: 0.055 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/View/Textures/CityRoad.png using Guid(09b9137a1fb522446a9eed3baeb10dfb) (TextureImporter) -> (artifact id: '79cd0bd7a04a7bb13bc64d0ed7115d09') in 0.0129914 seconds
+Refreshing native plugins compatible for Editor in 3.68 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=ee303d6312e6a1643ab2dfa00f89e628): Total: 0.044 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/View/Textures/CityRoadNormal.png using Guid(1ae5bc2905794384c8bab65790444692) (TextureImporter) -> (artifact id: 'bf04ea4de5855ba9b944ca530c3fdffc') in 0.0136315 seconds
+Refreshing native plugins compatible for Editor in 3.86 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=628dce5d624f3e0489074c9228c9dfeb): Total: 0.048 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/View/Textures/CityRoadNormal.png using Guid(1ae5bc2905794384c8bab65790444692) (TextureImporter) -> (artifact id: 'bf04ea4de5855ba9b944ca530c3fdffc') in 0.0124872 seconds
+Refreshing native plugins compatible for Editor in 3.99 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=e3e77ec439793594593cfc460ed137d2): Total: 0.041 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/View/Textures/CityPavement.png using Guid(f6e79a4aad3c7a3409c682c3a26258d0) (TextureImporter) -> (artifact id: '50afe8aa8635ca239512107be5ef0047') in 0.0163535 seconds
+Refreshing native plugins compatible for Editor in 4.08 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=b040b0be66076344d9a6a6920b9e4791): Total: 0.058 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/View/Textures/CityPavement.png using Guid(f6e79a4aad3c7a3409c682c3a26258d0) (TextureImporter) -> (artifact id: '50afe8aa8635ca239512107be5ef0047') in 0.0131981 seconds
+Refreshing native plugins compatible for Editor in 4.55 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=43044fb6eed0fce49b3bb2e135aed571): Total: 0.042 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/View/Textures/CityPavementNormal.png using Guid(6af594e6eecd63b4d8d0e11ce9c071ff) (TextureImporter) -> (artifact id: '7d592dbe655fefc176abfd55b194f736') in 0.0141827 seconds
+Refreshing native plugins compatible for Editor in 3.97 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=f801c856858423c46a2b2059c7672e1c): Total: 0.049 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/View/Textures/CityPavementNormal.png using Guid(6af594e6eecd63b4d8d0e11ce9c071ff) (TextureImporter) -> (artifact id: '7d592dbe655fefc176abfd55b194f736') in 0.0122553 seconds
+Refreshing native plugins compatible for Editor in 3.96 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=c272658b394cfe94b90842ba9b394e2e): Total: 0.045 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/View/Textures/CityRoof.png using Guid(3ee74300051564b4aa95747af82cbd82) (TextureImporter) -> (artifact id: 'f3cbcbac10d59e3f4b2eebe6c92d1675') in 0.0151461 seconds
+Refreshing native plugins compatible for Editor in 4.51 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=a2ac31bea1184104e8d85bd23151bd17): Total: 0.058 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/View/Textures/CityRoof.png using Guid(3ee74300051564b4aa95747af82cbd82) (TextureImporter) -> (artifact id: 'f3cbcbac10d59e3f4b2eebe6c92d1675') in 0.0138087 seconds
+Refreshing native plugins compatible for Editor in 3.93 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=311708c4d28500e4dbf130cbf3fed3c9): Total: 0.044 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/View/Textures/CityRoofNormal.png using Guid(6cd71a31db17d7f48a5ecbb677968a8f) (TextureImporter) -> (artifact id: '00f5cd7ac8914fb8560d2acb327734b2') in 0.0155856 seconds
+Refreshing native plugins compatible for Editor in 4.13 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=f2ed146f59a3df9499d7392d0718f72d): Total: 0.055 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/View/Textures/CityRoofNormal.png using Guid(6cd71a31db17d7f48a5ecbb677968a8f) (TextureImporter) -> (artifact id: '00f5cd7ac8914fb8560d2acb327734b2') in 0.0137265 seconds
+Refreshing native plugins compatible for Editor in 4.14 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=62e87980a131113449daa4c374c31267): Total: 0.045 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/DefaultPrefabObjects.asset using Guid(bd6917a794bc9a34cb0ec26d34ef643a) (NativeFormatImporter) -> (artifact id: '26f8a22053abffe48903a96b0ea94221') in 0.003208 seconds
+Refreshing native plugins compatible for Editor in 5.10 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=961d2b6238a88004ab78ad877d6f3f27): Total: 0.033 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Asset Pipeline Refresh (id=8aea25507a20af743830a17f00275ad9): Total: 0.019 seconds - Initiated by RefreshV2(NoUpdateAssetOptions)
+CityX: textures written to Assets/CityX/View/Textures
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+CityX.ViewEditor.CityFacadeTextures:Build () (at Assets/CityX/View/Editor/CityFacadeTextures.cs:79)
+CityX.ViewEditor.CityMassingSceneBuilder:Build () (at Assets/CityX/View/Editor/CityMassingSceneBuilder.cs:39)
+
+(Filename: Assets/CityX/View/Editor/CityFacadeTextures.cs Line: 79)
+
+Start importing Assets/CityX/View/Materials/GlassShards.mat using Guid(6f738276573f89f4396bf45b4112ecb5) (NativeFormatImporter) -> (artifact id: '29e5673486339478d64d4f90a25e900c') in 0.004095 seconds
+Refreshing native plugins compatible for Editor in 3.81 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=c71141df6ca4b774d988eb4095e514ca): Total: 0.072 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Asset Pipeline Refresh (id=9d1928d5c5689a54a86a5e3f6ba67148): Total: 0.025 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/View/Materials/CityGlassDark.mat using Guid(f1a347d6e3aa26b4385d120874add0a3) (NativeFormatImporter) -> (artifact id: 'b87d0f7c88fc0156b9941d2c5f25b036') in 0.004039 seconds
+Start importing Assets/CityX/View/Materials/CityConcrete.mat using Guid(735625d766399834aab7a05294559a9d) (NativeFormatImporter) -> (artifact id: 'e8b5008fe3d58598c1cccb8e6b9b14a4') in 0.0044965 seconds
+Start importing Assets/CityX/View/Materials/CityGlassLit.mat using Guid(c3fd89e38bd4a234092424ddac8a68eb) (NativeFormatImporter) -> (artifact id: '44833e53157023950cde9fc33aaeb167') in 0.0042138 seconds
+Start importing Assets/CityX/View/Materials/CityGlassCracked.mat using Guid(acf53ff85efc0e14996801017e980707) (NativeFormatImporter) -> (artifact id: '7150443452d5dbbf49a9011b8c952ba1') in 0.0027016 seconds
+Start importing Assets/CityX/View/Materials/CityGround.mat using Guid(5d9d356daafca5941ae7799b532b93ca) (NativeFormatImporter) -> (artifact id: '613cc8a39470223235f7de4b87c42de1') in 0.0033709 seconds
+Start importing Assets/CityX/View/Materials/CityPavement.mat using Guid(aee64fc44cffe67409b0de693fe5ea9c) (NativeFormatImporter) -> (artifact id: '537c416344e1ce88f6b4c368ca996524') in 0.0031512 seconds
+Start importing Assets/CityX/View/Materials/GlassShards.mat using Guid(6f738276573f89f4396bf45b4112ecb5) (NativeFormatImporter) -> (artifact id: 'd4f7fb1b8bbed0b7c60d9100086c917e') in 0.002846 seconds
+Start importing Assets/DefaultPrefabObjects.asset using Guid(bd6917a794bc9a34cb0ec26d34ef643a) (NativeFormatImporter) -> (artifact id: '26f8a22053abffe48903a96b0ea94221') in 0.0049663 seconds
+Refreshing native plugins compatible for Editor in 3.92 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=51b4b6c4de55b584aa1440bf92e01297): Total: 0.097 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+CityX: glass shards written to Assets/CityX/View/GlassShards.prefab
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+CityX.ViewEditor.GlassShardsBuilder:Build () (at Assets/CityX/View/Editor/GlassShardsBuilder.cs:99)
+CityX.ViewEditor.CityMassingSceneBuilder:Build () (at Assets/CityX/View/Editor/CityMassingSceneBuilder.cs:56)
+
+(Filename: Assets/CityX/View/Editor/GlassShardsBuilder.cs Line: 99)
+
+Unloading 22 Unused Serialized files (Serialized files now loaded: 0)
+Unloading 959 unused Assets / (9.9 MB). Loaded Objects now: 8628.
+Memory consumption went from 225.8 MB to 215.9 MB.
+Total: 12.717400 ms (FindLiveObjects: 1.276000 ms CreateObjectMapping: 0.815300 ms MarkObjects: 8.835600 ms  DeleteObjects: 1.788900 ms)
+
+Refreshing native plugins compatible for Editor in 3.86 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=43c1bd6fc9da27f43be46e54dc07b422): Total: 0.069 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Refreshing native plugins compatible for Editor in 4.01 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=b5c669caa4a7f124397c00130cb69bff): Total: 0.083 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Refreshing native plugins compatible for Editor in 3.84 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=f511bf3411a44534b97242d1c79b18dd): Total: 0.050 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Refreshing native plugins compatible for Editor in 4.27 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=91b3ab03bdad1a44a85aaa4a8052d3de): Total: 0.071 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Refreshing native plugins compatible for Editor in 4.04 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=91d65194661a06a4792a817dd47cd40b): Total: 0.053 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Refreshing native plugins compatible for Editor in 4.46 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=bbd8d34757a340d43b058f44859ef107): Total: 0.085 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Weapons/GlassShatter.mat using Guid(f3f58983121ba7f4a908efc376378f1b) (NativeFormatImporter) -> (artifact id: '8294489fe920dcad499a3212cddb90e3') in 0.0062321 seconds
+Refreshing native plugins compatible for Editor in 4.17 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=b51b155b015e97d44b8da1577964720a): Total: 0.066 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Weapons/GlassShatter.prefab using Guid(4de4b0b4bc3ee3644b8e663082725d3c) (PrefabImporter) -> (artifact id: '88ad532a6660ec8856f11efd62ef5c05') in 0.0118609 seconds
+Refreshing native plugins compatible for Editor in 4.47 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=0be4546f05a4dc04e855c9e7d561e058): Total: 0.085 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/View/Materials/CityXSky.mat using Guid(91378d40e6653584b8cd09b65935f88c) (NativeFormatImporter) -> (artifact id: '975c3ea08c95561388d916f7a7e7d031') in 0.0088612 seconds
+Start importing Assets/CityX/View/Materials/BuildingDoorHandle.mat using Guid(b2f9557bb1e4b6d438b1209632fa25ae) (NativeFormatImporter) -> (artifact id: '7294bc3a3a1145e29710d008b592c450') in 0.0041324 seconds
+Start importing Assets/CityX/Weapons/GlassShatter.mat using Guid(f3f58983121ba7f4a908efc376378f1b) (NativeFormatImporter) -> (artifact id: '68c4b4b84e6221299e1a568acb79151d') in 0.0033463 seconds
+Start importing Assets/CityX/View/Materials/CityGuardRail.mat using Guid(85a080662bc27204b99cce9bbabc835b) (NativeFormatImporter) -> (artifact id: '1162ac815d37ed8faa4bce438bdb5547') in 0.0036896 seconds
+Start importing Assets/CityX/Character/Materials/BottleGlass.mat using Guid(2617dafc8e5cda34faa647e6739f6962) (NativeFormatImporter) -> (artifact id: '6d204b39443f6f98f4db07ad6bfb1249') in 0.0038665 seconds
+Start importing Assets/CityX/View/Materials/RoadLine.mat using Guid(e6af659f9938f5246bf9105825465350) (NativeFormatImporter) -> (artifact id: 'fdcf33611b5a3c91175fc535cabe07f5') in 0.0035537 seconds
+Start importing Assets/CityX/View/Materials/Crosswalk.mat using Guid(495c2d1ebec5b144ca7644233a624c4d) (NativeFormatImporter) -> (artifact id: 'f91b064782db00745f45a65eaf69a228') in 0.0030064 seconds
+Start importing Assets/CityX/View/Materials/BuildingDoor.mat using Guid(0b8d631405294d44196c0240c0174143) (NativeFormatImporter) -> (artifact id: '3261e6439e763df4142a56ef9b92149b') in 0.0067285 seconds
+Start importing Assets/CityX/Character/Materials/BottleGlassBroken.mat using Guid(bde5dfc85872f8447aae7902215b7bff) (NativeFormatImporter) -> (artifact id: 'd4ac86bc0f8519f9150455c5e799a433') in 0.0033409 seconds
+Start importing Assets/CityX/View/Materials/CityGrade.asset using Guid(c8fdbb19f29f9f04b8130489dba7566b) (NativeFormatImporter) -> (artifact id: '68075663b72c899b55beeaf970b696c0') in 0.0036625 seconds
+Start importing Assets/DefaultPrefabObjects.asset using Guid(bd6917a794bc9a34cb0ec26d34ef643a) (NativeFormatImporter) -> (artifact id: '26f8a22053abffe48903a96b0ea94221') in 0.003721 seconds
+Refreshing native plugins compatible for Editor in 4.35 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=ec8d36a37c7604747b31b9083470231d): Total: 0.126 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+CityX: glass shatter written to Assets/CityX/Weapons/GlassShatter.prefab
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+CityX.WeaponsEditor.GlassShatterBuilder:Build () (at Assets/CityX/Weapons/Editor/GlassShatterBuilder.cs:97)
+CityX.WeaponsEditor.BottleBuilder:BuildThrownBottle () (at Assets/CityX/Weapons/Editor/BottleBuilder.cs:164)
+CityX.WeaponsEditor.BottleBuilder:Build () (at Assets/CityX/Weapons/Editor/BottleBuilder.cs:75)
+CityX.ViewEditor.CityMassingSceneBuilder:Build () (at Assets/CityX/View/Editor/CityMassingSceneBuilder.cs:145)
+
+(Filename: Assets/CityX/Weapons/Editor/GlassShatterBuilder.cs Line: 97)
+
+Asset Pipeline Refresh (id=9bcc33a78ace20d44af71889bdb4031a): Total: 0.018 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+CityX: thrown bottle written to Assets/CityX/Weapons/ThrownBottle.prefab
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+CityX.WeaponsEditor.BottleBuilder:BuildThrownBottle () (at Assets/CityX/Weapons/Editor/BottleBuilder.cs:171)
+CityX.WeaponsEditor.BottleBuilder:Build () (at Assets/CityX/Weapons/Editor/BottleBuilder.cs:75)
+CityX.ViewEditor.CityMassingSceneBuilder:Build () (at Assets/CityX/View/Editor/CityMassingSceneBuilder.cs:145)
+
+(Filename: Assets/CityX/Weapons/Editor/BottleBuilder.cs Line: 171)
+
+Asset Pipeline Refresh (id=233e204c35d97934498bda3e0c0768bb): Total: 0.021 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/DefaultPrefabObjects.asset using Guid(bd6917a794bc9a34cb0ec26d34ef643a) (NativeFormatImporter) -> (artifact id: '26f8a22053abffe48903a96b0ea94221') in 0.0036188 seconds
+Refreshing native plugins compatible for Editor in 4.35 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=0b1925a523b9270468dd8b85f721d2ee): Total: 0.034 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+CityX: glass bottle written to Assets/CityX/Weapons/GlassBottle.prefab
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+CityX.WeaponsEditor.BottleBuilder:Build () (at Assets/CityX/Weapons/Editor/BottleBuilder.cs:79)
+CityX.ViewEditor.CityMassingSceneBuilder:Build () (at Assets/CityX/View/Editor/CityMassingSceneBuilder.cs:145)
+
+(Filename: Assets/CityX/Weapons/Editor/BottleBuilder.cs Line: 79)
+
+Start importing Assets/CityX/Wearables/Models/skelli_jeans_texture_0.png using Guid(3119e9f4601640b4093d293b170694b0) (TextureImporter) -> (artifact id: '5ce4387503c37bae45857821e041cb5e') in 0.0396268 seconds
+Refreshing native plugins compatible for Editor in 4.11 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=74de315353e16094f997ab0e77c0f3b0): Total: 0.075 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Refreshing native plugins compatible for Editor in 3.87 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=c5ffd0a695ef774458acd39453817b23): Total: 0.052 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Wearables/SkelliJeansFabric.mat using Guid(8646837848978ea4e9b5a1941b76ddad) (NativeFormatImporter) -> (artifact id: '62120d753fb52c16aad82d5a84e73cbd') in 0.0034224 seconds
+Refreshing native plugins compatible for Editor in 3.75 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=58c1d1b33588c79459b5ec931d3e68c3): Total: 0.078 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Wearables/SkelliJeansFabric.mat using Guid(8646837848978ea4e9b5a1941b76ddad) (NativeFormatImporter) -> (artifact id: '905a893188a8345cfeb41c999401b6f3') in 0.0037093 seconds
+Start importing Assets/DefaultPrefabObjects.asset using Guid(bd6917a794bc9a34cb0ec26d34ef643a) (NativeFormatImporter) -> (artifact id: '26f8a22053abffe48903a96b0ea94221') in 0.0038906 seconds
+Refreshing native plugins compatible for Editor in 4.16 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=b3ac1f8de41bb784ab8eef2aabc997a0): Total: 0.062 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+CityX: smoothed 0 collar vertices through the neck bone.
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+CityX.WearablesEditor.SkinnedGarmentBuilder:SmoothNeckWeights (UnityEngine.Mesh,UnityEngine.Transform[]) (at Assets/CityX/Wearables/Editor/SkinnedGarmentBuilder.cs:509)
+CityX.WearablesEditor.SkinnedGarmentBuilder:BakeMesh (UnityEngine.SkinnedMeshRenderer,string) (at Assets/CityX/Wearables/Editor/SkinnedGarmentBuilder.cs:332)
+CityX.WearablesEditor.SkinnedGarmentBuilder:Build<CityX.Wearables.SkelliJeans> (string,string,string,string,UnityEngine.Material,single,single,single,System.Action`1<CityX.Wearables.SkelliJeans>) (at Assets/CityX/Wearables/Editor/SkinnedGarmentBuilder.cs:164)
+CityX.WearablesEditor.SkinnedGarmentBuilder:BuildJeans () (at Assets/CityX/Wearables/Editor/SkinnedGarmentBuilder.cs:55)
+CityX.ViewEditor.CityMassingSceneBuilder:Build () (at Assets/CityX/View/Editor/CityMassingSceneBuilder.cs:146)
+
+(Filename: Assets/CityX/Wearables/Editor/SkinnedGarmentBuilder.cs Line: 509)
+
+Refreshing native plugins compatible for Editor in 3.96 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=2717deb2d42ca504b88144555460e0f5): Total: 0.049 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Refreshing native plugins compatible for Editor in 3.88 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=1cfa1117f7c6521419e6d016ba0a3dd2): Total: 0.086 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/DefaultPrefabObjects.asset using Guid(bd6917a794bc9a34cb0ec26d34ef643a) (NativeFormatImporter) -> (artifact id: '26f8a22053abffe48903a96b0ea94221') in 0.003765 seconds
+Refreshing native plugins compatible for Editor in 4.12 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=105b0749258b3f647b9c79326c88b6fa): Total: 0.034 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Asset Pipeline Refresh (id=dbfa782d30bc71649869267553e30161): Total: 0.015 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+CityX: SkelliJeans written to Assets/CityX/Wearables/SkelliJeans.prefab -- 6548 vertices, 14 bones
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+CityX.WearablesEditor.SkinnedGarmentBuilder:Build<CityX.Wearables.SkelliJeans> (string,string,string,string,UnityEngine.Material,single,single,single,System.Action`1<CityX.Wearables.SkelliJeans>) (at Assets/CityX/Wearables/Editor/SkinnedGarmentBuilder.cs:201)
+CityX.WearablesEditor.SkinnedGarmentBuilder:BuildJeans () (at Assets/CityX/Wearables/Editor/SkinnedGarmentBuilder.cs:55)
+CityX.ViewEditor.CityMassingSceneBuilder:Build () (at Assets/CityX/View/Editor/CityMassingSceneBuilder.cs:146)
+
+(Filename: Assets/CityX/Wearables/Editor/SkinnedGarmentBuilder.cs Line: 201)
+
+CityX: smoothed 152 collar vertices through the neck bone.
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+CityX.WearablesEditor.SkinnedGarmentBuilder:SmoothNeckWeights (UnityEngine.Mesh,UnityEngine.Transform[]) (at Assets/CityX/Wearables/Editor/SkinnedGarmentBuilder.cs:509)
+CityX.WearablesEditor.SkinnedGarmentBuilder:BakeMesh (UnityEngine.SkinnedMeshRenderer,string) (at Assets/CityX/Wearables/Editor/SkinnedGarmentBuilder.cs:332)
+CityX.WearablesEditor.SkinnedGarmentBuilder:Build<CityX.Wearables.HoodedCloak> (string,string,string,string,UnityEngine.Material,single,single,single,System.Action`1<CityX.Wearables.HoodedCloak>) (at Assets/CityX/Wearables/Editor/SkinnedGarmentBuilder.cs:164)
+CityX.WearablesEditor.SkinnedGarmentBuilder:BuildCloak () (at Assets/CityX/Wearables/Editor/SkinnedGarmentBuilder.cs:139)
+CityX.ViewEditor.CityMassingSceneBuilder:Build () (at Assets/CityX/View/Editor/CityMassingSceneBuilder.cs:147)
+
+(Filename: Assets/CityX/Wearables/Editor/SkinnedGarmentBuilder.cs Line: 509)
+
+Refreshing native plugins compatible for Editor in 4.39 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=0140c9c15effc2a43a9fba82a020ff1b): Total: 0.053 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Refreshing native plugins compatible for Editor in 4.33 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=28b90c0c61a58a84985f0e4d52e27666): Total: 0.085 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Materials/HoodedCloakFabric.mat using Guid(55844065e9fbf434eacff86d6f4e504b) (NativeFormatImporter) -> (artifact id: 'e2519678011c375620385088553d1966') in 0.0037847 seconds
+Start importing Assets/DefaultPrefabObjects.asset using Guid(bd6917a794bc9a34cb0ec26d34ef643a) (NativeFormatImporter) -> (artifact id: '26f8a22053abffe48903a96b0ea94221') in 0.002915 seconds
+Refreshing native plugins compatible for Editor in 3.86 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=6f566c034e193674ebf30d4608f62ff3): Total: 0.039 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Asset Pipeline Refresh (id=47fc39d5b9654bd4bb5e1b0458077221): Total: 0.016 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/DefaultPrefabObjects.asset using Guid(bd6917a794bc9a34cb0ec26d34ef643a) (NativeFormatImporter) -> (artifact id: '26f8a22053abffe48903a96b0ea94221') in 0.0033628 seconds
+Refreshing native plugins compatible for Editor in 3.97 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=1339c024de5f00e4d88b1cf5c2b5c1bb): Total: 0.031 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+CityX: HoodedCloak written to Assets/CityX/Wearables/HoodedCloak.prefab -- 6351 vertices, 14 bones
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+CityX.WearablesEditor.SkinnedGarmentBuilder:Build<CityX.Wearables.HoodedCloak> (string,string,string,string,UnityEngine.Material,single,single,single,System.Action`1<CityX.Wearables.HoodedCloak>) (at Assets/CityX/Wearables/Editor/SkinnedGarmentBuilder.cs:201)
+CityX.WearablesEditor.SkinnedGarmentBuilder:BuildCloak () (at Assets/CityX/Wearables/Editor/SkinnedGarmentBuilder.cs:139)
+CityX.ViewEditor.CityMassingSceneBuilder:Build () (at Assets/CityX/View/Editor/CityMassingSceneBuilder.cs:147)
+
+(Filename: Assets/CityX/Wearables/Editor/SkinnedGarmentBuilder.cs Line: 201)
+
+Asset Pipeline Refresh (id=e1854935513a36842863bdc633113207): Total: 0.023 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Materials/GrappleHookHead.mat using Guid(046601e63d21f6544890afb5077d66b2) (NativeFormatImporter) -> (artifact id: 'd782b72ef3588344020c6ad40913c1fc') in 0.0038639 seconds
+Start importing Assets/CityX/Character/Materials/GrappleBody.mat using Guid(28adf439d35db3149b597d55043c04d2) (NativeFormatImporter) -> (artifact id: 'fe2e40f845c0f49f056587e307b83053') in 0.0033943 seconds
+Start importing Assets/CityX/Character/Materials/GrappleRope.mat using Guid(1b447cf1bfe69834095d2ed6007d1ab0) (NativeFormatImporter) -> (artifact id: '6cb544f18e498d68d9cde8d184dc58e4') in 0.0029589 seconds
+Start importing Assets/CityX/Character/Materials/GrappleBarrel.mat using Guid(fe353bb7ef7862648bcb10f4181a2b01) (NativeFormatImporter) -> (artifact id: '3ed35de16e9edc7f2e71de4e0d190aa5') in 0.0056184 seconds
+Refreshing native plugins compatible for Editor in 4.43 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=2a6f64baaff9c3d4bb6cc886b2b28aef): Total: 0.054 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+CityX: grappling hook written to Assets/CityX/Weapons/GrapplingHook.prefab
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+CityX.WeaponsEditor.GrapplingHookBuilder:Build () (at Assets/CityX/Weapons/Editor/GrapplingHookBuilder.cs:90)
+CityX.ViewEditor.CityMassingSceneBuilder:Build () (at Assets/CityX/View/Editor/CityMassingSceneBuilder.cs:148)
+
+(Filename: Assets/CityX/Weapons/Editor/GrapplingHookBuilder.cs Line: 90)
+
+Start importing Assets/CityX/Character/BloodSplatter.mat using Guid(ae1e438be5569f14486eb2bacda56166) (NativeFormatImporter) -> (artifact id: 'dae97a16ad81d74e360115c24d6f7358') in 0.0049317 seconds
+Refreshing native plugins compatible for Editor in 4.12 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=16e2d617456fff845b8b4477cd033c3e): Total: 0.069 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Asset Pipeline Refresh (id=f185757299898624ca4fe415e12b368a): Total: 0.025 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Materials/PistolGunmetal.mat using Guid(335fee781131d5745ae0915af74d537b) (NativeFormatImporter) -> (artifact id: '202008b732f066fd749dbb790ea51325') in 0.0036146 seconds
+Start importing Assets/CityX/Character/BloodSplatter.mat using Guid(ae1e438be5569f14486eb2bacda56166) (NativeFormatImporter) -> (artifact id: '91730c09ef8a7ac6b95900b2b6bbf97d') in 0.0034404 seconds
+Start importing Assets/DefaultPrefabObjects.asset using Guid(bd6917a794bc9a34cb0ec26d34ef643a) (NativeFormatImporter) -> (artifact id: '26f8a22053abffe48903a96b0ea94221') in 0.0039915 seconds
+Refreshing native plugins compatible for Editor in 4.20 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=776835960be60e34e82f762f41ef6eff): Total: 0.068 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+CityX: blood splatter written to Assets/CityX/Character/BloodSplatter.prefab
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+CityX.CharacterEditor.BloodSplatterBuilder:Build () (at Assets/CityX/Character/Editor/BloodSplatterBuilder.cs:108)
+CityX.WeaponsEditor.PistolBuilder:Build () (at Assets/CityX/Weapons/Editor/PistolBuilder.cs:100)
+CityX.ViewEditor.CityMassingSceneBuilder:Build () (at Assets/CityX/View/Editor/CityMassingSceneBuilder.cs:149)
+
+(Filename: Assets/CityX/Character/Editor/BloodSplatterBuilder.cs Line: 108)
+
+Asset Pipeline Refresh (id=fc0badae3a3f04444a9ca523edadb6c0): Total: 0.023 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/DefaultPrefabObjects.asset using Guid(bd6917a794bc9a34cb0ec26d34ef643a) (NativeFormatImporter) -> (artifact id: '26f8a22053abffe48903a96b0ea94221') in 0.0042984 seconds
+Refreshing native plugins compatible for Editor in 4.01 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=8054bd7cb3d0dc544a75276b154475ff): Total: 0.035 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+CityX: pistol written to Assets/CityX/Weapons/Pistol.prefab
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+CityX.WeaponsEditor.PistolBuilder:Build () (at Assets/CityX/Weapons/Editor/PistolBuilder.cs:104)
+CityX.ViewEditor.CityMassingSceneBuilder:Build () (at Assets/CityX/View/Editor/CityMassingSceneBuilder.cs:149)
+
+(Filename: Assets/CityX/Weapons/Editor/PistolBuilder.cs Line: 104)
+
+Start importing Assets/CityX/Character/Animations/idle.fbx using Guid(7ac90727cc003a14da870b084bd3f897) (FBXImporter)Keyframe reduction: Ratio: 18.250578%;
+ -> (artifact id: '7c0405f217a05ad1cb0192ef9392e474') in 0.2810761 seconds
+Refreshing native plugins compatible for Editor in 4.98 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=0ac2075de23fbbc44b7c16ba345de7a8): Total: 0.375 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+	Summary:
+		Imports: total=1 (actual=1, local cache=0, cache server=0)
+		Asset DB Process Time: managed=11 ms, native=351 ms
+		Asset DB Callback time: managed=2 ms, native=9 ms
+		Scripting: domain reloads=0, domain reload time=0 ms, compile time=0 ms, other=0 ms
+		Project Asset Count: scripts=1564, non-scripts=2698
+		Asset File Changes: new=0, changed=1, moved=0, deleted=0
+		Scan Filter Count: 5
+	InvokeCustomDependenciesCallbacks: 0.001ms
+	InvokePackagesCallback: 0.002ms
+	ApplyChangesToAssetFolders: 0.166ms
+	Scan: 35.677ms
+	OnSourceAssetsModified: 0.058ms
+	CategorizeAssetsWithTransientArtifact: 0.017ms
+	ProcessAssetsWithTransientArtifactChanges: 0.181ms
+	CategorizeAssets: 22.398ms
+	ImportOutOfDateAssets: 296.788ms (-11.044ms without children)
+		ImportManagerImport: 294.084ms (11.976ms without children)
+			ImportInProcess: 282.078ms
+			UpdateCategorizedAssets: 0.029ms
+		ReloadNativeAssets: 0.066ms
+		UnloadImportedAssets: 0.944ms
+		ReloadImportedAssets: 11.453ms
+		EnsureUptoDateAssetsAreRegisteredWithGuidPM: 0.924ms
+		InitializingProgressBar: 0.007ms
+		PostProcessAllAssetNotificationsAddChangedAssets: 0.002ms
+		OnDemandSchedulerStart: 0.353ms
+	PostProcessAllAssets: 5.053ms
+	Hotreload: 6.929ms
+	GatherAllCurrentPrimaryArtifactRevisions: 0.255ms
+	UnloadStreamsBegin: 0.114ms
+	PersistCurrentRevisions: 0.190ms
+	UnloadStreamsEnd: 0.001ms
+	Untracked: 7.157ms
+
+Start importing Assets/CityX/Character/Animations/2hsw_attack.fbx using Guid(3fe15eed6ebf8e346b261dc759078c1e) (FBXImporter)Keyframe reduction: Ratio: 49.546356%;
+ -> (artifact id: '6ce1b84a6dde1a34bcfbd26a3b3e621f') in 0.1603722 seconds
+Refreshing native plugins compatible for Editor in 4.08 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=93df35d86bdbff5438fb82651ce0d50d): Total: 0.206 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/2hsw_attack2.fbx using Guid(47268051155e2014a9c9852149298d13) (FBXImporter)Keyframe reduction: Ratio: 40.837917%;
+ -> (artifact id: 'defb117c1945e1b7e6963cff782c13b4') in 0.1732274 seconds
+Refreshing native plugins compatible for Editor in 4.08 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=19deedd86adb53a488e68874aac9559f): Total: 0.214 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/2hsw_backwardwalk.fbx using Guid(ed0295d84df77ef46a09b5e60ba7b464) (FBXImporter)Keyframe reduction: Ratio: 32.846153%;
+ -> (artifact id: '64dcc78add03fad6aa02215ab4f7639c') in 0.1643048 seconds
+Refreshing native plugins compatible for Editor in 5.62 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=edac4ef537222124dae9bbea413d22fd): Total: 0.208 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/2hsw_blockimpact.fbx using Guid(02e2ec2e47fbd8a4bac6b28e3d89a6d6) (FBXImporter)Keyframe reduction: Ratio: 24.843309%;
+ -> (artifact id: 'e34c3338dd781d9a7a110f8f92169e7c') in 0.1564877 seconds
+Refreshing native plugins compatible for Editor in 4.61 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=44a0419db415c13488de31a008db3376): Total: 0.194 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/2hsw_blocking.fbx using Guid(21d3195c8cc900143bb2c4648ee59de2) (FBXImporter)Keyframe reduction: Ratio: 51.346153%;
+ -> (artifact id: 'b9391ba7f6a8ecbfcc59108fd3c077ca') in 0.1574681 seconds
+Refreshing native plugins compatible for Editor in 3.95 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=ea29c53d5dab31b4495aa106a228f277): Total: 0.198 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/2hsw_chargedattack.fbx using Guid(9819d6dae3dbe8647a591a298149ce39) (FBXImporter)Keyframe reduction: Ratio: 27.124670%;
+ -> (artifact id: '0111f2e168410c9b274d6b120f780a9b') in 0.1736845 seconds
+Refreshing native plugins compatible for Editor in 3.98 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=d930098a6d75d464680d3ae29023e1c1): Total: 0.212 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/2hsw_crouch.fbx using Guid(aeb6d43482fbbab44b067d0f6f480bb1) (FBXImporter)Keyframe reduction: Ratio: 42.710621%;
+ -> (artifact id: '14c61d6d9449aa3677772b6a2fd13d5d') in 0.157834 seconds
+Refreshing native plugins compatible for Editor in 3.74 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=6daf5a0642ec33f42af6515cc9666e23): Total: 0.203 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/2hsw_idle.fbx using Guid(6a5f07e4824cd0341b676520e1081a51) (FBXImporter)Keyframe reduction: Ratio: 9.697351%;
+ -> (artifact id: 'ddf253dd9c580fee59a7070a8474d3f3') in 0.1636093 seconds
+Refreshing native plugins compatible for Editor in 3.93 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=2d68806fa5585e14199b2304164c824e): Total: 0.200 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/2hsw_impact.fbx using Guid(04d28eb5d835eec42b7c919021703314) (FBXImporter)Keyframe reduction: Ratio: 29.958424%;
+ -> (artifact id: 'b66ae526eb13f5634e3442b4bbdae84e') in 0.1599054 seconds
+Refreshing native plugins compatible for Editor in 4.02 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=7fca24ea0d9a11e4fa8942bfc7f3d55b): Total: 0.198 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/2hsw_jump.fbx using Guid(987acbb93f854d1409b8aa52e43b4b13) (FBXImporter)Keyframe reduction: Ratio: 55.923077%;
+ -> (artifact id: '94ef54b0f7f3c346ebbd6d0fd0328426') in 0.1620515 seconds
+Refreshing native plugins compatible for Editor in 4.22 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=3ab89173a8939d54a85c259e100f0e5a): Total: 0.199 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/2hsw_left.fbx using Guid(137b96c5a8234444bb0fd6c34f8c2645) (FBXImporter)Keyframe reduction: Ratio: 38.280544%;
+ -> (artifact id: '8e556bd8f7dfaec7982db179a54973d7') in 0.1602651 seconds
+Refreshing native plugins compatible for Editor in 4.04 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=ca8c9d2b12f03df4986ae52c54cb9edb): Total: 0.200 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/2hsw_right.fbx using Guid(80087e159dc41ef4fbf2c1f56905c910) (FBXImporter)Keyframe reduction: Ratio: 51.230770%;
+ -> (artifact id: '5ff50515a2159607856096131a7ab102') in 0.1570209 seconds
+Refreshing native plugins compatible for Editor in 4.96 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=9e45b98ef865af447acf1de6147f5b90): Total: 0.196 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/2hsw_sprint.fbx using Guid(c515d9b9e9dced942b55a84ec55965a2) (FBXImporter)Keyframe reduction: Ratio: 55.141705%;
+ -> (artifact id: 'd1455057ff186380163b44cbb959fea0') in 0.1558063 seconds
+Refreshing native plugins compatible for Editor in 3.87 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=5e92b9c3ccdc16a4396f7d95be022ad5): Total: 0.201 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/2hsw_uncrouch.fbx using Guid(8b501441f960e044aaf1f3dd0c8a4e13) (FBXImporter)Keyframe reduction: Ratio: 37.867130%;
+ -> (artifact id: 'dd4ca7db6697c6c832b6e25e9b6f507e') in 0.1638659 seconds
+Refreshing native plugins compatible for Editor in 3.91 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=fc35ac574671e3547bdf0415953fb354): Total: 0.201 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/2hsw_walk.fbx using Guid(f6f3ca11cd905a7439e61e3e8447bcf2) (FBXImporter)Keyframe reduction: Ratio: 33.754581%;
+ -> (artifact id: 'b0dcba8235d32eee1f2d0c30e4bf9bb9') in 0.1591123 seconds
+Refreshing native plugins compatible for Editor in 4.09 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=2bc665dfc8c0c33449efd6eaec9e6891): Total: 0.195 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/body_block.fbx using Guid(8327fef6f5752644eaec13d1a2dc4151) (FBXImporter)Keyframe reduction: Ratio: 36.198223%;
+ -> (artifact id: 'c67707ce45d0735a1b75f3058bb147db') in 0.1852696 seconds
+Refreshing native plugins compatible for Editor in 4.52 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=d6293c9a3ef653043918fa98f34fa010): Total: 0.222 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/boxing_idle.fbx using Guid(7de58f1ca3c69fc4a843ea1c50468b34) (FBXImporter)Keyframe reduction: Ratio: 25.559885%;
+ -> (artifact id: '774323763fbd177c8e141d3ea3c36de9') in 0.1682863 seconds
+Refreshing native plugins compatible for Editor in 4.38 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=f8faf2f87705abd4fbc97b428bdbfd0c): Total: 0.210 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/boxing_left_jab.fbx using Guid(e9d7d3041f0ca3d4c8ceac393ddd029e) (FBXImporter)Keyframe reduction: Ratio: 33.351650%;
+ -> (artifact id: '605d0866ea3a58ef0c586285e11c3698') in 0.1640934 seconds
+Refreshing native plugins compatible for Editor in 4.07 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=81a35723880766a46ad593472d7d4fdd): Total: 0.203 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/boxing_right_jab.fbx using Guid(ad9c3e0893dcefa4aa508d953ccd4572) (FBXImporter)Keyframe reduction: Ratio: 36.437866%;
+ -> (artifact id: 'edd0f85d624322f5427e144d4a7e3446') in 0.1669589 seconds
+Refreshing native plugins compatible for Editor in 5.21 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=7ab5f85480ac37b4aa53675c21496354): Total: 0.216 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/braced_hang_to_crouch.fbx using Guid(dafb155273102f740a1f4af9697e0d0a) (FBXImporter)Keyframe reduction: Ratio: 59.450550%;
+ -> (artifact id: 'f4abd6b44242f9e7968b0d8af8de40da') in 0.1567378 seconds
+Refreshing native plugins compatible for Editor in 3.76 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=f96be116dc024d1499613c828c3e608f): Total: 0.202 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/breakdance.fbx using Guid(df6bb135df37e98448084c65379d2a74) (FBXImporter)Keyframe reduction: Ratio: 60.367893%;
+ -> (artifact id: '3c23a08adc7dc101b27d8dab2f36e28f') in 0.1860244 seconds
+Refreshing native plugins compatible for Editor in 3.92 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=243d82c377cb5d2479d8371c2a01c2da): Total: 0.224 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/charged_jump.fbx using Guid(84fbd8454c4d619439bd4808a2d8494b) (FBXImporter)Keyframe reduction: Ratio: 69.914528%;
+ -> (artifact id: '095a9d0bfc4010b507669e64444e3e0c') in 0.1568699 seconds
+Refreshing native plugins compatible for Editor in 4.75 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=e11a8172084f8f94a8139f3cf3487ea0): Total: 0.197 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/climbing_down_wall.fbx using Guid(bb0da473015253f4eaf40ba5301109d5) (FBXImporter)Keyframe reduction: Ratio: 49.558640%;
+ -> (artifact id: '314f8feea3fe45b1449246fdfaded4a1') in 0.1893982 seconds
+Refreshing native plugins compatible for Editor in 4.47 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=e9f59ba6ef7c08a46835d7a7ff2bdcef): Total: 0.229 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/climbing_up_wall.fbx using Guid(07faa0ccedabefa4a9bb9591187429a9) (FBXImporter)Keyframe reduction: Ratio: 48.461544%;
+ -> (artifact id: '30034d798aecdeebeecc7e9d1057d45f') in 0.165021 seconds
+Refreshing native plugins compatible for Editor in 4.77 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=0ef1639a2e7ea47458288a3e20897c57): Total: 0.204 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/crouch_to_idle.fbx using Guid(263db51cca460da418445ffbc86ddade) (FBXImporter)Keyframe reduction: Ratio: 35.846153%;
+ -> (artifact id: '0c60399ec110d9c6d513fd0a5ea7a3fc') in 0.1549895 seconds
+Refreshing native plugins compatible for Editor in 4.16 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=aaf306cb080fe11448377890a198be77): Total: 0.193 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/crouch_walk.fbx using Guid(c8757a06853506b47b4139e4a7703fca) (FBXImporter)Keyframe reduction: Ratio: 42.097900%;
+ -> (artifact id: '547246e3a6d5bb655d32ce718939c7c8') in 0.15526 seconds
+Refreshing native plugins compatible for Editor in 4.32 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=1ed44518a67d7eb48b4078ea570e5c2a): Total: 0.194 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/dance.fbx using Guid(9a29818c3c0044b47aecbea38ba373c7) (FBXImporter)Keyframe reduction: Ratio: 49.788612%;
+ -> (artifact id: 'b9623bfdfe548078019a5f3a18c897f3') in 0.3362827 seconds
+Refreshing native plugins compatible for Editor in 3.99 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=34def84e6573ea74e8b7b003ee85b116): Total: 0.378 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+	Summary:
+		Imports: total=1 (actual=1, local cache=0, cache server=0)
+		Asset DB Process Time: managed=1 ms, native=361 ms
+		Asset DB Callback time: managed=6 ms, native=8 ms
+		Scripting: domain reloads=0, domain reload time=0 ms, compile time=0 ms, other=0 ms
+		Project Asset Count: scripts=1564, non-scripts=2698
+		Asset File Changes: new=0, changed=0, moved=0, deleted=0
+		Scan Filter Count: 5
+	InvokeCustomDependenciesCallbacks: 0.001ms
+	InvokePackagesCallback: 0.001ms
+	ApplyChangesToAssetFolders: 0.069ms
+	Scan: 15.299ms
+	OnSourceAssetsModified: 0.001ms
+	CategorizeAssetsWithTransientArtifact: 0.006ms
+	ProcessAssetsWithTransientArtifactChanges: 0.066ms
+	CategorizeAssets: 1.348ms
+	ImportOutOfDateAssets: 342.440ms (-2.420ms without children)
+		ImportManagerImport: 340.222ms (3.241ms without children)
+			ImportInProcess: 336.952ms
+			UpdateCategorizedAssets: 0.029ms
+		ReloadNativeAssets: 0.094ms
+		UnloadImportedAssets: 0.737ms
+		ReloadImportedAssets: 2.788ms
+		EnsureUptoDateAssetsAreRegisteredWithGuidPM: 0.689ms
+		InitializingProgressBar: 0.007ms
+		PostProcessAllAssetNotificationsAddChangedAssets: 0.001ms
+		OnDemandSchedulerStart: 0.323ms
+	PostProcessAllAssets: 8.150ms
+	Hotreload: 7.155ms
+	GatherAllCurrentPrimaryArtifactRevisions: 0.137ms
+	UnloadStreamsBegin: 0.184ms
+	PersistCurrentRevisions: 0.113ms
+	UnloadStreamsEnd: 0.001ms
+	Untracked: 3.216ms
+
+Start importing Assets/CityX/Character/Animations/dash_backward.fbx using Guid(4743982261dbc20409ccf14af0342aa6) (FBXImporter)Keyframe reduction: Ratio: 65.101212%;
+ -> (artifact id: 'e0fcd9f339adccfd8c9895b9cd026929') in 0.1613235 seconds
+Refreshing native plugins compatible for Editor in 4.36 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=8242b8af42aee4947a36de0148329f8d): Total: 0.200 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/entering_car.fbx using Guid(a2fdfa15e7734be41815fa720d45eb14) (FBXImporter)Keyframe reduction: Ratio: 35.034962%;
+ -> (artifact id: 'ad241f04dbb0e1e6b9c0c50c5f74f0fb') in 0.1909993 seconds
+Refreshing native plugins compatible for Editor in 3.96 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=6c43578ee6de7b245821b07d452f1070): Total: 0.232 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/exiting_car.fbx using Guid(8c47e6d3ba45dda4283882a6065915c5) (FBXImporter)Keyframe reduction: Ratio: 34.329674%;
+ -> (artifact id: '08255c07747effb009164df67d5ffccd') in 0.1888858 seconds
+Refreshing native plugins compatible for Editor in 4.10 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=8ad013b03619131468e5490a282b6038): Total: 0.228 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/falling.fbx using Guid(5c678a8a57202d84496b0ae4e75e95da) (FBXImporter)Keyframe reduction: Ratio: 26.826921%;
+ -> (artifact id: '4d7427b8433b5ea6d74b678d279b167b') in 0.1822246 seconds
+Refreshing native plugins compatible for Editor in 5.23 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=032041a45f0a0704289fbdb00c46a6aa): Total: 0.274 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/falling_flat_impact.fbx using Guid(71f3d706aeee1d8419063787539cc1c5) (FBXImporter)Keyframe reduction: Ratio: 65.961540%;
+ -> (artifact id: 'ec94c649f4f7e428aa9a6e54d53d7380') in 0.1619235 seconds
+Refreshing native plugins compatible for Editor in 3.97 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=f18b71090d8c7994d90531624f0cebbb): Total: 0.199 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/getting_up.fbx using Guid(4c59ea551d34fc14b87bea375ce89b86) (FBXImporter)Keyframe reduction: Ratio: 32.707424%;
+ -> (artifact id: 'a8779f711e0b0c6002593718229b325e') in 0.2102774 seconds
+Refreshing native plugins compatible for Editor in 3.81 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=d28c6e674fe4aa54cb29507c2aa39f8b): Total: 0.255 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/heavy_punch.fbx using Guid(9397b7184b40ce8479290d1b6c0eb2ea) (FBXImporter)Keyframe reduction: Ratio: 41.996017%;
+ -> (artifact id: '85a6796e1ee3bcc90861ad22e3121936') in 0.1700293 seconds
+Refreshing native plugins compatible for Editor in 4.61 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=f037e3747ce0f54449bc9cfaaa929467): Total: 0.209 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/jump.fbx using Guid(a02750c3113c3c147a77e9b0eeb33fdb) (FBXImporter)Keyframe reduction: Ratio: 56.718605%;
+ -> (artifact id: '59cb53601a6ccd78f3617126a7c3df46') in 0.1779386 seconds
+Refreshing native plugins compatible for Editor in 3.83 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=d6c0e655ed891284fbac44089f0aecd3): Total: 0.216 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/jump_sprint.fbx using Guid(eaa23d2fe7a3aba49af22bd680441bc2) (FBXImporter)Keyframe reduction: Ratio: 75.434250%;
+ -> (artifact id: '47e5e2b0b4cfe2ef7245ad8fbff98350') in 0.1650331 seconds
+Refreshing native plugins compatible for Editor in 4.12 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=9191cc5dfa9a2f44ca96aacdd3d24be3): Total: 0.203 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/looking_around.fbx using Guid(9929403001ad24d4d816ebec721ec5da) (FBXImporter)Keyframe reduction: Ratio: 17.742783%;
+ -> (artifact id: '7d8f7a8f7bdc24dba4ef8053295fdb0a') in 0.2441827 seconds
+Refreshing native plugins compatible for Editor in 3.99 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=d348da114a10efd448663f7b3473f122): Total: 0.284 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/pistol_aim_in.fbx using Guid(6fe89f1fd57ab0641b6b999322a3b286) (FBXImporter)Keyframe reduction: Ratio: 12.251407%;
+ -> (artifact id: '5f608c4cedca2252d75cfc2db2e6ecbf') in 0.154962 seconds
+Refreshing native plugins compatible for Editor in 3.99 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=1a976ab1596a3f440b48b7ab6b93513c): Total: 0.192 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/pistol_jump.fbx using Guid(9b84cc3e9f7fbfe48b011b150ce4c6c1) (FBXImporter)Keyframe reduction: Ratio: 34.716270%;
+ -> (artifact id: 'c1b79437f0a58be8e526ce294e166c83') in 0.1658677 seconds
+Refreshing native plugins compatible for Editor in 4.36 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=846f30fd6f002ef4da3fbf91df3576b5): Total: 0.205 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/pistol_jump_moving.fbx using Guid(46b99081030996c4999e434bdba635be) (FBXImporter)Keyframe reduction: Ratio: 52.707691%;
+ -> (artifact id: '06c20ef4c489859189ce9af4191a7a7d') in 0.1758088 seconds
+Refreshing native plugins compatible for Editor in 4.42 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=eb1cf6371fae1b94a918b28590d60fb2): Total: 0.222 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/pistol_run.fbx using Guid(d8168d335fb58554e95c1cc2b65d9975) (FBXImporter)Keyframe reduction: Ratio: 54.230770%;
+ -> (artifact id: 'dfbc3a891deef9a2eefca2e53f5c3eab') in 0.1629478 seconds
+Refreshing native plugins compatible for Editor in 4.00 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=0421342d0f191a0439e214aa392d54fa): Total: 0.200 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/pistol_shoot.fbx using Guid(d27421d0e549a2341b88e218e507429a) (FBXImporter)Keyframe reduction: Ratio: 32.029915%;
+ -> (artifact id: '95e2d3f7abead0eea40cf7d52f243f9c') in 0.163058 seconds
+Refreshing native plugins compatible for Editor in 3.88 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=7bfc8627825045d4bb8e5b41973db65d): Total: 0.219 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/pistol_walk.fbx using Guid(7538e710f148ef545a1d6d7328da4b8a) (FBXImporter)Keyframe reduction: Ratio: 46.707691%;
+ -> (artifact id: '1e9cea88d2ac3709e5b818c3eea9c11e') in 0.1584795 seconds
+Refreshing native plugins compatible for Editor in 5.04 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=1dc280224f1ec5140af177b6cb42f06f): Total: 0.198 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/pistol_walk_backward.fbx using Guid(c80ee9878cb0b64439af83f490e5d22c) (FBXImporter)Keyframe reduction: Ratio: 37.062935%;
+ -> (artifact id: '06b304b4aadf78e2f0c66a36fe982014') in 0.1597447 seconds
+Refreshing native plugins compatible for Editor in 4.31 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=cad093bb3850c4240ad00622a281df06): Total: 0.197 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/pistol_walk_left.fbx using Guid(9015697f5f571774da76c1443c266e7d) (FBXImporter)Keyframe reduction: Ratio: 52.393154%;
+ -> (artifact id: '69606e439d9a39bfab1a56e65e64500e') in 0.1594425 seconds
+Refreshing native plugins compatible for Editor in 4.49 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=56860da612df5d94ebc0db52e094d1d0): Total: 0.199 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/pistol_walk_right.fbx using Guid(57b22c9fd99959745a49836d96d46592) (FBXImporter)Keyframe reduction: Ratio: 45.263161%;
+ -> (artifact id: '9da31f649f263a7749119aff2dad205d') in 0.1563031 seconds
+Refreshing native plugins compatible for Editor in 4.67 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=640444c266a811c4295db7fc1afd237c): Total: 0.196 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/sprint.fbx using Guid(bb02acd0a3ac6a94c933bc4f6b257684) (FBXImporter)Keyframe reduction: Ratio: 65.248871%;
+ -> (artifact id: 'a5fd9798a2e8fb302420390c7f715cb7') in 0.1595884 seconds
+Refreshing native plugins compatible for Editor in 4.51 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=6aa329aa1655d0c4b950a4e341241dae): Total: 0.252 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/standing_to_crouch.fbx using Guid(bdb7593ec25b33b4eb8dee378ee2b03a) (FBXImporter)Keyframe reduction: Ratio: 30.875330%;
+ -> (artifact id: '721eb1bbf11920d7d0c090fe6f5e7db0') in 0.1587008 seconds
+Refreshing native plugins compatible for Editor in 5.16 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=1d6c35c7f33b4d040ab4901c3d0ec33d): Total: 0.195 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/throw.fbx using Guid(52305984b0d306d4183fde64f57de30e) (FBXImporter)Keyframe reduction: Ratio: 39.425949%;
+ -> (artifact id: '9cfc1c24fa75e4c670c9db4ce09edce2') in 0.1690855 seconds
+Refreshing native plugins compatible for Editor in 3.81 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=b03ba9a70be82b24f98e83dba78b4a4b): Total: 0.207 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/walk_backward.fbx using Guid(d7a84473562ac6547836aeabeafca53b) (FBXImporter)Keyframe reduction: Ratio: 58.731812%;
+ -> (artifact id: '3d4c5d9bc6407d66baf0eb7aa3039de0') in 0.1587103 seconds
+Refreshing native plugins compatible for Editor in 4.46 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=4d155a2a68ac2ed42888bea4a48a7a99): Total: 0.250 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/walk_left.fbx using Guid(34c5bf31f53bc8d4e94f09b6f23b1191) (FBXImporter)Keyframe reduction: Ratio: 54.778557%;
+ -> (artifact id: '0684fd21f0831cc45a0387e5ebdbf2c9') in 0.160944 seconds
+Refreshing native plugins compatible for Editor in 4.93 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=23ea05fbd20483a478d2dc9b51cfdda7): Total: 0.252 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/walk_right.fbx using Guid(ff04d373d701d104d88000f7299354d7) (FBXImporter)Keyframe reduction: Ratio: 55.804192%;
+ -> (artifact id: '30a359f94d6e14269f8e9a7c2ce63b72') in 0.1670695 seconds
+Refreshing native plugins compatible for Editor in 4.29 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=931571ee9d488164891edb6eb2067480): Total: 0.256 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/walking.fbx using Guid(6ac3fc1b53ff2e6408d3610b8c68c09b) (FBXImporter)Keyframe reduction: Ratio: 55.151512%;
+ -> (artifact id: '141e280e1e2710db34120ae0850ce0bf') in 0.172666 seconds
+Refreshing native plugins compatible for Editor in 4.50 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=6a8ca273c52dae04e93c8cfd6d5250d9): Total: 0.259 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+CityX: configured 54 clips against the avatar from Assets/CityX/Character/Animations/idle.fbx
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+CityX.CharacterEditor.CharacterImportSetup:Import () (at Assets/CityX/Character/Editor/CharacterImportSetup.cs:99)
+CityX.CharacterEditor.PlayerRigBuilder:Build () (at Assets/CityX/Character/Editor/PlayerRigBuilder.cs:42)
+CityX.ViewEditor.CityMassingSceneBuilder:Build () (at Assets/CityX/View/Editor/CityMassingSceneBuilder.cs:154)
+
+(Filename: Assets/CityX/Character/Editor/CharacterImportSetup.cs Line: 99)
+
+CityX: idle.fbx contains 2 skinned mesh(es), 0 static mesh(es), 68 transforms
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+CityX.CharacterEditor.CharacterImportSetup:Measure (string) (at Assets/CityX/Character/Editor/CharacterImportSetup.cs:226)
+CityX.CharacterEditor.CharacterImportSetup:Import () (at Assets/CityX/Character/Editor/CharacterImportSetup.cs:100)
+CityX.CharacterEditor.PlayerRigBuilder:Build () (at Assets/CityX/Character/Editor/PlayerRigBuilder.cs:42)
+CityX.ViewEditor.CityMassingSceneBuilder:Build () (at Assets/CityX/View/Editor/CityMassingSceneBuilder.cs:154)
+
+(Filename: Assets/CityX/Character/Editor/CharacterImportSetup.cs Line: 226)
+
+CityX: MEASURED SKELETON -- foot 0.09m, hips 1.02m, shoulder 1.42m, head 1.58m
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+CityX.CharacterEditor.CharacterImportSetup:Measure (string) (at Assets/CityX/Character/Editor/CharacterImportSetup.cs:238)
+CityX.CharacterEditor.CharacterImportSetup:Import () (at Assets/CityX/Character/Editor/CharacterImportSetup.cs:100)
+CityX.CharacterEditor.PlayerRigBuilder:Build () (at Assets/CityX/Character/Editor/PlayerRigBuilder.cs:42)
+CityX.ViewEditor.CityMassingSceneBuilder:Build () (at Assets/CityX/View/Editor/CityMassingSceneBuilder.cs:154)
+
+(Filename: Assets/CityX/Character/Editor/CharacterImportSetup.cs Line: 238)
+
+CityX: approximate standing height 1.78m (head bone + skull)
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+CityX.CharacterEditor.CharacterImportSetup:Measure (string) (at Assets/CityX/Character/Editor/CharacterImportSetup.cs:247)
+CityX.CharacterEditor.CharacterImportSetup:Import () (at Assets/CityX/Character/Editor/CharacterImportSetup.cs:100)
+CityX.CharacterEditor.PlayerRigBuilder:Build () (at Assets/CityX/Character/Editor/PlayerRigBuilder.cs:42)
+CityX.ViewEditor.CityMassingSceneBuilder:Build () (at Assets/CityX/View/Editor/CityMassingSceneBuilder.cs:154)
+
+(Filename: Assets/CityX/Character/Editor/CharacterImportSetup.cs Line: 247)
+
+CityX: mesh bounds 0.70 x 1.89 x 0.40 m
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+CityX.CharacterEditor.CharacterImportSetup:Measure (string) (at Assets/CityX/Character/Editor/CharacterImportSetup.cs:263)
+CityX.CharacterEditor.CharacterImportSetup:Import () (at Assets/CityX/Character/Editor/CharacterImportSetup.cs:100)
+CityX.CharacterEditor.PlayerRigBuilder:Build () (at Assets/CityX/Character/Editor/PlayerRigBuilder.cs:42)
+CityX.ViewEditor.CityMassingSceneBuilder:Build () (at Assets/CityX/View/Editor/CityMassingSceneBuilder.cs:154)
+
+(Filename: Assets/CityX/Character/Editor/CharacterImportSetup.cs Line: 263)
+
+Start importing Assets/CityX/Character/Animations/idle.fbx using Guid(7ac90727cc003a14da870b084bd3f897) (FBXImporter)Keyframe reduction: Ratio: 18.250578%;
+ -> (artifact id: '90bbcb4d3d5452c50097aa35adb91511') in 0.2231357 seconds
+Refreshing native plugins compatible for Editor in 3.99 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=0c35317c368d6b94abf44acef5c038a6): Total: 0.307 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+	Summary:
+		Imports: total=1 (actual=1, local cache=0, cache server=0)
+		Asset DB Process Time: managed=1 ms, native=295 ms
+		Asset DB Callback time: managed=1 ms, native=8 ms
+		Scripting: domain reloads=0, domain reload time=0 ms, compile time=0 ms, other=0 ms
+		Project Asset Count: scripts=1564, non-scripts=2698
+		Asset File Changes: new=0, changed=1, moved=0, deleted=0
+		Scan Filter Count: 5
+	InvokeCustomDependenciesCallbacks: 0.001ms
+	InvokePackagesCallback: 0.002ms
+	ApplyChangesToAssetFolders: 0.187ms
+	Scan: 32.652ms
+	OnSourceAssetsModified: 0.053ms
+	CategorizeAssetsWithTransientArtifact: 0.015ms
+	ProcessAssetsWithTransientArtifactChanges: 0.144ms
+	CategorizeAssets: 25.195ms
+	ImportOutOfDateAssets: 231.535ms (-4.787ms without children)
+		ImportManagerImport: 229.605ms (5.518ms without children)
+			ImportInProcess: 224.059ms
+			UpdateCategorizedAssets: 0.028ms
+		ReloadNativeAssets: 0.064ms
+		UnloadImportedAssets: 0.681ms
+		ReloadImportedAssets: 5.075ms
+		EnsureUptoDateAssetsAreRegisteredWithGuidPM: 0.530ms
+		InitializingProgressBar: 0.007ms
+		PostProcessAllAssetNotificationsAddChangedAssets: 0.002ms
+		OnDemandSchedulerStart: 0.357ms
+	PostProcessAllAssets: 3.505ms
+	Hotreload: 6.219ms
+	GatherAllCurrentPrimaryArtifactRevisions: 0.141ms
+	UnloadStreamsBegin: 0.368ms
+	PersistCurrentRevisions: 0.248ms
+	UnloadStreamsEnd: 0.001ms
+	Untracked: 6.823ms
+
+Start importing Assets/CityX/Character/Animations/walking.fbx using Guid(6ac3fc1b53ff2e6408d3610b8c68c09b) (FBXImporter)Keyframe reduction: Ratio: 55.151512%;
+ -> (artifact id: '77d4bbfd456196897d4a6bdca7de5a9a') in 0.152977 seconds
+Refreshing native plugins compatible for Editor in 4.21 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=464601859ca83c84ba6176d352d2c1bf): Total: 0.236 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/sprint.fbx using Guid(bb02acd0a3ac6a94c933bc4f6b257684) (FBXImporter)Keyframe reduction: Ratio: 65.248871%;
+ -> (artifact id: '0a0ecd4a82667a12e18978e4a16b9ae6') in 0.1477652 seconds
+Refreshing native plugins compatible for Editor in 3.99 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=271894b35a553814cb5c114dc318aff3): Total: 0.225 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/walk_backward.fbx using Guid(d7a84473562ac6547836aeabeafca53b) (FBXImporter)Keyframe reduction: Ratio: 58.731812%;
+ -> (artifact id: 'd0e627ae92ba87f49d85d2c71848487a') in 0.1586352 seconds
+Refreshing native plugins compatible for Editor in 4.15 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=3e23b65489ed9a04c8bc4870ff5ff5d2): Total: 0.240 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/walk_left.fbx using Guid(34c5bf31f53bc8d4e94f09b6f23b1191) (FBXImporter)Keyframe reduction: Ratio: 54.778557%;
+ -> (artifact id: 'f6c6cb17df83f8139b446fa0c3899c9a') in 0.1623851 seconds
+Refreshing native plugins compatible for Editor in 4.30 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=372b6c196b5c9184e827266b52cf1a80): Total: 0.249 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/walk_right.fbx using Guid(ff04d373d701d104d88000f7299354d7) (FBXImporter)Keyframe reduction: Ratio: 55.804195%;
+ -> (artifact id: '7534b6bb748de8ae5e10ff9a1184998a') in 0.1512696 seconds
+Refreshing native plugins compatible for Editor in 4.29 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=b46aacfffbcff4f43b45fa02f0a15d21): Total: 0.235 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Refreshing native plugins compatible for Editor in 4.24 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=a1d55653286ec974184bad7643409950): Total: 0.054 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Refreshing native plugins compatible for Editor in 3.92 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=50fc98c91c95d7e4eaa55f075d34d6ae): Total: 0.079 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Refreshing native plugins compatible for Editor in 3.92 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=70f78410d3d7dd749b6e3d6880df4935): Total: 0.052 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Refreshing native plugins compatible for Editor in 4.17 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=3f6dd2cdb128d944bbca19cf622e1b3a): Total: 0.067 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Refreshing native plugins compatible for Editor in 4.02 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=37118145ff0e5cc41b00148e3d1fffeb): Total: 0.054 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Refreshing native plugins compatible for Editor in 4.01 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=5fca05b908597e64bbe981fe1a9ac56b): Total: 0.075 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Refreshing native plugins compatible for Editor in 5.07 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=b1b620163529ccb479a896ea25506cef): Total: 0.055 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Refreshing native plugins compatible for Editor in 4.09 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=ff7f84e51b38ded4e90d199beaded31f): Total: 0.075 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Refreshing native plugins compatible for Editor in 3.75 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=e5c38acb33ca2ea409619a395bdd6946): Total: 0.065 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Refreshing native plugins compatible for Editor in 4.06 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=dc12081b87cdb1b48832f938131f0226): Total: 0.078 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/PlayerAnimator.controller using Guid(c0808131d916ea540becd941709dc711) (NativeFormatImporter) -> (artifact id: '83c9659a3144b946c71512e8e45fc953') in 0.0048071 seconds
+Refreshing native plugins compatible for Editor in 3.98 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=802858a8f25e48f4aa5c623c9be44350): Total: 0.058 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+BlendTree child should not have a speed of 0
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEditor.Animations.BlendTree:set_children (UnityEditor.Animations.ChildMotion[])
+CityX.CharacterEditor.PlayerRigBuilder:AddCrouchStates (UnityEditor.Animations.AnimatorController,UnityEditor.Animations.AnimatorStateMachine) (at Assets/CityX/Character/Editor/PlayerRigBuilder.cs:359)
+CityX.CharacterEditor.PlayerRigBuilder:BuildController (UnityEngine.AnimationClip,UnityEngine.AnimationClip,UnityEngine.AnimationClip,UnityEngine.AnimationClip,UnityEngine.AnimationClip,UnityEngine.AnimationClip,UnityEngine.AnimationClip) (at Assets/CityX/Character/Editor/PlayerRigBuilder.cs:226)
+CityX.CharacterEditor.PlayerRigBuilder:Build () (at Assets/CityX/Character/Editor/PlayerRigBuilder.cs:83)
+CityX.ViewEditor.CityMassingSceneBuilder:Build () (at Assets/CityX/View/Editor/CityMassingSceneBuilder.cs:154)
+
+[Assets/CityX/Character/Editor/PlayerRigBuilder.cs line 83]
+
+Refreshing native plugins compatible for Editor in 4.34 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=66ad31648f27d264fae7f0efb9d9e8f5): Total: 0.056 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Refreshing native plugins compatible for Editor in 3.87 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=4ccc758fc500f9d43b3fd293b1dbbb89): Total: 0.072 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Animations/falling.fbx using Guid(5c678a8a57202d84496b0ae4e75e95da) (FBXImporter)Keyframe reduction: Ratio: 26.826925%;
+ -> (artifact id: '40ec658a57efbd9e2979fcb19cdf8cc6') in 0.1757933 seconds
+Refreshing native plugins compatible for Editor in 4.14 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=31e0764e1f2a1c147bb0ff6df38f7f31): Total: 0.265 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/Materials/PlayerSkin.mat using Guid(4eb7a82bc5f64d74dab72add453ec9fb) (NativeFormatImporter) -> (artifact id: '0383f1e0517c8a1ce3a7721c69c08692') in 0.003696 seconds
+Start importing Assets/CityX/Character/PlayerAnimator.controller using Guid(c0808131d916ea540becd941709dc711) (NativeFormatImporter) -> (artifact id: 'a3d26d7e126e84efa84b8a6fcb570051') in 0.0036501 seconds
+Start importing Assets/CityX/Character/CityXAvatar.asset using Guid(25740bae2b2fc0b458a26b11560d249b) (NativeFormatImporter) -> (artifact id: '417400330b1a58cb5a1b7b05f26a00f0') in 0.0040691 seconds
+Start importing Assets/DefaultPrefabObjects.asset using Guid(bd6917a794bc9a34cb0ec26d34ef643a) (NativeFormatImporter) -> (artifact id: '26f8a22053abffe48903a96b0ea94221') in 0.0033749 seconds
+Refreshing native plugins compatible for Editor in 4.82 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=952cdfdb7c870ad41b2566bb82ca755c): Total: 0.074 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/FusedBody.asset using Guid(131632d6289954244aeddb19156c0f83) (NativeFormatImporter) -> (artifact id: 'e97333069acae96cc9fb29fd866e4ae0') in 0.0205263 seconds
+Start importing Assets/DefaultPrefabObjects.asset using Guid(bd6917a794bc9a34cb0ec26d34ef643a) (NativeFormatImporter) -> (artifact id: '26f8a22053abffe48903a96b0ea94221') in 0.0034518 seconds
+Refreshing native plugins compatible for Editor in 4.32 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=a0999545d4018a447941f7aa4702012a): Total: 0.058 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+CityX: body mesh built -- 61788 vertices, 20596 triangles, 13 bones, standing 2.60m
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+CityX.CharacterEditor.FusedBodyBuilder:Build (UnityEngine.Transform,System.Collections.Generic.Dictionary`2<UnityEngine.HumanBodyBones, UnityEngine.Transform>,System.Collections.Generic.List`1<UnityEngine.Transform>&) (at Assets/CityX/Character/Editor/FusedBodyBuilder.cs:207)
+CityX.CharacterEditor.FusedBodyBuilder:BuildBody (UnityEngine.Material,UnityEngine.RuntimeAnimatorController) (at Assets/CityX/Character/Editor/FusedBodyBuilder.cs:327)
+CityX.CharacterEditor.PlayerRigBuilder:BuildPrefab (UnityEditor.Animations.AnimatorController) (at Assets/CityX/Character/Editor/PlayerRigBuilder.cs:776)
+CityX.CharacterEditor.PlayerRigBuilder:Build () (at Assets/CityX/Character/Editor/PlayerRigBuilder.cs:84)
+CityX.ViewEditor.CityMassingSceneBuilder:Build () (at Assets/CityX/View/Editor/CityMassingSceneBuilder.cs:154)
+
+(Filename: Assets/CityX/Character/Editor/FusedBodyBuilder.cs Line: 207)
+
+Start importing Assets/CityX/Character/FusedBodyStub.asset using Guid(e8c3d9060aac52146af5fe5c98e77606) (NativeFormatImporter) -> (artifact id: '6c791e9666d62b6f9a401b5d190d2715') in 0.008982 seconds
+Start importing Assets/DefaultPrefabObjects.asset using Guid(bd6917a794bc9a34cb0ec26d34ef643a) (NativeFormatImporter) -> (artifact id: '26f8a22053abffe48903a96b0ea94221') in 0.0030507 seconds
+Refreshing native plugins compatible for Editor in 4.13 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=043e4aa9d8a2d544498c960e6f021468): Total: 0.047 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+CityX: body stub built -- kept 7423 of 20596 triangles
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+CityX.CharacterEditor.FusedBodyBuilder:BuildStub (UnityEngine.Mesh,System.Collections.Generic.List`1<CityX.Character.FusedBodyShape/Segment>) (at Assets/CityX/Character/Editor/FusedBodyBuilder.cs:299)
+CityX.CharacterEditor.FusedBodyBuilder:Build (UnityEngine.Transform,System.Collections.Generic.Dictionary`2<UnityEngine.HumanBodyBones, UnityEngine.Transform>,System.Collections.Generic.List`1<UnityEngine.Transform>&) (at Assets/CityX/Character/Editor/FusedBodyBuilder.cs:211)
+CityX.CharacterEditor.FusedBodyBuilder:BuildBody (UnityEngine.Material,UnityEngine.RuntimeAnimatorController) (at Assets/CityX/Character/Editor/FusedBodyBuilder.cs:327)
+CityX.CharacterEditor.PlayerRigBuilder:BuildPrefab (UnityEditor.Animations.AnimatorController) (at Assets/CityX/Character/Editor/PlayerRigBuilder.cs:776)
+CityX.CharacterEditor.PlayerRigBuilder:Build () (at Assets/CityX/Character/Editor/PlayerRigBuilder.cs:84)
+CityX.ViewEditor.CityMassingSceneBuilder:Build () (at Assets/CityX/View/Editor/CityMassingSceneBuilder.cs:154)
+
+(Filename: Assets/CityX/Character/Editor/FusedBodyBuilder.cs Line: 299)
+
+Start importing Assets/CityX/Character/Head.asset using Guid(40a325e32538e0f4081d3a86f010aee9) (NativeFormatImporter) -> (artifact id: '562ab333087803f0a0981879b05996f4') in 0.0045117 seconds
+Start importing Assets/DefaultPrefabObjects.asset using Guid(bd6917a794bc9a34cb0ec26d34ef643a) (NativeFormatImporter) -> (artifact id: '26f8a22053abffe48903a96b0ea94221') in 0.0028706 seconds
+Refreshing native plugins compatible for Editor in 3.97 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=6c78bed75ece13d4288624433f0eceab): Total: 0.042 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Refreshing native plugins compatible for Editor in 4.33 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=b1e3197e67e196a47af877d7a86ee489): Total: 0.059 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Asset Pipeline Refresh (id=404a43046d7151a46b06631bd43b6177): Total: 0.023 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/BloodSplatter.mat using Guid(ae1e438be5569f14486eb2bacda56166) (NativeFormatImporter) -> (artifact id: '011deff78ad354fbd59ea9e977162c31') in 0.0049018 seconds
+Start importing Assets/DefaultPrefabObjects.asset using Guid(bd6917a794bc9a34cb0ec26d34ef643a) (NativeFormatImporter) -> (artifact id: '26f8a22053abffe48903a96b0ea94221') in 0.0034587 seconds
+Refreshing native plugins compatible for Editor in 4.20 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=6630aa3eec7750e4290d3a2b892e1444): Total: 0.063 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+CityX: blood splatter written to Assets/CityX/Character/BloodSplatter.prefab
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+CityX.CharacterEditor.BloodSplatterBuilder:Build () (at Assets/CityX/Character/Editor/BloodSplatterBuilder.cs:108)
+CityX.CharacterEditor.PlayerRigBuilder:BuildPrefab (UnityEditor.Animations.AnimatorController) (at Assets/CityX/Character/Editor/PlayerRigBuilder.cs:798)
+CityX.CharacterEditor.PlayerRigBuilder:Build () (at Assets/CityX/Character/Editor/PlayerRigBuilder.cs:84)
+CityX.ViewEditor.CityMassingSceneBuilder:Build () (at Assets/CityX/View/Editor/CityMassingSceneBuilder.cs:154)
+
+(Filename: Assets/CityX/Character/Editor/BloodSplatterBuilder.cs Line: 108)
+
+CityX: ragdoll built from 11 bones (rig measures 2.13 in its own units)
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+CityX.CharacterEditor.RagdollBuilder:Build (UnityEngine.GameObject,UnityEngine.Animator) (at Assets/CityX/Character/Editor/RagdollBuilder.cs:166)
+CityX.CharacterEditor.PlayerRigBuilder:BuildPrefab (UnityEditor.Animations.AnimatorController) (at Assets/CityX/Character/Editor/PlayerRigBuilder.cs:809)
+CityX.CharacterEditor.PlayerRigBuilder:Build () (at Assets/CityX/Character/Editor/PlayerRigBuilder.cs:84)
+CityX.ViewEditor.CityMassingSceneBuilder:Build () (at Assets/CityX/View/Editor/CityMassingSceneBuilder.cs:154)
+
+(Filename: Assets/CityX/Character/Editor/RagdollBuilder.cs Line: 166)
+
+Asset Pipeline Refresh (id=4d758980d2f66aa418f5f6048a09a628): Total: 0.020 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/DefaultPrefabObjects.asset using Guid(bd6917a794bc9a34cb0ec26d34ef643a) (NativeFormatImporter) -> (artifact id: '26f8a22053abffe48903a96b0ea94221') in 0.0044725 seconds
+Refreshing native plugins compatible for Editor in 4.17 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=c5cebb1d1ba11a343bd144934cdbcfdc): Total: 0.036 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+CityX: player rig written to Assets/CityX/Character/Player.prefab
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+CityX.CharacterEditor.PlayerRigBuilder:Build () (at Assets/CityX/Character/Editor/PlayerRigBuilder.cs:87)
+CityX.ViewEditor.CityMassingSceneBuilder:Build () (at Assets/CityX/View/Editor/CityMassingSceneBuilder.cs:154)
+
+(Filename: Assets/CityX/Character/Editor/PlayerRigBuilder.cs Line: 87)
+
+Start importing Assets/CityX/UI/PlayerHud.prefab using Guid(68cdba0517fb17241be88c0fba2369ce) (PrefabImporter) -> (artifact id: 'b7544ed3314f0a122356c37b4caecd5b') in 0.010427 seconds
+Refreshing native plugins compatible for Editor in 5.85 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=8e3de9ce8cc04de49bfcb7e25598f612): Total: 0.085 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/DefaultPrefabObjects.asset using Guid(bd6917a794bc9a34cb0ec26d34ef643a) (NativeFormatImporter) -> (artifact id: '26f8a22053abffe48903a96b0ea94221') in 0.0038636 seconds
+Refreshing native plugins compatible for Editor in 3.85 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=abdaa6edf4ae8b94184c79a4c8e37640): Total: 0.035 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+CityX: HUD written to Assets/CityX/UI/PlayerHud.prefab
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+CityX.UIEditor.PlayerHudBuilder:Build () (at Assets/CityX/UI/Editor/PlayerHudBuilder.cs:112)
+CityX.UIEditor.PlayerHudBuilder:AddToScene (CityX.Character.PlayerVitals) (at Assets/CityX/UI/Editor/PlayerHudBuilder.cs:133)
+CityX.ViewEditor.CityMassingSceneBuilder:Build () (at Assets/CityX/View/Editor/CityMassingSceneBuilder.cs:168)
+
+(Filename: Assets/CityX/UI/Editor/PlayerHudBuilder.cs Line: 112)
+
+Asset Pipeline Refresh (id=a7d7f598eb17bf445b0fc2a191ae1350): Total: 0.024 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/View/Materials/Raindrop.mat using Guid(d98c204f0afca8646a063e447bae4ce2) (NativeFormatImporter) -> (artifact id: '54f6948bb568e4179dec2af255ee2082') in 0.0066269 seconds
+Refreshing native plugins compatible for Editor in 4.15 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=70e6dbb6b4c9012429266a3b1547718f): Total: 0.045 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+CityX: dialogue box written to Assets/CityX/UI/DialogueBox.prefab
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+CityX.UIEditor.DialogueBoxBuilder:Build () (at Assets/CityX/UI/Editor/DialogueBoxBuilder.cs:101)
+CityX.ViewEditor.CityMassingSceneBuilder:Build () (at Assets/CityX/View/Editor/CityMassingSceneBuilder.cs:212)
+
+(Filename: Assets/CityX/UI/Editor/DialogueBoxBuilder.cs Line: 101)
+
+Start importing Assets/CityX/Character/Materials/OldGuySkin.mat using Guid(17f62b0b94b550048b9d545f2da023b2) (NativeFormatImporter) -> (artifact id: '7662a098e1bbf86626fff2b3f3992f39') in 0.0043915 seconds
+Start importing Assets/CityX/Character/CityXAvatar.asset using Guid(25740bae2b2fc0b458a26b11560d249b) (NativeFormatImporter) -> (artifact id: '417400330b1a58cb5a1b7b05f26a00f0') in 0.0039334 seconds
+Start importing Assets/CityX/Character/Materials/OldGuySkinAtlas.asset using Guid(c979650e1d17300478c13191884b475c) (NativeFormatImporter) -> (artifact id: 'e76192523def77931fa557afa7963c76') in 0.0070395 seconds
+Start importing Assets/DefaultPrefabObjects.asset using Guid(bd6917a794bc9a34cb0ec26d34ef643a) (NativeFormatImporter) -> (artifact id: '26f8a22053abffe48903a96b0ea94221') in 0.00284 seconds
+Refreshing native plugins compatible for Editor in 4.47 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=0f7ea18766fd7bd4aa46620110d6aaff): Total: 0.062 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Character/FusedBody.asset using Guid(131632d6289954244aeddb19156c0f83) (NativeFormatImporter) -> (artifact id: 'e97333069acae96cc9fb29fd866e4ae0') in 0.0201222 seconds
+Start importing Assets/DefaultPrefabObjects.asset using Guid(bd6917a794bc9a34cb0ec26d34ef643a) (NativeFormatImporter) -> (artifact id: '26f8a22053abffe48903a96b0ea94221') in 0.0030615 seconds
+Refreshing native plugins compatible for Editor in 3.71 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=2ed21e7638a936746811b09613e86311): Total: 0.057 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+CityX: body mesh built -- 61788 vertices, 20596 triangles, 13 bones, standing 2.60m
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+CityX.CharacterEditor.FusedBodyBuilder:Build (UnityEngine.Transform,System.Collections.Generic.Dictionary`2<UnityEngine.HumanBodyBones, UnityEngine.Transform>,System.Collections.Generic.List`1<UnityEngine.Transform>&) (at Assets/CityX/Character/Editor/FusedBodyBuilder.cs:207)
+CityX.CharacterEditor.FusedBodyBuilder:BuildBody (UnityEngine.Material,UnityEngine.RuntimeAnimatorController) (at Assets/CityX/Character/Editor/FusedBodyBuilder.cs:327)
+CityX.CharacterEditor.OldGuyBuilder:Build (UnityEngine.GameObject) (at Assets/CityX/Character/Editor/OldGuyBuilder.cs:58)
+CityX.ViewEditor.CityMassingSceneBuilder:Build () (at Assets/CityX/View/Editor/CityMassingSceneBuilder.cs:213)
+
+(Filename: Assets/CityX/Character/Editor/FusedBodyBuilder.cs Line: 207)
+
+Start importing Assets/CityX/Character/FusedBodyStub.asset using Guid(e8c3d9060aac52146af5fe5c98e77606) (NativeFormatImporter) -> (artifact id: '6c791e9666d62b6f9a401b5d190d2715') in 0.0087141 seconds
+Start importing Assets/DefaultPrefabObjects.asset using Guid(bd6917a794bc9a34cb0ec26d34ef643a) (NativeFormatImporter) -> (artifact id: '26f8a22053abffe48903a96b0ea94221') in 0.0036396 seconds
+Refreshing native plugins compatible for Editor in 4.17 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=a53e702fa57332b499eb12cb8ff53c0d): Total: 0.046 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+CityX: body stub built -- kept 7423 of 20596 triangles
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+CityX.CharacterEditor.FusedBodyBuilder:BuildStub (UnityEngine.Mesh,System.Collections.Generic.List`1<CityX.Character.FusedBodyShape/Segment>) (at Assets/CityX/Character/Editor/FusedBodyBuilder.cs:299)
+CityX.CharacterEditor.FusedBodyBuilder:Build (UnityEngine.Transform,System.Collections.Generic.Dictionary`2<UnityEngine.HumanBodyBones, UnityEngine.Transform>,System.Collections.Generic.List`1<UnityEngine.Transform>&) (at Assets/CityX/Character/Editor/FusedBodyBuilder.cs:211)
+CityX.CharacterEditor.FusedBodyBuilder:BuildBody (UnityEngine.Material,UnityEngine.RuntimeAnimatorController) (at Assets/CityX/Character/Editor/FusedBodyBuilder.cs:327)
+CityX.CharacterEditor.OldGuyBuilder:Build (UnityEngine.GameObject) (at Assets/CityX/Character/Editor/OldGuyBuilder.cs:58)
+CityX.ViewEditor.CityMassingSceneBuilder:Build () (at Assets/CityX/View/Editor/CityMassingSceneBuilder.cs:213)
+
+(Filename: Assets/CityX/Character/Editor/FusedBodyBuilder.cs Line: 299)
+
+Start importing Assets/CityX/Character/Head.asset using Guid(40a325e32538e0f4081d3a86f010aee9) (NativeFormatImporter) -> (artifact id: '562ab333087803f0a0981879b05996f4') in 0.0047099 seconds
+Start importing Assets/DefaultPrefabObjects.asset using Guid(bd6917a794bc9a34cb0ec26d34ef643a) (NativeFormatImporter) -> (artifact id: '26f8a22053abffe48903a96b0ea94221') in 0.0038372 seconds
+Refreshing native plugins compatible for Editor in 3.92 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=87b6ebda4c50436428ced0dbf95514fc): Total: 0.042 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Asset Pipeline Refresh (id=e4b696cba574645489b0a2dc36a0ce12): Total: 0.024 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/DefaultPrefabObjects.asset using Guid(bd6917a794bc9a34cb0ec26d34ef643a) (NativeFormatImporter) -> (artifact id: '26f8a22053abffe48903a96b0ea94221') in 0.0044904 seconds
+Refreshing native plugins compatible for Editor in 3.94 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=60e94492987a2e04589d7e85e955b4d2): Total: 0.037 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+CityX: Old Guy written to Assets/CityX/Character/OldGuy.prefab
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+CityX.CharacterEditor.OldGuyBuilder:Build (UnityEngine.GameObject) (at Assets/CityX/Character/Editor/OldGuyBuilder.cs:76)
+CityX.ViewEditor.CityMassingSceneBuilder:Build () (at Assets/CityX/View/Editor/CityMassingSceneBuilder.cs:213)
+
+(Filename: Assets/CityX/Character/Editor/OldGuyBuilder.cs Line: 76)
+
+Asset Pipeline Refresh (id=ef1cec72c0345b84ab48f689310cf720): Total: 0.016 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/View/Materials/CityGlassLit.mat using Guid(c3fd89e38bd4a234092424ddac8a68eb) (NativeFormatImporter) -> (artifact id: '3c661b6fd2ed4f02ff0d7c11431c0228') in 0.0038925 seconds
+Start importing Assets/CityX/Radio/Models/CrimsonBoombox.mat using Guid(bd06c12a8d3385141a10b631aafa5c52) (NativeFormatImporter) -> (artifact id: '3d9dddff31c54e144b6ba10f704eb76a') in 0.0049933 seconds
+Refreshing native plugins compatible for Editor in 4.13 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=b60bd89dd5bb0a34791f40fa07feecf5): Total: 0.073 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+CityX: radio written to Assets/CityX/Radio/Radio.prefab
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+CityX.ViewEditor.RadioBuilder:Build () (at Assets/CityX/View/Editor/RadioBuilder.cs:83)
+CityX.ViewEditor.CityMassingSceneBuilder:Build () (at Assets/CityX/View/Editor/CityMassingSceneBuilder.cs:339)
+
+(Filename: Assets/CityX/View/Editor/RadioBuilder.cs Line: 83)
+
+Start importing Assets/DefaultPrefabObjects.asset using Guid(bd6917a794bc9a34cb0ec26d34ef643a) (NativeFormatImporter) -> (artifact id: '26f8a22053abffe48903a96b0ea94221') in 0.0047516 seconds
+Refreshing native plugins compatible for Editor in 4.05 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=f375f03f3de31d444804362cfd8298cd): Total: 0.040 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/CityX/Scenes/CityMassing.unity using Guid(6815db6e32fc157429b614fb3769cb08) (DefaultImporter) -> (artifact id: 'cc73db6649c0444f4d4ccad12aa40d8b') in 0.0019834 seconds
+Refreshing native plugins compatible for Editor in 4.23 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=1c425ba6a7a0b784fb2eee7d488bc87d): Total: 0.064 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Start importing Assets/DefaultPrefabObjects.asset using Guid(bd6917a794bc9a34cb0ec26d34ef643a) (NativeFormatImporter) -> (artifact id: '26f8a22053abffe48903a96b0ea94221') in 0.0064001 seconds
+Refreshing native plugins compatible for Editor in 4.05 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=5e02f99dd84b7d148afb3da06e82ac7e): Total: 0.041 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+CityX: massing scene written to Assets/CityX/Scenes/CityMassing.unity
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+CityX.ViewEditor.CityMassingSceneBuilder:Build () (at Assets/CityX/View/Editor/CityMassingSceneBuilder.cs:522)
+
+(Filename: Assets/CityX/View/Editor/CityMassingSceneBuilder.cs Line: 522)
+
+Batchmode quit successfully invoked - shutting down!
+MissingComponentException: There is no 'CanvasRenderer' attached to the "Map" game object, but a script is trying to access it.
+You probably need to add a CanvasRenderer to the game object "Map". Or your script needs to check if the component is attached before using it.
+  at UnityEngine.Object+MarshalledUnityObject.TryThrowEditorNullExceptionObject (UnityEngine.Object unityObj, System.String parameterName) [0x000cd] in <048e1259bbea40078e5d4fad1c7a86a5>:0 
+  at UnityEngine.Bindings.ThrowHelper.ThrowNullReferenceException (System.Object obj) [0x00010] in <048e1259bbea40078e5d4fad1c7a86a5>:0 
+  at UnityEngine.CanvasRenderer.DisableRectClipping () [0x00006] in <beda82f7b5d24c16acb2ef4cc84cd64a>:0 
+  at UnityEngine.UI.MaskableGraphic.SetClipRect (UnityEngine.Rect clipRect, System.Boolean validRect) [0x00010] in .\Library\PackageCache\com.unity.ugui@e20f1880fa04\Runtime\UGUI\UI\Core\MaskableGraphic.cs:160 
+  at UnityEngine.UI.RectMask2D.RemoveClippable (UnityEngine.UI.IClippable clippable) [0x0000b] in .\Library\PackageCache\com.unity.ugui@e20f1880fa04\Runtime\UGUI\UI\Core\RectMask2D.cs:333 
+  at UnityEngine.UI.MaskableGraphic.UpdateClipParent () [0x0003e] in .\Library\PackageCache\com.unity.ugui@e20f1880fa04\Runtime\UGUI\UI\Core\MaskableGraphic.cs:272 
+  at UnityEngine.UI.MaskableGraphic.OnDisable () [0x00013] in .\Library\PackageCache\com.unity.ugui@e20f1880fa04\Runtime\UGUI\UI\Core\MaskableGraphic.cs:186 
+
+(Filename: ./Library/PackageCache/com.unity.ugui@e20f1880fa04/Runtime/UGUI/UI/Core/MaskableGraphic.cs Line: 160)
+
+MissingComponentException: There is no 'CanvasRenderer' attached to the "Map" game object, but a script is trying to access it.
+You probably need to add a CanvasRenderer to the game object "Map". Or your script needs to check if the component is attached before using it.
+  at UnityEngine.Object+MarshalledUnityObject.TryThrowEditorNullExceptionObject (UnityEngine.Object unityObj, System.String parameterName) [0x000cd] in <048e1259bbea40078e5d4fad1c7a86a5>:0 
+  at UnityEngine.Bindings.ThrowHelper.ThrowNullReferenceException (System.Object obj) [0x00010] in <048e1259bbea40078e5d4fad1c7a86a5>:0 
+  at UnityEngine.CanvasRenderer.DisableRectClipping () [0x00006] in <beda82f7b5d24c16acb2ef4cc84cd64a>:0 
+  at UnityEngine.UI.MaskableGraphic.SetClipRect (UnityEngine.Rect clipRect, System.Boolean validRect) [0x00010] in .\Library\PackageCache\com.unity.ugui@e20f1880fa04\Runtime\UGUI\UI\Core\MaskableGraphic.cs:160 
+  at UnityEngine.UI.RectMask2D.RemoveClippable (UnityEngine.UI.IClippable clippable) [0x0000b] in .\Library\PackageCache\com.unity.ugui@e20f1880fa04\Runtime\UGUI\UI\Core\RectMask2D.cs:333 
+  at UnityEngine.UI.MaskableGraphic.UpdateClipParent () [0x0003e] in .\Library\PackageCache\com.unity.ugui@e20f1880fa04\Runtime\UGUI\UI\Core\MaskableGraphic.cs:272 
+  at UnityEngine.UI.MaskableGraphic.RecalculateClipping () [0x00000] in .\Library\PackageCache\com.unity.ugui@e20f1880fa04\Runtime\UGUI\UI\Core\MaskableGraphic.cs:288 
+  at UnityEngine.UI.MaskUtilities.Notify2DMaskStateChanged (UnityEngine.Component mask) [0x00049] in .\Library\PackageCache\com.unity.ugui@e20f1880fa04\Runtime\UGUI\UI\Core\MaskUtilities.cs:26 
+  at UnityEngine.UI.RectMask2D.OnDisable () [0x0002d] in .\Library\PackageCache\com.unity.ugui@e20f1880fa04\Runtime\UGUI\UI\Core\RectMask2D.cs:150 
+
+(Filename: ./Library/PackageCache/com.unity.ugui@e20f1880fa04/Runtime/UGUI/UI/Core/MaskableGraphic.cs Line: 160)
+
+[Physics::Module] Cleanup current backend.
+[Physics::Module] Id: 0xf2b8ea05
+Input System module state changed to: ShutdownInProgress.
+Input System polling thread exited.
+Input System module state changed to: Shutdown.
+[Licensing::IpcConnector] LicenseClient-Lenovo-6000.3.21-notifications channel disconnected successfully.
+[Licensing::IpcConnector] LicenseClient-Lenovo-6000.3.21 channel disconnected successfully.
+AcceleratorClientConnectionCallback - disconnected - :0
+Shut down.
+Cleanup mono
+abort_threads: Failed aborting id: 0000000000002B9C, mono_thread_manage will ignore it
+
+abort_threads: Failed aborting id: 0000000000007984, mono_thread_manage will ignore it
+
+abort_threads: Failed aborting id: 000000000000BF00, mono_thread_manage will ignore it
+
+abort_threads: Failed aborting id: 0000000000002B9C, mono_thread_manage will ignore it
+
+abort_threads: Failed aborting id: 0000000000007984, mono_thread_manage will ignore it
+
+abort_threads: Failed aborting id: 000000000000BF00, mono_thread_manage will ignore it
+
+debugger-agent: Unable to listen on 4800
+Exiting batchmode successfully now!
+Exiting without the bug reporter. Application will terminate with return code 0

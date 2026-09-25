@@ -48,6 +48,37 @@ namespace CityX.Character
     [RequireComponent(typeof(NetworkObject))]
     public sealed class NetworkedPlayerIdentity : NetworkBehaviour
     {
+        /// <summary>
+        /// How far away another player is still worth seeing, in metres.
+        /// EXPLICIT ASK: "lets say there was 1000 players in the same areas
+        /// all wearing outfits do you think the game would be able to
+        /// handle that" -- answered honestly as no at the time: every
+        /// player observed every other player regardless of distance
+        /// (FishNet's own NetworkObserver had no condition attached at
+        /// all), so a client's traffic -- and every other player's actually
+        /// INSTANTIATED body, Animator and skinned garments -- grew with
+        /// TOTAL player count in the area rather than with how many were
+        /// actually near you. See NetworkedPlayerBuilder.AddViewDistance
+        /// Observer for where this gets wired onto a real NetworkObserver +
+        /// DistanceCondition, the exact mechanism CityX.Spike's own
+        /// InterestManagementPlayTests/InterestManagementPlayerToPlayer
+        /// PlayTests already prove works for both NPC-shaped and
+        /// player-shaped entities.
+        ///
+        /// PICKED AGAINST TWO REAL NUMBERS ALREADY IN THIS PROJECT, not
+        /// guessed: comfortably past PistolWeapon.Range (60m, so a firefight
+        /// never has one side vanish from the other's observed set mid-
+        /// fight) and comfortably short of the city scene's own
+        /// fogEndDistance (380m, see CityMassingSceneBuilder), so culling
+        /// still meaningfully reduces the observed set rather than covering
+        /// the whole visible skyline. The Spike sandbox's own
+        /// SpikeWorld.ObserverRadius (40m) is deliberately different and
+        /// left alone -- it is tuned to be a large fraction of the SPIKE's
+        /// own small 100m test field for a strong, easily-measured effect,
+        /// not a production distance.
+        /// </summary>
+        public const float ViewRadius = 100.0f;
+
         private PlayerInputReader _inputReader;
         private CharacterIdentity _identity;
 

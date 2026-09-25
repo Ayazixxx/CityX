@@ -1,3 +1,4 @@
+using CityX.World;
 using UnityEngine;
 
 namespace CityX.Character
@@ -141,7 +142,14 @@ namespace CityX.Character
             // draining unconditionally while stuck, matching
             // PlayerClimbing.Tick's own "true" argument: sticking to a wall
             // is itself the exertion, not something only sprinting adds.
-            bool stillHasStamina = vitals == null || vitals.TickStamina(true, deltaTime);
+            //
+            // A WET WALL COSTS MORE AND SLIPS -- Breath of the Wild's rain: hands
+            // and feet lose their grip, so the same hold burns stamina faster
+            // and the body creeps down the wall unless it is climbing. Zero
+            // effect on a dry wall or one under cover.
+            float wet = CurrentWeather.SurfaceWetness(transform.position);
+            bool stillHasStamina = vitals == null
+                || vitals.TickStamina(true, deltaTime * Weather.WallStaminaDrain(wet));
             if (!stillHasStamina)
             {
                 EndStick(false, deltaTime);
@@ -158,7 +166,8 @@ namespace CityX.Character
 
             bool moving = moveInput.sqrMagnitude > 0.0001f;
             float speed = moving ? RunSpeed : WalkSpeed;
-            Vector3 tangentMove = (wallRight * moveInput.x + wallUp * moveInput.y) * speed * deltaTime;
+            Vector3 tangentMove = (wallRight * moveInput.x + wallUp * moveInput.y) * speed * deltaTime
+                - wallUp * (Weather.WallSlipSpeed(wet) * deltaTime);
 
             // Self-corrects drift off the cling distance every frame, the
             // same idiom PlayerClimbing's own `_anchorX - transform.position.x`

@@ -138,8 +138,8 @@ namespace CityX.UIEditor
             cameraObject.transform.localPosition = new Vector3(0.0f, 1.7f, 7.5f);
             cameraObject.transform.localRotation = Quaternion.Euler(6.0f, 180.0f, 0.0f);
             Camera camera = cameraObject.AddComponent<Camera>();
-            camera.clearFlags = CameraClearFlags.SolidColor;
-            camera.backgroundColor = new Color(0.07f, 0.08f, 0.10f);
+            // Depth, not a solid colour: the title's city and rain stay visible behind the characters.
+            camera.clearFlags = CameraClearFlags.Depth;
             camera.fieldOfView = 50.0f;
             camera.nearClipPlane = 0.05f;
             camera.cullingMask = 1 << layer;

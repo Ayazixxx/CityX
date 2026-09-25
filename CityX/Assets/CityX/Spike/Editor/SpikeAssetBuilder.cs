@@ -53,7 +53,7 @@ namespace CityX.Spike.EditorTools
 
             DistanceCondition viewDistance = BuildViewDistanceCondition();
             BuildAgentPrefab(viewDistance);
-            BuildPlayerPrefab();
+            BuildPlayerPrefab(viewDistance);
             BuildPredictedPlayerPrefab();
             BuildNetworkManagerPrefab();
 
@@ -204,7 +204,20 @@ namespace CityX.Spike.EditorTools
             }
         }
 
-        private static void BuildPlayerPrefab()
+        /// <summary>
+        /// NOW CARRIES THE SAME view-distance condition SpikeAgent does --
+        /// "culling players from each other is a real decision for later"
+        /// (this method's own earlier comment) stopped being true the
+        /// moment the actual ask became "can this handle 1000 players in
+        /// the same area." Without this, a player observes every OTHER
+        /// player regardless of distance, so per-client bandwidth (and, in
+        /// the real game, every other player's rendered body/garments) would
+        /// grow with total player count instead of local density -- the
+        /// exact wall this whole spike exists to avoid, just for players
+        /// instead of NPCs. See InterestManagementPlayerToPlayerPlayTests
+        /// for the test that proves this actually culls.
+        /// </summary>
+        private static void BuildPlayerPrefab(DistanceCondition viewDistance)
         {
             GameObject go = new GameObject("SpikePlayer");
             try
@@ -213,9 +226,9 @@ namespace CityX.Spike.EditorTools
                 go.AddComponent<NetworkTransform>();
                 go.AddComponent<SpikePlayer>();
 
-                // Deliberately NO view-distance condition. Culling players
-                // from each other is a real decision for later; leaving it off
-                // keeps the measurement about entity culling only.
+                NetworkObserver observer = go.AddComponent<NetworkObserver>();
+                AssignObserverCondition(observer, viewDistance);
+
                 PrefabUtility.SaveAsPrefabAsset(go, $"{GeneratedFolder}/SpikePlayer.prefab");
             }
             finally

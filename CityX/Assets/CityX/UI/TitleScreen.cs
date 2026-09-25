@@ -1,3 +1,4 @@
+using CityX.View;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
@@ -31,7 +32,8 @@ namespace CityX.UI
         public GameObject CreatorPanel;
         public GameObject MultiplayerPanel;
         public GameObject SettingsPanel;
-        public Image Logo;
+        [Tooltip("The skyline the logo hangs over. The logo is a quad in that scene (behind the rooftop tank), so it flickers and hides through here, not as a UI image.")]
+        public TitleSkyline Skyline;
 
         [Tooltip("The character select's own component, so Back can step within it.")]
         public CharacterSelect Select;
@@ -93,7 +95,7 @@ namespace CityX.UI
             if (MultiplayerPanel != null) MultiplayerPanel.SetActive(false);
             if (SettingsPanel != null) SettingsPanel.SetActive(false);
             if (PromptLabel != null) PromptLabel.gameObject.SetActive(true);
-            if (LogoGroup != null) LogoGroup.SetActive(true);
+            SetLogoShown(true);
         }
 
         /// <summary>
@@ -130,11 +132,18 @@ namespace CityX.UI
             // the same way for its own equivalent screens. Multiplayer stays
             // a sparse stub with nothing under the logo yet, so it is left
             // alone rather than hidden pre-emptively.
-            if (LogoGroup != null)
-            {
-                LogoGroup.SetActive(panel != Panel.CharacterSelect && panel != Panel.Creator
-                    && panel != Panel.Settings);
-            }
+            SetLogoShown(panel != Panel.CharacterSelect && panel != Panel.Creator
+                && panel != Panel.Settings);
+        }
+
+        /// <summary>
+        /// Shows or hides the logo: the group the UI tests and the panels see, and
+        /// the quad in the skyline scene that is the logo itself.
+        /// </summary>
+        private void SetLogoShown(bool shown)
+        {
+            if (LogoGroup != null) LogoGroup.SetActive(shown);
+            if (Skyline != null) Skyline.SetLogoVisible(shown);
         }
 
         /// <summary>
@@ -161,21 +170,17 @@ namespace CityX.UI
 
         private void Update()
         {
-            if (Logo != null)
+            if (Skyline != null)
             {
                 // title_screen.gd's own _flicker_opacity, ported exactly (a
                 // failing-neon-sign look: mostly full opacity, with a couple
                 // of quick dips/flares) -- EXPLICIT ASK: "recreate the godot
-                // title screen instead of the one you have now." This
-                // replaces the old "slow breath" sine, which was a deliberate
-                // simplification made before the rest of the Godot screen's
-                // own atmosphere (rain, lightning, the reveal gate) existed
-                // here to fight for attention with.
+                // title screen instead of the one you have now." The logo is
+                // a quad in the skyline scene now, so this drives its opacity
+                // rather than a UI image's.
                 _elapsed += Time.deltaTime;
                 float flickerPercent = Mathf.Repeat(_elapsed, LogoFlickerPeriod) / LogoFlickerPeriod * 100.0f;
-                Color colour = Logo.color;
-                colour.a = FlickerOpacity(flickerPercent);
-                Logo.color = colour;
+                Skyline.SetLogoFlicker(FlickerOpacity(flickerPercent));
             }
 
             // Escape is handled on its own and never also counts as "any

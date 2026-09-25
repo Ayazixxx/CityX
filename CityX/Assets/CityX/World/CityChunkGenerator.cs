@@ -92,18 +92,11 @@ namespace CityX.World
 
         // --- mass ---
 
-        /// <summary>
-        /// Share of ORDINARY single-chunk lots that get the low-rise treatment.
-        ///
-        /// This is the de_maple flavour the user asked to keep as a rare
-        /// accent. Single lots are about 90% of all buildings by count, so this
-        /// fraction lands near 13% of the city -- present everywhere, dominant
-        /// nowhere.
-        /// </summary>
-        public const double LowRiseShareOfSingleLots = 0.15;
-
-        /// <summary>Share of 2x2 towers that become rare landmarks instead.</summary>
-        public const double SupertallShareOfTowers = 0.06;
+        // The low-rise (de_maple flavour the user asked to keep as an accent)
+        // and supertall-landmark shares are now per-zone -- see
+        // LowRiseShareFor and SupertallShareFor -- and are tuned so the
+        // city-wide totals stay where the art direction put them (low-rise
+        // 6-20% of buildings, towers a few percent, supertalls rare).
 
         public const float LowRiseMinHeight = 7.0f;
         public const float LowRiseMaxHeight = 20.0f;
@@ -115,12 +108,110 @@ namespace CityX.World
         public const float TowerMaxHeight = 210.0f;
         public const float SupertallMinHeight = 240.0f;
         public const float SupertallMaxHeight = 320.0f;
+        public const float WarehouseMinHeight = 9.0f;
+        public const float WarehouseMaxHeight = 22.0f;
 
         /// <summary>Flat ("") is weighted heaviest -- most rooftops should not have a prop.</summary>
         public static readonly string[] RoofTypes =
         {
             "", "", "", "shed", "antenna", "chimney", "parapet", "water_tower"
         };
+
+        /// <summary>
+        /// One roll picks an index 0..7; each zone reads it through its own
+        /// table of the SAME roof names, so the dice are drawn exactly as
+        /// before and only what a number means changes. A downtown skyline
+        /// bristles with antennas and parapets; an industrial roof is sheds,
+        /// chimneys and water towers; a residential one is mostly bare.
+        /// </summary>
+        private static readonly string[][] RoofsByZone =
+        {
+            /* Core        */ new[] { "antenna", "antenna", "parapet", "", "antenna", "parapet", "", "water_tower" },
+            /* Urban       */ new[] { "", "parapet", "antenna", "shed", "antenna", "parapet", "", "water_tower" },
+            /* Residential */ new[] { "", "", "", "shed", "antenna", "chimney", "parapet", "water_tower" },
+            /* OldTown     */ new[] { "", "", "chimney", "chimney", "shed", "", "parapet", "water_tower" },
+            /* Industrial  */ new[] { "shed", "shed", "chimney", "chimney", "", "water_tower", "shed", "water_tower" },
+            /* Outskirts   */ new[] { "", "", "", "shed", "", "chimney", "shed", "water_tower" },
+        };
+
+        /// <summary>
+        /// Lower values push a zone's buildings toward the short end of their
+        /// class range, higher toward the tall end -- the skyline gradient.
+        /// A downtown mid-rise is at the top of its 28-85m range and an
+        /// outskirts one at the bottom, so the city visibly climbs toward its
+        /// cores instead of being salt-and-pepper.
+        /// </summary>
+        public static double HeightBiasFor(double density)
+        {
+            double bias = (density - 0.15) / 0.80;
+            if (bias < 0.0) return 0.0;
+            return bias > 1.0 ? 1.0 : bias;
+        }
+
+        /// <summary>Share of 2x2 towers that become rare landmarks, by zone -- a supertall cluster is a downtown thing.</summary>
+        public static double SupertallShareFor(ZoneKind zone)
+        {
+            switch (zone)
+            {
+                case ZoneKind.Core: return 0.14;
+                case ZoneKind.Urban: return 0.04;
+                default: return 0.0;
+            }
+        }
+
+        /// <summary>Share of ORDINARY single-chunk lots that get the low-rise treatment, by zone.</summary>
+        public static double LowRiseShareFor(ZoneKind zone)
+        {
+            switch (zone)
+            {
+                case ZoneKind.Core: return 0.03;
+                case ZoneKind.Urban: return 0.08;
+                case ZoneKind.Residential: return 0.15;
+                case ZoneKind.OldTown: return 0.35;
+                case ZoneKind.Industrial: return 0.60;
+                default: return 0.25;
+            }
+        }
+
+        /// <summary>
+        /// How much likelier (or unlikelier) a special building is in a zone.
+        /// Banks cluster downtown, supermarkets and hospitals serve the
+        /// neighbourhoods, and nobody builds a bank in an industrial estate.
+        /// </summary>
+        private static double SpecialWeight(ZoneKind zone, string preset)
+        {
+            switch (preset)
+            {
+                case "bank":
+                    switch (zone)
+                    {
+                        case ZoneKind.Core: return 3.0;
+                        case ZoneKind.Urban: return 1.8;
+                        case ZoneKind.Industrial: return 0.0;
+                        default: return 0.4;
+                    }
+                case "supermarket":
+                    switch (zone)
+                    {
+                        case ZoneKind.Residential: return 1.6;
+                        case ZoneKind.OldTown: return 1.4;
+                        case ZoneKind.Core: return 0.4;
+                        case ZoneKind.Industrial: return 0.2;
+                        default: return 1.0;
+                    }
+                case "hospital":
+                    switch (zone)
+                    {
+                        case ZoneKind.Residential: return 1.5;
+                        case ZoneKind.Urban: return 1.3;
+                        case ZoneKind.Core: return 0.5;
+                        case ZoneKind.Industrial: return 0.2;
+                        default: return 0.8;
+                    }
+                default:
+                    return 1.0;
+            }
+        }
 
         /// <summary>Relative weights of the facade colour variants; index only, colours live in the renderer.</summary>
         public static readonly double[] FacadeWeights = { 3.0, 3.0, 3.0, 2.0, 1.5, 0.75 };
@@ -178,6 +269,13 @@ namespace CityX.World
             float maxWidth = lot.Width;
             float maxDepth = lot.Depth;
 
+            // What kind of place this lot is in, from the block's zone; and
+            // how dense, read at the lot's own centre so the skyline slopes
+            // smoothly toward a core instead of stepping block by block.
+            ZoneKind zone = ZoneOfRole(role);
+            double density = CityZones.DensityAt(role.AnchorX + role.SpanX * 0.5,
+                role.AnchorY + role.SpanY * 0.5);
+
             // Own stream. Rolling this from the shared generator would shift
             // every later draw, silently reshuffling every ALREADY-EXISTING
             // generic building in the world the moment this feature shipped.
@@ -187,7 +285,7 @@ namespace CityX.World
             {
                 DeterministicRandom specialRng = new DeterministicRandom(
                     unchecked((ulong)(long)chunkSeed), SpecialStream);
-                specialType = PickSpecialType(specialRng, out preset);
+                specialType = PickSpecialType(specialRng, zone, out preset);
             }
 
             // Own stream, same reasoning: the mass mix is exactly the kind of
@@ -195,7 +293,7 @@ namespace CityX.World
             // building's jitter.
             DeterministicRandom massRng = new DeterministicRandom(
                 unchecked((ulong)(long)chunkSeed), MassStream);
-            BuildingMass mass = MassFor(role, massRng);
+            BuildingMass mass = MassFor(role, massRng, zone);
 
             float width;
             float depth;
@@ -223,10 +321,16 @@ namespace CityX.World
                 // Silhouette variety now comes from the class mix -- which is
                 // tied to real footprints -- rather than from one distribution
                 // trying to produce both a corner shop and a skyscraper.
+                //
+                // The one height draw is blended with the zone's own density
+                // bias: half luck, half where in the city this is, so heights
+                // vary lot to lot but the average climbs toward a core.
                 HeightRange(mass, out float minHeight, out float maxHeight);
-                height = SnapToWholeFloors((float)rng.Range(minHeight, maxHeight), minHeight, maxHeight);
+                double lift = 0.5 * rng.NextDouble() + 0.5 * HeightBiasFor(density);
+                height = SnapToWholeFloors(minHeight + (maxHeight - minHeight) * (float)lift,
+                    minHeight, maxHeight);
 
-                roof = RoofTypes[rng.Below(RoofTypes.Length)];
+                roof = RoofsByZone[(int)zone][rng.Below(RoofTypes.Length)];
                 facadeIndex = PickFacadeIndex(rng);
             }
 
@@ -341,23 +445,37 @@ namespace CityX.World
         /// choice in it, and that choice is the one the user asked for -- mostly
         /// taller buildings, with the de_maple low-rise as a rarer accent.
         /// </summary>
-        public static BuildingMass MassFor(LotRole role, DeterministicRandom massRng)
+        public static BuildingMass MassFor(LotRole role, DeterministicRandom massRng, ZoneKind zone)
         {
             if (role.SpanX >= 2 && role.SpanY >= 2)
             {
-                return massRng.NextDouble() < SupertallShareOfTowers
-                    ? BuildingMass.Supertall
-                    : BuildingMass.Tower;
+                bool landmark = massRng.NextDouble() < SupertallShareFor(zone);
+                if (zone == ZoneKind.Industrial)
+                {
+                    return BuildingMass.Warehouse;
+                }
+                return landmark ? BuildingMass.Supertall : BuildingMass.Tower;
             }
 
             if (role.IsMultiChunk)
             {
-                return BuildingMass.Slab;
+                return zone == ZoneKind.Industrial ? BuildingMass.Warehouse : BuildingMass.Slab;
             }
 
-            return massRng.NextDouble() < LowRiseShareOfSingleLots
+            return massRng.NextDouble() < LowRiseShareFor(zone)
                 ? BuildingMass.LowRise
                 : BuildingMass.MidRise;
+        }
+
+        /// <summary>The zone of the block a lot stands in.</summary>
+        public static ZoneKind ZoneOfRole(LotRole role)
+        {
+            if (!CityLayout.TryGetBlockRect(role.AnchorX, role.AnchorY,
+                    out int minX, out int minY, out int width, out int height))
+            {
+                return ZoneKind.Residential;
+            }
+            return CityBlocks.ZoneOfBlock(minX, minY, width, height);
         }
 
         /// <summary>
@@ -414,6 +532,10 @@ namespace CityX.World
                     min = SupertallMinHeight;
                     max = SupertallMaxHeight;
                     return;
+                case BuildingMass.Warehouse:
+                    min = WarehouseMinHeight;
+                    max = WarehouseMaxHeight;
+                    return;
                 default:
                     min = MidRiseMinHeight;
                     max = MidRiseMaxHeight;
@@ -425,13 +547,13 @@ namespace CityX.World
         /// Walks the presets accumulating their chances. Returns "" for the
         /// overwhelming majority of lots, which are ordinary buildings.
         /// </summary>
-        private static string PickSpecialType(DeterministicRandom rng, out SpecialBuildingPreset preset)
+        private static string PickSpecialType(DeterministicRandom rng, ZoneKind zone, out SpecialBuildingPreset preset)
         {
             double roll = rng.NextDouble();
             double cursor = 0.0;
             for (int i = 0; i < SpecialPresets.Length; i++)
             {
-                cursor += SpecialPresets[i].Chance;
+                cursor += SpecialPresets[i].Chance * SpecialWeight(zone, SpecialPresets[i].Name);
                 if (roll < cursor)
                 {
                     preset = SpecialPresets[i];

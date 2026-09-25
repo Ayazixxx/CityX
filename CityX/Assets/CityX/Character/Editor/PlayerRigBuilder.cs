@@ -227,6 +227,9 @@ namespace CityX.CharacterEditor
             AddDashState(controller, root);
             AddChargedJumpState(controller, root);
             AddAimingState(controller, root);
+            // AFTER AddAimingState: AddGunLocomotion looks up the "Aiming"
+            // state by name to add its own moving-exit transitions out of it.
+            AddGunLocomotion(controller, root);
             AddJetpackIdleState(controller, root, idle);
             AddDanceStates(controller, root);
             AddClimbingStates(controller, root);
@@ -237,6 +240,10 @@ namespace CityX.CharacterEditor
             // swings' own exit transition.
             AddSwordLocomotion(controller, root);
             AddSwordStates(root);
+            // AFTER AddSwordStates and every base state: the upper-body layer
+            // plays the SAME sword clips as those base states, over the top of
+            // whatever the legs are doing.
+            AddSwordUpperBodyLayer(controller);
             AddCutsceneStates(root);
 
             // FOOT IK ON THE BLENDED LOCOMOTION STATES was tried here as a
@@ -497,6 +504,21 @@ namespace CityX.CharacterEditor
         /// to get back out, so it needs its own explicit "Aiming went
         /// false" exit, matching AddCrouchStates' own bidirectional Link
         /// pattern instead.
+        ///
+        /// ENTRY IS ALSO GATED ON STANDING STILL (Speed below
+        /// MovingSpeedThreshold), added after this was found to be the
+        /// actual cause of an EXPLICIT BUG REPORT: "the legs move as you
+        /// hold the pistol and aim in if you are walking [in Godot] which
+        /// it doesnt do in unity." Before this, the Any State transition
+        /// fired on Aiming alone, so holding right-click froze the WHOLE
+        /// body -- legs included -- on this single static standing pose
+        /// while the CharacterController kept sliding the transform forward
+        /// underneath it, reading exactly as "legs lock up." character.gd's
+        /// own set_walking() only ever shows the equivalent gun_aim_in pose
+        /// while genuinely standing still; moving switches to a full-body
+        /// gun_walk/gun_run cycle instead regardless of aim (see
+        /// AddGunLocomotion, which also adds the matching moving-exit
+        /// transitions out of this same "Aiming" state once it exists).
         /// </summary>
         private static void AddAimingState(AnimatorController controller, AnimatorStateMachine root)
         {
@@ -515,6 +537,7 @@ namespace CityX.CharacterEditor
 
             AnimatorStateTransition into = root.AddAnyStateTransition(aiming);
             into.AddCondition(AnimatorConditionMode.If, 0.0f, "Aiming");
+            AddSpeedCondition(into, AnimatorConditionMode.Less);
             into.duration = 0.12f;
             into.hasExitTime = false;
             into.canTransitionToSelf = false;
@@ -1134,6 +1157,23 @@ namespace CityX.CharacterEditor
             AnimationClip left = FindClip("2hsw_left");
             AnimationClip right = FindClip("2hsw_right");
 
+            // EXPLICIT BUG REPORT, with a screenshot: "this is the current
+            // idle pose ... it should be moving slightly but its frozen."
+            // The file was right (2hsw_idle.fbx is byte-identical to the one
+            // the user sent) -- the CLIP was imported with loopTime OFF, so
+            // it played its 2-second breathing idle exactly once and then held
+            // the last frame forever. The plain Locomotion tree loops all of
+            // its clips (see Build()); this sword set never did (the
+            // "pre-existing gap" noted for 2hsw_walk further up this file's
+            // history), which also froze the sword walk/strafe cycles after a
+            // single stride.
+            MakeLooping(idle);
+            MakeLooping(walk);
+            MakeLooping(sprint);
+            MakeLooping(back);
+            MakeLooping(left);
+            MakeLooping(right);
+
             controller.AddParameter("SwordEquipped", AnimatorControllerParameterType.Bool);
 
             controller.CreateBlendTreeInController("SwordLocomotion", out BlendTree swordLocomotion, 0);
@@ -1151,6 +1191,133 @@ namespace CityX.CharacterEditor
 
             Link(locomotion, swordLocomotionState, 0.15f, "SwordEquipped", true);
             Link(swordLocomotionState, locomotion, 0.15f, "SwordEquipped", false);
+        }
+
+        /// <summary>
+        /// A whole-body alternate locomotion set for while a pistol is
+        /// equipped -- pistol_walk/run/walk_backward/walk_left/walk_right
+        /// were already sitting retargeted and unused in the Animations
+        /// folder, the same "already imported, never wired up" situation
+        /// AddSwordLocomotion's own doc comment found for the 2hsw pack.
+        ///
+        /// EXPLICIT BUG REPORT (with the Godot original held up as the
+        /// reference to match): "the legs move as you hold the pistol and
+        /// aim in if you are walking which it doesnt do in unity."
+        /// character.gd's own set_walking() plays this exact clip set any
+        /// time _holding_gun is true AND the character is moving -- REGARDLESS
+        /// of whether right-click (aiming) is also held, since ordinary
+        /// hip-fire movement with a drawn pistol looks the same as aiming
+        /// movement does in the source mocap. GATED ON GunEquipped ALONE,
+        /// not Aiming, for exactly that reason -- see LocomotionInput.
+        /// GunEquipped's own doc comment for the fuller story of why the
+        /// "Aiming" Any State transition (see AddAimingState) was the actual
+        /// root cause: it fired regardless of movement, freezing the whole
+        /// body -- legs included -- on the static standing aim-in pose while
+        /// the CharacterController kept sliding the transform forward
+        /// underneath it.
+        ///
+        /// NO ZERO-VELOCITY CHILD, unlike AddSwordLocomotion's own idle --
+        /// there is no dedicated "pistol idle" clip in either engine (see
+        /// GunEquipped's own comment), and this state is only ever entered
+        /// once Speed is already above MovingSpeedThreshold (see the Link
+        /// calls below), so the blend tree never actually needs to cover
+        /// true zero.
+        ///
+        /// SPEED-GATED, NOT JUST GunEquipped-GATED, unlike
+        /// AddSwordLocomotion's own bool-only Link calls -- there is no
+        /// dedicated pistol idle pose to fall back on while standing still
+        /// with the gun drawn (ordinary Locomotion idle already covers
+        /// that, matching character.gd's own final "else: idle" fallback),
+        /// so GunLocomotion has to hand back to Locomotion the moment Speed
+        /// drops, not just when the gun itself comes out of the holster.
+        /// Same AddSpeedCondition helper AddCrouchStates already uses for
+        /// the identical "bool alone isn't the whole story" reason.
+        /// </summary>
+        private static void AddGunLocomotion(AnimatorController controller, AnimatorStateMachine root)
+        {
+            AnimationClip walk = FindClip("pistol_walk");
+            AnimatorState locomotion = FindState(root, "Locomotion");
+            if (walk == null || locomotion == null)
+            {
+                Debug.LogWarning("CityX: pistol_walk clip missing -- holding a pistol will not change the walk cycle.");
+                return;
+            }
+
+            AnimationClip run = FindClip("pistol_run");
+            AnimationClip back = FindClip("pistol_walk_backward");
+            AnimationClip left = FindClip("pistol_walk_left");
+            AnimationClip right = FindClip("pistol_walk_right");
+
+            // MIXAMO CLIPS ARE SINGLE STRIDES -- see Build()'s own comment on
+            // why idle/walk/sprint/etc all get this same treatment. Confirmed
+            // directly that AddSwordLocomotion's 2hsw_walk never gets this
+            // call either (a pre-existing, unrelated gap -- out of scope
+            // here), which would freeze the legs on a single held frame
+            // after one stride, the exact OPPOSITE of the explicit ask this
+            // method exists to satisfy ("the legs move as you hold the
+            // pistol and aim in if you are walking").
+            MakeLooping(walk);
+            MakeLooping(run);
+            MakeLooping(back);
+            MakeLooping(left);
+            MakeLooping(right);
+
+            controller.AddParameter("GunEquipped", AnimatorControllerParameterType.Bool);
+
+            controller.CreateBlendTreeInController("GunLocomotion", out BlendTree gunLocomotion, 0);
+            gunLocomotion.blendType = BlendTreeType.FreeformCartesian2D;
+            gunLocomotion.blendParameter = "MoveX";
+            gunLocomotion.blendParameterY = "MoveZ";
+            gunLocomotion.AddChild(walk, new Vector2(0.0f, WalkSpeed));
+            if (run != null) gunLocomotion.AddChild(run, new Vector2(0.0f, SprintSpeed));
+            if (back != null) gunLocomotion.AddChild(back, new Vector2(0.0f, -WalkSpeed));
+            if (left != null) gunLocomotion.AddChild(left, new Vector2(-WalkSpeed, 0.0f));
+            if (right != null) gunLocomotion.AddChild(right, new Vector2(WalkSpeed, 0.0f));
+
+            AnimatorState gunLocomotionState = FindState(root, "GunLocomotion");
+
+            AddSpeedCondition(
+                Link(locomotion, gunLocomotionState, 0.15f, "GunEquipped", true),
+                AnimatorConditionMode.Greater);
+            AddSpeedCondition(
+                Link(gunLocomotionState, locomotion, 0.15f, "GunEquipped", true),
+                AnimatorConditionMode.Less);
+            Link(gunLocomotionState, locomotion, 0.15f, "GunEquipped", false);
+
+            // THE SAME MOVING-EXIT "Aiming" ITSELF NEEDS -- see
+            // AddAimingState's own doc comment on why its entry is now
+            // gated to standing still. Without this, starting to walk while
+            // right-click is still held would leave the body stuck on the
+            // static aim-in pose (Aiming stays true, so nothing else about
+            // this state would otherwise change) until right-click was
+            // released, instead of moving straight into this gun-walk cycle
+            // the instant Speed crosses the same threshold Locomotion's own
+            // entry above already uses.
+            //
+            // KNOWN MINOR GAP: releasing aim (Aiming -> false) WHILE ALREADY
+            // MOVING with the gun still drawn takes AddAimingState's own
+            // plain "Aiming false" exit (added first, so Mecanim's
+            // first-satisfied-transition-wins rule picks it ahead of these
+            // two) straight to Locomotion for one blend, which Locomotion's
+            // own GunEquipped-and-moving entry above then immediately
+            // re-fires into GunLocomotion -- a same-cause-as-AddCrouchStates'
+            // own doc comment double-hop, smoothed over by the short
+            // crossfade durations rather than eliminated outright.
+            AnimatorState aiming = FindState(root, "Aiming");
+            if (aiming != null)
+            {
+                AnimatorStateTransition outWhileGunMoving = aiming.AddTransition(gunLocomotionState);
+                outWhileGunMoving.AddCondition(AnimatorConditionMode.If, 0.0f, "GunEquipped");
+                AddSpeedCondition(outWhileGunMoving, AnimatorConditionMode.Greater);
+                outWhileGunMoving.duration = 0.12f;
+                outWhileGunMoving.hasExitTime = false;
+
+                AnimatorStateTransition outWhileMoving = aiming.AddTransition(locomotion);
+                outWhileMoving.AddCondition(AnimatorConditionMode.IfNot, 0.0f, "GunEquipped");
+                AddSpeedCondition(outWhileMoving, AnimatorConditionMode.Greater);
+                outWhileMoving.duration = 0.12f;
+                outWhileMoving.hasExitTime = false;
+            }
         }
 
         /// <summary>
@@ -1204,6 +1371,104 @@ namespace CityX.CharacterEditor
                 back.exitTime = 0.85f;
                 back.duration = 0.12f;
             }
+        }
+
+        // Shared with PlayerAnimationDriver, which routes sword swings and the
+        // guard to this layer by asking the Animator which layer HAS the state.
+        public const string UpperBodyLayerName = PlayerAnimationDriver.UpperBodyLayerName;
+        public const string UpperEmptyStateName = PlayerAnimationDriver.UpperEmptyStateName;
+        public const string UpperSpeedParameterName = PlayerAnimationDriver.UpperSpeedParameterName;
+        private const string UpperBodyMaskPath = "Assets/CityX/Character/UpperBodyMask.mask";
+
+        /// <summary>
+        /// THE SWORD'S SWINGS AND GUARD PLAY ON THE UPPER BODY ONLY, over the
+        /// top of the walk cycle -- EXPLICIT ASK: "make the legs walk and not
+        /// freeze up during sword use too." The Mixamo swing clips are
+        /// full-body: played on the base layer they overwrite the legs with a
+        /// planted lunge, so the body froze mid-stride for the whole swing (or,
+        /// once movement was allowed, slid along in that frozen pose). Same
+        /// answer the pistol got (GunLocomotion): don't fight the legs. This
+        /// layer masks to spine/head/arms/hands, so the base layer keeps
+        /// driving hips-down.
+        ///
+        /// TWO THINGS ABOUT IT ARE LOAD-BEARING:
+        ///  * The default state is EMPTY. An empty state in an Override layer
+        ///    lets the base layer through, so blending a swing back to
+        ///    "UpperEmpty" is a clean hand-back to the walk cycle's own arms.
+        ///  * SPEED IS A PER-STATE PARAMETER (UpperSpeed), not Animator.speed.
+        ///    SoulsSwordCombat stretches each swing to fit its own timing, and
+        ///    Animator.speed would ALSO speed the legs up 1.5x while swinging.
+        /// </summary>
+        private static void AddSwordUpperBodyLayer(AnimatorController controller)
+        {
+            controller.AddParameter(new AnimatorControllerParameter
+            {
+                name = UpperSpeedParameterName,
+                type = AnimatorControllerParameterType.Float,
+                defaultFloat = 1.0f,
+            });
+
+            AvatarMask mask = BuildUpperBodyMask();
+
+            controller.AddLayer(UpperBodyLayerName);
+            AnimatorControllerLayer[] layers = controller.layers;
+            AnimatorControllerLayer layer = layers[layers.Length - 1];
+            layer.avatarMask = mask;
+            layer.blendingMode = AnimatorLayerBlendingMode.Override;
+            layer.defaultWeight = 1.0f;
+            layer.iKPass = false;
+
+            AnimatorStateMachine machine = layer.stateMachine;
+            AnimatorState empty = machine.AddState(UpperEmptyStateName);
+            machine.defaultState = empty;
+
+            foreach (string swing in new[] { "sword_attack", "sword_attack2", "sword_charged_attack", "SwordBlock" })
+            {
+                AnimationClip clip = ClipForSword(swing);
+                if (clip == null)
+                {
+                    continue;
+                }
+
+                AnimatorState state = machine.AddState(swing);
+                state.motion = clip;
+                state.speedParameterActive = true;
+                state.speedParameter = UpperSpeedParameterName;
+
+                // Same exit as the base-layer copy: back to nothing, and the
+                // base layer's arms show through again.
+                AnimatorStateTransition back = state.AddTransition(empty);
+                back.hasExitTime = true;
+                back.exitTime = 0.85f;
+                back.duration = 0.12f;
+            }
+
+            controller.layers = layers;
+        }
+
+        private static AvatarMask BuildUpperBodyMask()
+        {
+            var mask = AssetDatabase.LoadAssetAtPath<AvatarMask>(UpperBodyMaskPath);
+            if (mask == null)
+            {
+                mask = new AvatarMask();
+                AssetDatabase.CreateAsset(mask, UpperBodyMaskPath);
+            }
+
+            foreach (AvatarMaskBodyPart part in System.Enum.GetValues(typeof(AvatarMaskBodyPart)))
+            {
+                if (part == AvatarMaskBodyPart.LastBodyPart)
+                {
+                    continue;
+                }
+                bool upper = part == AvatarMaskBodyPart.Body || part == AvatarMaskBodyPart.Head
+                    || part == AvatarMaskBodyPart.LeftArm || part == AvatarMaskBodyPart.RightArm
+                    || part == AvatarMaskBodyPart.LeftFingers || part == AvatarMaskBodyPart.RightFingers
+                    || part == AvatarMaskBodyPart.LeftHandIK || part == AvatarMaskBodyPart.RightHandIK;
+                mask.SetHumanoidBodyPartActive(part, upper);
+            }
+            EditorUtility.SetDirty(mask);
+            return mask;
         }
 
         /// <summary>

@@ -39,6 +39,17 @@ namespace CityX.Wearables
 
         public static readonly Vector3 HeadRotationEuler = Vector3.zero;
 
+        /// <summary>
+        /// Matches TopHatBuilder's own former per-piece materials exactly --
+        /// now applied here at runtime instead of baked into a unique
+        /// Material asset per piece, so Brim/Crown/Band can all reference
+        /// ONE shared "Helmet" category material (see
+        /// CharacterSkin.EnsureSharedCategory) while still looking like a
+        /// black hat with a dark red band.
+        /// </summary>
+        public static readonly Color HatColour = new Color(0.03f, 0.03f, 0.035f);
+        public static readonly Color BandColour = new Color(0.09f, 0.02f, 0.02f);
+
         private SphereCollider _pickupTrigger;
         private Transform _nearbyPlayer;
         private bool _equipped;
@@ -46,6 +57,21 @@ namespace CityX.Wearables
         private void Awake()
         {
             _pickupTrigger = GetComponent<SphereCollider>();
+            ApplyTints();
+        }
+
+        /// <summary>
+        /// Re-applied every time this component wakes up (ground pickup,
+        /// equipped instance, editor capture) rather than trusted to
+        /// survive PrefabUtility.SaveAsPrefabAsset -- see WearableTint's
+        /// own class comment for why a MaterialPropertyBlock is applied
+        /// here instead of baked once at build time.
+        /// </summary>
+        private void ApplyTints()
+        {
+            WearableTint.Apply(transform.Find("Brim")?.GetComponent<Renderer>(), HatColour, 0.4f);
+            WearableTint.Apply(transform.Find("Crown")?.GetComponent<Renderer>(), HatColour, 0.4f);
+            WearableTint.Apply(transform.Find("Band")?.GetComponent<Renderer>(), BandColour, 0.5f);
         }
 
         private void Update()

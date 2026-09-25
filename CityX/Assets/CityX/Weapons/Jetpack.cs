@@ -36,8 +36,13 @@ namespace CityX.Weapons
         /// brief arc, this has to read as sustained powered flight for as
         /// long as Space stays down, which needs more than jump-height
         /// speed to feel like thrust rather than a very long hang time.
+        ///
+        /// EXPLICIT ASK: "make the default speed the speed that holding
+        /// shift goes now" -- was 7.0, the plain (non-boosted) climb speed;
+        /// now equal to the OLD BoostThrustSpeed (11.0), so ordinary
+        /// thrust already climbs as fast as a boost used to.
         /// </summary>
-        public const float ThrustSpeed = 7.0f;
+        public const float ThrustSpeed = 11.0f;
 
         /// <summary>
         /// Vertical speed while boosting with no WASD direction held --
@@ -45,8 +50,13 @@ namespace CityX.Weapons
         /// from the explicit ask. Only applies with nothing to lean
         /// toward; holding a direction spends the boost on lean instead
         /// (see TickTilt's own doc comment).
+        ///
+        /// EXPLICIT ASK, same pass as ThrustSpeed's own: "make holding
+        /// shift double as fast as that" -- double the NEW ThrustSpeed
+        /// (11.0), not the old one, so boosting still means something
+        /// once plain thrust is this much faster than it used to be.
         /// </summary>
-        public const float BoostThrustSpeed = 11.0f;
+        public const float BoostThrustSpeed = ThrustSpeed * 2.0f;
 
         /// <summary>
         /// Same multiplier as PlayerLocomotion.JetpackDiveSpeedMultiplier,

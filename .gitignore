@@ -62,3 +62,7 @@ Thumbs.db
 
 # Local Claude Code settings (per-machine tool permissions)
 .claude/
+
+# tools/cityplan (dotnet plan renderer)
+tools/cityplan/bin/
+tools/cityplan/obj/

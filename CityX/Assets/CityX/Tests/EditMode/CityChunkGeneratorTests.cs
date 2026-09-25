@@ -60,6 +60,38 @@ namespace CityX.Tests
         }
 
         /// <summary>
+        /// The buildings of the WHOLE city, sampled: a 5x5 spread of windows
+        /// across ~8km. Zones are regional -- a downtown is a kilometre
+        /// across, an old town a few blocks -- so a share measured in one
+        /// window near the origin says almost nothing about the city.
+        /// </summary>
+        private static List<(BuildingParams p, LotRole role, int x, int y)> SweepCity(int worldSeed)
+        {
+            CityBlocks blocks = new CityBlocks(worldSeed);
+            var found = new List<(BuildingParams, LotRole, int, int)>();
+            const int half = 24;
+            foreach (int gx in new[] { -280, -140, 0, 140, 280 })
+            {
+                foreach (int gy in new[] { -280, -140, 0, 140, 280 })
+                {
+                    for (int x = gx - half; x < gx + half; x++)
+                    {
+                        for (int y = gy - half; y < gy + half; y++)
+                        {
+                            LotRole role = blocks.RoleFor(x, y);
+                            BuildingParams p = CityChunkGenerator.ParamsFor(ChunkSeed(worldSeed, x, y), role);
+                            if (p.HasBuilding)
+                            {
+                                found.Add((p, role, x, y));
+                            }
+                        }
+                    }
+                }
+            }
+            return found;
+        }
+
+        /// <summary>
         /// The guarantee everything else rests on: no geometry crosses the
         /// network because both sides can rebuild it.
         /// </summary>
@@ -309,7 +341,7 @@ namespace CityX.Tests
         [Test]
         public void MostOfTheCityIsGenuinelyTall()
         {
-            var buildings = Sweep(2024, 40);
+            var buildings = SweepCity(2024);
             Assert.Greater(buildings.Count, 800, "not enough buildings sampled");
 
             int tall = 0;
@@ -334,7 +366,7 @@ namespace CityX.Tests
         [Test]
         public void MassMixMatchesTheArtDirection()
         {
-            var buildings = Sweep(777, 45);
+            var buildings = SweepCity(777);
             var counts = new Dictionary<BuildingMass, int>();
             foreach (var (p, _, _, _) in buildings)
             {
@@ -391,7 +423,7 @@ namespace CityX.Tests
         [Test]
         public void SpecialBuildingsAreRareButDoOccur()
         {
-            var buildings = Sweep(2024, 60);
+            var buildings = SweepCity(2024);
             var specials = new Dictionary<string, int>();
             foreach (var (p, _, _, _) in buildings)
             {
@@ -510,6 +542,111 @@ namespace CityX.Tests
             double rate = empty / (double)lots;
             Assert.Greater(rate, 0.05, $"only {rate:P1} of lots are empty -- the city has no gaps at all");
             Assert.Less(rate, 0.18, $"{rate:P1} of lots are empty -- the city is full of holes");
+        }
+
+        /// <summary>
+        /// THE SKYLINE GRADIENT. Buildings of the same class stand taller the
+        /// closer they are to a core, so from above the city climbs toward its
+        /// downtowns instead of being salt-and-pepper. Measured on plain
+        /// mid-rise lots so the class mix cannot fake it.
+        /// </summary>
+        [Test]
+        public void MidRisesStandTallerTowardTheCore()
+        {
+            var sum = new Dictionary<ZoneKind, double>();
+            var count = new Dictionary<ZoneKind, int>();
+            foreach (var (p, role, _, _) in SweepCity(4242))
+            {
+                if (p.IsSpecial || p.Mass != BuildingMass.MidRise)
+                {
+                    continue;
+                }
+                ZoneKind zone = CityChunkGenerator.ZoneOfRole(role);
+                sum.TryGetValue(zone, out double s);
+                count.TryGetValue(zone, out int n);
+                sum[zone] = s + p.Height;
+                count[zone] = n + 1;
+            }
+
+            double Mean(ZoneKind z)
+            {
+                Assert.Greater(count.GetValueOrDefault(z), 50, $"too few {z} mid-rises sampled");
+                TestContext.WriteLine($"{z}: mean mid-rise {sum[z] / count[z]:0.0}m over {count[z]}");
+                return sum[z] / count[z];
+            }
+
+            Assert.Greater(Mean(ZoneKind.Core), Mean(ZoneKind.Urban) + 5.0, "downtown is not taller than the urban ring");
+            Assert.Greater(Mean(ZoneKind.Urban), Mean(ZoneKind.Residential) + 5.0, "the urban ring is not taller than the residential districts");
+            Assert.Greater(Mean(ZoneKind.Residential), Mean(ZoneKind.Outskirts) + 3.0, "residential is not taller than the outskirts");
+        }
+
+        /// <summary>Sheds belong to industrial zones, and industrial zones grow nothing else wide and tall.</summary>
+        [Test]
+        public void WarehousesOnlyGrowInIndustrialZones()
+        {
+            int warehouses = 0;
+            foreach (var (p, role, x, y) in SweepCity(9001))
+            {
+                bool industrial = CityChunkGenerator.ZoneOfRole(role) == ZoneKind.Industrial;
+                if (p.Mass == BuildingMass.Warehouse)
+                {
+                    warehouses++;
+                    Assert.IsTrue(industrial, $"a warehouse stands at ({x},{y}) outside any industrial zone");
+                }
+                else if (industrial && role.IsMultiChunk && !p.IsSpecial)
+                {
+                    Assert.Fail($"({x},{y}) is a {p.Mass} on a {role.SpanX}x{role.SpanY} industrial lot -- it should be a warehouse");
+                }
+            }
+            Assert.Greater(warehouses, 20, "no warehouses appeared -- industrial zones are not producing sheds");
+        }
+
+        /// <summary>Supertall landmarks are a downtown thing: they never rise in a residential district or the outskirts.</summary>
+        [Test]
+        public void SupertallsStandOnlyInTheCoreAndUrbanRing()
+        {
+            int supertalls = 0;
+            foreach (var (p, role, x, y) in SweepCity(31))
+            {
+                if (p.Mass != BuildingMass.Supertall)
+                {
+                    continue;
+                }
+                supertalls++;
+                ZoneKind zone = CityChunkGenerator.ZoneOfRole(role);
+                Assert.IsTrue(zone == ZoneKind.Core || zone == ZoneKind.Urban,
+                    $"a supertall stands at ({x},{y}) in a {zone} zone");
+            }
+            Assert.Greater(supertalls, 5, "no supertalls in the whole sample");
+        }
+
+        /// <summary>Banks cluster downtown; the sample must show it.</summary>
+        [Test]
+        public void BanksClusterDowntown()
+        {
+            var lots = new Dictionary<ZoneKind, int>();
+            var banks = new Dictionary<ZoneKind, int>();
+            foreach (var (p, role, _, _) in SweepCity(2024))
+            {
+                ZoneKind zone = CityChunkGenerator.ZoneOfRole(role);
+                if (role.IsMultiChunk)
+                {
+                    continue;
+                }
+                lots.TryGetValue(zone, out int l);
+                lots[zone] = l + 1;
+                if (p.SpecialType == "bank")
+                {
+                    banks.TryGetValue(zone, out int b);
+                    banks[zone] = b + 1;
+                }
+            }
+
+            double Rate(ZoneKind z) => lots.GetValueOrDefault(z) == 0 ? 0.0 : banks.GetValueOrDefault(z) / (double)lots[z];
+            TestContext.WriteLine($"bank rate: core {Rate(ZoneKind.Core):P2}, residential {Rate(ZoneKind.Residential):P2}");
+            Assert.Greater(Rate(ZoneKind.Core), Rate(ZoneKind.Residential) * 2.0,
+                "banks are not concentrated downtown");
+            Assert.AreEqual(0, banks.GetValueOrDefault(ZoneKind.Industrial), "a bank was built in an industrial estate");
         }
 
         /// <summary>

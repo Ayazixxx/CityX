@@ -56,11 +56,17 @@ namespace CityX.Character
         public const float SpineT = 0.5f;
 
         /// <summary>
-        /// Where the head sphere's centre sits above the shoulders. hud.gd puts
-        /// it around 2.25, which is the shoulder line plus the sphere's own
-        /// radius.
+        /// Where the head sphere's centre sits above the shoulders.
+        ///
+        /// EXPLICIT ASK: "make the head size and placement exactly the same
+        /// as it was in godot." character.gd's own _define_parts() pivots
+        /// the head at FusedBody.NECK_Y (== ShoulderY + NeckLength, not
+        /// ShoulderY alone) and offsets it up by the sphere's own radius on
+        /// top of that -- this was missing the NeckLength term (a 1mm
+        /// difference, previously judged close enough at "hud.gd puts it
+        /// around 2.25"), now added for an exact match.
         /// </summary>
-        public const float HeadCentreY = ShoulderY + FusedBodyShape.HeadRadius;
+        public const float HeadCentreY = ShoulderY + FusedBodyShape.NeckLength + FusedBodyShape.HeadRadius;
 
         /// <summary>
         /// Arm length, shoulder to fingertip, measured on the ORIGINAL resting

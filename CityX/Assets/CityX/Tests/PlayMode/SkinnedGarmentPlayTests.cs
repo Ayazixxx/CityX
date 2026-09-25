@@ -98,5 +98,54 @@ namespace CityX.Tests
                 "the jeans should still be worn -- the cloak fills a different slot");
             Assert.AreEqual(ItemRegistry.HoodedCloak, _inventory.EquippedItemId("top"));
         }
+
+        /// <summary>
+        /// THE ACTUAL POINT OF SkinnedGarmentCombiner, proven on a real rig
+        /// rather than assumed from the EditMode logic tests alone -- with
+        /// many players on screen at once, a real GPU skin evaluation runs
+        /// once per SkinnedMeshRenderer, so wearing both a top and legs
+        /// garment has to cost one renderer, not two, regardless of how
+        /// large the item catalog ever grows.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator WearingBothATopAndLegsGarmentSharesOneCombinedRendererNotTwo()
+        {
+#if UNITY_EDITOR
+            GameObject playerPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/CityX/Character/Player.prefab");
+            Assert.IsNotNull(playerPrefab, "Player.prefab is missing");
+            GameObject jeansPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/CityX/Wearables/SkelliJeans.prefab");
+            Assert.IsNotNull(jeansPrefab, "SkelliJeans.prefab is missing -- run its own Rebuild menu item first");
+            GameObject cloakPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/CityX/Wearables/HoodedCloak.prefab");
+            Assert.IsNotNull(cloakPrefab, "HoodedCloak.prefab is missing -- run its own Rebuild menu item first");
+
+            var realPlayer = Object.Instantiate(playerPrefab);
+            int bodyOnlyRendererCount = realPlayer.GetComponentsInChildren<SkinnedMeshRenderer>(true).Length;
+
+            var jeans = Object.Instantiate(jeansPrefab).GetComponent<SkelliJeans>();
+            jeans.OnEquip(realPlayer, ItemInstanceData.None);
+            yield return null;
+
+            var cloak = Object.Instantiate(cloakPrefab).GetComponent<HoodedCloak>();
+            cloak.OnEquip(realPlayer, ItemInstanceData.None);
+            yield return null;
+
+            var combiner = realPlayer.GetComponent<SkinnedGarmentCombiner>();
+            Assert.IsNotNull(combiner, "equipping a skinned garment on a real rig should build the combiner");
+            Assert.AreEqual(2, combiner.CombinedMesh.subMeshCount, "both garments should share one combined mesh");
+
+            int totalRendererCount = realPlayer.GetComponentsInChildren<SkinnedMeshRenderer>(true).Length;
+            Assert.AreEqual(bodyOnlyRendererCount + 1, totalRendererCount,
+                "wearing two garments should add exactly ONE renderer (the shared combiner's), not one per item");
+
+            Object.Destroy(realPlayer);
+            Object.Destroy(jeans.gameObject);
+            Object.Destroy(cloak.gameObject);
+#else
+            yield break;
+#endif
+        }
     }
 }

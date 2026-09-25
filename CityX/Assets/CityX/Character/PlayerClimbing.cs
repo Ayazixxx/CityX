@@ -1,3 +1,4 @@
+using CityX.World;
 using UnityEngine;
 
 namespace CityX.Character
@@ -155,12 +156,18 @@ namespace CityX.Character
 
             // Same pool sprinting drains, same exhaustion latch -- see this
             // class's own doc comment.
-            bool stillHasStamina = vitals == null || vitals.TickStamina(true, deltaTime);
+            //
+            // A WET LADDER COSTS MORE AND SLIPS -- see WallStick.Tick's own
+            // comment on rain and grip. Nothing changes on a dry or covered wall.
+            float wet = CurrentWeather.SurfaceWetness(transform.position);
+            bool stillHasStamina = vitals == null
+                || vitals.TickStamina(true, deltaTime * Weather.WallStaminaDrain(wet));
             if (!stillHasStamina)
             {
                 EndClimb(false, deltaTime);
                 return;
             }
+            float slip = Weather.WallSlipSpeed(wet);
 
             int direction = 0;
             if (climbUpHeld && !climbDownHeld)
@@ -184,7 +191,7 @@ namespace CityX.Character
 
             Vector3 move = new Vector3(
                 _anchorX - transform.position.x,
-                direction * ClimbSpeed * deltaTime,
+                direction * ClimbSpeed * deltaTime - slip * deltaTime,
                 _anchorZ - transform.position.z);
             _controller.Move(move);
 
@@ -198,7 +205,7 @@ namespace CityX.Character
             // normally (no push, same as running out of stamina) rather
             // than leaving the player stuck holding an invisible grip below
             // floor level.
-            if (direction < 0 && _controller.isGrounded)
+            if ((direction < 0 || slip > 0.0f) && _controller.isGrounded)
             {
                 EndClimb(false, deltaTime);
             }

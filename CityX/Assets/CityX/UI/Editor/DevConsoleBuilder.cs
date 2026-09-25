@@ -37,8 +37,9 @@ namespace CityX.UIEditor
             GameObject grapplingHookPrefab = null, GameObject pistolPrefab = null,
             GameObject midnightPatchworkCoatPrefab = null, GameObject jetpackPrefab = null,
             GameObject swordPrefab = null, GameObject topHatPrefab = null,
-            GameObject mustangPrefab = null, GameObject farmerHatPrefab = null,
-            GameObject flamethrowerPrefab = null, GameObject parachutePrefab = null)
+            GameObject mustangPrefab = null,
+            GameObject flamethrowerPrefab = null, GameObject parachutePrefab = null,
+            GameObject blackPufferJacketPrefab = null)
         {
             var root = new GameObject("DevConsole", typeof(RectTransform));
             Canvas canvas = root.AddComponent<Canvas>();
@@ -116,12 +117,12 @@ namespace CityX.UIEditor
             view.GrapplingHookPrefab = grapplingHookPrefab;
             view.PistolPrefab = pistolPrefab;
             view.MidnightPatchworkCoatPrefab = midnightPatchworkCoatPrefab;
+            view.BlackPufferJacketPrefab = blackPufferJacketPrefab;
             view.JetpackPrefab = jetpackPrefab;
             view.ParachutePrefab = parachutePrefab;
             view.SwordPrefab = swordPrefab;
             view.TopHatPrefab = topHatPrefab;
             view.MustangPrefab = mustangPrefab;
-            view.FarmerHatPrefab = farmerHatPrefab;
             view.FlamethrowerPrefab = flamethrowerPrefab;
             view.InputReader = inputReader;
             view.OrbitCamera = orbitCamera;

@@ -1,6 +1,8 @@
 using CityX.Character;
+using FishNet.Component.Observing;
 using FishNet.Component.Transforming;
 using FishNet.Object;
+using FishNet.Observing;
 using UnityEditor;
 using UnityEngine;
 
@@ -31,6 +33,7 @@ namespace CityX.CharacterEditor
     public static class NetworkedPlayerBuilder
     {
         private const string PrefabPath = "Assets/CityX/Character/NetworkedPlayer.prefab";
+        private const string ViewDistanceConditionPath = "Assets/CityX/Character/PlayerViewDistance.asset";
 
         [MenuItem("CityX/Rebuild Networked Player")]
         public static GameObject Build()
@@ -46,6 +49,35 @@ namespace CityX.CharacterEditor
             GameObject root = (GameObject)PrefabUtility.InstantiatePrefab(playerPrefab);
             try
             {
+                // THE ANIMATOR CONTROLLER MUST SURVIVE THIS PREFAB VARIANT.
+                // Found by the first real over-the-network test of jump/punch
+                // sync: the saved NetworkedPlayer.prefab carried an explicit
+                // `m_Controller: {fileID: 0}` override, so every spawned
+                // player clone -- what a friend actually sees and controls --
+                // had an Animator playing NOTHING (Unity logs "Animator is not
+                // playing an AnimatorController" every frame). No earlier test
+                // ever looked at an animator on a spawned clone. Restoring the
+                // base prefab's controller onto the instance removes the
+                // bogus override at save time.
+                Animator baseAnimator = playerPrefab.GetComponentInChildren<Animator>(true);
+                Animator instanceAnimator = root.GetComponentInChildren<Animator>(true);
+                RuntimeAnimatorController controller = baseAnimator != null
+                    ? baseAnimator.runtimeAnimatorController
+                    : null;
+                if (controller == null)
+                {
+                    controller = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(
+                        "Assets/CityX/Character/PlayerAnimator.controller");
+                }
+                if (instanceAnimator != null && controller != null)
+                {
+                    instanceAnimator.runtimeAnimatorController = controller;
+                }
+                else
+                {
+                    Debug.LogError("CityX: could not restore the Animator controller onto the networked player.");
+                }
+
                 // NetworkTransform's own _clientAuthoritative defaults to
                 // true, which is exactly what an owner-driven body needs;
                 // nothing here has to configure it further.
@@ -53,6 +85,7 @@ namespace CityX.CharacterEditor
                 root.AddComponent<NetworkTransform>();
                 root.AddComponent<NetworkedPlayerIdentity>();
                 root.AddComponent<NetworkedAnimatorSync>();
+                AddViewDistanceObserver(root);
 
                 // Same reasoning as the scene-baked player's own doc comment
                 // in CityMassingSceneBuilder: Unity normally calls
@@ -84,6 +117,62 @@ namespace CityX.CharacterEditor
             {
                 Object.DestroyImmediate(root);
             }
+        }
+
+        /// <summary>
+        /// Adds a NetworkObserver gated on NetworkedPlayerIdentity.ViewRadius
+        /// so a client only observes -- and therefore only ever
+        /// instantiates -- OTHER players within that distance, the same
+        /// FishNet mechanism (NetworkObserver + DistanceCondition) CityX.
+        /// Spike's own SpikeAssetBuilder already proved works for both
+        /// NPC-shaped and player-shaped entities. Shared by both places a
+        /// real player's networking components get added -- this derived
+        /// clone prefab, and CityMassingSceneBuilder's own baked scene
+        /// player -- so the two can never drift to different radii.
+        ///
+        /// _observerConditions IS internal, same as SpikeAssetBuilder's own
+        /// AssignObserverCondition found -- SerializedProperty is the
+        /// supported editor-side way to write it, not reflection.
+        ///
+        /// A REAL, ON-DISK ASSET (created once, then reloaded), not a
+        /// runtime ScriptableObject.CreateInstance -- CityX.Spike's own
+        /// SpikeWorld.LoadAndRegister doc comment already flags why:
+        /// runtime-registered/created assets only line up between processes
+        /// (or, worse, between two separately-constructed collections in
+        /// the SAME process -- confirmed the hard way while proving this
+        /// mechanism for players in InterestManagementPlayerToPlayer
+        /// PlayTests) that happen to share the exact same instance. A real
+        /// asset persisted at ViewDistanceConditionPath sidesteps that
+        /// entirely, the same way SpikeAssetBuilder's own generated
+        /// SpikeViewDistance.asset does.
+        /// </summary>
+        public static void AddViewDistanceObserver(GameObject playerObject)
+        {
+            DistanceCondition condition = AssetDatabase.LoadAssetAtPath<DistanceCondition>(ViewDistanceConditionPath);
+            if (condition == null)
+            {
+                condition = ScriptableObject.CreateInstance<DistanceCondition>();
+                AssetDatabase.CreateAsset(condition, ViewDistanceConditionPath);
+            }
+            condition.SetMaximumDistance(NetworkedPlayerIdentity.ViewRadius);
+            EditorUtility.SetDirty(condition);
+
+            NetworkObserver observer = playerObject.GetComponent<NetworkObserver>();
+            if (observer == null)
+            {
+                observer = playerObject.AddComponent<NetworkObserver>();
+            }
+
+            SerializedObject so = new SerializedObject(observer);
+            SerializedProperty conditions = so.FindProperty("_observerConditions");
+            if (conditions == null)
+            {
+                Debug.LogError("CityX: NetworkObserver has no _observerConditions field -- FishNet's internals changed.");
+                return;
+            }
+            conditions.arraySize = 1;
+            conditions.GetArrayElementAtIndex(0).objectReferenceValue = condition;
+            so.ApplyModifiedPropertiesWithoutUndo();
         }
     }
 }

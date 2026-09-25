@@ -1199,6 +1199,19 @@ namespace CityX.Tests
                             continue;
                         }
 
+                        // An edge between two chunks of the SAME building runs
+                        // through the building, not along a terrace, and is
+                        // deliberately left bare (see BuildGround's own
+                        // "westInternal" comment).
+                        if (site.Exists)
+                        {
+                            BuildingSite other = world.BuildingAt(nx, ny);
+                            if (other.Exists && other.AnchorX == site.AnchorX && other.AnchorY == site.AnchorY)
+                            {
+                                continue;
+                            }
+                        }
+
                         // The ORIGINAL street-ramp roll (SlopedStreetChance)
                         // is vestigial here and always effectively false in
                         // real behaviour -- AddSlopedStreetRamp itself is
@@ -1211,8 +1224,12 @@ namespace CityX.Tests
                         // BuildingDecor.EntranceApproachIsSloped rolls true
                         // -- see AddStreetEdgeFeatures's own matching gate.
                         bool isDoorFacingEdge = ny == y + 1;
+                        // ANY chunk of the building on the door-facing row, not
+                        // just the anchor: AddStreetEdgeFeatures reads the
+                        // building's roll off BuildingAt, which follows a
+                        // covered chunk back to its anchor.
                         bool sloped = isDoorFacingEdge && CityLayout.IsStreetChunk(nx, ny) &&
-                            site.Exists && site.AnchorX == x && site.AnchorY == y &&
+                            site.Exists &&
                             BuildingDecor.EntranceApproachIsSloped(world.ChunkSeed(site.AnchorX, site.AnchorY));
 
                         anyDrop = true;
@@ -1571,12 +1588,22 @@ namespace CityX.Tests
                     // so two chunks sharing an edge's exact world position
                     // always agree, the same reason the real street below
                     // never needed stitching either).
+                    //
+                    // ONLY WHEN THE NEIGHBOUR IS ITSELF A STRAIGHT COLUMN
+                    // CHUNK. A cross street's junction chunk (the street
+                    // runs along X there) never carries a deck -- the span
+                    // simply ends at it -- so there is no second deck to
+                    // meet. Junctions used to sit at fixed spacing and this
+                    // sweep never landed beside one; irregular arterials
+                    // put one anywhere.
                     BuildStreetEdge(x, centreY - 1, out _, out _, out MeshBuffer neighbourGround);
                     float sharedEdgeZ = centreY * CityLayout.ChunkSize;
                     float sharedEdgeHeightHere = HeightOfVertexNearZ(ground, sharedEdgeZ, minPossibleDeckY);
                     float sharedEdgeHeightNeighbour =
                         HeightOfVertexNearZ(neighbourGround, sharedEdgeZ, minPossibleDeckY);
-                    if (!float.IsNaN(sharedEdgeHeightHere) && !float.IsNaN(sharedEdgeHeightNeighbour))
+                    bool neighbourIsAColumnChunk = CityLayout.IsStreetChunk(x, centreY - 1) &&
+                                                   !CityLayout.StreetRunsAlongX(x, centreY - 1);
+                    if (neighbourIsAColumnChunk && !float.IsNaN(sharedEdgeHeightHere) && !float.IsNaN(sharedEdgeHeightNeighbour))
                     {
                         Assert.AreEqual(sharedEdgeHeightHere, sharedEdgeHeightNeighbour, 0.05f,
                             $"({x},{centreY})'s deck does not meet its own neighbour's deck at their " +
@@ -2107,8 +2134,10 @@ namespace CityX.Tests
                     Build(x, y, out _, out MeshBuffer concrete, out MeshBuffer facade,
                         out MeshBuffer lit, out MeshBuffer dark);
 
-                    // Two triangles a pane, in one buffer or the other.
-                    int built = (lit.Triangles.Count + dark.Triangles.Count) / 6;
+                    // FOUR triangles a pane now (front + back, see
+                    // AddDoubleSidedFace's own doc comment), not two -- 12
+                    // indices, not 6.
+                    int built = (lit.Triangles.Count + dark.Triangles.Count) / 12;
                     Assert.AreEqual(ExpectedPanes(world, site), built,
                         $"({x},{y}) glazed {ExpectedPanes(world, site)} cells but hung {built} panes");
                     panes += built;
@@ -2382,6 +2411,15 @@ namespace CityX.Tests
             // triangle counts, and the difference cost a confused test run.
             const int Quad = 6;
 
+            // A PANE IS TWO QUADS NOW, FRONT AND BACK -- EXPLICIT BUG REPORT:
+            // "when shooting windows from inside the building the are not
+            // breaking." AddDoubleSidedFace adds a back-facing copy of every
+            // plain pane so the shared MeshCollider has a triangle to hit
+            // from either side (queriesHitBackfaces is off project-wide, see
+            // AddDoubleSidedFace's own doc comment) -- doubling the index
+            // count this test already tracked per pane.
+            const int Pane = Quad * 2;
+
             var openings = new List<CityMeshBuilder.CrackedOpening>();
             int wallCracked = BuildWith(world, bridges, x, y, damage,
                 out int litCracked, out int darkCracked, out int crackedNow, openings);
@@ -2394,9 +2432,9 @@ namespace CityX.Tests
             Assert.GreaterOrEqual(openings[0].Size.x, CityMeshBuilder.CrackedOpeningDepth - 0.001f);
             Assert.GreaterOrEqual(openings[0].Size.z, CityMeshBuilder.CrackedOpeningDepth - 0.001f);
             Assert.Greater(openings[0].Size.y, 0.5f, "the opening is not window-shaped");
-            Assert.AreEqual(Quad, crackedNow,
+            Assert.AreEqual(Pane, crackedNow,
                 "the cracked pane is not in the cracked buffer, or took something with it");
-            Assert.AreEqual(litBefore + darkBefore - Quad, litCracked + darkCracked,
+            Assert.AreEqual(litBefore + darkBefore - Pane, litCracked + darkCracked,
                 "the pane left the intact buffers as exactly one quad");
             Assert.AreEqual(wallBefore, wallCracked,
                 "cracking a window changed the wall around it");
@@ -2406,7 +2444,7 @@ namespace CityX.Tests
             int wallGone = BuildWith(world, bridges, x, y, damage,
                 out int litGone, out int darkGone, out int crackedGone);
             Assert.AreEqual(0, crackedGone, "a shattered pane is still drawn");
-            Assert.AreEqual(litBefore + darkBefore - Quad, litGone + darkGone);
+            Assert.AreEqual(litBefore + darkBefore - Pane, litGone + darkGone);
             Assert.AreEqual(wallBefore, wallGone,
                 "the wall grew back over a window somebody smashed");
         }
@@ -2440,7 +2478,10 @@ namespace CityX.Tests
             BuildWith(world, bridges, x, y, damage,
                 out int lit, out int dark, out int cracked, crackDecals: decals);
 
-            Assert.AreEqual(Quad * 4, cracked,
+            // EACH OF THE FOUR FRAME PANELS IS ALSO DOUBLE-SIDED NOW, same
+            // reason (and same AddDoubleSidedFace) as the plain pane in the
+            // test above -- Quad * 4 * 2, not Quad * 4.
+            Assert.AreEqual(Quad * 4 * 2, cracked,
                 "a shot pane with a known impact point should frame a hole, not draw one flat quad");
 
             // EXPLICIT ASK: replace the plain square hole with a real crack-
@@ -2784,9 +2825,22 @@ namespace CityX.Tests
             Assert.Greater(plain, cellars * 4, "basements are supposed to be rare");
         }
 
-        /// <summary>Is there any geometry under this footprint below a height?</summary>
+        /// <summary>
+        /// Is there any geometry under this footprint below a height?
+        ///
+        /// STRICTLY INSIDE the footprint: a vertex ON its edge belongs to the
+        /// wall, not to anything under the lobby. An entrance staircase that
+        /// descends to a street below a multi-chunk building's raised floor
+        /// has its lowest riser exactly on the wall plane -- a building whose
+        /// door row sits on a lower terrace is normal (see BuildBuilding's own
+        /// doorRowPad), and this check only exists to catch geometry built
+        /// UNDER the floor.
+        /// </summary>
         private static bool HasSurfaceBelow(MeshBuffer buffer, Rect plan, float below)
         {
+            const float wallInset = 0.05f;
+            plan = Rect.MinMaxRect(plan.xMin + wallInset, plan.yMin + wallInset,
+                plan.xMax - wallInset, plan.yMax - wallInset);
             for (int i = 0; i < buffer.Vertices.Count; i++)
             {
                 Vector3 v = buffer.Vertices[i];
@@ -2813,9 +2867,15 @@ namespace CityX.Tests
             CityWorld world = new CityWorld(Seed);
             var seen = new Dictionary<string, int>();
 
-            for (int x = -20; x <= 20; x++)
+            // Roofs are picked per ZONE (a downtown bristles with antennas, an
+            // industrial estate with chimneys and sheds), so a window near the
+            // origin sees only some of the table. These windows span the
+            // zones: the downtown at spawn plus residential, industrial and
+            // outskirts ground.
+            foreach (var (windowX, windowY) in new[] { (0, 0), (140, 140), (-140, 140), (140, -140), (-280, -140), (280, 140) })
+            for (int x = windowX - 12; x <= windowX + 12; x++)
             {
-                for (int y = -20; y <= 20; y++)
+                for (int y = windowY - 12; y <= windowY + 12; y++)
                 {
                     BuildingSite site = world.BuildingAt(x, y);
                     if (!site.Exists || site.AnchorX != x || site.AnchorY != y)

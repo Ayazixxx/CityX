@@ -136,11 +136,69 @@ namespace CityX.Tests
             Assert.Less(perChunk, 5.0f,
                 $"a chunk takes {perChunk:0.00}ms to build, upload and cook, so a frame that "
                 + "builds a full budget of them loses most of itself to streaming");
-            Assert.Less(perBuilding, 3.0f,
+            // THE SPAWN WINDOW IS THE HEAVIEST GROUND IN THE CITY. (0,0) is the
+            // middle of a downtown core (CityZones), where nearly every
+            // building is a tower, and a chunk's geometry cost grows with
+            // building height -- measured about 0.5ms under 40m, 2ms at 100m,
+            // 4.5ms at 200m and 10ms at 300m. So this window costs roughly
+            // two and a half times the city-wide average, which
+            // TheCityWideAverageBuildingChunkStaysCheap pins separately.
+            Assert.Less(perBuilding, 4.5f,
                 $"a chunk with a building takes {perBuilding:0.00}ms of pure geometry");
-            Assert.Less(trianglesPerChunk, 4000.0f,
+            Assert.Less(trianglesPerChunk, 4500.0f,
                 $"a chunk averages {trianglesPerChunk:0} triangles -- something inside the "
                 + "buildings grew a lot");
+        }
+
+        /// <summary>
+        /// The average building chunk across the WHOLE city -- downtowns,
+        /// residential, industrial and the outskirts -- not just the spawn
+        /// core. The zoning put the tall buildings in cores instead of
+        /// scattering them, which moves cost around without changing the
+        /// total; this is what makes sure it really did not change the total.
+        /// </summary>
+        [Test]
+        public void TheCityWideAverageBuildingChunkStaysCheap()
+        {
+            var world = new CityWorld(Seed);
+            var bridges = new SkybridgeLayout(Seed);
+            var watch = new Stopwatch();
+
+            // Warm the JIT so the first chunks do not skew a small sample.
+            for (int i = 0; i < 20; i++)
+            {
+                CityMeshBuilder.BuildChunk(world, bridges, i, 3, Vector3.zero,
+                    new MeshBuffer(), new MeshBuffer(), new MeshBuffer());
+            }
+
+            double buildingMs = 0.0;
+            int buildings = 0;
+            foreach (var (wx, wy) in new[] { (0, 0), (140, 140), (-140, 140), (140, -140), (-280, -140), (280, 140), (0, 280), (-140, -280) })
+            {
+                for (int x = wx - 12; x <= wx + 12; x++)
+                {
+                    for (int y = wy - 12; y <= wy + 12; y++)
+                    {
+                        BuildingSite site = world.BuildingAt(x, y);
+                        if (!site.Exists || site.AnchorX != x || site.AnchorY != y)
+                        {
+                            continue;
+                        }
+                        watch.Restart();
+                        CityMeshBuilder.BuildChunk(world, bridges, x, y, Vector3.zero,
+                            new MeshBuffer(), new MeshBuffer(), new MeshBuffer());
+                        watch.Stop();
+                        buildingMs += watch.Elapsed.TotalMilliseconds;
+                        buildings++;
+                    }
+                }
+            }
+
+            float average = (float)(buildingMs / Mathf.Max(1, buildings));
+            TestContext.WriteLine($"{buildings} building chunks across the city, {average:0.00}ms of geometry each");
+            Assert.Greater(buildings, 1000, "not enough building chunks sampled");
+            Assert.Less(average, 2.5f,
+                $"the average building chunk across the city takes {average:0.00}ms of geometry");
         }
     }
 }

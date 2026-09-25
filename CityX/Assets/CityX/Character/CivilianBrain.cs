@@ -54,11 +54,24 @@ namespace CityX.Character
                        4.0f * World.StreetNetwork.PavementOffset * World.StreetNetwork.PavementOffset)
             / WalkSpeed * 1.4f;
 
+        /// <summary>How far a pedestrian will go looking for cover, in metres of street.</summary>
+        public const float ShelterSearchStep = 30.0f;
+
+        /// <summary>Candidate spots checked for cover each time the rain sends a pedestrian looking.</summary>
+        public const int ShelterCandidates = 8;
+
+        /// <summary>A spot this sheltered counts as under cover.</summary>
+        public const float Sheltered = 0.9f;
+
         private readonly DeterministicRandom _random;
 
         private bool _walking;
         private float _timer;
         private Vector3 _target;
+        private IRainSense _sense;
+        private float _rainOnMe;
+        private bool _seekingShelter;
+        private bool _waitingOutRain;
 
         public CivilianBrain(int seed)
         {
@@ -68,7 +81,52 @@ namespace CityX.Character
             _timer = (float)_random.Range(0.0, IdleMaxSeconds);
         }
 
+        /// <summary>
+        /// Gives the pedestrian a sense of the weather. WITHOUT ONE (the
+        /// default, and every test that is not about rain) the brain behaves
+        /// exactly as it always did and draws exactly the same random numbers.
+        /// With one it does what people do in rain -- Breath of the Wild's
+        /// villagers "run for shelter or cover their heads": walks faster, and
+        /// when it is really falling on them heads for the nearest cover and
+        /// waits there until it stops.
+        /// </summary>
+        public void SetRainSense(IRainSense sense)
+        {
+            _sense = sense;
+            _rainOnMe = 0.0f;
+            _seekingShelter = false;
+            _waitingOutRain = false;
+        }
+
         public bool IsWalking => _walking;
+
+        /// <summary>Heading for cover from the rain.</summary>
+        public bool IsSeekingShelter => _seekingShelter;
+
+        /// <summary>Standing under cover until the rain stops.</summary>
+        public bool IsWaitingOutRain => _waitingOutRain;
+
+        /// <summary>
+        /// The factor a body applies to its own walking speed: 1 dry, up to
+        /// 1.6 when rain is falling on it, and never less than a brisk 1.3
+        /// while it is making for cover.
+        /// </summary>
+        public float SpeedMultiplier
+        {
+            get
+            {
+                if (_sense == null)
+                {
+                    return 1.0f;
+                }
+                float rain = _rainOnMe;
+                if (_seekingShelter && rain < 0.6f)
+                {
+                    rain = 0.6f;
+                }
+                return Weather.PedestrianHurry(rain);
+            }
+        }
 
         public Vector3 Target => _target;
 
@@ -83,12 +141,20 @@ namespace CityX.Character
         public Vector3 Tick(Vector3 position, float deltaTime)
         {
             _timer -= deltaTime;
+            _rainOnMe = _sense != null ? _sense.RainOn(position) : 0.0f;
 
             if (!_walking)
             {
                 if (_timer > 0.0f)
                 {
                     return Vector3.zero;
+                }
+                if (_sense != null)
+                {
+                    if (WaitOutTheRain(position) || TrySeekShelter(position))
+                    {
+                        return Vector3.zero;
+                    }
                 }
                 BeginWalk(position);
                 return Vector3.zero;   // one frame of standing, then off
@@ -109,7 +175,68 @@ namespace CityX.Character
         private void BeginIdle()
         {
             _walking = false;
+            _seekingShelter = false;
             _timer = (float)_random.Range(IdleMinSeconds, IdleMaxSeconds);
+        }
+
+        /// <summary>
+        /// Already under cover while it is raining: stay put and re-check in a
+        /// couple of seconds, rather than wandering back out into it.
+        /// </summary>
+        private bool WaitOutTheRain(Vector3 position)
+        {
+            _waitingOutRain = _sense.Precipitation >= Weather.ShelterSeekThreshold
+                              && _sense.Shelter(position) >= Sheltered;
+            if (!_waitingOutRain)
+            {
+                return false;
+            }
+            _seekingShelter = false;
+            _timer = (float)_random.Range(1.5, 3.0);
+            return true;
+        }
+
+        /// <summary>
+        /// Rain is really falling on this pedestrian: look at a handful of
+        /// spots along the street and head for the nearest one under cover.
+        /// None found means carry on (hurrying) and look again next time.
+        /// </summary>
+        private bool TrySeekShelter(Vector3 position)
+        {
+            if (_rainOnMe < Weather.ShelterSeekThreshold)
+            {
+                return false;
+            }
+
+            bool found = false;
+            Vector3 best = position;
+            float bestDistance = float.MaxValue;
+            for (int i = 0; i < ShelterCandidates; i++)
+            {
+                Vector3 candidate = StreetNetwork.NextTarget(position, _random, MinStep, ShelterSearchStep);
+                if (_sense.Shelter(candidate) < Sheltered)
+                {
+                    continue;
+                }
+                float distance = (candidate - position).sqrMagnitude;
+                if (distance < bestDistance)
+                {
+                    bestDistance = distance;
+                    best = candidate;
+                    found = true;
+                }
+            }
+            if (!found)
+            {
+                return false;
+            }
+
+            _target = best;
+            _target.y = position.y;
+            _walking = true;
+            _seekingShelter = true;
+            _timer = WalkTimeoutSeconds;
+            return true;
         }
 
         private void BeginWalk(Vector3 position)

@@ -18,20 +18,24 @@ using UnityEngine.UI;
 namespace CityX.UIEditor
 {
     /// <summary>
-    /// Builds the title screen: the real city at night, held still, with the
-    /// logo over it and a menu.
+    /// Builds the title screen: a row of the game's own generated buildings at
+    /// night, the logo hanging in the sky above them, rain over the top, and a
+    /// menu.
     ///
-    /// THE BACKDROP IS THE ACTUAL GAME WORLD. The Godot original hand-listed a
-    /// small fixed skyline just for this screen, because generating its city
-    /// was expensive -- but its own camera never moved either way. This one is
-    /// arithmetic and streams itself, so the menu can look out over the real
-    /// thing instead of a second, separately-maintained skyline -- but
-    /// EXPLICIT ASK, after an earlier pass added a slow drifting/turning/
-    /// bobbing camera here: "recreate the godot title screen with the still
-    /// city." A moving establishing shot was this project's own addition, not
-    /// something Godot's title screen ever had; the camera is now placed once,
-    /// at build time, and never touched again, matching the original's actual
-    /// stillness while keeping the real-world-not-a-duplicate architecture.
+    /// THE COMPOSITION IS THE GODOT TITLE'S -- a handful of towers of uneven
+    /// height standing shoulder to shoulder, the logo over the tallest, rain
+    /// falling across all of it, a fixed camera -- BUT THE BUILDINGS ARE THIS
+    /// GAME'S. They are real buildings from the city generator (see
+    /// TitleSkylineBaker), so the concrete facades, the real window openings
+    /// with lit glass, the roof details and the night sky are exactly what the
+    /// player will then see in the world. An earlier pass copied Godot's
+    /// palette and hand-made towers to match a screenshot pixel for pixel;
+    /// that was the wrong target -- what was wanted was Unity's own art style,
+    /// not Godot's colours.
+    ///
+    /// Layers, bottom to top: the 3D scene (buildings, ground, sky, fog,
+    /// moonlight, the logo quad) -> rain -> vignette -> the eyes -> prompt,
+    /// menu and panels -> the lightning flash over everything.
     ///
     /// Run headlessly:
     ///   Unity.exe -batchmode -quit -projectPath &lt;proj&gt;
@@ -42,16 +46,11 @@ namespace CityX.UIEditor
         private const string ScenePath = "Assets/CityX/Scenes/Title.unity";
         private const string LogoPath = "Assets/CityX/UI/Textures/LogoCityX.png";
 
+        /// <summary>Everything the title generates -- the baked row of buildings, the logo's material, the vignette -- lives here, so a rebuild rewrites one folder.</summary>
+        private const string TitleAssets = "Assets/CityX/UI/Title";
+
         /// <summary>The one project-wide FishNet prefab collection -- see BuildNetworkRoot's own comment.</summary>
         private const string DefaultPrefabObjectsPath = "Assets/DefaultPrefabObjects.asset";
-
-        // Must match CityMassingSceneBuilder.WorldSeed exactly -- this is
-        // the SAME real, played game world, just viewed from the title
-        // screen's own drifting camera instead of the player's. EXPLICIT
-        // ASK: "generate a new world every time you make a change to the
-        // city generation" -- change this alongside that constant (and
-        // CityMassingCapture's own copy), never alone.
-        private const int WorldSeed = 29481073;
 
         /// <summary>
         /// Deep into the night, where the lit windows carry the picture. Not
@@ -61,6 +60,27 @@ namespace CityX.UIEditor
         private static readonly float TimeOfDay =
             SkyCycle.DaySeconds + SkyCycle.NightSeconds * 0.34f;
 
+        /// <summary>The logo's width as a fraction of the row's, and its shape (the art is 942x714).</summary>
+        private const float LogoWidthFraction = 0.26f;
+        private const float LogoAspect = 942.0f / 714.0f;
+
+        /// <summary>Where the logo hangs on z: in FRONT of every building (negative), so it draws over the rooftops rather than under them.</summary>
+        private const float LogoDepthBehind = -8.0f;
+
+        /// <summary>Vertical field of view of the fixed camera.</summary>
+        private const float FieldOfView = 42.0f;
+
+        /// <summary>The vignette's edge darkness on screen (title_screen.tscn: 55% black).</summary>
+        private const float VignetteStrength = 0.55f;
+
+        /// <summary>
+        /// This project blends UI in LINEAR space, where the same alpha of black
+        /// darkens far less than in Godot's sRGB blending. Measured from two
+        /// captures: 0.55 alpha darkened to 0.66 and 0.83 to 0.38 of the
+        /// underlying colour, which fits (1 - a) ^ 1.92.
+        /// </summary>
+        private const float LinearBlendExponent = 1.92f;
+
         private static readonly Color Gold = new Color(0.75f, 0.6f, 0.2f, 1.0f);
         private static readonly Color Paper = new Color(0.82f, 0.82f, 0.84f, 1.0f);
         private static readonly Color FieldInk = new Color(0.09f, 0.10f, 0.13f, 0.88f);
@@ -69,33 +89,85 @@ namespace CityX.UIEditor
         public static void Build()
         {
             Directory.CreateDirectory("Assets/CityX/Scenes");
+            Directory.CreateDirectory(TitleAssets);
 
-            Material ground = AssetDatabase.LoadAssetAtPath<Material>(
-                "Assets/CityX/View/Materials/CityGround.mat");
-            Material pavement = AssetDatabase.LoadAssetAtPath<Material>(
-                "Assets/CityX/View/Materials/CityPavement.mat");
-            Material structure = AssetDatabase.LoadAssetAtPath<Material>(
-                "Assets/CityX/View/Materials/CityConcrete.mat");
-            if (structure == null)
+            Material ground = LoadMaterial("CityGround");
+            Material pavement = LoadMaterial("CityPavement");
+            Material structure = LoadMaterial("CityConcrete");
+            Material darkGlass = LoadMaterial("CityGlassDark");
+            Material litGlass = LoadMaterial("CityGlassLit");
+            if (structure == null || litGlass == null)
             {
                 Debug.LogError("CityX: run CityX/Rebuild Massing Scene first -- the title screen " +
                                "uses the city's own materials.");
                 return;
             }
-            // NEVER LOADED HERE BEFORE -- CityStreamer rendered every window
-            // submesh with a null material slot, which Unity shows as its
-            // bright magenta "missing material" fallback rather than
-            // anything resembling glass. Ground/pavement/structure were
-            // wired below; these three were simply forgotten alongside them.
-            Material darkGlass = AssetDatabase.LoadAssetAtPath<Material>(
-                "Assets/CityX/View/Materials/CityGlassDark.mat");
-            Material litGlass = AssetDatabase.LoadAssetAtPath<Material>(
-                "Assets/CityX/View/Materials/CityGlassLit.mat");
-            Material crackedGlass = AssetDatabase.LoadAssetAtPath<Material>(
-                "Assets/CityX/View/Materials/CityGlassCracked.mat");
 
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
+            // The framing decides how wide the row has to be, so it is worked out first.
+            Framing frame = Frame();
+            TitleSkylineBaker.Baked row = TitleSkylineBaker.Bake(frame.HalfWidthToCover);
+            Debug.Log($"CityX: title row -- {row.BuildingCount} buildings across {frame.HalfWidthToCover * 2.0f:0}m");
+
+            BuildScene(row, frame, ground, pavement, structure, darkGlass, litGlass);
+
+
+            NetworkBootstrap bootstrap = BuildNetworkRoot();
+            BuildInterface(bootstrap);
+
+            EditorSceneManager.SaveScene(scene, ScenePath);
+            EnsureBuildScenes();
+            AssetDatabase.SaveAssets();
+            Debug.Log($"CityX: title screen written to {ScenePath}");
+        }
+
+        private static Material LoadMaterial(string name)
+        {
+            return AssetDatabase.LoadAssetAtPath<Material>($"Assets/CityX/View/Materials/{name}.mat");
+        }
+
+        /// <summary>
+        /// The 3D picture: the row of buildings, a ground, the night sky and
+        /// moon (the game's own DayNightCycle, frozen), fog, the logo, and the
+        /// fixed camera that frames it all.
+        /// </summary>
+        private struct Framing
+        {
+            public float Distance, LogoWidth, LogoHeight, LogoCentreY, AimY, CameraY, HalfWidthToCover;
+        }
+
+        /// <summary>
+        /// Where the camera stands and how big the logo is, from the tallest tower
+        /// and the fixed field of view alone -- so the row can then be made wide
+        /// enough to run off BOTH edges of the screen, even a very wide one.
+        /// </summary>
+        private static Framing Frame()
+        {
+            float tallest = TitleSkylineBaker.TallestHeight;
+            var f = new Framing();
+            f.LogoHeight = tallest * 0.30f;
+            f.LogoWidth = f.LogoHeight * LogoAspect;
+            // The logo's foot dips behind the tallest roof, as in the Godot title.
+            f.LogoCentreY = tallest + f.LogoHeight * 0.12f;
+            float logoTop = f.LogoCentreY + f.LogoHeight * 0.5f;
+
+            float tanHalfV = Mathf.Tan(FieldOfView * 0.5f * Mathf.Deg2Rad);
+            float bottomY = tallest * 0.10f;
+            float viewHeight = logoTop - bottomY;
+            f.Distance = viewHeight * 0.5f / tanHalfV;
+            f.AimY = (logoTop + bottomY) * 0.5f;
+            f.CameraY = f.AimY + viewHeight * 0.06f;
+
+            // 21:9, the widest screen worth covering, plus a margin.
+            const float widestAspect = 21.0f / 9.0f;
+            f.HalfWidthToCover = f.Distance * tanHalfV * widestAspect * 1.15f;
+            return f;
+        }
+
+        private static void BuildScene(TitleSkylineBaker.Baked row, Framing frame, Material ground, Material pavement,
+            Material structure, Material darkGlass, Material litGlass)
+        {
             var sunObject = new GameObject("Sun");
             Light sun = sunObject.AddComponent<Light>();
             sun.type = LightType.Directional;
@@ -105,75 +177,71 @@ namespace CityX.UIEditor
             moon.type = LightType.Directional;
             moon.shadows = LightShadows.Soft;
 
-            // --- the camera, high enough to see over the near roofs and looking
-            // --- slightly down a canyon rather than at a single wall.
+            string meshPath = $"{TitleAssets}/TitleSkyline.asset";
+            AssetDatabase.DeleteAsset(meshPath);
+            AssetDatabase.CreateAsset(row.Mesh, meshPath);
+
+            var skyline = new GameObject("Skyline");
+            skyline.AddComponent<MeshFilter>().sharedMesh = row.Mesh;
+            MeshRenderer renderer = skyline.AddComponent<MeshRenderer>();
+            renderer.sharedMaterials = new[] { ground, pavement, structure, darkGlass, litGlass };
+
+            GameObject plane = GameObject.CreatePrimitive(PrimitiveType.Plane);
+            plane.name = "Ground";
+            Object.DestroyImmediate(plane.GetComponent<Collider>());
+            plane.transform.position = new Vector3(0.0f, -0.05f, 0.0f);
+            plane.transform.localScale = new Vector3(300.0f, 1.0f, 300.0f);
+            plane.GetComponent<MeshRenderer>().sharedMaterial = ground;
+
+            float distance = frame.Distance;
+            Vector3 cameraPosition = new Vector3(0.0f, frame.CameraY, -distance);
+
             var cameraObject = new GameObject("TitleCamera");
             Camera camera = cameraObject.AddComponent<Camera>();
             camera.tag = "MainCamera";
-            camera.farClipPlane = 2000.0f;
-            camera.nearClipPlane = 0.3f;
+            camera.nearClipPlane = 0.5f;
+            camera.farClipPlane = 4000.0f;
             camera.clearFlags = CameraClearFlags.SolidColor;
-            camera.fieldOfView = 34.0f;
+            camera.fieldOfView = FieldOfView;
             camera.allowMSAA = true;
-            // Same reasoning as CityMassingSceneBuilder's own player camera --
-            // this is the very first thing anyone sees, so it gets the same
-            // SMAA pass rather than relying on MSAA alone.
+            cameraObject.transform.position = cameraPosition;
+            cameraObject.transform.rotation = Quaternion.LookRotation(
+                new Vector3(0.0f, frame.AimY, 0.0f) - cameraPosition, Vector3.up);
             var cameraData = cameraObject.AddComponent<UniversalAdditionalCameraData>();
             cameraData.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
             cameraData.antialiasingQuality = AntialiasingQuality.High;
             cameraObject.AddComponent<AudioListener>();
 
-            // A RAINY CITY AT NIGHT -- EXPLICIT ASK: "recreate the godot
-            // title screen instead of the one you have now." title_screen.gd
-            // played rain_noises.mp3 the instant the screen loaded and never
-            // stopped it until Singleplayer was actually pressed; the real
-            // in-game weather system (RainEffect, normally toggled by
-            // /weather rain/clear) is reused here rather than rebuilding a
-            // second rain effect from scratch, hanging off this still
-            // camera in place of a player. Grade/
-            // WetGroundMaterials are deliberately left unset: those are the
-            // SAME shared material assets the real playable city uses, and
-            // mutating them here (RainEffect wets/darkens them in place)
-            // would leave the game world looking rain-wetted the moment a
-            // player left this screen, before any real in-game weather ever
-            // ran -- Sun alone is enough for the rain itself plus its own
-            // lightning (RainEffect's sun-intensity flash, automatic while
-            // active, needs nothing further built here).
-            var rainObject = new GameObject("Rain");
-            rainObject.transform.SetParent(cameraObject.transform, false);
-            RainEffect rain = rainObject.AddComponent<RainEffect>();
-            rain.RainSound = AssetDatabase.LoadAssetAtPath<AudioClip>(
-                "Assets/CityX/UI/Audio/rain_noises.mp3");
-            rain.DropMaterial = AssetDatabase.LoadAssetAtPath<Material>(
-                "Assets/CityX/View/Materials/Raindrop.mat");
-            rain.SplashMaterial = AssetDatabase.LoadAssetAtPath<Material>(
-                "Assets/CityX/View/Materials/Splash.mat");
-            rain.Sun = sun;
-            if (rain.DropMaterial == null || rain.SplashMaterial == null)
-            {
-                Debug.LogWarning("CityX: rain materials missing -- run CityX/Rebuild Massing Scene " +
-                                 "first so Raindrop.mat/Splash.mat exist.");
-            }
-            rain.SetActive(true);
+            // The logo: dead centre (x = 0, where the camera looks), in front of the towers.
+            GameObject logo = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            logo.name = "Logo";
+            Object.DestroyImmediate(logo.GetComponent<Collider>());
+            logo.transform.SetParent(skyline.transform, false);
+            // Pulled toward the camera ALONG THE LINE OF SIGHT, so it lands on screen exactly
+            // where it would at the buildings' depth, just drawn in front of them.
+            Vector3 atBuildings = new Vector3(0.0f, frame.LogoCentreY, 0.0f);
+            float scaleForDepth = (distance + LogoDepthBehind) / distance;
+            logo.transform.position = cameraPosition + (atBuildings - cameraPosition) * scaleForDepth;
+            logo.transform.localScale = new Vector3(
+                frame.LogoWidth * scaleForDepth, frame.LogoHeight * scaleForDepth, 1.0f);
+            var logoRenderer = logo.GetComponent<MeshRenderer>();
+            logoRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            logoRenderer.sharedMaterial = MakeLogoMaterial();
 
-            var terrain = new TerrainField(WorldSeed);
-            float chunk = CityLayout.ChunkSize;
-            float groundHeight = terrain.PadHeightFor(0, 0);
-            cameraObject.transform.position = new Vector3(
-                chunk * 0.5f, groundHeight + 46.0f, -chunk * 5.0f);
-            cameraObject.transform.rotation = Quaternion.Euler(6.0f, 12.0f, 0.0f);
 
+            var live = skyline.AddComponent<TitleSkyline>();
+            live.LogoRenderer = logoRenderer;
+
+            // --- the night, from the game's own day/night cycle, held still.
             var cycleObject = new GameObject("DayNightCycle");
             DayNightCycle cycle = cycleObject.AddComponent<DayNightCycle>();
             cycle.Sun = sun;
             cycle.Moon = moon;
             cycle.Sky = camera;
-            // NOT SkyDome -- this camera clears to a solid colour, not a
-            // skybox, so a sky material would never actually be drawn here.
-            // LitWindows is the real gap: without it nothing ever raises the
-            // glass's emission, so even the "lit" windows sit flat and dark
-            // -- exactly wrong for a screen whose whole point is the lit
-            // windows carrying the picture (see TimeOfDay's own comment).
+            // NOT SkyDome -- this camera clears to a solid colour, not a skybox, so
+            // a sky material would never actually be drawn here. LitWindows is the
+            // real gap: without it nothing ever raises the glass's emission, so even
+            // the "lit" windows sit flat and dark.
             cycle.LitWindows = litGlass;
             cycle.TimeOfDay = TimeOfDay;
             // FROZEN. A title screen that gets brighter while somebody reads the
@@ -182,30 +250,48 @@ namespace CityX.UIEditor
             cycle.Running = false;
             cycle.Apply(SkyCycle.At(TimeOfDay));
 
+            // Haze that thickens with distance, scaled to how far the camera stands
+            // (the buildings are tens of metres tall, so this is a long way back).
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.Linear;
-            RenderSettings.fogStartDistance = 90.0f;
-            RenderSettings.fogEndDistance = 420.0f;
+            RenderSettings.fogStartDistance = distance * 0.9f;
+            RenderSettings.fogEndDistance = distance * 3.2f;
+        }
 
-            var streamerObject = new GameObject("CityStreamer");
-            CityStreamer streamer = streamerObject.AddComponent<CityStreamer>();
-            streamer.WorldSeed = WorldSeed;
-            streamer.RadiusChunks = 16;
-            streamer.GroundMaterial = ground;
-            streamer.PavementMaterial = pavement;
-            streamer.StructureMaterial = structure;
-            streamer.DarkGlassMaterial = darkGlass;
-            streamer.LitGlassMaterial = litGlass;
-            streamer.CrackedGlassMaterial = crackedGlass;
-            streamer.Viewer = cameraObject.transform;
+        /// <summary>The logo art on an unlit, alpha-blended material.</summary>
+        private static Material MakeLogoMaterial()
+        {
+            string path = $"{TitleAssets}/TitleLogo.mat";
+            var material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
+            if (material == null)
+            {
+                material = new Material(shader);
+                AssetDatabase.CreateAsset(material, path);
+            }
+            else
+            {
+                material.shader = shader;
+            }
 
-            NetworkBootstrap bootstrap = BuildNetworkRoot();
-            BuildInterface(bootstrap);
-
-            EditorSceneManager.SaveScene(scene, ScenePath);
-            EnsureBuildScenes();
-            AssetDatabase.SaveAssets();
-            Debug.Log($"CityX: title screen written to {ScenePath}");
+            var texture = AssetDatabase.LoadAssetAtPath<Texture2D>(LogoPath);
+            if (texture == null)
+            {
+                Debug.LogWarning($"CityX: no logo at {LogoPath}.");
+            }
+            material.SetTexture("_BaseMap", texture);
+            material.SetColor("_BaseColor", Color.white);
+            material.SetFloat("_Surface", 1.0f);
+            material.SetFloat("_Blend", 0.0f);
+            material.SetFloat("_ZWrite", 0.0f);
+            material.SetFloat("_Cull", 0.0f);
+            material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            material.SetOverrideTag("RenderType", "Transparent");
+            material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            EditorUtility.SetDirty(material);
+            return material;
         }
 
         /// <summary>
@@ -350,49 +436,50 @@ namespace CityX.UIEditor
             root.AddComponent<GraphicRaycaster>();
             TitleScreen title = root.AddComponent<TitleScreen>();
 
-            // title_screen.gd's own StarsPlayer -- background music that
-            // starts the instant the title screen loads and just keeps
-            // playing underneath Menu/CharacterSelect/Creator exactly the
-            // way that node does (see its own class comment: "the
-            // persistent background music... keep playing regardless").
-            // Nothing here has to stop or restart it across those panels --
-            // Show() only ever toggles the UI panels, never touches this,
-            // so playOnAwake alone is enough to cover the whole title flow.
-            // It stops the moment CharacterSelect.Play() loads the world
-            // scene -- that unloads this whole scene outright, which is a
-            // hard cut rather than title_screen.gd's own tweened
-            // fade_out_stars(): that fade is only possible there because
-            // Godot's own title screen node survives the transition and can
-            // still be tweened afterwards, and re-architecting scene
-            // loading to keep this scene alive across that boundary is a
-            // bigger change than "add the music" asked for.
-            var musicObject = new GameObject("MusicPlayer");
-            musicObject.transform.SetParent(root.transform, false);
-            AudioSource music = musicObject.AddComponent<AudioSource>();
-            music.clip = AssetDatabase.LoadAssetAtPath<AudioClip>(
-                "Assets/CityX/UI/Audio/stars.mp3");
-            music.loop = true;
-            music.playOnAwake = true;
-            if (music.clip == null)
+            // NO MUSIC. title_screen.gd had a StarsPlayer (stars.mp3) looping under the
+            // whole title flow; EXPLICIT ASK: "remove the title screen music also." The
+            // rain sound below is ambience, not music, and stays. TitleScreen.MusicPlayer
+            // is left null on purpose -- the settings panel's music slider guards for it.
+
+            title.Skyline = Object.FindFirstObjectByType<TitleSkyline>();
+
+            // title_screen.tscn's own RainPlayer: rain_noises.mp3, looping from
+            // the moment the screen loads. (StarsPlayer above is the music.)
+            var rainSoundObject = new GameObject("RainSound");
+            rainSoundObject.transform.SetParent(root.transform, false);
+            AudioSource rainSound = rainSoundObject.AddComponent<AudioSource>();
+            rainSound.clip = AssetDatabase.LoadAssetAtPath<AudioClip>(
+                "Assets/CityX/UI/Audio/rain_noises.mp3");
+            rainSound.loop = true;
+            rainSound.playOnAwake = true;
+            rainSound.spatialBlend = 0.0f;
+            if (rainSound.clip == null)
             {
-                Debug.LogWarning("CityX: no title music clip at Assets/CityX/UI/Audio/stars.mp3.");
+                Debug.LogWarning("CityX: no rain clip at Assets/CityX/UI/Audio/rain_noises.mp3.");
             }
-            title.MusicPlayer = music;
 
-            // A dark wash over the city so the menu stays readable against
-            // whatever the camera happens to be flying past.
-            var vignette = MakeRect("Vignette", root.transform, new Color(0.0f, 0.0f, 0.0f, 0.35f));
+            // Rain, then the vignette over it -- the Godot scene's own order.
+            var rain = new GameObject("RainLayer", typeof(RectTransform));
+            rain.transform.SetParent(root.transform, false);
+            Stretch((RectTransform)rain.transform, 0.0f);
+            TitleRainLayer rainLayer = rain.AddComponent<TitleRainLayer>();
+            rainLayer.raycastTarget = false;
+
+            var vignette = new GameObject("Vignette", typeof(RectTransform));
+            vignette.transform.SetParent(root.transform, false);
             Stretch((RectTransform)vignette.transform, 0.0f);
-            vignette.GetComponent<Image>().raycastTarget = false;
+            Image vignetteImage = vignette.AddComponent<Image>();
+            vignetteImage.sprite = EnsureVignetteSprite();
+            vignetteImage.raycastTarget = false;
 
-            // Grouped so the character list can hide the logo without hiding
-            // the vignette under it.
+            // The logo itself is a quad in the skyline scene (behind the rooftop
+            // tank), so this group holds nothing to draw -- it is the switch the
+            // panels and the tests flip to say "the logo is showing".
             var logoGroup = new GameObject("LogoGroup", typeof(RectTransform));
             Stretch((RectTransform)logoGroup.transform, 0.0f);
             logoGroup.transform.SetParent(root.transform, false);
             title.LogoGroup = logoGroup;
 
-            title.Logo = BuildLogo(logoGroup.transform);
             title.PromptLabel = BuildPromptLabel(root.transform);
             title.MenuPanel = BuildMenu(root.transform, title);
 
@@ -423,52 +510,52 @@ namespace CityX.UIEditor
             EnsureEventSystem();
         }
 
-        private static Image BuildLogo(Transform parent)
+        /// <summary>
+        /// title_screen.tscn's vignette: a radial gradient, clear out to 45% of
+        /// the way to the edge then darkening to 55% black, stretched over the
+        /// whole screen -- so the corners fall away and the middle is left alone.
+        /// </summary>
+        private static Sprite EnsureVignetteSprite()
         {
-            // A PNG dropped into the project imports as a plain Texture, and a
-            // UI Image can only take a Sprite -- so the logo renders as nothing
-            // until the importer is told. Doing it here rather than by clicking
-            // means copying in a new logo and rebuilding just works.
-            var importer = AssetImporter.GetAtPath(LogoPath) as TextureImporter;
-            if (importer != null && importer.textureType != TextureImporterType.Sprite)
+            string path = $"{TitleAssets}/TitleVignette.png";
+            const int size = 256;
+            var pixels = new Color32[size * size];
+            for (int y = 0; y < size; y++)
             {
-                importer.textureType = TextureImporterType.Sprite;
-                importer.spriteImportMode = SpriteImportMode.Single;
-                importer.alphaIsTransparency = true;
-                importer.mipmapEnabled = false;
-                importer.SaveAndReimport();
+                for (int x = 0; x < size; x++)
+                {
+                    // 0 at the centre, 1 at the middle of an edge, ~1.41 in a corner.
+                    float dx = (x + 0.5f) / size - 0.5f;
+                    float dy = (y + 0.5f) / size - 0.5f;
+                    float radius = Mathf.Sqrt(dx * dx + dy * dy) / 0.5f;
+                    float wanted = radius <= 0.45f
+                        ? 0.0f
+                        : Mathf.Lerp(0.0f, VignetteStrength, Mathf.Clamp01((radius - 0.45f) / 0.55f));
+
+                    // Godot blended this in sRGB space; this project blends UI in linear
+                    // space, where the same alpha of black darkens far less. This is the
+                    // alpha that gives, in linear blending, the result 0.55 gave there.
+                    float alpha = 1.0f - Mathf.Pow(1.0f - wanted, LinearBlendExponent);
+                    pixels[y * size + x] = new Color32(0, 0, 0, (byte)Mathf.RoundToInt(alpha * 255.0f));
+                }
             }
 
-            var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(LogoPath);
+            var texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            texture.SetPixels32(pixels);
+            texture.Apply();
+            File.WriteAllBytes(Path.Combine(Directory.GetParent(Application.dataPath).FullName, path),
+                texture.EncodeToPNG());
+            Object.DestroyImmediate(texture);
+            AssetDatabase.ImportAsset(path);
 
-            var logoObject = new GameObject("Logo", typeof(RectTransform));
-            var rect = (RectTransform)logoObject.transform;
-            rect.SetParent(parent, false);
-            rect.anchorMin = new Vector2(0.5f, 1.0f);
-            rect.anchorMax = new Vector2(0.5f, 1.0f);
-            rect.pivot = new Vector2(0.5f, 1.0f);
-            rect.anchoredPosition = new Vector2(0.0f, -46.0f);
-
-            Image image = logoObject.AddComponent<Image>();
-            image.raycastTarget = false;
-            image.preserveAspect = true;
-
-            if (sprite != null)
-            {
-                image.sprite = sprite;
-                // Sized from the art's own aspect, so a redrawn logo does not
-                // need this number changed too.
-                float aspect = (float)sprite.rect.width / sprite.rect.height;
-                rect.sizeDelta = new Vector2(520.0f, 520.0f / Mathf.Max(aspect, 0.01f));
-            }
-            else
-            {
-                Debug.LogWarning($"CityX: no logo sprite at {LogoPath} -- is its texture type " +
-                                 "set to Sprite? The title will show a plain block.");
-                rect.sizeDelta = new Vector2(520.0f, 200.0f);
-            }
-
-            return image;
+            var importer = (TextureImporter)AssetImporter.GetAtPath(path);
+            importer.textureType = TextureImporterType.Sprite;
+            importer.spriteImportMode = SpriteImportMode.Single;
+            importer.alphaIsTransparency = true;
+            importer.mipmapEnabled = false;
+            importer.wrapMode = TextureWrapMode.Clamp;
+            importer.SaveAndReimport();
+            return AssetDatabase.LoadAssetAtPath<Sprite>(path);
         }
 
         /// <summary>
@@ -510,10 +597,12 @@ namespace CityX.UIEditor
             var panel = new GameObject("MenuPanel", typeof(RectTransform));
             var rect = (RectTransform)panel.transform;
             rect.SetParent(parent, false);
-            rect.anchorMin = new Vector2(0.5f, 0.5f);
-            rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = new Vector2(0.0f, -70.0f);
+            // Bottom-centre, as in title_screen.tscn, so the row of buildings above
+            // it stays in view rather than being sat on by three buttons.
+            rect.anchorMin = new Vector2(0.5f, 0.0f);
+            rect.anchorMax = new Vector2(0.5f, 0.0f);
+            rect.pivot = new Vector2(0.5f, 0.0f);
+            rect.anchoredPosition = new Vector2(0.0f, 30.0f);
             rect.sizeDelta = new Vector2(280.0f, 190.0f);
 
             MakeButton(panel.transform, "SingleplayerButton", "SINGLEPLAYER", 0,

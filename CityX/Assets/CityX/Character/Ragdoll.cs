@@ -584,6 +584,93 @@ namespace CityX.Character
             }
         }
 
+        /// <summary>
+        /// Keeps a STILL-KINEMATIC limb from embedding in world geometry
+        /// while jetpacking or grapple-swinging -- EXPLICIT BUG REPORT:
+        /// "make it so my limbs cant clip through walls and get stuck when
+        /// im flying around with jetpack or swinging around with grapple."
+        /// Neither state ever ragdolls: Jetpack.cs never touches this class
+        /// at all, and Activate's own "NEVER RAGDOLLS OUT OF AN ACTIVE
+        /// SWING" refuses to hand off while GrappleSwing.IsActive. So
+        /// DepenetrateFromWorld/TickLiveDepenetration -- both gated on
+        /// _limp -- never run for either state, and a limb whose animated
+        /// pose (a Superman-dive arm, a leg swinging through the arc)
+        /// reaches past the CharacterController's own capsule into nearby
+        /// geometry has nothing correcting it at all -- exactly the
+        /// tunnelling JetpackWallCrashTests' own root-cause comment already
+        /// describes for the harder-crash case, just without a crash
+        /// happening at all this time.
+        ///
+        /// SAME MECHANISM AS DepenetrateFromWorld: every body here is still
+        /// kinematic and still one rigid block with this transform, so
+        /// pushing transform.position (never any individual
+        /// Rigidbody.position -- that only means something once bodies are
+        /// independently simulated, see TickLiveDepenetration's own doc
+        /// comment) drags every bone along by the same amount. Unlike
+        /// DepenetrateFromWorld's "loop until totally clear" (fine for a
+        /// rare one-shot activation), this is called every frame from
+        /// PlayerInputReader while flying/swinging, so it only takes ONE
+        /// capped step per call, the same LiveDepenetrationMaxStepPerFixedUpdate-
+        /// sized nudge TickLiveDepenetration uses -- a steady small
+        /// correction each frame reads as the pose being held clear of the
+        /// wall rather than a pop, and is cheap enough to run continuously.
+        ///
+        /// NEVER RUNS WHILE LIMP -- that overlap is TickLiveDepenetration's
+        /// job instead, which corrects each body independently since they
+        /// are no longer one kinematic block by then; running both at once
+        /// would have them fight over the same overlap.
+        /// </summary>
+        public void TickKinematicLimbClearance()
+        {
+            if (_limp || Bodies == null)
+            {
+                return;
+            }
+
+            float deepest = DepenetrationMinDistance;
+            Vector3 push = Vector3.zero;
+
+            foreach (Rigidbody body in Bodies)
+            {
+                if (body == null)
+                {
+                    continue;
+                }
+                Collider self = body.GetComponent<Collider>();
+                if (self == null)
+                {
+                    continue;
+                }
+
+                Bounds bounds = self.bounds;
+                Collider[] overlaps = Physics.OverlapBox(
+                    bounds.center, bounds.extents, self.transform.rotation,
+                    ~0, QueryTriggerInteraction.Ignore);
+
+                foreach (Collider other in overlaps)
+                {
+                    if (other == null || other == self || IsOwnCollider(other))
+                    {
+                        continue;
+                    }
+                    if (Physics.ComputePenetration(
+                            self, self.transform.position, self.transform.rotation,
+                            other, other.transform.position, other.transform.rotation,
+                            out Vector3 direction, out float distance) && distance > deepest)
+                    {
+                        deepest = distance;
+                        push = direction * Mathf.Min(
+                            distance + DepenetrationSkin, LiveDepenetrationMaxStepPerFixedUpdate);
+                    }
+                }
+            }
+
+            if (push != Vector3.zero)
+            {
+                transform.position += push;
+            }
+        }
+
         /// <summary>Stands the body back up, for respawn.</summary>
         public void Deactivate()
         {

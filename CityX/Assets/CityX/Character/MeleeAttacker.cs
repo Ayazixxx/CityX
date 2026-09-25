@@ -40,8 +40,18 @@ namespace CityX.Character
         /// A haymaker takes longer to throw. That is the trade for 1.5x damage:
         /// without it, holding for a heavy punch would be strictly better than
         /// tapping and there would be no reason ever to jab.
+        ///
+        /// 0.6s, MATCHING player.gd's OWN HEAVY PUNCH LOCKOUT EXACTLY --
+        /// character.gd's _is_punching blocks all movement for the
+        /// animation's full length there, and heavy_punch.tres's own baked
+        /// length (scratch_mixamo_bake.gd's HEAVY_PUNCH_WINDOW, [0.95,1.55])
+        /// is 0.6s, not the 0.35s jab/PUNCH_COOLDOWN_SECONDS figure. The old
+        /// 0.55s here was an independently-guessed number that matched
+        /// neither Godot figure -- EXPLICIT BUG REPORT: "make the animations
+        /// exactly the same they feel different in unity," combat poses/
+        /// timing specifically.
         /// </summary>
-        public float HeavySwingSeconds = 0.55f;
+        public float HeavySwingSeconds = 0.6f;
 
         [Tooltip("Fraction into the swing at which the blow actually lands.")]
         public float ContactFraction = 0.45f;
@@ -109,11 +119,15 @@ namespace CityX.Character
             new ComboStage("sword_attack", 1.0f, 1.0f, 0.0f, false);
 
         /// <summary>
-        /// The swing duration actually in effect for the swing in progress.
-        /// A weapon supplies its own cooldown; jab and heavy both use
-        /// SwingSeconds even though heavy's own duration is HeavySwingSeconds
-        /// -- that mismatch predates this field and isn't this change's to
-        /// fix, so it's preserved bit-for-bit.
+        /// The swing duration actually in effect for the swing in progress --
+        /// what ContactFraction is measured against. FIXED, as part of the
+        /// same combat-timing pass HeavySwingSeconds' own doc comment
+        /// describes: a heavy punch used to set this to SwingSeconds (0.35)
+        /// while _swingRemaining actually counted down from HeavySwingSeconds
+        /// (0.55), so contactAt (below) measured 45% of the WRONG, shorter
+        /// duration -- the blow actually landed at roughly 65% of the real
+        /// swing, not the intended 45%. Now set to whichever duration the
+        /// swing in progress is actually using.
         /// </summary>
         private float _activeSwingSeconds;
 
@@ -255,7 +269,7 @@ namespace CityX.Character
             if (heavy)
             {
                 _currentStage = CombatTuning.HeavyPunch;
-                _activeSwingSeconds = SwingSeconds;
+                _activeSwingSeconds = HeavySwingSeconds;
                 _swingRemaining = HeavySwingSeconds;
                 _contactDone = false;
                 _nextStage = 0;
@@ -623,6 +637,43 @@ namespace CityX.Character
                 PlayImpact();
                 EquippedWeapon?.RegisterLandedMeleeHit();
             }
+        }
+
+        /// <summary>
+        /// Lands ONE hit decided by something other than this component's own
+        /// timing -- the soulslike sword combat sweeps a real blade and calls
+        /// this per target it touches. Does exactly what a swing's own contact
+        /// does for each target (apply the hit, raise Landed, award XP for a
+        /// kill, blood, impact sound) and none of the chain/window/block-punish
+        /// bookkeeping, so the old swings' behaviour is untouched.
+        /// </summary>
+        public HitResponse RegisterExternalHit(IDamageable target, Vector3 contactPoint, float damage, float hitstunSeconds)
+        {
+            if (target == null)
+            {
+                return HitResponse.Ignored;
+            }
+
+            HitResponse response = target.ApplyHit(damage, transform.position, hitstunSeconds);
+            if (response == HitResponse.Ignored)
+            {
+                return response;
+            }
+
+            Landed?.Invoke(target, damage);
+
+            if (!target.IsAlive && target is IXpReward xpSource)
+            {
+                _vitals?.AddXp(xpSource.XpReward);
+            }
+
+            if (response != HitResponse.Blocked && response != HitResponse.Guarded)
+            {
+                BloodSplatter.Spawn(BloodPrefab, contactPoint, SwingOrigin() - contactPoint);
+            }
+            PlayImpact();
+            EquippedWeapon?.RegisterLandedMeleeHit();
+            return response;
         }
 
         /// <summary>

@@ -83,6 +83,9 @@ namespace CityX.UI
         [Tooltip("What /spawn coat puts down, and what /equip coat equips.")]
         public GameObject MidnightPatchworkCoatPrefab;
 
+        [Tooltip("What /spawn jacket puts down, and what /equip jacket equips.")]
+        public GameObject BlackPufferJacketPrefab;
+
         [Tooltip("What /spawn jetpack puts down, and what /equip jetpack equips.")]
         public GameObject JetpackPrefab;
 
@@ -358,7 +361,7 @@ namespace CityX.UI
                     return;
 
                 case "weather":
-                    Weather(line.Argument(0));
+                    Weather(line.Argument(0), line.Argument(1));
                     return;
 
                 case "time":
@@ -417,13 +420,33 @@ namespace CityX.UI
                     Goto(line.Argument(0));
                     return;
 
+                case "jacket":
+                    JacketCommand(line.Argument(0), line.Argument(1));
+                    return;
+
+                case "pistol":
+                    PistolCommand(line.Argument(0), line.Argument(1), line.Argument(2), line.Argument(3));
+                    return;
+
+                case "aim":
+                    AimCommand(line.Argument(0), line.Argument(1));
+                    return;
+
+                case "sword":
+                    SwordCommand(line.Argument(0), line.Argument(1));
+                    return;
+
+                case "gun":
+                    GunCommand(line.Argument(0), line.Argument(1));
+                    return;
+
                 default:
                     Log("unknown command: " + line.Verb + "   (try /help)");
                     return;
             }
         }
 
-        private void Weather(string which)
+        private void Weather(string which, string strength)
         {
             if (Rain == null)
             {
@@ -433,13 +456,43 @@ namespace CityX.UI
             switch (which)
             {
                 case "rain":
-                    Rain.SetActive(true);
-                    Log("raining");
+                    if (!CityX.World.Weather.TryParseIntensity(strength, out float intensity))
+                    {
+                        Log(DevCommands.UsageFor("weather"));
+                        return;
+                    }
+                    Rain.SetRain(intensity);
+                    Log(intensity >= CityX.World.Weather.HeavyRain ? "raining" : $"raining ({intensity:0.00})");
                     return;
                 case "clear":
-                    Rain.SetActive(false);
-                    Log("clear");
+                    Rain.SetRain(0.0f);
+                    Log("clear -- the streets dry out slowly (/weather dry for at once)");
                     return;
+                case "dry":
+                    Rain.Dry();
+                    Log("dry");
+                    return;
+                case "lightning":
+                {
+                    float metres = 500.0f;
+                    if (!string.IsNullOrEmpty(strength) &&
+                        !float.TryParse(strength, NumberStyles.Float, CultureInfo.InvariantCulture, out metres))
+                    {
+                        Log(DevCommands.UsageFor("weather"));
+                        return;
+                    }
+                    metres = Mathf.Max(30.0f, metres);
+                    Rain.StrikeLightning(metres);
+                    Log($"lightning {metres:0}m away -- thunder in {CityX.World.Weather.ThunderDelaySeconds(metres):0.0}s");
+                    return;
+                }
+                case "status":
+                {
+                    Vector3 at = (Vitals != null ? Vitals.transform.position : transform.position) + Vector3.up * 1.6f;
+                    Log($"rain {Rain.Intensity:0.00} (asked {Rain.TargetIntensity:0.00}), wetness {Rain.Wetness:0.00}, " +
+                        $"cover over you {CurrentWeather.Shelter(at):0.00}, rain on you {CurrentWeather.RainOn(at):0.00}");
+                    return;
+                }
                 default:
                     Log(DevCommands.UsageFor("weather"));
                     return;
@@ -619,8 +672,8 @@ namespace CityX.UI
         private static Vector3 NearestDistrictBoundary(CityWorld world, int originX, int originY,
             out int arterialX, out int arterialY)
         {
-            int nearestX = Mathf.RoundToInt(originX / (float)CityLayout.DistrictChunks) * CityLayout.DistrictChunks;
-            int nearestY = Mathf.RoundToInt(originY / (float)CityLayout.DistrictChunks) * CityLayout.DistrictChunks;
+            int nearestX = CityLayout.NearestArterialLine(originX, xAxis: true);
+            int nearestY = CityLayout.NearestArterialLine(originY, xAxis: false);
 
             if (Mathf.Abs(originX - nearestX) <= Mathf.Abs(originY - nearestY))
             {
@@ -763,6 +816,16 @@ namespace CityX.UI
                     Log("spawned a midnight patchwork coat -- press E nearby to pick it up");
                     return;
 
+                case "jacket":
+                    if (BlackPufferJacketPrefab == null)
+                    {
+                        Log("no black puffer jacket prefab wired");
+                        return;
+                    }
+                    Instantiate(BlackPufferJacketPrefab, where + Vector3.up * 0.05f, Quaternion.identity);
+                    Log("spawned a black puffer jacket -- press E nearby to pick it up");
+                    return;
+
                 case "jetpack":
                     if (JetpackPrefab == null)
                     {
@@ -802,17 +865,6 @@ namespace CityX.UI
                     }
                     Instantiate(TopHatPrefab, where + Vector3.up * 0.05f, Quaternion.identity);
                     Log("spawned a top hat -- press E nearby to pick it up");
-                    return;
-
-                case "farmer_hat":
-                case "farmerhat":
-                    if (FarmerHatPrefab == null)
-                    {
-                        Log("no farmer hat prefab wired");
-                        return;
-                    }
-                    Instantiate(FarmerHatPrefab, where + Vector3.up * 0.05f, Quaternion.identity);
-                    Log("spawned a farmer hat -- press E nearby to pick it up");
                     return;
 
                 case "grapple":
@@ -947,6 +999,356 @@ namespace CityX.UI
         }
 
         /// <summary>
+        /// "/jacket scale|offset|pose" -- same live-and-read-back idiom as
+        /// "/car pose". EXPLICIT BUG, found and fixed the hard way: the
+        /// first version of this command nudged SkinnedGarmentCombiner's
+        /// own renderer Transform, on the mistaken assumption that a
+        /// SkinnedMeshRenderer's own Transform affects its rendered result
+        /// the way an ordinary MeshRenderer's does -- it does not, once
+        /// bones are assigned, which is exactly why "the commands aren't
+        /// altering it at all" was reported. This calls
+        /// BlackPufferJacket.SetLivePlacement instead, which actually
+        /// rebuilds the mesh's vertex positions AND bone weights -- see
+        /// that method's own doc comment.
+        ///
+        /// THE FINAL NUMBERS THIS REPORTS ARE A LIVE PREVIEW, NOT THE
+        /// PERMANENT FIX -- once "/jacket pose" reads back numbers that
+        /// look right in-game, those same two numbers go into
+        /// BlackPufferJacketBuilder's own ManualScale/ManualVerticalOffset
+        /// constants for the permanent bake.
+        /// </summary>
+        private void JacketCommand(string sub, string valueText)
+        {
+            if (Vitals == null)
+            {
+                Log("no body here");
+                return;
+            }
+            var jacket = Vitals.GetComponentInChildren<CityX.Wearables.BlackPufferJacket>();
+            if (jacket == null)
+            {
+                Log("no black puffer jacket worn -- /equip jacket first");
+                return;
+            }
+
+            switch (sub)
+            {
+                case "scale":
+                    if (!TryParseFloat(valueText, out float scale) || scale <= 0.0f)
+                    {
+                        Log(DevCommands.UsageFor("jacket"));
+                        return;
+                    }
+                    jacket.SetLivePlacement(scale, jacket.LiveVerticalOffset);
+                    Log($"jacket scale set to {scale:0.000}");
+                    return;
+
+                case "offset":
+                    if (!TryParseFloat(valueText, out float offset))
+                    {
+                        Log(DevCommands.UsageFor("jacket"));
+                        return;
+                    }
+                    jacket.SetLivePlacement(jacket.LiveScale, offset);
+                    Log($"jacket vertical offset set to {offset:0.000}");
+                    return;
+
+                case "pose":
+                    Log($"scale {jacket.LiveScale:0.000}   offset {jacket.LiveVerticalOffset:0.000}");
+                    return;
+
+                default:
+                    Log(DevCommands.UsageFor("jacket"));
+                    return;
+            }
+        }
+
+        private static bool TryParseFloat(string text, out float value)
+        {
+            return float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
+        }
+
+        /// <summary>
+        /// "/pistol pos|rot|scale|pose" -- same live-and-read-back idiom as
+        /// "/car pose" and "/jacket scale|offset|pose", for EXPLICIT ASK
+        /// "let me adjust the pistol position in his hand ingame using the
+        /// console." Nudges PistolWeapon's own live grip fields directly
+        /// (see that class's own doc comment on LiveGripPosition/Rotation/
+        /// Scale), which UpdateHeldPose already applies every frame instead
+        /// of the baked GripHandPosition/GripHandRotationEuler/GripScale
+        /// constants -- so a change here shows up on the held gun
+        /// immediately, with nothing to rebuild.
+        /// </summary>
+        private void PistolCommand(string sub, string a, string b, string c)
+        {
+            if (Vitals == null)
+            {
+                Log("no body here");
+                return;
+            }
+            var pistol = Vitals.GetComponentInChildren<CityX.Weapons.PistolWeapon>();
+            if (pistol == null)
+            {
+                Log("no pistol equipped -- /equip pistol first");
+                return;
+            }
+
+            switch (sub)
+            {
+                case "pos":
+                    if (!TryParseFloat(a, out float px) || !TryParseFloat(b, out float py) || !TryParseFloat(c, out float pz))
+                    {
+                        Log(DevCommands.UsageFor("pistol"));
+                        return;
+                    }
+                    pistol.SetLiveGripPosition(new Vector3(px, py, pz));
+                    Log($"pistol grip position set to {FormatVector3(new Vector3(px, py, pz))}");
+                    return;
+
+                case "rot":
+                    if (!TryParseFloat(a, out float rx) || !TryParseFloat(b, out float ry) || !TryParseFloat(c, out float rz))
+                    {
+                        Log(DevCommands.UsageFor("pistol"));
+                        return;
+                    }
+                    pistol.SetLiveGripRotation(new Vector3(rx, ry, rz));
+                    Log($"pistol grip rotation set to {FormatVector3(new Vector3(rx, ry, rz))}");
+                    return;
+
+                case "scale":
+                    if (!TryParseFloat(a, out float scale) || scale <= 0.0f)
+                    {
+                        Log(DevCommands.UsageFor("pistol"));
+                        return;
+                    }
+                    pistol.SetLiveGripScale(scale);
+                    Log($"pistol grip scale set to {scale:0.000}");
+                    return;
+
+                case "pose":
+                    Log($"pos {FormatVector3(pistol.LiveGripPosition)}   " +
+                        $"rot {FormatVector3(pistol.LiveGripRotation)}   scale {pistol.LiveGripScale:0.000}");
+                    return;
+
+                default:
+                    Log(DevCommands.UsageFor("pistol"));
+                    return;
+            }
+        }
+
+        /// <summary>
+        /// Live-tunes the aim camera's shoulder offset and the body's own
+        /// extra yaw while aiming -- EXPLICIT ASK: "let me adjust the pov
+        /// and model rotation manually ... set up something using ingame
+        /// console," after a guess-rebuild-screenshot loop on the same two
+        /// numbers wasn't landing right. Both targets are already plain
+        /// mutable fields (ThirdPersonCamera.AimShoulderOffset,
+        /// PlayerLocomotion.AimYawOffsetDegrees) rather than consts, so this
+        /// writes them directly -- no separate "Live" shadow field needed
+        /// the way the pistol's own const grip constants required.
+        ///
+        /// NEITHER CHANGE SURVIVES A SCENE RELOAD. AimShoulderOffset is
+        /// also baked into CityMassing.unity's own serialized default (see
+        /// pistol_aim_pov_fortnite_offset memory) -- once a number here
+        /// looks right, it still has to be typed into ThirdPersonCamera.cs's
+        /// own default and the scene rebuilt, the same "tune live, then
+        /// bake the winning number" workflow /jacket and /pistol already
+        /// use.
+        /// </summary>
+        /// <summary>
+        /// /gun -- live-tunes the third-person pistol's feel (recoil, kick,
+        /// aim sensitivity and speed) without a rebuild, the same "tune live,
+        /// then bake the winning numbers into the defaults" workflow as
+        /// /jacket, /pistol, /aim and /sword.
+        /// </summary>
+        private void GunCommand(string name, string value)
+        {
+            if (Vitals == null)
+            {
+                Log("no body here");
+                return;
+            }
+            var pistol = Vitals.GetComponentInChildren<CityX.Weapons.PistolWeapon>();
+
+            if (name == "shoulder")
+            {
+                if (OrbitCamera == null)
+                {
+                    Log("no camera here");
+                    return;
+                }
+                OrbitCamera.ToggleShoulder();
+                Log(OrbitCamera.ShoulderSide > 0.0f ? "camera over the right shoulder" : "camera over the left shoulder");
+                return;
+            }
+
+            if (string.IsNullOrEmpty(name))
+            {
+                Log(pistol == null
+                    ? "no pistol equipped -- /equip pistol first"
+                    : $"recoil {pistol.RecoilPitchDegrees}   adsrecoil {pistol.AdsRecoilMultiplier}   shake {pistol.ShakeDegrees}   " +
+                      $"kick {pistol.KickBackMetres}   kickangle {pistol.KickUpDegrees}   " +
+                      $"recover {(OrbitCamera != null ? OrbitCamera.RecoilRecoverPerSecond : 0.0f)}   " +
+                      $"sens {(OrbitCamera != null ? OrbitCamera.AimSensitivityMultiplier : 0.0f)}   " +
+                      $"aimspeed {(_playerLocomotion != null ? _playerLocomotion.AimMoveSpeedMultiplier : 0.0f)}");
+                return;
+            }
+
+            if (!TryParseFloat(value, out float number))
+            {
+                Log(DevCommands.UsageFor("gun"));
+                return;
+            }
+
+            switch (name)
+            {
+                case "recoil": if (!NeedPistol(pistol)) return; pistol.RecoilPitchDegrees = number; break;
+                case "adsrecoil": if (!NeedPistol(pistol)) return; pistol.AdsRecoilMultiplier = number; break;
+                case "shake": if (!NeedPistol(pistol)) return; pistol.ShakeDegrees = number; break;
+                case "kick": if (!NeedPistol(pistol)) return; pistol.KickBackMetres = number; break;
+                case "kickangle": if (!NeedPistol(pistol)) return; pistol.KickUpDegrees = number; break;
+                case "recover":
+                    if (OrbitCamera == null) { Log("no camera here"); return; }
+                    OrbitCamera.RecoilRecoverPerSecond = number;
+                    break;
+                case "sens":
+                    if (OrbitCamera == null) { Log("no camera here"); return; }
+                    OrbitCamera.AimSensitivityMultiplier = number;
+                    break;
+                case "aimspeed":
+                    if (_playerLocomotion == null) { Log("no body here"); return; }
+                    _playerLocomotion.AimMoveSpeedMultiplier = number;
+                    break;
+                default:
+                    Log(DevCommands.UsageFor("gun"));
+                    return;
+            }
+            Log($"{name} = {number.ToString(CultureInfo.InvariantCulture)}");
+        }
+
+        private bool NeedPistol(CityX.Weapons.PistolWeapon pistol)
+        {
+            if (pistol != null)
+            {
+                return true;
+            }
+            Log("no pistol equipped -- /equip pistol first");
+            return false;
+        }
+
+        /// <summary>
+        /// /sword -- live-tunes the soulslike sword combat (SoulsSwordCombat)
+        /// without a rebuild: every timing, cost and damage number is a public
+        /// field, so this lists them all and sets any one by name. Same "tune
+        /// live, then bake the winning numbers into the defaults" workflow as
+        /// /jacket, /pistol and /aim.
+        /// </summary>
+        private void SwordCommand(string name, string value)
+        {
+            SoulsSwordCombat combat = _playerLocomotion != null
+                ? _playerLocomotion.GetComponent<SoulsSwordCombat>()
+                : null;
+            if (combat == null || !combat.IsEquipped)
+            {
+                Log("no sword equipped -- /equip sword first");
+                return;
+            }
+
+            if (string.IsNullOrEmpty(name))
+            {
+                Log(combat.Describe());
+                return;
+            }
+            if (!TryParseFloat(value, out float number))
+            {
+                Log(DevCommands.UsageFor("sword"));
+                return;
+            }
+            combat.TrySet(name, number, out string message);
+            Log(message);
+        }
+
+        private void AimCommand(string sub, string a)
+        {
+            switch (sub)
+            {
+                case "offset":
+                    if (OrbitCamera == null)
+                    {
+                        Log("no camera here");
+                        return;
+                    }
+                    if (!TryParseFloat(a, out float offset))
+                    {
+                        Log(DevCommands.UsageFor("aim"));
+                        return;
+                    }
+                    OrbitCamera.AimShoulderOffset = offset;
+                    Log($"aim shoulder offset set to {offset:0.000}");
+                    return;
+
+                case "yaw":
+                    // ROTATES THE WHOLE CHARACTER -- BODY, ARM, AND HEAD
+                    // TOGETHER, AS ONE RIGID UNIT. EXPLICIT ASK, repeated:
+                    // "give me a command to rotate the entire body head
+                    // body and arms." This used to set ONLY the body root's
+                    // own offset (AimYawOffsetDegrees), leaving the arm/head
+                    // -- which target the camera's own convergence point,
+                    // independent of body yaw, see ApplyGunAimPose's own
+                    // comment -- pointing the old direction, which read as
+                    // the character visibly TWISTING rather than turning.
+                    // Setting both fields to the SAME value here keeps
+                    // body/arm/head in agreement at every value, exactly
+                    // the single-knob behaviour asked for. /aim armyaw
+                    // still exists underneath for the rare case of nudging
+                    // JUST the arm/head independently of the body.
+                    if (_playerLocomotion == null)
+                    {
+                        Log("no body here");
+                        return;
+                    }
+                    if (!TryParseFloat(a, out float yaw))
+                    {
+                        Log(DevCommands.UsageFor("aim"));
+                        return;
+                    }
+                    _playerLocomotion.AimYawOffsetDegrees = yaw;
+                    _playerLocomotion.ArmAimYawOffsetDegrees = yaw;
+                    Log($"aim yaw offset set to {yaw:0.0} degrees (body, arm, and head together)");
+                    return;
+
+                case "armyaw":
+                    // THE ARM/HEAD KNOB ALONE, without moving the body --
+                    // see "yaw" above (the one most people want) for the
+                    // combined version. Kept separate for nudging just the
+                    // gun's own angle independently of body rotation.
+                    if (_playerLocomotion == null)
+                    {
+                        Log("no body here");
+                        return;
+                    }
+                    if (!TryParseFloat(a, out float armYaw))
+                    {
+                        Log(DevCommands.UsageFor("aim"));
+                        return;
+                    }
+                    _playerLocomotion.ArmAimYawOffsetDegrees = armYaw;
+                    Log($"arm aim yaw offset set to {armYaw:0.0} degrees (arm and head only)");
+                    return;
+
+                case "pose":
+                    Log($"offset {(OrbitCamera != null ? OrbitCamera.AimShoulderOffset : 0.0f):0.000}   " +
+                        $"yaw {(_playerLocomotion != null ? _playerLocomotion.AimYawOffsetDegrees : 0.0f):0.0}   " +
+                        $"armyaw {(_playerLocomotion != null ? _playerLocomotion.ArmAimYawOffsetDegrees : 0.0f):0.0}");
+                    return;
+
+                default:
+                    Log(DevCommands.UsageFor("aim"));
+                    return;
+            }
+        }
+
+        /// <summary>
         /// Swaps every eligible renderer's shader between the normal URP
         /// Lit and CityX/ToonLit -- EVERY ONE OF THEM, not just characters.
         /// Character skins and the whole city (ground, pavement, concrete,
@@ -1042,6 +1444,7 @@ namespace CityX.UI
                 case "jeans": return ItemRegistry.SkelliJeans;
                 case "cloak": return ItemRegistry.HoodedCloak;
                 case "coat": return ItemRegistry.MidnightPatchworkCoat;
+                case "jacket": return ItemRegistry.BlackPufferJacket;
                 case "jetpack": return ItemRegistry.Jetpack;
                 case "parachute": return ItemRegistry.Parachute;
                 case "grapple": return ItemRegistry.GrapplingHook;
@@ -1050,8 +1453,6 @@ namespace CityX.UI
                 case "flamethrower": return ItemRegistry.Flamethrower;
                 case "top_hat":
                 case "tophat": return ItemRegistry.TopHat;
-                case "farmer_hat":
-                case "farmerhat": return ItemRegistry.FarmerHat;
                 default: return null;
             }
         }

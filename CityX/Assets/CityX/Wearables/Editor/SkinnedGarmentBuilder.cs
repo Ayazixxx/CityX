@@ -34,6 +34,7 @@ namespace CityX.WearablesEditor
         private const string JeansPrefabPath = "Assets/CityX/Wearables/SkelliJeans.prefab";
         private const string CloakPrefabPath = "Assets/CityX/Wearables/HoodedCloak.prefab";
         private const string CoatPrefabPath = "Assets/CityX/Wearables/MidnightPatchworkCoat.prefab";
+        private const string JacketPrefabPath = "Assets/CityX/Wearables/BlackPufferJacket.prefab";
 
         // Lying on the ground pre-pickup, shown tipped and shrunk so a
         // person-sized garment reads as a dropped item rather than half an
@@ -602,6 +603,9 @@ namespace CityX.WearablesEditor
             Shoot(bodyPrefab, CoatPrefabPath, outputDirectory, "coat-front", 0.0f, RestPose);
             Shoot(bodyPrefab, CoatPrefabPath, outputDirectory, "coat-stride", 215.0f, StridePose);
             Shoot(bodyPrefab, CoatPrefabPath, outputDirectory, "coat-back", 180.0f, RestPose);
+            Shoot(bodyPrefab, JacketPrefabPath, outputDirectory, "jacket-front", 0.0f, RestPose);
+            Shoot(bodyPrefab, JacketPrefabPath, outputDirectory, "jacket-stride", 215.0f, StridePose);
+            Shoot(bodyPrefab, JacketPrefabPath, outputDirectory, "jacket-back", 180.0f, RestPose);
 
             if (Application.isBatchMode)
             {

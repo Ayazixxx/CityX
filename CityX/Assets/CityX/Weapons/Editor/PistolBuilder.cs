@@ -37,6 +37,15 @@ namespace CityX.WeaponsEditor
         private const float TargetLengthMeters = 0.22f;
 
         /// <summary>
+        /// How many independent AudioSources take turns playing the gunshot
+        /// -- see PistolWeapon.ShotPlayerPool's own doc comment. Comfortably
+        /// more than one shot's worth of overlap at FireRatePerSecond
+        /// (~0.18s between shots) without allocating a source per shot ever
+        /// fired.
+        /// </summary>
+        private const int ShotVoiceCount = 6;
+
+        /// <summary>
         /// How much bigger the pistol reads lying in the world than its
         /// true-to-life NormalizeScale size -- reported too small to
         /// notice on the ground. ONLY affects the world/pickup state: the
@@ -90,12 +99,26 @@ namespace CityX.WeaponsEditor
                 var shotPlayer = BuildAudioSource(root.transform, "ShotPlayer", ShotAudioPath);
                 var reloadPlayer = BuildAudioSource(root.transform, "ReloadPlayer", ReloadAudioPath);
 
+                // See PistolWeapon.ShotPlayerPool's own doc comment: extra
+                // voices so rapid fire never has to reassign .pitch on a
+                // source another still-overlapping shot is playing on. Named
+                // ShotPlayer2/3/... alongside the original ShotPlayer, which
+                // stays wired too (NextShotVoice's own fallback needs it, and
+                // it keeps this pool a strict addition rather than a rename).
+                var shotPool = new AudioSource[ShotVoiceCount];
+                shotPool[0] = shotPlayer;
+                for (int i = 1; i < ShotVoiceCount; i++)
+                {
+                    shotPool[i] = BuildAudioSource(root.transform, $"ShotPlayer{i + 1}", ShotAudioPath);
+                }
+
                 var pistol = root.AddComponent<PistolWeapon>();
                 pistol.VisualRoot = visual.transform;
                 pistol.MuzzleFlashObject = muzzleFlash;
                 pistol.MuzzleLight = muzzleFlash.GetComponent<Light>();
                 pistol.MuzzleSparks = sparks;
                 pistol.ShotPlayer = shotPlayer;
+                pistol.ShotPlayerPool = shotPool;
                 pistol.ReloadPlayer = reloadPlayer;
                 pistol.BloodPrefab = BloodSplatterBuilder.Build();
 
@@ -501,7 +524,23 @@ namespace CityX.WeaponsEditor
             var source = go.AddComponent<AudioSource>();
             source.clip = AssetDatabase.LoadAssetAtPath<AudioClip>(clipPath);
             source.playOnAwake = false;
-            source.spatialBlend = 1.0f;
+
+            // 2D, NOT 3D -- EXPLICIT BUG REPORT: "not sure if they sound
+            // quieter when i shoot at a farther target or what but they
+            // are not consistant... they should just play full volume
+            // coming from the weapon upon each click." This was
+            // spatialBlend = 1.0 (full 3D positional), which attenuates by
+            // distance from the AudioListener (the camera) to THIS source
+            // (the gun in the player's own hand) -- not by target
+            // distance at all, but that listener-to-gun distance itself
+            // varies for reasons that have nothing to do with the shot:
+            // ThirdPersonCamera's own aim shoulder offset changing,
+            // Distance's own 4.5m pull-back, and its wall-collision
+            // spring arm pulling the camera in much closer near any wall.
+            // The player's own weapon firing should sound the same
+            // regardless of any of that -- 0.0 (fully 2D) plays it at a
+            // flat, consistent volume no matter where the camera ends up.
+            source.spatialBlend = 0.0f;
             if (source.clip == null)
             {
                 Debug.LogWarning($"CityX: no audio clip at {clipPath} -- {name} will play silently.");

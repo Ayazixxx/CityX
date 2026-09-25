@@ -134,6 +134,55 @@ namespace CityX.CharacterEditor
         }
 
         /// <summary>
+        /// One material shared by every wearable in a category (e.g. every
+        /// helmet), instead of one unique Material asset per item --
+        /// EXPLICIT ASK: preparing the equip pipeline for "100s if not
+        /// 1000s" of clothing items worn by many players in the same area
+        /// at once. Every item in a category referencing this SAME asset is
+        /// what lets URP's SRP Batcher amortise per-object rendering cost
+        /// across many characters regardless of catalog size; per-item
+        /// colour still works because each renderer carries its own tint
+        /// via a MaterialPropertyBlock (see CityX.Wearables.WearableTint,
+        /// applied at runtime rather than here -- this method only compiles
+        /// in the editor) rather than its own unique Material.
+        ///
+        /// ONLY FOR FLAT-COLOUR PROCEDURAL WEARABLES. A genuinely textured
+        /// item -- SkelliJeansFabric's own denim photo, for one -- still
+        /// needs its own material carrying its own texture; forcing a real
+        /// texture map onto a shared flat-tint material would just lose it.
+        /// This is for the common case a large catalog will mostly be
+        /// instead: simple recoloured primitives or cut meshes, the same
+        /// shape TopHat and FarmerHat already are.
+        /// </summary>
+        public static Material EnsureSharedCategory(string category)
+        {
+            System.IO.Directory.CreateDirectory(Directory);
+            string path = $"{Directory}/Wearable{category}Shared.mat";
+
+            Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material == null)
+            {
+                Shader shader = Shader.Find("Universal Render Pipeline/Lit");
+                if (shader == null)
+                {
+                    Debug.LogError("CityX: URP Lit shader not found -- wearables will be magenta.");
+                    shader = Shader.Find("Standard");
+                }
+                material = new Material(shader);
+                // Lets Unity batch many characters' own renderers that all
+                // reference this exact asset, even though each one still
+                // carries its own per-renderer tint below.
+                material.enableInstancing = true;
+                AssetDatabase.CreateAsset(material, path);
+            }
+
+            material.SetColor("_BaseColor", Color.white);
+            material.SetFloat("_Metallic", 0.0f);
+            EditorUtility.SetDirty(material);
+            return material;
+        }
+
+        /// <summary>
         /// Paints every renderer under <paramref name="root"/>. Applies to the
         /// whole hierarchy rather than one named mesh, because the Mixamo body
         /// arrives as two skinned meshes and which is which is the exporter's

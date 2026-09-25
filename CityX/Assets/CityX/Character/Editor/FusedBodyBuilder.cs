@@ -73,6 +73,12 @@ namespace CityX.CharacterEditor
             List<FusedBodyShape.Segment> limbCapsules = BodyRigBuilder.LimbCapsules();
             float cellSize = FusedBodyShape.CellSize;
             Bounds bounds = FusedBodyShape.BoundsOf(segments);
+            // PHASE-ALIGNED TO GODOT'S OWN GRID -- see PhaseAlignedOrigin's
+            // own doc comment. Only the MIN corner moves (down/outward
+            // only, via Mathf.Floor), so this can only ever grow the
+            // sampled region slightly, never clip the T-pose bounds this
+            // dynamically-computed box exists to fit.
+            bounds.SetMinMax(FusedBodyShape.PhaseAlignedOrigin(bounds.min, cellSize), bounds.max);
 
             FusedBodyMesh.Extract(limbCapsules, bounds, cellSize,
                 out List<Vector3> welded, out List<int> weldedTriangles);

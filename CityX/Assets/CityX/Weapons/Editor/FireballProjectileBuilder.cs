@@ -82,56 +82,58 @@ namespace CityX.WeaponsEditor
             }
         }
 
-        /// <summary>A short stream of embers trailing the ball, so it reads as flying fire rather than a thrown orange marble.</summary>
+        /// <summary>
+        /// The trail streaming off the ball -- EXPLICIT ASK, to look like
+        /// the jetpack/flamethrower's own fire rather than its own
+        /// hand-rolled lookalike: "make the fireball trail... the same as
+        /// the jetpack and flamethrower fire effect... turn it into the
+        /// flamethrower fire effect that one looks better." Reuses
+        /// FlamethrowerBuilder's own outer/core flame construction exactly
+        /// the way JetpackBuilder.BuildFlame already does (both builders
+        /// live in this same namespace), rather than re-deriving a second,
+        /// visually different fire -- the old version here was an
+        /// untextured, non-additive, Lit-shader cone with no noise/flicker,
+        /// which is the whole reason it read as a marble's dust trail
+        /// rather than fire.
+        /// </summary>
         private static void BuildTrail(Transform parent)
         {
             var trailObject = new GameObject("Trail");
             trailObject.transform.SetParent(parent, false);
-            // Backward, along -Z -- Instantiate orients the whole prefab
-            // with +Z toward the launch direction (see
+            // A 180-degree YAW, not a pitch -- WRONG UNTIL THIS FIX,
+            // reported directly as "the fireball trail is aimed upward."
+            // FlamethrowerBuilder's Cone shape (see BuildOuterFlame/
+            // BuildCoreFlame) emits along local +Z unrotated -- confirmed
+            // by FlamethrowerBuilder's own "Nozzle" wrapper, which needs
+            // NO rotation at all because the gun's muzzle already faces
+            // +Z. The old -90-degree-pitch value here was carried over
+            // unchanged from this trail's original hand-rolled
+            // ParticleSystem and happened to point local +Z to local +Y
+            // (up) -- invisible on the old faint, non-additive trail, but
+            // glaring on this additive one. Instantiate orients the whole
+            // prefab with +Z toward the launch direction (see
             // FireballProjectile.Spawn's own Quaternion.LookRotation), so
-            // the trail has to point the opposite way to stream out behind.
-            trailObject.transform.localRotation = Quaternion.Euler(-90.0f, 0.0f, 0.0f);
+            // the fix is a straight 180-degree turn: +Z becomes -Z,
+            // pointing the flame straight out the back.
+            trailObject.transform.localRotation = Quaternion.Euler(0.0f, 180.0f, 0.0f);
 
-            ParticleSystem particles = trailObject.AddComponent<ParticleSystem>();
-            ParticleSystem.MainModule main = particles.main;
-            main.loop = true;
-            main.playOnAwake = true;
-            main.startLifetime = 0.3f;
-            main.startSpeed = 0.5f;
-            main.startSize = new ParticleSystem.MinMaxCurve(Radius * 0.6f, Radius * 1.1f);
-            main.startColor = CoreColour;
-            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            Texture2D particleTexture = FlamethrowerBuilder.BuildParticleTexture();
+            Material flameMaterial = FlamethrowerBuilder.BuildFlameMaterial(particleTexture);
 
-            ParticleSystem.EmissionModule emission = particles.emission;
-            emission.rateOverTime = 60.0f;
+            ParticleSystem outer = FlamethrowerBuilder.BuildOuterFlame(trailObject.transform, flameMaterial);
+            FlamethrowerBuilder.BuildCoreFlame(outer.transform, flameMaterial);
 
-            ParticleSystem.ShapeModule shape = particles.shape;
-            shape.shapeType = ParticleSystemShapeType.Cone;
-            shape.angle = 10.0f;
-            shape.radius = Radius * 0.5f;
-
-            ParticleSystem.ColorOverLifetimeModule fade = particles.colorOverLifetime;
-            fade.enabled = true;
-            var gradient = new Gradient();
-            gradient.SetKeys(
-                new[]
-                {
-                    new GradientColorKey(CoreColour, 0.0f),
-                    new GradientColorKey(new Color(0.3f, 0.1f, 0.05f), 1.0f),
-                },
-                new[]
-                {
-                    new GradientAlphaKey(0.9f, 0.0f),
-                    new GradientAlphaKey(0.0f, 1.0f),
-                });
-            fade.color = new ParticleSystem.MinMaxGradient(gradient);
-
-            var renderer = trailObject.GetComponent<ParticleSystemRenderer>();
-            renderer.material = CharacterSkin.Ensure("FireballTrailParticle", CoreColour);
-            renderer.sharedMaterial.SetFloat("_Surface", 1.0f); // transparent, matching an emissive trail rather than a lit solid
-            renderer.sharedMaterial.SetFloat("_Metallic", 0.0f);
-            renderer.sharedMaterial.SetFloat("_Smoothness", 0.0f);
+            // Unlike the jetpack/flamethrower, which toggle their flame on
+            // input and so build it stopped-and-cleared, a flying
+            // fireball's trail streams continuously from the moment it
+            // spawns to the moment it's destroyed on impact -- both layers
+            // need to play immediately.
+            foreach (ParticleSystem particles in outer.GetComponentsInChildren<ParticleSystem>(true))
+            {
+                ParticleSystem.MainModule main = particles.main;
+                main.playOnAwake = true;
+                particles.Play();
+            }
         }
     }
 }

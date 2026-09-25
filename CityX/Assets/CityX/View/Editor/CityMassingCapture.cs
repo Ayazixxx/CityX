@@ -32,7 +32,7 @@ namespace CityX.ViewEditor
         // EXPLICIT ASK: "generate a new world every time you make a change
         // to the city generation" -- change this alongside that constant
         // (and TitleScreenBuilder's own copy), never alone.
-        private const int WorldSeed = 29481073;
+        private const int WorldSeed = 58316047;
 
         /// <summary>Matches PC_RPAsset's own m_MSAA -- see Shoot's own comment.</summary>
         private const int PC_MsaaSamples = 4;
@@ -293,6 +293,204 @@ namespace CityX.ViewEditor
             instance.transform.SetParent(parent);
             instance.transform.position = spot;
             instance.transform.rotation = Quaternion.Euler(0.0f, yaw, 0.0f);
+        }
+
+        /// <summary>
+        /// The city as a CITY: aerial and skyline views of the downtown core
+        /// and its fall-off, then street-level looks at a park, a plaza, an old
+        /// town and an industrial estate. The zoning (CityZones) is a claim
+        /// about the whole map, and the fixed-position shots above cannot show
+        /// it -- from a 1.7m eye the difference between a downtown and an
+        /// outskirts block is a few metres of wall.
+        ///
+        ///   Unity.exe -batchmode -quit -projectPath &lt;proj&gt;
+        ///             -executeMethod CityX.ViewEditor.CityMassingCapture.CaptureCity
+        /// </summary>
+        [MenuItem("CityX/Capture City Overview")]
+        public static void CaptureCity()
+        {
+            string outputDirectory = Path.Combine(
+                Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
+            Directory.CreateDirectory(outputDirectory);
+
+            var root = new GameObject("CaptureRig");
+            try
+            {
+                Material ground = AssetDatabase.LoadAssetAtPath<Material>("Assets/CityX/View/Materials/CityGround.mat");
+                Material pavement = AssetDatabase.LoadAssetAtPath<Material>("Assets/CityX/View/Materials/CityPavement.mat");
+                Material structure = AssetDatabase.LoadAssetAtPath<Material>("Assets/CityX/View/Materials/CityConcrete.mat");
+                if (ground == null || pavement == null || structure == null)
+                {
+                    Debug.LogError("CityX: materials missing -- run CityX/Rebuild Massing Scene first.");
+                    return;
+                }
+
+                var sunObject = new GameObject("CaptureSun");
+                sunObject.transform.SetParent(root.transform);
+                Light sun = sunObject.AddComponent<Light>();
+                sun.type = LightType.Directional;
+                sun.shadows = LightShadows.Soft;
+                AttachSunFlare(sun);
+
+                var moonObject = new GameObject("CaptureMoon");
+                moonObject.transform.SetParent(root.transform);
+                Light moon = moonObject.AddComponent<Light>();
+                moon.type = LightType.Directional;
+                moon.shadows = LightShadows.Soft;
+
+                var cycleObject = new GameObject("CaptureCycle");
+                cycleObject.transform.SetParent(root.transform);
+                DayNightCycle cycle = cycleObject.AddComponent<DayNightCycle>();
+                cycle.Sun = sun;
+                cycle.Moon = moon;
+                cycle.Running = false;
+                cycle.TimeOfDay = SkyCycle.StartSeconds;
+
+                var streamerObject = new GameObject("CaptureStreamer");
+                streamerObject.transform.SetParent(root.transform);
+                CityStreamer streamer = streamerObject.AddComponent<CityStreamer>();
+                streamer.WorldSeed = WorldSeed;
+                streamer.GroundMaterial = ground;
+                streamer.PavementMaterial = pavement;
+                streamer.StructureMaterial = structure;
+                Dress(streamer);
+
+                var cameraObject = new GameObject("CaptureCamera");
+                cameraObject.transform.SetParent(root.transform);
+                Camera camera = cameraObject.AddComponent<Camera>();
+                camera.farClipPlane = 4500.0f;
+                camera.nearClipPlane = 0.3f;
+                if (!AttachEnvironment(root, camera, cycle))
+                {
+                    return;
+                }
+                cycle.Apply(SkyCycle.At(cycle.TimeOfDay));
+
+                var world = new CityWorld(WorldSeed);
+                TerrainField terrain = world.Terrain;
+                float baseHeight = terrain.PadHeightFor(0, 0);
+
+                // Above the downtown, looking across it and out over the fall-off.
+                Shoot(streamer, camera, outputDirectory, "city-aerial-core",
+                    new Vector3(-60.0f, baseHeight + 520.0f, -820.0f),
+                    new Vector3(30.0f, 4.0f, 0.0f), 34);
+
+                // From outside the core, above the low ground and looking in: the
+                // skyline should rise toward the middle rather than being one
+                // height. Streams out to ~1km so the far side of the core loads.
+                Shoot(streamer, camera, outputDirectory, "city-skyline-from-outside",
+                    new Vector3(-720.0f, baseHeight + 300.0f, -720.0f),
+                    new Vector3(10.0f, 45.0f, 0.0f), 44);
+
+                ShootOpenBlock(streamer, camera, outputDirectory, world, "city-park",
+                    (x, y) => world.RoleAt(x, y).Kind == LotKind.Open &&
+                              CityChunkGenerator.ZoneOfRole(world.RoleAt(x, y)) != ZoneKind.Industrial &&
+                              !CityMeshBuilder.IsPlazaZone(CityChunkGenerator.ZoneOfRole(world.RoleAt(x, y))));
+                ShootOpenBlock(streamer, camera, outputDirectory, world, "city-plaza",
+                    (x, y) => world.RoleAt(x, y).Kind == LotKind.Open &&
+                              CityMeshBuilder.IsPlazaZone(CityChunkGenerator.ZoneOfRole(world.RoleAt(x, y))));
+                ShootZone(streamer, camera, outputDirectory, world, "city-oldtown", ZoneKind.OldTown);
+                ShootZone(streamer, camera, outputDirectory, world, "city-industrial", ZoneKind.Industrial);
+
+                Debug.Log($"CityX: city shots written to {outputDirectory}");
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        /// <summary>
+        /// Stands in the street beside the nearest chunk of an open block that
+        /// satisfies <paramref name="wanted"/> and looks across it.
+        /// </summary>
+        private static void ShootOpenBlock(CityStreamer streamer, Camera camera, string directory,
+            CityWorld world, string name, System.Func<int, int, bool> wanted)
+        {
+            (int dx, int dy)[] sides = { (1, 0), (-1, 0), (0, 1), (0, -1) };
+            float chunk = CityLayout.ChunkSize;
+
+            for (int ring = 0; ring <= 220; ring++)
+            {
+                for (int x = -ring; x <= ring; x++)
+                {
+                    for (int y = -ring; y <= ring; y++)
+                    {
+                        if (System.Math.Max(System.Math.Abs(x), System.Math.Abs(y)) != ring || !wanted(x, y))
+                        {
+                            continue;
+                        }
+                        foreach ((int dx, int dy) in sides)
+                        {
+                            int nx = x + dx, ny = y + dy;
+                            if (!CityLayout.IsStreetChunk(nx, ny) || CityLayout.IsHighwayChunk(nx, ny))
+                            {
+                                continue;
+                            }
+
+                            // Stand on the street's FAR side, so a whole chunk of
+                            // the block is in frame.
+                            double px = (nx + 0.5) * chunk + dx * 8.0;
+                            double pz = (ny + 0.5) * chunk + dy * 8.0;
+                            Vector3 position = new Vector3(
+                                (float)px, (float)world.Terrain.ContinuousHeightAt(px, pz) + 1.7f, (float)pz);
+                            float yaw = Mathf.Atan2(-dx, -dy) * Mathf.Rad2Deg;
+                            Debug.Log($"CityX: {name} shot -- open chunk ({x},{y}) seen from ({nx},{ny})");
+                            Shoot(streamer, camera, directory, name, position, new Vector3(4.0f, yaw, 0.0f), 9);
+                            return;
+                        }
+                    }
+                }
+            }
+            Debug.LogWarning($"CityX: no chunk found for the {name} shot.");
+        }
+
+        /// <summary>True when a 5x5 spread of samples out to +-8 chunks around (x, y) are all in the zone -- the middle of it, not its edge.</summary>
+        private static bool ZoneFillsAround(int x, int y, ZoneKind zone)
+        {
+            for (int dx = -8; dx <= 8; dx += 4)
+            {
+                for (int dy = -8; dy <= 8; dy += 4)
+                {
+                    if (CityZones.ZoneAt(x + dx + 0.5, y + dy + 0.5) != zone)
+                    {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        /// <summary>A street-level look down a street of the nearest block whose zone is <paramref name="zone"/>.</summary>
+        private static void ShootZone(CityStreamer streamer, Camera camera, string directory,
+            CityWorld world, string name, ZoneKind zone)
+        {
+            float chunk = CityLayout.ChunkSize;
+            for (int ring = 0; ring <= 260; ring++)
+            {
+                for (int x = -ring; x <= ring; x++)
+                {
+                    for (int y = -ring; y <= ring; y++)
+                    {
+                        if (System.Math.Max(System.Math.Abs(x), System.Math.Abs(y)) != ring ||
+                            !CityLayout.IsStreetChunk(x, y) || CityLayout.IsHighwayChunk(x, y) ||
+                            !ZoneFillsAround(x, y, zone))
+                        {
+                            continue;
+                        }
+                        bool alongX = CityLayout.StreetRunsAlongX(x, y);
+                        double px = (x + 0.5) * chunk;
+                        double pz = (y + 0.5) * chunk;
+                        Vector3 position = new Vector3(
+                            (float)px, (float)world.Terrain.ContinuousHeightAt(px, pz) + 22.0f, (float)pz);
+                        float yaw = alongX ? 90.0f : 0.0f;
+                        Debug.Log($"CityX: {name} shot -- {zone} street chunk ({x},{y})");
+                        Shoot(streamer, camera, directory, name, position, new Vector3(14.0f, yaw, 0.0f), 12);
+                        return;
+                    }
+                }
+            }
+            Debug.LogWarning($"CityX: no {zone} street found for the {name} shot.");
         }
 
         /// <summary>
@@ -891,6 +1089,8 @@ namespace CityX.ViewEditor
             streamer.DoorHandleMaterial = Material_("BuildingDoorHandle");
             streamer.GuardRailMaterial = Material_("CityGuardRail");
             streamer.BenchMaterial = Material_("CityBenchWood");
+            streamer.GrassMaterial = Material_("CityGrass");
+            streamer.BarkMaterial = Material_("CityBenchWood");
         }
 
         private static Material Material_(string name)

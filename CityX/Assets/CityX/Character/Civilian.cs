@@ -73,6 +73,7 @@ namespace CityX.Character
             _rightFoot = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.RightFoot) : null;
             _ragdoll = GetComponent<Ragdoll>();
             _brain = new CivilianBrain(Seed);
+            _brain.SetRainSense(CurrentWeatherSense.Instance);
             _steering.ConfigureFrom(_controller);
         }
 
@@ -133,6 +134,7 @@ namespace CityX.Character
         {
             Seed = seed;
             _brain = new CivilianBrain(seed);
+            _brain.SetRainSense(CurrentWeatherSense.Instance);
             _health = MaxHealth;
             _verticalVelocity = 0.0f;
 
@@ -174,7 +176,8 @@ namespace CityX.Character
                 _verticalVelocity -= Gravity * deltaTime;
             }
 
-            Vector3 motion = direction * CivilianBrain.WalkSpeed;
+            float pace = CivilianBrain.WalkSpeed * _brain.SpeedMultiplier;
+            Vector3 motion = direction * pace;
             motion.y = _verticalVelocity;
             _controller.Move(motion * deltaTime);
 
@@ -188,7 +191,7 @@ namespace CityX.Character
             if (_animator != null && _animator.enabled)
             {
                 _animator.SetFloat(SpeedParameter,
-                    direction.sqrMagnitude > 0.0001f ? CivilianBrain.WalkSpeed : 0.0f);
+                    direction.sqrMagnitude > 0.0001f ? pace : 0.0f);
                 _animator.SetBool(GroundedParameter, _controller.isGrounded);
             }
         }

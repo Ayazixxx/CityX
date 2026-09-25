@@ -312,20 +312,6 @@ namespace CityX.View
         public const float SkateparkLedgeHeight = 0.45f;
 
         /// <summary>
-        /// Centre-to-centre spacing of a pedestrian-zone bollard row. Wide
-        /// enough for one person to pass through the gap between two posts,
-        /// far too narrow for a car -- see AddPedestrianZoneBollards's own
-        /// doc comment for why this exists at all.
-        /// </summary>
-        public const float BollardSpacing = 1.6f;
-
-        /// <summary>Bollard post half-width -- a real obstacle, not a decorative sliver.</summary>
-        public const float BollardRadius = 0.09f;
-
-        /// <summary>Bollard height -- hip-height, unmissable to a driver.</summary>
-        public const float BollardHeight = 0.9f;
-
-        /// <summary>
         /// Steepest grade a building's own sloped entrance approach may be
         /// left as a plain smooth surface -- EXPLICIT ASK: "some sort of
         /// staircase that could be built into the terrain if needed but if
@@ -626,10 +612,18 @@ namespace CityX.View
             MeshBuffer crackedGlass = null, GlassDamage damage = null,
             List<CrackedOpening> crackedOpenings = null, MeshBuffer markings = null,
             MeshBuffer guardRail = null, MeshBuffer laneDividers = null,
-            MeshBuffer crackDecals = null)
+            MeshBuffer crackDecals = null, MeshBuffer greenery = null, MeshBuffer bark = null,
+            bool includeSurface = true)
         {
-            BuildGround(world, chunkX, chunkY, origin, ground, flatConcrete, guardRail);
-            AddRoadMarkings(world, chunkX, chunkY, origin, markings, laneDividers);
+            // includeSurface false builds the BUILDING alone -- no terrain, street,
+            // sidewalk, markings or open-block surface. The title screen bakes a
+            // row of real generated buildings that stand on a plane of its own.
+            if (includeSurface)
+            {
+                BuildGround(world, chunkX, chunkY, origin, ground, flatConcrete, guardRail);
+                AddRoadMarkings(world, chunkX, chunkY, origin, markings, laneDividers);
+                AddOpenBlockSurface(world, chunkX, chunkY, origin, flatConcrete, greenery, bark);
+            }
 
             BuildingSite site = world.BuildingAt(chunkX, chunkY);
             if (!site.Exists || site.AnchorX != chunkX || site.AnchorY != chunkY)
@@ -641,11 +635,186 @@ namespace CityX.View
             }
 
             BuildBuilding(world, site, origin, structures, flatConcrete,
-                new Glazing(litGlass, darkGlass, crackedGlass, damage, crackedOpenings, crackDecals));
+                new Glazing(litGlass, darkGlass, crackedGlass, damage, crackedOpenings, crackDecals,
+                    WindowGrid.LitShareFor(CityChunkGenerator.ZoneOfRole(site.Role))));
             AddWing(world, site, origin, structures, flatConcrete);
             AddBalconies(world, site, origin, flatConcrete);
             AddRibs(world, site, origin, structures);
-            BuildBridges(world, bridges, site, origin, flatConcrete);
+            if (bridges != null)
+            {
+                BuildBridges(world, bridges, site, origin, flatConcrete);
+            }
+        }
+
+        // --- open blocks: parks and plazas ---
+
+        /// <summary>
+        /// Whether open blocks get NATURE -- lawns and trees. OFF: EXPLICIT
+        /// FEEDBACK on the first version, "remove the trees i didnt want any
+        /// nature yet." The code is kept behind this switch rather than
+        /// deleted, because "yet" means it is wanted later; flip it (and the
+        /// CityStreamer grass/bark materials, already wired) to bring it back.
+        /// Paved plazas are not nature and stay.
+        /// </summary>
+        public static bool DrawNature = false;
+
+        /// <summary>How far a lawn or plaza floats above the bare pad, so it never z-fights it.</summary>
+        public const float OpenSurfaceLift = 0.04f;
+
+        /// <summary>Trees per open chunk: at least this many.</summary>
+        public const int MinTreesPerChunk = 3;
+
+        /// <summary>...and at most this many. Trees sit on a jittered 3x3 grid, so the cap is 9.</summary>
+        public const int MaxTreesPerChunk = 7;
+
+        /// <summary>Trees stay at least this far inside their own chunk, so a canopy never leans over a neighbour's wall.</summary>
+        public const float TreeEdgeClearance = 3.0f;
+
+        private const ulong TreeStream = 0x54524545UL;   // "TREE"
+
+        /// <summary>
+        /// True where an open block is a paved PLAZA rather than a park: the
+        /// downtown blocks left open are civic squares, everywhere else they
+        /// are lawn. (Industrial open ground is left as bare yard.)
+        /// </summary>
+        public static bool IsPlazaZone(ZoneKind zone)
+        {
+            return zone == ZoneKind.Core || zone == ZoneKind.Urban;
+        }
+
+        /// <summary>
+        /// What a chunk of an OPEN BLOCK looks like. Until this, an open block
+        /// was bare terrace -- a hole in the city with nothing in it, which is
+        /// what the block system's own doc comment said the renderer would
+        /// "eventually want to pave". A park is a lawn with blocky trees in the
+        /// same low-poly idiom as everything else here; a downtown open block is
+        /// a paved plaza with a few trees; an industrial one stays bare yard.
+        /// All of it is decoration built into buffers that only exist when the
+        /// caller wants them, and none of it is collidable -- the terrace under
+        /// it already is, and a trunk is not worth cooking a collider for.
+        ///
+        /// Deterministic per chunk (seeded from the chunk seed) and confined to
+        /// the chunk's own square, so chunks stay independent.
+        /// </summary>
+        private static void AddOpenBlockSurface(CityWorld world, int chunkX, int chunkY, Vector3 origin,
+            MeshBuffer pavement, MeshBuffer greenery, MeshBuffer bark)
+        {
+            if (greenery == null && pavement == null)
+            {
+                return;
+            }
+            if (world.RoleAt(chunkX, chunkY).Kind != LotKind.Open)
+            {
+                return;
+            }
+            if (!CityLayout.TryGetBlockRect(chunkX, chunkY, out int minX, out int minY, out int width, out int height))
+            {
+                return;
+            }
+
+            ZoneKind zone = CityBlocks.ZoneOfBlock(minX, minY, width, height);
+            if (zone == ZoneKind.Industrial)
+            {
+                return;
+            }
+            bool plaza = IsPlazaZone(zone);
+            if (!plaza && !DrawNature)
+            {
+                return;   // a park is all nature, so it stays bare terrace
+            }
+
+            float size = CityLayout.ChunkSize;
+            float x0 = (float)(chunkX * (double)size - origin.x);
+            float z0 = (float)(chunkY * (double)size - origin.z);
+            float x1 = x0 + size;
+            float z1 = z0 + size;
+            float y = world.Terrain.PadHeightFor(chunkX, chunkY) - origin.y + OpenSurfaceLift;
+
+            MeshBuffer surface = plaza ? pavement : greenery;
+            if (surface != null)
+            {
+                surface.AddQuad(new Vector3(x0, y, z0), new Vector3(x0, y, z1), new Vector3(x1, y, z1),
+                    new Vector3(x1, y, z0), Vector3.up,
+                    new Vector2(0, 0), new Vector2(0, size), new Vector2(size, size), new Vector2(size, 0));
+            }
+
+            if (!DrawNature || greenery == null || bark == null)
+            {
+                return;
+            }
+
+            var rng = new DeterministicRandom(unchecked((ulong)(long)world.ChunkSeed(chunkX, chunkY)), TreeStream);
+            int wanted = MinTreesPerChunk + rng.Below(MaxTreesPerChunk - MinTreesPerChunk + 1);
+            if (plaza)
+            {
+                wanted = 1 + rng.Below(3);
+            }
+
+            // A jittered 3x3 grid: trees are spread out and never overlap, and
+            // the cells to fill are picked by walking the grid from a random
+            // start rather than rejection sampling.
+            float cell = (size - 2.0f * TreeEdgeClearance) / 3.0f;
+            int start = rng.Below(9);
+            for (int placed = 0, step = 0; placed < wanted && step < 9; step++)
+            {
+                int index = (start + step * 4) % 9;   // 4 is coprime with 9, so this visits every cell once
+                int column = index % 3;
+                int row = index / 3;
+                float cx = x0 + TreeEdgeClearance + (column + 0.5f) * cell + (float)rng.Range(-1.0, 1.0);
+                float cz = z0 + TreeEdgeClearance + (row + 0.5f) * cell + (float)rng.Range(-1.0, 1.0);
+                AddTree(greenery, bark, cx, cz, y, rng);
+                placed++;
+            }
+        }
+
+        /// <summary>One blocky tree standing on (cx, baseY, cz): a broadleaf, a stepped conifer or a tall poplar.</summary>
+        private static void AddTree(MeshBuffer greenery, MeshBuffer bark, float cx, float cz, float baseY,
+            DeterministicRandom rng)
+        {
+            float scale = (float)rng.Range(0.8, 1.3);
+            int kind = rng.Below(3);
+            float trunk = 0.18f * scale;
+
+            switch (kind)
+            {
+                case 0:   // broadleaf
+                {
+                    float trunkHeight = 2.8f * scale;
+                    bark.AddBox(new Vector3(cx - trunk, baseY, cz - trunk),
+                        new Vector3(cx + trunk, baseY + trunkHeight, cz + trunk));
+                    float half = 2.1f * scale;
+                    greenery.AddBox(new Vector3(cx - half, baseY + trunkHeight - 0.4f, cz - half),
+                        new Vector3(cx + half, baseY + trunkHeight + 3.0f * scale, cz + half), includeBottom: true);
+                    break;
+                }
+                case 1:   // conifer: three stepped tiers
+                {
+                    float trunkHeight = 1.6f * scale;
+                    bark.AddBox(new Vector3(cx - trunk, baseY, cz - trunk),
+                        new Vector3(cx + trunk, baseY + trunkHeight, cz + trunk));
+                    float y = baseY + trunkHeight - 0.2f;
+                    float[] halves = { 1.9f, 1.3f, 0.75f };
+                    foreach (float tierHalf in halves)
+                    {
+                        float half = tierHalf * scale;
+                        float tierHeight = 1.9f * scale;
+                        greenery.AddBox(new Vector3(cx - half, y, cz - half),
+                            new Vector3(cx + half, y + tierHeight, cz + half), includeBottom: true);
+                        y += tierHeight - 0.3f;
+                    }
+                    break;
+                }
+                default:  // tall poplar
+                {
+                    float trunkHeight = 3.0f * scale;
+                    bark.AddBox(new Vector3(cx - trunk * 0.8f, baseY, cz - trunk * 0.8f),
+                        new Vector3(cx + trunk * 0.8f, baseY + trunkHeight, cz + trunk * 0.8f));
+                    float half = 0.95f * scale;
+                    greenery.AddBox(new Vector3(cx - half, baseY + trunkHeight - 0.6f, cz - half),
+                        new Vector3(cx + half, baseY + trunkHeight + 6.2f * scale, cz + half), includeBottom: true);
+                    break;
+                }
+            }
         }
 
         private static void BuildGround(CityWorld world, int chunkX, int chunkY, Vector3 origin,
@@ -835,6 +1004,21 @@ namespace CityX.View
             bool southToStreet = isStreet && CityLayout.IsStreetChunk(chunkX, chunkY - 1);
             bool northToStreet = isStreet && CityLayout.IsStreetChunk(chunkX, chunkY + 1);
 
+            // An edge shared with ANOTHER CHUNK OF THE SAME BUILDING runs
+            // through the middle of the building, whose lobby and podium own
+            // that ground. Its retaining wall below stays (it is what closes
+            // the strips the building does not cover, beside the street), but
+            // the STAIRS AND GUARDRAIL built at a terrace edge must not: they
+            // land inside the footprint, their top tread coplanar with the
+            // lobby floor, on any multi-chunk building whose chunks straddle a
+            // terrace step. Latent for as long as multi-chunk lots have
+            // existed; surfaced when re-laying the city put such a building
+            // under the lobby-floor tests.
+            bool westInternal = !isStreet && SharesABuilding(world, chunkX, chunkY, chunkX - 1, chunkY);
+            bool eastInternal = !isStreet && SharesABuilding(world, chunkX, chunkY, chunkX + 1, chunkY);
+            bool southInternal = !isStreet && SharesABuilding(world, chunkX, chunkY, chunkX, chunkY - 1);
+            bool northInternal = !isStreet && SharesABuilding(world, chunkX, chunkY, chunkX, chunkY + 1);
+
             if (!westToStreet)
             {
                 AddSkirtIfLower(world, chunkX - 1, chunkY,
@@ -883,28 +1067,28 @@ namespace CityX.View
             // in the game (caught by AStreetTerraceDropWithASidewalkGetsA
             // RealStaircaseOrASlopedRamp asserting stairCases > 0).
             bool chunkAlreadySloped = false;
-            if (!westToStreet)
+            if (!westToStreet && !westInternal)
             {
                 AddStreetEdgeFeatures(world, chunkX, chunkY, chunkX - 1, chunkY,
                     TopAt(x0, z0), TopAt(x0, z1), Vector3.left,
                     TopAt(x0, z0 + SidewalkWidth * 0.5f), TopAt(x0, z1 - SidewalkWidth * 0.5f), origin,
                     pavement, guardRail, ground, ref chunkAlreadySloped, isDoorFacingEdge: false);
             }
-            if (!eastToStreet)
+            if (!eastToStreet && !eastInternal)
             {
                 AddStreetEdgeFeatures(world, chunkX, chunkY, chunkX + 1, chunkY,
                     TopAt(x1, z1), TopAt(x1, z0), Vector3.right,
                     TopAt(x1, z1 - SidewalkWidth * 0.5f), TopAt(x1, z0 + SidewalkWidth * 0.5f), origin,
                     pavement, guardRail, ground, ref chunkAlreadySloped, isDoorFacingEdge: false);
             }
-            if (!southToStreet)
+            if (!southToStreet && !southInternal)
             {
                 AddStreetEdgeFeatures(world, chunkX, chunkY, chunkX, chunkY - 1,
                     TopAt(x1, z0), TopAt(x0, z0), Vector3.back,
                     TopAt(x1 - SidewalkWidth * 0.5f, z0), TopAt(x0 + SidewalkWidth * 0.5f, z0), origin,
                     pavement, guardRail, ground, ref chunkAlreadySloped, isDoorFacingEdge: false);
             }
-            if (!northToStreet)
+            if (!northToStreet && !northInternal)
             {
                 AddStreetEdgeFeatures(world, chunkX, chunkY, chunkX, chunkY + 1,
                     TopAt(x0, z1), TopAt(x1, z1), Vector3.forward,
@@ -953,17 +1137,19 @@ namespace CityX.View
 
             AddSidewalks(world, chunkX, chunkY, origin, x0, z0, x1, z1, TopAt, pavement);
 
-            // A CAR-FREE STREET HAS TO ACTUALLY STOP A CAR -- same standard
-            // this session already applied to the elevated-bridge fix and
-            // every closed-arm treatment: "make the roads functionable in a
-            // real city dont have it so the car will obviously collide with
-            // something." Missing lane paint alone (the guard in
-            // AddRoadMarkings) reads as a suggestion; a real bollard row at
-            // both mouths is a rule.
-            if (guardRail != null && CityLayout.IsPedestrianZoneChunk(chunkX, chunkY))
-            {
-                AddPedestrianZoneBollards(chunkX, chunkY, x0, z0, x1, z1, TopAt, guardRail);
-            }
+            // NO PHYSICAL BARRIER HERE ANY MORE -- EXPLICIT BUG REPORT, with
+            // screenshots: a bollard row planted across an otherwise
+            // completely ordinary-looking street read as "the road is
+            // broken," not "this is a pedestrian plaza" -- there is nothing
+            // about the surrounding pavement, signage, or approach that
+            // tells a player this one street segment is different before
+            // they are already at the wall of posts. Explicit follow-up
+            // confirmed this is not a readability problem paving could fix:
+            // "it is clearly just blocking the street and needs to not
+            // generate like this." IsPedestrianZoneChunk itself, and its
+            // cosmetic effects (no lane paint, benches, books -- see
+            // CityLayout.IsBookChunk), are unaffected; only the physical
+            // bollard barrier is gone.
         }
 
         /// <summary>
@@ -1193,7 +1379,7 @@ namespace CityX.View
                 else
                 {
                     AddCurvingSidewalk(world, origin, false, chunkX,
-                        z0, z1, x0, x0 + SidewalkWidth, topAt, pavement);
+                        z0, z1, x0, x0 + SidewalkWidth, pavement);
                 }
             }
             if (!CityLayout.IsStreetChunk(chunkX + 1, chunkY))
@@ -1205,7 +1391,7 @@ namespace CityX.View
                 else
                 {
                     AddCurvingSidewalk(world, origin, false, chunkX,
-                        z0, z1, x1, x1 - SidewalkWidth, topAt, pavement);
+                        z0, z1, x1, x1 - SidewalkWidth, pavement);
                 }
             }
             if (!CityLayout.IsStreetChunk(chunkX, chunkY - 1))
@@ -1217,7 +1403,7 @@ namespace CityX.View
                 else
                 {
                     AddCurvingSidewalk(world, origin, true, chunkY,
-                        x0, x1, z0, z0 + SidewalkWidth, topAt, pavement);
+                        x0, x1, z0, z0 + SidewalkWidth, pavement);
                 }
             }
             if (!CityLayout.IsStreetChunk(chunkX, chunkY + 1))
@@ -1229,7 +1415,7 @@ namespace CityX.View
                 else
                 {
                     AddCurvingSidewalk(world, origin, true, chunkY,
-                        x0, x1, z1, z1 - SidewalkWidth, topAt, pavement);
+                        x0, x1, z1, z1 - SidewalkWidth, pavement);
                 }
             }
 
@@ -1317,10 +1503,27 @@ namespace CityX.View
         /// surface uses at that world position -- see AddSidewalks' own doc
         /// comment for the ridge/gap bug this fixes by keeping the two
         /// surfaces flush instead of only agreeing where the curve is zero.
+        ///
+        /// SAMPLES ContinuousHeightAt DIRECTLY, NOT topAt -- EXPLICIT BUG
+        /// REPORT, with a screenshot: a long diagonal ridge across the road,
+        /// and a glimpse of road paint peeking out from under the street.
+        /// topAt is only a bilinear approximation of the chunk's own four
+        /// CORNERS -- correct there, blind to any real curvature the terrain
+        /// has between them, exactly the class of bug AddRoadMarkings' own
+        /// RealPointAt already fixed for paint (see its doc comment: "a
+        /// single centre sample was off by as much as 3.5m... on a steep
+        /// enough grade"). The road surface right next to this strip
+        /// (AddCurvingStreetGround) already samples the real field directly
+        /// per segment; this sidewalk was still using the coarse
+        /// approximation for BOTH its edges, so wherever the real terrain
+        /// bowed away from the chunk's own flat 4-corner fit, the sidewalk
+        /// and the road it borders silently disagreed on height -- read as a
+        /// ridge where the sidewalk rose above the true road surface, and as
+        /// paint "sinking" wherever it dipped below it instead.
         /// </summary>
         private static void AddCurvingSidewalk(CityWorld world, Vector3 origin, bool runsAlongX, int laneKey,
             float alongLocalStart, float alongLocalEnd, float outerAcrossLocal, float innerAcrossLocal,
-            System.Func<float, float, Vector3> topAt, MeshBuffer pavement)
+            MeshBuffer pavement)
         {
             double phase = StreetCurvePhaseFor(world, laneKey);
             float length = alongLocalEnd - alongLocalStart;
@@ -1328,9 +1531,19 @@ namespace CityX.View
             float segLen = length / segments;
             double originAlong = runsAlongX ? origin.x : origin.z;
 
+            Vector3 RealPointAt(float localX, float localZ)
+            {
+                double worldX = localX + origin.x;
+                double worldZ = localZ + origin.z;
+                float height = (float)world.Terrain.ContinuousHeightAt(worldX, worldZ) - origin.y;
+                return new Vector3(localX, height, localZ);
+            }
+
             Vector3 OuterAt(float alongLocal)
             {
-                return runsAlongX ? topAt(alongLocal, outerAcrossLocal) : topAt(outerAcrossLocal, alongLocal);
+                return runsAlongX
+                    ? RealPointAt(alongLocal, outerAcrossLocal)
+                    : RealPointAt(outerAcrossLocal, alongLocal);
             }
 
             Vector3 InnerAt(float alongLocal)
@@ -1339,7 +1552,7 @@ namespace CityX.View
                 float taper = StreetCurveTaperAt(laneKey, worldAlong, runsAlongX);
                 float offset = (float)(StreetCurveOffsetAt(worldAlong, phase) * taper);
                 float across = innerAcrossLocal + offset;
-                return runsAlongX ? topAt(alongLocal, across) : topAt(across, alongLocal);
+                return runsAlongX ? RealPointAt(alongLocal, across) : RealPointAt(across, alongLocal);
             }
 
             for (int i = 0; i < segments; i++)
@@ -1733,6 +1946,22 @@ namespace CityX.View
         /// more away from the building's flat one -- a gap invisible to the
         /// pad comparison because it never crossed a whole terrace step.
         /// </summary>
+        /// <summary>
+        /// True when two chunks are covered by the SAME building -- the edge
+        /// between them runs through that building rather than along a
+        /// terrace. See the "westInternal" comment in BuildGround.
+        /// </summary>
+        private static bool SharesABuilding(CityWorld world, int chunkX, int chunkY, int otherX, int otherY)
+        {
+            BuildingSite here = world.BuildingAt(chunkX, chunkY);
+            if (!here.Exists)
+            {
+                return false;
+            }
+            BuildingSite other = world.BuildingAt(otherX, otherY);
+            return other.Exists && other.AnchorX == here.AnchorX && other.AnchorY == here.AnchorY;
+        }
+
         private static float NeighbourGroundHeightAt(CityWorld world, int neighbourX, int neighbourY,
             float worldX, float worldZ)
         {
@@ -2538,76 +2767,6 @@ namespace CityX.View
         }
 
         /// <summary>
-        /// Physically blocks car access into a pedestrian zone chunk --
-        /// EXPLICIT STANDARD, repeated throughout this session's own
-        /// city-generation work: "make the roads functionable in a real
-        /// city dont have it so the car will obviously collide with
-        /// something." A car-free street (CityLayout.IsPedestrianZoneChunk)
-        /// needs to actually be impassable to a car, not just unpainted --
-        /// the missing lane paint alone (AddRoadMarkings' own guard) reads
-        /// as a suggestion, not a rule.
-        ///
-        /// A real bollard ROW, not a single wall: the gap between two posts
-        /// (BollardSpacing minus one post's own width) is wide enough for a
-        /// pedestrian to walk through freely but far narrower than any car,
-        /// exactly how a real pedestrian plaza blocks traffic while staying
-        /// open on foot. Built at BOTH along-axis mouths of the chunk (the
-        /// two ends a car would otherwise drive through), spanning the same
-        /// carriageway width AddRoadMarkings' own crosswalk bands use, so
-        /// the row lines up with where a driving lane would have been.
-        ///
-        /// Sampled from topAt (the chunk's own straight bilinear patch --
-        /// the same one every other fixed post/rail in this method already
-        /// springs from) rather than the curving ribbon: consistent with
-        /// AddStreetEdgeFeatures/AddSidewalks, and moot besides since
-        /// StreetCurveAmplitudeMetres is currently zero.
-        /// </summary>
-        private static void AddPedestrianZoneBollards(int chunkX, int chunkY,
-            float x0, float z0, float x1, float z1,
-            System.Func<float, float, Vector3> topAt, MeshBuffer guardRail)
-        {
-            bool runsAlongX = CityLayout.StreetRunsAlongX(chunkX, chunkY);
-            float size = CityLayout.ChunkSize;
-            float crossing = size - SidewalkWidth * 2.0f;
-            float halfCrossing = crossing * 0.5f;
-            float centreX = (x0 + x1) * 0.5f;
-            float centreZ = (z0 + z1) * 0.5f;
-
-            int count = Mathf.Max(3, Mathf.RoundToInt(crossing / BollardSpacing) + 1);
-
-            void AddRow(float mouthAlong, bool mouthIsAlongX)
-            {
-                for (int i = 0; i < count; i++)
-                {
-                    float t = count == 1 ? 0.5f : (float)i / (count - 1);
-                    float across = Mathf.Lerp(-halfCrossing, halfCrossing, t);
-                    float atX = mouthIsAlongX ? mouthAlong : centreX + across;
-                    float atZ = mouthIsAlongX ? centreZ + across : mouthAlong;
-                    AddBollard(topAt(atX, atZ), guardRail);
-                }
-            }
-
-            if (runsAlongX)
-            {
-                AddRow(x0, true);
-                AddRow(x1, true);
-            }
-            else
-            {
-                AddRow(z0, false);
-                AddRow(z1, false);
-            }
-        }
-
-        /// <summary>One post of a pedestrian-zone bollard row, planted at its own real ground height.</summary>
-        private static void AddBollard(Vector3 baseTop, MeshBuffer guardRail)
-        {
-            guardRail.AddBox(
-                new Vector3(baseTop.x - BollardRadius, baseTop.y, baseTop.z - BollardRadius),
-                new Vector3(baseTop.x + BollardRadius, baseTop.y + BollardHeight, baseTop.z + BollardRadius));
-        }
-
-        /// <summary>
         /// One lane's own fixed phase for the highway curve -- same "seeded
         /// once per lane, off that lane's own chunk-seed" idiom
         /// StreetCurvePhaseFor already establishes, on an independent draw
@@ -3113,8 +3272,12 @@ namespace CityX.View
             /// </summary>
             public readonly MeshBuffer Decals;
 
+            /// <summary>Fraction of glazed cells with a light on -- the building's zone decides it (WindowGrid.LitShareFor).</summary>
+            public readonly double LitShare;
+
             public Glazing(MeshBuffer lit, MeshBuffer dark, MeshBuffer cracked, GlassDamage damage,
-                List<CrackedOpening> openings, MeshBuffer decals = null)
+                List<CrackedOpening> openings, MeshBuffer decals = null,
+                double litShare = WindowGrid.LitShare)
             {
                 Lit = lit;
                 Dark = dark;
@@ -3122,6 +3285,7 @@ namespace CityX.View
                 Damage = damage;
                 Openings = openings;
                 Decals = decals;
+                LitShare = litShare;
             }
 
             public bool HangsGlass => Lit != null;
@@ -3807,6 +3971,24 @@ namespace CityX.View
         }
 
         /// <summary>
+        /// AddWallPanel's own shape, but double-sided (see AddDoubleSidedFace's
+        /// own doc comment) -- used ONLY for the glass frame strips
+        /// AddPaneWithHole cuts around a bullet hole, so a cracked pane can
+        /// still be finished off (shattered) by a second shot from inside
+        /// the same way an intact one can now be cracked from inside.
+        /// </summary>
+        private static void AddDoubleSidedWallPanel(MeshBuffer buffer, in Wall wall,
+            float u0, float u1, float y0, float y1, Vector3 normal)
+        {
+            if (u1 - u0 <= 0.0001f || y1 - y0 <= 0.0001f)
+            {
+                return;
+            }
+            AddDoubleSidedFace(buffer, normal,
+                wall.At(u0, y0), wall.At(u1, y0), wall.At(u1, y1), wall.At(u0, y1));
+        }
+
+        /// <summary>
         /// A wall with real openings cut through it, one per glazed cell.
         ///
         /// THE DECOMPOSITION IS THE WHOLE COST STORY. The obvious way to build
@@ -3984,7 +4166,7 @@ namespace CityX.View
 
             MeshBuffer glass = state == PaneState.Cracked
                 ? glazing.Cracked
-                : WindowGrid.IsLit(seed, which, column, row) ? glazing.Lit : glazing.Dark;
+                : WindowGrid.IsLit(seed, which, column, row, glazing.LitShare) ? glazing.Lit : glazing.Dark;
             if (glass == null)
             {
                 return;
@@ -4008,7 +4190,7 @@ namespace CityX.View
             }
             else
             {
-                AddFace(glass, normal,
+                AddDoubleSidedFace(glass, normal,
                     wall.At(u0, y0), wall.At(u1, y0), wall.At(u1, y1), wall.At(u0, y1));
             }
 
@@ -4098,10 +4280,10 @@ namespace CityX.View
             float holeY0 = centre.y - halfH;
             float holeY1 = centre.y + halfH;
 
-            AddWallPanel(glass, wall, u0, holeU0, y0, y1, normal);
-            AddWallPanel(glass, wall, holeU1, u1, y0, y1, normal);
-            AddWallPanel(glass, wall, holeU0, holeU1, y0, holeY0, normal);
-            AddWallPanel(glass, wall, holeU0, holeU1, holeY1, y1, normal);
+            AddDoubleSidedWallPanel(glass, wall, u0, holeU0, y0, y1, normal);
+            AddDoubleSidedWallPanel(glass, wall, holeU1, u1, y0, y1, normal);
+            AddDoubleSidedWallPanel(glass, wall, holeU0, holeU1, y0, holeY0, normal);
+            AddDoubleSidedWallPanel(glass, wall, holeU0, holeU1, holeY1, y1, normal);
         }
 
         /// <summary>
@@ -4240,6 +4422,42 @@ namespace CityX.View
         {
             buffer.AddQuad(a, b, c, d, normal,
                 Uv(a, normal), Uv(b, normal), Uv(c, normal), Uv(d, normal));
+        }
+
+        /// <summary>
+        /// The same quad, plus a second copy wound the other way so it also
+        /// faces (and renders/collides) from behind -- EXPLICIT BUG REPORT:
+        /// "when shooting windows from inside the building the are not
+        /// breaking." Every other wall surface in the city is genuinely
+        /// solid (the interior gets its own separate inward-facing pass, see
+        /// BuildBuilding's own structures/darkGlass/litGlass split), but
+        /// glass is a single, one-sided quad at the outward facade with
+        /// nothing behind it -- confirmed directly: the whole city (ground,
+        /// walls, glass) shares ONE non-convex MeshCollider
+        /// (CityStreamer.cs), and this project's own DynamicsManager.asset
+        /// has queriesHitBackfaces off (Unity's own default), so
+        /// Physics.Raycast against a triangle's back face silently reports
+        /// no hit at all. A shot from outside hits the pane's front face and
+        /// works; the identical shot from inside hits its back face and is
+        /// invisible to PhysX -- exactly the reported asymmetry.
+        /// GlassDamage.TryPaneAt itself is already direction-agnostic (see
+        /// its own doc comment), so making the RAYCAST able to land from
+        /// either side is the whole fix; nothing downstream needs to change.
+        /// Only used for glass -- ordinary walls already have their own
+        /// separate interior pass and doubling THEIR panel strips too would
+        /// just add redundant, potentially z-fighting geometry they don't
+        /// need.
+        /// </summary>
+        private static void AddDoubleSidedFace(MeshBuffer buffer, Vector3 normal,
+            Vector3 a, Vector3 b, Vector3 c, Vector3 d)
+        {
+            // Same corners both times, on purpose -- MeshBuffer.AddQuad's own
+            // doc comment: winding is corrected FROM the normal, not trusted
+            // from vertex order, so simply negating the normal (rather than
+            // also reversing a/b/c/d) is already enough to wind the back
+            // copy correctly.
+            AddFace(buffer, normal, a, b, c, d);
+            AddFace(buffer, -normal, a, b, c, d);
         }
 
         private static Vector2 Uv(Vector3 v, Vector3 normal)

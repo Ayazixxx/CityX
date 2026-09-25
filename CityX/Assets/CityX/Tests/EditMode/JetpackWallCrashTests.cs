@@ -143,6 +143,50 @@ namespace CityX.Tests
                 "so the fix below isn't proven to do anything");
         }
 
+        /// <summary>
+        /// EXPLICIT BUG REPORT: "make it so my limbs cant clip through
+        /// walls and get stuck when im flying around with jetpack." A hard
+        /// enough crash ragdolls and gets cleared by Activate's own
+        /// DepenetrateFromWorld (see the test above) -- but plenty of real
+        /// flying never crosses that threshold at all, and until now
+        /// nothing ever corrected THAT case: the rig stays kinematic the
+        /// whole time, so an embedded arm just sat there. Proves the fix
+        /// (Ragdoll.TickKinematicLimbClearance, called every frame from
+        /// PlayerInputReader while jetpackThrusting is true) clears the
+        /// SAME embedding this file's control case above already confirms
+        /// really happens -- without ever ragdolling at all.
+        /// </summary>
+        [Test]
+        public void RepeatedlyFlyingIntoTheWallNeverLeavesTheArmEmbeddedWithoutEverRagdolling()
+        {
+            FlyTowardWallUntilBlocked();
+            Physics.SyncTransforms();
+
+            Bounds wallBounds = _wall.GetComponent<Collider>().bounds;
+            bool cleared = false;
+            for (int step = 0; step < 60 && !cleared; step++)
+            {
+                _ragdoll.TickKinematicLimbClearance();
+                Physics.SyncTransforms();
+                wallBounds = _wall.GetComponent<Collider>().bounds;
+                cleared = true;
+                foreach (Rigidbody body in _ragdoll.Bodies)
+                {
+                    if (wallBounds.Intersects(body.GetComponent<Collider>().bounds))
+                    {
+                        cleared = false;
+                        break;
+                    }
+                }
+            }
+
+            Assert.IsTrue(cleared,
+                "a body is still overlapping the wall after repeated TickKinematicLimbClearance calls -- " +
+                "a flying limb can still clip through and get stuck without the rig ever ragdolling");
+            Assert.IsFalse(_ragdoll.IsLimp,
+                "clearing the embedding should never have ragdolled the character");
+        }
+
         [Test]
         public void ActivatingAutomaticallyClearsTheRigOfTheWallItCrashedInto()
         {

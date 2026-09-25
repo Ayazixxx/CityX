@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 7061948654334604300}
   - component: {fileID: 1009663134988346975}
   - component: {fileID: 9044659893283587304}
+  - component: {fileID: 3549688522542531345}
   m_Layer: 0
   m_Name: SpikePlayer
   m_TagString: Untagged
@@ -152,3 +153,19 @@ MonoBehaviour:
   _componentIndexCache: 255
   _addedNetworkObject: {fileID: 7061948654334604300}
   _networkObjectCache: {fileID: 0}
+--- !u!114 &3549688522542531345
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2090246466814627131}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c71fd7f855ec523429999fc4e14a1928, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: FishNet.Runtime::FishNet.Observing.NetworkObserver
+  _overrideType: 3
+  _updateHostVisibility: 1
+  _observerConditions:
+  - {fileID: 11400000, guid: 1526da56a4227614aacbd2d8565356eb, type: 2}

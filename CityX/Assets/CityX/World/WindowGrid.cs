@@ -98,8 +98,38 @@ namespace CityX.World
         /// </summary>
         public static bool IsLit(int buildingSeed, Wall wall, int column, int row)
         {
+            return IsLit(buildingSeed, wall, column, row, LitShare);
+        }
+
+        /// <summary>
+        /// As above, with the fraction of lit windows chosen by the caller --
+        /// see <see cref="LitShareFor"/>. The SAME hash decides which cells
+        /// are lit; a higher share simply lights more of them (every cell lit
+        /// at a low share stays lit at a higher one), so a building does not
+        /// reshuffle its whole pattern when its zone's share is retuned.
+        /// </summary>
+        public static bool IsLit(int buildingSeed, Wall wall, int column, int row, double litShare)
+        {
             return WorldHash.Unit01(column, row, LitSalt + (ulong)(int)wall,
-                unchecked((ulong)(long)buildingSeed)) < LitShare;
+                unchecked((ulong)(long)buildingSeed)) < litShare;
+        }
+
+        /// <summary>
+        /// How many windows are lit at night in a zone. Downtown glows,
+        /// an industrial estate is nearly dark, the outskirts are sleepy -- so
+        /// the city has a night-time silhouette of where things happen.
+        /// </summary>
+        public static double LitShareFor(ZoneKind zone)
+        {
+            switch (zone)
+            {
+                case ZoneKind.Core: return 0.46;
+                case ZoneKind.Urban: return 0.40;
+                case ZoneKind.OldTown: return 0.26;
+                case ZoneKind.Industrial: return 0.10;
+                case ZoneKind.Outskirts: return 0.22;
+                default: return LitShare;
+            }
         }
 
         /// <summary>

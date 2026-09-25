@@ -31,6 +31,8 @@ namespace CityX.Character
         /// </summary>
         public IEquippableGun EquippedGun;
 
+        private GunFeel _gunFeel;
+
         /// <summary>
         /// Set by Flamethrower's own OnEquip/OnUnequip, same pattern as
         /// EquippedGun. While non-null, left-click takes over entirely --
@@ -119,6 +121,34 @@ namespace CityX.Character
         {
             return hitWall && (!wasJetpackCrashing ||
                 Vector3.Angle(currentWallNormal, lastCrashWallNormal) > NewWallContactAngleDegrees);
+        }
+
+        /// <summary>
+        /// EXPLICIT BUG REPORT: "the crosshair doesnt seem to allign with
+        /// where the bullet goes... maybe that was just for the fireball
+        /// spell." It was: the fireball launches from a point on the
+        /// player's own CHEST, but its own direction used to be
+        /// aimSource.forward alone -- parallel to the camera's own sightline,
+        /// not aimed AT it. Since the camera sits well behind and to the
+        /// side of the chest (ThirdPersonCamera's own Distance/
+        /// ShoulderOffset), two parallel rays with different origins never
+        /// actually coincide at any finite distance -- the fireball's real
+        /// path only ever approached the crosshair's own line as it
+        /// receded toward infinity, never actually crossing it up close,
+        /// which is exactly the kind of miss a player notices most.
+        ///
+        /// SAME FIX AS PlayerLocomotion.ApplyGunAimPose's own convergence
+        /// point (GunAimConvergenceDistance ahead of the camera) --
+        /// reused here rather than a second, independently-chosen distance,
+        /// so every "aim at the crosshair from somewhere else on the body"
+        /// case in this project agrees on what "the crosshair" even means.
+        /// </summary>
+        private static Vector3 ConvergedDirection(Vector3 origin, Transform aimSource)
+        {
+            Vector3 aimPoint = aimSource.position +
+                aimSource.forward * PlayerLocomotion.GunAimConvergenceDistance;
+            Vector3 toAimPoint = aimPoint - origin;
+            return toAimPoint.sqrMagnitude > 0.0001f ? toAimPoint.normalized : aimSource.forward;
         }
 
         /// <summary>
@@ -252,6 +282,14 @@ namespace CityX.Character
             _climbing = GetComponent<PlayerClimbing>();
             _wallStick = GetComponent<WallStick>();
             _fireballCaster = GetComponent<IFireballCaster>();
+
+            // The player gets wet in the rain and dries under cover. Added here
+            // rather than baked into the prefab: only the real, local player has
+            // an input reader, and this needed no prefab rebuild.
+            if (GetComponent<PlayerWetness>() == null)
+            {
+                gameObject.AddComponent<PlayerWetness>();
+            }
         }
 
         /// <summary>
@@ -428,6 +466,7 @@ namespace CityX.Character
             {
                 _melee.Tick(deltaTime);
             }
+            SoulsSword?.Tick(deltaTime);
             _fireballCaster?.Tick(deltaTime);
 
             // DEATH IS POLLED HERE, NOT EVENT-DRIVEN -- see GrabCarry's own
@@ -621,7 +660,7 @@ namespace CityX.Character
                 {
                     float height = (_locomotion != null ? _locomotion.StandingHeight : 1.8f) * 0.68f;
                     Vector3 origin = transform.position + Vector3.up * height;
-                    _fireballCaster.TryCast(origin, swingYawSource.forward, GetComponentsInChildren<Collider>());
+                    _fireballCaster.TryCast(origin, ConvergedDirection(origin, swingYawSource), GetComponentsInChildren<Collider>());
                 }
 
                 // THE ORDINARY WASD-MOVEMENT BRANCH BELOW NEVER RUNS WHILE
@@ -639,6 +678,17 @@ namespace CityX.Character
 
                 _grappleSwing.Tick(swingMove, swingYaw, boostedRelease, plainRelease,
                     reelHeld, payoutHeld, deltaTime);
+
+                // EXPLICIT BUG REPORT: "make it so my limbs cant clip
+                // through walls and get stuck... swinging around with
+                // grapple." A swing never ragdolls (Ragdoll.Activate's own
+                // "NEVER RAGDOLLS OUT OF AN ACTIVE SWING"), so the bones
+                // stay kinematic/animator-driven the whole time -- see
+                // Ragdoll.TickKinematicLimbClearance's own doc comment for
+                // why that means nothing else ever pulls a swinging limb
+                // back out of a wall it swung into.
+                _ragdoll?.TickKinematicLimbClearance();
+
                 _audio?.SilenceFootsteps();
                 return;
             }
@@ -720,6 +770,30 @@ namespace CityX.Character
                 }
             }
 
+            // TAB LOCKS ON, and pressing it again cycles through the
+            // surrounding enemies (then releases). Read HERE rather than in
+            // the camera, behind every menu/console/stun early-return above:
+            // the last lock-on read its key inside the camera and raced the
+            // player menu's own binding (see LockOn's doc comment).
+            if (keyboard.tabKey.wasPressedThisFrame && _orbitCamera != null)
+            {
+                _orbitCamera.PressLockOn();
+            }
+
+            // Q SWAPS THE CAMERA TO THE OTHER SHOULDER -- standard
+            // third-person-shooter kit (RE4, Gears, Fortnite): peek round a
+            // corner without exposing the body, or clear a wall your usual
+            // shoulder is against. Works with anything in hand.
+            if (keyboard.qKey.wasPressedThisFrame && _orbitCamera != null)
+            {
+                _orbitCamera.ToggleShoulder();
+            }
+
+            if (EquippedGun != null && _gunFeel == null)
+            {
+                _gunFeel = GetComponent<GunFeel>();   // added at runtime by the gun's OnEquip
+            }
+
             TickCombat(deltaTime);
 
             Vector2 move = Vector2.zero;
@@ -747,7 +821,7 @@ namespace CityX.Character
                 // something from."
                 float height = (_locomotion != null ? _locomotion.StandingHeight : 1.8f) * 0.68f;
                 Vector3 origin = transform.position + Vector3.up * height;
-                _fireballCaster.TryCast(origin, yawSource.forward, GetComponentsInChildren<Collider>());
+                _fireballCaster.TryCast(origin, ConvergedDirection(origin, yawSource), GetComponentsInChildren<Collider>());
             }
 
             // A JETPACK TAKES SHIFT OVER TOO WHILE ACTUALLY THRUSTING, not
@@ -788,7 +862,12 @@ namespace CityX.Character
 
             // Sprint only forwards. Sprinting sideways or backwards has no
             // animation and reads as a glitch rather than as speed.
-            bool wantsSprint = !jetpackThrusting && keyboard.leftShiftKey.isPressed && move.y > 0.0f;
+            //
+            // AIMING DOWN SIGHTS ENDS A SPRINT (and holding aim stops you
+            // starting one) -- you cannot run flat out and hold a steady
+            // sight picture (Fortnite's sprint puts the weapon away outright).
+            bool wantsSprint = !jetpackThrusting && !_isAimingGun
+                && keyboard.leftShiftKey.isPressed && move.y > 0.0f;
 
             // Stamina decides, not the key. Asking rather than checking a flag
             // keeps the exhaustion latch in one place.
@@ -798,14 +877,37 @@ namespace CityX.Character
 
             // Swinging roots the body, which is what makes a combo a
             // commitment rather than something you can walk out of.
+            //
+            // A soulslike swing roots the same way, from the click to the end
+            // of its recovery -- and a held guard walks at half speed.
+            Vector2 heldMove = move;
+            SoulsSwordCombat soulsNow = SoulsSword;
+            bool soulsArmed = soulsNow != null && soulsNow.IsEquipped;
             if (_melee != null && _melee.IsSwinging)
             {
                 move = Vector2.zero;
                 sprinting = false;
             }
+            else if (soulsArmed && soulsNow.IsCommitted)
+            {
+                // THE SWORD'S SWINGS PLAY ON THE UPPER BODY, so the legs walk
+                // under them -- EXPLICIT ASK: "make the legs walk and not freeze
+                // up during sword use too." A committed swing still slows you
+                // hard (CommittedMoveSpeedFraction), it just no longer nails your
+                // feet to the floor; 0 there restores the old full root.
+                move *= soulsNow.CommittedMoveSpeedFraction;
+                sprinting = false;
+            }
+            else if (soulsArmed && soulsNow.IsBlocking)
+            {
+                move *= 0.5f;
+                sprinting = false;
+            }
 
             float yawDegrees = yawSource != null ? yawSource.eulerAngles.y : 0.0f;
-            TickDash(keyboard, move, yawDegrees, deltaTime);
+            // A roll goes where the keys were held even out of a swing that
+            // was rooting the body -- the pre-rooting input, not the zeroed one.
+            TickDash(keyboard, soulsArmed ? heldMove : move, yawDegrees, deltaTime);
 
             bool chargingJumpNow = false;
             float jumpChargeFraction = 0.0f;
@@ -861,6 +963,21 @@ namespace CityX.Character
                 EquippedJetpack.Tick(jetpackThrusting, move, keyboard.leftShiftKey.isPressed, deltaTime, cameraPitch);
             }
 
+            // EXPLICIT BUG REPORT: "make it so my limbs cant clip through
+            // walls and get stuck when im flying around with jetpack." Only
+            // while actually thrusting (matches jetpackThrusting's own
+            // airborne-and-holding-space gate) -- a crash hard enough to
+            // ragdoll is already handled by Ragdoll.Activate's own
+            // DepenetrateFromWorld further below; this instead covers every
+            // softer graze/near-miss along the way that never crosses that
+            // threshold, where a Superman-dive arm can still reach a nearby
+            // wall with nothing else correcting it. See Ragdoll.
+            // TickKinematicLimbClearance's own doc comment for the mechanism.
+            if (jetpackThrusting)
+            {
+                _ragdoll?.TickKinematicLimbClearance();
+            }
+
             // CALLED EVERY FRAME WHILE EQUIPPED, GROUNDED OR NOT -- same
             // reasoning EquippedJetpack.Tick just above is, per that block's
             // own doc comment: Tick is also where a parachute notices it
@@ -904,9 +1021,16 @@ namespace CityX.Character
                 // Gun-aiming only now -- see isCastingFireball's own comment
                 // just above for why a cast no longer sets this too.
                 Aiming = _isAimingGun,
-                AimPitchDegrees = _orbitCamera != null ? _orbitCamera.Pitch : 0.0f,
+                AimCameraPosition = _orbitCamera != null ? _orbitCamera.transform.position : Vector3.zero,
+                AimCameraForward = _orbitCamera != null ? _orbitCamera.transform.forward : Vector3.forward,
                 SwordEquipped = _melee != null && _melee.EquippedWeapon != null &&
                                 _melee.EquippedWeapon.MovesetId == ComboChain.Sword,
+                GunEquipped = EquippedGun != null,
+                // Where the gun's shot would end -- the arm aims at it (see
+                // LocomotionInput.GunAimPoint).
+                GunAimPoint = _gunFeel != null ? _gunFeel.AimPoint : Vector3.zero,
+                HasGunAimPoint = EquippedGun != null && _gunFeel != null && _gunFeel.HasAimPoint,
+                LockedOn = _orbitCamera != null && _orbitCamera.IsLockedOn,
                 // AIMING WINS, not jetpackThrusting raw -- "aim and shoot
                 // while using the jetpack starts glitching", an explicit
                 // report. Aiming and JetpackThrusting are both bool-gated
@@ -1147,6 +1271,21 @@ namespace CityX.Character
             // null` guard below since firing needs no fists at all.
             if (_grappleSwing != null && _grappleSwing.EquippedHook != null)
             {
+                // THE SAME AIM POSE A PISTOL USES -- EXPLICIT ASK: "use the
+                // pistol animation for the grapple gun." Right-click raises
+                // the arm via ApplyGunAimPose, the exact mechanism
+                // EquippedGun's own branch above uses -- purely the visual;
+                // firing itself is unaffected, a plain left-click launches
+                // the rope whether or not right is held, the same way the
+                // pistol fires regardless of whether `aiming` happens to be
+                // true.
+                bool aimingGrapple = Mouse.current.rightButton.isPressed;
+                if (_orbitCamera != null)
+                {
+                    _orbitCamera.IsAiming = aimingGrapple;
+                }
+                _isAimingGun = aimingGrapple;
+
                 if (Mouse.current.leftButton.wasPressedThisFrame && Camera.main != null)
                 {
                     _grappleSwing.TryFire(Camera.main.transform.position, Camera.main.transform.forward);
@@ -1184,6 +1323,18 @@ namespace CityX.Character
             IEquippableWeapon weapon = _inventory != null
                 ? _inventory.EquippedInstance("hand_r")?.GetComponent<IEquippableWeapon>()
                 : null;
+
+            // THE SWORD IS FOUGHT THE SOULSLIKE WAY -- see SoulsSwordCombat.
+            // It owns left-click, F, right-click and the roll outright, so
+            // nothing below (the fist system's hold-for-heavy, the timed
+            // block) runs while a sword is in hand.
+            SoulsSwordCombat souls = SoulsSword;
+            if (weapon != null && souls != null && souls.IsEquipped && weapon.MovesetId == ComboChain.Sword)
+            {
+                TickSoulsSword(souls);
+                return;
+            }
+
             if (weapon != null && weapon.CanThrow())
             {
                 WeaponAimInput.Action action = _weaponAim.Tick(
@@ -1254,6 +1405,62 @@ namespace CityX.Character
                 _punchHeld = false;
                 _melee.TryAttack(heavy: _punchHeldSeconds >= HeavyPunchHoldSeconds);
             }
+        }
+
+        private SoulsSwordCombat _soulsSword;
+
+        /// <summary>
+        /// The soulslike sword combat, or null when no sword has ever been
+        /// equipped. Looked up lazily: SwordWeapon.OnEquip adds it at runtime.
+        /// </summary>
+        private SoulsSwordCombat SoulsSword
+        {
+            get
+            {
+                if (_soulsSword == null)
+                {
+                    _soulsSword = GetComponent<SoulsSwordCombat>();
+                }
+                return _soulsSword;
+            }
+        }
+
+        /// <summary>
+        /// Left-click = light attack (pressed, not released: a soulslike
+        /// swing starts on the click), right-click HELD = guard. The heavy
+        /// attack has no key for now.
+        /// Every swing goes where the camera looks.
+        /// </summary>
+        private void TickSoulsSword(SoulsSwordCombat souls)
+        {
+            Mouse mouse = Mouse.current;
+            Keyboard keyboard = Keyboard.current;
+
+            Transform source = YawSource != null
+                ? YawSource
+                : (Camera.main != null ? Camera.main.transform : null);
+            float yaw = source != null ? source.eulerAngles.y : transform.eulerAngles.y;
+
+            souls.Locked = _locomotion != null && _locomotion.IsDashing;
+
+            // The bare-handed spin attack (2) is still MeleeAttacker's own;
+            // while it plays the souls swing stands aside rather than stacking.
+            bool spinning = _melee != null && _melee.IsSwinging;
+
+            // NO KEY IS BOUND TO THE HEAVY YET -- explicit ask: "F shouldnt do
+            // anything yet." SoulsSwordCombat.RequestHeavy and the Heavy attack
+            // itself are still there, tested, and waiting for a binding.
+            if (!spinning && mouse.leftButton.wasPressedThisFrame)
+            {
+                souls.RequestLight(yaw);
+            }
+
+            if (keyboard != null && keyboard.digit2Key.wasPressedThisFrame && !souls.IsCommitted && _melee != null)
+            {
+                _melee.TrySpinAttack();
+            }
+
+            souls.SetBlockHeld(mouse.rightButton.isPressed && !spinning);
         }
 
         /// <summary>
@@ -1373,18 +1580,37 @@ namespace CityX.Character
                 return;
             }
 
-            // Stamina is spent through the vitals rather than checked and
-            // deducted here, so the exhaustion latch stays in one place.
-            float cost = PlayerVitals.BaseMaxStamina * PlayerLocomotion.DashStaminaFraction;
-            if (_vitals != null && !_vitals.TrySpendStamina(cost))
+            // WITH A SWORD IT IS A SOULSLIKE ROLL: its own stamina cost that
+            // is allowed down to the last drop, longer i-frames, and legal out
+            // of the tail of a swing (never its startup or active frames).
+            SoulsSwordCombat souls = SoulsSword;
+            bool soulsRoll = souls != null && souls.IsEquipped;
+            if (soulsRoll && !souls.CanRoll)
             {
                 return;
+            }
+
+            // Stamina is spent through the vitals rather than checked and
+            // deducted here, so the exhaustion latch stays in one place.
+            if (_vitals != null)
+            {
+                bool paid = soulsRoll
+                    ? _vitals.TrySpendCombatStamina(souls.RollStaminaCost, souls.RollRegenDelaySeconds)
+                    : _vitals.TrySpendStamina(PlayerVitals.BaseMaxStamina * PlayerLocomotion.DashStaminaFraction);
+                if (!paid)
+                {
+                    return;
+                }
+            }
+            if (soulsRoll)
+            {
+                souls.BeginRoll();
             }
 
             Vector2 held = move.sqrMagnitude > 0.01f ? move : new Vector2(0.0f, -1.0f);
             var direction = new LocomotionInput { Move = held, YawDegrees = yawDegrees };
             _locomotion.StartDash(direction.WorldDirection());
-            _vitals?.GrantInvulnerability(PlayerLocomotion.DashSeconds);
+            _vitals?.GrantInvulnerability(soulsRoll ? souls.RollInvulnerabilitySeconds : PlayerLocomotion.DashSeconds);
             _audio?.PlayDash();
         }
     }

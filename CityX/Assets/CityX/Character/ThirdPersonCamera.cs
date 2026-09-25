@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -41,7 +42,13 @@ namespace CityX.Character
             "sensible when the height is changed.")]
         public float PivotHeightFraction = 0.73f;
 
-        public float Distance = 4.5f;
+        /// <summary>
+        /// player.gd's own SpringArm3D spring_length (player.tscn), found by
+        /// actually reading Godot's real camera source instead of guessing --
+        /// EXPLICIT ASK: "I WANT IT EXACTLY THE SAME." Was 4.5, a guess made
+        /// without ever checking Godot's own real number.
+        /// </summary>
+        public float Distance = 4.0f;
         public float LookDegreesPerPixel = 0.12f;
 
         /// <summary>
@@ -68,25 +75,41 @@ namespace CityX.Character
             "is off to one side of frame instead of dead centre. Reported directly: standing " +
             "square behind the head put anything small and close in front of the player -- a " +
             "dropped pistol on the ground being the concrete case -- right behind their own " +
-            "silhouette, with nothing on screen to actually judge alignment against.")]
-        public float ShoulderOffset = 0.85f;
+            "silhouette, with nothing on screen to actually judge alignment against. Matches " +
+            "player.gd's own SHOULDER_OFFSET_X exactly -- was 0.85, a from-scratch guess made " +
+            "without ever checking Godot's own already-tuned real number.")]
+        public float ShoulderOffset = 0.5f;
 
         /// <summary>
-        /// EXPLICIT BUG REPORT: "the pistol aimed in pose is like positioned
-        /// to the left slightly make it point forward." The gun is held in
-        /// the RIGHT hand, roughly along the body's own forward line (see
-        /// PlayerLocomotion.ApplyGunAimPose) -- but the ordinary hip-fire
-        /// ShoulderOffset above pushes the CROSSHAIR (frame centre, which
-        /// PistolWeapon.Fire's own hitscan actually uses) even further right
-        /// again, past where the raised arm reaches. The gun visually reads
-        /// as left-of-crosshair not because it points wrong, but because the
-        /// crosshair itself sits further right than the gun barrel while
-        /// aiming. Pulling the camera in closer to centred (not all the way
-        /// to 0 -- a real ADS view still favours the gun side a little, and
-        /// 0 would put the pivot back inside the head) brings the two back
-        /// into visual agreement. Tune by eye once played for real.
+        /// ORIGINALLY a workaround for the gun-vs-crosshair mismatch, no
+        /// longer load-bearing for that job -- EXPLICIT BUG REPORT (three
+        /// times now: "the pistol aimed in pose is like positioned to the
+        /// left slightly make it point forward," then "the pose he goes in
+        /// when you hold right click is aimed to the left slightly he isnt
+        /// even pointing the gun forward," then, with a screenshot showing
+        /// the crosshair landing almost exactly on the character's own
+        /// head/shoulder: "make it so the pov is to the right slightly like
+        /// fortnite." The first fix pulled this offset in closer to centred
+        /// so the gun's own fixed body-forward pose happened to line up
+        /// with wherever the crosshair landed -- an approximation, not a
+        /// real fix, which is why the same symptom came back.
+        /// PlayerLocomotion.ApplyGunAimPose now aims the arm directly AT
+        /// the point this camera's own ray converges on
+        /// (GunAimConvergenceDistance ahead of it), so the gun agrees with
+        /// the crosshair by construction regardless of what this offset is
+        /// set to -- freeing this up to move to Godot's own real value
+        /// rather than the barely-off-centre 0.25 it was stuck at, or the
+        /// guessed-not-measured 0.65 that replaced it. player.gd's own
+        /// ADS_SHOULDER_OFFSET_X is 1.415 -- a REAL, hand-measured number
+        /// ("measured via the /camera unlock + Remote tab + /camera pose
+        /// workflow ... not guessed", its own comment says), found only by
+        /// actually reading player.gd instead of re-guessing a Fortnite
+        /// number a fourth time. It is nearly TRIPLE what 0.65 was -- a much
+        /// more dramatic over-the-shoulder swing than any previous attempt
+        /// here used, which is likely why every previous guess still read
+        /// as "off" against the real Godot feel.
         /// </summary>
-        public float AimShoulderOffset = 0.25f;
+        public float AimShoulderOffset = 1.415f;
 
         [Tooltip("Metres per second ShoulderOffset eases toward AimShoulderOffset when the aim state changes -- mirrors AimZoomDegreesPerSecond's own shape for FOV.")]
         public float AimShoulderOffsetMetresPerSecond = 3.0f;
@@ -117,8 +140,9 @@ namespace CityX.Character
         [Tooltip(
             "Field of view while aiming (see IsAiming). Narrower than the ordinary field of " +
             "view, which is read from whatever the Camera component already starts at rather " +
-            "than assumed here, so this only ever has to describe how much CLOSER aiming zooms.")]
-        public float AimFieldOfView = 40.0f;
+            "than assumed here, so this only ever has to describe how much CLOSER aiming zooms. " +
+            "Matches player.gd's own ADS_FOV_DEGREES exactly -- was 40, a guess.")]
+        public float AimFieldOfView = 50.0f;
 
         [Tooltip("Degrees of field of view crossed per second when the aim state changes.")]
         public float AimZoomDegreesPerSecond = 90.0f;
@@ -132,12 +156,82 @@ namespace CityX.Character
         /// </summary>
         public bool IsAiming;
 
+        [Header("Aiming feel (third-person-shooter research; live-tunable with /gun)")]
+        [Tooltip(
+            "Mouse-look scale while aiming down sights. Zoomed-in aim needs finer control -- every " +
+            "shooter scales sensitivity down with the field of view. 1 = unchanged.")]
+        public float AimSensitivityMultiplier = 0.75f;
+
+        [Tooltip("Per second, how fast a gun's camera kick settles back to where you were aiming.")]
+        public float RecoilRecoverPerSecond = 10.0f;
+
+        [Tooltip("Per second, how fast the camera-roll jolt from a shot dies away.")]
+        public float ShakeDecayPerSecond = 14.0f;
+
+        [Tooltip("The camera never kicks up further than this from a burst, however fast you fire.")]
+        public float MaxRecoilPitchDegrees = 6.0f;
+
+        [Tooltip("Per second, how fast the camera slides across when you swap shoulders.")]
+        public float ShoulderSwapPerSecond = 6.0f;
+
         private float _yaw;
         private float _pitch = 12.0f;
         private PlayerLocomotion _player;
         private Camera _camera;
         private float _restFieldOfView;
         private float _currentShoulderOffset;
+
+        // Camera recoil is a VISUAL OFFSET layered on the aim (never written
+        // back into _pitch), so it always settles to exactly where you were
+        // aiming -- no residual drift, "full recovery". Because the gun fires
+        // along this camera's forward, a fast burst DOES ride the kick up, which
+        // is what makes recoil something to manage; the first shot is always
+        // exactly on the crosshair.
+        private float _recoilPitch;
+        private float _shakeRoll;
+
+        // +1 = camera over the right shoulder, -1 = left. Slides between them.
+        private float _shoulderSide = 1.0f;
+        private float _currentShoulderSide = 1.0f;
+
+        /// <summary>Which shoulder the camera is over: +1 right, -1 left.</summary>
+        public float ShoulderSide => _shoulderSide;
+
+        /// <summary>Swaps the camera to the other shoulder (Q). Standard third-person-shooter tech: peek round a corner without exposing the body.</summary>
+        public void ToggleShoulder()
+        {
+            _shoulderSide = -_shoulderSide;
+        }
+
+        /// <summary>Current camera kick, degrees up (read by tests and the HUD).</summary>
+        public float RecoilPitch => _recoilPitch;
+
+        /// <summary>
+        /// Kicks the view up and jolts it. Applied to the camera only, and it
+        /// recovers on its own -- see the field comment above.
+        /// </summary>
+        public void AddRecoil(float pitchUpDegrees, float shakeRollDegrees)
+        {
+            _recoilPitch = Mathf.Min(MaxRecoilPitchDegrees, _recoilPitch + Mathf.Max(0.0f, pitchUpDegrees));
+            _shakeRoll += (Random.value < 0.5f ? -1.0f : 1.0f) * shakeRollDegrees;
+        }
+
+        private void DecayRecoil(float deltaTime)
+        {
+            float recover = 1.0f - Mathf.Exp(-RecoilRecoverPerSecond * deltaTime);
+            _recoilPitch -= _recoilPitch * recover;
+            if (_recoilPitch < 0.0005f)
+            {
+                _recoilPitch = 0.0f;
+            }
+
+            float shake = 1.0f - Mathf.Exp(-ShakeDecayPerSecond * deltaTime);
+            _shakeRoll -= _shakeRoll * shake;
+            if (Mathf.Abs(_shakeRoll) < 0.0005f)
+            {
+                _shakeRoll = 0.0f;
+            }
+        }
 
         /// <summary>
         /// Settable so IntroCutscene can hand the camera back on the same
@@ -159,11 +253,21 @@ namespace CityX.Character
             set => _pitch = value;
         }
 
+        /// <summary>What is currently locked on, or null.</summary>
+        public Transform LockedTarget { get; private set; }
+
+        public bool IsLockedOn => LockedTarget != null;
+
+        private int _lockVisits;
+        private float _sightLost;
+        private PlayerVitals _vitals;
+
         private void Start()
         {
             if (Target != null)
             {
                 _player = Target.GetComponent<PlayerLocomotion>();
+                _vitals = Target.GetComponent<PlayerVitals>();
             }
             _camera = GetComponent<Camera>();
             if (_camera != null)
@@ -207,14 +311,28 @@ namespace CityX.Character
         /// </summary>
         private void LateUpdate()
         {
-            Mouse mouse = Mouse.current;
-            if (mouse != null)
+            // WHILE LOCKED THE MOUSE IS IGNORED ENTIRELY. Blending a lock with
+            // live look input means two things fighting over the same yaw, and
+            // the visible result is a camera that will not settle. Godot
+            // (player.gd _update_lock_on) takes the same line.
+            if (IsLockedOn)
             {
-                Vector2 delta = mouse.delta.ReadValue();
-                _yaw += delta.x * LookDegreesPerPixel;
-                _pitch = Mathf.Clamp(
-                    _pitch - delta.y * LookDegreesPerPixel, MinPitch, MaxPitch);
+                TrackLock();
             }
+            else
+            {
+                Mouse mouse = Mouse.current;
+                if (mouse != null)
+                {
+                    Vector2 delta = mouse.delta.ReadValue();
+                    float look = LookDegreesPerPixel * (IsAiming ? AimSensitivityMultiplier : 1.0f);
+                    _yaw += delta.x * look;
+                    _pitch = Mathf.Clamp(
+                        _pitch - delta.y * look, MinPitch, MaxPitch);
+                }
+            }
+
+            DecayRecoil(Time.deltaTime);
 
             // NO ESCAPE HANDLING HERE. There used to be a bare "Escape frees the
             // cursor" fallback, from before there was any menu to open with it.
@@ -226,6 +344,148 @@ namespace CityX.Character
             // after the menu closed.
 
             ApplyCameraTransform();
+        }
+
+        /// <summary>
+        /// TAB (read by PlayerInputReader, behind its menu/console gating --
+        /// NOT here, which is what raced the C-menu last time) acquires,
+        /// cycles and eventually lets go: one button for all three.
+        ///
+        /// Not locked: grabs whoever is nearest the crosshair. Locked: steps
+        /// to the next enemy in a left-to-right sweep; the press after the last
+        /// one releases.
+        /// </summary>
+        public void PressLockOn()
+        {
+            if (Target == null)
+            {
+                return;
+            }
+
+            List<Transform> candidates = LockOn.Candidates(
+                Target.position, transform.forward, LockableNearby());
+
+            if (!IsLockedOn)
+            {
+                LockedTarget = LockOn.Acquire(Target.position, transform.forward, candidates);
+                _lockVisits = LockedTarget != null ? 1 : 0;
+                _sightLost = 0.0f;
+                return;
+            }
+
+            _lockVisits++;
+            LockedTarget = LockOn.Cycle(LockedTarget, candidates, _lockVisits);
+            if (LockedTarget == null)
+            {
+                _lockVisits = 0;
+            }
+            _sightLost = 0.0f;
+        }
+
+        public void ReleaseLock()
+        {
+            LockedTarget = null;
+            _lockVisits = 0;
+            _sightLost = 0.0f;
+        }
+
+        /// <summary>
+        /// Everything damageable near the player EXCEPT the body doing the
+        /// looking (without that, pressing lock-on picks yourself -- the nearest
+        /// thing to the crosshair that can be hit) and EXCEPT pedestrians and
+        /// story NPCs: the ask was to lock onto ENEMIES, and a lock that keeps
+        /// landing on passers-by makes cycling useless.
+        /// </summary>
+        private List<IDamageable> LockableNearby()
+        {
+            var found = new List<IDamageable>();
+            var seen = new HashSet<IDamageable>();
+            Collider[] hits = Physics.OverlapSphere(
+                Target.position, LockOn.Range, ~0, QueryTriggerInteraction.Ignore);
+
+            foreach (Collider hit in hits)
+            {
+                if (hit.transform == Target || hit.transform.IsChildOf(Target))
+                {
+                    continue;
+                }
+                var damageable = hit.GetComponentInParent<IDamageable>();
+                if (damageable == null || !seen.Add(damageable))
+                {
+                    continue;
+                }
+                if (damageable is Civilian || damageable is UniqueNpc)
+                {
+                    continue;
+                }
+                found.Add(damageable);
+            }
+            return found;
+        }
+
+        /// <summary>The middle of a target's body -- what the camera should look at, not its feet.</summary>
+        private static Vector3 AimPoint(Transform target)
+        {
+            var controller = target.GetComponentInChildren<CharacterController>();
+            if (controller != null)
+            {
+                return controller.bounds.center;
+            }
+            var collider = target.GetComponentInChildren<Collider>();
+            return collider != null ? collider.bounds.center : target.position + Vector3.up;
+        }
+
+        /// <summary>
+        /// Swings toward the target, and decides whether the lock survives.
+        ///
+        /// The yaw is LERPED rather than snapped, so acquiring reads as the
+        /// camera turning to look rather than as a cut. The body takes its
+        /// facing from this yaw while locked (PlayerLocomotion, LockedOn), so
+        /// WASD becomes strafing around the target: the movement is still
+        /// camera-relative and the camera is now always looking at the enemy.
+        /// </summary>
+        private void TrackLock()
+        {
+            var damageable = LockedTarget != null ? LockedTarget.GetComponentInParent<IDamageable>() : null;
+            bool playerDead = _vitals != null && _vitals.IsDead;
+            float distance = Target != null && LockedTarget != null
+                ? Vector3.Distance(Target.position, LockedTarget.position)
+                : float.MaxValue;
+
+            if (Target == null || LockedTarget == null || playerDead
+                || damageable == null || !damageable.IsAlive
+                || distance > LockOn.Range * LockOn.ReleaseSlack)
+            {
+                ReleaseLock();
+                return;
+            }
+
+            float height = _player != null ? _player.StandingHeight : 1.8f;
+            Vector3 eye = Target.position + Vector3.up * (height * PivotHeightFraction);
+            Vector3 aim = AimPoint(LockedTarget);
+
+            // Out of sight is forgiven briefly -- somebody ducking behind a
+            // corner mid-fight should not cost the lock, but standing behind a
+            // building should.
+            Vector3 toAim = aim - eye;
+            bool blocked = Physics.Raycast(eye, toAim.normalized, out RaycastHit hit,
+                               toAim.magnitude, CollisionLayers, QueryTriggerInteraction.Ignore)
+                           && !hit.transform.IsChildOf(LockedTarget)
+                           && !hit.transform.IsChildOf(Target)
+                           && hit.transform != LockedTarget;
+
+            _sightLost = blocked ? _sightLost + Time.deltaTime : 0.0f;
+            if (_sightLost > LockOn.SightGraceSeconds)
+            {
+                ReleaseLock();
+                return;
+            }
+
+            LockOn.Bearing(eye, aim, out float wantedYaw, out float wantedPitch);
+
+            float step = 1.0f - Mathf.Exp(-LockOn.CameraLerpSpeed * Time.deltaTime);
+            _yaw = Mathf.LerpAngle(_yaw, wantedYaw, step);
+            _pitch = Mathf.Lerp(_pitch, wantedPitch, step);
         }
 
         /// <summary>
@@ -261,7 +521,9 @@ namespace CityX.Character
                 pivot = Target.position + Vector3.up * (height * PivotHeightFraction);
             }
 
-            Quaternion rotation = Quaternion.Euler(_pitch, _yaw, 0.0f);
+            // The recoil kick and roll jolt ride on top of where you are
+            // aiming; a positive kick raises the view, i.e. LOWERS the pitch.
+            Quaternion rotation = Quaternion.Euler(_pitch - _recoilPitch, _yaw, _shakeRoll);
 
             // OFFSET THE DESTINATION, NOT THE COLLISION ORIGIN. The spherecast
             // below still starts from the centred chest pivot -- see its own
@@ -273,7 +535,9 @@ namespace CityX.Character
             _currentShoulderOffset = Mathf.MoveTowards(
                 _currentShoulderOffset, IsAiming ? AimShoulderOffset : ShoulderOffset,
                 AimShoulderOffsetMetresPerSecond * Time.deltaTime);
-            Vector3 shoulderPivot = pivot + rotation * Vector3.right * _currentShoulderOffset;
+            _currentShoulderSide = Mathf.MoveTowards(
+                _currentShoulderSide, _shoulderSide, ShoulderSwapPerSecond * Time.deltaTime);
+            Vector3 shoulderPivot = pivot + rotation * Vector3.right * (_currentShoulderOffset * _currentShoulderSide);
             Vector3 wanted = shoulderPivot - rotation * Vector3.forward * Distance;
 
             // Pull in if a wall is in the way. The sphere radius keeps the near

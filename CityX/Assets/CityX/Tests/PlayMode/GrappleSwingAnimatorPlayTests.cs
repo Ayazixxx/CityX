@@ -180,9 +180,9 @@ namespace CityX.Tests
             var cloak = cloakInstance.GetComponent<HoodedCloak>();
             cloak.OnEquip(_player, ItemInstanceData.None);
 
-            SkinnedMeshRenderer cloakSkin = FindSkinByMesh(_player, cloak.GarmentMesh);
-            Assert.IsNotNull(cloakSkin, "couldn't find the cloak's own worn skin renderer");
-            Assert.IsTrue(cloakSkin.gameObject.activeSelf, "setup failed -- the cloak should start showing");
+            var combiner = _player.GetComponent<SkinnedGarmentCombiner>();
+            Assert.IsNotNull(combiner, "couldn't find the shared equipment combiner");
+            Assert.IsTrue(combiner.IsShowing(cloak.ItemId), "setup failed -- the cloak should start showing");
 
             _swing.Attach(_player.transform.position + new Vector3(3.0f, 6.0f, 2.0f));
             for (int i = 0; i < 10; i++)
@@ -191,30 +191,18 @@ namespace CityX.Tests
                 cloak.UpdateSwingHiding();
                 yield return null;
             }
-            Assert.IsFalse(cloakSkin.gameObject.activeSelf, "the cloak's own sleeve is still showing mid-swing");
+            Assert.IsFalse(combiner.IsShowing(cloak.ItemId), "the cloak's own sleeve is still showing mid-swing");
 
             _swing.Release(false);
             cloak.UpdateSwingHiding();
             yield return null;
 
-            Assert.IsTrue(cloakSkin.gameObject.activeSelf, "the cloak never came back after the swing ended");
+            Assert.IsTrue(combiner.IsShowing(cloak.ItemId), "the cloak never came back after the swing ended");
 
             Object.Destroy(cloakInstance);
 #else
             yield break;
 #endif
-        }
-
-        private static SkinnedMeshRenderer FindSkinByMesh(GameObject root, Mesh mesh)
-        {
-            foreach (SkinnedMeshRenderer renderer in root.GetComponentsInChildren<SkinnedMeshRenderer>(true))
-            {
-                if (renderer.sharedMesh == mesh)
-                {
-                    return renderer;
-                }
-            }
-            return null;
         }
     }
 }

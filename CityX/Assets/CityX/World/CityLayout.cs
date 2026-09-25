@@ -1,39 +1,60 @@
 namespace CityX.World
 {
     /// <summary>
-    /// The city's street grid.
+    /// The city's street network.
     ///
-    /// Pure integer maths over a chunk coordinate, with no state and no
-    /// randomness (not even a world seed -- see LocalStreetPeriodFor's own
-    /// doc comment for why), which is what lets any process answer "is
-    /// there a road here" for anywhere in an infinite world without
-    /// generating it.
+    /// Pure integer maths over a chunk coordinate, with no state and no world
+    /// seed (see <see cref="LayoutSeed"/> for the one salt), which is what
+    /// lets any process answer "is there a road here" for anywhere in an
+    /// infinite world without generating it.
     ///
-    /// NO LONGER ONE UNIFORM GRID FOREVER. Originally a straight port of
-    /// city_chunk.gd's own is_street_chunk (x or y divisible by 4,
-    /// everywhere, always) -- EXPLICIT ASK: "there are a bunch of these
+    /// A THREE-TIER HIERARCHY, laid out the way the procedural-city research
+    /// lays it out (Parish and Muller 2001; Chen et al. 2008; the Wave
+    /// Function Collapse infinite-city work): a sparse skeleton of long
+    /// through-roads first, then progressively finer streets filling what
+    /// they enclose, the fineness following where the city is dense.
+    ///
+    ///   1. HIGHWAYS -- every fourth arterial line on one axis, elevated.
+    ///   2. ARTERIALS -- long straight lines that bound the districts. Their
+    ///      spacing is IRREGULAR (a jittered lattice, 14 to 34 chunks apart)
+    ///      rather than every 24th chunk forever, so districts are a
+    ///      patchwork of different rectangles, not one repeated square.
+    ///   3. LOCAL STREETS -- inside each district, spaced by the district's
+    ///      own <see cref="DistrictPeriod"/>, which is chosen by what the
+    ///      district IS (see <see cref="CityZones"/>): a tight old-town grid,
+    ///      medium blocks downtown, wide superblocks at the edge. Streets are
+    ///      spread evenly across the district so no block is left a sliver.
+    ///
+    /// ORIGINALLY a straight port of city_chunk.gd (x or y divisible by 4,
+    /// everywhere, always), then one global grid with a per-district period.
+    /// EXPLICIT ASK behind both steps: "there are a bunch of these
     /// interlocking staircases and streets that makes no sense whatsoever
-    /// ... separate areas by neighborhood and having main streets
-    /// connecting them. not everything should be a blocky grid." A single
-    /// endless period reads as a blocky grid because it IS one, in exactly
-    /// the way no real city is. This intentionally diverges from
-    /// city_chunk.gd's own layout for that reason -- Godot never had
-    /// neighbourhoods to port, so nothing here is a botched port, it is new
-    /// ground the Unity side is asked to cover on its own. See
-    /// CityLayoutTests's own golden-comparison test for what that means for
-    /// parity going forward.
+    /// ... separate areas by neighborhood and having main streets connecting
+    /// them. not everything should be a blocky grid." This intentionally
+    /// diverges from city_chunk.gd; Godot never had neighbourhoods to port.
+    ///
+    /// EVERY QUESTION IS ANSWERED FROM THE CHUNK ALONE, in bounded work: an
+    /// arterial line is a hash of its own index, a district is looked up by
+    /// the two lines around a chunk, and a district's street positions are
+    /// integer arithmetic on its own extent. Nothing is generated, ordered or
+    /// communicated, which is what keeps chunks independent and lets a client
+    /// and server agree on the city without sending geometry.
     /// </summary>
     public static class CityLayout
     {
         /// <summary>
-        /// Every Nth row and column is a through-street rather than a
-        /// buildable lot -- the ORIGINAL, single global value city_chunk.gd
-        /// used everywhere. Kept as a real constant (rather than deleted)
-        /// because it is still meaningful in two ways: it is one of the
-        /// LocalStreetPeriods a district can roll, and DistrictChunks is
-        /// still built as a whole multiple of it, so an arterial boundary
-        /// always falls on a line the original grid would also have called
-        /// a street.
+        /// Salt for every macro-layout decision (arterial jitter, district
+        /// periods, urban centres, highway exits). Changing it re-rolls the
+        /// whole map's shape, which is what "generate a new world" means for
+        /// the parts of the city that are deliberately independent of the
+        /// world seed.
+        /// </summary>
+        public const ulong LayoutSeed = 0x35A97F1BUL;
+
+        /// <summary>
+        /// The original city_chunk.gd street period. Still one of the
+        /// periods a district can roll, and what the plan tools call "a
+        /// standard block".
         /// </summary>
         public const int StreetPeriod = 4;
 
@@ -41,123 +62,336 @@ namespace CityX.World
         public const float ChunkSize = 24.0f;
 
         /// <summary>
-        /// Chunks per side of one district -- the unit neighbourhoods are
-        /// carved from. A whole multiple of StreetPeriod on purpose (see
-        /// IsArterialChunk's own doc comment for why that matters).
+        /// The NOMINAL spacing of arterial lines, in chunks. The real spacing
+        /// varies between <see cref="MinDistrictChunks"/> and
+        /// <see cref="MaxDistrictChunks"/>; this is the mean, and the pitch of
+        /// the lattice the jitter is applied to.
         /// </summary>
-        public const int DistrictChunks = StreetPeriod * 6;
+        public const int DistrictChunks = 24;
+
+        /// <summary>How far an arterial line may sit from its lattice position, in chunks.</summary>
+        public const int ArterialJitterChunks = 5;
+
+        /// <summary>The narrowest a district can be, arterial line to arterial line.</summary>
+        public const int MinDistrictChunks = DistrictChunks - 2 * ArterialJitterChunks;
+
+        /// <summary>The widest a district can be, arterial line to arterial line.</summary>
+        public const int MaxDistrictChunks = DistrictChunks + 2 * ArterialJitterChunks;
 
         /// <summary>
-        /// The local grades a district's own interior grid can come in.
-        ///
-        /// EVERY VALUE HERE MUST EVENLY DIVIDE DistrictChunks. If it does
-        /// not, the last block along an axis inside that district is a
-        /// "remainder" narrower than every other block's own (period - 1)
-        /// interior -- confirmed directly, live: with 5 in this list (24
-        /// does not divide by 5), CityBlocks' own anchor clamp kept assuming
-        /// the FULL width was available on that short last block and let a
-        /// 2x2 superlot overhang one chunk past the district's own edge,
-        /// directly into the next arterial. Every value below divides 24
-        /// exactly, so that failure mode cannot occur -- there is no
-        /// remainder block to get wrong in the first place.
-        ///
-        /// Never below 3 -- CityBlocks' existing tower/slab massing needs a
-        /// buildable interior of at least 2 chunks square for a 2x2 superlot
-        /// to fit at all. Weighted toward 4 (twice) since that is the
-        /// original city_chunk.gd density and stays the most common texture
-        /// of the world, with a tighter (3) and two sparser (6, 8)
-        /// neighbourhood grades mixed in around it.
+        /// The closest two streets can be, in chunks, line to line. Three
+        /// leaves a block interior of two chunks -- the smallest that holds a
+        /// 2x2 tower -- so no block is ever a one-chunk strip between two roads.
         /// </summary>
-        private static readonly int[] LocalStreetPeriods = { 3, 4, 4, 6, 8 };
+        public const int MinStreetGap = 3;
 
         /// <summary>
-        /// The widest gap LocalStreetPeriodFor can ever produce -- public so
-        /// anything that needs a safe upper bound on "how far can the
-        /// nearest street possibly be" (pedestrian spawn radius checks, in
-        /// particular) can state it in terms of the real data instead of a
-        /// separately-maintained guess.
+        /// The furthest two streets can be. Bounds a block interior at 9
+        /// chunks (216m) so even the sparsest district is walkable rather than
+        /// a plain of unbroken lots.
         /// </summary>
-        public static readonly int MaxLocalStreetPeriod = Max(LocalStreetPeriods);
+        public const int MaxStreetGap = 10;
 
-        private static int Max(int[] values)
-        {
-            int result = values[0];
-            for (int i = 1; i < values.Length; i++)
-            {
-                if (values[i] > result)
-                {
-                    result = values[i];
-                }
-            }
-            return result;
-        }
-
+        private const ulong LineSaltX = 0x4C494E58UL;   // "LINX"
+        private const ulong LineSaltY = 0x4C494E59UL;   // "LINY"
         private const ulong DistrictPeriodSalt = 0x4E424844UL; // "NBHD"
 
         /// <summary>
-        /// True for a chunk kept clear as a through-street -- either the
-        /// wide arterial between two districts, or a local street inside
-        /// whichever single district this chunk falls in. See this class's
-        /// own doc comment for why that second part is no longer one
-        /// endless global period.
+        /// Every district's street period is picked from a short list that
+        /// depends on its zone. Weighted by repetition. Any value from
+        /// MinStreetGap up works -- unlike the fixed-grid days, nothing has to
+        /// divide the district width, because streets are spread evenly.
+        /// </summary>
+        private static readonly int[] CorePeriods = { 4, 4, 5 };
+        private static readonly int[] UrbanPeriods = { 4, 5, 5, 6 };
+        private static readonly int[] ResidentialPeriods = { 5, 6, 6 };
+        private static readonly int[] OldTownPeriods = { 3, 3, 4 };
+        private static readonly int[] IndustrialPeriods = { 6, 8 };
+        private static readonly int[] OutskirtsPeriods = { 6, 8, 8 };
+
+        /// <summary>
+        /// The widest street period any district can roll -- public so
+        /// anything that needs a safe upper bound on "how far can the nearest
+        /// street possibly be" can state it in terms of the real data.
+        /// </summary>
+        public const int MaxLocalStreetPeriod = 8;
+
+        // --- arterial lines: a jittered lattice on each axis ---
+
+        /// <summary>
+        /// The chunk coordinate of arterial line <paramref name="index"/>:
+        /// its lattice position (index x DistrictChunks) nudged by a hashed
+        /// jitter. Line 0 is never nudged, so the origin -- spawn, and the
+        /// highway that runs through it -- stays exactly where it always was.
+        /// Consecutive lines can never cross: the lattice pitch (24) is more
+        /// than twice the jitter (5), so they stay at least 14 apart.
+        /// </summary>
+        private static int LineChunk(int index, ulong axisSalt)
+        {
+            if (index == 0)
+            {
+                return 0;
+            }
+            uint roll = WorldHash.Coord(index, 0, axisSalt, LayoutSeed);
+            int jitter = (int)(roll % (uint)(2 * ArterialJitterChunks + 1)) - ArterialJitterChunks;
+            return index * DistrictChunks + jitter;
+        }
+
+        /// <summary>The index of the last arterial line at or before this coordinate.</summary>
+        private static int LineIndexAtOrBefore(int coord, ulong axisSalt)
+        {
+            int index = FloorDiv(coord, DistrictChunks);
+            if (LineChunk(index + 1, axisSalt) <= coord)
+            {
+                return index + 1;
+            }
+            if (LineChunk(index, axisSalt) <= coord)
+            {
+                return index;
+            }
+            return index - 1;
+        }
+
+        /// <summary>
+        /// True when this coordinate IS an arterial line, and which one.
+        /// Lines live inside disjoint windows of width 2*jitter+1 around each
+        /// lattice position, so the only candidate is the nearest lattice line.
+        /// </summary>
+        private static bool TryGetLineIndex(int coord, ulong axisSalt, out int index)
+        {
+            index = FloorDiv(coord + DistrictChunks / 2, DistrictChunks);
+            return LineChunk(index, axisSalt) == coord;
+        }
+
+        // --- a district's own street grid ---
+
+        private struct DistrictInfo
+        {
+            public int LoX, HiX, LoY, HiY;
+            public int Period;
+            public int CountX, CountY;   // blocks across each axis; streets inside = count - 1
+        }
+
+        private const int CacheSlots = 512;   // power of two
+
+        [System.ThreadStatic] private static DistrictInfo[] _districtCache;
+        [System.ThreadStatic] private static long[] _districtCacheKeys;
+
+        private static DistrictInfo InfoFor(int indexX, int indexY)
+        {
+            if (_districtCache == null)
+            {
+                _districtCache = new DistrictInfo[CacheSlots];
+                _districtCacheKeys = new long[CacheSlots];
+                for (int i = 0; i < CacheSlots; i++)
+                {
+                    _districtCacheKeys[i] = long.MinValue;
+                }
+            }
+
+            long key = ((long)indexX << 32) ^ (uint)indexY;
+            int slot = unchecked((indexX * 73856093) ^ (indexY * 19349663)) & (CacheSlots - 1);
+            if (_districtCacheKeys[slot] == key)
+            {
+                return _districtCache[slot];
+            }
+
+            DistrictInfo info = ComputeInfo(indexX, indexY);
+            _districtCache[slot] = info;
+            _districtCacheKeys[slot] = key;
+            return info;
+        }
+
+        private static DistrictInfo ComputeInfo(int indexX, int indexY)
+        {
+            var info = new DistrictInfo
+            {
+                LoX = LineChunk(indexX, LineSaltX),
+                HiX = LineChunk(indexX + 1, LineSaltX),
+                LoY = LineChunk(indexY, LineSaltY),
+                HiY = LineChunk(indexY + 1, LineSaltY),
+            };
+
+            // The period follows what the district IS, judged at its centre.
+            ZoneKind zone = CityZones.ZoneAt((info.LoX + info.HiX) * 0.5, (info.LoY + info.HiY) * 0.5);
+            int[] periods = PeriodsFor(zone);
+            double roll = WorldHash.Unit01(indexX, indexY, DistrictPeriodSalt, LayoutSeed);
+            int pick = (int)(roll * periods.Length);
+            info.Period = periods[pick >= periods.Length ? periods.Length - 1 : pick];
+            info.CountX = BlockCount(info.HiX - info.LoX, info.Period);
+            info.CountY = BlockCount(info.HiY - info.LoY, info.Period);
+            return info;
+        }
+
+        private static int[] PeriodsFor(ZoneKind zone)
+        {
+            switch (zone)
+            {
+                case ZoneKind.Core: return CorePeriods;
+                case ZoneKind.Urban: return UrbanPeriods;
+                case ZoneKind.OldTown: return OldTownPeriods;
+                case ZoneKind.Industrial: return IndustrialPeriods;
+                case ZoneKind.Outskirts: return OutskirtsPeriods;
+                default: return ResidentialPeriods;
+            }
+        }
+
+        /// <summary>
+        /// How many blocks fit across a district of this width at roughly this
+        /// street period -- clamped so the gap between streets always lands in
+        /// [MinStreetGap, MaxStreetGap] whatever width the jittered arterials
+        /// left the district.
+        /// </summary>
+        private static int BlockCount(int width, int period)
+        {
+            int wanted = (int)System.Math.Round(width / (double)period);
+            int fewest = (width + MaxStreetGap - 1) / MaxStreetGap;
+            int most = width / MinStreetGap;
+            if (wanted < fewest) wanted = fewest;
+            if (wanted > most) wanted = most;
+            return wanted < 1 ? 1 : wanted;
+        }
+
+        /// <summary>Position of local street k (1..count-1) in a district spanning [lo, lo+width].</summary>
+        private static int LocalLinePosition(int lo, int width, int count, int k)
+        {
+            return lo + (int)((long)k * width / count);
+        }
+
+        private static bool IsLocalLine(int coord, int lo, int hi, int count)
+        {
+            if (count <= 1 || coord <= lo || coord >= hi)
+            {
+                return false;
+            }
+            int width = hi - lo;
+            long offset = coord - lo;
+            int k = (int)((offset * count + width - 1) / width);   // smallest k whose line is at or past coord
+            return k >= 1 && k < count && LocalLinePosition(lo, width, count, k) == coord;
+        }
+
+        /// <summary>
+        /// The block interior on one axis that contains a NON-street chunk:
+        /// [first, first + length), between the two streets around it.
+        /// </summary>
+        private static void BlockSpanOn(int coord, int lo, int hi, int count, out int first, out int length)
+        {
+            int width = hi - lo;
+            int k = count <= 1 ? 0 : (int)((long)(coord - lo) * count / width);
+            int before = LocalLinePosition(lo, width, count, k);
+            int after = LocalLinePosition(lo, width, count, k + 1);
+            first = before + 1;
+            length = after - before - 1;
+        }
+
+        /// <summary>
+        /// The interior of the block a buildable chunk sits in: its low
+        /// corner and its size, in chunks. False for a street chunk. A block
+        /// is anywhere from 2x2 up to 9x9 chunks now that districts and their
+        /// street periods vary.
+        /// </summary>
+        public static bool TryGetBlockRect(int chunkX, int chunkY,
+            out int minX, out int minY, out int width, out int height)
+        {
+            minX = minY = width = height = 0;
+            int indexX = LineIndexAtOrBefore(chunkX, LineSaltX);
+            int indexY = LineIndexAtOrBefore(chunkY, LineSaltY);
+            DistrictInfo d = InfoFor(indexX, indexY);
+            if (chunkX == d.LoX || chunkY == d.LoY ||
+                IsLocalLine(chunkX, d.LoX, d.HiX, d.CountX) || IsLocalLine(chunkY, d.LoY, d.HiY, d.CountY))
+            {
+                return false;
+            }
+            BlockSpanOn(chunkX, d.LoX, d.HiX, d.CountX, out minX, out width);
+            BlockSpanOn(chunkY, d.LoY, d.HiY, d.CountY, out minY, out height);
+            return true;
+        }
+
+        /// <summary>
+        /// The street period of the district containing this chunk -- the
+        /// nominal block pitch the district was laid out at.
+        /// </summary>
+        public static int DistrictPeriod(int chunkX, int chunkY)
+        {
+            return InfoFor(LineIndexAtOrBefore(chunkX, LineSaltX), LineIndexAtOrBefore(chunkY, LineSaltY)).Period;
+        }
+
+        /// <summary>
+        /// The arterial-line-to-arterial-line extent of the district holding
+        /// this chunk, on each axis: [loX, hiX] and [loY, hiY], both ends
+        /// being arterial lines themselves.
+        /// </summary>
+        public static void GetDistrictExtent(int chunkX, int chunkY,
+            out int loX, out int hiX, out int loY, out int hiY)
+        {
+            DistrictInfo d = InfoFor(LineIndexAtOrBefore(chunkX, LineSaltX), LineIndexAtOrBefore(chunkY, LineSaltY));
+            loX = d.LoX;
+            hiX = d.HiX;
+            loY = d.LoY;
+            hiY = d.HiY;
+        }
+
+        /// <summary>
+        /// True for a chunk kept clear as a through-street -- either an
+        /// arterial line, or a local street inside whichever district this
+        /// chunk falls in.
         /// </summary>
         public static bool IsStreetChunk(int x, int y)
         {
-            if (IsArterialChunk(x, y))
+            int indexX = LineIndexAtOrBefore(x, LineSaltX);
+            int indexY = LineIndexAtOrBefore(y, LineSaltY);
+            DistrictInfo d = InfoFor(indexX, indexY);
+            if (x == d.LoX || y == d.LoY)
             {
                 return true;
             }
-
-            int districtX = DistrictIndex(x);
-            int districtY = DistrictIndex(y);
-            int period = LocalStreetPeriodFor(districtX, districtY);
-            int localX = x - districtX * DistrictChunks;
-            int localY = y - districtY * DistrictChunks;
-            return PositiveMod(localX, period) == 0 || PositiveMod(localY, period) == 0;
+            return IsLocalLine(x, d.LoX, d.HiX, d.CountX) || IsLocalLine(y, d.LoY, d.HiY, d.CountY);
         }
 
         /// <summary>
-        /// True on the wide street separating one district from the next --
-        /// the "main street connecting neighbourhoods" this was explicitly
-        /// asked for. Checked BEFORE anything district-specific, on either
-        /// axis, so it is never overridden by a neighbourhood's own local
-        /// grid and never depends on which of the (up to four) districts
-        /// meeting at a corner gets asked -- an arterial line is the same
-        /// line from every side of it, which is exactly what keeps two
-        /// neighbourhoods whose own internal grids do not line up at all
-        /// still genuinely connected.
-        ///
-        /// DistrictChunks is a whole multiple of StreetPeriod, so every
-        /// arterial line is also a line the original city_chunk.gd grid
-        /// would already have called a street -- the divergence from Godot
-        /// is confined to each district's own interior, never here.
+        /// The chunk coordinate of the arterial line nearest to this
+        /// coordinate: an X coordinate on the north-south arterials
+        /// (<paramref name="xAxis"/> true), a Y coordinate on the east-west ones.
+        /// </summary>
+        public static int NearestArterialLine(int coord, bool xAxis)
+        {
+            ulong salt = xAxis ? LineSaltX : LineSaltY;
+            int index = LineIndexAtOrBefore(coord, salt);
+            int before = LineChunk(index, salt);
+            int after = LineChunk(index + 1, salt);
+            return coord - before <= after - coord ? before : after;
+        }
+
+        /// <summary>
+        /// True on a chunk of an arterial line -- the long straight road
+        /// separating one district from the next, the "main street
+        /// connecting neighbourhoods" this was explicitly asked for. Checked
+        /// BEFORE anything district-specific, on either axis, so it is never
+        /// overridden by a neighbourhood's own local grid and never depends on
+        /// which of the (up to four) districts meeting at a corner gets asked:
+        /// an arterial line is the same line from every side of it.
         /// </summary>
         public static bool IsArterialChunk(int x, int y)
         {
-            return PositiveMod(x, DistrictChunks) == 0 || PositiveMod(y, DistrictChunks) == 0;
+            return TryGetLineIndex(x, LineSaltX, out _) || TryGetLineIndex(y, LineSaltY, out _);
         }
 
         /// <summary>
-        /// Highway chunks per side of the wider unit a highway grid line
-        /// repeats on -- EXPLICIT ASK: "generate a highway system with
-        /// exits... look at american cities with lots of highways." A real
-        /// American city's freeway grid is sparser than its own arterial
-        /// grid (I-90 crosses many ordinary main avenues before the next
-        /// freeway), so a highway is every HighwaySpacing-th arterial line,
-        /// never a line of its own: `HighwayChunks` (a whole multiple of
-        /// DistrictChunks, same reasoning IsArterialChunk's own doc comment
-        /// already gives for DistrictChunks itself being a multiple of
-        /// StreetPeriod) guarantees IsHighwayChunk implies IsArterialChunk
-        /// implies IsStreetChunk -- a highway line is ALWAYS a line the
-        /// ordinary grid already calls a real, connected street, so nothing
-        /// about lot placement, pedestrian nav, or per-chunk independence
-        /// changes for it. Only how THAT one line is built (permanently
-        /// elevated, sweeping, with real exits -- see BuildGround's own
-        /// highway deck) differs.
+        /// Every HighwaySpacing-th arterial line on the X axis is a highway --
+        /// EXPLICIT ASK: "generate a highway system with exits... look at
+        /// american cities with lots of highways." A real American city's
+        /// freeway grid is sparser than its own arterial grid (I-90 crosses
+        /// many ordinary main avenues before the next freeway), so a highway
+        /// is never a line of its own: it is chosen BY ARTERIAL LINE INDEX,
+        /// which guarantees IsHighwayChunk implies IsArterialChunk implies
+        /// IsStreetChunk -- a highway line is ALWAYS a line the ordinary
+        /// network already calls a real, connected street, so nothing about
+        /// lot placement, pedestrian nav, or per-chunk independence changes
+        /// for it. Only how THAT one line is built (permanently elevated,
+        /// sweeping, with real exits -- see BuildGround's own highway deck)
+        /// differs.
         /// </summary>
         private const int HighwaySpacing = 4;
-
-        private const int HighwayChunks = DistrictChunks * HighwaySpacing;
 
         /// <summary>
         /// True on a highway -- a sparse subset of IsArterialChunk's own
@@ -167,7 +401,7 @@ namespace CityX.World
         /// ONE AXIS ONLY -- EXPLICIT BUG REPORT: "im still seeing gaps in
         /// highways also make it so highways cant intersect only streets
         /// do." The original version fired on EITHER
-        /// `PositiveMod(x, HighwayChunks) == 0` OR the same test on `y`,
+        /// "is a highway line" OR the same test on `y`,
         /// which is two independent, unbounded grid lines -- and any
         /// unbounded vertical line and unbounded horizontal line on an
         /// infinite grid intersect exactly once no matter how the two
@@ -185,20 +419,22 @@ namespace CityX.World
         /// </summary>
         public static bool IsHighwayChunk(int x, int y)
         {
-            return PositiveMod(x, HighwayChunks) == 0;
+            return TryGetLineIndex(x, LineSaltX, out int index) && PositiveMod(index, HighwaySpacing) == 0;
         }
 
         /// <summary>
         /// A real, deliberate distance apart for a highway's own exits --
         /// EXPLICIT ASK: "utilize the bridges... as well as the curved and
         /// sloped roads." Real American freeways space interchanges roughly
-        /// every mile or two in a dense urban grid; HighwayExitChunks (a
-        /// whole multiple of DistrictChunks) puts one every 3 districts
-        /// (~1.7km) -- frequent enough that a player driving a real highway
-        /// run actually finds one, rare enough that most of the run reads
-        /// as a real elevated freeway rather than a ladder of on/off ramps.
+        /// every mile or two in a dense urban grid; an exit candidate is
+        /// every HighwayExitLines-th Y arterial line (~1.7km on average) --
+        /// frequent enough that a player driving a real highway run actually
+        /// finds one, rare enough that most of the run reads as a real
+        /// elevated freeway rather than a ladder of on/off ramps. Candidates
+        /// sit ON Y arterial lines, so every exit is a real cross-arterial
+        /// (see HighwayClearanceTaperAt for why that matters).
         /// </summary>
-        private const int HighwayExitChunks = DistrictChunks * 3;
+        private const int HighwayExitLines = 3;
 
         /// <summary>
         /// How close to a real exit point a highway's own deck starts
@@ -216,8 +452,8 @@ namespace CityX.World
         private const double HighwayExitChance = 0.6;
 
         /// <summary>
-        /// True on the one chunk, every HighwayExitChunks along this
-        /// specific highway line, that is a real exit -- deterministic per
+        /// True on the one chunk, every HighwayExitLines-th Y arterial line
+        /// along this specific highway line, that is a real exit -- deterministic per
         /// candidate chunk (not a sliding search) so every chunk along the
         /// run that asks "is this along-position an exit" agrees, the same
         /// reasoning TryFindBlockBridgeCentre's own doc comment already
@@ -229,11 +465,12 @@ namespace CityX.World
         /// </summary>
         public static bool HighwayHasExitAt(int alongChunk, int laneKey)
         {
-            if (PositiveMod(alongChunk, HighwayExitChunks) != 0)
+            if (!TryGetLineIndex(alongChunk, LineSaltY, out int lineIndex) ||
+                PositiveMod(lineIndex, HighwayExitLines) != 0)
             {
                 return false;
             }
-            double roll = WorldHash.Unit01(alongChunk, laneKey, HighwayExitSalt, 0UL);
+            double roll = WorldHash.Unit01(alongChunk, laneKey, HighwayExitSalt, LayoutSeed);
             return roll < HighwayExitChance;
         }
 
@@ -251,14 +488,20 @@ namespace CityX.World
         private static double DistanceToNearestHighwayExit(int laneKey, double worldPosAlong)
         {
             int chunkAlong = (int)System.Math.Floor(worldPosAlong / ChunkSize);
+            int startLine = FloorDiv(chunkAlong, DistrictChunks);
             double nearest = double.MaxValue;
-            const int searchChunks = HighwayExitChunks * 2;
+            const int searchLines = HighwayExitLines * 2 + 2;
 
             for (int direction = -1; direction <= 1; direction += 2)
             {
-                for (int steps = 0; steps <= searchChunks; steps++)
+                for (int steps = 0; steps <= searchLines; steps++)
                 {
-                    int probe = chunkAlong + steps * direction;
+                    int line = startLine + steps * direction;
+                    if (PositiveMod(line, HighwayExitLines) != 0)
+                    {
+                        continue;
+                    }
+                    int probe = LineChunk(line, LineSaltY);
                     if (HighwayHasExitAt(probe, laneKey))
                     {
                         double centre = SpanCentre(probe, 1);
@@ -282,11 +525,11 @@ namespace CityX.World
         /// separate short "final touchdown" stretch confined tightly
         /// around it so ordinary cross-streets elsewhere stayed above the
         /// floor. EXPLICIT BUG REPORT, with a second screenshot, PROVED
-        /// that design fundamentally cannot work: `HighwayExitChunks` is a
-        /// whole multiple of `DistrictChunks` (so a real highway run finds
+        /// that design fundamentally cannot work: exit candidates are every
+        /// `HighwayExitLines`-th Y arterial line (so a real highway run finds
         /// exits at meaningful intervals) -- which ALSO means, by
-        /// construction, `PositiveMod(exitRow, DistrictChunks) == 0` for
-        /// literally EVERY exit, which makes `IsArterialChunk` (and so
+        /// construction, every exit row IS an arterial line, which makes
+        /// `IsArterialChunk` (and so
         /// `IsStreetChunk`) true on BOTH sides of the highway at that exact
         /// row, EVERY time. Confirmed directly: a scratch diagnostic
         /// checked every real exit along a real highway line and found
@@ -351,7 +594,7 @@ namespace CityX.World
                 return false;
             }
 
-            double roll = WorldHash.Unit01(x, y, PedestrianZoneSalt, 0UL);
+            double roll = WorldHash.Unit01(x, y, PedestrianZoneSalt, LayoutSeed);
             return roll < PedestrianZoneChance;
         }
 
@@ -376,7 +619,7 @@ namespace CityX.World
             {
                 return false;
             }
-            double roll = WorldHash.Unit01(x, y, BookSalt, 0UL);
+            double roll = WorldHash.Unit01(x, y, BookSalt, LayoutSeed);
             return roll < BookChance;
         }
 
@@ -435,7 +678,7 @@ namespace CityX.World
                 return false;
             }
 
-            double closes = WorldHash.Unit01(chunkX, chunkY, JunctionClosesSalt, 0UL);
+            double closes = WorldHash.Unit01(chunkX, chunkY, JunctionClosesSalt, LayoutSeed);
             if (closes >= JunctionClosureChance)
             {
                 return false;
@@ -445,7 +688,7 @@ namespace CityX.World
             // single arm closes, so the "does it close at all" chance above
             // stays exactly JunctionClosureChance regardless of which of the
             // four arms ends up chosen.
-            double armRoll = WorldHash.Unit01(chunkX, chunkY, JunctionArmSalt, 0UL);
+            double armRoll = WorldHash.Unit01(chunkX, chunkY, JunctionArmSalt, LayoutSeed);
             int armIndex = (int)(armRoll * 4.0);
             if (armIndex > 3)
             {
@@ -499,7 +742,7 @@ namespace CityX.World
         /// </summary>
         public static ClosedArmTreatment TreatmentForClosedArm(int chunkX, int chunkY)
         {
-            double roll = WorldHash.Unit01(chunkX, chunkY, JunctionTreatmentSalt, 0UL);
+            double roll = WorldHash.Unit01(chunkX, chunkY, JunctionTreatmentSalt, LayoutSeed);
             if (roll < SkateparkChance)
             {
                 return ClosedArmTreatment.Skatepark;
@@ -513,12 +756,6 @@ namespace CityX.World
             return remainder < 2.0 / 3.0 ? ClosedArmTreatment.Plaza : ClosedArmTreatment.RoundedCurb;
         }
 
-        /// <summary>Which district a chunk coordinate falls in, on one axis.</summary>
-        public static int DistrictIndex(int chunkCoord)
-        {
-            return FloorDiv(chunkCoord, DistrictChunks);
-        }
-
         /// <summary>
         /// True when chunkY is what makes (chunkX, chunkY) a street -- i.e.
         /// the street itself runs along X, extending east-west as chunkX
@@ -529,42 +766,14 @@ namespace CityX.World
         /// </summary>
         public static bool StreetRunsAlongX(int chunkX, int chunkY)
         {
-            if (PositiveMod(chunkY, DistrictChunks) == 0)
+            int indexY = LineIndexAtOrBefore(chunkY, LineSaltY);
+            if (LineChunk(indexY, LineSaltY) == chunkY)
             {
                 return true;
             }
 
-            int districtX = DistrictIndex(chunkX);
-            int districtY = DistrictIndex(chunkY);
-            int period = LocalStreetPeriodFor(districtX, districtY);
-            int localY = chunkY - districtY * DistrictChunks;
-            return PositiveMod(localY, period) == 0;
-        }
-
-        /// <summary>
-        /// The one property that makes a district read as its own
-        /// neighbourhood: how far apart its local streets are.
-        ///
-        /// FIXED PER (districtX, districtY), NOT SALTED BY THE WORLD SEED --
-        /// deliberately, same as IsStreetChunk's own grid always has been
-        /// (city_chunk.gd's street grid never depended on the seed either;
-        /// only what gets built inside it does). Keeping the neighbourhood
-        /// MAP itself seed-independent means CityLayout never needs a
-        /// CityWorld/seed threaded through it just to answer "is this a
-        /// street" -- every one of its 17-odd callers keeps working exactly
-        /// as it already does. Regenerating a new world seed still reshuffles
-        /// every building, terrace and lamp; it just does so on the same
-        /// underlying neighbourhood shape every time.
-        /// </summary>
-        public static int LocalStreetPeriodFor(int districtX, int districtY)
-        {
-            double roll = WorldHash.Unit01(districtX, districtY, DistrictPeriodSalt, 0UL);
-            int index = (int)(roll * LocalStreetPeriods.Length);
-            if (index >= LocalStreetPeriods.Length)
-            {
-                index = LocalStreetPeriods.Length - 1;
-            }
-            return LocalStreetPeriods[index];
+            DistrictInfo d = InfoFor(LineIndexAtOrBefore(chunkX, LineSaltX), indexY);
+            return IsLocalLine(chunkY, d.LoY, d.HiY, d.CountY);
         }
 
         /// <summary>

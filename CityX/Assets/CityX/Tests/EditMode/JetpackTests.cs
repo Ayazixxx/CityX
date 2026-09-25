@@ -84,13 +84,22 @@ namespace CityX.Tests
             // this test can afford. "Is gravity now winning" is the actual
             // claim, and velocity says that directly: unpowered, it must
             // go negative once thrust stops decelerating it.
-            for (int i = 0; i < 60; i++)
+            //
+            // GENEROUS BUT BOUNDED, not a fixed 60 ticks -- a fixed budget
+            // sized for the old ThrustSpeed (7.0) left too little margin
+            // once it became 11.0 (matching the old BoostThrustSpeed, see
+            // ThrustSpeed's own doc comment): reversing a faster climb
+            // takes proportionally longer, and 60 ticks (1s) was already
+            // close to the reversal time at the old speed alone.
+            bool reversed = false;
+            for (int i = 0; i < 180 && !reversed; i++)
             {
                 _jetpack.Tick(false, Vector2.zero, false, 1.0f / 60.0f);
                 _locomotion.Tick(default, 1.0f / 60.0f);
+                reversed = _locomotion.Velocity.y < 0.0f;
             }
 
-            Assert.Less(_locomotion.Velocity.y, 0.0f,
+            Assert.IsTrue(reversed,
                 "letting go of thrust never let gravity actually reverse the climb");
         }
 

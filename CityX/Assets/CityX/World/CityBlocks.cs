@@ -59,33 +59,43 @@ namespace CityX.World
     }
 
     /// <summary>
-    /// Decides how a city block is massed: whether a big building takes several
-    /// chunks, and which ones.
+    /// Decides how a city block is massed: which lots it splits into, whether a
+    /// big building takes several chunks, and whether the whole block is left
+    /// open as a park or plaza.
     ///
-    /// WHY THIS EXISTS AT ALL. A chunk is 24m, so after lot margins a
+    /// WHY BIG BUILDINGS EXIST AT ALL. A chunk is 24m, so after lot margins a
     /// single-chunk footprint is about 18m across. The art direction asks for
     /// towers of 150-200m. An 18m-wide building 200m tall is a 11:1 needle --
     /// not a tower, a mast. Real towers of that height stand on 35-50m
     /// footprints. So either the buildings get shorter or a building learns to
     /// cover more than one chunk, and the second is the one that matches the
-    /// reference.
+    /// reference. A 2x2 lot is ~42m square (a genuine tower at 4-5:1); a 2x1 is
+    /// a ~42x18m slab, the long blank concrete face the brutalist reference is
+    /// full of.
     ///
-    /// The street grid already hands us the right unit to work in. With a
-    /// street period of 4, every block is a 3x3 of buildable chunks. A 2x2
-    /// building inside that is ~42m square -- a genuine tower at 4-5:1 -- and
-    /// leaves an L of five ordinary lots around it, which is a far more
-    /// Chongqing arrangement than a uniform grid of identical boxes.
-    /// A 2x1 gives a ~42x18m slab, which is the long blank concrete face the
-    /// brutalist reference is full of.
+    /// LOTS COME FROM RECURSIVE SUBDIVISION, NOT A FIXED PATTERN. Parish and
+    /// Muller's lot generator repeatedly splits a block along its longer axis
+    /// until the pieces are building-sized. The same shape works here and now
+    /// carries the whole thing: a block of ANY size from 2x2 to 9x9 chunks is
+    /// split (the cut lands anywhere in the middle 30-70% of the long side)
+    /// until every piece is at most 2x2 chunks, and each piece then either
+    /// stays one big lot or breaks into smaller ones. That gives irregular
+    /// mixed lots in a big block where the old fixed 3x3 block always got one
+    /// superlot and nine singles.
+    ///
+    /// WHAT DECIDES A PIECE'S FATE IS THE ZONE (see CityZones). A downtown 2x2
+    /// piece is nearly always a tower; the same piece at the edge of the city
+    /// almost always breaks into small lots; an industrial 2x1 stays one big
+    /// shed. The block's zone is read at its centre, so a whole block agrees.
     ///
     /// HOW IT STAYS PURE, WHICH IS THE WHOLE TRICK. Chunks generate
     /// independently and never talk to each other -- that is what makes the
     /// world infinite and lets server and client agree without sending
     /// geometry. So a chunk cannot be TOLD it is covered by its neighbour's
-    /// tower. Instead every chunk derives the same answer from the block seed:
-    /// the anchor works out that it builds a 2x2, and the three chunks under it
-    /// independently work out that they are covered. Nothing is communicated,
-    /// and there is no order dependence to get wrong.
+    /// tower. Instead every chunk re-runs the same subdivision from the block
+    /// seed: the anchor works out that it builds a 2x2, and the three chunks
+    /// under it independently work out that they are covered. Nothing is
+    /// communicated, and there is no order dependence to get wrong.
     ///
     /// This is the same shape the Godot build used for skybridges, where both
     /// ends had to agree a bridge existed from their own side alone.
@@ -93,51 +103,73 @@ namespace CityX.World
     public sealed class CityBlocks
     {
         /// <summary>
-        /// Relative weights for a block's massing. Deliberately does not sum to
-        /// 1 in the "one of these always happens" sense -- see NoSuperlotChance.
+        /// The share of blocks left entirely open -- a courtyard, plaza or
+        /// park instead of buildings -- by zone. Rolled per BLOCK for a real
+        /// reason: an open block is 48-200m of continuous space with streets
+        /// on every side, which is a place, where rolling it per lot would
+        /// scatter the same area into a hole in every wall.
         ///
-        /// RAISED FROM 0.34 -- EXPLICIT ASK: "separate areas by neighborhood
-        /// ... not everything should be a blocky grid" introduced districts
-        /// whose own local block size varies (CityLayout.LocalStreetPeriodFor),
-        /// and a single 2x2 tower covers a much smaller SHARE of a large,
-        /// sparse district's own block than it does a small, dense one's --
-        /// confirmed directly, live: the same 0.34 that used to clear the
-        /// art direction's own "the skyline has nothing in it" floor measured
-        /// only 1.7% city-wide once bigger blocks started diluting it.
+        /// Far more common at the edge of the city than downtown: the edge is
+        /// where the green is, and a core keeps only the odd plaza.
         /// </summary>
-        public const double TowerChance = 0.45;   // 2x2
-
-        public const double SlabWideChance = 0.20;   // 2x1, long east-west
-        public const double SlabDeepChance = 0.20;   // 1x2, long north-south
-
-        /// <summary>Whatever is left: a block of nine ordinary single lots.</summary>
-        public const double NoSuperlotChance =
-            1.0 - TowerChance - SlabWideChance - SlabDeepChance;
+        public static double OpenBlockChanceFor(ZoneKind zone)
+        {
+            switch (zone)
+            {
+                case ZoneKind.Core: return 0.05;
+                case ZoneKind.Urban: return 0.08;
+                case ZoneKind.OldTown: return 0.06;
+                case ZoneKind.Industrial: return 0.05;
+                case ZoneKind.Outskirts: return 0.30;
+                default: return 0.11;
+            }
+        }
 
         /// <summary>
-        /// Share of blocks left entirely open -- a courtyard, plaza or yard
-        /// instead of buildings.
-        ///
-        /// WHY A WHOLE BLOCK AND NOT JUST MORE EMPTY LOTS. The generator
-        /// already leaves about one lot in ten empty, and that reads as a gap
-        /// in a wall rather than as somewhere to be: 20m of dead ground boxed
-        /// in on all sides. An open BLOCK is 72m square of continuous space
-        /// with streets on every side, which is a place. Rolled per block for
-        /// exactly that reason -- rolling it per lot would scatter the same
-        /// area into nine holes and produce neither.
-        ///
-        /// This roll happens BEFORE the massing roll and short-circuits it, so
-        /// tuning open space does not reshuffle which blocks get towers.
+        /// Chance a 2x2 piece of a block stays ONE tower lot, by zone. The
+        /// rest break into smaller lots (slabs or singles).
         /// </summary>
-        public const double OpenBlockChance = 0.11;
+        public static double TowerChanceFor(ZoneKind zone)
+        {
+            switch (zone)
+            {
+                case ZoneKind.Core: return 0.66;
+                case ZoneKind.Urban: return 0.50;
+                case ZoneKind.Residential: return 0.24;
+                case ZoneKind.OldTown: return 0.0;
+                case ZoneKind.Industrial: return 0.50;
+                default: return 0.06;
+            }
+        }
 
-        // Distinct salts so shape and the two anchor axes are independent.
-        // Sharing one would correlate a block's shape with where it sits, and
-        // every tower in the world would end up in the same corner.
-        private const ulong ShapeSalt = 0x424C4B53UL;   // "BLKS"
-        private const ulong AnchorXSalt = 0x424C4B41UL; // "BLKA"
-        private const ulong AnchorYSalt = 0x424C4B42UL; // "BLKB"
-        private const ulong OpenSalt = 0x4F50454EUL;    // "OPEN"
+        /// <summary>
+        /// Chance a 2x1 or 1x2 piece stays ONE slab lot, by zone. The rest
+        /// split into two single lots.
+        /// </summary>
+        public static double SlabChanceFor(ZoneKind zone)
+        {
+            switch (zone)
+            {
+                case ZoneKind.Core: return 0.35;
+                case ZoneKind.Urban: return 0.28;
+                case ZoneKind.Residential: return 0.14;
+                case ZoneKind.OldTown: return 0.05;
+                case ZoneKind.Industrial: return 0.75;
+                default: return 0.08;
+            }
+        }
+
+        // Distinct salts so every decision is independent. Sharing one would
+        // correlate, say, a block's split position with where it sits.
+        private const ulong OpenSalt = 0x4F50454EUL;     // "OPEN"
+        private const ulong AxisSalt = 0x41584953UL;     // "AXIS"
+        private const ulong SplitSalt = 0x53504C54UL;    // "SPLT"
+        private const ulong TowerSalt = 0x544F5752UL;    // "TOWR"
+        private const ulong SlabSalt = 0x534C4142UL;     // "SLAB"
+        private const ulong SlabAxisSalt = 0x534C4158UL; // "SLAX"
+
+        /// <summary>A block is at most 9 chunks a side, so a subdivision this deep always terminates.</summary>
+        private const int MaxDepth = 16;
 
         private readonly ulong _seed;
 
@@ -146,148 +178,173 @@ namespace CityX.World
             _seed = unchecked((ulong)(long)worldSeed);
         }
 
-        /// <summary>
-        /// What this chunk should do. Total: every chunk in the world is
-        /// exactly one of Street, Consumed or Building, with no gaps and no
-        /// overlaps.
-        ///
-        /// BLOCK IDENTITY IS NOW A REAL CHUNK COORDINATE, NOT A SEQUENTIAL
-        /// INDEX -- since CityLayout.LocalStreetPeriodFor lets a
-        /// neighbourhood's own block size vary, blocks in two different
-        /// districts can no longer share one linearly-scaled index space
-        /// without colliding (district A's "block 3" and district B's own
-        /// "block 3" would otherwise roll identical buildings). Using each
-        /// block's own low-corner chunk coordinate as the hash key instead
-        /// is exactly as deterministic and never collides, because two
-        /// blocks never share a low corner.
-        /// </summary>
-        /// <summary>
-        /// Which block a (buildable) chunk belongs to, as the real chunk
-        /// coordinate of that block's own low corner, plus how many chunks
-        /// deep its buildable interior runs. Public so tests can enumerate
-        /// and group blocks the same way RoleFor itself does, rather than
-        /// re-deriving the district/period maths a second time and risking
-        /// the two drifting apart.
-        /// </summary>
-        public void BlockOriginFor(int chunkX, int chunkY, out int blockX, out int blockY, out int buildableSpan)
+        /// <summary>The zone a whole block belongs to, read at its centre so every chunk in it agrees.</summary>
+        public static ZoneKind ZoneOfBlock(int minX, int minY, int width, int height)
         {
-            int districtX = CityLayout.DistrictIndex(chunkX);
-            int districtY = CityLayout.DistrictIndex(chunkY);
-            int period = CityLayout.LocalStreetPeriodFor(districtX, districtY);
-            buildableSpan = period - 1;
-
-            int localX = chunkX - districtX * CityLayout.DistrictChunks;
-            int localY = chunkY - districtY * CityLayout.DistrictChunks;
-            blockX = chunkX - CityLayout.PositiveMod(localX, period);
-            blockY = chunkY - CityLayout.PositiveMod(localY, period);
+            return CityZones.ZoneAt(minX + width * 0.5, minY + height * 0.5);
         }
 
+        /// <summary>
+        /// What this chunk should do. Total: every chunk in the world is
+        /// exactly one of Street, Consumed, Building or Open, with no gaps and
+        /// no overlaps.
+        ///
+        /// BLOCK IDENTITY IS THE BLOCK INTERIOR'S OWN LOW-CORNER CHUNK
+        /// COORDINATE -- blocks vary in size across districts, so a sequential
+        /// index could not be shared between two districts without colliding.
+        /// The low corner is exactly as deterministic and two blocks never
+        /// share one.
+        /// </summary>
         public LotRole RoleFor(int chunkX, int chunkY)
         {
-            if (CityLayout.IsStreetChunk(chunkX, chunkY))
+            if (!CityLayout.TryGetBlockRect(chunkX, chunkY, out int minX, out int minY, out int width, out int height))
             {
                 return LotRole.Street;
             }
 
-            BlockOriginFor(chunkX, chunkY, out int blockX, out int blockY, out int buildableSpan);
-            int inBlockX = chunkX - blockX;
-            int inBlockY = chunkY - blockY;
-
-            if (IsOpenBlock(blockX, blockY))
+            ZoneKind zone = ZoneOfBlock(minX, minY, width, height);
+            if (IsOpenBlockOfZone(minX, minY, zone))
             {
                 return new LotRole(LotKind.Open, 1, 1, chunkX, chunkY);
             }
 
-            // Position within the block's buildable interior, 0..buildableSpan-1.
-            int interiorX = inBlockX - 1;
-            int interiorY = inBlockY - 1;
+            FindLot(minX, minY, width, height, chunkX - minX, chunkY - minY, zone,
+                out int lotX, out int lotY, out int spanX, out int spanY);
 
-            ShapeFor(blockX, blockY, buildableSpan, out int spanX, out int spanY);
+            int anchorX = minX + lotX;
+            int anchorY = minY + lotY;
             if (spanX == 1 && spanY == 1)
             {
                 return new LotRole(LotKind.Building, 1, 1, chunkX, chunkY);
             }
-
-            AnchorFor(blockX, blockY, buildableSpan, spanX, spanY, out int anchorInteriorX, out int anchorInteriorY);
-
-            bool insideX = interiorX >= anchorInteriorX && interiorX < anchorInteriorX + spanX;
-            bool insideY = interiorY >= anchorInteriorY && interiorY < anchorInteriorY + spanY;
-            if (!insideX || !insideY)
+            if (anchorX == chunkX && anchorY == chunkY)
             {
-                // Beside the big building, not under it.
-                return new LotRole(LotKind.Building, 1, 1, chunkX, chunkY);
+                return new LotRole(LotKind.Building, spanX, spanY, anchorX, anchorY);
             }
-
-            int anchorChunkX = blockX + 1 + anchorInteriorX;
-            int anchorChunkY = blockY + 1 + anchorInteriorY;
-
-            if (interiorX == anchorInteriorX && interiorY == anchorInteriorY)
-            {
-                return new LotRole(LotKind.Building, spanX, spanY, anchorChunkX, anchorChunkY);
-            }
-
-            return new LotRole(LotKind.Consumed, spanX, spanY, anchorChunkX, anchorChunkY);
+            return new LotRole(LotKind.Consumed, spanX, spanY, anchorX, anchorY);
         }
 
         /// <summary>
-        /// Whether this whole block is left open. Public so a renderer can pave
-        /// a plaza differently from bare ground, and so tests can count them.
+        /// Whether the block whose interior starts at this chunk is left open.
+        /// Public so a renderer can treat a plaza differently from bare
+        /// ground, and so tests can count them. The coordinate must be the
+        /// interior's low corner (what <see cref="CityLayout.TryGetBlockRect"/> returns).
         /// </summary>
-        public bool IsOpenBlock(int blockX, int blockY)
+        public bool IsOpenBlock(int blockMinX, int blockMinY)
         {
-            return WorldHash.Unit01(blockX, blockY, OpenSalt, _seed) < OpenBlockChance;
+            if (!CityLayout.TryGetBlockRect(blockMinX, blockMinY, out int minX, out int minY, out int width, out int height))
+            {
+                return false;
+            }
+            return IsOpenBlockOfZone(minX, minY, ZoneOfBlock(minX, minY, width, height));
+        }
+
+        private bool IsOpenBlockOfZone(int minX, int minY, ZoneKind zone)
+        {
+            return WorldHash.Unit01(minX, minY, OpenSalt, _seed) < OpenBlockChanceFor(zone);
         }
 
         /// <summary>
-        /// The block's big-building shape, in chunks. 1x1 means the block has no
-        /// superlot at all and is nine ordinary buildings.
-        ///
-        /// A superlot's own span (up to 2x2) never exceeds the smallest
-        /// possible buildableSpan (2, from a period-3 district's own
-        /// 2-chunk interior) -- so this needs no bound check itself, the
-        /// same way it never did when every district shared one period.
+        /// One independent roll for one node of one block's subdivision.
+        /// (nodeX, nodeY, nodeW, nodeH) is the node's rectangle inside the
+        /// block interior; a block is at most 9 chunks a side, so the packing
+        /// below cannot collide.
         /// </summary>
-        private void ShapeFor(int blockX, int blockY, int buildableSpan, out int spanX, out int spanY)
+        private double Roll(int blockX, int blockY, int nodeX, int nodeY, int nodeW, int nodeH, ulong salt)
         {
-            double roll = WorldHash.Unit01(blockX, blockY, ShapeSalt, _seed);
+            uint node = WorldHash.Coord(nodeX * 64 + nodeW, nodeY * 64 + nodeH, salt, _seed);
+            return WorldHash.Unit01(blockX, blockY, salt ^ node, _seed);
+        }
 
-            if (roll < TowerChance && buildableSpan >= 2)
+        /// <summary>
+        /// The lot that covers interior cell (targetX, targetY) of a block:
+        /// its low corner and size, in block-interior coordinates.
+        /// </summary>
+        private void FindLot(int blockX, int blockY, int width, int height, int targetX, int targetY,
+            ZoneKind zone, out int lotX, out int lotY, out int spanX, out int spanY)
+        {
+            int rx = 0, ry = 0, rw = width, rh = height;
+
+            // Cut along the longer side until the piece is at most 2x2.
+            for (int depth = 0; depth < MaxDepth && (rw > 2 || rh > 2); depth++)
             {
-                spanX = 2;
-                spanY = 2;
-                return;
+                bool cutAcross;   // true: cut the X extent in two
+                if (rw > 2 && rh <= 2)
+                {
+                    cutAcross = true;
+                }
+                else if (rh > 2 && rw <= 2)
+                {
+                    cutAcross = false;
+                }
+                else if (rw != rh)
+                {
+                    cutAcross = rw > rh;
+                }
+                else
+                {
+                    cutAcross = Roll(blockX, blockY, rx, ry, rw, rh, AxisSalt) < 0.5;
+                }
+
+                int length = cutAcross ? rw : rh;
+                double where = Roll(blockX, blockY, rx, ry, rw, rh, SplitSalt);
+                int first = (int)System.Math.Round(length * (0.35 + 0.30 * where));
+                if (first < 1) first = 1;
+                if (first > length - 1) first = length - 1;
+
+                if (cutAcross)
+                {
+                    if (targetX < rx + first) { rw = first; }
+                    else { rx += first; rw -= first; }
+                }
+                else
+                {
+                    if (targetY < ry + first) { rh = first; }
+                    else { ry += first; rh -= first; }
+                }
             }
-            if (roll < TowerChance + SlabWideChance && buildableSpan >= 2)
+
+            // A piece of at most 2x2: keep it whole or break it up.
+            lotX = rx;
+            lotY = ry;
+            spanX = rw;
+            spanY = rh;
+
+            if (rw == 2 && rh == 2)
             {
-                spanX = 2;
-                spanY = 1;
-                return;
+                if (Roll(blockX, blockY, rx, ry, rw, rh, TowerSalt) < TowerChanceFor(zone))
+                {
+                    return;   // one tower lot
+                }
+
+                // Break into two slab-sized halves, the cut direction rolled.
+                if (Roll(blockX, blockY, rx, ry, rw, rh, SlabAxisSalt) < 0.5)
+                {
+                    rw = 1;
+                    rx += targetX - rx;   // the half (a 1x2 column) holding the target
+                }
+                else
+                {
+                    rh = 1;
+                    ry += targetY - ry;   // the half (a 2x1 row) holding the target
+                }
+                lotX = rx;
+                lotY = ry;
+                spanX = rw;
+                spanY = rh;
             }
-            if (roll < TowerChance + SlabWideChance + SlabDeepChance && buildableSpan >= 2)
+
+            if (rw * rh == 2)
             {
+                if (Roll(blockX, blockY, lotX, lotY, spanX, spanY, SlabSalt) < SlabChanceFor(zone))
+                {
+                    return;   // one slab lot
+                }
+                lotX = targetX;
+                lotY = targetY;
                 spanX = 1;
-                spanY = 2;
-                return;
+                spanY = 1;
             }
-
-            spanX = 1;
-            spanY = 1;
-        }
-
-        /// <summary>
-        /// Where in the block's own buildable interior the big building's low
-        /// corner sits. The range is clamped by the span so it can never
-        /// overhang into the street -- a tower half in the road would be a
-        /// bug that only appears on some seeds, which is the worst kind.
-        /// </summary>
-        private void AnchorFor(int blockX, int blockY, int buildableSpan, int spanX, int spanY,
-            out int anchorX, out int anchorY)
-        {
-            int slotsX = buildableSpan - spanX + 1;
-            int slotsY = buildableSpan - spanY + 1;
-
-            anchorX = (int)(WorldHash.Unit01(blockX, blockY, AnchorXSalt, _seed) * slotsX);
-            anchorY = (int)(WorldHash.Unit01(blockX, blockY, AnchorYSalt, _seed) * slotsY);
         }
     }
 }

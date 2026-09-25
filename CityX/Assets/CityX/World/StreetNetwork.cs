@@ -42,13 +42,13 @@ namespace CityX.World
 
         /// <summary>
         /// How far outward (in chunks) a search for the nearest street chunk
-        /// ever needs to look on one axis. A district's own local streets are
-        /// never more than 5 chunks apart (LocalStreetPeriods tops out at 6),
-        /// and an arterial is never more than DistrictChunks away regardless
-        /// -- this is that outer bound, so the search below is provably
-        /// bounded rather than merely "probably fine in practice."
+        /// ever needs to look on one axis. Two neighbouring streets, local or
+        /// arterial, are never more than CityLayout.MaxStreetGap chunks apart
+        /// (the nearest one is always well inside that) -- this is that outer
+        /// bound, so the search below is provably bounded rather than merely
+        /// "probably fine in practice."
         /// </summary>
-        private const int MaxSearchChunks = CityLayout.DistrictChunks;
+        private const int MaxSearchChunks = CityLayout.MaxStreetGap;
 
         /// <summary>
         /// Nearest street chunk to (chunkX, chunkY) along one axis: the X

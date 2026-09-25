@@ -104,6 +104,25 @@ namespace CityX.Character
         [Tooltip("How quickly horizontal speed catches up to its target, in metres per second squared.")]
         public float HorizontalAcceleration = 60.0f;
 
+        /// <summary>
+        /// The share of HorizontalAcceleration the feet can actually use on
+        /// this ground, 1 when dry. WET GROUND COSTS TRACTION -- GTA's wet
+        /// roads, Breath of the Wild's slick rock: in the rain, and for a good
+        /// while after it (the wetness is the city's, and dries slowly), the
+        /// body takes longer to get up to speed and longer to stop, which reads
+        /// as a slide. Only on the ground (in the air the same easing is air
+        /// control), and softened under cover where the ground is barely wet.
+        /// </summary>
+        private float WetTraction()
+        {
+            if (_controller == null || !_controller.isGrounded ||
+                (!CurrentWeather.IsRaining && CurrentWeather.Wetness <= 0.0f))
+            {
+                return 1.0f;
+            }
+            return Weather.GroundTraction(CurrentWeather.SurfaceWetness(transform.position));
+        }
+
         [Header("Scale")]
         [Tooltip(
             "Standing height in metres. The default is the CITY X body's own measured height, " +
@@ -139,6 +158,7 @@ namespace CityX.Character
         private Transform _leftLowerLeg;
         private Transform _rightLowerLeg;
         private MeleeAttacker _melee;
+        private SoulsSwordCombat _soulsSword;
         private float _verticalVelocity;
 
         /// <summary>
@@ -231,7 +251,52 @@ namespace CityX.Character
         /// <summary>Set every Tick from LocomotionInput.Aiming/AimPitchDegrees, applied later by ApplyGunAimPose.</summary>
         private bool _isAimingGun;
 
-        private float _gunAimPitchDegrees;
+        /// <summary>
+        /// Set every Tick from LocomotionInput.GunEquipped -- see
+        /// ApplyGunAimPose's own doc comment on why the HEAD, specifically,
+        /// needs to know this separately from _isAimingGun: a pistol stays
+        /// in hand (and its own walk clip's head cant stays visible) for as
+        /// long as it is equipped, whether or not right-click also happens
+        /// to be held.
+        /// </summary>
+        private bool _gunEquipped;
+
+        private Vector3 _gunAimCameraPosition;
+        private Vector3 _gunAimCameraForward = Vector3.forward;
+        private Vector3 _gunAimPoint;
+        private bool _hasGunAimPoint;
+        private Vector3 _aimedPoint;
+        private bool _hasAimedPoint;
+
+        /// <summary>
+        /// The equipped gun's muzzle (set by the gun's OnEquip, cleared on unequip).
+        /// With it the arm aims the BARREL at the target, not just the upper arm.
+        /// </summary>
+        public Transform GunMuzzle;
+
+        /// <summary>The most the barrel correction may turn the arm, so a wild clip pose cannot fling it.</summary>
+        public const float GunBarrelCorrectionMaxDegrees = 60.0f;
+
+        /// <summary>Correction passes per frame (see ApplyGunAimPose).</summary>
+        public const int GunBarrelCorrectionPasses = 4;
+
+        /// <summary>Seconds left of the FIRE POSE: after a shot the arm aims down the barrel and the body faces the camera, aimed or not.</summary>
+        private float _gunFireHold;
+
+        /// <summary>How long the fire pose lasts after a shot. Long enough to cover a burst, short enough to lower between shots.</summary>
+        public const float GunFirePoseSeconds = 0.5f;
+
+        /// <summary>
+        /// A shot was just fired: raise the arm to point down the barrel (and turn
+        /// the body to the camera) for GunFirePoseSeconds even though right-click is
+        /// not held. Hip fire used to leave the gun wherever the walk cycle carried
+        /// it, so the bullet tracer left the muzzle at an angle unrelated to the
+        /// barrel -- the reported "going in the wrong direction".
+        /// </summary>
+        public void NotifyGunFired()
+        {
+            _gunFireHold = GunFirePoseSeconds;
+        }
         private float _lastTickDeltaTime;
 
         /// <summary>
@@ -240,6 +305,16 @@ namespace CityX.Character
         /// strength the instant Aiming flips true.
         /// </summary>
         private float _gunAimBlend;
+
+        /// <summary>
+        /// Eases toward 1 while the gun is equipped but NOT being aimed
+        /// (hip-fire movement), 0 otherwise -- see ApplyGunAimPose's own
+        /// doc comment. Deliberately excludes the aiming case: that already
+        /// gets the stronger camera-converged head correction via
+        /// _gunAimBlend, and the two must never both drive the head in the
+        /// same frame.
+        /// </summary>
+        private float _gunWalkHeadBlend;
         private bool _castBaseIsLeftArm;
 
         /// <summary>
@@ -269,6 +344,7 @@ namespace CityX.Character
         private static readonly int ChargingJumpParameter = Animator.StringToHash("ChargingJump");
         private static readonly int AimingParameter = Animator.StringToHash("Aiming");
         private static readonly int SwordEquippedParameter = Animator.StringToHash("SwordEquipped");
+        private static readonly int GunEquippedParameter = Animator.StringToHash("GunEquipped");
         private static readonly int JetpackThrustingParameter = Animator.StringToHash("JetpackThrusting");
         private static readonly int DancingParameter = Animator.StringToHash("Dancing");
         private static readonly int BreakdancingParameter = Animator.StringToHash("Breakdancing");
@@ -495,10 +571,27 @@ namespace CityX.Character
             }
             _dashDirection = direction.normalized;
             _dashRemaining = DashSeconds;
+            FireTrigger(DashParameter);
+        }
+
+        /// <summary>
+        /// Raised every time this body fires a one-shot Animator trigger
+        /// (Jump, Dash) -- the hook NetworkedAnimatorSync listens to so the
+        /// same trigger can be replayed on every other player's copy of this
+        /// body. Remote copies never tick PlayerLocomotion (their
+        /// PlayerInputReader is disabled), so this never fires for a copy
+        /// that is merely mirroring someone else.
+        /// </summary>
+        public event System.Action<int> AnimatorTriggerFired;
+
+        /// <summary>Sets the trigger locally and tells any listener, in one place so the two can't drift apart.</summary>
+        private void FireTrigger(int parameterHash)
+        {
             if (_animator != null)
             {
-                _animator.SetTrigger(DashParameter);
+                _animator.SetTrigger(parameterHash);
             }
+            AnimatorTriggerFired?.Invoke(parameterHash);
         }
 
         private void Awake()
@@ -792,6 +885,19 @@ namespace CityX.Character
                 return;
             }
 
+            // THE SOULSLIKE SWORD DRIVES THE SAME ARM BONES THROUGH ITS OWN
+            // (time-stretched) swing clips, for the same reason a
+            // MeleeAttacker swing is exempt above. Looked up lazily because
+            // SwordWeapon.OnEquip adds it at runtime, long after Bind().
+            if (_soulsSword == null)
+            {
+                _soulsSword = GetComponent<SoulsSwordCombat>();
+            }
+            if (_soulsSword != null && _soulsSword.IsCommitted)
+            {
+                return;
+            }
+
             // GrappleSwing used to need an exclusion here too -- it owned
             // these same bones directly while a rope was attached. Rebuilt
             // from square one to never touch a bone at all (see its own
@@ -1001,24 +1107,33 @@ namespace CityX.Character
         /// component ever makes, with nothing yet to plausibly compare
         /// against.
         ///
-        /// _rightUpperArm IS SKIPPED SPECIFICALLY, NOT THE WHOLE METHOD --
-        /// EXPLICIT REGRESSION, found by the full suite: a first version of
-        /// this gun-aim exclusion skipped this entire method whenever
-        /// ApplyGunAimPose's own blend was nonzero, the same "something
-        /// else legitimately owns these bones" shape the swing/melee
-        /// exclusions in SuppressImplausibleArmSnaps use. That is too broad
-        /// here -- ApplyGunAimPose only ever rotates _rightUpperArm, never
-        /// head/leftArm/rightLowerArm, and RealisticChangingMovementNever
+        /// _rightUpperArm AND _head ARE SKIPPED SPECIFICALLY, NOT THE WHOLE
+        /// METHOD -- EXPLICIT REGRESSION, found by the full suite: a first
+        /// version of this gun-aim exclusion skipped this entire method
+        /// whenever ApplyGunAimPose's own blend was nonzero, the same
+        /// "something else legitimately owns these bones" shape the
+        /// swing/melee exclusions in SuppressImplausibleArmSnaps use. That
+        /// is too broad here -- ApplyGunAimPose only ever rotates
+        /// _rightUpperArm and _head (head added later, see its own doc
+        /// comment on the "angled left" head-cant bug), never
+        /// leftArm/rightLowerArm, and RealisticChangingMovementNever
         /// SnapsAnArmOrHeadBoneOnItsOwn's own randomised input flips Aiming
         /// on a 20%-per-frame coin flip that keeps the gun-aim blend
         /// hovering above zero for long stretches (unrealistic for a real
         /// player holding right-click, but exactly what that stress test
         /// does) -- disabling the WHOLE check for that long let the
         /// pre-existing, already-documented rare Mecanim blend-tree glitch
-        /// this test exists to catch (on the HEAD or LEFT arm, or even
-        /// RightLowerArm, none of which gun-aiming ever touches) sneak
-        /// through uncorrected. Excluding only the one bone actually being
+        /// this test exists to catch (on the LEFT arm, or even
+        /// RightLowerArm, neither of which gun-aiming ever touches) sneak
+        /// through uncorrected. Excluding only the bones actually being
         /// driven keeps every other bone's own protection fully intact.
+        ///
+        /// THE HEAD'S OWN EXCLUSION IS BROADER THAN THE ARM'S, DELIBERATELY
+        /// -- ApplyGunWalkHeadPose also drives the head (never the arm)
+        /// whenever _gunWalkHeadBlend is positive, the hip-fire case
+        /// _gunAimBlend alone does not cover. The right upper arm's own
+        /// exclusion stays scoped to _gunAimBlend only, since hip-fire
+        /// never touches it.
         /// </summary>
         private void SuppressImplausibleArmSnapsCore()
         {
@@ -1029,17 +1144,29 @@ namespace CityX.Character
             }
 
             float deltaTime = Mathf.Max(Time.deltaTime, 1.0f / 240.0f);
-            SuppressBoneSnap(_head, ref _previousHeadRotation, ref _headSnapHeldLastFrame, deltaTime);
-            if (_gunAimBlend > 0.0f)
+            if (_gunAimBlend > 0.0f || _gunWalkHeadBlend > 0.0f)
             {
                 // Keep the tracked baseline in sync with whatever
-                // ApplyGunAimPose just set, rather than comparing against
-                // it (or leaving it stale) -- the same "nothing useful to
-                // compare against while something else legitimately drives
-                // this bone" reasoning RememberCurrentArmRotationsWithout
-                // Correcting already uses for the bootstrap case, so the
-                // FIRST frame after aiming ends has a genuinely fresh,
-                // just-rendered reference instead of a stale pre-aim one.
+                // ApplyGunAimPose/ApplyGunWalkHeadPose just set, rather than
+                // comparing against it (or leaving it stale) -- the same
+                // "nothing useful to compare against while something else
+                // legitimately drives this bone" reasoning
+                // RememberCurrentArmRotationsWithoutCorrecting already uses
+                // for the bootstrap case, so the FIRST frame after the
+                // correction ends has a genuinely fresh, just-rendered
+                // reference instead of a stale one.
+                if (_head != null)
+                {
+                    _previousHeadRotation = _head.localRotation;
+                }
+                _headSnapHeldLastFrame = false;
+            }
+            else
+            {
+                SuppressBoneSnap(_head, ref _previousHeadRotation, ref _headSnapHeldLastFrame, deltaTime);
+            }
+            if (_gunAimBlend > 0.0f)
+            {
                 if (_rightUpperArm != null)
                 {
                     _previousRightUpperArmRotation = _rightUpperArm.localRotation;
@@ -1097,7 +1224,19 @@ namespace CityX.Character
             }
 
             float deltaTime = Mathf.Max(Time.deltaTime, 1.0f / 240.0f);
-            SuppressBoneSnapForCapture(_head, ref _previousHeadRotation, deltaTime);
+            // See SuppressImplausibleArmSnapsCore's own comment on why the
+            // head's exclusion is broader than the right upper arm's.
+            if (_gunAimBlend > 0.0f || _gunWalkHeadBlend > 0.0f)
+            {
+                if (_head != null)
+                {
+                    _previousHeadRotation = _head.localRotation;
+                }
+            }
+            else
+            {
+                SuppressBoneSnapForCapture(_head, ref _previousHeadRotation, deltaTime);
+            }
             if (_gunAimBlend > 0.0f)
             {
                 if (_rightUpperArm != null)
@@ -1397,45 +1536,106 @@ namespace CityX.Character
         }
 
         /// <summary>
-        /// How far the gun-arm is allowed to tilt off the pistol_aim_in
-        /// clip's own level pose, in either direction -- a real arm aiming
-        /// a one-handed pistol has a genuine, comfortable range well short
-        /// of the camera's own full +/-90 pitch, so this clamps rather than
-        /// mapping 1:1 across the whole range (which would hyperextend the
-        /// shoulder looking straight up or down).
+        /// How far the gun-arm is allowed to swing off the body's own
+        /// forward direction, in any direction -- a real arm aiming a
+        /// one-handed pistol has a genuine, comfortable range well short of
+        /// the camera's own full +/-90 pitch (or an extreme lateral
+        /// parallax angle up close), so this clamps rather than mapping 1:1
+        /// (which would hyperextend the shoulder looking straight up/down,
+        /// or aiming at something right beside the camera).
         /// </summary>
         public const float GunAimPitchClampDegrees = 55.0f;
+
+        /// <summary>
+        /// How far ahead, along the camera's own forward ray, the gun arm
+        /// aims AT -- not the pistol's own Range (60m): a real shot fired
+        /// from the camera's own position converges toward the body's
+        /// centreline by the time it travels that far regardless, so the
+        /// visible difference beyond a more modest distance is negligible,
+        /// and a shorter convergence distance keeps the arm pose reacting
+        /// clearly to something close (a wall, another character) rather
+        /// than aiming at a point so far away the pose barely changes.
+        /// </summary>
+        public const float GunAimConvergenceDistance = 15.0f;
+
+        /// <summary>How fast the arm comes up for a shot when NOT aiming (about 40ms to full).</summary>
+        public const float GunFireBlendPerSecond = 24.0f;
+
+        /// <summary>A real aim point closer to the shoulder than this is ignored (aiming at your own feet swings the arm absurdly); the fixed convergence point is used instead.</summary>
+        public const float GunAimPointMinMetres = 1.5f;
 
         /// <summary>How fast _gunAimBlend eases toward 1 (or back to 0) -- reaches full strength in ~1/6s, comfortably inside the Animator's own 0.12s crossfade into the Aiming state.</summary>
         public const float GunAimBlendPerSecond = 6.0f;
 
         /// <summary>
-        /// EXPLICIT BUG REPORT: "the pistol aimed in pose is like positioned
-        /// to the left slightly make it point forward and turn with the
-        /// mouse." pistol_aim_in is a single static clip with no pitch
-        /// tracking at all -- looking up or down while aiming left the arm,
-        /// and therefore the gun, always pointing along the same fixed
-        /// level line no matter where the camera (and the actual hitscan
-        /// direction PistolWeapon.Fire already uses) was really pointing.
+        /// Extra yaw added on top of the camera's own while aiming and
+        /// standing still (see Tick's own "AIMING SNAPS INSTANTLY" branch) --
+        /// EXPLICIT ASK: "let me adjust the pov and model rotation manually
+        /// ... set up something using ingame console," after the plain
+        /// snap-to-camera-yaw still didn't read right for every camera
+        /// setup. A live, mutable field (not a const, which the /aim
+        /// console command couldn't reassign) so it can be tuned in-game
+        /// via /aim yaw and baked into this default afterward, the same
+        /// "tune live, then bake the winning number" workflow already
+        /// established for /jacket and /pistol.
+        /// </summary>
+        public float AimYawOffsetDegrees = 0.0f;
+
+        /// <summary>
+        /// Extra yaw applied to the ARM AND HEAD's shared convergence
+        /// target (ApplyGunAimPose's own targetDirection feeds both) --
+        /// see that method's own comment on why AimYawOffsetDegrees
+        /// (body-only) structurally cannot reach either. Tuned live via
+        /// /aim armyaw (arm+head only) or /aim yaw (which now sets this
+        /// AND AimYawOffsetDegrees together, so the whole character turns
+        /// as one piece instead of the body twisting away from a
+        /// still-camera-locked arm/head).
+        /// </summary>
+        public float ArmAimYawOffsetDegrees = 0.0f;
+
+        /// <summary>
+        /// Walking speed while aiming down sights, as a fraction of normal.
+        /// Live-tunable with /gun aimspeed. The directional gun-walk clips blend
+        /// on the body's real local velocity, so slowing down needs no new
+        /// animation -- 0.8 is mild enough not to make the stride visibly slide.
+        /// </summary>
+        public float AimMoveSpeedMultiplier = 0.8f;
+
+        /// <summary>
+        /// EXPLICIT BUG REPORT, twice over. First: "the pistol aimed in
+        /// pose is like positioned to the left slightly make it point
+        /// forward and turn with the mouse" -- pistol_aim_in is a single
+        /// static clip with no pitch tracking at all, so looking up or down
+        /// while aiming left the gun always pointing along the same fixed
+        /// level line regardless of where the camera (and the actual
+        /// hitscan direction PistolWeapon.Fire uses) really pointed. That
+        /// first fix pitched the arm around the body's own forward axis,
+        /// which fixed up/down but not left/right: the SECOND report,
+        /// later, was "the pose he goes in when you hold right click is
+        /// aimed to the left slightly he isnt even pointing the gun
+        /// forward" -- because the camera sits laterally offset from the
+        /// body's own centreline while aiming (ThirdPersonCamera's own
+        /// AimShoulderOffset), and a shot fires along the CAMERA's own ray,
+        /// not the body's. An arm merely pitched around the centreline
+        /// visibly diverges from where the gun is actually about to shoot
+        /// -- real parallax, not a sign or axis mistake.
+        ///
+        /// AIMS AT THE POINT THE CAMERA'S OWN RAY CONVERGES ON
+        /// (GunAimConvergenceDistance ahead of it) instead, which corrects
+        /// pitch AND the lateral parallax at once, with no separate
+        /// handling needed for either -- see the method body's own comment
+        /// for the fallback when no real camera data is available at all.
         ///
         /// TARGETS AN ABSOLUTE WORLD DIRECTION (BendLimbToward), NOT an
         /// additive offset on the animated base the way ApplyCastingPose
         /// works -- a continuously-tracked aim needs to re-converge on the
         /// true target every frame regardless of whatever the clip's own
         /// pose is doing, the same reasoning ApplySittingPose's own doc
-        /// comment gives for the identical choice. transform.forward is
-        /// already the body's own facing direction, which snaps to the
-        /// camera's yaw the instant aiming starts (see the "AIMING WINS"
-        /// body-facing block above) -- tilting THAT by the camera's own
-        /// pitch around the body's local right axis gives the true 3D aim
-        /// ray, so re-aiming the upper arm at it corrects the reported
-        /// left-of-centre drift as the same fix that adds pitch tracking,
-        /// not a second, separate change.
+        /// comment gives for the identical choice.
         ///
         /// BLENDED IN OVER _gunAimBlend, NOT APPLIED AT FULL STRENGTH THE
         /// INSTANT AIMING STARTS -- EXPLICIT REGRESSION, found by the full
-        /// suite (not the one new targeted test, which never exercised this
-        /// path): BendLimbToward is a hard re-target, and several
+        /// suite: BendLimbToward is a hard re-target, and several
         /// randomised PlayMode tests occasionally set Aiming=true as part
         /// of realistic varied input with no gun equipped at all
         /// (DevConsoleAnimatorFreezePlayTests/LocomotionAnimatorStability
@@ -1452,17 +1652,192 @@ namespace CityX.Character
         /// </summary>
         private void ApplyGunAimPose()
         {
+            float deltaTime = Mathf.Max(_lastTickDeltaTime, 0.0f);
             _gunAimBlend = Mathf.MoveTowards(
-                _gunAimBlend, _isAimingGun ? 1.0f : 0.0f, GunAimBlendPerSecond * Mathf.Max(_lastTickDeltaTime, 0.0f));
+                _gunAimBlend, (_isAimingGun || _gunFireHold > 0.0f) ? 1.0f : 0.0f,
+                // The arm swings up FAST for a shot: the tracer only lives ~0.12s, and
+                // at the ordinary 6/s (0.17s) the gun was still coming up while the
+                // streak was already gone.
+                (!_isAimingGun && _gunFireHold > 0.0f ? GunFireBlendPerSecond : GunAimBlendPerSecond) * deltaTime);
+            // EXCLUDES AIMING (!_isAimingGun), NOT JUST GunEquipped alone --
+            // see this method's own "HIP-FIRE HEAD" comment below for why
+            // this and _gunAimBlend must never both be applying a head
+            // correction on the same frame.
+            _gunWalkHeadBlend = Mathf.MoveTowards(
+                _gunWalkHeadBlend, (_gunEquipped && !_isAimingGun && _gunFireHold <= 0.0f) ? 1.0f : 0.0f, GunAimBlendPerSecond * deltaTime);
+
             if (_gunAimBlend <= 0.0f || _rightUpperArm == null || _rightLowerArm == null)
             {
+                ApplyGunWalkHeadPose();
                 return;
             }
-            float clampedPitch = Mathf.Clamp(_gunAimPitchDegrees, -GunAimPitchClampDegrees, GunAimPitchClampDegrees);
-            Vector3 targetDirection = Quaternion.AngleAxis(clampedPitch, transform.right) * transform.forward;
+
+            // EXPLICIT REGRESSION, found by the full suite (the same class
+            // this method's own blend-easing doc comment already
+            // describes fixing once): several PlayMode tests drive
+            // PlayerLocomotion.Tick with a directly-constructed
+            // LocomotionInput that never sets AimCameraPosition/Forward at
+            // all, which leaves _gunAimCameraForward at its struct
+            // default -- an impossible value for a REAL forward vector
+            // (always unit length), reliably telling apart "no real camera
+            // data supplied" from "camera happens to face world +Z." Aiming
+            // at a fixed, player-position-independent world point in that
+            // case (rather than degrading to plain body-forward, what the
+            // pitch-only formula this replaced always effectively did) is
+            // what PoseDistortionWatchdog caught: the target direction
+            // itself was wrong for the whole time Aiming stayed true, not
+            // just the one already-handled first frame the blend eases.
+            Vector3 desiredDirection;
+            _hasAimedPoint = false;
+            if (_gunAimCameraForward.sqrMagnitude < 0.0001f)
+            {
+                desiredDirection = transform.forward;
+            }
+            else
+            {
+                // AIM AT WHERE THE SHOT REALLY GOES when the reader supplied it (the
+                // crosshair ray's actual hit point), so the barrel, the bullet and
+                // the tracer all agree; only fall back to a fixed 15m along the ray
+                // when there is no such point, or it is too close to aim at sanely.
+                Vector3 aimPoint = _gunAimCameraPosition + _gunAimCameraForward.normalized * GunAimConvergenceDistance;
+                if (_hasGunAimPoint
+                    && (_gunAimPoint - _rightUpperArm.position).sqrMagnitude > GunAimPointMinMetres * GunAimPointMinMetres)
+                {
+                    aimPoint = _gunAimPoint;
+                }
+                _aimedPoint = aimPoint;
+                _hasAimedPoint = true;
+                desiredDirection = (aimPoint - _rightUpperArm.position).normalized;
+            }
+            // Clamps the TOTAL swing off dead-ahead (pitch and yaw together),
+            // the same reason RotateTowards -- not a separate axis-by-axis
+            // clamp -- is the right tool: a hyperextended shoulder is just
+            // as wrong from lateral parallax up close as it is from an
+            // extreme camera pitch, and this bounds both the same way.
+            Vector3 targetDirection = Vector3.RotateTowards(
+                transform.forward, desiredDirection, GunAimPitchClampDegrees * Mathf.Deg2Rad, 0.0f);
+            // A SEPARATE KNOB FROM AimYawOffsetDegrees -- EXPLICIT BUG REPORT:
+            // "the commands your giving arent rotating the part of the body
+            // i want." AimYawOffsetDegrees only ever rotates the BODY ROOT;
+            // this arm target is computed from the CAMERA's own convergence
+            // point, entirely independent of body yaw, specifically so the
+            // gun tracks the crosshair regardless of how the body is turned
+            // -- which means no amount of AimYawOffsetDegrees can ever visibly
+            // move the ARM/GUN itself. If the gun's own angle (not the
+            // torso/legs) is what looks wrong, THIS is the value that
+            // actually reaches it.
+            targetDirection = Quaternion.AngleAxis(ArmAimYawOffsetDegrees, Vector3.up) * targetDirection;
             Vector3 currentDirection = (_rightLowerArm.position - _rightUpperArm.position).normalized;
             Vector3 blendedDirection = Vector3.Slerp(currentDirection, targetDirection, _gunAimBlend);
             BendLimbToward(_rightUpperArm, _rightLowerArm.position, blendedDirection);
+
+            // THEN AIM THE BARREL ITSELF. Pointing the UPPER ARM at the target only
+            // points the shoulder-to-elbow segment; the forearm, hand and grip carry
+            // the clip's own bend, so the gun's barrel ended up ~20 degrees off
+            // even with the arm "on target" (the offset the /aim armyaw knob was
+            // invented to hand-tune). With the real muzzle known, measure where the
+            // barrel actually points and rotate the whole arm by the remaining error:
+            // a rigid rotation about the shoulder turns the barrel by exactly that.
+            if (GunMuzzle != null && _hasAimedPoint)
+            {
+                // A FEW PASSES, not one: turning the arm about the shoulder also MOVES
+                // the muzzle (about 0.7m from the shoulder), which shifts the direction
+                // it should point at a close target -- each pass halves what is left.
+                for (int pass = 0; pass < GunBarrelCorrectionPasses; pass++)
+                {
+                    Vector3 barrel = GunMuzzle.forward;
+                    Vector3 wantedBarrel = (_aimedPoint - GunMuzzle.position).normalized;
+                    Quaternion correction = Quaternion.FromToRotation(barrel, wantedBarrel);
+                    correction.ToAngleAxis(out float angle, out Vector3 axis);
+                    if (angle > 180.0f)
+                    {
+                        angle -= 360.0f;   // the short way round
+                    }
+                    angle = Mathf.Clamp(angle, -GunBarrelCorrectionMaxDegrees, GunBarrelCorrectionMaxDegrees);
+                    if (Mathf.Abs(angle) < 0.05f)
+                    {
+                        break;
+                    }
+                    correction = Quaternion.AngleAxis(angle * _gunAimBlend, axis);
+                    _rightUpperArm.rotation = correction * _rightUpperArm.rotation;
+                }
+            }
+
+            // THE HEAD, SAME TREATMENT -- EXPLICIT BUG REPORT: "the head is
+            // still being angled to the left slightly when aiming in just
+            // have it face forward and move with the mouse obviously."
+            // pistol_aim_in.fbx/pistol_walk.fbx's own retargeted mocap bakes
+            // whatever the source actor's head happened to be doing (a
+            // realistic sighting cant, slightly off the body's own
+            // centreline) into the head bone's LOCAL rotation -- which the
+            // body's own instant snap-to-camera (see Tick's own rotation
+            // comment) does nothing to correct, since a local bone rotation
+            // is relative to its parent and untouched by the root turning.
+            // Reuses targetDirection (the SAME clamped camera-converged
+            // direction the arm above already aims at) rather than a
+            // separate calculation -- down the sights, the eye line and the
+            // gun's own barrel point the same way anatomically, and it means
+            // the head visually tracks the mouse exactly as far as the arm
+            // itself is allowed to swing (GunAimPitchClampDegrees), not
+            // independently.
+            //
+            // .forward, NOT a child-position BendLimbToward call -- the head
+            // has no natural "child bone" the way an upper arm has a lower
+            // arm to measure a segment direction from. Unity's Humanoid
+            // retargeting normalises every bone into a common orientation
+            // space where local +Z is the anatomical forward for that bone
+            // regardless of the source rig's own raw axes, so `.forward` is
+            // exactly "the direction the face is pointing" for any correctly
+            // retargeted Humanoid head bone.
+            if (_head != null)
+            {
+                Vector3 currentHeadForward = _head.forward;
+                Vector3 blendedHeadForward = Vector3.Slerp(currentHeadForward, targetDirection, _gunAimBlend);
+                Quaternion headDelta = Quaternion.FromToRotation(currentHeadForward, blendedHeadForward);
+                _head.rotation = headDelta * _head.rotation;
+            }
+        }
+
+        /// <summary>
+        /// HIP-FIRE HEAD -- EXPLICIT BUG REPORT, after the aim-only head fix
+        /// above shipped: "the walking animation and his head is still
+        /// angled to the left slightly why is it doing this... there was no
+        /// issue in godot." The fix above only ever runs while
+        /// _gunAimBlend is positive, i.e. while right-click is actually
+        /// held (or still easing out of it) -- ordinary hip-fire movement
+        /// with the gun equipped (ApplyGunAimPose's own early return above
+        /// takes THIS branch whenever _isAimingGun is false) never touched
+        /// the head at all, so pistol_walk.fbx's own baked head cant --
+        /// the SAME retargeting artifact the aim-in clip has, see this
+        /// class's own GunEquipped field comment -- showed straight
+        /// through uncorrected during ordinary walking, which is most of
+        /// the time a drawn pistol is actually on screen.
+        ///
+        /// TARGETS transform.forward, NOT the camera-converged
+        /// targetDirection the aiming correction above uses -- there is no
+        /// "aim point" to converge on while just walking with the gun
+        /// drawn (hip-fire has no crosshair-lock in this game, matching
+        /// Godot's own gun_walk, which never raises the gun to eye level
+        /// either), so "face the same way the body itself is already
+        /// facing" is the correct target, not a reason to fall back to
+        /// reading camera fields that would not mean the same thing here.
+        ///
+        /// MUTUALLY EXCLUSIVE WITH THE AIMING CORRECTION ABOVE BY
+        /// CONSTRUCTION, not by an extra guard -- this is only ever called
+        /// from ApplyGunAimPose's own early-return branch, which is only
+        /// reached when _gunAimBlend is already at zero.
+        /// </summary>
+        private void ApplyGunWalkHeadPose()
+        {
+            if (_gunWalkHeadBlend <= 0.0f || _head == null)
+            {
+                return;
+            }
+
+            Vector3 currentHeadForward = _head.forward;
+            Vector3 blendedHeadForward = Vector3.Slerp(currentHeadForward, transform.forward, _gunWalkHeadBlend);
+            Quaternion headDelta = Quaternion.FromToRotation(currentHeadForward, blendedHeadForward);
+            _head.rotation = headDelta * _head.rotation;
         }
 
         /// <summary>
@@ -1668,6 +2043,10 @@ namespace CityX.Character
             // deltaTime, the same class of mismatch this file's own history
             // already warns about elsewhere.
             _lastTickDeltaTime = deltaTime;
+            if (_gunFireHold > 0.0f)
+            {
+                _gunFireHold = Mathf.Max(0.0f, _gunFireHold - deltaTime);
+            }
 
             // See FallThroughWorldY's own doc comment. Checked first, every
             // Tick, unconditionally -- cheap when it never fires (which is
@@ -1717,6 +2096,14 @@ namespace CityX.Character
             float speed = input.JetpackDiving ? SprintSpeed * JetpackDiveSpeedMultiplier
                 : (sprinting || input.JetpackBoosting) ? SprintSpeed
                 : WalkSpeed;
+
+            // AIMING DOWN SIGHTS SLOWS YOU (Fortnite, Gears, The Division all
+            // do): you trade speed for a steady, zoomed aim. Not while the
+            // jetpack is flying you -- that is not walking.
+            if (input.Aiming && !input.JetpackBoosting && !input.JetpackDiving)
+            {
+                speed *= AimMoveSpeedMultiplier;
+            }
             Vector3 targetHorizontal = direction * speed;
             Vector3 horizontal;
 
@@ -1749,7 +2136,7 @@ namespace CityX.Character
             else
             {
                 _horizontalVelocity = Vector3.MoveTowards(
-                    _horizontalVelocity, targetHorizontal, HorizontalAcceleration * deltaTime);
+                    _horizontalVelocity, targetHorizontal, HorizontalAcceleration * WetTraction() * deltaTime);
                 horizontal = _horizontalVelocity;
             }
 
@@ -1790,10 +2177,7 @@ namespace CityX.Character
             if (grounded && input.Jump)
             {
                 _verticalVelocity = JumpVelocity;
-                if (_animator != null)
-                {
-                    _animator.SetTrigger(JumpParameter);
-                }
+                FireTrigger(JumpParameter);
             }
 
             // THE CHARGED RELEASE. Height is proportional to the SQUARE of
@@ -1824,10 +2208,7 @@ namespace CityX.Character
                         1.0f, ChargedJumpHeightMultiplier, Mathf.Clamp01(input.JumpChargeFraction));
                     _verticalVelocity = JumpVelocity * Mathf.Sqrt(heightMultiplier);
                 }
-                if (_animator != null)
-                {
-                    _animator.SetTrigger(JumpParameter);
-                }
+                FireTrigger(JumpParameter);
             }
 
             // _residualVelocity rides on top of the WASD-driven horizontal
@@ -1862,28 +2243,43 @@ namespace CityX.Character
             // flick of the mouse lets the body lag the camera for a few frames
             // instead of snapping.
             //
-            // AIMING SNAPS INSTANTLY INSTEAD, EVEN WHILE STANDING STILL --
-            // EXPLICIT BUG REPORT: "fix the pistol make it so you hold it
-            // straight crosshair centered character not at weird angle."
-            // The gun is rigidly parented to the right hand (PistolWeapon.
-            // OnEquip), so it only ever points wherever the BODY faces --
-            // and the body used to only turn "ONLY WHILE MOVING" (see just
-            // above), meaning stopping to aim (the natural way to aim: stop,
-            // aim, shoot) left the body frozen facing wherever it last
-            // walked, with the crosshair/camera pointed somewhere else
-            // entirely. A real shooter's aim has to track the camera the
-            // INSTANT it starts, not ease in at TurnDegreesPerSecond like an
-            // ordinary walking turn -- a lagging catch-up would itself read
-            // as "at a weird angle" for the first several frames.
-            if (moving)
+            // AIMING SNAPS INSTANTLY INSTEAD, EVEN WHILE MOVING -- CHECKED
+            // FIRST, ahead of "moving". EXPLICIT BUG REPORT: "fix the pistol
+            // make it so you hold it straight crosshair centered character
+            // not at weird angle," later repeated specifically for walking
+            // while holding right-click: "he is rotated to the left." The
+            // gun is rigidly parented to the right hand (PistolWeapon.
+            // OnEquip), so it only ever points wherever the BODY faces. This
+            // used to be an else-if under "moving" above, which meant two
+            // separate bugs from the same root cause: (1) stopping to aim
+            // (stop, aim, shoot) left the body frozen facing wherever it
+            // last walked, since standing-still took neither branch at all;
+            // (2) walking WHILE aiming used the eased TurnDegreesPerSecond
+            // turn instead of snapping, so the body visibly lagged the
+            // camera for as long as it kept turning -- read as "angled off"
+            // for anyone strafing or looking around while aiming, which is
+            // most of the time aiming is actually used. A real shooter's aim
+            // has to track the camera THE INSTANT it starts, moving or not --
+            // a lagging catch-up reads as "at a weird angle" the whole time
+            // it is catching up.
+            if (input.Aiming || _gunFireHold > 0.0f)
+            {
+                transform.rotation = Quaternion.Euler(0.0f, input.YawDegrees + AimYawOffsetDegrees, 0.0f);
+            }
+            else if (input.LockedOn)
+            {
+                // LOCKED ON: face the camera's yaw (which is steering at the
+                // target) moving or not -- the fight faces itself, and WASD
+                // becomes strafing. Snapped, because the camera's own yaw
+                // already eases toward the target; easing the body as well
+                // would double-lag it.
+                transform.rotation = Quaternion.Euler(0.0f, input.YawDegrees, 0.0f);
+            }
+            else if (moving)
             {
                 Quaternion facing = Quaternion.Euler(0.0f, input.YawDegrees, 0.0f);
                 transform.rotation = Quaternion.RotateTowards(
                     transform.rotation, facing, TurnDegreesPerSecond * deltaTime);
-            }
-            else if (input.Aiming)
-            {
-                transform.rotation = Quaternion.Euler(0.0f, input.YawDegrees, 0.0f);
             }
 
             Vector3 local = transform.InverseTransformDirection(horizontal);
@@ -1893,7 +2289,11 @@ namespace CityX.Character
             // same "carry the answer, apply it once the Animator has had
             // its turn" shape every other procedural pose in this file uses.
             _isAimingGun = input.Aiming;
-            _gunAimPitchDegrees = input.AimPitchDegrees;
+            _gunEquipped = input.GunEquipped;
+            _gunAimCameraPosition = input.AimCameraPosition;
+            _gunAimCameraForward = input.AimCameraForward;
+            _gunAimPoint = input.GunAimPoint;
+            _hasGunAimPoint = input.HasGunAimPoint;
 
             if (_animator != null)
             {
@@ -1905,6 +2305,7 @@ namespace CityX.Character
                 _animator.SetBool(ChargingJumpParameter, input.ChargingJump);
                 _animator.SetBool(AimingParameter, input.Aiming);
                 _animator.SetBool(SwordEquippedParameter, input.SwordEquipped);
+                _animator.SetBool(GunEquippedParameter, input.GunEquipped);
                 _animator.SetBool(JetpackThrustingParameter, input.JetpackThrusting);
                 _animator.SetBool(DancingParameter, input.Dancing);
                 _animator.SetBool(BreakdancingParameter, input.Breakdancing);

@@ -24,6 +24,9 @@ namespace CityX.World
 
         /// <summary>Rare landmark, 240-320m. Chongqing's own top out around 470m.</summary>
         Supertall,
+
+        /// <summary>Industrial zones: a wide, low, blank shed, 9-22m, on a big lot. Appended last so no existing value shifts.</summary>
+        Warehouse,
     }
 
     /// <summary>

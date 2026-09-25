@@ -46,7 +46,7 @@ namespace CityX.ViewEditor
         /// screen's backdrop and the massing scene's own city stop
         /// matching.
         /// </summary>
-        private const int WorldSeed = 29481073;
+        private const int WorldSeed = 58316047;
 
         [MenuItem("CityX/Rebuild Massing Scene")]
         public static void Build()
@@ -98,6 +98,11 @@ namespace CityX.ViewEditor
             // Darker, aged wood -- a reading stand reads as furniture in
             // its own right, distinct from a bench's own lighter warm brown.
             Material bookStand = EnsureLitMaterial("CityBookStand", new Color(0.24f, 0.16f, 0.10f));
+
+            // Park lawns and tree canopies -- a flat, slightly cool green that
+            // sits between the concrete grey and the night sky without
+            // fighting either. Trunks reuse the bench wood.
+            Material grass = EnsureLitMaterial("CityGrass", new Color(0.17f, 0.33f, 0.14f));
 
             Material skyDome = EnsureSkyMaterial();
             VolumeProfile grade = EnsureGradeProfile();
@@ -156,6 +161,15 @@ namespace CityX.ViewEditor
             camera.tag = "MainCamera";
             camera.farClipPlane = 2000.0f;
             camera.nearClipPlane = 0.15f;
+            // player.gd's own camera.fov -- ThirdPersonCamera.Awake reads
+            // _restFieldOfView straight off this Camera component (the same
+            // "captured from whatever's already configured" idiom player.gd's
+            // own _default_fov uses), so it has to be set explicitly here or
+            // it silently falls back to Unity's own unrelated default (60,
+            // narrower than Godot's real 75 -- never noticed because nothing
+            // ever set it either way). EXPLICIT ASK: "I WANT IT EXACTLY THE
+            // SAME," found by actually reading player.gd instead of guessing.
+            camera.fieldOfView = 75.0f;
             camera.backgroundColor = new Color(0.55f, 0.60f, 0.66f);
             camera.allowHDR = true;
             camera.allowMSAA = true;
@@ -224,6 +238,7 @@ namespace CityX.ViewEditor
             GameObject skelliJeansPrefab = CityX.WearablesEditor.SkinnedGarmentBuilder.BuildJeans();
             GameObject hoodedCloakPrefab = CityX.WearablesEditor.SkinnedGarmentBuilder.BuildCloak();
             GameObject midnightPatchworkCoatPrefab = CityX.WearablesEditor.MidnightPatchworkCoatBuilder.Build();
+            GameObject blackPufferJacketPrefab = CityX.WearablesEditor.BlackPufferJacketBuilder.Build();
             GameObject grapplingHookPrefab = CityX.WeaponsEditor.GrapplingHookBuilder.Build();
             GameObject pistolPrefab = CityX.WeaponsEditor.PistolBuilder.Build();
             GameObject jetpackPrefab = CityX.WeaponsEditor.JetpackBuilder.Build();
@@ -231,7 +246,6 @@ namespace CityX.ViewEditor
             GameObject swordPrefab = CityX.WeaponsEditor.SwordBuilder.Build();
             GameObject flamethrowerPrefab = CityX.WeaponsEditor.FlamethrowerBuilder.Build();
             GameObject topHatPrefab = CityX.WearablesEditor.TopHatBuilder.Build();
-            GameObject farmerHatPrefab = CityX.WearablesEditor.FarmerHatBuilder.Build();
             GameObject mustangPrefab = CityX.VehiclesEditor.CarBuilder.Build();
 
             // --- the player. The flycam stays on the same object but disabled,
@@ -298,6 +312,7 @@ namespace CityX.ViewEditor
                     "Assets/CityX/UI/Audio/rain_noises.mp3");
                 rain.DropMaterial = EnsureRainMaterial();
                 rain.SplashMaterial = EnsureSplashMaterial();
+                rain.RippleMaterial = EnsureRippleMaterial();
 
                 // NO AMBIENT CROWD. There was one -- a pooled dozen recycled
                 // around the viewer as they walked -- and it went at the user's
@@ -418,6 +433,8 @@ namespace CityX.ViewEditor
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.MidnightPatchworkCoat, Prefab = midnightPatchworkCoatPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.BlackPufferJacket, Prefab = blackPufferJacketPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.GrapplingHook, Prefab = grapplingHookPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.Pistol, Prefab = pistolPrefab },
@@ -429,8 +446,6 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.Sword, Prefab = swordPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.TopHat, Prefab = topHatPrefab },
-                    new CityX.Character.Inventory.ItemPrefabEntry
-                        { ItemId = CityX.Items.ItemRegistry.FarmerHat, Prefab = farmerHatPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.Flamethrower, Prefab = flamethrowerPrefab },
                 };
@@ -550,6 +565,7 @@ namespace CityX.ViewEditor
             if (rainEffect != null)
             {
                 rainEffect.Sun = sun;
+                rainEffect.Cycle = cycle;
                 rainEffect.Grade = grade;
                 rainEffect.WetGroundMaterials = new[] { ground, pavement, structure };
                 // The EXACT same numbers set on RenderSettings two lines
@@ -582,9 +598,9 @@ namespace CityX.ViewEditor
                 swordPrefab,
                 topHatPrefab,
                 mustangPrefab,
-                farmerHatPrefab,
                 flamethrowerPrefab,
-                parachutePrefab);
+                parachutePrefab,
+                blackPufferJacketPrefab);
 
             // Watches the player's own rig every real frame during ordinary
             // play and logs a full snapshot the instant it looks distorted
@@ -634,6 +650,13 @@ namespace CityX.ViewEditor
                 playerObjectForWatchdog.AddComponent<NetworkTransform>();
                 playerObjectForWatchdog.AddComponent<CityX.Character.NetworkedPlayerIdentity>();
                 playerObjectForWatchdog.AddComponent<CityX.Character.NetworkedAnimatorSync>();
+                // Same view-distance culling the derived clone prefab gets
+                // just below (NetworkedPlayerBuilder.Build) -- without this,
+                // the HOST's own baked body would observe (and be observed
+                // by) every other player regardless of distance even though
+                // every joining clone already correctly culls. See
+                // NetworkedPlayerIdentity.ViewRadius's own doc comment.
+                CityX.CharacterEditor.NetworkedPlayerBuilder.AddViewDistanceObserver(playerObjectForWatchdog);
                 // OnValidate is what actually assigns a real SceneId (and
                 // the WasActiveDuringEdit flag) -- Unity calls it
                 // automatically after an Editor AddComponent normally, but
@@ -696,6 +719,8 @@ namespace CityX.ViewEditor
             streamer.GuardRailMaterial = guardRail;
             streamer.BenchMaterial = benchWood;
             streamer.BookMaterial = bookStand;
+            streamer.GrassMaterial = grass;
+            streamer.BarkMaterial = benchWood;
 
             // Punching a window is the streamer's business because the damage
             // is: chunks come and go, the record of what is broken does not.
@@ -1212,11 +1237,14 @@ namespace CityX.ViewEditor
                 // 1 at the centre, 0 at both ends -- a softer taper than
                 // linear so the streak keeps most of its length looking
                 // solid rather than fading immediately off both tips.
-                float lengthFade = Mathf.Clamp01(1.0f - Mathf.Pow(Mathf.Abs(t - 0.5f) * 2.0f, 1.4f));
+                float lengthFade = Mathf.Clamp01(1.0f - Mathf.Pow(Mathf.Abs(t - 0.5f) * 2.0f, 2.2f));
                 for (int x = 0; x < width; x++)
                 {
                     float xt = (x + 0.5f) / width;
-                    float widthFade = Mathf.Clamp01(1.0f - Mathf.Pow(Mathf.Abs(xt - 0.5f) * 2.0f, 2.0f));
+                    // A flat-topped profile across the width: a drop is only a
+                    // couple of centimetres wide, and a peaked one leaves so
+                    // little bright core that it is sub-pixel at any distance.
+                    float widthFade = Mathf.Clamp01(1.0f - Mathf.Pow(Mathf.Abs(xt - 0.5f) * 2.0f, 4.0f));
                     pixels[y * width + x] = new Color(1.0f, 1.0f, 1.0f, lengthFade * widthFade);
                 }
             }
@@ -1312,6 +1340,77 @@ namespace CityX.ViewEditor
             Texture2D dot = EnsureSplashTexture();
             material.SetTexture("_BaseMap", dot);
             material.mainTexture = dot;
+            EditorUtility.SetDirty(material);
+            return material;
+        }
+
+        /// <summary>
+        /// A thin soft ring, bright along one radius and fading either side:
+        /// the shape of a ripple spreading on standing water. 64px is plenty
+        /// for something a metre wide and gone in under a second.
+        /// </summary>
+        private static Texture2D EnsureRippleTexture()
+        {
+            string path = $"{MaterialDirectory}/Ripple.png";
+            Texture2D existing = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+            if (existing != null)
+            {
+                return existing;
+            }
+
+            const int size = 64;
+            var pixels = new Color32[size * size];
+            Vector2 centre = new Vector2(size * 0.5f, size * 0.5f);
+            float maxDistance = size * 0.5f;
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float d = Vector2.Distance(new Vector2(x + 0.5f, y + 0.5f), centre) / maxDistance;
+                    // A gaussian ring at 0.78 of the radius, with the very rim
+                    // faded out so it never shows the quad's own edge.
+                    float ring = Mathf.Exp(-Mathf.Pow((d - 0.78f) / 0.13f, 2.0f));
+                    float rim = Mathf.Clamp01((1.0f - d) / 0.12f);
+                    pixels[y * size + x] = new Color(1.0f, 1.0f, 1.0f, ring * rim);
+                }
+            }
+            return SaveGeneratedTexture(pixels, size, size, path);
+        }
+
+        /// <summary>The ripple ring material -- the same unlit/transparent recipe as the splash, its own ring texture, white so the particle colour tints it.</summary>
+        private static Material EnsureRippleMaterial()
+        {
+            string path = $"{MaterialDirectory}/Ripple.mat";
+            Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material == null)
+            {
+                Shader shader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
+                if (shader == null)
+                {
+                    shader = Shader.Find("Universal Render Pipeline/Unlit");
+                }
+                if (shader == null)
+                {
+                    Debug.LogError("CityX: no URP unlit shader -- ripples will render magenta.");
+                    return null;
+                }
+                material = new Material(shader);
+                AssetDatabase.CreateAsset(material, path);
+            }
+
+            material.SetFloat("_Surface", 1.0f);
+            material.SetFloat("_Blend", 0.0f);
+            material.SetFloat("_ZWrite", 0.0f);
+            material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            material.SetOverrideTag("RenderType", "Transparent");
+            material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            material.SetColor("_BaseColor", Color.white);
+            material.color = Color.white;
+            Texture2D ring = EnsureRippleTexture();
+            material.SetTexture("_BaseMap", ring);
+            material.mainTexture = ring;
             EditorUtility.SetDirty(material);
             return material;
         }

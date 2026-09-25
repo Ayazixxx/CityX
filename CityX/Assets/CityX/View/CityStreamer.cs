@@ -22,13 +22,28 @@ namespace CityX.View
         // real scenes always set this from that same constant at build
         // time. EXPLICIT ASK: "generate a new world every time you make a
         // change to the city generation."
-        public int WorldSeed = 29481073;
+        public int WorldSeed = 58316047;
 
         [Tooltip("Chunks of radius kept loaded around the viewer.")]
         public int RadiusChunks = 14;
 
         [Tooltip("Most chunks built in one frame. Low keeps the frame smooth; high fills in faster.")]
         public int ChunkBuildBudgetPerFrame = 6;
+
+        /// <summary>
+        /// The most milliseconds one frame's streaming may spend building chunks,
+        /// checked after each one (so a frame always builds at least one).
+        ///
+        /// A COUNT ALONE IS NOT A BUDGET WHEN CHUNKS DO NOT COST THE SAME. A
+        /// chunk's geometry cost grows with its building's height -- about 0.5ms
+        /// under 40m, 2ms at 100m, 4.5ms at 200m, 10ms at 300m -- and the zoned
+        /// city puts its tall buildings together in downtown cores. Six chunks
+        /// a frame was ~8ms of streaming in the old uniform city and up to
+        /// ~27ms walking through a core of towers. Whichever limit is reached
+        /// first ends the frame's streaming.
+        /// </summary>
+        [Tooltip("Most milliseconds of chunk building per frame; whichever of this and the chunk count comes first ends it.")]
+        public float ChunkBuildTimeBudgetMs = 6.0f;
 
         /// <summary>
         /// How many chunks around the real player get force-built
@@ -91,6 +106,13 @@ namespace CityX.View
         [Tooltip("The short guardrail along a street-level drop.")]
         public Material GuardRailMaterial;
 
+        [Header("Open blocks")]
+        [Tooltip("Lawns and tree canopies in parks -- see CityMeshBuilder.AddOpenBlockSurface. Leave empty to skip them.")]
+        public Material GrassMaterial;
+
+        [Tooltip("Tree trunks. Leave empty to skip the greenery entirely.")]
+        public Material BarkMaterial;
+
         [Header("Props")]
         [Tooltip("Park benches -- see BenchSeat.cs. Leave empty to skip spawning them.")]
         public Material BenchMaterial;
@@ -124,6 +146,8 @@ namespace CityX.View
         private readonly MeshBuffer _markings = new MeshBuffer();
         private readonly MeshBuffer _laneDividers = new MeshBuffer();
         private readonly MeshBuffer _guardRail = new MeshBuffer();
+        private readonly MeshBuffer _greenery = new MeshBuffer();
+        private readonly MeshBuffer _bark = new MeshBuffer();
         private readonly HashSet<Vector2Int> _openDoors = new HashSet<Vector2Int>();
         private readonly List<Vector2Int> _wanted = new List<Vector2Int>();
         private readonly List<Vector2Int> _stale = new List<Vector2Int>();
@@ -224,7 +248,7 @@ namespace CityX.View
             {
                 return;
             }
-            StreamAround(viewer.position, Mathf.Max(1, ChunkBuildBudgetPerFrame));
+            StreamAround(viewer.position, Mathf.Max(1, ChunkBuildBudgetPerFrame), ChunkBuildTimeBudgetMs);
         }
 
         /// <summary>
@@ -235,8 +259,13 @@ namespace CityX.View
         /// int.MaxValue and get a complete city in one call. A screenshot tool
         /// that only ever saw a partially streamed world would be checking
         /// something the player never sees.
+        ///
+        /// <paramref name="timeBudgetMs"/> additionally ends the building once
+        /// that many milliseconds have gone (after at least one chunk); the
+        /// default is no limit, which is what the synchronous pre-stream and
+        /// the captures want.
         /// </summary>
-        public void StreamAround(Vector3 position, int budget)
+        public void StreamAround(Vector3 position, int budget, float timeBudgetMs = float.PositiveInfinity)
         {
             if (_world == null)
             {
@@ -287,9 +316,16 @@ namespace CityX.View
                 return da.CompareTo(db);
             });
 
+            System.Diagnostics.Stopwatch clock = float.IsPositiveInfinity(timeBudgetMs)
+                ? null
+                : System.Diagnostics.Stopwatch.StartNew();
             for (int i = 0; i < _wanted.Count && i < budget; i++)
             {
                 _loaded[_wanted[i]] = BuildChunkObject(_wanted[i]);
+                if (clock != null && clock.Elapsed.TotalMilliseconds >= timeBudgetMs)
+                {
+                    break;
+                }
             }
         }
 
@@ -309,6 +345,8 @@ namespace CityX.View
             _markings.Clear();
             _laneDividers.Clear();
             _guardRail.Clear();
+            _greenery.Clear();
+            _bark.Clear();
 
             // Chunks are built relative to their own corner and then placed, so
             // vertex coordinates stay small. Building in absolute world space
@@ -319,7 +357,9 @@ namespace CityX.View
 
             CityMeshBuilder.BuildChunk(_world, _bridges, key.x, key.y, origin,
                 _ground, _pavement, _structures, _litGlass, _darkGlass, _crackedGlass, Damage,
-                _crackedOpenings, _markings, _guardRail, _laneDividers, _crackDecals);
+                _crackedOpenings, _markings, _guardRail, _laneDividers, _crackDecals,
+                GrassMaterial != null && BarkMaterial != null ? _greenery : null,
+                GrassMaterial != null && BarkMaterial != null ? _bark : null);
 
             GameObject go = new GameObject($"Chunk {key.x},{key.y}");
             go.transform.SetParent(transform, false);
@@ -387,6 +427,7 @@ namespace CityX.View
             AddCrackDecals(go, key);
             AddMarkings(go, key);
             AddGuardRail(go, key);
+            AddGreenery(go, key);
             AddDoor(go, key);
             AddInteriorVolume(go, key);
             AddBenches(go, key);
@@ -524,6 +565,48 @@ namespace CityX.View
             renderer.sharedMaterial = GuardRailMaterial;
             MeshCollider collider = go.AddComponent<MeshCollider>();
             collider.sharedMesh = mesh;
+        }
+
+        /// <summary>
+        /// The lawn and trees of a park chunk (see
+        /// CityMeshBuilder.AddOpenBlockSurface) as one child object with two
+        /// submeshes -- grass, and bark -- and no collider: the terrace under it
+        /// is already solid, and a trunk is not worth cooking a collider for.
+        /// </summary>
+        private void AddGreenery(GameObject chunk, Vector2Int key)
+        {
+            if (_greenery.IsEmpty || GrassMaterial == null || BarkMaterial == null)
+            {
+                return;
+            }
+
+            var go = new GameObject("Greenery");
+            go.transform.SetParent(chunk.transform, false);
+
+            var vertices = new List<Vector3>(_greenery.Vertices);
+            var normals = new List<Vector3>(_greenery.Normals);
+            var uvs = new List<Vector2>(_greenery.Uvs);
+            var barkTriangles = new int[_bark.Triangles.Count];
+            int offset = vertices.Count;
+            for (int i = 0; i < barkTriangles.Length; i++)
+            {
+                barkTriangles[i] = _bark.Triangles[i] + offset;
+            }
+            vertices.AddRange(_bark.Vertices);
+            normals.AddRange(_bark.Normals);
+            uvs.AddRange(_bark.Uvs);
+
+            var mesh = new Mesh { name = $"greenery-{key.x}-{key.y}" };
+            mesh.SetVertices(vertices);
+            mesh.SetNormals(normals);
+            mesh.SetUVs(0, uvs);
+            mesh.subMeshCount = 2;
+            mesh.SetTriangles(_greenery.Triangles, 0);
+            mesh.SetTriangles(barkTriangles, 1);
+            mesh.RecalculateBounds();
+
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            go.AddComponent<MeshRenderer>().sharedMaterials = new[] { GrassMaterial, BarkMaterial };
         }
 
         /// <summary>

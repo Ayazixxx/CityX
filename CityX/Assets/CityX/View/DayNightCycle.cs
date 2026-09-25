@@ -50,6 +50,9 @@ namespace CityX.View
         /// </summary>
         public const float MoonDiscGain = 6.0f;
 
+        /// <summary>How much of the sun's and moon's disc a full overcast hides (1 would hide it completely).</summary>
+        public const float OvercastDiscHiding = 0.95f;
+
         private static readonly int EmissionColour = Shader.PropertyToID("_EmissionColor");
 
         private static readonly int SkyTop = Shader.PropertyToID("_SkyTopColour");
@@ -73,6 +76,16 @@ namespace CityX.View
 
         [Tooltip("Off freezes the sky wherever TimeOfDay currently is.")]
         public bool Running = true;
+
+        /// <summary>
+        /// 0 clear .. 1 a storm's cloud lid. Set by RainEffect; the sky, the
+        /// fog and the camera background all go grey together, which is the
+        /// same "dome horizon IS the fog colour" rule Apply already keeps.
+        /// </summary>
+        [Range(0.0f, 1.0f)] public float Overcast;
+
+        /// <summary>0..1 lightning flash over the whole sky. Set by RainEffect.</summary>
+        [Range(0.0f, 1.0f)] public float Flash;
 
         private void Update()
         {
@@ -127,7 +140,13 @@ namespace CityX.View
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
             RenderSettings.ambientLight = state.AmbientColour;
 
-            RenderSettings.fogColor = state.HorizonColour;
+            // Weather goes through the sky, the fog and the camera background
+            // ALL TOGETHER, from the same colour: the horizon end of the dome
+            // IS the fog colour, and a storm that greyed one without the
+            // others would put the streamed world's edge back in view.
+            Color horizon = SkyCycle.Weathered(state.HorizonColour, Overcast, Flash);
+
+            RenderSettings.fogColor = horizon;
 
             if (Sky != null)
             {
@@ -137,7 +156,7 @@ namespace CityX.View
                 // clears to the sky dome rather than to this, because the dome
                 // meets the horizon at exactly this colour and anything that
                 // falls back to a clear colour should land on it too.
-                Sky.backgroundColor = state.HorizonColour;
+                Sky.backgroundColor = horizon;
             }
 
             if (SkyDome != null)
@@ -145,12 +164,16 @@ namespace CityX.View
                 // The dome's horizon end IS the fog colour, by construction
                 // rather than by two values being kept in step -- which is the
                 // only way that never drifts.
-                SkyDome.SetColor(SkyTop, state.SkyTopColour);
-                SkyDome.SetColor(SkyHorizon, state.HorizonColour);
+                SkyDome.SetColor(SkyTop, SkyCycle.Weathered(state.SkyTopColour, Overcast, Flash));
+                SkyDome.SetColor(SkyHorizon, horizon);
                 SkyDome.SetFloat(SkyEnergy, state.SkyEnergy);
-                SkyDome.SetColor(GroundHorizon, state.HorizonColour);
-                SkyDome.SetColor(GroundBottom, state.GroundBottomColour);
+                SkyDome.SetColor(GroundHorizon, horizon);
+                SkyDome.SetColor(GroundBottom, SkyCycle.Weathered(state.GroundBottomColour, Overcast, Flash));
                 SkyDome.SetFloat(GroundEnergy, state.GroundEnergy);
+
+                // A cloud lid hides the sun and moon: their discs fade out
+                // rather than shining through the storm.
+                float discVisible = 1.0f - Overcast * OvercastDiscHiding;
 
                 // The discs. Fed the lights' own directions rather than
                 // recomputed from the pitch, so the sun in the sky cannot drift
@@ -159,7 +182,7 @@ namespace CityX.View
                 {
                     SkyDome.SetVector(SunDirection, -Sun.transform.forward);
                     SkyDome.SetColor(SunColour, state.SunColour);
-                    SkyDome.SetFloat(SunEnergy, state.SunIntensity);
+                    SkyDome.SetFloat(SunEnergy, state.SunIntensity * discVisible);
                 }
                 if (Moon != null)
                 {
@@ -168,7 +191,7 @@ namespace CityX.View
                     // Scaled up off its own intensity, which is a legibility
                     // number for lighting the street and would leave the moon
                     // itself an almost invisible smudge.
-                    SkyDome.SetFloat(MoonEnergy, state.MoonIntensity * MoonDiscGain);
+                    SkyDome.SetFloat(MoonEnergy, state.MoonIntensity * MoonDiscGain * discVisible);
                 }
             }
 

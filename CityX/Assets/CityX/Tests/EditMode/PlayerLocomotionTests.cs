@@ -343,5 +343,117 @@ namespace CityX.Tests
             Assert.AreEqual(45.0f, _locomotion.transform.eulerAngles.y, 0.01f,
                 "standing still without aiming should leave the body facing wherever it already was");
         }
+
+        /// <summary>
+        /// EXPLICIT BUG REPORT: "he is rotated to the left [while] holding
+        /// right click," reported specifically while walking. Aiming used
+        /// to be an else-if under "moving", so aiming WHILE moving took the
+        /// ordinary eased TurnDegreesPerSecond walking-turn instead of the
+        /// instant snap AimingSnapsInstantlyRatherThanEasingLikeAnOrdinary
+        /// WalkingTurn already covers for standing still -- meaning the
+        /// body visibly lagged the camera for as long as it kept turning
+        /// while walking and aiming at once, which reads as "rotated
+        /// wrong" for as long as the lag lasts, not just a one-frame snap.
+        /// Moving forward is exactly the case that used to hit the eased
+        /// branch, so Move is deliberately nonzero here, not
+        /// Vector2.zero like the standing-still tests above.
+        /// </summary>
+        [Test]
+        public void AimingWhileMovingAlsoSnapsInstantlyInsteadOfEasing()
+        {
+            var input = new LocomotionInput
+            {
+                Move = new Vector2(0.0f, 1.0f),
+                YawDegrees = 90.0f,
+                Aiming = true,
+            };
+
+            _locomotion.Tick(input, 0.016f);
+
+            Assert.AreEqual(90.0f, _locomotion.transform.eulerAngles.y, 0.01f,
+                "aiming while moving should snap to face the camera instantly, the same as standing still");
+        }
+
+        /// <summary>
+        /// LOCK-ON: the body faces the camera's yaw (which is steering at the
+        /// target) even standing still -- ordinary movement only turns the
+        /// body while moving, which would leave a locked-on fighter looking
+        /// away from the enemy until they took a step.
+        /// </summary>
+        [Test]
+        public void LockedOnFacesTheCameraYawEvenStandingStill()
+        {
+            var input = new LocomotionInput { Move = Vector2.zero, YawDegrees = 120.0f, LockedOn = true };
+
+            _locomotion.Tick(input, 0.016f);
+
+            Assert.AreEqual(120.0f, _locomotion.transform.eulerAngles.y, 0.01f);
+        }
+
+        /// <summary>Strafing sideways while locked must NOT turn the body to face the strafe.</summary>
+        [Test]
+        public void LockedOnStrafingKeepsFacingTheTarget()
+        {
+            var input = new LocomotionInput
+            {
+                Move = new Vector2(1.0f, 0.0f),   // pure sideways
+                YawDegrees = 30.0f,
+                LockedOn = true,
+            };
+
+            for (int i = 0; i < 30; i++)
+            {
+                _locomotion.Tick(input, 0.016f);
+            }
+
+            Assert.AreEqual(30.0f, _locomotion.transform.eulerAngles.y, 0.01f,
+                "the body turned to face its strafe direction instead of the target");
+        }
+
+        /// <summary>Aiming down sights trades speed for a steady aim, as every third-person shooter does.</summary>
+        [Test]
+        public void AimingWalksSlowerThanNotAiming()
+        {
+            var walking = new LocomotionInput { Move = new Vector2(0.0f, 1.0f) };
+            for (int i = 0; i < 180; i++)
+            {
+                _locomotion.Tick(walking, 1.0f / 60.0f);
+            }
+            float walkingSpeed = _locomotion.CurrentSpeed;
+
+            var aiming = new LocomotionInput { Move = new Vector2(0.0f, 1.0f), Aiming = true };
+            for (int i = 0; i < 180; i++)
+            {
+                _locomotion.Tick(aiming, 1.0f / 60.0f);
+            }
+
+            Assert.AreEqual(_locomotion.WalkSpeed, walkingSpeed, 0.05f, "setup: plain walking is not WalkSpeed");
+            Assert.AreEqual(_locomotion.WalkSpeed * _locomotion.AimMoveSpeedMultiplier, _locomotion.CurrentSpeed, 0.05f);
+            Assert.Less(_locomotion.CurrentSpeed, walkingSpeed - 0.1f, "aiming did not slow the walk");
+        }
+
+        [Test]
+        public void TheAimSlowdownIsTunableAndOneMeansNone()
+        {
+            _locomotion.AimMoveSpeedMultiplier = 1.0f;
+            var aiming = new LocomotionInput { Move = new Vector2(0.0f, 1.0f), Aiming = true };
+            for (int i = 0; i < 180; i++)
+            {
+                _locomotion.Tick(aiming, 1.0f / 60.0f);
+            }
+
+            Assert.AreEqual(_locomotion.WalkSpeed, _locomotion.CurrentSpeed, 0.05f);
+        }
+
+        [Test]
+        public void NotLockedOnStandingStillLeavesTheFacingAlone()
+        {
+            _locomotion.transform.rotation = Quaternion.Euler(0.0f, 45.0f, 0.0f);
+
+            _locomotion.Tick(new LocomotionInput { Move = Vector2.zero, YawDegrees = 120.0f }, 0.016f);
+
+            Assert.AreEqual(45.0f, _locomotion.transform.eulerAngles.y, 0.01f,
+                "looking around while standing still must not spin the body (only lock-on does that)");
+        }
     }
 }

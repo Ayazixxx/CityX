@@ -14,6 +14,7 @@ namespace CityX.Items
         public const string SkelliJeans = "skelli_jeans";
         public const string HoodedCloak = "hooded_cloak";
         public const string MidnightPatchworkCoat = "midnight_patchwork_coat";
+        public const string BlackPufferJacket = "black_puffer_jacket";
         public const string GrapplingHook = "grappling_hook";
         public const string Pistol = "pistol";
         public const string Jetpack = "jetpack";
@@ -30,6 +31,8 @@ namespace CityX.Items
             [HoodedCloak] = new ItemDefinition(HoodedCloak, "Hooded Cloak", "wearable", "top", 1),
             [MidnightPatchworkCoat] = new ItemDefinition(
                 MidnightPatchworkCoat, "Midnight Patchwork Coat", "wearable", "top", 1),
+            [BlackPufferJacket] = new ItemDefinition(
+                BlackPufferJacket, "Black Puffer Jacket", "wearable", "top", 1),
             [GrapplingHook] = new ItemDefinition(GrapplingHook, "Grappling Hook", "weapon", "hand_r", 1),
             [Pistol] = new ItemDefinition(Pistol, "Pistol", "weapon", "hand_r", 1),
             // "back", not "top" -- LoadoutPanelView's own slot list already

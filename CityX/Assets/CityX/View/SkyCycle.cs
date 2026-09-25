@@ -358,6 +358,42 @@ namespace CityX.View
                 sunElevation > MinShadowElevationSine, moonElevation > MinShadowElevationSine);
         }
 
+        /// <summary>How much of its luminance a fully overcast sky keeps: a storm's cloud deck is a dark lid, not a bright one.</summary>
+        public const float OvercastBrightness = 0.6f;
+
+        /// <summary>The blue-grey of a storm cloud deck, as multipliers on the sky's own grey.</summary>
+        public static readonly Color OvercastTint = new Color(0.96f, 1.0f, 1.08f);
+
+        /// <summary>What a lightning flash turns the whole sky toward: a cold near-white.</summary>
+        public static readonly Color LightningSkyColour = new Color(0.86f, 0.91f, 1.0f);
+
+        /// <summary>How far a full-strength flash drags the sky toward <see cref="LightningSkyColour"/>.</summary>
+        public const float LightningSkyWeight = 0.7f;
+
+        /// <summary>
+        /// A sky colour under weather. <paramref name="overcast"/> (0..1) drains
+        /// its colour and brightness toward a dark blue-grey -- the clear blue,
+        /// the orange of a sunset and the black-blue of a night all go to the
+        /// same cloud lid, which is what cloud cover does. <paramref name="flash"/>
+        /// (0..1) then throws it toward near-white for a lightning strike.
+        /// Both 0 returns the colour untouched, so clear weather is exactly
+        /// what SkyCycle computed.
+        /// </summary>
+        public static Color Weathered(Color colour, float overcast, float flash)
+        {
+            overcast = Mathf.Clamp01(overcast);
+            flash = Mathf.Clamp01(flash);
+            if (overcast <= 0.0f && flash <= 0.0f)
+            {
+                return colour;
+            }
+
+            float grey = colour.grayscale * OvercastBrightness;
+            var cloud = new Color(grey * OvercastTint.r, grey * OvercastTint.g, grey * OvercastTint.b, colour.a);
+            Color result = Color.Lerp(colour, cloud, overcast);
+            return Color.Lerp(result, LightningSkyColour, flash * LightningSkyWeight);
+        }
+
         /// <summary>
         /// The sun's pitch. Day and night are different LENGTHS but each is
         /// still half a turn, so the sun crosses the sky slower than it crosses

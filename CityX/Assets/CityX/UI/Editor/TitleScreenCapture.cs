@@ -18,8 +18,8 @@ namespace CityX.UIEditor
     /// </summary>
     public static class TitleScreenCapture
     {
-        private const int Width = 1280;
-        private const int Height = 720;
+        private const int Width = 1600;
+        private const int Height = 1000;
 
         [MenuItem("CityX/Capture Title Screenshot")]
         public static void Capture()
@@ -36,6 +36,18 @@ namespace CityX.UIEditor
         public static void CaptureIdle()
         {
             Shoot("title-idle", TitleScreen.Panel.Menu, seedCharacters: false, showIdlePrompt: true);
+        }
+
+        /// <summary>
+        /// Rebuilds the title scene, then photographs the idle and menu states in the
+        /// SAME Unity session -- tuning the look means change, rebuild, look, and one
+        /// editor start-up instead of two.
+        /// </summary>
+        public static void RebuildAndCapture()
+        {
+            TitleScreenBuilder.Build();
+            CaptureIdle();
+            Capture();
         }
 
         [MenuItem("CityX/Capture Settings Screenshot")]
@@ -94,47 +106,16 @@ namespace CityX.UIEditor
                 return;
             }
 
-            // Rebuild only RESETS the streamer -- it clears what is loaded and
-            // makes a fresh world. The chunks themselves are built by Update,
-            // which never runs outside play mode, so the first version of this
-            // capture rendered a completely empty sky and looked like the
-            // backdrop was broken. StreamAround is what actually builds, and
-            // the budget has to cover the whole radius in one call because
-            // there is no second frame to finish in.
-            var streamer = Object.FindFirstObjectByType<View.CityStreamer>();
-            if (streamer != null)
-            {
-                streamer.Rebuild();
-                int span = streamer.RadiusChunks * 2 + 1;
-                streamer.StreamAround(camera.transform.position, span * span);
-            }
-
-            // THE SKY AND THE LIT WINDOWS ARE NOT PART OF THE SCENE FILE. They
-            // are RenderSettings and a shared material's emission colour, both
-            // written by DayNightCycle.Update -- which, like the streamer's,
-            // never runs outside play mode. So the shot came out with whatever
-            // the last editor tool to touch them happened to leave behind:
-            // once bright pink windows, and after a daytime city capture, no
-            // lit windows at all on a night skyline. Neither was ever what the
-            // game does; both were the capture rendering stale state.
+            // THE SKY AND THE LIT WINDOWS ARE NOT PART OF THE SCENE FILE. They are
+            // RenderSettings and a shared material's emission colour, both written by
+            // DayNightCycle.Update -- which never runs reliably outside play mode. Left
+            // alone, the shot shows whatever the last tool to touch them left behind
+            // (cool-white windows after a city capture, say). Neither is what the game
+            // does, so apply the frozen night by hand.
             var cycle = Object.FindFirstObjectByType<View.DayNightCycle>();
             if (cycle != null)
             {
                 cycle.Apply(View.SkyCycle.At(cycle.TimeOfDay));
-            }
-
-            // SAME REASON AS THE STREAMER AND THE SKY ABOVE: RainEffect.
-            // SetActive was called once, at scene-BUILD time, but a particle
-            // system's own live emission state is not part of the saved
-            // scene -- reopening it fresh (exactly what this capture just
-            // did) leaves the rain sitting inert. Calling SetActive(true)
-            // again here is also what pre-fills the drops across their own
-            // fall (RainEffect.SetActive's own Simulate call) rather than
-            // starting the shot from an empty box.
-            var rain = Object.FindFirstObjectByType<View.RainEffect>();
-            if (rain != null)
-            {
-                rain.SetActive(true);
             }
 
             // The panel's OnEnable is what loads the character list, and

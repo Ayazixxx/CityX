@@ -39,11 +39,20 @@ namespace CityX.Weapons
         public const float FireCooldownSeconds = 1.0f / FireRatePerSecond;
         public const float ReloadSeconds = 1.5f;
 
-        /// <summary>Half-angle of the hip-fire spread cone -- a shot lands anywhere within this of the aim.</summary>
-        public const float HipFireSpreadDegrees = 3.0f;
+        /// <summary>
+        /// Half-angle of the hip-fire spread cone -- was 3.0, giving every
+        /// shot up to 3 degrees of random miss. EXPLICIT ASK: "i want you
+        /// to do bullets the same as csgo... make every shot hit exact
+        /// where you clicked in the middle of your screen." Zeroed rather
+        /// than just narrowed -- CS:GO's own accuracy model still has some
+        /// spread (movement, jumping, recoil), but "exact where you
+        /// clicked" is the literal, explicit ask here, not a request to
+        /// match CS:GO's specific accuracy curve.
+        /// </summary>
+        public const float HipFireSpreadDegrees = 0.0f;
 
-        /// <summary>Tighter while aiming down sights. Not zero -- a pistol is never laser-accurate.</summary>
-        public const float AdsSpreadDegrees = 0.5f;
+        /// <summary>Same zeroing, same reason, as HipFireSpreadDegrees' own doc comment -- aiming down sights was already tighter, now exact too.</summary>
+        public const float AdsSpreadDegrees = 0.0f;
 
         /// <summary>
         /// How far each shot's own pitch is randomised, as a fraction either
@@ -61,6 +70,45 @@ namespace CityX.Weapons
 
         public const float InteractRange = 2.5f;
         public const float LookDotThreshold = 0.82f; // cos(35 degrees)
+
+        // --- RECOIL, from the third-person-shooter research (see
+        // docs/THIRD_PERSON_PISTOL.md). A small, DETERMINISTIC vertical kick that
+        // recovers fast: learnable rather than random, and applied AFTER the
+        // shot has left, so the first shot is always exactly where the
+        // crosshair was (the explicit "exact where you clicked" ask). All
+        // instance fields so /gun can retune them live. ---
+
+        [Header("Recoil / feel (live-tunable with /gun)")]
+        [Tooltip("Camera kick per shot, degrees up. A pistol is small; the recovery below is quick.")]
+        public float RecoilPitchDegrees = 1.2f;
+
+        [Tooltip("Aiming down sights steadies the gun: the kick is scaled by this.")]
+        public float AdsRecoilMultiplier = 0.7f;
+
+        [Tooltip("Camera roll jolt per shot, degrees (random side).")]
+        public float ShakeDegrees = 0.25f;
+
+        [Tooltip("The pistol itself snaps back this far (metres) and tips its muzzle up this many degrees, then settles.")]
+        public float KickBackMetres = 0.035f;
+
+        public float KickUpDegrees = 7.0f;
+
+        [Tooltip("How fast the gun's own kick settles, per second (bigger = snappier).")]
+        public float KickRecoverPerSecond = 16.0f;
+
+        // --- THE THREE-TRACE SHOT (Monday Night Combat's method): camera trace
+        // for what the crosshair is on, a hand trace so the barrel is not inside
+        // a wall, and a barrel trace so scenery between the gun and the target
+        // takes the bullet. ---
+
+        /// <summary>Below this the muzzle is effectively AT the target; no barrel trace (it would only find noise).</summary>
+        public const float MinBarrelTraceMetres = 0.25f;
+
+        /// <summary>Stop the barrel trace this short of the aim point, so it never reports the target's own surface as a blocker.</summary>
+        public const float BarrelTraceMargin = 0.05f;
+
+        /// <summary>A click on an empty gun with nothing to reload: how long before the next click registers.</summary>
+        public const float DryClickCooldownSeconds = 0.25f;
 
         public static readonly Vector3 GripHandPosition = new Vector3(0.02f, -0.05f, 0.10f);
 
@@ -104,14 +152,71 @@ namespace CityX.Weapons
         public AudioSource ShotPlayer;
         public AudioSource ReloadPlayer;
 
+        /// <summary>
+        /// Extra voices, all sharing ShotPlayer's own clip -- EXPLICIT BUG
+        /// REPORT, still open after both PlayOneShot and ShotPitchJitter
+        /// already shipped: "the gunshot noise is glitchy make it consistent
+        /// and not choppy." ROOT CAUSE: AudioSource.pitch belongs to the
+        /// SOURCE, not to an individual PlayOneShot call -- every shot's
+        /// `ShotPlayer.pitch = RandomShotPitch()` was retroactively
+        /// re-pitching every OTHER copy of the clip still overlapping from
+        /// recent shots on that same source, not just starting the new one
+        /// at its own pitch. At this fire rate (FireCooldownSeconds ~0.18s)
+        /// against a clip several times that long, several shots are
+        /// routinely overlapping at once, so this was firing on nearly
+        /// every shot -- confirmed as a well-documented Unity AudioSource
+        /// limitation (PlayOneShot's own pitch is inherited from the
+        /// source at call time and stays tied to it), not something
+        /// PlayOneShot's own overlap support was ever meant to fix.
+        ///
+        /// FIX: give overlapping shots their own independent AudioSource
+        /// each, cycled round-robin (_shotPoolIndex), so setting one's pitch
+        /// can never reach back and warp a shot already playing on another.
+        /// OPTIONAL, NOT REQUIRED -- Fire() falls back to ShotPlayer alone
+        /// (the original, single-source behaviour) whenever this is left
+        /// empty, so nothing that only wires ShotPlayer directly (existing
+        /// tests included) needs to change.
+        /// </summary>
+        public AudioSource[] ShotPlayerPool;
+
+        private int _shotPoolIndex;
+
         [Tooltip("For a bullet landing on a body -- same prefab MeleeAttacker uses.")]
         public GameObject BloodPrefab;
 
         public LayerMask TargetLayers = ~0;
 
+        /// <summary>
+        /// Live-tunable grip transform, for DevConsoleView's own /pistol
+        /// pos/rot/scale/pose commands -- default to the same baked
+        /// constants above, same "read live, change with a console
+        /// command, bake the final numbers back in once confirmed" idiom
+        /// SkinnedGarmentCombiner.RendererTransform's own doc comment
+        /// establishes for the jacket. UpdateHeldPose/OnEquip apply these
+        /// instead of the constants directly, so nudging one in real time
+        /// needs no rebuild to see.
+        /// </summary>
+        private Vector3 _liveGripPosition = GripHandPosition;
+        private Vector3 _liveGripRotation = GripHandRotationEuler;
+        private float _liveGripScale = GripScale;
+
+        public Vector3 LiveGripPosition => _liveGripPosition;
+        public Vector3 LiveGripRotation => _liveGripRotation;
+        public float LiveGripScale => _liveGripScale;
+
+        public void SetLiveGripPosition(Vector3 value) => _liveGripPosition = value;
+        public void SetLiveGripRotation(Vector3 value) => _liveGripRotation = value;
+        public void SetLiveGripScale(float value) => _liveGripScale = value;
+
         public int MagazineAmmo { get; private set; } = MagazineSize;
         public int ReserveAmmo { get; private set; } = StartingReserveAmmo;
         public bool IsReloading { get; private set; }
+
+        /// <summary>Raised for every trigger pull -- see <see cref="GunShot"/>.</summary>
+        public event System.Action<GunShot> ShotResolved;
+
+        /// <summary>0..1: the pistol's own snap-back, decaying. Read by UpdateHeldPose.</summary>
+        private float _kick;
 
         /// <summary>
         /// Whether OnTriggerEnter has actually seen a player, independent
@@ -142,6 +247,10 @@ namespace CityX.Weapons
         {
             float deltaTime = Time.deltaTime;
             _fireCooldownRemaining = Mathf.Max(0.0f, _fireCooldownRemaining - deltaTime);
+            if (_kick > 0.0f)
+            {
+                _kick = Mathf.Max(0.0f, _kick - _kick * (1.0f - Mathf.Exp(-KickRecoverPerSecond * deltaTime)) - 0.0005f);
+            }
 
             if (IsReloading)
             {
@@ -178,18 +287,45 @@ namespace CityX.Weapons
         /// </summary>
         private void UpdateHeldPose()
         {
-            transform.localPosition = GripHandPosition;
-            transform.localEulerAngles = GripHandRotationEuler;
-            transform.localScale = Vector3.one * GripScale;
+            transform.localPosition = _liveGripPosition;
+            transform.localEulerAngles = _liveGripRotation;
+            transform.localScale = Vector3.one * _liveGripScale;
 
-            if (!IsReloading)
+            if (IsReloading)
+            {
+                float progress = Mathf.Clamp01(1.0f - _reloadTimeRemaining / ReloadSeconds);
+                float dip = Mathf.Sin(progress * Mathf.PI);
+                transform.localPosition += new Vector3(0.0f, -0.06f, 0.02f) * dip;
+                transform.localEulerAngles += new Vector3(28.0f, 0.0f, 0.0f) * dip;
+            }
+
+            ApplyKick();
+        }
+
+        /// <summary>
+        /// The pistol's own snap-back when it fires: shoved back along its
+        /// own barrel and tipped muzzle-up, then settling. Worked out from the
+        /// muzzle's actual world facing rather than from hand-tuned local
+        /// axes -- this gun's grip carries a 180-degree roll and a rig-scaled
+        /// hand (see GripHandRotationEuler), so "local -Z" is not "back" in
+        /// any way that survives a re-tune of the grip.
+        /// </summary>
+        private void ApplyKick()
+        {
+            if (_kick <= 0.0f || MuzzleFlashObject == null || transform.parent == null)
             {
                 return;
             }
-            float progress = Mathf.Clamp01(1.0f - _reloadTimeRemaining / ReloadSeconds);
-            float dip = Mathf.Sin(progress * Mathf.PI);
-            transform.localPosition += new Vector3(0.0f, -0.06f, 0.02f) * dip;
-            transform.localEulerAngles += new Vector3(28.0f, 0.0f, 0.0f) * dip;
+
+            Vector3 barrel = MuzzleFlashObject.transform.forward;
+            Vector3 back = -barrel * (KickBackMetres * _kick);
+            transform.localPosition += transform.parent.InverseTransformVector(back);
+
+            Vector3 axis = Vector3.Cross(barrel, Vector3.up);
+            if (axis.sqrMagnitude > 0.0001f)
+            {
+                transform.rotation = Quaternion.AngleAxis(KickUpDegrees * _kick, axis.normalized) * transform.rotation;
+            }
         }
 
         private void TickPickup()
@@ -319,9 +455,9 @@ namespace CityX.Weapons
             if (hand != null)
             {
                 transform.SetParent(hand, false);
-                transform.localPosition = GripHandPosition;
-                transform.localEulerAngles = GripHandRotationEuler;
-                transform.localScale = Vector3.one * GripScale;
+                transform.localPosition = _liveGripPosition;
+                transform.localEulerAngles = _liveGripRotation;
+                transform.localScale = Vector3.one * _liveGripScale;
             }
 
             _equipped = true;
@@ -335,6 +471,24 @@ namespace CityX.Weapons
             {
                 input.EquippedGun = this;
             }
+
+            // Camera kick, hit-confirm tick, dry click and the reticle's
+            // blocked state all hang off this one component, driven by
+            // ShotResolved -- added at runtime so no prefab has to change.
+            var feel = player.GetComponent<GunFeel>();
+            if (feel == null)
+            {
+                feel = player.AddComponent<GunFeel>();
+            }
+            feel.Attach(this);
+
+            // The arm aims the BARREL, not just the upper arm -- see
+            // PlayerLocomotion.ApplyGunAimPose.
+            var locomotion = player.GetComponent<PlayerLocomotion>();
+            if (locomotion != null && MuzzleFlashObject != null)
+            {
+                locomotion.GunMuzzle = MuzzleFlashObject.transform;
+            }
         }
 
         public void OnUnequip(GameObject player)
@@ -343,6 +497,16 @@ namespace CityX.Weapons
             if (input != null && ReferenceEquals(input.EquippedGun, this))
             {
                 input.EquippedGun = null;
+            }
+            var feel = player.GetComponent<GunFeel>();
+            if (feel != null)
+            {
+                feel.Detach(this);
+            }
+            var locomotionOnUnequip = player.GetComponent<PlayerLocomotion>();
+            if (locomotionOnUnequip != null && locomotionOnUnequip.GunMuzzle == (MuzzleFlashObject != null ? MuzzleFlashObject.transform : null))
+            {
+                locomotionOnUnequip.GunMuzzle = null;
             }
             Destroy(gameObject);
         }
@@ -364,10 +528,32 @@ namespace CityX.Weapons
         /// </summary>
         public bool Fire(Vector3 origin, Vector3 direction, bool aiming, GameObject wielder)
         {
-            if (IsReloading || _fireCooldownRemaining > 0.0f || MagazineAmmo <= 0)
+            if (IsReloading || _fireCooldownRemaining > 0.0f)
             {
                 return false;
             }
+
+            // AN EMPTY CLICK RELOADS FOR YOU (Gears, Fortnite, The Division
+            // all do) -- while there is reserve ammo to reload from. With none,
+            // it is just a dry click, throttled so mashing does not machine-gun it.
+            if (MagazineAmmo <= 0)
+            {
+                bool reloading = false;
+                if (ReserveAmmo > 0)
+                {
+                    TryReload();
+                    reloading = IsReloading;
+                }
+                _fireCooldownRemaining = DryClickCooldownSeconds;
+                ShotResolved?.Invoke(new GunShot
+                {
+                    DryClick = true,
+                    AutoReloading = reloading,
+                    Aiming = aiming,
+                });
+                return false;
+            }
+
             _fireCooldownRemaining = FireCooldownSeconds;
             MagazineAmmo--;
 
@@ -394,22 +580,43 @@ namespace CityX.Weapons
             // different solution for (that one restarts on purpose, per its
             // own comment -- a burst of sparks stacking indefinitely looks
             // wrong where overlapping gunshot audio does not).
-            if (ShotPlayer != null && ShotPlayer.clip != null)
+            // See ShotPlayerPool's own doc comment: a shared source's pitch
+            // is retroactive across everything already overlapping on it,
+            // so a pooled, independent voice per shot is used when one is
+            // wired -- falling back to the single ShotPlayer (the original
+            // behaviour, pitch-jitter-and-all) when it isn't.
+            AudioSource voice = NextShotVoice();
+            if (voice != null && voice.clip != null)
             {
                 // See ShotPitchJitter's own doc comment -- PlayOneShot alone
                 // fixed shots CUTTING each other off; it does not stop
                 // several overlapping copies of the identical waveform from
                 // phase-cancelling into an audible stutter at this fire
                 // rate, which is a separate problem needing this separate fix.
-                ShotPlayer.pitch = RandomShotPitch();
-                ShotPlayer.PlayOneShot(ShotPlayer.clip);
+                voice.pitch = RandomShotPitch();
+                voice.PlayOneShot(voice.clip);
             }
 
             float spreadDegrees = aiming ? AdsSpreadDegrees : HipFireSpreadDegrees;
             Vector3 spreadDirection = ApplySpread(direction, spreadDegrees);
 
-            if (Physics.Raycast(origin, spreadDirection, out RaycastHit hit, Range,
-                    TargetLayers, QueryTriggerInteraction.Ignore))
+            // HITSCAN, ALREADY -- EXPLICIT ASK: "i want you to do bullets
+            // the same as csgo... zero travel time." This raycast resolves
+            // synchronously, right here, in the same call that started the
+            // shot -- there was never a travelling bullet object to remove.
+            // See BulletTracer's own doc comment: what CS:GO actually has
+            // that this didn't yet is the cosmetic half, a visible streak
+            // that plays no part in hit resolution.
+            // THE THREE-TRACE SHOT -- see ResolveTrace. In open ground it is the
+            // same single camera ray as ever; it only changes the outcome when
+            // scenery is between the GUN and the crosshair's target.
+            ShotTrace trace = ResolveTrace(origin, spreadDirection, wielder);
+            RaycastHit hit = trace.HitInfo;
+            bool realHit = trace.Hit;
+            bool hitDamageable = false;
+            bool killed = false;
+
+            if (realHit)
             {
                 var breakable = hit.collider.GetComponentInParent<IBreakableSurface>();
                 if (breakable != null)
@@ -428,6 +635,8 @@ namespace CityX.Weapons
                         // No hitstun -- pistol.gd's own take_damage() call never
                         // passes one either; a bullet interrupts nothing here.
                         damageable.ApplyHit(actualDamage, origin, 0.0f);
+                        hitDamageable = true;
+                        killed = !damageable.IsAlive;
                         if (BloodPrefab != null)
                         {
                             BloodSplatter.Spawn(BloodPrefab, hit.point, origin - hit.point);
@@ -435,7 +644,220 @@ namespace CityX.Weapons
                     }
                 }
             }
+
+            // BULLET-TRACER HISTORY (each entry an explicit report): "coming from
+            // all sorts of different directions" -> tracer drawn along the muzzle's
+            // own forward; "still coming from all over" -> hip fire never pointed
+            // the arm at the target, so muzzle-forward meant nothing, and the aimed
+            // path got a split; and now "not showing up at all, and when they do
+            // it is going in the wrong direction". Root causes: (1) the streak was
+            // 1.5cm wide for 0.05s, about one pixel for three frames -- see
+            // BulletTracer; (2) the arm aimed at a fixed point 15m down the camera
+            // ray, so at close range the barrel pointed well off the hit while the
+            // tracer followed the barrel and stopped short of the target, and hip
+            // fire never raised the arm at all. Fixed at the source: the arm now
+            // aims at the shot's real end point (LocomotionInput.GunAimPoint) and
+            // raises for half a second after every shot (NotifyGunFired), so the
+            // barrel, the bullet and the tracer are one line.
+            Vector3 muzzlePosition = MuzzleFlashObject != null ? MuzzleFlashObject.transform.position : origin;
+            // THE TRACER IS THE BULLET'S PATH: straight from the muzzle to where the
+            // shot really ended (the hit point, or a far point on the crosshair ray
+            // for a miss), whatever the mode. This is the very line the barrel trace
+            // validated, so the streak always ends on what was hit -- the earlier
+            // "follow the muzzle's own forward while aiming" version stopped short of
+            // near targets, because the arm aims at a point down the camera ray, not
+            // at the hit (a 1.4m shoulder offset is 20 degrees at 4m). The GUN now
+            // points at the hit point too (PlayerLocomotion.NotifyGunFired and
+            // LocomotionInput.GunAimPoint), so barrel, tracer and bullet agree.
+            Vector3 tracerEnd = realHit ? hit.point : origin + spreadDirection * Range;
+            BulletTracer.Spawn(muzzlePosition, tracerEnd, MuzzleFlashObject != null ? MuzzleFlashObject.transform : null);
+
+            // THE KICK. Camera recoil is the camera's job (whoever listens to
+            // ShotResolved applies RecoilPitchDegrees); the pistol's own
+            // snap-back is ours. Applied AFTER the shot resolved, so the shot
+            // itself is always exactly on the crosshair.
+            _kick = 1.0f;
+            ShotResolved?.Invoke(new GunShot
+            {
+                Fired = true,
+                HitSomething = realHit,
+                HitDamageable = hitDamageable,
+                Killed = killed,
+                BarrelBlocked = trace.BarrelBlocked,
+                Point = realHit ? hit.point : origin + spreadDirection * Range,
+                Aiming = aiming,
+                RecoilPitchDegrees = RecoilPitchDegrees * (aiming ? AdsRecoilMultiplier : 1.0f),
+                ShakeDegrees = ShakeDegrees * (aiming ? AdsRecoilMultiplier : 1.0f),
+            });
+
             return true;
+        }
+
+        private struct ShotTrace
+        {
+            public bool Hit;
+            public RaycastHit HitInfo;
+            public bool BarrelBlocked;
+        }
+
+        private static readonly RaycastHit[] HitBuffer = new RaycastHit[32];
+
+        /// <summary>
+        /// The nearest thing a ray hits that is not the wielder's own body --
+        /// a RaycastAll that skips the shooter instead of stopping at them.
+        /// (The old plain Raycast reported the shooter's own capsule as the
+        /// first hit and then discarded the shot, so a ray that began inside or
+        /// grazed the wielder hit NOTHING instead of what was behind them.)
+        /// </summary>
+        private bool TraceIgnoringWielder(Vector3 origin, Vector3 direction, float distance,
+            GameObject wielder, out RaycastHit best)
+        {
+            best = default;
+            if (distance <= 0.0f)
+            {
+                return false;
+            }
+
+            RaycastHit[] hits = HitBuffer;
+            int count = Physics.RaycastNonAlloc(origin, direction, hits, distance,
+                TargetLayers, QueryTriggerInteraction.Ignore);
+            if (count >= hits.Length)
+            {
+                // A full buffer means the nearest hit may have been dropped --
+                // the unsorted non-alloc version keeps an arbitrary subset. A
+                // ray through this many colliders is rare; pay for the exact answer.
+                hits = Physics.RaycastAll(origin, direction, distance, TargetLayers, QueryTriggerInteraction.Ignore);
+                count = hits.Length;
+            }
+            float bestDistance = float.MaxValue;
+            bool found = false;
+            for (int i = 0; i < count; i++)
+            {
+                RaycastHit candidate = hits[i];
+                if (candidate.collider == null || IsWieldersOwnCollider(candidate.collider, wielder))
+                {
+                    continue;
+                }
+                if (candidate.distance < bestDistance)
+                {
+                    bestDistance = candidate.distance;
+                    best = candidate;
+                    found = true;
+                }
+            }
+            return found;
+        }
+
+        /// <summary>
+        /// MONDAY NIGHT COMBAT'S THREE-TRACE SHOT, from its developer's own
+        /// write-up of the third-person aiming problem: the camera sits away
+        /// from the gun, so a bullet that follows the crosshair can go THROUGH
+        /// a wall corner the barrel is actually behind (the player is safe and
+        /// shooting through geometry). The crosshair must still win in open
+        /// ground -- "exact where you clicked" -- so:
+        ///  1. CAMERA TRACE: what the crosshair is on. This is the shot.
+        ///  2. HAND TRACE: from the wielder's body to the muzzle. If scenery is
+        ///     in the way, the barrel is inside/behind a wall: the bullet hits it.
+        ///  3. BARREL TRACE: from the muzzle to the camera trace's hit point. If
+        ///     scenery (other than the target itself) is in the way, that takes
+        ///     the bullet instead.
+        /// With no wielder or no muzzle (a bare test gun) only step 1 runs.
+        /// </summary>
+        private ShotTrace ResolveTrace(Vector3 origin, Vector3 direction, GameObject wielder)
+        {
+            var result = new ShotTrace();
+            result.Hit = TraceIgnoringWielder(origin, direction, Range, wielder, out RaycastHit camera);
+            result.HitInfo = camera;
+
+            if (wielder == null || MuzzleFlashObject == null)
+            {
+                return result;
+            }
+
+            Vector3 muzzle = MuzzleFlashObject.transform.position;
+            Vector3 aimPoint = result.Hit ? camera.point : origin + direction * Range;
+
+            // 2. Hand trace.
+            var locomotion = wielder.GetComponent<PlayerLocomotion>();
+            float bodyHeight = (locomotion != null ? locomotion.StandingHeight : 1.8f) * 0.6f;
+            Vector3 body = wielder.transform.position + Vector3.up * bodyHeight;
+            Vector3 toMuzzle = muzzle - body;
+            float toMuzzleDistance = toMuzzle.magnitude;
+            if (toMuzzleDistance > 0.01f
+                && TraceIgnoringWielder(body, toMuzzle / toMuzzleDistance, toMuzzleDistance, wielder, out RaycastHit hand))
+            {
+                result.Hit = true;
+                result.HitInfo = hand;
+                result.BarrelBlocked = true;
+                return result;
+            }
+
+            // 3. Barrel trace.
+            Vector3 toAim = aimPoint - muzzle;
+            float aimDistance = toAim.magnitude;
+            if (aimDistance > MinBarrelTraceMetres && Vector3.Dot(toAim, direction) > 0.0f
+                && TraceIgnoringWielder(muzzle, toAim / aimDistance, aimDistance - BarrelTraceMargin, wielder,
+                    out RaycastHit blocker)
+                && !(result.Hit && blocker.collider == camera.collider))
+            {
+                result.Hit = true;
+                result.HitInfo = blocker;
+                result.BarrelBlocked = true;
+            }
+            return result;
+        }
+
+        public bool IsBarrelBlocked(Vector3 origin, Vector3 direction, GameObject wielder)
+        {
+            return ResolveTrace(origin, direction, wielder).BarrelBlocked;
+        }
+
+        /// <summary>
+        /// Where a shot fired now would END (the hit point, or a far point on the
+        /// crosshair ray on a miss) and whether scenery is taking it. The arm
+        /// aims the gun at this point, so the barrel points where the bullet and
+        /// its tracer go.
+        /// </summary>
+        public void AimTrace(Vector3 origin, Vector3 direction, GameObject wielder,
+            out Vector3 point, out bool barrelBlocked)
+        {
+            ShotTrace trace = ResolveTrace(origin, direction, wielder);
+            point = trace.Hit ? trace.HitInfo.point : origin + direction * Range;
+            barrelBlocked = trace.BarrelBlocked;
+        }
+
+        /// <summary>
+        /// EXPLICIT BUG REPORT: "whenever i hold right click with the pistol
+        /// the crosshair is on me and just shoots me." The aim-down-sights
+        /// camera pulls in close to the character (ThirdPersonCamera's own
+        /// aiming behaviour), which can put the raycast's own origin at or
+        /// inside the player's own collider -- and Fire's raycast used
+        /// TargetLayers with no exclusion at all (the default is literally
+        /// "every layer"), so the very first thing a shot could hit was
+        /// whoever fired it. Checked by identity against the wielder's own
+        /// hierarchy rather than a layer mask: the player's ragdoll carries
+        /// a real collider on every bone (RagdollBuilder), potentially on
+        /// several different layers, so a layer-based exclusion would need
+        /// to enumerate all of them and silently miss one; walking up from
+        /// whatever was actually hit to see if it belongs to the wielder at
+        /// all covers every one of them at once, the same way PistolWeapon.
+        /// OnTriggerEnter and TryPickup already identify "is this the
+        /// player" by walking up to PlayerVitals rather than trusting a
+        /// layer.
+        /// </summary>
+        private static bool IsWieldersOwnCollider(Collider hitCollider, GameObject wielder)
+        {
+            if (wielder == null)
+            {
+                return false;
+            }
+            PlayerVitals hitOwner = hitCollider.GetComponentInParent<PlayerVitals>();
+            if (hitOwner == null)
+            {
+                return false;
+            }
+            PlayerVitals wielderVitals = wielder.GetComponent<PlayerVitals>();
+            return wielderVitals != null && hitOwner == wielderVitals;
         }
 
         /// <summary>
@@ -452,6 +874,22 @@ namespace CityX.Weapons
         public static float RandomShotPitch()
         {
             return 1.0f + Random.Range(-ShotPitchJitter, ShotPitchJitter);
+        }
+
+        /// <summary>
+        /// The AudioSource this shot's own voice plays on -- round-robins
+        /// through ShotPlayerPool when one is wired (see its own doc
+        /// comment for why that's the actual fix), otherwise the single
+        /// ShotPlayer, unchanged from before the pool existed.
+        /// </summary>
+        private AudioSource NextShotVoice()
+        {
+            if (ShotPlayerPool == null || ShotPlayerPool.Length == 0)
+            {
+                return ShotPlayer;
+            }
+            _shotPoolIndex = (_shotPoolIndex + 1) % ShotPlayerPool.Length;
+            return ShotPlayerPool[_shotPoolIndex];
         }
 
         private static Vector3 ApplySpread(Vector3 direction, float spreadDegrees)
