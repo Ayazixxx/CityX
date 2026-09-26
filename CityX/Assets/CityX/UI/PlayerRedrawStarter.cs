@@ -30,6 +30,9 @@ namespace CityX.UI
         [Tooltip("embermane.obj -- wired once at edit time. A runtime script cannot load project assets by path the way CharacterCreatorBuilder's own AddHair does.")]
         public Mesh HairMesh;
 
+        [Tooltip("Every hairstyle after embermane, in CharacterHair.ValidStyles order -- wired once at edit time, like HairMesh.")]
+        public Mesh[] MoreHairMeshes;
+
         public Material HairMaterial;
 
         private CharacterIdentity _identity;
@@ -65,7 +68,7 @@ namespace CityX.UI
             if (InputReader != null) InputReader.enabled = false;
             if (OrbitCamera != null) OrbitCamera.enabled = false;
 
-            _overlay = RedrawCreatorRuntime.Build(gameObject, HairMesh, HairMaterial, OnConfirm, OnCancel);
+            _overlay = RedrawCreatorRuntime.Build(gameObject, HairMesh, HairMaterial, OnConfirm, OnCancel, MoreHairMeshes);
             Seed(character);
         }
 

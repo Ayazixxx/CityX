@@ -387,6 +387,113 @@ namespace CityX.Tests
             Assert.IsNull(Worn(hair), "going back to bald left the hair on");
         }
 
+        /// <summary>
+        /// The anime hairstyle, on the real head in the real scene, lands on the crown -- neither
+        /// down the neck nor floating over the head, and centred on it. The fit's own maths is
+        /// tested without a scene (CharacterHairFitTests); this is the model, the head bone and
+        /// the fit together.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheAnimeHairstyleSitsOnTheCrownOfTheRealHead()
+        {
+            CharacterHair hair = _creator.Hair;
+            Assert.IsTrue(System.Array.IndexOf(CharacterHair.ValidStyles, CharacterHair.AnimeHair0) > 0,
+                "the anime hairstyle is not a valid style");
+
+            _creator.SetHairStyle(CharacterHair.AnimeHair0);
+            yield return null;
+
+            MeshFilter worn = Worn(hair);
+            Assert.IsNotNull(worn, "choosing the anime hairstyle produced no mesh -- is AnimeHair0Mesh.asset wired?");
+            Assert.IsNotNull(worn.sharedMesh, "the anime hairstyle's mesh is empty");
+
+            var renderer = worn.GetComponent<MeshRenderer>();
+            Vector3 head = hair.Head.position;
+            float crown = head.y + FusedBodyShape.HeadRadius;
+            Assert.Greater(renderer.bounds.max.y, crown, "the anime hair does not reach the crown");
+            Assert.Less(renderer.bounds.max.y, crown + 0.25f, "the anime hair floats above the head");
+
+            Vector3 centre = renderer.bounds.center;
+            float sideways = Mathf.Sqrt((centre.x - head.x) * (centre.x - head.x) + (centre.z - head.z) * (centre.z - head.z));
+            Assert.Less(sideways, FusedBodyShape.HeadRadius * 0.5f,
+                "the anime hair is off to one side or hanging off the front or back of the head");
+        }
+
+        /// <summary>
+        /// The creator's hair buttons -- the "select hairstyle" function -- each put their own style
+        /// on. Pressed through the real button, so a button wired to the wrong index shows up.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator EachHairButtonPutsItsOwnStyleOnTheHead()
+        {
+            CharacterHair hair = _creator.Hair;
+
+            foreach (string style in CharacterHair.ValidStyles)
+            {
+                UnityEngine.UI.Button button = null;
+                foreach (UnityEngine.UI.Button candidate in Resources.FindObjectsOfTypeAll<UnityEngine.UI.Button>())
+                {
+                    if (candidate.gameObject.name == "Hair" + style + "Button" && candidate.gameObject.scene.IsValid())
+                    {
+                        button = candidate;
+                        break;
+                    }
+                }
+                Assert.IsNotNull(button, $"there is no hair button for \"{style}\"");
+
+                button.onClick.Invoke();
+                yield return null;
+
+                Assert.AreEqual(style, hair.Style, $"the \"{style}\" button did not select \"{style}\"");
+                if (style == CharacterHair.None)
+                {
+                    Assert.IsNull(Worn(hair), "the bald button left hair on");
+                }
+                else
+                {
+                    Assert.IsNotNull(Worn(hair), $"the \"{style}\" button produced no hair");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Saving a fit re-places the hair on every head wearing the style at once, and resetting
+        /// puts it back -- the Inspector's Save and Reset buttons, without the Inspector. Uses a
+        /// settings object of its own so the saved asset is left alone.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator SavingAFitMovesTheWornHairAndResettingPutsItBack()
+        {
+            HairFitSettings previous = HairFitSettings.Current;
+            var scratch = ScriptableObject.CreateInstance<HairFitSettings>();
+            HairFitSettings.Current = scratch;
+            try
+            {
+                CharacterHair hair = _creator.Hair;
+                _creator.SetHairStyle(CharacterHair.AnimeHair0);
+                yield return null;
+
+                Transform worn = hair.Worn;
+                Assert.IsNotNull(worn, "no anime hair to move");
+                Vector3 automatic = worn.localPosition;
+
+                var tuned = new CharacterHair.Fit(automatic + new Vector3(0.0f, 0.05f, -0.02f), new Vector3(0.0f, 8.0f, 0.0f), Vector3.one * 0.5f);
+                CharacterHair.SaveFit(CharacterHair.AnimeHair0, tuned);
+
+                Assert.AreEqual(tuned.Position.y, worn.localPosition.y, 0.0001f, "saving the fit did not move the worn hair");
+                Assert.AreEqual(8.0f, worn.localEulerAngles.y, 0.01f, "saving the fit did not turn the worn hair");
+                Assert.AreEqual(0.5f, worn.localScale.x, 0.0001f, "saving the fit did not resize the worn hair");
+
+                CharacterHair.ResetFit(CharacterHair.AnimeHair0);
+                Assert.AreEqual(automatic.y, worn.localPosition.y, 0.0001f, "resetting the fit did not put the hair back");
+            }
+            finally
+            {
+                HairFitSettings.Current = previous;
+                Object.Destroy(scratch);
+            }
+        }
+
         private static MeshFilter Worn(CharacterHair hair)
         {
             Transform found = hair.Head.Find("Hair");

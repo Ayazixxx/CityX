@@ -60,7 +60,7 @@ namespace CityX.UI
         /// whole session down; there is nothing else to clean up.
         /// </summary>
         public static GameObject Build(GameObject player, Mesh hairMesh, Material hairMaterial,
-            System.Action<CharacterCreator> onConfirm, System.Action onCancel)
+            System.Action<CharacterCreator> onConfirm, System.Action onCancel, Mesh[] moreHairMeshes = null)
         {
             var root = new GameObject("RedrawOverlay", typeof(RectTransform));
             Canvas canvas = root.AddComponent<Canvas>();
@@ -77,7 +77,7 @@ namespace CityX.UI
             scaler.matchWidthOrHeight = 0.5f;
             root.AddComponent<GraphicRaycaster>();
 
-            GameObject stage = BuildStage(player, hairMesh, hairMaterial, out CharacterCreator creator);
+            GameObject stage = BuildStage(player, hairMesh, hairMaterial, moreHairMeshes, out CharacterCreator creator);
             root.AddComponent<CreatorStage>().Stage = stage;
 
             var overlays = root.AddComponent<CreatorOverlays>();
@@ -100,7 +100,7 @@ namespace CityX.UI
         /// comment for why it cannot just call that one.
         /// </summary>
         private static GameObject BuildStage(GameObject player, Mesh hairMesh, Material hairMaterial,
-            out CharacterCreator creator)
+            Mesh[] moreHairMeshes, out CharacterCreator creator)
         {
             var stage = new GameObject("RedrawStage");
             // INACTIVE FOR THE WHOLE BUILD, activated only at the very end.
@@ -189,7 +189,7 @@ namespace CityX.UI
                 Debug.LogWarning("CityX: ReDraw's clone has no head mesh -- the face cannot be painted.");
             }
 
-            CharacterHair hair = AddHair(body, hairMesh, hairMaterial);
+            CharacterHair hair = AddHair(body, hairMesh, hairMaterial, moreHairMeshes);
 
             // THE LAYER MUST ALREADY EXIST -- a runtime script cannot add one
             // to the project the way CharacterCreatorBuilder.EnsureLayer does
@@ -255,7 +255,7 @@ namespace CityX.UI
             return stage;
         }
 
-        private static CharacterHair AddHair(GameObject body, Mesh hairMesh, Material hairMaterial)
+        private static CharacterHair AddHair(GameObject body, Mesh hairMesh, Material hairMaterial, Mesh[] moreHairMeshes)
         {
             Transform head = FindDeep(body.transform, "head");
             if (head == null)
@@ -265,7 +265,12 @@ namespace CityX.UI
             }
             var hair = body.AddComponent<CharacterHair>();
             hair.Head = head;
-            hair.StyleMeshes = new[] { hairMesh };
+            var meshes = new System.Collections.Generic.List<Mesh> { hairMesh };
+            if (moreHairMeshes != null)
+            {
+                meshes.AddRange(moreHairMeshes);
+            }
+            hair.StyleMeshes = meshes.ToArray();
             hair.HairMaterial = hairMaterial;
             return hair;
         }
@@ -383,12 +388,14 @@ namespace CityX.UI
             controls.RedoButton = t.Find("RedoButton").GetComponent<Button>();
 
             MakeLabel(t, "HairLabel", "HAIR", 13, Paper, At(-458.0f), 18.0f);
-            MakeButton(t, "HairNoneButton", "BALD", Paper,
-                new Vector2(-46.0f, -484.0f), new Vector2(88.0f, 30.0f),
-                ButtonAction.Kind.CreatorHair, creator, overlays, value: 0);
-            MakeButton(t, "HairEmbermaneButton", "MANE", Paper,
-                new Vector2(46.0f, -484.0f), new Vector2(88.0f, 30.0f),
-                ButtonAction.Kind.CreatorHair, creator, overlays, value: 1);
+            for (int style = 0; style < CharacterHair.ValidStyles.Length; style++)
+            {
+                float x = (style - (CharacterHair.ValidStyles.Length - 1) * 0.5f) * 62.0f;
+                MakeButton(t, "Hair" + CharacterHair.ValidStyles[style] + "Button",
+                    CharacterHair.LabelFor(CharacterHair.ValidStyles[style]), Paper,
+                    new Vector2(x, -484.0f), new Vector2(58.0f, 30.0f),
+                    ButtonAction.Kind.CreatorHair, creator, overlays, value: style);
+            }
 
             MakeLabel(t, "HintLabel",
                 "Drag the body to paint it.\nDrag anywhere else to turn it.\nScroll to zoom.",

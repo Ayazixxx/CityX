@@ -210,9 +210,7 @@ namespace CityX.UIEditor
         /// </summary>
         private static void LoadHair(CharacterSelect select)
         {
-            var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(
-                "Assets/CityX/Character/Hair/embermane.obj");
-            select.HairStyleMeshes = mesh != null ? new[] { mesh } : new Mesh[0];
+            select.HairStyleMeshes = HairAssets.StyleMeshes();
 
             const string materialPath = "Assets/CityX/Character/Materials/Hair.mat";
             var material = AssetDatabase.LoadAssetAtPath<Material>(materialPath);

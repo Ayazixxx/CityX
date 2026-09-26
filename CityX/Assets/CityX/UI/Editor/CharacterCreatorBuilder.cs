@@ -274,14 +274,8 @@ namespace CityX.UIEditor
             var hair = body.AddComponent<CharacterHair>();
             hair.Head = head;
 
-            var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(
-                "Assets/CityX/Character/Hair/embermane.obj");
-            if (mesh == null)
-            {
-                Debug.LogWarning("CityX: embermane.obj is missing -- the Hair buttons will " +
-                                 "do nothing.");
-            }
-            hair.StyleMeshes = new[] { mesh };
+            // Every style's mesh, from the one list the other builders use too.
+            hair.StyleMeshes = HairAssets.StyleMeshes();
             hair.HairMaterial = HairMaterial();
             return hair;
         }
@@ -293,7 +287,7 @@ namespace CityX.UIEditor
         /// happened to reference it, so the same hair would end up with a
         /// separate copy per scene and no single place to change its colour.
         /// </summary>
-        private static Material HairMaterial()
+        internal static Material HairMaterial()
         {
             const string path = "Assets/CityX/Character/Materials/Hair.mat";
             var existing = AssetDatabase.LoadAssetAtPath<Material>(path);
@@ -481,12 +475,16 @@ namespace CityX.UIEditor
             controls.RedoButton = t.Find("RedoButton").GetComponent<Button>();
 
             MakeLabel(t, "HairLabel", "HAIR", 13, Paper, At(-458.0f), 18.0f);
-            MakeButton(t, "HairNoneButton", "BALD", Paper,
-                new Vector2(-46.0f, -484.0f), new Vector2(88.0f, 30.0f),
-                ButtonAction.Kind.CreatorHair, creator, value: 0);
-            MakeButton(t, "HairEmbermaneButton", "MANE", Paper,
-                new Vector2(46.0f, -484.0f), new Vector2(88.0f, 30.0f),
-                ButtonAction.Kind.CreatorHair, creator, value: 1);
+            // One button per style, in CharacterHair.ValidStyles order (the value IS the
+            // index), across the panel: three fit at 58 wide.
+            for (int style = 0; style < CharacterHair.ValidStyles.Length; style++)
+            {
+                float x = (style - (CharacterHair.ValidStyles.Length - 1) * 0.5f) * 62.0f;
+                MakeButton(t, "Hair" + CharacterHair.ValidStyles[style] + "Button",
+                    CharacterHair.LabelFor(CharacterHair.ValidStyles[style]), Paper,
+                    new Vector2(x, -484.0f), new Vector2(58.0f, 30.0f),
+                    ButtonAction.Kind.CreatorHair, creator, value: style);
+            }
 
             // character_creator.gd's own HintLabel. Nothing about "drag the
             // body to paint, drag the space to spin it" is discoverable, and

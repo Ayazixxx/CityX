@@ -273,6 +273,10 @@ namespace CityX.ViewEditor
             {
                 GameObject player = (GameObject)PrefabUtility.InstantiatePrefab(playerPrefab);
                 player.name = "Player";
+                // The player wears the hairstyle their character chose (CharacterIdentity
+                // applies it). Until now only the creator and the character list did -- in
+                // the world the hair simply was not there.
+                CityX.UIEditor.HairAssets.AddTo(player);
                 // A little above the road so the controller settles onto it
                 // rather than starting intersecting it.
                 //
@@ -851,6 +855,7 @@ namespace CityX.ViewEditor
                 redrawStarter.OrbitCamera = Object.FindFirstObjectByType<ThirdPersonCamera>();
                 redrawStarter.HairMesh = AssetDatabase.LoadAssetAtPath<Mesh>(
                     "Assets/CityX/Character/Hair/embermane.obj");
+                redrawStarter.MoreHairMeshes = CityX.UIEditor.HairAssets.MoreThanEmbermane();
                 redrawStarter.HairMaterial = AssetDatabase.LoadAssetAtPath<Material>(
                     "Assets/CityX/Character/Materials/Hair.mat");
                 if (redrawStarter.HairMesh == null || redrawStarter.HairMaterial == null)

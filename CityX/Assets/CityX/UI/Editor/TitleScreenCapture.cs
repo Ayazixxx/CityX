@@ -50,6 +50,58 @@ namespace CityX.UIEditor
             Capture();
         }
 
+        /// <summary>
+        /// Close-ups of the head from the front, the side and the back, wearing the anime
+        /// hairstyle -- the only way to judge how a hairstyle sits without playing.
+        /// </summary>
+        [MenuItem("CityX/Capture Anime Hair")]
+        public static void CaptureAnimeHair()
+        {
+            SeeBothSidesOfHair = false;
+            ShootHairViews("hair-anime-");
+        }
+
+        /// <summary>The same close-ups with the hair's back faces drawn -- tells a hairstyle that is genuinely sparse from one whose faces are turned the wrong way.</summary>
+        public static void CaptureAnimeHairBothSides()
+        {
+            SeeBothSidesOfHair = true;
+            ShootHairViews("hair-anime-2s-");
+            SeeBothSidesOfHair = false;
+        }
+
+        private static bool SeeBothSidesOfHair;
+
+        private static void ShootHairViews(string prefix)
+        {
+            foreach (string view in new[] { "front", "side", "back" })
+            {
+                Shoot(prefix + view, TitleScreen.Panel.Creator, seedCharacters: false,
+                    hairStyle: Character.CharacterHair.AnimeHair0, headView: view);
+            }
+        }
+
+        /// <summary>Rebuilds the title scene, then photographs the anime hair -- one editor start for change, rebuild, look.</summary>
+        public static void RebuildAndCaptureHair()
+        {
+            TitleScreenBuilder.Build();
+            CaptureAnimeHair();
+        }
+
+        private static void PositionForHead(Camera camera, Character.CharacterHair hair, string view)
+        {
+            if (hair == null || hair.Head == null)
+            {
+                return;
+            }
+            Vector3 head = hair.Head.position;
+            Vector3 forward = hair.transform.forward;
+            Vector3 right = hair.transform.right;
+            Vector3 from = view == "front" ? forward : view == "side" ? right : -forward;
+            camera.transform.position = head + from * 1.7f + Vector3.up * 0.15f;
+            camera.transform.rotation = Quaternion.LookRotation(head - camera.transform.position, Vector3.up);
+            camera.fieldOfView = 38.0f;
+        }
+
         [MenuItem("CityX/Capture Settings Screenshot")]
         public static void CaptureSettings()
         {
@@ -81,7 +133,7 @@ namespace CityX.UIEditor
 
         private static void Shoot(string name, TitleScreen.Panel panel, bool seedCharacters,
             CharacterSelect.Mode selectMode = CharacterSelect.Mode.List,
-            string hairStyle = null, bool showIdlePrompt = false)
+            string hairStyle = null, bool showIdlePrompt = false, string headView = null)
         {
             string outputDirectory = Path.Combine(
                 Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
@@ -156,7 +208,17 @@ namespace CityX.UIEditor
             int savedMask = 0;
             if (panel == TitleScreen.Panel.Creator)
             {
-                relay = Object.FindFirstObjectByType<CreatorStage>(FindObjectsInactive.Include);
+                // TWO screens have a stage (the character list's carousel and this one), and only this
+                // one's carries a CharacterCreator -- so the first CreatorStage found is not necessarily it.
+                foreach (CreatorStage candidate in Object.FindObjectsByType<CreatorStage>(
+                    FindObjectsInactive.Include, FindObjectsSortMode.None))
+                {
+                    if (candidate.Stage != null && candidate.Stage.GetComponent<Character.CharacterCreator>() != null)
+                    {
+                        relay = candidate;
+                        break;
+                    }
+                }
                 if (relay != null && relay.Stage != null)
                 {
                     relay.Stage.SetActive(true);
@@ -169,11 +231,23 @@ namespace CityX.UIEditor
                         if (hairStyle != null)
                         {
                             creator.SetHairStyle(hairStyle);
+                            if (SeeBothSidesOfHair && creator.Hair != null && creator.Hair.Worn != null)
+                            {
+                                // A COPY of the material, so the shared asset is never touched.
+                                var renderer = creator.Hair.Worn.GetComponent<MeshRenderer>();
+                                var copy = new Material(renderer.sharedMaterial);
+                                copy.SetFloat("_Cull", 0.0f);
+                                renderer.sharedMaterial = copy;
+                            }
                         }
                         if (creator.Camera != null)
                         {
                             shotCamera = creator.Camera;
                             savedMask = shotCamera.cullingMask;
+                            if (headView != null)
+                            {
+                                PositionForHead(shotCamera, creator.Hair, headView);
+                            }
                         }
                     }
                 }
@@ -214,6 +288,12 @@ namespace CityX.UIEditor
                             t.gameObject.layer = layer;
                         }
                     }
+                }
+
+                // A head close-up is the hair and nothing else: no panel over it.
+                if (headView != null && canvas != null)
+                {
+                    canvas.enabled = false;
                 }
 
                 target = new RenderTexture(Width, Height, 24, RenderTextureFormat.ARGB32)
