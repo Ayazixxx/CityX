@@ -44,6 +44,9 @@ namespace CityX.UI
         [Tooltip("title_screen.gd's own StarsPlayer -- plays through Menu/CharacterSelect/Creator, set to loop and play on awake, and never touched by Show().")]
         public AudioSource MusicPlayer;
 
+        [Tooltip("The rain's sound and streaks: full outdoors on the menu, muffled and quiet on the character list, gone on the creator.")]
+        public TitleAmbience Ambience;
+
         [Tooltip("Seconds for one full pulse of the logo. The Godot build's own period.")]
         public float LogoFlickerPeriod = 6.5f;
 
@@ -96,6 +99,7 @@ namespace CityX.UI
             if (SettingsPanel != null) SettingsPanel.SetActive(false);
             if (PromptLabel != null) PromptLabel.gameObject.SetActive(true);
             SetLogoShown(true);
+            if (Ambience != null) Ambience.SetMood(TitleAmbience.MoodFor(Panel.Menu));
         }
 
         /// <summary>
@@ -134,6 +138,10 @@ namespace CityX.UI
             // alone rather than hidden pre-emptively.
             SetLogoShown(panel != Panel.CharacterSelect && panel != Panel.Creator
                 && panel != Panel.Settings);
+
+            // The rain's sound follows where you are: the list is a room out of it, the creator
+            // is somewhere with no weather at all.
+            if (Ambience != null) Ambience.SetMood(TitleAmbience.MoodFor(panel));
         }
 
         /// <summary>

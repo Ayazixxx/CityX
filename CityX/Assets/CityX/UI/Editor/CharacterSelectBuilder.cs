@@ -138,7 +138,6 @@ namespace CityX.UIEditor
             cameraObject.transform.localPosition = new Vector3(0.0f, 1.7f, 7.5f);
             cameraObject.transform.localRotation = Quaternion.Euler(6.0f, 180.0f, 0.0f);
             Camera camera = cameraObject.AddComponent<Camera>();
-            // Depth, not a solid colour: the title's city and rain stay visible behind the characters.
             camera.clearFlags = CameraClearFlags.Depth;
             camera.fieldOfView = 50.0f;
             camera.nearClipPlane = 0.05f;
@@ -146,9 +145,34 @@ namespace CityX.UIEditor
             camera.depth = 5;
             camera.allowMSAA = true;
             var cameraData = cameraObject.AddComponent<UniversalAdditionalCameraData>();
-            cameraData.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
-            cameraData.antialiasingQuality = AntialiasingQuality.High;
             cameraObject.layer = layer;
+
+            // AN OVERLAY ON THE TITLE'S OWN CAMERA, NOT A SECOND BASE CAMERA. The first version
+            // was a base camera with "depth only" clearing so the city would stay behind the
+            // characters -- and in URP a second base camera cannot keep what the first drew: it
+            // renders into a fresh target that is cleared to the camera's default background (that
+            // stock blue) and the city vanished, on the character list only. An overlay camera is
+            // the supported way to draw one camera's things over another's picture. It takes its
+            // anti-aliasing from the base camera it is stacked on; the stack is stored on the base.
+            // The list skips a camera that is switched off, so this costs nothing while the stage
+            // is hidden.
+            // (Whether it clears depth is read off the camera's own clear flags, set above.)
+            cameraData.renderType = CameraRenderType.Overlay;
+
+            Camera titleCamera = Camera.main;
+            if (titleCamera != null)
+            {
+                UniversalAdditionalCameraData titleData = titleCamera.GetUniversalAdditionalCameraData();
+                if (!titleData.cameraStack.Contains(camera))
+                {
+                    titleData.cameraStack.Add(camera);
+                }
+            }
+            else
+            {
+                Debug.LogWarning("CityX: no main camera to stack the character list's camera on -- " +
+                                 "the characters will not draw.");
+            }
 
             AddLight(stage, layer, "Key", new Vector3(22.0f, 150.0f, 0.0f), 1.4f, Color.white);
             AddLight(stage, layer, "Fill", new Vector3(10.0f, -40.0f, 0.0f), 0.8f,

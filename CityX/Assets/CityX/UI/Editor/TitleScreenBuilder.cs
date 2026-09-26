@@ -44,6 +44,12 @@ namespace CityX.UIEditor
     public static class TitleScreenBuilder
     {
         private const string ScenePath = "Assets/CityX/Scenes/Title.unity";
+
+        /// <summary>The rendering layer everything lights and renders on by default (bit 0).</summary>
+        public const uint DefaultRenderingLayer = 1u << 0;
+
+        /// <summary>The rendering layer of the title's city -- lit by the sun and moon and by nothing else.</summary>
+        public const uint CityRenderingLayer = 1u << 1;
         private const string LogoPath = "Assets/CityX/UI/Textures/LogoCityX.png";
 
         /// <summary>Everything the title generates -- the baked row of buildings, the logo's material, the vignette -- lives here, so a rebuild rewrites one folder.</summary>
@@ -177,6 +183,16 @@ namespace CityX.UIEditor
             moon.type = LightType.Directional;
             moon.shadows = LightShadows.Soft;
 
+            // THE CITY IS ON ITS OWN RENDERING LAYER, AND ONLY THE SUN AND MOON LIGHT IT. The
+            // character list and the creator each stand a few directional lights around their
+            // bodies -- and URP ignores a light's culling mask, so those lights lit the city
+            // too, the moment the character list's camera was drawn over it (the buildings went
+            // from dark night faces to washed-out grey). Light layers are how URP says "this
+            // light is not for that": the city is on a layer only the sun and moon include, so
+            // the stage lights (on the default layer) leave it alone.
+            sun.renderingLayerMask = (int)(DefaultRenderingLayer | CityRenderingLayer);
+            moon.renderingLayerMask = (int)(DefaultRenderingLayer | CityRenderingLayer);
+
             string meshPath = $"{TitleAssets}/TitleSkyline.asset";
             AssetDatabase.DeleteAsset(meshPath);
             AssetDatabase.CreateAsset(row.Mesh, meshPath);
@@ -185,6 +201,7 @@ namespace CityX.UIEditor
             skyline.AddComponent<MeshFilter>().sharedMesh = row.Mesh;
             MeshRenderer renderer = skyline.AddComponent<MeshRenderer>();
             renderer.sharedMaterials = new[] { ground, pavement, structure, darkGlass, litGlass };
+            renderer.renderingLayerMask = CityRenderingLayer;
 
             GameObject plane = GameObject.CreatePrimitive(PrimitiveType.Plane);
             plane.name = "Ground";
@@ -192,6 +209,7 @@ namespace CityX.UIEditor
             plane.transform.position = new Vector3(0.0f, -0.05f, 0.0f);
             plane.transform.localScale = new Vector3(300.0f, 1.0f, 300.0f);
             plane.GetComponent<MeshRenderer>().sharedMaterial = ground;
+            plane.GetComponent<MeshRenderer>().renderingLayerMask = CityRenderingLayer;
 
             float distance = frame.Distance;
             Vector3 cameraPosition = new Vector3(0.0f, frame.CameraY, -distance);
@@ -464,6 +482,16 @@ namespace CityX.UIEditor
             Stretch((RectTransform)rain.transform, 0.0f);
             TitleRainLayer rainLayer = rain.AddComponent<TitleRainLayer>();
             rainLayer.raycastTarget = false;
+
+            // The rain's sound follows the panel: full on the menu, quiet and muffled (rain heard
+            // through a wall) on the character list, gone -- with the streaks -- on the creator.
+            AudioLowPassFilter rainMuffle = rainSoundObject.AddComponent<AudioLowPassFilter>();
+            rainMuffle.cutoffFrequency = TitleAmbience.OutdoorsCutoffHz;
+            TitleAmbience ambience = rainSoundObject.AddComponent<TitleAmbience>();
+            ambience.Sound = rainSound;
+            ambience.Filter = rainMuffle;
+            ambience.Rain = rainLayer;
+            title.Ambience = ambience;
 
             var vignette = new GameObject("Vignette", typeof(RectTransform));
             vignette.transform.SetParent(root.transform, false);

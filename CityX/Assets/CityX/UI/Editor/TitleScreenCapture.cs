@@ -50,6 +50,13 @@ namespace CityX.UIEditor
             Capture();
         }
 
+        /// <summary>Rebuilds the title scene, then photographs the character list and the creator -- one editor start for change, rebuild, look.</summary>
+        public static void RebuildAndCaptureSelect()
+        {
+            TitleScreenBuilder.Build();
+            CaptureCharacterSelect();
+        }
+
         /// <summary>
         /// Close-ups of the head from the front, the side and the back, wearing the anime
         /// hairstyle -- the only way to judge how a hairstyle sits without playing.
@@ -253,6 +260,28 @@ namespace CityX.UIEditor
                 }
             }
 
+            // THE CHARACTER LIST'S CHARACTERS ARE DRAWN BY AN OVERLAY CAMERA STACKED ON THE TITLE'S.
+            // Rendering only the title camera would leave them out -- which is exactly how the city
+            // vanishing behind them once went unnoticed: this shot never drew them at all. The stage
+            // is off in the saved scene, so switch it on and let the title camera render its stack.
+            CreatorStage carousel = null;
+            if (panel == TitleScreen.Panel.CharacterSelect)
+            {
+                foreach (CreatorStage candidate in Object.FindObjectsByType<CreatorStage>(
+                    FindObjectsInactive.Include, FindObjectsSortMode.None))
+                {
+                    if (candidate.Stage != null && candidate.Stage.GetComponent<Character.CharacterCreator>() == null)
+                    {
+                        carousel = candidate;
+                        break;
+                    }
+                }
+                if (carousel != null)
+                {
+                    carousel.Stage.SetActive(true);
+                }
+            }
+
             var canvas = Object.FindFirstObjectByType<Canvas>();
             RenderTexture target = null;
             RenderTexture previous = RenderTexture.active;
@@ -325,6 +354,10 @@ namespace CityX.UIEditor
                 if (relay != null && relay.Stage != null)
                 {
                     relay.Stage.SetActive(false);
+                }
+                if (carousel != null && carousel.Stage != null)
+                {
+                    carousel.Stage.SetActive(false);
                 }
                 if (target != null)
                 {
