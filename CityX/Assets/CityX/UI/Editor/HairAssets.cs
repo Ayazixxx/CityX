@@ -9,15 +9,11 @@ namespace CityX.UIEditor
     /// <see cref="CharacterHair.ValidStyles"/> order (after "none").
     ///
     /// The creator, the character list and the in-game player all need the same
-    /// list, and each builder used to load embermane.obj by path itself. A new
-    /// style added here shows up in all of them at once.
+    /// list. A new style added here shows up in all of them at once.
     /// </summary>
     public static class HairAssets
     {
         public const string Folder = "Assets/CityX/Character/Hair";
-        public const string EmbermanePath = Folder + "/embermane.obj";
-        public const string AnimeHair0Source = Folder + "/AnimeHair0.glb";
-        public const string AnimeHair0Baked = Folder + "/AnimeHair0Mesh.asset";
         public const string Hair1Source = Folder + "/Hair1.glb";
         public const string Hair1Baked = Folder + "/Hair1Mesh.asset";
 
@@ -98,8 +94,6 @@ namespace CityX.UIEditor
         {
             switch (style)
             {
-                case CharacterHair.Embermane: return AssetDatabase.LoadAssetAtPath<Mesh>(EmbermanePath);
-                case CharacterHair.AnimeHair0: return AnimeHair0();
                 case CharacterHair.Hair1: return Hair1();
                 default:
                     Debug.LogWarning($"CityX: no model is wired for the hairstyle \"{style}\" -- add it to HairAssets.MeshFor.");
@@ -107,26 +101,14 @@ namespace CityX.UIEditor
             }
         }
 
-        /// <summary>Everything after the first style -- for the one place that takes the first mesh separately.</summary>
-        public static Mesh[] MoreThanEmbermane()
-        {
-            Mesh[] all = StyleMeshes();
-            var rest = new Mesh[all.Length - 1];
-            System.Array.Copy(all, 1, rest, 0, rest.Length);
-            return rest;
-        }
-
-        /// <summary>AnimeHair0's mesh, baked (see <see cref="BakedFromModel"/>).</summary>
-        public static Mesh AnimeHair0() => BakedFromModel(AnimeHair0Source, AnimeHair0Baked, "AnimeHair0Mesh");
-
         /// <summary>Hair1's mesh, baked (see <see cref="BakedFromModel"/>).</summary>
         public static Mesh Hair1() => BakedFromModel(Hair1Source, Hair1Baked, "Hair1Mesh");
 
         /// <summary>
         /// A hair model's mesh, with the glTF node's own transform BAKED into it.
         ///
-        /// A hair model is one mesh under one node that scales and lifts it (AnimeHair0: 1.74x and
-        /// 1.1m) -- so the same file, dropped into a scene as a prefab, sits somewhere very
+        /// A hair model is one mesh under one node that scales and lifts it (Hair1: 1.41x and
+        /// 1.32m) -- so the same file, dropped into a scene as a prefab, sits somewhere very
         /// different from where its raw vertices are. A hair mesh has to be the same thing
         /// whichever way it is loaded, so the node's transform is applied to the vertices once,
         /// here, and saved as a plain mesh asset. From then on the mesh is in the model's own

@@ -59,8 +59,8 @@ namespace CityX.UI
         /// returns its root. Destroy the returned GameObject to tear the
         /// whole session down; there is nothing else to clean up.
         /// </summary>
-        public static GameObject Build(GameObject player, Mesh hairMesh, Material hairMaterial,
-            System.Action<CharacterCreator> onConfirm, System.Action onCancel, Mesh[] moreHairMeshes = null)
+        public static GameObject Build(GameObject player, Mesh[] hairMeshes, Material hairMaterial,
+            System.Action<CharacterCreator> onConfirm, System.Action onCancel)
         {
             var root = new GameObject("RedrawOverlay", typeof(RectTransform));
             Canvas canvas = root.AddComponent<Canvas>();
@@ -77,7 +77,7 @@ namespace CityX.UI
             scaler.matchWidthOrHeight = 0.5f;
             root.AddComponent<GraphicRaycaster>();
 
-            GameObject stage = BuildStage(player, hairMesh, hairMaterial, moreHairMeshes, out CharacterCreator creator);
+            GameObject stage = BuildStage(player, hairMeshes, hairMaterial, out CharacterCreator creator);
             root.AddComponent<CreatorStage>().Stage = stage;
 
             var overlays = root.AddComponent<CreatorOverlays>();
@@ -86,6 +86,7 @@ namespace CityX.UI
             overlays.OnCancelRedraw = onCancel;
 
             BuildToolColumn(root.transform, creator, overlays);
+            HairColourPanel.Build(root.transform, creator);
             BuildDiscardPrompt(root.transform, overlays);
 
             EnsureEventSystem();
@@ -99,8 +100,8 @@ namespace CityX.UI
         /// CharacterCreatorBuilder.BuildStage -- see this file's own doc
         /// comment for why it cannot just call that one.
         /// </summary>
-        private static GameObject BuildStage(GameObject player, Mesh hairMesh, Material hairMaterial,
-            Mesh[] moreHairMeshes, out CharacterCreator creator)
+        private static GameObject BuildStage(GameObject player, Mesh[] hairMeshes, Material hairMaterial,
+            out CharacterCreator creator)
         {
             var stage = new GameObject("RedrawStage");
             // INACTIVE FOR THE WHOLE BUILD, activated only at the very end.
@@ -189,7 +190,7 @@ namespace CityX.UI
                 Debug.LogWarning("CityX: ReDraw's clone has no head mesh -- the face cannot be painted.");
             }
 
-            CharacterHair hair = AddHair(body, hairMesh, hairMaterial, moreHairMeshes);
+            CharacterHair hair = AddHair(body, hairMeshes, hairMaterial);
 
             // THE LAYER MUST ALREADY EXIST -- a runtime script cannot add one
             // to the project the way CharacterCreatorBuilder.EnsureLayer does
@@ -255,7 +256,7 @@ namespace CityX.UI
             return stage;
         }
 
-        private static CharacterHair AddHair(GameObject body, Mesh hairMesh, Material hairMaterial, Mesh[] moreHairMeshes)
+        private static CharacterHair AddHair(GameObject body, Mesh[] hairMeshes, Material hairMaterial)
         {
             Transform head = FindDeep(body.transform, "head");
             if (head == null)
@@ -265,12 +266,8 @@ namespace CityX.UI
             }
             var hair = body.AddComponent<CharacterHair>();
             hair.Head = head;
-            var meshes = new System.Collections.Generic.List<Mesh> { hairMesh };
-            if (moreHairMeshes != null)
-            {
-                meshes.AddRange(moreHairMeshes);
-            }
-            hair.StyleMeshes = meshes.ToArray();
+            // Every style after "none", in CharacterHair.ValidStyles order.
+            hair.StyleMeshes = hairMeshes ?? new Mesh[0];
             hair.HairMaterial = hairMaterial;
             return hair;
         }

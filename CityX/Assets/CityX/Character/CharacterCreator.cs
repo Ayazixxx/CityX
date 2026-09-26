@@ -513,5 +513,16 @@ namespace CityX.Character
         }
 
         public string HairStyle => Hair != null ? Hair.Style : CharacterHair.None;
+
+        /// <summary>Dyes the hair on the body being made. Kept while bald and worn by whichever style comes next.</summary>
+        public void SetHairColour(Color colour)
+        {
+            if (Hair != null)
+            {
+                Hair.SetColour(colour);
+            }
+        }
+
+        public Color HairColour => Hair != null ? Hair.Colour : CharacterHair.HairColour;
     }
 }

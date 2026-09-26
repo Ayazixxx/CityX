@@ -133,6 +133,7 @@ namespace CityX.UI
             // places to keep in step over what a new character starts as.
             Title.Select.PendingPaint = Creator.Paint.Encode();
             Title.Select.PendingHair = Creator.HairStyle;
+            Title.Select.PendingHairColour = Creator.HairColour;
             if (Title.Select.NameField != null)
             {
                 Title.Select.NameField.text = typed;

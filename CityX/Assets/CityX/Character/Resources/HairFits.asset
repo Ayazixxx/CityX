@@ -12,4 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ae0c96ba29f3cc244ae003a77974a3e7, type: 3}
   m_Name: HairFits
   m_EditorClassIdentifier: CityX.Character::CityX.Character.HairFitSettings
-  Entries: []
+  Entries:
+  - Style: hair1
+    Fit:
+      Position: {x: -0.000007425706, y: -2.3, z: 0.02020046}
+      Euler: {x: -0, y: 0, z: 0}
+      Scale: {x: 1, y: 1, z: 1}

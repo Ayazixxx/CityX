@@ -69,6 +69,9 @@ namespace CityX.UIEditor
             overlays.Title = title;
 
             BuildTools(panel.transform, creator, title, overlays);
+            // Down the right, where there is room -- the left column is full. Shown only while the
+            // character has hair.
+            HairColourPanel.Build(panel.transform, creator);
             BuildNamePrompt(panel.transform, overlays);
             BuildDiscardPrompt(panel.transform, overlays);
             return panel;

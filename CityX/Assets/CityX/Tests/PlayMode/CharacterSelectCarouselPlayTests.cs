@@ -132,6 +132,41 @@ namespace CityX.Tests
                 "the ambience PlayerAudio.Awake() started before it could be stripped");
         }
 
+        /// <summary>A saved character's hair colour is on the hair of their pedestal body -- not just the default gold.</summary>
+        [UnityTest]
+        public IEnumerator ACharactersHairColourShowsOnTheirPedestalBody()
+        {
+#if UNITY_EDITOR
+            _select.HairStyleMeshes = new[]
+            {
+                UnityEditor.AssetDatabase.LoadAssetAtPath<Mesh>("Assets/CityX/Character/Hair/Hair1Mesh.asset"),
+            };
+            _select.HairMaterialAsset = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>(
+                "Assets/CityX/Character/Materials/Hair.mat");
+
+            var blue = new Color(0.2f, 0.4f, 0.85f);
+            CharacterSave save = CharacterSave.Create("Ayaz", new Color(0.3f, 0.4f, 0.5f));
+            save.HairStyle = CityX.Character.CharacterHair.Hair1;
+            save.HairColour = blue;
+            CharacterStore.Add(save);
+            _select.Refresh();
+            yield return null;
+
+            GameObject body = _select.PedestalAnchors[1].GetChild(0).gameObject;
+            var hair = body.GetComponent<CityX.Character.CharacterHair>();
+            Assert.IsNotNull(hair, "the pedestal body has no hair component");
+            Assert.IsNotNull(hair.Worn, "the pedestal body is not wearing the character's hairstyle");
+
+            var block = new MaterialPropertyBlock();
+            hair.Worn.GetComponent<MeshRenderer>().GetPropertyBlock(block);
+            Color worn = block.GetColor("_BaseColor");
+            Assert.AreEqual(blue.b, worn.b, 0.001f, "the pedestal body's hair is not the character's colour");
+            Assert.AreEqual(blue.r, worn.r, 0.001f);
+#else
+            yield break;
+#endif
+        }
+
         private static Transform FindDeep(Transform root, string name)
         {
             foreach (Transform child in root.GetComponentsInChildren<Transform>(true))

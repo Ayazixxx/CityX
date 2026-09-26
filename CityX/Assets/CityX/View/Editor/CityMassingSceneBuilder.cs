@@ -853,12 +853,11 @@ namespace CityX.ViewEditor
                 redrawStarter = mapPlayer.gameObject.AddComponent<CityX.UI.PlayerRedrawStarter>();
                 redrawStarter.InputReader = Object.FindFirstObjectByType<PlayerInputReader>();
                 redrawStarter.OrbitCamera = Object.FindFirstObjectByType<ThirdPersonCamera>();
-                redrawStarter.HairMesh = AssetDatabase.LoadAssetAtPath<Mesh>(
-                    "Assets/CityX/Character/Hair/embermane.obj");
-                redrawStarter.MoreHairMeshes = CityX.UIEditor.HairAssets.MoreThanEmbermane();
+                redrawStarter.HairMeshes = CityX.UIEditor.HairAssets.StyleMeshes();
                 redrawStarter.HairMaterial = AssetDatabase.LoadAssetAtPath<Material>(
                     "Assets/CityX/Character/Materials/Hair.mat");
-                if (redrawStarter.HairMesh == null || redrawStarter.HairMaterial == null)
+                if (redrawStarter.HairMeshes.Length == 0 || System.Array.IndexOf(redrawStarter.HairMeshes, null) >= 0
+                    || redrawStarter.HairMaterial == null)
                 {
                     // CharacterCreatorBuilder.HairMaterial() creates Hair.mat
                     // the first time the title screen is built -- if that has

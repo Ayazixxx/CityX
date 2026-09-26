@@ -62,8 +62,11 @@ namespace CityX.Tests
 
             var starter = _playerObject.AddComponent<PlayerRedrawStarter>();
             starter.InputReader = _playerObject.GetComponent<PlayerInputReader>();
-            starter.HairMesh = UnityEditor.AssetDatabase.LoadAssetAtPath<Mesh>(
-                "Assets/CityX/Character/Hair/embermane.obj");
+            // Every style after none: Hair1's baked mesh is the only one.
+            starter.HairMeshes = new[]
+            {
+                UnityEditor.AssetDatabase.LoadAssetAtPath<Mesh>("Assets/CityX/Character/Hair/Hair1Mesh.asset"),
+            };
             starter.HairMaterial = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>(
                 "Assets/CityX/Character/Materials/Hair.mat");
             return starter;
@@ -125,6 +128,41 @@ namespace CityX.Tests
             Assert.IsFalse(starter.IsActive, "SAVE should close the session immediately");
             Assert.IsTrue(starter.InputReader.enabled, "movement should come back after SAVE");
             Assert.IsTrue(_character.HasPaint, "the edited paint never reached CharacterSave");
+        }
+
+        /// <summary>
+        /// ReDraw opens on the character's own hair colour -- on the head AND in the picker beside it --
+        /// and a colour chosen there is saved back with the style.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ReDrawStartsOnTheCharactersHairColourAndSavesAnewOneBack()
+        {
+            PlayerRedrawStarter starter = MakeStarter();
+            var blue = new Color(0.2f, 0.4f, 0.85f);
+            _character.HairStyle = CharacterHair.Hair1;
+            _character.HairColour = blue;
+            yield return null;
+            starter.Begin();
+            yield return null;
+
+            CharacterCreator creator = Object.FindFirstObjectByType<CharacterCreator>();
+            Assert.AreEqual(CharacterHair.Hair1, creator.HairStyle, "ReDraw did not start on the character's hairstyle");
+            Assert.AreEqual(blue.b, creator.HairColour.b, 0.001f, "ReDraw did not start on the character's hair colour");
+
+            var picker = Object.FindFirstObjectByType<HairColourControls>();
+            Assert.IsNotNull(picker, "ReDraw has no hair colour picker");
+            Assert.AreEqual(blue.b, picker.Current.b, 0.02f, "the picker shows a different colour from the hair");
+            Assert.AreEqual(blue.r, picker.Current.r, 0.02f, "the picker shows a different colour from the hair");
+
+            var pink = new Color(0.9f, 0.45f, 0.65f);
+            picker.Adopt(pink);
+            Assert.AreEqual(pink.r, creator.HairColour.r, 0.02f, "choosing a colour did not dye the hair");
+
+            Object.FindFirstObjectByType<CreatorOverlays>().SaveRedraw();
+
+            Assert.AreEqual(CharacterHair.Hair1, _character.HairStyle);
+            Assert.AreEqual(pink.r, _character.HairColour.r, 0.02f, "the new hair colour never reached CharacterSave");
+            Assert.AreEqual(pink.g, _character.HairColour.g, 0.02f);
         }
 
         [UnityTest]

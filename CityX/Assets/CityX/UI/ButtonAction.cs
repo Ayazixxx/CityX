@@ -95,6 +95,9 @@ namespace CityX.UI
             MultiplayerHost,
             MultiplayerJoin,
             MultiplayerBack,
+
+            /// <summary>A swatch in the hair colour card: dyes the hair Colour. Needs HairControls.</summary>
+            CreatorHairColour,
         }
 
         public Kind Action;
@@ -111,6 +114,9 @@ namespace CityX.UI
 
         [Tooltip("So a palette press moves the colour wheel with it.")]
         public CreatorControls Controls;
+
+        [Tooltip("So a hair colour swatch moves the hair colour picker with it.")]
+        public HairColourControls HairControls;
 
         [Tooltip("The name prompt and the discard check, for the buttons that raise them.")]
         public CreatorOverlays Overlays;
@@ -249,6 +255,18 @@ namespace CityX.UI
                         && Value < CharacterHair.ValidStyles.Length)
                     {
                         Creator.SetHairStyle(CharacterHair.ValidStyles[Value]);
+                    }
+                    break;
+
+                case Kind.CreatorHairColour:
+                    if (HairControls != null)
+                    {
+                        // Through the picker, so its square, strip and preview move to the swatch.
+                        HairControls.Adopt(Colour);
+                    }
+                    else if (Creator != null)
+                    {
+                        Creator.SetHairColour(Colour);
                     }
                     break;
 

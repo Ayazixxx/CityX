@@ -80,6 +80,7 @@ namespace CityX.Character
             if (hair != null)
             {
                 hair.SetStyle(character.HairStyle);
+                hair.SetColour(character.HairColour);
             }
 
             // PAINT WINS OVER THE FLAT COLOUR when there is any, because paint

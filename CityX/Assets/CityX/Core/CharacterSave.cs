@@ -81,6 +81,12 @@ namespace CityX.Core
         /// </summary>
         public string HairStyle = "none";
 
+        /// <summary>
+        /// The colour of the hair, any colour. A save written before hair had a colour has no
+        /// such field and loads as <see cref="DefaultHairColour"/>, which is what every head wore.
+        /// </summary>
+        public Color HairColour = DefaultHairColour;
+
         public int Level = 1;
 
         public int Experience;
@@ -103,6 +109,9 @@ namespace CityX.Core
         public long LastPlayedUnixSeconds;
 
         public static readonly Color DefaultSkin = new Color(0.78f, 0.62f, 0.53f);
+
+        /// <summary>character.gd's own HAIR_COLOR: the colour hair has until somebody picks another.</summary>
+        public static readonly Color DefaultHairColour = new Color(0.75f, 0.55f, 0.15f);
 
         /// <summary>The longest name the select screen can show without eliding.</summary>
         public const int MaximumNameLength = 20;
@@ -224,6 +233,14 @@ namespace CityX.Core
             if (string.IsNullOrEmpty(HairStyle))
             {
                 HairStyle = "none";
+                changed = true;
+            }
+
+            // Any colour is a valid hair colour -- black included, unlike skin -- but a see-through
+            // one is not a colour anybody chose.
+            if (HairColour.a < 0.99f)
+            {
+                HairColour = DefaultHairColour;
                 changed = true;
             }
 

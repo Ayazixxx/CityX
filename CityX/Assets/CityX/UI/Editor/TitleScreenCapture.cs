@@ -57,28 +57,7 @@ namespace CityX.UIEditor
             CaptureCharacterSelect();
         }
 
-        /// <summary>
-        /// Close-ups of the head from the front, the side and the back, wearing the anime
-        /// hairstyle -- the only way to judge how a hairstyle sits without playing.
-        /// </summary>
-        [MenuItem("CityX/Capture Anime Hair")]
-        public static void CaptureAnimeHair()
-        {
-            SeeBothSidesOfHair = false;
-            ShootHairViews("hair-anime-");
-        }
-
-        /// <summary>The same close-ups with the hair's back faces drawn -- tells a hairstyle that is genuinely sparse from one whose faces are turned the wrong way.</summary>
-        public static void CaptureAnimeHairBothSides()
-        {
-            SeeBothSidesOfHair = true;
-            ShootHairViews("hair-anime-2s-");
-            SeeBothSidesOfHair = false;
-        }
-
-        private static bool SeeBothSidesOfHair;
-
-        private static void ShootHairViews(string prefix, string style = Character.CharacterHair.AnimeHair0)
+        private static void ShootHairViews(string prefix, string style)
         {
             foreach (string view in new[] { "front", "side", "back" })
             {
@@ -87,18 +66,10 @@ namespace CityX.UIEditor
             }
         }
 
-        /// <summary>Rebuilds the title scene, then photographs the anime hair -- one editor start for change, rebuild, look.</summary>
-        public static void RebuildAndCaptureHair()
-        {
-            TitleScreenBuilder.Build();
-            CaptureAnimeHair();
-        }
-
         /// <summary>Close-ups of the head wearing Hair1: front, side and back.</summary>
         [MenuItem("CityX/Capture Hair1")]
         public static void CaptureHair1()
         {
-            SeeBothSidesOfHair = false;
             ShootHairViews("hair-1-", Character.CharacterHair.Hair1);
         }
 
@@ -149,13 +120,16 @@ namespace CityX.UIEditor
             // a character starts bald -- so without asking for it the shot
             // says nothing about whether the mesh lands on the head or halfway
             // down the back, which is exactly the bug the Godot build had.
+            // Dyed blue, not the default: the shot also says whether the colour picker reaches the
+            // hair, and a default-coloured head cannot tell that from a picker wired to nothing.
             Shoot("creator-hair", TitleScreen.Panel.Creator, seedCharacters: false,
-                hairStyle: Character.CharacterHair.Embermane);
+                hairStyle: Character.CharacterHair.Hair1, hairColour: new Color(0.20f, 0.40f, 0.85f));
         }
 
         private static void Shoot(string name, TitleScreen.Panel panel, bool seedCharacters,
             CharacterSelect.Mode selectMode = CharacterSelect.Mode.List,
-            string hairStyle = null, bool showIdlePrompt = false, string headView = null)
+            string hairStyle = null, bool showIdlePrompt = false, string headView = null,
+            Color? hairColour = null)
         {
             string outputDirectory = Path.Combine(
                 Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
@@ -253,13 +227,16 @@ namespace CityX.UIEditor
                         if (hairStyle != null)
                         {
                             creator.SetHairStyle(hairStyle);
-                            if (SeeBothSidesOfHair && creator.Hair != null && creator.Hair.Worn != null)
+                            if (hairColour.HasValue)
                             {
-                                // A COPY of the material, so the shared asset is never touched.
-                                var renderer = creator.Hair.Worn.GetComponent<MeshRenderer>();
-                                var copy = new Material(renderer.sharedMaterial);
-                                copy.SetFloat("_Cull", 0.0f);
-                                renderer.sharedMaterial = copy;
+                                creator.SetHairColour(hairColour.Value);
+                            }
+                            // The picker beside the body, showing what the hair is.
+                            HairColourControls picker = Object.FindFirstObjectByType<HairColourControls>(
+                                FindObjectsInactive.Include);
+                            if (picker != null)
+                            {
+                                picker.Refresh();
                             }
                         }
                         if (creator.Camera != null)

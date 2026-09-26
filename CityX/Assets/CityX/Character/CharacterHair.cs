@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using CityX.Core;
 using UnityEngine;
 
 namespace CityX.Character
@@ -12,8 +13,8 @@ namespace CityX.Character
     /// because a save file stores this as a plain string.
     ///
     /// Hair has no paintable UVs of its own. The body's atlas covers the body;
-    /// this gets one flat colour, exactly as the Godot build left it, so a
-    /// later customization pass has one place to change.
+    /// this gets one flat colour, ANY colour (see <see cref="Colour"/>), which the
+    /// creator sets and the character save keeps.
     ///
     /// EVERY STYLE HAS A FIT: where it sits on the head, how it is turned and
     /// how big it is (see <see cref="Fit"/>). A style gets a sensible default
@@ -28,11 +29,18 @@ namespace CityX.Character
     public sealed class CharacterHair : MonoBehaviour
     {
         public const string None = "none";
-        public const string Embermane = "embermane";
-        public const string AnimeHair0 = "animehair0";
         public const string Hair1 = "hair1";
 
-        public static readonly string[] ValidStyles = { None, Embermane, AnimeHair0, Hair1 };
+        /// <summary>
+        /// Every style there is, "none" first. The creator's buttons, the mesh list and the
+        /// tests all walk this, so a style added here shows up everywhere.
+        ///
+        /// A save file stores the name, so a style that is REMOVED (Embermane and AnimeHair0
+        /// were, as outdated) leaves characters carrying a name nothing recognises. That is
+        /// safe: <see cref="SetStyle"/> ignores a name that is not here, and a head starts out
+        /// bald, so such a character is simply bald until they pick again.
+        /// </summary>
+        public static readonly string[] ValidStyles = { None, Hair1 };
 
         /// <summary>The short name a button or a console line uses for a style.</summary>
         public static string LabelFor(string style)
@@ -40,15 +48,13 @@ namespace CityX.Character
             switch (style)
             {
                 case None: return "BALD";
-                case Embermane: return "MANE";
-                case AnimeHair0: return "ANIME";
                 case Hair1: return "BOB";
                 default: return (style ?? string.Empty).ToUpperInvariant();
             }
         }
 
-        /// <summary>character.gd's own HAIR_COLOR.</summary>
-        public static readonly Color HairColour = new Color(0.75f, 0.55f, 0.15f);
+        /// <summary>character.gd's own HAIR_COLOR: the colour hair has until somebody picks another.</summary>
+        public static readonly Color HairColour = CharacterSave.DefaultHairColour;
 
         [Tooltip("The head bone the hair rides. Found by name when left empty.")]
         public Transform Head;
@@ -61,9 +67,47 @@ namespace CityX.Character
         [SerializeField]
         private string _style = None;
 
+        [SerializeField]
+        private Color _colour = CharacterSave.DefaultHairColour;
+
         private GameObject _worn;
 
+        private static MaterialPropertyBlock _block;
+        private static readonly int BaseColourId = Shader.PropertyToID("_BaseColor");
+        private static readonly int ColourId = Shader.PropertyToID("_Color");
+
         public string Style => _style;
+
+        /// <summary>The colour of the hair, worn or not: it is kept while bald and put back on the next style.</summary>
+        public Color Colour => _colour;
+
+        /// <summary>
+        /// Dyes the hair. Per renderer, through a property block, so the one shared hair material
+        /// stays as it is and every head can have its own colour. Alpha is always opaque.
+        /// </summary>
+        public void SetColour(Color colour)
+        {
+            _colour = new Color(colour.r, colour.g, colour.b, 1.0f);
+            ApplyColour();
+        }
+
+        private void ApplyColour()
+        {
+            if (_worn == null)
+            {
+                return;
+            }
+            var renderer = _worn.GetComponent<MeshRenderer>();
+            if (renderer == null)
+            {
+                return;
+            }
+            _block ??= new MaterialPropertyBlock();
+            renderer.GetPropertyBlock(_block);
+            _block.SetColor(BaseColourId, _colour);
+            _block.SetColor(ColourId, _colour);
+            renderer.SetPropertyBlock(_block);
+        }
 
         /// <summary>The worn hair object, or null when bald -- for tests and tuning.</summary>
         public Transform Worn => _worn != null ? _worn.transform : null;
@@ -99,40 +143,10 @@ namespace CityX.Character
         /// <summary>How far above the crown of the skull the top of the hair stands, as a fraction of the head's radius.</summary>
         public const float CrownLift = 0.04f;
 
-        /// <summary>
-        /// How far the hair's roots sit BELOW the crown of the head, in the
-        /// mesh's own units -- embermane's own placement.
-        ///
-        /// The mesh's baked-in origin is an accident of how it was exported --
-        /// character.gd records its raw vertical range as -0.7196 to 0.1191,
-        /// i.e. almost all of it below its own origin, with the spikes pointing
-        /// DOWN. Godot corrected that with a 180 degree turn about X and by
-        /// parking the origin on the head box's top face.
-        ///
-        /// The same mesh reached Unity through Blender, which baked the glTF
-        /// node's own transform into the vertices and moved that origin. So the
-        /// placement here is written as the SPAN the hair has to occupy, which
-        /// is identical in both engines and does not care where the origin
-        /// ended up: 0.1191 of roots tucked into the skull, and the rest of it
-        /// standing up off the crown.
-        /// </summary>
-        private const float RootsBelowCrown = 0.1191f;
-
-        /// <summary>Which way round a modelled-facing-forward style has to be turned to face the way the body does. Set by looking at it.</summary>
-        public const float AnimeHair0YawDegrees = 0.0f;
-
-        /// <summary>The same for Hair1. Set by looking at it.</summary>
-        public const float Hair1YawDegrees = 0.0f;
-
-        /// <summary>The turn a style's model needs to face the way the body does.</summary>
+        /// <summary>The turn a style's model needs to face the way the body does. Hair1 faces forward as modelled.</summary>
         public static float YawFor(string style)
         {
-            switch (style)
-            {
-                case AnimeHair0: return AnimeHair0YawDegrees;
-                case Hair1: return Hair1YawDegrees;
-                default: return 0.0f;
-            }
+            return 0.0f;
         }
 
         private static readonly List<CharacterHair> Live = new List<CharacterHair>();
@@ -146,14 +160,6 @@ namespace CityX.Character
         /// </summary>
         public static Fit DefaultFit(string style, Bounds meshBounds)
         {
-            if (style == Embermane)
-            {
-                // Its own long-standing placement, unchanged.
-                return new Fit(
-                    new Vector3(0.0f, FusedBodyShape.HeadRadius - RootsBelowCrown + meshBounds.max.y, 0.0f),
-                    new Vector3(180.0f, 0.0f, 0.0f),
-                    Vector3.one);
-            }
             return FitToHead(meshBounds, FusedBodyShape.HeadRadius, YawFor(style));
         }
 
@@ -307,6 +313,7 @@ namespace CityX.Character
             renderer.sharedMaterial = HairMaterial;
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
 
+            ApplyColour();
             ApplyFit();
         }
 

@@ -183,6 +183,53 @@ namespace CityX.Tests
                 "an invisible character would read as the body failing to load");
         }
 
+        // ---- the hair colour ----
+
+        [Test]
+        public void AHairColourSurvivesARoundTripThroughDisk()
+        {
+            CharacterSave made = CharacterSave.Create("Dyed", Color.white);
+            made.HairStyle = "hair1";
+            made.HairColour = new Color(0.2f, 0.4f, 0.85f);
+            CharacterStore.Add(made);
+
+            CharacterSave loaded = CharacterStore.Load()[0];
+
+            Assert.AreEqual("hair1", loaded.HairStyle);
+            Assert.AreEqual(0.2f, loaded.HairColour.r, 0.001f, "the hair colour did not survive");
+            Assert.AreEqual(0.4f, loaded.HairColour.g, 0.001f);
+            Assert.AreEqual(0.85f, loaded.HairColour.b, 0.001f);
+        }
+
+        /// <summary>A save written before hair had a colour has no such field. It must load as the colour every head wore.</summary>
+        [Test]
+        public void ASaveWithNoHairColourLoadsAsTheDefault()
+        {
+            const string old = "{\"Id\":\"abc\",\"Name\":\"Old\",\"HairStyle\":\"none\",\"Level\":2}";
+
+            CharacterSave loaded = JsonUtility.FromJson<CharacterSave>(old);
+
+            Assert.AreEqual(CharacterSave.DefaultHairColour, loaded.HairColour);
+
+            loaded.Repair();
+            Assert.AreEqual(CharacterSave.DefaultHairColour, loaded.HairColour,
+                "repairing an old save changed its hair colour");
+        }
+
+        [Test]
+        public void AnyOpaqueHairColourIsValidButASeeThroughOneIsRepaired()
+        {
+            CharacterSave black = CharacterSave.Create("Dark", Color.white);
+            black.HairColour = Color.black;
+            Assert.IsFalse(black.Repair(), "black is a hair colour -- repair replaced it");
+            Assert.AreEqual(Color.black, black.HairColour);
+
+            CharacterSave clear = CharacterSave.Create("Ghost", Color.white);
+            clear.HairColour = new Color(0.5f, 0.5f, 0.5f, 0.0f);
+            Assert.IsTrue(clear.Repair());
+            Assert.AreEqual(CharacterSave.DefaultHairColour, clear.HairColour);
+        }
+
         [Test]
         public void RepairLeavesAGoodSaveAlone()
         {

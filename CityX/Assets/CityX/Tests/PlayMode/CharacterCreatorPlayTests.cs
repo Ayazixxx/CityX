@@ -363,7 +363,7 @@ namespace CityX.Tests
             Assert.IsNotNull(hair, "the creator has no hair component");
             Assert.IsNotNull(hair.Head, "the hair has no head bone to sit on");
 
-            _creator.SetHairStyle(CharacterHair.Embermane);
+            _creator.SetHairStyle(CharacterHair.Hair1);
             yield return null;
 
             // BY NAME, not "any MeshFilter under the head". The skull is a mesh
@@ -398,7 +398,7 @@ namespace CityX.Tests
         {
             CharacterHair hair = _creator.Hair;
 
-            foreach (string style in new[] { CharacterHair.AnimeHair0, CharacterHair.Hair1 })
+            foreach (string style in new[] { CharacterHair.Hair1 })
             {
                 Assert.IsTrue(System.Array.IndexOf(CharacterHair.ValidStyles, style) > 0, $"\"{style}\" is not a valid style");
 
@@ -459,6 +459,86 @@ namespace CityX.Tests
             }
         }
 
+        private static Color WornColour(CharacterHair hair)
+        {
+            var block = new MaterialPropertyBlock();
+            hair.Worn.GetComponent<MeshRenderer>().GetPropertyBlock(block);
+            return block.GetColor("_BaseColor");
+        }
+
+        /// <summary>The hair colour card is only there while the character has hair: a colour for a bald head is a control that does nothing.</summary>
+        [UnityTest]
+        public IEnumerator TheHairColourCardAppearsOnlyWhileTheCharacterHasHair()
+        {
+            var picker = Object.FindFirstObjectByType<HairColourControls>(FindObjectsInactive.Include);
+            Assert.IsNotNull(picker, "the creator has no hair colour picker");
+
+            _creator.SetHairStyle(CharacterHair.None);
+            yield return null;
+            Assert.AreEqual(0.0f, picker.Card.alpha, "the colour card is showing over a bald head");
+            Assert.IsFalse(picker.Card.blocksRaycasts, "the hidden colour card still takes clicks");
+
+            _creator.SetHairStyle(CharacterHair.Hair1);
+            yield return null;
+            Assert.AreEqual(1.0f, picker.Card.alpha, "the colour card did not appear when hair was chosen");
+            Assert.IsTrue(picker.Card.blocksRaycasts);
+        }
+
+        /// <summary>Every swatch, pressed through its real button, dyes the hair that swatch's colour.</summary>
+        [UnityTest]
+        public IEnumerator EveryHairSwatchDyesTheHairItsOwnColour()
+        {
+            _creator.SetHairStyle(CharacterHair.Hair1);
+            yield return null;
+
+            var swatches = new System.Collections.Generic.List<UnityEngine.UI.Button>();
+            foreach (UnityEngine.UI.Button candidate in Resources.FindObjectsOfTypeAll<UnityEngine.UI.Button>())
+            {
+                if (candidate.gameObject.name.StartsWith("HairSwatch") && candidate.gameObject.scene.IsValid())
+                {
+                    swatches.Add(candidate);
+                }
+            }
+            Assert.AreEqual(HairColourPanel.Swatches.Length, swatches.Count, "a hair colour swatch is missing");
+
+            foreach (UnityEngine.UI.Button swatch in swatches)
+            {
+                Color wanted = swatch.GetComponent<UnityEngine.UI.Image>().color;
+                swatch.onClick.Invoke();
+                yield return null;
+
+                Assert.AreEqual(wanted.r, _creator.HairColour.r, 0.001f, $"{swatch.name} did not dye the hair");
+                Assert.AreEqual(wanted.g, _creator.HairColour.g, 0.001f, $"{swatch.name} did not dye the hair");
+                Assert.AreEqual(wanted.b, _creator.HairColour.b, 0.001f, $"{swatch.name} did not dye the hair");
+                Assert.AreEqual(wanted.b, WornColour(_creator.Hair).b, 0.001f, $"{swatch.name}: the worn mesh is not that colour");
+            }
+        }
+
+        /// <summary>Any colour, not just a swatch: the hue strip and a click in the square reach the hair.</summary>
+        [UnityTest]
+        public IEnumerator ThePickerReachesAnyColourAndDyesTheHairWithIt()
+        {
+            _creator.SetHairStyle(CharacterHair.Hair1);
+            yield return null;
+
+            var picker = Object.FindFirstObjectByType<HairColourControls>(FindObjectsInactive.Include);
+            picker.Hue.value = 0.6f;                              // a blue hue
+            yield return null;
+
+            // A click in the middle of the square: half saturation, half value.
+            var square = (RectTransform)picker.transform;
+            Vector2 middle = RectTransformUtility.WorldToScreenPoint(null, square.position);
+            picker.OnPointerClick(new UnityEngine.EventSystems.PointerEventData(UnityEngine.EventSystems.EventSystem.current)
+            {
+                position = middle,
+            });
+
+            Color expected = Color.HSVToRGB(0.6f, 0.5f, 0.5f);
+            Assert.AreEqual(expected.r, _creator.HairColour.r, 0.03f, "a click in the colour square did not dye the hair");
+            Assert.AreEqual(expected.g, _creator.HairColour.g, 0.03f);
+            Assert.AreEqual(expected.b, _creator.HairColour.b, 0.03f);
+        }
+
         /// <summary>
         /// Saving a fit re-places the hair on every head wearing the style at once, and resetting
         /// puts it back -- the Inspector's Save and Reset buttons, without the Inspector. Uses a
@@ -473,7 +553,7 @@ namespace CityX.Tests
             try
             {
                 CharacterHair hair = _creator.Hair;
-                _creator.SetHairStyle(CharacterHair.AnimeHair0);
+                _creator.SetHairStyle(CharacterHair.Hair1);
                 yield return null;
 
                 Transform worn = hair.Worn;
@@ -481,13 +561,13 @@ namespace CityX.Tests
                 Vector3 automatic = worn.localPosition;
 
                 var tuned = new CharacterHair.Fit(automatic + new Vector3(0.0f, 0.05f, -0.02f), new Vector3(0.0f, 8.0f, 0.0f), Vector3.one * 0.5f);
-                CharacterHair.SaveFit(CharacterHair.AnimeHair0, tuned);
+                CharacterHair.SaveFit(CharacterHair.Hair1, tuned);
 
                 Assert.AreEqual(tuned.Position.y, worn.localPosition.y, 0.0001f, "saving the fit did not move the worn hair");
                 Assert.AreEqual(8.0f, worn.localEulerAngles.y, 0.01f, "saving the fit did not turn the worn hair");
                 Assert.AreEqual(0.5f, worn.localScale.x, 0.0001f, "saving the fit did not resize the worn hair");
 
-                CharacterHair.ResetFit(CharacterHair.AnimeHair0);
+                CharacterHair.ResetFit(CharacterHair.Hair1);
                 Assert.AreEqual(automatic.y, worn.localPosition.y, 0.0001f, "resetting the fit did not put the hair back");
             }
             finally

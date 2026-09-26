@@ -27,11 +27,8 @@ namespace CityX.UI
         [Tooltip("Mouse-look. Disabled while redrawing.")]
         public ThirdPersonCamera OrbitCamera;
 
-        [Tooltip("embermane.obj -- wired once at edit time. A runtime script cannot load project assets by path the way CharacterCreatorBuilder's own AddHair does.")]
-        public Mesh HairMesh;
-
-        [Tooltip("Every hairstyle after embermane, in CharacterHair.ValidStyles order -- wired once at edit time, like HairMesh.")]
-        public Mesh[] MoreHairMeshes;
+        [Tooltip("Every hairstyle after none, in CharacterHair.ValidStyles order -- wired once at edit time. A runtime script cannot load project assets by path the way CharacterCreatorBuilder's own AddHair does.")]
+        public Mesh[] HairMeshes;
 
         public Material HairMaterial;
 
@@ -68,7 +65,7 @@ namespace CityX.UI
             if (InputReader != null) InputReader.enabled = false;
             if (OrbitCamera != null) OrbitCamera.enabled = false;
 
-            _overlay = RedrawCreatorRuntime.Build(gameObject, HairMesh, HairMaterial, OnConfirm, OnCancel, MoreHairMeshes);
+            _overlay = RedrawCreatorRuntime.Build(gameObject, HairMeshes, HairMaterial, OnConfirm, OnCancel);
             Seed(character);
         }
 
@@ -100,6 +97,17 @@ namespace CityX.UI
                 creator.Paint.Clear(character.Skin);
             }
             creator.SetHairStyle(character.HairStyle);
+            creator.SetHairColour(character.HairColour);
+
+            // The colour picker beside the creator has to show the character's own hair colour, not
+            // the colour it was built with.
+            HairColourControls hairControls = _overlay != null
+                ? _overlay.GetComponentInChildren<HairColourControls>(true)
+                : null;
+            if (hairControls != null)
+            {
+                hairControls.Refresh();
+            }
         }
 
         private void OnConfirm(CharacterCreator creator)
@@ -109,6 +117,7 @@ namespace CityX.UI
             {
                 character.SetPaint(creator.Paint.Encode());
                 character.HairStyle = creator.HairStyle;
+                character.HairColour = creator.HairColour;
                 _identity.Apply(character);
             }
             End();

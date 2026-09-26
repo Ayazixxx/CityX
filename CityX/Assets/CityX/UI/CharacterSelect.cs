@@ -100,6 +100,9 @@ namespace CityX.UI
         /// <summary>The hairstyle chosen in the creator, for the same reason.</summary>
         public string PendingHair = "none";
 
+        /// <summary>The hair colour chosen in the creator, held for the same reason.</summary>
+        public Color PendingHairColour = CharacterSave.DefaultHairColour;
+
         private void OnEnable()
         {
             Refresh();
@@ -205,8 +208,10 @@ namespace CityX.UI
             CharacterSave created = CharacterSave.Create(name, _pendingSkin);
             created.SetPaint(PendingPaint);
             created.HairStyle = string.IsNullOrEmpty(PendingHair) ? "none" : PendingHair;
+            created.HairColour = PendingHairColour;
             PendingPaint = null;
             PendingHair = "none";
+            PendingHairColour = CharacterSave.DefaultHairColour;
             _characters = CharacterStore.Add(created);
             _selectedIndex = _characters.FindIndex(c => c.Id == created.Id);
             UpdateCarousel();
@@ -565,6 +570,7 @@ namespace CityX.UI
                 hair.StyleMeshes = HairStyleMeshes;
                 hair.HairMaterial = HairMaterialAsset;
                 hair.SetStyle(string.IsNullOrEmpty(character.HairStyle) ? "none" : character.HairStyle);
+                hair.SetColour(character.HairColour);
             }
         }
 

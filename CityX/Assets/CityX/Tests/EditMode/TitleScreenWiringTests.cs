@@ -183,6 +183,10 @@ namespace CityX.Tests
                         Require(unwired, go, action.Controls, "a CreatorControls");
                         break;
 
+                    case ButtonAction.Kind.CreatorHairColour:
+                        Require(unwired, go, action.HairControls, "a HairColourControls");
+                        break;
+
                     default:
                         Require(unwired, go, action.Creator, "a CharacterCreator");
                         break;

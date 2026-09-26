@@ -155,22 +155,23 @@ namespace CityX.Character
             }
 
             byte[] paint = character.GetPaint() ?? System.Array.Empty<byte>();
-            SendAppearanceToServer(character.Name, character.Skin, character.HairStyle, paint);
+            SendAppearanceToServer(character.Name, character.Skin, character.HairStyle, character.HairColour, paint);
         }
 
         [ServerRpc(RequireOwnership = true)]
-        private void SendAppearanceToServer(string characterName, Color skin, string hairStyle, byte[] paint)
+        private void SendAppearanceToServer(string characterName, Color skin, string hairStyle, Color hairColour, byte[] paint)
         {
-            BroadcastAppearance(characterName, skin, hairStyle, paint);
+            BroadcastAppearance(characterName, skin, hairStyle, hairColour, paint);
         }
 
         [ObserversRpc(BufferLast = true)]
-        private void BroadcastAppearance(string characterName, Color skin, string hairStyle, byte[] paint)
+        private void BroadcastAppearance(string characterName, Color skin, string hairStyle, Color hairColour, byte[] paint)
         {
             var hair = GetComponentInChildren<CharacterHair>(includeInactive: true);
             if (hair != null)
             {
                 hair.SetStyle(hairStyle);
+                hair.SetColour(hairColour);
             }
 
             if (_identity == null)

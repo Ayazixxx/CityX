@@ -87,14 +87,119 @@ namespace CityX.Tests
             }
         }
 
-        [Test]
-        public void EmbermaneKeepsItsOwnLongStandingPlacement()
+        /// <summary>
+        /// "embermane" and "animehair0" were removed as outdated. A character saved wearing one still
+        /// carries the name; it must load as bald and not break, and must not be offered as a style.
+        /// </summary>
+        [TestCase("embermane")]
+        [TestCase("animehair0")]
+        public void ARemovedStyleIsNotOfferedAndALeftoverNameLoadsAsBald(string removed)
         {
-            var bounds = new Bounds(new Vector3(0.0f, -0.3f, 0.0f), new Vector3(0.6f, 0.84f, 0.6f));
-            CharacterHair.Fit fit = CharacterHair.DefaultFit(CharacterHair.Embermane, bounds);
+            CollectionAssert.DoesNotContain(CharacterHair.ValidStyles, removed, "a removed style is still offered");
 
-            Assert.AreEqual(new Vector3(180.0f, 0.0f, 0.0f), fit.Euler, "embermane is no longer turned over the way Godot had it");
-            Assert.AreEqual(Vector3.one, fit.Scale, "embermane was resized -- it never was");
+            _host = new GameObject("Head", typeof(RectTransform));
+            var hair = _host.AddComponent<CharacterHair>();
+            hair.Head = _host.transform;
+
+            hair.SetStyle(removed);
+
+            Assert.AreEqual(CharacterHair.None, hair.Style, "a leftover style name did not load as bald");
+            Assert.IsNull(hair.Worn, "a leftover style name put something on the head");
+        }
+
+        // ---- the colour ----
+
+        private GameObject _host;
+
+        [TearDown]
+        public void DestroyHost()
+        {
+            if (_host != null)
+            {
+                Object.DestroyImmediate(_host);
+            }
+        }
+
+        /// <summary>A head wearing a stand-in mesh, so the colour can be checked without a scene.</summary>
+        private CharacterHair MakeHairOnAHead(out GameObject cube)
+        {
+            _host = new GameObject("Body");
+            var head = new GameObject("head");
+            head.transform.SetParent(_host.transform, false);
+
+            cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            cube.transform.SetParent(_host.transform, false);
+            var hair = _host.AddComponent<CharacterHair>();
+            hair.Head = head.transform;
+            hair.StyleMeshes = new[] { cube.GetComponent<MeshFilter>().sharedMesh };
+            hair.HairMaterial = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            return hair;
+        }
+
+        private static Color ColourOn(Transform worn)
+        {
+            var block = new MaterialPropertyBlock();
+            worn.GetComponent<MeshRenderer>().GetPropertyBlock(block);
+            return block.GetColor("_BaseColor");
+        }
+
+        [Test]
+        public void HairStartsTheDefaultColourAndCanBeDyedAnyColour()
+        {
+            CharacterHair hair = MakeHairOnAHead(out _);
+            Assert.AreEqual(CharacterSaveDefault, hair.Colour, "hair does not start the default colour");
+
+            foreach (var dye in new[] { Color.black, Color.white, new Color(0.2f, 0.4f, 0.85f), new Color(0.9f, 0.1f, 0.6f) })
+            {
+                hair.SetColour(dye);
+                Assert.AreEqual(dye.r, hair.Colour.r, 0.0001f);
+                Assert.AreEqual(dye.g, hair.Colour.g, 0.0001f);
+                Assert.AreEqual(dye.b, hair.Colour.b, 0.0001f);
+            }
+        }
+
+        private static readonly Color CharacterSaveDefault = Core.CharacterSave.DefaultHairColour;
+
+        [Test]
+        public void DyeingTheHairColoursTheWornMeshAndOnlyThatHead()
+        {
+            CharacterHair hair = MakeHairOnAHead(out _);
+            hair.SetStyle(CharacterHair.Hair1);
+            var blue = new Color(0.2f, 0.4f, 0.85f);
+
+            hair.SetColour(blue);
+
+            Color worn = ColourOn(hair.Worn);
+            Assert.AreEqual(blue.r, worn.r, 0.001f);
+            Assert.AreEqual(blue.g, worn.g, 0.001f);
+            Assert.AreEqual(blue.b, worn.b, 0.001f);
+            // The shared material is untouched, so another head keeps its own colour.
+            Assert.AreNotEqual(blue, hair.HairMaterial.GetColor("_BaseColor"), "the shared hair material was dyed");
+        }
+
+        [Test]
+        public void TheColourIsKeptWhileBaldAndWornByTheNextStyle()
+        {
+            CharacterHair hair = MakeHairOnAHead(out _);
+            var pink = new Color(0.9f, 0.45f, 0.65f);
+
+            hair.SetColour(pink);                      // bald: nothing to dye yet
+            Assert.IsNull(hair.Worn);
+            hair.SetStyle(CharacterHair.Hair1);
+
+            Assert.AreEqual(pink.r, ColourOn(hair.Worn).r, 0.001f, "the colour chosen while bald was lost");
+
+            hair.SetStyle(CharacterHair.None);
+            hair.SetStyle(CharacterHair.Hair1);
+            Assert.AreEqual(pink.g, ColourOn(hair.Worn).g, 0.001f, "changing style forgot the colour");
+        }
+
+        [Test]
+        public void ADyedColourIsAlwaysOpaque()
+        {
+            CharacterHair hair = MakeHairOnAHead(out _);
+            hair.SetColour(new Color(0.3f, 0.3f, 0.3f, 0.2f));
+            Assert.AreEqual(1.0f, hair.Colour.a);
         }
 
         // ---- the saved fit ----
@@ -102,40 +207,40 @@ namespace CityX.Tests
         [Test]
         public void ASavedFitOverridesTheAutomaticOneAndResettingBringsItBack()
         {
-            CharacterHair.Fit automatic = CharacterHair.CurrentFit(CharacterHair.AnimeHair0, AwkwardHair);
-            Assert.IsFalse(CharacterHair.IsTuned(CharacterHair.AnimeHair0));
+            CharacterHair.Fit automatic = CharacterHair.CurrentFit(CharacterHair.Hair1, AwkwardHair);
+            Assert.IsFalse(CharacterHair.IsTuned(CharacterHair.Hair1));
 
             var tuned = new CharacterHair.Fit(new Vector3(0.0f, 0.1f, -0.05f), new Vector3(0.0f, 10.0f, 0.0f), Vector3.one * 0.5f);
-            CharacterHair.SaveFit(CharacterHair.AnimeHair0, tuned);
+            CharacterHair.SaveFit(CharacterHair.Hair1, tuned);
 
-            Assert.IsTrue(CharacterHair.IsTuned(CharacterHair.AnimeHair0));
-            CharacterHair.Fit now = CharacterHair.CurrentFit(CharacterHair.AnimeHair0, AwkwardHair);
+            Assert.IsTrue(CharacterHair.IsTuned(CharacterHair.Hair1));
+            CharacterHair.Fit now = CharacterHair.CurrentFit(CharacterHair.Hair1, AwkwardHair);
             Assert.AreEqual(tuned.Position, now.Position);
             Assert.AreEqual(tuned.Euler, now.Euler);
             Assert.AreEqual(tuned.Scale, now.Scale);
 
-            CharacterHair.ResetFit(CharacterHair.AnimeHair0);
-            Assert.IsFalse(CharacterHair.IsTuned(CharacterHair.AnimeHair0));
-            Assert.AreEqual(automatic.Position, CharacterHair.CurrentFit(CharacterHair.AnimeHair0, AwkwardHair).Position,
+            CharacterHair.ResetFit(CharacterHair.Hair1);
+            Assert.IsFalse(CharacterHair.IsTuned(CharacterHair.Hair1));
+            Assert.AreEqual(automatic.Position, CharacterHair.CurrentFit(CharacterHair.Hair1, AwkwardHair).Position,
                 "resetting did not bring the automatic fit back");
         }
 
         [Test]
         public void SavingOneStylesFitLeavesTheOthersAlone()
         {
-            CharacterHair.SaveFit(CharacterHair.AnimeHair0, new CharacterHair.Fit(Vector3.up, Vector3.zero, Vector3.one));
+            CharacterHair.SaveFit(CharacterHair.Hair1, new CharacterHair.Fit(Vector3.up, Vector3.zero, Vector3.one));
 
-            Assert.IsFalse(CharacterHair.IsTuned(CharacterHair.Embermane), "tuning one style tuned another");
+            Assert.IsFalse(CharacterHair.IsTuned("some-other-style"), "tuning one style tuned another");
         }
 
         [Test]
         public void SavingTheSameStyleTwiceKeepsOneEntry()
         {
-            CharacterHair.SaveFit(CharacterHair.AnimeHair0, new CharacterHair.Fit(Vector3.up, Vector3.zero, Vector3.one));
-            CharacterHair.SaveFit(CharacterHair.AnimeHair0, new CharacterHair.Fit(Vector3.down, Vector3.zero, Vector3.one));
+            CharacterHair.SaveFit(CharacterHair.Hair1, new CharacterHair.Fit(Vector3.up, Vector3.zero, Vector3.one));
+            CharacterHair.SaveFit(CharacterHair.Hair1, new CharacterHair.Fit(Vector3.down, Vector3.zero, Vector3.one));
 
             Assert.AreEqual(1, _scratch.Entries.Count, "saving twice piled up entries");
-            Assert.AreEqual(Vector3.down, CharacterHair.CurrentFit(CharacterHair.AnimeHair0, AwkwardHair).Position,
+            Assert.AreEqual(Vector3.down, CharacterHair.CurrentFit(CharacterHair.Hair1, AwkwardHair).Position,
                 "the second save did not replace the first");
         }
 
@@ -144,8 +249,7 @@ namespace CityX.Tests
         /// <summary>The baked mesh of each hairstyle that comes from a model file.</summary>
         private static Mesh BakedMesh(string style)
         {
-            string path = style == CharacterHair.AnimeHair0 ? "Assets/CityX/Character/Hair/AnimeHair0Mesh.asset"
-                : "Assets/CityX/Character/Hair/Hair1Mesh.asset";
+            string path = "Assets/CityX/Character/Hair/Hair1Mesh.asset";
             Mesh mesh = AssetDatabase.LoadAssetAtPath<Mesh>(path);
             if (mesh == null)
             {
@@ -154,7 +258,6 @@ namespace CityX.Tests
             return mesh;
         }
 
-        [TestCase(CharacterHair.AnimeHair0)]
         [TestCase(CharacterHair.Hair1)]
         public void AModelHairMeshIsBakedAtTheSizeAndHeightOfAHead(string style)
         {
@@ -168,7 +271,6 @@ namespace CityX.Tests
             Assert.That(mesh.bounds.center.y, Is.GreaterThan(1.5f), $"{style}: the model's node lift was not baked into the mesh");
         }
 
-        [TestCase(CharacterHair.AnimeHair0)]
         [TestCase(CharacterHair.Hair1)]
         public void ARealModelHairLandsOnTheTopOfTheHeadNotHalfwayDownIt(string style)
         {
