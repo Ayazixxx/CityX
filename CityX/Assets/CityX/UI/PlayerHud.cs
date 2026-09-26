@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using CityX.Character;
 using UnityEngine;
 using UnityEngine.UI;
@@ -39,16 +40,10 @@ namespace CityX.UI
         public static readonly Color HealthYellow = new Color(0.95f, 0.85f, 0.15f);
         public static readonly Color HealthRed = new Color(0.9f, 0.15f, 0.15f);
 
-        /// <summary>
-        /// In front of the character's own face, close and level -- a
-        /// head-and-a-little-shoulder crop, not a full-body shot and not
-        /// tilted up/down. hud.gd's own PORTRAIT_CAMERA_DISTANCE was
-        /// carried straight over first, on the theory that a near-identical
-        /// head-sphere size meant the same distance would frame the same
-        /// crop -- reported too tight a crop live in-game, so pulled back
-        /// further than that carried-over number.
-        /// </summary>
-        public const float PortraitCameraDistance = 1.75f;
+        // The portrait is framed from the character's own measurements (see Frame): the head, the hair or
+        // hat above it, and the top of the chest, from the front and level. hud.gd's fixed camera
+        // distance was carried over first and then pulled back once ("too tight a crop"), but a fixed
+        // distance cannot follow a hairstyle or hat, and showed a bare head with no shoulders.
 
         /// <summary>A flat, darker shade of the gold ring around the portrait -- hud.gd's own PORTRAIT_BG_COLOR.</summary>
         public static readonly Color PortraitBackgroundColour = new Color(0.26f, 0.21f, 0.07f);
@@ -101,13 +96,44 @@ namespace CityX.UI
             Bind(Target);
             HookButton(RespawnButton);
             ShowDead(_bound != null && _bound.IsDead);
+            CharacterIdentity.LookApplied += OnLookApplied;
             StartCoroutine(CapturePortrait());
         }
 
         private void OnDisable()
         {
+            CharacterIdentity.LookApplied -= OnLookApplied;
+            _refreshPending = false;
             Bind(null);
             HookButton(null);
+        }
+
+        private bool _refreshPending;
+
+        /// <summary>The character just put on a new look (a redraw, a load): retake the portrait so it matches.</summary>
+        private void OnLookApplied(CharacterIdentity identity)
+        {
+            if (Target != null && identity != null && identity.GetComponent<PlayerVitals>() == Target)
+            {
+                RefreshPortrait();
+            }
+        }
+
+        /// <summary>Retakes the portrait a frame from now (once, however many changes arrive at once).</summary>
+        public void RefreshPortrait()
+        {
+            if (!_refreshPending && isActiveAndEnabled)
+            {
+                StartCoroutine(RefreshNextFrame());
+            }
+        }
+
+        private IEnumerator RefreshNextFrame()
+        {
+            _refreshPending = true;
+            yield return null;
+            _refreshPending = false;
+            CaptureNow();
         }
 
         /// <summary>
@@ -129,30 +155,147 @@ namespace CityX.UI
         {
             yield return null;
             yield return null;
+            CaptureNow();
+        }
 
+        /// <summary>
+        /// Takes the portrait now: the head, its hair or hat, and the top of the chest, from the front.
+        ///
+        /// WHAT THE CAMERA SEES IS DECIDED HERE, AT THE MOMENT OF THE SHOT, not when the scene was
+        /// built. The portrait camera only draws one dedicated layer, and PlayerHudBuilder used to put
+        /// the renderers that existed at BUILD time on it -- so anything made while the game runs (the
+        /// hair, a worn hat or coat) stayed on the ordinary layer and simply never appeared: the
+        /// portrait was a bare head. Now every renderer on the body is moved onto the layer for the
+        /// length of one synchronous Render call and put straight back, so whatever the character is
+        /// wearing when this runs is what is shown.
+        ///
+        /// Anything held in a hand (a sword, a pistol) is left out: the portrait is of the person.
+        /// </summary>
+        /// <returns>False when there is nothing to photograph yet (no target, camera or head).</returns>
+        public bool CaptureNow()
+        {
             if (Target == null || PortraitCamera == null || PortraitImage == null)
             {
-                yield break;
+                return false;
             }
 
             Renderer headRenderer = FindHeadRenderer(Target.transform);
-            if (headRenderer == null)
+            int layer = SingleLayerOf(PortraitCamera.cullingMask);
+            if (headRenderer == null || layer < 0)
             {
-                yield break;
+                return false;
             }
 
-            Vector3 headPos = headRenderer.bounds.center;
-            Vector3 facing = Target.transform.forward;
-            PortraitCamera.transform.position = headPos + facing * PortraitCameraDistance;
-            PortraitCamera.transform.LookAt(headPos, Vector3.up);
+            Transform[] hands = HeldItemRoots(Target.transform);
+            var moved = new List<KeyValuePair<Renderer, int>>();
+            float top = headRenderer.bounds.max.y;
+            Bounds headBounds = headRenderer.bounds;
+            foreach (Renderer renderer in Target.GetComponentsInChildren<Renderer>(false))
+            {
+                if (!renderer.enabled || IsHeld(renderer.transform, hands) || renderer.transform.IsChildOf(PortraitCamera.transform))
+                {
+                    continue;
+                }
+                moved.Add(new KeyValuePair<Renderer, int>(renderer, renderer.gameObject.layer));
+                renderer.gameObject.layer = layer;
 
-            PortraitCamera.Render();
-            // The whole GameObject, not just the camera -- PlayerHudBuilder
-            // hangs a dedicated light off this same object for the shot, and
-            // leaving that behind still-enabled would keep it lit and
-            // costing render time near the player forever, for a texture
-            // nothing ever writes to again.
-            PortraitCamera.gameObject.SetActive(false);
+                // Hair and hats sit at head height or above: they set how much room the top needs.
+                if (renderer.bounds.center.y >= headBounds.center.y - headBounds.extents.y * 0.2f)
+                {
+                    top = Mathf.Max(top, renderer.bounds.max.y);
+                }
+            }
+
+            try
+            {
+                Frame(PortraitCamera, headBounds, top, Target.transform.forward);
+                // The whole GameObject, not just the camera -- PlayerHudBuilder hangs a dedicated light
+                // off this same object for the shot, so it has to be on for the shot and off afterwards
+                // (leaving it lit would cost render time near the player forever, for a texture
+                // nothing writes to again).
+                PortraitCamera.gameObject.SetActive(true);
+                PortraitCamera.Render();
+            }
+            finally
+            {
+                foreach (KeyValuePair<Renderer, int> entry in moved)
+                {
+                    if (entry.Key != null)
+                    {
+                        entry.Key.gameObject.layer = entry.Value;
+                    }
+                }
+                PortraitCamera.gameObject.SetActive(false);
+            }
+            return true;
+        }
+
+        /// <summary>How many head-radii below the head's centre the picture reaches: the shoulders and the top of the chest.</summary>
+        public const float PortraitChestDropHeadRadii = 2.3f;
+
+        /// <summary>Extra room around the framed area, because the picture is shown in a circle and its corners are cut off.</summary>
+        public const float PortraitMargin = 1.25f;
+
+        /// <summary>
+        /// Puts the camera in front of the character, looking level, so the frame runs from the top of
+        /// the hair (<paramref name="top"/>) down to the chest, centred on that stretch.
+        /// </summary>
+        public static void Frame(Camera camera, Bounds head, float top, Vector3 facing)
+        {
+            float radius = Mathf.Max(head.extents.x, head.extents.y, head.extents.z);
+            float bottom = head.center.y - radius * PortraitChestDropHeadRadii;
+            float centreY = (top + bottom) * 0.5f;
+            float halfHeight = (top - bottom) * 0.5f * PortraitMargin;
+            float distance = halfHeight / Mathf.Tan(camera.fieldOfView * 0.5f * Mathf.Deg2Rad);
+
+            facing.y = 0.0f;
+            facing = facing.sqrMagnitude > 1e-6f ? facing.normalized : Vector3.forward;
+            var look = new Vector3(head.center.x, centreY, head.center.z);
+            camera.transform.position = look + facing * distance;
+            camera.transform.rotation = Quaternion.LookRotation(-facing, Vector3.up);
+            camera.farClipPlane = Mathf.Max(camera.farClipPlane, distance + radius * 4.0f);
+        }
+
+        /// <summary>The layer a culling mask names, when it names exactly one (-1 otherwise).</summary>
+        private static int SingleLayerOf(int mask)
+        {
+            if (mask == 0 || (mask & (mask - 1)) != 0)
+            {
+                return -1;
+            }
+            int layer = 0;
+            while ((mask >>= 1) != 0)
+            {
+                layer++;
+            }
+            return layer;
+        }
+
+        /// <summary>The hand bones: whatever hangs off them is being held, not worn.</summary>
+        private static Transform[] HeldItemRoots(Transform body)
+        {
+            Animator animator = body.GetComponentInChildren<Animator>();
+            if (animator == null)
+            {
+                return new Transform[0];
+            }
+            return new[]
+            {
+                animator.GetBoneTransform(HumanBodyBones.RightHand),
+                animator.GetBoneTransform(HumanBodyBones.LeftHand),
+            };
+        }
+
+        private static bool IsHeld(Transform renderer, Transform[] hands)
+        {
+            foreach (Transform hand in hands)
+            {
+                if (hand != null && renderer != hand && renderer.IsChildOf(hand))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>

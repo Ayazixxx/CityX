@@ -94,6 +94,7 @@ namespace CityX.Character
                 if (paint.Decode(painted))
                 {
                     ApplyPaint(paint.Atlas);
+                    LookApplied?.Invoke(this);
                     return;
                 }
                 Debug.LogWarning($"CityX: {character.Name}'s paint would not load -- falling " +
@@ -101,7 +102,15 @@ namespace CityX.Character
             }
 
             Recolour(character.Skin);
+            LookApplied?.Invoke(this);
         }
+
+        /// <summary>
+        /// Raised when a whole appearance (hair, colour, paint) has just been put on a body. Whatever
+        /// keeps a picture of the character -- the HUD portrait -- retakes it here, since it would
+        /// otherwise show the character as they were before the change.
+        /// </summary>
+        public static event System.Action<CharacterIdentity> LookApplied;
 
         /// <summary>Puts a painted atlas on the body.</summary>
         public void ApplyPaint(Texture texture)

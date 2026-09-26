@@ -81,9 +81,6 @@ namespace CityX.UIEditor
                 light.intensity = 1.2f;
                 light.transform.rotation = Quaternion.Euler(35.0f, 30.0f, 0.0f);
 
-                Vector3 headPos = headRenderer.bounds.center;
-                Vector3 facing = player.transform.forward;
-
                 var cameraObject = new GameObject("PortraitCamera");
                 cameraObject.transform.SetParent(root.transform);
                 Camera camera = cameraObject.AddComponent<Camera>();
@@ -91,8 +88,8 @@ namespace CityX.UIEditor
                 camera.backgroundColor = PlayerHud.PortraitBackgroundColour;
                 camera.fieldOfView = 35.0f;
                 camera.nearClipPlane = 0.05f;
-                camera.transform.position = headPos + facing * PlayerHud.PortraitCameraDistance;
-                camera.transform.LookAt(headPos, Vector3.up);
+                // The same framing the game uses (head, hair, chest), not a copy of it.
+                PlayerHud.Frame(camera, headRenderer.bounds, headRenderer.bounds.max.y, player.transform.forward);
 
                 target = new RenderTexture(256, 256, 16, RenderTextureFormat.ARGB32) { antiAliasing = 4 };
                 camera.targetTexture = target;
