@@ -143,6 +143,11 @@ Fields per attack: `Startup Active Recovery ChainAt StaminaCost DamageScale
 HitstunSeconds LungeMetres ClipSeconds ClipStart ClipEnd`. Changes last until the
 sword is unequipped; bake the winners into the defaults in `SoulsSwordCombat.cs`.
 
+**Hit-stop:** a landed hit freezes the swing's clock and its clip for `HitStopSeconds`
+(0.07; `HeavyHitStopMultiplier` 1.8x for a heavy) so contact has weight. Several targets
+in one frame do not add up. `/sword HitStopSeconds 0` turns it off. Where the hands sit
+on the hilt: `/grip` (roll, primary, support, torso).
+
 ## Not built (deliberately)
 
 * **Parry / riposte / backstab.** The `Guarded` vs `Blocked` split is the hook.
@@ -151,9 +156,11 @@ sword is unequipped; bake the winners into the defaults in `SoulsSwordCombat.cs`
 
 ## Known limitations
 
-* The animation quality is whatever the Mixamo clips give -- the stance is very
-  hunched and the light attacks keep the blade close to the body. Timing is
-  aligned; the *look* is not something this system can fix.
+* The animation is the Mixamo clips, now with both hands held on the hilt (the free
+  hand is reached onto the handle by IK), the mount rebuilt from the clip, the torso
+  following the clip through a swing, and a hit-stop on contact -- see
+  [MIXAMO_WEAPONS.md](MIXAMO_WEAPONS.md). The hunched *idle* is gone (the torso is held
+  upright standing and walking); the light attacks still keep the blade close to the body.
 * The guard clip is only 0.5s; a held guard loops its held stretch
   (`BlockHoldFrom/BlockHoldTo`), verified for continuity in state but the pose
   is only as steady as that stretch of the clip.

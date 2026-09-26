@@ -141,6 +141,7 @@ namespace CityX.UI
             "aim",
             "sword",
             "gun",
+            "grip",
             "flight",
         };
 
@@ -180,6 +181,10 @@ namespace CityX.UI
                     "kick / kickangle (the pistol's own snap-back), recover (camera settle rate), " +
                     "sens (mouse scale while aiming), aimspeed (walk-speed scale while aiming). " +
                     "/gun shoulder swaps the camera shoulder (Q). Needs a pistol equipped";
+                case "grip": return "/grip -- lists where the hands sit; /grip sword <roll|primary|support> <value> " +
+                    "(roll = which way the edge faces, degrees; primary / support = how far down the handle the right / left " +
+                    "hand holds, metres), /grip pistol <x> <y> <z> (the free hand's palm, in the gun's own space), or " +
+                    "/grip torso <0-1> (how much of the clip's spine motion a sword swing keeps)";
                 case "flight": return "/flight -- lists the flying-feel numbers; /flight <name> <value> sets one: " +
                     "fov (degrees the view widens at full speed), kick (extra degrees on a boost), " +
                     "kickseconds, pullback (metres the camera falls back), kickpullback, " +

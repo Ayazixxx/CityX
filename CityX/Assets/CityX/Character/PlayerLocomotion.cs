@@ -261,6 +261,38 @@ namespace CityX.Character
         /// </summary>
         private bool _gunEquipped;
 
+        /// <summary>
+        /// A sword swing is a torso movement first and an arm movement second, so while a committed
+        /// attack or a guard is playing the spine and hips follow the clip instead of being held at
+        /// identity (see LateUpdate). Set by SoulsSwordCombat; walking and standing keep the lock the
+        /// locomotion clips need, which is why this is not simply "sword equipped".
+        /// </summary>
+        public bool TorsoFollowsClip
+        {
+            get
+            {
+                if (_souls == null)
+                {
+                    _souls = GetComponent<SoulsSwordCombat>();   // added on the first equip
+                }
+                return _souls != null && _souls.IsEquipped && (_souls.IsCommitted || _souls.IsBlocking);
+            }
+        }
+
+        private SoulsSwordCombat _souls;
+        private float _torsoFollowBlend;
+
+        /// <summary>How fast the torso takes up (and gives up) the clip's own hips/spine motion, per second.</summary>
+        public const float TorsoFollowBlendPerSecond = 10.0f;
+
+        /// <summary>
+        /// How much of the clip's torso motion a swing keeps, 0..1. The rig has ONE spine bone where Mixamo's
+        /// skeleton spreads the same lean over three, and the bone is handed the clip's share for itself alone --
+        /// measured, a light swing bows it 64 degrees, which reads as a deep stoop. Two thirds keeps the weight
+        /// of the swing without the bow. Tuned with /grip torso.
+        /// </summary>
+        public static float TorsoFollowStrength = 0.65f;
+
         private Vector3 _gunAimCameraPosition;
         private Vector3 _gunAimCameraForward = Vector3.forward;
         private Vector3 _gunAimPoint;
@@ -273,6 +305,101 @@ namespace CityX.Character
         /// With it the arm aims the BARREL at the target, not just the upper arm.
         /// </summary>
         public Transform GunMuzzle;
+
+        // ---- the support hand -------------------------------------------------------------------
+        // A two-handed weapon is held by the hand the animation places (the right) and steadied by
+        // the other, which is reached onto the weapon here every frame. See TwoBoneIK for why.
+
+        private Transform _supportAnchor;
+        private Vector3 _supportLocalPoint;
+        private float _supportBlend;
+        private bool _supportOnlyWhenAiming;
+
+        /// <summary>How fast the support hand takes hold (and lets go), per second: a grab, not a snap.</summary>
+        public const float SupportHandBlendPerSecond = 9.0f;
+
+        /// <summary>The palm's centre, this far along the forearm from the wrist bone.</summary>
+        public const float PalmOffsetMetres = 0.08f;
+
+        /// <summary>
+        /// Tells the rig to hold <paramref name="weapon"/> with the LEFT hand as well, palm at
+        /// <paramref name="weaponLocalPoint"/> (the weapon's own space, so it follows the weapon through a swing).
+        /// </summary>
+        /// <param name="onlyWhenAiming">
+        /// True for a gun: the free hand comes up to steady it only as the gun is raised to aim (or fire), and
+        /// swings free while it is carried. False for a sword, held in both hands all the time.
+        /// </param>
+        public void SetSupportHand(Transform weapon, Vector3 weaponLocalPoint, bool onlyWhenAiming = false)
+        {
+            _supportAnchor = weapon;
+            _supportLocalPoint = weaponLocalPoint;
+            _supportOnlyWhenAiming = onlyWhenAiming;
+        }
+
+        /// <summary>Lets go -- only if <paramref name="weapon"/> is still the weapon being held (a swap must not drop the new one).</summary>
+        public void ClearSupportHand(Transform weapon)
+        {
+            if (_supportAnchor == weapon)
+            {
+                _supportAnchor = null;
+            }
+        }
+
+        /// <summary>The support hand's palm, in world space (for tests and the tuning console); null when nothing is held.</summary>
+        public bool TryGetSupportPalm(out Vector3 palm)
+        {
+            palm = Vector3.zero;
+            if (_handL == null || _leftLowerArm == null)
+            {
+                return false;
+            }
+            palm = _handL.position + (_handL.position - _leftLowerArm.position).normalized * PalmOffsetMetres;
+            return true;
+        }
+
+        /// <summary>How far, in metres, the support palm is from where it is meant to be (0 when nothing is held).</summary>
+        public float SupportHandError
+        {
+            get
+            {
+                if (_supportAnchor == null || !TryGetSupportPalm(out Vector3 palm))
+                {
+                    return 0.0f;
+                }
+                return Vector3.Distance(palm, _supportAnchor.TransformPoint(_supportLocalPoint));
+            }
+        }
+
+        private void ApplySupportHand()
+        {
+            float deltaTime = Mathf.Max(_lastTickDeltaTime, 0.0f);
+            _supportBlend = Mathf.MoveTowards(_supportBlend, _supportAnchor != null ? 1.0f : 0.0f, SupportHandBlendPerSecond * deltaTime);
+            float weight = _supportBlend * (_supportOnlyWhenAiming ? _gunAimBlend : 1.0f);
+            if (weight <= 0.0f || _supportAnchor == null || _leftUpperArm == null || _leftLowerArm == null || _handL == null)
+            {
+                return;
+            }
+
+            Vector3 point = _supportAnchor.TransformPoint(_supportLocalPoint);
+            // Elbow down and a little out, the way a person braces a heavy weapon.
+            Vector3 elbowHint = -transform.up - transform.right * 0.6f;
+
+            // The wrist bone is not the palm: aim the PALM at the point. Two passes, since turning the
+            // forearm turns the palm's direction too.
+            Quaternion upperStart = _leftUpperArm.rotation;
+            Quaternion lowerStart = _leftLowerArm.rotation;
+            for (int pass = 0; pass < 2; pass++)
+            {
+                Vector3 palmDirection = (_handL.position - _leftLowerArm.position).normalized;
+                TwoBoneIK.Solve(_leftUpperArm, _leftLowerArm, _handL, point - palmDirection * PalmOffsetMetres, elbowHint);
+            }
+            if (weight < 1.0f)
+            {
+                // Blend the finished solution in, rather than blending each pass (which would compound).
+                _leftUpperArm.rotation = Quaternion.Slerp(upperStart, _leftUpperArm.rotation, weight);
+                _leftLowerArm.rotation = Quaternion.Slerp(lowerStart, _leftLowerArm.rotation, weight);
+            }
+        }
 
         /// <summary>The most the barrel correction may turn the arm, so a wild clip pose cannot fling it.</summary>
         public const float GunBarrelCorrectionMaxDegrees = 60.0f;
@@ -708,15 +835,20 @@ namespace CityX.Character
         /// </summary>
         private void LateUpdate()
         {
+            // Only a live Animator has a torso pose worth following; a frozen or ragdolled one is held flat.
+            bool animatorLive = _animator != null && _animator.enabled;
+            _torsoFollowBlend = Mathf.MoveTowards(
+                _torsoFollowBlend, (animatorLive && TorsoFollowsClip) ? Mathf.Clamp01(TorsoFollowStrength) : 0.0f,
+                TorsoFollowBlendPerSecond * Mathf.Max(_lastTickDeltaTime, 0.0f));
             if (!InCarSeat && !IsSitting)
             {
                 if (_hips != null)
                 {
-                    _hips.localRotation = Quaternion.identity;
+                    _hips.localRotation = Quaternion.Slerp(Quaternion.identity, _hips.localRotation, _torsoFollowBlend);
                 }
                 if (_spine != null)
                 {
-                    _spine.localRotation = Quaternion.identity;
+                    _spine.localRotation = Quaternion.Slerp(Quaternion.identity, _spine.localRotation, _torsoFollowBlend);
                 }
             }
 
@@ -757,6 +889,7 @@ namespace CityX.Character
             ApplyDrivingWheelPose();
             ApplyCastingPose();
             ApplyGunAimPose();
+            ApplySupportHand();
             if (IsSitting)
             {
                 ApplySittingPose();

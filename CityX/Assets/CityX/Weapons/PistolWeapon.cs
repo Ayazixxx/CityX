@@ -113,6 +113,16 @@ namespace CityX.Weapons
         public static readonly Vector3 GripHandPosition = new Vector3(0.02f, -0.05f, 0.10f);
 
         /// <summary>
+        /// Where the FREE hand's palm goes to steady the gun, in the pistol's own space. This model is
+        /// built on its side -- local +Z is the barrel, +Y is the shooter's LEFT and +X is UP (measured
+        /// against the body while aiming) -- and the whole thing is scaled ~2.5x, so 0.04 here is ~10cm:
+        /// the shooting palm sits at (-0.036, 0, 0.019); this is one palm's width to its left (+Y), a
+        /// touch lower and forward, which is where a two-handed grip wraps the fingers of the first.
+        /// Tuned against WeaponHandsPlayTests' pictures; a live change shows next frame.
+        /// </summary>
+        public static Vector3 SupportGripLocal = new Vector3(-0.042f, 0.040f, 0.025f);
+
+        /// <summary>
         /// Not a direct port of pistol.gd's own GRIP_HAND_ROTATION -- that
         /// constant is in Godot's own radians/axis convention, and the
         /// bottle's grip (see BottleWeapon.GripHandRotationEuler) shows past
@@ -300,7 +310,15 @@ namespace CityX.Weapons
             }
 
             ApplyKick();
+
+            // Re-stated every frame so a live change to SupportGripLocal (the /grip console command) shows at once.
+            if (_wielder != null)
+            {
+                _wielder.SetSupportHand(transform, SupportGripLocal, onlyWhenAiming: true);
+            }
         }
+
+        private PlayerLocomotion _wielder;
 
         /// <summary>
         /// The pistol's own snap-back when it fires: shoved back along its
@@ -489,6 +507,12 @@ namespace CityX.Weapons
             {
                 locomotion.GunMuzzle = MuzzleFlashObject.transform;
             }
+            if (locomotion != null)
+            {
+                // The free hand comes up to steady the gun as it is raised to aim.
+                _wielder = locomotion;
+                locomotion.SetSupportHand(transform, SupportGripLocal, onlyWhenAiming: true);
+            }
         }
 
         public void OnUnequip(GameObject player)
@@ -504,6 +528,11 @@ namespace CityX.Weapons
                 feel.Detach(this);
             }
             var locomotionOnUnequip = player.GetComponent<PlayerLocomotion>();
+            if (locomotionOnUnequip != null)
+            {
+                locomotionOnUnequip.ClearSupportHand(transform);
+            }
+            _wielder = null;
             if (locomotionOnUnequip != null && locomotionOnUnequip.GunMuzzle == (MuzzleFlashObject != null ? MuzzleFlashObject.transform : null))
             {
                 locomotionOnUnequip.GunMuzzle = null;

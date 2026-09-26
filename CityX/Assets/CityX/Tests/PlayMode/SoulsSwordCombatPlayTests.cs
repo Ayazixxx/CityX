@@ -44,6 +44,9 @@ namespace CityX.Tests
             _vitals.Revive();
             _combat = _player.AddComponent<SoulsSwordCombat>();
             _combat.Equip(null);
+            // These tests pin the swing's own timing; the hit-stop (which holds it still on contact)
+            // has its own tests at the end of this file.
+            _combat.HitStopSeconds = 0.0f;
 
             _dummyObject = GameObject.CreatePrimitive(PrimitiveType.Capsule);
             _dummyObject.name = "Dummy";
@@ -587,6 +590,84 @@ namespace CityX.Tests
             Assert.IsFalse(_combat.IsCommitted);
             Assert.IsFalse(_combat.IsEquipped);
             Assert.AreEqual(0.0f, _vitals.StaminaRegenPerSecondOverride, 0.0001f);
+        }
+
+        // --- hit-stop ------------------------------------------------------------
+
+        /// <summary>How long a swing takes to reach its recovery, stepping 1/60s at a time.</summary>
+        private float SecondsUntilRecovery()
+        {
+            _combat.RequestLight(0.0f);
+            float elapsed = 0.0f;
+            while (_combat.Phase != SoulsPhase.Recovery && elapsed < 3.0f)
+            {
+                Step(1.0f / 60.0f);
+                elapsed += 1.0f / 60.0f;
+            }
+            return elapsed;
+        }
+
+        [Test]
+        public void ALandedHitHoldsTheWholeSwingStillForTheHitStop()
+        {
+            _combat.HitStopSeconds = 0.10f;
+
+            _dummyObject.transform.position = new Vector3(0.0f, 1.0f, 30.0f);   // nothing to hit
+            Physics.SyncTransforms();
+            float missed = SecondsUntilRecovery();
+            Step(2.0f);
+            Assert.AreEqual(SoulsPhase.Idle, _combat.Phase);
+
+            _dummyObject.transform.position = new Vector3(0.0f, 1.0f, 1.5f);
+            Physics.SyncTransforms();
+            float hit = SecondsUntilRecovery();
+
+            Assert.AreEqual(missed + 0.10f, hit, 0.04f,
+                $"a swing that connects should take one hit-stop longer to reach its recovery ({missed:0.000}s missing, {hit:0.000}s hitting)");
+            Assert.AreEqual(1, _dummy.TimesHit);
+        }
+
+        [Test]
+        public void HitStopEndsAndDoesNotStickTheSwing()
+        {
+            _combat.HitStopSeconds = 0.10f;
+            _combat.RequestLight(0.0f);
+            Step(_combat.Light1.Startup + 0.03f);
+            Assert.IsTrue(_combat.IsInHitStop, "the blade connected but nothing held the swing");
+
+            Step(0.25f);
+            Assert.IsFalse(_combat.IsInHitStop, "the hit-stop never let go");
+
+            Step(_combat.Light1.Total + 0.5f);
+            Assert.AreEqual(SoulsPhase.Idle, _combat.Phase, "the swing never finished after its hit-stop");
+        }
+
+        [Test]
+        public void InterruptingDuringAHitStopClearsIt()
+        {
+            _combat.HitStopSeconds = 0.5f;
+            _combat.RequestLight(0.0f);
+            Step(_combat.Light1.Startup + 0.03f);
+            Assert.IsTrue(_combat.IsInHitStop);
+
+            _combat.Interrupt();
+
+            Assert.IsFalse(_combat.IsInHitStop, "a dropped swing left the hit-stop running");
+        }
+
+        [Test]
+        public void AHeavyHitStopsLongerThanALightOne()
+        {
+            _combat.HitStopSeconds = 0.10f;
+            _combat.HeavyHitStopMultiplier = 2.0f;
+
+            _combat.RequestHeavy(0.0f);
+            Step(_combat.Heavy.Startup + 0.03f);
+            Assert.IsTrue(_combat.IsInHitStop);
+            Step(0.15f);
+            Assert.IsTrue(_combat.IsInHitStop, "a heavy hit should still be held at 0.15s of a 0.2s stop");
+            Step(0.1f);
+            Assert.IsFalse(_combat.IsInHitStop);
         }
     }
 }

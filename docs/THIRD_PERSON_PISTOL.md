@@ -63,6 +63,14 @@ Everything is live-tunable with `/gun` (`recoil`, `adsrecoil`, `shake`, `kick`,
 `kickangle`, `recover`, `sens`, `aimspeed`, `shoulder`). `/gun` with no argument
 prints the current numbers.
 
+**Two hands (2026-09-26):** aiming now brings the free hand up onto the grip. The Mixamo
+`pistol_aim_in` clip is a one-handed pose on this rig (measured: hands 61 cm apart, left
+arm dangling), so the left arm is reached by IK onto a point in the gun's own space
+(`PistolWeapon.SupportGripLocal`, tuned with `/grip pistol x y z`) -- 15 cm apart, palm
+within 2 cm of the point at 0 / +40 / -40 pitch. It eases in as the gun is raised, is
+free while the gun is merely carried, and follows the reload dip and the kick. Details:
+[MIXAMO_WEAPONS.md](MIXAMO_WEAPONS.md).
+
 ## What was deliberately NOT built
 
 * **Reticle bloom / random spread / weapon sway.** The research is clear these are

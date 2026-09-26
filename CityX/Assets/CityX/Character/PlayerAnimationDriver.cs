@@ -172,6 +172,19 @@ namespace CityX.Character
         }
 
         /// <summary>
+        /// Changes how fast the state now playing runs, on THIS body only (a hit-stop holds it at 0 and lets go),
+        /// with the same base-layer / upper-body-layer split as a fresh play.
+        /// </summary>
+        public void SetStateSpeed(string stateName, float speed)
+        {
+            if (_animator == null || string.IsNullOrEmpty(stateName))
+            {
+                return;
+            }
+            ApplySpeed(stateName, speed);
+        }
+
+        /// <summary>
         /// The playback speed for a state. An UPPER-BODY state gets it as its
         /// own per-state multiplier and leaves Animator.speed at 1, so the legs
         /// keep walking at their own pace under a swing that is being stretched

@@ -171,6 +171,14 @@ namespace CityX.Character
         [Tooltip("Stamina per second once recovery resumes. Dark Souls 3: 45.")]
         public float StaminaRegenPerSecond = 45.0f;
 
+        [Tooltip("Seconds the swing freezes (animation and timing both) the instant its blade connects. " +
+                 "A mocap swing has no contact in it, so without this a hit feels like the blade passed through; " +
+                 "a few frames of stillness is what sells the impact. 0 turns it off.")]
+        public float HitStopSeconds = 0.07f;
+
+        [Tooltip("A heavy attack's hit-stop is this many times longer.")]
+        public float HeavyHitStopMultiplier = 1.8f;
+
         [Header("Hit volumes (live only during the active frames)")]
         [Tooltip("Radius of the blade capsule swept along the actual sword.")]
         public float BladeRadius = 0.16f;
@@ -271,7 +279,13 @@ namespace CityX.Character
         private bool _blocking;
         private PlayerLocomotion _locomotion;
 
+        /// <summary>Seconds of hit-stop still to run; the swing's clock and clip are held while it is above zero.</summary>
+        private float _hitStopRemaining;
+
         // --- public surface ------------------------------------------------
+
+        /// <summary>True while a landed hit is holding the swing still.</summary>
+        public bool IsInHitStop => _hitStopRemaining > 0.0f;
 
         public bool IsEquipped => _equipped;
         public SoulsPhase Phase => _phase;
@@ -508,6 +522,19 @@ namespace CityX.Character
                 return;
             }
 
+            // HIT-STOP: a landed hit holds the whole swing still for a few frames -- the clock here AND
+            // the clip (stopped in LandOn) -- then lets both go on together, so they cannot drift apart.
+            if (_hitStopRemaining > 0.0f)
+            {
+                _hitStopRemaining -= deltaTime;
+                if (_hitStopRemaining > 0.0f)
+                {
+                    return;
+                }
+                ReleaseHitStop();
+                return;
+            }
+
             _phaseTime += deltaTime;
 
             // A loop, not an if: a long frame can carry the swing across more
@@ -596,6 +623,7 @@ namespace CityX.Character
         {
             // A held block is dropped the moment you swing.
             SetBlockHeld(false);
+            ReleaseHitStop();
 
             _current = attack;
             _currentIsLight = light;
@@ -620,8 +648,27 @@ namespace CityX.Character
             AttackStarted?.Invoke(attack);
         }
 
+        /// <summary>Lets the swing's clip run again after a hit-stop (a no-op when none is running).</summary>
+        private void ReleaseHitStop()
+        {
+            if (_hitStopRemaining <= 0.0f && !_clipHeld)
+            {
+                return;
+            }
+            _hitStopRemaining = 0.0f;
+            if (_clipHeld && _driver != null && _current != null)
+            {
+                _driver.SetStateSpeed(_current.Animation, _current.AnimatorSpeed);
+            }
+            _clipHeld = false;
+        }
+
+        /// <summary>True while the animation clip is stopped for a hit-stop, so it is put back exactly once.</summary>
+        private bool _clipHeld;
+
         private void EndSwing()
         {
+            ReleaseHitStop();
             _phase = SoulsPhase.Idle;
             _phaseTime = 0.0f;
             _chainIndex = -1;
@@ -748,6 +795,7 @@ namespace CityX.Character
             }
 
             AttackHit?.Invoke(target);
+            BeginHitStop();
 
             if (response == HitResponse.Blocked && _vitals != null)
             {
@@ -755,6 +803,25 @@ namespace CityX.Character
                 // you are the one left open. A merely held guard (Guarded)
                 // costs the defender stamina instead and does not do this.
                 _vitals.Stun(BlockedRecoilSeconds);
+            }
+        }
+
+        private void BeginHitStop()
+        {
+            if (HitStopSeconds <= 0.0f || _current == null)
+            {
+                return;
+            }
+            float seconds = HitStopSeconds * (_currentIsLight ? 1.0f : HeavyHitStopMultiplier);
+            if (seconds <= _hitStopRemaining)
+            {
+                return;   // several targets in one frame: the longest stop wins, they do not add up
+            }
+            _hitStopRemaining = seconds;
+            if (_driver != null && !_clipHeld)
+            {
+                _driver.SetStateSpeed(_current.Animation, 0.0f);
+                _clipHeld = true;
             }
         }
 
