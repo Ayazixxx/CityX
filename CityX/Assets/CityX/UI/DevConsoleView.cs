@@ -10,6 +10,7 @@ using CityX.World;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
+using FlightFeel = CityX.Weapons.FlightFeel;
 
 namespace CityX.UI
 {
@@ -438,6 +439,10 @@ namespace CityX.UI
 
                 case "gun":
                     GunCommand(line.Argument(0), line.Argument(1));
+                    return;
+
+                case "flight":
+                    FlightCommand(line.Argument(0), line.Argument(1));
                     return;
 
                 default:
@@ -1266,6 +1271,45 @@ namespace CityX.UI
             }
             combat.TrySet(name, number, out string message);
             Log(message);
+        }
+
+        /// <summary>
+        /// Live tuning for how flying feels (see FlightFeel) -- so the numbers can be
+        /// set by flying and looking rather than by rebuilding and guessing, the
+        /// same reason /aim and /sword exist.
+        /// </summary>
+        private void FlightCommand(string name, string value)
+        {
+            if (string.IsNullOrEmpty(name))
+            {
+                Log($"flight feel: fov {FlightFeel.FovGainDegrees}, kick {FlightFeel.BoostKickFovDegrees}, " +
+                    $"kickseconds {FlightFeel.BoostKickSeconds}, pullback {FlightFeel.PullBackMetres}, " +
+                    $"kickpullback {FlightFeel.BoostKickPullBackMetres}, smooth {FlightFeel.SmoothSeconds}, " +
+                    $"streaks {FlightFeel.MaxStreaksPerSecond}, start {FlightFeel.StartSpeed}, full {FlightFeel.FullSpeed}");
+                return;
+            }
+            if (!TryParseFloat(value, out float number))
+            {
+                Log(DevCommands.UsageFor("flight"));
+                return;
+            }
+
+            switch (name.ToLowerInvariant())
+            {
+                case "fov": FlightFeel.FovGainDegrees = number; break;
+                case "kick": FlightFeel.BoostKickFovDegrees = number; break;
+                case "kickseconds": FlightFeel.BoostKickSeconds = Mathf.Max(0.0f, number); break;
+                case "pullback": FlightFeel.PullBackMetres = number; break;
+                case "kickpullback": FlightFeel.BoostKickPullBackMetres = number; break;
+                case "smooth": FlightFeel.SmoothSeconds = Mathf.Max(0.01f, number); break;
+                case "streaks": FlightFeel.MaxStreaksPerSecond = Mathf.Max(0.0f, number); break;
+                case "start": FlightFeel.StartSpeed = number; break;
+                case "full": FlightFeel.FullSpeed = Mathf.Max(number, FlightFeel.StartSpeed + 0.1f); break;
+                default:
+                    Log(DevCommands.UsageFor("flight"));
+                    return;
+            }
+            Log($"flight {name} = {number}");
         }
 
         private void AimCommand(string sub, string a)

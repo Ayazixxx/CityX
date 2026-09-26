@@ -276,6 +276,28 @@ namespace CityX.Weapons
         private float _savedMinPitch;
         private float _savedMaxPitch;
 
+        // --- flight feel (see FlightFeel): how the camera reacts to speed ---
+        private float _feelFov;
+        private float _feelFovVelocity;
+        private float _feelDistance;
+        private float _feelDistanceVelocity;
+        private float _feelKickAge = 1.0e9f;
+        private bool _feelWasBoosting;
+        private JetpackSpeedLines _speedLines;
+
+        /// <summary>The camera's current flight widening, degrees -- for tests and tuning.</summary>
+        public float FeelFovBonus => _feelFov;
+
+        /// <summary>The camera's current flight pull-back, metres -- for tests and tuning.</summary>
+        public float FeelDistanceBonus => _feelDistance;
+
+        /// <summary>The camera the flight feel drives. Set on equip; a test can point it at its own.</summary>
+        public ThirdPersonCamera FeelCamera
+        {
+            get => _orbitCamera;
+            set => _orbitCamera = value;
+        }
+
         /// <summary>Current eased lean, X = pitch (forward/back), Z = roll (strafe).</summary>
         private Vector2 _currentTilt;
 
@@ -385,6 +407,9 @@ namespace CityX.Weapons
                 _savedMaxPitch = _orbitCamera.MaxPitch;
                 _orbitCamera.MinPitch = JetpackMinPitchDegrees;
                 _orbitCamera.MaxPitch = JetpackMaxPitchDegrees;
+
+                // Streaks of rushing air, made on the camera and taken off with the jetpack.
+                _speedLines = JetpackSpeedLines.Attach(_orbitCamera.transform);
             }
 
             if (FlameEffect != null)
@@ -409,6 +434,15 @@ namespace CityX.Weapons
                 // almost straight down when they unequipped keeps that
                 // extreme pitch on foot until they move the mouse again.
                 _orbitCamera.Pitch = Mathf.Clamp(_orbitCamera.Pitch, _savedMinPitch, _savedMaxPitch);
+
+                // Back to the ordinary view: no widening, no pull-back, no streaks.
+                _orbitCamera.FlightFovBonus = 0.0f;
+                _orbitCamera.FlightDistanceBonus = 0.0f;
+            }
+            if (_speedLines != null)
+            {
+                Destroy(_speedLines.gameObject);
+                _speedLines = null;
             }
             // Otherwise the body stays leaned from whatever WASD was held
             // the instant the jetpack came off.
@@ -497,6 +531,14 @@ namespace CityX.Weapons
 
             TickTilt(thrustHeld, moveInput, boostHeld, cameraPitchDegrees, deltaTime);
 
+            // How the camera reacts to speed. Speed is the whole body's, so a fast
+            // fall reads as fast too; on the ground it is off, so sprinting with a
+            // jetpack on the back does not widen the view.
+            if (_locomotion != null)
+            {
+                TickFlightFeel(_locomotion.Velocity, !_locomotion.IsGrounded, thrustHeld && boostHeld, deltaTime);
+            }
+
             if (FlameEffect != null)
             {
                 if (thrustHeld && !FlameEffect.isEmitting)
@@ -558,6 +600,61 @@ namespace CityX.Weapons
             }
         }
 
+        /// <summary>Snaps the flight feel back to nothing: no widening, no pull-back, no streaks.</summary>
+        public void ResetFlightFeel()
+        {
+            _feelFov = 0.0f;
+            _feelFovVelocity = 0.0f;
+            _feelDistance = 0.0f;
+            _feelDistanceVelocity = 0.0f;
+            _feelKickAge = 1.0e9f;
+            _feelWasBoosting = false;
+            if (_orbitCamera != null)
+            {
+                _orbitCamera.FlightFovBonus = 0.0f;
+                _orbitCamera.FlightDistanceBonus = 0.0f;
+            }
+            if (_speedLines != null)
+            {
+                _speedLines.Set(0.0f, Vector3.zero);
+            }
+        }
+
+        /// <summary>
+        /// One frame of the flight feel: works out how fast the player is going
+        /// (see <see cref="FlightFeel"/>), springs the camera's field-of-view widening and
+        /// pull-back toward it, punches both on the moment a boost begins, quickens the wind
+        /// and feeds the speed streaks. Public so a test can drive it with a made-up speed.
+        /// </summary>
+        public void TickFlightFeel(Vector3 velocity, bool airborne, bool boosting, float deltaTime)
+        {
+            bool boostBegan = boosting && !_feelWasBoosting;
+            _feelWasBoosting = boosting;
+            _feelKickAge = boostBegan ? 0.0f : _feelKickAge + deltaTime;
+
+            float fraction = airborne ? FlightFeel.SpeedFraction(velocity.magnitude) : 0.0f;
+            float kick = airborne ? FlightFeel.KickEnvelope(_feelKickAge) : 0.0f;
+
+            _feelFov = Mathf.SmoothDamp(_feelFov, FlightFeel.FovBonus(fraction, kick),
+                ref _feelFovVelocity, FlightFeel.SmoothSeconds, Mathf.Infinity, deltaTime);
+            _feelDistance = Mathf.SmoothDamp(_feelDistance, FlightFeel.DistanceBonus(fraction, kick),
+                ref _feelDistanceVelocity, FlightFeel.SmoothSeconds * 1.3f, Mathf.Infinity, deltaTime);
+
+            if (_orbitCamera != null)
+            {
+                _orbitCamera.FlightFovBonus = _feelFov;
+                _orbitCamera.FlightDistanceBonus = _feelDistance;
+            }
+            if (WindAudio != null)
+            {
+                WindAudio.pitch = FlightFeel.WindPitch(fraction);
+            }
+            if (_speedLines != null)
+            {
+                _speedLines.Set(fraction, velocity);
+            }
+        }
+
         /// <summary>
         /// Force-stops the flame and thrust audio without touching
         /// anything else -- for when something OTHER than releasing Space
@@ -577,6 +674,9 @@ namespace CityX.Weapons
         /// </summary>
         public void StopThrustEffects()
         {
+            // A crash or ragdoll ends the flight feel at once: the view goes back to normal.
+            ResetFlightFeel();
+
             if (FlameEffect != null && FlameEffect.isEmitting)
             {
                 FlameEffect.Stop();

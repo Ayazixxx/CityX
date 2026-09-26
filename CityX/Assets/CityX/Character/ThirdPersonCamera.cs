@@ -148,6 +148,21 @@ namespace CityX.Character
         public float AimZoomDegreesPerSecond = 90.0f;
 
         /// <summary>
+        /// Extra field of view, in degrees, while flying fast -- widening the view
+        /// with speed is the cheapest, strongest speed cue there is. Set every frame
+        /// by the jetpack (see FlightFeel); 0 on foot. Not applied while aiming down
+        /// sights, where the zoom is what the player asked for.
+        /// </summary>
+        [System.NonSerialized] public float FlightFovBonus;
+
+        /// <summary>
+        /// Extra metres the camera hangs back, while flying fast -- the camera is on
+        /// a spring, not welded to the character. Set every frame by the jetpack; 0 on
+        /// foot. Still pulled in by walls like the rest of the distance.
+        /// </summary>
+        [System.NonSerialized] public float FlightDistanceBonus;
+
+        /// <summary>
         /// Set every frame by PlayerInputReader -- see its own TickCombat,
         /// the one place that already knows whether a gun is out and right
         /// is held, or a melee weapon's own WeaponAimInput.IsAiming says so.
@@ -538,7 +553,7 @@ namespace CityX.Character
             _currentShoulderSide = Mathf.MoveTowards(
                 _currentShoulderSide, _shoulderSide, ShoulderSwapPerSecond * Time.deltaTime);
             Vector3 shoulderPivot = pivot + rotation * Vector3.right * (_currentShoulderOffset * _currentShoulderSide);
-            Vector3 wanted = shoulderPivot - rotation * Vector3.forward * Distance;
+            Vector3 wanted = shoulderPivot - rotation * Vector3.forward * (Distance + FlightDistanceBonus);
 
             // Pull in if a wall is in the way. The sphere radius keeps the near
             // plane out of the surface rather than flush against it, which is
@@ -583,7 +598,7 @@ namespace CityX.Character
 
             if (_camera != null)
             {
-                float target = IsAiming ? AimFieldOfView : _restFieldOfView;
+                float target = IsAiming ? AimFieldOfView : _restFieldOfView + FlightFovBonus;
                 _camera.fieldOfView = Mathf.MoveTowards(
                     _camera.fieldOfView, target, AimZoomDegreesPerSecond * Time.deltaTime);
             }

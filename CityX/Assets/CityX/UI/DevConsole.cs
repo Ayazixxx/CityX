@@ -141,6 +141,7 @@ namespace CityX.UI
             "aim",
             "sword",
             "gun",
+            "flight",
         };
 
         public static string UsageFor(string verb)
@@ -179,6 +180,11 @@ namespace CityX.UI
                     "kick / kickangle (the pistol's own snap-back), recover (camera settle rate), " +
                     "sens (mouse scale while aiming), aimspeed (walk-speed scale while aiming). " +
                     "/gun shoulder swaps the camera shoulder (Q). Needs a pistol equipped";
+                case "flight": return "/flight -- lists the flying-feel numbers; /flight <name> <value> sets one: " +
+                    "fov (degrees the view widens at full speed), kick (extra degrees on a boost), " +
+                    "kickseconds, pullback (metres the camera falls back), kickpullback, " +
+                    "smooth (camera spring, seconds), streaks (speed lines per second, 0 = off), " +
+                    "start / full (the speeds the effects begin and peak at, m/s). Works while flying";
                 default: return null;
             }
         }
