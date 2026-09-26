@@ -187,6 +187,22 @@ namespace CityX.View
         public Material[] WetGroundMaterials;
 
         /// <summary>
+        /// What each of <see cref="WetGroundMaterials"/> looks like DRY -- the fixed truth,
+        /// set by the scene builder from the same constants that build the materials.
+        ///
+        /// WHY THE ASSETS ARE NOT TRUSTED TO SAY. Rain edits those shared materials in
+        /// place. This used to remember "dry" by reading the assets when it started -- so
+        /// if anything ever left them soaked on disk (a crash, an older build, a save
+        /// while it was raining), the next run captured the SOAKED look as normal and
+        /// restored to it forever: the street stayed wet with the rain long off. With
+        /// the dry look stated here, a stale soaked asset is put right the moment the
+        /// game loads.
+        /// </summary>
+        public Color[] DryGroundColours;
+
+        public float[] DryGroundSmoothness;
+
+        /// <summary>
         /// The scene's own clear-weather fog distances -- EXPLICIT FIELDS,
         /// wired by CityMassingSceneBuilder to the exact same numbers it
         /// sets on RenderSettings itself, rather than read back from
@@ -452,6 +468,18 @@ namespace CityX.View
                     }
                     _clearGroundColours[i] = material.GetColor(BaseColourId);
                     _clearGroundSmoothness[i] = material.GetFloat(SmoothnessId);
+
+                    // The stated dry look wins over whatever the asset says right now
+                    // (see DryGroundColours): a stale soaked asset is healed by the
+                    // first ApplyWetGround, which writes this at zero wetness.
+                    if (DryGroundColours != null && i < DryGroundColours.Length)
+                    {
+                        _clearGroundColours[i] = DryGroundColours[i];
+                    }
+                    if (DryGroundSmoothness != null && i < DryGroundSmoothness.Length)
+                    {
+                        _clearGroundSmoothness[i] = DryGroundSmoothness[i];
+                    }
                 }
             }
 

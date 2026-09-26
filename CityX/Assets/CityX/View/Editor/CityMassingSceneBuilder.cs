@@ -48,6 +48,11 @@ namespace CityX.ViewEditor
         /// </summary>
         private const int WorldSeed = 58316047;
 
+        /// <summary>How glossy the city's three shared surfaces are when DRY. The rain restores to exactly these.</summary>
+        private const float GroundDrySmoothness = 0.10f;
+        private const float PavementDrySmoothness = 0.05f;
+        private const float ConcreteDrySmoothness = 0.04f;
+
         [MenuItem("CityX/Rebuild Massing Scene")]
         public static void Build()
         {
@@ -62,12 +67,12 @@ namespace CityX.ViewEditor
             // columns on every face of every building with no per-building UV
             // work -- and it is why these numbers are derived from the texture
             // rather than typed in.
-            Material ground = EnsureMaterial("CityGround", "CityRoad", 8.0f, 0.10f);
+            Material ground = EnsureMaterial("CityGround", "CityRoad", 8.0f, GroundDrySmoothness);
             // Also carries roofs and walkway decks -- same material in the real
             // world, and the buffer is named flatConcrete for that reason.
-            Material pavement = EnsureMaterial("CityPavement", "CityPavement", 4.0f, 0.05f);
+            Material pavement = EnsureMaterial("CityPavement", "CityPavement", 4.0f, PavementDrySmoothness);
             Material structure = EnsureMaterial("CityConcrete", "CityFacade",
-                CityFacadeTextures.FacadeTileWidth, 0.04f);
+                CityFacadeTextures.FacadeTileWidth, ConcreteDrySmoothness);
             Material darkGlass = EnsureGlassMaterial("CityGlassDark", false);
             Material litGlass = EnsureGlassMaterial("CityGlassLit", true);
             Material crackedGlass = EnsureGlassMaterial("CityGlassCracked", false, cracked: true);
@@ -568,6 +573,10 @@ namespace CityX.ViewEditor
                 rainEffect.Cycle = cycle;
                 rainEffect.Grade = grade;
                 rainEffect.WetGroundMaterials = new[] { ground, pavement, structure };
+                // The DRY look, stated from the same constants that built the materials, so the
+                // rain never has to trust what the files say (see RainEffect.DryGroundColours).
+                rainEffect.DryGroundColours = new[] { Color.white, Color.white, Color.white };
+                rainEffect.DryGroundSmoothness = new[] { GroundDrySmoothness, PavementDrySmoothness, ConcreteDrySmoothness };
                 // The EXACT same numbers set on RenderSettings two lines
                 // above -- see RainEffect.ClearFogStart's own doc comment
                 // for why these are passed in explicitly rather than read

@@ -80,6 +80,40 @@ namespace CityX.Tests
         /// whole game looked different in dry weather. However the rain ends, the
         /// materials must come back exactly as they were.
         /// </summary>
+        /// <summary>
+        /// THE WETNESS STUCK ON, TWICE. The rain remembered "dry" by reading the shared
+        /// materials when the game started -- so a run that began with them already soaked
+        /// on disk (left there by an earlier crash, a save while raining) took the soaked
+        /// look as normal and restored to it forever, rain or not. The dry look is stated
+        /// now, and a soaked asset is put right the moment the game loads.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ASoakedAssetLeftOnDiskIsPutRightWhenTheGameLoads()
+        {
+            var material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            material.SetColor("_BaseColor", new Color(0.65f, 0.65f, 0.65f, 1.0f));   // as saved wet
+            material.SetFloat("_Smoothness", 0.6f);
+
+            var host = new GameObject("DryingRain");
+            host.SetActive(false);
+            RainEffect rain = host.AddComponent<RainEffect>();
+            rain.RainSound = _clip;
+            rain.WetGroundMaterials = new[] { material };
+            rain.DryGroundColours = new[] { Color.white };
+            rain.DryGroundSmoothness = new[] { 0.1f };
+            host.SetActive(true);
+
+            // No rain asked for: a couple of frames and it should look dry.
+            yield return null;
+            yield return null;
+
+            Assert.AreEqual(0.1f, material.GetFloat("_Smoothness"), 1e-4f, "a soaked asset was taken as normal");
+            Assert.AreEqual(1.0f, material.GetColor("_BaseColor").r, 1e-4f, "a soaked asset stayed dark");
+
+            Object.DestroyImmediate(host);
+            Object.DestroyImmediate(material);
+        }
+
         [UnityTest]
         public IEnumerator DestroyingTheRainLeavesTheSharedGroundMaterialsDry()
         {
