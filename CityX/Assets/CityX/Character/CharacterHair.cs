@@ -102,11 +102,18 @@ namespace CityX.Character
             {
                 return;
             }
+            // MATERIAL 0's BLOCK, not the whole renderer's. Garment tints and PlayerWetness both use
+            // the per-material block, so that is the one place they read a colour back from: the dye
+            // used to go in the whole-renderer block, PlayerWetness never saw it, took the material's
+            // default gold as the hair's "dry" colour, and put that back the moment it rained.
             _block ??= new MaterialPropertyBlock();
-            renderer.GetPropertyBlock(_block);
+            renderer.GetPropertyBlock(_block, 0);
             _block.SetColor(BaseColourId, _colour);
             _block.SetColor(ColourId, _colour);
-            renderer.SetPropertyBlock(_block);
+            renderer.SetPropertyBlock(_block, 0);
+
+            // A body already wet should darken the new colour now, not up to two seconds from now.
+            GetComponentInParent<PlayerWetness>()?.Invalidate();
         }
 
         /// <summary>The worn hair object, or null when bald -- for tests and tuning.</summary>

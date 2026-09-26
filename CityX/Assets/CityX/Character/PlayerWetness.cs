@@ -45,6 +45,16 @@ namespace CityX.Character
             public int MaterialIndex;
             public Color OriginalColour;
             public float OriginalSmoothness;
+
+            /// <summary>
+            /// What this class last put in the renderer's block. If the block still holds exactly
+            /// this, nobody has touched it since and the original above is still its dry look; if
+            /// it holds anything else, somebody (a hair dye, a garment tint) changed it, and what
+            /// it holds now IS its dry look.
+            /// </summary>
+            public bool HasWritten;
+            public Color WrittenColour;
+            public float WrittenSmoothness;
         }
 
         private readonly List<Target> _targets = new List<Target>();
@@ -88,11 +98,37 @@ namespace CityX.Character
             Apply();
         }
 
-        /// <summary>Rebuilds the list of things to wet: every lit renderer on the body, and what it looked like dry.</summary>
+        /// <summary>
+        /// Asks for the list of things to wet to be rebuilt on the next frame, not in up to two
+        /// seconds. Something that has just changed a renderer's colour (hair being dyed) says so,
+        /// so a body already wet does not show the new colour undarkened for a moment.
+        /// </summary>
+        public void Invalidate()
+        {
+            _refreshTimer = 0.0f;
+        }
+
+        /// <summary>
+        /// Rebuilds the list of things to wet: every lit renderer on the body, and what it looked like dry.
+        ///
+        /// WHAT "DRY" MEANS IS DECIDED BY LOOKING, NOT REMEMBERED. The first version put everything
+        /// back to the colours it had recorded and then read the blocks afresh. That was wrong twice
+        /// over: a colour somebody CHANGED in between (a dye, a tint) was overwritten by the old one,
+        /// and one that was never in the per-material block at all (the hair's dye used to live in
+        /// the whole-renderer block) was recorded as the material's default -- so hair turned back
+        /// to the default colour the moment it rained. A block that still holds exactly what this
+        /// class wrote keeps its remembered dry look; anything else is taken as the new dry look.
+        /// </summary>
         private void Refresh()
         {
-            // Put anything that has since left the list back to dry first.
-            RestoreAll();
+            var previous = new Dictionary<(Renderer, int), Target>();
+            for (int i = 0; i < _targets.Count; i++)
+            {
+                if (_targets[i].Renderer != null)
+                {
+                    previous[(_targets[i].Renderer, _targets[i].MaterialIndex)] = _targets[i];
+                }
+            }
             _targets.Clear();
 
             foreach (Renderer renderer in GetComponentsInChildren<Renderer>(true))
@@ -110,20 +146,42 @@ namespace CityX.Character
                         continue;
                     }
 
-                    // What it looks like dry: the material's own values, unless
-                    // something (a garment tint) already put a block on it.
+                    // What it looks like now: the block's own values, else the material's.
                     renderer.GetPropertyBlock(_block, i);
                     Color colour = _block.HasColor(BaseColourId) ? _block.GetColor(BaseColourId) : material.GetColor(BaseColourId);
                     float smoothness = _block.HasFloat(SmoothnessId) ? _block.GetFloat(SmoothnessId) : material.GetFloat(SmoothnessId);
-                    _targets.Add(new Target
+
+                    var target = new Target
                     {
                         Renderer = renderer,
                         MaterialIndex = i,
                         OriginalColour = colour,
                         OriginalSmoothness = smoothness,
-                    });
+                    };
+                    if (previous.TryGetValue((renderer, i), out Target old))
+                    {
+                        previous.Remove((renderer, i));
+                        if (old.HasWritten && Same(colour, old.WrittenColour) && Mathf.Approximately(smoothness, old.WrittenSmoothness))
+                        {
+                            // Still exactly what this class wrote: the dry look is the one it remembered.
+                            target = old;
+                        }
+                    }
+                    _targets.Add(target);
                 }
             }
+
+            // Anything that has since left the list goes back to dry.
+            foreach (Target gone in previous.Values)
+            {
+                Restore(gone);
+            }
+        }
+
+        private static bool Same(Color a, Color b)
+        {
+            return Mathf.Approximately(a.r, b.r) && Mathf.Approximately(a.g, b.g)
+                   && Mathf.Approximately(a.b, b.b) && Mathf.Approximately(a.a, b.a);
         }
 
         private void Apply()
@@ -152,9 +210,16 @@ namespace CityX.Character
                 }
                 target.Renderer.GetPropertyBlock(_block, target.MaterialIndex);
                 Color dry = target.OriginalColour;
-                _block.SetColor(BaseColourId, new Color(dry.r * darken, dry.g * darken, dry.b * darken, dry.a));
-                _block.SetFloat(SmoothnessId, Mathf.Lerp(target.OriginalSmoothness, SoakedSmoothness, sheen));
+                var wet = new Color(dry.r * darken, dry.g * darken, dry.b * darken, dry.a);
+                float wetSmoothness = Mathf.Lerp(target.OriginalSmoothness, SoakedSmoothness, sheen);
+                _block.SetColor(BaseColourId, wet);
+                _block.SetFloat(SmoothnessId, wetSmoothness);
                 target.Renderer.SetPropertyBlock(_block, target.MaterialIndex);
+
+                target.HasWritten = true;
+                target.WrittenColour = wet;
+                target.WrittenSmoothness = wetSmoothness;
+                _targets[i] = target;
             }
             _applied = true;
         }
@@ -165,15 +230,23 @@ namespace CityX.Character
             for (int i = 0; i < _targets.Count; i++)
             {
                 Target target = _targets[i];
-                if (target.Renderer == null)
-                {
-                    continue;
-                }
-                target.Renderer.GetPropertyBlock(_block, target.MaterialIndex);
-                _block.SetColor(BaseColourId, target.OriginalColour);
-                _block.SetFloat(SmoothnessId, target.OriginalSmoothness);
-                target.Renderer.SetPropertyBlock(_block, target.MaterialIndex);
+                Restore(target);
+                // Back to its dry look, so nothing of this class's is left in the block to be mistaken for its own.
+                target.HasWritten = false;
+                _targets[i] = target;
             }
+        }
+
+        private void Restore(Target target)
+        {
+            if (target.Renderer == null)
+            {
+                return;
+            }
+            target.Renderer.GetPropertyBlock(_block, target.MaterialIndex);
+            _block.SetColor(BaseColourId, target.OriginalColour);
+            _block.SetFloat(SmoothnessId, target.OriginalSmoothness);
+            target.Renderer.SetPropertyBlock(_block, target.MaterialIndex);
         }
 
         private void OnDisable()

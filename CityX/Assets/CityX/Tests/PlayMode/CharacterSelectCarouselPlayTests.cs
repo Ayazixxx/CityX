@@ -158,7 +158,7 @@ namespace CityX.Tests
             Assert.IsNotNull(hair.Worn, "the pedestal body is not wearing the character's hairstyle");
 
             var block = new MaterialPropertyBlock();
-            hair.Worn.GetComponent<MeshRenderer>().GetPropertyBlock(block);
+            hair.Worn.GetComponent<MeshRenderer>().GetPropertyBlock(block, 0);
             Color worn = block.GetColor("_BaseColor");
             Assert.AreEqual(blue.b, worn.b, 0.001f, "the pedestal body's hair is not the character's colour");
             Assert.AreEqual(blue.r, worn.r, 0.001f);

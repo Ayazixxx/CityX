@@ -283,6 +283,102 @@ namespace CityX.Tests
             }
         }
 
+        private CharacterHair MakeDyedHair(Color dye)
+        {
+            var head = new GameObject("head");
+            head.transform.SetParent(_player.transform, false);
+            var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            cube.transform.SetParent(_player.transform, false);
+            Object.DestroyImmediate(cube.GetComponent<Collider>());
+
+            _shared = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            _shared.SetColor("_BaseColor", CityX.Core.CharacterSave.DefaultHairColour);   // the default gold
+            _shared.SetFloat("_Smoothness", 0.4f);
+
+            var hair = _player.AddComponent<CharacterHair>();
+            hair.Head = head.transform;
+            hair.StyleMeshes = new[] { cube.GetComponent<MeshFilter>().sharedMesh };
+            hair.HairMaterial = _shared;
+            hair.SetStyle(CharacterHair.Hair1);
+            hair.SetColour(dye);
+            return hair;
+        }
+
+        private static Color HairBlockColour(CharacterHair hair)
+        {
+            var block = new MaterialPropertyBlock();
+            hair.Worn.GetComponent<MeshRenderer>().GetPropertyBlock(block, 0);
+            return block.GetColor("_BaseColor");
+        }
+
+        /// <summary>
+        /// "MY HAIR CHANGED BACK TO THE DEFAULT COLOUR WHEN THE RAIN WAS TURNED ON." Wetness took the
+        /// hair's dry colour from the material's default, because the dye was stored where it does not
+        /// look. Dyed hair now darkens with the rest of the body and dries back to ITS OWN colour.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator DyedHairDarkensInTheRainAndDriesBackToItsDyeNotTheDefault()
+        {
+            var blue = new Color(0.2f, 0.4f, 0.85f);
+            CharacterHair hair = MakeDyedHair(blue);
+            PlayerWetness wetness = _player.AddComponent<PlayerWetness>();
+            CurrentWeather.Intensity = 1.0f;
+
+            wetness.SetWetness(0.95f);
+            yield return null;
+            yield return null;
+
+            Color soaked = HairBlockColour(hair);
+            Assert.Less(soaked.b, blue.b * 0.85f, "soaked hair should be darker");
+            Assert.Greater(soaked.b, soaked.r * 1.5f, "soaked hair turned into the default gold instead of a darker blue");
+
+            CurrentWeather.Cover = new FakeCover { Value = 1.0f };   // nothing falling on them now
+            wetness.SetWetness(0.02f);
+            yield return null;
+            yield return null;
+            yield return new WaitForSeconds(1.0f);
+            yield return null;
+
+            Assert.AreEqual(0.0f, wetness.Wetness, 1e-4f);
+            Color dry = HairBlockColour(hair);
+            Assert.AreEqual(blue.r, dry.r, 1e-3f, "dried hair is not the colour it was dyed");
+            Assert.AreEqual(blue.b, dry.b, 1e-3f, "dried hair is not the colour it was dyed");
+            Assert.AreEqual(blue.b, hair.Colour.b, 1e-4f);
+        }
+
+        /// <summary>Dyeing hair while the body is already soaked must keep the NEW colour, not put the old one back on the next refresh.</summary>
+        [UnityTest]
+        public IEnumerator HairDyedWhileSoakedKeepsTheNewColourAndDriesToIt()
+        {
+            CharacterHair hair = MakeDyedHair(new Color(0.2f, 0.4f, 0.85f));
+            PlayerWetness wetness = _player.AddComponent<PlayerWetness>();
+            CurrentWeather.Intensity = 1.0f;
+            wetness.SetWetness(0.95f);
+            yield return null;
+            yield return null;
+
+            var pink = new Color(0.9f, 0.45f, 0.65f);
+            hair.SetColour(pink);
+            // Past a full refresh (two seconds): the old colour must not come back.
+            yield return new WaitForSeconds(2.3f);
+            yield return null;
+
+            Color now = HairBlockColour(hair);
+            Assert.Greater(now.r, now.b, "the old colour was put back over the new dye");
+            Assert.Less(now.r, pink.r, "the freshly dyed hair on a soaked body is not darkened");
+
+            CurrentWeather.Cover = new FakeCover { Value = 1.0f };
+            wetness.SetWetness(0.02f);
+            yield return null;
+            yield return null;
+            yield return new WaitForSeconds(1.0f);
+            yield return null;
+
+            Color dry = HairBlockColour(hair);
+            Assert.AreEqual(pink.r, dry.r, 1e-3f, "dried hair is not the new dye");
+            Assert.AreEqual(pink.b, dry.b, 1e-3f, "dried hair is not the new dye");
+        }
+
         [UnityTest]
         public IEnumerator ADryBodyInADryWorldIsNeverTouched()
         {

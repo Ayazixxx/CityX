@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using CityX.World;
 using UnityEngine;
 
@@ -2108,6 +2108,20 @@ namespace CityX.View
         public const float SlopedStreetBevelMaxDrop = 1.5f;
 
         /// <summary>
+        /// How far BELOW the road surface a hillside ramp is kept, wherever it would otherwise rise
+        /// to it. EXPLICIT BUG REPORT, with screenshots: "long sloped parts poking through some
+        /// streets". The ramp is built off the street's height AT THE BORDER, but reaches back a few
+        /// metres INTO the chunk -- and the road, tilting like a hill, is often lower there than at
+        /// the border. So the ramp's upper grades stood up out of the road: wedges 0.3-1m tall and a
+        /// whole chunk long, on some 5% of street chunks. The road quad covers the ramp's whole
+        /// footprint, so a ramp that stays under it is invisible from above -- which is all it ever
+        /// was where it was not poking -- and one that does not is the artifact. 0.6m covers the
+        /// road's own sideways curve and the two surfaces being sampled a little differently (a
+        /// 23 degree grade moves the road ~0.5m for a 1.2m sideways shift).
+        /// </summary>
+        public const float SlopedStreetRampBuriedMetres = 0.6f;
+
+        /// <summary>
         /// Where a street keeps going but the road itself drops a terrace,
         /// this edge either gets a real staircase cut into whichever
         /// sidewalk exists, or -- EXPLICIT ASK: "make these cut off streets
@@ -2298,7 +2312,11 @@ namespace CityX.View
                 var slopeRoll = new DeterministicRandom(world.ChunkSeed(neighbourX, neighbourY));
                 if (ground != null && slopeRoll.NextDouble() < SlopedStreetChance)
                 {
-                    AddSlopedStreetRamp(slopeRoll, neighbourHeight, top0, top1, normal, ground);
+                    // The road's own surface at any point of this chunk, in this chunk's local space: the
+                    // ramp is kept beneath it (see SlopedStreetRampBuriedMetres).
+                    float RoadHeightAt(float localX, float localZ) =>
+                        (float)world.Terrain.ContinuousHeightAt(localX + origin.x, localZ + origin.z) - origin.y;
+                    AddSlopedStreetRamp(slopeRoll, neighbourHeight, top0, top1, normal, ground, RoadHeightAt);
                     chunkAlreadySloped = true;
                     return;
                 }
@@ -2984,7 +3002,8 @@ namespace CityX.View
         /// is just an empty plot we can work on later."
         /// </summary>
         private static void AddSlopedStreetRamp(DeterministicRandom rng, float neighbourHeight,
-            Vector3 top0, Vector3 top1, Vector3 normal, MeshBuffer ground)
+            Vector3 top0, Vector3 top1, Vector3 normal, MeshBuffer ground,
+            System.Func<float, float, float> roadHeightAt = null)
         {
             // top0.y, not pad -- see AddSkirtIfLower's own comment on the
             // same substitution. The ramp starts flush with top0 either
@@ -3018,6 +3037,12 @@ namespace CityX.View
             {
                 Vector3 point = edge + inward * insetDistance;
                 point.y -= dropAmount;
+                if (roadHeightAt != null)
+                {
+                    // Never above the road at this spot. Only ever LOWERS a point, and every grade
+                    // shares its corner points, so the three stay joined.
+                    point.y = Mathf.Min(point.y, roadHeightAt(point.x, point.z) - SlopedStreetRampBuriedMetres);
+                }
                 return point;
             }
 

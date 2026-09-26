@@ -139,7 +139,7 @@ namespace CityX.Tests
         private static Color ColourOn(Transform worn)
         {
             var block = new MaterialPropertyBlock();
-            worn.GetComponent<MeshRenderer>().GetPropertyBlock(block);
+            worn.GetComponent<MeshRenderer>().GetPropertyBlock(block, 0);
             return block.GetColor("_BaseColor");
         }
 

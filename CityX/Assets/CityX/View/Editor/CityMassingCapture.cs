@@ -401,6 +401,115 @@ namespace CityX.ViewEditor
         }
 
         /// <summary>
+        /// Photographs the spots listed in Logs/street-spots.txt, one per line:
+        ///
+        ///   name chunkX chunkY yawDegrees backMetres pitchDegrees upMetres
+        ///
+        /// The camera stands backMetres BEHIND the chunk's centre (opposite the way it faces) at
+        /// upMetres above the street there, looking yawDegrees (0 = +Z) and pitched down by
+        /// pitchDegrees. A text file rather than code so a spot can be looked at without a compile.
+        ///
+        ///   Unity.exe -batchmode -quit -projectPath &lt;proj&gt;
+        ///             -executeMethod CityX.ViewEditor.CityMassingCapture.CaptureSpots
+        /// </summary>
+        public static void CaptureSpots()
+        {
+            string projectRoot = Directory.GetParent(Application.dataPath).FullName;
+            string outputDirectory = Path.Combine(projectRoot, "Logs", "CityShots");
+            Directory.CreateDirectory(outputDirectory);
+            string listPath = Path.Combine(projectRoot, "Logs", "street-spots.txt");
+            if (!File.Exists(listPath))
+            {
+                Debug.LogError($"CityX: no spot list at {listPath}.");
+                return;
+            }
+
+            var root = new GameObject("CaptureRig");
+            try
+            {
+                Material ground = AssetDatabase.LoadAssetAtPath<Material>("Assets/CityX/View/Materials/CityGround.mat");
+                Material pavement = AssetDatabase.LoadAssetAtPath<Material>("Assets/CityX/View/Materials/CityPavement.mat");
+                Material structure = AssetDatabase.LoadAssetAtPath<Material>("Assets/CityX/View/Materials/CityConcrete.mat");
+                if (ground == null || pavement == null || structure == null)
+                {
+                    Debug.LogError("CityX: materials missing -- run CityX/Rebuild Massing Scene first.");
+                    return;
+                }
+
+                var sunObject = new GameObject("CaptureSun");
+                sunObject.transform.SetParent(root.transform);
+                Light sun = sunObject.AddComponent<Light>();
+                sun.type = LightType.Directional;
+                sun.shadows = LightShadows.Soft;
+                var moonObject = new GameObject("CaptureMoon");
+                moonObject.transform.SetParent(root.transform);
+                Light moon = moonObject.AddComponent<Light>();
+                moon.type = LightType.Directional;
+                moon.shadows = LightShadows.Soft;
+
+                var cycleObject = new GameObject("CaptureCycle");
+                cycleObject.transform.SetParent(root.transform);
+                DayNightCycle cycle = cycleObject.AddComponent<DayNightCycle>();
+                cycle.Sun = sun;
+                cycle.Moon = moon;
+                cycle.Running = false;
+                // Daylight, so the geometry reads: a night shot of a street is a shot of nothing.
+                cycle.TimeOfDay = 12.0f * 3600.0f;
+
+                var streamerObject = new GameObject("CaptureStreamer");
+                streamerObject.transform.SetParent(root.transform);
+                CityStreamer streamer = streamerObject.AddComponent<CityStreamer>();
+                streamer.WorldSeed = WorldSeed;
+                streamer.GroundMaterial = ground;
+                streamer.PavementMaterial = pavement;
+                streamer.StructureMaterial = structure;
+                Dress(streamer);
+
+                var cameraObject = new GameObject("CaptureCamera");
+                cameraObject.transform.SetParent(root.transform);
+                Camera camera = cameraObject.AddComponent<Camera>();
+                camera.farClipPlane = 3000.0f;
+                camera.nearClipPlane = 0.2f;
+                if (!AttachEnvironment(root, camera, cycle))
+                {
+                    return;
+                }
+                cycle.Apply(SkyCycle.At(cycle.TimeOfDay));
+
+                var world = new CityWorld(WorldSeed);
+                float chunk = CityLayout.ChunkSize;
+                var invariant = System.Globalization.CultureInfo.InvariantCulture;
+
+                foreach (string line in File.ReadAllLines(listPath))
+                {
+                    string[] parts = line.Split(new[] { ' ', '\t' }, System.StringSplitOptions.RemoveEmptyEntries);
+                    if (parts.Length < 7 || parts[0].StartsWith("#"))
+                    {
+                        continue;
+                    }
+                    int cx = int.Parse(parts[1], invariant);
+                    int cy = int.Parse(parts[2], invariant);
+                    float yaw = float.Parse(parts[3], invariant);
+                    float back = float.Parse(parts[4], invariant);
+                    float pitch = float.Parse(parts[5], invariant);
+                    float up = float.Parse(parts[6], invariant);
+
+                    Vector3 facing = Quaternion.Euler(0.0f, yaw, 0.0f) * Vector3.forward;
+                    double px = (cx + 0.5) * chunk - facing.x * back;
+                    double pz = (cy + 0.5) * chunk - facing.z * back;
+                    var position = new Vector3(
+                        (float)px, (float)world.Terrain.ContinuousHeightAt(px, pz) + up, (float)pz);
+                    Shoot(streamer, camera, outputDirectory, "spot-" + parts[0], position,
+                        new Vector3(pitch, yaw, 0.0f), 6);
+                }
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        /// <summary>
         /// Stands in the street beside the nearest chunk of an open block that
         /// satisfies <paramref name="wanted"/> and looks across it.
         /// </summary>

@@ -462,7 +462,7 @@ namespace CityX.Tests
         private static Color WornColour(CharacterHair hair)
         {
             var block = new MaterialPropertyBlock();
-            hair.Worn.GetComponent<MeshRenderer>().GetPropertyBlock(block);
+            hair.Worn.GetComponent<MeshRenderer>().GetPropertyBlock(block, 0);
             return block.GetColor("_BaseColor");
         }
 
