@@ -7,12 +7,15 @@ commands.
 
 ## What there is now
 
-- **Styles** (`CharacterHair.ValidStyles`): `none`, `embermane`, `animehair0`.
-  A save file stores the string, so the names never change once shipped.
-- **The selector**: the creator has one button per style (BALD / MANE / ANIME),
-  built from `ValidStyles`, so a new style gets its button with no builder edit.
-  The same list is wired onto the character list's carousel heads, the player
-  in the world and the in-game redraw creator (`HairAssets.StyleMeshes`).
+- **Styles** (`CharacterHair.ValidStyles`): `none`, `embermane`, `animehair0`,
+  `hair1`. A save file stores the string, so the names never change once shipped.
+- **The selector**: the creator has one button per style (BALD / MANE / ANIME /
+  BOB), built from `ValidStyles`, so a new style gets its button with no builder
+  edit. The buttons share one row and narrow to fit the 200-unit column
+  (`HairButtonRow`); past five or six styles that wants to become a picker. The
+  same list is wired onto the character list's carousel heads, the player in the
+  world and the in-game redraw creator (`HairAssets.StyleMeshes`, which walks
+  `ValidStyles`, so the two lists cannot drift out of order).
 - **The automatic fit**: `CharacterHair.FitToHead` scales the mesh so it is
   `WidthOverHead` (1.12x) the head's width, stands its top `CrownLift` above the
   crown and centres it on the head. It only needs the mesh's bounds.
@@ -53,19 +56,32 @@ the model's coverage, not the placement (drawing both faces makes no
 difference). A hair-coloured scalp cap under it, or a second mesh with the back
 of the hair, would fix that.
 
+## What the Hair1 model is
+
+`Hair1.glb` is a full **bob cut**: one mesh of about 800 vertices, no UVs, one
+plain material, a node that scales it 1.41x and lifts it 1.3 m (baked the same
+way, into `Hair1Mesh.asset`). Unlike the anime hair it covers the whole head: a
+straight fringe across the forehead, the sides down past the ears, and the back
+to the nape. It faces +Z (fringe to the front), so its yaw is 0, and the
+automatic fit sits it well without any hand tuning.
+
 ## Adding another style
 
 1. Put the model in `Assets/CityX/Character/Hair/`.
-2. Add its name to `CharacterHair.ValidStyles` (and `LabelFor`).
-3. Return its mesh from `HairAssets.StyleMeshes()`, in the same order.
+2. Add its name to `CharacterHair.ValidStyles`, give it a short label in
+   `LabelFor` (it has to fit a narrow button), and a yaw in `YawFor` if the
+   model does not face +Z.
+3. Add a case for it in `HairAssets.MeshFor`. A model file is baked with
+   `BakedFromModel` (see `AnimeHair0()` / `Hair1()`).
 4. Rebuild the scenes (Title, and CityMassing). Place it as above if the
-   automatic fit is not right; if the model faces the wrong way, set its yaw.
+   automatic fit is not right.
 
 ## Tests
 
 - `CharacterHairFitTests` (EditMode): the fit's maths, saved-vs-automatic
-  precedence, and the real baked mesh's size.
-- `CharacterCreatorPlayTests` (PlayMode): the anime hair on the real head, each
-  button selecting its style, saving a fit moving the worn hair.
-- `TitleScreenCapture.CaptureAnimeHair` writes front / side / back head
-  close-ups to `Logs/CityShots/` for judging a fit by eye.
+  precedence, each model's baked mesh size and placement, every style having a
+  label and a mesh, and the button row fitting the column.
+- `CharacterCreatorPlayTests` (PlayMode): each model hairstyle on the real head,
+  each button selecting its style, saving a fit moving the worn hair.
+- `TitleScreenCapture.CaptureAnimeHair` / `CaptureHair1` write front / side / back
+  head close-ups to `Logs/CityShots/` for judging a fit by eye.

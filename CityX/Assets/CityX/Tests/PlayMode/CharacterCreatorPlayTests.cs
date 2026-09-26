@@ -388,35 +388,38 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// The anime hairstyle, on the real head in the real scene, lands on the crown -- neither
+        /// Each hairstyle that comes from a model file, on the real head in the real scene, lands on the crown -- neither
         /// down the neck nor floating over the head, and centred on it. The fit's own maths is
         /// tested without a scene (CharacterHairFitTests); this is the model, the head bone and
         /// the fit together.
         /// </summary>
         [UnityTest]
-        public IEnumerator TheAnimeHairstyleSitsOnTheCrownOfTheRealHead()
+        public IEnumerator EveryModelHairstyleSitsOnTheCrownOfTheRealHead()
         {
             CharacterHair hair = _creator.Hair;
-            Assert.IsTrue(System.Array.IndexOf(CharacterHair.ValidStyles, CharacterHair.AnimeHair0) > 0,
-                "the anime hairstyle is not a valid style");
 
-            _creator.SetHairStyle(CharacterHair.AnimeHair0);
-            yield return null;
+            foreach (string style in new[] { CharacterHair.AnimeHair0, CharacterHair.Hair1 })
+            {
+                Assert.IsTrue(System.Array.IndexOf(CharacterHair.ValidStyles, style) > 0, $"\"{style}\" is not a valid style");
 
-            MeshFilter worn = Worn(hair);
-            Assert.IsNotNull(worn, "choosing the anime hairstyle produced no mesh -- is AnimeHair0Mesh.asset wired?");
-            Assert.IsNotNull(worn.sharedMesh, "the anime hairstyle's mesh is empty");
+                _creator.SetHairStyle(style);
+                yield return null;
 
-            var renderer = worn.GetComponent<MeshRenderer>();
-            Vector3 head = hair.Head.position;
-            float crown = head.y + FusedBodyShape.HeadRadius;
-            Assert.Greater(renderer.bounds.max.y, crown, "the anime hair does not reach the crown");
-            Assert.Less(renderer.bounds.max.y, crown + 0.25f, "the anime hair floats above the head");
+                MeshFilter worn = Worn(hair);
+                Assert.IsNotNull(worn, $"choosing \"{style}\" produced no mesh -- is its baked mesh wired?");
+                Assert.IsNotNull(worn.sharedMesh, $"\"{style}\"'s mesh is empty");
 
-            Vector3 centre = renderer.bounds.center;
-            float sideways = Mathf.Sqrt((centre.x - head.x) * (centre.x - head.x) + (centre.z - head.z) * (centre.z - head.z));
-            Assert.Less(sideways, FusedBodyShape.HeadRadius * 0.5f,
-                "the anime hair is off to one side or hanging off the front or back of the head");
+                var renderer = worn.GetComponent<MeshRenderer>();
+                Vector3 head = hair.Head.position;
+                float crown = head.y + FusedBodyShape.HeadRadius;
+                Assert.Greater(renderer.bounds.max.y, crown, $"\"{style}\" does not reach the crown");
+                Assert.Less(renderer.bounds.max.y, crown + 0.25f, $"\"{style}\" floats above the head");
+
+                Vector3 centre = renderer.bounds.center;
+                float sideways = Mathf.Sqrt((centre.x - head.x) * (centre.x - head.x) + (centre.z - head.z) * (centre.z - head.z));
+                Assert.Less(sideways, FusedBodyShape.HeadRadius * 0.5f,
+                    $"\"{style}\" is off to one side or hanging off the front or back of the head");
+            }
         }
 
         /// <summary>

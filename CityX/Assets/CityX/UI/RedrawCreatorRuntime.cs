@@ -388,13 +388,15 @@ namespace CityX.UI
             controls.RedoButton = t.Find("RedoButton").GetComponent<Button>();
 
             MakeLabel(t, "HairLabel", "HAIR", 13, Paper, At(-458.0f), 18.0f);
-            for (int style = 0; style < CharacterHair.ValidStyles.Length; style++)
+            int styleCount = CharacterHair.ValidStyles.Length;
+            for (int style = 0; style < styleCount; style++)
             {
-                float x = (style - (CharacterHair.ValidStyles.Length - 1) * 0.5f) * 62.0f;
                 MakeButton(t, "Hair" + CharacterHair.ValidStyles[style] + "Button",
                     CharacterHair.LabelFor(CharacterHair.ValidStyles[style]), Paper,
-                    new Vector2(x, -484.0f), new Vector2(58.0f, 30.0f),
-                    ButtonAction.Kind.CreatorHair, creator, overlays, value: style);
+                    new Vector2(HairButtonRow.CentreX(style, styleCount), -484.0f),
+                    new Vector2(HairButtonRow.ButtonWidth(styleCount), HairButtonRow.Height),
+                    ButtonAction.Kind.CreatorHair, creator, overlays, value: style,
+                    fontSize: HairButtonRow.FontSize(styleCount));
             }
 
             MakeLabel(t, "HintLabel",
@@ -707,7 +709,7 @@ namespace CityX.UI
 
         private static Image MakeButton(Transform parent, string name, string label, Color tint,
             Vector2 position, Vector2 size, ButtonAction.Kind action,
-            CharacterCreator creator, CreatorOverlays overlays, int value = 0)
+            CharacterCreator creator, CreatorOverlays overlays, int value = 0, int fontSize = 13)
         {
             var go = new GameObject(name, typeof(RectTransform));
             var rect = (RectTransform)go.transform;
@@ -737,7 +739,7 @@ namespace CityX.UI
 
             if (!string.IsNullOrEmpty(label))
             {
-                Caption(go.transform, label, 13, tint);
+                Caption(go.transform, label, fontSize, tint);
             }
             return background;
         }

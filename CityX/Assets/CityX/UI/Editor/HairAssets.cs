@@ -18,6 +18,8 @@ namespace CityX.UIEditor
         public const string EmbermanePath = Folder + "/embermane.obj";
         public const string AnimeHair0Source = Folder + "/AnimeHair0.glb";
         public const string AnimeHair0Baked = Folder + "/AnimeHair0Mesh.asset";
+        public const string Hair1Source = Folder + "/Hair1.glb";
+        public const string Hair1Baked = Folder + "/Hair1Mesh.asset";
 
         /// <summary>Where the saved hand-tuned fits live: a Resources folder, so every head reads them with nothing wired.</summary>
         public const string FitSettingsPath = HairFitSettings.AssetPath;
@@ -70,17 +72,39 @@ namespace CityX.UIEditor
             return hair;
         }
 
-        /// <summary>The mesh of every real style, in ValidStyles order after "none". A missing one is null.</summary>
+        /// <summary>
+        /// The mesh of every real style, in ValidStyles order after "none". A missing one is null.
+        ///
+        /// Built by walking ValidStyles rather than listing meshes by hand, so a style added to
+        /// that list cannot end up with another style's mesh (or none) because the two lists
+        /// were edited in a different order.
+        /// </summary>
         public static Mesh[] StyleMeshes()
         {
             // Every builder that wires hair gets the saved-fits asset too, so the Inspector's Save
             // button has somewhere to write whichever scene is opened first.
             EnsureFitSettings();
-            return new[]
+
+            var meshes = new Mesh[CharacterHair.ValidStyles.Length - 1];
+            for (int i = 0; i < meshes.Length; i++)
             {
-                AssetDatabase.LoadAssetAtPath<Mesh>(EmbermanePath),
-                AnimeHair0(),
-            };
+                meshes[i] = MeshFor(CharacterHair.ValidStyles[i + 1]);
+            }
+            return meshes;
+        }
+
+        /// <summary>The mesh a style wears, or null (with a warning) if its model is missing.</summary>
+        public static Mesh MeshFor(string style)
+        {
+            switch (style)
+            {
+                case CharacterHair.Embermane: return AssetDatabase.LoadAssetAtPath<Mesh>(EmbermanePath);
+                case CharacterHair.AnimeHair0: return AnimeHair0();
+                case CharacterHair.Hair1: return Hair1();
+                default:
+                    Debug.LogWarning($"CityX: no model is wired for the hairstyle \"{style}\" -- add it to HairAssets.MeshFor.");
+                    return null;
+            }
         }
 
         /// <summary>Everything after the first style -- for the one place that takes the first mesh separately.</summary>
@@ -92,39 +116,43 @@ namespace CityX.UIEditor
             return rest;
         }
 
+        /// <summary>AnimeHair0's mesh, baked (see <see cref="BakedFromModel"/>).</summary>
+        public static Mesh AnimeHair0() => BakedFromModel(AnimeHair0Source, AnimeHair0Baked, "AnimeHair0Mesh");
+
+        /// <summary>Hair1's mesh, baked (see <see cref="BakedFromModel"/>).</summary>
+        public static Mesh Hair1() => BakedFromModel(Hair1Source, Hair1Baked, "Hair1Mesh");
+
         /// <summary>
-        /// AnimeHair0's mesh, with the glTF node's own transform BAKED into it.
+        /// A hair model's mesh, with the glTF node's own transform BAKED into it.
         ///
-        /// The model file is one mesh under one node that scales it by 1.74 and lifts
-        /// it 1.1m -- so the same file, dropped into a scene as a prefab, sits
-        /// somewhere very different from where its raw vertices are. A hair mesh
-        /// has to be the same thing whichever way it is loaded, so the node's
-        /// transform is applied to the vertices once, here, and saved as a plain
-        /// mesh asset. From then on the mesh is in the model's own metre-sized
-        /// space and CharacterHair's fit does the rest.
+        /// A hair model is one mesh under one node that scales and lifts it (AnimeHair0: 1.74x and
+        /// 1.1m) -- so the same file, dropped into a scene as a prefab, sits somewhere very
+        /// different from where its raw vertices are. A hair mesh has to be the same thing
+        /// whichever way it is loaded, so the node's transform is applied to the vertices once,
+        /// here, and saved as a plain mesh asset. From then on the mesh is in the model's own
+        /// metre-sized space and CharacterHair's fit does the rest.
         ///
-        /// Made once and kept; delete AnimeHair0Mesh.asset to bake it again from a
-        /// changed model.
+        /// Made once and kept; delete the baked asset to bake it again from a changed model.
         /// </summary>
-        public static Mesh AnimeHair0()
+        private static Mesh BakedFromModel(string sourcePath, string bakedPath, string meshName)
         {
-            var existing = AssetDatabase.LoadAssetAtPath<Mesh>(AnimeHair0Baked);
+            var existing = AssetDatabase.LoadAssetAtPath<Mesh>(bakedPath);
             if (existing != null)
             {
                 return existing;
             }
 
-            var model = AssetDatabase.LoadAssetAtPath<GameObject>(AnimeHair0Source);
+            var model = AssetDatabase.LoadAssetAtPath<GameObject>(sourcePath);
             if (model == null)
             {
-                Debug.LogWarning($"CityX: {AnimeHair0Source} is missing -- the anime hairstyle will not be available.");
+                Debug.LogWarning($"CityX: {sourcePath} is missing -- that hairstyle will not be available.");
                 return null;
             }
 
             MeshFilter filter = model.GetComponentInChildren<MeshFilter>(true);
             if (filter == null || filter.sharedMesh == null)
             {
-                Debug.LogWarning($"CityX: {AnimeHair0Source} has no mesh -- the anime hairstyle will not be available.");
+                Debug.LogWarning($"CityX: {sourcePath} has no mesh -- that hairstyle will not be available.");
                 return null;
             }
 
@@ -133,10 +161,10 @@ namespace CityX.UIEditor
             // the very scale and lift that has to be baked in.
             Matrix4x4 bake = filter.transform.localToWorldMatrix;
             Mesh baked = Bake(filter.sharedMesh, bake);
-            baked.name = "AnimeHair0Mesh";
-            AssetDatabase.CreateAsset(baked, AnimeHair0Baked);
+            baked.name = meshName;
+            AssetDatabase.CreateAsset(baked, bakedPath);
             AssetDatabase.SaveAssets();
-            Debug.Log($"CityX: baked {AnimeHair0Baked} -- bounds {baked.bounds.min} to {baked.bounds.max}");
+            Debug.Log($"CityX: baked {bakedPath} -- bounds {baked.bounds.min} to {baked.bounds.max}");
             return baked;
         }
 

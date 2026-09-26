@@ -476,14 +476,16 @@ namespace CityX.UIEditor
 
             MakeLabel(t, "HairLabel", "HAIR", 13, Paper, At(-458.0f), 18.0f);
             // One button per style, in CharacterHair.ValidStyles order (the value IS the
-            // index), across the panel: three fit at 58 wide.
-            for (int style = 0; style < CharacterHair.ValidStyles.Length; style++)
+            // index), in a single row that narrows to fit -- see HairButtonRow.
+            int styleCount = CharacterHair.ValidStyles.Length;
+            for (int style = 0; style < styleCount; style++)
             {
-                float x = (style - (CharacterHair.ValidStyles.Length - 1) * 0.5f) * 62.0f;
                 MakeButton(t, "Hair" + CharacterHair.ValidStyles[style] + "Button",
                     CharacterHair.LabelFor(CharacterHair.ValidStyles[style]), Paper,
-                    new Vector2(x, -484.0f), new Vector2(58.0f, 30.0f),
-                    ButtonAction.Kind.CreatorHair, creator, value: style);
+                    new Vector2(HairButtonRow.CentreX(style, styleCount), -484.0f),
+                    new Vector2(HairButtonRow.ButtonWidth(styleCount), HairButtonRow.Height),
+                    ButtonAction.Kind.CreatorHair, creator, value: style,
+                    fontSize: HairButtonRow.FontSize(styleCount));
             }
 
             // character_creator.gd's own HintLabel. Nothing about "drag the
@@ -881,7 +883,7 @@ namespace CityX.UIEditor
         private static Image MakeButton(Transform parent, string name, string label, Color tint,
             Vector2 position, Vector2 size, ButtonAction.Kind action,
             CharacterCreator creator, TitleScreen title = null, int value = 0,
-            CreatorOverlays overlays = null)
+            CreatorOverlays overlays = null, int fontSize = 13)
         {
             var go = new GameObject(name, typeof(RectTransform));
             var rect = (RectTransform)go.transform;
@@ -914,7 +916,7 @@ namespace CityX.UIEditor
 
             if (!string.IsNullOrEmpty(label))
             {
-                Caption(go.transform, label, 13, tint);
+                Caption(go.transform, label, fontSize, tint);
             }
             return background;
         }

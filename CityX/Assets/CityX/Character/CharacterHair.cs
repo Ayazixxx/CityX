@@ -30,8 +30,9 @@ namespace CityX.Character
         public const string None = "none";
         public const string Embermane = "embermane";
         public const string AnimeHair0 = "animehair0";
+        public const string Hair1 = "hair1";
 
-        public static readonly string[] ValidStyles = { None, Embermane, AnimeHair0 };
+        public static readonly string[] ValidStyles = { None, Embermane, AnimeHair0, Hair1 };
 
         /// <summary>The short name a button or a console line uses for a style.</summary>
         public static string LabelFor(string style)
@@ -41,6 +42,7 @@ namespace CityX.Character
                 case None: return "BALD";
                 case Embermane: return "MANE";
                 case AnimeHair0: return "ANIME";
+                case Hair1: return "BOB";
                 default: return (style ?? string.Empty).ToUpperInvariant();
             }
         }
@@ -119,6 +121,20 @@ namespace CityX.Character
         /// <summary>Which way round a modelled-facing-forward style has to be turned to face the way the body does. Set by looking at it.</summary>
         public const float AnimeHair0YawDegrees = 0.0f;
 
+        /// <summary>The same for Hair1. Set by looking at it.</summary>
+        public const float Hair1YawDegrees = 0.0f;
+
+        /// <summary>The turn a style's model needs to face the way the body does.</summary>
+        public static float YawFor(string style)
+        {
+            switch (style)
+            {
+                case AnimeHair0: return AnimeHair0YawDegrees;
+                case Hair1: return Hair1YawDegrees;
+                default: return 0.0f;
+            }
+        }
+
         private static readonly List<CharacterHair> Live = new List<CharacterHair>();
 
         /// <summary>Raised whenever a style's fit is changed or reset.</summary>
@@ -138,8 +154,7 @@ namespace CityX.Character
                     new Vector3(180.0f, 0.0f, 0.0f),
                     Vector3.one);
             }
-            return FitToHead(meshBounds, FusedBodyShape.HeadRadius,
-                style == AnimeHair0 ? AnimeHair0YawDegrees : 0.0f);
+            return FitToHead(meshBounds, FusedBodyShape.HeadRadius, YawFor(style));
         }
 
         /// <summary>

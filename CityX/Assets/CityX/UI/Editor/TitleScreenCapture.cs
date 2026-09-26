@@ -78,12 +78,12 @@ namespace CityX.UIEditor
 
         private static bool SeeBothSidesOfHair;
 
-        private static void ShootHairViews(string prefix)
+        private static void ShootHairViews(string prefix, string style = Character.CharacterHair.AnimeHair0)
         {
             foreach (string view in new[] { "front", "side", "back" })
             {
                 Shoot(prefix + view, TitleScreen.Panel.Creator, seedCharacters: false,
-                    hairStyle: Character.CharacterHair.AnimeHair0, headView: view);
+                    hairStyle: style, headView: view);
             }
         }
 
@@ -92,6 +92,21 @@ namespace CityX.UIEditor
         {
             TitleScreenBuilder.Build();
             CaptureAnimeHair();
+        }
+
+        /// <summary>Close-ups of the head wearing Hair1: front, side and back.</summary>
+        [MenuItem("CityX/Capture Hair1")]
+        public static void CaptureHair1()
+        {
+            SeeBothSidesOfHair = false;
+            ShootHairViews("hair-1-", Character.CharacterHair.Hair1);
+        }
+
+        /// <summary>Rebuilds the title scene, then photographs Hair1 -- one editor start for change, rebuild, look.</summary>
+        public static void RebuildAndCaptureHair1()
+        {
+            TitleScreenBuilder.Build();
+            CaptureHair1();
         }
 
         private static void PositionForHead(Camera camera, Character.CharacterHair hair, string view)

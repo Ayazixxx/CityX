@@ -139,39 +139,97 @@ namespace CityX.Tests
                 "the second save did not replace the first");
         }
 
-        // ---- the anime hair itself ----
+        // ---- the model hairstyles themselves ----
 
-        [Test]
-        public void TheAnimeHairMeshIsBakedAtTheSizeOfAHead()
+        /// <summary>The baked mesh of each hairstyle that comes from a model file.</summary>
+        private static Mesh BakedMesh(string style)
         {
-            Mesh mesh = AssetDatabase.LoadAssetAtPath<Mesh>("Assets/CityX/Character/Hair/AnimeHair0Mesh.asset");
+            string path = style == CharacterHair.AnimeHair0 ? "Assets/CityX/Character/Hair/AnimeHair0Mesh.asset"
+                : "Assets/CityX/Character/Hair/Hair1Mesh.asset";
+            Mesh mesh = AssetDatabase.LoadAssetAtPath<Mesh>(path);
             if (mesh == null)
             {
-                Assert.Ignore("AnimeHair0Mesh.asset is made by the scene builders; not built yet in this checkout.");
+                Assert.Ignore($"{path} is made by the scene builders; not built yet in this checkout.");
             }
+            return mesh;
+        }
 
-            // The glb's node scales it by 1.74 and lifts it 1.1m. Unbaked, this was half a metre wide
-            // and hovering above the head, and the fit -- which only measures bounds -- hid the mistake
-            // for the size but not for the shape.
-            Assert.That(mesh.bounds.size.x, Is.InRange(0.8f, 1.2f), "the model's node scale was not baked into the mesh");
-            Assert.That(mesh.bounds.center.y, Is.GreaterThan(2.0f), "the model's node lift was not baked into the mesh");
+        [TestCase(CharacterHair.AnimeHair0)]
+        [TestCase(CharacterHair.Hair1)]
+        public void AModelHairMeshIsBakedAtTheSizeAndHeightOfAHead(string style)
+        {
+            Mesh mesh = BakedMesh(style);
+
+            // Each glb's node scales its mesh and lifts it about a metre. Unbaked, the anime hair was
+            // half a metre wide and hovering above the head, and the fit -- which only measures
+            // bounds -- hid the mistake for the size but not for the shape. The raw vertices of both
+            // sit around y = 0.7; the baked ones around 2.3, where a head is.
+            Assert.That(mesh.bounds.size.x, Is.InRange(0.6f, 1.2f), $"{style}: the model's node scale was not baked into the mesh");
+            Assert.That(mesh.bounds.center.y, Is.GreaterThan(1.5f), $"{style}: the model's node lift was not baked into the mesh");
+        }
+
+        [TestCase(CharacterHair.AnimeHair0)]
+        [TestCase(CharacterHair.Hair1)]
+        public void ARealModelHairLandsOnTheTopOfTheHeadNotHalfwayDownIt(string style)
+        {
+            Mesh mesh = BakedMesh(style);
+
+            CharacterHair.Fit fit = CharacterHair.DefaultFit(style, mesh.bounds);
+            Bounds placed = Placed(mesh.bounds, fit);
+
+            Assert.Greater(placed.max.y, FusedBodyShape.HeadRadius, $"{style}: the hair does not reach the crown of the head");
+            Assert.Less(placed.max.y, FusedBodyShape.HeadRadius * 1.3f, $"{style}: the hair floats well above the head");
+            Assert.Greater(placed.min.y, -FusedBodyShape.HeadRadius * 1.6f, $"{style}: the hair hangs down past the chin and neck");
         }
 
         [Test]
-        public void TheRealAnimeHairLandsOnTheTopOfTheHeadNotHalfwayDownIt()
+        public void EveryStyleAfterNoneHasALabelAndAModel()
         {
-            Mesh mesh = AssetDatabase.LoadAssetAtPath<Mesh>("Assets/CityX/Character/Hair/AnimeHair0Mesh.asset");
-            if (mesh == null)
+            for (int i = 1; i < CharacterHair.ValidStyles.Length; i++)
             {
-                Assert.Ignore("AnimeHair0Mesh.asset is made by the scene builders; not built yet in this checkout.");
+                string style = CharacterHair.ValidStyles[i];
+                StringAssert.DoesNotContain("\n", CharacterHair.LabelFor(style));
+                Assert.AreNotEqual(style.ToUpperInvariant(), CharacterHair.LabelFor(style),
+                    $"\"{style}\" has no short label of its own");
             }
 
-            CharacterHair.Fit fit = CharacterHair.DefaultFit(CharacterHair.AnimeHair0, mesh.bounds);
-            Bounds placed = Placed(mesh.bounds, fit);
+            Mesh[] meshes = UIEditor.HairAssets.StyleMeshes();
+            Assert.AreEqual(CharacterHair.ValidStyles.Length - 1, meshes.Length, "a style has no slot in the mesh list");
+            for (int i = 0; i < meshes.Length; i++)
+            {
+                Assert.IsNotNull(meshes[i], $"\"{CharacterHair.ValidStyles[i + 1]}\" has no mesh wired");
+            }
+        }
 
-            Assert.Greater(placed.max.y, FusedBodyShape.HeadRadius, "the hair does not reach the crown of the head");
-            Assert.Less(placed.max.y, FusedBodyShape.HeadRadius * 1.3f, "the hair floats well above the head");
-            Assert.Greater(placed.min.y, -FusedBodyShape.HeadRadius * 1.6f, "the hair hangs down past the chin and neck");
+        // ---- the button row ----
+
+        [TestCase(2)]
+        [TestCase(3)]
+        [TestCase(4)]
+        [TestCase(5)]
+        [TestCase(6)]
+        public void TheHairButtonsFitTheColumnAndNeverOverlap(int count)
+        {
+            float width = UI.HairButtonRow.ButtonWidth(count);
+            float halfColumn = UI.HairButtonRow.Available * 0.5f;
+
+            for (int i = 0; i < count; i++)
+            {
+                float centre = UI.HairButtonRow.CentreX(i, count);
+                Assert.LessOrEqual(Mathf.Abs(centre) + width * 0.5f, halfColumn + 0.001f, $"{count} buttons: button {i} hangs off the panel");
+                if (i > 0)
+                {
+                    float gap = centre - UI.HairButtonRow.CentreX(i - 1, count) - width;
+                    Assert.GreaterOrEqual(gap, 0.0f, $"{count} buttons: buttons {i - 1} and {i} overlap");
+                }
+            }
+        }
+
+        [Test]
+        public void ThreeHairButtonsKeepTheirOldWidth()
+        {
+            Assert.AreEqual(58.0f, UI.HairButtonRow.ButtonWidth(3), 1.0f);
+            Assert.Less(UI.HairButtonRow.ButtonWidth(4), UI.HairButtonRow.ButtonWidth(3));
         }
     }
 }
