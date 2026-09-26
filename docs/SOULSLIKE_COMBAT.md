@@ -146,7 +146,7 @@ sword is unequipped; bake the winners into the defaults in `SoulsSwordCombat.cs`
 **Hit-stop:** a landed hit freezes the swing's clock and its clip for `HitStopSeconds`
 (0.07; `HeavyHitStopMultiplier` 1.8x for a heavy) so contact has weight. Several targets
 in one frame do not add up. `/sword HitStopSeconds 0` turns it off. Where the hands sit
-on the hilt: `/grip` (roll, primary, support, torso).
+on the hilt: the Inspector on the held sword (CityX > Weapon Grips, see MIXAMO_WEAPONS.md).
 
 ## Not built (deliberately)
 

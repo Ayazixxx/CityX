@@ -34,8 +34,11 @@ namespace CityX.Weapons
         /// hairline that came and went before the eye could catch it. A
         /// pixel-constant width (computed per end, so it stays constant along the
         /// perspective line) keeps it readable at any range.
+        ///
+        /// 2.2 now, down from 3: a follow-up asked for it "a little thinner". Still well above the
+        /// one-pixel hairline that could not be seen at all.
         /// </summary>
-        public const float PixelWidth = 3.0f;
+        public const float PixelWidth = 2.2f;
 
         /// <summary>Never wider than this in the world, however far the camera is.</summary>
         public const float MaxWorldWidth = 0.4f;
@@ -48,10 +51,14 @@ namespace CityX.Weapons
         /// </summary>
         public const float LifetimeSeconds = 0.12f;
 
-        public const float Width = 0.015f;   // world-space FLOOR only; see PixelWidth
+        public const float Width = 0.008f;   // world-space FLOOR only (was 0.015, which at close range was wider than PixelWidth asks for); see PixelWidth
 
-        /// <summary>Warm brass-yellow, the common real-world tracer-round colour.</summary>
-        private static readonly Color TracerColour = new Color(1.0f, 0.85f, 0.35f);
+        /// <summary>
+        /// A pale, warm white: between pure white and the brass-yellow of a real tracer round. It was
+        /// (1.0, 0.85, 0.35), which read as plainly yellow; a follow-up asked for it whiter but "not totally
+        /// white". Roughly two thirds of the way from that yellow to white.
+        /// </summary>
+        private static readonly Color TracerColour = new Color(1.0f, 0.96f, 0.72f);
 
         private static Material _material;
 

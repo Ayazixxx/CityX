@@ -23,6 +23,8 @@ namespace CityX.Weapons
     /// spread that tightens while aiming down sights. No headshot multiplier
     /// or damage falloff -- pistol.gd doesn't have either either.
     /// </summary>
+    // AFTER PlayerLocomotion (order 0): the kick is put on the gun once the arms have been solved -- see LateUpdate.
+    [DefaultExecutionOrder(100)]
     [RequireComponent(typeof(SphereCollider))]
     public sealed class PistolWeapon : MonoBehaviour, IEquippableItem, IEquippableGun
     {
@@ -118,9 +120,28 @@ namespace CityX.Weapons
         /// against the body while aiming) -- and the whole thing is scaled ~2.5x, so 0.04 here is ~10cm:
         /// the shooting palm sits at (-0.036, 0, 0.019); this is one palm's width to its left (+Y), a
         /// touch lower and forward, which is where a two-handed grip wraps the fingers of the first.
-        /// Tuned against WeaponHandsPlayTests' pictures; a live change shows next frame.
+        /// Tuned against WeaponHandsPlayTests' pictures. Overridden by a saved hold (WeaponGripSettings), which
+        /// is set by dragging the LeftHandGrip marker in the editor while the game runs.
         /// </summary>
-        public static Vector3 SupportGripLocal = new Vector3(-0.042f, 0.040f, 0.025f);
+        public static readonly Vector3 DefaultSupportGripLocal = new Vector3(-0.042f, 0.040f, 0.025f);
+
+        /// <summary>Where the free palm holds, in the pistol's space: the saved point if there is one, else the derived one.</summary>
+        public static Vector3 SupportGripLocal =>
+            WeaponGripSettings.Current.PistolTuned ? WeaponGripSettings.Current.PistolLeftHand : DefaultSupportGripLocal;
+
+        /// <summary>The marker the free hand reaches for, a child of the pistol. Null while the pistol is not held.</summary>
+        public Transform LeftHandGrip => _leftHandGrip;
+
+        private Transform _leftHandGrip;
+
+        /// <summary>Puts the left-hand marker where the current hold (saved or derived) says.</summary>
+        public void ApplyGrip()
+        {
+            if (_leftHandGrip != null)
+            {
+                _leftHandGrip.localPosition = SupportGripLocal;
+            }
+        }
 
         /// <summary>
         /// Not a direct port of pistol.gd's own GRIP_HAND_ROTATION -- that
@@ -309,16 +330,26 @@ namespace CityX.Weapons
                 transform.localEulerAngles += new Vector3(28.0f, 0.0f, 0.0f) * dip;
             }
 
-            ApplyKick();
-
-            // Re-stated every frame so a live change to SupportGripLocal (the /grip console command) shows at once.
-            if (_wielder != null)
-            {
-                _wielder.SetSupportHand(transform, SupportGripLocal, onlyWhenAiming: true);
-            }
+            // NOT the kick, though: that goes on in LateUpdate, after the arms are solved.
         }
 
-        private PlayerLocomotion _wielder;
+        /// <summary>
+        /// THE KICK IS APPLIED LAST. It used to be put on the gun here in Update's pose, BEFORE the animator and
+        /// PlayerLocomotion.LateUpdate solved the arms -- and the arm's barrel correction measures where the
+        /// muzzle points and turns the arm to point it at the target, so it saw the 7-degree kick as an error
+        /// and cancelled it by snapping the whole arm the other way in the very frame of the shot (measured:
+        /// 5-6.6 degrees in one frame on every shot, on both arms once the free hand followed the gun). That is
+        /// the reported "arms spazz out a bit when shooting". Now the arms are solved against the UNKICKED gun
+        /// and the kick is laid on top for rendering, so the recoil shows on the pistol and the arms stay steady.
+        /// (Runs after PlayerLocomotion.LateUpdate: see the execution order on this class.)
+        /// </summary>
+        private void LateUpdate()
+        {
+            if (_equipped)
+            {
+                ApplyKick();
+            }
+        }
 
         /// <summary>
         /// The pistol's own snap-back when it fires: shoved back along its
@@ -509,9 +540,14 @@ namespace CityX.Weapons
             }
             if (locomotion != null)
             {
-                // The free hand comes up to steady the gun as it is raised to aim.
-                _wielder = locomotion;
-                locomotion.SetSupportHand(transform, SupportGripLocal, onlyWhenAiming: true);
+                // The free hand comes up to steady the gun as it is raised to aim, reaching for a marker on the
+                // pistol that can be dragged in the editor while the game runs (see WeaponGripSettings).
+                if (_leftHandGrip == null)
+                {
+                    _leftHandGrip = GripMarker.Create(transform, "LeftHandGrip", "left hand", new Color(1.0f, 0.55f, 0.1f));
+                }
+                ApplyGrip();
+                locomotion.SetSupportHand(_leftHandGrip, Vector3.zero, onlyWhenAiming: true);
             }
         }
 
@@ -530,9 +566,8 @@ namespace CityX.Weapons
             var locomotionOnUnequip = player.GetComponent<PlayerLocomotion>();
             if (locomotionOnUnequip != null)
             {
-                locomotionOnUnequip.ClearSupportHand(transform);
+                locomotionOnUnequip.ClearSupportHand(_leftHandGrip);
             }
-            _wielder = null;
             if (locomotionOnUnequip != null && locomotionOnUnequip.GunMuzzle == (MuzzleFlashObject != null ? MuzzleFlashObject.transform : null))
             {
                 locomotionOnUnequip.GunMuzzle = null;

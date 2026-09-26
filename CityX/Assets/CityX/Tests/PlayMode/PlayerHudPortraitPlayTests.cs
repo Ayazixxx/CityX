@@ -43,6 +43,12 @@ namespace CityX.Tests
         private void Build(string hairStyle)
         {
 #if UNITY_EDITOR
+            // A portrait is a picture: there is nothing to check without a graphics device (the default
+            // headless run has none). Run these with -Graphics.
+            if (SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null)
+            {
+                Assert.Ignore("the portrait needs a graphics device -- run with -Graphics");
+            }
             int layer = LayerMask.NameToLayer(PlayerHudLayerName);
             Assert.GreaterOrEqual(layer, 0, $"the '{PlayerHudLayerName}' layer is not defined");
 

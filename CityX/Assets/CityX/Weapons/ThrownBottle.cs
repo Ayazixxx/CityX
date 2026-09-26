@@ -72,6 +72,9 @@ namespace CityX.Weapons
             _rigidbody = GetComponent<Rigidbody>();
         }
 
+        /// <summary>The impact speed, in m/s, a bottle needs to break a pane rather than bounce off it.</summary>
+        public const float MinGlassBreakSpeed = 4.0f;
+
         private void OnCollisionEnter(Collision collision)
         {
             if (_consumed)
@@ -91,6 +94,15 @@ namespace CityX.Weapons
 
             var target = collision.collider.GetComponentInParent<IDamageable>();
             bool hitCharacter = target != null && target.IsAlive;
+
+            // A thrown bottle goes through a window: a heavy blow, straight into the pane, so it is taken
+            // out at once (a thrown brick in The Last of Us Part II is the model). A lob that only bumps
+            // the glass does nothing.
+            if (collision.relativeVelocity.magnitude >= MinGlassBreakSpeed)
+            {
+                var breakable = collision.collider.GetComponentInParent<CityX.World.IBreakableSurface>();
+                breakable?.TakeBlow(point, -normal, CityX.World.BlowStrength.Heavy);
+            }
 
             GlassShatter.Spawn(ShatterPrefab, point, normal);
             PlayImpactSound(hitCharacter ? ImpactCharacterSound : ImpactTerrainSound, point);

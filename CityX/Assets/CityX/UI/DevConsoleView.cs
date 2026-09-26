@@ -441,10 +441,6 @@ namespace CityX.UI
                     GunCommand(line.Argument(0), line.Argument(1));
                     return;
 
-                case "grip":
-                    GripCommand(line.Argument(0), line.Argument(1), line.Argument(2), line.Argument(3));
-                    return;
-
                 case "flight":
                     FlightCommand(line.Argument(0), line.Argument(1));
                     return;
@@ -1243,68 +1239,6 @@ namespace CityX.UI
             }
             Log("no pistol equipped -- /equip pistol first");
             return false;
-        }
-
-        /// <summary>
-        /// /grip -- where the two hands sit on the sword and the pistol. The sword's blade axis
-        /// comes from the mocap; what is left to taste is which way the edge faces (roll) and how
-        /// far down the handle each hand holds. The pistol's free hand is a point in the gun's own space.
-        /// </summary>
-        private void GripCommand(string weapon, string a, string b, string c)
-        {
-            if (string.IsNullOrEmpty(weapon))
-            {
-                Log($"sword: roll {CityX.Weapons.SwordWeapon.GripRollDegrees}, primary {CityX.Weapons.SwordWeapon.PrimaryGripDown}, " +
-                    $"support {CityX.Weapons.SwordWeapon.SupportGripDown};   " +
-                    $"pistol support point {FormatVector3(CityX.Weapons.PistolWeapon.SupportGripLocal)};   " +
-                    $"torso {PlayerLocomotion.TorsoFollowStrength}");
-                return;
-            }
-
-            switch (weapon)
-            {
-                case "sword":
-                    if (!TryParseFloat(b, out float swordValue))
-                    {
-                        Log(DevCommands.UsageFor("grip"));
-                        return;
-                    }
-                    switch (a)
-                    {
-                        case "roll": CityX.Weapons.SwordWeapon.GripRollDegrees = swordValue; break;
-                        case "primary": CityX.Weapons.SwordWeapon.PrimaryGripDown = swordValue; break;
-                        case "support": CityX.Weapons.SwordWeapon.SupportGripDown = swordValue; break;
-                        default:
-                            Log(DevCommands.UsageFor("grip"));
-                            return;
-                    }
-                    Log($"sword grip {a} = {swordValue.ToString(CultureInfo.InvariantCulture)}");
-                    return;
-
-                case "torso":
-                    if (!TryParseFloat(a, out float strength))
-                    {
-                        Log(DevCommands.UsageFor("grip"));
-                        return;
-                    }
-                    PlayerLocomotion.TorsoFollowStrength = Mathf.Clamp01(strength);
-                    Log($"sword swings keep {PlayerLocomotion.TorsoFollowStrength:0.00} of the clip's torso motion");
-                    return;
-
-                case "pistol":
-                    if (!TryParseFloat(a, out float x) || !TryParseFloat(b, out float y) || !TryParseFloat(c, out float z))
-                    {
-                        Log(DevCommands.UsageFor("grip"));
-                        return;
-                    }
-                    CityX.Weapons.PistolWeapon.SupportGripLocal = new Vector3(x, y, z);
-                    Log($"pistol support point set to {FormatVector3(new Vector3(x, y, z))}");
-                    return;
-
-                default:
-                    Log(DevCommands.UsageFor("grip"));
-                    return;
-            }
         }
 
         /// <summary>

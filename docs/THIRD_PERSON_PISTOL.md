@@ -66,7 +66,7 @@ prints the current numbers.
 **Two hands (2026-09-26):** aiming now brings the free hand up onto the grip. The Mixamo
 `pistol_aim_in` clip is a one-handed pose on this rig (measured: hands 61 cm apart, left
 arm dangling), so the left arm is reached by IK onto a point in the gun's own space
-(`PistolWeapon.SupportGripLocal`, tuned with `/grip pistol x y z`) -- 15 cm apart, palm
+(`PistolWeapon.SupportGripLocal`, dragged into place in the editor: CityX > Weapon Grips) -- 15 cm apart, palm
 within 2 cm of the point at 0 / +40 / -40 pitch. It eases in as the gun is raised, is
 free while the gun is merely carried, and follows the reload dip and the kick. Details:
 [MIXAMO_WEAPONS.md](MIXAMO_WEAPONS.md).
@@ -113,3 +113,17 @@ free while the gun is merely carried, and follows the reload dip and the kick. D
 * [Third-Person Shooter Mechanics -- TapNJoy](https://www.tapnjoy.com/article/third-person-shooter-mechanics-aim-shoot-and-dodge-like-a-pro)
 * [Resident Evil 4 discussions (reticle focus / bloom / sway)](https://steamcommunity.com/app/2050650/discussions/0/601918052458617574/)
 * [The Last of Us 2's Aim and Aim Settings -- ResetEra (weapon sway as a design choice)](https://www.resetera.com/threads/the-last-of-us-2s-aim-and-aim-settings-kind-of-suck.237973/)
+
+## Update 2026-09-26: the arm spasm and the tracer
+
+- **"Arms spazz out a bit when shooting."** Measured with real shots (`PistolArmsSteadyPlayTests`): with the
+  kick off the arms were smooth (0-0.3 degrees per frame); with it on every shot snapped the arm 5-6.6 degrees
+  in one frame (both arms once the free hand followed the gun). Cause: the kick was laid on the pistol BEFORE
+  the arms were solved, and the arm's barrel correction measures where the muzzle points, so it saw the
+  7-degree kick as an aiming error and cancelled it by jerking the whole arm. The kick is now applied in
+  `PistolWeapon.LateUpdate` (execution order after `PlayerLocomotion`), after the arms, so they aim the
+  un-kicked gun and the recoil shows on the pistol. Aimed and hip-fired bursts now measure 0 degrees/second of
+  arm movement. The hip-fire raise (the arm coming up for a shot) is also eased with an S-curve
+  (`EasedGunAimBlend`) and takes 55ms instead of 40, so it no longer starts and stops with a twitch.
+- **Tracer**: 2.2 pixels wide (was 3) and a pale warm white (1.0, 0.96, 0.72), between white and the old
+  brass yellow (1.0, 0.85, 0.35).

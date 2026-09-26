@@ -40,6 +40,24 @@ namespace CityX.World
         /// is what tells a swing it connected.
         /// </summary>
         bool TakePunch(Vector3 point);
+
+        /// <summary>
+        /// A blow of a KNOWN kind, and which way it was travelling (zero when unknown). A fist or a bullet
+        /// only cracks a whole pane; a blade, a thrown bottle or a body at speed takes it out at once --
+        /// the same difference The Last of Us Part II makes between a melee strike and a thrown brick.
+        /// Implementers that do not care keep the plain-punch behaviour.
+        /// </summary>
+        bool TakeBlow(Vector3 point, Vector3 direction, BlowStrength strength) => TakePunch(point);
+    }
+
+    /// <summary>How hard a blow to glass is.</summary>
+    public enum BlowStrength
+    {
+        /// <summary>A fist or a bullet: a whole pane cracks first, and a second blow shatters it.</summary>
+        Light = 0,
+
+        /// <summary>A sword, a thrown bottle, a sprinting shoulder: the pane goes at once.</summary>
+        Heavy = 1,
     }
 
     /// <summary>One window in the world.</summary>
@@ -171,7 +189,7 @@ namespace CityX.World
         /// caller and test that only cares about the state machine keeps
         /// compiling unchanged.
         /// </summary>
-        public PaneState Hit(PaneKey key, Vector2? impactUV = null)
+        public PaneState Hit(PaneKey key, Vector2? impactUV = null, bool shatterOutright = false)
         {
             PaneState was = StateOf(key);
             if (was == PaneState.Shattered)
@@ -179,7 +197,7 @@ namespace CityX.World
                 return PaneState.Shattered;
             }
 
-            PaneState now = was == PaneState.Intact ? PaneState.Cracked : PaneState.Shattered;
+            PaneState now = NextState(was, shatterOutright ? BlowStrength.Heavy : BlowStrength.Light);
             _broken[key] = now;
             if (impactUV.HasValue)
             {
@@ -187,6 +205,19 @@ namespace CityX.World
             }
             Changed?.Invoke(key, now);
             return now;
+        }
+
+        /// <summary>
+        /// What a blow leaves of a pane: a light one takes it one step (whole to cracked, cracked to gone), a
+        /// heavy one takes it all the way.
+        /// </summary>
+        public static PaneState NextState(PaneState was, BlowStrength strength)
+        {
+            if (was == PaneState.Shattered || strength == BlowStrength.Heavy)
+            {
+                return PaneState.Shattered;
+            }
+            return was == PaneState.Intact ? PaneState.Cracked : PaneState.Shattered;
         }
 
         /// <summary>

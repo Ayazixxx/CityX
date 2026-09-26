@@ -28,9 +28,20 @@ namespace CityX.Tests
         private Animator _animator;
         private GameObject _light;
 
+        private WeaponGripSettings _realSettings;
+
+        /// <summary>These tests measure the DERIVED hold, so they run against untouched settings, whatever has been saved in the project.</summary>
+        [SetUp]
+        public void SetUp()
+        {
+            _realSettings = WeaponGripSettings.Current;
+            WeaponGripSettings.Current = ScriptableObject.CreateInstance<WeaponGripSettings>();
+        }
+
         [TearDown]
         public void TearDown()
         {
+            WeaponGripSettings.Current = _realSettings;
             if (_player != null) Object.Destroy(_player);
             if (_weaponObject != null) Object.Destroy(_weaponObject);
             if (_ground != null) Object.Destroy(_ground);

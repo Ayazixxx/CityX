@@ -51,7 +51,15 @@ namespace CityX.View
         /// caller uses that to decide whether the swing connected, so a fist
         /// against blank wall stays as silent as a fist against air.
         /// </summary>
-        public bool TakePunch(Vector3 point)
+        public bool TakePunch(Vector3 point) => TakeBlow(point, Vector3.zero, BlowStrength.Light);
+
+        /// <summary>
+        /// A blow of a known kind. A LIGHT one (a fist, a bullet) moves the pane one step -- cracked, then
+        /// gone -- and a HEAVY one (a blade, a thrown bottle, a body at speed) takes it out at once.
+        /// <paramref name="direction"/> is the way the blow was travelling (zero when unknown): the
+        /// shards fly that way, through the pane, instead of always outward at whoever swung.
+        /// </summary>
+        public bool TakeBlow(Vector3 point, Vector3 direction, BlowStrength strength)
         {
             if (_world == null)
             {
@@ -82,13 +90,13 @@ namespace CityX.View
 
                     PaneState was = _streamer.Damage.StateOf(key);
                     Vector2 impactUV = GlassDamage.FractionWithinPane(site, key, point);
-                    PaneState now = _streamer.Damage.Hit(key, impactUV);
+                    PaneState now = _streamer.Damage.Hit(key, impactUV, shatterOutright: strength == BlowStrength.Heavy);
                     if (now == was)
                     {
                         return false;   // already gone
                     }
 
-                    Report(now, point, key.Wall);
+                    Report(now, point, key.Wall, direction, strength);
                     return true;
                 }
             }
@@ -102,22 +110,48 @@ namespace CityX.View
         /// shard burst (GlassShardBurst) rather than a fading sprite, which is
         /// the only part of a broken window you actually see happen.
         /// </summary>
-        private void Report(PaneState state, Vector3 point, WindowGrid.Wall wall)
+        private void Report(PaneState state, Vector3 point, WindowGrid.Wall wall, Vector3 blowDirection, BlowStrength strength)
         {
+            // GLASS SOUNDS LIKE A SEQUENCE, NOT A SAMPLE: the contact and crack or shatter first, then the
+            // tinkle of the pieces landing a moment later (sound-design practice for breaking glass). A
+            // crack is only the first; the break gets the tinkle as a second, higher, quieter layer.
             AudioClip[] bank = state == PaneState.Cracked ? CrackSounds : BreakSounds;
-            if (bank != null && bank.Length > 0)
+            AudioClip clip = PickClip(bank);
+            if (clip != null)
             {
-                AudioClip clip = bank[Random.Range(0, bank.Length)];
-                if (clip != null)
+                // A little pitch variation so a run of windows does not repeat one sample; a heavy blow
+                // is a fuller, lower sound.
+                float pitch = Random.Range(0.92f, 1.08f) * (strength == BlowStrength.Heavy ? 0.94f : 1.0f);
+                PositionalSound.Play(clip, point, 1.0f, pitch, 0.0f, HearingRange);
+                if (state == PaneState.Shattered)
                 {
-                    AudioSource.PlayClipAtPoint(clip, point);
+                    PositionalSound.Play(clip, point, 0.35f, Random.Range(1.5f, 1.9f), Random.Range(0.22f, 0.45f), HearingRange);
                 }
             }
 
             if (state == PaneState.Shattered && ShardPrefab != null)
             {
-                GlassShardBurst.Spawn(ShardPrefab, point, WindowGrid.OutwardNormal(wall));
+                GlassShardBurst.Spawn(ShardPrefab, point, ShardDirection(WindowGrid.OutwardNormal(wall), blowDirection));
             }
+        }
+
+        private static AudioClip PickClip(AudioClip[] bank)
+        {
+            return bank != null && bank.Length > 0 ? bank[Random.Range(0, bank.Length)] : null;
+        }
+
+        /// <summary>
+        /// The way the shards fly: through the pane, the way the blow was going. Someone outside hitting a
+        /// window sends the glass INTO the building; someone inside sends it out over the street. With no
+        /// known direction it is the wall's outward normal, as it always was.
+        /// </summary>
+        public static Vector3 ShardDirection(Vector3 outward, Vector3 blowDirection)
+        {
+            if (blowDirection.sqrMagnitude < 1e-6f)
+            {
+                return outward;
+            }
+            return Vector3.Dot(blowDirection, outward) < 0.0f ? -outward : outward;
         }
     }
 }

@@ -9,6 +9,7 @@
         "CityX.World",
         "CityX.View",
         "CityX.View.Editor",
+        "CityX.Weapons.Editor",
         "CityX.Character",
         "CityX.Character.Editor",
         "CityX.UI",

@@ -732,6 +732,8 @@ namespace CityX.Character
                 LandOnOverlaps(count, t);
             }
 
+            BreakGlassWithBlade(_prevBase, _prevTip, bladeBase, bladeTip);
+
             _prevBase = bladeBase;
             _prevTip = bladeTip;
 
@@ -745,6 +747,34 @@ namespace CityX.Character
                 int count = Physics.OverlapBoxNonAlloc(
                     center, halfExtents, _overlap, transform.rotation, TargetLayers, QueryTriggerInteraction.Ignore);
                 LandOnOverlaps(count, transform.position + Vector3.up * (height * 0.6f));
+            }
+        }
+
+        /// <summary>
+        /// A blade through a window takes the pane out at once -- a HEAVY blow, unlike a fist, which only
+        /// cracks glass (the melee-versus-thrown-brick difference in The Last of Us Part II's windows).
+        /// Three points along the blade are each traced from where they were last frame to where they are
+        /// now, so a fast swing cannot pass through a pane between two frames; only the active frames call
+        /// this, so a wind-up brushing a wall breaks nothing.
+        /// </summary>
+        private void BreakGlassWithBlade(Vector3 prevBase, Vector3 prevTip, Vector3 nowBase, Vector3 nowTip)
+        {
+            for (int i = 1; i <= 3; i++)
+            {
+                float along = i / 3.0f;
+                Vector3 from = Vector3.Lerp(prevBase, prevTip, along);
+                Vector3 travel = Vector3.Lerp(nowBase, nowTip, along) - from;
+                float length = travel.magnitude;
+                if (length < 0.02f)
+                {
+                    continue;
+                }
+                Vector3 direction = travel / length;
+                if (Physics.Raycast(from, direction, out RaycastHit hit, length, TargetLayers, QueryTriggerInteraction.Ignore))
+                {
+                    var breakable = hit.collider.GetComponentInParent<World.IBreakableSurface>();
+                    breakable?.TakeBlow(hit.point, direction, World.BlowStrength.Heavy);
+                }
             }
         }
 

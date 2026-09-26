@@ -1,3 +1,4 @@
+using CityX.Character;
 using CityX.World;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -5,20 +6,36 @@ using UnityEngine.InputSystem;
 namespace CityX.View
 {
     /// <summary>
-    /// The door in a building's entrance. Press E while near it to swing it
-    /// open, again to close it.
+    /// The door in a building's entrance. Press E while near it and looking at it to swing it open, again
+    /// to close it -- or just walk (or run) into it.
     ///
-    /// Ported from city/building_door.gd, including its two decisions worth
-    /// keeping.
+    /// Ported from city/building_door.gd, then reworked against what door design in third-person games
+    /// converges on (the Level Design Book's door chapter, Liz England's "The Door Problem", and how
+    /// The Last of Us Part II lets your speed decide how you go through one):
     ///
-    /// IT SWINGS INWARD, around its own left edge. Outward would swing out over
-    /// the pavement, which reads wrong and would shove a player standing just
-    /// outside it.
+    /// IT SWINGS AWAY FROM WHOEVER OPENS IT, and works from both sides. It used to swing inward always,
+    /// which from outside is away from you but from inside is straight into you (and the kinematic leaf
+    /// then shoved you). Now the side you stand on decides: from the street it opens inward, from the
+    /// lobby it opens outward. "Double-hinged, opening away from the character" is the standing advice
+    /// for a game door, and err on the side of the player's convenience over realism.
     ///
-    /// AND IT ASKS FOR THE KEY ITSELF rather than being told by the player.
-    /// That is Godot's arrangement -- the door tracks who is near it and checks
-    /// the interact action in its own process -- and here it also happens to be
-    /// the only arrangement that does not make the character code depend on the
+    /// IT NEVER PUSHES ANYONE. A swinging leaf sweeps a lot of room and is easily blocked; instead of
+    /// shoving whoever is in the way (or closing on them), it STOPS where it is until they move -- the
+    /// "Blocked" state a door needs alongside Opening and Closing.
+    ///
+    /// WALKING INTO IT OPENS IT, so a door never stops you dead while you are running from something.
+    /// How fast you were going decides how it opens: eased at a walk, thrown open at a run.
+    ///
+    /// E ONLY WORKS ON THE DOOR YOU ARE LOOKING AT, not any door within reach behind you or through a wall.
+    ///
+    /// ITS MOTION IS A DAMPED SPRING rather than a fixed-time ease: it starts quickly, settles gently, and
+    /// pressing E again mid-swing turns it round smoothly instead of waiting for it to finish.
+    ///
+    /// AND IT SOUNDS LIKE ONE: a latch and a creak as it starts to open, a thud as it meets its frame
+    /// (DoorSounds -- made in code, so they add nothing to the game's size).
+    ///
+    /// AND IT ASKS FOR THE KEY ITSELF rather than being told by the player. That is Godot's arrangement, and
+    /// here it also happens to be the only arrangement that does not make the character code depend on the
     /// city code to open a door.
     /// </summary>
     public sealed class BuildingDoor : MonoBehaviour, IOpenableDoor
@@ -34,8 +51,31 @@ namespace CityX.View
         /// </summary>
         public const float OpenAngleDegrees = 100.0f;
 
+        /// <summary>How long a door takes to open at a walk, roughly: the spring's settling time, not a fixed timer.</summary>
         public const float OpenSeconds = 0.5f;
+
         public const float InteractRange = 2.5f;
+
+        /// <summary>The spring's time constant, in seconds, for a normal push open. Settles in about four times this.</summary>
+        public const float OpenSmoothSeconds = 0.14f;
+
+        /// <summary>The same for a door thrown open by someone at a run.</summary>
+        public const float BurstSmoothSeconds = 0.07f;
+
+        /// <summary>The same when it swings shut.</summary>
+        public const float CloseSmoothSeconds = 0.17f;
+
+        /// <summary>How much of a door's swing E needs the player to be looking toward: within this many degrees of the door.</summary>
+        public const float LookAtDegrees = 65.0f;
+
+        /// <summary>The speed, in m/s, toward a closed door at which walking into it opens it.</summary>
+        public const float BumpMinSpeed = 1.2f;
+
+        /// <summary>Toward-door speed at which it is thrown open (the burst) rather than eased.</summary>
+        public const float BurstSpeed = 5.5f;
+
+        /// <summary>How close to the door's plane, in metres, a body has to be for walking into it to count.</summary>
+        public const float BumpReachMetres = 0.85f;
 
         /// <summary>Where a door panel goes, given the building it belongs to.</summary>
         public readonly struct Panel
@@ -80,14 +120,39 @@ namespace CityX.View
                 Vector3.forward);
         }
 
+        /// <summary>
+        /// Which way a door opens for someone standing where <paramref name="opener"/> is: +1 swings it
+        /// INWARD (from the street side, away from you) and -1 OUTWARD (from inside, away from you).
+        /// Pure, so it can be tested without a scene. On the wall plane exactly it opens inward, as it always did.
+        /// </summary>
+        public static int SwingSignFor(Vector3 hinge, Vector3 facing, Vector3 opener)
+        {
+            return Vector3.Dot(opener - hinge, facing) >= 0.0f ? 1 : -1;
+        }
+
         /// <summary>Raised when the door settles open or shut, so the streamer can remember.</summary>
         public event System.Action<bool> Toggled;
 
         private Transform _leaf;
         private float _shutYaw;
+        private Vector3 _hinge;
+        private Vector3 _facing = Vector3.forward;
+        private float _width;
+        private float _height;
+
         private bool _open;
-        private float _swing;          // 0 shut, 1 open
-        private Transform _nearby;
+        private int _swingSign = 1;        // +1 opens inward, -1 outward
+        private float _angle;              // degrees from shut, signed the same way
+        private float _angleVelocity;
+        private bool _burst;               // the current opening was a run-through
+        private bool _shutSoundPending;    // a closing that has not yet made its thud
+        private bool _blocked;
+
+        // The local player, if they are within reach: who E and walking into the door belong to.
+        private Transform _player;
+        private CharacterController _playerBody;
+
+        private static readonly Collider[] Overlaps = new Collider[16];
 
         /// <summary>
         /// Builds the leaf and hangs it. <paramref name="startOpen"/> restores
@@ -98,6 +163,10 @@ namespace CityX.View
             bool startOpen)
         {
             transform.position = panel.Hinge;
+            _hinge = panel.Hinge;
+            _facing = panel.Facing;
+            _width = panel.Width;
+            _height = panel.Height;
             _shutYaw = Quaternion.LookRotation(panel.Facing, Vector3.up).eulerAngles.y;
 
             var leaf = new GameObject("Leaf");
@@ -146,11 +215,23 @@ namespace CityX.View
             trigger.center = new Vector3(panel.Width * 0.5f, panel.Height * 0.5f, 0.0f);
 
             _open = startOpen;
-            _swing = startOpen ? 1.0f : 0.0f;
-            ApplySwing();
+            _swingSign = 1;
+            _angle = startOpen ? OpenAngleDegrees : 0.0f;
+            _angleVelocity = 0.0f;
+            _shutSoundPending = false;
+            ApplyAngle();
         }
 
         public bool IsOpen => _open;
+
+        /// <summary>True while something stands in the door's way and it is holding still.</summary>
+        public bool IsBlocked => _blocked;
+
+        /// <summary>How far open it is, in degrees from shut (positive inward, negative outward).</summary>
+        public float Angle => _angle;
+
+        /// <summary>The way it opens (or last opened): +1 inward, -1 outward.</summary>
+        public int SwingSign => _swingSign;
 
         /// <summary>
         /// Opens or shuts the door programmatically, without needing an
@@ -161,27 +242,99 @@ namespace CityX.View
         /// </summary>
         public void SetOpen(bool open)
         {
+            SetOpen(open, null);
+        }
+
+        /// <summary>As <see cref="SetOpen(bool)"/>, swinging away from <paramref name="opener"/> when one is given.</summary>
+        public void SetOpen(bool open, Transform opener)
+        {
             if (_open == open)
             {
                 return;
             }
-            _open = open;
-            Toggled?.Invoke(_open);
+            if (open)
+            {
+                BeginOpening(opener, burst: false);
+            }
+            else
+            {
+                BeginClosing();
+            }
+        }
+
+        /// <summary>
+        /// What pressing E does, for a body at <paramref name="opener"/>. Public so a test can press it
+        /// without a keyboard. Returns false if it did nothing (the way is blocked, or it was not looking).
+        /// </summary>
+        public bool Interact(Transform opener)
+        {
+            if (_open)
+            {
+                if (SomethingInTheDoorway())
+                {
+                    return false;   // never shut a door on someone
+                }
+                BeginClosing();
+                return true;
+            }
+            BeginOpening(opener, burst: false);
+            return true;
+        }
+
+        /// <summary>
+        /// Walking into a closed door: opens it away from the body, and throws it open if they were running.
+        /// Public for tests. <paramref name="towardDoorSpeed"/> is how fast, in m/s, the body was moving at the door.
+        /// </summary>
+        public bool Bump(Transform body, float towardDoorSpeed)
+        {
+            if (_open || towardDoorSpeed < BumpMinSpeed)
+            {
+                return false;
+            }
+            BeginOpening(body, burst: towardDoorSpeed >= BurstSpeed);
+            return true;
+        }
+
+        private void BeginOpening(Transform opener, bool burst)
+        {
+            _swingSign = opener != null ? SwingSignFor(_hinge, _facing, opener.position) : _swingSign;
+            _open = true;
+            _burst = burst;
+            _shutSoundPending = false;
+            PositionalSound.Play(DoorSounds.Open, DoorCentre(), burst ? 1.0f : 0.7f, burst ? 1.15f : 1.0f, 0.0f, 25.0f);
+            Toggled?.Invoke(true);
+        }
+
+        private void BeginClosing()
+        {
+            _open = false;
+            _burst = false;
+            _shutSoundPending = true;
+            Toggled?.Invoke(false);
+        }
+
+        private Vector3 DoorCentre()
+        {
+            return _hinge + Quaternion.Euler(0.0f, _shutYaw, 0.0f) * new Vector3(_width * 0.5f, _height * 0.5f, 0.0f);
         }
 
         private void OnTriggerEnter(Collider other)
         {
-            if (other.GetComponentInParent<CharacterController>() != null)
+            // Only the local player: an NPC walking past must not make E work from across the map.
+            if (other.GetComponentInParent<PlayerInputReader>() != null)
             {
-                _nearby = other.transform;
+                CharacterController body = other.GetComponentInParent<CharacterController>();
+                _player = body != null ? body.transform : other.transform;
+                _playerBody = body;
             }
         }
 
         private void OnTriggerExit(Collider other)
         {
-            if (_nearby != null && other.transform.IsChildOf(_nearby.root))
+            if (_player != null && other.transform.IsChildOf(_player.root))
             {
-                _nearby = null;
+                _player = null;
+                _playerBody = null;
             }
         }
 
@@ -190,39 +343,182 @@ namespace CityX.View
             // A collider disabled while still inside the trigger never fires
             // OnTriggerExit -- exactly what happens the instant the player
             // dies (Ragdoll.Activate() turns their CharacterController off
-            // mid-frame), which would otherwise leave _nearby stale and this
+            // mid-frame), which would otherwise leave _player stale and this
             // door openable by E from anywhere, forever after.
-            if (_nearby != null && Vector3.Distance(_nearby.position, transform.position) > InteractRange)
+            if (_player != null && Vector3.Distance(_player.position, transform.position) > InteractRange + 1.0f)
             {
-                _nearby = null;
+                _player = null;
+                _playerBody = null;
             }
 
-            if (_nearby != null && Keyboard.current != null &&
-                Keyboard.current.eKey.wasPressedThisFrame)
+            if (_player != null)
             {
-                _open = !_open;
-                Toggled?.Invoke(_open);
+                if (Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame && IsLookedAt(_player))
+                {
+                    Interact(_player);
+                }
+                else
+                {
+                    TryBump();
+                }
             }
 
-            float target = _open ? 1.0f : 0.0f;
-            if (!Mathf.Approximately(_swing, target))
-            {
-                _swing = Mathf.MoveTowards(_swing, target, Time.deltaTime / OpenSeconds);
-                ApplySwing();
-            }
+            Swing(Time.deltaTime);
         }
 
-        private void ApplySwing()
+        /// <summary>The player is looking toward the door: within LookAtDegrees of it, from the camera when there is one.</summary>
+        private bool IsLookedAt(Transform player)
+        {
+            Camera camera = Camera.main;
+            Vector3 from = camera != null ? camera.transform.position : player.position + Vector3.up * 1.5f;
+            Vector3 look = camera != null ? camera.transform.forward : player.forward;
+            return IsLookingToward(from, look, DoorCentre());
+        }
+
+        /// <summary>Is <paramref name="look"/>, from <paramref name="from"/>, within LookAtDegrees of <paramref name="target"/>? Pure, for tests.</summary>
+        public static bool IsLookingToward(Vector3 from, Vector3 look, Vector3 target)
+        {
+            Vector3 toTarget = target - from;
+            return toTarget.sqrMagnitude < 1e-4f || Vector3.Angle(look, toTarget) <= LookAtDegrees;
+        }
+
+        private void TryBump()
+        {
+            if (_open || _playerBody == null || !_playerBody.enabled)
+            {
+                return;
+            }
+            // In the door's own frame while it is shut: x runs along the leaf from the hinge, z is out of the wall.
+            Vector3 local = transform.InverseTransformPoint(_player.position);
+            if (local.x < 0.15f || local.x > _width - 0.15f || Mathf.Abs(local.z) > BumpReachMetres)
+            {
+                return;
+            }
+            float side = local.z >= 0.0f ? 1.0f : -1.0f;
+            float toward = -side * Vector3.Dot(_playerBody.velocity, _facing);
+            Bump(_player, toward);
+        }
+
+        /// <summary>Moves the leaf a step toward where it is meant to be, holding still while something is in the way.</summary>
+        private void Swing(float deltaTime)
         {
             if (_leaf == null)
             {
                 return;
             }
-            // Smoothed rather than linear, so it reads as a door being pushed
-            // rather than as a hinge being driven at constant speed.
-            float eased = Mathf.SmoothStep(0.0f, 1.0f, _swing);
-            transform.rotation = Quaternion.Euler(
-                0.0f, _shutYaw + OpenAngleDegrees * eased, 0.0f);
+
+            float target = _open ? _swingSign * OpenAngleDegrees : 0.0f;
+            if (Mathf.Approximately(_angle, target) && Mathf.Abs(_angleVelocity) < 0.01f)
+            {
+                _blocked = false;
+                return;
+            }
+
+            float smooth = _open ? (_burst ? BurstSmoothSeconds : OpenSmoothSeconds) : CloseSmoothSeconds;
+            float velocity = _angleVelocity;
+            float next = Mathf.SmoothDamp(_angle, target, ref velocity, smooth, 500.0f, deltaTime);
+
+            // A door stops for whatever is in its way instead of shoving it, and goes on when it has moved.
+            if (Mathf.Abs(next - _angle) > 1e-4f && LeafAtWouldTouchABody(next))
+            {
+                _blocked = true;
+                _angleVelocity = 0.0f;
+                return;
+            }
+            _blocked = false;
+
+            float closingSpeed = Mathf.Abs(velocity);
+            _angle = next;
+            _angleVelocity = velocity;
+
+            if (Mathf.Abs(_angle - target) < 0.05f && Mathf.Abs(_angleVelocity) < 1.0f)
+            {
+                _angle = target;
+                _angleVelocity = 0.0f;
+            }
+            ApplyAngle();
+
+            // The thud, the moment a closing door meets its frame -- louder the harder it came.
+            if (_shutSoundPending && !_open && Mathf.Abs(_angle) < 2.0f)
+            {
+                _shutSoundPending = false;
+                PositionalSound.Play(DoorSounds.Shut, DoorCentre(), Mathf.Clamp(0.35f + closingSpeed / 260.0f, 0.35f, 1.0f), 1.0f, 0.0f, 25.0f);
+            }
+        }
+
+        private void ApplyAngle()
+        {
+            if (_leaf == null)
+            {
+                return;
+            }
+            transform.rotation = Quaternion.Euler(0.0f, _shutYaw + _angle, 0.0f);
+        }
+
+        /// <summary>
+        /// Would the leaf, turned to <paramref name="angle"/>, run into a person? Only bodies AHEAD of the
+        /// moving leaf count -- one standing on the side it is swinging away from (the opener, pressed
+        /// against the door) is not in its way, and the wall and the floor are always brushing it.
+        /// </summary>
+        private bool LeafAtWouldTouchABody(float angle)
+        {
+            Quaternion rotation = Quaternion.Euler(0.0f, _shutYaw + angle, 0.0f);
+            Vector3 centre = _hinge + rotation * new Vector3(_width * 0.5f, _height * 0.5f, -Thickness * 0.5f);
+            // A little bigger than the leaf, so a body is stopped before it is touched.
+            Vector3 half = new Vector3(_width * 0.5f, _height * 0.5f - 0.05f, Thickness * 0.5f + 0.12f);
+            float motion = Mathf.Sign(angle - _angle);
+            return AnyBodyIn(centre, half, rotation, motion, rotation);
+        }
+
+        /// <summary>Is someone standing in the doorway itself (where a closing door would land)?</summary>
+        private bool SomethingInTheDoorway()
+        {
+            Quaternion rotation = Quaternion.Euler(0.0f, _shutYaw, 0.0f);
+            Vector3 centre = _hinge + rotation * new Vector3(_width * 0.5f, _height * 0.5f, 0.0f);
+            return AnyBodyIn(centre, new Vector3(_width * 0.5f, _height * 0.5f - 0.05f, 0.35f), rotation, 0.0f, rotation);
+        }
+
+        /// <param name="motionSign">+1 / -1 for the way the leaf is turning (only bodies ahead of it count), 0 for any body at all.</param>
+        private bool AnyBodyIn(Vector3 centre, Vector3 halfExtents, Quaternion boxRotation, float motionSign, Quaternion leafRotation)
+        {
+            int count = Physics.OverlapBoxNonAlloc(centre, halfExtents, Overlaps, boxRotation, ~0, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < count; i++)
+            {
+                Collider collider = Overlaps[i];
+                if (collider == null || collider.transform.IsChildOf(transform))
+                {
+                    continue;
+                }
+                CharacterController body = collider.GetComponentInParent<CharacterController>();
+                if (body == null || !body.enabled)
+                {
+                    continue;
+                }
+                if (motionSign == 0.0f || IsAheadOfLeaf(collider.bounds.center, leafRotation, motionSign))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Is a body in the direction the leaf is moving? The leaf's centre line runs from the hinge; the point
+        /// of it nearest the body moves along (z, -x) of its offset from the hinge when the yaw grows.
+        /// </summary>
+        private bool IsAheadOfLeaf(Vector3 bodyCentre, Quaternion leafRotation, float motionSign)
+        {
+            Vector3 along = leafRotation * Vector3.right;                 // the leaf's length, from the hinge
+            Vector3 fromHinge = bodyCentre - _hinge;
+            fromHinge.y = 0.0f;
+            float distanceAlong = Mathf.Clamp(Vector3.Dot(fromHinge, along), 0.0f, _width);
+            Vector3 nearest = along * distanceAlong;                       // the leaf's nearest point, from the hinge
+            Vector3 velocity = motionSign * new Vector3(nearest.z, 0.0f, -nearest.x);
+            if (velocity.sqrMagnitude < 1e-6f)
+            {
+                return true;   // right at the hinge: no telling which way it moves, so be careful
+            }
+            return Vector3.Dot(fromHinge - nearest, velocity) > 0.0f;
         }
     }
 }

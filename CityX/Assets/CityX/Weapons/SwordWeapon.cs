@@ -62,44 +62,72 @@ namespace CityX.Weapons
         /// <summary>The blade's tip, in world space -- what a swing actually sweeps.</summary>
         public Vector3 BladeTipWorld => transform.TransformPoint(new Vector3(0.0f, BladeLocalLength, 0.0f));
 
-        // ---- THE GRIP, DERIVED FROM THE MOCAP ITSELF ----
+        // ---- THE HOLD ----
         //
-        // The Godot mount (position (-0.055,-0.197,-0.343), rotation (103,95,120)) was tuned against
-        // Godot's own clips. Against the Mixamo idle this project uses now it holds the sword across
-        // the chest with the blade over the shoulder and NEITHER hand on the hilt (measured: hands
-        // 43cm and 46cm from the grip; the blade axis 87 degrees off the line between the hands).
+        // DERIVED FROM THE MOCAP by default. The Godot mount (position (-0.055,-0.197,-0.343), rotation
+        // (103,95,120)) was tuned against Godot's own clips; against the Mixamo idle this project uses now it
+        // held the sword across the chest with neither hand on the hilt (measured: hands 43cm and 46cm from
+        // the grip; the blade axis 87 degrees off the line between the hands). So the default is rebuilt
+        // from what the animation says: in 2hsw_idle the right hand is the upper hand and the left the lower,
+        // 39cm apart on one line, and that line in the right hand's frame is the blade's axis. The handle
+        // passes through the palm, and the left hand is reached onto it (PlayerLocomotion.SetSupportHand).
         //
-        // So the mount is rebuilt from what the animation says. In 2hsw_idle the right hand is the
-        // upper hand and the left the lower, 39cm apart on the same line (0.99 dot across the idle
-        // and the guard): that line, in the right hand's own frame, is the blade's axis. The handle
-        // then passes through the palm, and the left hand is reached onto it (PlayerLocomotion.
-        // SetSupportHand). Every number here is a measurement, not a guess -- see WeaponHandsPlayTests.
+        // TUNED BY HAND in the Unity editor when it needs to be: see WeaponGripSettings and the Inspector on
+        // this component. A saved hold replaces the derived one below.
 
         /// <summary>The blade's direction (hilt to tip) in the right-hand bone's own frame: from the lower hand to the upper.</summary>
-        public static Vector3 BladeAxisInHand = new Vector3(0.84f, -0.25f, 0.48f).normalized;
+        public static readonly Vector3 DefaultBladeAxisInHand = new Vector3(0.84f, -0.25f, 0.48f).normalized;
 
-        /// <summary>Spin of the blade about its own axis in the hand (which way the edge faces), in degrees.</summary>
-        public static float GripRollDegrees = 270.0f;
+        /// <summary>Spin of the blade about its own axis in the hand (which way the edge faces), in degrees: 270 has it forward.</summary>
+        public const float DefaultRollDegrees = 270.0f;
 
         /// <summary>The palm's centre in the right-hand bone's frame: along the forearm (measured (0.949,0.141,-0.283)), 8cm out.</summary>
         public static Vector3 PalmInHand => new Vector3(0.949f, 0.141f, -0.283f).normalized * PlayerLocomotion.PalmOffsetMetres;
 
         /// <summary>How far down the handle from the guard the right (upper) hand holds, in the sword's own space.</summary>
-        public static float PrimaryGripDown = 0.12f;
+        public const float DefaultPrimaryGripDown = 0.12f;
 
         /// <summary>How far down the handle from the guard the left (lower) hand holds: 20cm below the right.</summary>
-        public static float SupportGripDown = 0.32f;
+        public const float DefaultSupportGripDown = 0.32f;
 
-        /// <summary>Where the support palm goes, in the sword's own space (the blade runs along +Y from the guard).</summary>
-        public static Vector3 SupportGripLocal => new Vector3(0.0f, -SupportGripDown, 0.0f);
+        public static Quaternion DefaultGripRotation =>
+            Quaternion.FromToRotation(Vector3.up, DefaultBladeAxisInHand) * Quaternion.AngleAxis(DefaultRollDegrees, Vector3.up);
 
-        public static Quaternion GripHandRotation =>
-            Quaternion.FromToRotation(Vector3.up, BladeAxisInHand) * Quaternion.AngleAxis(GripRollDegrees, Vector3.up);
+        /// <summary>The sword root's position in the right-hand bone's frame: the handle at the primary grip under the palm.</summary>
+        public static Vector3 DefaultGripPosition => PalmInHand + DefaultBladeAxisInHand * DefaultPrimaryGripDown;
 
-        /// <summary>The sword root's position in the right-hand bone's frame: the handle at <see cref="PrimaryGripDown"/> under the palm.</summary>
-        public static Vector3 GripHandPosition => PalmInHand + BladeAxisInHand * PrimaryGripDown;
+        /// <summary>Where the left palm goes, in the sword's own space (the blade runs along +Y from the guard).</summary>
+        public static Vector3 DefaultSupportPoint => new Vector3(0.0f, -DefaultSupportGripDown, 0.0f);
 
-        public static Vector3 GripHandRotationEuler => GripHandRotation.eulerAngles;
+        /// <summary>The sword's position in the right hand: the saved hold if there is one, else the derived one.</summary>
+        public static Vector3 GripPosition =>
+            WeaponGripSettings.Current.SwordTuned ? WeaponGripSettings.Current.SwordPosition : DefaultGripPosition;
+
+        public static Quaternion GripRotation =>
+            WeaponGripSettings.Current.SwordTuned ? Quaternion.Euler(WeaponGripSettings.Current.SwordEuler) : DefaultGripRotation;
+
+        /// <summary>Where the left palm holds, in the sword's space.</summary>
+        public static Vector3 SupportPoint =>
+            WeaponGripSettings.Current.SwordTuned ? WeaponGripSettings.Current.SwordLeftHand : DefaultSupportPoint;
+
+        /// <summary>
+        /// The marker the left hand reaches for, a child of the sword. Select it while the game runs and
+        /// drag it in the Scene view: the left hand follows. Null while the sword is not held.
+        /// </summary>
+        public Transform LeftHandGrip => _leftHandGrip;
+
+        private Transform _leftHandGrip;
+
+        /// <summary>Puts the sword and the left-hand marker where the current hold (saved or derived) says.</summary>
+        public void ApplyGrip()
+        {
+            transform.localPosition = GripPosition;
+            transform.localRotation = GripRotation;
+            if (_leftHandGrip != null)
+            {
+                _leftHandGrip.localPosition = SupportPoint;
+            }
+        }
 
         private bool _equipped;
         private SphereCollider _pickupTrigger;
@@ -113,30 +141,11 @@ namespace CityX.Weapons
 
         private void Update()
         {
-            if (_equipped)
+            if (!_equipped)
             {
-                UpdateHeldPose();
-                return;
-            }
-            TickPickup();
-        }
-
-        /// <summary>
-        /// Runs every frame once equipped, so a live change to the grip (the tuning fields above)
-        /// shows at once. One mount for every clip: the support hand is reached onto the handle, so
-        /// the swing needs no per-clip grip the way Godot's own heavy attack did.
-        /// </summary>
-        private void UpdateHeldPose()
-        {
-            transform.localPosition = GripHandPosition;
-            transform.localRotation = GripHandRotation;
-            if (_wielder != null)
-            {
-                _wielder.SetSupportHand(transform, SupportGripLocal);
+                TickPickup();
             }
         }
-
-        private PlayerLocomotion _wielder;
 
         private void OnTriggerEnter(Collider other)
         {
@@ -234,16 +243,21 @@ namespace CityX.Weapons
             if (hand != null)
             {
                 transform.SetParent(hand, false);
-                transform.localPosition = GripHandPosition;
-                transform.localRotation = GripHandRotation;
             }
+
+            // The left hand reaches for a marker on the sword, so the marker can be dragged in the editor
+            // while the game runs and the hand follows (see WeaponGripSettings).
+            if (_leftHandGrip == null)
+            {
+                _leftHandGrip = GripMarker.Create(transform, "LeftHandGrip", "left hand", new Color(1.0f, 0.55f, 0.1f));
+            }
+            ApplyGrip();
 
             var locomotion = player.GetComponent<PlayerLocomotion>();
             if (locomotion != null)
             {
                 // The left hand holds the handle too, wherever the swing takes the sword.
-                _wielder = locomotion;
-                locomotion.SetSupportHand(transform, SupportGripLocal);
+                locomotion.SetSupportHand(_leftHandGrip, Vector3.zero);
             }
 
             _equipped = true;
@@ -275,9 +289,8 @@ namespace CityX.Weapons
             var locomotion = player.GetComponent<PlayerLocomotion>();
             if (locomotion != null)
             {
-                locomotion.ClearSupportHand(transform);
+                locomotion.ClearSupportHand(_leftHandGrip);
             }
-            _wielder = null;
             var melee = player.GetComponent<MeleeAttacker>();
             if (melee != null && ReferenceEquals(melee.EquippedWeapon, this))
             {

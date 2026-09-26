@@ -289,9 +289,13 @@ namespace CityX.Character
         /// How much of the clip's torso motion a swing keeps, 0..1. The rig has ONE spine bone where Mixamo's
         /// skeleton spreads the same lean over three, and the bone is handed the clip's share for itself alone --
         /// measured, a light swing bows it 64 degrees, which reads as a deep stoop. Two thirds keeps the weight
-        /// of the swing without the bow. Tuned with /grip torso.
+        /// of the swing without the bow. Lives in the WeaponGripSettings asset (a slider on it, live in Play Mode).
         /// </summary>
-        public static float TorsoFollowStrength = 0.65f;
+        public static float TorsoFollowStrength
+        {
+            get => WeaponGripSettings.Current.TorsoFollowStrength;
+            set => WeaponGripSettings.Current.TorsoFollowStrength = Mathf.Clamp01(value);
+        }
 
         private Vector3 _gunAimCameraPosition;
         private Vector3 _gunAimCameraForward = Vector3.forward;
@@ -374,7 +378,7 @@ namespace CityX.Character
         {
             float deltaTime = Mathf.Max(_lastTickDeltaTime, 0.0f);
             _supportBlend = Mathf.MoveTowards(_supportBlend, _supportAnchor != null ? 1.0f : 0.0f, SupportHandBlendPerSecond * deltaTime);
-            float weight = _supportBlend * (_supportOnlyWhenAiming ? _gunAimBlend : 1.0f);
+            float weight = _supportBlend * (_supportOnlyWhenAiming ? EasedGunAimBlend : 1.0f);
             if (weight <= 0.0f || _supportAnchor == null || _leftUpperArm == null || _leftLowerArm == null || _handL == null)
             {
                 return;
@@ -432,6 +436,14 @@ namespace CityX.Character
         /// strength the instant Aiming flips true.
         /// </summary>
         private float _gunAimBlend;
+
+        /// <summary>
+        /// The aim blend as an S-curve. The blend itself moves at a constant rate, so the arm started and
+        /// stopped moving abruptly -- most visibly when a hip-fired shot swings the arm up in a few frames,
+        /// which reads as a twitch. Easing the weight it is applied with keeps the same overall time but starts
+        /// and ends smoothly.
+        /// </summary>
+        private float EasedGunAimBlend => Mathf.SmoothStep(0.0f, 1.0f, _gunAimBlend);
 
         /// <summary>
         /// Eases toward 1 while the gun is equipped but NOT being aimed
@@ -1691,8 +1703,8 @@ namespace CityX.Character
         /// </summary>
         public const float GunAimConvergenceDistance = 15.0f;
 
-        /// <summary>How fast the arm comes up for a shot when NOT aiming (about 40ms to full).</summary>
-        public const float GunFireBlendPerSecond = 24.0f;
+        /// <summary>How fast the arm comes up for a shot when NOT aiming (about 55ms to full, on an S-curve: see EasedGunAimBlend).</summary>
+        public const float GunFireBlendPerSecond = 18.0f;
 
         /// <summary>A real aim point closer to the shoulder than this is ignored (aiming at your own feet swings the arm absurdly); the fixed convergence point is used instead.</summary>
         public const float GunAimPointMinMetres = 1.5f;
@@ -1861,7 +1873,7 @@ namespace CityX.Character
             // actually reaches it.
             targetDirection = Quaternion.AngleAxis(ArmAimYawOffsetDegrees, Vector3.up) * targetDirection;
             Vector3 currentDirection = (_rightLowerArm.position - _rightUpperArm.position).normalized;
-            Vector3 blendedDirection = Vector3.Slerp(currentDirection, targetDirection, _gunAimBlend);
+            Vector3 blendedDirection = Vector3.Slerp(currentDirection, targetDirection, EasedGunAimBlend);
             BendLimbToward(_rightUpperArm, _rightLowerArm.position, blendedDirection);
 
             // THEN AIM THE BARREL ITSELF. Pointing the UPPER ARM at the target only
@@ -1891,7 +1903,7 @@ namespace CityX.Character
                     {
                         break;
                     }
-                    correction = Quaternion.AngleAxis(angle * _gunAimBlend, axis);
+                    correction = Quaternion.AngleAxis(angle * EasedGunAimBlend, axis);
                     _rightUpperArm.rotation = correction * _rightUpperArm.rotation;
                 }
             }
@@ -1925,7 +1937,7 @@ namespace CityX.Character
             if (_head != null)
             {
                 Vector3 currentHeadForward = _head.forward;
-                Vector3 blendedHeadForward = Vector3.Slerp(currentHeadForward, targetDirection, _gunAimBlend);
+                Vector3 blendedHeadForward = Vector3.Slerp(currentHeadForward, targetDirection, EasedGunAimBlend);
                 Quaternion headDelta = Quaternion.FromToRotation(currentHeadForward, blendedHeadForward);
                 _head.rotation = headDelta * _head.rotation;
             }
@@ -2465,6 +2477,34 @@ namespace CityX.Character
         /// should react" needs and nothing in this project provided before
         /// now.
         /// </summary>
+        /// <summary>
+        /// The speed, in m/s, at which the body goes THROUGH a window instead of stopping against it: a full
+        /// sprint (SprintSpeed is 7.5) or a jetpack dive. Walking into glass does nothing.
+        /// </summary>
+        public const float GlassBreakSpeed = 6.5f;
+
+        private float _nextGlassBreakTime;
+
+        /// <summary>
+        /// A sprint or a dive into a window takes the pane out at once (a heavy blow), so the way into a
+        /// building is to run at it. Throttled, since a body pressed against a wall reports a contact
+        /// every frame and each one costs a search for the window it touched.
+        /// </summary>
+        private void BreakGlassOnImpact(ControllerColliderHit hit)
+        {
+            if (Time.time < _nextGlassBreakTime || Mathf.Max(CurrentSpeed, _controller != null ? _controller.velocity.magnitude : 0.0f) < GlassBreakSpeed)
+            {
+                return;
+            }
+            var breakable = hit.collider.GetComponentInParent<World.IBreakableSurface>();
+            if (breakable == null)
+            {
+                return;
+            }
+            _nextGlassBreakTime = Time.time + 0.2f;
+            breakable.TakeBlow(hit.point, hit.moveDirection, World.BlowStrength.Heavy);
+        }
+
         private void OnControllerColliderHit(ControllerColliderHit hit)
         {
             // A REAL, DIRECT CONTACT CHECK, independent of the rigidbody
@@ -2481,6 +2521,8 @@ namespace CityX.Character
                 HitWallThisFrame = true;
                 LastWallHitNormal = hit.normal;
             }
+
+            BreakGlassOnImpact(hit);
 
             Rigidbody body = hit.collider.attachedRigidbody;
             if (body == null || body.isKinematic)

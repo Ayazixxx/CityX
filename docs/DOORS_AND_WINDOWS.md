@@ -1,0 +1,74 @@
+# Doors and windows: what the research said, and what changed
+
+Asked (2026-09-26): "research window and window breaking mechanics and implement what you learn, also the
+door opening mechanics feel bad as well, research door opening mechanics in third person games."
+
+## What the research found
+
+Sources actually read: the Level Design Book's chapter on doors, Liz England's "The Door Problem", and search
+summaries of write-ups on *The Last of Us Part II*'s windows and door handling and on glass sound design. (Two
+of the longer articles blocked the fetch, so those points come from the search summaries only.)
+
+**Doors**
+- A rotating door is easily blocked and sweeps a lot of room; it needs states beyond open/closed --
+  Opening, Closing and **Blocked** (what if the player or an NPC is in the way?).
+- For convenience, rotating doors should be **double-hinged, opening in both directions, away from the
+  character** opening them; "err on the side of player convenience, even if it's unrealistic."
+- Sound (and animation) want hooks at the start and the end of a swing.
+- Third-person doors are wider than real ones so the camera and the character's kit fit. In The Last of Us
+  Part II your **speed decides how you go through**: jogging bursts through, sneaking eases it open.
+- Leave doors as the player left them to show where they have been; auto-close is for tense combat levels.
+
+**Windows**
+- *The Last of Us Part II* differentiates the blow: a melee strike and a thrown brick apply different forces,
+  and throwables, bullets, melee and explosions were each tested to feel right. Bricks open new routes.
+- Glass sound is a **sequence**, not one sample: the contact, then the crack or shatter, then the tinkle of
+  pieces falling, with the pane's thickness deciding the character (thin is bright and quick, thick is low
+  and drawn out).
+
+## What was wrong here
+
+- **Doors**: always swung INWARD, so from inside they swung into you, and the kinematic leaf then shoved you;
+  E worked on any door within 2.5m (behind you, through a wall, or from across the map if an NPC was near);
+  a fixed 0.5s ease you could not reverse; no sound; nothing stopped it closing on someone.
+- **Windows**: only a punch or a bullet could break one (both identically: crack, then shatter on the second
+  hit); a sword swung through a window did nothing; a thrown bottle bounced off; shards always flew OUTWARD
+  toward whoever hit it; one sample, no tinkle.
+
+## What changed
+
+**Doors** (`View/BuildingDoor.cs`, `View/DoorSounds.cs`, `View/PositionalSound.cs`)
+- Swings **away from whoever opens it**: from the street it opens inward, from the lobby outward
+  (`BuildingDoor.SwingSignFor`). An NPC's `SetOpen` keeps the old inward swing.
+- A **damped spring** instead of a timed ease: it starts quickly and settles, and E mid-swing turns it round
+  smoothly.
+- **Never pushes or traps anyone**: while the leaf is moving it holds still against a person AHEAD of it
+  (someone on the side it is swinging away from -- the opener, pressed flush to the door -- never blocks it),
+  and continues when they move. E refuses to shut it while someone stands in the doorway.
+- **Walking into it opens it**, away from you; how fast you were going decides how (eased at a walk, thrown
+  open at a run: 0.07s spring instead of 0.14s).
+- **E only works on the door you are looking at** (within 65 degrees of the camera's view) and only for the
+  local player.
+- **Sound**: a latch and creak as it opens, a thud as it meets the frame, louder the harder it shut. Made in
+  code (`DoorSounds`), so the game gains no audio files.
+- Not done: a character reach/push animation (there is no such clip), auto-close, locked doors.
+
+**Windows** (`World/GlassDamage.cs`, `View/GlassBreaker.cs`, `Character/SoulsSwordCombat.cs`,
+`Character/PlayerLocomotion.cs`, `Weapons/ThrownBottle.cs`)
+- Blows have a **strength**. A fist or a bullet is *light* (a whole pane cracks, a second blow shatters it,
+  as before). A **sword swing** (the blade is traced through space each active frame, so a fast swing cannot
+  skip over a pane), a **thrown bottle** (4 m/s or faster) and a **sprint or jetpack dive at 6.5 m/s or
+  faster** are *heavy*: the pane goes at once. Walking into glass does nothing.
+- **Shards fly the way the blow went** (through the pane): someone outside sends glass INTO the building,
+  someone inside sends it out over the street (`GlassBreaker.ShardDirection`).
+- **Layered sound**: the crack or shatter with a little pitch variation (lower for a heavy blow), and on a
+  shatter the same sample again a moment later, higher and quieter, as the tinkle -- no second recording.
+- Not done: cut damage or a vault animation when passing through a broken window; noise that alerts NPCs;
+  thick versus thin panes.
+
+## Tests
+
+`BuildingDoorPlayTests` (13: swing side, spring feel, reversal, blocking, flush-to-the-door, doorway, bump,
+run versus walk, look-at, NPC `SetOpen`, restored-open), `GlassBlowTests` (6), `GlassBlowsPlayTests` (4: sword
+through glass, wind-up breaks nothing, sprint breaks, walking does not). The look and sound of the door and the
+glass are not something these can judge; they have not been seen or heard in the game.

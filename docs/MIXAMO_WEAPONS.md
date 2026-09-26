@@ -81,9 +81,24 @@ Three separate causes, found in this order:
 - `SoulsSwordCombat` hit-stop - a landed hit freezes the swing's clock and its clip for
   0.07 s (1.8x for a heavy), then lets both go together. Longest stop wins when several
   targets are hit in one frame. Not networked (other players see the swing unfrozen).
-- `/grip` console command - `/grip sword roll|primary|support <v>`,
-  `/grip pistol <x> <y> <z>`, `/grip torso <0-1>`; the weapons re-state their grip every
-  frame so a change shows at once.
+- **Adjusting the hold in the Unity editor** (`WeaponGripSettings`, `WeaponGrips.asset`, the Inspectors in
+  `Weapons/Editor/WeaponGripEditors.cs`): see the next section.
+
+## Adjusting how a weapon is held (in the Unity editor)
+
+1. Press **Play**, then equip the weapon in the game (press `` ` `` and type `/equip sword` or `/equip pistol` --
+   the only console step; a pistol's free hand only comes up while you aim, so hold right-click).
+2. **CityX > Weapon Grips > Select the held sword** (or pistol). The held weapon is an ordinary object under the
+   right hand and carries an orange **left-hand marker** (drawn in the Scene view).
+3. Drag them with the Scene view gizmos: **Move/Rotate the sword** to change the right hand's hold and which way
+   the edge faces; **Move the marker** to change where the left hand holds. The hands follow live, through swings.
+4. On the weapon's (or the marker's) Inspector press **Save this hold**. It is written to
+   `Assets/CityX/Character/Resources/WeaponGrips.asset`, outlives Play Mode, and every later equip uses it.
+   **Go back to the derived hold** forgets it. The **Swing torso follow** slider (0 = stay upright, 1 = the clip's
+   full lean) is on the same Inspector and on the asset (CityX > Weapon Grips > Open the grip settings).
+
+Untouched, the sword uses the hold derived from the animation and the pistol's free hand a measured point, so a
+fresh project needs nothing saved. The old `/grip` console command was removed in favour of this.
 
 ## Checked and left alone
 
