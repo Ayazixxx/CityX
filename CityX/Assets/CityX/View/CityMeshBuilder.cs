@@ -4383,13 +4383,21 @@ namespace CityX.View
             // only cracked panes are still drawn (Shattered returned above),
             // so this is the only branch that ever needs one.
             if (state == PaneState.Cracked && glazing.Damage != null &&
-                glazing.Damage.TryGetImpact(key, out Vector2 impactUV))
+                glazing.Damage.TryGetImpacts(key, out Vector2[] impacts))
             {
-                Vector2 centre = ClampedHoleCentre(u0, u1, y0, y1, impactUV);
-                AddPaneWithHole(glass, wall, u0, u1, y0, y1, normal, centre);
+                // EVERY bullet's hole, each with its own crack pattern round it.
+                var centres = new Vector2[impacts.Length];
+                for (int i = 0; i < impacts.Length; i++)
+                {
+                    centres[i] = ClampedHoleCentre(u0, u1, y0, y1, impacts[i]);
+                }
+                AddPaneWithHoles(glass, wall, u0, u1, y0, y1, normal, centres);
                 if (glazing.Decals != null)
                 {
-                    AddCrackDecal(glazing.Decals, wall, centre, normal);
+                    foreach (Vector2 centre in centres)
+                    {
+                        AddCrackDecal(glazing.Decals, wall, centre, normal);
+                    }
                 }
             }
             else
@@ -4476,18 +4484,73 @@ namespace CityX.View
         private static void AddPaneWithHole(MeshBuffer glass, in Wall wall,
             float u0, float u1, float y0, float y1, Vector3 normal, Vector2 centre)
         {
+            AddPaneWithHoles(glass, wall, u0, u1, y0, y1, normal, new[] { centre });
+        }
+
+        /// <summary>
+        /// A pane with a real opening at EACH of <paramref name="centres"/> -- a window somebody has been
+        /// shooting at.
+        ///
+        /// The pane is cut into vertical strips at every hole's left and right edge, and each strip is filled
+        /// EXCEPT where holes are: within a strip the holes that cross it are merged into runs and the glass is
+        /// the gaps between them. That handles any number of holes, holes that overlap (a second bullet in the
+        /// same spot) and holes side by side, with no quad emitted twice. One hole comes out as exactly the
+        /// four strips it always was.
+        /// </summary>
+        private static void AddPaneWithHoles(MeshBuffer glass, in Wall wall,
+            float u0, float u1, float y0, float y1, Vector3 normal, Vector2[] centres)
+        {
             float halfW = Mathf.Min(BulletHoleHalfWidth, (u1 - u0) * 0.4f);
             float halfH = Mathf.Min(BulletHoleHalfHeight, (y1 - y0) * 0.4f);
 
-            float holeU0 = centre.x - halfW;
-            float holeU1 = centre.x + halfW;
-            float holeY0 = centre.y - halfH;
-            float holeY1 = centre.y + halfH;
+            int count = centres.Length;
+            var holes = new Rect[count];
+            var edges = new List<float>(count * 2 + 2) { u0, u1 };
+            for (int i = 0; i < count; i++)
+            {
+                holes[i] = Rect.MinMaxRect(centres[i].x - halfW, centres[i].y - halfH, centres[i].x + halfW, centres[i].y + halfH);
+                edges.Add(holes[i].xMin);
+                edges.Add(holes[i].xMax);
+            }
+            edges.Sort();
 
-            AddDoubleSidedWallPanel(glass, wall, u0, holeU0, y0, y1, normal);
-            AddDoubleSidedWallPanel(glass, wall, holeU1, u1, y0, y1, normal);
-            AddDoubleSidedWallPanel(glass, wall, holeU0, holeU1, y0, holeY0, normal);
-            AddDoubleSidedWallPanel(glass, wall, holeU0, holeU1, holeY1, y1, normal);
+            var spans = new List<Vector2>(count);
+            for (int e = 0; e + 1 < edges.Count; e++)
+            {
+                float left = edges[e];
+                float right = edges[e + 1];
+                if (right - left <= 0.0001f)
+                {
+                    continue;
+                }
+                float middle = (left + right) * 0.5f;
+
+                // The vertical spans of this strip that are hole.
+                spans.Clear();
+                for (int i = 0; i < count; i++)
+                {
+                    if (middle > holes[i].xMin && middle < holes[i].xMax)
+                    {
+                        spans.Add(new Vector2(holes[i].yMin, holes[i].yMax));
+                    }
+                }
+                spans.Sort((a, b) => a.x.CompareTo(b.x));
+
+                // Glass in the gaps between them.
+                float cursor = y0;
+                foreach (Vector2 span in spans)
+                {
+                    if (span.x > cursor)
+                    {
+                        AddDoubleSidedWallPanel(glass, wall, left, right, cursor, span.x, normal);
+                    }
+                    cursor = Mathf.Max(cursor, span.y);
+                }
+                if (cursor < y1)
+                {
+                    AddDoubleSidedWallPanel(glass, wall, left, right, cursor, y1, normal);
+                }
+            }
         }
 
         /// <summary>

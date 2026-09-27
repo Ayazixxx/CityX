@@ -63,6 +63,7 @@ namespace CityX.Character
 
         private Vector3 _wallNormal;
         private Vector3 _wallPoint;
+        private GrabIntent _intent;
 
         public bool IsSticking { get; private set; }
 
@@ -94,22 +95,27 @@ namespace CityX.Character
         /// the wall), matching how the ability reads: you jump at it and
         /// your feet stick, rather than it grabbing you off an ordinary walk.
         /// </summary>
-        public bool TryStart(bool sprintHeld, bool grounded, float stamina)
+        public bool TryStart(GrabIntent intent, bool sprintHeld, bool grounded, float stamina)
         {
-            if (IsSticking || grounded || !sprintHeld || stamina <= 0.0f)
+            if (IsSticking || grounded || !sprintHeld || stamina <= 0.0f || intent == null || !intent.Ready)
             {
                 return false;
             }
 
-            float originHeight = (_locomotion != null ? _locomotion.StandingHeight : BodyRig.StandingHeight)
-                * GrabOriginHeightFraction;
-            Vector3 origin = transform.position + Vector3.up * originHeight;
-            if (!WallInDirection(origin, transform.forward, out Vector3 normal, out Vector3 point))
+            // The same deliberate hold (GrabIntent) and the same "is that really a wall" check (WallProbe) the
+            // ladder climb uses: leaping past a window frame or brushing a door jamb while sprinting must not
+            // stick you to it.
+            float standingHeight = _locomotion != null ? _locomotion.StandingHeight : BodyRig.StandingHeight;
+            if (!WallProbe.TryFind(transform.position, transform.forward, standingHeight, out WallProbe.Result wall))
             {
                 return false;
             }
+            Vector3 normal = wall.Normal;
+            Vector3 point = wall.Point;
 
             IsSticking = true;
+            _intent = intent;
+            intent.Consume();
             _wallNormal = normal;
             _wallPoint = point;
             _locomotion?.SetVerticalVelocity(0.0f);
@@ -223,6 +229,7 @@ namespace CityX.Character
         private void EndStick(bool applyPush, float deltaTime)
         {
             IsSticking = false;
+            _intent?.BeginCooldown();
             transform.rotation = Quaternion.LookRotation(
                 Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized, Vector3.up);
 

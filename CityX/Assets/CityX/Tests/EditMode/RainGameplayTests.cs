@@ -150,7 +150,7 @@ namespace CityX.Tests
             _player.transform.position = new Vector3(0.0f, 3.0f, 0.0f);
             MakeWall();
             Physics.SyncTransforms();
-            Assert.IsTrue(stick.TryStart(true, false, vitals.Stamina), "setup: could not grip the wall");
+            Assert.IsTrue(stick.TryStart(GrabIntent.AlreadyHeld(), true, false, vitals.Stamina), "setup: could not grip the wall");
             return stick;
         }
 
@@ -243,7 +243,7 @@ namespace CityX.Tests
             _wall.transform.position = new Vector3(0.0f, 15.0f, 0.7f);
             _wall.AddComponent<BoxCollider>().size = new Vector3(10.0f, 30.0f, 1.0f);
             Physics.SyncTransforms();
-            Assert.IsTrue(climbing.TryStart(true, true, vitals.Stamina), "setup: could not grab the wall");
+            Assert.IsTrue(climbing.TryStart(GrabIntent.AlreadyHeld(), true, vitals.Stamina), "setup: could not grab the wall");
 
             float before = vitals.Stamina;
             for (int i = 0; i < ticks; i++)

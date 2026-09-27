@@ -90,6 +90,19 @@ namespace CityX.View
 
                     PaneState was = _streamer.Damage.StateOf(key);
                     Vector2 impactUV = GlassDamage.FractionWithinPane(_world, site, key, point);
+                    if (strength == BlowStrength.Bullet)
+                    {
+                        // A bullet makes its own hole and the window stays up; it only comes down once it has
+                        // taken GlassDamage.MaxBulletHoles of them.
+                        PaneState after = _streamer.Damage.Shoot(key, impactUV, out bool madeHole);
+                        if (!madeHole)
+                        {
+                            return false;   // already gone
+                        }
+                        Report(after, point, key.Wall, direction, strength);
+                        return true;
+                    }
+
                     PaneState now = _streamer.Damage.Hit(key, impactUV, shatterOutright: strength == BlowStrength.Heavy);
                     if (now == was)
                     {

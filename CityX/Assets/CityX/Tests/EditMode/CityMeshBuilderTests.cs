@@ -2491,6 +2491,97 @@ namespace CityX.Tests
                 "a shot pane with a known impact point should get exactly one crack decal quad");
         }
 
+        /// <summary>
+        /// EXPLICIT BUG REPORT: "only 1 bullet hole appears even if you shoot more than 1. each bullet hole should
+        /// appear." Every bullet in a pane gets its own opening and its own crack pattern: N shots, N decals, and
+        /// each new hole takes the same amount of glass out of the pane.
+        /// </summary>
+        [Test]
+        public void EveryBulletInAPaneLeavesItsOwnHoleAndItsOwnCrackDecal()
+        {
+            CityWorld world = new CityWorld(Seed);
+            SkybridgeLayout bridges = new SkybridgeLayout(Seed);
+
+            (int x, int y) = FirstBuilding(world);
+            BuildingSite site = world.BuildingAt(x, y);
+            PaneKey key = AnyPaneOn(world, site);
+
+            Vector2[] shots = { new Vector2(0.25f, 0.3f), new Vector2(0.6f, 0.7f), new Vector2(0.4f, 0.5f), new Vector2(0.75f, 0.25f) };
+
+            var areas = new List<float>();
+            var decalQuads = new List<int>();
+
+            var plain = new GlassDamage();
+            plain.Set(key, PaneState.Cracked);   // cracked, no known impact: the whole pane, no hole
+            areas.Add(CrackedArea(world, bridges, x, y, plain, out _));
+            decalQuads.Add(0);
+
+            var damage = new GlassDamage();
+            foreach (Vector2 shot in shots)
+            {
+                damage.Shoot(key, shot, out bool changed);
+                Assert.IsTrue(changed);
+                areas.Add(CrackedArea(world, bridges, x, y, damage, out int decals));
+                decalQuads.Add(decals);
+            }
+
+            for (int i = 1; i < areas.Count; i++)
+            {
+                Assert.AreEqual(i, decalQuads[i], $"after {i} bullets the window shows {decalQuads[i]} crack decals");
+                Assert.Less(areas[i], areas[i - 1] - 0.0005f, $"bullet {i} took no glass out of the pane");
+            }
+
+            // Each hole is the same size, so each one removes the same area (holes here do not overlap).
+            float firstHole = areas[0] - areas[1];
+            Assert.Greater(firstHole, 0.0f);
+            for (int i = 2; i < areas.Count; i++)
+            {
+                Assert.AreEqual(firstHole, areas[i - 1] - areas[i], firstHole * 0.05f, $"bullet {i}'s hole is a different size to the first");
+            }
+        }
+
+        [Test]
+        public void TwoBulletsInTheSameSpotStillLeaveAWellFormedPane()
+        {
+            CityWorld world = new CityWorld(Seed);
+            SkybridgeLayout bridges = new SkybridgeLayout(Seed);
+            (int x, int y) = FirstBuilding(world);
+            PaneKey key = AnyPaneOn(world, world.BuildingAt(x, y));
+
+            var damage = new GlassDamage();
+            damage.Shoot(key, new Vector2(0.5f, 0.5f), out _);
+            float one = CrackedArea(world, bridges, x, y, damage, out _);
+            damage.Shoot(key, new Vector2(0.5f, 0.5f), out _);   // exactly on top of the first
+            float two = CrackedArea(world, bridges, x, y, damage, out int decals);
+
+            Assert.AreEqual(one, two, one * 0.001f, "overlapping holes must not cut the glass twice");
+            Assert.AreEqual(2, decals);
+        }
+
+        /// <summary>The glass area (both faces) of every cracked pane in a chunk, and how many crack decals it has.</summary>
+        private static float CrackedArea(CityWorld world, SkybridgeLayout bridges, int x, int y, GlassDamage damage, out int decalQuads)
+        {
+            var ground = new MeshBuffer();
+            var pavement = new MeshBuffer();
+            var structures = new MeshBuffer();
+            var cracked = new MeshBuffer();
+            var decals = new MeshBuffer();
+            CityMeshBuilder.BuildChunk(world, bridges, x, y, Vector3.zero,
+                ground, pavement, structures, new MeshBuffer(), new MeshBuffer(), cracked, damage, null,
+                crackDecals: decals);
+
+            float area = 0.0f;
+            for (int t = 0; t + 2 < cracked.Triangles.Count; t += 3)
+            {
+                Vector3 a = cracked.Vertices[cracked.Triangles[t]];
+                Vector3 b = cracked.Vertices[cracked.Triangles[t + 1]];
+                Vector3 c = cracked.Vertices[cracked.Triangles[t + 2]];
+                area += Vector3.Cross(b - a, c - a).magnitude * 0.5f;
+            }
+            decalQuads = decals.Triangles.Count / 6;
+            return area;
+        }
+
         /// <summary>Builds one chunk against a damage record and counts triangles.</summary>
         private static int BuildWith(CityWorld world, SkybridgeLayout bridges, int x, int y,
             GlassDamage damage, out int lit, out int dark, out int cracked,

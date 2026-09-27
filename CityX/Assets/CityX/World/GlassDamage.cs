@@ -53,11 +53,17 @@ namespace CityX.World
     /// <summary>How hard a blow to glass is.</summary>
     public enum BlowStrength
     {
-        /// <summary>A fist or a bullet: a whole pane cracks first, and a second blow shatters it.</summary>
+        /// <summary>A fist: a whole pane cracks first, and a second blow shatters it.</summary>
         Light = 0,
 
         /// <summary>A sword, a thrown bottle, a sprinting shoulder: the pane goes at once.</summary>
         Heavy = 1,
+
+        /// <summary>
+        /// A bullet: it makes a hole (and a crack pattern round it) and the pane STAYS, so a burst leaves a
+        /// hole per shot; the pane only comes down after <see cref="GlassDamage.MaxBulletHoles"/> of them.
+        /// </summary>
+        Bullet = 2,
     }
 
     /// <summary>One window in the world.</summary>
@@ -135,8 +141,15 @@ namespace CityX.World
         /// Only ever meaningful for Cracked; a Shattered pane draws nothing at
         /// all, so nobody reads this once a pane gets that far.
         /// </summary>
-        private readonly Dictionary<PaneKey, Vector2> _impactPoints =
-            new Dictionary<PaneKey, Vector2>();
+        private readonly Dictionary<PaneKey, List<Vector2>> _impactPoints =
+            new Dictionary<PaneKey, List<Vector2>>();
+
+        /// <summary>
+        /// How many bullet holes a pane takes before the next bullet finally brings it down. Every bullet
+        /// makes its own hole and the pane stays standing (a pistol round does not take a window out), so a
+        /// burst leaves a cluster of holes; six is a window that has been properly shot up.
+        /// </summary>
+        public const int MaxBulletHoles = 6;
 
         /// <summary>Raised after a pane changes state, so a chunk can rebuild.</summary>
         // Chunk generation reads this from worker threads while the game thread may be changing it (a window
@@ -155,12 +168,85 @@ namespace CityX.World
             }
         }
 
+        /// <summary>The most recent hole on a pane (see <see cref="TryGetImpacts"/> for all of them).</summary>
         public bool TryGetImpact(PaneKey key, out Vector2 localUV)
         {
             lock (_gate)
             {
-                return _impactPoints.TryGetValue(key, out localUV);
+                if (_impactPoints.TryGetValue(key, out List<Vector2> list) && list.Count > 0)
+                {
+                    localUV = list[list.Count - 1];
+                    return true;
+                }
             }
+            localUV = default;
+            return false;
+        }
+
+        /// <summary>Every hole on a pane, in the order they were made, as a snapshot (a chunk may be generating on a worker).</summary>
+        public bool TryGetImpacts(PaneKey key, out Vector2[] localUVs)
+        {
+            lock (_gate)
+            {
+                if (_impactPoints.TryGetValue(key, out List<Vector2> list) && list.Count > 0)
+                {
+                    localUVs = list.ToArray();
+                    return true;
+                }
+            }
+            localUVs = null;
+            return false;
+        }
+
+        /// <summary>How many holes a pane has.</summary>
+        public int HoleCount(PaneKey key)
+        {
+            lock (_gate)
+            {
+                return _impactPoints.TryGetValue(key, out List<Vector2> list) ? list.Count : 0;
+            }
+        }
+
+        /// <summary>
+        /// A BULLET: makes its own hole at <paramref name="impactUV"/> and leaves the pane standing (cracked),
+        /// up to <see cref="MaxBulletHoles"/> -- after that the next bullet brings the pane down. Returns the
+        /// state the pane is in now; <paramref name="changed"/> is false only for a pane that was already gone.
+        /// <see cref="Changed"/> fires for every new hole (the pane's STATE did not move, but what it looks like
+        /// did), so the chunk is rebuilt with the new hole in it.
+        /// </summary>
+        public PaneState Shoot(PaneKey key, Vector2 impactUV, out bool changed)
+        {
+            PaneState now;
+            lock (_gate)
+            {
+                PaneState was = StateOf(key);
+                if (was == PaneState.Shattered)
+                {
+                    changed = false;
+                    return PaneState.Shattered;
+                }
+
+                int holes = HoleCount(key);
+                if (holes >= MaxBulletHoles)
+                {
+                    now = PaneState.Shattered;
+                    _impactPoints.Remove(key);
+                }
+                else
+                {
+                    now = PaneState.Cracked;
+                    if (!_impactPoints.TryGetValue(key, out List<Vector2> list))
+                    {
+                        list = new List<Vector2>();
+                        _impactPoints[key] = list;
+                    }
+                    list.Add(impactUV);
+                }
+                _broken[key] = now;
+            }
+            changed = true;
+            Changed?.Invoke(key, now);
+            return now;
         }
 
         /// <summary>
@@ -212,9 +298,18 @@ namespace CityX.World
 
                 now = NextState(was, shatterOutright ? BlowStrength.Heavy : BlowStrength.Light);
                 _broken[key] = now;
-                if (impactUV.HasValue)
+                if (now == PaneState.Shattered)
                 {
-                    _impactPoints[key] = impactUV.Value;
+                    _impactPoints.Remove(key);   // nothing left to have a hole in
+                }
+                else if (impactUV.HasValue)
+                {
+                    if (!_impactPoints.TryGetValue(key, out List<Vector2> list))
+                    {
+                        list = new List<Vector2>();
+                        _impactPoints[key] = list;
+                    }
+                    list.Add(impactUV.Value);
                 }
             }
             Changed?.Invoke(key, now);
@@ -230,6 +325,10 @@ namespace CityX.World
             if (was == PaneState.Shattered || strength == BlowStrength.Heavy)
             {
                 return PaneState.Shattered;
+            }
+            if (strength == BlowStrength.Bullet)
+            {
+                return PaneState.Cracked;   // a bullet leaves a hole, not a gap (the hole count decides when it goes: see Shoot)
             }
             return was == PaneState.Intact ? PaneState.Cracked : PaneState.Shattered;
         }

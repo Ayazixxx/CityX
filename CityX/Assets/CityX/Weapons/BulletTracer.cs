@@ -24,8 +24,18 @@ namespace CityX.Weapons
     /// like; animating a dot crawling from A to B would visually reintroduce
     /// the travel time this is explicitly trying not to have.
     /// </summary>
+    // LAST: the start is read from the muzzle after the arms are solved and the pistol's kick is laid on (order 100).
+    [DefaultExecutionOrder(200)]
     public sealed class BulletTracer : MonoBehaviour
     {
+        /// <summary>
+        /// How long the streak's start stays glued to the muzzle. Long enough to cover the couple of frames the
+        /// gun takes to swing up for a hip-fired shot; after that the streak is a fixed line in the world, the
+        /// way a real tracer is -- glued for its whole life it drew every wobble of a moving or recoiling gun
+        /// as a wobble in the beam ("the bullet trails are spazzy").
+        /// </summary>
+        public const float FollowSeconds = 0.05f;
+
         /// <summary>
         /// How wide the streak is ON SCREEN, in pixels, wherever it is -- EXPLICIT
         /// BUG REPORT: "bullet trails ... most of the time they arent showing up
@@ -101,7 +111,14 @@ namespace CityX.Weapons
         {
             if (_follow != null && _line != null)
             {
-                _line.SetPosition(0, _follow.position);
+                if (_elapsed < FollowSeconds)
+                {
+                    _line.SetPosition(0, _follow.position);
+                }
+                else
+                {
+                    _follow = null;   // let go: from here on the beam stays where it is
+                }
             }
         }
 

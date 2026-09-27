@@ -220,6 +220,9 @@ namespace CityX.Character
         private GrappleSwing _grappleSwing;
         private PlayerClimbing _climbing;
         private WallStick _wallStick;
+
+        /// <summary>Whether the player is asking to grab a wall (Space held a moment): see GrabIntent.</summary>
+        private readonly GrabIntent _grabIntent = new GrabIntent();
         private ThirdPersonCamera _orbitCamera;
         private readonly WeaponAimInput _weaponAim = new WeaponAimInput();
 
@@ -693,6 +696,14 @@ namespace CityX.Character
                 return;
             }
 
+            // WALL GRABS ARE ASKED FOR, NOT STUMBLED INTO. Holding Space for a moment (a tap is still a jump)
+            // is how the player says "grab that wall"; running, jumping through a window or walking through a
+            // doorway never asks. Updated every frame, before the attached branch below, so letting go of the
+            // key while hanging on is seen (a grab needs a fresh hold). Not with a jetpack or parachute on the
+            // back: Space means thrust or canopy there.
+            _grabIntent.Update(keyboard.spaceKey.isPressed, deltaTime);
+            bool wallGrabsAllowed = EquippedJetpack == null && EquippedParachute == null;
+
             // ALREADY ATTACHED TO A WALL OWNS THE WHOLE FRAME TOO, matching
             // player.gd's own _is_climbing early-return into
             // _process_climbing -- a real reported bug there ("the sprint
@@ -716,12 +727,12 @@ namespace CityX.Character
             // why the very first climbing frame must not also fall through
             // to ordinary WASD movement computed from the same held W that
             // just triggered the grab.
-            if (_climbing != null &&
+            if (_climbing != null && wallGrabsAllowed &&
                 (_grabCarry == null || !_grabCarry.IsCarrying) &&
                 !_locomotion.IsDashing)
             {
                 float stamina = _vitals != null ? _vitals.Stamina : float.MaxValue;
-                if (_climbing.TryStart(keyboard.leftShiftKey.isPressed, keyboard.wKey.isPressed, stamina))
+                if (_climbing.TryStart(_grabIntent, keyboard.wKey.isPressed, stamina))
                 {
                     _climbing.Tick(keyboard.spaceKey.wasPressedThisFrame,
                         keyboard.wKey.isPressed, keyboard.sKey.isPressed, _vitals, deltaTime);
@@ -751,12 +762,12 @@ namespace CityX.Character
             // being airborne, climbing's own grab is not gated on grounded
             // at all, so an airborne sprint+W into a shallow-enough wall
             // still climbs a ladder exactly as before this existed).
-            if (_wallStick != null &&
+            if (_wallStick != null && wallGrabsAllowed &&
                 (_grabCarry == null || !_grabCarry.IsCarrying) &&
                 !_locomotion.IsDashing)
             {
                 float stamina = _vitals != null ? _vitals.Stamina : float.MaxValue;
-                if (_wallStick.TryStart(keyboard.leftShiftKey.isPressed, _locomotion.IsGrounded, stamina))
+                if (_wallStick.TryStart(_grabIntent, keyboard.leftShiftKey.isPressed, _locomotion.IsGrounded, stamina))
                 {
                     Vector2 stickMove = Vector2.zero;
                     if (keyboard.wKey.isPressed) stickMove.y += 1.0f;

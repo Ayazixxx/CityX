@@ -72,3 +72,20 @@ of the longer articles blocked the fetch, so those points come from the search s
 run versus walk, look-at, NPC `SetOpen`, restored-open), `GlassBlowTests` (6), `GlassBlowsPlayTests` (4: sword
 through glass, wind-up breaks nothing, sprint breaks, walking does not). The look and sound of the door and the
 glass are not something these can judge; they have not been seen or heard in the game.
+
+## Update 2026-09-26 (later): every bullet makes its own hole
+
+Reported: "only 1 bullet hole appears even if you shoot more than 1."
+
+- A cracked pane is drawn without a solid collider (it has to be walkable at once), so the second bullet flew
+  through the first bullet's hole and never found the glass. The trigger box a cracked pane's opening leaves
+  (`CrackedPane`, now an `IBreakableSurface` and an `IShootableTrigger`) is the one thing standing where the
+  glass is; bullets and the aim trace accept exactly those triggers and pass the shot on to `GlassBreaker`.
+- A bullet is its own kind of blow (`BlowStrength.Bullet`): it adds a hole (`GlassDamage.Shoot`) and the pane
+  stays cracked, up to `GlassDamage.MaxBulletHoles` (6); the next bullet brings it down. A fist still cracks and
+  then shatters; a blade still takes a pane out at once. Holes are stored per pane, in order.
+- The mesh cuts a real opening at every hole (`AddPaneWithHoles`: strips at each hole's edges, glass only where
+  there is no hole, so overlapping holes cost nothing extra) and a crack decal at each.
+- `BulletHoleDamageTests` (8), two in `CityMeshBuilderTests`, and `BulletHolesInRealWindowsPlayTests` (the real
+  pistol, six shots at one real window, then the seventh). Making the pistol skip triggers again fails it with
+  "bullet 2 ... flew through the first one".

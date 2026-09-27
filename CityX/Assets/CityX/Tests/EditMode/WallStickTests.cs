@@ -56,11 +56,13 @@ namespace CityX.Tests
             MakeWall(10.0f, 30.0f, 0.2f);
             Physics.SyncTransforms();
 
-            Assert.IsFalse(_wallStick.TryStart(sprintHeld: false, grounded: false, stamina: 100.0f),
+            Assert.IsFalse(_wallStick.TryStart(new GrabIntent(), sprintHeld: true, grounded: false, stamina: 100.0f),
+                "sprinting past a wall in the air stuck to it without anyone asking to");
+            Assert.IsFalse(_wallStick.TryStart(GrabIntent.AlreadyHeld(), sprintHeld: false, grounded: false, stamina: 100.0f),
                 "airborne alone started a stick");
-            Assert.IsFalse(_wallStick.TryStart(sprintHeld: true, grounded: true, stamina: 100.0f),
+            Assert.IsFalse(_wallStick.TryStart(GrabIntent.AlreadyHeld(), sprintHeld: true, grounded: true, stamina: 100.0f),
                 "sprint while grounded started a stick");
-            Assert.IsTrue(_wallStick.TryStart(sprintHeld: true, grounded: false, stamina: 100.0f),
+            Assert.IsTrue(_wallStick.TryStart(GrabIntent.AlreadyHeld(), sprintHeld: true, grounded: false, stamina: 100.0f),
                 "sprinting airborne against a real wall didn't stick");
             Assert.IsTrue(_wallStick.IsSticking);
         }
@@ -71,7 +73,7 @@ namespace CityX.Tests
             MakeWall(10.0f, 30.0f, 0.2f);
             Physics.SyncTransforms();
 
-            Assert.IsFalse(_wallStick.TryStart(sprintHeld: true, grounded: false, stamina: 0.0f),
+            Assert.IsFalse(_wallStick.TryStart(GrabIntent.AlreadyHeld(), sprintHeld: true, grounded: false, stamina: 0.0f),
                 "stuck with zero stamina");
         }
 
@@ -80,7 +82,7 @@ namespace CityX.Tests
         {
             MakeWall(10.0f, 30.0f, 0.2f);
             Physics.SyncTransforms();
-            Assert.IsTrue(_wallStick.TryStart(true, false, _vitals.Stamina));
+            Assert.IsTrue(_wallStick.TryStart(GrabIntent.AlreadyHeld(), true, false, _vitals.Stamina));
 
             float staminaBefore = _vitals.Stamina;
             float yBefore = _player.transform.position.y;
@@ -110,7 +112,7 @@ namespace CityX.Tests
         {
             MakeWall(10.0f, 30.0f, 0.2f);
             Physics.SyncTransforms();
-            Assert.IsTrue(_wallStick.TryStart(true, false, 100.0f));
+            Assert.IsTrue(_wallStick.TryStart(GrabIntent.AlreadyHeld(), true, false, 100.0f));
 
             for (int i = 0; i < 30; i++)
             {
@@ -128,7 +130,7 @@ namespace CityX.Tests
         {
             MakeWall(10.0f, 30.0f, 0.2f);
             Physics.SyncTransforms();
-            Assert.IsTrue(_wallStick.TryStart(true, false, 100.0f));
+            Assert.IsTrue(_wallStick.TryStart(GrabIntent.AlreadyHeld(), true, false, 100.0f));
 
             _wallStick.Tick(jumpPressed: true, moveInput: Vector2.zero, _vitals, 1.0f / 60.0f);
 
@@ -145,7 +147,7 @@ namespace CityX.Tests
         {
             MakeWall(10.0f, 30.0f, 0.2f);
             Physics.SyncTransforms();
-            Assert.IsTrue(_wallStick.TryStart(true, false, 100.0f));
+            Assert.IsTrue(_wallStick.TryStart(GrabIntent.AlreadyHeld(), true, false, 100.0f));
 
             // About to run out -- spent down through the public API rather
             // than reaching into PlayerVitals' own private field, matching
@@ -168,7 +170,7 @@ namespace CityX.Tests
             // off its edge, unlike the wide wall the other tests use.
             MakeWall(2.0f, 30.0f, 0.2f);
             Physics.SyncTransforms();
-            Assert.IsTrue(_wallStick.TryStart(true, false, 100.0f));
+            Assert.IsTrue(_wallStick.TryStart(GrabIntent.AlreadyHeld(), true, false, 100.0f));
 
             bool ranOffTheEdge = false;
             for (int i = 0; i < 120; i++)

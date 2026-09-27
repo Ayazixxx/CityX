@@ -127,3 +127,22 @@ free while the gun is merely carried, and follows the reload dip and the kick. D
   (`EasedGunAimBlend`) and takes 55ms instead of 40, so it no longer starts and stops with a twitch.
 - **Tracer**: 2.2 pixels wide (was 3) and a pale warm white (1.0, 0.96, 0.72), between white and the old
   brass yellow (1.0, 0.85, 0.35).
+
+## Update 2026-09-26 (later): the gun "pointing in other directions", and the spazzy tracers
+
+- **Cause 1: the aim DEPTH was not continuous.** Every frame `GunFeel` traces the crosshair ray and the arm
+  aimed at where it ended. What a ray ends on is not smooth -- across a facade with shot-out windows it flicks
+  between the glass at 3 m and the room behind at 30 m, a lamp post is a one-frame hit at 2 m -- and from the
+  shoulder (camera 4 m behind, to one side) a 3 m and a 30 m point on one ray are ~20 degrees apart. Measured
+  with the crosshair steady and only the hit depth flickering (`PistolAimDepthJumpPlayTests`): a left upper arm
+  turning **34 degrees in one 16 ms frame** (2,100 deg/s). Now the aim point stays ON the camera ray (the mouse
+  still turns the arm with no lag) and only how far along it the arm looks is eased, in log space, with a 70 ms
+  time constant (`PlayerLocomotion.GunAimDepthSmoothSeconds`); the muzzle's worst turn is ~170 deg/s. The hard
+  1.5 m cut-over to a fixed point is gone too.
+- **Cause 2: flying glass.** A shattered window's shards are launched back toward the shooter as solid rigid
+  bodies for six seconds, and the aim trace treated each one as what the crosshair was on. Shards now carry
+  `IgnoredByShots` and both bullets and the aim trace look straight through them.
+- **The tracer**: its start followed the muzzle for its whole life, so every wobble of the gun was drawn as a
+  wobble in the beam. It now follows only for the first 0.05 s (long enough to cover the raise for a hip-fired
+  shot) and is then a fixed line in the world; it also reads the muzzle last in the frame (execution order 200,
+  after the arms are solved and the kick is applied).

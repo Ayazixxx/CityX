@@ -4,8 +4,10 @@ using UnityEngine;
 namespace CityX.Character
 {
     /// <summary>
-    /// Wall climbing: hold sprint+W against a wall to grab on, W/S to climb
-    /// up/down once attached, Space hops off with an outward push. Ported
+    /// Wall climbing: HOLD SPACE (a tap is a jump) with W facing a real wall
+    /// to grab on -- see GrabIntent and WallProbe, and docs/CLIMBING.md for
+    /// why it is no longer "sprint+W near anything" -- W/S to climb
+    /// up/down once attached, a fresh Space press hops off with an outward push. Ported
     /// from player.gd's own _try_start_climb/_process_climbing/CLIMB_*
     /// consts and character.gd's start_climb_up/start_climb_down/hold_climb/
     /// end_climb/play_climb_top_out, numbers included. The Unity port's own
@@ -101,34 +103,50 @@ namespace CityX.Character
             _locomotion = GetComponent<PlayerLocomotion>();
         }
 
+        /// <summary>How far in front of the wall face the body hangs, on top of the capsule's own radius.</summary>
+        public const float HangStandoffMetres = 0.05f;
+
+        /// <summary>How fast the body is drawn onto the wall face when it grabs on (it used to hang wherever it was, up to a metre off).</summary>
+        public const float SnapToWallSpeed = 6.0f;
+
+        /// <summary>How fast the body turns to face the wall it grabbed, degrees per second.</summary>
+        public const float FaceWallDegreesPerSecond = 540.0f;
+
+        private GrabIntent _intent;
+
         /// <summary>
-        /// Checked every frame NOT already climbing (see PlayerInputReader's
-        /// own dispatch) -- grabs on the instant sprint+W are BOTH held,
-        /// stamina remains, and a forward raycast finds a real wall within
-        /// arm's reach. Deliberately requires sprint (not just W) so
-        /// brushing up against a building while walking normally never
-        /// accidentally starts a climb -- matches player.gd's own comment on
-        /// _try_start_climb ("hold shift and W... to climb").
+        /// Checked every frame NOT already climbing (see PlayerInputReader's own dispatch). Grabs on only when
+        /// the player MEANS to: the grab key has been held (<see cref="GrabIntent"/>), W is held toward the wall,
+        /// stamina remains, and there is a real wall in front (<see cref="WallProbe"/>: a wide, tall, flat face --
+        /// not a doorway's jamb, a window frame or the wall at the top of a stair).
+        ///
+        /// It used to be Shift+W within a metre of ANY surface -- which is just running -- so it fired running
+        /// up a staircase, jumping out of a window and running through a door. Assassin's Creed and the Unity
+        /// ledge systems both separate "moving" from "asking to climb"; this does the same.
         /// </summary>
-        public bool TryStart(bool sprintHeld, bool forwardHeld, float stamina)
+        public bool TryStart(GrabIntent intent, bool forwardHeld, float stamina)
         {
-            if (IsClimbing || IsToppingOut || !sprintHeld || !forwardHeld || stamina <= 0.0f)
+            if (IsClimbing || IsToppingOut || !forwardHeld || stamina <= 0.0f || intent == null || !intent.Ready)
             {
                 return false;
             }
 
-            float originHeight = (_locomotion != null ? _locomotion.StandingHeight : BodyRig.StandingHeight)
-                * GrabOriginHeightFraction;
-            Vector3 origin = transform.position + Vector3.up * originHeight;
-            if (!WallInDirection(origin, transform.forward, out Vector3 normal))
+            float standingHeight = _locomotion != null ? _locomotion.StandingHeight : BodyRig.StandingHeight;
+            if (!WallProbe.TryFind(transform.position, transform.forward, standingHeight, out WallProbe.Result wall))
             {
                 return false;
             }
 
             IsClimbing = true;
-            _wallNormal = normal;
-            _anchorX = transform.position.x;
-            _anchorZ = transform.position.z;
+            _intent = intent;
+            intent.Consume();
+            _wallNormal = new Vector3(wall.Normal.x, 0.0f, wall.Normal.z).normalized;
+
+            // Hang against the face itself, the capsule's own radius off it.
+            float standoff = (_controller != null ? _controller.radius : 0.3f) + HangStandoffMetres;
+            Vector3 hang = wall.Point + _wallNormal * standoff;
+            _anchorX = hang.x;
+            _anchorZ = hang.z;
             _locomotion?.SetVerticalVelocity(0.0f);
             return true;
         }
@@ -189,11 +207,19 @@ namespace CityX.Character
                 direction = -1;
             }
 
-            Vector3 move = new Vector3(
-                _anchorX - transform.position.x,
-                direction * ClimbSpeed * deltaTime - slip * deltaTime,
-                _anchorZ - transform.position.z);
+            // Drawn onto the wall face and turned to look at it, rather than snapped or left where the grab
+            // happened. Both are eased: a grab is a reach, not a teleport.
+            Vector2 toAnchor = Vector2.ClampMagnitude(
+                new Vector2(_anchorX - transform.position.x, _anchorZ - transform.position.z),
+                SnapToWallSpeed * deltaTime);
+            Vector3 move = new Vector3(toAnchor.x, direction * ClimbSpeed * deltaTime - slip * deltaTime, toAnchor.y);
             _controller.Move(move);
+
+            if (_wallNormal.sqrMagnitude > 0.0001f)
+            {
+                transform.rotation = Quaternion.RotateTowards(transform.rotation,
+                    Quaternion.LookRotation(-_wallNormal, Vector3.up), FaceWallDegreesPerSecond * deltaTime);
+            }
 
             if (_animator != null)
             {
@@ -261,6 +287,7 @@ namespace CityX.Character
         private void EndClimb(bool applyPush, float deltaTime)
         {
             IsClimbing = false;
+            _intent?.BeginCooldown();   // a hop-off is not undone by the next frame's grab
             if (_animator != null)
             {
                 _animator.SetBool(ClimbingParameter, false);
@@ -346,6 +373,7 @@ namespace CityX.Character
         private void CompleteTopOut()
         {
             IsToppingOut = false;
+            _intent?.BeginCooldown();
             Vector3 mantleTarget = transform.position
                 + Vector3.up * (TopCheckHeight + MantleUp)
                 - _wallNormal * MantleForward;

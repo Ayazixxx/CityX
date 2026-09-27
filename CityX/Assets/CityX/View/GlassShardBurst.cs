@@ -1,3 +1,4 @@
+using CityX.World;
 using UnityEngine;
 
 namespace CityX.View
@@ -60,6 +61,12 @@ namespace CityX.View
 
         private void Awake()
         {
+            // Solid to the world, but not to bullets or the gun's aim: see IgnoredByShots.
+            if (GetComponent<IgnoredByShots>() == null)
+            {
+                gameObject.AddComponent<IgnoredByShots>();
+            }
+
             Vector3 away = transform.forward;
             foreach (Rigidbody body in GetComponentsInChildren<Rigidbody>())
             {

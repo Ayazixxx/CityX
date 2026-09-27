@@ -685,7 +685,10 @@ namespace CityX.Weapons
                 var breakable = hit.collider.GetComponentInParent<IBreakableSurface>();
                 if (breakable != null)
                 {
-                    breakable.TakePunch(hit.point);
+                    // A BULLET, not a punch: it makes its own hole and the window stays up, so every shot
+                    // at a window leaves its own hole (the way the pane was cracked by the first, the second
+                    // used to shatter it -- or, once cracked, fly straight through it).
+                    breakable.TakeBlow(hit.point, spreadDirection, BlowStrength.Bullet);
                 }
                 else
                 {
@@ -783,14 +786,16 @@ namespace CityX.Weapons
             }
 
             RaycastHit[] hits = HitBuffer;
+            // Triggers are asked for too, and every one that is not a cracked window's opening is skipped below:
+            // a cracked pane has no solid collider, so its opening box is the only thing a bullet can hit there.
             int count = Physics.RaycastNonAlloc(origin, direction, hits, distance,
-                TargetLayers, QueryTriggerInteraction.Ignore);
+                TargetLayers, QueryTriggerInteraction.Collide);
             if (count >= hits.Length)
             {
                 // A full buffer means the nearest hit may have been dropped --
                 // the unsorted non-alloc version keeps an arbitrary subset. A
                 // ray through this many colliders is rare; pay for the exact answer.
-                hits = Physics.RaycastAll(origin, direction, distance, TargetLayers, QueryTriggerInteraction.Ignore);
+                hits = Physics.RaycastAll(origin, direction, distance, TargetLayers, QueryTriggerInteraction.Collide);
                 count = hits.Length;
             }
             float bestDistance = float.MaxValue;
@@ -798,9 +803,14 @@ namespace CityX.Weapons
             for (int i = 0; i < count; i++)
             {
                 RaycastHit candidate = hits[i];
-                if (candidate.collider == null || IsWieldersOwnCollider(candidate.collider, wielder))
+                if (candidate.collider == null || IsWieldersOwnCollider(candidate.collider, wielder)
+                    || IgnoredByShots.Covers(candidate.collider))
                 {
                     continue;
+                }
+                if (candidate.collider.isTrigger && candidate.collider.GetComponent<IShootableTrigger>() == null)
+                {
+                    continue;   // a pickup sphere, a rain or room volume: not something a bullet stops on
                 }
                 if (candidate.distance < bestDistance)
                 {

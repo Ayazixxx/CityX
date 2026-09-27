@@ -1706,7 +1706,17 @@ namespace CityX.Character
         /// <summary>How fast the arm comes up for a shot when NOT aiming (about 55ms to full, on an S-curve: see EasedGunAimBlend).</summary>
         public const float GunFireBlendPerSecond = 18.0f;
 
-        /// <summary>A real aim point closer to the shoulder than this is ignored (aiming at your own feet swings the arm absurdly); the fixed convergence point is used instead.</summary>
+        /// <summary>
+        /// The time constant (seconds) of the easing on how far along the camera ray the arm aims -- see
+        /// ApplyGunAimPose. Short enough that the gun is on what the crosshair is on by the time a shot is
+        /// placed; long enough that a one-frame flick of the hit depth is a ripple, not a snap.
+        /// </summary>
+        public const float GunAimDepthSmoothSeconds = 0.07f;
+
+        private float _aimLogDepth;
+        private bool _aimDepthValid;
+
+        /// <summary>The aim point is never closer than this to the shoulder along the camera ray (aiming at your own feet swings the arm absurdly).</summary>
         public const float GunAimPointMinMetres = 1.5f;
 
         /// <summary>How fast _gunAimBlend eases toward 1 (or back to 0) -- reaches full strength in ~1/6s, comfortably inside the Animator's own 0.12s crossfade into the Aiming state.</summary>
@@ -1813,6 +1823,7 @@ namespace CityX.Character
 
             if (_gunAimBlend <= 0.0f || _rightUpperArm == null || _rightLowerArm == null)
             {
+                _aimDepthValid = false;   // the next time the gun comes up it starts from where the crosshair is then
                 ApplyGunWalkHeadPose();
                 return;
             }
@@ -1844,12 +1855,35 @@ namespace CityX.Character
                 // crosshair ray's actual hit point), so the barrel, the bullet and
                 // the tracer all agree; only fall back to a fixed 15m along the ray
                 // when there is no such point, or it is too close to aim at sanely.
-                Vector3 aimPoint = _gunAimCameraPosition + _gunAimCameraForward.normalized * GunAimConvergenceDistance;
-                if (_hasGunAimPoint
-                    && (_gunAimPoint - _rightUpperArm.position).sqrMagnitude > GunAimPointMinMetres * GunAimPointMinMetres)
+                //
+                // THE DEPTH IS SMOOTHED, THE DIRECTION IS NOT. What the crosshair ray hits is not a continuous
+                // thing: across a facade with shot-out windows it flicks between the glass at 3m and the room
+                // behind at 30m, a lamp post or a flying shard is a one-frame hit at 2m. Seen from the shoulder
+                // (the camera is ~4m behind the gun and to one side) a 3m and a 30m point on the same ray are
+                // ~20 degrees apart, and the arm followed every jump instantly -- the reported "pointing in
+                // other directions". So the aim point stays ON the camera ray (the mouse still turns the arm
+                // with no lag at all) and only how far along it the arm looks is eased, in log space (a jump
+                // from 3m to 30m is the same size of step as 30m to 300m).
+                Vector3 cameraForward = _gunAimCameraForward.normalized;
+                Vector3 shoulder = _rightUpperArm.position;
+                float minDepth = Mathf.Max(0.5f, Vector3.Dot(shoulder - _gunAimCameraPosition, cameraForward)) + GunAimPointMinMetres;
+                float rawDepth = GunAimConvergenceDistance;
+                if (_hasGunAimPoint)
                 {
-                    aimPoint = _gunAimPoint;
+                    rawDepth = Mathf.Max(minDepth, Vector3.Dot(_gunAimPoint - _gunAimCameraPosition, cameraForward));
                 }
+                float wantedLogDepth = Mathf.Log(Mathf.Max(minDepth, rawDepth));
+                if (!_aimDepthValid)
+                {
+                    _aimLogDepth = wantedLogDepth;   // starting to aim: nothing to be smooth with yet
+                    _aimDepthValid = true;
+                }
+                else
+                {
+                    _aimLogDepth = Mathf.Lerp(_aimLogDepth, wantedLogDepth,
+                        1.0f - Mathf.Exp(-deltaTime / GunAimDepthSmoothSeconds));
+                }
+                Vector3 aimPoint = _gunAimCameraPosition + cameraForward * Mathf.Exp(_aimLogDepth);
                 _aimedPoint = aimPoint;
                 _hasAimedPoint = true;
                 desiredDirection = (aimPoint - _rightUpperArm.position).normalized;

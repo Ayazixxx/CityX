@@ -71,17 +71,17 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void SprintAndForwardAgainstAWallGrabsOn()
+        public void HoldingTheGrabKeyAndForwardAgainstAWallGrabsOn()
         {
             MakeWall(30.0f, 0.2f);
             Physics.SyncTransforms();
 
-            Assert.IsFalse(_climbing.TryStart(sprintHeld: false, forwardHeld: true, stamina: 100.0f),
-                "forward alone started a climb");
-            Assert.IsFalse(_climbing.TryStart(sprintHeld: true, forwardHeld: false, stamina: 100.0f),
-                "sprint alone started a climb");
-            Assert.IsTrue(_climbing.TryStart(sprintHeld: true, forwardHeld: true, stamina: 100.0f),
-                "holding sprint+W against a real wall didn't start a climb");
+            Assert.IsFalse(_climbing.TryStart(new GrabIntent(), forwardHeld: true, stamina: 100.0f),
+                "a wall next to a running player started a climb without anyone asking for one");
+            Assert.IsFalse(_climbing.TryStart(GrabIntent.AlreadyHeld(), forwardHeld: false, stamina: 100.0f),
+                "holding the grab key without pushing toward the wall started a climb");
+            Assert.IsTrue(_climbing.TryStart(GrabIntent.AlreadyHeld(), forwardHeld: true, stamina: 100.0f),
+                "holding the grab key and W against a real wall didn't start a climb");
             Assert.IsTrue(_climbing.IsClimbing);
         }
 
@@ -91,7 +91,7 @@ namespace CityX.Tests
             MakeWall(30.0f, 0.2f);
             Physics.SyncTransforms();
 
-            Assert.IsFalse(_climbing.TryStart(sprintHeld: true, forwardHeld: true, stamina: 0.0f),
+            Assert.IsFalse(_climbing.TryStart(GrabIntent.AlreadyHeld(), forwardHeld: true, stamina: 0.0f),
                 "grabbed on with zero stamina");
         }
 
@@ -100,7 +100,7 @@ namespace CityX.Tests
         {
             MakeWall(30.0f, 0.2f);
             Physics.SyncTransforms();
-            Assert.IsTrue(_climbing.TryStart(true, true, _vitals.Stamina));
+            Assert.IsTrue(_climbing.TryStart(GrabIntent.AlreadyHeld(), true, _vitals.Stamina));
 
             float staminaBefore = _vitals.Stamina;
             float yBefore = _player.transform.position.y;
@@ -126,7 +126,7 @@ namespace CityX.Tests
         {
             MakeWall(30.0f, 0.2f);
             Physics.SyncTransforms();
-            Assert.IsTrue(_climbing.TryStart(true, true, 100.0f));
+            Assert.IsTrue(_climbing.TryStart(GrabIntent.AlreadyHeld(), true, 100.0f));
 
             _climbing.Tick(jumpPressed: true, climbUpHeld: false, climbDownHeld: false, _vitals, 1.0f / 60.0f);
 
@@ -144,7 +144,7 @@ namespace CityX.Tests
             MakeWall(30.0f, 0.2f);
             MakeGround();
             Physics.SyncTransforms();
-            Assert.IsTrue(_climbing.TryStart(true, true, 100.0f));
+            Assert.IsTrue(_climbing.TryStart(GrabIntent.AlreadyHeld(), true, 100.0f));
 
             // Climb up a bit first so there's real height to descend from.
             for (int i = 0; i < 20; i++)
@@ -174,7 +174,7 @@ namespace CityX.Tests
         {
             MakeWall(30.0f, 0.2f);
             Physics.SyncTransforms();
-            Assert.IsTrue(_climbing.TryStart(true, true, 100.0f));
+            Assert.IsTrue(_climbing.TryStart(GrabIntent.AlreadyHeld(), true, 100.0f));
 
             // About to run out -- spent down through the public API rather
             // than reaching into PlayerVitals' own private field, matching
@@ -196,7 +196,7 @@ namespace CityX.Tests
             MakeWall(wallHeight, 0.2f);
             MakeGround();
             Physics.SyncTransforms();
-            Assert.IsTrue(_climbing.TryStart(true, true, 100.0f));
+            Assert.IsTrue(_climbing.TryStart(GrabIntent.AlreadyHeld(), true, 100.0f));
 
             bool toppedOut = false;
             for (int i = 0; i < 200; i++)
