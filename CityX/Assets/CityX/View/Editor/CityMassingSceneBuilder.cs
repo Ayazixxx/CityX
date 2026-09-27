@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using CityX.Character;
 using CityX.View;
@@ -1570,6 +1571,174 @@ namespace CityX.ViewEditor
         /// has to composite over it the same way. White base colour so the
         /// texture's own colours/alpha show through unmodified.
         /// </summary>
+        /// <summary>
+        /// One-off cleanup of BulletHoleCrack.png. EXPLICIT BUG REPORT: "the bullet holes have a visible square
+        /// around them due to the image i used."
+        ///
+        /// Measured directly (a rendered pane WITH the decal against the identical pane without it, pixel-
+        /// diffed): the difference was not a hard rectangle from a shader or compression problem -- those stayed
+        /// nearly identical whether the texture was compressed or not, alpha-clipped or not. The image itself
+        /// has a scattered, low-level alpha NOISE FLOOR across almost the entire 1024x856 canvas (a real
+        /// measured sample: only 0.16% of pixels were exactly alpha=0 at the far corners, and non-zero alpha
+        /// pixels appear as far as 2px from every edge) -- not confined to the crack's own radiating lines.
+        /// Composited onto glass at the decal's real size (34x28cm on a much smaller pane), that faint,
+        /// widely-spread grain reads as a soft, roughly rectangular tint rather than individual specks.
+        ///
+        /// THE FIX IS TO THE ASSET, NOT THE SHADER: keep only the crack's own connected shape and zero every
+        /// other pixel's alpha. A real fracture radiates as ONE connected pattern from the impact point, so
+        /// anything that does not touch that shape is capture noise/artifact, not intended crack detail --
+        /// dilating the candidate mask by a couple of pixels before labelling (then intersecting back with the
+        /// real mask) bridges ordinary anti-aliasing gaps in thin crack lines without pulling in anything that
+        /// was not already part of the shape.
+        /// </summary>
+        [MenuItem("CityX/Clean Bullet Hole Decal Texture")]
+        public static void CleanBulletHoleDecalTexture()
+        {
+            const string texturePath = "Assets/CityX/View/Textures/BulletHoleCrack.png";
+            const byte AlphaFloor = 24;      // ~9%: comfortably above the measured noise floor, comfortably below the crack's own body
+            const int DilateRadius = 2;      // bridges anti-aliasing gaps in thin crack lines for CONNECTIVITY only
+
+            var importer = AssetImporter.GetAtPath(texturePath) as TextureImporter;
+            if (importer == null)
+            {
+                Debug.LogError($"CityX: {texturePath} missing -- nothing to clean.");
+                return;
+            }
+
+            bool wasReadable = importer.isReadable;
+            importer.isReadable = true;
+            importer.SaveAndReimport();
+
+            Texture2D source = AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath);
+            int width = source.width, height = source.height;
+            Color32[] pixels = source.GetPixels32();   // row 0 is the BOTTOM of the image, same convention throughout
+
+            var candidate = new bool[width * height];
+            int candidates = 0;
+            for (int i = 0; i < pixels.Length; i++)
+            {
+                if (pixels[i].a > AlphaFloor)
+                {
+                    candidate[i] = true;
+                    candidates++;
+                }
+            }
+
+            // Dilate the candidate mask so a thin line's own anti-aliased single-pixel gaps do not split it into
+            // several components -- used only to decide what is CONNECTED, not which pixels survive.
+            var dilated = (bool[])candidate.Clone();
+            for (int pass = 0; pass < DilateRadius; pass++)
+            {
+                var next = (bool[])dilated.Clone();
+                for (int y = 0; y < height; y++)
+                {
+                    for (int x = 0; x < width; x++)
+                    {
+                        int i = y * width + x;
+                        if (dilated[i])
+                        {
+                            continue;
+                        }
+                        for (int dy = -1; dy <= 1 && !next[i]; dy++)
+                        {
+                            int ny = y + dy;
+                            if (ny < 0 || ny >= height) continue;
+                            for (int dx = -1; dx <= 1; dx++)
+                            {
+                                int nx = x + dx;
+                                if (nx < 0 || nx >= width) continue;
+                                if (dilated[ny * width + nx]) { next[i] = true; break; }
+                            }
+                        }
+                    }
+                }
+                dilated = next;
+            }
+
+            // Label connected components of the DILATED mask (8-connectivity, flood fill via an explicit queue --
+            // ~876k pixels is nowhere near enough to need anything cleverer).
+            var label = new int[width * height];
+            int biggestLabel = -1, biggestSize = 0, nextLabel = 0;
+            var queue = new Queue<int>();
+            for (int start = 0; start < dilated.Length; start++)
+            {
+                if (!dilated[start] || label[start] != 0)
+                {
+                    continue;
+                }
+                nextLabel++;
+                int size = 0;
+                queue.Enqueue(start);
+                label[start] = nextLabel;
+                while (queue.Count > 0)
+                {
+                    int i = queue.Dequeue();
+                    size++;
+                    int x = i % width, y = i / width;
+                    for (int dy = -1; dy <= 1; dy++)
+                    {
+                        int ny = y + dy;
+                        if (ny < 0 || ny >= height) continue;
+                        for (int dx = -1; dx <= 1; dx++)
+                        {
+                            int nx = x + dx;
+                            if (nx < 0 || nx >= width) continue;
+                            int ni = ny * width + nx;
+                            if (dilated[ni] && label[ni] == 0)
+                            {
+                                label[ni] = nextLabel;
+                                queue.Enqueue(ni);
+                            }
+                        }
+                    }
+                }
+                if (size > biggestSize)
+                {
+                    biggestSize = size;
+                    biggestLabel = nextLabel;
+                }
+            }
+
+            int cleared = 0;
+            for (int i = 0; i < pixels.Length; i++)
+            {
+                // A pixel survives only if it was a real candidate itself (never promote a dilated-only pixel)
+                // AND its component (found via the dilated mask) is the biggest one in the image.
+                bool keep = candidate[i] && label[i] == biggestLabel;
+                byte alpha = keep ? pixels[i].a : (byte)0;
+                if (alpha == 0)
+                {
+                    if (pixels[i].a != 0)
+                    {
+                        cleared++;
+                    }
+                    pixels[i] = new Color32(0, 0, 0, 0);
+                    continue;
+                }
+
+                // PREMULTIPLIED: RGB scaled by this pixel's own alpha. Without this, anything that reads the
+                // colour channel WITHOUT going through the alpha-blend stage -- an emissive pass sampling this
+                // same texture so the decal stays visible at night, see EnsureCrackDecalMaterial -- sees the
+                // crack graphic's own solid white fill regardless of alpha and lights the WHOLE quad, which is
+                // exactly the visible-square regression this asset used to (still) have once emission was added.
+                float a = alpha / 255.0f;
+                pixels[i] = new Color32((byte)(pixels[i].r * a), (byte)(pixels[i].g * a), (byte)(pixels[i].b * a), alpha);
+            }
+
+            var cleaned = new Texture2D(width, height, TextureFormat.RGBA32, false);
+            cleaned.SetPixels32(pixels);
+            cleaned.Apply();
+            File.WriteAllBytes(Path.GetFullPath(texturePath), cleaned.EncodeToPNG());
+            Object.DestroyImmediate(cleaned);
+
+            AssetDatabase.ImportAsset(texturePath, ImportAssetOptions.ForceUpdate);
+            importer.isReadable = wasReadable;
+            importer.SaveAndReimport();
+
+            Debug.Log($"CityX: cleaned {texturePath} -- kept the largest connected shape ({biggestSize} px, " +
+                      $"{biggestSize * 100.0f / candidates:0.0}% of {candidates} candidate pixels), cleared {cleared} stray pixels.");
+        }
+
         private static Material EnsureCrackDecalMaterial()
         {
             const string texturePath = "Assets/CityX/View/Textures/BulletHoleCrack.png";
@@ -1588,41 +1757,76 @@ namespace CityX.ViewEditor
                 importer.alphaIsTransparency = true;
                 importer.wrapMode = TextureWrapMode.Clamp;
                 importer.mipmapEnabled = false;
+
+                // Uncompressed, and alpha-clipped below -- belt and braces against any residual softness in the
+                // image (compression or a future re-export) ever blending a faint tint instead of being fully
+                // discarded. Measured to make no visible difference on their own (see the doc comment above),
+                // but they cost nothing and rule the texture itself back out for certain.
+                importer.textureCompression = TextureImporterCompression.Uncompressed;
                 importer.SaveAndReimport();
             }
 
+            Shader lit = Shader.Find("Universal Render Pipeline/Lit");
+            if (lit == null)
+            {
+                Debug.LogError("CityX: URP Lit shader not found -- is the Universal Render " +
+                               "Pipeline asset assigned in Graphics settings?");
+                lit = Shader.Find("Standard");
+            }
+
             Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material != null && material.shader != lit)
+            {
+                // An asset from a previous, briefly-tried Unlit version of this material: Unity does not carry
+                // properties across a shader swap, so it is reset below exactly as if newly created.
+                material.shader = lit;
+            }
             if (material == null)
             {
-                Shader shader = Shader.Find("Universal Render Pipeline/Lit");
-                if (shader == null)
-                {
-                    Debug.LogError("CityX: URP Lit shader not found -- is the Universal Render " +
-                                   "Pipeline asset assigned in Graphics settings?");
-                    shader = Shader.Find("Standard");
-                }
-                material = new Material(shader);
+                material = new Material(lit);
                 AssetDatabase.CreateAsset(material, path);
             }
 
+            // THE SAME TRANSPARENCY RECIPE AS THE WORKING GLASS MATERIALS (CityGlassLit/Dark/Cracked), COPIED
+            // VERBATIM RATHER THAN WORKED OUT BY HAND. This decal's own first attempt at "Alpha" transparency
+            // used the textbook SrcAlpha/OneMinusSrcAlpha blend factors, which is wrong for THIS shader: measured
+            // directly (dumping the .mat after a rebuild), _DstBlend came back as 10, not the 6 the call asked
+            // for -- this URP version's own Lit shader validates its blend state against its OWN premultiplied-
+            // alpha convention (_ALPHAPREMULTIPLY_ON, SrcBlend=One) and silently corrects a mismatched DstBlend,
+            // which is what made the "transparent" background of the quad render as a solid, plainly visible
+            // rectangle instead of see-through. Every other transparent material already shipped in this project
+            // uses this exact combination and renders correctly; this is that same combination.
             material.SetFloat("_Surface", 1.0f);              // transparent
             material.SetFloat("_Blend", 0.0f);                // alpha
+            material.SetFloat("_AlphaClip", 0.0f);
             material.SetFloat("_ZWrite", 0.0f);
             material.SetFloat("_Cull", 0.0f);                 // both sides -- seen from inside the building too
-            material.SetFloat("_AlphaClip", 0.0f);
             material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
             material.SetOverrideTag("RenderType", "Transparent");
             material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            material.EnableKeyword("_ALPHAPREMULTIPLY_ON");
             material.DisableKeyword("_ALPHATEST_ON");
-            material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-            material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.One);
+            material.SetInt("_DstBlend", 10);
 
             material.SetTexture("_BaseMap", texture);
             material.SetColor("_BaseColor", Color.white);
-            material.SetFloat("_Smoothness", 0.18f);   // matches the frosted Cracked glass around it
+            material.SetFloat("_Smoothness", 0.0f);
             material.SetFloat("_Metallic", 0.0f);
-            material.DisableKeyword("_EMISSION");
-            material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.EmissiveIsBlack;
+
+            // EMISSIVE -- THE ACTUAL FIX FOR THE REPORT. Found by rendering the same pane by day and by night:
+            // by day this lit decal (plain white crack lines) was bright enough against the glass to hide the
+            // plain rectangle cut into the mesh underneath it (AddPaneWithHoles' own real geometric opening,
+            // sized off this texture's own centre -- see its own doc comment); by night, with little ambient
+            // light left to catch, the same lit material went almost black, and what remained visible was that
+            // bare rectangle -- a flat, hard-edged square, exactly what was reported. A crack decal is a sticker
+            // on the glass, not a surface that should darken with the room around it: emission keeps it reading
+            // the same crack pattern at a fixed brightness whatever the time of day, so the rectangle underneath
+            // is never left uncovered.
+            material.SetTexture("_EmissionMap", texture);
+            material.SetColor("_EmissionColor", Color.white);
+            material.EnableKeyword("_EMISSION");
+            material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
 
             EditorUtility.SetDirty(material);
             return material;

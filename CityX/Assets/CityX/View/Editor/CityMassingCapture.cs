@@ -1177,6 +1177,179 @@ namespace CityX.ViewEditor
         }
 
         /// <summary>
+        /// A real window, shot a few times, photographed from a couple of metres: what the bullet holes and
+        /// their crack decals actually look like on the glass. Written for the report that each hole showed a
+        /// visible square round it.
+        ///
+        ///   Unity.exe -batchmode -quit -projectPath &lt;proj&gt;
+        ///             -executeMethod CityX.ViewEditor.CityMassingCapture.CaptureBulletHoles
+        /// </summary>
+        public static void CaptureBulletHoles()
+        {
+            string outputDirectory = Path.Combine(
+                Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
+            Directory.CreateDirectory(outputDirectory);
+
+            var root = new GameObject("CaptureRig");
+            try
+            {
+                Material ground = Material_("CityGround");
+                Material pavement = Material_("CityPavement");
+                Material structure = Material_("CityConcrete");
+                if (ground == null || pavement == null || structure == null)
+                {
+                    Debug.LogError("CityX: materials missing -- run CityX/Rebuild Massing Scene first.");
+                    return;
+                }
+
+                var sunObject = new GameObject("CaptureSun");
+                sunObject.transform.SetParent(root.transform);
+                Light sun = sunObject.AddComponent<Light>();
+                sun.type = LightType.Directional;
+                sun.shadows = LightShadows.Soft;
+                var moonObject = new GameObject("CaptureMoon");
+                moonObject.transform.SetParent(root.transform);
+                Light moon = moonObject.AddComponent<Light>();
+                moon.type = LightType.Directional;
+                moon.shadows = LightShadows.Soft;
+
+                var cycleObject = new GameObject("CaptureCycle");
+                cycleObject.transform.SetParent(root.transform);
+                DayNightCycle cycle = cycleObject.AddComponent<DayNightCycle>();
+                cycle.Sun = sun;
+                cycle.Moon = moon;
+                cycle.Running = false;
+                // NIGHT, not the default daytime start -- the report's own screenshot was a dim interior at
+                // night, and a translucent decal's own faint edges read very differently against a bright sky
+                // than against the dark, low-contrast lighting the bug was actually seen under.
+                cycle.TimeOfDay = SkyCycle.DaySeconds + SkyCycle.NightSeconds * 0.5f;
+
+                var streamerObject = new GameObject("CaptureStreamer");
+                streamerObject.transform.SetParent(root.transform);
+                CityStreamer streamer = streamerObject.AddComponent<CityStreamer>();
+                streamer.WorldSeed = WorldSeed;
+                streamer.GroundMaterial = ground;
+                streamer.PavementMaterial = pavement;
+                streamer.StructureMaterial = structure;
+                Dress(streamer);
+                streamer.CrackDecalMaterial = Material_("BulletHoleDecal");
+                streamer.Rebuild();
+
+                var cameraObject = new GameObject("CaptureCamera");
+                cameraObject.transform.SetParent(root.transform);
+                Camera camera = cameraObject.AddComponent<Camera>();
+                camera.farClipPlane = 600.0f;
+                camera.nearClipPlane = 0.05f;
+                camera.fieldOfView = 50.0f;
+                if (!AttachEnvironment(root, camera, cycle))
+                {
+                    return;
+                }
+                cycle.Apply(SkyCycle.At(cycle.TimeOfDay));
+
+                var world = new CityWorld(WorldSeed);
+                for (int x = -8; x <= 8; x++)
+                {
+                    for (int y = -8; y <= 8; y++)
+                    {
+                        BuildingSite site = world.BuildingAt(x, y);
+                        if (!site.Exists || site.AnchorX != x || site.AnchorY != y || site.Params.Width < 8.0f)
+                        {
+                            continue;
+                        }
+                        WindowPlan plan = WindowPlan.For(world, site);
+                        CellLayout rows = WindowGrid.RowsFor(site.Params.Height);
+                        CellLayout columns = plan.ColumnsFor(site.Params.Width);
+                        int row = 1;
+                        for (int column = 1; column < columns.Count - 1; column++)
+                        {
+                            if (!plan.IsGlazed(WindowGrid.Wall.North, column, row))
+                            {
+                                continue;
+                            }
+                            var centre = new Vector3(
+                                (float)site.MinX + (column + 0.5f) * columns.Size,
+                                site.BaseHeight + (row + 0.5f) * rows.Size,
+                                (float)site.MaxZ);
+                            if (!GlassDamage.TryPaneAt(world, site, centre + Vector3.forward * 0.02f, out PaneKey key))
+                            {
+                                continue;
+                            }
+
+                            Vector3 standing = centre + Vector3.forward * 2.4f;
+                            // The damage goes in BEFORE the chunk is built: this rig runs in the editor, where the
+                            // streamer is not listening for damage changes (OnEnable does not run) and so would
+                            // never rebuild a chunk that was already there.
+                            streamer.Damage.Shoot(key, new Vector2(0.3f, 0.65f), out _);
+                            streamer.Damage.Shoot(key, new Vector2(0.62f, 0.4f), out _);
+                            streamer.Damage.Shoot(key, new Vector2(0.5f, 0.75f), out _);
+                            streamer.RadiusChunks = 2;
+                            streamer.StreamAround(standing, int.MaxValue);
+
+                            Shoot(streamer, camera, outputDirectory, "bullet-holes", standing, new Vector3(0.0f, 180.0f, 0.0f), 2);
+                            Shoot(streamer, camera, outputDirectory, "bullet-holes-close",
+                                centre + Vector3.forward * 1.0f, new Vector3(0.0f, 180.0f, 0.0f), 2);
+
+                            // HOW MUCH OF THE DECAL'S QUAD DIFFERS FROM PLAIN GLASS? The same view with and
+                            // without the decal material -- its transparent surround must leave the glass exactly
+                            // as it was, so only the crack lines (a small share of the quad) may differ; a
+                            // material that adds anything to transparent pixels lights the whole square.
+                            Vector3 sideView = centre + new Vector3(2.4f, -0.1f, 0.9f);
+                            Vector3 angledEuler = Quaternion.LookRotation((centre - sideView).normalized, Vector3.up).eulerAngles;
+                            void RebuildAround(Vector3 at)
+                            {
+                                streamer.RadiusChunks = 2;
+                                streamer.Rebuild();
+                                streamer.StreamAround(at, int.MaxValue);
+                            }
+                            void ReshootAllHoles()
+                            {
+                                streamer.Damage.Shoot(key, new Vector2(0.3f, 0.65f), out _);
+                                streamer.Damage.Shoot(key, new Vector2(0.62f, 0.4f), out _);
+                                streamer.Damage.Shoot(key, new Vector2(0.5f, 0.75f), out _);
+                            }
+                            foreach ((string label, Vector3 at, Vector3 euler) in new[]
+                                     {
+                                         ("head-on", centre + Vector3.forward * 1.0f, new Vector3(0.0f, 180.0f, 0.0f)),
+                                         ("angled", sideView, angledEuler),
+                                     })
+                            {
+                                Material decalMaterial = streamer.CrackDecalMaterial;
+                                Texture2D withDecal = Render(streamer, camera, at, euler);
+
+                                streamer.CrackDecalMaterial = null;
+                                RebuildAround(at);
+                                ReshootAllHoles();
+                                Texture2D withoutDecal = Render(streamer, camera, at, euler);
+                                streamer.CrackDecalMaterial = decalMaterial;
+                                RebuildAround(at);
+                                ReshootAllHoles();
+
+                                DiffCoverage(withDecal, withoutDecal, out float coverage, out float peak, out int boxW, out int boxH);
+                                Debug.Log($"CityX: decal coverage [{label}]: {coverage * 100.0f:0.0}% of its {boxW}x{boxH}px bounding box differs from plain glass, peak channel difference {peak:0}/255");
+                                Object.DestroyImmediate(withDecal);
+                                Object.DestroyImmediate(withoutDecal);
+                            }
+
+                            // The angled view above, also saved as a file to actually look at (the current
+                            // decal material is back in force after the loop's last iteration restored it).
+                            RebuildAround(sideView);
+                            ReshootAllHoles();
+                            Shoot(streamer, camera, outputDirectory, "bullet-holes-angled", sideView, angledEuler, 2);
+                            Debug.Log($"CityX: bullet hole shots written for pane {key}");
+                            return;
+                        }
+                    }
+                }
+                Debug.LogError("CityX: found no window to shoot at.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        /// <summary>
         /// Every material a chunk wears beyond the three the capture already
         /// loads by hand.
         ///
@@ -1332,6 +1505,76 @@ namespace CityX.ViewEditor
             }
 
             Debug.Log($"CityX: {name} -- {streamer.LoadedChunkCount} chunks loaded");
+        }
+
+        /// <summary>Renders one frame to an in-memory RGB24 texture, for a pixel comparison rather than a saved file. Caller destroys it.</summary>
+        private static Texture2D Render(CityStreamer streamer, Camera camera, Vector3 position, Vector3 euler)
+        {
+            camera.transform.position = position;
+            camera.transform.rotation = Quaternion.Euler(euler);
+
+            RenderTexture target = RenderTexture.GetTemporary(
+                Width, Height, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default, PC_MsaaSamples);
+            RenderTexture previous = RenderTexture.active;
+            try
+            {
+                camera.targetTexture = target;
+                camera.Render();
+                RenderTexture.active = target;
+                var image = new Texture2D(Width, Height, TextureFormat.RGB24, false);
+                image.ReadPixels(new Rect(0, 0, Width, Height), 0, 0);
+                image.Apply();
+                return image;
+            }
+            finally
+            {
+                camera.targetTexture = null;
+                RenderTexture.active = previous;
+                RenderTexture.ReleaseTemporary(target);
+            }
+        }
+
+        /// <summary>
+        /// How much of the smallest box containing every changed pixel actually differs between two equally
+        /// sized renders -- built for comparing a pane rendered with and without its crack decal, to tell a
+        /// hole's OWN handful of crack pixels apart from a stray rectangle the decal's texture leaves lit.
+        /// </summary>
+        private static void DiffCoverage(Texture2D a, Texture2D b, out float coverage, out float peakChannelDiff, out int boxWidth, out int boxHeight)
+        {
+            Color32[] pa = a.GetPixels32();
+            Color32[] pb = b.GetPixels32();
+            int minX = a.width, minY = a.height, maxX = -1, maxY = -1;
+            int changed = 0;
+            peakChannelDiff = 0.0f;
+            const int Threshold = 6;   // ignores ordinary anti-aliasing/dithering noise between two otherwise-identical renders
+            for (int y = 0; y < a.height; y++)
+            {
+                for (int x = 0; x < a.width; x++)
+                {
+                    Color32 ca = pa[y * a.width + x];
+                    Color32 cb = pb[y * a.width + x];
+                    int dr = Mathf.Abs(ca.r - cb.r), dg = Mathf.Abs(ca.g - cb.g), db = Mathf.Abs(ca.b - cb.b);
+                    int d = Mathf.Max(dr, Mathf.Max(dg, db));
+                    peakChannelDiff = Mathf.Max(peakChannelDiff, d);
+                    if (d <= Threshold)
+                    {
+                        continue;
+                    }
+                    changed++;
+                    minX = Mathf.Min(minX, x); maxX = Mathf.Max(maxX, x);
+                    minY = Mathf.Min(minY, y); maxY = Mathf.Max(maxY, y);
+                }
+            }
+            if (maxX < minX)
+            {
+                coverage = 0.0f;
+                boxWidth = 0;
+                boxHeight = 0;
+                return;
+            }
+            boxWidth = maxX - minX + 1;
+            boxHeight = maxY - minY + 1;
+            coverage = changed / (float)(boxWidth * boxHeight);
         }
     }
 }

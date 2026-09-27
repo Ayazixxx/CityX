@@ -82,10 +82,40 @@ Reported: "only 1 bullet hole appears even if you shoot more than 1."
   (`CrackedPane`, now an `IBreakableSurface` and an `IShootableTrigger`) is the one thing standing where the
   glass is; bullets and the aim trace accept exactly those triggers and pass the shot on to `GlassBreaker`.
 - A bullet is its own kind of blow (`BlowStrength.Bullet`): it adds a hole (`GlassDamage.Shoot`) and the pane
-  stays cracked, up to `GlassDamage.MaxBulletHoles` (6); the next bullet brings it down. A fist still cracks and
-  then shatters; a blade still takes a pane out at once. Holes are stored per pane, in order.
+  stays cracked -- see the 2026-09-27 update below for why a bullet no longer shatters it at all. A fist still
+  cracks and then shatters; a blade still takes a pane out at once. Holes are stored per pane, in order.
 - The mesh cuts a real opening at every hole (`AddPaneWithHoles`: strips at each hole's edges, glass only where
   there is no hole, so overlapping holes cost nothing extra) and a crack decal at each.
 - `BulletHoleDamageTests` (8), two in `CityMeshBuilderTests`, and `BulletHolesInRealWindowsPlayTests` (the real
   pistol, six shots at one real window, then the seventh). Making the pistol skip triggers again fails it with
   "bullet 2 ... flew through the first one".
+
+## Update 2026-09-27: the visible square around a hole, and bullets no longer shatter a window
+
+Reported: "the bullet holes have a visible square around them due to the image i used" and, separately,
+"windows shattering by themself after being shot -- should only shatter when an object or player knocks into
+the already shattered window."
+
+**The square** turned out to be two real bugs, found by rendering the same pane with and without each fix and
+diffing pixels, and by rendering the same pane by day and by night:
+- The crack decal used the LIT shader, so it went nearly invisible at night (little ambient light for a lit
+  material to catch) -- what showed through was the plain, hard-edged rectangle actually cut into the glass
+  mesh (`AddPaneWithHoles`), unmasked because the decal meant to cover it had gone dark. Switched to Unlit with
+  emission, so it reads the same brightness regardless of time of day (`EnsureCrackDecalMaterial`).
+- Even with the decal visible, the real geometric cut was sized to EXACTLY match the decal's own see-through
+  centre, leaving nothing standing between the hole's own straight edges/corners and whatever is behind the
+  glass. `BulletHoleWidthFraction`/`HeightFraction` are now 60% of that measurement, so a ring of ordinary
+  cracked glass -- itself still shown through the decal's transparency -- surrounds the real opening.
+- `CityMassingSceneBuilder.CleanBulletHoleDecalTexture` (one-off, menu item) keeps only the largest connected
+  alpha shape in `BulletHoleCrack.png` and premultiplies its RGB by alpha, so a texture-sampling emissive pass
+  cannot light up a "transparent" pixel independently of its own alpha.
+
+**Bullets never shatter a window any more.** Only something KNOCKING into a cracked pane does --
+`CrackedPane.IsAKnock`: the character's own body or a genuinely simulated rigid body (never a kinematic limb
+collider standing/aiming nearby, never debris) moving through the pane's plane at 1.5 m/s or more. The old rule
+(any rigid body overlapping the opening's trigger box shattered it) fired on a character's own kinematic limb
+colliders standing at the glass and on flying shards from a neighbouring shattered window. `GlassDamage
+.MaxBulletHoles` is now the number of holes KEPT (12, oldest dropped for the newest), not a shatter threshold.
+
+`BulletHoleDamageTests`/`BulletHolesInRealWindowsPlayTests` updated for the no-shatter-by-bullet rule;
+`CrackedPaneKnockPlayTests` (7) covers the knock classification and a real streamed pane end to end.

@@ -4436,17 +4436,21 @@ namespace CityX.View
         private const float BulletHoleDecalOffset = 0.003f;
 
         /// <summary>
-        /// The REAL geometric opening at the decal's own centre, sized as a
-        /// fraction of the decal itself rather than a separate guessed
-        /// number -- measured directly off BulletHoleCrack.png's own
-        /// transparent centre (a contiguous alpha=0 run 149px wide by 141px
-        /// tall in a 1024x856 image), so the actual see/shoot-through hole
-        /// lines up with where the texture already looks punched through
-        /// instead of leaving a visible ring of "solid" glass inside the
-        /// image's own see-through centre, or a hole poking out past it.
+        /// The REAL geometric opening at the decal's own centre, sized as a fraction of the decal itself.
+        ///
+        /// DELIBERATELY SMALLER THAN THE TEXTURE'S OWN TRANSPARENT CENTRE (a measured alpha=0 run 149px wide by
+        /// 141px tall in a 1024x856 image; this is 60% of it) -- EXPLICIT BUG REPORT: "the bullet holes have a
+        /// visible square around them due to the image i used." Sizing the real cut to match the transparent
+        /// run EXACTLY left nothing standing between the hard-edged rectangular hole and whatever is really
+        /// behind the glass (the building interior, at night far darker or far flatter than the frosted glass
+        /// around it) -- there was no margin left for the decal's own dense crack shards, which start growing
+        /// in only a little further out, to actually cover the cut's own straight edges and corners. Shrinking
+        /// the real hole leaves a ring of ordinary frosted (Cracked) glass between the cut and the decal's own
+        /// transparent centre -- itself still shown through the decal's transparency, so nothing new is hidden,
+        /// but now it is glass being shown, not whatever is on the other side of it.
         /// </summary>
-        private const float BulletHoleWidthFraction = 149.0f / 1024.0f;
-        private const float BulletHoleHeightFraction = 141.0f / 856.0f;
+        private const float BulletHoleWidthFraction = 149.0f / 1024.0f * 0.6f;
+        private const float BulletHoleHeightFraction = 141.0f / 856.0f * 0.6f;
         private const float BulletHoleHalfWidth = BulletHoleDecalWidth * BulletHoleWidthFraction * 0.5f;
         private const float BulletHoleHalfHeight = BulletHoleDecalHeight * BulletHoleHeightFraction * 0.5f;
 
