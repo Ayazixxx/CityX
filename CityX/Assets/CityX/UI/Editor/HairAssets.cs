@@ -16,6 +16,8 @@ namespace CityX.UIEditor
         public const string Folder = "Assets/CityX/Character/Hair";
         public const string Hair1Source = Folder + "/Hair1.glb";
         public const string Hair1Baked = Folder + "/Hair1Mesh.asset";
+        public const string DannySource = Folder + "/Danny.glb";
+        public const string DannyBaked = Folder + "/DannyMesh.asset";
 
         /// <summary>Where the saved hand-tuned fits live: a Resources folder, so every head reads them with nothing wired.</summary>
         public const string FitSettingsPath = HairFitSettings.AssetPath;
@@ -95,6 +97,7 @@ namespace CityX.UIEditor
             switch (style)
             {
                 case CharacterHair.Hair1: return Hair1();
+                case CharacterHair.Danny: return Danny();
                 default:
                     Debug.LogWarning($"CityX: no model is wired for the hairstyle \"{style}\" -- add it to HairAssets.MeshFor.");
                     return null;
@@ -103,6 +106,14 @@ namespace CityX.UIEditor
 
         /// <summary>Hair1's mesh, baked (see <see cref="BakedFromModel"/>).</summary>
         public static Mesh Hair1() => BakedFromModel(Hair1Source, Hair1Baked, "Hair1Mesh");
+
+        /// <summary>
+        /// Danny's mesh, baked (see <see cref="BakedFromModel"/>). Same single-mesh-under-one-node shape as
+        /// Hair1 (Blender's own glTF exporter, one node carrying a scale and a lift), but a much denser mesh --
+        /// 37,478 vertices and 73,675 triangles against Hair1's ~800, worth knowing before this style shows up
+        /// on every head in a crowd (see the standing "keep asset size small" practice).
+        /// </summary>
+        public static Mesh Danny() => BakedFromModel(DannySource, DannyBaked, "DannyMesh");
 
         /// <summary>
         /// A hair model's mesh, with the glTF node's own transform BAKED into it.

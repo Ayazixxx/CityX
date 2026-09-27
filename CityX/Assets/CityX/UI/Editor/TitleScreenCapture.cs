@@ -80,19 +80,64 @@ namespace CityX.UIEditor
             CaptureHair1();
         }
 
+        /// <summary>Close-ups of the head wearing Danny: front, side and back.</summary>
+        [MenuItem("CityX/Capture Danny Hair")]
+        public static void CaptureDanny()
+        {
+            ShootHairViews("hair-danny-", Character.CharacterHair.Danny);
+        }
+
+        /// <summary>Rebuilds the title scene, then photographs Danny -- one editor start for change, rebuild, look.</summary>
+        public static void RebuildAndCaptureDanny()
+        {
+            TitleScreenBuilder.Build();
+            CaptureDanny();
+        }
+
+        /// <summary>DIAGNOSTIC: a wide, pulled-back look at the whole Danny hair mesh's own extent, not just a tight head close-up.</summary>
+        public static void CaptureDannyWide()
+        {
+            string outputDirectory = Path.Combine(Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
+            Directory.CreateDirectory(outputDirectory);
+            Shoot("hair-danny-wide-front", TitleScreen.Panel.Creator, seedCharacters: false,
+                hairStyle: Character.CharacterHair.Danny, headView: "wide-front");
+            Shoot("hair-danny-wide-side", TitleScreen.Panel.Creator, seedCharacters: false,
+                hairStyle: Character.CharacterHair.Danny, headView: "wide-side");
+        }
+
         private static void PositionForHead(Camera camera, Character.CharacterHair hair, string view)
         {
             if (hair == null || hair.Head == null)
             {
                 return;
             }
+            // DIAGNOSTIC "wide-*" views: pulled well back with a wide FOV, aimed at the WORN HAIR OBJECT'S OWN
+            // bounds centre (not the head), so a style whose real extent reaches far past the head -- long hair,
+            // or a model with an unexpected shape -- is still framed in full rather than clipped by a close-up
+            // meant for a compact style.
+            bool wide = view != null && view.StartsWith("wide-");
+            string plainView = wide ? view.Substring("wide-".Length) : view;
+
             Vector3 head = hair.Head.position;
             Vector3 forward = hair.transform.forward;
             Vector3 right = hair.transform.right;
-            Vector3 from = view == "front" ? forward : view == "side" ? right : -forward;
-            camera.transform.position = head + from * 1.7f + Vector3.up * 0.15f;
-            camera.transform.rotation = Quaternion.LookRotation(head - camera.transform.position, Vector3.up);
-            camera.fieldOfView = 38.0f;
+            Vector3 from = plainView == "front" ? forward : plainView == "side" ? right : -forward;
+
+            Vector3 focus = head;
+            float distance = 1.7f;
+            if (wide && hair.Worn != null)
+            {
+                Renderer wornRenderer = hair.Worn.GetComponent<Renderer>();
+                if (wornRenderer != null)
+                {
+                    focus = wornRenderer.bounds.center;
+                    distance = Mathf.Max(wornRenderer.bounds.extents.magnitude * 2.5f, 1.7f);
+                }
+            }
+
+            camera.transform.position = focus + from * distance + Vector3.up * (wide ? 0.0f : 0.15f);
+            camera.transform.rotation = Quaternion.LookRotation(focus - camera.transform.position, Vector3.up);
+            camera.fieldOfView = wide ? 60.0f : 38.0f;
         }
 
         [MenuItem("CityX/Capture Settings Screenshot")]

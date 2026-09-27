@@ -30,6 +30,7 @@ namespace CityX.Character
     {
         public const string None = "none";
         public const string Hair1 = "hair1";
+        public const string Danny = "danny";
 
         /// <summary>
         /// Every style there is, "none" first. The creator's buttons, the mesh list and the
@@ -40,7 +41,7 @@ namespace CityX.Character
         /// safe: <see cref="SetStyle"/> ignores a name that is not here, and a head starts out
         /// bald, so such a character is simply bald until they pick again.
         /// </summary>
-        public static readonly string[] ValidStyles = { None, Hair1 };
+        public static readonly string[] ValidStyles = { None, Hair1, Danny };
 
         /// <summary>The short name a button or a console line uses for a style.</summary>
         public static string LabelFor(string style)
@@ -49,6 +50,7 @@ namespace CityX.Character
             {
                 case None: return "BALD";
                 case Hair1: return "BOB";
+                case Danny: return "DAN";
                 default: return (style ?? string.Empty).ToUpperInvariant();
             }
         }

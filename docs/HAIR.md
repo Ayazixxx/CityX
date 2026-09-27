@@ -2,7 +2,9 @@
 
 ## What there is now
 
-- **Styles** (`CharacterHair.ValidStyles`): `none` and `hair1` (the bob cut). The
+- **Styles** (`CharacterHair.ValidStyles`): `none`, `hair1` (the bob cut) and
+  `danny` (added 2026-09-27 from a user-supplied `Danny.glb` -- SEE ITS OWN
+  WARNING BELOW: the model does not actually look like hair). The
   earlier `embermane` and `animehair0` were removed as outdated (2026-09-26),
   models and all. A character saved wearing either still carries the name;
   `SetStyle` ignores a name that is not in the list, so they load **bald** until
@@ -73,6 +75,30 @@ measured on the raw vertices lands the hair the wrong size and floating. Delete
 It covers the whole head: a straight fringe across the forehead, the sides down
 past the ears, and the back to the nape. It faces +Z (fringe to the front), so its
 yaw is 0, and the automatic fit sits it well without hand tuning.
+
+## Danny: wired in, waiting on a corrected export
+
+`Danny.glb` (2026-09-27) imports and bakes cleanly -- same single-mesh-under-one-node
+shape as Hair1, no textures, one material -- and is fully wired (`CharacterHair.Danny`,
+label "DAN", its own button, `HairAssets.Danny()`), so it is mechanically a real
+hairstyle option today. But **rendered on a real head the current file is not a full
+hairstyle**: a couple of small gold spike shapes sit near the ears and the top of the
+scalp is bald -- see `Logs/CityShots/hair-danny-*.png` (close-ups) and
+`hair-danny-wide-*.png` (the whole worn object, pulled back).
+
+Diagnosed with the user directly (their own Blender outliner screenshot): their scene
+has TWO mesh objects for this style (`Mesh_0.001` and `Mesh_0.002`), and only one of
+them made it into `Danny.glb` -- whatever export step was used dropped the second
+piece. Separately, the exported mesh (37,478 vertices) is roughly 25x denser than
+Blender's own reported 2,899 faces, almost certainly because a Subdivision Surface
+modifier's RENDER level is set higher than its VIEWPORT level (the status bar shows
+viewport; glTF export bakes using render). Told the user to select both mesh objects
+(Limit to: Selected Objects) and match the two subdivision levels before re-exporting.
+
+**When the corrected file arrives:** replace `Assets/CityX/Character/Hair/Danny.glb`,
+delete `DannyMesh.asset` to force a re-bake, rebuild the Title scene, and look again
+before trusting the automatic fit -- a style this dense is also worth weighing against
+the "keep asset size small" standing practice once its real shape is confirmed.
 
 ## Adding another style
 
