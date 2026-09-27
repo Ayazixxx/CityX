@@ -60,7 +60,7 @@ namespace CityX.ViewEditor
             pavement = new MeshBuffer();
             var guardRail = new MeshBuffer();
             var origin = new Vector3((float)(cx * (double)size), 0.0f, (float)(cy * (double)size));
-            _buildGround.Invoke(null, new object[] { world, cx, cy, origin, ground, pavement, guardRail });
+            _buildGround.Invoke(null, new object[] { world, cx, cy, origin, ground, pavement, guardRail, false });
         }
 
         /// <summary>

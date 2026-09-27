@@ -84,7 +84,8 @@ namespace CityX.View
             {
                 if (int.TryParse(Arg("-bench-radius"), out int radius)) { streamer.RadiusChunks = radius; text.Append($" radius={radius}"); }
                 if (int.TryParse(Arg("-bench-threads"), out int threads)) { streamer.GeneratorThreads = threads; text.Append($" threads={threads}"); }
-                text.Append($" [streamer radius {streamer.RadiusChunks}, generator threads {streamer.GeneratorThreads}]");
+                if (int.TryParse(Arg("-bench-fullradius"), out int fullRadius)) { streamer.FullDetailRadiusChunks = fullRadius; text.Append($" fullRadius={fullRadius}"); }
+                text.Append($" [streamer radius {streamer.RadiusChunks}, full detail radius {streamer.FullDetailRadiusChunks}, generator threads {streamer.GeneratorThreads}]");
             }
             return text.Length == 0 ? " none" : text.ToString();
         }
@@ -115,6 +116,16 @@ namespace CityX.View
             var reader = locomotion.GetComponent<PlayerInputReader>();
             if (reader != null) reader.enabled = false;   // nobody is at the keyboard: drive the player
 
+            // This build holds the city scene alone, with no network manager, so the animator sync would throw
+            // an exception every frame (thousands in the log). Not part of the game as played: switch it off.
+            foreach (MonoBehaviour behaviour in FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None))
+            {
+                if (behaviour.GetType().Name == "NetworkedAnimatorSync")
+                {
+                    behaviour.enabled = false;
+                }
+            }
+
             // Let the first ring of the city stream in before timing anything.
             float settle = 0.0f;
             while (settle < 6.0f)
@@ -127,10 +138,12 @@ namespace CityX.View
             var standing = new Phase { Name = "STANDING STILL" };
             yield return Measure(locomotion, standing, float.TryParse(Arg("-bench-standing"), out float standingSeconds) ? standingSeconds : 10.0f, run: false);
             Report(sb, standing);
+            Census(sb, "(standing)");
 
             var running = new Phase { Name = "SPRINTING DOWN THE STREETS (the city streams in around the player)" };
             yield return Measure(locomotion, running, float.TryParse(Arg("-bench-running"), out float runningSeconds) ? runningSeconds : 30.0f, run: true);
             Report(sb, running);
+            Census(sb, "(after sprinting)");
 
             Finish(sb);
         }
@@ -196,6 +209,59 @@ namespace CityX.View
                 int t = phase.TimingSamples;
                 sb.AppendLine($"Frame timing (ms): GPU {phase.Gpu / t:0.0}, CPU main thread {phase.CpuMain / t:0.0}, CPU render thread {phase.CpuRender / t:0.0}");
             }
+        }
+
+        /// <summary>
+        /// What the renderer is being asked to draw: every active mesh renderer in the scene and the ones inside
+        /// the camera's frustum, with their triangles and submesh draws. Frame time that follows the amount of
+        /// geometry rather than the resolution says where to cut.
+        /// </summary>
+        private static void Census(StringBuilder sb, string label)
+        {
+            Camera camera = Camera.main;
+            Plane[] planes = camera != null ? GeometryUtility.CalculateFrustumPlanes(camera) : null;
+            int renderers = 0, visibleRenderers = 0, draws = 0, visibleDraws = 0, transparentDraws = 0;
+            long triangles = 0, visibleTriangles = 0, vertices = 0, visibleVertices = 0;
+            var shadowCasters = 0;
+            int emptyDraws = 0;
+            foreach (MeshRenderer renderer in FindObjectsByType<MeshRenderer>(FindObjectsSortMode.None))
+            {
+                if (!renderer.enabled || !renderer.gameObject.activeInHierarchy) continue;
+                var filter = renderer.GetComponent<MeshFilter>();
+                Mesh mesh = filter != null ? filter.sharedMesh : null;
+                if (mesh == null) continue;
+
+                long tris = 0;
+                int submeshes = Mathf.Min(mesh.subMeshCount, renderer.sharedMaterials.Length);
+                int nonEmpty = 0;
+                for (int s = 0; s < submeshes; s++)
+                {
+                    long count = mesh.GetIndexCount(s);
+                    tris += count / 3;
+                    if (count > 0) nonEmpty++;
+                }
+                emptyDraws += submeshes - nonEmpty;
+                bool visible = planes == null || GeometryUtility.TestPlanesAABB(planes, renderer.bounds);
+
+                renderers++;
+                draws += submeshes;
+                triangles += tris;
+                vertices += mesh.vertexCount;
+                if (renderer.shadowCastingMode != UnityEngine.Rendering.ShadowCastingMode.Off) shadowCasters++;
+                if (visible)
+                {
+                    visibleRenderers++;
+                    visibleDraws += submeshes;
+                    visibleTriangles += tris;
+                    visibleVertices += mesh.vertexCount;
+                }
+                foreach (Material material in renderer.sharedMaterials)
+                {
+                    if (visible && material != null && material.renderQueue >= 3000) transparentDraws++;
+                }
+            }
+            sb.AppendLine($"Census {label}: {emptyDraws} empty submesh draws; {renderers} mesh renderers ({shadowCasters} cast shadows), {draws} submesh draws, {triangles / 1000}k triangles, {vertices / 1000}k vertices");
+            sb.AppendLine($"  in the camera frustum: {visibleRenderers} renderers, {visibleDraws} draws ({transparentDraws} transparent), {visibleTriangles / 1000}k triangles, {visibleVertices / 1000}k vertices");
         }
 
         private static void Finish(StringBuilder sb)

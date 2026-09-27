@@ -264,7 +264,10 @@ namespace CityX.Tests
             controller.enabled = true;
             Physics.SyncTransforms();
 
-            for (int i = 0; i < 300 && !locomotion.IsGrounded; i++)
+            // SECONDS, NOT FRAMES. The body keeps the upward speed it had while flying, and falling back down
+            // takes simulated time; a batch run's frames are only a few milliseconds each (cheaper the lighter
+            // the city is to stream), so a fixed count of frames covered too little time to come back down.
+            for (float waited = 0.0f; waited < 20.0f && !locomotion.IsGrounded; waited += Time.deltaTime)
             {
                 yield return null;
             }

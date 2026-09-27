@@ -32,6 +32,14 @@ namespace CityX.View
         [Tooltip("Chunks of radius kept loaded around the viewer.")]
         public int RadiusChunks = 14;
 
+        [Tooltip("Chunks of radius around the viewer built in FULL detail (rooms, stairs, windows you can see through). " +
+                 "Beyond it a chunk is the far version: the building's outside only. 0 keeps every chunk full detail.")]
+        public int FullDetailRadiusChunks = 8;
+
+        [Tooltip("A full-detail chunk only goes back to the far version this many chunks beyond FullDetailRadiusChunks, " +
+                 "so walking along the edge does not rebuild the same chunks over and over.")]
+        public int DetailHysteresisChunks = 2;
+
         [Tooltip("Most chunks built in one frame. Low keeps the frame smooth; high fills in faster.")]
         public int ChunkBuildBudgetPerFrame = 6;
 
@@ -151,6 +159,40 @@ namespace CityX.View
         private CityWorld _world;
         private SkybridgeLayout _bridges;
         private readonly Dictionary<Vector2Int, GameObject> _loaded = new Dictionary<Vector2Int, GameObject>();
+
+        /// <summary>The loaded chunks that are the far version. Everything else in <see cref="_loaded"/> is full detail.</summary>
+        private readonly HashSet<Vector2Int> _far = new HashSet<Vector2Int>();
+
+        /// <summary>Whether a chunk is loaded as the far version. For tests and captures.</summary>
+        public bool IsChunkFar(Vector2Int key) => _far.Contains(key);
+
+        /// <summary>A chunk to build (or rebuild at another detail): where, and whether it is the far version.</summary>
+        private readonly struct ChunkRequest
+        {
+            public readonly Vector2Int Key;
+            public readonly bool Far;
+
+            public ChunkRequest(Vector2Int key, bool far)
+            {
+                Key = key;
+                Far = far;
+            }
+        }
+
+        /// <summary>
+        /// Whether a chunk this far (in chunks, either axis) from the viewer should be the far version.
+        /// A chunk already loaded full keeps it until it is DetailHysteresisChunks past the boundary.
+        /// </summary>
+        private bool WantsFar(int distance, bool loadedFar)
+        {
+            if (FullDetailRadiusChunks <= 0)
+            {
+                return false;
+            }
+            int limit = loadedFar ? FullDetailRadiusChunks : FullDetailRadiusChunks + Mathf.Max(0, DetailHysteresisChunks);
+            return distance > limit;
+        }
+
         /// <summary>
         /// Everything generated for ONE chunk, before any scene object exists: each mesh buffer, the openings, and
         /// the main mesh already combined into flat arrays. Made on a worker thread and read on the main thread,
@@ -160,6 +202,8 @@ namespace CityX.View
         {
             public Vector2Int Key;
             public int Generation;
+            /// <summary>The distant version of the chunk (see CityMeshBuilder.BuildChunk's far parameter).</summary>
+            public bool Far;
             public readonly MeshBuffer Ground = new MeshBuffer();
             public readonly MeshBuffer Pavement = new MeshBuffer();
             public readonly MeshBuffer Structures = new MeshBuffer();
@@ -208,6 +252,7 @@ namespace CityX.View
         private bool _wantedStale = true;
         private readonly HashSet<Vector2Int> _openDoors = new HashSet<Vector2Int>();
         private readonly List<Vector2Int> _wanted = new List<Vector2Int>();
+        private readonly List<ChunkRequest> _requests = new List<ChunkRequest>();
         private readonly List<Vector2Int> _stale = new List<Vector2Int>();
         private readonly ExploredChunks _explored = new ExploredChunks();
 
@@ -257,6 +302,7 @@ namespace CityX.View
                 DestroyChunk(pair.Value);
             }
             _loaded.Clear();
+            _far.Clear();
             // A different seed makes the old explored coordinates meaningless.
             _explored.Clear();
 
@@ -310,8 +356,12 @@ namespace CityX.View
                 }
                 return;
             }
+            if (_inFlight.Contains(chunk))
+            {
+                _changedInFlight.Add(chunk);   // a worker is regenerating it: that result may predate this change
+            }
             DestroyChunk(existing);
-            _loaded[chunk] = BuildChunkObject(chunk);
+            _loaded[chunk] = BuildChunkObject(chunk, _far.Contains(chunk));
         }
 
         private void Update()
@@ -375,55 +425,67 @@ namespace CityX.View
                 {
                     DestroyChunk(_loaded[stale]);
                     _loaded.Remove(stale);
+                    _far.Remove(stale);
                 }
 
                 // Nearest first, so walking forward fills in ahead of you rather than in a corner you cannot see.
-                _wanted.Clear();
+                // A chunk already loaded is asked for again only if it is at the wrong detail for how far away it now is.
+                _requests.Clear();
                 for (int dx = -RadiusChunks; dx <= RadiusChunks; dx++)
                 {
                     for (int dy = -RadiusChunks; dy <= RadiusChunks; dy++)
                     {
                         var key = new Vector2Int(centreX + dx, centreY + dy);
-                        if (!_loaded.ContainsKey(key))
+                        int distance = Mathf.Max(Mathf.Abs(dx), Mathf.Abs(dy));
+                        bool loaded = _loaded.ContainsKey(key);
+                        bool loadedFar = _far.Contains(key);
+                        bool wantFar = WantsFar(distance, !loaded || loadedFar);
+                        if (!loaded || loadedFar != wantFar)
                         {
-                            _wanted.Add(key);
+                            _requests.Add(new ChunkRequest(key, wantFar));
                         }
                     }
                 }
-                _wanted.Sort((a, b) =>
+                _requests.Sort((a, b) =>
                 {
-                    int da = (a.x - centreX) * (a.x - centreX) + (a.y - centreY) * (a.y - centreY);
-                    int db = (b.x - centreX) * (b.x - centreX) + (b.y - centreY) * (b.y - centreY);
+                    int da = (a.Key.x - centreX) * (a.Key.x - centreX) + (a.Key.y - centreY) * (a.Key.y - centreY);
+                    int db = (b.Key.x - centreX) * (b.Key.x - centreX) + (b.Key.y - centreY) * (b.Key.y - centreY);
                     return da.CompareTo(db);
                 });
             }
 
-            // Start generating the nearest chunks that are neither built nor already being built.
+            // Start generating the nearest chunks that are neither built (at the right detail) nor already being built.
             int maxInFlight = Mathf.Max(1, MaxChunksInFlight);
             bool grewInFlight = false;
-            for (int i = 0; i < _wanted.Count && _inFlight.Count < maxInFlight; i++)
+            for (int i = 0; i < _requests.Count && _inFlight.Count < maxInFlight; i++)
             {
-                Vector2Int key = _wanted[i];
-                if (_loaded.ContainsKey(key) || _inFlight.Contains(key))
+                ChunkRequest request = _requests[i];
+                if (_inFlight.Contains(request.Key) || IsBuiltAt(request))
                 {
                     continue;
                 }
-                _inFlight.Add(key);
-                QueueGeneration(key);
+                _inFlight.Add(request.Key);
+                QueueGeneration(request.Key, request.Far);
                 grewInFlight = true;
             }
 
             if (grewInFlight)
             {
                 // Some of the front of the list are now in flight or built: drop them so the next frame's scan is short.
-                _wanted.RemoveAll(k => _loaded.ContainsKey(k) || _inFlight.Contains(k));
+                _requests.RemoveAll(r => _inFlight.Contains(r.Key) || IsBuiltAt(r));
             }
         }
 
-        private void QueueGeneration(Vector2Int key)
+        /// <summary>Whether a request is already satisfied: the chunk is loaded at the detail asked for.</summary>
+        private bool IsBuiltAt(ChunkRequest request)
+        {
+            return _loaded.ContainsKey(request.Key) && _far.Contains(request.Key) == request.Far;
+        }
+
+        private void QueueGeneration(Vector2Int key, bool far)
         {
             // Read here, on the main thread: a UnityEngine.Object is not something to touch from a worker.
-            bool withGreenery = GrassMaterial != null && BarkMaterial != null;
+            bool withGreenery = GrassMaterial != null && BarkMaterial != null && !far;
             int generation = _generation;
             SemaphoreSlim workers = _workers;
             ThreadPool.QueueUserWorkItem(_ =>
@@ -431,7 +493,7 @@ namespace CityX.View
                 workers.Wait();
                 try
                 {
-                    ChunkPayload payload = GenerateChunk(key, withGreenery);
+                    ChunkPayload payload = GenerateChunk(key, withGreenery, far);
                     payload.Generation = generation;
                     _finished.Enqueue(payload);
                 }
@@ -439,7 +501,7 @@ namespace CityX.View
                 {
                     // A chunk that fails to generate must not silently leave a hole in the city forever.
                     Debug.LogException(exception);
-                    _finished.Enqueue(new ChunkPayload { Key = key, Generation = generation, Vertices = null });
+                    _finished.Enqueue(new ChunkPayload { Key = key, Generation = generation, Far = far, Vertices = null });
                 }
                 finally
                 {
@@ -471,7 +533,8 @@ namespace CityX.View
                 _wantedStale = true;
 
                 bool outOfRange = Mathf.Abs(payload.Key.x - centre.x) > RadiusChunks + 1 || Mathf.Abs(payload.Key.y - centre.y) > RadiusChunks + 1;
-                if (outOfRange || _loaded.ContainsKey(payload.Key))
+                bool alreadyThere = _loaded.ContainsKey(payload.Key) && _far.Contains(payload.Key) == payload.Far;
+                if (outOfRange || alreadyThere)
                 {
                     _changedInFlight.Remove(payload.Key);
                     continue;
@@ -481,9 +544,23 @@ namespace CityX.View
                 bool redo = payload.Vertices == null || _changedInFlight.Remove(payload.Key);
                 if (redo)
                 {
-                    payload = GenerateChunk(payload.Key, GrassMaterial != null && BarkMaterial != null);
+                    payload = GenerateChunk(payload.Key, GrassMaterial != null && BarkMaterial != null && !payload.Far, payload.Far);
+                }
+
+                // The same chunk at another detail replaces the one on screen.
+                if (_loaded.TryGetValue(payload.Key, out GameObject replaced))
+                {
+                    DestroyChunk(replaced);
                 }
                 _loaded[payload.Key] = AssembleChunk(payload);
+                if (payload.Far)
+                {
+                    _far.Add(payload.Key);
+                }
+                else
+                {
+                    _far.Remove(payload.Key);
+                }
 
                 if (clock.Elapsed.TotalMilliseconds >= AssembleTimeBudgetMs)
                 {
@@ -534,6 +611,7 @@ namespace CityX.View
             {
                 DestroyChunk(_loaded[key]);
                 _loaded.Remove(key);
+                _far.Remove(key);
             }
 
             // Build nearest-first, so walking forward fills in ahead of you
@@ -562,7 +640,9 @@ namespace CityX.View
                 : System.Diagnostics.Stopwatch.StartNew();
             for (int i = 0; i < _wanted.Count && i < budget; i++)
             {
-                _loaded[_wanted[i]] = BuildChunkObject(_wanted[i]);
+                Vector2Int wanted = _wanted[i];
+                int distance = Mathf.Max(Mathf.Abs(wanted.x - centreX), Mathf.Abs(wanted.y - centreY));
+                _loaded[wanted] = BuildChunkObject(wanted, WantsFar(distance, true));
                 if (clock != null && clock.Elapsed.TotalMilliseconds >= timeBudgetMs)
                 {
                     break;
@@ -574,18 +654,27 @@ namespace CityX.View
         public int LoadedChunkCount => _loaded.Count;
 
         /// <summary>The whole chunk, generated and made, on this thread (the spawn pre-stream, a window breaking, tests, captures).</summary>
-        private GameObject BuildChunkObject(Vector2Int key)
+        private GameObject BuildChunkObject(Vector2Int key, bool far = false)
         {
-            return AssembleChunk(GenerateChunk(key, GrassMaterial != null && BarkMaterial != null));
+            GameObject go = AssembleChunk(GenerateChunk(key, GrassMaterial != null && BarkMaterial != null && !far, far));
+            if (far)
+            {
+                _far.Add(key);
+            }
+            else
+            {
+                _far.Remove(key);
+            }
+            return go;
         }
 
         /// <summary>
         /// Generates one chunk's geometry: every mesh buffer, and the main mesh combined into flat arrays.
         /// Touches no scene object and no UnityEngine.Object, so it can run on any thread.
         /// </summary>
-        private ChunkPayload GenerateChunk(Vector2Int key, bool withGreenery)
+        private ChunkPayload GenerateChunk(Vector2Int key, bool withGreenery, bool far = false)
         {
-            var payload = new ChunkPayload { Key = key, Generation = _generation };
+            var payload = new ChunkPayload { Key = key, Generation = _generation, Far = far };
 
             // Chunks are built relative to their own corner and then placed, so
             // vertex coordinates stay small. Building in absolute world space
@@ -594,11 +683,16 @@ namespace CityX.View
             Vector3 origin = new Vector3(
                 key.x * CityLayout.ChunkSize, 0.0f, key.y * CityLayout.ChunkSize);
 
+            // The far version has no cracked glass, no decals and no markings; its guard-rail buffer is still handed
+            // in (elevated decks are only built when there is one) and simply never turned into an object.
             CityMeshBuilder.BuildChunk(_world, _bridges, key.x, key.y, origin,
-                payload.Ground, payload.Pavement, payload.Structures, payload.LitGlass, payload.DarkGlass, payload.CrackedGlass, Damage,
-                payload.CrackedOpenings, payload.Markings, payload.GuardRail, payload.LaneDividers, payload.CrackDecals,
+                payload.Ground, payload.Pavement, payload.Structures, payload.LitGlass, payload.DarkGlass,
+                far ? null : payload.CrackedGlass, Damage,
+                far ? null : payload.CrackedOpenings, far ? null : payload.Markings, payload.GuardRail,
+                far ? null : payload.LaneDividers, far ? null : payload.CrackDecals,
                 withGreenery ? payload.Greenery : null,
-                withGreenery ? payload.Bark : null);
+                withGreenery ? payload.Bark : null,
+                includeSurface: true, far: far);
 
             // Road, pavement and concrete want different materials, so they go
             // into one mesh as submeshes rather than separate objects. Same
@@ -653,10 +747,30 @@ namespace CityX.View
             mesh.SetVertices(payload.Vertices);
             mesh.SetNormals(payload.Normals);
             mesh.SetUVs(0, payload.Uvs);
-            mesh.subMeshCount = payload.SubmeshTriangles.Length;
+            // Only the submeshes that have something in them, each with its material. A street chunk has no walls
+            // or glass, and a draw call per empty submesh is exactly the per-draw cost that frame time followed.
+            Material[] materialFor = { GroundMaterial, PavementMaterial, StructureMaterial, DarkGlassMaterial, LitGlassMaterial };
+            int used = 0;
             for (int i = 0; i < payload.SubmeshTriangles.Length; i++)
             {
-                mesh.SetTriangles(payload.SubmeshTriangles[i], i);
+                if (payload.SubmeshTriangles[i].Length > 0)
+                {
+                    used++;
+                }
+            }
+            var usedMaterials = new Material[Mathf.Max(1, used)];
+            usedMaterials[0] = GroundMaterial;   // a chunk with nothing at all still has one (empty) submesh
+            mesh.subMeshCount = usedMaterials.Length;
+            int slot = 0;
+            for (int i = 0; i < payload.SubmeshTriangles.Length; i++)
+            {
+                if (payload.SubmeshTriangles[i].Length == 0)
+                {
+                    continue;
+                }
+                mesh.SetTriangles(payload.SubmeshTriangles[i], slot);
+                usedMaterials[slot] = materialFor[i];
+                slot++;
             }
             mesh.RecalculateTangents();
             mesh.RecalculateBounds();
@@ -665,17 +779,22 @@ namespace CityX.View
             filter.sharedMesh = mesh;
 
             MeshRenderer renderer = go.AddComponent<MeshRenderer>();
-            renderer.sharedMaterials = new[]
-            {
-                GroundMaterial, PavementMaterial, StructureMaterial,
-                DarkGlassMaterial, LitGlassMaterial,
-            };
+            renderer.sharedMaterials = usedMaterials;
 
             // The glass is in the collider along with everything else, which is
             // what makes an unbroken window something you walk into rather than
             // through.
             MeshCollider collider = go.AddComponent<MeshCollider>();
             collider.sharedMesh = mesh;
+
+            if (payload.Far)
+            {
+                // Just the outside of the chunk: the shell is the collider (a closed solid, so nobody flies
+                // through a building whose full version has not streamed in), and none of the small things
+                // that only matter up close.
+                _current = null;
+                return go;
+            }
 
             AddCrackedGlass(go, key);
             AddCrackDecals(go, key);

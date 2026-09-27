@@ -613,15 +613,22 @@ namespace CityX.View
             List<CrackedOpening> crackedOpenings = null, MeshBuffer markings = null,
             MeshBuffer guardRail = null, MeshBuffer laneDividers = null,
             MeshBuffer crackDecals = null, MeshBuffer greenery = null, MeshBuffer bark = null,
-            bool includeSurface = true)
+            bool includeSurface = true, bool far = false)
         {
             // includeSurface false builds the BUILDING alone -- no terrain, street,
             // sidewalk, markings or open-block surface. The title screen bakes a
             // row of real generated buildings that stand on a plane of its own.
+            //
+            // far builds the DISTANT version of the chunk: the same silhouette, ground and glass, but a building
+            // that is only its shell (see BuildBuildingShell) and none of the small street furniture. About half
+            // of a downtown chunk's triangles are rooms and stairs nobody can see from a few chunks away.
             if (includeSurface)
             {
-                BuildGround(world, chunkX, chunkY, origin, ground, flatConcrete, guardRail);
-                AddRoadMarkings(world, chunkX, chunkY, origin, markings, laneDividers);
+                BuildGround(world, chunkX, chunkY, origin, ground, flatConcrete, guardRail, far);
+                if (!far)
+                {
+                    AddRoadMarkings(world, chunkX, chunkY, origin, markings, laneDividers);
+                }
                 AddOpenBlockSurface(world, chunkX, chunkY, origin, flatConcrete, greenery, bark);
             }
 
@@ -631,6 +638,19 @@ namespace CityX.View
                 // Either nothing here, or it belongs to a neighbouring anchor
                 // and that chunk will build it. Building it twice would double
                 // every multi-chunk tower.
+                return;
+            }
+
+            if (far)
+            {
+                BuildBuildingShell(world, site, origin, structures, flatConcrete,
+                    new Glazing(litGlass, darkGlass, null, damage, null, null,
+                        WindowGrid.LitShareFor(CityChunkGenerator.ZoneOfRole(site.Role))));
+                AddWing(world, site, origin, structures, flatConcrete);
+                if (bridges != null)
+                {
+                    BuildBridges(world, bridges, site, origin, flatConcrete);
+                }
                 return;
             }
 
@@ -818,7 +838,7 @@ namespace CityX.View
         }
 
         private static void BuildGround(CityWorld world, int chunkX, int chunkY, Vector3 origin,
-            MeshBuffer ground, MeshBuffer pavement, MeshBuffer guardRail = null)
+            MeshBuffer ground, MeshBuffer pavement, MeshBuffer guardRail = null, bool far = false)
         {
             float pad = world.Terrain.PadHeightFor(chunkX, chunkY);
             float size = CityLayout.ChunkSize;
@@ -1067,28 +1087,28 @@ namespace CityX.View
             // in the game (caught by AStreetTerraceDropWithASidewalkGetsA
             // RealStaircaseOrASlopedRamp asserting stairCases > 0).
             bool chunkAlreadySloped = false;
-            if (!westToStreet && !westInternal)
+            if (!far && !westToStreet && !westInternal)
             {
                 AddStreetEdgeFeatures(world, chunkX, chunkY, chunkX - 1, chunkY,
                     TopAt(x0, z0), TopAt(x0, z1), Vector3.left,
                     TopAt(x0, z0 + SidewalkWidth * 0.5f), TopAt(x0, z1 - SidewalkWidth * 0.5f), origin,
                     pavement, guardRail, ground, ref chunkAlreadySloped, isDoorFacingEdge: false);
             }
-            if (!eastToStreet && !eastInternal)
+            if (!far && !eastToStreet && !eastInternal)
             {
                 AddStreetEdgeFeatures(world, chunkX, chunkY, chunkX + 1, chunkY,
                     TopAt(x1, z1), TopAt(x1, z0), Vector3.right,
                     TopAt(x1, z1 - SidewalkWidth * 0.5f), TopAt(x1, z0 + SidewalkWidth * 0.5f), origin,
                     pavement, guardRail, ground, ref chunkAlreadySloped, isDoorFacingEdge: false);
             }
-            if (!southToStreet && !southInternal)
+            if (!far && !southToStreet && !southInternal)
             {
                 AddStreetEdgeFeatures(world, chunkX, chunkY, chunkX, chunkY - 1,
                     TopAt(x1, z0), TopAt(x0, z0), Vector3.back,
                     TopAt(x1 - SidewalkWidth * 0.5f, z0), TopAt(x0 + SidewalkWidth * 0.5f, z0), origin,
                     pavement, guardRail, ground, ref chunkAlreadySloped, isDoorFacingEdge: false);
             }
-            if (!northToStreet && !northInternal)
+            if (!far && !northToStreet && !northInternal)
             {
                 AddStreetEdgeFeatures(world, chunkX, chunkY, chunkX, chunkY + 1,
                     TopAt(x0, z1), TopAt(x1, z1), Vector3.forward,
@@ -3496,6 +3516,154 @@ namespace CityX.View
                     concrete.AddBox(centre - half, centre + half);
                 }
             }
+        }
+
+        /// <summary>
+        /// How far in front of the wall a distant window's glass floats. Big enough not to z-fight the wall at
+        /// the distances it is seen from, small enough that no gap shows at a glancing angle.
+        /// </summary>
+        public const float ShellGlassLift = 0.06f;
+
+        /// <summary>
+        /// The DISTANT version of a building: its outside and nothing else.
+        ///
+        /// One panel per wall from the podium to the roof, the roof, and the glass laid over the wall as flat
+        /// strips -- no openings cut through the wall, no back faces, no floors, stairs, rooms or inward copy of
+        /// the walls. From beyond a few chunks the eye cannot tell, and about half of a downtown chunk's
+        /// triangles were exactly those hidden rooms. It is still a closed solid, so the collider built from
+        /// it keeps a fast flyer out of a building whose full-detail chunk has not streamed in yet.
+        ///
+        /// Neighbouring glazed cells that light the same way merge into ONE strip (the mullions between them
+        /// are a pixel at this range), so a glass tower's row is a quad or two, not a quad per window.
+        /// </summary>
+        private static void BuildBuildingShell(CityWorld world, BuildingSite site, Vector3 origin,
+            MeshBuffer structures, MeshBuffer concrete, Glazing glazing)
+        {
+            float x0 = (float)(site.MinX - origin.x);
+            float x1 = (float)(site.MaxX - origin.x);
+            float z0 = (float)(site.MinZ - origin.z);
+            float z1 = (float)(site.MaxZ - origin.z);
+            float podiumY = site.PodiumBase - origin.y;
+            float lobbyY = site.BaseHeight - origin.y;
+            float height = site.Params.Height;
+            float roofY = lobbyY + height;
+
+            var west = new Wall(true, x0, z0, z1);
+            var east = new Wall(true, x1, z0, z1);
+            var south = new Wall(false, z0, x0, x1);
+            var north = new Wall(false, z1, x0, x1);
+
+            // The podium below the lobby floor, then the whole height of the wall in one panel each.
+            AddWallPanel(structures, west, z0, z1, podiumY, roofY, Vector3.left);
+            AddWallPanel(structures, east, z0, z1, podiumY, roofY, Vector3.right);
+            AddWallPanel(structures, south, x0, x1, podiumY, roofY, Vector3.back);
+            AddWallPanel(structures, north, x0, x1, podiumY, roofY, Vector3.forward);
+
+            // The roof, and the antennas and parapets on it: they are the skyline.
+            AddSlabFace(concrete, x0, x1, z0, z1, Rect.zero, roofY, Vector3.up);
+            AddRoofDetail(concrete, site.Params.Roof, x0, x1, z0, z1, roofY);
+
+            if (!glazing.HangsGlass)
+            {
+                return;
+            }
+
+            WindowPlan plan = WindowPlan.For(world, site);
+            CellLayout rows = WindowGrid.RowsFor(height);
+            float centreX = (x0 + x1) * 0.5f;
+            float doorU0 = centreX - BuildingInterior.DoorWidth * 0.5f;
+            float doorU1 = centreX + BuildingInterior.DoorWidth * 0.5f;
+
+            AddShellGlass(glazing, site, west, z0, z1, lobbyY, Vector3.left, plan, WindowGrid.Wall.West, rows, 0.0f, 0.0f);
+            AddShellGlass(glazing, site, east, z0, z1, lobbyY, Vector3.right, plan, WindowGrid.Wall.East, rows, 0.0f, 0.0f);
+            AddShellGlass(glazing, site, south, x0, x1, lobbyY, Vector3.back, plan, WindowGrid.Wall.South, rows, 0.0f, 0.0f);
+            AddShellGlass(glazing, site, north, x0, x1, lobbyY, Vector3.forward, plan, WindowGrid.Wall.North, rows, doorU0, doorU1);
+        }
+
+        /// <summary>One wall's glass for <see cref="BuildBuildingShell"/>: flat one-sided strips floating just off the wall.</summary>
+        private static void AddShellGlass(in Glazing glazing, BuildingSite site, in Wall wall,
+            float u0, float u1, float floorY, Vector3 normal, in WindowPlan plan, WindowGrid.Wall which,
+            CellLayout rows, float doorU0, float doorU1)
+        {
+            CellLayout columns = plan.ColumnsFor(u1 - u0);
+            float inset = WindowGrid.PaneInset;
+            Vector3 lift = normal * ShellGlassLift;
+            bool doorWall = doorU1 > doorU0;
+
+            for (int row = 0; row < rows.Count; row++)
+            {
+                float y0 = floorY + row * rows.Size;
+                float y1 = y0 + rows.Size;
+                plan.Insets(WindowGrid.TopEdgeHasSlab(row, rows.Size, site.Params.Height), out float insetBottom, out float insetTop);
+                if (doorWall && row == 0)
+                {
+                    insetBottom = WindowGrid.PaneInsetVerticalClear;
+                    insetTop = WindowGrid.PaneInsetVerticalClear;
+                }
+                float paneY0 = y0 + rows.Size * insetBottom;
+                float paneY1 = y1 - rows.Size * insetTop;
+
+                // The strip being grown: where it starts, where it ends, and which way its light is on.
+                bool open = false;
+                float runU0 = 0.0f;
+                float runU1 = 0.0f;
+                bool runLit = false;
+
+                for (int column = 0; column < columns.Count; column++)
+                {
+                    float cellU0 = u0 + column * columns.Size;
+                    float paneU0 = cellU0 + columns.Size * inset;
+                    float paneU1 = cellU0 + columns.Size * (1.0f - inset);
+
+                    bool glazed = plan.IsGlazed(which, column, row);
+                    if (glazed && doorWall && row == 0 && cellU0 + columns.Size > doorU0 && cellU0 < doorU1)
+                    {
+                        glazed = false;   // the doorway
+                    }
+                    if (glazed)
+                    {
+                        var key = new PaneKey(site.AnchorX, site.AnchorY, which, column, row);
+                        if (glazing.Damage != null && glazing.Damage.StateOf(key) == PaneState.Shattered)
+                        {
+                            glazed = false;
+                        }
+                    }
+
+                    bool lit = glazed && plan.IsLit(which, column, row, glazing.LitShare);
+                    if (glazed && open && lit == runLit)
+                    {
+                        runU1 = paneU1;   // the next window of the same kind: the strip just gets longer
+                        continue;
+                    }
+
+                    if (open)
+                    {
+                        AddShellStrip(runLit ? glazing.Lit : glazing.Dark, wall, runU0, runU1, paneY0, paneY1, normal, lift);
+                        open = false;
+                    }
+                    if (glazed)
+                    {
+                        open = true;
+                        runU0 = paneU0;
+                        runU1 = paneU1;
+                        runLit = lit;
+                    }
+                }
+                if (open)
+                {
+                    AddShellStrip(runLit ? glazing.Lit : glazing.Dark, wall, runU0, runU1, paneY0, paneY1, normal, lift);
+                }
+            }
+        }
+
+        private static void AddShellStrip(MeshBuffer glass, in Wall wall, float u0, float u1, float y0, float y1,
+            Vector3 normal, Vector3 lift)
+        {
+            if (glass == null || u1 - u0 <= 0.0001f || y1 - y0 <= 0.0001f)
+            {
+                return;
+            }
+            AddFace(glass, normal, wall.At(u0, y0) + lift, wall.At(u1, y0) + lift, wall.At(u1, y1) + lift, wall.At(u0, y1) + lift);
         }
 
         /// <summary>
