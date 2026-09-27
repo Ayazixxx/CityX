@@ -1,0 +1,180 @@
+using UnityEngine;
+
+namespace CityX.World
+{
+    /// <summary>
+    /// The families of facade a real city is made of. A building is ONE of these, chosen once, so a whole
+    /// street reads as different buildings rather than the same building with the dice re-rolled.
+    /// </summary>
+    public enum FacadeStyle
+    {
+        /// <summary>Glass from floor to ceiling on every cell of every wall: the office tower. Only a thin mullion grid remains of the wall.</summary>
+        Curtain = 0,
+
+        /// <summary>Alternating horizontal bands of glass and solid spandrel: the mid-century office and the modern residential block.</summary>
+        Ribbon = 1,
+
+        /// <summary>A regular grid of separate, smaller windows punched in a solid wall: apartments, old masonry, institutions.</summary>
+        Punched = 2,
+
+        /// <summary>Irregular openings, a few here and a few there: the brutalist slab and the building that grew by additions.</summary>
+        Scattered = 3,
+
+        /// <summary>One high strip of windows under the eaves and a blank wall below it: sheds, warehouses and factories.</summary>
+        HighBand = 4,
+
+        /// <summary>Almost nothing: a window or two on a windowless face. Cold stores, substations, the back of a supermarket.</summary>
+        Blank = 5,
+    }
+
+    /// <summary>
+    /// Which cells of a building's walls carry a window, and how tall that window is -- decided ONCE for the
+    /// building from its seed, its zone, its massing and what it is, and then read by everything that has to
+    /// agree about where the glass is (the mesh builder, the shooting code that finds a pane under a hit, the
+    /// title-screen skyline).
+    ///
+    /// WHY A PLAN INSTEAD OF A HASH PER CELL. Every cell used to be glazed independently at the same 42%, so
+    /// every building in the city wore the same speckled pattern and none could be a glass tower or a blank
+    /// warehouse. Research on real facades (Wonka/Müller split grammars, glazing ratios by building type)
+    /// says the opposite: a facade is chosen as a WHOLE -- the tile that repeats across it -- and variety comes
+    /// from which whole facade a building gets, from the ground floor differing from the storeys above it, and
+    /// from side walls that are blank because another building stood against them.
+    ///
+    /// A struct of a few numbers, so a chunk can build one per building on a worker thread with no allocation.
+    /// </summary>
+    public readonly struct WindowPlan
+    {
+        public readonly int Seed;
+        public readonly FacadeStyle Style;
+
+        /// <summary>Bit per <see cref="WindowGrid.Wall"/>: a wall with no windows at all (a party wall).</summary>
+        private readonly int _blankWalls;
+
+        /// <summary>The door wall's ground floor is shopfront glass, whatever the storeys above look like.</summary>
+        public readonly bool Storefront;
+
+        /// <summary>Punched: every Nth column carries a window, from <see cref="Phase"/>.</summary>
+        public readonly int Pitch;
+        public readonly int Phase;
+
+        /// <summary>Ribbon: which parity of row is a glass band.</summary>
+        public readonly int BandParity;
+
+        /// <summary>Scattered / Blank: the fraction of cells that get a window.</summary>
+        public readonly double ScatterShare;
+
+        /// <summary>The window row of a HighBand shed.</summary>
+        public readonly int BandRow;
+
+        /// <summary>How far up a row the glass starts and how far down from the top it ends, as fractions of the row.</summary>
+        public readonly float Sill;
+        public readonly float Head;
+
+        /// <summary>
+        /// How wide a column is, nominally. A curtain wall or a ribbon window is one wide unit between
+        /// mullions, not a run of narrow flats' windows, so it uses TWICE the ordinary column width: the same
+        /// look from the street, half the panes -- and a tall glass tower has thousands of them, which is the
+        /// difference between a chunk that streams in cheaply and one that hitches.
+        /// </summary>
+        public readonly float ColumnMetres;
+
+        public WindowPlan(int seed, FacadeStyle style, int blankWalls, bool storefront, int pitch, int phase,
+            int bandParity, double scatterShare, int bandRow, float sill, float head)
+        {
+            Seed = seed;
+            Style = style;
+            _blankWalls = blankWalls;
+            Storefront = storefront;
+            Pitch = pitch;
+            Phase = phase;
+            BandParity = bandParity;
+            ScatterShare = scatterShare;
+            BandRow = bandRow;
+            Sill = sill;
+            Head = head;
+            ColumnMetres = style == FacadeStyle.Curtain || style == FacadeStyle.Ribbon
+                ? CellLayout.NominalColumnMetres * 2.0f
+                : CellLayout.NominalColumnMetres;
+        }
+
+        /// <summary>The columns of a wall of the given span, at this facade's own unit width.</summary>
+        public CellLayout ColumnsFor(float span) => CellLayout.For(span, ColumnMetres);
+
+        public bool IsBlankWall(WindowGrid.Wall wall) => (_blankWalls & (1 << (int)wall)) != 0;
+
+        /// <summary>
+        /// Whether a cell carries a window. Pure and hashed, never drawn from a sequence: chunks are built in
+        /// whatever order the player walks.
+        /// </summary>
+        public bool IsGlazed(WindowGrid.Wall wall, int column, int row)
+        {
+            if (IsBlankWall(wall))
+            {
+                return false;
+            }
+            if (Storefront && row == 0 && wall == WindowGrid.Wall.North)
+            {
+                return true;
+            }
+
+            switch (Style)
+            {
+                case FacadeStyle.Curtain:
+                    return true;
+                case FacadeStyle.Ribbon:
+                    return (row & 1) == BandParity;
+                case FacadeStyle.Punched:
+                    return Pitch <= 1 || ((column + Phase) % Pitch) == 0;
+                case FacadeStyle.HighBand:
+                    return row == BandRow && ((column + Phase) & 1) == 0;
+                default:
+                    return WorldHash.Unit01(column, row, WindowGrid.GlazedSalt + (ulong)(int)wall,
+                        unchecked((ulong)(long)Seed)) < ScatterShare;
+            }
+        }
+
+        /// <summary>
+        /// Whether a glazed cell has its light on. A glass office is lit FLOOR BY FLOOR -- a whole storey on or
+        /// off, with the odd blind or desk lamp breaking it up -- which is what makes a lit tower read as a
+        /// tower at night; a random speckle over a fully glazed face reads as a screen of noise. Every other
+        /// style keeps the scattered per-window light of a block of separate flats.
+        /// </summary>
+        public bool IsLit(WindowGrid.Wall wall, int column, int row, double litShare)
+        {
+            if (Style != FacadeStyle.Curtain && Style != FacadeStyle.Ribbon)
+            {
+                return WindowGrid.IsLit(Seed, wall, column, row, litShare);
+            }
+
+            // A storey is two rows, so the whole storey shares one decision. The wall is NOT part of the
+            // floor's hash: an office floor is lit all the way round, not on one face only.
+            bool floorLit = WorldHash.Unit01(row >> 1, 0, WindowGrid.FloorLitSalt,
+                unchecked((ulong)(long)Seed)) < litShare;
+            double cell = WorldHash.Unit01(column, row, WindowGrid.LitSalt + (ulong)(int)wall,
+                unchecked((ulong)(long)Seed));
+            return floorLit ? cell < 0.92 : cell < 0.04;
+        }
+
+        /// <summary>
+        /// How much of a window row is solid at its bottom (the sill) and its top (the head), as fractions of
+        /// the row. A floor slab hangs down into the top of the row below it -- see
+        /// <see cref="WindowGrid.TopEdgeHasSlab"/> -- so the top is never less than the slab margin.
+        /// </summary>
+        public void Insets(bool topHasSlab, out float bottom, out float top)
+        {
+            bottom = Sill;
+            float clearTop = topHasSlab ? WindowGrid.PaneInsetVerticalSlab : WindowGrid.PaneInsetVerticalClear;
+            top = Mathf.Max(Head, clearTop);
+        }
+
+        /// <summary>
+        /// The plan for the building on a site. The zone is looked up here, so callers that already have the
+        /// site and the world do not each need to know how a zone is found.
+        /// </summary>
+        public static WindowPlan For(CityWorld world, BuildingSite site)
+        {
+            return WindowGrid.PlanFor(world.ChunkSeed(site.AnchorX, site.AnchorY),
+                CityChunkGenerator.ZoneOfRole(site.Role), site.Params);
+        }
+    }
+}

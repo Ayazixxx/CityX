@@ -18,7 +18,7 @@ namespace CityX.UIEditor
     /// </summary>
     public static class TitleSkylineBaker
     {
-        public const int Seed = 58316047;
+        public const int Seed = 61472093;
 
         /// <summary>Height of the one tallest tower, in the middle. Everything else is lower.</summary>
         public const float TallestHeight = 110.0f;
@@ -109,21 +109,22 @@ namespace CityX.UIEditor
                 new Vector3(centreX + width * 0.5f, height, frontZ + Depth), roofs);
 
             CellLayout rows = WindowGrid.RowsFor(height);
-            int seed = Seed + index * 7919;
+            WindowPlan plan = WindowGrid.PlanFor(Seed + index * 7919, ZoneKind.Core,
+                new BuildingParams(true, width, height, Depth, 0.0f, 0.0f, "", 0, "", false, BuildingMass.Tower));
 
             // The camera-facing wall and both sides. The back is never seen.
-            AddWall(seed, WindowGrid.Wall.South, new Vector3(centreX, 0.0f, frontZ), Vector3.back,
+            AddWall(plan, WindowGrid.Wall.South, new Vector3(centreX, 0.0f, frontZ), Vector3.back,
                 Vector3.right, width, width * 0.0f, rows, dark, lit);
-            AddWall(seed, WindowGrid.Wall.East, new Vector3(centreX + width * 0.5f, 0.0f, frontZ + Depth * 0.5f),
+            AddWall(plan, WindowGrid.Wall.East, new Vector3(centreX + width * 0.5f, 0.0f, frontZ + Depth * 0.5f),
                 Vector3.right, Vector3.forward, Depth, 0.0f, rows, dark, lit);
-            AddWall(seed, WindowGrid.Wall.West, new Vector3(centreX - width * 0.5f, 0.0f, frontZ + Depth * 0.5f),
+            AddWall(plan, WindowGrid.Wall.West, new Vector3(centreX - width * 0.5f, 0.0f, frontZ + Depth * 0.5f),
                 Vector3.left, Vector3.forward, Depth, 0.0f, rows, dark, lit);
         }
 
-        private static void AddWall(int seed, WindowGrid.Wall wall, Vector3 origin, Vector3 normal, Vector3 along,
+        private static void AddWall(in WindowPlan plan, WindowGrid.Wall wall, Vector3 origin, Vector3 normal, Vector3 along,
             float span, float unused, CellLayout rows, MeshBuffer dark, MeshBuffer lit)
         {
-            CellLayout columns = WindowGrid.ColumnsFor(span);
+            CellLayout columns = plan.ColumnsFor(span);
             float marginU = columns.Size * CellLayout.WindowMarginRatio;
             float marginV = rows.Size * CellLayout.WindowMarginRatio;
             Vector3 face = origin + normal * WindowLift;
@@ -132,7 +133,7 @@ namespace CityX.UIEditor
             {
                 for (int column = 0; column < columns.Count; column++)
                 {
-                    if (!WindowGrid.IsGlazed(seed, wall, column, row))
+                    if (!plan.IsGlazed(wall, column, row))
                     {
                         continue;
                     }
@@ -141,7 +142,7 @@ namespace CityX.UIEditor
                     float u1 = -span * 0.5f + (column + 1) * columns.Size - marginU;
                     float y0 = row * rows.Size + marginV;
                     float y1 = (row + 1) * rows.Size - marginV;
-                    MeshBuffer target = WindowGrid.IsLit(seed, wall, column, row, 0.5) ? lit : dark;
+                    MeshBuffer target = plan.IsLit(wall, column, row, 0.5) ? lit : dark;
                     target.AddQuad(
                         face + along * u0 + Vector3.up * y0, face + along * u1 + Vector3.up * y0,
                         face + along * u1 + Vector3.up * y1, face + along * u0 + Vector3.up * y1,

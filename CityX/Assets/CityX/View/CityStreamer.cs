@@ -1,4 +1,6 @@
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Threading;
 using CityX.Character;
 using CityX.World;
 using UnityEngine;
@@ -8,11 +10,14 @@ namespace CityX.View
     /// <summary>
     /// Builds and drops chunk meshes around a viewer.
     ///
-    /// Deliberately simple: this exists so the world can be looked at and
-    /// walked through, which is the only way to judge whether the massing is
-    /// right. It is not the shipping streamer -- no threading, no LOD, no
-    /// pooling. Those are worth building once the thing being streamed is
-    /// settled, and not before.
+    /// This began as the simplest thing that let the world be looked at and walked through, and it built every
+    /// chunk on the main thread -- about 3ms each, 4-6ms every frame of walking, and the biggest single item in
+    /// a measured profile of the running game (13ms a frame while the ring filled). A chunk is a pure function of
+    /// its coordinates (CityWorld, CityLayout and CityMeshBuilder read only their inputs, and the one cache is
+    /// [ThreadStatic]), so the GEOMETRY is now generated on worker threads and the main thread only turns
+    /// finished chunks into scene objects, within a small time budget per frame. See GeneratorThreads. The
+    /// synchronous path (StreamAround, BuildChunkObject) is unchanged in behaviour for the spawn pre-stream, for
+    /// rebuilding a chunk when a window breaks, and for tests and captures.
     /// </summary>
     public sealed class CityStreamer : MonoBehaviour
     {
@@ -22,7 +27,7 @@ namespace CityX.View
         // real scenes always set this from that same constant at build
         // time. EXPLICIT ASK: "generate a new world every time you make a
         // change to the city generation."
-        public int WorldSeed = 58316047;
+        public int WorldSeed = 61472093;
 
         [Tooltip("Chunks of radius kept loaded around the viewer.")]
         public int RadiusChunks = 14;
@@ -42,8 +47,20 @@ namespace CityX.View
         /// ~27ms walking through a core of towers. Whichever limit is reached
         /// first ends the frame's streaming.
         /// </summary>
-        [Tooltip("Most milliseconds of chunk building per frame; whichever of this and the chunk count comes first ends it.")]
+        [Tooltip("Most milliseconds of chunk building per frame; whichever of this and the chunk count comes first ends it. Only the synchronous path uses this now (see GeneratorThreads).")]
         public float ChunkBuildTimeBudgetMs = 6.0f;
+
+        [Header("Background generation")]
+        [Tooltip("Worker threads that generate chunk geometry while the game runs. The main thread then only makes the " +
+                 "objects. 0 goes back to building every chunk on the main thread (the old, hitchy way).")]
+        public int GeneratorThreads = 3;
+
+        [Tooltip("Most milliseconds per frame the main thread spends turning generated chunks into scene objects " +
+                 "(at least one chunk a frame is always finished).")]
+        public float AssembleTimeBudgetMs = 2.0f;
+
+        [Tooltip("Most chunks being generated at once; more just queues work that may be stale by the time it lands.")]
+        public int MaxChunksInFlight = 6;
 
         /// <summary>
         /// How many chunks around the real player get force-built
@@ -134,20 +151,61 @@ namespace CityX.View
         private CityWorld _world;
         private SkybridgeLayout _bridges;
         private readonly Dictionary<Vector2Int, GameObject> _loaded = new Dictionary<Vector2Int, GameObject>();
-        private readonly MeshBuffer _ground = new MeshBuffer();
-        private readonly MeshBuffer _pavement = new MeshBuffer();
-        private readonly MeshBuffer _structures = new MeshBuffer();
-        private readonly MeshBuffer _litGlass = new MeshBuffer();
-        private readonly MeshBuffer _darkGlass = new MeshBuffer();
-        private readonly MeshBuffer _crackedGlass = new MeshBuffer();
-        private readonly MeshBuffer _crackDecals = new MeshBuffer();
-        private readonly List<CityMeshBuilder.CrackedOpening> _crackedOpenings =
-            new List<CityMeshBuilder.CrackedOpening>();
-        private readonly MeshBuffer _markings = new MeshBuffer();
-        private readonly MeshBuffer _laneDividers = new MeshBuffer();
-        private readonly MeshBuffer _guardRail = new MeshBuffer();
-        private readonly MeshBuffer _greenery = new MeshBuffer();
-        private readonly MeshBuffer _bark = new MeshBuffer();
+        /// <summary>
+        /// Everything generated for ONE chunk, before any scene object exists: each mesh buffer, the openings, and
+        /// the main mesh already combined into flat arrays. Made on a worker thread and read on the main thread,
+        /// so it owns its buffers (nothing here is shared between chunks) and touches no Unity object.
+        /// </summary>
+        private sealed class ChunkPayload
+        {
+            public Vector2Int Key;
+            public int Generation;
+            public readonly MeshBuffer Ground = new MeshBuffer();
+            public readonly MeshBuffer Pavement = new MeshBuffer();
+            public readonly MeshBuffer Structures = new MeshBuffer();
+            public readonly MeshBuffer LitGlass = new MeshBuffer();
+            public readonly MeshBuffer DarkGlass = new MeshBuffer();
+            public readonly MeshBuffer CrackedGlass = new MeshBuffer();
+            public readonly MeshBuffer CrackDecals = new MeshBuffer();
+            public readonly List<CityMeshBuilder.CrackedOpening> CrackedOpenings = new List<CityMeshBuilder.CrackedOpening>();
+            public readonly MeshBuffer Markings = new MeshBuffer();
+            public readonly MeshBuffer LaneDividers = new MeshBuffer();
+            public readonly MeshBuffer GuardRail = new MeshBuffer();
+            public readonly MeshBuffer Greenery = new MeshBuffer();
+            public readonly MeshBuffer Bark = new MeshBuffer();
+
+            // The main mesh's five submeshes, combined off the main thread.
+            public Vector3[] Vertices;
+            public Vector3[] Normals;
+            public Vector2[] Uvs;
+            public int[][] SubmeshTriangles;
+        }
+
+        // The chunk being turned into scene objects right now (main thread only). The Add* methods below read
+        // their buffers through these, so they did not have to change when the buffers moved into a payload.
+        private ChunkPayload _current;
+        private MeshBuffer _ground => _current.Ground;
+        private MeshBuffer _pavement => _current.Pavement;
+        private MeshBuffer _structures => _current.Structures;
+        private MeshBuffer _litGlass => _current.LitGlass;
+        private MeshBuffer _darkGlass => _current.DarkGlass;
+        private MeshBuffer _crackedGlass => _current.CrackedGlass;
+        private MeshBuffer _crackDecals => _current.CrackDecals;
+        private List<CityMeshBuilder.CrackedOpening> _crackedOpenings => _current.CrackedOpenings;
+        private MeshBuffer _markings => _current.Markings;
+        private MeshBuffer _laneDividers => _current.LaneDividers;
+        private MeshBuffer _guardRail => _current.GuardRail;
+        private MeshBuffer _greenery => _current.Greenery;
+        private MeshBuffer _bark => _current.Bark;
+
+        // Background generation state (main thread, except the queue and the semaphore).
+        private readonly ConcurrentQueue<ChunkPayload> _finished = new ConcurrentQueue<ChunkPayload>();
+        private readonly HashSet<Vector2Int> _inFlight = new HashSet<Vector2Int>();
+        private readonly HashSet<Vector2Int> _changedInFlight = new HashSet<Vector2Int>();
+        private SemaphoreSlim _workers;
+        private int _generation;
+        private Vector2Int _wantedCentre = new Vector2Int(int.MinValue, int.MinValue);
+        private bool _wantedStale = true;
         private readonly HashSet<Vector2Int> _openDoors = new HashSet<Vector2Int>();
         private readonly List<Vector2Int> _wanted = new List<Vector2Int>();
         private readonly List<Vector2Int> _stale = new List<Vector2Int>();
@@ -182,6 +240,16 @@ namespace CityX.View
         /// <summary>Drops everything and starts again. Called on seed changes.</summary>
         public void Rebuild()
         {
+            // Anything a worker is still generating belongs to the old world: bumping the generation makes
+            // its result be thrown away when it lands.
+            _generation++;
+            _inFlight.Clear();
+            _changedInFlight.Clear();
+            while (_finished.TryDequeue(out _))
+            {
+            }
+            _wantedStale = true;
+
             _world = new CityWorld(WorldSeed);
             _bridges = new SkybridgeLayout(WorldSeed);
             foreach (KeyValuePair<Vector2Int, GameObject> pair in _loaded)
@@ -234,7 +302,12 @@ namespace CityX.View
             if (!_loaded.TryGetValue(chunk, out GameObject existing))
             {
                 // Not on screen. The rebuild happens when it streams back in,
-                // and it reads the same damage.
+                // and it reads the same damage. If a worker is generating it right now it may have read the
+                // pane before it changed, so that result is redone when it lands.
+                if (_inFlight.Contains(chunk))
+                {
+                    _changedInFlight.Add(chunk);
+                }
                 return;
             }
             DestroyChunk(existing);
@@ -248,7 +321,175 @@ namespace CityX.View
             {
                 return;
             }
-            StreamAround(viewer.position, Mathf.Max(1, ChunkBuildBudgetPerFrame), ChunkBuildTimeBudgetMs);
+            if (GeneratorThreads > 0)
+            {
+                StreamAroundInBackground(viewer.position);
+            }
+            else
+            {
+                StreamAround(viewer.position, Mathf.Max(1, ChunkBuildBudgetPerFrame), ChunkBuildTimeBudgetMs);
+            }
+        }
+
+        /// <summary>
+        /// The per-frame streaming: finish what the workers have generated (within AssembleTimeBudgetMs), drop
+        /// what has fallen out of range, and start generating the nearest chunks still missing.
+        ///
+        /// The list of wanted chunks is only worked out again when the viewer has crossed into another chunk or
+        /// something has changed (the old code scanned and sorted the whole 29x29 ring every single frame, even
+        /// with nothing to build).
+        /// </summary>
+        private void StreamAroundInBackground(Vector3 position)
+        {
+            if (_world == null)
+            {
+                Rebuild();
+            }
+            if (_workers == null)
+            {
+                _workers = new SemaphoreSlim(Mathf.Max(1, GeneratorThreads));
+            }
+
+            int centreX = Mathf.FloorToInt(position.x / CityLayout.ChunkSize);
+            int centreY = Mathf.FloorToInt(position.z / CityLayout.ChunkSize);
+            var centre = new Vector2Int(centreX, centreY);
+            _explored.Mark(centre);
+
+            AssembleFinished(centre);
+
+            if (centre != _wantedCentre || _wantedStale)
+            {
+                _wantedCentre = centre;
+                _wantedStale = false;
+
+                _stale.Clear();
+                int dropRadius = RadiusChunks + 2;
+                foreach (KeyValuePair<Vector2Int, GameObject> pair in _loaded)
+                {
+                    if (Mathf.Abs(pair.Key.x - centreX) > dropRadius || Mathf.Abs(pair.Key.y - centreY) > dropRadius)
+                    {
+                        _stale.Add(pair.Key);
+                    }
+                }
+                foreach (Vector2Int stale in _stale)
+                {
+                    DestroyChunk(_loaded[stale]);
+                    _loaded.Remove(stale);
+                }
+
+                // Nearest first, so walking forward fills in ahead of you rather than in a corner you cannot see.
+                _wanted.Clear();
+                for (int dx = -RadiusChunks; dx <= RadiusChunks; dx++)
+                {
+                    for (int dy = -RadiusChunks; dy <= RadiusChunks; dy++)
+                    {
+                        var key = new Vector2Int(centreX + dx, centreY + dy);
+                        if (!_loaded.ContainsKey(key))
+                        {
+                            _wanted.Add(key);
+                        }
+                    }
+                }
+                _wanted.Sort((a, b) =>
+                {
+                    int da = (a.x - centreX) * (a.x - centreX) + (a.y - centreY) * (a.y - centreY);
+                    int db = (b.x - centreX) * (b.x - centreX) + (b.y - centreY) * (b.y - centreY);
+                    return da.CompareTo(db);
+                });
+            }
+
+            // Start generating the nearest chunks that are neither built nor already being built.
+            int maxInFlight = Mathf.Max(1, MaxChunksInFlight);
+            bool grewInFlight = false;
+            for (int i = 0; i < _wanted.Count && _inFlight.Count < maxInFlight; i++)
+            {
+                Vector2Int key = _wanted[i];
+                if (_loaded.ContainsKey(key) || _inFlight.Contains(key))
+                {
+                    continue;
+                }
+                _inFlight.Add(key);
+                QueueGeneration(key);
+                grewInFlight = true;
+            }
+
+            if (grewInFlight)
+            {
+                // Some of the front of the list are now in flight or built: drop them so the next frame's scan is short.
+                _wanted.RemoveAll(k => _loaded.ContainsKey(k) || _inFlight.Contains(k));
+            }
+        }
+
+        private void QueueGeneration(Vector2Int key)
+        {
+            // Read here, on the main thread: a UnityEngine.Object is not something to touch from a worker.
+            bool withGreenery = GrassMaterial != null && BarkMaterial != null;
+            int generation = _generation;
+            SemaphoreSlim workers = _workers;
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                workers.Wait();
+                try
+                {
+                    ChunkPayload payload = GenerateChunk(key, withGreenery);
+                    payload.Generation = generation;
+                    _finished.Enqueue(payload);
+                }
+                catch (System.Exception exception)
+                {
+                    // A chunk that fails to generate must not silently leave a hole in the city forever.
+                    Debug.LogException(exception);
+                    _finished.Enqueue(new ChunkPayload { Key = key, Generation = generation, Vertices = null });
+                }
+                finally
+                {
+                    workers.Release();
+                }
+            });
+        }
+
+        /// <summary>
+        /// Turns generated chunks into scene objects until the frame's budget is spent (always at least one, so
+        /// streaming cannot stall), throwing away any that no longer matter -- the viewer moved on, the world was
+        /// rebuilt, or it was built some other way in the meantime.
+        /// </summary>
+        private void AssembleFinished(Vector2Int centre)
+        {
+            if (_finished.IsEmpty)
+            {
+                return;
+            }
+
+            System.Diagnostics.Stopwatch clock = System.Diagnostics.Stopwatch.StartNew();
+            while (_finished.TryDequeue(out ChunkPayload payload))
+            {
+                if (payload.Generation != _generation)
+                {
+                    continue;   // from a world that has since been rebuilt
+                }
+                _inFlight.Remove(payload.Key);
+                _wantedStale = true;
+
+                bool outOfRange = Mathf.Abs(payload.Key.x - centre.x) > RadiusChunks + 1 || Mathf.Abs(payload.Key.y - centre.y) > RadiusChunks + 1;
+                if (outOfRange || _loaded.ContainsKey(payload.Key))
+                {
+                    _changedInFlight.Remove(payload.Key);
+                    continue;
+                }
+
+                // A pane broke while this was being generated, or generation failed: do it again, here.
+                bool redo = payload.Vertices == null || _changedInFlight.Remove(payload.Key);
+                if (redo)
+                {
+                    payload = GenerateChunk(payload.Key, GrassMaterial != null && BarkMaterial != null);
+                }
+                _loaded[payload.Key] = AssembleChunk(payload);
+
+                if (clock.Elapsed.TotalMilliseconds >= AssembleTimeBudgetMs)
+                {
+                    break;
+                }
+            }
         }
 
         /// <summary>
@@ -332,21 +573,19 @@ namespace CityX.View
         /// <summary>Number of chunks currently built. For tests and capture.</summary>
         public int LoadedChunkCount => _loaded.Count;
 
+        /// <summary>The whole chunk, generated and made, on this thread (the spawn pre-stream, a window breaking, tests, captures).</summary>
         private GameObject BuildChunkObject(Vector2Int key)
         {
-            _ground.Clear();
-            _pavement.Clear();
-            _structures.Clear();
-            _litGlass.Clear();
-            _darkGlass.Clear();
-            _crackedGlass.Clear();
-            _crackDecals.Clear();
-            _crackedOpenings.Clear();
-            _markings.Clear();
-            _laneDividers.Clear();
-            _guardRail.Clear();
-            _greenery.Clear();
-            _bark.Clear();
+            return AssembleChunk(GenerateChunk(key, GrassMaterial != null && BarkMaterial != null));
+        }
+
+        /// <summary>
+        /// Generates one chunk's geometry: every mesh buffer, and the main mesh combined into flat arrays.
+        /// Touches no scene object and no UnityEngine.Object, so it can run on any thread.
+        /// </summary>
+        private ChunkPayload GenerateChunk(Vector2Int key, bool withGreenery)
+        {
+            var payload = new ChunkPayload { Key = key, Generation = _generation };
 
             // Chunks are built relative to their own corner and then placed, so
             // vertex coordinates stay small. Building in absolute world space
@@ -356,53 +595,68 @@ namespace CityX.View
                 key.x * CityLayout.ChunkSize, 0.0f, key.y * CityLayout.ChunkSize);
 
             CityMeshBuilder.BuildChunk(_world, _bridges, key.x, key.y, origin,
-                _ground, _pavement, _structures, _litGlass, _darkGlass, _crackedGlass, Damage,
-                _crackedOpenings, _markings, _guardRail, _laneDividers, _crackDecals,
-                GrassMaterial != null && BarkMaterial != null ? _greenery : null,
-                GrassMaterial != null && BarkMaterial != null ? _bark : null);
+                payload.Ground, payload.Pavement, payload.Structures, payload.LitGlass, payload.DarkGlass, payload.CrackedGlass, Damage,
+                payload.CrackedOpenings, payload.Markings, payload.GuardRail, payload.LaneDividers, payload.CrackDecals,
+                withGreenery ? payload.Greenery : null,
+                withGreenery ? payload.Bark : null);
+
+            // Road, pavement and concrete want different materials, so they go
+            // into one mesh as submeshes rather than separate objects. Same
+            // vertex buffer, same transform, one cull -- and each submesh's
+            // triangle indices have to be shifted by however many vertices came
+            // before it, which is the only fiddly part.
+            MeshBuffer[] buffers = { payload.Ground, payload.Pavement, payload.Structures, payload.DarkGlass, payload.LitGlass };
+            int vertexCount = 0;
+            foreach (MeshBuffer buffer in buffers)
+            {
+                vertexCount += buffer.Vertices.Count;
+            }
+            payload.Vertices = new Vector3[vertexCount];
+            payload.Normals = new Vector3[vertexCount];
+            payload.Uvs = new Vector2[vertexCount];
+            payload.SubmeshTriangles = new int[buffers.Length][];
+            int written = 0;
+            for (int b = 0; b < buffers.Length; b++)
+            {
+                MeshBuffer buffer = buffers[b];
+                buffer.Vertices.CopyTo(payload.Vertices, written);
+                buffer.Normals.CopyTo(payload.Normals, written);
+                buffer.Uvs.CopyTo(payload.Uvs, written);
+
+                var shifted = new int[buffer.Triangles.Count];
+                for (int i = 0; i < shifted.Length; i++)
+                {
+                    shifted[i] = buffer.Triangles[i] + written;
+                }
+                payload.SubmeshTriangles[b] = shifted;
+                written += buffer.Vertices.Count;
+            }
+            return payload;
+        }
+
+        /// <summary>Turns a generated chunk into scene objects. Main thread only.</summary>
+        private GameObject AssembleChunk(ChunkPayload payload)
+        {
+            _current = payload;
+            Vector2Int key = payload.Key;
+            Vector3 origin = new Vector3(
+                key.x * CityLayout.ChunkSize, 0.0f, key.y * CityLayout.ChunkSize);
 
             GameObject go = new GameObject($"Chunk {key.x},{key.y}");
             go.transform.SetParent(transform, false);
             go.transform.localPosition = origin;
 
             Mesh mesh = new Mesh { name = $"chunk-{key.x}-{key.y}" };
-
-            // Road, pavement and concrete want different materials, so they go
-            // into one mesh as three submeshes rather than three objects. Same
-            // vertex buffer, same transform, one cull -- and each submesh's
-            // triangle indices have to be shifted by however many vertices came
-            // before it, which is the only fiddly part.
-            var buffers = new[] { _ground, _pavement, _structures, _darkGlass, _litGlass };
-            var vertices = new List<Vector3>();
-            var normals = new List<Vector3>();
-            var uvs = new List<Vector2>();
-            var submeshTriangles = new List<int[]>(buffers.Length);
-
-            foreach (MeshBuffer buffer in buffers)
-            {
-                int offset = vertices.Count;
-                vertices.AddRange(buffer.Vertices);
-                normals.AddRange(buffer.Normals);
-                uvs.AddRange(buffer.Uvs);
-
-                var shifted = new int[buffer.Triangles.Count];
-                for (int i = 0; i < buffer.Triangles.Count; i++)
-                {
-                    shifted[i] = buffer.Triangles[i] + offset;
-                }
-                submeshTriangles.Add(shifted);
-            }
-
-            mesh.indexFormat = vertices.Count > 65000
+            mesh.indexFormat = payload.Vertices.Length > 65000
                 ? UnityEngine.Rendering.IndexFormat.UInt32
                 : UnityEngine.Rendering.IndexFormat.UInt16;
-            mesh.SetVertices(vertices);
-            mesh.SetNormals(normals);
-            mesh.SetUVs(0, uvs);
-            mesh.subMeshCount = buffers.Length;
-            for (int i = 0; i < buffers.Length; i++)
+            mesh.SetVertices(payload.Vertices);
+            mesh.SetNormals(payload.Normals);
+            mesh.SetUVs(0, payload.Uvs);
+            mesh.subMeshCount = payload.SubmeshTriangles.Length;
+            for (int i = 0; i < payload.SubmeshTriangles.Length; i++)
             {
-                mesh.SetTriangles(submeshTriangles[i], i);
+                mesh.SetTriangles(payload.SubmeshTriangles[i], i);
             }
             mesh.RecalculateTangents();
             mesh.RecalculateBounds();
@@ -432,6 +686,7 @@ namespace CityX.View
             AddInteriorVolume(go, key);
             AddBenches(go, key);
             AddBooks(go, key);
+            _current = null;
             return go;
         }
 

@@ -89,7 +89,7 @@ namespace CityX.View
                     }
 
                     PaneState was = _streamer.Damage.StateOf(key);
-                    Vector2 impactUV = GlassDamage.FractionWithinPane(site, key, point);
+                    Vector2 impactUV = GlassDamage.FractionWithinPane(_world, site, key, point);
                     PaneState now = _streamer.Damage.Hit(key, impactUV, shatterOutright: strength == BlowStrength.Heavy);
                     if (now == was)
                     {

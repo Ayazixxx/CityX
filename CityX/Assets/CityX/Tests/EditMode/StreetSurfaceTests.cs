@@ -12,7 +12,7 @@ namespace CityX.Tests
     public sealed class StreetSurfaceTests
     {
         /// <summary>The game's own world seed (CityMassingSceneBuilder.WorldSeed): the one the reports came from.</summary>
-        private const int GameSeed = 58316047;
+        private const int GameSeed = 61472093;
 
         private const int Radius = 24;
 

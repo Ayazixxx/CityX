@@ -2144,28 +2144,27 @@ namespace CityX.Tests
 
                     // The wall at maximum Z, checked pane by pane. One wall is
                     // enough to catch a mismatch and keeps the sweep quick.
+                    WindowPlan plan = WindowPlan.For(world, site);
                     CellLayout rows = WindowGrid.RowsFor(site.Params.Height);
-                    CellLayout columns = WindowGrid.ColumnsFor(site.Params.Width);
+                    CellLayout columns = plan.ColumnsFor(site.Params.Width);
                     float inset = WindowGrid.PaneInset;
-                    int seed = world.ChunkSeed(x, y);
 
                     for (int row = 1; row < rows.Count; row++)
                     {
                         for (int column = 0; column < columns.Count; column++)
                         {
-                            if (!WindowGrid.IsGlazed(seed, WindowGrid.Wall.North, column, row))
+                            if (!plan.IsGlazed(WindowGrid.Wall.North, column, row))
                             {
                                 continue;
                             }
 
                             float cellX = (float)site.MinX + column * columns.Size;
                             float cellY = site.BaseHeight + row * rows.Size;
-                            float insetTop = WindowGrid.TopEdgeHasSlab(row, rows.Size, site.Params.Height)
-                                ? WindowGrid.PaneInsetVerticalSlab
-                                : WindowGrid.PaneInsetVerticalClear;
+                            plan.Insets(WindowGrid.TopEdgeHasSlab(row, rows.Size, site.Params.Height),
+                                out float insetBottom, out float insetTop);
                             var pane = Rect.MinMaxRect(
                                 cellX + columns.Size * inset,
-                                cellY + rows.Size * WindowGrid.PaneInsetVerticalClear,
+                                cellY + rows.Size * insetBottom,
                                 cellX + columns.Size * (1.0f - inset),
                                 cellY + rows.Size * (1.0f - insetTop));
 
@@ -2522,7 +2521,7 @@ namespace CityX.Tests
                 {
                     BuildingSite site = world.BuildingAt(x, y);
                     if (site.Exists && site.AnchorX == x && site.AnchorY == y &&
-                        site.Params.Width > 14.0f)
+                        site.Params.Width > 14.0f && HasWindowOnDoorWall(world, site))
                     {
                         return (x, y);
                     }
@@ -2532,17 +2531,36 @@ namespace CityX.Tests
             return (0, 0);
         }
 
+        /// <summary>Whether the door wall has a window above the ground floor -- a blank shed or a party-wall building may not.</summary>
+        private static bool HasWindowOnDoorWall(CityWorld world, BuildingSite site)
+        {
+            WindowPlan plan = WindowPlan.For(world, site);
+            CellLayout rows = WindowGrid.RowsFor(site.Params.Height);
+            CellLayout columns = plan.ColumnsFor(site.Params.Width);
+            for (int row = 1; row < rows.Count; row++)
+            {
+                for (int column = 0; column < columns.Count; column++)
+                {
+                    if (plan.IsGlazed(WindowGrid.Wall.North, column, row))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
         private static PaneKey AnyPaneOn(CityWorld world, BuildingSite site)
         {
-            int seed = world.ChunkSeed(site.AnchorX, site.AnchorY);
+            WindowPlan plan = WindowPlan.For(world, site);
             CellLayout rows = WindowGrid.RowsFor(site.Params.Height);
-            CellLayout columns = WindowGrid.ColumnsFor(site.Params.Width);
+            CellLayout columns = plan.ColumnsFor(site.Params.Width);
 
             for (int row = 1; row < rows.Count; row++)
             {
                 for (int column = 0; column < columns.Count; column++)
                 {
-                    if (WindowGrid.IsGlazed(seed, WindowGrid.Wall.North, column, row))
+                    if (plan.IsGlazed(WindowGrid.Wall.North, column, row))
                     {
                         return new PaneKey(site.AnchorX, site.AnchorY,
                             WindowGrid.Wall.North, column, row);
@@ -2557,7 +2575,7 @@ namespace CityX.Tests
         private static int ExpectedPanes(CityWorld world, BuildingSite site)
         {
             CellLayout rows = WindowGrid.RowsFor(site.Params.Height);
-            int seed = world.ChunkSeed(site.AnchorX, site.AnchorY);
+            WindowPlan plan = WindowPlan.For(world, site);
             float centreX = (float)site.CentreX;
             float doorU0 = centreX - BuildingInterior.DoorWidth * 0.5f;
             float doorU1 = centreX + BuildingInterior.DoorWidth * 0.5f;
@@ -2571,12 +2589,12 @@ namespace CityX.Tests
                          (WindowGrid.Wall.North, site.Params.Width),
                      })
             {
-                CellLayout columns = WindowGrid.ColumnsFor(span);
+                CellLayout columns = plan.ColumnsFor(span);
                 for (int row = 0; row < rows.Count; row++)
                 {
                     for (int column = 0; column < columns.Count; column++)
                     {
-                        if (!WindowGrid.IsGlazed(seed, wall, column, row))
+                        if (!plan.IsGlazed(wall, column, row))
                         {
                             continue;
                         }

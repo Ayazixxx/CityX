@@ -2247,7 +2247,7 @@ namespace CityX.WeaponsEditor
             RenderTexture target = null;
             try
             {
-                CityWorld world = new CityWorld(58316047);
+                CityWorld world = new CityWorld(61472093);
                 int foundX = 0, foundY = 0, foundNx = 0, foundNy = 0;
                 float foundPad = 0.0f, foundNeighbourPad = 0.0f;
                 bool found = false;
@@ -2387,7 +2387,7 @@ namespace CityX.WeaponsEditor
                     }
                 }
 
-                CityWorld world = new CityWorld(58316047);
+                CityWorld world = new CityWorld(61472093);
                 // The arterial line between district (bestDistrictX, *) and
                 // (bestDistrictX+1, *), at a chunk comfortably inside the
                 // district's own Y span so both sides show real interior.
@@ -2456,7 +2456,7 @@ namespace CityX.WeaponsEditor
             RenderTexture target = null;
             try
             {
-                CityWorld world = new CityWorld(58316047);
+                CityWorld world = new CityWorld(61472093);
                 BuildingSite bestSite = default;
                 Bounds bestWingBox = default;
                 int bestWingCount = 0;

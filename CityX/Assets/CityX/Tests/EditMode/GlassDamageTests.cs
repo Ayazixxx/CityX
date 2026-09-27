@@ -16,7 +16,11 @@ namespace CityX.Tests
     {
         private const int Seed = 20260810;
 
-        /// <summary>A building near the origin that has some windows in it.</summary>
+        /// <summary>
+        /// A building whose door wall has plenty of windows AND plenty of blank wall, so a test of "finds the
+        /// window" and one of "finds nothing on concrete" both mean something. Not every building qualifies
+        /// now: a curtain-wall tower has no blank cells and a warehouse has almost no windows.
+        /// </summary>
         private static BuildingSite AnyBuilding(CityWorld world)
         {
             for (int x = -8; x <= 8; x++)
@@ -24,14 +28,37 @@ namespace CityX.Tests
                 for (int y = -8; y <= 8; y++)
                 {
                     BuildingSite site = world.BuildingAt(x, y);
-                    if (site.Exists && site.AnchorX == x && site.AnchorY == y &&
-                        site.Params.Width > 14.0f)
+                    if (!site.Exists || site.AnchorX != x || site.AnchorY != y || site.Params.Width <= 14.0f)
+                    {
+                        continue;
+                    }
+
+                    WindowPlan plan = WindowPlan.For(world, site);
+                    CellLayout rows = WindowGrid.RowsFor(site.Params.Height);
+                    CellLayout columns = plan.ColumnsFor(site.Params.Width);
+                    int windows = 0;
+                    int blanks = 0;
+                    for (int row = 1; row < rows.Count; row++)
+                    {
+                        for (int column = 0; column < columns.Count; column++)
+                        {
+                            if (plan.IsGlazed(WindowGrid.Wall.North, column, row))
+                            {
+                                windows++;
+                            }
+                            else
+                            {
+                                blanks++;
+                            }
+                        }
+                    }
+                    if (windows > 20 && blanks > 20)
                     {
                         return site;
                     }
                 }
             }
-            Assert.Fail("no building near the origin to punch");
+            Assert.Fail("no building near the origin with both windows and blank wall to punch");
             return default;
         }
 
@@ -121,17 +148,17 @@ namespace CityX.Tests
         {
             var world = new CityWorld(Seed);
             BuildingSite site = AnyBuilding(world);
-            int seed = world.ChunkSeed(site.AnchorX, site.AnchorY);
+            WindowPlan plan = WindowPlan.For(world, site);
 
             CellLayout rows = WindowGrid.RowsFor(site.Params.Height);
-            CellLayout columns = WindowGrid.ColumnsFor(site.Params.Width);
+            CellLayout columns = plan.ColumnsFor(site.Params.Width);
             int checkedCount = 0;
 
             for (int row = 1; row < rows.Count; row++)
             {
                 for (int column = 0; column < columns.Count; column++)
                 {
-                    if (!WindowGrid.IsGlazed(seed, WindowGrid.Wall.North, column, row))
+                    if (!plan.IsGlazed(WindowGrid.Wall.North, column, row))
                     {
                         continue;
                     }
@@ -167,17 +194,17 @@ namespace CityX.Tests
         {
             var world = new CityWorld(Seed);
             BuildingSite site = AnyBuilding(world);
-            int seed = world.ChunkSeed(site.AnchorX, site.AnchorY);
+            WindowPlan plan = WindowPlan.For(world, site);
 
             CellLayout rows = WindowGrid.RowsFor(site.Params.Height);
-            CellLayout columns = WindowGrid.ColumnsFor(site.Params.Width);
+            CellLayout columns = plan.ColumnsFor(site.Params.Width);
             int blanks = 0;
 
             for (int row = 1; row < rows.Count; row++)
             {
                 for (int column = 0; column < columns.Count; column++)
                 {
-                    if (WindowGrid.IsGlazed(seed, WindowGrid.Wall.North, column, row))
+                    if (plan.IsGlazed(WindowGrid.Wall.North, column, row))
                     {
                         continue;
                     }

@@ -139,18 +139,28 @@ namespace CityX.World
             new Dictionary<PaneKey, Vector2>();
 
         /// <summary>Raised after a pane changes state, so a chunk can rebuild.</summary>
+        // Chunk generation reads this from worker threads while the game thread may be changing it (a window
+        // breaking), so every access goes through this lock. The Changed event is raised OUTSIDE it.
+        private readonly object _gate = new object();
+
         public event Action<PaneKey, PaneState> Changed;
 
-        public int BrokenCount => _broken.Count;
+        public int BrokenCount { get { lock (_gate) { return _broken.Count; } } }
 
         public PaneState StateOf(PaneKey key)
         {
-            return _broken.TryGetValue(key, out PaneState state) ? state : PaneState.Intact;
+            lock (_gate)
+            {
+                return _broken.TryGetValue(key, out PaneState state) ? state : PaneState.Intact;
+            }
         }
 
         public bool TryGetImpact(PaneKey key, out Vector2 localUV)
         {
-            return _impactPoints.TryGetValue(key, out localUV);
+            lock (_gate)
+            {
+                return _impactPoints.TryGetValue(key, out localUV);
+            }
         }
 
         /// <summary>
@@ -162,7 +172,7 @@ namespace CityX.World
         /// (GlassDamageTests included) only ever care whether a punch landed
         /// on glass at all, not where on it.
         /// </summary>
-        public static Vector2 FractionWithinPane(BuildingSite site, PaneKey key, Vector3 point)
+        public static Vector2 FractionWithinPane(CityWorld world, BuildingSite site, PaneKey key, Vector3 point)
         {
             bool runsInZ = key.Wall == WindowGrid.Wall.West || key.Wall == WindowGrid.Wall.East;
             float span = runsInZ ? site.Params.Depth : site.Params.Width;
@@ -170,7 +180,7 @@ namespace CityX.World
             float aboveFloor = point.y - site.BaseHeight;
 
             CellLayout rows = WindowGrid.RowsFor(site.Params.Height);
-            CellLayout columns = WindowGrid.ColumnsFor(span);
+            CellLayout columns = WindowPlan.For(world, site).ColumnsFor(span);
 
             float u = Mathf.Clamp01((along - key.Column * columns.Size) / columns.Size);
             float v = Mathf.Clamp01((aboveFloor - key.Row * rows.Size) / rows.Size);
@@ -191,17 +201,21 @@ namespace CityX.World
         /// </summary>
         public PaneState Hit(PaneKey key, Vector2? impactUV = null, bool shatterOutright = false)
         {
-            PaneState was = StateOf(key);
-            if (was == PaneState.Shattered)
+            PaneState now;
+            lock (_gate)
             {
-                return PaneState.Shattered;
-            }
+                PaneState was = StateOf(key);
+                if (was == PaneState.Shattered)
+                {
+                    return PaneState.Shattered;
+                }
 
-            PaneState now = NextState(was, shatterOutright ? BlowStrength.Heavy : BlowStrength.Light);
-            _broken[key] = now;
-            if (impactUV.HasValue)
-            {
-                _impactPoints[key] = impactUV.Value;
+                now = NextState(was, shatterOutright ? BlowStrength.Heavy : BlowStrength.Light);
+                _broken[key] = now;
+                if (impactUV.HasValue)
+                {
+                    _impactPoints[key] = impactUV.Value;
+                }
             }
             Changed?.Invoke(key, now);
             return now;
@@ -231,25 +245,40 @@ namespace CityX.World
             {
                 return;
             }
-            if (state == PaneState.Intact)
+            lock (_gate)
             {
-                _broken.Remove(key);
-                _impactPoints.Remove(key);
-            }
-            else
-            {
-                _broken[key] = state;
+                if (state == PaneState.Intact)
+                {
+                    _broken.Remove(key);
+                    _impactPoints.Remove(key);
+                }
+                else
+                {
+                    _broken[key] = state;
+                }
             }
             Changed?.Invoke(key, state);
         }
 
         /// <summary>Every broken pane, for saving or for sending to a joining peer.</summary>
-        public IEnumerable<KeyValuePair<PaneKey, PaneState>> Broken => _broken;
+        public IEnumerable<KeyValuePair<PaneKey, PaneState>> Broken
+        {
+            get
+            {
+                lock (_gate)
+                {
+                    return new List<KeyValuePair<PaneKey, PaneState>>(_broken);   // a snapshot: the caller may enumerate it while a chunk generates
+                }
+            }
+        }
 
         public void Clear()
         {
-            _broken.Clear();
-            _impactPoints.Clear();
+            lock (_gate)
+            {
+                _broken.Clear();
+                _impactPoints.Clear();
+            }
         }
 
         // --- addressing ---
@@ -316,14 +345,14 @@ namespace CityX.World
                 return false;
             }
 
+            WindowPlan plan = WindowPlan.For(world, site);
             CellLayout rows = WindowGrid.RowsFor(site.Params.Height);
-            CellLayout columns = WindowGrid.ColumnsFor(span);
+            CellLayout columns = plan.ColumnsFor(span);
 
             int row = Mathf.Clamp(Mathf.FloorToInt(aboveFloor / rows.Size), 0, rows.Count - 1);
             int column = Mathf.Clamp(Mathf.FloorToInt(along / columns.Size), 0, columns.Count - 1);
 
-            int seed = world.ChunkSeed(site.AnchorX, site.AnchorY);
-            if (!WindowGrid.IsGlazed(seed, wall, column, row))
+            if (!plan.IsGlazed(wall, column, row))
             {
                 return false;
             }

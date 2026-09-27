@@ -3413,7 +3413,7 @@ namespace CityX.View
             var south = new Wall(false, z0, x0, x1);
             var north = new Wall(false, z1, x0, x1);
 
-            int seed = world.ChunkSeed(site.AnchorX, site.AnchorY);
+            WindowPlan plan = WindowPlan.For(world, site);
             CellLayout rows = WindowGrid.RowsFor(height);
 
             // The podium, below the lobby floor. Solid: it is buried on the
@@ -3426,25 +3426,25 @@ namespace CityX.View
 
             // Outward, for the street, with real openings in it.
             AddWindowedWall(structures, glazing, site, west, z0, z1, lobbyY, roofY,
-                Vector3.left, seed, WindowGrid.Wall.West, rows, 0.0f, 0.0f, false);
+                Vector3.left, plan, WindowGrid.Wall.West, rows, 0.0f, 0.0f, false);
             AddWindowedWall(structures, glazing, site, east, z0, z1, lobbyY, roofY,
-                Vector3.right, seed, WindowGrid.Wall.East, rows, 0.0f, 0.0f, false);
+                Vector3.right, plan, WindowGrid.Wall.East, rows, 0.0f, 0.0f, false);
             AddWindowedWall(structures, glazing, site, south, x0, x1, lobbyY, roofY,
-                Vector3.back, seed, WindowGrid.Wall.South, rows, 0.0f, 0.0f, false);
+                Vector3.back, plan, WindowGrid.Wall.South, rows, 0.0f, 0.0f, false);
             AddWindowedWall(structures, glazing, site, north, x0, x1, lobbyY, roofY,
-                Vector3.forward, seed, WindowGrid.Wall.North, rows, doorU0, doorU1, true);
+                Vector3.forward, plan, WindowGrid.Wall.North, rows, doorU0, doorU1, true);
 
             // Inward, for the room. Same planes and the same openings, opposite
             // normals -- back to back, so neither is ever seen from the wrong
             // side, and a window is a hole through BOTH or it is not a hole.
             AddWindowedWall(concrete, Glazing.OpeningsOnly, site, west, z0, z1, lobbyY, roofY,
-                Vector3.right, seed, WindowGrid.Wall.West, rows, 0.0f, 0.0f, false);
+                Vector3.right, plan, WindowGrid.Wall.West, rows, 0.0f, 0.0f, false);
             AddWindowedWall(concrete, Glazing.OpeningsOnly, site, east, z0, z1, lobbyY, roofY,
-                Vector3.left, seed, WindowGrid.Wall.East, rows, 0.0f, 0.0f, false);
+                Vector3.left, plan, WindowGrid.Wall.East, rows, 0.0f, 0.0f, false);
             AddWindowedWall(concrete, Glazing.OpeningsOnly, site, south, x0, x1, lobbyY, roofY,
-                Vector3.forward, seed, WindowGrid.Wall.South, rows, 0.0f, 0.0f, false);
+                Vector3.forward, plan, WindowGrid.Wall.South, rows, 0.0f, 0.0f, false);
             AddWindowedWall(concrete, Glazing.OpeningsOnly, site, north, x0, x1, lobbyY, roofY,
-                Vector3.back, seed, WindowGrid.Wall.North, rows, doorU0, doorU1, true);
+                Vector3.back, plan, WindowGrid.Wall.North, rows, doorU0, doorU1, true);
 
             // The lobby floor, and NOT a port: city_chunk.gd leans on the
             // chunk's own ground body for the ground floor, and here that
@@ -4040,10 +4040,10 @@ namespace CityX.View
         /// </summary>
         private static void AddWindowedWall(MeshBuffer wallBuffer, in Glazing glazing,
             BuildingSite site, in Wall wall, float u0, float u1, float floorY, float topY,
-            Vector3 normal, int seed, WindowGrid.Wall which, CellLayout rows,
+            Vector3 normal, in WindowPlan plan, WindowGrid.Wall which, CellLayout rows,
             float doorU0, float doorU1, bool hasDoor)
         {
-            CellLayout columns = WindowGrid.ColumnsFor(u1 - u0);
+            CellLayout columns = plan.ColumnsFor(u1 - u0);
             float inset = WindowGrid.PaneInset;
 
             for (int row = 0; row < rows.Count; row++)
@@ -4054,7 +4054,20 @@ namespace CityX.View
                 if (hasDoor && row == 0)
                 {
                     AddDoorRow(wallBuffer, glazing, site, wall, u0, y0, y1, normal,
-                        seed, which, columns, doorU0, doorU1);
+                        plan, which, columns, doorU0, doorU1);
+                    continue;
+                }
+
+                // A row with no window in it (a blank party wall, the solid band between two ribbons, a
+                // warehouse below its clerestory) is ONE panel, not the sill, lintel and infill of three.
+                bool anyWindow = false;
+                for (int column = 0; column < columns.Count && !anyWindow; column++)
+                {
+                    anyWindow = plan.IsGlazed(which, column, row);
+                }
+                if (!anyWindow)
+                {
+                    AddWallPanel(wallBuffer, wall, u0, u1, y0, y1, normal);
                     continue;
                 }
 
@@ -4066,10 +4079,8 @@ namespace CityX.View
                 // below. Only the top edge needs checking. See
                 // WindowGrid.TopEdgeHasSlab's own comment for why that is a
                 // real per-building check and not a row-parity guess.
-                float insetBottom = WindowGrid.PaneInsetVerticalClear;
-                float insetTop = WindowGrid.TopEdgeHasSlab(row, rows.Size, site.Params.Height)
-                    ? WindowGrid.PaneInsetVerticalSlab
-                    : WindowGrid.PaneInsetVerticalClear;
+                plan.Insets(WindowGrid.TopEdgeHasSlab(row, rows.Size, site.Params.Height),
+                    out float insetBottom, out float insetTop);
                 float paneY0 = y0 + rows.Size * insetBottom;
                 float paneY1 = y1 - rows.Size * insetTop;
 
@@ -4079,7 +4090,7 @@ namespace CityX.View
                 float runStart = u0;
                 for (int column = 0; column < columns.Count; column++)
                 {
-                    if (!WindowGrid.IsGlazed(seed, which, column, row))
+                    if (!plan.IsGlazed(which, column, row))
                     {
                         continue;
                     }
@@ -4092,7 +4103,7 @@ namespace CityX.View
                     runStart = paneU1;
 
                     AddPane(glazing, site, wall, paneU0, paneU1, paneY0, paneY1, normal,
-                        seed, which, column, row);
+                        plan, which, column, row);
                 }
                 AddWallPanel(wallBuffer, wall, runStart, u1, paneY0, paneY1, normal);
             }
@@ -4114,7 +4125,7 @@ namespace CityX.View
         /// </summary>
         private static void AddDoorRow(MeshBuffer wallBuffer, in Glazing glazing,
             BuildingSite site, in Wall wall, float u0, float y0, float y1, Vector3 normal,
-            int seed, WindowGrid.Wall which, CellLayout columns, float doorU0, float doorU1)
+            in WindowPlan plan, WindowGrid.Wall which, CellLayout columns, float doorU0, float doorU1)
         {
             float inset = WindowGrid.PaneInset;
             // The door row is always row 0, whose own top boundary (1) is
@@ -4137,7 +4148,7 @@ namespace CityX.View
                     continue;
                 }
 
-                if (!WindowGrid.IsGlazed(seed, which, column, 0))
+                if (!plan.IsGlazed(which, column, 0))
                 {
                     AddWallPanel(wallBuffer, wall, cellU0, cellU1, y0, y1, normal);
                     continue;
@@ -4151,7 +4162,7 @@ namespace CityX.View
                 AddWallPanel(wallBuffer, wall, paneU0, paneU1, paneY1, y1, normal);
 
                 AddPane(glazing, site, wall, paneU0, paneU1, paneY0, paneY1, normal,
-                    seed, which, column, 0);
+                    plan, which, column, 0);
             }
         }
 
@@ -4175,7 +4186,7 @@ namespace CityX.View
         /// </summary>
         private static void AddPane(in Glazing glazing, BuildingSite site, in Wall wall,
             float u0, float u1, float y0, float y1, Vector3 normal,
-            int seed, WindowGrid.Wall which, int column, int row)
+            in WindowPlan plan, WindowGrid.Wall which, int column, int row)
         {
             if (!glazing.HangsGlass)
             {
@@ -4191,7 +4202,7 @@ namespace CityX.View
 
             MeshBuffer glass = state == PaneState.Cracked
                 ? glazing.Cracked
-                : WindowGrid.IsLit(seed, which, column, row, glazing.LitShare) ? glazing.Lit : glazing.Dark;
+                : plan.IsLit(which, column, row, glazing.LitShare) ? glazing.Lit : glazing.Dark;
             if (glass == null)
             {
                 return;

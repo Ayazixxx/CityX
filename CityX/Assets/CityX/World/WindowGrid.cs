@@ -22,29 +22,26 @@ namespace CityX.World
     ///
     /// WHY THIS FILE EXISTS AT ALL, given city_chunk.gd has no counterpart.
     /// Godot glazes EVERY cell, so it needs no such decision. This city's
-    /// facade is deliberately sparse -- punched openings with long blank runs
-    /// of concrete, which is the reference the texture work was built against
-    /// -- so the sparse pattern has to survive the move from texture to
-    /// geometry. The two shares below are the texture's own, carried across
-    /// unchanged.
+    /// facades are deliberately varied -- see <see cref="WindowPlan"/> and
+    /// docs/FACADES.md: each building wears one whole style (glass curtain
+    /// wall, ribbon bands, punched windows, irregular openings, a shed's
+    /// high strip, or almost nothing), picked here from its zone and massing.
     /// </summary>
     public static class WindowGrid
     {
-        /// <summary>
-        /// Fraction of cells that are glazed. CityFacadeTextures' own
-        /// WindowedCellShare: sparse, per the reference, rather than the
-        /// curtain wall every-cell glazing would give.
-        /// </summary>
-        public const double GlazedShare = 0.42;
-
         /// <summary>
         /// Fraction of GLAZED cells with a light on. Well under half -- a city
         /// where every window is lit looks like an office block at 3pm.
         /// </summary>
         public const double LitShare = 0.34;
 
-        private const ulong GlazedSalt = 0x57494E44UL;   // "WIND"
-        private const ulong LitSalt = 0x4C495448UL;      // "LITH"
+        internal const ulong GlazedSalt = 0x57494E44UL;      // "WIND"
+        internal const ulong LitSalt = 0x4C495448UL;         // "LITH"
+        internal const ulong FloorLitSalt = 0x464C4F52UL;    // "FLOR"
+        private const ulong StyleSalt = 0x53545956UL;        // "STYV"
+        private const ulong DetailSalt = 0x44455441UL;       // "DETA"
+        private const ulong PartySalt = 0x50415254UL;        // "PART"
+        private const ulong ShopSalt = 0x53484F50UL;         // "SHOP"
 
         /// <summary>
         /// A wall's index, used to keep the four walls of one building from
@@ -75,17 +72,195 @@ namespace CityX.World
             }
         }
 
+        // ---- which facade a building wears ----
+
         /// <summary>
-        /// Whether a cell carries a window.
+        /// Relative chance of each <see cref="FacadeStyle"/> (in enum order: curtain, ribbon, punched,
+        /// scattered, high band, blank) for a building of a given massing, BEFORE its zone weighs in.
         ///
-        /// Hashed rather than drawn from a sequence because chunks are built in
-        /// whatever order the player walks -- see WorldHash's own note on why
-        /// that rules out a cursor.
+        /// From how real cities are put together: towers are glass (curtain wall is what a high-rise office
+        /// IS -- Chicago's multifamily towers run 75% glazed and up), the mid-rise mix is the widest, low-rise
+        /// is mostly separate punched windows, the brutalist slab leans blank and irregular, and a shed has
+        /// one clerestory strip or nothing.
         /// </summary>
-        public static bool IsGlazed(int buildingSeed, Wall wall, int column, int row)
+        private static readonly double[][] StyleWeightsByMass =
         {
-            return WorldHash.Unit01(column, row, GlazedSalt + (ulong)(int)wall,
-                unchecked((ulong)(long)buildingSeed)) < GlazedShare;
+            /* LowRise   */ new[] { 8.0, 8.0, 46.0, 28.0, 0.0, 10.0 },
+            /* MidRise   */ new[] { 18.0, 18.0, 40.0, 24.0, 0.0, 0.0 },
+            /* Slab      */ new[] { 8.0, 24.0, 30.0, 30.0, 0.0, 8.0 },
+            /* Tower     */ new[] { 45.0, 25.0, 30.0, 0.0, 0.0, 0.0 },
+            /* Supertall */ new[] { 75.0, 25.0, 0.0, 0.0, 0.0, 0.0 },
+            /* Warehouse */ new[] { 0.0, 0.0, 0.0, 12.0, 48.0, 40.0 },
+        };
+
+        /// <summary>
+        /// How a zone pushes those weights: downtown is glass, the old quarter is small punched windows in
+        /// masonry, an industrial estate is blank, the everyday city is mostly regular flats.
+        /// </summary>
+        private static double[] StyleBiasFor(ZoneKind zone)
+        {
+            switch (zone)
+            {
+                case ZoneKind.Core: return new[] { 1.3, 1.0, 0.9, 0.8, 1.0, 0.4 };
+                case ZoneKind.Urban: return new[] { 1.25, 1.1, 0.9, 0.9, 1.0, 0.6 };
+                case ZoneKind.OldTown: return new[] { 0.12, 0.4, 2.0, 1.1, 1.0, 0.7 };
+                case ZoneKind.Industrial: return new[] { 0.35, 0.5, 0.4, 1.0, 1.5, 2.0 };
+                case ZoneKind.Outskirts: return new[] { 0.3, 0.6, 1.2, 1.4, 1.0, 1.0 };
+                default: return new[] { 0.4, 0.9, 1.5, 1.0, 1.0, 0.8 };   // Residential
+            }
+        }
+
+        /// <summary>Chance that a side wall is a party wall (blank, because another building stood against it).</summary>
+        private static double PartyWallChanceFor(ZoneKind zone)
+        {
+            switch (zone)
+            {
+                case ZoneKind.Core: return 0.30;
+                case ZoneKind.Urban: return 0.30;
+                case ZoneKind.OldTown: return 0.40;
+                case ZoneKind.Residential: return 0.22;
+                case ZoneKind.Outskirts: return 0.05;
+                default: return 0.0;
+            }
+        }
+
+        /// <summary>Chance that the door wall's ground floor is a shopfront.</summary>
+        private static double StorefrontChanceFor(ZoneKind zone)
+        {
+            switch (zone)
+            {
+                case ZoneKind.Core: return 0.55;
+                case ZoneKind.Urban: return 0.50;
+                case ZoneKind.OldTown: return 0.40;
+                case ZoneKind.Residential: return 0.20;
+                default: return 0.0;
+            }
+        }
+
+        /// <summary>
+        /// The facade of the building described by a seed, a zone and its dice-rolled parameters. Pure: the
+        /// same inputs give the same plan on any thread, in any order.
+        /// </summary>
+        public static WindowPlan PlanFor(int seed, ZoneKind zone, BuildingParams building)
+        {
+            ulong s = unchecked((ulong)(long)seed);
+            FacadeStyle style;
+            bool special = building.IsSpecial;
+            bool forceStorefront = false;
+
+            if (special)
+            {
+                // The rare landmark types have a look of their own.
+                switch (building.SpecialType)
+                {
+                    case "supermarket": style = FacadeStyle.Blank; forceStorefront = true; break;
+                    case "hospital": style = FacadeStyle.Ribbon; break;
+                    case "bank": style = FacadeStyle.Punched; forceStorefront = true; break;
+                    default: style = FacadeStyle.Punched; break;
+                }
+            }
+            else
+            {
+                style = PickStyle(WorldHash.Unit01(0, 0, StyleSalt, s), zone, building.Mass);
+            }
+
+            // Detail draws: independent streams so retuning one never moves another.
+            double detail = WorldHash.Unit01(1, 0, DetailSalt, s);
+            double detail2 = WorldHash.Unit01(2, 0, DetailSalt, s);
+
+            int pitch = 1;
+            int phase = 0;
+            int bandParity = detail < 0.5 ? 0 : 1;
+            double scatter = 0.0;
+            int bandRow = Mathf.Min(2, Mathf.Max(0, RowsFor(building.Height).Count - 1));
+            float sill = PaneInsetVerticalClear;
+            float head = PaneInsetVerticalClear;
+
+            switch (style)
+            {
+                case FacadeStyle.Curtain:
+                    break;
+                case FacadeStyle.Ribbon:
+                    sill = 0.12f;
+                    head = 0.10f;
+                    break;
+                case FacadeStyle.Punched:
+                    pitch = detail < 0.2 ? 1 : 2;
+                    phase = pitch == 1 ? 0 : (detail2 < 0.5 ? 0 : 1);
+                    sill = 0.28f;
+                    head = 0.14f;
+                    break;
+                case FacadeStyle.Scattered:
+                    scatter = 0.20 + 0.20 * detail;   // 0.20 - 0.40, every building its own density
+                    break;
+                case FacadeStyle.HighBand:
+                    phase = detail < 0.5 ? 0 : 1;
+                    sill = 0.35f;
+                    head = 0.20f;
+                    break;
+                case FacadeStyle.Blank:
+                    scatter = 0.03;
+                    sill = 0.25f;
+                    head = 0.15f;
+                    break;
+            }
+
+            // A party wall only makes sense on a building that stands in a row of others, and never on one that
+            // is a whole glass face or a shed.
+            int blank = 0;
+            bool canShareWalls = style == FacadeStyle.Punched || style == FacadeStyle.Scattered
+                || style == FacadeStyle.Ribbon;
+            if (canShareWalls && !special && building.Mass != BuildingMass.Warehouse
+                && building.Mass != BuildingMass.Supertall)
+            {
+                double chance = PartyWallChanceFor(zone);
+                if (WorldHash.Unit01(0, 0, PartySalt + (ulong)(int)Wall.West, s) < chance)
+                {
+                    blank |= 1 << (int)Wall.West;
+                }
+                if (WorldHash.Unit01(0, 0, PartySalt + (ulong)(int)Wall.East, s) < chance)
+                {
+                    blank |= 1 << (int)Wall.East;
+                }
+                if (WorldHash.Unit01(0, 0, PartySalt + (ulong)(int)Wall.South, s) < chance * 0.35)
+                {
+                    blank |= 1 << (int)Wall.South;
+                }
+            }
+
+            bool storefront = forceStorefront;
+            if (!storefront && !special && style != FacadeStyle.Blank && style != FacadeStyle.HighBand
+                && building.Mass != BuildingMass.Warehouse)
+            {
+                storefront = WorldHash.Unit01(0, 0, ShopSalt, s) < StorefrontChanceFor(zone);
+            }
+
+            return new WindowPlan(seed, style, blank, storefront, pitch, phase, bandParity, scatter,
+                bandRow, sill, head);
+        }
+
+        /// <summary>The style a roll in [0,1) picks, given where the building stands and how big it is.</summary>
+        public static FacadeStyle PickStyle(double roll, ZoneKind zone, BuildingMass mass)
+        {
+            double[] baseWeights = StyleWeightsByMass[(int)mass];
+            double[] bias = StyleBiasFor(zone);
+            double total = 0.0;
+            for (int i = 0; i < baseWeights.Length; i++)
+            {
+                total += baseWeights[i] * bias[i];
+            }
+
+            double target = roll * total;
+            double cursor = 0.0;
+            for (int i = 0; i < baseWeights.Length; i++)
+            {
+                cursor += baseWeights[i] * bias[i];
+                if (target < cursor && baseWeights[i] > 0.0)
+                {
+                    return (FacadeStyle)i;
+                }
+            }
+            return FacadeStyle.Punched;   // floating-point safety net, not a normal path
         }
 
         /// <summary>
