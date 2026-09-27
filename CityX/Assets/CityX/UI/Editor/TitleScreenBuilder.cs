@@ -809,26 +809,39 @@ namespace CityX.UIEditor
             view.MusicPlayer = title.MusicPlayer;
 
             MakeLabel(panel.transform, "Heading", "SETTINGS", 30, Gold,
-                new Vector2(0.0f, 138.0f), new Vector2(440.0f, 40.0f));
+                new Vector2(0.0f, 178.0f), new Vector2(440.0f, 40.0f));
 
             MakeLabel(panel.transform, "MasterLabel", "MASTER VOLUME", 17, Paper,
-                new Vector2(0.0f, 84.0f), new Vector2(440.0f, 30.0f));
-            view.MasterSlider = MakeSlider(panel.transform, "MasterSlider", new Vector2(0.0f, 58.0f));
+                new Vector2(0.0f, 124.0f), new Vector2(440.0f, 30.0f));
+            view.MasterSlider = MakeSlider(panel.transform, "MasterSlider", new Vector2(0.0f, 98.0f));
 
             MakeLabel(panel.transform, "FullscreenLabel", "FULLSCREEN", 17, Paper,
-                new Vector2(-110.0f, 10.0f), new Vector2(240.0f, 30.0f));
-            view.FullscreenToggle = MakeToggle(panel.transform, "FullscreenToggle", new Vector2(120.0f, 10.0f));
+                new Vector2(-110.0f, 50.0f), new Vector2(240.0f, 30.0f));
+            view.FullscreenToggle = MakeToggle(panel.transform, "FullscreenToggle", new Vector2(120.0f, 50.0f));
 
             MakeLabel(panel.transform, "ResolutionLabel", "RESOLUTION", 17, Paper,
-                new Vector2(0.0f, -40.0f), new Vector2(440.0f, 30.0f));
+                new Vector2(0.0f, 0.0f), new Vector2(440.0f, 30.0f));
             view.ResolutionPrevButton = MakeArrowButton(panel.transform, "ResolutionPrev", "<",
-                new Vector2(-140.0f, -70.0f));
+                new Vector2(-140.0f, -30.0f));
             WireArrowButton(view.ResolutionPrevButton, view, ButtonAction.Kind.SettingsResolutionPrevious);
             view.ResolutionLabel = MakeLabel(panel.transform, "ResolutionValue", "1920x1080", 17, Paper,
-                new Vector2(0.0f, -70.0f), new Vector2(200.0f, 30.0f));
+                new Vector2(0.0f, -30.0f), new Vector2(200.0f, 30.0f));
             view.ResolutionNextButton = MakeArrowButton(panel.transform, "ResolutionNext", ">",
-                new Vector2(140.0f, -70.0f));
+                new Vector2(140.0f, -30.0f));
             WireArrowButton(view.ResolutionNextButton, view, ButtonAction.Kind.SettingsResolutionNext);
+
+            // The frame-rate cap: a single-line stepper like the device rows below, in the room made by moving
+            // Heading..Resolution up (the panel had empty space above its heading).
+            MakeLabel(panel.transform, "FpsLabel", "MAX FPS", 15, Paper,
+                new Vector2(-140.0f, -74.0f), new Vector2(180.0f, 22.0f));
+            view.FpsPrevButton = MakeArrowButton(panel.transform, "FpsPrev", "<",
+                new Vector2(30.0f, -74.0f));
+            WireArrowButton(view.FpsPrevButton, view, ButtonAction.Kind.SettingsFpsPrevious);
+            view.FpsLabel = MakeLabel(panel.transform, "FpsValue", "UNLIMITED", 12, Paper,
+                new Vector2(105.0f, -74.0f), new Vector2(90.0f, 22.0f));
+            view.FpsNextButton = MakeArrowButton(panel.transform, "FpsNext", ">",
+                new Vector2(180.0f, -74.0f));
+            WireArrowButton(view.FpsNextButton, view, ButtonAction.Kind.SettingsFpsNext);
 
             MakeLabel(panel.transform, "MusicLabel", "MUSIC VOLUME", 15, Paper,
                 new Vector2(0.0f, -108.0f), new Vector2(440.0f, 24.0f));

@@ -65,6 +65,11 @@ namespace CityX.UI
         public Button ResolutionPrevButton;
         public Button ResolutionNextButton;
 
+        [Tooltip("The frame-rate cap: 30 to 240 FPS, or UNLIMITED.")]
+        public Text FpsLabel;
+        public Button FpsPrevButton;
+        public Button FpsNextButton;
+
         public Text InputDeviceLabel;
         public Button InputDevicePrevButton;
         public Button InputDeviceNextButton;
@@ -90,8 +95,12 @@ namespace CityX.UI
 
         private bool _wasCursorCaptured;
         private int _resolutionIndex = DisplaySettings.DefaultIndex;
+        private int _fpsIndex = DisplaySettings.FpsIndexFor(DisplaySettings.DefaultMaxFps);
         private int _inputDeviceIndex;
         private int _outputDeviceIndex;
+
+        /// <summary>The frame-rate cap currently chosen, in fps (0 = no cap).</summary>
+        public int MaxFps => DisplaySettings.FpsOptions[_fpsIndex];
 
         public bool IsOpen => Dim != null && Dim.activeSelf;
 
@@ -107,6 +116,8 @@ namespace CityX.UI
             if (FullscreenToggle != null) FullscreenToggle.onValueChanged.AddListener(OnFullscreenToggled);
             if (ResolutionPrevButton != null) ResolutionPrevButton.onClick.AddListener(() => StepResolution(-1));
             if (ResolutionNextButton != null) ResolutionNextButton.onClick.AddListener(() => StepResolution(1));
+            if (FpsPrevButton != null) FpsPrevButton.onClick.AddListener(() => StepFps(-1));
+            if (FpsNextButton != null) FpsNextButton.onClick.AddListener(() => StepFps(1));
             if (InputDevicePrevButton != null) InputDevicePrevButton.onClick.AddListener(() => StepInputDevice(-1));
             if (InputDeviceNextButton != null) InputDeviceNextButton.onClick.AddListener(() => StepInputDevice(1));
             if (OutputDevicePrevButton != null) OutputDevicePrevButton.onClick.AddListener(() => StepOutputDevice(-1));
@@ -217,6 +228,26 @@ namespace CityX.UI
             SaveSettings();
         }
 
+        private void StepFps(int direction)
+        {
+            // Wraps, like the resolution: past UNLIMITED comes 30 again.
+            int count = DisplaySettings.FpsOptions.Length;
+            _fpsIndex = ((_fpsIndex + direction) % count + count) % count;
+            ApplyFps(_fpsIndex);
+            SaveSettings();
+        }
+
+        private void ApplyFps(int index)
+        {
+            _fpsIndex = Mathf.Clamp(index, 0, DisplaySettings.FpsOptions.Length - 1);
+            int fps = DisplaySettings.FpsOptions[_fpsIndex];
+            DisplaySettings.ApplyMaxFps(fps);
+            if (FpsLabel != null)
+            {
+                FpsLabel.text = DisplaySettings.FpsLabel(fps);
+            }
+        }
+
         private void StepResolution(int direction)
         {
             // Wraps rather than clamping at the ends -- Next past the last
@@ -295,6 +326,9 @@ namespace CityX.UI
             }
             SetResolutionControlsInteractable(!data.Fullscreen);
 
+            // The saved cap is put into force as soon as the game starts, not only once someone opens this screen.
+            ApplyFps(DisplaySettings.FpsIndexFor(data.MaxFps));
+
             if (MasterSlider != null) MasterSlider.value = data.MasterVolume;
             else AudioListener.volume = data.MasterVolume;
 
@@ -333,6 +367,7 @@ namespace CityX.UI
                 MusicVolume = MusicSlider != null ? MusicSlider.value : 1.0f,
                 Fullscreen = FullscreenToggle != null && FullscreenToggle.isOn,
                 ResolutionIndex = _resolutionIndex,
+                MaxFps = DisplaySettings.FpsOptions[_fpsIndex],
                 InputDevice = _inputDeviceIndex >= 0 && _inputDeviceIndex < inputOptions.Length
                     ? inputOptions[_inputDeviceIndex] : VoiceDeviceOptions.DefaultDevice,
                 OutputDevice = _outputDeviceIndex >= 0 && _outputDeviceIndex < outputOptions.Length

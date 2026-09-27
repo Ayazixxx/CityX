@@ -92,18 +92,25 @@ namespace CityX.UIEditor
             GameObject panel = MakeCenteredPanel(parent, "SettingsPanel", new Vector2(360.0f, 620.0f));
             panel.SetActive(false);
 
-            MakeLabel(panel.transform, "Heading", "SETTINGS", 24, Gold, new Vector2(0.0f, 130.0f));
+            MakeLabel(panel.transform, "Heading", "SETTINGS", 24, Gold, new Vector2(0.0f, 170.0f));
 
-            MakeLabel(panel.transform, "MasterLabel", "MASTER VOLUME", 15, Paper, new Vector2(0.0f, 78.0f));
-            view.MasterSlider = MakeSlider(panel.transform, "MasterSlider", new Vector2(0.0f, 54.0f));
+            MakeLabel(panel.transform, "MasterLabel", "MASTER VOLUME", 15, Paper, new Vector2(0.0f, 118.0f));
+            view.MasterSlider = MakeSlider(panel.transform, "MasterSlider", new Vector2(0.0f, 94.0f));
 
-            MakeLabel(panel.transform, "FullscreenLabel", "FULLSCREEN", 15, Paper, new Vector2(-80.0f, 8.0f));
-            view.FullscreenToggle = MakeToggle(panel.transform, "FullscreenToggle", new Vector2(90.0f, 8.0f));
+            MakeLabel(panel.transform, "FullscreenLabel", "FULLSCREEN", 15, Paper, new Vector2(-80.0f, 48.0f));
+            view.FullscreenToggle = MakeToggle(panel.transform, "FullscreenToggle", new Vector2(90.0f, 48.0f));
 
-            MakeLabel(panel.transform, "ResolutionLabel", "RESOLUTION", 15, Paper, new Vector2(0.0f, -36.0f));
-            view.ResolutionPrevButton = MakeArrowButton(panel.transform, "ResolutionPrev", "<", new Vector2(-110.0f, -62.0f));
-            view.ResolutionLabel = MakeLabel(panel.transform, "ResolutionValue", "1920x1080", 15, Paper, new Vector2(0.0f, -62.0f));
-            view.ResolutionNextButton = MakeArrowButton(panel.transform, "ResolutionNext", ">", new Vector2(110.0f, -62.0f));
+            MakeLabel(panel.transform, "ResolutionLabel", "RESOLUTION", 15, Paper, new Vector2(0.0f, 4.0f));
+            view.ResolutionPrevButton = MakeArrowButton(panel.transform, "ResolutionPrev", "<", new Vector2(-110.0f, -22.0f));
+            view.ResolutionLabel = MakeLabel(panel.transform, "ResolutionValue", "1920x1080", 15, Paper, new Vector2(0.0f, -22.0f));
+            view.ResolutionNextButton = MakeArrowButton(panel.transform, "ResolutionNext", ">", new Vector2(110.0f, -22.0f));
+
+            // The frame-rate cap: a single-line stepper like the device rows below, in the room made by moving
+            // Heading..Resolution up (the panel had empty space above its heading).
+            MakeLabel(panel.transform, "FpsLabel", "MAX FPS", 12, Paper, new Vector2(-100.0f, -64.0f));
+            view.FpsPrevButton = MakeArrowButton(panel.transform, "FpsPrev", "<", new Vector2(40.0f, -64.0f));
+            view.FpsLabel = MakeLabel(panel.transform, "FpsValue", "UNLIMITED", 11, Paper, new Vector2(95.0f, -64.0f));
+            view.FpsNextButton = MakeArrowButton(panel.transform, "FpsNext", ">", new Vector2(150.0f, -64.0f));
 
             MakeLabel(panel.transform, "MusicLabel", "MUSIC VOLUME", 13, Paper, new Vector2(0.0f, -100.0f));
             view.MusicSlider = MakeSlider(panel.transform, "MusicSlider", new Vector2(0.0f, -124.0f));

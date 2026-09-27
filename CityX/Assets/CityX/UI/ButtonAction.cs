@@ -98,6 +98,10 @@ namespace CityX.UI
 
             /// <summary>A swatch in the hair colour card: dyes the hair Colour. Needs HairControls.</summary>
             CreatorHairColour,
+
+            /// <summary>The settings screen's frame-rate cap: the previous / next choice. Appended, so no saved value moves.</summary>
+            SettingsFpsPrevious,
+            SettingsFpsNext,
         }
 
         public Kind Action;
@@ -204,6 +208,12 @@ namespace CityX.UI
                     break;
                 case Kind.SettingsOutputDeviceNext:
                     if (Settings != null) Settings.NextOutputDevice();
+                    break;
+                case Kind.SettingsFpsPrevious:
+                    if (Settings != null) Settings.PreviousFps();
+                    break;
+                case Kind.SettingsFpsNext:
+                    if (Settings != null) Settings.NextFps();
                     break;
 
                 case Kind.CreatorTool:

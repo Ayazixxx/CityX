@@ -53,5 +53,65 @@ namespace CityX.UI
         {
             return Mathf.Clamp(index, 0, Options.Length - 1);
         }
+
+        // ---- frame-rate cap ----
+
+        /// <summary>The frame-rate caps on offer, lowest to highest, ending with 0 = no cap.</summary>
+        public static readonly int[] FpsOptions = { 30, 60, 90, 120, 144, 165, 240, 0 };
+
+        /// <summary>What a fresh install runs at: no cap, as it always did.</summary>
+        public const int DefaultMaxFps = 0;
+
+        /// <summary>How a cap reads on screen.</summary>
+        public static string FpsLabel(int fps) => fps <= 0 ? "UNLIMITED" : $"{fps} FPS";
+
+        /// <summary>
+        /// The index of the offered cap closest to <paramref name="fps"/> (0 or less is "no cap", the last
+        /// entry), so a saved value that is no longer a choice lands on a real one.
+        /// </summary>
+        public static int FpsIndexFor(int fps)
+        {
+            if (fps <= 0)
+            {
+                return FpsOptions.Length - 1;
+            }
+            int best = 0;
+            int bestGap = int.MaxValue;
+            for (int i = 0; i < FpsOptions.Length; i++)
+            {
+                if (FpsOptions[i] <= 0)
+                {
+                    continue;   // "no cap" is only ever picked by asking for it
+                }
+                int gap = Mathf.Abs(FpsOptions[i] - fps);
+                if (gap < bestGap)
+                {
+                    bestGap = gap;
+                    best = i;
+                }
+            }
+            return best;
+        }
+
+        /// <summary>
+        /// Puts a cap into force. V-Sync is switched off, or the display's refresh rate would override the cap
+        /// (Unity ignores targetFrameRate while V-Sync is on). 0 or less removes the cap.
+        /// </summary>
+        public static void ApplyMaxFps(int fps)
+        {
+            QualitySettings.vSyncCount = 0;
+            Application.targetFrameRate = fps <= 0 ? -1 : fps;
+        }
+
+        /// <summary>
+        /// Puts the SAVED cap into force. Runs once as the game starts, before any scene loads: the settings
+        /// screens only apply it when they wake up, and the title screen's starts switched off (nobody has
+        /// opened it yet), so without this a saved 60 would not hold until the player visited Settings.
+        /// </summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        public static void ApplySavedMaxFps()
+        {
+            ApplyMaxFps(FpsOptions[FpsIndexFor(CityX.Core.GameSettings.Load().MaxFps)]);
+        }
     }
 }

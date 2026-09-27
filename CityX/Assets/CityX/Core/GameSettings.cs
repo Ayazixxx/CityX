@@ -27,6 +27,14 @@ namespace CityX.Core
         public int ResolutionIndex = 3; // must match CityX.UI.DisplaySettings.DefaultIndex
 
         /// <summary>
+        /// The frame-rate cap, in frames per second; 0 means no cap. Saved as the NUMBER, not an index into
+        /// CityX.UI.DisplaySettings.FpsOptions: a cap of 90 still means 90 if the list of choices changes, and
+        /// a value the list no longer offers snaps to the nearest one it does. A settings file from before
+        /// this existed has no such field and loads as 0 (uncapped), which is what the game always did.
+        /// </summary>
+        public int MaxFps = 0;
+
+        /// <summary>
         /// Device NAMES rather than indices, unlike ResolutionIndex -- a
         /// plugged-in microphone can vanish between sessions and an index
         /// would silently point at whatever happens to be at that slot

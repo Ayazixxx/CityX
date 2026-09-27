@@ -162,6 +162,8 @@ namespace CityX.Tests
                     case ButtonAction.Kind.SettingsInputDeviceNext:
                     case ButtonAction.Kind.SettingsOutputDevicePrevious:
                     case ButtonAction.Kind.SettingsOutputDeviceNext:
+                    case ButtonAction.Kind.SettingsFpsPrevious:
+                    case ButtonAction.Kind.SettingsFpsNext:
                         Require(unwired, go, action.Settings, "a TitleSettingsView");
                         break;
 
