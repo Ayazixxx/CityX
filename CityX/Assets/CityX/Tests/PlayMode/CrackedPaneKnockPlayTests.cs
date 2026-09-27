@@ -1,0 +1,276 @@
+using System.Collections;
+using System.Collections.Generic;
+using CityX.View;
+using CityX.World;
+using NUnit.Framework;
+using UnityEngine;
+using UnityEngine.TestTools;
+
+namespace CityX.Tests
+{
+    /// <summary>
+    /// A cracked window breaks when something KNOCKS into it, and not otherwise. Reported: "i keep noticing the
+    /// windows shattering by themself after being shot but should only shatter when an object or player knocks
+    /// into the already shattered window."
+    ///
+    /// The cause was the trigger box a cracked pane leaves: ANY rigid body overlapping it shattered the pane --
+    /// the kinematic limb colliders of a character standing or aiming beside the glass, glass shards from the
+    /// window next door, anything resting there. The classification (<see cref="CrackedPane.IsAKnock"/>) is
+    /// checked on real colliders; the physics half puts a real body in a real cracked window's box.
+    /// </summary>
+    public sealed class CrackedPaneKnockPlayTests
+    {
+        private const int Seed = 61472093;
+        private readonly List<GameObject> _made = new List<GameObject>();
+
+        [TearDown]
+        public void TearDown()
+        {
+            foreach (GameObject go in _made)
+            {
+                if (go != null) Object.Destroy(go);
+            }
+            _made.Clear();
+        }
+
+        private GameObject Made(GameObject go)
+        {
+            _made.Add(go);
+            return go;
+        }
+
+        // The North wall faces +Z, so "through the pane" is along Z.
+
+        [UnityTest]
+        public IEnumerator ACharacterStandingStillInTheOpeningIsNotAKnock()
+        {
+            var body = Made(new GameObject("Player"));
+            var controller = body.AddComponent<CharacterController>();
+            yield return null;
+            controller.Move(Vector3.zero);
+            yield return null;
+
+            Assert.IsFalse(CrackedPane.IsAKnock(controller, WindowGrid.Wall.North), "standing next to a cracked window broke it");
+        }
+
+        [UnityTest]
+        public IEnumerator ACharacterWalkingIntoTheWindowIsAKnock()
+        {
+            var body = Made(new GameObject("Player"));
+            var controller = body.AddComponent<CharacterController>();
+            yield return null;
+            controller.Move(new Vector3(0.0f, 0.0f, 3.0f * Time.deltaTime));   // 3 m/s at the pane
+
+            Assert.IsTrue(CrackedPane.IsAKnock(controller, WindowGrid.Wall.North), "walking into a cracked window does not break it");
+        }
+
+        [UnityTest]
+        public IEnumerator ACharacterMovingAlongTheGlassIsNotAKnock()
+        {
+            var body = Made(new GameObject("Player"));
+            var controller = body.AddComponent<CharacterController>();
+            yield return null;
+            controller.Move(new Vector3(3.0f * Time.deltaTime, 0.0f, 0.0f));   // running past it, parallel to the wall
+
+            Assert.IsFalse(CrackedPane.IsAKnock(controller, WindowGrid.Wall.North), "running past a window along its wall broke it");
+        }
+
+        [UnityTest]
+        public IEnumerator AKinematicLimbColliderIsNeverAKnockHoweverItMoves()
+        {
+            // A limb of a character standing or aiming beside the glass: a collider on a kinematic rigid body.
+            var limb = Made(new GameObject("hand"));
+            limb.AddComponent<SphereCollider>().radius = 0.1f;
+            var rigidbody = limb.AddComponent<Rigidbody>();
+            rigidbody.isKinematic = true;
+            yield return null;
+
+            Assert.IsFalse(CrackedPane.IsAKnock(limb.GetComponent<Collider>(), WindowGrid.Wall.North),
+                "the arm of somebody aiming at a cracked window broke it");
+        }
+
+        [UnityTest]
+        public IEnumerator AThrownBodyIsAKnockOnlyIfItIsMovingFastEnoughThroughThePane()
+        {
+            var thrown = Made(new GameObject("bottle"));
+            thrown.AddComponent<SphereCollider>().radius = 0.1f;
+            var rigidbody = thrown.AddComponent<Rigidbody>();
+            rigidbody.useGravity = false;
+            yield return null;
+
+            rigidbody.linearVelocity = new Vector3(0.0f, 0.0f, 4.0f);
+            Assert.IsTrue(CrackedPane.IsAKnock(thrown.GetComponent<Collider>(), WindowGrid.Wall.North));
+
+            rigidbody.linearVelocity = new Vector3(0.0f, 0.0f, 0.4f);
+            Assert.IsFalse(CrackedPane.IsAKnock(thrown.GetComponent<Collider>(), WindowGrid.Wall.North), "a body drifting at a cracked window broke it");
+
+            rigidbody.linearVelocity = new Vector3(4.0f, 0.0f, 0.0f);
+            Assert.IsFalse(CrackedPane.IsAKnock(thrown.GetComponent<Collider>(), WindowGrid.Wall.North), "a body sliding along the glass broke it");
+        }
+
+        [UnityTest]
+        public IEnumerator FlyingGlassNeverBreaksAnotherWindow()
+        {
+            // The shards of a shattered pane are launched fast, as real rigid bodies: they used to shatter every
+            // cracked pane they crossed, which threw more shards -- a chain reaction.
+            var shard = Made(new GameObject("shard"));
+            shard.AddComponent<IgnoredByShots>();
+            shard.AddComponent<SphereCollider>().radius = 0.05f;
+            var rigidbody = shard.AddComponent<Rigidbody>();
+            rigidbody.useGravity = false;
+            yield return null;
+            rigidbody.linearVelocity = new Vector3(0.0f, 0.0f, 6.0f);
+
+            Assert.IsFalse(CrackedPane.IsAKnock(shard.GetComponent<Collider>(), WindowGrid.Wall.North), "a glass shard broke a window");
+        }
+
+        // ---- the real physics, in a real cracked window ----
+
+        private struct Target
+        {
+            public PaneKey Key;
+            public Vector3 Centre;
+        }
+
+        private static bool FindTarget(CityWorld world, out Target target)
+        {
+            for (int x = -8; x <= 8; x++)
+            {
+                for (int y = -8; y <= 8; y++)
+                {
+                    BuildingSite site = world.BuildingAt(x, y);
+                    if (!site.Exists || site.AnchorX != x || site.AnchorY != y || site.Params.Width < 8.0f)
+                    {
+                        continue;
+                    }
+
+                    WindowPlan plan = WindowPlan.For(world, site);
+                    CellLayout rows = WindowGrid.RowsFor(site.Params.Height);
+                    CellLayout columns = plan.ColumnsFor(site.Params.Width);
+                    for (int row = 1; row < Mathf.Min(rows.Count, 3); row++)
+                    {
+                        for (int column = 1; column < columns.Count - 1; column++)
+                        {
+                            if (!plan.IsGlazed(WindowGrid.Wall.North, column, row))
+                            {
+                                continue;
+                            }
+                            var centre = new Vector3(
+                                (float)site.MinX + (column + 0.5f) * columns.Size,
+                                site.BaseHeight + (row + 0.5f) * rows.Size,
+                                (float)site.MaxZ);
+                            if (GlassDamage.TryPaneAt(world, site, centre + Vector3.forward * 0.02f, out PaneKey key))
+                            {
+                                target = new Target { Key = key, Centre = centre };
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+            target = default;
+            return false;
+        }
+
+        private static IEnumerator WaitPhysics(float seconds)
+        {
+            for (float elapsed = 0.0f; elapsed < seconds; elapsed += Time.fixedDeltaTime)
+            {
+                yield return new WaitForFixedUpdate();
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator AShotWindowStaysCrackedWhileAPlayerStandsInItsBoxAndBreaksWhenHeWalksIntoIt()
+        {
+#if UNITY_EDITOR
+            var world = new CityWorld(Seed);
+            Assert.IsTrue(FindTarget(world, out Target target));
+
+            var streamerObject = Made(new GameObject("Streamer"));
+            streamerObject.SetActive(false);
+            var streamer = streamerObject.AddComponent<CityStreamer>();
+            streamer.WorldSeed = Seed;
+            streamer.RadiusChunks = 2;
+            streamer.GeneratorThreads = 0;
+            streamer.SpawnPreStreamBudget = 0;
+            streamerObject.AddComponent<GlassBreaker>();
+            streamerObject.SetActive(true);
+
+            Vector3 outside = target.Centre + Vector3.forward * 1.0f;
+            streamer.StreamAround(outside, int.MaxValue);
+            yield return null;
+            Physics.SyncTransforms();
+
+            // The first shot cracks the window, which makes its opening (and the trigger box in it).
+            streamer.Damage.Shoot(target.Key, new Vector2(0.5f, 0.5f), out _);
+            yield return null;
+            Physics.SyncTransforms();
+            CrackedPane crackedPane = Object.FindFirstObjectByType<CrackedPane>();
+            Assert.IsNotNull(crackedPane, "the shot did not leave a cracked pane behind");
+            Vector3 opening = crackedPane.transform.position;
+
+            // A player standing right at the glass, INSIDE its trigger box (it reaches a quarter metre out),
+            // small enough to fit in the opening.
+            var player = Made(new GameObject("Player"));
+            var controller = player.AddComponent<CharacterController>();
+            controller.radius = 0.2f;
+            controller.height = 1.4f;
+            player.transform.position = new Vector3(opening.x, opening.y, opening.z + 0.15f);
+            Physics.SyncTransforms();
+            yield return null;
+
+            // Shot again: the chunk is rebuilt and the opening's box is made afresh around him.
+            streamer.Damage.Shoot(target.Key, new Vector2(0.3f, 0.6f), out _);
+            yield return null;
+            Physics.SyncTransforms();
+            yield return WaitPhysics(0.5f);
+            Assert.AreEqual(PaneState.Cracked, streamer.Damage.StateOf(target.Key),
+                "a window shattered by itself round somebody standing at it, which is what was reported");
+
+            // Now he walks into it.
+            CollisionFlags lastFlags = CollisionFlags.None;
+            CollisionFlags everFlags = CollisionFlags.None;
+            float totalRequested = 0.0f;
+            float startZ = player.transform.position.z;
+            int frames = 0;
+            for (float elapsed = 0.0f; elapsed < 1.0f && streamer.Damage.StateOf(target.Key) == PaneState.Cracked; elapsed += Time.deltaTime)
+            {
+                totalRequested += 3.0f * Time.deltaTime;
+                lastFlags = controller.Move(new Vector3(0.0f, 0.0f, -3.0f * Time.deltaTime));
+                everFlags |= lastFlags;
+                frames++;
+                yield return null;
+            }
+            yield return WaitPhysics(0.2f);
+            string diag = "";
+            if (streamer.Damage.StateOf(target.Key) != PaneState.Shattered)
+            {
+                CrackedPane[] panes = Object.FindObjectsByType<CrackedPane>(FindObjectsSortMode.None);
+                diag = $" DIAG panes={panes.Length} playerPos={player.transform.position} velocity={controller.velocity} " +
+                       $"lastFlags={lastFlags} everFlags={everFlags} frames={frames} totalRequested={totalRequested:0.000} " +
+                       $"actualMoved={startZ - player.transform.position.z:0.000} timeScale={Time.timeScale} start z was {target.Centre.z + 0.15f}";
+                foreach (CrackedPane pane in panes)
+                {
+                    var box = pane.GetComponent<BoxCollider>();
+                    diag += $" pane at {pane.transform.position} size {box.size} key {pane.Key} contains={box.bounds.Contains(player.transform.position)}";
+                }
+                if (Physics.CapsuleCast(
+                        player.transform.position + Vector3.up * (controller.height * 0.5f - controller.radius),
+                        player.transform.position - Vector3.up * (controller.height * 0.5f - controller.radius),
+                        controller.radius, Vector3.back, out RaycastHit blockHit, 0.6f, ~0, QueryTriggerInteraction.Ignore))
+                {
+                    diag += $" BLOCKED BY solid collider '{blockHit.collider.name}' on '{blockHit.collider.gameObject.name}' at {blockHit.point}, distance {blockHit.distance:0.000}";
+                }
+                else
+                {
+                    diag += " no solid collider found immediately ahead (CapsuleCast clear)";
+                }
+            }
+            Assert.AreEqual(PaneState.Shattered, streamer.Damage.StateOf(target.Key), "walking into a cracked window did not break it" + diag);
+#else
+            yield break;
+#endif
+        }
+    }
+}

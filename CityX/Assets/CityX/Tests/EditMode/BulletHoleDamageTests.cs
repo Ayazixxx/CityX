@@ -5,7 +5,7 @@ using UnityEngine;
 namespace CityX.Tests
 {
     /// <summary>
-    /// A pistol round leaves a hole and the window stays up, hole after hole, until it has been shot to pieces;
+    /// A pistol round leaves a hole and the window stays up, hole after hole, for good -- only a knock brings it down;
     /// a fist or a blade still does what it always did.
     /// </summary>
     public sealed class BulletHoleDamageTests
@@ -30,19 +30,19 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void ABulletPastTheLimitBringsTheWindowDown()
+        public void BulletsNeverBringTheWindowDownAndTheOldestHoleMakesWay()
         {
             var damage = new GlassDamage();
-            for (int i = 0; i < GlassDamage.MaxBulletHoles; i++)
+            for (int i = 0; i < GlassDamage.MaxBulletHoles * 3; i++)
             {
-                damage.Shoot(Pane, new Vector2(0.5f, 0.5f), out _);
+                PaneState state = damage.Shoot(Pane, new Vector2(0.02f * (i % 40), 0.5f), out bool changed);
+                Assert.AreEqual(PaneState.Cracked, state, $"bullet {i + 1} brought the window down: only a knock may");
+                Assert.IsTrue(changed);
             }
 
-            PaneState state = damage.Shoot(Pane, new Vector2(0.5f, 0.5f), out bool changed);
-
-            Assert.IsTrue(changed);
-            Assert.AreEqual(PaneState.Shattered, state);
-            Assert.AreEqual(0, damage.HoleCount(Pane), "a window that is gone has no holes left to draw");
+            Assert.AreEqual(GlassDamage.MaxBulletHoles, damage.HoleCount(Pane), "a shot-up window keeps a fixed number of holes");
+            Assert.IsTrue(damage.TryGetImpact(Pane, out Vector2 newest));
+            Assert.AreEqual(0.02f * ((GlassDamage.MaxBulletHoles * 3 - 1) % 40), newest.x, 1e-5f, "the newest hole is the one kept");
         }
 
         [Test]

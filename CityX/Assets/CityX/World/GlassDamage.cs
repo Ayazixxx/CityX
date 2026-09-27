@@ -61,7 +61,7 @@ namespace CityX.World
 
         /// <summary>
         /// A bullet: it makes a hole (and a crack pattern round it) and the pane STAYS, so a burst leaves a
-        /// hole per shot; the pane only comes down after <see cref="GlassDamage.MaxBulletHoles"/> of them.
+        /// hole per shot. Bullets never bring a window down -- only something knocking into it does.
         /// </summary>
         Bullet = 2,
     }
@@ -145,11 +145,12 @@ namespace CityX.World
             new Dictionary<PaneKey, List<Vector2>>();
 
         /// <summary>
-        /// How many bullet holes a pane takes before the next bullet finally brings it down. Every bullet
-        /// makes its own hole and the pane stays standing (a pistol round does not take a window out), so a
-        /// burst leaves a cluster of holes; six is a window that has been properly shot up.
+        /// How many bullet holes a pane keeps. Every bullet makes its own hole and the pane STAYS standing --
+        /// bullets never bring a window down, only something knocking into it does. Past this many the oldest
+        /// hole is dropped to make room (a pane is one small rectangle: a dozen holes is a window that has been
+        /// properly shot up, and more would cost geometry for nothing you could tell apart).
         /// </summary>
-        public const int MaxBulletHoles = 6;
+        public const int MaxBulletHoles = 12;
 
         /// <summary>Raised after a pane changes state, so a chunk can rebuild.</summary>
         // Chunk generation reads this from worker threads while the game thread may be changing it (a window
@@ -209,7 +210,7 @@ namespace CityX.World
 
         /// <summary>
         /// A BULLET: makes its own hole at <paramref name="impactUV"/> and leaves the pane standing (cracked),
-        /// up to <see cref="MaxBulletHoles"/> -- after that the next bullet brings the pane down. Returns the
+        /// up to <see cref="MaxBulletHoles"/>, then the oldest makes way -- it never brings the pane down. Returns the
         /// state the pane is in now; <paramref name="changed"/> is false only for a pane that was already gone.
         /// <see cref="Changed"/> fires for every new hole (the pane's STATE did not move, but what it looks like
         /// did), so the chunk is rebuilt with the new hole in it.
@@ -226,22 +227,19 @@ namespace CityX.World
                     return PaneState.Shattered;
                 }
 
-                int holes = HoleCount(key);
-                if (holes >= MaxBulletHoles)
+                // A bullet never brings the pane down: it adds a hole, and once the pane is full the oldest hole
+                // makes way for the newest.
+                now = PaneState.Cracked;
+                if (!_impactPoints.TryGetValue(key, out List<Vector2> list))
                 {
-                    now = PaneState.Shattered;
-                    _impactPoints.Remove(key);
+                    list = new List<Vector2>();
+                    _impactPoints[key] = list;
                 }
-                else
+                if (list.Count >= MaxBulletHoles)
                 {
-                    now = PaneState.Cracked;
-                    if (!_impactPoints.TryGetValue(key, out List<Vector2> list))
-                    {
-                        list = new List<Vector2>();
-                        _impactPoints[key] = list;
-                    }
-                    list.Add(impactUV);
+                    list.RemoveAt(0);
                 }
+                list.Add(impactUV);
                 _broken[key] = now;
             }
             changed = true;

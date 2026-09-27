@@ -36,20 +36,23 @@ namespace CityX.View
         /// <summary>The pane this object stands for.</summary>
         public PaneKey Key => _key;
 
-        private void OnTriggerEnter(Collider other)
-        {
-            if (_damage == null)
-            {
-                return;
-            }
+        /// <summary>
+        /// How fast, in metres per second, something has to be moving THROUGH the pane's plane to count as
+        /// knocking into it. Walking into a cracked window is a knock; standing beside one, or aiming a gun at
+        /// it from a hand's width away, is not.
+        /// </summary>
+        public const float MinKnockSpeed = 1.5f;
 
-            // SOMETHING THAT MOVES UNDER ITS OWN POWER, not anything that
-            // happens to overlap. A window frame is full of other geometry's
-            // trigger volumes and a dropped bottle rolling past the sill is not
-            // a person climbing through.
-            bool aBody = other.attachedRigidbody != null ||
-                         other.GetComponentInParent<CharacterController>() != null;
-            if (!aBody)
+        private void OnTriggerEnter(Collider other) => Consider(other);
+
+        // Something already inside when the chunk is rebuilt (a shot rebuilds it, and the opening's box is made
+        // around whoever is standing there) gets no Enter of its own -- and something that walks on into the
+        // pane after standing in the box does not either. Stay covers both.
+        private void OnTriggerStay(Collider other) => Consider(other);
+
+        private void Consider(Collider other)
+        {
+            if (_damage == null || !IsAKnock(other, _key.Wall))
             {
                 return;
             }
@@ -58,6 +61,42 @@ namespace CityX.View
             // this object. Nothing may touch anything on it afterwards -- and
             // nothing does, because Hit is the last thing here.
             _damage.Hit(_key);
+        }
+
+        /// <summary>
+        /// Whether something is really knocking into a cracked pane on a wall facing <paramref name="wall"/>.
+        ///
+        /// A cracked window used to shatter the instant ANY rigid body overlapped its half-metre-deep box: the
+        /// kinematic limb colliders of a character standing or aiming beside the glass, a glass shard from the
+        /// window next door (which then shattered ITS neighbours in a chain), anything resting nearby. That was
+        /// "the windows shatter by themselves after being shot". A knock is now:
+        ///   * the character's own body (its CharacterController) or a body that is really being simulated -- a
+        ///     thrown bottle, a ragdoll -- never a kinematic limb collider and never debris (IgnoredByShots);
+        ///   * moving THROUGH the pane's plane at <see cref="MinKnockSpeed"/> or more.
+        /// </summary>
+        public static bool IsAKnock(Collider other, WindowGrid.Wall wall)
+        {
+            if (other == null || IgnoredByShots.Covers(other))
+            {
+                return false;
+            }
+
+            Vector3 velocity;
+            if (other is CharacterController controller)
+            {
+                velocity = controller.velocity;
+            }
+            else
+            {
+                Rigidbody body = other.attachedRigidbody;
+                if (body == null || body.isKinematic)
+                {
+                    return false;   // a limb of a standing character, a static thing: not a knock
+                }
+                velocity = body.linearVelocity;
+            }
+
+            return Mathf.Abs(Vector3.Dot(velocity, WindowGrid.OutwardNormal(wall))) >= MinKnockSpeed;
         }
 
         public bool TakePunch(Vector3 point) => TakeBlow(point, Vector3.zero, BlowStrength.Light);
