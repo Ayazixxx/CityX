@@ -22,6 +22,7 @@ public static class Program
     public static int Main(string[] args)
     {
         if (args.Length > 0 && args[0] == "bench") { Bench(); return 0; }
+        if (args.Length > 0 && args[0] == "sub") { return SubversionPlan.Run(args); }
         int seed = args.Length > 4 ? int.Parse(args[4]) : 58316047;
         int min = args.Length > 0 ? int.Parse(args[0]) : -96;
         int max = args.Length > 1 ? int.Parse(args[1]) : 95;

@@ -119,3 +119,78 @@ colliders standing at the glass and on flying shards from a neighbouring shatter
 
 `BulletHoleDamageTests`/`BulletHolesInRealWindowsPlayTests` updated for the no-shatter-by-bullet rule;
 `CrackedPaneKnockPlayTests` (7) covers the knock classification and a real streamed pane end to end.
+
+## Research 2026-09-27: Source-style progressive glass, proposed (NOT implemented)
+
+Asked: "research window breaking in video games. ideally it would be something like how glass breaks in
+half life/ source games. research how to accomplish this in unity while working with what we've built so
+far" and, separately, "not all glass will break the same the bottles and windows are gonna be separate
+obviously." This section is a design only -- no code has changed yet.
+
+**What Source actually does (`func_breakable_surf`).** A pane is a grid of small squares, each with its own
+intact/broken state. A `Fragility` value decides how many break per hit. A broken square's neighbours pick a
+jagged-edge texture based on which of THEIR neighbours are also broken -- the ragged look is texture-driven,
+not extra geometry. Enough squares gone and whatever is left detaches and blows out ("unclean" breakoff: it
+can stick to the frame or fall as a chunk, texture and physics both keyed off the same grid).
+
+**What Unity's own Window Fracture package does instead**
+(`github.com/Tiitan/GlassSystem`, made for *Receiver 2*): a real 2D fracture pattern is generated at the
+impact point, clipped to the pane's outline, and each resulting polygon becomes a real extruded mesh shard.
+A connectivity graph decides which shards still touch the frame (they stay) and which are cut off (they
+fall). The pattern is picked by a seeded index + rotation, so it replicates over network as two integers
+instead of a mesh.
+
+**Which one fits here.** Real per-shard geometry (the Unity package's approach) is the wrong trade for this
+project right now -- this session's whole 60fps pass found that DRAW CALLS, not triangle count, are the
+actual cost (see [[perf_60fps_findings_2026_09_26]]), and hundreds of windows per building times dozens of
+buildings in view means a geometry-per-shard system would reintroduce exactly the cost that was just cut.
+Source's approach is state-driven and texture-driven, which matches how this project already draws a bullet
+hole (a cut + a decal, no physics cost until the pane fully goes) -- so the proposal below is a Source-style
+grid, built as an ADDITIVE layer on `GlassDamage`/`PaneKey`, not a replacement for the existing
+Intact/Cracked/Shattered pipeline.
+
+**Proposed shape**
+- `PaneState` (Intact/Cracked/Shattered) stays exactly as it is and keeps deciding everything it decides
+  today: the far-LOD path (`AddShellGlass`/`BuildBuildingShell`, which never needs per-bullet detail at
+  range), the `CrackedPane` trigger box existing at all, the shatter sound and `GlassShardBurst` physical
+  debris. The grid is new detail INSIDE the Cracked state, not a fourth state.
+- A pane only gets a grid once it is Cracked (an Intact pane has no grid, same "not stored unless broken"
+  convention `_broken`/`_impactPoints` already use -- see the class comment above, "ONLY BROKEN PANES ARE
+  STORED"). A small fixed grid per pane (e.g. 3x3 or 4x4, picked from the pane's own aspect ratio) lives in
+  a new `Dictionary<PaneKey, bool[]>`-shaped field alongside `_broken`/`_impactPoints`, behind the same
+  `_gate` lock.
+- A `Bullet` blow breaks the ONE cell nearest its impact UV (`FractionWithinPane` already maps a hit to a
+  0..1 UV -- reuse it to pick a cell index) instead of today's "append another independent hole to a flat
+  list." Repeated shots now visibly spread across the pane instead of just accumulating unrelated holes.
+- A `Heavy` blow that lands on an already-Cracked pane breaks a small CLUSTER of cells around the impact
+  (Source's "Fragility" idea) rather than nothing extra (today a second blow on a Cracked pane either does
+  nothing or is the knock that clears it outright -- this gives it a visible, escalating in-between step).
+- Once enough of a pane's cells are broken (a tunable fraction, e.g. 60%), the pane auto-promotes to
+  Shattered through the EXISTING pipeline -- no new shatter/shard/sound code, just calling what `Hit`
+  already calls when a knock finishes a pane. `CrackedPane.IsAKnock` is untouched and stays the primary,
+  intentional way a pane clears (per the 2026-09-27 update above) -- the grid filling up is a secondary path
+  for a pane that has simply been shot to pieces, not a way to bypass "only a knock shatters it" for a
+  single well-aimed shot.
+- Mesh side: `AddPaneWithHoles` already cuts multiple independent rectangular holes into one pane quad --
+  extend it to accept the grid's list of broken CELL rectangles (fixed, grid-aligned) instead of free-form
+  per-bullet UV rectangles it gets today. A broken cell whose live neighbour is still intact gets a crack
+  decal along that shared edge (the same `AddCrackDecal`/`EnsureCrackDecalMaterial` recipe already built for
+  the 2026-09-27 hole fix) -- this is the "jagged edge reflects neighbour state" trick, done with the
+  existing decal system, not new geometry.
+
+**Bottles stay separate -- already true today, confirmed by reading the code, and unaffected by this.**
+`BottleWeapon`'s own `DurabilityState` (Intact/Broken/FullyBroken) is a melee hit-counter on the bottle prop
+itself (`RegisterLandedMeleeHit`) -- it never touches `GlassDamage`/`PaneKey`/`WindowGrid` and decides only
+the bottle's own damage and visual swap. `ThrownBottle.OnCollisionEnter` calls a window's `TakeBlow(...,
+BlowStrength.Heavy)` exactly like a sword swing or a sprinting player -- from the window's side a thrown
+bottle is just another Heavy blow and will go through the same grid-cluster logic above with no
+special-casing. The bottle's own break effect (`GlassShatter`, a one-shot particle puff at the bottle's
+impact point) is already a completely separate visual from the window's `GlassShardBurst` (real physical
+shard debris) -- both already fire independently today. Nothing here changes any of that; the grid work is
+scoped to window panes only.
+
+**Not yet done.** No code has been written for this. Next steps when picked up: the grid dictionary and
+cell-breaking logic in `GlassDamage` with focused unit tests (mirroring `GlassBlowTests`), the
+`AddPaneWithHoles` extension with `CityMeshBuilderTests` coverage, then a real batch-rendered close-up
+screenshot of a pane part-way through breaking before calling it done -- this is exactly the kind of visual
+result a green test suite cannot judge on its own.

@@ -1,0 +1,582 @@
+using System;
+using System.Collections.Generic;
+
+namespace CityX.World.Plan
+{
+    /// <summary>A piece of land completely surrounded by roads, as a counter-clockwise polygon along the road centrelines.</summary>
+    public sealed class PlanBlock
+    {
+        public List<Vec2> Poly = new List<Vec2>();
+
+        /// <summary>The class of the road along edge i (from Poly[i] to Poly[i+1]).</summary>
+        public List<RoadClass> EdgeClass = new List<RoadClass>();
+
+        public double Area;
+    }
+
+    /// <summary>
+    /// One building plot: the lot a block was cut into, and the footprint set back inside it.
+    /// Walls are the edges of <see cref="Footprint"/>; edge <see cref="FrontEdge"/> faces the street.
+    /// </summary>
+    public sealed class PlanLot
+    {
+        public int Id;
+        public Vec2[] Lot;
+        public Vec2[] Footprint;
+        public int FrontEdge;
+        public double Area;
+        public double Population;
+        public double Height;
+        public RoadClass FrontClass;
+    }
+
+    /// <summary>The whole generated plan for one region.</summary>
+    public sealed class CityPlanData
+    {
+        public PlanConfig Config;
+        public PlanFields Fields;
+        public List<Vec2> Centres;
+        public List<RoadNode> Nodes;
+        public List<RoadEdge> Edges;
+        public List<PlanBlock> Blocks = new List<PlanBlock>();
+        public List<PlanLot> Lots = new List<PlanLot>();
+    }
+
+    public static class CityPlan
+    {
+        /// <summary>Generates a region's plan from the world seed. A pure function of (seed, config).</summary>
+        public static CityPlanData Generate(int worldSeed, PlanConfig config = null)
+        {
+            PlanConfig cfg = config ?? new PlanConfig();
+            var fields = new PlanFields(worldSeed, cfg);
+
+            List<Vec2> centres = fields.FindCentres(cfg.Half, 100.0, 650.0, 0.52, 6);
+            if (centres.Count == 0)
+            {
+                centres.Add(new Vec2(0.0, 0.0));
+            }
+
+            uint roadSeed = PlanNoise.Mix(unchecked((uint)worldSeed), 0x726F6164U);   // "road"
+            var net = new RoadNetwork(fields, roadSeed);
+            net.Grow(centres, cfg.Half);
+
+            var data = new CityPlanData
+            {
+                Config = cfg,
+                Fields = fields,
+                Centres = centres,
+                Nodes = net.Nodes,
+                Edges = net.Edges,
+            };
+
+            data.Blocks = BlockExtractor.Extract(net, cfg);
+
+            uint lotSeed = PlanNoise.Mix(unchecked((uint)worldSeed), 0x6C6F7473U);    // "lots"
+            LotSubdivider.Subdivide(data, lotSeed);
+            return data;
+        }
+
+        public static double HalfWidth(PlanConfig cfg, RoadClass c)
+        {
+            switch (c)
+            {
+                case RoadClass.Highway: return cfg.HighwayHalfWidth;
+                case RoadClass.Arterial: return cfg.ArterialHalfWidth;
+                default: return cfg.StreetHalfWidth;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Finds every block: the faces of the planar graph the roads make. Dead-end streets are pruned first (a cul-de-sac
+    /// does not enclose land), then faces are traced half-edge by half-edge, interior on the left.
+    /// </summary>
+    public static class BlockExtractor
+    {
+        public static List<PlanBlock> Extract(RoadNetwork net, PlanConfig cfg)
+        {
+            int edgeCount = net.Edges.Count;
+            var active = new bool[edgeCount];
+            for (int i = 0; i < edgeCount; i++)
+            {
+                active[i] = net.Edges[i].Alive;
+            }
+
+            PruneSpurs(net, active);
+
+            // A road with the same block on both sides (it joins two blocks, or hangs inside one) would be walked
+            // twice in one face and make a corridor; take such roads out and trace again until none is left.
+            for (int pass = 0; pass < 12; pass++)
+            {
+                List<int[]> faces = TraceFaces(net, active, out int[] halfFace);
+                bool removed = false;
+                for (int e = 0; e < edgeCount; e++)
+                {
+                    if (active[e] && halfFace[2 * e] == halfFace[2 * e + 1] && halfFace[2 * e] >= 0)
+                    {
+                        active[e] = false;
+                        removed = true;
+                    }
+                }
+                if (!removed)
+                {
+                    break;
+                }
+                PruneSpurs(net, active);
+            }
+
+            var blocks = new List<PlanBlock>();
+            List<int[]> finalFaces = TraceFaces(net, active, out _);
+            foreach (int[] face in finalFaces)
+            {
+                var block = new PlanBlock();
+                foreach (int half in face)
+                {
+                    RoadEdge e = net.Edges[half >> 1];
+                    RoadNode from = (half & 1) == 0 ? e.A : e.B;
+                    block.Poly.Add(from.P);
+                    block.EdgeClass.Add(e.Class);
+                }
+                double area = PlanMath.SignedArea(block.Poly);
+                if (area < 400.0)
+                {
+                    continue;   // the outer face (negative) and slivers
+                }
+                block.Area = area;
+                blocks.Add(block);
+            }
+            return blocks;
+        }
+
+        private static void PruneSpurs(RoadNetwork net, bool[] active)
+        {
+            var degree = new int[net.Nodes.Count];
+            bool changed = true;
+            while (changed)
+            {
+                changed = false;
+                Array.Clear(degree, 0, degree.Length);
+                for (int e = 0; e < net.Edges.Count; e++)
+                {
+                    if (!active[e]) continue;
+                    degree[net.Edges[e].A.Id]++;
+                    degree[net.Edges[e].B.Id]++;
+                }
+                for (int e = 0; e < net.Edges.Count; e++)
+                {
+                    if (!active[e]) continue;
+                    if (degree[net.Edges[e].A.Id] <= 1 || degree[net.Edges[e].B.Id] <= 1)
+                    {
+                        active[e] = false;
+                        changed = true;
+                    }
+                }
+            }
+        }
+
+        /// <summary>Traces every face. Returns each as a list of half-edge ids; halfFace maps a half-edge to its face (-1 if its edge is inactive).</summary>
+        private static List<int[]> TraceFaces(RoadNetwork net, bool[] active, out int[] halfFace)
+        {
+            int edgeCount = net.Edges.Count;
+            halfFace = new int[edgeCount * 2];
+            for (int i = 0; i < halfFace.Length; i++) halfFace[i] = -1;
+
+            // Outgoing half-edges of each node, sorted counter-clockwise.
+            var outgoing = new List<int>[net.Nodes.Count];
+            for (int e = 0; e < edgeCount; e++)
+            {
+                if (!active[e]) continue;
+                RoadEdge edge = net.Edges[e];
+                Add(outgoing, edge.A.Id, 2 * e);
+                Add(outgoing, edge.B.Id, 2 * e + 1);
+            }
+
+            var position = new int[edgeCount * 2];
+            for (int n = 0; n < outgoing.Length; n++)
+            {
+                List<int> list = outgoing[n];
+                if (list == null) continue;
+                RoadNode node = net.Nodes[n];
+                list.Sort((h1, h2) =>
+                {
+                    double a1 = Angle(net, h1);
+                    double a2 = Angle(net, h2);
+                    int c = a1.CompareTo(a2);
+                    return c != 0 ? c : h1.CompareTo(h2);
+                });
+                for (int i = 0; i < list.Count; i++)
+                {
+                    position[list[i]] = i;
+                }
+            }
+
+            var faces = new List<int[]>();
+            var visited = new bool[edgeCount * 2];
+            for (int e = 0; e < edgeCount; e++)
+            {
+                if (!active[e]) continue;
+                for (int side = 0; side < 2; side++)
+                {
+                    int start = 2 * e + side;
+                    if (visited[start]) continue;
+                    var face = new List<int>();
+                    int h = start;
+                    int guard = 0;
+                    while (!visited[h] && guard++ < 4096)
+                    {
+                        visited[h] = true;
+                        halfFace[h] = faces.Count;
+                        face.Add(h);
+                        RoadEdge edge = net.Edges[h >> 1];
+                        RoadNode to = (h & 1) == 0 ? edge.B : edge.A;
+                        int twin = h ^ 1;
+                        List<int> around = outgoing[to.Id];
+                        int idx = position[twin];
+                        h = around[(idx + around.Count - 1) % around.Count];
+                    }
+                    faces.Add(face.ToArray());
+                }
+            }
+            return faces;
+        }
+
+        private static void Add(List<int>[] lists, int node, int half)
+        {
+            if (lists[node] == null) lists[node] = new List<int>(4);
+            lists[node].Add(half);
+        }
+
+        private static double Angle(RoadNetwork net, int half)
+        {
+            RoadEdge e = net.Edges[half >> 1];
+            RoadNode from = (half & 1) == 0 ? e.A : e.B;
+            RoadNode to = (half & 1) == 0 ? e.B : e.A;
+            return PlanMath.PseudoAngle(to.P.X - from.P.X, to.P.Y - from.P.Y);
+        }
+    }
+
+    /// <summary>
+    /// Cuts each block into building lots, the way Parish and Muller do: recursively split across the long side
+    /// of the plot until the pieces are lot-sized, and drop any piece that does not touch a street (the courtyard).
+    /// Deep blocks are first split in two parallel to their frontage so lots sit back to back.
+    /// </summary>
+    public static class LotSubdivider
+    {
+        private sealed class Piece
+        {
+            public List<Vec2> V;
+            public List<bool> Front;
+        }
+
+        private const double MinWidth = 9.0;
+        private const double MaxDepth = 52.0;
+
+        public static void Subdivide(CityPlanData data, uint seed)
+        {
+            PlanConfig cfg = data.Config;
+            PlanFields fields = data.Fields;
+            int blockIndex = 0;
+
+            foreach (PlanBlock block in data.Blocks)
+            {
+                blockIndex++;
+                int n = block.Poly.Count;
+                var distances = new double[n];
+                for (int i = 0; i < n; i++)
+                {
+                    distances[i] = CityPlan.HalfWidth(cfg, block.EdgeClass[i]) + cfg.SidewalkWidth;
+                }
+
+                var inset = new List<Vec2>();
+                if (!PlanMath.InsetPolygon(block.Poly, distances, inset, out _))
+                {
+                    // Fold-over: try again with every road treated as the narrowest.
+                    for (int i = 0; i < n; i++) distances[i] = cfg.StreetHalfWidth + cfg.SidewalkWidth;
+                    if (!PlanMath.InsetPolygon(block.Poly, distances, inset, out _))
+                    {
+                        continue;
+                    }
+                }
+
+                Vec2 c = PlanMath.Centroid(inset);
+                double pop = fields.Population(c);
+                double baseArea = 380.0 + (1.0 - pop) * 1500.0;
+                double blockRand = PlanNoise.Mix(seed, (uint)blockIndex) / 4294967296.0;
+                double targetArea = baseArea * (0.7 + 0.7 * blockRand);
+                if (pop > 0.82)
+                {
+                    targetArea = Math.Max(targetArea, 1400.0 + 900.0 * blockRand);   // downtown plots are big
+                }
+
+                var front = new List<bool>(inset.Count);
+                for (int i = 0; i < inset.Count; i++) front.Add(true);
+                var stack = new Stack<Piece>();
+                stack.Push(new Piece { V = inset, Front = front });
+
+                var done = new List<Piece>();
+                int guard = 0;
+                while (stack.Count > 0 && guard++ < 400)
+                {
+                    Piece p = stack.Pop();
+                    if (!HasFront(p))
+                    {
+                        continue;   // a courtyard
+                    }
+                    double area = PlanMath.SignedArea(p.V);
+                    if (area < 40.0)
+                    {
+                        continue;
+                    }
+                    if (!TrySplit(p, area, targetArea, seed, guard + blockIndex * 977, out Piece a, out Piece b))
+                    {
+                        done.Add(p);
+                        continue;
+                    }
+                    stack.Push(a);
+                    stack.Push(b);
+                }
+
+                foreach (Piece lot in done)
+                {
+                    EmitLot(data, lot, seed);
+                }
+            }
+        }
+
+        private static bool HasFront(Piece p)
+        {
+            for (int i = 0; i < p.Front.Count; i++)
+            {
+                if (p.Front[i]) return true;
+            }
+            return false;
+        }
+
+        private static bool TrySplit(Piece p, double area, double targetArea, uint seed, int salt, out Piece a, out Piece b)
+        {
+            a = null;
+            b = null;
+            int n = p.V.Count;
+
+            // Frame: u along the longest street-facing edge, v across (the depth).
+            int longest = -1;
+            double longestLen = 0.0;
+            for (int i = 0; i < n; i++)
+            {
+                if (!p.Front[i]) continue;
+                double len = (p.V[(i + 1) % n] - p.V[i]).Length;
+                if (len > longestLen)
+                {
+                    longestLen = len;
+                    longest = i;
+                }
+            }
+            if (longest < 0) return false;
+
+            Vec2 u = (p.V[(longest + 1) % n] - p.V[longest]).Normalized;
+            Vec2 v = u.Perp;
+            double minU = double.MaxValue, maxU = double.MinValue, minV = double.MaxValue, maxV = double.MinValue;
+            Vec2 origin = p.V[longest];
+            for (int i = 0; i < n; i++)
+            {
+                Vec2 d = p.V[i] - origin;
+                double pu = Vec2.Dot(d, u);
+                double pv = Vec2.Dot(d, v);
+                if (pu < minU) minU = pu;
+                if (pu > maxU) maxU = pu;
+                if (pv < minV) minV = pv;
+                if (pv > maxV) maxV = pv;
+            }
+            double extentU = maxU - minU;
+            double extentV = maxV - minV;
+            double rand = PlanNoise.Mix(seed, (uint)salt) / 4294967296.0;
+            double frac = 0.38 + 0.24 * rand;
+
+            bool deep = extentV > MaxDepth * 1.7;
+            bool wide = extentU > MinWidth * 2.0 && (area > targetArea || extentU > 60.0);
+
+            if (deep)
+            {
+                // Parallel to the frontage, through the middle: lots back to back.
+                Vec2 point = origin + v * (minV + (maxV - minV) * 0.5) ;
+                return Cut(p, point, u, out a, out b);
+            }
+            if (wide)
+            {
+                Vec2 point = origin + u * (minU + extentU * frac);
+                return Cut(p, point, v, out a, out b);
+            }
+            if (area > targetArea * 1.6 && extentV > MinWidth * 2.0)
+            {
+                Vec2 point = origin + v * (minV + extentV * frac);
+                return Cut(p, point, u, out a, out b);
+            }
+            return false;
+        }
+
+        private static bool Cut(Piece p, Vec2 point, Vec2 dir, out Piece a, out Piece b)
+        {
+            a = null;
+            b = null;
+            int n = p.V.Count;
+            var side = new double[n];
+            for (int i = 0; i < n; i++)
+            {
+                side[i] = Vec2.Cross(dir, p.V[i] - point);
+            }
+            int ci = -1, cj = -1;
+            for (int i = 0; i < n; i++)
+            {
+                int j = (i + 1) % n;
+                if ((side[i] < 0.0) != (side[j] < 0.0))
+                {
+                    if (ci < 0) ci = i;
+                    else if (cj < 0) cj = i;
+                    else return false;   // more than two crossings: a concave bite, leave this one whole
+                }
+            }
+            if (cj < 0) return false;
+
+            Vec2 pi = Cross(p.V[ci], p.V[(ci + 1) % n], side[ci], side[(ci + 1) % n]);
+            Vec2 pj = Cross(p.V[cj], p.V[(cj + 1) % n], side[cj], side[(cj + 1) % n]);
+
+            var va = new List<Vec2>();
+            var fa = new List<bool>();
+            va.Add(pi);
+            fa.Add(p.Front[ci]);               // pi -> V[ci+1] keeps edge ci's frontage
+            int k = (ci + 1) % n;
+            while (true)
+            {
+                va.Add(p.V[k]);
+                if (k == cj)
+                {
+                    fa.Add(p.Front[cj]);       // V[cj] -> pj
+                    break;
+                }
+                fa.Add(p.Front[k]);
+                k = (k + 1) % n;
+            }
+            va.Add(pj);
+            fa.Add(false);                      // pj -> pi is the new cut
+
+            var vb = new List<Vec2>();
+            var fb = new List<bool>();
+            vb.Add(pj);
+            fb.Add(p.Front[cj]);
+            k = (cj + 1) % n;
+            while (true)
+            {
+                vb.Add(p.V[k]);
+                if (k == ci)
+                {
+                    fb.Add(p.Front[ci]);
+                    break;
+                }
+                fb.Add(p.Front[k]);
+                k = (k + 1) % n;
+            }
+            vb.Add(pi);
+            fb.Add(false);
+
+            if (PlanMath.SignedArea(va) < 20.0 || PlanMath.SignedArea(vb) < 20.0)
+            {
+                return false;
+            }
+            a = new Piece { V = va, Front = fa };
+            b = new Piece { V = vb, Front = fb };
+            return true;
+        }
+
+        private static Vec2 Cross(Vec2 p, Vec2 q, double sp, double sq)
+        {
+            double t = sp / (sp - sq);
+            return p + (q - p) * t;
+        }
+
+        private static void EmitLot(CityPlanData data, Piece lot, uint seed)
+        {
+            int n = lot.V.Count;
+            double area = PlanMath.SignedArea(lot.V);
+            if (area < 110.0)
+            {
+                return;
+            }
+            PlanFields fields = data.Fields;
+
+            // Footprint: set back from the street more than from its neighbours.
+            var distances = new double[n];
+            double? frontLen = null;
+            int front = -1;
+            for (int i = 0; i < n; i++)
+            {
+                distances[i] = lot.Front[i] ? 2.2 : 1.2;
+                if (lot.Front[i])
+                {
+                    double len = (lot.V[(i + 1) % n] - lot.V[i]).Length;
+                    if (!frontLen.HasValue || len > frontLen.Value)
+                    {
+                        frontLen = len;
+                        front = i;
+                    }
+                }
+            }
+            var footprint = new List<Vec2>();
+            if (!PlanMath.InsetPolygon(lot.V, distances, footprint, out _))
+            {
+                return;
+            }
+            double footArea = PlanMath.SignedArea(footprint);
+            if (footArea < 70.0)
+            {
+                return;
+            }
+
+            Vec2 c = PlanMath.Centroid(footprint);
+            if (fields.IsWater(c))
+            {
+                return;
+            }
+            for (int i = 0; i < footprint.Count; i++)
+            {
+                if (fields.IsWater(footprint[i]))
+                {
+                    return;
+                }
+            }
+
+            double pop = fields.Population(c);
+            int id = data.Lots.Count;
+            double r1 = PlanNoise.Mix(seed, unchecked((uint)(id * 2 + 1))) / 4294967296.0;
+            double r2 = PlanNoise.Mix(seed, unchecked((uint)(id * 2 + 2))) / 4294967296.0;
+            double height;
+            if (pop > 0.78 && footArea > 700.0 && r1 < 0.6)
+            {
+                height = 90.0 + r2 * 170.0;
+            }
+            else if (pop > 0.58)
+            {
+                height = 24.0 + r1 * 56.0;
+            }
+            else if (pop > 0.34)
+            {
+                height = 10.0 + r1 * 28.0;
+            }
+            else
+            {
+                height = 5.0 + r1 * 12.0;
+            }
+
+            data.Lots.Add(new PlanLot
+            {
+                Id = id,
+                Lot = lot.V.ToArray(),
+                Footprint = footprint.ToArray(),
+                FrontEdge = front < 0 ? 0 : front,
+                Area = footArea,
+                Population = pop,
+                Height = height,
+                FrontClass = RoadClass.Street,
+            });
+        }
+    }
+}
