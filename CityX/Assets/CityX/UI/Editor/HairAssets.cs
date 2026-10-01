@@ -18,6 +18,16 @@ namespace CityX.UIEditor
         public const string Hair1Baked = Folder + "/Hair1Mesh.asset";
         public const string DannySource = Folder + "/Danny.glb";
         public const string DannyBaked = Folder + "/DannyMesh.asset";
+        public const string AnimeHairSource = Folder + "/AnimeHair.glb";
+        public const string AnimeHairBaked = Folder + "/AnimeHairMesh.asset";
+        public const string ChadHairSource = Folder + "/ChadHair.glb";
+        public const string ChadHairBaked = Folder + "/ChadHairMesh.asset";
+        public const string OldManHairSource = Folder + "/OldManHair.glb";
+        public const string OldManHairBaked = Folder + "/OldManHairMesh.asset";
+        public const string SpikeXSource = Folder + "/SpikeX.glb";
+        public const string SpikeXBaked = Folder + "/SpikeXMesh.asset";
+        public const string SwipeCutSource = Folder + "/SwipeCut.glb";
+        public const string SwipeCutBaked = Folder + "/SwipeCutMesh.asset";
 
         /// <summary>Where the saved hand-tuned fits live: a Resources folder, so every head reads them with nothing wired.</summary>
         public const string FitSettingsPath = HairFitSettings.AssetPath;
@@ -98,6 +108,11 @@ namespace CityX.UIEditor
             {
                 case CharacterHair.Hair1: return Hair1();
                 case CharacterHair.Danny: return Danny();
+                case CharacterHair.AnimeHair: return AnimeHair();
+                case CharacterHair.ChadHair: return BakedFromModel(ChadHairSource, ChadHairBaked, "ChadHairMesh");
+                case CharacterHair.OldManHair: return BakedFromModel(OldManHairSource, OldManHairBaked, "OldManHairMesh");
+                case CharacterHair.SpikeX: return BakedFromModel(SpikeXSource, SpikeXBaked, "SpikeXMesh");
+                case CharacterHair.SwipeCut: return BakedFromModel(SwipeCutSource, SwipeCutBaked, "SwipeCutMesh");
                 default:
                     Debug.LogWarning($"CityX: no model is wired for the hairstyle \"{style}\" -- add it to HairAssets.MeshFor.");
                     return null;
@@ -114,6 +129,10 @@ namespace CityX.UIEditor
         /// on every head in a crowd (see the standing "keep asset size small" practice).
         /// </summary>
         public static Mesh Danny() => BakedFromModel(DannySource, DannyBaked, "DannyMesh");
+
+        /// <summary>AnimeHair's mesh, baked (see <see cref="BakedFromModel"/>) -- 2026-09-27, a separate model from
+        /// the old, removed AnimeHair0 despite the similar name.</summary>
+        public static Mesh AnimeHair() => BakedFromModel(AnimeHairSource, AnimeHairBaked, "AnimeHairMesh");
 
         /// <summary>
         /// A hair model's mesh, with the glTF node's own transform BAKED into it.
@@ -183,11 +202,17 @@ namespace CityX.UIEditor
                 mesh.normals = normals;
             }
             mesh.uv = source.uv;
-            mesh.subMeshCount = source.subMeshCount;
+            // ONE sub-mesh, whatever the model had. Hair is drawn by a renderer with a single shared material, so a
+            // model exported with several materials (AnimeHair.glb: a tiny first primitive and the real hair second)
+            // would show only its first primitive -- a bald head. All sub-meshes share one vertex buffer, so merging
+            // is just joining the index lists.
+            var triangles = new System.Collections.Generic.List<int>();
             for (int s = 0; s < source.subMeshCount; s++)
             {
-                mesh.SetTriangles(source.GetTriangles(s), s);
+                triangles.AddRange(source.GetTriangles(s));
             }
+            mesh.subMeshCount = 1;
+            mesh.SetTriangles(triangles, 0);
             if (normals.Length != vertices.Length)
             {
                 mesh.RecalculateNormals();

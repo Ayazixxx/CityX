@@ -485,7 +485,7 @@ namespace CityX.UIEditor
             {
                 MakeButton(t, "Hair" + CharacterHair.ValidStyles[style] + "Button",
                     CharacterHair.LabelFor(CharacterHair.ValidStyles[style]), Paper,
-                    new Vector2(HairButtonRow.CentreX(style, styleCount), -484.0f),
+                    new Vector2(HairButtonRow.CentreX(style, styleCount), -484.0f + HairButtonRow.RowOffsetY(style)),
                     new Vector2(HairButtonRow.ButtonWidth(styleCount), HairButtonRow.Height),
                     ButtonAction.Kind.CreatorHair, creator, value: style,
                     fontSize: HairButtonRow.FontSize(styleCount));
@@ -496,7 +496,8 @@ namespace CityX.UIEditor
             // that one sentence is the whole control scheme.
             MakeLabel(t, "HintLabel",
                 "Drag the body to paint it.\nDrag anywhere else to turn it.\nScroll to zoom.",
-                10, new Color(0.62f, 0.64f, 0.70f), At(-524.0f), 40.0f);
+                10, new Color(0.62f, 0.64f, 0.70f),
+                At(-524.0f - (HairButtonRow.Rows(styleCount) - 1) * HairButtonRow.RowPitch), 40.0f);
 
             // Pinned to the bottom rather than following the stack, so it stays
             // put as tools are added above it -- ON ITS OWN OPAQUE BAR, because

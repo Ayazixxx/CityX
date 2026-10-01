@@ -310,6 +310,7 @@ namespace CityX.Tests
         [TestCase(4)]
         [TestCase(5)]
         [TestCase(6)]
+        [TestCase(8)]
         public void TheHairButtonsFitTheColumnAndNeverOverlap(int count)
         {
             float width = UI.HairButtonRow.ButtonWidth(count);

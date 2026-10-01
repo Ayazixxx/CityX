@@ -10,8 +10,8 @@ namespace CityX.UI
     /// A fourth style would have hung off the edge of the panel. The title's creator and the
     /// in-game redraw creator both lay this row out, so the numbers live here once.
     ///
-    /// One row is a limit, not a design: past five or six styles the buttons are too small to
-    /// read and this wants to become a scrolling list or a picker.
+    /// Past four styles the row wraps (see PerRow); past eight or so this wants to become a
+    /// scrolling list or a picker.
     /// </summary>
     public static class HairButtonRow
     {
@@ -25,17 +25,39 @@ namespace CityX.UI
 
         public const float Height = 30.0f;
 
-        /// <summary>A button's width when there are <paramref name="count"/> of them.</summary>
-        public static float ButtonWidth(int count)
+        /// <summary>Most buttons in one row; more styles than this wrap onto further rows.</summary>
+        public const int PerRow = 4;
+
+        /// <summary>Distance between rows.</summary>
+        public const float RowPitch = 34.0f;
+
+        /// <summary>How many rows <paramref name="count"/> buttons take.</summary>
+        public static int Rows(int count)
         {
-            count = Mathf.Max(count, 1);
-            return Mathf.Min(MaxWidth, (Available - (count - 1) * Gap) / count);
+            return Mathf.Max(1, (Mathf.Max(count, 1) + PerRow - 1) / PerRow);
         }
 
-        /// <summary>The x of the <paramref name="index"/>th button's centre, from the middle of the column.</summary>
+        /// <summary>A button's width when there are <paramref name="count"/> of them (rows hold at most <see cref="PerRow"/>).</summary>
+        public static float ButtonWidth(int count)
+        {
+            int inRow = Mathf.Clamp(count, 1, PerRow);
+            return Mathf.Min(MaxWidth, (Available - (inRow - 1) * Gap) / inRow);
+        }
+
+        /// <summary>The x of the <paramref name="index"/>th button's centre, from the middle of the column; each row is centred on its own.</summary>
         public static float CentreX(int index, int count)
         {
-            return (index - (Mathf.Max(count, 1) - 1) * 0.5f) * (ButtonWidth(count) + Gap);
+            count = Mathf.Max(count, 1);
+            int row = index / PerRow;
+            int inThisRow = Mathf.Min(PerRow, count - row * PerRow);
+            int column = index % PerRow;
+            return (column - (inThisRow - 1) * 0.5f) * (ButtonWidth(count) + Gap);
+        }
+
+        /// <summary>How far below the first row the <paramref name="index"/>th button sits (zero or negative).</summary>
+        public static float RowOffsetY(int index)
+        {
+            return -(index / PerRow) * RowPitch;
         }
 
         /// <summary>A caption size that fits the button: the usual 13 while they are wide, smaller once they are not.</summary>

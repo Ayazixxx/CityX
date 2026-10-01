@@ -31,17 +31,24 @@ namespace CityX.Character
         public const string None = "none";
         public const string Hair1 = "hair1";
         public const string Danny = "danny";
+        public const string AnimeHair = "animehair";
+        public const string ChadHair = "chadhair";
+        public const string OldManHair = "oldmanhair";
+        public const string SpikeX = "spikex";
+        public const string SwipeCut = "swipecut";
 
         /// <summary>
         /// Every style there is, "none" first. The creator's buttons, the mesh list and the
         /// tests all walk this, so a style added here shows up everywhere.
         ///
-        /// A save file stores the name, so a style that is REMOVED (Embermane and AnimeHair0
-        /// were, as outdated) leaves characters carrying a name nothing recognises. That is
-        /// safe: <see cref="SetStyle"/> ignores a name that is not here, and a head starts out
-        /// bald, so such a character is simply bald until they pick again.
+        /// A save file stores the name, so a style that is REMOVED (Embermane and the OLD
+        /// AnimeHair0 were, as outdated -- this AnimeHair, added 2026-09-27 from a different,
+        /// user-supplied model, is unrelated to that removed one despite the similar name) leaves
+        /// characters carrying a name nothing recognises. That is safe: <see cref="SetStyle"/>
+        /// ignores a name that is not here, and a head starts out bald, so such a character is
+        /// simply bald until they pick again.
         /// </summary>
-        public static readonly string[] ValidStyles = { None, Hair1, Danny };
+        public static readonly string[] ValidStyles = { None, Hair1, Danny, AnimeHair, ChadHair, OldManHair, SpikeX, SwipeCut };
 
         /// <summary>The short name a button or a console line uses for a style.</summary>
         public static string LabelFor(string style)
@@ -51,6 +58,11 @@ namespace CityX.Character
                 case None: return "BALD";
                 case Hair1: return "BOB";
                 case Danny: return "DAN";
+                case AnimeHair: return "ANI";
+                case ChadHair: return "CHAD";
+                case OldManHair: return "OLD";
+                case SpikeX: return "SPIKE";
+                case SwipeCut: return "SWIPE";
                 default: return (style ?? string.Empty).ToUpperInvariant();
             }
         }

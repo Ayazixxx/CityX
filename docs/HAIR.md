@@ -76,29 +76,35 @@ It covers the whole head: a straight fringe across the forehead, the sides down
 past the ears, and the back to the nape. It faces +Z (fringe to the front), so its
 yaw is 0, and the automatic fit sits it well without hand tuning.
 
-## Danny: wired in, waiting on a corrected export
+## Danny: working now, in every scene
 
 `Danny.glb` (2026-09-27) imports and bakes cleanly -- same single-mesh-under-one-node
 shape as Hair1, no textures, one material -- and is fully wired (`CharacterHair.Danny`,
-label "DAN", its own button, `HairAssets.Danny()`), so it is mechanically a real
-hairstyle option today. But **rendered on a real head the current file is not a full
-hairstyle**: a couple of small gold spike shapes sit near the ears and the top of the
-scalp is bald -- see `Logs/CityShots/hair-danny-*.png` (close-ups) and
-`hair-danny-wide-*.png` (the whole worn object, pulled back).
+label "DAN", its own button, `HairAssets.Danny()`). The file itself was never
+re-exported (still the original commit's mesh -- confirmed via `git log`), but the
+user's own hand-placed fit (dragged live in the creator, saved through the Inspector's
+"Save this placement" button) turned it into a real, full-coverage hairstyle -- see
+`Logs/CityShots/hair-danny-front/side/back.png` for the current look. The earlier
+"a couple of gold spikes, bald scalp" report was the AUTOMATIC fit on this mesh, not
+the mesh itself; a hand-tuned fit fixed it completely, no re-export needed after all.
 
-Diagnosed with the user directly (their own Blender outliner screenshot): their scene
-has TWO mesh objects for this style (`Mesh_0.001` and `Mesh_0.002`), and only one of
-them made it into `Danny.glb` -- whatever export step was used dropped the second
-piece. Separately, the exported mesh (37,478 vertices) is roughly 25x denser than
-Blender's own reported 2,899 faces, almost certainly because a Subdivision Surface
-modifier's RENDER level is set higher than its VIEWPORT level (the status bar shows
-viewport; glTF export bakes using render). Told the user to select both mesh objects
-(Limit to: Selected Objects) and match the two subdivision levels before re-exporting.
+**A second, separate bug then made it invisible in the actual game only:** the world
+player's `CharacterHair` (added at scene-build time by `CityMassingSceneBuilder`, not
+baked into `Player.prefab` -- see its own `HairAssets.AddTo` call) had its
+`StyleMeshes` array frozen from BEFORE Danny existed (`CityMassing.unity` was last
+rebuilt for the bullet-hole/knock-shatter fix, a commit after Danny's own wire-up
+commit that only rebuilt the Title scene). One entry (`Hair1Mesh`) instead of two, so
+`MeshFor("danny")`'s index landed past the end of the array and `CharacterHair.cs:357`
+silently returned null -- no error, just nothing drawn. Looked perfect in the creator
+(which `TitleScreenCapture` rebuilds fresh every time), invisible in the real game.
 
-**When the corrected file arrives:** replace `Assets/CityX/Character/Hair/Danny.glb`,
-delete `DannyMesh.asset` to force a re-bake, rebuild the Title scene, and look again
-before trusting the automatic fit -- a style this dense is also worth weighing against
-the "keep asset size small" standing practice once its real shape is confirmed.
+Fixed by rebuilding the scene (`CityX/Rebuild Massing Scene` menu item, or
+`CityX.ViewEditor.CityMassingSceneBuilder.Build` via `-executeMethod`) so
+`StyleMeshes` regenerates from the current `ValidStyles` list (now both `Hair1Mesh`
+and `DannyMesh`). **Lesson for next time a style is added or changed:** rebuild BOTH
+the Title scene AND CityMassing -- the Adding-a-style checklist below already said
+this, but it is easy to do one and not the other, and the failure mode (invisible
+ONLY in the real game, fine everywhere else) is a confusing one to hit by surprise.
 
 ## Adding another style
 
@@ -126,3 +132,19 @@ the "keep asset size small" standing practice once its real shape is confirmed.
   a saved colour on the pedestal body; ReDraw opening on it and saving a new one.
 - `TitleScreenCapture.CaptureHair1` writes front / side / back head close-ups to
   `Logs/CityShots/`; the `creator-hair` shot wears blue hair with the card open.
+
+## Batch added 2026-10-01: animehair, chadhair, oldmanhair, spikex, swipecut
+
+User-supplied models in `Assets/CityX/Character/Hair/` (`AnimeHair.glb` = the user's `animehair6.glb`, `ChadHair.glb`,
+`OldManHair.glb`, `SpikeX.glb`, `SwipeCut.glb`), styles `animehair/chadhair/oldmanhair/spikex/swipecut`, labels
+ANI/CHAD/OLD/SPIKE/SWIPE. All on the AUTOMATIC fit (nothing hand-tuned yet) -- place them with the Inspector gizmos + Save.
+
+- **The button row now wraps**: 8 styles in one 184-unit row was ~19 units a button. `HairButtonRow` puts at most 4 per row
+  (`PerRow`), `RowOffsetY`/`Rows` place further rows, and the hint label under it moves down by the extra rows. Both the
+  title creator and the in-game redraw creator use it. Past ~8 styles this wants to be a picker.
+- **Multi-primitive models bald the head**: `animehair` has TWO glTF primitives (an 11-vertex stub with material 0, the real
+  hair with material 1). The hair renderer has one material and so drew only the stub. `HairAssets.Bake` now MERGES all
+  sub-meshes into one. Delete a style's `*Mesh.asset` to re-bake it. Danny / Hair1 were baked before this change and
+  have NOT been re-baked -- Danny's original "a couple of spikes" look may have been the same cause (not checked).
+- `oldmanhair` really is side tufts with a bald top (renders that way); the other four sit on the head sensibly.
+- Rebuilt BOTH Title and CityMassing scenes (the world player's `StyleMeshes` is baked at scene build -- see the Danny note above).

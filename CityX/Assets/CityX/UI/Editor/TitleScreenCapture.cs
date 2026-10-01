@@ -94,6 +94,45 @@ namespace CityX.UIEditor
             CaptureDanny();
         }
 
+        /// <summary>Close-ups of the head wearing AnimeHair: front, side and back.</summary>
+        [MenuItem("CityX/Capture AnimeHair")]
+        public static void CaptureAnimeHair()
+        {
+            ShootHairViews("hair-anime-", Character.CharacterHair.AnimeHair);
+        }
+
+        /// <summary>Rebuilds the title scene, then photographs AnimeHair -- one editor start for change, rebuild, look.</summary>
+        public static void RebuildAndCaptureAnimeHair()
+        {
+            TitleScreenBuilder.Build();
+            CaptureAnimeHair();
+        }
+
+        /// <summary>Front and side close-ups of every style after Danny (the user-supplied 2026-09-27..10-01 batch).</summary>
+        public static void CaptureBatchStyles()
+        {
+            foreach (string style in new[]
+            {
+                Character.CharacterHair.AnimeHair, Character.CharacterHair.ChadHair,
+                Character.CharacterHair.OldManHair, Character.CharacterHair.SpikeX, Character.CharacterHair.SwipeCut,
+            })
+            {
+                Shoot("hair-" + style + "-front", TitleScreen.Panel.Creator, seedCharacters: false, hairStyle: style, headView: "front");
+                Shoot("hair-" + style + "-side", TitleScreen.Panel.Creator, seedCharacters: false, hairStyle: style, headView: "side");
+            }
+        }
+
+        /// <summary>DIAGNOSTIC: a wide, pulled-back look at the whole AnimeHair mesh's own extent -- the front/side/back close-ups showed a bald head.</summary>
+        public static void CaptureAnimeHairWide()
+        {
+            string outputDirectory = Path.Combine(Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
+            Directory.CreateDirectory(outputDirectory);
+            Shoot("hair-anime-wide-front", TitleScreen.Panel.Creator, seedCharacters: false,
+                hairStyle: Character.CharacterHair.AnimeHair, headView: "wide-front");
+            Shoot("hair-anime-wide-side", TitleScreen.Panel.Creator, seedCharacters: false,
+                hairStyle: Character.CharacterHair.AnimeHair, headView: "wide-side");
+        }
+
         /// <summary>DIAGNOSTIC: a wide, pulled-back look at the whole Danny hair mesh's own extent, not just a tight head close-up.</summary>
         public static void CaptureDannyWide()
         {
