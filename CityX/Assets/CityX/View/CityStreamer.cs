@@ -221,6 +221,7 @@ namespace CityX.View
             public Vector3[] Vertices;
             public Vector3[] Normals;
             public Vector2[] Uvs;
+            public Color32[] Colors;
             public int[][] SubmeshTriangles;
         }
 
@@ -705,6 +706,7 @@ namespace CityX.View
             payload.Vertices = new Vector3[vertexCount];
             payload.Normals = new Vector3[vertexCount];
             payload.Uvs = new Vector2[vertexCount];
+            payload.Colors = new Color32[vertexCount];
             payload.SubmeshTriangles = new int[buffers.Length][];
             int written = 0;
             for (int b = 0; b < buffers.Length; b++)
@@ -713,6 +715,7 @@ namespace CityX.View
                 buffer.Vertices.CopyTo(payload.Vertices, written);
                 buffer.Normals.CopyTo(payload.Normals, written);
                 buffer.Uvs.CopyTo(payload.Uvs, written);
+                buffer.Colors.CopyTo(payload.Colors, written);
 
                 var shifted = new int[buffer.Triangles.Count];
                 for (int i = 0; i < shifted.Length; i++)
@@ -744,6 +747,7 @@ namespace CityX.View
             mesh.SetVertices(payload.Vertices);
             mesh.SetNormals(payload.Normals);
             mesh.SetUVs(0, payload.Uvs);
+            mesh.SetColors(payload.Colors);
             // Only the submeshes that have something in them, each with its material. A street chunk has no walls
             // or glass, and a draw call per empty submesh is exactly the per-draw cost that frame time followed.
             Material[] materialFor = { GroundMaterial, PavementMaterial, StructureMaterial, DarkGlassMaterial, LitGlassMaterial };

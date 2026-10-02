@@ -45,11 +45,20 @@ namespace CityX.World
         /// <summary>A number every random choice about this building is derived from.</summary>
         public readonly int Seed;
 
+        /// <summary>
+        /// Where another volume of the same building stands on this one's roof, in this building's frame relative to its centre (x0, x1, z0, z1);
+        /// all zero when nothing does. The stair that leads up to the roof must not come out under it.
+        /// </summary>
+        public readonly float ObstacleX0, ObstacleX1, ObstacleZ0, ObstacleZ1;
+
+        public bool HasRoofObstacle => ObstacleX1 > ObstacleX0 && ObstacleZ1 > ObstacleZ0;
+
         public static readonly BuildingSite None = default;
 
         public BuildingSite(int id, BuildingParams parameters, ZoneKind zone, float baseHeight, float podiumBase,
             float doorGroundHeight, double centreX, double centreZ, double axisX, double axisZ,
-            int ownerChunkX, int ownerChunkY, int seed)
+            int ownerChunkX, int ownerChunkY, int seed,
+            float obstacleX0 = 0.0f, float obstacleX1 = 0.0f, float obstacleZ0 = 0.0f, float obstacleZ1 = 0.0f)
         {
             Id = id;
             Params = parameters;
@@ -64,6 +73,10 @@ namespace CityX.World
             OwnerChunkX = ownerChunkX;
             OwnerChunkY = ownerChunkY;
             Seed = seed;
+            ObstacleX0 = obstacleX0;
+            ObstacleX1 = obstacleX1;
+            ObstacleZ0 = obstacleZ0;
+            ObstacleZ1 = obstacleZ1;
         }
 
 

@@ -101,6 +101,16 @@ namespace CityX.World.Plan
         /// <summary>The building a world point is inside (or within <paramref name="margin"/> of the walls), or -1.</summary>
         public int BuildingAt(double x, double z, double margin = 0.0)
         {
+            return BuildingAtHeight(x, double.NaN, z, margin);
+        }
+
+        /// <summary>
+        /// The building at a world POINT: like <see cref="BuildingAt"/> but with the height as well, because buildings are stacked (a
+        /// tower stands on its podium's roof) and two of them can be over the same ground. Only a building whose walls reach the height
+        /// is considered. <paramref name="y"/> NaN ignores height.
+        /// </summary>
+        public int BuildingAtHeight(double x, double y, double z, double margin = 0.0)
+        {
             int cx = ChunkOf(x);
             int cy = ChunkOf(z);
             int best = -1;
@@ -114,6 +124,10 @@ namespace CityX.World.Plan
                     for (int i = 0; i < list.Count; i++)
                     {
                         BuildingSite b = Buildings[list[i]];
+                        if (!double.IsNaN(y) && (y < b.PodiumBase - 1.0 || y > b.BaseHeight + b.Params.Height + 1.0))
+                        {
+                            continue;
+                        }
                         b.WorldToLocal(x, z, out double lx, out double lz);
                         double hw = b.Params.Width * 0.5 + margin;
                         double hd = b.Params.Depth * 0.5 + margin;
@@ -325,9 +339,6 @@ namespace CityX.World.Plan
                 string roof = RoofsByZone[(int)zone][rng.Below(8)];
                 bool basement = rng.NextDouble() < 0.12 && height > 10.0;
 
-                var parameters = new BuildingParams(true, (float)width, (float)height, (float)depth,
-                    0.0f, 0.0f, roof, 0, "", basement, mass);
-
                 // The ground under the footprint, sampled at the corners, edge middles and centre.
                 // (Local +Z is the front, so the door is at (0, +depth/2).)
                 double axisX = ex.X, axisZ = ex.Y;
@@ -352,11 +363,53 @@ namespace CityX.World.Plan
                 double doorZ = centre.Y + (depth * 0.5 + 2.0) * axisX;
                 double doorGround = fields.Height(doorX, doorZ);
 
-                int ownerX = PlanWorld.ChunkOf(centre.X);
-                int ownerY = PlanWorld.ChunkOf(centre.Y);
+                // The shape: one box, or a stack of them (a tower on a podium, a crown that steps in). Drawn last, so the roof and basement
+                // rolled above are what they would have been anyway.
+                List<MassVolume> volumes = Massing.Split(zone, mass, width, depth, height, rng, out bool hasPodium);
 
-                list.Add(new BuildingSite(id, parameters, zone, (float)baseHeight, (float)lo, (float)doorGround,
-                    centre.X, centre.Y, axisX, axisZ, ownerX, ownerY, unchecked((int)h)));
+                // A building made of several volumes: the lowest has the door on the street and the ground under it; each one above stands
+                // on the roof of the one below and is reached from it. A tower on a podium is a different building from the podium and
+                // dresses differently; the stages of one stepped tower are one building and dress alike.
+                int towerSeed = unchecked((int)PlanNoise.Mix(h, 0x70746F77U));   // "ptow"
+                double stackBase = baseHeight;
+                for (int v = 0; v < volumes.Count; v++)
+                {
+                    MassVolume vol = volumes[v];
+                    bool bottom = v == 0;
+                    bool isPodium = hasPodium && bottom;
+                    bool isTop = v == volumes.Count - 1;
+
+                    BuildingMass volumeMass = isPodium ? MassFor(zone, vol.Height, vol.Width, vol.Depth) : mass;
+                    // Below the top a roof is a terrace with a parapet round it; only the top carries the zone's roof plant.
+                    string volumeRoof = isTop ? roof : "parapet";
+                    int volumeSeed = hasPodium && !bottom ? towerSeed : unchecked((int)h);
+
+                    var volumeParameters = new BuildingParams(true, (float)vol.Width, (float)vol.Height, (float)vol.Depth,
+                        0.0f, 0.0f, volumeRoof, 0, "", bottom && basement, volumeMass);
+
+                    double cx = centre.X + vol.CentreX * axisX - vol.CentreZ * axisZ;
+                    double cz = centre.Y + vol.CentreX * axisZ + vol.CentreZ * axisX;
+
+                    // Where the next volume stands on this one's roof, relative to this one's centre.
+                    float ox0 = 0.0f, ox1 = 0.0f, oz0 = 0.0f, oz1 = 0.0f;
+                    if (!isTop)
+                    {
+                        MassVolume next = volumes[v + 1];
+                        ox0 = (float)(next.X0 - vol.CentreX);
+                        ox1 = (float)(next.X1 - vol.CentreX);
+                        oz0 = (float)(next.Z0 - vol.CentreZ);
+                        oz1 = (float)(next.Z1 - vol.CentreZ);
+                    }
+
+                    float vBase = bottom ? (float)baseHeight : (float)stackBase;
+                    list.Add(new BuildingSite(list.Count, volumeParameters, zone, vBase,
+                        bottom ? (float)lo : vBase, bottom ? (float)doorGround : vBase,
+                        cx, cz, axisX, axisZ, PlanWorld.ChunkOf(cx), PlanWorld.ChunkOf(cz), volumeSeed,
+                        ox0, ox1, oz0, oz1));
+
+                    // The next volume stands a hair above this roof so its floor and the roof's top face never fight for one plane.
+                    stackBase = vBase + vol.Height + 0.05;
+                }
             }
             return list.ToArray();
         }

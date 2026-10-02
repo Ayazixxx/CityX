@@ -72,8 +72,11 @@ namespace CityX.ViewEditor
             // Also carries roofs and walkway decks -- same material in the real
             // world, and the buffer is named flatConcrete for that reason.
             Material pavement = EnsureMaterial("CityPavement", "CityPavement", 4.0f, PavementDrySmoothness);
-            Material structure = EnsureMaterial("CityConcrete", "CityFacade",
-                CityFacadeTextures.FacadeTileWidth, ConcreteDrySmoothness);
+            // The walls (and, since a building is one draw, its roof and trim) use the facade shader: eight wall materials in a texture
+            // array, picked per building by the look stamped on its vertices. Still named CityConcrete so everything that finds it by
+            // name keeps working.
+            FacadeTextureBuilder.Build(false);
+            Material structure = FacadeTextureBuilder.EnsureMaterial();
             Material darkGlass = EnsureGlassMaterial("CityGlassDark", false);
             Material litGlass = EnsureGlassMaterial("CityGlassLit", true);
             Material crackedGlass = EnsureGlassMaterial("CityGlassCracked", false, cracked: true);
@@ -1477,6 +1480,28 @@ namespace CityX.ViewEditor
                 }
                 material = new Material(shader);
                 AssetDatabase.CreateAsset(material, path);
+            }
+
+            // Intact glass (dark and lit) is the glass shader: tint per building, a kind of light per window, blinds. Cracked glass stays
+            // plain frosted Lit, so a window somebody has hit reads as damaged against its neighbours.
+            if (!cracked)
+            {
+                Shader glass = Shader.Find("CityX/Glass");
+                if (glass == null)
+                {
+                    Debug.LogError("CityX: shader CityX/Glass not found -- did it fail to compile?");
+                }
+                else
+                {
+                    material.shader = glass;
+                    material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+                    material.SetColor("_BaseColor", new Color(0.055f, 0.062f, 0.075f, 0.72f));
+                    material.SetFloat("_Smoothness", 0.86f);
+                    // Black; DayNightCycle raises it as the light goes, so the windows come on at dusk.
+                    material.SetColor("_EmissionColor", Color.black);
+                    EditorUtility.SetDirty(material);
+                    return material;
+                }
             }
 
             // Transparent, and dark rather than clear: city glass at a distance

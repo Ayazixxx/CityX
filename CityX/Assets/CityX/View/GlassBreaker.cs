@@ -67,8 +67,9 @@ namespace CityX.View
             }
 
             // The building the point is on or beside. A point can sit a few centimetres outside the wall it hit (a
-            // contact skin, a bullet's impact), so the building is looked up with a little margin.
-            if (!_world.TryBuildingAt(point.x, point.z, out BuildingSite site, 0.6) ||
+            // contact skin, a bullet's impact), so the building is looked up with a little margin. Height matters: a tower stands on
+            // its podium's roof, so two buildings can be over the same ground.
+            if (!_world.TryBuildingAt(point, out BuildingSite site, 0.6) ||
                 !GlassDamage.TryPaneAt(_world, site, point, out PaneKey key))
             {
                 return false;

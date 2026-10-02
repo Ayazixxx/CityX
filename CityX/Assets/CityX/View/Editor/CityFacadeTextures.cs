@@ -65,7 +65,9 @@ namespace CityX.ViewEditor
         {
             System.IO.Directory.CreateDirectory(Directory_);
 
-            BuildFacade();
+            // The walls no longer use this tiling texture: they use the facade texture arrays (FacadeTextureBuilder). Not drawn any more, so
+            // 11 MB of unused PNG is not rebuilt on every scene build; BuildFacade is kept for reference.
+            // BuildFacade();
 
             // Slightly warm rather than neutral. A neutral dark grey lit only
             // by a blue sky comes out blue, and the first render had streets

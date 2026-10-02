@@ -105,12 +105,19 @@ namespace CityX.UIEditor
         private static void AddTower(float centreX, float width, float height, float frontZ, int index,
             MeshBuffer walls, MeshBuffer roofs, MeshBuffer dark, MeshBuffer lit)
         {
-            walls.AddBox(new Vector3(centreX - width * 0.5f, 0.0f, frontZ),
-                new Vector3(centreX + width * 0.5f, height, frontZ + Depth), roofs);
-
             CellLayout rows = WindowGrid.RowsFor(height);
             WindowPlan plan = WindowGrid.PlanFor(Seed + index * 7919, ZoneKind.Core,
                 new BuildingParams(true, width, height, Depth, 0.0f, 0.0f, "", 0, "", false, BuildingMass.Tower));
+
+            // The same look the city gives a building of this kind (material, tint, weathering), so the skyline over the title screen
+            // is made of the same stuff as the streets it stands for.
+            BuildingLook look = BuildingLook.For(Seed + index * 7919, ZoneKind.Core, BuildingMass.Tower, plan.Style);
+            walls.Look = SurfaceLook.Pack(look.WallTint, (int)look.Wall, look.WallWear);
+            walls.UvOffset = look.UvOffset;
+            walls.AddBox(new Vector3(centreX - width * 0.5f, 0.0f, frontZ),
+                new Vector3(centreX + width * 0.5f, height, frontZ + Depth), roofs);
+            walls.Look = SurfaceLook.Default;
+            walls.UvOffset = Vector2.zero;
 
             // The camera-facing wall and both sides. The back is never seen.
             AddWall(plan, WindowGrid.Wall.South, new Vector3(centreX, 0.0f, frontZ), Vector3.back,
@@ -157,6 +164,7 @@ namespace CityX.UIEditor
             var vertices = new List<Vector3>();
             var normals = new List<Vector3>();
             var uvs = new List<Vector2>();
+            var colours = new List<Color32>();
             var offsets = new int[buffers.Length];
             for (int i = 0; i < buffers.Length; i++)
             {
@@ -164,12 +172,14 @@ namespace CityX.UIEditor
                 vertices.AddRange(buffers[i].Vertices);
                 normals.AddRange(buffers[i].Normals);
                 uvs.AddRange(buffers[i].Uvs);
+                colours.AddRange(buffers[i].Colors);
             }
 
             var mesh = new Mesh { name = "TitleSkyline", indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
             mesh.SetVertices(vertices);
             mesh.SetNormals(normals);
             mesh.SetUVs(0, uvs);
+            mesh.SetColors(colours);
             mesh.subMeshCount = buffers.Length;
             for (int i = 0; i < buffers.Length; i++)
             {

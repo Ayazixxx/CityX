@@ -117,7 +117,9 @@ namespace CityX.Tests
                 {
                     b.LocalToWorld(sx[c] * b.Params.Width * 0.5 * 0.98, sz[c] * b.Params.Depth * 0.5 * 0.98, out double x, out double z);
                     corners++;
-                    if (World.BuildingAt(x, z) != b.Id) overlapping++;
+                    // At the building's own mid-height: a tower stands on its podium's roof, so over the same ground there can be
+                    // two buildings, one above the other, and they do not overlap.
+                    if (World.BuildingAtHeight(x, b.BaseHeight + b.Params.Height * 0.5, z) != b.Id) overlapping++;
                 }
             }
             Assert.Less(overlapping / (double)corners, 0.001, $"{overlapping} of {corners} building corners are inside another building");

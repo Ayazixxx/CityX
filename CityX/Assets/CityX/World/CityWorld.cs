@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using CityX.World.Plan;
+using UnityEngine;
 
 namespace CityX.World
 {
@@ -49,6 +50,19 @@ namespace CityX.World
         public bool TryBuildingAt(double x, double z, out BuildingSite site, double margin = 0.0)
         {
             int id = Plan.BuildingAt(x, z, margin);
+            if (id < 0)
+            {
+                site = BuildingSite.None;
+                return false;
+            }
+            site = Plan.Buildings[id];
+            return true;
+        }
+
+        /// <summary>The building a world POINT is inside: like the two-dimensional lookup, but height decides between stacked volumes.</summary>
+        public bool TryBuildingAt(Vector3 point, out BuildingSite site, double margin = 0.0)
+        {
+            int id = Plan.BuildingAtHeight(point.x, point.y, point.z, margin);
             if (id < 0)
             {
                 site = BuildingSite.None;

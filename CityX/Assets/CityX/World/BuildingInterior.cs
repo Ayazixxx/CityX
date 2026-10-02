@@ -58,6 +58,7 @@ namespace CityX.World
         /// <summary>DOOR_HEIGHT_FLOORS. One row, for the same reason.</summary>
         public const int DoorHeightRows = 1;
 
+
         /// <summary>DOOR_WIDTH.</summary>
         public const float DoorWidth = 1.6f;
 
@@ -70,6 +71,18 @@ namespace CityX.World
         /// confirmed in a screenshot rather than argued about.
         /// </summary>
         public const float SlabThickness = 0.2f;
+
+        /// <summary>
+        /// How thick an outer wall is. Its OUTSIDE face is where the footprint ends; its inside face is this far in. A wall with no
+        /// thickness has windows that are flush holes and looks like a cardboard box: with it, every opening has reveals the sun shadows.
+        /// </summary>
+        public const float WallThickness = 0.30f;
+
+        /// <summary>How far in from the outside face a window's glass sits (the rest of the thickness is the inside reveal).</summary>
+        public const float GlassSetBack = 0.14f;
+
+        /// <summary>How far in from the outside face the entrance door's leaf stands, so the doorway is a recess.</summary>
+        public const float DoorSetBack = 0.10f;
 
         /// <summary>The facade's own window-row height for a building this tall.</summary>
         public static float RowHeight(float buildingHeight)
@@ -84,7 +97,7 @@ namespace CityX.World
 
         public static float DoorHeight(float buildingHeight)
         {
-            return RowHeight(buildingHeight) * DoorHeightRows;
+            return RowHeight(buildingHeight) * DoorHeightRows;   // the whole ground row: the player is 2.6 m tall, so a "real" 2.4 m door is a crawlspace
         }
 
         /// <summary>How many floors a building this tall gets.</summary>
@@ -376,6 +389,23 @@ namespace CityX.World
         /// wall the previous one topped out at. A walk along one wall to reach
         /// it, not a diagonal march across the open room.
         /// </summary>
+        /// <summary>
+        /// The stairwell for a floor whose flight must not come out under <paramref name="avoid"/> (another volume of the building standing on
+        /// this one's roof): the first corner, going round from the usual one, whose opening clears it. Where none does, the usual one.
+        /// </summary>
+        public static Stairwell StairwellFor(int floorIndex, float halfX, float halfZ, float run, Rect avoid)
+        {
+            for (int turn = 0; turn < 4; turn++)
+            {
+                Stairwell candidate = StairwellFor(floorIndex + turn, halfX, halfZ, run);
+                if (!candidate.Hole.Overlaps(avoid))
+                {
+                    return candidate;
+                }
+            }
+            return StairwellFor(floorIndex, halfX, halfZ, run);
+        }
+
         public static Stairwell StairwellFor(int floorIndex, float halfX, float halfZ, float run)
         {
             int corner = ((floorIndex % 4) + 4) % 4;

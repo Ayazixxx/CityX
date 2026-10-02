@@ -99,17 +99,31 @@ namespace CityX.View
             var builderOrigin = new Vector3((float)site.CentreX, 0.0f, (float)site.CentreZ);
             double litShare = WindowGrid.LitShareFor(site.Zone);
 
+            // What the building is made of: one look for its walls, one for its ground floor, one for its roof and trim.
+            SiteLooks looks = SiteLooks.For(site, WindowPlan.For(world, site).Style);
+            structures.UvOffset = looks.UvOffset;
+
             if (far)
             {
                 BuildBuildingShell(world, site, builderOrigin, structures, concrete,
-                    new Glazing(litGlass, darkGlass, null, damage, null, null, litShare));
+                    new Glazing(litGlass, darkGlass, null, damage, null, null, litShare), looks);
             }
             else
             {
                 BuildBuilding(world, site, builderOrigin, structures, concrete,
-                    new Glazing(litGlass, darkGlass, crackedGlass, damage, crackedOpenings, crackDecals, litShare));
-                AddBalconies(world, site, builderOrigin, concrete);
-                AddRibs(world, site, builderOrigin, structures);
+                    new Glazing(litGlass, darkGlass, crackedGlass, damage, crackedOpenings, crackDecals, litShare), looks);
+                AddBalconies(world, site, builderOrigin, structures, looks);
+                AddRibs(world, site, builderOrigin, structures, looks);
+            }
+            structures.Look = SurfaceLook.Default;
+            structures.UvOffset = Vector2.zero;
+            if (litGlass != null)
+            {
+                litGlass.Look = SurfaceLook.Default;
+            }
+            if (darkGlass != null)
+            {
+                darkGlass.Look = SurfaceLook.Default;
             }
 
             // A cracked opening's trigger box was written in the building's frame; hand it out turned and placed.
@@ -129,6 +143,69 @@ namespace CityX.View
             darkGlass?.ClearFrame();
             crackedGlass?.ClearFrame();
             crackDecals?.ClearFrame();
+        }
+
+        /// <summary>
+        /// One floor's stairwell. The top floor's flight comes out on the roof; where another volume of the building stands on that roof it
+        /// must not come out under it.
+        /// </summary>
+        private static BuildingInterior.Stairwell WellFor(BuildingSite site, int floor, int floors, float halfX, float halfZ, float run)
+        {
+            if (floor == floors - 1 && site.HasRoofObstacle)
+            {
+                return BuildingInterior.StairwellFor(floor, halfX, halfZ, run, Rect.MinMaxRect(
+                    site.ObstacleX0 - 0.4f, site.ObstacleZ0 - 0.4f, site.ObstacleX1 + 0.4f, site.ObstacleZ1 + 0.4f));
+            }
+            return BuildingInterior.StairwellFor(floor, halfX, halfZ, run);
+        }
+
+        /// <summary>
+        /// The packed vertex looks (see SurfaceLook) a building's parts are stamped with: its walls, its ground floor and podium, its roof,
+        /// and its trim. Computed once per building from BuildingLook.
+        /// </summary>
+        private readonly struct SiteLooks
+        {
+            public readonly Color32 Wall;
+            public readonly Color32 Base;
+            public readonly Color32 Roof;
+            public readonly Color32 Trim;
+            public readonly Color32 Frame;
+            public readonly Color32 Band;
+            public readonly Color32 Appliance;
+            public readonly float AcDensity;
+            public readonly int GlassTint;
+            public readonly Vector2 UvOffset;
+
+            private SiteLooks(Color32 wall, Color32 baseLook, Color32 roof, Color32 trim, Color32 frame, Color32 band, Color32 appliance,
+                float acDensity, int glassTint, Vector2 uvOffset)
+            {
+                Wall = wall;
+                Base = baseLook;
+                Roof = roof;
+                Trim = trim;
+                Frame = frame;
+                Band = band;
+                Appliance = appliance;
+                AcDensity = acDensity;
+                GlassTint = glassTint;
+                UvOffset = uvOffset;
+            }
+
+            public static SiteLooks For(BuildingSite site, FacadeStyle style)
+            {
+                BuildingLook look = BuildingLook.For(site, style);
+                return new SiteLooks(
+                    SurfaceLook.Pack(look.WallTint, (int)look.Wall, look.WallWear),
+                    SurfaceLook.Pack(look.BaseTint, (int)look.Base, look.BaseWear),
+                    SurfaceLook.Pack(look.RoofTint, (int)WallMaterial.Roof, look.RoofWear),
+                    SurfaceLook.Pack(look.TrimTint, (int)WallMaterial.Concrete, look.WallWear * 0.8f),
+                    SurfaceLook.Pack(look.FrameTint, (int)WallMaterial.Metal, 0.15f),
+                    SurfaceLook.Pack(look.BandTint, (int)look.BandMaterial, look.WallWear),
+                    SurfaceLook.Pack(new Color(0.86f, 0.87f, 0.88f), (int)WallMaterial.Metal, 0.55f),
+                    look.AcDensity,
+                    look.GlassTint,
+                    look.UvOffset);
+            }
         }
 
         /// <summary>
@@ -225,7 +302,7 @@ namespace CityX.View
         public const float CrackedOpeningDepth = 0.5f;
 
         private static void BuildBuilding(CityWorld world, BuildingSite site, Vector3 origin,
-            MeshBuffer structures, MeshBuffer concrete, Glazing glazing)
+            MeshBuffer structures, MeshBuffer concrete, Glazing glazing, SiteLooks looks)
         {
             // The stretch below BaseHeight is buried on the uphill side and
             // exposed downhill, which is what a hillside podium actually is.
@@ -283,6 +360,7 @@ namespace CityX.View
             // The podium, below the lobby floor. Solid: it is buried on the
             // uphill side and exposed downhill, so glazing it would put windows
             // in a retaining wall.
+            structures.Look = looks.Base;
             AddWallPanel(structures, west, z0, z1, podiumY, lobbyY, Vector3.left);
             AddWallPanel(structures, east, z0, z1, podiumY, lobbyY, Vector3.right);
             AddWallPanel(structures, south, x0, x1, podiumY, lobbyY, Vector3.back);
@@ -290,24 +368,28 @@ namespace CityX.View
 
             // Outward, for the street, with real openings in it.
             AddWindowedWall(structures, glazing, site, west, z0, z1, lobbyY, roofY,
-                Vector3.left, plan, WindowGrid.Wall.West, rows, 0.0f, 0.0f, false);
+                Vector3.left, plan, WindowGrid.Wall.West, rows, 0.0f, 0.0f, false, looks);
             AddWindowedWall(structures, glazing, site, east, z0, z1, lobbyY, roofY,
-                Vector3.right, plan, WindowGrid.Wall.East, rows, 0.0f, 0.0f, false);
+                Vector3.right, plan, WindowGrid.Wall.East, rows, 0.0f, 0.0f, false, looks);
             AddWindowedWall(structures, glazing, site, south, x0, x1, lobbyY, roofY,
-                Vector3.back, plan, WindowGrid.Wall.South, rows, 0.0f, 0.0f, false);
+                Vector3.back, plan, WindowGrid.Wall.South, rows, 0.0f, 0.0f, false, looks);
             AddWindowedWall(structures, glazing, site, north, x0, x1, lobbyY, roofY,
-                Vector3.forward, plan, WindowGrid.Wall.North, rows, doorU0, doorU1, true);
+                Vector3.forward, plan, WindowGrid.Wall.North, rows, doorU0, doorU1, true, looks);
 
             // Inward, for the room. Same planes and the same openings, opposite
             // normals -- back to back, so neither is ever seen from the wrong
             // side, and a window is a hole through BOTH or it is not a hole.
-            AddWindowedWall(concrete, Glazing.OpeningsOnly, site, west, z0, z1, lobbyY, roofY,
+            //
+            // The wall is BuildingInterior.WallThickness thick: the inside face is that far in from the outside one, over the same span
+            // so every window column still lines up. Each opening's reveals (AddWindowReveals) join the two faces.
+            float t = BuildingInterior.WallThickness;
+            AddWindowedWall(concrete, Glazing.OpeningsOnly, site, new Wall(true, x0 + t, z0, z1), z0, z1, lobbyY, roofY,
                 Vector3.right, plan, WindowGrid.Wall.West, rows, 0.0f, 0.0f, false);
-            AddWindowedWall(concrete, Glazing.OpeningsOnly, site, east, z0, z1, lobbyY, roofY,
+            AddWindowedWall(concrete, Glazing.OpeningsOnly, site, new Wall(true, x1 - t, z0, z1), z0, z1, lobbyY, roofY,
                 Vector3.left, plan, WindowGrid.Wall.East, rows, 0.0f, 0.0f, false);
-            AddWindowedWall(concrete, Glazing.OpeningsOnly, site, south, x0, x1, lobbyY, roofY,
+            AddWindowedWall(concrete, Glazing.OpeningsOnly, site, new Wall(false, z0 + t, x0, x1), x0, x1, lobbyY, roofY,
                 Vector3.forward, plan, WindowGrid.Wall.South, rows, 0.0f, 0.0f, false);
-            AddWindowedWall(concrete, Glazing.OpeningsOnly, site, north, x0, x1, lobbyY, roofY,
+            AddWindowedWall(concrete, Glazing.OpeningsOnly, site, new Wall(false, z1 - t, x0, x1), x0, x1, lobbyY, roofY,
                 Vector3.back, plan, WindowGrid.Wall.North, rows, doorU0, doorU1, true);
 
             // The lobby floor, and NOT a port: city_chunk.gd leans on the
@@ -333,22 +415,28 @@ namespace CityX.View
             {
                 float bottom = floor * storey;
                 float top = BuildingInterior.FloorTop(floor, floors, height, storey);
-                BuildingInterior.Stairwell well =
-                    BuildingInterior.StairwellFor(floor, halfX, halfZ, run);
+                BuildingInterior.Stairwell well = WellFor(site, floor, floors, halfX, halfZ, run);
                 Rect hole = new Rect(well.Hole.x + centreX, well.Hole.y + centreZ,
                     well.Hole.width, well.Hole.height);
 
                 // This floor's ceiling. The last one is the roof itself, holed
                 // exactly like the rest -- that opening is how the top flight
-                // gets you outside.
-                AddSlab(concrete, x0, x1, z0, z1, hole, lobbyY + top);
+                // gets you outside. The roof's top face is made of roofing, in the
+                // wall buffer so it draws with the facade material (no extra draw).
+                bool isRoof = floor == floors - 1;
+                if (isRoof)
+                {
+                    structures.Look = looks.Roof;
+                }
+                AddSlab(concrete, x0, x1, z0, z1, hole, lobbyY + top, isRoof ? structures : null);
 
                 AddRoomPartition(concrete, BuildingInterior.RoomFor(floor, halfX, halfZ),
                     centreX, centreZ, lobbyY + bottom, lobbyY + top, doorTop - lobbyY);
 
-                if (floor == floors - 1)
+                if (isRoof)
                 {
-                    AddRoofDetail(concrete, site.Params.Roof, x0, x1, z0, z1, lobbyY + top);
+                    AddRoof(structures, site, x0, x1, z0, z1, lobbyY + top, looks, hole);
+                    structures.Look = SurfaceLook.Default;
                 }
 
                 foreach (BuildingInterior.Step step in
@@ -381,7 +469,7 @@ namespace CityX.View
         /// are a pixel at this range), so a glass tower's row is a quad or two, not a quad per window.
         /// </summary>
         private static void BuildBuildingShell(CityWorld world, BuildingSite site, Vector3 origin,
-            MeshBuffer structures, MeshBuffer concrete, Glazing glazing)
+            MeshBuffer structures, MeshBuffer concrete, Glazing glazing, SiteLooks looks)
         {
             float x0 = (float)(site.MinX - origin.x);
             float x1 = (float)(site.MaxX - origin.x);
@@ -397,15 +485,37 @@ namespace CityX.View
             var south = new Wall(false, z0, x0, x1);
             var north = new Wall(false, z1, x0, x1);
 
-            // The podium below the lobby floor, then the whole height of the wall in one panel each.
-            AddWallPanel(structures, west, z0, z1, podiumY, roofY, Vector3.left);
-            AddWallPanel(structures, east, z0, z1, podiumY, roofY, Vector3.right);
-            AddWallPanel(structures, south, x0, x1, podiumY, roofY, Vector3.back);
-            AddWallPanel(structures, north, x0, x1, podiumY, roofY, Vector3.forward);
+            // The podium and the ground floor in the building's base material, then the rest of the wall in one panel each. The
+            // distant building must wear the same look as the near one (the same two materials, split at the same height), or it
+            // would change as you walk up to it.
+            float baseTop = Mathf.Min(roofY, lobbyY + BuildingInterior.RowHeight(height));
+            structures.Look = looks.Base;
+            AddWallPanel(structures, west, z0, z1, podiumY, baseTop, Vector3.left);
+            AddWallPanel(structures, east, z0, z1, podiumY, baseTop, Vector3.right);
+            AddWallPanel(structures, south, x0, x1, podiumY, baseTop, Vector3.back);
+            AddWallPanel(structures, north, x0, x1, podiumY, baseTop, Vector3.forward);
+            structures.Look = looks.Wall;
+            AddWallPanel(structures, west, z0, z1, baseTop, roofY, Vector3.left);
+            AddWallPanel(structures, east, z0, z1, baseTop, roofY, Vector3.right);
+            AddWallPanel(structures, south, x0, x1, baseTop, roofY, Vector3.back);
+            AddWallPanel(structures, north, x0, x1, baseTop, roofY, Vector3.forward);
 
-            // The roof, and the antennas and parapets on it: they are the skyline.
-            AddSlabFace(concrete, x0, x1, z0, z1, Rect.zero, roofY, Vector3.up);
-            AddRoofDetail(concrete, site.Params.Roof, x0, x1, z0, z1, roofY);
+            // The roof, and the antennas and parapets on it: they are the skyline. Roofing and plant are written into the wall
+            // buffer so they draw with the facade material.
+            structures.Look = looks.Roof;
+            AddSlabFace(structures, x0, x1, z0, z1, Rect.zero, roofY, Vector3.up);
+            {
+                float shellCentreX = (x0 + x1) * 0.5f;
+                float shellCentreZ = (z0 + z1) * 0.5f;
+                float shellHalfX = site.Params.Width * 0.5f;
+                float shellHalfZ = site.Params.Depth * 0.5f;
+                int shellFloors = BuildingInterior.FloorCountFor(height);
+                BuildingInterior.Stairwell topWell = WellFor(site, shellFloors - 1, shellFloors, shellHalfX, shellHalfZ,
+                    BuildingInterior.RunFor(shellHalfX, shellHalfZ));
+                var hatch = new Rect(topWell.Hole.x + shellCentreX, topWell.Hole.y + shellCentreZ, topWell.Hole.width, topWell.Hole.height);
+                AddRoof(structures, site, x0, x1, z0, z1, roofY, looks, hatch);
+            }
+            structures.Look = SurfaceLook.Default;
 
             if (!glazing.HangsGlass)
             {
@@ -417,6 +527,11 @@ namespace CityX.View
             float centreX = (x0 + x1) * 0.5f;
             float doorU0 = centreX - BuildingInterior.DoorWidth * 0.5f;
             float doorU1 = centreX + BuildingInterior.DoorWidth * 0.5f;
+
+            // The distant glass wears the same tint as the near windows (no blind, one kind of light: a strip is many windows).
+            Color32 shellGlass = SurfaceLook.PackGlass(looks.GlassTint, 0, 0.0f);
+            glazing.Lit.Look = shellGlass;
+            glazing.Dark.Look = shellGlass;
 
             AddShellGlass(glazing, site, west, z0, z1, lobbyY, Vector3.left, plan, WindowGrid.Wall.West, rows, 0.0f, 0.0f);
             AddShellGlass(glazing, site, east, z0, z1, lobbyY, Vector3.right, plan, WindowGrid.Wall.East, rows, 0.0f, 0.0f);
@@ -542,7 +657,7 @@ namespace CityX.View
         /// stuck to the side of a building is worse than no balcony.
         /// </summary>
         private static void AddBalconies(CityWorld world, BuildingSite site, Vector3 origin,
-            MeshBuffer concrete)
+            MeshBuffer concrete, SiteLooks looks)
         {
             List<BuildingDecor.Balcony> balconies = BuildingDecor.Balconies(
                 site.Seed,
@@ -555,6 +670,7 @@ namespace CityX.View
             float centreX = (float)(site.CentreX - origin.x);
             float centreZ = (float)(site.CentreZ - origin.z);
             float baseY = site.BaseHeight - origin.y;
+            concrete.Look = looks.Trim;
 
             foreach (BuildingDecor.Balcony balcony in balconies)
             {
@@ -622,7 +738,7 @@ namespace CityX.View
         /// nothing becomes passable or impassable either way.
         /// </summary>
         private static void AddRibs(CityWorld world, BuildingSite site, Vector3 origin,
-            MeshBuffer facade)
+            MeshBuffer facade, SiteLooks looks)
         {
             float halfX = site.Params.Width * 0.5f;
             float halfZ = site.Params.Depth * 0.5f;
@@ -641,6 +757,7 @@ namespace CityX.View
             float y0 = site.BaseHeight - origin.y + ribbed.BaseY;
             float y1 = site.BaseHeight - origin.y + site.Params.Height;
 
+            facade.Look = looks.Wall;
             foreach (BuildingDecor.Rib rib in ribbed.Fins)
             {
                 bool runsInZ = Mathf.Abs(rib.Normal.x) > 0.5f;
@@ -682,75 +799,229 @@ namespace CityX.View
         }
 
         /// <summary>
-        /// Whatever is standing on this building's roof.
+        /// The roof of a building: a parapet round its edge with a coping on top, and the plant a real flat roof carries -- air handlers,
+        /// fans, vents, skylights, a stair or lift head, a water tank, a mast. Placed by the building's seed, kept off the hatch the stair comes
+        /// out of and off the volume standing on the roof if there is one.
         ///
-        /// city_chunk.gd has rolled a roof type per building since the start
-        /// and CityChunkGenerator ports it -- it is generated, it is tested,
-        /// and until now nothing read it, so every rooftop in the city was a
-        /// bare plane. That is most visible from exactly the two angles the
-        /// art direction cares about: the skyline, and standing on a roof.
-        ///
-        /// Sizes are Godot's own and are deliberately SMALL against a 20m
-        /// roof. These are props, not massing: a water tank a person could
-        /// stand beside, not a second storey.
+        /// It used to be one prop a metre across on a roof twenty metres wide, which no one could see from anywhere. The skyline is the roofs.
+        /// A parapet makes every roof end in a clean edge (it was a raw slab cut) and is a wall high enough that nobody walks off a roof by
+        /// accident; the climb still tops out over it (PlayerClimbing mantles forward onto whatever is past the wall).
         /// </summary>
-        private static void AddRoofDetail(MeshBuffer buffer, string roof,
-            float x0, float x1, float z0, float z1, float roofY)
+        private static void AddRoof(MeshBuffer buffer, BuildingSite site, float x0, float x1, float z0, float z1, float roofY,
+            SiteLooks looks, Rect hatch)
         {
-            float centreX = (x0 + x1) * 0.5f;
-            float centreZ = (z0 + z1) * 0.5f;
+            float t = ParapetWallThickness;
+            float h = ParapetWallHeight;
+            float o = CopingOverhang;
+            Color32 saved = buffer.Look;
 
+            // The wall, in the walls' own look so it reads as the facade carried up past the roof.
+            buffer.Look = looks.Wall;
+            buffer.AddBox(new Vector3(x0, roofY, z0), new Vector3(x1, roofY + h, z0 + t));
+            buffer.AddBox(new Vector3(x0, roofY, z1 - t), new Vector3(x1, roofY + h, z1));
+            buffer.AddBox(new Vector3(x0, roofY, z0 + t), new Vector3(x0 + t, roofY + h, z1 - t));
+            buffer.AddBox(new Vector3(x1 - t, roofY, z0 + t), new Vector3(x1, roofY + h, z1 - t));
+
+            // The coping on top of it, a little proud.
+            buffer.Look = looks.Trim;
+            float c0 = roofY + h;
+            float c1 = c0 + CopingHeight;
+            buffer.AddBox(new Vector3(x0 - o, c0, z0 - o), new Vector3(x1 + o, c1, z0 + t + o));
+            buffer.AddBox(new Vector3(x0 - o, c0, z1 - t - o), new Vector3(x1 + o, c1, z1 + o));
+            buffer.AddBox(new Vector3(x0 - o, c0, z0 + t + o), new Vector3(x0 + t + o, c1, z1 - t - o));
+            buffer.AddBox(new Vector3(x1 - t - o, c0, z0 + t + o), new Vector3(x1 + o, c1, z1 - t - o));
+
+            AddRoofPlant(buffer, site, x0, x1, z0, z1, roofY, looks, hatch);
+            buffer.Look = saved;
+        }
+
+        private const float ParapetWallHeight = 1.2f;
+        private const float ParapetWallThickness = 0.3f;
+        private const float CopingHeight = 0.10f;
+        private const float CopingOverhang = 0.06f;
+        private const ulong RoofStream = 0x524F4F46UL;   // "ROOF"
+
+        private static Rect Grown(Rect r, float by)
+        {
+            return Rect.MinMaxRect(r.xMin - by, r.yMin - by, r.xMax + by, r.yMax + by);
+        }
+
+        /// <summary>
+        /// What stands on a flat roof. Boxes, for the same reason everything else here is (a skyline is read from far off and a cylinder costs
+        /// sixteen times the triangles to say the same thing), but at the scale of the real thing.
+        /// </summary>
+        private static void AddRoofPlant(MeshBuffer buffer, BuildingSite site, float x0, float x1, float z0, float z1, float roofY,
+            SiteLooks looks, Rect hatch)
+        {
+            var rng = new DeterministicRandom(unchecked((ulong)(uint)site.Seed), RoofStream);
+            float margin = ParapetWallThickness + 0.9f;
+            float rx0 = x0 + margin, rx1 = x1 - margin, rz0 = z0 + margin, rz1 = z1 - margin;
+            if (rx1 - rx0 < 2.5f || rz1 - rz0 < 2.5f)
+            {
+                return;
+            }
+
+            // Ground that is taken: the hatch the stair comes out of, and whatever stands on this roof.
+            var taken = new List<Rect>();
+            if (hatch.width > 0.0f)
+            {
+                taken.Add(Grown(hatch, 1.2f));
+            }
+            if (site.HasRoofObstacle)
+            {
+                float cx = (x0 + x1) * 0.5f;
+                float cz = (z0 + z1) * 0.5f;
+                taken.Add(Grown(Rect.MinMaxRect(site.ObstacleX0 + cx, site.ObstacleZ0 + cz, site.ObstacleX1 + cx, site.ObstacleZ1 + cz), 0.9f));
+            }
+
+            string roof = site.Params.Roof ?? "";
+            float density = roof == "shed" ? 0.9f : (roof == "" || roof == "parapet" ? 0.45f : 0.6f);
+            float area = (rx1 - rx0) * (rz1 - rz0);
+            int units = Mathf.Clamp(Mathf.RoundToInt(area / 150.0f * density * (0.5f + (float)rng.NextDouble())), 0, 12);
+
+            Color32 plant = SurfaceLook.Pack(new Color(0.84f, 0.85f, 0.86f), (int)WallMaterial.Metal, 0.45f);
+            Color32 darkPlant = SurfaceLook.Pack(new Color(0.40f, 0.42f, 0.44f), (int)WallMaterial.Metal, 0.5f);
+
+            // The signature piece of the roof's type first, so it gets its place.
             switch (roof)
             {
-                case "shed":
-                    AddCentredBox(buffer, centreX, centreZ, roofY, 1.1f, 0.6f, 1.1f);
+                case "water_tower":
+                    TryPlace(buffer, rng, taken, rx0, rx1, rz0, rz1, 4.4f, 4.4f, (cx, cz) =>
+                    {
+                        buffer.Look = darkPlant;
+                        foreach (float dx in new[] { -1.5f, 1.5f })
+                        {
+                            foreach (float dz in new[] { -1.5f, 1.5f })
+                            {
+                                AddCentredBox(buffer, cx + dx, cz + dz, roofY, 0.28f, 3.0f, 0.28f);
+                            }
+                        }
+                        AddCentredBox(buffer, cx, cz, roofY + 3.0f, 3.8f, 3.4f, 3.8f);
+                        buffer.Look = looks.Trim;
+                        AddCentredBox(buffer, cx, cz, roofY + 6.4f, 4.1f, 0.22f, 4.1f);
+                    });
                     break;
 
                 case "antenna":
-                    AddMast(buffer, centreX, centreZ, roofY, 2.0f);
+                    TryPlace(buffer, rng, taken, rx0, rx1, rz0, rz1, 1.6f, 1.6f, (cx, cz) =>
+                    {
+                        float mast = Mathf.Lerp(6.0f, 30.0f, Mathf.Clamp01(site.Params.Height / 220.0f));
+                        buffer.Look = looks.Trim;
+                        AddCentredBox(buffer, cx, cz, roofY, 1.4f, 0.6f, 1.4f);
+                        buffer.Look = darkPlant;
+                        AddCentredBox(buffer, cx, cz, roofY + 0.6f, 0.16f, mast, 0.16f);
+                        AddCentredBox(buffer, cx, cz, roofY + 0.6f + mast * 0.62f, 1.6f, 0.07f, 0.07f);
+                        AddCentredBox(buffer, cx, cz, roofY + 0.6f + mast * 0.85f, 1.0f, 0.07f, 0.07f);
+                    });
                     break;
 
                 case "chimney":
-                    AddCentredBox(buffer, centreX, centreZ, roofY, 0.9f, 1.2f, 0.9f);
-                    AddMast(buffer, centreX + 0.3f, centreZ, roofY + 1.2f, 1.5f);
-                    break;
-
-                case "parapet":
-                    // A rim wall round all four edges. Part of the roofline
-                    // rather than a prop sitting on it, which is why it takes
-                    // the building's own footprint rather than a fixed size.
-                    AddCentredBox(buffer, centreX, z0 + ParapetThickness * 0.5f, roofY,
-                        x1 - x0, ParapetHeight, ParapetThickness);
-                    AddCentredBox(buffer, centreX, z1 - ParapetThickness * 0.5f, roofY,
-                        x1 - x0, ParapetHeight, ParapetThickness);
-                    AddCentredBox(buffer, x0 + ParapetThickness * 0.5f, centreZ, roofY,
-                        ParapetThickness, ParapetHeight, z1 - z0);
-                    AddCentredBox(buffer, x1 - ParapetThickness * 0.5f, centreZ, roofY,
-                        ParapetThickness, ParapetHeight, z1 - z0);
-                    break;
-
-                case "water_tower":
-                    // Four thin legs and a tank, which is the silhouette that
-                    // reads as a rooftop from a long way off.
-                    foreach (float dx in new[] { -0.55f, 0.55f })
+                    TryPlace(buffer, rng, taken, rx0, rx1, rz0, rz1, 2.3f, 2.3f, (cx, cz) =>
                     {
-                        foreach (float dz in new[] { -0.55f, 0.55f })
-                        {
-                            AddCentredBox(buffer, centreX + dx, centreZ + dz, roofY,
-                                0.1f, TankLegHeight, 0.1f);
-                        }
-                    }
-                    AddCentredBox(buffer, centreX, centreZ, roofY + TankLegHeight,
-                        TankRadius * 2.0f, TankHeight, TankRadius * 2.0f);
+                        float stack = 4.5f + 3.9f * (float)rng.NextDouble();
+                        buffer.Look = looks.Trim;
+                        AddCentredBox(buffer, cx, cz, roofY, 1.7f, stack, 1.7f);
+                        AddCentredBox(buffer, cx, cz, roofY + stack, 2.1f, 0.26f, 2.1f);
+                    });
                     break;
+
+                case "shed":
+                    TryPlace(buffer, rng, taken, rx0, rx1, rz0, rz1, 5.0f, 6.2f, (cx, cz) =>
+                    {
+                        // The head of a stair or a lift: a small room on the roof.
+                        buffer.Look = looks.Trim;
+                        AddCentredBox(buffer, cx, cz, roofY, 4.4f, 3.6f, 5.6f);
+                        buffer.Look = darkPlant;
+                        AddCentredBox(buffer, cx, cz, roofY + 3.6f, 4.7f, 0.18f, 5.9f);
+                    });
+                    break;
+            }
+
+            // Then the ordinary plant.
+            for (int i = 0; i < units; i++)
+            {
+                double kind = rng.NextDouble();
+                if (kind < 0.50)
+                {
+                    float w = 2.1f + 2.0f * (float)rng.NextDouble();
+                    float d = 1.3f + 0.9f * (float)rng.NextDouble();
+                    float hh = 1.3f + 0.9f * (float)rng.NextDouble();
+                    TryPlace(buffer, rng, taken, rx0, rx1, rz0, rz1, w + 0.4f, d + 0.4f, (cx, cz) =>
+                    {
+                        buffer.Look = plant;
+                        AddCentredBox(buffer, cx, cz, roofY, w, hh, d);
+                        buffer.Look = darkPlant;
+                        AddCentredBox(buffer, cx, cz, roofY + hh, w * 0.7f, 0.12f, d * 0.7f);
+                    });
+                }
+                else if (kind < 0.66)
+                {
+                    TryPlace(buffer, rng, taken, rx0, rx1, rz0, rz1, 1.5f, 1.5f, (cx, cz) =>
+                    {
+                        buffer.Look = plant;
+                        AddCentredBox(buffer, cx - 0.3f, cz, roofY, 0.35f, 1.8f + (float)rng.NextDouble(), 0.35f);
+                        AddCentredBox(buffer, cx + 0.3f, cz + 0.2f, roofY, 0.35f, 1.4f + (float)rng.NextDouble(), 0.35f);
+                    });
+                }
+                else if (kind < 0.82)
+                {
+                    TryPlace(buffer, rng, taken, rx0, rx1, rz0, rz1, 3.0f, 2.2f, (cx, cz) =>
+                    {
+                        // A skylight: a low curb with a dark lid.
+                        buffer.Look = looks.Trim;
+                        AddCentredBox(buffer, cx, cz, roofY, 2.6f, 0.5f, 1.8f);
+                        buffer.Look = darkPlant;
+                        AddCentredBox(buffer, cx, cz, roofY + 0.5f, 2.3f, 0.12f, 1.5f);
+                    });
+                }
+                else
+                {
+                    TryPlace(buffer, rng, taken, rx0, rx1, rz0, rz1, 4.5f, 0.9f, (cx, cz) =>
+                    {
+                        // A run of ductwork.
+                        buffer.Look = plant;
+                        AddCentredBox(buffer, cx, cz, roofY + 0.35f, 4.1f, 0.5f, 0.5f);
+                        AddCentredBox(buffer, cx - 1.7f, cz, roofY, 0.15f, 0.35f, 0.15f);
+                        AddCentredBox(buffer, cx + 1.7f, cz, roofY, 0.15f, 0.35f, 0.15f);
+                    });
+                }
             }
         }
 
-        private const float ParapetHeight = 0.5f;
-        private const float ParapetThickness = 0.15f;
-        private const float TankLegHeight = 1.4f;
-        private const float TankRadius = 0.9f;
-        private const float TankHeight = 1.3f;
+        /// <summary>
+        /// Finds a spot of the given footprint on the roof that is clear of everything taken so far, and builds there. A few tries, then
+        /// gives up: a crowded roof simply has one thing fewer.
+        /// </summary>
+        private static void TryPlace(MeshBuffer buffer, DeterministicRandom rng, List<Rect> taken,
+            float rx0, float rx1, float rz0, float rz1, float width, float depth, System.Action<float, float> build)
+        {
+            if (rx1 - rx0 < width || rz1 - rz0 < depth)
+            {
+                return;
+            }
+            for (int attempt = 0; attempt < 8; attempt++)
+            {
+                float cx = Mathf.Lerp(rx0 + width * 0.5f, rx1 - width * 0.5f, (float)rng.NextDouble());
+                float cz = Mathf.Lerp(rz0 + depth * 0.5f, rz1 - depth * 0.5f, (float)rng.NextDouble());
+                Rect footprint = Rect.MinMaxRect(cx - width * 0.5f, cz - depth * 0.5f, cx + width * 0.5f, cz + depth * 0.5f);
+                bool clear = true;
+                foreach (Rect other in taken)
+                {
+                    if (footprint.Overlaps(other))
+                    {
+                        clear = false;
+                        break;
+                    }
+                }
+                if (!clear)
+                {
+                    continue;
+                }
+                taken.Add(Grown(footprint, 0.5f));
+                build(cx, cz);
+                return;
+            }
+        }
 
         /// <summary>A box standing ON a surface, given its centre in X and Z.</summary>
         private static void AddCentredBox(MeshBuffer buffer, float centreX, float centreZ,
@@ -952,20 +1223,25 @@ namespace CityX.View
         private static void AddWindowedWall(MeshBuffer wallBuffer, in Glazing glazing,
             BuildingSite site, in Wall wall, float u0, float u1, float floorY, float topY,
             Vector3 normal, in WindowPlan plan, WindowGrid.Wall which, CellLayout rows,
-            float doorU0, float doorU1, bool hasDoor)
+            float doorU0, float doorU1, bool hasDoor, SiteLooks? looks = null)
         {
             CellLayout columns = plan.ColumnsFor(u1 - u0);
             float inset = WindowGrid.PaneInset;
 
             for (int row = 0; row < rows.Count; row++)
             {
+                // The ground floor row is made of something sturdier, darker and dirtier than the storeys above it.
+                if (looks.HasValue)
+                {
+                    wallBuffer.Look = row == 0 ? looks.Value.Base : looks.Value.Wall;
+                }
                 float y0 = floorY + row * rows.Size;
                 float y1 = y0 + rows.Size;
 
                 if (hasDoor && row == 0)
                 {
                     AddDoorRow(wallBuffer, glazing, site, wall, u0, y0, y1, normal,
-                        plan, which, columns, doorU0, doorU1);
+                        plan, which, columns, doorU0, doorU1, looks);
                     continue;
                 }
 
@@ -995,8 +1271,15 @@ namespace CityX.View
                 float paneY0 = y0 + rows.Size * insetBottom;
                 float paneY1 = y1 - rows.Size * insetTop;
 
+                // The strips above and below the windows may be a different material from the piers between them.
+                Color32 rowLook = wallBuffer.Look;
+                if (looks.HasValue)
+                {
+                    wallBuffer.Look = looks.Value.Band;
+                }
                 AddWallPanel(wallBuffer, wall, u0, u1, y0, paneY0, normal);
                 AddWallPanel(wallBuffer, wall, u0, u1, paneY1, y1, normal);
+                wallBuffer.Look = rowLook;
 
                 float runStart = u0;
                 for (int column = 0; column < columns.Count; column++)
@@ -1013,8 +1296,8 @@ namespace CityX.View
                     AddWallPanel(wallBuffer, wall, runStart, paneU0, paneY0, paneY1, normal);
                     runStart = paneU1;
 
-                    AddPane(glazing, site, wall, paneU0, paneU1, paneY0, paneY1, normal,
-                        plan, which, column, row);
+                    AddOpening(wallBuffer, glazing, site, wall, paneU0, paneU1, paneY0, paneY1, normal,
+                        plan, which, column, row, looks);
                 }
                 AddWallPanel(wallBuffer, wall, runStart, u1, paneY0, paneY1, normal);
             }
@@ -1036,15 +1319,32 @@ namespace CityX.View
         /// </summary>
         private static void AddDoorRow(MeshBuffer wallBuffer, in Glazing glazing,
             BuildingSite site, in Wall wall, float u0, float y0, float y1, Vector3 normal,
-            in WindowPlan plan, WindowGrid.Wall which, CellLayout columns, float doorU0, float doorU1)
+            in WindowPlan plan, WindowGrid.Wall which, CellLayout columns, float doorU0, float doorU1, SiteLooks? looks = null)
         {
-            float inset = WindowGrid.PaneInset;
+            bool storefront = plan.Storefront && which == WindowGrid.Wall.North;
+            float rowHeight = y1 - y0;
+
+            // A real door height, not the whole row: the doorway is 2.4 m and the rest of the row's height above it is a lintel (the
+            // sign band, on a shop).
+            float doorTop = y0 + Mathf.Min(BuildingInterior.DoorHeight(site.Params.Height), rowHeight);
+
+            // A shopfront is glass nearly cell-wide, from a stall riser up to a sign band; any other ground floor keeps the facade's
+            // own window proportions.
+            float inset = storefront ? StorefrontPierShare : WindowGrid.PaneInset;
+
             // The door row is always row 0, whose own top boundary (1) is
             // never a slab location (see WindowGrid.TopEdgeHasSlab) -- the
             // small clear margin is correct on both edges here, not just a
             // simplification.
-            float paneY0 = y0 + (y1 - y0) * WindowGrid.PaneInsetVerticalClear;
-            float paneY1 = y1 - (y1 - y0) * WindowGrid.PaneInsetVerticalClear;
+            float paneY0 = storefront ? y0 + StallRiser : y0 + rowHeight * WindowGrid.PaneInsetVerticalClear;
+            float paneY1 = storefront ? y0 + rowHeight * StorefrontGlassTop : y1 - rowHeight * WindowGrid.PaneInsetVerticalClear;
+
+            // The doorway is a recess the thickness of the wall (no floor face: the lobby slab is already there).
+            if (glazing.HangsGlass)
+            {
+                AddWindowReveals(wallBuffer, wall, doorU0, doorU1, y0, doorTop, normal, null, false, false);
+            }
+            AddWallPanel(wallBuffer, wall, doorU0, doorU1, doorTop, y1, normal);
 
             for (int column = 0; column < columns.Count; column++)
             {
@@ -1072,10 +1372,295 @@ namespace CityX.View
                 AddWallPanel(wallBuffer, wall, paneU0, paneU1, y0, paneY0, normal);
                 AddWallPanel(wallBuffer, wall, paneU0, paneU1, paneY1, y1, normal);
 
-                AddPane(glazing, site, wall, paneU0, paneU1, paneY0, paneY1, normal,
-                    plan, which, column, 0);
+                AddOpening(wallBuffer, glazing, site, wall, paneU0, paneU1, paneY0, paneY1, normal,
+                    plan, which, column, 0, looks);
+            }
+
+            // What marks the entrance from the street. Only the outward pass builds it.
+            if (glazing.HangsGlass && looks.HasValue)
+            {
+                if (storefront)
+                {
+                    AddStorefrontTrim(wallBuffer, site, wall, u0, columns, y0, y1, paneY1, doorU0, doorU1, normal);
+                }
+                else
+                {
+                    AddEntranceCanopy(wallBuffer, wall, doorU0, doorU1, doorTop, normal, looks.Value);
+                }
             }
         }
+
+        /// <summary>The solid base under a shop window, metres.</summary>
+        private const float StallRiser = 0.5f;
+
+        /// <summary>Where a shop window's glass ends, as a share of the row. Above it, to the top of the row, is a transom the awning shades.</summary>
+        private const float StorefrontGlassTop = 0.88f;
+
+        /// <summary>The share of a cell's width left solid either side of a shop window.</summary>
+        private const float StorefrontPierShare = 0.035f;
+
+        private const ulong StorefrontStream = 0x53544F52UL;   // "STOR"
+
+        // Muted shop colours: the awnings and the sign boards. Strong colour is the exception here, not the rule.
+        private static readonly Color[] AwningColours =
+        {
+            new Color(0.55f, 0.20f, 0.18f), new Color(0.16f, 0.30f, 0.22f), new Color(0.15f, 0.24f, 0.42f),
+            new Color(0.78f, 0.72f, 0.58f), new Color(0.52f, 0.36f, 0.18f), new Color(0.24f, 0.24f, 0.26f),
+        };
+
+        private static readonly Color[] SignColours =
+        {
+            new Color(0.13f, 0.13f, 0.14f), new Color(0.82f, 0.80f, 0.74f), new Color(0.40f, 0.12f, 0.12f),
+            new Color(0.12f, 0.20f, 0.36f), new Color(0.14f, 0.28f, 0.20f), new Color(0.62f, 0.50f, 0.20f),
+        };
+
+        /// <summary>
+        /// The sign board over a shopfront and (usually) an awning over each side of its door: the two things that make a ground floor
+        /// read as a shop. Colours come from the building's seed, from a short muted list.
+        ///
+        /// SCALED FOR A 2.6 M PLAYER. The ground row is only 3.2 m, so an awning under a sign band would hang at head height: nobody could
+        /// walk along the pavement. The awning is mounted at the very top of the row and its lowest edge is clear of a tall body; the sign
+        /// board sits on the wall of the storey above, in the band under the first row of windows.
+        /// </summary>
+        private static void AddStorefrontTrim(MeshBuffer buffer, BuildingSite site, in Wall wall, float u0, CellLayout columns,
+            float y0, float y1, float glassTop, float doorU0, float doorU1, Vector3 outward)
+        {
+            var rng = new DeterministicRandom(unchecked((ulong)(uint)site.Seed), StorefrontStream);
+            Color sign = SignColours[rng.Below(SignColours.Length)];
+            Color awning = AwningColours[rng.Below(AwningColours.Length)];
+            bool hasAwning = rng.NextDouble() < 0.6;
+
+            float frontU0 = u0 + 0.35f;
+            float frontU1 = u0 + columns.Count * columns.Size - 0.35f;
+            Color32 saved = buffer.Look;
+
+            // The sign board, proud of the wall, either side of the door.
+            buffer.Look = SurfaceLook.Pack(sign, (int)WallMaterial.Metal, 0.25f);
+            float boardBottom = y1 + 0.12f;
+            float boardTop = y1 + 0.78f;
+            foreach (float[] span in new[] { new[] { frontU0, doorU0 - 0.15f }, new[] { doorU1 + 0.15f, frontU1 } })
+            {
+                if (span[1] - span[0] < 0.8f)
+                {
+                    continue;
+                }
+                Vector3 b0 = wall.At(span[0], boardBottom);
+                Vector3 b1 = wall.At(span[1], boardTop) + outward * 0.07f;
+                buffer.AddBox(Vector3.Min(b0, b1), Vector3.Max(b0, b1));
+            }
+
+            if (hasAwning)
+            {
+                buffer.Look = SurfaceLook.Pack(awning, (int)WallMaterial.Plaster, 0.35f);
+                float topY = y1 - 0.08f;
+                AddAwning(buffer, wall, frontU0 + 0.1f, doorU0 - 0.25f, topY, outward);
+                AddAwning(buffer, wall, doorU1 + 0.25f, frontU1 - 0.1f, topY, outward);
+            }
+            buffer.Look = saved;
+        }
+
+        /// <summary>A sloped awning between two points along a wall: a top, an underside and a short front flap, open at the ends.</summary>
+        private static void AddAwning(MeshBuffer buffer, in Wall wall, float u0, float u1, float topY, Vector3 outward)
+        {
+            if (u1 - u0 < 0.8f)
+            {
+                return;
+            }
+            const float projection = 1.1f;
+            const float drop = 0.28f;
+            const float flap = 0.10f;
+            Vector3 wallTop0 = wall.At(u0, topY);
+            Vector3 wallTop1 = wall.At(u1, topY);
+            Vector3 edgeTop0 = wallTop0 + outward * projection + Vector3.down * drop;
+            Vector3 edgeTop1 = wallTop1 + outward * projection + Vector3.down * drop;
+            Vector3 flapBottom0 = edgeTop0 + Vector3.down * flap;
+            Vector3 flapBottom1 = edgeTop1 + Vector3.down * flap;
+
+            Vector3 up = (outward * drop + Vector3.up * projection).normalized;
+            AddFace(buffer, up, wallTop0, wallTop1, edgeTop1, edgeTop0);
+            AddFace(buffer, -up, wallTop0, wallTop1, edgeTop1, edgeTop0);
+            AddFace(buffer, outward, edgeTop0, edgeTop1, flapBottom1, flapBottom0);
+        }
+
+        /// <summary>A flat canopy over an ordinary entrance: a slab on the wall above the door.</summary>
+        private static void AddEntranceCanopy(MeshBuffer buffer, in Wall wall, float doorU0, float doorU1, float doorTop,
+            Vector3 outward, SiteLooks looks)
+        {
+            Color32 saved = buffer.Look;
+            buffer.Look = looks.Trim;
+            Vector3 c0 = wall.At(doorU0 - 0.55f, doorTop + 0.12f);
+            Vector3 c1 = wall.At(doorU1 + 0.55f, doorTop + 0.28f) + outward * 1.15f;
+            buffer.AddBox(Vector3.Min(c0, c1), Vector3.Max(c0, c1));
+            buffer.Look = saved;
+        }
+
+        /// <summary>
+        /// One window: the reveals that make the opening a recess (and a sill under it), then the glass set back inside it.
+        ///
+        /// THE REVEALS ARE BUILT WHATEVER STATE THE GLASS IS IN, like the opening itself: a shattered window is still a window-shaped
+        /// recess in a thick wall. Only the outward pass hangs glass, so only it builds them -- the one set of four faces serves both
+        /// sides, because each faces into the opening.
+        /// </summary>
+        private static void AddOpening(MeshBuffer wallBuffer, in Glazing glazing, BuildingSite site, in Wall wall,
+            float u0, float u1, float y0, float y1, Vector3 normal,
+            in WindowPlan plan, WindowGrid.Wall which, int column, int row, SiteLooks? looks)
+        {
+            if (glazing.HangsGlass)
+            {
+                AddWindowReveals(wallBuffer, wall, u0, u1, y0, y1, normal, looks, true);
+                if (looks.HasValue)
+                {
+                    bool intact = glazing.Damage == null || glazing.Damage.StateOf(new PaneKey(site.Id, which, column, row)) == PaneState.Intact;
+                    AddWindowFrame(wallBuffer, Inward(wall, normal, BuildingInterior.GlassSetBack), u0, u1, y0, y1, normal, looks.Value, intact);
+                    if (looks.Value.AcDensity > 0.0f && row > 0 && !(plan.Storefront && which == WindowGrid.Wall.North && row == 1)
+                        && AirConditionerAt(site, which, column, row) < looks.Value.AcDensity)
+                    {
+                        AddAirConditioner(wallBuffer, wall, u0, u1, y0, normal, looks.Value);
+                    }
+                }
+            }
+            AddPane(glazing, site, wall, u0, u1, y0, y1, normal, plan, which, column, row, looks);
+        }
+
+        /// <summary>The same wall, moved <paramref name="distance"/> in from its outward face (<paramref name="outward"/> points out of it).</summary>
+        private static Wall Inward(in Wall wall, Vector3 outward, float distance)
+        {
+            float sign = wall.RunsInZ ? Mathf.Sign(outward.x) : Mathf.Sign(outward.z);
+            return new Wall(wall.RunsInZ, wall.Plane - sign * distance, wall.U0, wall.U1);
+        }
+
+        /// <summary>
+        /// The four faces that join an opening's outside edge to its inside one across the thickness of the wall (left, right, sill, head),
+        /// each facing into the opening, so they are seen from the street and from the room alike. With a sill: a small stone ledge under
+        /// the opening that throws a line of shadow, in the building's trim.
+        /// </summary>
+        private static void AddWindowReveals(MeshBuffer buffer, in Wall wall, float u0, float u1, float y0, float y1,
+            Vector3 outward, SiteLooks? looks, bool withSill, bool floorFace = true)
+        {
+            Vector3 inward = -outward * BuildingInterior.WallThickness;
+            Vector3 a0 = wall.At(u0, y0);
+            Vector3 a1 = wall.At(u1, y0);
+            Vector3 b0 = wall.At(u0, y1);
+            Vector3 b1 = wall.At(u1, y1);
+            Vector3 along = (a1 - a0).normalized;
+
+            AddFace(buffer, along, a0, a0 + inward, b0 + inward, b0);
+            AddFace(buffer, -along, a1, a1 + inward, b1 + inward, b1);
+            if (floorFace)
+            {
+                AddFace(buffer, Vector3.up, a0, a1, a1 + inward, a0 + inward);
+            }
+            AddFace(buffer, Vector3.down, b0, b1, b1 + inward, b0 + inward);
+
+            if (withSill && looks.HasValue)
+            {
+                Color32 saved = buffer.Look;
+                buffer.Look = looks.Value.Trim;
+                Vector3 p0 = wall.At(u0 - SillSideExtra, y0 - SillThickness);
+                Vector3 p1 = wall.At(u1 + SillSideExtra, y0) + outward * SillOverhang;
+                buffer.AddBox(Vector3.Min(p0, p1), Vector3.Max(p0, p1));
+                buffer.Look = saved;
+            }
+        }
+
+        /// <summary>
+        /// The frame round a window and the bars across it: four thin faces, plus a mullion down a wide window and a transom across a
+        /// tall one. They are in the WALL buffer, standing a hair proud of the glass, so a window that is cracked or shot out keeps its
+        /// frame. <paramref name="glassWall"/> is the wall at the glass plane.
+        /// </summary>
+        private static void AddWindowFrame(MeshBuffer buffer, in Wall glassWall, float u0, float u1, float y0, float y1,
+            Vector3 outward, SiteLooks looks, bool crossBars)
+        {
+            const float bar = 0.05f;
+            const float lift = 0.012f;
+            float width = u1 - u0;
+            float height = y1 - y0;
+            Vector3 raise = outward * lift;
+            Color32 saved = buffer.Look;
+            buffer.Look = looks.Frame;
+
+            // The four sides.
+            AddFace(buffer, outward, glassWall.At(u0, y0) + raise, glassWall.At(u0 + bar, y0) + raise,
+                glassWall.At(u0 + bar, y1) + raise, glassWall.At(u0, y1) + raise);
+            AddFace(buffer, outward, glassWall.At(u1 - bar, y0) + raise, glassWall.At(u1, y0) + raise,
+                glassWall.At(u1, y1) + raise, glassWall.At(u1 - bar, y1) + raise);
+            AddFace(buffer, outward, glassWall.At(u0 + bar, y0) + raise, glassWall.At(u1 - bar, y0) + raise,
+                glassWall.At(u1 - bar, y0 + bar) + raise, glassWall.At(u0 + bar, y0 + bar) + raise);
+            AddFace(buffer, outward, glassWall.At(u0 + bar, y1 - bar) + raise, glassWall.At(u1 - bar, y1 - bar) + raise,
+                glassWall.At(u1 - bar, y1) + raise, glassWall.At(u0 + bar, y1) + raise);
+
+            // A wide window is two leaves; a tall one has a transom light above.
+            // (Only while the window is whole: a broken one can be walked through, and the bars across it must not stop you.)
+            if (crossBars && width > 1.25f)
+            {
+                float mid = (u0 + u1) * 0.5f;
+                AddFace(buffer, outward, glassWall.At(mid - bar * 0.4f, y0 + bar) + raise, glassWall.At(mid + bar * 0.4f, y0 + bar) + raise,
+                    glassWall.At(mid + bar * 0.4f, y1 - bar) + raise, glassWall.At(mid - bar * 0.4f, y1 - bar) + raise);
+            }
+            if (crossBars && height > 2.3f)
+            {
+                float rail = y0 + height * 0.72f;
+                AddFace(buffer, outward, glassWall.At(u0 + bar, rail - bar * 0.4f) + raise, glassWall.At(u1 - bar, rail - bar * 0.4f) + raise,
+                    glassWall.At(u1 - bar, rail + bar * 0.4f) + raise, glassWall.At(u0 + bar, rail + bar * 0.4f) + raise);
+            }
+            buffer.Look = saved;
+        }
+
+        /// <summary>
+        /// One window's glass look: the building's tint, a kind of light of its own, and a blind drawn part-way down it. From the window's
+        /// place in the building, so it is the same every time the chunk is built and no two neighbours match.
+        /// </summary>
+        private static Color32 GlassLookFor(BuildingSite site, WindowGrid.Wall which, int column, int row, int tint)
+        {
+            uint h = unchecked((uint)(site.Id * 73856093) ^ (uint)((int)which * 19349663) ^ (uint)(column * 83492791) ^ (uint)(row * 2654435761u));
+            h ^= h >> 15;
+            h *= 2246822519u;
+            h ^= h >> 13;
+            int light = (int)(h % 8u);
+            // Most windows are warm white; the blue of a screen and the colours are the exception.
+            if (light >= 3 && (h >> 8) % 3u != 0u)
+            {
+                light = (int)((h >> 4) % 2u);
+            }
+            float blind = ((h >> 16) % 100u) < 55u ? ((h >> 24) % 100u) / 100.0f * 0.75f : 0.0f;
+            return SurfaceLook.PackGlass(tint, light, blind);
+        }
+
+        /// <summary>A number 0 .. 1 from a window's place in its building: whether it has an air conditioner under it.</summary>
+        private static float AirConditionerAt(BuildingSite site, WindowGrid.Wall which, int column, int row)
+        {
+            uint h = unchecked((uint)(site.Id * 2654435761u) ^ (uint)((int)which * 40503) ^ (uint)(column * 9973) ^ (uint)(row * 31337));
+            h ^= h >> 16;
+            h *= 2246822519u;
+            h ^= h >> 13;
+            return (h & 0xFFFFu) / 65536.0f;
+        }
+
+        /// <summary>A split-system condenser on a bracket under a window: the thing that hangs on every flat in a dense city.</summary>
+        private static void AddAirConditioner(MeshBuffer buffer, in Wall wall, float u0, float u1, float y0, Vector3 outward, SiteLooks looks)
+        {
+            const float width = 1.05f;
+            const float height = 0.46f;
+            const float depth = 0.38f;
+            float centre = (u0 + u1) * 0.5f;
+            float bottom = y0 - 0.78f;
+            Color32 saved = buffer.Look;
+            buffer.Look = looks.Appliance;
+            Vector3 a = wall.At(centre - width * 0.5f, bottom);
+            Vector3 b = wall.At(centre + width * 0.5f, bottom + height) + outward * depth;
+            buffer.AddBox(Vector3.Min(a, b), Vector3.Max(a, b));
+            // The dark grille on its face.
+            buffer.Look = looks.Frame;
+            Vector3 g0 = wall.At(centre - width * 0.40f, bottom + height * 0.18f) + outward * (depth + 0.004f);
+            Vector3 g1 = wall.At(centre + width * 0.40f, bottom + height * 0.82f) + outward * (depth + 0.004f);
+            AddFace(buffer, outward, g0, wall.At(centre + width * 0.40f, bottom + height * 0.18f) + outward * (depth + 0.004f), g1,
+                wall.At(centre - width * 0.40f, bottom + height * 0.82f) + outward * (depth + 0.004f));
+            buffer.Look = saved;
+        }
+
+        private const float SillThickness = 0.07f;
+        private const float SillOverhang = 0.08f;
+        private const float SillSideExtra = 0.05f;
 
         /// <summary>
         /// One sheet of glass, or none if somebody has already put a fist
@@ -1095,14 +1680,17 @@ namespace CityX.View
         /// the only way to have one without the other is to put it in a buffer
         /// the collider is not built from.
         /// </summary>
-        private static void AddPane(in Glazing glazing, BuildingSite site, in Wall wall,
+        private static void AddPane(in Glazing glazing, BuildingSite site, in Wall outerWall,
             float u0, float u1, float y0, float y1, Vector3 normal,
-            in WindowPlan plan, WindowGrid.Wall which, int column, int row)
+            in WindowPlan plan, WindowGrid.Wall which, int column, int row, SiteLooks? looks = null)
         {
             if (!glazing.HangsGlass)
             {
                 return;
             }
+
+            // The glass sits GlassSetBack in from the outside face, inside the wall's thickness.
+            Wall wall = Inward(outerWall, normal, BuildingInterior.GlassSetBack);
 
             var key = new PaneKey(site.Id, which, column, row);
             PaneState state = glazing.Damage == null ? PaneState.Intact : glazing.Damage.StateOf(key);
@@ -1145,8 +1733,21 @@ namespace CityX.View
             }
             else
             {
-                AddDoubleSidedFace(glass, normal,
-                    wall.At(u0, y0), wall.At(u1, y0), wall.At(u1, y1), wall.At(u0, y1));
+                // The glass is UV'd in metres from its own corner, which is what CityX/Glass wants: blinds hang from the top of THIS
+                // window, whatever height it is at. Each window's look (tint, the kind of light it shows, how far its blind is down) is
+                // its own, from its place in the building, so no two neighbours are quite alike.
+                Color32 savedLook = glass.Look;
+                if (looks.HasValue && state != PaneState.Cracked)
+                {
+                    glass.Look = GlassLookFor(site, which, column, row, looks.Value.GlassTint);
+                }
+                float w = u1 - u0;
+                float h = y1 - y0;
+                glass.AddQuad(wall.At(u0, y0), wall.At(u1, y0), wall.At(u1, y1), wall.At(u0, y1), normal,
+                    new Vector2(0, 0), new Vector2(w, 0), new Vector2(w, h), new Vector2(0, h));
+                glass.AddQuad(wall.At(u0, y0), wall.At(u1, y0), wall.At(u1, y1), wall.At(u0, y1), -normal,
+                    new Vector2(0, 0), new Vector2(w, 0), new Vector2(w, h), new Vector2(0, h));
+                glass.Look = savedLook;
             }
 
             if (state == PaneState.Cracked && glazing.Openings != null)
@@ -1349,10 +1950,10 @@ namespace CityX.View
         /// top and a collar closes the gap around the opening.
         /// </summary>
         private static void AddSlab(MeshBuffer buffer, float x0, float x1, float z0, float z1,
-            Rect hole, float topY)
+            Rect hole, float topY, MeshBuffer topBuffer = null)
         {
             float bottomY = topY - BuildingInterior.SlabThickness;
-            AddSlabFace(buffer, x0, x1, z0, z1, hole, topY, Vector3.up);
+            AddSlabFace(topBuffer ?? buffer, x0, x1, z0, z1, hole, topY, Vector3.up);
             AddSlabFace(buffer, x0, x1, z0, z1, hole, bottomY, Vector3.down);
             AddHoleCollar(buffer, hole, bottomY, topY);
         }

@@ -21,7 +21,17 @@ namespace CityX.View
         public readonly List<Vector3> Vertices = new List<Vector3>();
         public readonly List<Vector3> Normals = new List<Vector3>();
         public readonly List<Vector2> Uvs = new List<Vector2>();
+        public readonly List<Color32> Colors = new List<Color32>();
         public readonly List<int> Triangles = new List<int>();
+
+        /// <summary>
+        /// The look stamped on every vertex added from now on (see <see cref="SurfaceLook"/>). The default is the look a mesh with no
+        /// vertex colours at all gets, so a buffer nobody styles renders exactly as it always did.
+        /// </summary>
+        public Color32 Look = SurfaceLook.Default;
+
+        /// <summary>Added to every UV written from now on, so two buildings of the same size do not wear the same brick pattern.</summary>
+        public Vector2 UvOffset;
 
         public bool IsEmpty => Triangles.Count == 0;
 
@@ -83,9 +93,12 @@ namespace CityX.View
             Normals.Add(normal);
             Normals.Add(normal);
             Normals.Add(normal);
-            Uvs.Add(uvA);
-            Uvs.Add(uvB);
-            Uvs.Add(uvC);
+            Uvs.Add(uvA + UvOffset);
+            Uvs.Add(uvB + UvOffset);
+            Uvs.Add(uvC + UvOffset);
+            Colors.Add(Look);
+            Colors.Add(Look);
+            Colors.Add(Look);
             AddWoundTriangle(start, start + 1, start + 2, a, b, c, normal);
         }
 
@@ -94,6 +107,7 @@ namespace CityX.View
             Vertices.Clear();
             Normals.Clear();
             Uvs.Clear();
+            Colors.Clear();
             Triangles.Clear();
         }
 
@@ -134,10 +148,14 @@ namespace CityX.View
             {
                 Normals.Add(normal);
             }
-            Uvs.Add(uvA);
-            Uvs.Add(uvB);
-            Uvs.Add(uvC);
-            Uvs.Add(uvD);
+            Uvs.Add(uvA + UvOffset);
+            Uvs.Add(uvB + UvOffset);
+            Uvs.Add(uvC + UvOffset);
+            Uvs.Add(uvD + UvOffset);
+            for (int i = 0; i < 4; i++)
+            {
+                Colors.Add(Look);
+            }
 
             // EACH TRIANGLE CHECKED AND FIXED ON ITS OWN, not one shared
             // correction assumed to cover both. The quad used to correct

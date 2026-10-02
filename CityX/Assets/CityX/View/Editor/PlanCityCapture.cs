@@ -26,8 +26,28 @@ namespace CityX.ViewEditor
         // Must match CityMassingSceneBuilder.WorldSeed.
         private const int WorldSeed = 61472093;
 
+        // The time of day the rig is lit for, and what the shots are called: the same cameras at night give the lit windows, the signs
+        // and the streets under lamplight their own picture.
+        private static float _timeOfDay = SkyCycle.StartSeconds;
+        private static string _prefix = "";
+
         [MenuItem("CityX/Capture Plan City")]
         public static void Capture()
+        {
+            _timeOfDay = SkyCycle.StartSeconds;
+            _prefix = "";
+            CaptureShots();
+        }
+
+        [MenuItem("CityX/Capture Plan City At Night")]
+        public static void CaptureNight()
+        {
+            _timeOfDay = SkyCycle.DaySeconds + SkyCycle.NightSeconds * 0.45f;
+            _prefix = "night-";
+            CaptureShots();
+        }
+
+        private static void CaptureShots()
         {
             string directory = Path.Combine(Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
             Directory.CreateDirectory(directory);
@@ -63,7 +83,8 @@ namespace CityX.ViewEditor
                 cycle.Sun = sun;
                 cycle.Moon = moon;
                 cycle.Running = false;
-                cycle.TimeOfDay = SkyCycle.StartSeconds;
+                cycle.LitWindows = Load("CityGlassLit");
+                cycle.TimeOfDay = _timeOfDay;
 
                 var streamerObject = new GameObject("Streamer");
                 streamerObject.transform.SetParent(root.transform);
@@ -170,6 +191,49 @@ namespace CityX.ViewEditor
                     var target2 = new Vector3((float)pick.CentreX, pick.BaseHeight + pick.Params.Height * 0.4f, (float)pick.CentreZ);
                     Shoot(streamer, camera, directory, "plan-building-side",
                         camPos2, Quaternion.LookRotation(target2 - camPos2, Vector3.up).eulerAngles, 12);
+                }
+
+                // A shopfront: the nearest building whose ground floor is a shop, from across the street.
+                BuildingSite shop = BuildingSite.None;
+                double bestShop = double.MinValue;
+                Vector3 towardSun = -sun.transform.forward;
+                for (int dx = -10; dx <= 10; dx++)
+                {
+                    for (int dz = -10; dz <= 10; dz++)
+                    {
+                        var owned = world.BuildingsOwnedBy(PlanWorld.ChunkOf(sx) + dx, PlanWorld.ChunkOf(sz) + dz);
+                        for (int i = 0; i < owned.Count; i++)
+                        {
+                            BuildingSite s = world.Building(owned[i]);
+                            if (s.Params.Width <= 14.0f || s.Params.Height <= 12.0f || s.Params.Height > 70.0f)
+                            {
+                                continue;
+                            }
+                            WindowPlan shopPlan = WindowPlan.For(world, s);
+                            if (!shopPlan.Storefront || shopPlan.Style == FacadeStyle.Curtain)
+                            {
+                                continue;
+                            }
+                            // The shop front that is best lit by the sun: a shopfront in shadow tells nothing about itself.
+                            double score = Vector3.Dot(CityMeshBuilder.WallNormal(s, WindowGrid.Wall.North), towardSun) * 100.0
+                                - System.Math.Sqrt((s.CentreX - sx) * (s.CentreX - sx) + (s.CentreZ - sz) * (s.CentreZ - sz)) * 0.05;
+                            if (score > bestShop)
+                            {
+                                bestShop = score;
+                                shop = s;
+                            }
+                        }
+                    }
+                }
+                if (shop.Exists)
+                {
+                    shop.LocalToWorld(0.0, shop.Params.Depth * 0.5 + 9.0, out double sfx, out double sfz);
+                    shop.LocalToWorld(0.0, shop.Params.Depth * 0.5, out double stx, out double stz);
+                    var shopEye = new Vector3((float)sfx, shop.BaseHeight + 1.7f, (float)sfz);
+                    var shopAt = new Vector3((float)stx, shop.BaseHeight + 3.0f, (float)stz);
+                    streamer.Rebuild();
+                    Shoot(streamer, camera, directory, "plan-shop",
+                        shopEye, Quaternion.LookRotation(shopAt - shopEye, Vector3.up).eulerAngles, 8);
                 }
 
                 // Down the longest highway within reach of the spawn, standing in the road: the long, bending boulevard.
@@ -367,7 +431,7 @@ namespace CityX.ViewEditor
                 var image = new Texture2D(Width, Height, TextureFormat.RGB24, false);
                 image.ReadPixels(new Rect(0, 0, Width, Height), 0, 0);
                 image.Apply();
-                File.WriteAllBytes(Path.Combine(directory, name + ".png"), image.EncodeToPNG());
+                File.WriteAllBytes(Path.Combine(directory, _prefix + name + ".png"), image.EncodeToPNG());
                 Object.DestroyImmediate(image);
             }
             finally

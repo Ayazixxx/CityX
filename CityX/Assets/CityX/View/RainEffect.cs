@@ -218,6 +218,9 @@ namespace CityX.View
         private static readonly int BaseColourId = Shader.PropertyToID("_BaseColor");
         private static readonly int SmoothnessId = Shader.PropertyToID("_Smoothness");
 
+        /// <summary>The facade shader reads how wet the city is from this global (0 dry .. 1 soaked): walls darken and shine like the ground.</summary>
+        private static readonly int FacadeWetnessId = Shader.PropertyToID("_CityXWetness");
+
         private ParticleSystem _particles;
         private ParticleSystem _splashes;
         private ParticleSystem _ripples;
@@ -401,6 +404,7 @@ namespace CityX.View
                 material.SetFloat(SmoothnessId, _clearGroundSmoothness[i]);
             }
             _appliedWetness = -1.0f;
+            Shader.SetGlobalFloat(FacadeWetnessId, 0.0f);
         }
 
         private void OnDestroy()
@@ -925,6 +929,7 @@ namespace CityX.View
             }
             _appliedWetness = _wetness;
             float sheen = Weather.SheenFactor(_wetness);
+            Shader.SetGlobalFloat(FacadeWetnessId, Mathf.Clamp01(_wetness));
             for (int i = 0; i < WetGroundMaterials.Length; i++)
             {
                 Material material = WetGroundMaterials[i];
