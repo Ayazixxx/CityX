@@ -58,7 +58,7 @@ namespace CityX.World.Plan
             PlanConfig cfg = config ?? new PlanConfig();
             var fields = new PlanFields(worldSeed, cfg);
 
-            List<Vec2> centres = fields.FindCentres(cfg.Half, 100.0, 650.0, 0.52, 6);
+            List<Vec2> centres = fields.FindCentres(cfg.Half, 100.0 * cfg.Scale, 650.0 * cfg.Scale, 0.52, 6);
             if (centres.Count == 0)
             {
                 centres.Add(new Vec2(0.0, 0.0));
@@ -146,7 +146,7 @@ namespace CityX.World.Plan
                     block.EdgeClass.Add(e.Class);
                 }
                 double area = PlanMath.SignedArea(block.Poly);
-                if (area < 400.0)
+                if (area < 400.0 * cfg.Scale * cfg.Scale)
                 {
                     continue;   // the outer face (negative) and slivers
                 }
@@ -276,14 +276,23 @@ namespace CityX.World.Plan
             public List<bool> Front;
         }
 
-        private const double MinWidth = 12.0;
-        private const double MaxDepth = 52.0;
+        private const double ClassicMinWidth = 12.0;
+        private const double ClassicMaxDepth = 52.0;
+
+        // The scale of the plan being subdivided (see CityScale); every length below is the classic one times this. Set at the start of Subdivide, which
+        // runs to the end on one thread.
+        [ThreadStatic] private static double _s;
+        [ThreadStatic] private static double _h;
+        private static double MinWidth => ClassicMinWidth * (_s <= 0.0 ? 1.0 : _s);
+        private static double MaxDepth => ClassicMaxDepth * (_s <= 0.0 ? 1.0 : _s);
 
         public static void Subdivide(CityPlanData data, uint seed)
         {
             PlanConfig cfg = data.Config;
             PlanFields fields = data.Fields;
             int blockIndex = 0;
+            _s = cfg.Scale;
+            _h = cfg.HeightScale;
 
             foreach (PlanBlock block in data.Blocks)
             {
@@ -318,12 +327,12 @@ namespace CityX.World.Plan
 
                 Vec2 c = PlanMath.Centroid(inset);
                 double pop = fields.Population(c);
-                double baseArea = 380.0 + (1.0 - pop) * 1500.0;
+                double baseArea = (380.0 + (1.0 - pop) * 1500.0) * _s * _s;
                 double blockRand = PlanNoise.Mix(seed, (uint)blockIndex) / 4294967296.0;
                 double targetArea = baseArea * (0.7 + 0.7 * blockRand);
                 if (pop > 0.82)
                 {
-                    targetArea = Math.Max(targetArea, 1400.0 + 900.0 * blockRand);   // downtown plots are big
+                    targetArea = Math.Max(targetArea, (1400.0 + 900.0 * blockRand) * _s * _s);   // downtown plots are big
                 }
 
                 var front = new List<bool>(inset.Count);
@@ -341,7 +350,7 @@ namespace CityX.World.Plan
                         continue;   // a courtyard
                     }
                     double area = PlanMath.SignedArea(p.V);
-                    if (area < 40.0)
+                    if (area < 40.0 * _s * _s)
                     {
                         continue;
                     }
@@ -411,7 +420,7 @@ namespace CityX.World.Plan
             double frac = 0.38 + 0.24 * rand;
 
             bool deep = extentV > MaxDepth * 1.7;
-            bool wide = extentU > MinWidth * 2.0 && (area > targetArea || extentU > 60.0);
+            bool wide = extentU > MinWidth * 2.0 && (area > targetArea || extentU > 60.0 * _s);
 
             if (deep)
             {
@@ -496,7 +505,7 @@ namespace CityX.World.Plan
             vb.Add(pi);
             fb.Add(false);
 
-            if (PlanMath.SignedArea(va) < 20.0 || PlanMath.SignedArea(vb) < 20.0)
+            if (PlanMath.SignedArea(va) < 20.0 * _s * _s || PlanMath.SignedArea(vb) < 20.0 * _s * _s)
             {
                 return false;
             }
@@ -515,7 +524,7 @@ namespace CityX.World.Plan
         {
             int n = lot.V.Count;
             double area = PlanMath.SignedArea(lot.V);
-            if (area < 110.0)
+            if (area < 110.0 * _s * _s)
             {
                 return;
             }
@@ -527,7 +536,7 @@ namespace CityX.World.Plan
             int front = -1;
             for (int i = 0; i < n; i++)
             {
-                distances[i] = lot.Front[i] ? 2.2 : 1.2;
+                distances[i] = (lot.Front[i] ? 2.2 : 1.2) * Math.Sqrt(_s);
                 if (lot.Front[i])
                 {
                     double len = (lot.V[(i + 1) % n] - lot.V[i]).Length;
@@ -544,7 +553,7 @@ namespace CityX.World.Plan
                 return;
             }
             double footArea = PlanMath.SignedArea(footprint);
-            if (footArea < 70.0)
+            if (footArea < 70.0 * _s * _s)
             {
                 return;
             }
@@ -567,21 +576,21 @@ namespace CityX.World.Plan
             double r1 = PlanNoise.Mix(seed, unchecked((uint)(id * 2 + 1))) / 4294967296.0;
             double r2 = PlanNoise.Mix(seed, unchecked((uint)(id * 2 + 2))) / 4294967296.0;
             double height;
-            if (pop > 0.78 && footArea > 700.0 && r1 < 0.6)
+            if (pop > 0.78 && footArea > 700.0 * _s * _s && r1 < 0.6)
             {
-                height = 90.0 + r2 * 170.0;
+                height = (90.0 + r2 * 170.0) * _h;
             }
             else if (pop > 0.58)
             {
-                height = 24.0 + r1 * 56.0;
+                height = (24.0 + r1 * 56.0) * _h;
             }
             else if (pop > 0.34)
             {
-                height = 10.0 + r1 * 28.0;
+                height = (10.0 + r1 * 28.0) * _h;
             }
             else
             {
-                height = 5.0 + r1 * 12.0;
+                height = (5.0 + r1 * 12.0) * _h;
             }
 
             data.Lots.Add(new PlanLot

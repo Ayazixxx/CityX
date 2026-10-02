@@ -92,9 +92,11 @@ namespace CityX.World
             BandRow = bandRow;
             Sill = sill;
             Head = head;
+            // A bigger city has bigger windows (by the square root of its footprint scale): a thousand panes across a facade is a cost, not a look.
+            float scaleUp = (float)CityX.World.Plan.CityScale.Active.RoadWidth;
             ColumnMetres = style == FacadeStyle.Curtain || style == FacadeStyle.Ribbon
-                ? CellLayout.NominalColumnMetres * 2.0f
-                : CellLayout.NominalColumnMetres;
+                ? CellLayout.NominalColumnMetres * 2.0f * scaleUp
+                : CellLayout.NominalColumnMetres * scaleUp;
         }
 
         /// <summary>The columns of a wall of the given span, at this facade's own unit width.</summary>

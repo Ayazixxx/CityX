@@ -37,10 +37,12 @@ namespace CityX.World.Plan
         public JunctionGeometry[] Junctions;   // by node id; Plate null where fewer than two roads meet
 
         private const double MaxTrim = 42.0;
+        [ThreadStatic] private static double _maxTrim;
 
         public static PlanGeometry Build(CityPlanData data)
         {
             PlanConfig cfg = data.Config;
+            _maxTrim = MaxTrim * cfg.Scale;
             var geo = new PlanGeometry
             {
                 Edges = new EdgeGeometry[data.Edges.Count],
@@ -133,8 +135,8 @@ namespace CityX.World.Plan
                 hasCorner[i] = true;
                 if (t > 0.0 && s > 0.0)
                 {
-                    trim[i] = Math.Max(trim[i], Math.Min(t, MaxTrim));
-                    trim[j] = Math.Max(trim[j], Math.Min(s, MaxTrim));
+                    trim[i] = Math.Max(trim[i], Math.Min(t, _maxTrim));
+                    trim[j] = Math.Max(trim[j], Math.Min(s, _maxTrim));
                 }
                 else
                 {
@@ -153,7 +155,7 @@ namespace CityX.World.Plan
                 Vec2 centre = node.P + dirs[i] * trim[i];
                 plate.Add(centre - dirs[i].Perp * half[i]);
                 plate.Add(centre + dirs[i].Perp * half[i]);
-                if (outer[i] && hasCorner[i] && (corner[i] - node.P).Length < MaxTrim * 1.2)
+                if (outer[i] && hasCorner[i] && (corner[i] - node.P).Length < _maxTrim * 1.2)
                 {
                     plate.Add(corner[i]);
                 }

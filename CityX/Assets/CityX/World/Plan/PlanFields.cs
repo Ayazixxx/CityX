@@ -65,6 +65,38 @@ namespace CityX.World.Plan
         public double MaxSliverCos = 0.87;
 
         public double MaxBridge = 280.0;
+
+        /// <summary>The classic city is 1: every length in the plan is generated this many times larger (see <see cref="CityScale"/>).</summary>
+        public double Scale = 1.0;
+
+        /// <summary>How much taller buildings are than in the classic city.</summary>
+        public double HeightScale = 1.0;
+
+        /// <summary>
+        /// The configuration of the game's own city at a scale: the classic numbers with every length multiplied (roads only by the square root,
+        /// terrain height likewise), so the plan is the classic plan drawn bigger.
+        /// </summary>
+        public static PlanConfig For(CityScale scale)
+        {
+            double s = scale.Footprint;
+            double r = scale.RoadWidth;
+            var cfg = new PlanConfig { Scale = s, HeightScale = scale.Height };
+            cfg.Half = 2500.0 * s;
+            cfg.HillAmplitude = 30.0 * r;
+            cfg.HillWavelength *= s;
+            cfg.RiverWavelength *= s;
+            cfg.PopulationWavelength *= s;
+            cfg.OriginRadius *= s;
+            cfg.HighwayHalfWidth *= r;
+            cfg.ArterialHalfWidth *= r;
+            cfg.StreetHalfWidth *= r;
+            cfg.SidewalkWidth *= r;
+            cfg.MinSegment *= s;
+            cfg.SnapNode *= s;
+            cfg.SnapEdge *= s;
+            cfg.MaxBridge *= s;
+            return cfg;
+        }
     }
 
     /// <summary>
@@ -166,7 +198,7 @@ namespace CityX.World.Plan
         /// <summary>How steep the ground is here, as rise over run measured across ~30 m.</summary>
         public double Slope(double x, double y)
         {
-            const double e = 15.0;
+            double e = 15.0 * _cfg.Scale;
             double dx = Height(x + e, y) - Height(x - e, y);
             double dy = Height(x, y + e) - Height(x, y - e);
             return Math.Sqrt(dx * dx + dy * dy) / (2.0 * e);

@@ -16,7 +16,7 @@ namespace CityX.World.Plan
         public const double ChunkSize = 24.0;
 
         private static readonly object CacheLock = new object();
-        private static readonly Dictionary<int, PlanWorld> Cache = new Dictionary<int, PlanWorld>();
+        private static readonly Dictionary<(int, double, double), PlanWorld> Cache = new Dictionary<(int, double, double), PlanWorld>();
 
         public readonly int Seed;
         public readonly CityPlanData Data;
@@ -27,17 +27,27 @@ namespace CityX.World.Plan
         private readonly Dictionary<long, List<int>> _buildingsByChunk = new Dictionary<long, List<int>>();
         private readonly Dictionary<long, List<int>> _edgesByChunk = new Dictionary<long, List<int>>();
         private readonly Dictionary<long, List<int>> _junctionsByChunk = new Dictionary<long, List<int>>();
-        private readonly Dictionary<long, List<int>> _blocksByChunk = new Dictionary<long, List<int>>();
+        private readonly Dictionary<long, List<int>> _blocksByCoarse = new Dictionary<long, List<int>>();
+        private double[][] _blockBoxes;
         private static readonly List<int> NoneList = new List<int>(0);
+
+        /// <summary>The height from which a building is a landmark: the streamer keeps the (distant version of the) chunk that builds one in view much further out.</summary>
+        public const double LandmarkHeight = 150.0;
+
+        /// <summary>The chunks that build a landmark, each once.</summary>
+        public readonly List<(int X, int Y)> LandmarkChunks = new List<(int X, int Y)>();
 
         public static PlanWorld For(int seed)
         {
             lock (CacheLock)
             {
-                if (!Cache.TryGetValue(seed, out PlanWorld world))
+                // One plan per seed AND scale (CityScale.Active can be changed, which tests and tools do).
+                CityScale scale = CityScale.Active;
+                var key = (seed, scale.Footprint, scale.Height);
+                if (!Cache.TryGetValue(key, out PlanWorld world))
                 {
                     world = new PlanWorld(seed, null);
-                    Cache[seed] = world;
+                    Cache[key] = world;
                 }
                 return world;
             }
@@ -64,11 +74,7 @@ namespace CityX.World.Plan
         /// <summary>The configuration the game's own city uses.</summary>
         public static PlanConfig DefaultConfig()
         {
-            return new PlanConfig
-            {
-                Half = 2500.0,
-                HillAmplitude = 30.0,
-            };
+            return PlanConfig.For(CityScale.Active);
         }
 
         // ------------------------------------------------------------------ ground
@@ -95,8 +101,28 @@ namespace CityX.World.Plan
             _junctionsByChunk.TryGetValue(Key(cx, cy), out List<int> l) ? l : NoneList;
 
         /// <summary>Blocks whose pavement ring touches this chunk.</summary>
-        public List<int> BlocksIn(int cx, int cy) =>
-            _blocksByChunk.TryGetValue(Key(cx, cy), out List<int> l) ? l : NoneList;
+        public List<int> BlocksIn(int cx, int cy)
+        {
+            // Looked up from a coarse grid and filtered by each block's bounding box, rather than registered chunk by chunk: at the larger city scales a
+            // block covers hundreds of chunks and registering them all took seconds.
+            if (!_blocksByCoarse.TryGetValue(CoarseKey(cx, cy), out List<int> candidates))
+            {
+                return NoneList;
+            }
+            List<int> hits = null;
+            foreach (int i in candidates)
+            {
+                double[] box = _blockBoxes[i];
+                if (ChunkOf(box[0]) <= cx && cx <= ChunkOf(box[2]) && ChunkOf(box[1]) <= cy && cy <= ChunkOf(box[3]))
+                {
+                    (hits ?? (hits = new List<int>(4))).Add(i);
+                }
+            }
+            return hits ?? NoneList;
+        }
+
+        private const int CoarseChunks = 64;
+        private static long CoarseKey(int cx, int cy) => Key((int)Math.Floor(cx / (double)CoarseChunks), (int)Math.Floor(cy / (double)CoarseChunks));
 
         /// <summary>The building a world point is inside (or within <paramref name="margin"/> of the walls), or -1.</summary>
         public int BuildingAt(double x, double z, double margin = 0.0)
@@ -149,13 +175,15 @@ namespace CityX.World.Plan
         /// <summary>A road junction near the origin with three or more roads, or the nearest node: where the player starts.</summary>
         public bool TryFindSpawn(out double x, out double z)
         {
+            double scale = Data.Config.Scale;
+            int reach = (int)Math.Ceiling(60.0 * scale / ChunkSize) + 1;
             RoadNode best = null;
             double bestScore = double.MaxValue;
             foreach (RoadNode n in Data.Nodes)
             {
                 if (n.Edges.Count < 3) continue;
                 double d = n.P.Length;
-                if (d > 900.0) continue;
+                if (d > 900.0 * scale) continue;
                 bool bridge = false;
                 foreach (RoadEdge e in n.Edges) bridge |= e.Bridge;
                 if (bridge) continue;
@@ -166,29 +194,29 @@ namespace CityX.World.Plan
                 {
                     double a = k * 0.7853981633974483;
                     double dx = Math.Cos(a), dz = Math.Sin(a);
-                    if (Fields.IsWater(n.P.X + dx * 45.0, n.P.Y + dz * 45.0)) wet++;
-                    if (Fields.IsWater(n.P.X + dx * 90.0, n.P.Y + dz * 90.0)) wet++;
+                    if (Fields.IsWater(n.P.X + dx * 45.0 * scale, n.P.Y + dz * 45.0 * scale)) wet++;
+                    if (Fields.IsWater(n.P.X + dx * 90.0 * scale, n.P.Y + dz * 90.0 * scale)) wet++;
                 }
                 if (wet > 0) continue;
 
                 // Built up around it: plenty of buildings within about 60 m.
                 int cx = ChunkOf(n.P.X), cy = ChunkOf(n.P.Y), near = 0;
-                for (int oy = -3; oy <= 3; oy++)
+                for (int oy = -reach; oy <= reach; oy++)
                 {
-                    for (int ox = -3; ox <= 3; ox++)
+                    for (int ox = -reach; ox <= reach; ox++)
                     {
                         List<int> owned = BuildingsOwnedBy(cx + ox, cy + oy);
                         for (int i = 0; i < owned.Count; i++)
                         {
                             BuildingSite b = Buildings[owned[i]];
                             double bx = b.CentreX - n.P.X, bz = b.CentreZ - n.P.Y;
-                            if (bx * bx + bz * bz < 3600.0) near++;
+                            if (bx * bx + bz * bz < 3600.0 * scale * scale) near++;
                         }
                     }
                 }
                 if (near < 10) continue;
 
-                double score = d - (n.Edges.Count >= 4 ? 40.0 : 0.0);
+                double score = d - (n.Edges.Count >= 4 ? 40.0 * scale : 0.0);
                 if (score < bestScore)
                 {
                     bestScore = score;
@@ -224,18 +252,21 @@ namespace CityX.World.Plan
 
         private void IndexAll()
         {
+            var landmarkSeen = new HashSet<long>();
             for (int i = 0; i < Buildings.Length; i++)
             {
                 BuildingSite b = Buildings[i];
                 Add(_buildingsByChunk, b.OwnerChunkX, b.OwnerChunkY, i);
+                if (b.Params.Height >= LandmarkHeight && landmarkSeen.Add(Key(b.OwnerChunkX, b.OwnerChunkY)))
+                {
+                    LandmarkChunks.Add((b.OwnerChunkX, b.OwnerChunkY));
+                }
             }
 
             foreach (EdgeGeometry g in Geometry.Edges)
             {
                 if (g == null) continue;
-                double m = g.HalfWidth + 2.0;
-                AddBox(_edgesByChunk, Math.Min(g.A.X, g.B.X) - m, Math.Min(g.A.Y, g.B.Y) - m,
-                    Math.Max(g.A.X, g.B.X) + m, Math.Max(g.A.Y, g.B.Y) + m, g.Edge.Id);
+                AddSegment(_edgesByChunk, g.A, g.B, g.HalfWidth + 3.0, g.Edge.Id);
             }
 
             foreach (JunctionGeometry j in Geometry.Junctions)
@@ -244,11 +275,27 @@ namespace CityX.World.Plan
                 AddPoly(_junctionsByChunk, j.Plate, j.Node.Id);
             }
 
+            _blockBoxes = new double[Data.Blocks.Count][];
             for (int i = 0; i < Data.Blocks.Count; i++)
             {
                 PlanBlock b = Data.Blocks[i];
                 if (b.Inner == null || b.Outer == null) continue;
-                AddPoly(_blocksByChunk, b.Poly, i);
+                double bx0 = double.MaxValue, by0 = double.MaxValue, bx1 = double.MinValue, by1 = double.MinValue;
+                foreach (Vec2 v in b.Poly)
+                {
+                    bx0 = Math.Min(bx0, v.X); bx1 = Math.Max(bx1, v.X);
+                    by0 = Math.Min(by0, v.Y); by1 = Math.Max(by1, v.Y);
+                }
+                _blockBoxes[i] = new[] { bx0, by0, bx1, by1 };
+                int k0x = (int)Math.Floor(ChunkOf(bx0) / (double)CoarseChunks), k1x = (int)Math.Floor(ChunkOf(bx1) / (double)CoarseChunks);
+                int k0y = (int)Math.Floor(ChunkOf(by0) / (double)CoarseChunks), k1y = (int)Math.Floor(ChunkOf(by1) / (double)CoarseChunks);
+                for (int ky = k0y; ky <= k1y; ky++)
+                {
+                    for (int kx = k0x; kx <= k1x; kx++)
+                    {
+                        Add(_blocksByCoarse, kx, ky, i);
+                    }
+                }
             }
         }
 
@@ -275,17 +322,92 @@ namespace CityX.World.Plan
             }
         }
 
+        /// <summary>
+        /// Registers an id in every chunk within <paramref name="radius"/> of a segment. (A bounding box of a long diagonal road is a thousand
+        /// chunks it never touches, which at the larger city scales was most of the index.)
+        /// </summary>
+        private static void AddSegment(Dictionary<long, List<int>> map, Vec2 a, Vec2 b, double radius, int id)
+        {
+            double length = (b - a).Length;
+            int steps = Math.Max(1, (int)Math.Ceiling(length / (ChunkSize * 0.5)));
+            var seen = new HashSet<long>();
+            var cells = new List<long>();
+            for (int i = 0; i <= steps; i++)
+            {
+                double t = (double)i / steps;
+                double px = a.X + (b.X - a.X) * t, py = a.Y + (b.Y - a.Y) * t;
+                int cx0 = ChunkOf(px - radius), cx1 = ChunkOf(px + radius), cy0 = ChunkOf(py - radius), cy1 = ChunkOf(py + radius);
+                for (int cy = cy0; cy <= cy1; cy++)
+                {
+                    for (int cx = cx0; cx <= cx1; cx++)
+                    {
+                        long key = Key(cx, cy);
+                        if (seen.Add(key))
+                        {
+                            cells.Add(key);
+                        }
+                    }
+                }
+            }
+            foreach (long key in cells)
+            {
+                if (!map.TryGetValue(key, out List<int> list))
+                {
+                    list = new List<int>(4);
+                    map[key] = list;
+                }
+                list.Add(id);
+            }
+        }
+
+        /// <summary>
+        /// Registers an id in every chunk a polygon touches: for each row of chunks, from the x-range the polygon's edges cover in that row. (The
+        /// bounding box of a long diagonal block is most of a thousand chunks it never touches.)
+        /// </summary>
         private static void AddPoly(Dictionary<long, List<int>> map, IList<Vec2> poly, int id)
         {
-            double x0 = double.MaxValue, y0 = double.MaxValue, x1 = double.MinValue, y1 = double.MinValue;
+            double y0 = double.MaxValue, y1 = double.MinValue;
             for (int i = 0; i < poly.Count; i++)
             {
-                if (poly[i].X < x0) x0 = poly[i].X;
-                if (poly[i].X > x1) x1 = poly[i].X;
                 if (poly[i].Y < y0) y0 = poly[i].Y;
                 if (poly[i].Y > y1) y1 = poly[i].Y;
             }
-            AddBox(map, x0, y0, x1, y1, id);
+            int row0 = ChunkOf(y0), row1 = ChunkOf(y1);
+            for (int row = row0; row <= row1; row++)
+            {
+                double bandLow = row * ChunkSize, bandHigh = bandLow + ChunkSize;
+                double minX = double.MaxValue, maxX = double.MinValue;
+                for (int i = 0, n = poly.Count; i < n; i++)
+                {
+                    Vec2 a = poly[i], b = poly[(i + 1) % n];
+                    // The part of this edge inside the band.
+                    double ta = 0.0, tb = 1.0;
+                    double dy = b.Y - a.Y;
+                    if (Math.Abs(dy) < 1e-12)
+                    {
+                        if (a.Y < bandLow || a.Y > bandHigh) continue;
+                    }
+                    else
+                    {
+                        double t0 = (bandLow - a.Y) / dy, t1 = (bandHigh - a.Y) / dy;
+                        if (t0 > t1) { double s = t0; t0 = t1; t1 = s; }
+                        ta = Math.Max(ta, t0);
+                        tb = Math.Min(tb, t1);
+                        if (ta > tb) continue;
+                    }
+                    double xa = a.X + (b.X - a.X) * ta, xb = a.X + (b.X - a.X) * tb;
+                    if (xa < minX) minX = xa;
+                    if (xb < minX) minX = xb;
+                    if (xa > maxX) maxX = xa;
+                    if (xb > maxX) maxX = xb;
+                }
+                if (minX > maxX) continue;
+                int c0 = ChunkOf(minX), c1 = ChunkOf(maxX);
+                for (int cx = c0; cx <= c1; cx++)
+                {
+                    Add(map, cx, row, id);
+                }
+            }
         }
     }
 
@@ -311,11 +433,13 @@ namespace CityX.World.Plan
         public static BuildingSite[] Resolve(CityPlanData data, PlanFields fields, uint seed)
         {
             var list = new List<BuildingSite>(data.Lots.Count);
+            double s = data.Config.Scale;
+            double hs = data.Config.HeightScale;
             uint characterSeed = PlanNoise.Mix(seed, 0x7A6F6E65U);   // "zone"
 
             foreach (PlanLot lot in data.Lots)
             {
-                if (!FitRectangle(lot.Footprint, lot.FrontEdge, out Vec2 centre, out Vec2 ex, out double width, out double depth))
+                if (!FitRectangle(lot.Footprint, lot.FrontEdge, out Vec2 centre, out Vec2 ex, out double width, out double depth, s))
                 {
                     continue;
                 }
@@ -330,12 +454,12 @@ namespace CityX.World.Plan
                 double height = lot.Height;
                 if (zone == ZoneKind.Industrial)
                 {
-                    height = 9.0 + rng.NextDouble() * 13.0;
+                    height = (9.0 + rng.NextDouble() * 13.0) * hs;
                 }
                 height = Math.Min(height, MaxSlenderness * Math.Min(width, depth));
-                height = Math.Max(height, 6.0);
+                height = Math.Max(height, 6.0 * hs);
 
-                BuildingMass mass = MassFor(zone, height, width, depth);
+                BuildingMass mass = MassFor(zone, height, width, depth, s, hs);
                 string roof = RoofsByZone[(int)zone][rng.Below(8)];
                 bool basement = rng.NextDouble() < 0.12 && height > 10.0;
 
@@ -365,7 +489,7 @@ namespace CityX.World.Plan
 
                 // The shape: one box, or a stack of them (a tower on a podium, a crown that steps in). Drawn last, so the roof and basement
                 // rolled above are what they would have been anyway.
-                List<MassVolume> volumes = Massing.Split(zone, mass, width, depth, height, rng, out bool hasPodium);
+                List<MassVolume> volumes = Massing.Split(zone, mass, width, depth, height, rng, out bool hasPodium, s, hs);
 
                 // A building made of several volumes: the lowest has the door on the street and the ground under it; each one above stands
                 // on the roof of the one below and is reached from it. A tower on a podium is a different building from the podium and
@@ -379,7 +503,7 @@ namespace CityX.World.Plan
                     bool isPodium = hasPodium && bottom;
                     bool isTop = v == volumes.Count - 1;
 
-                    BuildingMass volumeMass = isPodium ? MassFor(zone, vol.Height, vol.Width, vol.Depth) : mass;
+                    BuildingMass volumeMass = isPodium ? MassFor(zone, vol.Height, vol.Width, vol.Depth, s, hs) : mass;
                     // Below the top a roof is a terrace with a parapet round it; only the top carries the zone's roof plant.
                     string volumeRoof = isTop ? roof : "parapet";
                     int volumeSeed = hasPodium && !bottom ? towerSeed : unchecked((int)h);
@@ -414,8 +538,9 @@ namespace CityX.World.Plan
             return list.ToArray();
         }
 
-        private static BuildingMass MassFor(ZoneKind zone, double height, double width, double depth)
+        private static BuildingMass MassFor(ZoneKind zone, double height, double width, double depth, double s = 1.0, double hs = 1.0)
         {
+            height /= hs;   // the thresholds below are the classic city's, in the classic city's metres
             if (zone == ZoneKind.Industrial) return BuildingMass.Warehouse;
             if (height >= 240.0) return BuildingMass.Supertall;
             if (height >= 110.0) return BuildingMass.Tower;
@@ -444,8 +569,9 @@ namespace CityX.World.Plan
         /// world direction of the rectangle's local +X, and its width (along the frontage) and depth (into the lot).
         /// Local +Z is the outward normal of the frontage, so a door on the +Z wall faces the street.
         /// </summary>
-        public static bool FitRectangle(Vec2[] poly, int front, out Vec2 centre, out Vec2 ex, out double width, out double depth)
+        public static bool FitRectangle(Vec2[] poly, int front, out Vec2 centre, out Vec2 ex, out double width, out double depth, double scale = 1.0)
         {
+            double minSide = MinSide * scale;
             centre = default;
             ex = default;
             width = 0.0;
@@ -475,7 +601,7 @@ namespace CityX.World.Plan
             var xs = new List<double>(8);
             double bestArea = 0.0;
             double bestX0 = 0.0, bestX1 = 0.0, bestDepth = 0.0;
-            for (double dep = deepest; dep >= MinSide; dep -= 1.5)
+            for (double dep = deepest; dep >= minSide; dep -= 1.5 * scale)
             {
                 double xmin = double.NegativeInfinity, xmax = double.PositiveInfinity;
                 bool ok = true;
@@ -489,9 +615,9 @@ namespace CityX.World.Plan
                         if (b < xmax) xmax = b;
                     }
                 }
-                if (!ok || xmax - xmin < MinSide) continue;
+                if (!ok || xmax - xmin < minSide) continue;
                 double w = xmax - xmin;
-                double dd = Math.Min(dep, 2.4 * w + 6.0);
+                double dd = Math.Min(dep, 2.4 * w + 6.0 * scale);
                 double area = w * dd;
                 if (area > bestArea)
                 {
@@ -505,7 +631,7 @@ namespace CityX.World.Plan
 
             width = bestX1 - bestX0 - 0.6;
             depth = bestDepth - 0.6;
-            if (width < MinSide || depth < MinSide) return false;
+            if (width < minSide || depth < minSide) return false;
             double cx = (bestX0 + bestX1) * 0.5;
             double cz = -0.15 - bestDepth * 0.5 + 0.0;
             centre = o + ex * cx + ez * cz;

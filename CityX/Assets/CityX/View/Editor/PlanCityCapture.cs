@@ -135,7 +135,7 @@ namespace CityX.ViewEditor
         public static void Capture()
         {
             _timeOfDay = SkyCycle.StartSeconds;
-            _prefix = "";
+            _prefix = CityScale.Active.Name + "-";
             CaptureShots();
         }
 
@@ -198,7 +198,7 @@ namespace CityX.ViewEditor
                 var cameraObject = new GameObject("Camera");
                 cameraObject.transform.SetParent(root.transform);
                 Camera camera = cameraObject.AddComponent<Camera>();
-                camera.farClipPlane = 4500.0f;
+                camera.farClipPlane = 4500.0f * Mathf.Min((float)CityScale.Active.Footprint, 4.0f);
                 camera.nearClipPlane = 0.3f;
                 if (!AttachEnvironment(root, camera, cycle))
                 {
@@ -224,12 +224,17 @@ namespace CityX.ViewEditor
                 }
 
                 // Aerial, from a little way off, looking over the downtown.
-                Vector3 aerialEye = spawn + new Vector3(-260.0f, 300.0f, -380.0f);
+                float sc = (float)CityScale.Active.Footprint;
+                Vector3 aerialEye = spawn + new Vector3(-260.0f, 300.0f, -380.0f) * (sc * 0.6f);
                 Shoot(streamer, camera, directory, "plan-aerial",
                     aerialEye, Quaternion.LookRotation(spawn - aerialEye, Vector3.up).eulerAngles, 26);
 
+                // From a long way back at roof height, looking at the downtown: the skyline.
+                Vector3 skylineEye = spawn + new Vector3(-420.0f, 0.0f, -700.0f) * sc + Vector3.up * (60.0f * sc);
+                Shoot(streamer, camera, directory, "plan-skyline", skylineEye, Quaternion.LookRotation(spawn + Vector3.up * 140.0f * sc - skylineEye, Vector3.up).eulerAngles, 30);
+
                 // Straight down on the spawn junction, to compare with the 2D plan.
-                Vector3 topEye = spawn + Vector3.up * 230.0f;
+                Vector3 topEye = spawn + Vector3.up * 230.0f * sc;
                 Shoot(streamer, camera, directory, "plan-topdown", topEye, new Vector3(90.0f, 0.0f, 0.0f), 14);
 
                 // Street level, standing at the spawn junction looking along the first road that leaves it.

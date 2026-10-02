@@ -296,6 +296,11 @@ namespace CityX.View
             _wantedStale = true;
 
             _world = new CityWorld(WorldSeed);
+            _landmarks = new HashSet<Vector2Int>();
+            foreach ((int x, int y) in _world.Plan.LandmarkChunks)
+            {
+                _landmarks.Add(new Vector2Int(x, y));
+            }
             foreach (KeyValuePair<Vector2Int, GameObject> pair in _loaded)
             {
                 DestroyChunk(pair.Value);
@@ -310,6 +315,19 @@ namespace CityX.View
             // the one place that can publish it for CityX.Character (which
             // has no reference to this assembly) to read.
             CurrentWorld.Instance = _world;
+        }
+
+        // The chunks that build a tall landmark building (see PlanWorld.LandmarkHeight). Their DISTANT version is kept much further out than
+        // the ordinary radius: a 700 m tower that vanishes at 576 m is not a skyline.
+        private HashSet<Vector2Int> _landmarks;
+
+        // Only for a real view distance: a streamer with a tiny ring (tests, captures of one street) loads exactly its ring.
+        private int LandmarkRadiusChunks => RadiusChunks >= 8 ? RadiusChunks * 5 / 2 : 0;
+
+        private bool IsLandmarkInRange(Vector2Int key, int centreX, int centreY)
+        {
+            return _landmarks != null && _landmarks.Contains(key)
+                && Mathf.Max(Mathf.Abs(key.x - centreX), Mathf.Abs(key.y - centreY)) <= LandmarkRadiusChunks;
         }
 
         /// <summary>Whether the player has ever stood within ExploredChunks.Radius of this chunk. Drives the map panel's fog of war.</summary>
@@ -416,7 +434,8 @@ namespace CityX.View
                 int dropRadius = RadiusChunks + 2;
                 foreach (KeyValuePair<Vector2Int, GameObject> pair in _loaded)
                 {
-                    if (Mathf.Abs(pair.Key.x - centreX) > dropRadius || Mathf.Abs(pair.Key.y - centreY) > dropRadius)
+                    if ((Mathf.Abs(pair.Key.x - centreX) > dropRadius || Mathf.Abs(pair.Key.y - centreY) > dropRadius)
+                        && !IsLandmarkInRange(pair.Key, centreX, centreY))
                     {
                         _stale.Add(pair.Key);
                     }
@@ -444,6 +463,15 @@ namespace CityX.View
                         {
                             _requests.Add(new ChunkRequest(key, wantFar));
                         }
+                    }
+                }
+                // The distant version of every landmark within the wider radius that is not already in the ring.
+                foreach (Vector2Int landmark in _landmarks)
+                {
+                    int distance = Mathf.Max(Mathf.Abs(landmark.x - centreX), Mathf.Abs(landmark.y - centreY));
+                    if (distance > RadiusChunks && distance <= LandmarkRadiusChunks && (!_loaded.ContainsKey(landmark)))
+                    {
+                        _requests.Add(new ChunkRequest(landmark, true));
                     }
                 }
                 _requests.Sort((a, b) =>
@@ -532,7 +560,8 @@ namespace CityX.View
                 _inFlight.Remove(payload.Key);
                 _wantedStale = true;
 
-                bool outOfRange = Mathf.Abs(payload.Key.x - centre.x) > RadiusChunks + 1 || Mathf.Abs(payload.Key.y - centre.y) > RadiusChunks + 1;
+                bool outOfRange = (Mathf.Abs(payload.Key.x - centre.x) > RadiusChunks + 1 || Mathf.Abs(payload.Key.y - centre.y) > RadiusChunks + 1)
+                    && !IsLandmarkInRange(payload.Key, centre.x, centre.y);
                 bool alreadyThere = _loaded.ContainsKey(payload.Key) && _far.Contains(payload.Key) == payload.Far;
                 if (outOfRange || alreadyThere)
                 {
@@ -601,8 +630,8 @@ namespace CityX.View
             int dropRadius = RadiusChunks + 2;
             foreach (KeyValuePair<Vector2Int, GameObject> pair in _loaded)
             {
-                if (Mathf.Abs(pair.Key.x - centreX) > dropRadius ||
-                    Mathf.Abs(pair.Key.y - centreY) > dropRadius)
+                if ((Mathf.Abs(pair.Key.x - centreX) > dropRadius ||
+                    Mathf.Abs(pair.Key.y - centreY) > dropRadius) && !IsLandmarkInRange(pair.Key, centreX, centreY))
                 {
                     _stale.Add(pair.Key);
                 }
@@ -626,6 +655,14 @@ namespace CityX.View
                     {
                         _wanted.Add(key);
                     }
+                }
+            }
+            foreach (Vector2Int landmark in _landmarks)
+            {
+                int landmarkDistance = Mathf.Max(Mathf.Abs(landmark.x - centreX), Mathf.Abs(landmark.y - centreY));
+                if (landmarkDistance > RadiusChunks && landmarkDistance <= LandmarkRadiusChunks && !_loaded.ContainsKey(landmark))
+                {
+                    _wanted.Add(landmark);
                 }
             }
             _wanted.Sort((a, b) =>

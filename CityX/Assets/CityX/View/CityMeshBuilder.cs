@@ -348,6 +348,20 @@ namespace CityX.View
             WindowPlan plan = WindowPlan.For(world, site);
             CellLayout rows = WindowGrid.RowsFor(height);
 
+            // The stairs of every floor (BuildingStairs): the kind, the place and the opening each one needs.
+            BuildingStairs.Layout stairs = BuildingStairs.PlanFor(site);
+
+            // A building that is sealed above its last fitted-out floor is only DETAILED that far (windows with reveals and frames, inside walls):
+            // above it the walls are the distant version -- one panel and flat glass strips -- because nobody sees into a sealed void and a
+            // 700 m tower with a million window frames is a cost, not a look.
+            int detailRows = rows.Count;
+            if (stairs.SealedTop)
+            {
+                detailRows = Mathf.Min(rows.Count, floors * BuildingInterior.StoreyHeightRows);
+            }
+            var detailed = new CellLayout(detailRows, rows.Size);
+            float detailTop = detailRows < rows.Count ? lobbyY + detailRows * rows.Size : roofY;
+
             // The podium, below the lobby floor. Solid: it is buried on the
             // uphill side and exposed downhill, so glazing it would put windows
             // in a retaining wall.
@@ -358,14 +372,14 @@ namespace CityX.View
             AddWallPanel(structures, north, x0, x1, podiumY, lobbyY, Vector3.forward);
 
             // Outward, for the street, with real openings in it.
-            AddWindowedWall(structures, glazing, site, west, z0, z1, lobbyY, roofY,
-                Vector3.left, plan, WindowGrid.Wall.West, rows, 0.0f, 0.0f, false, looks);
-            AddWindowedWall(structures, glazing, site, east, z0, z1, lobbyY, roofY,
-                Vector3.right, plan, WindowGrid.Wall.East, rows, 0.0f, 0.0f, false, looks);
-            AddWindowedWall(structures, glazing, site, south, x0, x1, lobbyY, roofY,
-                Vector3.back, plan, WindowGrid.Wall.South, rows, 0.0f, 0.0f, false, looks);
-            AddWindowedWall(structures, glazing, site, north, x0, x1, lobbyY, roofY,
-                Vector3.forward, plan, WindowGrid.Wall.North, rows, doorU0, doorU1, true, looks);
+            AddWindowedWall(structures, glazing, site, west, z0, z1, lobbyY, detailTop,
+                Vector3.left, plan, WindowGrid.Wall.West, detailed, 0.0f, 0.0f, false, looks);
+            AddWindowedWall(structures, glazing, site, east, z0, z1, lobbyY, detailTop,
+                Vector3.right, plan, WindowGrid.Wall.East, detailed, 0.0f, 0.0f, false, looks);
+            AddWindowedWall(structures, glazing, site, south, x0, x1, lobbyY, detailTop,
+                Vector3.back, plan, WindowGrid.Wall.South, detailed, 0.0f, 0.0f, false, looks);
+            AddWindowedWall(structures, glazing, site, north, x0, x1, lobbyY, detailTop,
+                Vector3.forward, plan, WindowGrid.Wall.North, detailed, doorU0, doorU1, true, looks);
 
             // Inward, for the room. Same planes and the same openings, opposite
             // normals -- back to back, so neither is ever seen from the wrong
@@ -374,22 +388,40 @@ namespace CityX.View
             // The wall is BuildingInterior.WallThickness thick: the inside face is that far in from the outside one, over the same span
             // so every window column still lines up. Each opening's reveals (AddWindowReveals) join the two faces.
             float t = BuildingInterior.WallThickness;
-            AddWindowedWall(concrete, Glazing.OpeningsOnly, site, new Wall(true, x0 + t, z0, z1), z0, z1, lobbyY, roofY,
-                Vector3.right, plan, WindowGrid.Wall.West, rows, 0.0f, 0.0f, false);
-            AddWindowedWall(concrete, Glazing.OpeningsOnly, site, new Wall(true, x1 - t, z0, z1), z0, z1, lobbyY, roofY,
-                Vector3.left, plan, WindowGrid.Wall.East, rows, 0.0f, 0.0f, false);
-            AddWindowedWall(concrete, Glazing.OpeningsOnly, site, new Wall(false, z0 + t, x0, x1), x0, x1, lobbyY, roofY,
-                Vector3.forward, plan, WindowGrid.Wall.South, rows, 0.0f, 0.0f, false);
-            AddWindowedWall(concrete, Glazing.OpeningsOnly, site, new Wall(false, z1 - t, x0, x1), x0, x1, lobbyY, roofY,
-                Vector3.back, plan, WindowGrid.Wall.North, rows, doorU0, doorU1, true);
+            AddWindowedWall(concrete, Glazing.OpeningsOnly, site, new Wall(true, x0 + t, z0, z1), z0, z1, lobbyY, detailTop,
+                Vector3.right, plan, WindowGrid.Wall.West, detailed, 0.0f, 0.0f, false);
+            AddWindowedWall(concrete, Glazing.OpeningsOnly, site, new Wall(true, x1 - t, z0, z1), z0, z1, lobbyY, detailTop,
+                Vector3.left, plan, WindowGrid.Wall.East, detailed, 0.0f, 0.0f, false);
+            AddWindowedWall(concrete, Glazing.OpeningsOnly, site, new Wall(false, z0 + t, x0, x1), x0, x1, lobbyY, detailTop,
+                Vector3.forward, plan, WindowGrid.Wall.South, detailed, 0.0f, 0.0f, false);
+            AddWindowedWall(concrete, Glazing.OpeningsOnly, site, new Wall(false, z1 - t, x0, x1), x0, x1, lobbyY, detailTop,
+                Vector3.back, plan, WindowGrid.Wall.North, detailed, doorU0, doorU1, true);
+
+            if (detailRows < rows.Count)
+            {
+                // The rest of a tall building, outside only: a panel per wall and the distant version's flat glass strips.
+                structures.Look = looks.Wall;
+                AddWallPanel(structures, west, z0, z1, detailTop, roofY, Vector3.left);
+                AddWallPanel(structures, east, z0, z1, detailTop, roofY, Vector3.right);
+                AddWallPanel(structures, south, x0, x1, detailTop, roofY, Vector3.back);
+                AddWallPanel(structures, north, x0, x1, detailTop, roofY, Vector3.forward);
+                if (glazing.HangsGlass)
+                {
+                    Color32 upperGlass = SurfaceLook.PackGlass(looks.GlassTint, 0, 0.0f);
+                    glazing.Lit.Look = upperGlass;
+                    glazing.Dark.Look = upperGlass;
+                    AddShellGlass(glazing, site, west, z0, z1, lobbyY, Vector3.left, plan, WindowGrid.Wall.West, rows, 0.0f, 0.0f, detailRows);
+                    AddShellGlass(glazing, site, east, z0, z1, lobbyY, Vector3.right, plan, WindowGrid.Wall.East, rows, 0.0f, 0.0f, detailRows);
+                    AddShellGlass(glazing, site, south, x0, x1, lobbyY, Vector3.back, plan, WindowGrid.Wall.South, rows, 0.0f, 0.0f, detailRows);
+                    AddShellGlass(glazing, site, north, x0, x1, lobbyY, Vector3.forward, plan, WindowGrid.Wall.North, rows, 0.0f, 0.0f, detailRows);
+                }
+            }
 
             // The lobby floor, and NOT a port: city_chunk.gd leans on the
             // chunk's own ground body for the ground floor, and here that
             // ground is cut away under the footprint (see BuildGround) so this
             // is the only thing holding anybody up. Solid, unless there is a
             // basement, in which case it is opened for the flight down.
-            // The stairs of every floor (BuildingStairs): the kind, the place and the opening each one needs.
-            BuildingStairs.Layout stairs = BuildingStairs.PlanFor(site);
             Rect basementHole = stairs.Basement != null ? Shift(stairs.Basement.Hole, centreX, centreZ) : Rect.zero;
             AddSlabFace(concrete, x0, x1, z0, z1, basementHole, lobbyY, Vector3.up);
 
@@ -597,14 +629,14 @@ namespace CityX.View
         /// <summary>One wall's glass for <see cref="BuildBuildingShell"/>: flat one-sided strips floating just off the wall.</summary>
         private static void AddShellGlass(in Glazing glazing, BuildingSite site, in Wall wall,
             float u0, float u1, float floorY, Vector3 normal, in WindowPlan plan, WindowGrid.Wall which,
-            CellLayout rows, float doorU0, float doorU1)
+            CellLayout rows, float doorU0, float doorU1, int firstRow = 0)
         {
             CellLayout columns = plan.ColumnsFor(u1 - u0);
             float inset = WindowGrid.PaneInset;
             Vector3 lift = normal * ShellGlassLift;
             bool doorWall = doorU1 > doorU0;
 
-            for (int row = 0; row < rows.Count; row++)
+            for (int row = firstRow; row < rows.Count; row++)
             {
                 float y0 = floorY + row * rows.Size;
                 float y1 = y0 + rows.Size;

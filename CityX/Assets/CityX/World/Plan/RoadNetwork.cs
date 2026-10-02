@@ -54,7 +54,7 @@ namespace CityX.World.Plan
     /// </summary>
     public sealed class RoadNetwork
     {
-        private const double CellSize = 64.0;
+        private double CellSize => 64.0 * _cfg.Scale;
 
         private readonly PlanFields _fields;
         private readonly PlanConfig _cfg;
@@ -171,9 +171,9 @@ namespace CityX.World.Plan
             double jitter = 0.88 + 0.24 * Rand(from.Id, 21U + (uint)cls);
             switch (cls)
             {
-                case RoadClass.Highway: return (190.0 + 80.0 * Rand(from.Id, 5U)) * 1.0;
-                case RoadClass.Arterial: return (150.0 + 60.0 * Rand(from.Id, 6U));
-                default: return (74.0 + (1.0 - pop) * 120.0) * jitter;
+                case RoadClass.Highway: return (190.0 + 80.0 * Rand(from.Id, 5U)) * _cfg.Scale;
+                case RoadClass.Arterial: return (150.0 + 60.0 * Rand(from.Id, 6U)) * _cfg.Scale;
+                default: return (74.0 + (1.0 - pop) * 120.0) * jitter * _cfg.Scale;
             }
         }
 
@@ -202,7 +202,7 @@ namespace CityX.World.Plan
                 double score = 0.0;
                 for (int k = 1; k <= 3; k++)
                 {
-                    Vec2 p = a + d * (150.0 * k);
+                    Vec2 p = a + d * (150.0 * _cfg.Scale * k);
                     if (Math.Abs(p.X) > _cfg.Half || Math.Abs(p.Y) > _cfg.Half)
                     {
                         score -= 0.35;
@@ -241,7 +241,7 @@ namespace CityX.World.Plan
         {
             bridgeLength = 0.0;
             bool wasWater = false;
-            for (double d = 12.0; d <= _cfg.MaxBridge; d += 12.0)
+            for (double d = 12.0 * _cfg.Scale; d <= _cfg.MaxBridge; d += 12.0 * _cfg.Scale)
             {
                 Vec2 p = a + dir * d;
                 if (!InRegion(p))
@@ -258,7 +258,7 @@ namespace CityX.World.Plan
                     continue;   // still on the near bank
                 }
                 // Landed on the far side: demand a little real land past it.
-                Vec2 beyond = a + dir * (d + 24.0);
+                Vec2 beyond = a + dir * (d + 24.0 * _cfg.Scale);
                 if (!InRegion(beyond) || _fields.IsWater(beyond))
                 {
                     continue;
@@ -268,7 +268,7 @@ namespace CityX.World.Plan
                 {
                     return false;
                 }
-                bridgeLength = d + 12.0;
+                bridgeLength = d + 12.0 * _cfg.Scale;
                 return true;
             }
             return false;
@@ -557,7 +557,7 @@ namespace CityX.World.Plan
 
         private long CellKey(Vec2 p) => CellKey(CellOf(p.X), CellOf(p.Y));
 
-        private static int CellOf(double v)
+        private int CellOf(double v)
         {
             int i = (int)(v / CellSize);
             return v < 0 && i * CellSize != v ? i - 1 : i;

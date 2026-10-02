@@ -47,8 +47,11 @@ namespace CityX.World.Plan
         public const double MinHeight = 2.0 * Storey;
 
         public static List<MassVolume> Split(ZoneKind zone, BuildingMass mass, double width, double depth, double height, DeterministicRandom rng,
-            out bool hasPodium)
+            out bool hasPodium, double scale = 1.0, double heightScale = 1.0)
         {
+            // The thresholds and setbacks below are the classic city's metres; at a larger CityScale a building is judged by its size relative to that.
+            double rh = height / heightScale;
+            double rw = Math.Min(width, depth) / scale;
             hasPodium = false;
             double hx = width * 0.5;
             double hz = depth * 0.5;
@@ -57,15 +60,15 @@ namespace CityX.World.Plan
 
             bool tall = mass == BuildingMass.Tower || mass == BuildingMass.Supertall;
             double podiumChance = tall ? 0.85
-                : (mass == BuildingMass.MidRise && height >= 44.0 && Math.Min(width, depth) >= 22.0 ? 0.35
-                : (mass == BuildingMass.Slab && height >= 50.0 ? 0.20 : 0.0));
+                : (mass == BuildingMass.MidRise && rh >= 44.0 && rw >= 22.0 ? 0.35
+                : (mass == BuildingMass.Slab && rh >= 50.0 ? 0.20 : 0.0));
             if (zone == ZoneKind.Industrial || zone == ZoneKind.Outskirts)
             {
                 podiumChance = 0.0;
             }
             double steppedChance = mass == BuildingMass.Supertall ? 1.0
                 : (mass == BuildingMass.Tower ? 0.55
-                : (mass == BuildingMass.MidRise && height >= 36.0 ? 0.30
+                : (mass == BuildingMass.MidRise && rh >= 36.0 ? 0.30
                 : (mass == BuildingMass.Slab ? 0.15 : 0.0)));
             if (zone == ZoneKind.Industrial)
             {
@@ -76,7 +79,7 @@ namespace CityX.World.Plan
             double stepRoll = rng.NextDouble();
 
             MassVolume top = whole;   // the volume the crown (if any) will stand on
-            if (roll < podiumChance && TryPodiumAndTower(whole, height, rng, out MassVolume podium, out MassVolume tower))
+            if (roll < podiumChance && TryPodiumAndTower(whole, height, rng, scale, heightScale, out MassVolume podium, out MassVolume tower))
             {
                 volumes.Add(podium);
                 top = tower;
@@ -85,7 +88,7 @@ namespace CityX.World.Plan
 
             if (stepRoll < steppedChance)
             {
-                AddSteppedTower(volumes, top, rng, mass == BuildingMass.Supertall);
+                AddSteppedTower(volumes, top, rng, mass == BuildingMass.Supertall, scale);
             }
             else
             {
@@ -94,12 +97,12 @@ namespace CityX.World.Plan
             return volumes;
         }
 
-        private static bool TryPodiumAndTower(MassVolume whole, double height, DeterministicRandom rng, out MassVolume podium, out MassVolume tower)
+        private static bool TryPodiumAndTower(MassVolume whole, double height, DeterministicRandom rng, double scale, double heightScale, out MassVolume podium, out MassVolume tower)
         {
             podium = default;
             tower = default;
 
-            double storeys = 2 + rng.Below(4);                       // 2..5
+            double storeys = Math.Round((2 + rng.Below(4)) * heightScale);   // 2..5 storeys, more on a taller building
             double podiumHeight = Math.Min(storeys * Storey, Math.Floor(height * 0.45 / Storey) * Storey);
             double towerHeight = height - podiumHeight;
             if (podiumHeight < MinHeight || towerHeight < MinHeight)
@@ -108,13 +111,13 @@ namespace CityX.World.Plan
             }
 
             // The tower stands back from the street (+z) more than from the rest, and is rarely centred.
-            double front = 2.0 + 6.0 * rng.NextDouble();
-            double back = 1.0 + 5.0 * rng.NextDouble();
-            double left = 1.5 + 5.5 * rng.NextDouble();
-            double right = 1.5 + 5.5 * rng.NextDouble();
+            double front = (2.0 + 6.0 * rng.NextDouble()) * scale;
+            double back = (1.0 + 5.0 * rng.NextDouble()) * scale;
+            double left = (1.5 + 5.5 * rng.NextDouble()) * scale;
+            double right = (1.5 + 5.5 * rng.NextDouble()) * scale;
             for (int attempt = 0; attempt < 6; attempt++)
             {
-                if (whole.Width - left - right >= MinSide && whole.Depth - front - back >= MinSide)
+                if (whole.Width - left - right >= MinSide * scale && whole.Depth - front - back >= MinSide * scale)
                 {
                     break;
                 }
@@ -123,7 +126,7 @@ namespace CityX.World.Plan
                 left *= 0.7;
                 right *= 0.7;
             }
-            if (whole.Width - left - right < MinSide || whole.Depth - front - back < MinSide)
+            if (whole.Width - left - right < MinSide * scale || whole.Depth - front - back < MinSide * scale)
             {
                 return false;
             }
@@ -137,7 +140,7 @@ namespace CityX.World.Plan
         /// A volume that steps in as it climbs: the shaft to some way up, then a narrower stage (and for a supertall another above that).
         /// Each stage is inset a few metres from the one below on every side, by a different amount, so it is never a tidy pyramid.
         /// </summary>
-        private static void AddSteppedTower(List<MassVolume> volumes, MassVolume shaft, DeterministicRandom rng, bool twice)
+        private static void AddSteppedTower(List<MassVolume> volumes, MassVolume shaft, DeterministicRandom rng, bool twice, double scale)
         {
             MassVolume current = shaft;
             double remaining = shaft.Height;
@@ -147,12 +150,12 @@ namespace CityX.World.Plan
                 double share = 0.60 + 0.20 * rng.NextDouble();
                 double lowerHeight = Math.Floor(remaining * share / Storey) * Storey;
                 double upperHeight = remaining - lowerHeight;
-                double left = 2.0 + 3.5 * rng.NextDouble();
-                double right = 2.0 + 3.5 * rng.NextDouble();
-                double front = 1.5 + 3.5 * rng.NextDouble();
-                double back = 1.5 + 3.5 * rng.NextDouble();
+                double left = (2.0 + 3.5 * rng.NextDouble()) * scale;
+                double right = (2.0 + 3.5 * rng.NextDouble()) * scale;
+                double front = (1.5 + 3.5 * rng.NextDouble()) * scale;
+                double back = (1.5 + 3.5 * rng.NextDouble()) * scale;
                 if (lowerHeight < MinHeight || upperHeight < MinHeight
-                    || current.Width - left - right < MinSide || current.Depth - front - back < MinSide)
+                    || current.Width - left - right < MinSide * scale || current.Depth - front - back < MinSide * scale)
                 {
                     break;
                 }
