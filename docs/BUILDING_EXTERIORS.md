@@ -193,3 +193,9 @@ ground row, an awning's lowest edge is above 2.7 m, the bars across a broken win
 
 **Still to do:** skybridges between towers (the old Chongqing walkway look), the special buildings as landmarks, graffiti/posters/stains as decals, wet-road reflections (needs
 screen-space reflections or probes), street lamps (only if you want them back), tree-less public squares, and the mini-dungeon interiors.
+
+### Fix 2026-10-02: road paint lies on the road
+
+Reported: the right foot sinks into the zebra crossing ("the street decals should not be on a higher level than the street"). Paint floated 3 cm over
+the road so it would not z-fight, and a body on it sank 3 cm. It is now 1 cm up and drawn with `CityX/Paint` (URP Unlit plus a depth offset, also in the
+depth passes; units grow with distance like z-fighting does, so up close, at the feet, it is a fraction of a millimetre). RoadLine and Crosswalk use it.

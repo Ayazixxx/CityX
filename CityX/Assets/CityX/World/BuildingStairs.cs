@@ -105,8 +105,15 @@ namespace CityX.World
         /// <summary>Free floor kept at each end of a stair, so there is somewhere to stand before the first step and after the last.</summary>
         public const float Cell = 1.2f;
 
-        /// <summary>Ceiling clearance a body needs over a step; where a stair is closer than this to the ceiling it needs the opening.</summary>
-        public const float HeadClear = 3.1f;
+        /// <summary>
+        /// How far under the ceiling a step may be before the stair needs its opening there. The player is 2.6 m tall with a half-metre-wide
+        /// capsule that climbs a step ahead of itself, so a step with less than about 3.4 m over it (and the slab is 0.2 m thick) blocks the head:
+        /// "my head is hitting the roof in this stairwell and it does not let me go up". The first version used 2.9 m of clearance and trapped people.
+        /// </summary>
+        public const float HeadClear = 3.9f;
+
+        /// <summary>Clearance a stair that stands over another stair's opening must leave above the one below.</summary>
+        public const float StackClear = 3.7f;
 
         /// <summary>How deep a step is underneath: it is a stringer, not a solid pile, so a stair can sit above another's opening.</summary>
         public const float Soffit = 0.55f;
@@ -549,7 +556,7 @@ namespace CityX.World
                     for (int j = 0; j < prev.Treads.Length; j++)
                     {
                         if (Overlap(plan.Treads[i], prev.Treads[j])
-                            && prev.Rise + plan.Tops[i] - Soffit - prev.Tops[j] < HeadClear - 0.2f)
+                            && prev.Rise + plan.Tops[i] - Soffit - prev.Tops[j] < StackClear)
                         {
                             return null;
                         }

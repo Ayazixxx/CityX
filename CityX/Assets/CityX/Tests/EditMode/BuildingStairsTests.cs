@@ -199,6 +199,85 @@ namespace CityX.Tests
             Assert.Greater(sealedCount, 100, "tall buildings exist");
         }
 
+        /// <summary>
+        /// THE PLAYER FITS: at every step, a body (2.6 m tall, a capsule half a metre wide) has headroom under the slab above, under the
+        /// stair of the next floor, and a little to spare for the step it is about to climb. "My head is hitting the roof in this stairwell
+        /// and it doesn.t let me go up."
+        /// </summary>
+        private static float WorstHeadroom(StairPlan p, StairPlan next, out string where)
+        {
+            const float radius = 0.5f;
+            float worst = float.MaxValue;
+            where = "";
+            for (int i = 0; i < p.Treads.Length; i++)
+            {
+                Rect body = Rect.MinMaxRect(p.Treads[i].center.x - radius, p.Treads[i].center.y - radius, p.Treads[i].center.x + radius, p.Treads[i].center.y + radius);
+                float stand = p.Tops[i];
+                for (int j = 0; j < p.Treads.Length; j++)
+                {
+                    if (Hits(body, p.Treads[j]))
+                    {
+                        stand = Mathf.Max(stand, p.Tops[j]);
+                    }
+                }
+                float ceiling = float.MaxValue;
+                bool insideHole = body.xMin >= p.Hole.xMin - 0.01f && body.xMax <= p.Hole.xMax + 0.01f && body.yMin >= p.Hole.yMin - 0.01f && body.yMax <= p.Hole.yMax + 0.01f;
+                if (!insideHole && stand < p.Rise - 1.0f)   // the last metre is the step up onto the floor itself
+                {
+                    ceiling = p.Rise - BuildingInterior.SlabThickness;
+                }
+                if (next != null)
+                {
+                    for (int j = 0; j < next.Treads.Length; j++)
+                    {
+                        if (Hits(body, next.Treads[j]))
+                        {
+                            ceiling = Mathf.Min(ceiling, p.Rise + Mathf.Max(0.0f, next.Tops[j] - BuildingStairs.Soffit));
+                        }
+                    }
+                }
+                float room = ceiling - stand;
+                if (room < worst)
+                {
+                    worst = room;
+                    where = $"{p.Kind} x{p.Flights} step {i} of {p.Treads.Length}, rise {p.Rise:0.0}, ceiling {ceiling:0.00}, standing {stand:0.00}";
+                }
+            }
+            return worst;
+        }
+
+        [Test]
+        public void ABodyAlwaysFitsOnEveryStairWithRoomForTheNextStep()
+        {
+            int checkedStairs = 0, tight = 0;
+            string first = "";
+            foreach (BuildingSite site in Buildings(3))
+            {
+                BuildingStairs.Layout layout = BuildingStairs.PlanFor(site);
+                for (int f = -1; f < layout.FloorCount; f++)
+                {
+                    StairPlan p = f < 0 ? layout.Basement : layout.Floors[f];
+                    if (p == null)
+                    {
+                        continue;
+                    }
+                    StairPlan next = f + 1 < layout.FloorCount ? layout.Floors[f + 1] : null;
+                    float room = WorstHeadroom(p, next, out string where);
+                    checkedStairs++;
+                    if (room < 3.0f)
+                    {
+                        tight++;
+                        if (first.Length == 0)
+                        {
+                            first = $"building {site.Id} floor {f} core {layout.Core}: {room:0.00} m at {where}";
+                        }
+                    }
+                }
+            }
+            Assert.Greater(checkedStairs, 3000);
+            Assert.AreEqual(0, tight, $"{tight} of {checkedStairs} stairs squeeze a body; first: {first}");
+        }
+
         [Test]
         public void ACoreIsTheSameShaftOnEveryFloor()
         {

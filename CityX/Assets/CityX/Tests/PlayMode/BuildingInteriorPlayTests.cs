@@ -180,6 +180,103 @@ namespace CityX.Tests
         }
 
         /// <summary>
+        /// EVERY KIND OF STAIR CARRIES THE BODY: one building of each kind (a stair core, wrap, straight, landing, L, switchback) and the real
+        /// controller walks its route from the cell you step on from to the floor above. "My head is hitting the roof in this stairwell and it
+        /// does not let me go up" was a stair the geometry tests called fine and a body could not climb.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator EveryKindOfStairCarriesABodyUpAStorey()
+        {
+            var world = new CityWorld(Seed);
+            var picked = new List<BuildingSite>();
+            var seen = new HashSet<string>();
+            foreach (BuildingSite site in TestSites.NearSpawn(world, 16))
+            {
+                if (site.Params.Width < 14.0f || site.Params.Depth < 14.0f || BuildingInterior.FloorCountFor(site.Params.Height) < 4)
+                {
+                    continue;
+                }
+                BuildingStairs.Layout layout = BuildingStairs.PlanFor(site);
+                StairPlan first = layout.Floors[0];
+                if (first != null && seen.Add(layout.Core ? "core" : first.Kind.ToString() + first.Flights))
+                {
+                    picked.Add(site);
+                }
+            }
+            Assert.GreaterOrEqual(picked.Count, 5, "need several kinds of stair to walk");
+
+            foreach (BuildingSite site in picked)
+            {
+                _site = site;
+                if (_chunks != null)
+                {
+                    foreach (MeshFilter filter in _chunks.GetComponentsInChildren<MeshFilter>())
+                    {
+                        Object.Destroy(filter.sharedMesh);
+                    }
+                    Object.Destroy(_chunks);
+                }
+                _chunks = new GameObject("Chunks");
+                BuildChunk(world, site.OwnerChunkX, site.OwnerChunkY);
+                yield return null;
+
+                BuildingStairs.Layout layout = BuildingStairs.PlanFor(site);
+                int floorsToWalk = layout.Core ? 3 : 1;
+                float startY = 0.0f;
+                float expected = 0.0f;
+                for (int f = 0; f < floorsToWalk; f++)
+                {
+                    StairPlan plan = layout.Floors[f];
+                    Vector2[] route = plan.Route();
+                    if (f == 0)
+                    {
+                        PlaceAt(InBuilding(route[0].x, site.BaseHeight + 0.3f, route[0].y));
+                        yield return Settle();
+                        startY = _player.transform.position.y;
+                    }
+                    expected += plan.Rise;
+                    int next = 1;
+                    for (int tick = 0; tick < 3000 && next < route.Length; tick++)
+                    {
+                        Vector3 here = _player.transform.position;
+                        Vector3 toward = InBuilding(route[next].x, here.y, route[next].y) - here;
+                        toward.y = 0.0f;
+                        if (toward.magnitude < 0.6f)
+                        {
+                            next++;
+                            continue;
+                        }
+                        var input = new LocomotionInput { Move = new Vector2(0.0f, 1.0f), YawDegrees = Mathf.Atan2(toward.x, toward.z) * Mathf.Rad2Deg };
+                        _locomotion.Tick(input, Step);
+                        yield return null;
+                    }
+                    if (f + 1 < floorsToWalk)
+                    {
+                        // In a core the next stair starts in the cell beside the one you stepped off onto.
+                        Vector2[] nextRoute = layout.Floors[f + 1].Route();
+                        for (int tick = 0; tick < 600; tick++)
+                        {
+                            Vector3 here = _player.transform.position;
+                            Vector3 toward = InBuilding(nextRoute[0].x, here.y, nextRoute[0].y) - here;
+                            toward.y = 0.0f;
+                            if (toward.magnitude < 0.4f)
+                            {
+                                break;
+                            }
+                            var input = new LocomotionInput { Move = new Vector2(0.0f, 1.0f), YawDegrees = Mathf.Atan2(toward.x, toward.z) * Mathf.Rad2Deg };
+                            _locomotion.Tick(input, Step);
+                            yield return null;
+                        }
+                    }
+                }
+
+                float climbed = _player.transform.position.y - startY;
+                string name = layout.Core ? "core" : layout.Floors[0].Kind + " x" + layout.Floors[0].Flights;
+                Assert.Greater(climbed, expected - 0.9f, $"building {site.Id} ({name}): walked the route and gained {climbed:0.00} m of {expected:0.0} -- a body does not fit or the steps catch it");
+            }
+        }
+
+        /// <summary>
         /// Puts the body somewhere, WITH THE CONTROLLER SWITCHED OFF AROUND IT.
         ///
         /// A CharacterController keeps its own copy of where it is and only

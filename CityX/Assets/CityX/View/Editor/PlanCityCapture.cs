@@ -31,6 +31,42 @@ namespace CityX.ViewEditor
         private static float _timeOfDay = SkyCycle.StartSeconds;
         private static string _prefix = "";
         private static bool _stairs;
+        private static bool _paint;
+
+        public static void CapturePaint()
+        {
+            _timeOfDay = SkyCycle.StartSeconds;
+            _prefix = "";
+            _paint = true;
+            CaptureShots();
+        }
+
+        /// <summary>Street-level shots at the mouth of a few streets, looking at where the zebra crossings are.</summary>
+        private static void ShootPaint(CityStreamer streamer, Camera camera, string directory, CityWorld world, Vector3 spawn)
+        {
+            int shots = 0;
+            foreach (RoadEdge edge in world.Plan.Data.Edges)
+            {
+                EdgeGeometry g = world.Plan.Geometry.Edges[edge.Id];
+                if (g == null || edge.Class != RoadClass.Street || g.TrimA < 1.0 || g.Length < 40.0)
+                {
+                    continue;
+                }
+                double ex = g.A.X + g.Dir.X * (g.TrimA + 9.0);
+                double ez = g.A.Y + g.Dir.Y * (g.TrimA + 9.0);
+                if (new Vector2((float)(ex - spawn.x), (float)(ez - spawn.z)).sqrMagnitude > 500.0f * 500.0f)
+                {
+                    continue;
+                }
+                float y = (float)world.Terrain.ContinuousHeightAt(ex, ez) + 1.9f;
+                var look = new Vector3((float)-g.Dir.X, -0.12f, (float)-g.Dir.Y);
+                Shoot(streamer, camera, directory, "paint-" + shots, new Vector3((float)ex, y, (float)ez), Quaternion.LookRotation(look, Vector3.up).eulerAngles, 3);
+                if (++shots >= 6)
+                {
+                    break;
+                }
+            }
+        }
 
         public static void CaptureStairs()
         {
@@ -179,6 +215,11 @@ namespace CityX.ViewEditor
                 if (_stairs)
                 {
                     ShootStairs(streamer, camera, directory, world, spawn);
+                    return;
+                }
+                if (_paint)
+                {
+                    ShootPaint(streamer, camera, directory, world, spawn);
                     return;
                 }
 

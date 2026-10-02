@@ -271,3 +271,17 @@ the codes (Blondel, the 3.66 m rule), Fallout's buildings and the kit; this is t
 Tests: `BuildingStairsTests` (angle, every floor has a stair, in the room with end cells, opening where the ceiling is close, floors line up,
 all kinds appear, core is one shaft, sealed tall buildings). `BuildingInteriorPlayTests.TheStairsCarryABodyUpAStorey` now walks the planned route
 (any kind) with the real controller. `PlanCityCapture.CaptureStairs` renders one interior shot per kind (Logs/CityShots/stair-*.png).
+
+### Fix 2026-10-02 (later): the head hits the ceiling in a stairwell
+
+Reported: "my head is hitting the roof in this stairwell and it doesn't let me go up. make sure there's always enough room that a player can fit."
+
+The first stair kit left 2.9 m between a step and the slab above. The player is 2.6 m tall with a half-metre capsule that steps up onto the next
+tread (0.25 m higher, half a metre ahead), so on a landing under the slab the head had nowhere to go: a walking test with the real controller
+stopped at 3.4 m of a 6.4 m climb. Now:
+- a step needs 3.4 m (plus the slab's 0.2 m) of clear height or it gets the opening: `BuildingStairs.HeadClear` is 3.9 m below the ceiling;
+- a stair that stands over another stair's opening (stringers hang 0.55 m under their treads) must leave `StackClear` 3.7 m above the one below,
+  checked with the body's footprint rather than the tread's;
+- `BuildingStairsTests.ABodyAlwaysFitsOnEveryStairWithRoomForTheNextStep` sweeps every stair in the city (a 0.5 m radius body on every step, with the
+  highest neighbouring step under it, under the slab and the next floor's stair) and `BuildingInteriorPlayTests.EveryKindOfStairCarriesABodyUpAStorey`
+  walks the real controller up one building of each kind (and three floors of a core). With the old numbers the second one fails; with these both pass.

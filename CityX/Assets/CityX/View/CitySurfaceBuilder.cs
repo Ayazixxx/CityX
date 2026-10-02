@@ -25,8 +25,8 @@ namespace CityX.View
         /// <summary>How far the pavement stands above the road: the kerb height.</summary>
         public const float KerbHeight = 0.16f;
 
-        /// <summary>Lane paint floats this far above the road.</summary>
-        public const float PaintLift = 0.03f;
+        /// <summary>Lane paint floats this far above the road; the paint shader (CityX/Paint) biases its depth so that is enough.</summary>
+        public const float PaintLift = 0.01f;
 
         /// <summary>Terrain is sampled on this grid, metres (coarser for distant chunks).</summary>
         public const float TerrainStep = 4.0f;
