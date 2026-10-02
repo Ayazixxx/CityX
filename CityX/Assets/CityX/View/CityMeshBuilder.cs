@@ -115,6 +115,12 @@ namespace CityX.View
                 AddBalconies(world, site, builderOrigin, structures, looks);
                 AddRibs(world, site, builderOrigin, structures, looks);
             }
+            {
+                // The skyline lights, on near and far alike: they are what the building is from a long way off.
+                float rx0 = (float)(site.MinX - builderOrigin.x), rx1 = (float)(site.MaxX - builderOrigin.x);
+                float rz0 = (float)(site.MinZ - builderOrigin.z), rz1 = (float)(site.MaxZ - builderOrigin.z);
+                AddSkylineLights(site, litGlass, rx0, rx1, rz0, rz1, site.BaseHeight, site.BaseHeight + site.Params.Height);
+            }
             structures.Look = SurfaceLook.Default;
             structures.UvOffset = Vector2.zero;
             if (litGlass != null)
@@ -1483,6 +1489,84 @@ namespace CityX.View
             AddFace(buffer, outward, edgeTop0, edgeTop1, flapBottom1, flapBottom0);
         }
 
+        private const ulong SkylineStream = 0x534B594CUL;   // "SKYL"
+
+        /// <summary>
+        /// What makes a night skyline a skyline and not a field of lit windows: a band of light round the crown of some tall towers, and now
+        /// and then a big lit panel up the side of one downtown. Both are lit glass, so they come on at dusk like the windows (and are dark
+        /// glass by day). Few on purpose: about four in ten tall towers have a crown, about one in seven downtown towers a panel.
+        /// </summary>
+        private static void AddSkylineLights(BuildingSite site, MeshBuffer lit, float x0, float x1, float z0, float z1, float lobbyY, float roofY)
+        {
+            if (lit == null || site.Params.Height < 70.0f)
+            {
+                return;
+            }
+            DeterministicRandom rng = SkylineLightsOf(site, out bool crown, out bool panel);
+            if (!crown && !panel)
+            {
+                return;
+            }
+
+            // Cool and blue are the colours of a city's towers; amber and warm white are rarer.
+            int[] colours = { 2, 2, 3, 3, 7, 0, 4 };
+            Color32 saved = lit.Look;
+            var west = new Wall(true, x0, z0, z1);
+            var east = new Wall(true, x1, z0, z1);
+            var south = new Wall(false, z0, x0, x1);
+            var north = new Wall(false, z1, x0, x1);
+
+            if (crown)
+            {
+                lit.Look = SurfaceLook.PackGlass(0, colours[rng.Below(colours.Length)], 0.0f);
+                float top = roofY - 2.2f;
+                float bottom = top - 1.7f;
+                AddLitStrip(lit, west, z0, z1, bottom, top, Vector3.left);
+                AddLitStrip(lit, east, z0, z1, bottom, top, Vector3.right);
+                AddLitStrip(lit, south, x0, x1, bottom, top, Vector3.back);
+                AddLitStrip(lit, north, x0, x1, bottom, top, Vector3.forward);
+            }
+
+            if (panel)
+            {
+                lit.Look = SurfaceLook.PackGlass(0, colours[rng.Below(colours.Length)], 0.0f);
+                bool onFront = rng.NextDouble() < 0.5;
+                Wall wall = onFront ? north : (rng.NextDouble() < 0.5 ? west : east);
+                Vector3 normal = onFront ? Vector3.forward : (wall.Plane < 0.0f ? Vector3.left : Vector3.right);
+                float span = onFront ? x1 - x0 : z1 - z0;
+                float width = Mathf.Min(span * 0.6f, 9.0f);
+                float height = Mathf.Min(site.Params.Height * 0.22f, 15.0f);
+                float centre = Mathf.Lerp((onFront ? x0 : z0) + width * 0.5f + 1.0f, (onFront ? x1 : z1) - width * 0.5f - 1.0f, (float)rng.NextDouble());
+                float bottom = lobbyY + site.Params.Height * 0.35f + (float)rng.NextDouble() * site.Params.Height * 0.2f;
+                AddLitStrip(lit, wall, centre - width * 0.5f, centre + width * 0.5f, bottom, bottom + height, normal);
+            }
+            lit.Look = saved;
+        }
+
+        /// <summary>Whether a building has a lit crown and/or a lit panel (decided here, and so testable); returns the random stream to carry on with.</summary>
+        public static DeterministicRandom SkylineLightsOf(BuildingSite site, out bool crown, out bool panel)
+        {
+            var rng = new DeterministicRandom(unchecked((ulong)(uint)site.Seed), SkylineStream);
+            bool tall = site.Params.Mass == BuildingMass.Tower || site.Params.Mass == BuildingMass.Supertall || site.Params.Height >= 110.0f;
+            crown = site.Params.Height >= 70.0f && tall && rng.NextDouble() < 0.40;
+            panel = site.Params.Height >= 70.0f && (site.Zone == ZoneKind.Core || site.Zone == ZoneKind.Urban) && rng.NextDouble() < 0.14;
+            return rng;
+        }
+
+        /// <summary>A flat lit quad a hand's width proud of a wall, between two heights and two positions along it.</summary>
+        private static void AddLitStrip(MeshBuffer lit, in Wall wall, float u0, float u1, float y0, float y1, Vector3 outward)
+        {
+            if (u1 - u0 < 0.5f || y1 - y0 < 0.5f)
+            {
+                return;
+            }
+            Vector3 lift = outward * 0.14f;
+            float w = u1 - u0;
+            float h = y1 - y0;
+            lit.AddQuad(wall.At(u0, y0) + lift, wall.At(u1, y0) + lift, wall.At(u1, y1) + lift, wall.At(u0, y1) + lift, outward,
+                new Vector2(0, 0), new Vector2(w, 0), new Vector2(w, h), new Vector2(0, h));
+        }
+
         private const ulong BladeStream = 0x424C4144UL;   // "BLAD"
 
         /// <summary>
@@ -1586,7 +1670,9 @@ namespace CityX.View
                 {
                     bool intact = glazing.Damage == null || glazing.Damage.StateOf(new PaneKey(site.Id, which, column, row)) == PaneState.Intact;
                     AddWindowFrame(wallBuffer, Inward(wall, normal, BuildingInterior.GlassSetBack), u0, u1, y0, y1, normal, looks.Value, intact);
-                    if (looks.Value.AcDensity > 0.0f && row > 0 && !(plan.Storefront && which == WindowGrid.Wall.North && row == 1)
+                    // Never on the first two rows: an air conditioner hangs a metre under its window, and that is a tall body's head height
+                    // when the window is low in its row.
+                    if (looks.Value.AcDensity > 0.0f && row > 1
                         && AirConditionerAt(site, which, column, row) < looks.Value.AcDensity)
                     {
                         AddAirConditioner(wallBuffer, wall, u0, u1, y0, normal, looks.Value);
