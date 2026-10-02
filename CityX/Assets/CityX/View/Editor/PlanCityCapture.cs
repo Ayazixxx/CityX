@@ -30,6 +30,70 @@ namespace CityX.ViewEditor
         // and the streets under lamplight their own picture.
         private static float _timeOfDay = SkyCycle.StartSeconds;
         private static string _prefix = "";
+        private static bool _stairs;
+
+        public static void CaptureStairs()
+        {
+            _timeOfDay = SkyCycle.StartSeconds;
+            _prefix = "";
+            _stairs = true;
+            CaptureShots();
+        }
+
+        /// <summary>One interior shot per kind of stair, standing in the cell you step on from and looking at the stair.</summary>
+        private static void ShootStairs(CityStreamer streamer, Camera camera, string directory, CityWorld world, Vector3 spawn)
+        {
+            var seen = new System.Collections.Generic.HashSet<string>();
+            foreach (BuildingSite site in TestSitesNear(world, spawn, 700.0f))
+            {
+                if (site.Params.Width < 14.0f || site.Params.Depth < 14.0f || BuildingInterior.FloorCountFor(site.Params.Height) < 3)
+                {
+                    continue;
+                }
+                BuildingStairs.Layout layout = BuildingStairs.PlanFor(site);
+                for (int f = 0; f < 2; f++)
+                {
+                    StairPlan plan = layout.Floors[f];
+                    if (plan == null)
+                    {
+                        continue;
+                    }
+                    string key = (layout.Core ? "core" : plan.Kind.ToString().ToLower() + plan.Flights);
+                    if (!seen.Add(key))
+                    {
+                        continue;
+                    }
+                    Vector2 entry = plan.Entry.center;
+                    Vector2 middle = plan.Bounds.center;
+                    Vector2 away = (entry - middle).normalized;
+                    Vector2 eyeLocal = entry + away * 1.0f;
+                    site.LocalToWorld(eyeLocal.x, eyeLocal.y, out double ex, out double ez);
+                    site.LocalToWorld(middle.x, middle.y, out double mx, out double mz);
+                    float floorY = site.BaseHeight + f * BuildingInterior.StoreyHeight(site.Params.Height);
+                    var eye = new Vector3((float)ex, floorY + 2.3f, (float)ez);
+                    var target = new Vector3((float)mx, floorY + plan.Rise * 0.4f, (float)mz);
+                    Debug.Log($"CityX: stair shot {key}: building {site.Id} floor {f}, {plan.Kind} x{plan.Flights}, {plan.AngleDegrees:0.0} deg, rise {plan.Rise:0.0}");
+                    Shoot(streamer, camera, directory, "stair-" + key + "-f" + f, eye, Quaternion.LookRotation(target - eye, Vector3.up).eulerAngles, 3);
+                    break;
+                }
+                if (seen.Count >= 7)
+                {
+                    break;
+                }
+            }
+        }
+
+        private static System.Collections.Generic.IEnumerable<BuildingSite> TestSitesNear(CityWorld world, Vector3 around, float radius)
+        {
+            for (int id = 0; id < world.BuildingCount; id++)
+            {
+                BuildingSite s = world.Building(id);
+                if (s.Params.HasBuilding && (new Vector3((float)s.CentreX, 0, (float)s.CentreZ) - new Vector3(around.x, 0, around.z)).sqrMagnitude < radius * radius)
+                {
+                    yield return s;
+                }
+            }
+        }
 
         [MenuItem("CityX/Capture Plan City")]
         public static void Capture()
@@ -111,6 +175,12 @@ namespace CityX.ViewEditor
                 float sy = (float)world.Terrain.ContinuousHeightAt(sx, sz);
                 var spawn = new Vector3((float)sx, sy, (float)sz);
                 Debug.Log($"CityX: plan city seed {WorldSeed}: {world.BuildingCount} buildings, spawn at {spawn}");
+
+                if (_stairs)
+                {
+                    ShootStairs(streamer, camera, directory, world, spawn);
+                    return;
+                }
 
                 // Aerial, from a little way off, looking over the downtown.
                 Vector3 aerialEye = spawn + new Vector3(-260.0f, 300.0f, -380.0f);

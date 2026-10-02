@@ -141,24 +141,35 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator TheStairsCarryABodyUpAStorey()
         {
-            float run = BuildingInterior.RunFor(
-                _site.Params.Width * 0.5f, _site.Params.Depth * 0.5f);
-            BuildingInterior.Stairwell well = BuildingInterior.StairwellFor(
-                0, _site.Params.Width * 0.5f, _site.Params.Depth * 0.5f, run);
+            StairPlan plan = BuildingStairs.PlanFor(_site).Floors[0];
+            Assert.IsNotNull(plan, "the lobby has a stair");
+            Vector2[] route = plan.Route();
 
-            // At the foot, out in the room, which is the end a person walks up
-            // to. The flight climbs from here towards its wall.
-            Vector3 foot = well.FootOf(run);
-            PlaceAt(InBuilding(foot.x, _site.BaseHeight + 0.3f, foot.z));
+            // Start in the cell you step on from.
+            PlaceAt(InBuilding(route[0].x, _site.BaseHeight + 0.3f, route[0].y));
             yield return Settle();
 
-            // The flight's run direction is in the building's frame; turn it into the world.
-            Vector3 runWorld = new Vector3(
-                (float)(-well.RunDirection.x * _site.AxisX + well.RunDirection.z * _site.AxisZ), 0.0f,
-                (float)(-well.RunDirection.x * _site.AxisZ - well.RunDirection.z * _site.AxisX));
-
             float startY = _player.transform.position.y;
-            yield return Drive(runWorld, 480);
+            int next = 1;
+            for (int tick = 0; tick < 2400 && next < route.Length; tick++)
+            {
+                Vector3 here = _player.transform.position;
+                Vector3 target = InBuilding(route[next].x, here.y, route[next].y);
+                Vector3 toward = target - here;
+                toward.y = 0.0f;
+                if (toward.magnitude < 0.6f)
+                {
+                    next++;
+                    continue;
+                }
+                var input = new LocomotionInput
+                {
+                    Move = new Vector2(0.0f, 1.0f),
+                    YawDegrees = Mathf.Atan2(toward.x, toward.z) * Mathf.Rad2Deg,
+                };
+                _locomotion.Tick(input, Step);
+                yield return null;
+            }
 
             float climbed = _player.transform.position.y - startY;
             Assert.Greater(climbed, _storey - 0.4f,

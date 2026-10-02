@@ -242,3 +242,32 @@ Fallout buildings: [Mass Fusion](https://fallout.wiki/wiki/Mass_Fusion_Building)
 
 Not read in full (the fetch returned binary or was blocked): the Chalmers thesis on indoor generation, the Diva "hierarchical procedural decoration" thesis, and the Marson & Musse paper itself
 (its abstract and summary were read). Treat their specifics as unverified. The proposed stair dimensions in section 2 are my own derivation from the cited rules.
+
+---
+
+## Implemented 2026-10-02: the stair kit (`World/BuildingStairs.cs`)
+
+Asked: "there are still very steep staircases at the top floors of some buildings ... research stairwells, switchback stairs, staircases with
+landings, L shaped stairs ... make a wide variety of them appear and eliminate the super steep ones." The research above (section 2) already covered
+the codes (Blondel, the 3.66 m rule), Fallout's buildings and the kit; this is the build.
+
+- **No steep stairs, by construction.** The tread is fixed (0.36 m, a 1.3x-real tread for a 2.6 m player) and the risers are derived from the
+  climb (at most 0.235 m), so every flight is under 34 degrees (measured on 11,200 stairs: steepest 33.1; before: median 47, top floor median 61).
+  A flight that does not fit the room is folded or another kind is tried; it is never made steeper.
+- **Kinds:** straight, straight with a landing, L (quarter turn), switchback (2, 3 or 4 flights: U, Z, double-U), and a wrap round an open well.
+  Each is built in its own frame and tried in the 8 orientations at the corners, mid-walls (and the centre for a wrap), starting from a point that
+  varies per building.
+- **Stair cores.** Tall and downtown buildings (65% of towers/slabs, 35% downtown, 8% others) get a walled-in U with a doorway, the same shaft on
+  every floor, down to the basement. Everyone else's stair changes kind and place every few floors.
+- **Headroom and openings.** A step within 3.1 m of the ceiling needs the opening above it; the opening is the bounding box of exactly those
+  steps (a straight stair opens only over its upper half). Steps are stringers (the box hangs 0.55 m under its tread, so the underside is a stepped
+  soffit) which lets the next floor's flight stand over the opening below. Entry and exit cells (1.2 m) are kept free at both ends.
+- **The top floor no longer swallows the height.** `MaxFloors` is 10; a building that hit the cap and is a whole storey taller is sealed above
+  its last fitted-out ceiling (no roof stair; you have the jetpack). Under the cap the top floor swallows less than a storey, as before.
+- **Basement** uses the same planner (the old one was as steep as the top floor), and the carved corner room dodges the stairs
+  (`BuildingStairs.RoomFor`).
+- Not done: railings, stair doors with a latch that opens, spiral/helical stairs, the roof bulkhead, ladders for plant rooms, collapsed flights.
+
+Tests: `BuildingStairsTests` (angle, every floor has a stair, in the room with end cells, opening where the ceiling is close, floors line up,
+all kinds appear, core is one shaft, sealed tall buildings). `BuildingInteriorPlayTests.TheStairsCarryABodyUpAStorey` now walks the planned route
+(any kind) with the real controller. `PlanCityCapture.CaptureStairs` renders one interior shot per kind (Logs/CityShots/stair-*.png).

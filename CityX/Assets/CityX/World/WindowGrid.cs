@@ -360,6 +360,10 @@ namespace CityX.World
             float storeyHeight = BuildingInterior.StoreyHeight(buildingHeight);
             int floorCount = BuildingInterior.FloorCountFor(buildingHeight);
             float rowTop = (row + 1) * rowSize;
+            if (Mathf.Abs(rowTop - buildingHeight) < 0.01f)
+            {
+                return true;   // the roof slab, even over a sealed upper void
+            }
             for (int floor = 0; floor < floorCount; floor++)
             {
                 float floorTop = BuildingInterior.FloorTop(floor, floorCount, buildingHeight, storeyHeight);

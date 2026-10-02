@@ -152,20 +152,6 @@ namespace CityX.View
         }
 
         /// <summary>
-        /// One floor's stairwell. The top floor's flight comes out on the roof; where another volume of the building stands on that roof it
-        /// must not come out under it.
-        /// </summary>
-        private static BuildingInterior.Stairwell WellFor(BuildingSite site, int floor, int floors, float halfX, float halfZ, float run)
-        {
-            if (floor == floors - 1 && site.HasRoofObstacle)
-            {
-                return BuildingInterior.StairwellFor(floor, halfX, halfZ, run, Rect.MinMaxRect(
-                    site.ObstacleX0 - 0.4f, site.ObstacleZ0 - 0.4f, site.ObstacleX1 + 0.4f, site.ObstacleZ1 + 0.4f));
-            }
-            return BuildingInterior.StairwellFor(floor, halfX, halfZ, run);
-        }
-
-        /// <summary>
         /// The packed vertex looks (see SurfaceLook) a building's parts are stamped with: its walls, its ground floor and podium, its roof,
         /// and its trim. Computed once per building from BuildingLook.
         /// </summary>
@@ -324,7 +310,6 @@ namespace CityX.View
             int floors = BuildingInterior.FloorCountFor(height);
             float halfX = site.Params.Width * 0.5f;
             float halfZ = site.Params.Depth * 0.5f;
-            float run = BuildingInterior.RunFor(halfX, halfZ);
             float centreX = (x0 + x1) * 0.5f;
             float centreZ = (z0 + z1) * 0.5f;
             float roofY = lobbyY + height;
@@ -403,40 +388,38 @@ namespace CityX.View
             // ground is cut away under the footprint (see BuildGround) so this
             // is the only thing holding anybody up. Solid, unless there is a
             // basement, in which case it is opened for the flight down.
-            BuildingInterior.Stairwell basement = BuildingInterior.StairwellFor(
-                BuildingInterior.BasementStairCorner, halfX, halfZ, run);
-            Rect basementHole = site.Params.HasBasement
-                ? new Rect(basement.Hole.x + centreX, basement.Hole.y + centreZ,
-                    basement.Hole.width, basement.Hole.height)
-                : Rect.zero;
+            // The stairs of every floor (BuildingStairs): the kind, the place and the opening each one needs.
+            BuildingStairs.Layout stairs = BuildingStairs.PlanFor(site);
+            Rect basementHole = stairs.Basement != null ? Shift(stairs.Basement.Hole, centreX, centreZ) : Rect.zero;
             AddSlabFace(concrete, x0, x1, z0, z1, basementHole, lobbyY, Vector3.up);
 
-            if (site.Params.HasBasement)
+            if (site.Params.HasBasement && stairs.Basement != null)
             {
-                BuildBasement(site, concrete, x0, x1, z0, z1, lobbyY, storey,
-                    centreX, centreZ, basement, basementHole, run);
+                BuildBasement(concrete, x0, x1, z0, z1, lobbyY, storey, centreX, centreZ, stairs.Basement, basementHole,
+                    doorTop - lobbyY);
             }
 
             for (int floor = 0; floor < floors; floor++)
             {
                 float bottom = floor * storey;
                 float top = BuildingInterior.FloorTop(floor, floors, height, storey);
-                BuildingInterior.Stairwell well = WellFor(site, floor, floors, halfX, halfZ, run);
-                Rect hole = new Rect(well.Hole.x + centreX, well.Hole.y + centreZ,
-                    well.Hole.width, well.Hole.height);
+                StairPlan flight = stairs.Floors[floor];
+                Rect hole = flight != null ? Shift(flight.Hole, centreX, centreZ) : Rect.zero;
 
                 // This floor's ceiling. The last one is the roof itself, holed
                 // exactly like the rest -- that opening is how the top flight
                 // gets you outside. The roof's top face is made of roofing, in the
                 // wall buffer so it draws with the facade material (no extra draw).
-                bool isRoof = floor == floors - 1;
+                // A sealed tall building has an ordinary ceiling here and its roof further up.
+                bool isRoof = floor == floors - 1 && !stairs.SealedTop;
                 if (isRoof)
                 {
                     structures.Look = looks.Roof;
                 }
                 AddSlab(concrete, x0, x1, z0, z1, hole, lobbyY + top, isRoof ? structures : null);
 
-                AddRoomPartition(concrete, BuildingInterior.RoomFor(floor, halfX, halfZ),
+                StairPlan arriving = floor > 0 ? stairs.Floors[floor - 1] : stairs.Basement;
+                AddRoomPartition(concrete, BuildingStairs.RoomFor(floor, halfX, halfZ, flight, arriving),
                     centreX, centreZ, lobbyY + bottom, lobbyY + top, doorTop - lobbyY);
 
                 if (isRoof)
@@ -445,14 +428,81 @@ namespace CityX.View
                     structures.Look = SurfaceLook.Default;
                 }
 
-                foreach (BuildingInterior.Step step in
-                         BuildingInterior.Steps(well, run, lobbyY + bottom, top - bottom))
+                if (flight != null)
                 {
-                    Vector3 half = step.Size * 0.5f;
-                    Vector3 centre = new Vector3(
-                        step.Centre.x + centreX, step.Centre.y, step.Centre.z + centreZ);
-                    concrete.AddBox(centre - half, centre + half);
+                    AddStairs(concrete, flight, lobbyY + bottom, lobbyY + top - BuildingInterior.SlabThickness, centreX, centreZ,
+                        doorTop - lobbyY);
                 }
+            }
+
+            if (stairs.SealedTop)
+            {
+                // The roof of a tall building, over the sealed space above its last fitted-out floor.
+                structures.Look = looks.Roof;
+                AddSlab(concrete, x0, x1, z0, z1, Rect.zero, roofY, structures);
+                AddRoof(structures, site, x0, x1, z0, z1, roofY, looks, Rect.zero);
+                structures.Look = SurfaceLook.Default;
+            }
+        }
+
+        private static Rect Shift(Rect r, float x, float z) => new Rect(r.x + x, r.y + z, r.width, r.height);
+
+        /// <summary>
+        /// One floor's stair: the steps and landings as stringers (each box hangs <see cref="BuildingStairs.Soffit"/> below its tread, so a
+        /// flight is a sloped slab with a stepped underside and another stair can stand over its opening), and for a stair core, the four
+        /// walls round it with a doorway.
+        /// </summary>
+        private static void AddStairs(MeshBuffer concrete, StairPlan plan, float floorY, float ceilingBottomY, float cx, float cz, float doorHeight)
+        {
+            for (int i = 0; i < plan.Treads.Length; i++)
+            {
+                Rect r = plan.Treads[i];
+                float topY = floorY + plan.Tops[i];
+                float bottomY = floorY + Mathf.Max(0.0f, plan.Tops[i] - BuildingStairs.Soffit);
+                concrete.AddBox(new Vector3(r.xMin + cx, bottomY, r.yMin + cz), new Vector3(r.xMax + cx, topY, r.yMax + cz));
+            }
+
+            if (!plan.Enclosed)
+            {
+                return;
+            }
+
+            // The shaft: walls just outside the stair's own bounds, a doorway in the side the entry cell is on.
+            float t = BuildingStairs.CoreWall;
+            Rect b = plan.Bounds;
+            float xa = b.xMin + cx, xb = b.xMax + cx, za = b.yMin + cz, zb = b.yMax + cz;
+            AddShaftWall(concrete, plan.DoorSide == 0, true, xa - t, xa, za - t, zb + t, floorY, ceilingBottomY, doorHeight);
+            AddShaftWall(concrete, plan.DoorSide == 1, true, xb, xb + t, za - t, zb + t, floorY, ceilingBottomY, doorHeight);
+            AddShaftWall(concrete, plan.DoorSide == 2, false, xa, xb, za - t, za, floorY, ceilingBottomY, doorHeight);
+            AddShaftWall(concrete, plan.DoorSide == 3, false, xa, xb, zb, zb + t, floorY, ceilingBottomY, doorHeight);
+        }
+
+        /// <summary>One wall of a stair shaft, with a doorway cut in the middle when <paramref name="door"/> is set.</summary>
+        private static void AddShaftWall(MeshBuffer concrete, bool door, bool alongZ, float x0, float x1, float z0, float z1,
+            float floorY, float ceilingY, float doorHeight)
+        {
+            if (!door)
+            {
+                concrete.AddBox(new Vector3(x0, floorY, z0), new Vector3(x1, ceilingY, z1));
+                return;
+            }
+            float a0 = alongZ ? z0 : x0;
+            float a1 = alongZ ? z1 : x1;
+            float mid = (a0 + a1) * 0.5f;
+            float g0 = mid - BuildingStairs.CoreDoor * 0.5f;
+            float g1 = mid + BuildingStairs.CoreDoor * 0.5f;
+            float lintel = Mathf.Min(floorY + doorHeight, ceilingY - 0.3f);
+            if (alongZ)
+            {
+                concrete.AddBox(new Vector3(x0, floorY, z0), new Vector3(x1, ceilingY, g0));
+                concrete.AddBox(new Vector3(x0, floorY, g1), new Vector3(x1, ceilingY, z1));
+                concrete.AddBox(new Vector3(x0, lintel, g0), new Vector3(x1, ceilingY, g1));
+            }
+            else
+            {
+                concrete.AddBox(new Vector3(x0, floorY, z0), new Vector3(g0, ceilingY, z1));
+                concrete.AddBox(new Vector3(g1, floorY, z0), new Vector3(x1, ceilingY, z1));
+                concrete.AddBox(new Vector3(g0, lintel, z0), new Vector3(g1, ceilingY, z1));
             }
         }
 
@@ -516,9 +566,8 @@ namespace CityX.View
                 float shellHalfX = site.Params.Width * 0.5f;
                 float shellHalfZ = site.Params.Depth * 0.5f;
                 int shellFloors = BuildingInterior.FloorCountFor(height);
-                BuildingInterior.Stairwell topWell = WellFor(site, shellFloors - 1, shellFloors, shellHalfX, shellHalfZ,
-                    BuildingInterior.RunFor(shellHalfX, shellHalfZ));
-                var hatch = new Rect(topWell.Hole.x + shellCentreX, topWell.Hole.y + shellCentreZ, topWell.Hole.width, topWell.Hole.height);
+                StairPlan topStair = BuildingStairs.PlanFor(site).Floors[shellFloors - 1];
+                Rect hatch = topStair != null ? Shift(topStair.Hole, shellCentreX, shellCentreZ) : Rect.zero;
                 AddRoof(structures, site, x0, x1, z0, z1, roofY, looks, hatch);
             }
             structures.Look = SurfaceLook.Default;
@@ -1064,9 +1113,9 @@ namespace CityX.View
         /// below it to meet, so there is nothing for a rotation to line up
         /// with.
         /// </summary>
-        private static void BuildBasement(BuildingSite site, MeshBuffer concrete,
+        private static void BuildBasement(MeshBuffer concrete,
             float x0, float x1, float z0, float z1, float lobbyY, float storey,
-            float centreX, float centreZ, BuildingInterior.Stairwell well, Rect hole, float run)
+            float centreX, float centreZ, StairPlan plan, Rect hole, float doorHeight)
         {
             float floorY = lobbyY - storey;
 
@@ -1088,14 +1137,7 @@ namespace CityX.View
             AddHoleCollar(concrete, hole, lobbyY - BuildingInterior.SlabThickness, lobbyY);
 
             // The same flight the player walks DOWN to get here.
-            foreach (BuildingInterior.Step step in
-                     BuildingInterior.Steps(well, run, floorY, storey))
-            {
-                Vector3 half = step.Size * 0.5f;
-                Vector3 centre = new Vector3(
-                    step.Centre.x + centreX, step.Centre.y, step.Centre.z + centreZ);
-                concrete.AddBox(centre - half, centre + half);
-            }
+            AddStairs(concrete, plan, floorY, lobbyY - BuildingInterior.SlabThickness, centreX, centreZ, doorHeight);
         }
 
         /// <summary>

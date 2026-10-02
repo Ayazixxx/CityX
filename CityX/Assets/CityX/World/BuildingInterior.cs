@@ -21,7 +21,7 @@ namespace CityX.World
         /// tall enough single flight stops being climbable at any sane
         /// floor angle.
         /// </summary>
-        public const int MaxFloors = 7;
+        public const int MaxFloors = 10;
 
         public const float StairWidth = 1.8f;
 
@@ -139,9 +139,22 @@ namespace CityX.World
         public static float FloorTop(int floorIndex, int floorCount, float buildingHeight,
             float storeyHeight)
         {
-            return floorIndex >= floorCount - 1
-                ? buildingHeight
-                : (floorIndex + 1) * storeyHeight;
+            if (floorIndex >= floorCount - 1)
+            {
+                // Under the cap the top floor swallows the leftover (under one storey), as before. A tall building that hit the cap is
+                // fitted out only as far as the cap and sealed above: a stair cannot climb two hundred metres at a walkable slope.
+                return IsSealedTop(buildingHeight, storeyHeight, floorCount) ? floorCount * storeyHeight : buildingHeight;
+            }
+            return (floorIndex + 1) * storeyHeight;
+        }
+
+        /// <summary>
+        /// True where the building is taller than its fitted-out floors by a whole storey or more: the top floor then ends at its own ceiling,
+        /// the space above is a sealed void, and the roof has no stair.
+        /// </summary>
+        public static bool IsSealedTop(float buildingHeight, float storeyHeight, int floorCount)
+        {
+            return floorCount >= MaxFloors && buildingHeight - floorCount * storeyHeight >= storeyHeight - 0.01f;
         }
 
         /// <summary>
@@ -358,14 +371,19 @@ namespace CityX.World
                 return default;
             }
 
-            // CAPPED AT HALF THE FOOTPRINT, less a margin. That is what makes
-            // the room's clearance of the stairwell structural rather than
-            // lucky: it cannot cross the building's own centre line, so it can
-            // never reach a flight hugging the opposite corner either.
+            // Capped at half the footprint (see RoomIn), so it can never reach the far corner.
+            return RoomIn(RoomCornerFor(floorIndex) == 0, halfX, halfZ);
+        }
+
+        /// <summary>The carved room in the back-left (<paramref name="left"/>) or back-right corner.</summary>
+        public static Room RoomIn(bool left, float halfX, float halfZ)
+        {
+            if (halfX < MinRoomSize + 0.5f || halfZ < MinRoomSize + 0.5f)
+            {
+                return default;
+            }
             float width = Mathf.Clamp(2.0f * halfX * RoomWidthFraction, MinRoomSize, halfX - 0.5f);
             float depth = Mathf.Clamp(2.0f * halfZ * RoomDepthFraction, MinRoomSize, halfZ - 0.5f);
-
-            bool left = RoomCornerFor(floorIndex) == 0;
             float x0 = left ? -halfX : halfX - width;
             float x1 = left ? -halfX + width : halfX;
             float z0 = -halfZ;
