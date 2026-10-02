@@ -194,8 +194,11 @@ ground row, an awning's lowest edge is above 2.7 m, the bars across a broken win
 **Still to do:** skybridges between towers (the old Chongqing walkway look), the special buildings as landmarks, graffiti/posters/stains as decals, wet-road reflections (needs
 screen-space reflections or probes), street lamps (only if you want them back), tree-less public squares, and the mini-dungeon interiors.
 
-### Fix 2026-10-02: road paint lies on the road
+### Road paint height (2026-10-02)
 
-Reported: the right foot sinks into the zebra crossing ("the street decals should not be on a higher level than the street"). Paint floated 3 cm over
-the road so it would not z-fight, and a body on it sank 3 cm. It is now 1 cm up and drawn with `CityX/Paint` (URP Unlit plus a depth offset, also in the
-depth passes; units grow with distance like z-fighting does, so up close, at the feet, it is a fraction of a millimetre). RoadLine and Crosswalk use it.
+Reported: the right foot sinks into the zebra crossing. A first fix (1 cm lift plus a depth-biased `CityX/Paint` shader) made the paint draw OVER characters and
+buildings (the bias scaled with slope and distance), so it was reverted. Paint is back on the plain Unlit material, lifted 2 cm (was 3 cm).
+
+Measured (`RoadPaintTests`): where road ribbons and junction plates overlap, 6-9% of paint sample points sit under a neighbouring road triangle whatever the
+lift (1 cm: 9%, 3 cm: 6%), so a lower lift buries more paint. The proper fix is to make paint part of the road: either carve it out of the road triangles, or
+rasterize each chunk's paint into a small mask the road shader reads (needs a per-chunk texture, so it costs batching; not done).

@@ -1443,13 +1443,6 @@ namespace CityX.ViewEditor
                 AssetDatabase.CreateAsset(material, path);
             }
 
-            // Road paint has its own shader: Unlit with a depth bias, so it can lie on the road instead of floating above it.
-            Shader paint = Shader.Find("CityX/Paint");
-            if (paint != null && (name == "RoadLine" || name == "Crosswalk"))
-            {
-                material.shader = paint;
-            }
-
             material.SetColor("_BaseColor", colour);
             material.color = colour;
             EditorUtility.SetDirty(material);
