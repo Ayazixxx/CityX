@@ -1,0 +1,382 @@
+using System.IO;
+using CityX.View;
+using CityX.World;
+using CityX.World.Plan;
+using UnityEditor;
+using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
+
+namespace CityX.ViewEditor
+{
+    /// <summary>
+    /// Renders the plan city (World/Plan) to PNGs without opening the editor UI -- aerial, street level, a building's front, a bridge.
+    /// Needs a real graphics device, so it must run WITHOUT -nographics.
+    ///
+    ///   Unity.exe -batchmode -quit -projectPath &lt;proj&gt; -executeMethod CityX.ViewEditor.PlanCityCapture.Capture
+    ///
+    /// Shots go to Logs/CityShots/plan-*.png. The rig builds its own sun, sky and camera from the same assets the real scene loads, so
+    /// the pictures are of the real game's look.
+    /// </summary>
+    public static class PlanCityCapture
+    {
+        private const int Width = 1280;
+        private const int Height = 720;
+
+        // Must match CityMassingSceneBuilder.WorldSeed.
+        private const int WorldSeed = 61472093;
+
+        [MenuItem("CityX/Capture Plan City")]
+        public static void Capture()
+        {
+            string directory = Path.Combine(Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
+            Directory.CreateDirectory(directory);
+
+            var root = new GameObject("PlanCaptureRig");
+            try
+            {
+                Material ground = Load("CityGround");
+                Material pavement = Load("CityPavement");
+                Material structure = Load("CityConcrete");
+                if (ground == null || pavement == null || structure == null)
+                {
+                    Debug.LogError("CityX: materials missing -- run CityX/Rebuild Massing Scene first.");
+                    return;
+                }
+
+                var sunObject = new GameObject("Sun");
+                sunObject.transform.SetParent(root.transform);
+                Light sun = sunObject.AddComponent<Light>();
+                sun.type = LightType.Directional;
+                sun.shadows = LightShadows.Soft;
+                AttachSunFlare(sun);
+
+                var moonObject = new GameObject("Moon");
+                moonObject.transform.SetParent(root.transform);
+                Light moon = moonObject.AddComponent<Light>();
+                moon.type = LightType.Directional;
+                moon.shadows = LightShadows.Soft;
+
+                var cycleObject = new GameObject("Cycle");
+                cycleObject.transform.SetParent(root.transform);
+                DayNightCycle cycle = cycleObject.AddComponent<DayNightCycle>();
+                cycle.Sun = sun;
+                cycle.Moon = moon;
+                cycle.Running = false;
+                cycle.TimeOfDay = SkyCycle.StartSeconds;
+
+                var streamerObject = new GameObject("Streamer");
+                streamerObject.transform.SetParent(root.transform);
+                CityStreamer streamer = streamerObject.AddComponent<CityStreamer>();
+                streamer.WorldSeed = WorldSeed;
+                streamer.GroundMaterial = ground;
+                streamer.PavementMaterial = pavement;
+                streamer.StructureMaterial = structure;
+                Dress(streamer);
+
+                var cameraObject = new GameObject("Camera");
+                cameraObject.transform.SetParent(root.transform);
+                Camera camera = cameraObject.AddComponent<Camera>();
+                camera.farClipPlane = 4500.0f;
+                camera.nearClipPlane = 0.3f;
+                if (!AttachEnvironment(root, camera, cycle))
+                {
+                    return;
+                }
+                cycle.Apply(SkyCycle.At(cycle.TimeOfDay));
+
+                var world = new CityWorld(WorldSeed);
+                world.Plan.TryFindSpawn(out double sx, out double sz);
+                float sy = (float)world.Terrain.ContinuousHeightAt(sx, sz);
+                var spawn = new Vector3((float)sx, sy, (float)sz);
+                Debug.Log($"CityX: plan city seed {WorldSeed}: {world.BuildingCount} buildings, spawn at {spawn}");
+
+                // Aerial, from a little way off, looking over the downtown.
+                Vector3 aerialEye = spawn + new Vector3(-260.0f, 300.0f, -380.0f);
+                Shoot(streamer, camera, directory, "plan-aerial",
+                    aerialEye, Quaternion.LookRotation(spawn - aerialEye, Vector3.up).eulerAngles, 26);
+
+                // Straight down on the spawn junction, to compare with the 2D plan.
+                Vector3 topEye = spawn + Vector3.up * 230.0f;
+                Shoot(streamer, camera, directory, "plan-topdown", topEye, new Vector3(90.0f, 0.0f, 0.0f), 14);
+
+                // Street level, standing at the spawn junction looking along the first road that leaves it.
+                Vector3 along = Vector3.forward;
+                RoadNode node = NearestNode(world.Plan, sx, sz);
+                if (node != null && node.Edges.Count > 0)
+                {
+                    Vec2 d = (node.Edges[0].Other(node).P - node.P).Normalized;
+                    along = new Vector3((float)d.X, 0.0f, (float)d.Y);
+                }
+                Vector3 across = new Vector3(-along.z, 0.0f, along.x);
+                Vector3 eye = spawn + Vector3.up * 1.7f - along * 10.0f + across * 7.5f;
+                Shoot(streamer, camera, directory, "plan-street",
+                    eye, Quaternion.LookRotation(along, Vector3.up).eulerAngles, 14);
+
+                // Up the road from a little higher.
+                Shoot(streamer, camera, directory, "plan-street-high",
+                    spawn + Vector3.up * 14.0f - along * 30.0f, Quaternion.LookRotation(along + Vector3.down * 0.25f, Vector3.up).eulerAngles, 14);
+
+                // The front of a building near the spawn: the tallest one within 150 m.
+                BuildingSite pick = BuildingSite.None;
+                float bestTop = 0.0f;
+                for (int dx = -6; dx <= 6; dx++)
+                {
+                    for (int dz = -6; dz <= 6; dz++)
+                    {
+                        var owned = world.BuildingsOwnedBy(PlanWorld.ChunkOf(sx) + dx, PlanWorld.ChunkOf(sz) + dz);
+                        for (int i = 0; i < owned.Count; i++)
+                        {
+                            BuildingSite s = world.Building(owned[i]);
+                            if (s.Params.Height > bestTop && s.Params.Height < 50.0f && s.Params.Height > 18.0f && s.Params.Width > 12.0f)
+                            {
+                                bestTop = s.Params.Height;
+                                pick = s;
+                            }
+                        }
+                    }
+                }
+                if (pick.Exists)
+                {
+                    pick.LocalToWorld(0.0, pick.Params.Depth * 0.5 + 12.0, out double fx, out double fz);
+                    pick.LocalToWorld(0.0, pick.Params.Depth * 0.5, out double tx, out double tz);
+                    var camPos = new Vector3((float)fx, pick.BaseHeight + 1.7f, (float)fz);
+                    var target = new Vector3((float)tx, pick.BaseHeight + 4.0f, (float)tz);
+                    // StreamAround only builds chunks that are not loaded yet, and the earlier shots left these loaded as the far
+                    // version (no doors, no interior). The real game re-details them as you walk up; the capture starts afresh.
+                    streamer.Rebuild();
+                    Shoot(streamer, camera, directory, "plan-building-front",
+                        camPos, Quaternion.LookRotation(target - camPos, Vector3.up).eulerAngles, 12);
+
+                    // The door itself, from a few metres out at eye height.
+                    pick.LocalToWorld(0.0, pick.Params.Depth * 0.5 + 4.5, out double ex, out double ez);
+                    var doorEye = new Vector3((float)ex, pick.BaseHeight + 1.6f, (float)ez);
+                    var doorAt = new Vector3((float)tx, pick.BaseHeight + 1.3f, (float)tz);
+                    Shoot(streamer, camera, directory, "plan-door",
+                        doorEye, Quaternion.LookRotation(doorAt - doorEye, Vector3.up).eulerAngles, 8);
+
+                    // The door is a real object hung in the opening the wall builder cut: confirm it is where the plan says.
+                    Vector3 hinge = BuildingDoor.PanelFor(pick).Hinge;
+                    float nearest = float.MaxValue;
+                    foreach (BuildingDoor door in Object.FindObjectsByType<BuildingDoor>(FindObjectsSortMode.None))
+                    {
+                        nearest = Mathf.Min(nearest, Vector3.Distance(door.transform.position, hinge));
+                    }
+                    Debug.Log($"CityX: building {pick.Id}'s door hinge is {nearest:F2} m from the nearest hung door");
+
+                    // The same building from the side and above, to see its shape against its lot.
+                    pick.LocalToWorld(40.0, -10.0, out double ox, out double oz);
+                    var camPos2 = new Vector3((float)ox, pick.BaseHeight + pick.Params.Height * 0.8f + 12.0f, (float)oz);
+                    var target2 = new Vector3((float)pick.CentreX, pick.BaseHeight + pick.Params.Height * 0.4f, (float)pick.CentreZ);
+                    Shoot(streamer, camera, directory, "plan-building-side",
+                        camPos2, Quaternion.LookRotation(target2 - camPos2, Vector3.up).eulerAngles, 12);
+                }
+
+                // Down the longest highway within reach of the spawn, standing in the road: the long, bending boulevard.
+                EdgeGeometry highway = null;
+                double bestLength = 0.0;
+                foreach (EdgeGeometry g in world.Plan.Geometry.Edges)
+                {
+                    if (g == null || g.Edge.Bridge || g.Edge.Class != RoadClass.Highway) continue;
+                    double mx2 = (g.A.X + g.B.X) * 0.5 - sx, mz2 = (g.A.Y + g.B.Y) * 0.5 - sz;
+                    if (mx2 * mx2 + mz2 * mz2 > 600.0 * 600.0) continue;
+                    if (g.Length > bestLength) { bestLength = g.Length; highway = g; }
+                }
+                if (highway != null)
+                {
+                    double hx = highway.A.X + highway.Dir.X * highway.TrimA;
+                    double hz = highway.A.Y + highway.Dir.Y * highway.TrimA;
+                    float hy = (float)world.Terrain.ContinuousHeightAt(hx, hz);
+                    var hDir = new Vector3((float)highway.Dir.X, 0.0f, (float)highway.Dir.Y);
+                    var hEye = new Vector3((float)hx, hy + 2.2f, (float)hz);
+                    Shoot(streamer, camera, directory, "plan-highway",
+                        hEye, Quaternion.LookRotation(hDir + Vector3.down * 0.02f, Vector3.up).eulerAngles, 20);
+                }
+
+                // A bridge over a trench.
+                EdgeGeometry bridge = null;
+                double bestDistance = double.MaxValue;
+                foreach (EdgeGeometry g in world.Plan.Geometry.Edges)
+                {
+                    if (g == null || !g.Edge.Bridge) continue;
+                    double mx = (g.A.X + g.B.X) * 0.5 - sx, mz = (g.A.Y + g.B.Y) * 0.5 - sz;
+                    double d2 = mx * mx + mz * mz;
+                    if (d2 < bestDistance) { bestDistance = d2; bridge = g; }
+                }
+                if (bridge != null)
+                {
+                    double mx = (bridge.A.X + bridge.B.X) * 0.5, mz = (bridge.A.Y + bridge.B.Y) * 0.5;
+                    float by = (float)world.Terrain.ContinuousHeightAt(mx, mz);
+                    var centre = new Vector3((float)mx, by + 4.0f, (float)mz);
+                    var side = new Vector3((float)bridge.Dir.Perp.X, 0.0f, (float)bridge.Dir.Perp.Y);
+                    var camPos = centre + side * 55.0f + Vector3.up * 22.0f;
+                    Shoot(streamer, camera, directory, "plan-bridge",
+                        camPos, Quaternion.LookRotation(centre - camPos, Vector3.up).eulerAngles, 10);
+                }
+
+                Debug.Log($"CityX: plan city shots written to {directory}");
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        /// <summary>
+        /// How much the plan city costs to make: the plan itself, then the chunks around the spawn built in full and as the far
+        /// version, with their triangle counts. Prints to the log.
+        ///
+        ///   Unity.exe -batchmode -nographics -projectPath &lt;proj&gt; -executeMethod CityX.ViewEditor.PlanCityCapture.Bench -quit
+        /// </summary>
+        public static void Bench()
+        {
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            var world = new CityWorld(WorldSeed);
+            long planMs = clock.ElapsedMilliseconds;
+
+            world.Plan.TryFindSpawn(out double sx, out double sz);
+            int cx0 = PlanWorld.ChunkOf(sx), cy0 = PlanWorld.ChunkOf(sz);
+
+            foreach (bool far in new[] { false, true })
+            {
+                double total = 0.0, worst = 0.0;
+                long triangles = 0;
+                int chunks = 0, withBuilding = 0;
+                double worstBuilding = 0.0;
+                for (int dy = -10; dy <= 10; dy++)
+                {
+                    for (int dx = -10; dx <= 10; dx++)
+                    {
+                        int cx = cx0 + dx, cy = cy0 + dy;
+                        var buffers = new MeshBuffer[5];
+                        for (int i = 0; i < 5; i++) buffers[i] = new MeshBuffer();
+                        var origin = new Vector3(cx * CityLayout.ChunkSize, 0.0f, cy * CityLayout.ChunkSize);
+                        var timer = System.Diagnostics.Stopwatch.StartNew();
+                        CityMeshBuilder.BuildChunk(world, cx, cy, origin, buffers[0], buffers[1], buffers[2], buffers[4], buffers[3],
+                            new MeshBuffer(), null, new System.Collections.Generic.List<CityMeshBuilder.CrackedOpening>(),
+                            new MeshBuffer(), new MeshBuffer(), new MeshBuffer(), new MeshBuffer(), far: far);
+                        timer.Stop();
+                        double ms = timer.Elapsed.TotalMilliseconds;
+                        total += ms;
+                        if (ms > worst) worst = ms;
+                        chunks++;
+                        bool has = world.BuildingsOwnedBy(cx, cy).Count > 0;
+                        if (has) { withBuilding++; if (ms > worstBuilding) worstBuilding = ms; }
+                        foreach (MeshBuffer b in buffers) triangles += b.Triangles.Count / 3;
+                    }
+                }
+                Debug.Log($"CityX BENCH {(far ? "far " : "full")}: {chunks} chunks ({withBuilding} with buildings): mean {total / chunks:0.00} ms, worst {worst:0.0} ms " +
+                          $"(worst with a building {worstBuilding:0.0} ms); {triangles / chunks} triangles per chunk on average");
+            }
+            Debug.Log($"CityX BENCH plan: {planMs} ms for {world.BuildingCount} buildings, {world.Plan.Data.Edges.Count} roads");
+        }
+
+        private static RoadNode NearestNode(PlanWorld plan, double x, double z)
+        {
+            RoadNode best = null;
+            double bestD = double.MaxValue;
+            foreach (RoadNode n in plan.Data.Nodes)
+            {
+                double d = (n.P.X - x) * (n.P.X - x) + (n.P.Y - z) * (n.P.Y - z);
+                if (d < bestD) { bestD = d; best = n; }
+            }
+            return best;
+        }
+
+        // ---- rig helpers: the same assets the real scene loads ----
+
+        private static Material Load(string name)
+        {
+            return AssetDatabase.LoadAssetAtPath<Material>($"Assets/CityX/View/Materials/{name}.mat");
+        }
+
+        private static void Dress(CityStreamer streamer)
+        {
+            streamer.DarkGlassMaterial = Load("CityGlassDark");
+            streamer.LitGlassMaterial = Load("CityGlassLit");
+            streamer.CrackedGlassMaterial = Load("CityGlassCracked");
+            streamer.RoadLineMaterial = Load("RoadLine");
+            streamer.CrosswalkMaterial = Load("Crosswalk");
+            streamer.DoorMaterial = Load("BuildingDoor");
+            streamer.DoorHandleMaterial = Load("BuildingDoorHandle");
+            streamer.GuardRailMaterial = Load("CityGuardRail");
+        }
+
+        private static void AttachSunFlare(Light sun)
+        {
+            LensFlareComponentSRP flare = sun.gameObject.AddComponent<LensFlareComponentSRP>();
+            flare.lensFlareData = CityMassingSceneBuilder.EnsureSunLensFlareData();
+            flare.intensity = 1.4f;
+            flare.useOcclusion = true;
+            flare.occlusionRadius = 0.2f;
+            flare.sampleCount = 16;
+        }
+
+        private static bool AttachEnvironment(GameObject root, Camera camera, DayNightCycle cycle)
+        {
+            Material skyDome = Load("CityXSky");
+            var grade = AssetDatabase.LoadAssetAtPath<VolumeProfile>("Assets/CityX/View/Materials/CityGrade.asset");
+            if (skyDome == null || grade == null)
+            {
+                Debug.LogError("CityX: sky or grade missing -- run CityX/Rebuild Massing Scene first.");
+                return false;
+            }
+            RenderSettings.skybox = skyDome;
+            RenderSettings.defaultReflectionMode = DefaultReflectionMode.Skybox;
+
+            var gradeObject = new GameObject("Grade");
+            gradeObject.transform.SetParent(root.transform);
+            var volume = gradeObject.AddComponent<Volume>();
+            volume.isGlobal = true;
+            volume.sharedProfile = grade;
+
+            camera.clearFlags = CameraClearFlags.Skybox;
+            camera.allowHDR = true;
+            cycle.Sky = camera;
+            cycle.SkyDome = skyDome;
+            return true;
+        }
+
+        private static void Shoot(CityStreamer streamer, Camera camera, string directory, string name,
+            Vector3 position, Vector3 euler, int radiusChunks)
+        {
+            streamer.RadiusChunks = radiusChunks;
+            // int.MaxValue: build the whole visible city in this one call.
+            streamer.StreamAround(position, int.MaxValue);
+
+            camera.transform.position = position;
+            camera.transform.rotation = Quaternion.Euler(euler);
+
+            UniversalAdditionalCameraData data = camera.GetComponent<UniversalAdditionalCameraData>();
+            if (data == null)
+            {
+                data = camera.gameObject.AddComponent<UniversalAdditionalCameraData>();
+            }
+            data.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
+            data.antialiasingQuality = AntialiasingQuality.High;
+            data.renderPostProcessing = true;
+            camera.allowMSAA = true;
+
+            RenderTexture target = RenderTexture.GetTemporary(Width, Height, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default, 4);
+            RenderTexture previous = RenderTexture.active;
+            try
+            {
+                camera.targetTexture = target;
+                camera.Render();
+                RenderTexture.active = target;
+                var image = new Texture2D(Width, Height, TextureFormat.RGB24, false);
+                image.ReadPixels(new Rect(0, 0, Width, Height), 0, 0);
+                image.Apply();
+                File.WriteAllBytes(Path.Combine(directory, name + ".png"), image.EncodeToPNG());
+                Object.DestroyImmediate(image);
+            }
+            finally
+            {
+                camera.targetTexture = null;
+                RenderTexture.active = previous;
+                RenderTexture.ReleaseTemporary(target);
+            }
+            Debug.Log($"CityX: {name} -- {streamer.LoadedChunkCount} chunks loaded");
+        }
+    }
+}

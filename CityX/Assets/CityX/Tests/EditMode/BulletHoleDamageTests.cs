@@ -10,7 +10,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class BulletHoleDamageTests
     {
-        private static readonly PaneKey Pane = new PaneKey(3, 4, WindowGrid.Wall.North, 2, 3);
+        private static readonly PaneKey Pane = new PaneKey(3, WindowGrid.Wall.North, 2, 3);
 
         [Test]
         public void EachBulletAddsAHoleAndTheWindowStaysStanding()

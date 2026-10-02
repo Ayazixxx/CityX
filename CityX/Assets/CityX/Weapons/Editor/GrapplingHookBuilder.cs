@@ -2224,6 +2224,10 @@ namespace CityX.WeaponsEditor
             }
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
+#if CITYX_LEGACY_GRID_DIAGNOSTICS
+        // The three diagnostics below were written against the old square-grid city (sloped terrace streets, district boundaries,
+        // multi-chunk wings). None of those features exist any more; the code is kept, switched off, for reference.
+
 
         /// <summary>
         /// DIAGNOSTIC, NOT A PERMANENT TOOL -- a street-level look at
@@ -2552,6 +2556,7 @@ namespace CityX.WeaponsEditor
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 
+#endif // CITYX_LEGACY_GRID_DIAGNOSTICS
         /// <summary>
         /// DIAGNOSTIC, NOT A PERMANENT TOOL -- confirms PlayerChat's own
         /// Ragdoll field actually points at the PLAYER's own Ragdoll, not

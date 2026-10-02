@@ -4,106 +4,156 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
+using CityX.World;
 using CityX.World.Plan;
 
 /// <summary>
-/// Renders the Subversion-style city plan (World/Plan) to a PNG and prints statistics, with no Unity involved.
-/// Usage: dotnet run -c Release --project tools/cityplan -- sub [seed] [halfMetres] [pixels] [out.png]
+/// Renders the city plan the game uses (World/Plan) to a PNG and prints statistics, with no Unity involved.
+/// Usage: dotnet run -c Release --project tools/cityplan -- [seed] [halfMetres] [pixels] [out.png] [centreX centreZ viewHalf]
+/// With a centre and view half-size it renders just that window (a close look).
 /// </summary>
 public static class SubversionPlan
 {
     public static int Run(string[] args)
     {
-        int seed = args.Length > 1 ? int.Parse(args[1]) : 1234;
-        double half = args.Length > 2 ? double.Parse(args[2]) : 1500.0;
-        int px = args.Length > 3 ? int.Parse(args[3]) : 1800;
-        string outPath = args.Length > 4 ? args[4] : "subplan.png";
+        int seed = args.Length > 0 ? int.Parse(args[0]) : 1234;
+        double half = args.Length > 1 ? double.Parse(args[1]) : 2500.0;
+        int px = args.Length > 2 ? int.Parse(args[2]) : 1800;
+        string outPath = args.Length > 3 ? args[3] : "subplan.png";
+        double viewCx = args.Length > 5 ? double.Parse(args[4]) : 0.0;
+        double viewCz = args.Length > 5 ? double.Parse(args[5]) : 0.0;
+        double view = args.Length > 6 ? double.Parse(args[6]) : half;
 
-        var cfg = new PlanConfig { Half = half };
+        var cfg = PlanWorld.DefaultConfig();
+        cfg.Half = half;
         var sw = Stopwatch.StartNew();
-        CityPlanData plan = CityPlan.Generate(seed, cfg);
+        PlanWorld world = PlanWorld.Create(seed, cfg);
         sw.Stop();
+        CityPlanData plan = world.Data;
 
         double heightSum = 0, tallest = 0; int towers = 0;
-        foreach (var lot in plan.Lots) { heightSum += lot.Height; if (lot.Height > tallest) tallest = lot.Height; if (lot.Height > 80) towers++; }
+        foreach (var b in world.Buildings) { heightSum += b.Params.Height; if (b.Params.Height > tallest) tallest = b.Params.Height; if (b.Params.Height > 80) towers++; }
+        var zones = new Dictionary<ZoneKind, int>();
+        foreach (var b in world.Buildings) { zones.TryGetValue(b.Zone, out int c); zones[b.Zone] = c + 1; }
         Console.WriteLine($"seed {seed}, region {2 * half:0}m: {plan.Centres.Count} centres, {plan.Nodes.Count} nodes, {plan.Edges.Count} edges, " +
-            $"{plan.Blocks.Count} blocks, {plan.Lots.Count} lots; generated in {sw.ElapsedMilliseconds} ms");
-        Console.WriteLine($"  mean height {(plan.Lots.Count > 0 ? heightSum / plan.Lots.Count : 0):0.#} m, tallest {tallest:0} m, {towers} towers over 80 m");
+            $"{plan.Blocks.Count} blocks, {plan.Lots.Count} lots -> {world.Buildings.Length} buildings; generated in {sw.ElapsedMilliseconds} ms");
+        Console.WriteLine($"  mean height {(world.Buildings.Length > 0 ? heightSum / world.Buildings.Length : 0):0.#} m, tallest {tallest:0} m, {towers} over 80 m");
+        foreach (var kv in zones) Console.WriteLine($"  {kv.Key}: {kv.Value}");
+        Check(world);
 
-        double scale = px / (2 * half);
-        Func<Vec2, PointF> P = v => new PointF((float)((v.X + half) * scale), (float)((half - v.Y) * scale));
+        double scale = px / (2 * view);
+        Func<Vec2, PointF> P = v => new PointF((float)((v.X - viewCx + view) * scale), (float)((viewCz + view - v.Y) * scale));
 
         using (var bmp = new Bitmap(px, px))
         using (var g = Graphics.FromImage(bmp))
         {
             g.SmoothingMode = SmoothingMode.AntiAlias;
-            // Ground and water.
             var data = bmp.LockBits(new Rectangle(0, 0, px, px), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
             var pixels = new int[px * px];
             for (int y = 0; y < px; y++)
             {
                 for (int x = 0; x < px; x++)
                 {
-                    double wx = x / scale - half, wy = half - y / scale;
+                    double wx = viewCx - view + x / scale, wy = viewCz + view - y / scale;
+                    double h = plan.Fields.Height(wx, wy);
                     int c;
-                    if (plan.Fields.IsWater(wx, wy)) c = Color.FromArgb(20, 40, 215).ToArgb();
-                    else
-                    {
-                        double h = plan.Fields.Height(wx, wy);
-                        int gch = (int)Math.Max(40, Math.Min(150, 70 + h * 0.9));
-                        c = Color.FromArgb(25, gch, 55).ToArgb();
-                    }
+                    if (plan.Fields.IsWater(wx, wy)) c = Color.FromArgb(70, 70, 80).ToArgb();    // a dry concrete trench
+                    else { int gch = (int)Math.Max(40, Math.Min(150, 80 + h * 1.0)); c = Color.FromArgb(40, gch, 60).ToArgb(); }
                     pixels[y * px + x] = c;
                 }
             }
             System.Runtime.InteropServices.Marshal.Copy(pixels, 0, data.Scan0, pixels.Length);
             bmp.UnlockBits(data);
 
-            // Blocks (the land between roads).
-            using (var brush = new SolidBrush(Color.FromArgb(70, 20, 40, 60)))
+            // Pavement rings (between the kerb and the lots).
+            using (var brush = new SolidBrush(Color.FromArgb(200, 175, 175, 170)))
             {
                 foreach (var b in plan.Blocks)
                 {
-                    var pts = new PointF[b.Poly.Count];
-                    for (int i = 0; i < pts.Length; i++) pts[i] = P(b.Poly[i]);
+                    if (b.Inner == null || b.Outer == null) continue;
+                    int n = b.Poly.Count;
+                    for (int i = 0; i < n; i++)
+                    {
+                        int j = (i + 1) % n;
+                        g.FillPolygon(brush, new[] { P(b.Inner[i]), P(b.Inner[j]), P(b.Outer[j]), P(b.Outer[i]) });
+                    }
+                }
+            }
+            // Road ribbons.
+            foreach (var eg in world.Geometry.Edges)
+            {
+                if (eg == null) continue;
+                Vec2 a = eg.A + eg.Dir * eg.TrimA, b = eg.B - eg.Dir * eg.TrimB;
+                Vec2 n = eg.Dir.Perp * eg.HalfWidth;
+                Color col = eg.Edge.Bridge ? Color.FromArgb(255, 235, 150) : (eg.Edge.Class == RoadClass.Highway ? Color.FromArgb(70, 70, 78) : eg.Edge.Class == RoadClass.Arterial ? Color.FromArgb(60, 60, 68) : Color.FromArgb(52, 52, 60));
+                using (var brush = new SolidBrush(col))
+                    g.FillPolygon(brush, new[] { P(a + n), P(b + n), P(b - n), P(a - n) });
+            }
+            // Junction plates.
+            using (var brush = new SolidBrush(Color.FromArgb(58, 58, 66)))
+            {
+                foreach (var j in world.Geometry.Junctions)
+                {
+                    if (j == null || j.Plate == null) continue;
+                    var pts = new PointF[j.Plate.Length];
+                    for (int i = 0; i < pts.Length; i++) pts[i] = P(j.Plate[i]);
                     g.FillPolygon(brush, pts);
                 }
             }
-
-            // Roads.
-            foreach (var e in plan.Edges)
-            {
-                if (!e.Alive) continue;
-                float w = (float)(CityPlan.HalfWidth(cfg, e.Class) * 2.0 * scale);
-                Color col = e.Bridge ? Color.FromArgb(255, 240, 160) : (e.Class == RoadClass.Highway ? Color.FromArgb(215, 215, 235) : (e.Class == RoadClass.Arterial ? Color.FromArgb(170, 170, 200) : Color.FromArgb(120, 120, 150)));
-                using (var pen = new Pen(col, Math.Max(1.0f, w)))
+            // Lots (thin outline) and the buildings fitted in them.
+            using (var pen = new Pen(Color.FromArgb(70, 200, 200, 200), 1f))
+                foreach (var lot in plan.Lots)
                 {
-                    g.DrawLine(pen, P(e.A.P), P(e.B.P));
+                    var pts = new PointF[lot.Lot.Length];
+                    for (int i = 0; i < pts.Length; i++) pts[i] = P(lot.Lot[i]);
+                    g.DrawPolygon(pen, pts);
                 }
-            }
-
-            // Lots and their buildings.
-            foreach (var lot in plan.Lots)
+            foreach (var b in world.Buildings)
             {
-                var pts = new PointF[lot.Footprint.Length];
-                for (int i = 0; i < pts.Length; i++) pts[i] = P(lot.Footprint[i]);
-                int shade = (int)Math.Min(255, 60 + lot.Height * 1.2);
-                using (var brush = new SolidBrush(Color.FromArgb(150, shade / 2, shade * 3 / 4, shade)))
-                using (var pen = new Pen(Color.FromArgb(235, 235, 245), 1.0f))
+                double hw = b.Params.Width * 0.5, hd = b.Params.Depth * 0.5;
+                var corners = new Vec2[4];
+                int[] sx = { -1, 1, 1, -1 }, sz = { -1, -1, 1, 1 };
+                for (int i = 0; i < 4; i++)
                 {
+                    b.LocalToWorld(sx[i] * hw, sz[i] * hd, out double wx, out double wz);
+                    corners[i] = new Vec2(wx, wz);
+                }
+                int shade = (int)Math.Min(255, 70 + b.Params.Height * 1.1);
+                using (var brush = new SolidBrush(Color.FromArgb(215, shade / 2, shade * 3 / 4, shade)))
+                using (var pen = new Pen(Color.FromArgb(240, 240, 240), 1f))
+                {
+                    var pts = new[] { P(corners[0]), P(corners[1]), P(corners[2]), P(corners[3]) };
                     g.FillPolygon(brush, pts);
                     g.DrawPolygon(pen, pts);
                 }
+                // The door: a small bar on the front (+Z) wall.
+                b.LocalToWorld(-1.0, hd, out double dx0, out double dz0);
+                b.LocalToWorld(1.0, hd, out double dx1, out double dz1);
+                g.DrawLine(Pens.Gold, P(new Vec2(dx0, dz0)), P(new Vec2(dx1, dz1)));
             }
-
-            foreach (var c in plan.Centres)
-            {
-                var p = P(c);
-                g.DrawEllipse(Pens.Red, p.X - 6, p.Y - 6, 12, 12);
-            }
+            foreach (var c in plan.Centres) { var p = P(c); g.DrawEllipse(Pens.Red, p.X - 6, p.Y - 6, 12, 12); }
             bmp.Save(outPath, ImageFormat.Png);
         }
         Console.WriteLine("wrote " + outPath);
         return 0;
+    }
+
+    /// <summary>Sanity checks printed with the render: how many fitted buildings overlap another.</summary>
+    static void Check(PlanWorld world)
+    {
+        int overlap = 0;
+        for (int i = 0; i < world.Buildings.Length; i++)
+        {
+            var b = world.Buildings[i];
+            double hw = b.Params.Width * 0.5, hd = b.Params.Depth * 0.5;
+            int[] sx = { -1, 1, 1, -1 }, sz = { -1, -1, 1, 1 };
+            for (int c = 0; c < 4; c++)
+            {
+                b.LocalToWorld(sx[c] * hw * 0.98, sz[c] * hd * 0.98, out double wx, out double wz);
+                int found = world.BuildingAt(wx, wz, 0.0);
+                if (found != b.Id) overlap++;
+            }
+        }
+        Console.WriteLine($"  check: {overlap} of {world.Buildings.Length * 4} building corners lie inside a different building");
     }
 }

@@ -66,55 +66,38 @@ namespace CityX.View
                 _world = new CityWorld(_streamer.WorldSeed);
             }
 
-            int chunkX = Mathf.FloorToInt(point.x / CityLayout.ChunkSize);
-            int chunkY = Mathf.FloorToInt(point.z / CityLayout.ChunkSize);
-
-            // The point can sit a few centimetres outside the building it hit,
-            // and a wall on a chunk boundary belongs to the neighbour, so the
-            // nine chunks around it are all candidates. Anchors are checked
-            // rather than every chunk, because a multi-chunk building is only
-            // ever held by one of them.
-            for (int dx = -1; dx <= 1; dx++)
+            // The building the point is on or beside. A point can sit a few centimetres outside the wall it hit (a
+            // contact skin, a bullet's impact), so the building is looked up with a little margin.
+            if (!_world.TryBuildingAt(point.x, point.z, out BuildingSite site, 0.6) ||
+                !GlassDamage.TryPaneAt(_world, site, point, out PaneKey key))
             {
-                for (int dy = -1; dy <= 1; dy++)
-                {
-                    BuildingSite site = _world.BuildingAt(chunkX + dx, chunkY + dy);
-                    if (!site.Exists)
-                    {
-                        continue;
-                    }
-                    if (!GlassDamage.TryPaneAt(_world, site, point, out PaneKey key))
-                    {
-                        continue;
-                    }
-
-                    PaneState was = _streamer.Damage.StateOf(key);
-                    Vector2 impactUV = GlassDamage.FractionWithinPane(_world, site, key, point);
-                    if (strength == BlowStrength.Bullet)
-                    {
-                        // A bullet makes its own hole and the window stays up, however many it takes: only
-                        // something knocking into it brings it down (see CrackedPane.IsAKnock).
-                        PaneState after = _streamer.Damage.Shoot(key, impactUV, out bool madeHole);
-                        if (!madeHole)
-                        {
-                            return false;   // already gone
-                        }
-                        Report(after, point, key.Wall, direction, strength);
-                        return true;
-                    }
-
-                    PaneState now = _streamer.Damage.Hit(key, impactUV, shatterOutright: strength == BlowStrength.Heavy);
-                    if (now == was)
-                    {
-                        return false;   // already gone
-                    }
-
-                    Report(now, point, key.Wall, direction, strength);
-                    return true;
-                }
+                return false;
             }
 
-            return false;
+            Vector3 outward = CityMeshBuilder.WallNormal(site, key.Wall);
+            PaneState was = _streamer.Damage.StateOf(key);
+            Vector2 impactUV = GlassDamage.FractionWithinPane(_world, site, key, point);
+            if (strength == BlowStrength.Bullet)
+            {
+                // A bullet makes its own hole and the window stays up, however many it takes: only
+                // something knocking into it brings it down (see CrackedPane.IsAKnock).
+                PaneState after = _streamer.Damage.Shoot(key, impactUV, out bool madeHole);
+                if (!madeHole)
+                {
+                    return false;   // already gone
+                }
+                Report(after, point, outward, direction, strength);
+                return true;
+            }
+
+            PaneState now = _streamer.Damage.Hit(key, impactUV, shatterOutright: strength == BlowStrength.Heavy);
+            if (now == was)
+            {
+                return false;   // already gone
+            }
+
+            Report(now, point, outward, direction, strength);
+            return true;
         }
 
         /// <summary>
@@ -123,7 +106,7 @@ namespace CityX.View
         /// shard burst (GlassShardBurst) rather than a fading sprite, which is
         /// the only part of a broken window you actually see happen.
         /// </summary>
-        private void Report(PaneState state, Vector3 point, WindowGrid.Wall wall, Vector3 blowDirection, BlowStrength strength)
+        private void Report(PaneState state, Vector3 point, Vector3 outward, Vector3 blowDirection, BlowStrength strength)
         {
             // GLASS SOUNDS LIKE A SEQUENCE, NOT A SAMPLE: the contact and crack or shatter first, then the
             // tinkle of the pieces landing a moment later (sound-design practice for breaking glass). A
@@ -144,7 +127,7 @@ namespace CityX.View
 
             if (state == PaneState.Shattered && ShardPrefab != null)
             {
-                GlassShardBurst.Spawn(ShardPrefab, point, ShardDirection(WindowGrid.OutwardNormal(wall), blowDirection));
+                GlassShardBurst.Spawn(ShardPrefab, point, ShardDirection(outward, blowDirection));
             }
         }
 

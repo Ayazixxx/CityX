@@ -35,7 +35,17 @@ namespace CityX.View
 
         public void Fit(in Bounds bounds)
         {
+            Fit(bounds, Quaternion.identity);
+        }
+
+        /// <summary>
+        /// The box, turned about its own centre: a building is turned to face its street, and <see cref="BoundsFor"/> gives its
+        /// box as if it were not.
+        /// </summary>
+        public void Fit(in Bounds bounds, Quaternion rotation)
+        {
             transform.position = bounds.center;
+            transform.rotation = rotation;
             _box = GetComponent<BoxCollider>();
             _box.isTrigger = true;
             _box.size = bounds.size;

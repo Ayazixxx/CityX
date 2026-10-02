@@ -202,20 +202,10 @@ namespace CityX.ViewEditor
             cameraObject.AddComponent<FlyCamera>();
             cameraObject.AddComponent<AudioListener>();
 
-            TerrainField terrain = new TerrainField(WorldSeed);
-            // Chunk (0,0) is a street on both axes, so this is a road junction
-            // with buildings on every side -- the view worth opening on.
-            //
-            // ContinuousHeightAt, not PadHeightFor -- a street chunk's own
-            // ground is tilted to the smooth continuous field now, not flat
-            // at the quantised pad (see CityMeshBuilder.BuildGround's own
-            // "hillside streets" comment). Spawning at the old flat pad
-            // height could land the player below the REAL tilted road
-            // surface, with nothing there to catch a CharacterController
-            // that starts already under the ground -- which is exactly what
-            // read as "load in and fall through the floor forever."
-            float groundHeight = (float)terrain.ContinuousHeightAt(
-                CityLayout.ChunkSize * 0.5, CityLayout.ChunkSize * 0.5);
+            // The city's own plan decides where the player starts: the junction nearest the origin, which is downtown.
+            CityWorld cityWorld = new CityWorld(WorldSeed);
+            cityWorld.Plan.TryFindSpawn(out double spawnX, out double spawnZ);
+            float groundHeight = (float)cityWorld.Terrain.ContinuousHeightAt(spawnX, spawnZ);
             // Captured here, not looked up later with FindFirstObjectByType --
             // the scene ends up with SEVERAL Ragdoll components (the sparring
             // dummies are Civilian.prefab-based too, and each carries its
@@ -234,7 +224,7 @@ namespace CityX.ViewEditor
             PlayerLocomotion playerLocomotion = null;
             GameObject playerObjectForWatchdog = null;
             cameraObject.transform.position = new Vector3(
-                CityLayout.ChunkSize * 0.5f, groundHeight + 1.7f, CityLayout.ChunkSize * 0.5f);
+                (float)spawnX, groundHeight + 1.7f, (float)spawnZ);
             cameraObject.transform.rotation = Quaternion.Euler(4.0f, 35.0f, 0.0f);
 
             // --- weapons/wearables. Built here, once, so both the player's
@@ -278,30 +268,8 @@ namespace CityX.ViewEditor
                 // applies it). Until now only the creator and the character list did -- in
                 // the world the hair simply was not there.
                 CityX.UIEditor.HairAssets.AddTo(player);
-                // A little above the road so the controller settles onto it
-                // rather than starting intersecting it.
-                //
-                // Z OFFSET BY +6m, NOT DEAD CENTRE -- EXPLICIT BUG REPORT:
-                // "the game is spawning me inside a pole." Chunk (0,0)'s own
-                // centre (ChunkSize * 0.5 on both axes) is, by construction,
-                // ALWAYS a highway chunk (CityLayout.IsHighwayChunk fires on
-                // x % HighwayChunks == 0, which x=0 satisfies unconditionally
-                // for every world seed) -- and AddHighwayDeck plants one
-                // support pillar at EVERY highway chunk's own along-centre,
-                // which for chunk row y=0 is exactly world Z=12, the same
-                // point this spawn used to sit on. The pillar's cross-axis
-                // centre is likewise pinned to the fixed lane centreline at
-                // world X=12 (see AddHighwayDeck's own "pillarWx" comment on
-                // why it never follows the deck's lateral sweep) -- also
-                // exactly this spawn's own X. Both coordinates matched
-                // exactly, so the player's capsule spawned embedded in the
-                // pillar's own 0.6m box. Only Z moves: X stays at the
-                // chunk's own centre (still safely inside the paved
-                // carriageway, nowhere near the sidewalk edges), while +6m
-                // of Z clears the pillar (0.3m half-width) by a wide margin
-                // without leaving the same chunk or its street surface.
-                player.transform.position = new Vector3(
-                    CityLayout.ChunkSize * 0.5f, groundHeight + 0.5f, CityLayout.ChunkSize * 0.5f + 6.0f);
+                // A little above the road so the controller settles onto it rather than starting intersecting it.
+                player.transform.position = new Vector3((float)spawnX, groundHeight + 0.5f, (float)spawnZ);
                 playerRagdoll = player.GetComponent<Ragdoll>();
                 playerLocomotion = player.GetComponent<PlayerLocomotion>();
                 playerObjectForWatchdog = player;

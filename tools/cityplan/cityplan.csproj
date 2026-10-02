@@ -1,9 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!--
-    Renders the procedural city as a plan, a height map and a zone map, and
-    prints the mass / zone statistics, with no Unity involved. The layout rules
-    are pure functions, so this links the very same World/*.cs files the game
-    uses and answers in seconds. See docs/PROCEDURAL_CITY.md.
+    Renders the Subversion-style city plan (World/Plan) to a PNG and prints statistics, with no Unity involved. The plan code is
+    pure, so this links the very same files the game uses and answers in a second. See docs/SUBVERSION_CITY.md.
   -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -16,15 +14,9 @@
   <ItemGroup>
     <PackageReference Include="System.Drawing.Common" Version="9.0.0" />
     <Compile Include="..\..\CityX\Assets\CityX\World\Plan\*.cs" />
-    <Compile Include="..\..\CityX\Assets\CityX\World\CityLayout.cs" />
-    <Compile Include="..\..\CityX\Assets\CityX\World\CityZones.cs" />
-    <Compile Include="..\..\CityX\Assets\CityX\World\CityBlocks.cs" />
-    <Compile Include="..\..\CityX\Assets\CityX\World\CityChunkGenerator.cs" />
-    <Compile Include="..\..\CityX\Assets\CityX\World\CityWorld.cs" />
-    <Compile Include="..\..\CityX\Assets\CityX\World\TerrainField.cs" />
-    <Compile Include="..\..\CityX\Assets\CityX\World\WorldHash.cs" />
-    <Compile Include="..\..\CityX\Assets\CityX\World\DeterministicRandom.cs" />
+    <Compile Include="..\..\CityX\Assets\CityX\World\BuildingSite.cs" />
     <Compile Include="..\..\CityX\Assets\CityX\World\BuildingParams.cs" />
-    <Compile Include="..\..\CityX\Assets\CityX\World\CellLayout.cs" />
+    <Compile Include="..\..\CityX\Assets\CityX\World\ZoneKind.cs" />
+    <Compile Include="..\..\CityX\Assets\CityX\World\DeterministicRandom.cs" />
   </ItemGroup>
 </Project>

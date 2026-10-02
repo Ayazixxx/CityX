@@ -224,15 +224,11 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// EXPLICIT ASK, after repeated reports of "there are no sloped
-        /// roads" that turned out to mean "I never actually walked to one":
-        /// /goto slope has to land on a chunk that is a REAL street-vs-street
-        /// terrace drop rolled sloped (mirrors AddStreetEdgeFeatures's own
-        /// roll in CityMeshBuilder.cs exactly), not just anywhere on a
-        /// street.
+        /// /goto slope has to land on a real, climbing road of the plan city -- the middle of a road whose two ends differ in height
+        /// by a noticeable grade -- not just anywhere.
         /// </summary>
         [Test]
-        public void GotoSlopeLandsOnARealSlopedStreetEdge()
+        public void GotoSlopeLandsOnARealClimbingRoad()
         {
             _bodyObject = new GameObject("Body");
             PlayerVitals vitals = _bodyObject.AddComponent<PlayerVitals>();
@@ -253,31 +249,22 @@ namespace CityX.Tests
             view.Submit("/goto slope");
 
             Vector3 at = vitals.transform.position;
-            int chunkX = Mathf.FloorToInt(at.x / CityLayout.ChunkSize);
-            int chunkY = Mathf.FloorToInt(at.z / CityLayout.ChunkSize);
-            Assert.IsTrue(CityLayout.IsStreetChunk(chunkX, chunkY),
-                $"/goto slope landed at ({at.x:0.0},{at.z:0.0}), chunk ({chunkX},{chunkY}), which is not a street");
-
-            bool landedOnASlope = false;
             var world = new CityWorld(streamer.WorldSeed);
-            float pad = world.Terrain.PadHeightFor(chunkX, chunkY);
-            foreach ((int nx, int ny) in new[] { (chunkX - 1, chunkY), (chunkX + 1, chunkY), (chunkX, chunkY - 1), (chunkX, chunkY + 1) })
+            double bestGrade = -1.0;
+            double bestDistance = double.MaxValue;
+            foreach (CityX.World.Plan.EdgeGeometry g in world.Plan.Geometry.Edges)
             {
-                if (!CityLayout.IsStreetChunk(nx, ny))
+                if (g == null || g.Edge.Bridge) continue;
+                double mx = (g.A.X + g.B.X) * 0.5 - at.x, mz = (g.A.Y + g.B.Y) * 0.5 - at.z;
+                double d = mx * mx + mz * mz;
+                if (d < bestDistance)
                 {
-                    continue;
-                }
-                if (world.Terrain.PadHeightFor(nx, ny) >= pad)
-                {
-                    continue;
-                }
-                if (new DeterministicRandom(world.ChunkSeed(nx, ny)).Below(2) == 0)
-                {
-                    landedOnASlope = true;
+                    bestDistance = d;
+                    bestGrade = System.Math.Abs(world.Plan.GroundHeight(g.A.X, g.A.Y) - world.Plan.GroundHeight(g.B.X, g.B.Y)) / g.Length;
                 }
             }
-            Assert.IsTrue(landedOnASlope,
-                $"chunk ({chunkX},{chunkY}) has no sloped-street edge -- /goto slope did not find a real one");
+            Assert.Less(bestDistance, 4.0, $"/goto slope landed at ({at.x:0.0},{at.z:0.0}), which is not the middle of a road");
+            Assert.Greater(bestGrade, 0.01, "the road /goto slope found is flat");
         }
 
         [Test]

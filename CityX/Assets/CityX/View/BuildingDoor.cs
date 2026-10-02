@@ -110,14 +110,13 @@ namespace CityX.View
         public static Panel PanelFor(BuildingSite site)
         {
             float width = BuildingInterior.DoorWidth;
+            // The door is in the middle of the front wall (local +Z), hinged at its left edge as seen from the street.
+            site.LocalToWorld(-width * 0.5, site.Params.Depth * 0.5, out double hingeX, out double hingeZ);
             return new Panel(
-                new Vector3(
-                    (float)site.CentreX - width * 0.5f,
-                    site.BaseHeight,
-                    (float)site.MaxZ),
+                new Vector3((float)hingeX, site.BaseHeight, (float)hingeZ),
                 width,
                 BuildingInterior.DoorHeight(site.Params.Height),
-                Vector3.forward);
+                new Vector3((float)-site.AxisZ, 0.0f, (float)site.AxisX));
         }
 
         /// <summary>

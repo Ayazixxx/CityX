@@ -19,17 +19,10 @@ namespace CityX.Tests
         private static IEnumerable<(BuildingSite site, WindowPlan plan, ZoneKind zone)> Sample(int radius)
         {
             var world = new CityWorld(Seed);
-            for (int x = -radius; x <= radius; x++)
+            // "radius" was once a half-width in 24 m chunks of the old grid; it is now how many chunks around the spawn to look.
+            foreach (BuildingSite site in TestSites.NearSpawn(world, radius * 2))
             {
-                for (int y = -radius; y <= radius; y++)
-                {
-                    BuildingSite site = world.BuildingAt(x, y);
-                    if (!site.Exists || site.AnchorX != x || site.AnchorY != y)
-                    {
-                        continue;
-                    }
-                    yield return (site, WindowPlan.For(world, site), CityChunkGenerator.ZoneOfRole(site.Role));
-                }
+                yield return (site, WindowPlan.For(world, site), site.Zone);
             }
         }
 

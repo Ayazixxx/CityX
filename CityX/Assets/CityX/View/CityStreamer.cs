@@ -157,7 +157,6 @@ namespace CityX.View
         public Transform Viewer;
 
         private CityWorld _world;
-        private SkybridgeLayout _bridges;
         private readonly Dictionary<Vector2Int, GameObject> _loaded = new Dictionary<Vector2Int, GameObject>();
 
         /// <summary>The loaded chunks that are the far version. Everything else in <see cref="_loaded"/> is full detail.</summary>
@@ -250,7 +249,7 @@ namespace CityX.View
         private int _generation;
         private Vector2Int _wantedCentre = new Vector2Int(int.MinValue, int.MinValue);
         private bool _wantedStale = true;
-        private readonly HashSet<Vector2Int> _openDoors = new HashSet<Vector2Int>();
+        private readonly HashSet<int> _openDoors = new HashSet<int>();
         private readonly List<Vector2Int> _wanted = new List<Vector2Int>();
         private readonly List<ChunkRequest> _requests = new List<ChunkRequest>();
         private readonly List<Vector2Int> _stale = new List<Vector2Int>();
@@ -296,7 +295,6 @@ namespace CityX.View
             _wantedStale = true;
 
             _world = new CityWorld(WorldSeed);
-            _bridges = new SkybridgeLayout(WorldSeed);
             foreach (KeyValuePair<Vector2Int, GameObject> pair in _loaded)
             {
                 DestroyChunk(pair.Value);
@@ -344,7 +342,8 @@ namespace CityX.View
         /// </summary>
         private void OnPaneChanged(PaneKey key, PaneState state)
         {
-            var chunk = new Vector2Int(key.ChunkX, key.ChunkY);
+            BuildingSite owner = _world.Building(key.Building);
+            var chunk = new Vector2Int(owner.OwnerChunkX, owner.OwnerChunkY);
             if (!_loaded.TryGetValue(chunk, out GameObject existing))
             {
                 // Not on screen. The rebuild happens when it streams back in,
@@ -685,13 +684,11 @@ namespace CityX.View
 
             // The far version has no cracked glass, no decals and no markings; its guard-rail buffer is still handed
             // in (elevated decks are only built when there is one) and simply never turned into an object.
-            CityMeshBuilder.BuildChunk(_world, _bridges, key.x, key.y, origin,
+            CityMeshBuilder.BuildChunk(_world, key.x, key.y, origin,
                 payload.Ground, payload.Pavement, payload.Structures, payload.LitGlass, payload.DarkGlass,
                 far ? null : payload.CrackedGlass, Damage,
                 far ? null : payload.CrackedOpenings, far ? null : payload.Markings, payload.GuardRail,
                 far ? null : payload.LaneDividers, far ? null : payload.CrackDecals,
-                withGreenery ? payload.Greenery : null,
-                withGreenery ? payload.Bark : null,
                 includeSurface: true, far: far);
 
             // Road, pavement and concrete want different materials, so they go
@@ -800,111 +797,10 @@ namespace CityX.View
             AddCrackDecals(go, key);
             AddMarkings(go, key);
             AddGuardRail(go, key);
-            AddGreenery(go, key);
             AddDoor(go, key);
             AddInteriorVolume(go, key);
-            AddBenches(go, key);
-            AddBooks(go, key);
             _current = null;
             return go;
-        }
-
-        /// <summary>
-        /// One readable book on a pedestrian-zone chunk's own sidewalk --
-        /// EXPLICIT ASK: "add books and when you press E on them it opens a
-        /// page on screen with text ive prepared but just make the system
-        /// for now." Same placement idiom AddBenches already establishes
-        /// (real terrain height via ContinuousHeightAt, parented onto the
-        /// chunk with world position kept), just CityLayout.IsBookChunk's
-        /// own independent, rarer roll instead of every pedestrian zone,
-        /// and only ever one rather than one per side.
-        /// </summary>
-        private void AddBooks(GameObject chunk, Vector2Int key)
-        {
-            if (BookMaterial == null || !CityLayout.IsBookChunk(key.x, key.y))
-            {
-                return;
-            }
-
-            bool runsAlongX = CityLayout.StreetRunsAlongX(key.x, key.y);
-            float size = CityLayout.ChunkSize;
-            float half = size * 0.5f;
-            float sidewalkCentre = half - CityMeshBuilder.SidewalkWidth * 0.5f;
-            double worldAlong = (runsAlongX ? key.x : key.y) * (double)size + half;
-            double worldAcross = (runsAlongX ? key.y : key.x) * (double)size + half + sidewalkCentre;
-            double wx = runsAlongX ? worldAlong : worldAcross;
-            double wz = runsAlongX ? worldAcross : worldAlong;
-            float y = (float)_world.Terrain.ContinuousHeightAt(wx, wz);
-
-            Vector3 facing = runsAlongX ? Vector3.back : Vector3.left;
-
-            var go = new GameObject("Book");
-            go.transform.position = new Vector3((float)wx, y, (float)wz);
-            go.transform.rotation = Quaternion.LookRotation(facing, Vector3.up);
-            go.transform.SetParent(chunk.transform, true);
-
-            Book book = go.AddComponent<Book>();
-            book.Build(BookMaterial);
-        }
-
-        /// <summary>
-        /// Two park benches, one on each sidewalk, in a pedestrian zone
-        /// chunk -- EXPLICIT ASK: "add benches you can go up to and press E
-        /// to sit as well," layered onto the pedestrian-areas work. A real
-        /// GameObject with a live MonoBehaviour (BenchSeat), not baked into
-        /// the chunk mesh like the plaza/skatepark geometry CityMeshBuilder
-        /// already adds -- sitting needs a component to poll E, the same
-        /// reason AddDoor/AddInteriorVolume are also real spawned objects
-        /// rather than static mesh.
-        ///
-        /// QUERIES CityWorld/CityLayout DIRECTLY rather than routing bench
-        /// placement through CityMeshBuilder's own MeshBuffers -- exactly
-        /// how AddDoor already finds its own BuildingSite independently of
-        /// whatever CityMeshBuilder baked for that chunk. Keeps this prop
-        /// spawn decoupled from the baked-geometry pass entirely.
-        ///
-        /// PLACED ON THE SIDEWALK, FACING THE STREET -- the same real-world
-        /// arrangement a plaza bench actually has, sampled at the chunk's
-        /// own along-axis midpoint from the real terrain height
-        /// (ContinuousHeightAt), matching how every other real prop this
-        /// project spawns sits at genuine ground height rather than a
-        /// quantised pad.
-        /// </summary>
-        private void AddBenches(GameObject chunk, Vector2Int key)
-        {
-            if (BenchMaterial == null || !CityLayout.IsPedestrianZoneChunk(key.x, key.y))
-            {
-                return;
-            }
-
-            bool runsAlongX = CityLayout.StreetRunsAlongX(key.x, key.y);
-            float size = CityLayout.ChunkSize;
-            float half = size * 0.5f;
-            float sidewalkCentre = half - CityMeshBuilder.SidewalkWidth * 0.5f;
-            double worldAlong = (runsAlongX ? key.x : key.y) * (double)size + half;
-
-            for (int side = -1; side <= 1; side += 2)
-            {
-                double worldAcross = (runsAlongX ? key.y : key.x) * (double)size + half + side * sidewalkCentre;
-                double wx = runsAlongX ? worldAlong : worldAcross;
-                double wz = runsAlongX ? worldAcross : worldAlong;
-                float y = (float)_world.Terrain.ContinuousHeightAt(wx, wz);
-
-                // Facing INWARD, toward the street's own centreline -- a
-                // sidewalk bench's backrest is against the building side,
-                // its seat opens onto the street/plaza.
-                Vector3 facing = runsAlongX
-                    ? new Vector3(0.0f, 0.0f, -side)
-                    : new Vector3(-side, 0.0f, 0.0f);
-
-                var go = new GameObject("Bench");
-                go.transform.position = new Vector3((float)wx, y, (float)wz);
-                go.transform.rotation = Quaternion.LookRotation(facing, Vector3.up);
-                go.transform.SetParent(chunk.transform, true);
-
-                BenchSeat bench = go.AddComponent<BenchSeat>();
-                bench.Build(BenchMaterial);
-            }
         }
 
         /// <summary>
@@ -941,72 +837,27 @@ namespace CityX.View
             collider.sharedMesh = mesh;
         }
 
-        /// <summary>
-        /// The lawn and trees of a park chunk (see
-        /// CityMeshBuilder.AddOpenBlockSurface) as one child object with two
-        /// submeshes -- grass, and bark -- and no collider: the terrace under it
-        /// is already solid, and a trunk is not worth cooking a collider for.
-        /// </summary>
-        private void AddGreenery(GameObject chunk, Vector2Int key)
-        {
-            if (_greenery.IsEmpty || GrassMaterial == null || BarkMaterial == null)
-            {
-                return;
-            }
-
-            var go = new GameObject("Greenery");
-            go.transform.SetParent(chunk.transform, false);
-
-            var vertices = new List<Vector3>(_greenery.Vertices);
-            var normals = new List<Vector3>(_greenery.Normals);
-            var uvs = new List<Vector2>(_greenery.Uvs);
-            var barkTriangles = new int[_bark.Triangles.Count];
-            int offset = vertices.Count;
-            for (int i = 0; i < barkTriangles.Length; i++)
-            {
-                barkTriangles[i] = _bark.Triangles[i] + offset;
-            }
-            vertices.AddRange(_bark.Vertices);
-            normals.AddRange(_bark.Normals);
-            uvs.AddRange(_bark.Uvs);
-
-            var mesh = new Mesh { name = $"greenery-{key.x}-{key.y}" };
-            mesh.SetVertices(vertices);
-            mesh.SetNormals(normals);
-            mesh.SetUVs(0, uvs);
-            mesh.subMeshCount = 2;
-            mesh.SetTriangles(_greenery.Triangles, 0);
-            mesh.SetTriangles(barkTriangles, 1);
-            mesh.RecalculateBounds();
-
-            go.AddComponent<MeshFilter>().sharedMesh = mesh;
-            go.AddComponent<MeshRenderer>().sharedMaterials = new[] { GrassMaterial, BarkMaterial };
-        }
 
         /// <summary>
         /// The "you are inside this building" trigger, which is what makes the
-        /// street go quiet as you step through the door.
-        ///
-        /// ON THE ANCHOR ONLY, like the door and the geometry: a building that
-        /// spans four chunks is one building and wants one volume, not four
-        /// overlapping ones counting the same body in four times over.
+        /// street go quiet as you step through the door. One per building the
+        /// chunk builds, turned the way the building is.
         /// </summary>
         private void AddInteriorVolume(GameObject chunk, Vector2Int key)
         {
-            BuildingSite site = _world.BuildingAt(key.x, key.y);
-            if (!site.Exists || site.AnchorX != key.x || site.AnchorY != key.y)
+            List<int> owned = _world.BuildingsOwnedBy(key.x, key.y);
+            for (int i = 0; i < owned.Count; i++)
             {
-                return;
+                BuildingSite site = _world.Building(owned[i]);
+                var go = new GameObject("Interior");
+                go.transform.SetParent(chunk.transform, true);
+                var volume = go.AddComponent<BuildingInteriorVolume>();
+                volume.Fit(BuildingInteriorVolume.BoundsFor(site), Quaternion.Euler(0.0f, CityMeshBuilder.YawDegreesOf(site), 0.0f));
             }
-
-            var go = new GameObject("Interior");
-            go.transform.SetParent(chunk.transform, true);
-            var volume = go.AddComponent<BuildingInteriorVolume>();
-            volume.Fit(BuildingInteriorVolume.BoundsFor(site));
         }
 
         /// <summary>
-        /// The building's front door, if it has one.
+        /// The front door of every building the chunk builds.
         ///
         /// WHETHER IT IS OPEN IS REMEMBERED HERE, NOT ON THE DOOR, and that is
         /// a departure from Godot forced by this port's own streaming. A Godot
@@ -1021,30 +872,35 @@ namespace CityX.View
         /// </summary>
         private void AddDoor(GameObject chunk, Vector2Int key)
         {
-            BuildingSite site = _world.BuildingAt(key.x, key.y);
-            if (!site.Exists || site.AnchorX != key.x || site.AnchorY != key.y ||
-                DoorMaterial == null)
+            if (DoorMaterial == null)
             {
                 return;
             }
 
-            var go = new GameObject("Door");
-            go.transform.SetParent(chunk.transform, true);
-
-            BuildingDoor door = go.AddComponent<BuildingDoor>();
-            door.Toggled += open =>
+            List<int> owned = _world.BuildingsOwnedBy(key.x, key.y);
+            for (int i = 0; i < owned.Count; i++)
             {
-                if (open)
+                BuildingSite site = _world.Building(owned[i]);
+                int buildingId = site.Id;
+
+                var go = new GameObject("Door");
+                go.transform.SetParent(chunk.transform, true);
+
+                BuildingDoor door = go.AddComponent<BuildingDoor>();
+                door.Toggled += open =>
                 {
-                    _openDoors.Add(key);
-                }
-                else
-                {
-                    _openDoors.Remove(key);
-                }
-            };
-            door.Hang(BuildingDoor.PanelFor(site), DoorMaterial, DoorHandleMaterial,
-                _openDoors.Contains(key));
+                    if (open)
+                    {
+                        _openDoors.Add(buildingId);
+                    }
+                    else
+                    {
+                        _openDoors.Remove(buildingId);
+                    }
+                };
+                door.Hang(BuildingDoor.PanelFor(site), DoorMaterial, DoorHandleMaterial,
+                    _openDoors.Contains(buildingId));
+            }
         }
 
         /// <summary>
@@ -1070,18 +926,10 @@ namespace CityX.View
         /// </summary>
         private void AddMarkings(GameObject chunk, Vector2Int key)
         {
-            BuildMarkingsMesh(chunk, key, _markings, "markings", MarkingsMaterialFor(key));
+            BuildMarkingsMesh(chunk, key, _markings, "markings", RoadLineMaterial);
             BuildMarkingsMesh(chunk, key, _laneDividers, "lane-dividers", CrosswalkMaterial);
         }
 
-        private Material MarkingsMaterialFor(Vector2Int key)
-        {
-            bool junction = CityLayout.IsStreetChunk(key.x - 1, key.y) &&
-                            CityLayout.IsStreetChunk(key.x + 1, key.y) &&
-                            CityLayout.IsStreetChunk(key.x, key.y - 1) &&
-                            CityLayout.IsStreetChunk(key.x, key.y + 1);
-            return junction ? CrosswalkMaterial : RoadLineMaterial;
-        }
 
         private static void BuildMarkingsMesh(GameObject chunk, Vector2Int key, MeshBuffer buffer,
             string name, Material material)
@@ -1150,12 +998,13 @@ namespace CityX.View
                 var watcher = new GameObject("Opening");
                 watcher.transform.SetParent(go.transform, false);
                 watcher.transform.localPosition = opening.Centre;
+                watcher.transform.localRotation = opening.Rotation;
 
                 BoxCollider box = watcher.AddComponent<BoxCollider>();
                 box.isTrigger = true;
                 box.size = opening.Size;
 
-                watcher.AddComponent<CrackedPane>().Watch(Damage, opening.Key);
+                watcher.AddComponent<CrackedPane>().Watch(Damage, opening.Key, opening.Rotation);
             }
         }
 

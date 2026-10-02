@@ -1021,10 +1021,14 @@ namespace CityX.View
             {
                 for (int dy = -2; dy <= 2; dy++)
                 {
-                    BuildingSite site = world.BuildingAt(chunkX + dx, chunkY + dy);
-                    if (site.Exists && site.Top > best)
+                    System.Collections.Generic.List<int> owned = world.BuildingsOwnedBy(chunkX + dx, chunkY + dy);
+                    for (int i = 0; i < owned.Count; i++)
                     {
-                        best = site.Top;
+                        BuildingSite site = world.Building(owned[i]);
+                        if (site.Top > best)
+                        {
+                            best = site.Top;
+                        }
                     }
                 }
             }

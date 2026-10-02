@@ -12,7 +12,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class GlassBlowTests
     {
-        private static readonly PaneKey Pane = new PaneKey(3, 4, WindowGrid.Wall.North, 2, 1);
+        private static readonly PaneKey Pane = new PaneKey(3, WindowGrid.Wall.North, 2, 1);
 
         [Test]
         public void ALightBlowTakesAPaneOneStepAndAHeavyBlowTakesItAllTheWay()

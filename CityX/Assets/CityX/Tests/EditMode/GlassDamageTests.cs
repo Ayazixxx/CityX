@@ -27,8 +27,8 @@ namespace CityX.Tests
             {
                 for (int y = -8; y <= 8; y++)
                 {
-                    BuildingSite site = world.BuildingAt(x, y);
-                    if (!site.Exists || site.AnchorX != x || site.AnchorY != y || site.Params.Width <= 14.0f)
+                    BuildingSite site = TestSites.FirstOwnedBy(world, x, y);
+                    if (!site.Exists || site.Params.Width <= 14.0f)
                     {
                         continue;
                     }
@@ -66,7 +66,7 @@ namespace CityX.Tests
         public void OneHitCracksAWindowAndASecondShattersIt()
         {
             var damage = new GlassDamage();
-            var key = new PaneKey(3, 1, WindowGrid.Wall.North, 4, 2);
+            var key = new PaneKey(3, WindowGrid.Wall.North, 4, 2);
 
             Assert.AreEqual(PaneState.Intact, damage.StateOf(key));
             Assert.AreEqual(0, damage.BrokenCount, "an untouched city stores nothing");
@@ -89,17 +89,17 @@ namespace CityX.Tests
         public void BreakingOneWindowLeavesItsNeighboursAlone()
         {
             var damage = new GlassDamage();
-            var key = new PaneKey(3, 1, WindowGrid.Wall.North, 4, 2);
+            var key = new PaneKey(3, WindowGrid.Wall.North, 4, 2);
             damage.Hit(key);
 
             Assert.AreEqual(PaneState.Intact,
-                damage.StateOf(new PaneKey(3, 1, WindowGrid.Wall.North, 5, 2)), "next along");
+                damage.StateOf(new PaneKey(3, WindowGrid.Wall.North, 5, 2)), "next along");
             Assert.AreEqual(PaneState.Intact,
-                damage.StateOf(new PaneKey(3, 1, WindowGrid.Wall.North, 4, 3)), "the floor above");
+                damage.StateOf(new PaneKey(3, WindowGrid.Wall.North, 4, 3)), "the floor above");
             Assert.AreEqual(PaneState.Intact,
-                damage.StateOf(new PaneKey(3, 1, WindowGrid.Wall.South, 4, 2)), "round the back");
+                damage.StateOf(new PaneKey(3, WindowGrid.Wall.South, 4, 2)), "round the back");
             Assert.AreEqual(PaneState.Intact,
-                damage.StateOf(new PaneKey(4, 1, WindowGrid.Wall.North, 4, 2)), "next building");
+                damage.StateOf(new PaneKey(4, WindowGrid.Wall.North, 4, 2)), "next building");
         }
 
         /// <summary>
@@ -110,7 +110,7 @@ namespace CityX.Tests
         public void EveryChangeIsAnnouncedAndNoNonChangeIs()
         {
             var damage = new GlassDamage();
-            var key = new PaneKey(0, 0, WindowGrid.Wall.West, 1, 1);
+            var key = new PaneKey(0, WindowGrid.Wall.West, 1, 1);
 
             int announced = 0;
             PaneState last = PaneState.Intact;
@@ -165,15 +165,14 @@ namespace CityX.Tests
 
                     // Dead centre of that pane on the wall at maximum Z, a
                     // couple of centimetres proud of it like a real contact.
-                    var point = new Vector3(
+                    var point = TestSites.At(site, 
                         (float)site.MinX + (column + 0.5f) * columns.Size,
                         site.BaseHeight + (row + 0.5f) * rows.Size,
                         (float)site.MaxZ + 0.02f);
 
                     Assert.IsTrue(GlassDamage.TryPaneAt(world, site, point, out PaneKey key),
                         $"the middle of the window at column {column}, row {row} is not a window");
-                    Assert.AreEqual(site.AnchorX, key.ChunkX);
-                    Assert.AreEqual(site.AnchorY, key.ChunkY);
+                    Assert.AreEqual(site.Id, key.Building);
                     Assert.AreEqual(WindowGrid.Wall.North, key.Wall);
                     Assert.AreEqual(column, key.Column);
                     Assert.AreEqual(row, key.Row);
@@ -208,7 +207,7 @@ namespace CityX.Tests
                     {
                         continue;
                     }
-                    var point = new Vector3(
+                    var point = TestSites.At(site, 
                         (float)site.MinX + (column + 0.5f) * columns.Size,
                         site.BaseHeight + (row + 0.5f) * rows.Size,
                         (float)site.MaxZ + 0.02f);
@@ -224,17 +223,17 @@ namespace CityX.Tests
 
             // Standing well back from the wall.
             Assert.IsFalse(GlassDamage.TryPaneAt(world, site,
-                new Vector3(midX, midY, (float)site.MaxZ + 3.0f), out _), "a punch at thin air");
+                TestSites.At(site, midX, midY, (float)site.MaxZ + 3.0f), out _), "a punch at thin air");
 
             // Under the lobby floor, which is podium, and over the roof.
             Assert.IsFalse(GlassDamage.TryPaneAt(world, site,
-                new Vector3(midX, site.BaseHeight - 2.0f, (float)site.MaxZ), out _), "the podium");
+                TestSites.At(site, midX, site.BaseHeight - 2.0f, (float)site.MaxZ), out _), "the podium");
             Assert.IsFalse(GlassDamage.TryPaneAt(world, site,
-                new Vector3(midX, site.Top + 2.0f, (float)site.MaxZ), out _), "above the roof");
+                TestSites.At(site, midX, site.Top + 2.0f, (float)site.MaxZ), out _), "above the roof");
 
             // Off the end of the wall.
             Assert.IsFalse(GlassDamage.TryPaneAt(world, site,
-                new Vector3((float)site.MaxX + 4.0f, midY, (float)site.MaxZ), out _), "past the corner");
+                TestSites.At(site, (float)site.MaxX + 4.0f, midY, (float)site.MaxZ), out _), "past the corner");
         }
 
         /// <summary>
@@ -253,14 +252,14 @@ namespace CityX.Tests
             {
                 for (int y = -8; y <= 8; y++)
                 {
-                    BuildingSite site = world.BuildingAt(x, y);
-                    if (!site.Exists || site.AnchorX != x || site.AnchorY != y)
+                    BuildingSite site = TestSites.FirstOwnedBy(world, x, y);
+                    if (!site.Exists)
                     {
                         continue;
                     }
                     found++;
 
-                    var inTheDoorway = new Vector3(
+                    var inTheDoorway = TestSites.At(site, 
                         (float)site.CentreX,
                         site.BaseHeight + BuildingInterior.DoorHeight(site.Params.Height) * 0.5f,
                         (float)site.MaxZ);

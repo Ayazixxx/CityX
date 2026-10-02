@@ -190,8 +190,10 @@ namespace CityX.UI
             float viewZ = playerPosition.z + _panWorld.y;
 
             CityWorld world = WorldFor(Streamer.WorldSeed);
+            Vector2Int[] explored = Streamer.GetExploredChunks();
 
-            foreach (Vector2Int coord in Streamer.GetExploredChunks())
+            // Pass 1: the ground of every explored chunk, so nothing drawn later is covered by a neighbour's square.
+            foreach (Vector2Int coord in explored)
             {
                 MapProjection.ChunkRect(panelCentre, coord.x, coord.y, chunkSize,
                     viewX, viewZ, scale, out Vector2 topLeft, out float pixelSize);
@@ -199,39 +201,89 @@ namespace CityX.UI
                 {
                     continue;
                 }
+                AddPanelQuad(vh, rect, topLeft, new Vector2(pixelSize, pixelSize), LotColour);
+            }
 
-                bool isStreet = CityLayout.IsStreetChunk(coord.x, coord.y);
-                Vector2 drawTopLeft = topLeft;
-                float drawSize = pixelSize;
-                if (isStreet && pixelSize < StreetMinPixelWidth)
-                {
-                    float grow = (StreetMinPixelWidth - pixelSize) * 0.5f;
-                    drawTopLeft -= new Vector2(grow, grow);
-                    drawSize = StreetMinPixelWidth;
-                }
-                AddPanelQuad(vh, rect, drawTopLeft, new Vector2(drawSize, drawSize), isStreet ? RoadColour : LotColour);
-                if (isStreet)
+            // Pass 2: the roads, each drawn once as the turned strip it is.
+            var drawnRoads = new System.Collections.Generic.HashSet<int>();
+            foreach (Vector2Int coord in explored)
+            {
+                MapProjection.ChunkRect(panelCentre, coord.x, coord.y, chunkSize,
+                    viewX, viewZ, scale, out Vector2 topLeft, out float pixelSize);
+                if (MapProjection.IsOffScreen(topLeft, pixelSize, panelSize))
                 {
                     continue;
                 }
+                foreach (int edgeId in world.Plan.EdgesIn(coord.x, coord.y))
+                {
+                    if (!drawnRoads.Add(edgeId))
+                    {
+                        continue;
+                    }
+                    CityX.World.Plan.EdgeGeometry g = world.Plan.Geometry.Edges[edgeId];
+                    if (g == null)
+                    {
+                        continue;
+                    }
+                    // Never thinner than a few pixels, however far the map is zoomed out.
+                    float half = Mathf.Max((float)g.HalfWidth, StreetMinPixelWidth * 0.5f / scale);
+                    var along = new Vector2((float)g.Dir.X, (float)g.Dir.Y);
+                    var across = new Vector2(-along.y, along.x) * half;
+                    var a = new Vector2((float)g.A.X, (float)g.A.Y);
+                    var b = new Vector2((float)g.B.X, (float)g.B.Y);
+                    AddPanelQuad4(vh, rect,
+                        MapProjection.ToScreen(panelCentre, a.x + across.x, a.y + across.y, viewX, viewZ, scale),
+                        MapProjection.ToScreen(panelCentre, b.x + across.x, b.y + across.y, viewX, viewZ, scale),
+                        MapProjection.ToScreen(panelCentre, b.x - across.x, b.y - across.y, viewX, viewZ, scale),
+                        MapProjection.ToScreen(panelCentre, a.x - across.x, a.y - across.y, viewX, viewZ, scale),
+                        RoadColour);
+                }
+            }
 
-                BuildingSite site = world.BuildingAt(coord.x, coord.y);
-                if (!site.Exists)
+            // Pass 3: the buildings, each as its own turned rectangle, coloured by height.
+            foreach (Vector2Int coord in explored)
+            {
+                MapProjection.ChunkRect(panelCentre, coord.x, coord.y, chunkSize,
+                    viewX, viewZ, scale, out Vector2 topLeft, out float pixelSize);
+                if (MapProjection.IsOffScreen(topLeft, pixelSize, panelSize))
                 {
                     continue;
                 }
-
-                Vector2 buildingTopLeft = MapProjection.ToScreen(panelCentre,
-                    (float)(site.CentreX - site.Params.Width * 0.5), (float)(site.CentreZ - site.Params.Depth * 0.5),
-                    viewX, viewZ, scale);
-                var buildingSize = new Vector2(site.Params.Width * scale, site.Params.Depth * scale);
-                float tallness = MapProjection.HeightFraction(
-                    site.Params.Height, BuildingMinHeight, BuildingMaxHeight);
-                Color buildingColour = Color.Lerp(BuildingLowColour, BuildingTallColour, tallness);
-                AddPanelQuad(vh, rect, buildingTopLeft, buildingSize, buildingColour);
+                System.Collections.Generic.List<int> owned = world.BuildingsOwnedBy(coord.x, coord.y);
+                for (int i = 0; i < owned.Count; i++)
+                {
+                    BuildingSite site = world.Building(owned[i]);
+                    float hw = site.Params.Width * 0.5f;
+                    float hd = site.Params.Depth * 0.5f;
+                    Vector2 c0 = ScreenOf(site, -hw, -hd, panelCentre, viewX, viewZ, scale);
+                    Vector2 c1 = ScreenOf(site, hw, -hd, panelCentre, viewX, viewZ, scale);
+                    Vector2 c2 = ScreenOf(site, hw, hd, panelCentre, viewX, viewZ, scale);
+                    Vector2 c3 = ScreenOf(site, -hw, hd, panelCentre, viewX, viewZ, scale);
+                    float tallness = MapProjection.HeightFraction(
+                        site.Params.Height, BuildingMinHeight, BuildingMaxHeight);
+                    AddPanelQuad4(vh, rect, c0, c1, c2, c3, Color.Lerp(BuildingLowColour, BuildingTallColour, tallness));
+                }
             }
 
             AddPlayerMarker(vh, rect, panelCentre);
+        }
+
+        private static Vector2 ScreenOf(BuildingSite site, float localX, float localZ, Vector2 panelCentre,
+            float viewX, float viewZ, float scale)
+        {
+            site.LocalToWorld(localX, localZ, out double wx, out double wz);
+            return MapProjection.ToScreen(panelCentre, (float)wx, (float)wz, viewX, viewZ, scale);
+        }
+
+        private static void AddPanelQuad4(VertexHelper vh, Rect rect, Vector2 a, Vector2 b, Vector2 c, Vector2 d, Color colour)
+        {
+            int start = vh.currentVertCount;
+            vh.AddVert(PanelVertex(rect, a, colour));
+            vh.AddVert(PanelVertex(rect, b, colour));
+            vh.AddVert(PanelVertex(rect, c, colour));
+            vh.AddVert(PanelVertex(rect, d, colour));
+            vh.AddTriangle(start, start + 1, start + 2);
+            vh.AddTriangle(start + 2, start + 3, start);
         }
 
         /// <summary>A filled triangle at the panel centre, pointing whichever way the player is facing.</summary>

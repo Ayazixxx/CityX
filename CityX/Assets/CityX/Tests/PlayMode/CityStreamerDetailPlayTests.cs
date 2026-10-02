@@ -153,14 +153,27 @@ namespace CityX.Tests
         {
             CityStreamer streamer = Streamer("Detail", radius: 5, fullRadius: 1, Viewer(CentreOfChunk(0, 0)));
             yield return WaitUntil(() => streamer.LoadedChunkCount >= 11 * 11, 30.0f);
-            Assert.IsTrue(streamer.IsChunkFar(new Vector2Int(4, 0)));
 
-            streamer.Damage.Hit(new PaneKey(4, 0, WindowGrid.Wall.North, 1, 1));
+            // A building built by one of the far chunks, three to five chunks out.
+            var world = new CityWorld(61472093);
+            BuildingSite site = BuildingSite.None;
+            for (int dx = 3; dx <= 5 && !site.Exists; dx++)
+            {
+                for (int dy = -5; dy <= 5 && !site.Exists; dy++)
+                {
+                    site = TestSites.FirstOwnedBy(world, dx, dy);
+                }
+            }
+            Assert.IsTrue(site.Exists, "no building in the far ring to break a window of");
+            var chunk = new Vector2Int(site.OwnerChunkX, site.OwnerChunkY);
+            Assert.IsTrue(streamer.IsChunkFar(chunk));
+
+            streamer.Damage.Hit(new PaneKey(site.Id, WindowGrid.Wall.North, 1, 1));
             yield return null;
             yield return null;
 
-            Assert.IsTrue(streamer.IsChunkFar(new Vector2Int(4, 0)), "the rebuilt chunk came back full detail");
-            Assert.IsNotNull(streamer.transform.Find("Chunk 4,0"));
+            Assert.IsTrue(streamer.IsChunkFar(chunk), "the rebuilt chunk came back full detail");
+            Assert.IsNotNull(streamer.transform.Find($"Chunk {chunk.x},{chunk.y}"));
         }
     }
 }

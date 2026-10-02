@@ -23,6 +23,10 @@ namespace CityX.Tests
     /// one MeshCollider over the same triangles the renderer draws -- because a
     /// purpose-built collision proxy would be testing something the game does
     /// not ship.
+    ///
+    /// EVERY BUILDING IS TURNED TO FACE ITS STREET, so none of this is along a world axis any more: the door is on the building's
+    /// own +Z wall, and "in" is whichever way that is. Positions are worked out in the building's own frame and converted
+    /// (BuildingSite.LocalToWorld / WorldToLocal).
     /// </summary>
     public class BuildingInteriorPlayTests
     {
@@ -42,20 +46,17 @@ namespace CityX.Tests
         {
             var world = new CityWorld(Seed);
             _site = PickBuilding(world);
-            Assert.IsTrue(_site.Exists, "no building near the origin with level ground at its door");
+            Assert.IsTrue(_site.Exists, "no building near the spawn with level ground at its door");
 
             _storey = BuildingInterior.StoreyHeight(_site.Params.Height);
 
-            // The anchor and its neighbours: the anchor carries the whole
-            // building however many chunks it covers, the neighbours carry the
-            // ground you stand on to walk up to it.
+            // The chunk that builds the building, and the ones around it (they carry the street you walk up from).
             _chunks = new GameObject("Chunks");
-            var bridges = new SkybridgeLayout(Seed);
-            for (int dx = -1; dx <= 1; dx++)
+            for (int dx = -2; dx <= 2; dx++)
             {
-                for (int dy = -1; dy <= 1; dy++)
+                for (int dy = -2; dy <= 2; dy++)
                 {
-                    BuildChunk(world, bridges, _site.AnchorX + dx, _site.AnchorY + dy);
+                    BuildChunk(world, _site.OwnerChunkX + dx, _site.OwnerChunkY + dy);
                 }
             }
 
@@ -78,26 +79,34 @@ namespace CityX.Tests
             }
         }
 
+        private Vector3 InBuilding(double localX, float y, double localZ)
+        {
+            _site.LocalToWorld(localX, localZ, out double wx, out double wz);
+            return new Vector3((float)wx, y, (float)wz);
+        }
+
+        /// <summary>The way into the building, in the world: the opposite of the front wall's outward direction.</summary>
+        private Vector3 WorldIn => new Vector3((float)_site.AxisZ, 0.0f, (float)-_site.AxisX);
+
         /// <summary>
-        /// Walks in off the street. The doorway is on the wall at maximum Z, so
-        /// getting inside means travelling in -Z.
+        /// Walks in off the street. The doorway is on the building's front (+Z) wall, so getting inside means travelling
+        /// the other way.
         /// </summary>
         [UnityTest]
         public IEnumerator WalkingAtTheDoorwayGetsYouInside()
         {
-            PlaceAt(new Vector3(
-                (float)_site.CentreX, _site.BaseHeight + 0.2f, (float)_site.MaxZ + 1.2f));
+            PlaceAt(InBuilding(0.0, _site.BaseHeight + 0.2f, _site.Params.Depth * 0.5 + 1.2));
             yield return Settle();
 
-            float startZ = _player.transform.position.z;
-            yield return Drive(new Vector3(0.0f, 0.0f, -1.0f), 180);
+            _site.WorldToLocal(_player.transform.position.x, _player.transform.position.z, out _, out double startZ);
+            yield return Drive(WorldIn, 180);
 
             Vector3 at = _player.transform.position;
-            Assert.Less(at.z, (float)_site.MaxZ - 0.5f,
+            _site.WorldToLocal(at.x, at.z, out double localX, out double localZ);
+            Assert.Less(localZ, _site.Params.Depth * 0.5 - 0.5,
                 $"walked at the doorway for three seconds and got from {startZ:0.00} to "
-                + $"{at.z:0.00}, with the wall at {_site.MaxZ:0.00} -- the door is not open");
-            Assert.Greater(at.x, (float)_site.MinX, "left the building sideways");
-            Assert.Less(at.x, (float)_site.MaxX, "left the building sideways");
+                + $"{localZ:0.00}, with the wall at {_site.Params.Depth * 0.5:0.00} -- the door is not open");
+            Assert.Less(System.Math.Abs(localX), _site.Params.Width * 0.5, "left the building sideways");
             Assert.AreEqual(_site.BaseHeight, at.y, 0.15f,
                 "inside the building but not standing on its lobby floor");
         }
@@ -111,8 +120,7 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator TheLobbyFloorHoldsABodyUp()
         {
-            PlaceAt(new Vector3(
-                (float)_site.CentreX, _site.BaseHeight + 2.5f, (float)_site.CentreZ));
+            PlaceAt(new Vector3((float)_site.CentreX, _site.BaseHeight + 2.5f, (float)_site.CentreZ));
             yield return Settle();
 
             Assert.IsTrue(_locomotion.IsGrounded, "never landed on anything");
@@ -141,14 +149,16 @@ namespace CityX.Tests
             // At the foot, out in the room, which is the end a person walks up
             // to. The flight climbs from here towards its wall.
             Vector3 foot = well.FootOf(run);
-            PlaceAt(new Vector3(
-                (float)_site.CentreX + foot.x,
-                _site.BaseHeight + 0.3f,
-                (float)_site.CentreZ + foot.z));
+            PlaceAt(InBuilding(foot.x, _site.BaseHeight + 0.3f, foot.z));
             yield return Settle();
 
+            // The flight's run direction is in the building's frame; turn it into the world.
+            Vector3 runWorld = new Vector3(
+                (float)(-well.RunDirection.x * _site.AxisX + well.RunDirection.z * _site.AxisZ), 0.0f,
+                (float)(-well.RunDirection.x * _site.AxisZ - well.RunDirection.z * _site.AxisX));
+
             float startY = _player.transform.position.y;
-            yield return Drive(-well.RunDirection, 480);
+            yield return Drive(runWorld, 480);
 
             float climbed = _player.transform.position.y - startY;
             Assert.Greater(climbed, _storey - 0.4f,
@@ -204,40 +214,22 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// A building with room to walk about in and level ground at its door.
-        /// A terrace step outside the entrance would make this a test of
-        /// whether a body can climb a kerb.
+        /// A building with room to walk about in and level ground at its door. A step outside the entrance would make this
+        /// a test of whether a body can climb a kerb.
         /// </summary>
         private static BuildingSite PickBuilding(CityWorld world)
         {
-            for (int x = -8; x <= 8; x++)
+            foreach (BuildingSite site in TestSites.NearSpawn(world))
             {
-                for (int y = -8; y <= 8; y++)
+                if (site.Params.Width < 14.0f || site.Params.Depth < 14.0f)
                 {
-                    BuildingSite site = world.BuildingAt(x, y);
-                    if (!site.Exists || site.AnchorX != x || site.AnchorY != y ||
-                        site.Params.Width < 14.0f || site.Params.Depth < 14.0f)
-                    {
-                        continue;
-                    }
-                    if (!Mathf.Approximately(world.Terrain.PadHeightFor(x, y + 1), site.BaseHeight))
-                    {
-                        continue;
-                    }
-                    // The door is on the north wall (see WalkingAtTheDoorwayGetsYouInside's
-                    // own doc comment) and the player spawns just north of it --
-                    // level ground alone is not enough now that
-                    // CityLayout.LocalStreetPeriodFor varies block size by
-                    // neighbourhood: the first level-ground match near the origin
-                    // can have ANOTHER BUILDING to the north instead of open
-                    // street, which spawns the player embedded in that facade
-                    // rather than in the open. Real street or open ground only.
-                    if (!CityLayout.IsStreetChunk(x, y + 1))
-                    {
-                        continue;
-                    }
-                    return site;
+                    continue;
                 }
+                if (Mathf.Abs(site.BaseHeight - site.DoorGroundHeight) > 0.12f)
+                {
+                    continue;
+                }
+                return site;
             }
             return BuildingSite.None;
         }
@@ -246,12 +238,12 @@ namespace CityX.Tests
         /// One chunk, in world coordinates, collided the way CityStreamer
         /// collides it: a single MeshCollider over every triangle drawn.
         /// </summary>
-        private void BuildChunk(CityWorld world, SkybridgeLayout bridges, int chunkX, int chunkY)
+        private void BuildChunk(CityWorld world, int chunkX, int chunkY)
         {
             var ground = new MeshBuffer();
             var pavement = new MeshBuffer();
             var structures = new MeshBuffer();
-            CityMeshBuilder.BuildChunk(world, bridges, chunkX, chunkY, Vector3.zero,
+            CityMeshBuilder.BuildChunk(world, chunkX, chunkY, Vector3.zero,
                 ground, pavement, structures);
 
             var vertices = new List<Vector3>();

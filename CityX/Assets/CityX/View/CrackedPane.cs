@@ -26,6 +26,13 @@ namespace CityX.View
     {
         private GlassDamage _damage;
         private PaneKey _key;
+        private Quaternion _rotation = Quaternion.identity;
+
+        public void Watch(GlassDamage damage, PaneKey key, Quaternion rotation)
+        {
+            _rotation = rotation;
+            Watch(damage, key);
+        }
 
         public void Watch(GlassDamage damage, PaneKey key)
         {
@@ -52,7 +59,7 @@ namespace CityX.View
 
         private void Consider(Collider other)
         {
-            if (_damage == null || !IsAKnock(other, _key.Wall))
+            if (_damage == null || !IsAKnock(other, _key.Wall, _rotation))
             {
                 return;
             }
@@ -74,7 +81,10 @@ namespace CityX.View
         ///     thrown bottle, a ragdoll -- never a kinematic limb collider and never debris (IgnoredByShots);
         ///   * moving THROUGH the pane's plane at <see cref="MinKnockSpeed"/> or more.
         /// </summary>
-        public static bool IsAKnock(Collider other, WindowGrid.Wall wall)
+        public static bool IsAKnock(Collider other, WindowGrid.Wall wall) => IsAKnock(other, wall, Quaternion.identity);
+
+        /// <summary>The same, for a building turned by <paramref name="rotation"/> (every building is turned to face its street).</summary>
+        public static bool IsAKnock(Collider other, WindowGrid.Wall wall, Quaternion rotation)
         {
             if (other == null || IgnoredByShots.Covers(other))
             {
@@ -96,7 +106,7 @@ namespace CityX.View
                 velocity = body.linearVelocity;
             }
 
-            return Mathf.Abs(Vector3.Dot(velocity, WindowGrid.OutwardNormal(wall))) >= MinKnockSpeed;
+            return Mathf.Abs(Vector3.Dot(velocity, rotation * WindowGrid.OutwardNormal(wall))) >= MinKnockSpeed;
         }
 
         public bool TakePunch(Vector3 point) => TakeBlow(point, Vector3.zero, BlowStrength.Light);
@@ -119,7 +129,7 @@ namespace CityX.View
 
         private Vector3 OnPanePlane(Vector3 point, Vector3 direction)
         {
-            Vector3 normal = WindowGrid.OutwardNormal(_key.Wall);
+            Vector3 normal = _rotation * WindowGrid.OutwardNormal(_key.Wall);
             float along = Vector3.Dot(direction, normal);
             if (Mathf.Abs(along) < 0.05f)
             {

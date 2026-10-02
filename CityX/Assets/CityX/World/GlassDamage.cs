@@ -66,19 +66,18 @@ namespace CityX.World
         Bullet = 2,
     }
 
-    /// <summary>One window in the world.</summary>
+    /// <summary>One window in the world: which building, which wall of it, which cell.</summary>
     public readonly struct PaneKey : IEquatable<PaneKey>
     {
-        public readonly int ChunkX;
-        public readonly int ChunkY;
+        /// <summary>The building (<see cref="BuildingSite.Id"/>).</summary>
+        public readonly int Building;
         public readonly WindowGrid.Wall Wall;
         public readonly int Column;
         public readonly int Row;
 
-        public PaneKey(int chunkX, int chunkY, WindowGrid.Wall wall, int column, int row)
+        public PaneKey(int building, WindowGrid.Wall wall, int column, int row)
         {
-            ChunkX = chunkX;
-            ChunkY = chunkY;
+            Building = building;
             Wall = wall;
             Column = column;
             Row = row;
@@ -86,8 +85,7 @@ namespace CityX.World
 
         public bool Equals(PaneKey other)
         {
-            return ChunkX == other.ChunkX && ChunkY == other.ChunkY &&
-                   Wall == other.Wall && Column == other.Column && Row == other.Row;
+            return Building == other.Building && Wall == other.Wall && Column == other.Column && Row == other.Row;
         }
 
         public override bool Equals(object obj)
@@ -99,8 +97,7 @@ namespace CityX.World
         {
             unchecked
             {
-                int hash = ChunkX;
-                hash = hash * 397 ^ ChunkY;
+                int hash = Building;
                 hash = hash * 397 ^ (int)Wall;
                 hash = hash * 397 ^ Column;
                 return hash * 397 ^ Row;
@@ -109,7 +106,7 @@ namespace CityX.World
 
         public override string ToString()
         {
-            return $"({ChunkX},{ChunkY}) {Wall} c{Column} r{Row}";
+            return $"#{Building} {Wall} c{Column} r{Row}";
         }
     }
 
@@ -258,6 +255,9 @@ namespace CityX.World
         /// </summary>
         public static Vector2 FractionWithinPane(CityWorld world, BuildingSite site, PaneKey key, Vector3 point)
         {
+            // The building is turned in the world; its windows are laid out in its own unturned frame (BuildingSite).
+            site.ToBuilderFrame(point.x, point.z, out double frameX, out double frameZ);
+            point = new Vector3((float)frameX, point.y, (float)frameZ);
             bool runsInZ = key.Wall == WindowGrid.Wall.West || key.Wall == WindowGrid.Wall.East;
             float span = runsInZ ? site.Params.Depth : site.Params.Width;
             float along = runsInZ ? point.z - (float)site.MinZ : point.x - (float)site.MinX;
@@ -402,6 +402,11 @@ namespace CityX.World
             out PaneKey key)
         {
             key = default;
+            if (site.Exists)
+            {
+                site.ToBuilderFrame(point.x, point.z, out double frameX, out double frameZ);
+                point = new Vector3((float)frameX, point.y, (float)frameZ);
+            }
             if (!site.Exists)
             {
                 return false;
@@ -458,7 +463,7 @@ namespace CityX.World
                 return false;
             }
 
-            key = new PaneKey(site.AnchorX, site.AnchorY, wall, column, row);
+            key = new PaneKey(site.Id, wall, column, row);
             return true;
         }
 

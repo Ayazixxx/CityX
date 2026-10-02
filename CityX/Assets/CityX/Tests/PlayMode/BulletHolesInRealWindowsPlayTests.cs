@@ -37,41 +37,40 @@ namespace CityX.Tests
         {
             public PaneKey Key;
             public Vector3 Centre;
+            public Vector3 Outward;
         }
 
         /// <summary>A pane on a building's door wall with clear air in front of it: the first thing a ray from six metres out hits is that pane.</summary>
         private static bool FindTarget(CityWorld world, out Target target)
         {
-            for (int x = -8; x <= 8; x++)
+            foreach (BuildingSite site in TestSites.NearSpawn(world))
             {
-                for (int y = -8; y <= 8; y++)
+                if (site.Params.Width < 8.0f)
                 {
-                    BuildingSite site = world.BuildingAt(x, y);
-                    if (!site.Exists || site.AnchorX != x || site.AnchorY != y || site.Params.Width < 8.0f)
-                    {
-                        continue;
-                    }
+                    continue;
+                }
 
-                    WindowPlan plan = WindowPlan.For(world, site);
-                    CellLayout rows = WindowGrid.RowsFor(site.Params.Height);
-                    CellLayout columns = plan.ColumnsFor(site.Params.Width);
-                    for (int row = 1; row < Mathf.Min(rows.Count, 4); row++)
+                // The building's front (+Z) wall faces the street, so there is clear air in front of it.
+                Vector3 outward = CityMeshBuilder.WallNormal(site, WindowGrid.Wall.North);
+                WindowPlan plan = WindowPlan.For(world, site);
+                CellLayout rows = WindowGrid.RowsFor(site.Params.Height);
+                CellLayout columns = plan.ColumnsFor(site.Params.Width);
+                for (int row = 1; row < Mathf.Min(rows.Count, 4); row++)
+                {
+                    for (int column = 1; column < columns.Count - 1; column++)
                     {
-                        for (int column = 1; column < columns.Count - 1; column++)
+                        if (!plan.IsGlazed(WindowGrid.Wall.North, column, row))
                         {
-                            if (!plan.IsGlazed(WindowGrid.Wall.North, column, row))
-                            {
-                                continue;
-                            }
-                            var centre = new Vector3(
-                                (float)site.MinX + (column + 0.5f) * columns.Size,
-                                site.BaseHeight + (row + 0.5f) * rows.Size,
-                                (float)site.MaxZ);
-                            if (GlassDamage.TryPaneAt(world, site, centre + Vector3.forward * 0.02f, out PaneKey key))
-                            {
-                                target = new Target { Key = key, Centre = centre };
-                                return true;
-                            }
+                            continue;
+                        }
+                        Vector3 centre = TestSites.At(site,
+                            site.MinX + (column + 0.5f) * columns.Size,
+                            site.BaseHeight + (row + 0.5f) * rows.Size,
+                            site.MaxZ);
+                        if (GlassDamage.TryPaneAt(world, site, centre + outward * 0.02f, out PaneKey key))
+                        {
+                            target = new Target { Key = key, Centre = centre, Outward = outward };
+                            return true;
                         }
                     }
                 }
@@ -106,7 +105,7 @@ namespace CityX.Tests
             go.AddComponent<GlassBreaker>();
             go.SetActive(true);
 
-            Vector3 standing = target.Centre + Vector3.forward * 6.0f;
+            Vector3 standing = target.Centre + target.Outward * 6.0f;
             streamer.StreamAround(standing, int.MaxValue);
             yield return null;
             yield return null;
@@ -119,7 +118,7 @@ namespace CityX.Tests
 
             // The pane must really be there to shoot: the first thing the crosshair ray finds is glass.
             Vector3 aim = target.Centre;
-            Assert.IsTrue(Physics.Raycast(standing, Vector3.back, out RaycastHit first, 20.0f, ~0, QueryTriggerInteraction.Ignore),
+            Assert.IsTrue(Physics.Raycast(standing, -target.Outward, out RaycastHit first, 20.0f, ~0, QueryTriggerInteraction.Ignore),
                 "the chosen window has nothing solid where the glass is");
             Assert.AreEqual(6.0f, first.distance, 0.3f, "something stands between the shooter and the window");
 
@@ -129,7 +128,7 @@ namespace CityX.Tests
             for (int shot = 1; shot <= 8; shot++)
             {
                 // A shade different each time, so the holes are not one on top of another.
-                Vector3 at = aim + new Vector3(0.04f * (shot % 3 - 1), 0.05f * (shot % 2), 0.0f);
+                Vector3 at = aim + Vector3.Cross(Vector3.up, target.Outward) * (0.04f * (shot % 3 - 1)) + Vector3.up * (0.05f * (shot % 2));
                 Assert.IsTrue(pistol.Fire(standing, (at - standing).normalized, true, null), $"shot {shot} did not fire");
                 yield return Wait(PistolWeapon.FireCooldownSeconds + 0.05f);   // a rebuilt chunk needs its frame; so does the cooldown
                 Physics.SyncTransforms();
@@ -166,7 +165,7 @@ namespace CityX.Tests
             streamer.SpawnPreStreamBudget = 0;
             go.AddComponent<GlassBreaker>();
             go.SetActive(true);
-            Vector3 standing = target.Centre + Vector3.forward * 6.0f;
+            Vector3 standing = target.Centre + target.Outward * 6.0f;
             streamer.StreamAround(standing, int.MaxValue);
             yield return null;
             Physics.SyncTransforms();
@@ -177,9 +176,9 @@ namespace CityX.Tests
             yield return null;
             Physics.SyncTransforms();
 
-            bool solid = Physics.Raycast(standing, Vector3.back, out RaycastHit hit, 20.0f, ~0, QueryTriggerInteraction.Ignore);
+            bool solid = Physics.Raycast(standing, -target.Outward, out RaycastHit hit, 20.0f, ~0, QueryTriggerInteraction.Ignore);
             bool sawTheOpening = false;
-            RaycastHit[] all = Physics.RaycastAll(standing, Vector3.back, 20.0f, ~0, QueryTriggerInteraction.Collide);
+            RaycastHit[] all = Physics.RaycastAll(standing, -target.Outward, 20.0f, ~0, QueryTriggerInteraction.Collide);
             foreach (RaycastHit h in all)
             {
                 if (h.collider.GetComponent<IShootableTrigger>() != null && h.distance < 7.0f)

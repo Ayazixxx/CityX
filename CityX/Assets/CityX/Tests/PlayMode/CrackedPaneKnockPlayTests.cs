@@ -130,40 +130,38 @@ namespace CityX.Tests
         {
             public PaneKey Key;
             public Vector3 Centre;
+            public Vector3 Outward;
         }
 
         private static bool FindTarget(CityWorld world, out Target target)
         {
-            for (int x = -8; x <= 8; x++)
+            foreach (BuildingSite site in TestSites.NearSpawn(world))
             {
-                for (int y = -8; y <= 8; y++)
+                if (site.Params.Width < 8.0f)
                 {
-                    BuildingSite site = world.BuildingAt(x, y);
-                    if (!site.Exists || site.AnchorX != x || site.AnchorY != y || site.Params.Width < 8.0f)
-                    {
-                        continue;
-                    }
+                    continue;
+                }
 
-                    WindowPlan plan = WindowPlan.For(world, site);
-                    CellLayout rows = WindowGrid.RowsFor(site.Params.Height);
-                    CellLayout columns = plan.ColumnsFor(site.Params.Width);
-                    for (int row = 1; row < Mathf.Min(rows.Count, 3); row++)
+                Vector3 outward = CityMeshBuilder.WallNormal(site, WindowGrid.Wall.North);
+                WindowPlan plan = WindowPlan.For(world, site);
+                CellLayout rows = WindowGrid.RowsFor(site.Params.Height);
+                CellLayout columns = plan.ColumnsFor(site.Params.Width);
+                for (int row = 1; row < Mathf.Min(rows.Count, 3); row++)
+                {
+                    for (int column = 1; column < columns.Count - 1; column++)
                     {
-                        for (int column = 1; column < columns.Count - 1; column++)
+                        if (!plan.IsGlazed(WindowGrid.Wall.North, column, row))
                         {
-                            if (!plan.IsGlazed(WindowGrid.Wall.North, column, row))
-                            {
-                                continue;
-                            }
-                            var centre = new Vector3(
-                                (float)site.MinX + (column + 0.5f) * columns.Size,
-                                site.BaseHeight + (row + 0.5f) * rows.Size,
-                                (float)site.MaxZ);
-                            if (GlassDamage.TryPaneAt(world, site, centre + Vector3.forward * 0.02f, out PaneKey key))
-                            {
-                                target = new Target { Key = key, Centre = centre };
-                                return true;
-                            }
+                            continue;
+                        }
+                        Vector3 centre = TestSites.At(site,
+                            site.MinX + (column + 0.5f) * columns.Size,
+                            site.BaseHeight + (row + 0.5f) * rows.Size,
+                            site.MaxZ);
+                        if (GlassDamage.TryPaneAt(world, site, centre + outward * 0.02f, out PaneKey key))
+                        {
+                            target = new Target { Key = key, Centre = centre, Outward = outward };
+                            return true;
                         }
                     }
                 }
@@ -197,7 +195,7 @@ namespace CityX.Tests
             streamerObject.AddComponent<GlassBreaker>();
             streamerObject.SetActive(true);
 
-            Vector3 outside = target.Centre + Vector3.forward * 1.0f;
+            Vector3 outside = target.Centre + target.Outward * 1.0f;
             streamer.StreamAround(outside, int.MaxValue);
             yield return null;
             Physics.SyncTransforms();
@@ -215,8 +213,9 @@ namespace CityX.Tests
             var player = Made(new GameObject("Player"));
             var controller = player.AddComponent<CharacterController>();
             controller.radius = 0.2f;
+            controller.minMoveDistance = 0.0f;   // the default 1 mm silently discards a batch-mode frame's tiny step, so he would never reach the glass
             controller.height = 1.4f;
-            player.transform.position = new Vector3(opening.x, opening.y, opening.z + 0.15f);
+            player.transform.position = opening + target.Outward * 0.15f;
             Physics.SyncTransforms();
             yield return null;
 
@@ -232,12 +231,12 @@ namespace CityX.Tests
             CollisionFlags lastFlags = CollisionFlags.None;
             CollisionFlags everFlags = CollisionFlags.None;
             float totalRequested = 0.0f;
-            float startZ = player.transform.position.z;
+            Vector3 startPosition = player.transform.position;
             int frames = 0;
             for (float elapsed = 0.0f; elapsed < 1.0f && streamer.Damage.StateOf(target.Key) == PaneState.Cracked; elapsed += Time.deltaTime)
             {
                 totalRequested += 3.0f * Time.deltaTime;
-                lastFlags = controller.Move(new Vector3(0.0f, 0.0f, -3.0f * Time.deltaTime));
+                lastFlags = controller.Move(-target.Outward * (3.0f * Time.deltaTime));
                 everFlags |= lastFlags;
                 frames++;
                 yield return null;
@@ -249,7 +248,7 @@ namespace CityX.Tests
                 CrackedPane[] panes = Object.FindObjectsByType<CrackedPane>(FindObjectsSortMode.None);
                 diag = $" DIAG panes={panes.Length} playerPos={player.transform.position} velocity={controller.velocity} " +
                        $"lastFlags={lastFlags} everFlags={everFlags} frames={frames} totalRequested={totalRequested:0.000} " +
-                       $"actualMoved={startZ - player.transform.position.z:0.000} timeScale={Time.timeScale} start z was {target.Centre.z + 0.15f}";
+                       $"actualMoved={Vector3.Distance(startPosition, player.transform.position):0.000} timeScale={Time.timeScale}";
                 foreach (CrackedPane pane in panes)
                 {
                     var box = pane.GetComponent<BoxCollider>();
@@ -258,7 +257,7 @@ namespace CityX.Tests
                 if (Physics.CapsuleCast(
                         player.transform.position + Vector3.up * (controller.height * 0.5f - controller.radius),
                         player.transform.position - Vector3.up * (controller.height * 0.5f - controller.radius),
-                        controller.radius, Vector3.back, out RaycastHit blockHit, 0.6f, ~0, QueryTriggerInteraction.Ignore))
+                        controller.radius, -target.Outward, out RaycastHit blockHit, 0.6f, ~0, QueryTriggerInteraction.Ignore))
                 {
                     diag += $" BLOCKED BY solid collider '{blockHit.collider.name}' on '{blockHit.collider.gameObject.name}' at {blockHit.point}, distance {blockHit.distance:0.000}";
                 }

@@ -173,8 +173,7 @@ namespace CityX.World
         /// </summary>
         public static WindowPlan For(CityWorld world, BuildingSite site)
         {
-            return WindowGrid.PlanFor(world.ChunkSeed(site.AnchorX, site.AnchorY),
-                CityChunkGenerator.ZoneOfRole(site.Role), site.Params);
+            return WindowGrid.PlanFor(site.Seed, site.Zone, site.Params);
         }
     }
 }

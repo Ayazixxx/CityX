@@ -25,6 +25,70 @@ namespace CityX.View
 
         public bool IsEmpty => Triangles.Count == 0;
 
+        // ---- an optional frame, so a building built in its own unturned frame lands turned in the chunk ----
+
+        private bool _hasFrame;
+        private float _frameCos = 1.0f;
+        private float _frameSin;
+        private Vector3 _frameOffset;
+
+        /// <summary>
+        /// Everything added from now until <see cref="ClearFrame"/> is turned and moved into the chunk: a point (x, y, z) in the
+        /// building's own frame is written as (x*axisX - z*axisZ, y, x*axisZ + z*axisX) + offset, and normals are turned with it.
+        /// A pure turn about the vertical, so winding is untouched. This is how the whole of the building generator -- which
+        /// thinks in axis-aligned boxes -- builds a building that stands at an angle.
+        /// </summary>
+        public void SetFrame(Vector3 offset, double axisX, double axisZ)
+        {
+            _hasFrame = true;
+            _frameCos = (float)axisX;
+            _frameSin = (float)axisZ;
+            _frameOffset = offset;
+        }
+
+        public void ClearFrame()
+        {
+            _hasFrame = false;
+            _frameCos = 1.0f;
+            _frameSin = 0.0f;
+            _frameOffset = Vector3.zero;
+        }
+
+        /// <summary>A point in the current frame as a chunk-local point (the identity when no frame is set).</summary>
+        public Vector3 FramePoint(Vector3 v)
+        {
+            if (!_hasFrame) return v;
+            return new Vector3(v.x * _frameCos - v.z * _frameSin + _frameOffset.x, v.y + _frameOffset.y,
+                v.x * _frameSin + v.z * _frameCos + _frameOffset.z);
+        }
+
+        /// <summary>A direction in the current frame as a chunk-local direction.</summary>
+        public Vector3 FrameDirection(Vector3 v)
+        {
+            if (!_hasFrame) return v;
+            return new Vector3(v.x * _frameCos - v.z * _frameSin, v.y, v.x * _frameSin + v.z * _frameCos);
+        }
+
+        /// <summary>One triangle, wound so its front face points along <paramref name="normal"/>.</summary>
+        public void AddTriangle(Vector3 a, Vector3 b, Vector3 c, Vector3 normal, Vector2 uvA, Vector2 uvB, Vector2 uvC)
+        {
+            a = FramePoint(a);
+            b = FramePoint(b);
+            c = FramePoint(c);
+            normal = FrameDirection(normal);
+            int start = Vertices.Count;
+            Vertices.Add(a);
+            Vertices.Add(b);
+            Vertices.Add(c);
+            Normals.Add(normal);
+            Normals.Add(normal);
+            Normals.Add(normal);
+            Uvs.Add(uvA);
+            Uvs.Add(uvB);
+            Uvs.Add(uvC);
+            AddWoundTriangle(start, start + 1, start + 2, a, b, c, normal);
+        }
+
         public void Clear()
         {
             Vertices.Clear();
@@ -52,6 +116,14 @@ namespace CityX.View
         public void AddQuad(Vector3 a, Vector3 b, Vector3 c, Vector3 d, Vector3 normal,
             Vector2 uvA, Vector2 uvB, Vector2 uvC, Vector2 uvD)
         {
+            if (_hasFrame)
+            {
+                a = FramePoint(a);
+                b = FramePoint(b);
+                c = FramePoint(c);
+                d = FramePoint(d);
+                normal = FrameDirection(normal);
+            }
             int start = Vertices.Count;
 
             Vertices.Add(a);

@@ -1,4 +1,5 @@
 using System.Collections;
+using CityX.World;
 using CityX.Character;
 using NUnit.Framework;
 using UnityEngine;
@@ -28,12 +29,22 @@ namespace CityX.Tests
     {
         private GameObject _floor;
         private GameObject _body;
+        private CityWorld _world;
+        private Vector3 _start;
 
         [SetUp]
         public void SetUp()
         {
+            // The pedestrian walks the road graph of the published city (StreetNetwork reads CurrentWorld), and starts on a real
+            // pavement, so the floor goes under that spot rather than at the origin.
+            _world = new CityWorld(61472093);
+            CurrentWorld.Instance = _world;
+            _world.Plan.TryFindSpawn(out double sx, out double sz);
+            Vector3 onPavement = StreetNetwork.SnapToPavement(new Vector3((float)sx + 6.0f, 0.0f, (float)sz + 6.0f));
+            _start = new Vector3(onPavement.x, 0.1f, onPavement.z);
+
             _floor = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            _floor.transform.position = new Vector3(0.0f, -0.5f, 0.0f);
+            _floor.transform.position = new Vector3(_start.x, -0.5f, _start.z);
             _floor.transform.localScale = new Vector3(400.0f, 1.0f, 400.0f);
             Physics.SyncTransforms();
         }
@@ -43,13 +54,14 @@ namespace CityX.Tests
         {
             if (_body != null) Object.DestroyImmediate(_body);
             if (_floor != null) Object.DestroyImmediate(_floor);
+            if (CurrentWorld.Instance == _world) CurrentWorld.Instance = null;
         }
 
         private Civilian MakeCivilian(int seed)
         {
             _body = new GameObject("Civilian");
             // On a pavement, so the brain's targets are somewhere sensible.
-            _body.transform.position = new Vector3(2.0f, 0.1f, 12.0f);
+            _body.transform.position = _start;
 
             var capsule = _body.AddComponent<CharacterController>();
             capsule.height = 2.2f;

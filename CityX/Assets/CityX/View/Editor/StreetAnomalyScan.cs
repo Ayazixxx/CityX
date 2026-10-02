@@ -1,3 +1,4 @@
+#if CITYX_LEGACY_GRID_DIAGNOSTICS
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
@@ -353,3 +354,4 @@ namespace CityX.ViewEditor
         }
     }
 }
+#endif // CITYX_LEGACY_GRID_DIAGNOSTICS

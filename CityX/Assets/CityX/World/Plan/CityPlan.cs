@@ -12,6 +12,12 @@ namespace CityX.World.Plan
         public List<RoadClass> EdgeClass = new List<RoadClass>();
 
         public double Area;
+
+        /// <summary>The block shrunk by each road's half width: where the kerb stands. Same vertex count as Poly (null if the inset failed).</summary>
+        public List<Vec2> Inner;
+
+        /// <summary>The block shrunk by half width plus pavement: the edge of the lots. Same vertex count as Poly.</summary>
+        public List<Vec2> Outer;
     }
 
     /// <summary>
@@ -25,6 +31,8 @@ namespace CityX.World.Plan
         public Vec2[] Footprint;
         public int FrontEdge;
         public double Area;
+        public int BlockIndex;
+
         public double Population;
         public double Height;
         public RoadClass FrontClass;
@@ -268,7 +276,7 @@ namespace CityX.World.Plan
             public List<bool> Front;
         }
 
-        private const double MinWidth = 9.0;
+        private const double MinWidth = 12.0;
         private const double MaxDepth = 52.0;
 
         public static void Subdivide(CityPlanData data, uint seed)
@@ -290,12 +298,22 @@ namespace CityX.World.Plan
                 var inset = new List<Vec2>();
                 if (!PlanMath.InsetPolygon(block.Poly, distances, inset, out _))
                 {
-                    // Fold-over: try again with every road treated as the narrowest.
-                    for (int i = 0; i < n; i++) distances[i] = cfg.StreetHalfWidth + cfg.SidewalkWidth;
-                    if (!PlanMath.InsetPolygon(block.Poly, distances, inset, out _))
-                    {
-                        continue;
-                    }
+                    // Fold-over: lots are not cut from this block at all. (An earlier version retried with every
+                    // road narrowed, which made lots whose edge sat on the wrong side of the kerb.)
+                    continue;
+                }
+
+                // The kerb line (half width only) so the mesh can lay the pavement as the ring between the two.
+                var kerbDistances = new double[n];
+                for (int i = 0; i < n; i++)
+                {
+                    kerbDistances[i] = CityPlan.HalfWidth(cfg, block.EdgeClass[i]);
+                }
+                var kerb = new List<Vec2>();
+                if (PlanMath.InsetPolygon(block.Poly, kerbDistances, kerb, out _))
+                {
+                    block.Inner = kerb;
+                    block.Outer = inset;
                 }
 
                 Vec2 c = PlanMath.Centroid(inset);
@@ -338,7 +356,7 @@ namespace CityX.World.Plan
 
                 foreach (Piece lot in done)
                 {
-                    EmitLot(data, lot, seed);
+                    EmitLot(data, lot, seed, blockIndex - 1);
                 }
             }
         }
@@ -493,7 +511,7 @@ namespace CityX.World.Plan
             return p + (q - p) * t;
         }
 
-        private static void EmitLot(CityPlanData data, Piece lot, uint seed)
+        private static void EmitLot(CityPlanData data, Piece lot, uint seed, int blockIndex)
         {
             int n = lot.V.Count;
             double area = PlanMath.SignedArea(lot.V);
@@ -569,6 +587,7 @@ namespace CityX.World.Plan
             data.Lots.Add(new PlanLot
             {
                 Id = id,
+                BlockIndex = blockIndex,
                 Lot = lot.V.ToArray(),
                 Footprint = footprint.ToArray(),
                 FrontEdge = front < 0 ? 0 : front,

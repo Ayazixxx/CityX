@@ -563,25 +563,27 @@ namespace CityX.UI
             }
 
             Vector3 from = Vitals.transform.position;
-            int originX = Mathf.FloorToInt(from.x / CityLayout.ChunkSize);
-            int originY = Mathf.FloorToInt(from.z / CityLayout.ChunkSize);
             var world = new CityWorld(Streamer.WorldSeed);
 
             Vector3 destination;
             string found;
             if (what == "slope")
             {
-                if (!TryFindNearestSlope(world, originX, originY, out destination, out int foundX, out int foundY))
+                if (!TryFindNearestSlope(world, from, out destination))
                 {
-                    Log("no sloped street found within a reasonable radius -- try again from somewhere else");
+                    Log("no sloped road found -- try again from somewhere else");
                     return;
                 }
-                found = $"sloped street at chunk ({foundX},{foundY})";
+                found = "sloped road";
             }
             else
             {
-                destination = NearestDistrictBoundary(world, originX, originY, out int arterialX, out int arterialY);
-                found = $"district boundary near chunk ({arterialX},{arterialY})";
+                if (!TryFindNearestHighway(world, from, out destination))
+                {
+                    Log("no highway found");
+                    return;
+                }
+                found = "highway";
             }
 
             Streamer.StreamAround(destination, 800);
@@ -602,104 +604,69 @@ namespace CityX.UI
             Log($"teleported to the nearest {found}");
         }
 
-        /// <summary>
-        /// Mirrors AddStreetEdgeFeatures's own roll exactly (CityMeshBuilder.cs)
-        /// -- seeded off the neighbour's coordinate -- so this finds a street
-        /// edge that will actually render as a sloped ramp, not merely a
-        /// terrace drop that happened to keep its stairs.
-        /// </summary>
-        private static bool TryFindNearestSlope(CityWorld world, int originX, int originY,
-            out Vector3 destination, out int foundX, out int foundY)
+        /// <summary>The middle of the nearest road that climbs at least 4% (else the steepest in the city), a couple of metres up.</summary>
+        private static bool TryFindNearestSlope(CityWorld world, Vector3 from, out Vector3 destination)
         {
-            const int SearchRadius = 60;
-            double bestDistance = double.MaxValue;
-            foundX = 0;
-            foundY = 0;
-            bool found = false;
-
-            for (int dx = -SearchRadius; dx <= SearchRadius; dx++)
+            destination = Vector3.zero;
+            double bestNear = double.MaxValue, bestSteep = 0.0;
+            CityX.World.Plan.EdgeGeometry near = null, steepest = null;
+            foreach (CityX.World.Plan.EdgeGeometry g in world.Plan.Geometry.Edges)
             {
-                for (int dy = -SearchRadius; dy <= SearchRadius; dy++)
+                if (g == null || g.Edge.Bridge || g.Length < 20.0)
                 {
-                    int x = originX + dx;
-                    int y = originY + dy;
-                    if (!CityLayout.IsStreetChunk(x, y))
-                    {
-                        continue;
-                    }
-                    float pad = world.Terrain.PadHeightFor(x, y);
-                    foreach ((int nx, int ny) in new[] { (x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1) })
-                    {
-                        if (!CityLayout.IsStreetChunk(nx, ny))
-                        {
-                            continue;
-                        }
-                        float neighbourPad = world.Terrain.PadHeightFor(nx, ny);
-                        if (neighbourPad >= pad)
-                        {
-                            continue;
-                        }
-                        bool sloped = new DeterministicRandom(world.ChunkSeed(nx, ny)).Below(2) == 0;
-                        if (!sloped)
-                        {
-                            continue;
-                        }
-                        double distance = (double)dx * dx + (double)dy * dy;
-                        if (distance < bestDistance)
-                        {
-                            bestDistance = distance;
-                            foundX = x;
-                            foundY = y;
-                            found = true;
-                        }
-                    }
+                    continue;
+                }
+                double grade = System.Math.Abs(world.Plan.GroundHeight(g.A.X, g.A.Y) - world.Plan.GroundHeight(g.B.X, g.B.Y)) / g.Length;
+                double mx = (g.A.X + g.B.X) * 0.5 - from.x, mz = (g.A.Y + g.B.Y) * 0.5 - from.z;
+                double d = mx * mx + mz * mz;
+                if (grade >= 0.04 && d < bestNear)
+                {
+                    bestNear = d;
+                    near = g;
+                }
+                if (grade > bestSteep)
+                {
+                    bestSteep = grade;
+                    steepest = g;
                 }
             }
-
-            // ContinuousHeightAt, not foundPad -- foundX/foundY is always a
-            // street chunk (the IsStreetChunk check above), whose actual
-            // ground is tilted to the smooth continuous field now, not flat
-            // at the quantised pad (see CityMeshBuilder.BuildGround's own
-            // "hillside streets" comment). Teleporting to the old flat pad
-            // height could land the player below the real road surface --
-            // the same "load in and fall through the floor forever" bug
-            // this command exists to help demonstrate, not reproduce.
-            destination = found
-                ? new Vector3((float)CityLayout.ChunkCentreX(foundX),
-                    (float)world.Terrain.ContinuousHeightAt(
-                        CityLayout.ChunkCentreX(foundX), CityLayout.ChunkCentreZ(foundY)) + 2.0f,
-                    (float)CityLayout.ChunkCentreZ(foundY))
-                : Vector3.zero;
-            return found;
+            CityX.World.Plan.EdgeGeometry pick = near ?? steepest;
+            if (pick == null)
+            {
+                return false;
+            }
+            double x = (pick.A.X + pick.B.X) * 0.5, z = (pick.A.Y + pick.B.Y) * 0.5;
+            destination = new Vector3((float)x, (float)world.Terrain.ContinuousHeightAt(x, z) + 2.0f, (float)z);
+            return true;
         }
 
-        /// <summary>The nearest wide arterial street to (originX, originY), on whichever axis is closer.</summary>
-        private static Vector3 NearestDistrictBoundary(CityWorld world, int originX, int originY,
-            out int arterialX, out int arterialY)
+        /// <summary>The middle of the nearest highway, a couple of metres up.</summary>
+        private static bool TryFindNearestHighway(CityWorld world, Vector3 from, out Vector3 destination)
         {
-            int nearestX = CityLayout.NearestArterialLine(originX, xAxis: true);
-            int nearestY = CityLayout.NearestArterialLine(originY, xAxis: false);
-
-            if (Mathf.Abs(originX - nearestX) <= Mathf.Abs(originY - nearestY))
+            destination = Vector3.zero;
+            double best = double.MaxValue;
+            CityX.World.Plan.EdgeGeometry pick = null;
+            foreach (CityX.World.Plan.EdgeGeometry g in world.Plan.Geometry.Edges)
             {
-                arterialX = nearestX;
-                arterialY = originY;
+                if (g == null || g.Edge.Bridge || g.Edge.Class != CityX.World.Plan.RoadClass.Highway)
+                {
+                    continue;
+                }
+                double mx = (g.A.X + g.B.X) * 0.5 - from.x, mz = (g.A.Y + g.B.Y) * 0.5 - from.z;
+                double d = mx * mx + mz * mz;
+                if (d < best)
+                {
+                    best = d;
+                    pick = g;
+                }
             }
-            else
+            if (pick == null)
             {
-                arterialX = originX;
-                arterialY = nearestY;
+                return false;
             }
-
-            // ContinuousHeightAt, not PadHeightFor -- an arterial chunk is
-            // always a street chunk (CityLayout.IsArterialChunk implies
-            // IsStreetChunk), so the same "tilted, not flat" reasoning
-            // TryFindNearestSlope's own destination just got applies here
-            // too.
-            double worldX = CityLayout.ChunkCentreX(arterialX);
-            double worldZ = CityLayout.ChunkCentreZ(arterialY);
-            float height = (float)world.Terrain.ContinuousHeightAt(worldX, worldZ);
-            return new Vector3((float)worldX, height + 2.0f, (float)worldZ);
+            double x = (pick.A.X + pick.B.X) * 0.5, z = (pick.A.Y + pick.B.Y) * 0.5;
+            destination = new Vector3((float)x, (float)world.Terrain.ContinuousHeightAt(x, z) + 2.0f, (float)z);
+            return true;
         }
 
         private void Experience(string amount)

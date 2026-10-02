@@ -14,8 +14,8 @@ namespace CityX.Tests
 {
     /// <summary>
     /// The rain in the REAL city, real scene, real streamed chunks -- not a box
-    /// on a plane. The city's own highway runs over the spawn point on an
-    /// elevated deck 14 metres up, which is exactly the kind of overhang rain
+    /// on a plane. The city's bridges carry their decks over the dry trench -- an
+    /// overhang of the kind rain
     /// has to respect: this measures that no drop falls under it and rain does
     /// fall in the open beside it.
     ///
@@ -129,12 +129,28 @@ namespace CityX.Tests
             RainEffect rain = console.Rain;
             Assert.IsNotNull(rain, "no rain in the real scene");
 
-            // The city's highway (chunk column x=0, world x 0..24) is a deck 14m up.
-            // Stand in the arterial that crosses under it, a few metres short of it,
-            // so the deck edge is inside the 40m rain box. (The deck sweeps a few metres
-            // sideways along its length, so only the middle of it, x 10..14, is under it
-            // at every point; the sliver beside that is legitimately open sky.)
-            float x = -8.0f, z = 12.0f;
+            // The nearest bridge to the spawn: its deck stands over the dry trench, and the ground under it is open to nothing but the
+            // deck. Stand along the trench, clear of the deck's width but close enough that the deck is inside the 40 m rain box.
+            CityWorld cityWorld = CurrentWorld.Instance;
+            cityWorld.Plan.TryFindSpawn(out double spawnX, out double spawnZ);
+            CityX.World.Plan.EdgeGeometry bridge = null;
+            double bestDistance = double.MaxValue;
+            foreach (CityX.World.Plan.EdgeGeometry g in cityWorld.Plan.Geometry.Edges)
+            {
+                if (g == null || !g.Edge.Bridge) continue;
+                double dx = (g.A.X + g.B.X) * 0.5 - spawnX, dz = (g.A.Y + g.B.Y) * 0.5 - spawnZ;
+                if (dx * dx + dz * dz < bestDistance)
+                {
+                    bestDistance = dx * dx + dz * dz;
+                    bridge = g;
+                }
+            }
+            Assert.IsNotNull(bridge, "no bridge in the real city to stand under");
+            float deckX = (float)((bridge.A.X + bridge.B.X) * 0.5);
+            float deckZ = (float)((bridge.A.Y + bridge.B.Y) * 0.5);
+            var along = new Vector3((float)bridge.Dir.Perp.X, 0.0f, (float)bridge.Dir.Perp.Y);   // along the trench, across the deck's width
+
+            float x = deckX + along.x * 22.0f, z = deckZ + along.z * 22.0f;
             float ground = GroundAt(x, z);
             Teleport(player, console, new Vector3(x, ground + 0.1f, z));
             yield return null;
@@ -142,19 +158,20 @@ namespace CityX.Tests
             console.Submit("/weather rain");
             yield return new WaitForSeconds(2.0f);
 
-            float deckGround = GroundAt(11.0f, 12.0f);
-            Vector3 underDeck = new Vector3(11.0f, deckGround + 1.0f, 12.0f);
+            float deckGround = GroundAt(deckX, deckZ);
+            Vector3 underDeck = new Vector3(deckX, deckGround + 1.0f, deckZ);
             float shelter = CurrentWeather.Shelter(underDeck);
-            TestContext.WriteLine($"shelter under the deck: {shelter:0.00}; live drops {rain.LiveDropCount}");
+            TestContext.WriteLine($"shelter under the bridge: {shelter:0.00}; live drops {rain.LiveDropCount}");
             Assert.Greater(rain.LiveDropCount, 100, "no rain in the real city at all");
-            Assert.Greater(shelter, 0.9f, "the cover map did not see the highway deck over the street");
+            Assert.Greater(shelter, 0.9f, "the cover map did not see the bridge deck over the trench");
             Assert.AreEqual(0.0f, CurrentWeather.RainOn(underDeck), 0.1f, "rain fell on the ground under the deck");
 
-            int under = rain.CountLiveDropsIn(new Bounds(new Vector3(11.0f, deckGround + 6.5f, 12.0f), new Vector3(2.0f, 11.0f, 14.0f)));
-            int open = rain.CountLiveDropsIn(new Bounds(new Vector3(-20.0f, ground + 8.0f, 12.0f), new Vector3(12.0f, 16.0f, 20.0f)));
-            TestContext.WriteLine($"drops under the deck: {under}; in the open beside it: {open}");
-            Assert.AreEqual(0, under, "rain fell under the highway deck");
-            Assert.Greater(open, 10, "rain should fall in the open street beside the deck");
+            int under = rain.CountLiveDropsIn(new Bounds(new Vector3(deckX, deckGround + 4.0f, deckZ), new Vector3(4.0f, 6.0f, 4.0f)));
+            int open = rain.CountLiveDropsIn(new Bounds(
+                new Vector3(deckX + along.x * 34.0f, ground + 8.0f, deckZ + along.z * 34.0f), new Vector3(14.0f, 16.0f, 14.0f)));
+            TestContext.WriteLine($"drops under the bridge: {under}; in the open beside it: {open}");
+            Assert.AreEqual(0, under, "rain fell under the bridge deck");
+            Assert.Greater(open, 10, "rain should fall in the open beside the deck");
 
             if (CanPhotograph)
             {

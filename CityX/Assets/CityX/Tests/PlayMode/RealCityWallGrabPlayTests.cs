@@ -37,17 +37,13 @@ namespace CityX.Tests
             var world = new CityWorld(Seed);
             BuildingSite site = default;
             bool found = false;
-            for (int x = -8; x <= 8 && !found; x++)
+            foreach (BuildingSite candidate in TestSites.NearSpawn(world))
             {
-                for (int y = -8; y <= 8 && !found; y++)
+                if (candidate.Params.Width > 10.0f && candidate.Params.Height > 8.0f)
                 {
-                    BuildingSite candidate = world.BuildingAt(x, y);
-                    if (candidate.Exists && candidate.AnchorX == x && candidate.AnchorY == y && candidate.Params.Width > 10.0f
-                        && candidate.Params.Height > 8.0f)
-                    {
-                        site = candidate;
-                        found = true;
-                    }
+                    site = candidate;
+                    found = true;
+                    break;
                 }
             }
             Assert.IsTrue(found, "no building to test against");
@@ -63,7 +59,8 @@ namespace CityX.Tests
             go.SetActive(true);
 
             float floorY = site.BaseHeight;
-            var standAt = new Vector3((float)site.CentreX, floorY, (float)site.MaxZ + 0.6f);
+            Vector3 inward = -CityMeshBuilder.WallNormal(site, WindowGrid.Wall.North);
+            Vector3 standAt = TestSites.At(site, site.CentreX, floorY, site.MaxZ + 0.6f);
             streamer.StreamAround(standAt, int.MaxValue);
             yield return null;
             yield return null;
@@ -79,8 +76,8 @@ namespace CityX.Tests
             int doorwayProbes = 0;
             for (float x = (float)site.MinX + 1.0f; x <= (float)site.MaxX - 1.0f; x += 0.25f)
             {
-                var at = new Vector3(x, floorY, (float)site.MaxZ + 0.6f);
-                bool isWall = WallProbe.TryFind(at, Vector3.back, height, out _);
+                Vector3 at = TestSites.At(site, x, floorY, site.MaxZ + 0.6f);
+                bool isWall = WallProbe.TryFind(at, inward, height, out _);
                 bool inDoorway = x > doorU0 + 0.5f && x < doorU1 - 0.5f;
                 bool nearDoorway = x > doorU0 - 0.8f && x < doorU1 + 0.8f;
                 if (inDoorway)

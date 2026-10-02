@@ -320,7 +320,7 @@ namespace CityX.Tests
             {
                 float centre = UI.HairButtonRow.CentreX(i, count);
                 Assert.LessOrEqual(Mathf.Abs(centre) + width * 0.5f, halfColumn + 0.001f, $"{count} buttons: button {i} hangs off the panel");
-                if (i > 0)
+                if (i > 0 && i % UI.HairButtonRow.PerRow != 0)   // a new row starts back at the left
                 {
                     float gap = centre - UI.HairButtonRow.CentreX(i - 1, count) - width;
                     Assert.GreaterOrEqual(gap, 0.0f, $"{count} buttons: buttons {i - 1} and {i} overlap");
