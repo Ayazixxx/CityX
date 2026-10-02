@@ -227,7 +227,7 @@ void GlassPassFragment(
     float covered = step(blindEdge, y01);
     float slats = 0.55 + 0.45 * step(0.5, frac(input.uv.y * 14.0));
     light *= lerp(1.0, 0.14 * slats, covered * step(0.001, blind));
-    surfaceData.emission = _EmissionColor.rgb * light;
+    surfaceData.emission = _EmissionColor.rgb * light * 0.62;
 
 #ifdef LOD_FADE_CROSSFADE
     LODFadeCrossFade(input.positionCS);

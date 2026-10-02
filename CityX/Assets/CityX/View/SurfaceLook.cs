@@ -12,18 +12,24 @@ namespace CityX.View
     /// every vertex it writes carries it.
     ///
     ///   rgb    the tint, as an authoring (gamma) colour: the shader multiplies the material by it
-    ///   alpha  255 minus a code, where code = slice * 32 + wear (wear 0..31, 31 = filthy)
+    ///   alpha  255 minus a code, where code = slice * 16 + wear (slice 0..15, wear 0..15, 15 = filthy)
     ///
     /// ALPHA IS INVERTED so that the colour Unity gives a mesh with no vertex colours at all, opaque white, decodes to slice 0 with no
     /// wear and a white tint: a buffer nobody styled looks like plain material, exactly as it did before there were looks.
     /// </summary>
     public static class SurfaceLook
     {
-        /// <summary>Wall materials in the facade texture array.</summary>
-        public const int Slices = 8;
+        /// <summary>Materials in the facade texture array: eight wall materials, then paving, asphalt, bare earth and setts.</summary>
+        public const int Slices = 16;
 
-        /// <summary>Steps of wear a look can carry (0 = clean .. 31 = filthy).</summary>
-        public const int WearLevels = 32;
+        /// <summary>The ground's materials, after the eight wall ones (WallMaterial in World): paving slabs, road asphalt, bare earth, granite setts.</summary>
+        public const int Paving = 8;
+        public const int Asphalt = 9;
+        public const int Earth = 10;
+        public const int Setts = 11;
+
+        /// <summary>Steps of wear a look can carry (0 = clean .. 15 = filthy).</summary>
+        public const int WearLevels = 16;
 
         /// <summary>White, slice 0, clean: what an unstyled vertex is.</summary>
         public static readonly Color32 Default = new Color32(255, 255, 255, 255);

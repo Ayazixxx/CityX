@@ -9,11 +9,11 @@ namespace CityX.ViewEditor
     /// Bakes the eight procedural wall materials (View/FacadeTextures.cs) to two PNG atlases, sets them to import as 2D texture arrays,
     /// and makes the facade material that reads them.
     ///
-    ///   Assets/CityX/View/Textures/FacadeAlbedo.png   4 x 2 grid of 512 px tiles: albedo rgb, smoothness in alpha
+    ///   Assets/CityX/View/Textures/FacadeAlbedo.png   4 x 3 grid of 512 px tiles: albedo rgb, smoothness in alpha
     ///   Assets/CityX/View/Textures/FacadeNormal.png   the same grid, tangent-space normals
     ///
     /// THESE ARE PLAIN IMAGES, SO THEY CAN BE REPLACED. A hand-made or bought set drawn on the same grid (slice order: concrete, brick,
-    /// plaster, metal, stone, tile, spandrel, roof, left to right then top to bottom) can simply overwrite the PNGs; this builder never
+    /// plaster, metal, stone, tile, spandrel, roof, paving, asphalt, earth, setts, left to right then top to bottom) can simply overwrite the PNGs; this builder never
     /// overwrites an existing atlas unless asked ("Regenerate Facade Textures"), and it only re-applies the import settings.
     ///
     ///   Unity.exe -batchmode -quit -projectPath &lt;proj&gt; -executeMethod CityX.ViewEditor.FacadeTextureBuilder.Generate
@@ -42,7 +42,7 @@ namespace CityX.ViewEditor
         {
             Directory.CreateDirectory(Path.Combine(Directory.GetParent(Application.dataPath).FullName, Directory_));
 
-            bool missing = !File.Exists(Absolute(AlbedoPath)) || !File.Exists(Absolute(NormalPath));
+            bool missing = !HasExpectedLayout(AlbedoPath) || !HasExpectedLayout(NormalPath);
             if (overwrite || missing)
             {
                 FacadeTextures.BuildAtlases(FacadeTextures.Size, out Color32[] albedo, out Color32[] normal);
@@ -62,6 +62,36 @@ namespace CityX.ViewEditor
             Configure(NormalPath, true);
             EnsureMaterial();
             AssetDatabase.SaveAssets();
+        }
+
+        /// <summary>
+        /// Whether an atlas exists and is laid out as the shader expects (a grid of Columns x Rows tiles of Size px). One that is not -- the
+        /// layout grew from 8 slices to 12 when the paving, road and ground joined the walls -- cannot be used, and is redrawn.
+        /// </summary>
+        private static bool HasExpectedLayout(string assetPath)
+        {
+            string path = Absolute(assetPath);
+            if (!File.Exists(path))
+            {
+                return false;
+            }
+            using (FileStream stream = File.OpenRead(path))
+            {
+                var header = new byte[24];
+                if (stream.Read(header, 0, 24) < 24)
+                {
+                    return false;
+                }
+                int width = (header[16] << 24) | (header[17] << 16) | (header[18] << 8) | header[19];
+                int height = (header[20] << 24) | (header[21] << 16) | (header[22] << 8) | header[23];
+                bool ok = width == FacadeTextures.Size * FacadeTextures.Columns && height == FacadeTextures.Size * FacadeTextures.Rows;
+                if (!ok)
+                {
+                    Debug.LogWarning($"CityX: {assetPath} is {width} x {height}, not the {FacadeTextures.Size * FacadeTextures.Columns} x " +
+                                     $"{FacadeTextures.Size * FacadeTextures.Rows} the shader expects -- redrawing it.");
+                }
+                return ok;
+            }
         }
 
         private static string Absolute(string assetPath)

@@ -5,7 +5,7 @@
 // building's look read off the vertex.
 //
 //   vertex colour rgb  the tint, an authoring (gamma) colour
-//   vertex colour a    255 minus (slice * 32 + wear): which wall material, and how weathered (SurfaceLook.cs packs it)
+//   vertex colour a    255 minus (slice * 16 + wear): which wall material, and how weathered (SurfaceLook.cs packs it)
 //
 // Kept as close to LitForwardPass.hlsl as it can be so lighting, shadows, Forward+, probes, SSAO and decals behave exactly as they do
 // on every other material in the city; only InitializeFacadeSurface is new.
@@ -27,7 +27,7 @@ float _CityXWetness;
 CBUFFER_END
 
 // What a tile of each wall material covers, in metres across and up. MUST match FacadeTextures.TileMetresX / TileMetresY.
-static const float2 kTileMetres[8] =
+static const float2 kTileMetres[12] =
 {
     float2(4.0, 4.0),       // concrete
     float2(2.025, 2.1),     // brick
@@ -36,7 +36,11 @@ static const float2 kTileMetres[8] =
     float2(4.0, 4.0),       // stone
     float2(1.6, 1.6),       // tile
     float2(3.2, 3.2),       // spandrel
-    float2(3.0, 3.0)        // roof
+    float2(3.0, 3.0),       // roof
+    float2(3.2, 3.2),       // paving
+    float2(6.0, 6.0),       // asphalt
+    float2(5.0, 5.0),       // earth
+    float2(2.0, 2.0)        // setts
 };
 
 struct Attributes
@@ -109,8 +113,8 @@ void InitializeFacadeSurface(Varyings input, out SurfaceData surfaceData, out ha
 
     // The look: slice and wear out of the alpha, tint out of the colour.
     float code = round((1.0 - input.look.a) * 255.0);
-    float slice = floor(code / 32.0);
-    float wear = (code - slice * 32.0) / 31.0;
+    float slice = floor(code / 16.0);
+    float wear = (code - slice * 16.0) / 15.0;
     float3 tint = SRGBToLinear(input.look.rgb);
 
     float2 tileUV = input.uv / kTileMetres[(int)slice];

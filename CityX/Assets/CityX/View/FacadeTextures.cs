@@ -4,7 +4,7 @@ using UnityEngine;
 namespace CityX.View
 {
     /// <summary>
-    /// The eight wall materials of the city, drawn procedurally: poured concrete, brick, plaster, metal cladding, stone, ceramic tile, a
+    /// The wall materials of the city (and its paving, road, bare ground and setts), drawn procedurally: poured concrete, brick, plaster, metal cladding, stone, ceramic tile, a
     /// glazed spandrel panel and a roof membrane. Each is a square, seamlessly tiling tile that stands for a real size in metres
     /// (<see cref="TileMetresX"/>, <see cref="TileMetresY"/>), so joints, bricks and seams are the size they are on a real building
     /// wherever the shader puts them.
@@ -21,18 +21,18 @@ namespace CityX.View
     {
         public const int Size = 512;
         public const int Columns = 4;
-        public const int Rows = 2;
+        public const int Rows = 3;
 
         public static readonly string[] SliceNames =
-            { "concrete", "brick", "plaster", "metal", "stone", "tile", "spandrel", "roof" };
+            { "concrete", "brick", "plaster", "metal", "stone", "tile", "spandrel", "roof", "paving", "asphalt", "earth", "setts" };
 
         /// <summary>What a tile covers, in metres, across and up. Brick is not square: nine bricks across, twenty-eight courses up.</summary>
-        public static readonly float[] TileMetresX = { 4.0f, 2.025f, 3.0f, 2.0f, 4.0f, 1.6f, 3.2f, 3.0f };
+        public static readonly float[] TileMetresX = { 4.0f, 2.025f, 3.0f, 2.0f, 4.0f, 1.6f, 3.2f, 3.0f, 3.2f, 6.0f, 5.0f, 2.0f };
 
-        public static readonly float[] TileMetresY = { 4.0f, 2.1f, 3.0f, 2.0f, 4.0f, 1.6f, 3.2f, 3.0f };
+        public static readonly float[] TileMetresY = { 4.0f, 2.1f, 3.0f, 2.0f, 4.0f, 1.6f, 3.2f, 3.0f, 3.2f, 6.0f, 5.0f, 2.0f };
 
         /// <summary>How strongly relief becomes slope in the normal map, per slice.</summary>
-        private static readonly float[] NormalStrength = { 1.0f, 1.3f, 0.8f, 1.1f, 0.9f, 1.0f, 0.6f, 1.2f };
+        private static readonly float[] NormalStrength = { 1.0f, 1.3f, 0.8f, 1.1f, 0.9f, 1.0f, 0.6f, 1.2f, 1.0f, 1.0f, 1.2f, 1.1f };
 
         /// <summary>One drawn tile: colour and smoothness per pixel, and relief height in millimetres.</summary>
         public sealed class Tile
@@ -72,7 +72,11 @@ namespace CityX.View
                         case 4: Stone(u, v, x, y, tx, ty, out r, out g, out b, out s, out h); break;
                         case 5: Ceramic(u, v, x, y, tx, ty, out r, out g, out b, out s, out h); break;
                         case 6: Spandrel(u, v, x, y, tx, ty, out r, out g, out b, out s, out h); break;
-                        default: Roof(u, v, x, y, tx, ty, out r, out g, out b, out s, out h); break;
+                        case 7: Roof(u, v, x, y, tx, ty, out r, out g, out b, out s, out h); break;
+                        case 8: Paving(u, v, x, y, tx, ty, out r, out g, out b, out s, out h); break;
+                        case 9: Asphalt(u, v, x, y, tx, ty, out r, out g, out b, out s, out h); break;
+                        case 10: Earth(u, v, x, y, tx, ty, out r, out g, out b, out s, out h); break;
+                        default: Setts(u, v, x, y, tx, ty, out r, out g, out b, out s, out h); break;
                     }
                     int i = y * size + x;
                     tile.R[i] = Mathf.Clamp01(r);
@@ -370,6 +374,134 @@ namespace CityX.View
             b = tone * 1.04f;
             s = 0.16f + Smooth(0.60f, 0.80f, damp) * 0.15f;
             h = (grain - 0.5f) * 1.2f + coarse * 0.8f + seam * 1.5f;
+        }
+
+        /// <summary>
+        /// Concrete paving slabs, 0.8 m square (a 0.6 m slab at this world's scale) with a dirty joint: each slab its own tone, a little worn
+        /// at the edges, stained in patches, the odd chip and the odd dark spot of chewing gum.
+        /// </summary>
+        private static void Paving(float u, float v, int px, int py, float tx, float ty,
+            out float r, out float g, out float b, out float s, out float h)
+        {
+            const int count = 4;
+            float cu = u * count;
+            float cv = v * count;
+            int su = FloorMod(Mathf.FloorToInt(cu), count);
+            int sv = FloorMod(Mathf.FloorToInt(cv), count);
+            float fu = cu - Mathf.Floor(cu);
+            float fv = cv - Mathf.Floor(cv);
+            float slab = tx / count;
+            float d = Mathf.Min(Mathf.Min(fu, 1.0f - fu) * slab, Mathf.Min(fv, 1.0f - fv) * slab);
+            float joint = 1.0f - Smooth(0.003f, 0.0075f, d);
+            float edgeWear = 1.0f - Smooth(0.0f, 0.06f, d);
+
+            float hs = Hash(su, sv, 211);
+            float grain = Hash(px, py, 213);
+            float coarse = Hash(px / 2, py / 2, 215);
+            float stain = Fbm(u, v, 3, 3, 4, 217);
+            float tone = 0.56f + (hs - 0.5f) * 0.10f + (grain - 0.5f) * 0.05f + (coarse - 0.5f) * 0.04f - Mathf.Max(0.0f, stain - 0.55f) * 0.18f;
+            tone -= edgeWear * 0.04f;
+            float gum = Dots(u, v, 36, 0.03f, 0.30f, 219);
+            r = tone * 1.0f;
+            g = tone * 0.99f;
+            b = tone * 0.96f;
+            r = Mathf.Lerp(r, 0.20f, joint);
+            g = Mathf.Lerp(g, 0.19f, joint);
+            b = Mathf.Lerp(b, 0.18f, joint);
+            r *= 1.0f - 0.5f * gum;
+            g *= 1.0f - 0.5f * gum;
+            b *= 1.0f - 0.5f * gum;
+            s = Mathf.Lerp(0.14f + (hs - 0.5f) * 0.06f, 0.05f, joint);
+            h = -3.0f * joint + (hs - 0.5f) * 0.8f + (grain - 0.5f) * 0.5f;
+        }
+
+        /// <summary>Road asphalt: dark, with coarse aggregate showing through, lighter patched repairs and long thin cracks.</summary>
+        private static void Asphalt(float u, float v, int px, int py, float tx, float ty,
+            out float r, out float g, out float b, out float s, out float h)
+        {
+            float grain = Hash(px, py, 223);
+            float coarse = Hash(px / 2, py / 2, 225);
+            float wear = Fbm(u, v, 3, 3, 5, 227);
+            float tone = 0.20f + (grain - 0.5f) * 0.06f + (coarse - 0.5f) * 0.05f + (wear - 0.5f) * 0.05f;
+            float speck = grain > 0.965f ? 0.14f : 0.0f;
+
+            // Patches: rectangles, a metre or two, a touch different from the road round them.
+            float patchCell = Hash(Mathf.FloorToInt(u * tx / 1.8f), Mathf.FloorToInt(v * ty / 2.6f), 229);
+            float patch = patchCell > 0.9f ? 0.035f : 0.0f;
+
+            // Cracks.
+            float ridge = 1.0f - Mathf.Abs(Fbm(u, v, 5, 5, 4, 231) * 2.0f - 1.0f);
+            float crack = Smooth(0.985f, 0.998f, ridge) * Smooth(0.45f, 0.65f, Fbm(u, v, 2, 2, 2, 233));
+            tone = tone + patch + speck - crack * 0.10f;
+            r = tone;
+            g = tone;
+            b = tone * 1.04f;
+            s = 0.10f + (wear - 0.5f) * 0.06f + patch * 1.5f;
+            h = (grain - 0.5f) * 1.0f + coarse * 0.8f - crack * 2.0f;
+        }
+
+        /// <summary>Bare compacted ground: dry earth with gravel and the odd darker patch. For the land between the streets that nothing has been built on.</summary>
+        private static void Earth(float u, float v, int px, int py, float tx, float ty,
+            out float r, out float g, out float b, out float s, out float h)
+        {
+            float grain = Hash(px, py, 235);
+            float coarse = Hash(px / 3, py / 3, 237);
+            float patch = Fbm(u, v, 3, 3, 5, 239);
+            float dry = Fbm(u, v, 7, 7, 3, 241);
+            float tone = 0.34f + (patch - 0.5f) * 0.14f + (grain - 0.5f) * 0.06f + (coarse - 0.5f) * 0.05f;
+            float pebble = Dots(u, v, 90, 0.18f, 0.40f, 243);
+            float crack = Smooth(0.985f, 0.998f, 1.0f - Mathf.Abs(Fbm(u, v, 6, 6, 3, 245) * 2.0f - 1.0f)) * Smooth(0.55f, 0.75f, dry);
+            tone = tone + pebble * 0.12f - crack * 0.12f;
+            r = tone * 1.08f;
+            g = tone * 0.98f;
+            b = tone * 0.84f;
+            s = 0.06f + pebble * 0.1f;
+            h = (grain - 0.5f) * 1.5f + coarse * 1.2f + pebble * 3.0f - crack * 2.5f;
+        }
+
+        /// <summary>Granite setts: small irregular cobbles, each its own tone, in dark joints. Old streets and plazas.</summary>
+        private static void Setts(float u, float v, int px, int py, float tx, float ty,
+            out float r, out float g, out float b, out float s, out float h)
+        {
+            const int cells = 11;
+            float fx = u * cells;
+            float fy = v * cells;
+            int ix = Mathf.FloorToInt(fx);
+            int iy = Mathf.FloorToInt(fy);
+            float best = 9.0f, second = 9.0f;
+            int bestX = 0, bestY = 0;
+            for (int dy = -1; dy <= 1; dy++)
+            {
+                for (int dx = -1; dx <= 1; dx++)
+                {
+                    int cx = ix + dx;
+                    int cy = iy + dy;
+                    float jx = cx + 0.5f + (Hash(FloorMod(cx, cells), FloorMod(cy, cells), 251) - 0.5f) * 0.55f;
+                    float jy = cy + 0.5f + (Hash(FloorMod(cx, cells), FloorMod(cy, cells), 253) - 0.5f) * 0.55f;
+                    float dd = (fx - jx) * (fx - jx) + (fy - jy) * (fy - jy);
+                    if (dd < best)
+                    {
+                        second = best;
+                        best = dd;
+                        bestX = FloorMod(cx, cells);
+                        bestY = FloorMod(cy, cells);
+                    }
+                    else if (dd < second)
+                    {
+                        second = dd;
+                    }
+                }
+            }
+            float edge = (Mathf.Sqrt(second) - Mathf.Sqrt(best)) * (tx / cells);   // metres from the joint between two stones
+            float joint = 1.0f - Smooth(0.006f, 0.016f, edge);
+            float hs = Hash(bestX, bestY, 255);
+            float grain = Hash(px, py, 257);
+            float tone = 0.40f + (hs - 0.5f) * 0.14f + (grain - 0.5f) * 0.06f;
+            r = Mathf.Lerp(tone * 1.0f, 0.12f, joint);
+            g = Mathf.Lerp(tone * 0.98f, 0.115f, joint);
+            b = Mathf.Lerp(tone * 0.95f, 0.11f, joint);
+            s = Mathf.Lerp(0.22f + (hs - 0.5f) * 0.1f, 0.05f, joint);
+            h = -6.0f * joint + Smooth(0.016f, 0.05f, edge) * 3.0f + (grain - 0.5f) * 0.6f;
         }
 
         // =====================================================================================================================

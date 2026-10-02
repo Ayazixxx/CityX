@@ -48,7 +48,7 @@ namespace CityX.ViewEditor
                 const float gap = 0.15f;
                 for (int row = 0; row < 2; row++)
                 {
-                    for (int slice = 0; slice < SurfaceLook.Slices; slice++)
+                    for (int slice = 0; slice < (FacadeTextures.Columns * FacadeTextures.Rows); slice++)
                     {
                         float x0 = slice * (size + gap);
                         float y0 = (1 - row) * (size + gap);
@@ -88,7 +88,7 @@ namespace CityX.ViewEditor
                 cameraObject.transform.SetParent(root.transform);
                 Camera camera = cameraObject.AddComponent<Camera>();
                 camera.orthographic = true;
-                float totalWidth = SurfaceLook.Slices * (size + gap) - gap;
+                float totalWidth = (FacadeTextures.Columns * FacadeTextures.Rows) * (size + gap) - gap;
                 camera.orthographicSize = (2 * size + gap) * 0.5f + 0.3f;
                 camera.transform.position = new Vector3(totalWidth * 0.5f, (2 * size + gap) * 0.5f, -10.0f);
                 camera.transform.rotation = Quaternion.identity;

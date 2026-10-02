@@ -22,7 +22,7 @@ namespace CityX.Tests
         [Test]
         public void ALookSurvivesBeingPackedIntoAVertexColour()
         {
-            for (int slice = 0; slice < SurfaceLook.Slices; slice++)
+            for (int slice = 0; slice < FacadeTextures.Columns * FacadeTextures.Rows; slice++)
             {
                 foreach (float wear in new[] { 0.0f, 0.4f, 1.0f })
                 {
@@ -285,7 +285,7 @@ namespace CityX.Tests
         public void EveryWallTextureTilesWithoutASeam()
         {
             const int size = 128;
-            for (int slice = 0; slice < SurfaceLook.Slices; slice++)
+            for (int slice = 0; slice < FacadeTextures.Columns * FacadeTextures.Rows; slice++)
             {
                 FacadeTextures.Tile tile = FacadeTextures.Generate(slice, size);
                 // How different the pixels either side of the wrap are, against how different neighbouring pixels are anywhere else in the
@@ -319,7 +319,7 @@ namespace CityX.Tests
         [Test]
         public void EveryWallTextureHasSomethingInItAndIsNotBlownOut()
         {
-            for (int slice = 0; slice < SurfaceLook.Slices; slice++)
+            for (int slice = 0; slice < FacadeTextures.Columns * FacadeTextures.Rows; slice++)
             {
                 FacadeTextures.Tile tile = FacadeTextures.Generate(slice, 128);
                 float min = 1.0f, max = 0.0f, sum = 0.0f;
@@ -342,6 +342,24 @@ namespace CityX.Tests
             FacadeTextures.Tile b = FacadeTextures.Generate(1, 64);
             CollectionAssert.AreEqual(a.R, b.R);
             CollectionAssert.AreEqual(a.Height, b.Height);
+        }
+
+        [Test]
+        public void TheShaderKnowsTheTileSizeOfEveryTexture()
+        {
+            // The shader keeps its own table of how many metres a tile covers; it has to say what the generator says.
+            string path = System.IO.Path.Combine(Application.dataPath, "CityX/View/Shaders/FacadeForwardPass.hlsl");
+            string text = System.IO.File.ReadAllText(path);
+            int start = text.IndexOf("kTileMetres");
+            int end = text.IndexOf("};", start);
+            System.Text.RegularExpressions.MatchCollection entries = System.Text.RegularExpressions.Regex.Matches(
+                text.Substring(start, end - start), @"float2\(([0-9.]+), ([0-9.]+)\)");
+            Assert.AreEqual(FacadeTextures.Columns * FacadeTextures.Rows, entries.Count, "one entry per slice");
+            for (int i = 0; i < entries.Count; i++)
+            {
+                Assert.AreEqual(FacadeTextures.TileMetresX[i], float.Parse(entries[i].Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture), 1e-4f, FacadeTextures.SliceNames[i]);
+                Assert.AreEqual(FacadeTextures.TileMetresY[i], float.Parse(entries[i].Groups[2].Value, System.Globalization.CultureInfo.InvariantCulture), 1e-4f, FacadeTextures.SliceNames[i]);
+            }
         }
 
         private static float Luma(FacadeTextures.Tile tile, int x, int y)

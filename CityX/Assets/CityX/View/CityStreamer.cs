@@ -725,6 +725,16 @@ namespace CityX.View
                 payload.SubmeshTriangles[b] = shifted;
                 written += buffer.Vertices.Count;
             }
+
+            // The ground, the pavement and the walls are one material now (the facade shader reads what each surface is off its vertices),
+            // so they are ONE submesh: a draw call each used to be spent on up to three of them in every chunk.
+            var everything = new int[payload.SubmeshTriangles[0].Length + payload.SubmeshTriangles[1].Length + payload.SubmeshTriangles[2].Length];
+            payload.SubmeshTriangles[0].CopyTo(everything, 0);
+            payload.SubmeshTriangles[1].CopyTo(everything, payload.SubmeshTriangles[0].Length);
+            payload.SubmeshTriangles[2].CopyTo(everything, payload.SubmeshTriangles[0].Length + payload.SubmeshTriangles[1].Length);
+            payload.SubmeshTriangles[0] = everything;
+            payload.SubmeshTriangles[1] = new int[0];
+            payload.SubmeshTriangles[2] = new int[0];
             return payload;
         }
 
@@ -750,7 +760,7 @@ namespace CityX.View
             mesh.SetColors(payload.Colors);
             // Only the submeshes that have something in them, each with its material. A street chunk has no walls
             // or glass, and a draw call per empty submesh is exactly the per-draw cost that frame time followed.
-            Material[] materialFor = { GroundMaterial, PavementMaterial, StructureMaterial, DarkGlassMaterial, LitGlassMaterial };
+            Material[] materialFor = { StructureMaterial, PavementMaterial, StructureMaterial, DarkGlassMaterial, LitGlassMaterial };
             int used = 0;
             for (int i = 0; i < payload.SubmeshTriangles.Length; i++)
             {

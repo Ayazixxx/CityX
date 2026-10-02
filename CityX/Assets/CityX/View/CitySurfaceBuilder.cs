@@ -53,11 +53,11 @@ namespace CityX.View
             var rect = new Rect2(chunkX * size, chunkY * size, (chunkX + 1) * size, (chunkY + 1) * size);
             var ctx = new Context(plan, origin, rect);
 
-            BuildTerrain(ctx, pavement, far ? FarTerrainStep : TerrainStep);
+            BuildTerrain(ctx, pavement, far ? FarTerrainStep : TerrainStep, plan.BlocksIn(chunkX, chunkY));
 
             foreach (int blockIndex in plan.BlocksIn(chunkX, chunkY))
             {
-                BuildPavement(ctx, plan.Data.Blocks[blockIndex], pavement);
+                BuildPavement(ctx, plan.Data.Blocks[blockIndex], pavement, far);
             }
 
             foreach (int edgeId in plan.EdgesIn(chunkX, chunkY))
@@ -81,6 +81,11 @@ namespace CityX.View
                 if (j == null || j.Plate == null) continue;
                 BuildPlate(ctx, j, ground);
             }
+
+            // The buildings that follow stamp their own looks; none of the ground's is left on a buffer for them to inherit.
+            ground.Look = SurfaceLook.Default;
+            pavement.Look = SurfaceLook.Default;
+            structures.Look = SurfaceLook.Default;
         }
 
         // ---------------------------------------------------------------- context and clipping
@@ -254,9 +259,92 @@ namespace CityX.View
             }
         }
 
+        // ---------------------------------------------------------------- looks of the ground
+
+        /// <summary>Smooth noise 0..1 on a lattice of cells `cell` metres across: the same at the same place in every chunk.</summary>
+        private static float PatchNoise(double x, double z, double cell, int salt)
+        {
+            double fx = x / cell, fz = z / cell;
+            int ix = (int)Math.Floor(fx), iz = (int)Math.Floor(fz);
+            float tx = (float)(fx - ix), tz = (float)(fz - iz);
+            tx = tx * tx * (3.0f - 2.0f * tx);
+            tz = tz * tz * (3.0f - 2.0f * tz);
+            float a = LatticeHash(ix, iz, salt), b = LatticeHash(ix + 1, iz, salt), c = LatticeHash(ix, iz + 1, salt), d = LatticeHash(ix + 1, iz + 1, salt);
+            return Mathf.Lerp(Mathf.Lerp(a, b, tx), Mathf.Lerp(c, d, tx), tz);
+        }
+
+        private static float LatticeHash(int x, int z, int salt)
+        {
+            unchecked
+            {
+                uint h = (uint)(x * 374761393) + (uint)(z * 668265263) + (uint)(salt * 1274126177);
+                h = (h ^ (h >> 13)) * 1274126177u;
+                h ^= h >> 16;
+                return (h & 0xFFFFu) / 65536.0f;
+            }
+        }
+
+        /// <summary>
+        /// The ground at a point. Inside a block (between the pavements) it is hardstanding -- concrete apron, a tarmac yard, setts -- and
+        /// only in a block with nothing built on it, sometimes bare earth: a dense city is not standing in a field. Outside every block it is
+        /// earth.
+        /// </summary>
+        private static Color32 GroundLook(Context ctx, double x, double z, List<int> blockIndices)
+        {
+            for (int i = 0; i < blockIndices.Count; i++)
+            {
+                PlanBlock block = ctx.Plan.Data.Blocks[blockIndices[i]];
+                if (block.Outer == null || !PlanMath.PointInPolygon(new Vec2(x, z), block.Outer))
+                {
+                    continue;
+                }
+                bool built = ctx.Plan.BuildingAt(x, z, 5.0) >= 0;
+                float pick = LatticeHash(blockIndices[i], 5, 19);
+                float tone = 0.72f + 0.28f * PatchNoise(x, z, 17.0, 23);
+                float wear = 0.35f + 0.5f * PatchNoise(x, z, 29.0, 29);
+                if (built)
+                {
+                    // Around a building: concrete apron, tarmac, or setts.
+                    int slice = pick < 0.55f ? SurfaceLook.Paving : (pick < 0.85f ? SurfaceLook.Asphalt : SurfaceLook.Setts);
+                    return SurfaceLook.Pack(new Color(tone, tone, tone * 0.97f), slice, wear);
+                }
+                // A block with nothing on it: a tarmac yard, a paved square, or waste ground.
+                int vacant = pick < 0.40f ? SurfaceLook.Asphalt : (pick < 0.65f ? SurfaceLook.Paving : (pick < 0.75f ? SurfaceLook.Setts : SurfaceLook.Earth));
+                return SurfaceLook.Pack(new Color(tone, tone * 0.99f, tone * 0.95f), vacant, wear);
+            }
+            return EarthLook(x, z);
+        }
+
+        /// <summary>Bare ground between the streets: patchy, a little different from one stretch to the next.</summary>
+        private static Color32 EarthLook(double x, double z)
+        {
+            float patch = PatchNoise(x, z, 22.0, 3);
+            float tone = 0.70f + 0.30f * patch;
+            float wear = 0.25f + 0.55f * PatchNoise(x, z, 41.0, 5);
+            return SurfaceLook.Pack(new Color(tone, tone * 0.98f, tone * 0.93f), SurfaceLook.Earth, wear);
+        }
+
+        /// <summary>A road: asphalt, newer and cleaner on a highway, more worn on a street, a little different from one road to the next.</summary>
+        private static Color32 AsphaltLook(RoadClass roadClass, int id)
+        {
+            float h = LatticeHash(id, 17, 7);
+            float tone = 0.80f + 0.20f * h;
+            float wear = roadClass == RoadClass.Highway ? 0.15f + 0.25f * h : (roadClass == RoadClass.Arterial ? 0.30f + 0.30f * h : 0.40f + 0.45f * h);
+            return SurfaceLook.Pack(new Color(tone, tone, tone), SurfaceLook.Asphalt, wear);
+        }
+
+        /// <summary>The pavement beside a road: concrete slabs, or granite setts in some streets.</summary>
+        private static Color32 PavingLook(RoadClass roadClass, int salt)
+        {
+            float h = LatticeHash(salt, (int)roadClass, 11);
+            float tone = 0.82f + 0.18f * h;
+            float wear = 0.25f + 0.5f * LatticeHash(salt, 3, 13);
+            return SurfaceLook.Pack(new Color(tone, tone * 0.99f, tone * 0.96f), SurfaceLook.Paving, wear);
+        }
+
         // ---------------------------------------------------------------- terrain
 
-        private static void BuildTerrain(Context ctx, MeshBuffer buffer, float step)
+        private static void BuildTerrain(Context ctx, MeshBuffer buffer, float step, List<int> blockIndices)
         {
             Rect2 r = ctx.Rect;
             int n = Mathf.Max(1, Mathf.RoundToInt((float)(r.X1 - r.X0) / step));
@@ -274,6 +362,7 @@ namespace CityX.View
                 for (int ix = 0; ix < n; ix++)
                 {
                     double x0 = r.X0 + ix * s, x1 = x0 + s, z0 = r.Z0 + iz * s, z1 = z0 + s;
+                    buffer.Look = GroundLook(ctx, (x0 + x1) * 0.5, (z0 + z1) * 0.5, blockIndices);
                     Vector3 a = ctx.Local(x0, heights[ix, iz], z0);
                     Vector3 b = ctx.Local(x0, heights[ix, iz + 1], z1);
                     Vector3 c = ctx.Local(x1, heights[ix + 1, iz + 1], z1);
@@ -313,6 +402,7 @@ namespace CityX.View
             Vec2 perp = g.Dir.Perp * g.HalfWidth;
             Func<double, double, double> height = RoadHeight(ctx, g);
 
+            buffer.Look = AsphaltLook(g.Edge.Class, g.Edge.Id);
             int pieces = Math.Max(1, (int)Math.Ceiling((t1 - t0) / PieceLength));
             for (int i = 0; i < pieces; i++)
             {
@@ -334,6 +424,7 @@ namespace CityX.View
             Bounds(plate, out double mx, out double mz, out double Mx, out double Mz);
             if (!ctx.Rect.Overlaps(mx - 1.0, mz - 1.0, Mx + 1.0, Mz + 1.0)) return;
             Vec2 centre = j.Node.P;
+            buffer.Look = AsphaltLook(RoadClass.Street, j.Node.Id);
             // The ground the plate sits on is the junction's own: one value for the whole plate, so it is flat and its edges meet the ribbons.
             Func<double, double, double> height = (x, z) => ctx.Plan.GroundHeight(x, z) + RoadLift;
             for (int i = 0; i < plate.Length; i++)
@@ -346,7 +437,7 @@ namespace CityX.View
 
         // ---------------------------------------------------------------- pavement and kerb
 
-        private static void BuildPavement(Context ctx, PlanBlock block, MeshBuffer buffer)
+        private static void BuildPavement(Context ctx, PlanBlock block, MeshBuffer buffer, bool far)
         {
             if (block.Inner == null || block.Outer == null) return;
             Bounds(block.Poly, out double bx0, out double bz0, out double bx1, out double bz1);
@@ -370,7 +461,9 @@ namespace CityX.View
                     Bounds(quad, out double mx, out double mz, out double Mx, out double Mz);
                     if (!ctx.Rect.Overlaps(mx, mz, Mx, Mz)) continue;
 
+                    buffer.Look = PavingLook(block.EdgeClass[e], e);
                     Fan(ctx, buffer, Clip(quad, ctx.Rect), (x, z) => ctx.Plan.GroundHeight(x, z) + RoadLift + KerbHeight);
+                    buffer.Look = SurfaceLook.Pack(new Color32(214, 212, 206, 255), (int)WallMaterial.Concrete, 0.45f);
 
                     // The kerb: a vertical face along the inner edge, from the road up to the pavement, facing the road.
                     if (ClipSegment(ia, ib, ctx.Rect, out Vec2 ka, out Vec2 kb) && (kb - ka).Length > 0.02)
@@ -388,6 +481,117 @@ namespace CityX.View
                             new Vector2(0.0f, 0.0f), new Vector2(len, 0.0f), new Vector2(len, KerbHeight), new Vector2(0.0f, KerbHeight));
                     }
                 }
+                if (!far)
+                {
+                    AddSidewalkProps(ctx, block, e, buffer);
+                }
+            }
+        }
+
+        // ---------------------------------------------------------------- crossings and street furniture
+
+        /// <summary>
+        /// Zebra crossings at the mouth of most side streets: bars along the road, spaced across it, just beyond the junction. Not on a
+        /// highway, and not at every one (a city with a crossing at every corner looks like a diagram).
+        /// </summary>
+        private static void Crossings(Context ctx, EdgeGeometry g, MeshBuffer white, Func<double, double, double> height)
+        {
+            if (white == null || g.Edge.Class == RoadClass.Highway)
+            {
+                return;
+            }
+            for (int end = 0; end < 2; end++)
+            {
+                double trim = end == 0 ? g.TrimA : g.TrimB;
+                if (trim < 1.0 || LatticeHash(g.Edge.Id, end, 41) > 0.7f)
+                {
+                    continue;
+                }
+                double ta = end == 0 ? trim + 0.6 : g.Length - trim - 3.9;
+                double tb = ta + 3.3;
+                if (tb > g.Length - 0.5 || ta < 0.5)
+                {
+                    continue;
+                }
+                double span = g.HalfWidth - 0.9;
+                for (double s = -span; s + 0.7 <= span; s += 1.4)
+                {
+                    Stripe(ctx, g, white, height, s + 0.35, 0.35, ta, tb);
+                }
+            }
+        }
+
+        private static readonly Color StreetBin = new Color(0.20f, 0.28f, 0.23f);
+        private static readonly Color StreetCabinet = new Color(0.55f, 0.57f, 0.58f);
+        private static readonly Color StreetHydrant = new Color(0.72f, 0.13f, 0.10f);
+
+        /// <summary>
+        /// The odd hydrant, bin and utility cabinet along a pavement: one candidate about every 36 m, clear of the corners, and not
+        /// every candidate used. Sized for the 2.6 m player (everything here is about 1.3x). NO LAMP POSTS: they were tried and removed.
+        /// </summary>
+        private static void AddSidewalkProps(Context ctx, PlanBlock block, int e, MeshBuffer buffer)
+        {
+            int n = block.Poly.Count;
+            int f = (e + 1) % n;
+            Vec2 i0 = block.Inner[e], i1 = block.Inner[f];
+            Vec2 o0 = block.Outer[e], o1 = block.Outer[f];
+            double length = (i1 - i0).Length;
+            if (length < 18.0)
+            {
+                return;
+            }
+            Vec2 dir = (i1 - i0).Normalized;
+            int candidates = (int)(length / 36.0);
+            for (int k = 0; k <= candidates; k++)
+            {
+                float jitter = LatticeHash(e * 131 + k, block.Poly.Count, 47);
+                double along = 8.0 + (length - 16.0) * (candidates == 0 ? jitter : (k + jitter) / (candidates + 1.0));
+                if (along < 8.0 || along > length - 8.0)
+                {
+                    continue;
+                }
+                float pick = LatticeHash(e * 977 + k, 3, 53);
+                if (pick > 0.62f)
+                {
+                    continue;
+                }
+                double s = along / length;
+                Vec2 kerb = i0 + (i1 - i0) * s;
+                Vec2 outer = o0 + (o1 - o0) * s;
+                Vec2 at = kerb + (outer - kerb) * 0.30;
+                if (at.X < ctx.Rect.X0 || at.X >= ctx.Rect.X1 || at.Y < ctx.Rect.Z0 || at.Y >= ctx.Rect.Z1)
+                {
+                    continue;
+                }
+                double y = ctx.Plan.GroundHeight(at.X, at.Y) + RoadLift + KerbHeight;
+                Vector3 position = ctx.Local(at.X, y, at.Y);
+
+                // Built in its own frame, turned to the kerb, so it sits square to the pavement.
+                buffer.SetFrame(position, dir.X, dir.Y);
+                Color32 saved = buffer.Look;
+                if (pick < 0.20f)
+                {
+                    buffer.Look = SurfaceLook.Pack(StreetHydrant, (int)WallMaterial.Metal, 0.25f);
+                    buffer.AddBox(new Vector3(-0.2f, 0.0f, -0.2f), new Vector3(0.2f, 1.0f, 0.2f));
+                    buffer.AddBox(new Vector3(-0.17f, 1.0f, -0.17f), new Vector3(0.17f, 1.2f, 0.17f));
+                    buffer.AddBox(new Vector3(-0.3f, 0.55f, -0.1f), new Vector3(0.3f, 0.75f, 0.1f));
+                }
+                else if (pick < 0.46f)
+                {
+                    buffer.Look = SurfaceLook.Pack(StreetBin, (int)WallMaterial.Metal, 0.5f);
+                    buffer.AddBox(new Vector3(-0.42f, 0.0f, -0.42f), new Vector3(0.42f, 1.25f, 0.42f));
+                    buffer.Look = SurfaceLook.Pack(new Color(0.12f, 0.12f, 0.13f), (int)WallMaterial.Metal, 0.4f);
+                    buffer.AddBox(new Vector3(-0.47f, 1.25f, -0.47f), new Vector3(0.47f, 1.37f, 0.47f));
+                }
+                else
+                {
+                    buffer.Look = SurfaceLook.Pack(StreetCabinet, (int)WallMaterial.Metal, 0.55f);
+                    buffer.AddBox(new Vector3(-0.8f, 0.0f, -0.35f), new Vector3(0.8f, 1.8f, 0.35f));
+                    buffer.Look = SurfaceLook.Pack(new Color(0.30f, 0.31f, 0.32f), (int)WallMaterial.Metal, 0.5f);
+                    buffer.AddBox(new Vector3(-0.85f, 1.8f, -0.4f), new Vector3(0.85f, 1.9f, 0.4f));
+                }
+                buffer.Look = saved;
+                buffer.ClearFrame();
             }
         }
 
@@ -395,10 +599,11 @@ namespace CityX.View
 
         private static void BuildPaint(Context ctx, EdgeGeometry g, MeshBuffer yellow, MeshBuffer white)
         {
+            Func<double, double, double> height = RoadHeight(ctx, g);
+            Crossings(ctx, g, white, height);
             double t0 = g.TrimA + 1.5;
             double t1 = g.Length - g.TrimB - 1.5;
             if (t1 - t0 < 3.0) return;
-            Func<double, double, double> height = RoadHeight(ctx, g);
             Vec2 perp = g.Dir.Perp;
 
             switch (g.Edge.Class)
@@ -449,8 +654,14 @@ namespace CityX.View
         private static void Paint(Context ctx, EdgeGeometry g, MeshBuffer buffer, Func<double, double, double> height,
             double offset, double ta, double tb)
         {
+            Stripe(ctx, g, buffer, height, offset, LineWidth * 0.5, ta, tb);
+        }
+
+        private static void Stripe(Context ctx, EdgeGeometry g, MeshBuffer buffer, Func<double, double, double> height,
+            double offset, double halfWidth, double ta, double tb)
+        {
             Vec2 perp = g.Dir.Perp;
-            double w = LineWidth * 0.5;
+            double w = halfWidth;
             Vec2 pa = g.A + g.Dir * ta + perp * offset;
             Vec2 pb = g.A + g.Dir * tb + perp * offset;
             var quad = new List<Vec2> { pa + perp * w, pb + perp * w, pb - perp * w, pa - perp * w };
@@ -464,6 +675,9 @@ namespace CityX.View
         /// <summary>The underside and sides of a bridge deck, its pavement, and a parapet along each side.</summary>
         private static void BuildBridgeParts(Context ctx, EdgeGeometry g, MeshBuffer pavement, MeshBuffer structures, MeshBuffer guardRail)
         {
+            // A bridge is concrete, a little weathered.
+            pavement.Look = SurfaceLook.Pack(new Color32(206, 204, 198, 255), (int)WallMaterial.Concrete, 0.5f);
+            structures.Look = pavement.Look;
             Func<double, double, double> height = RoadHeight(ctx, g);
             double t0 = g.TrimA;
             double t1 = g.Length - g.TrimB;

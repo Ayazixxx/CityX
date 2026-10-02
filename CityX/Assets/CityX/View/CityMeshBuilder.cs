@@ -1387,6 +1387,7 @@ namespace CityX.View
                 {
                     AddEntranceCanopy(wallBuffer, wall, doorU0, doorU1, doorTop, normal, looks.Value);
                 }
+                AddBladeSigns(wallBuffer, glazing, site, wall, u0, u0 + columns.Count * columns.Size, y0, doorU0, doorU1, normal, looks.Value, storefront);
             }
         }
 
@@ -1480,6 +1481,79 @@ namespace CityX.View
             AddFace(buffer, up, wallTop0, wallTop1, edgeTop1, edgeTop0);
             AddFace(buffer, -up, wallTop0, wallTop1, edgeTop1, edgeTop0);
             AddFace(buffer, outward, edgeTop0, edgeTop1, flapBottom1, flapBottom0);
+        }
+
+        private const ulong BladeStream = 0x424C4144UL;   // "BLAD"
+
+        /// <summary>
+        /// Vertical blade signs: a lit panel on an arm, standing out from the wall at right angles so it is read from along the street. The
+        /// shape of a dense Asian street at night. Few: about half the shopfronts have one, some two, and a downtown building sometimes.
+        /// The panels are in the lit glass, so they come on at dusk like the windows and are dark glass by day; the frame is metal.
+        /// </summary>
+        private static void AddBladeSigns(MeshBuffer wallBuffer, in Glazing glazing, BuildingSite site, in Wall wall, float u0, float u1,
+            float y0, float doorU0, float doorU1, Vector3 outward, SiteLooks looks, bool storefront)
+        {
+            if (glazing.Lit == null)
+            {
+                return;
+            }
+            var rng = new DeterministicRandom(unchecked((ulong)(uint)site.Seed), BladeStream);
+            double chance = storefront ? 0.55 : (site.Zone == ZoneKind.Core || site.Zone == ZoneKind.Urban ? 0.12 : 0.0);
+            if (rng.NextDouble() >= chance)
+            {
+                return;
+            }
+            int count = storefront && rng.NextDouble() < 0.30 ? 2 : 1;
+            Vector3 along = (wall.At(u0 + 1.0f, 0.0f) - wall.At(u0, 0.0f)).normalized;
+            Color32 saved = wallBuffer.Look;
+            Color32 savedGlass = glazing.Lit.Look;
+
+            for (int i = 0; i < count; i++)
+            {
+                float height = Mathf.Lerp(3.2f, 5.8f, (float)rng.NextDouble());
+                float bottom = y0 + 3.8f + 1.2f * (float)rng.NextDouble();
+                float reach = 1.0f + 0.6f * (float)rng.NextDouble();
+
+                // Somewhere along the front, clear of the door and the corners.
+                float u = 0.0f;
+                bool found = false;
+                for (int attempt = 0; attempt < 8 && !found; attempt++)
+                {
+                    u = Mathf.Lerp(u0 + 1.6f, u1 - 1.6f, (float)rng.NextDouble());
+                    found = u < doorU0 - 2.2f || u > doorU1 + 2.2f;
+                }
+                if (!found)
+                {
+                    continue;
+                }
+
+                // The arm back to the wall, and the frame the panels sit in.
+                wallBuffer.Look = looks.Frame;
+                Vector3 a0 = wall.At(u - 0.06f, bottom + height * 0.5f - 0.05f);
+                Vector3 a1 = wall.At(u + 0.06f, bottom + height * 0.5f + 0.05f) + outward * 0.5f;
+                wallBuffer.AddBox(Vector3.Min(a0, a1), Vector3.Max(a0, a1));
+                Vector3 f0 = wall.At(u - 0.14f, bottom) + outward * 0.4f;
+                Vector3 f1 = wall.At(u + 0.14f, bottom + height) + outward * reach;
+                wallBuffer.AddBox(Vector3.Min(f0, f1), Vector3.Max(f0, f1), true);
+
+                // The two lit faces, one colour: a neon that is not the colour of the window next to it.
+                int light = 2 + rng.Below(5);
+                glazing.Lit.Look = SurfaceLook.PackGlass(0, light, 0.0f);
+                float panelWidth = reach - 0.4f - 0.2f;
+                float panelHeight = height - 0.4f;
+                foreach (float side in new[] { 1.0f, -1.0f })
+                {
+                    float x = u + side * 0.145f;
+                    Vector3 c00 = wall.At(x, bottom + 0.2f) + outward * 0.5f;
+                    Vector3 c10 = wall.At(x, bottom + 0.2f) + outward * (reach - 0.1f);
+                    Vector3 c11 = wall.At(x, bottom + 0.2f + panelHeight) + outward * (reach - 0.1f);
+                    Vector3 c01 = wall.At(x, bottom + 0.2f + panelHeight) + outward * 0.5f;
+                    glazing.Lit.AddQuad(c00, c10, c11, c01, along * side,
+                        new Vector2(0.0f, 0.0f), new Vector2(panelWidth, 0.0f), new Vector2(panelWidth, panelHeight), new Vector2(0.0f, panelHeight));
+                }
+            }
+            wallBuffer.Look = saved;
+            glazing.Lit.Look = savedGlass;
         }
 
         /// <summary>A flat canopy over an ordinary entrance: a slab on the wall above the door.</summary>

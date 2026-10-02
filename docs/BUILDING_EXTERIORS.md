@@ -176,3 +176,20 @@ replace them with their own). Built so far, in the order of section 5:
    height (`CityWorld.TryBuildingAt(Vector3)`).
 
 Tools: `CityX/Generate Facade Textures`, `Capture Facade Swatches` (a sheet of the eight materials, clean and worn), `Capture Plan City`, `Survey Exteriors`.
+4. **Roofs, accessories, banding.** Every roof has a parapet with coping and real rooftop plant (air handlers, vents, skylights, ducts, a stair head, tanks, masts), kept off the
+   roof hatch and off the volume standing on it. Homes get air conditioners under some windows. Some buildings have the strips above and below the windows in another
+   material from the piers between them (`BuildingLook.BandMaterial`).
+5. **The ground.** Roads, pavements, kerbs, bare land and the hardstanding round buildings are the same facade shader and the same single draw as the walls (the chunk mesh's
+   ground, pavement and wall submeshes are one). Four more slices of the texture array (now 12, a 4 x 3 grid): paving slabs, road asphalt (cracks, patched repairs),
+   bare earth, granite setts. Roads differ by class and wear, pavements by block, the land inside a block is concrete apron, tarmac or setts and only an unbuilt block is sometimes bare earth.
+   Zebra crossings at the mouth of most side streets; a hydrant, bin or utility cabinet now and then along a pavement (**no lamp posts**).
+6. **Signs.** Vertical lit blade signs on about half the shopfronts (some two) and a few downtown buildings, in the lit-glass buffer so they come on at dusk like the windows.
+
+**Scale rule learned the hard way:** the player is 2.6 m tall (`BodyRig.StandingHeight`), so everything a body passes through is about 1.3x real: doors are the whole 3.2 m
+ground row, an awning's lowest edge is above 2.7 m, the bars across a broken window are left out so it can still be walked through.
+
+**Measured (2560 x 1600, RTX 3070 Laptop, D3D12, release player, `CityX/Builds/Bench`):** standing 184 fps, sprinting through the streaming city **179 fps**, worst frame 41 ms,
+0.1% of frames under 60 fps; about 5,900 submesh draws loaded, 1,800 in view (406 transparent). Ample room left for more detail.
+
+**Still to do:** skybridges between towers (the old Chongqing walkway look), the special buildings as landmarks, graffiti/posters/stains as decals, wet-road reflections (needs
+screen-space reflections or probes), street lamps (only if you want them back), tree-less public squares, and the mini-dungeon interiors.

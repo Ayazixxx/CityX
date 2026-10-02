@@ -234,6 +234,14 @@ namespace CityX.ViewEditor
                     streamer.Rebuild();
                     Shoot(streamer, camera, directory, "plan-shop",
                         shopEye, Quaternion.LookRotation(shopAt - shopEye, Vector3.up).eulerAngles, 8);
+
+                    // The same street from the pavement, looking along the fronts: a stretch of street, not one facade.
+                    shop.LocalToWorld(-22.0, shop.Params.Depth * 0.5 + 7.0, out double bx, out double bz);
+                    shop.LocalToWorld(26.0, shop.Params.Depth * 0.5 + 0.0, out double btx, out double btz);
+                    var blockEye = new Vector3((float)bx, shop.BaseHeight + 1.7f, (float)bz);
+                    var blockAt = new Vector3((float)btx, shop.BaseHeight + 7.0f, (float)btz);
+                    Shoot(streamer, camera, directory, "plan-block",
+                        blockEye, Quaternion.LookRotation(blockAt - blockEye, Vector3.up).eulerAngles, 8);
                 }
 
                 // Down the longest highway within reach of the spawn, standing in the road: the long, bending boulevard.
