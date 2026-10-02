@@ -275,6 +275,27 @@ namespace CityX.Tests
         }
 
         [UnityTest]
+        public IEnumerator TheHandlesTurnWithTheLeafOnBothFaces()
+        {
+            Rigidbody body = _door.GetComponentInChildren<Rigidbody>();
+            Assert.IsNotNull(body);
+            Assert.AreEqual(RigidbodyInterpolation.None, body.interpolation, "an interpolated leaf draws behind the turning root and leaves the handle floating");
+            int levers = 0;
+            foreach (Transform t in body.transform.GetComponentsInChildren<Transform>())
+            {
+                levers += t.name == "HandleLever" ? 1 : 0;
+            }
+            Assert.AreEqual(2, levers, "a handle on each face, all under the one moving body");
+
+            Transform lever = body.transform.Find("HandleLever");
+            Vector3 local = body.transform.InverseTransformPoint(lever.position);
+            _door.SetOpen(true);
+            yield return Seconds(1.0f);
+            Assert.Less(Vector3.Distance(local, body.transform.InverseTransformPoint(lever.position)), 0.001f, "fixed to the leaf");
+            Assert.Greater(Vector3.Distance(lever.position, _door.transform.position), 0.5f);
+        }
+
+        [UnityTest]
         public IEnumerator ADoorRestoredOpenStartsFullyOpenWithoutASound()
         {
             var go = new GameObject("Restored");

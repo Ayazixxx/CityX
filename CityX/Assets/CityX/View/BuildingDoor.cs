@@ -189,22 +189,22 @@ namespace CityX.View
             // zero and the inward one is negative; putting the handle at
             // negative z, which is the arithmetic that looks right, buries it
             // inside the lobby where nobody walking up to the door can see it.
-            GameObject handle = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            handle.name = "Handle";
-            handle.transform.SetParent(_leaf, false);
-            handle.transform.localPosition = new Vector3(
-                panel.Width - 0.12f, panel.Height * 0.45f, 0.04f);
-            handle.transform.localScale = new Vector3(0.06f, 0.16f, 0.06f);
-            handle.GetComponent<MeshRenderer>().sharedMaterial = handleMaterial;
-            Destroy(handle.GetComponent<BoxCollider>());
+            // Handles on BOTH faces (the door opens from either side). They are children of the leaf, which carries the one
+            // kinematic body, so they turn with the slab. The old handle was a sibling of a slab with its OWN interpolated
+            // body: the slab's interpolation lagged behind the turning root while the handle did not, so it floated off.
+            float handleY = panel.Height * 0.45f;
+            float handleX = panel.Width - 0.14f;
+            AddHandle(_leaf, handleMaterial, new Vector3(handleX, handleY, 0.0f), 1.0f);
+            AddHandle(_leaf, handleMaterial, new Vector3(handleX, handleY, -Thickness), -1.0f);
 
             // A KINEMATIC RIGIDBODY, not a bare collider. Godot's own note: a
             // static body's collision is treated as not moving between frames,
             // so a player standing at the threshold can be tunnelled through or
             // shoved wrongly as the panel sweeps past. The same is true here.
-            var body = slab.AddComponent<Rigidbody>();
+            // No interpolation: the leaf is turned through its transform, and an interpolated body draws a frame behind it.
+            var body = leaf.AddComponent<Rigidbody>();
             body.isKinematic = true;
-            body.interpolation = RigidbodyInterpolation.Interpolate;
+            body.interpolation = RigidbodyInterpolation.None;
 
             // The reach. Bigger than the doorway, because you press E standing
             // in front of a door rather than inside it.
@@ -219,6 +219,29 @@ namespace CityX.View
             _angleVelocity = 0.0f;
             _shutSoundPending = false;
             ApplyAngle();
+        }
+
+        /// <summary>A rose plate, neck and lever on one face of the leaf; <paramref name="side"/> is +1 for the outer face, -1 for the inner.</summary>
+        private static void AddHandle(Transform leaf, Material material, Vector3 face, float side)
+        {
+            AddPiece(leaf, material, PrimitiveType.Cylinder, "HandleRose", face + new Vector3(0.0f, 0.0f, side * 0.01f),
+                Quaternion.Euler(90.0f, 0.0f, 0.0f), new Vector3(0.12f, 0.01f, 0.12f));
+            AddPiece(leaf, material, PrimitiveType.Cube, "HandleNeck", face + new Vector3(0.0f, 0.0f, side * 0.04f),
+                Quaternion.identity, new Vector3(0.035f, 0.035f, 0.06f));
+            AddPiece(leaf, material, PrimitiveType.Cube, "HandleLever", face + new Vector3(-0.08f, 0.0f, side * 0.07f),
+                Quaternion.identity, new Vector3(0.18f, 0.035f, 0.035f));
+        }
+
+        private static void AddPiece(Transform leaf, Material material, PrimitiveType type, string name, Vector3 position, Quaternion rotation, Vector3 scale)
+        {
+            GameObject piece = GameObject.CreatePrimitive(type);
+            piece.name = name;
+            piece.transform.SetParent(leaf, false);
+            piece.transform.localPosition = position;
+            piece.transform.localRotation = rotation;
+            piece.transform.localScale = scale;
+            piece.GetComponent<MeshRenderer>().sharedMaterial = material;
+            Destroy(piece.GetComponent<Collider>());
         }
 
         public bool IsOpen => _open;
