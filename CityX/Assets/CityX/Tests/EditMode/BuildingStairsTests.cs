@@ -278,6 +278,69 @@ namespace CityX.Tests
             Assert.AreEqual(0, tight, $"{tight} of {checkedStairs} stairs squeeze a body; first: {first}");
         }
 
+        // ---- the way through ----
+
+        [Test]
+        public void YouCanWalkFromWhereTheLastStairLeavesYouToTheNextOneAndFromTheFrontDoor()
+        {
+            int floorsChecked = 0, blocked = 0;
+            var firsts = new List<string>();
+            foreach (BuildingSite site in Buildings(7))
+            {
+                float hx = site.Params.Width * 0.5f - BuildingInterior.WallThickness - 0.05f, hz = site.Params.Depth * 0.5f - BuildingInterior.WallThickness - 0.05f;
+                if (hx > 60.0f || hz > 60.0f)
+                {
+                    continue;   // a grid for a 200 m room is a lot of cells; the small and middling ones carry the same cases
+                }
+                BuildingStairs.Layout layout = BuildingStairs.PlanFor(site);
+                for (int f = 0; f < layout.FloorCount; f++)
+                {
+                    StairPlan plan = layout.Floors[f];
+                    if (plan == null)
+                    {
+                        continue;
+                    }
+                    StairPlan arriving = f == 0 ? layout.Basement : layout.Floors[f - 1];
+                    var starts = new List<Vector2>();
+                    if (f == 0 || arriving == null)
+                    {
+                        starts.Add(new Vector2(0.0f, hz - 1.0f));   // in at the front door
+                    }
+                    if (arriving != null)
+                    {
+                        starts.Add(arriving.ExitPoint);   // off the last stair
+                    }
+                    List<Rect> solids = BuildingStairs.FloorSolids(plan, arriving, f, site.Params.Width * 0.5f, site.Params.Depth * 0.5f);
+                    floorsChecked++;
+                    Vector2 stuckFrom = default;
+                    bool stuck = false;
+                    foreach (Vector2 start in starts)
+                    {
+                        if (!stuck && BuildingStairs.WalkPath(solids, hx, hz, start, plan.EntryPoint) == null)
+                        {
+                            stuck = true;
+                            stuckFrom = start;
+                        }
+                    }
+                    if (stuck)
+                    {
+                        blocked++;
+                        if (firsts.Count < 6)
+                        {
+                            firsts.Add($"building {site.Id} floor {f}: {plan.Kind} x{plan.Flights}, core {layout.Core}, arriving {(arriving == null ? "from the door" : arriving.Kind.ToString())}, from {stuckFrom} to {plan.EntryPoint}, room {hx * 2:0}x{hz * 2:0}");
+                        }
+                    }
+                }
+            }
+            TestContext.WriteLine($"{blocked} of {floorsChecked} floors have no walkable way to the stair");
+            foreach (string line in firsts)
+            {
+                TestContext.WriteLine(line);
+            }
+            Assert.Greater(floorsChecked, 1000);
+            Assert.AreEqual(0, blocked, $"{blocked} of {floorsChecked} floors: you cannot walk to the stair. First: {(firsts.Count > 0 ? firsts[0] : "")}");
+        }
+
         [Test]
         public void ACoreIsTheSameShaftOnEveryFloor()
         {

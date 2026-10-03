@@ -40,6 +40,9 @@ namespace CityX.World
         /// <summary>Which side of <see cref="Bounds"/> the doorway is in: 0 = -x, 1 = +x, 2 = -z, 3 = +z. Meaningful when enclosed.</summary>
         public int DoorSide;
 
+        /// <summary>The floor carves no corner room: its partition would have walled the stair off from the way in.</summary>
+        public bool SuppressRoom;
+
         /// <summary>The steps and landings, lowest first. <see cref="Tops"/> is how far each one's top is above the floor it starts from.</summary>
         public Rect[] Treads;
         public float[] Tops;
@@ -124,6 +127,12 @@ namespace CityX.World
         /// <summary>The doorway into a core.</summary>
         public const float CoreDoor = 1.6f;
 
+        /// <summary>Free floor in front of a core's doorway, from the shaft wall to whatever is beyond (the outer wall, a partition): room to stand and turn.</summary>
+        public const float DoorLobby = 1.9f;
+
+        /// <summary>How far the room's walls are in from the footprint's half extent: the wall thickness and a hair.</summary>
+        private const float OuterWall = BuildingInterior.WallThickness + 0.05f;
+
         // ---- the plan for a whole building ----
 
         /// <summary>The stairs of one building.</summary>
@@ -195,12 +204,30 @@ namespace CityX.World
 
             // Otherwise the stair changes from floor to floor.
             StairPlan previous = null;
+            int firstFloor = 0;
             if (basement)
             {
-                layout.Basement = PlanMixed(seed, -1, storey, hx, hz, Rect.zero, false, null, zone, mass);
-                previous = layout.Basement;
+                // The flight down is chosen first, and the lobby then has to work round it; if the lobby cannot (the flight cuts a narrow room in two), try
+                // another flight down, and in the end do without a basement.
+                for (int variant = 0; variant < 6 && layout.Basement == null; variant++)
+                {
+                    StairPlan down = PlanMixed(seed, -1, storey, hx, hz, Rect.zero, false, null, zone, mass, variant);
+                    if (down == null)
+                    {
+                        continue;
+                    }
+                    bool lobbyIsRoof = floors == 1 && !layout.SealedTop;
+                    StairPlan lobby = PlanMixed(seed, 0, rises[0], hx, hz, lobbyIsRoof && hasObstacle ? roofObstacle : Rect.zero, true, down, zone, mass);
+                    if (lobby != null || floors == 1 && layout.SealedTop)
+                    {
+                        layout.Basement = down;
+                        layout.Floors[0] = lobby;
+                        previous = lobby ?? down;
+                        firstFloor = 1;
+                    }
+                }
             }
-            for (int f = 0; f < floors; f++)
+            for (int f = firstFloor; f < floors; f++)
             {
                 bool roof = f == floors - 1 && !layout.SealedTop;
                 if (f == floors - 1 && layout.SealedTop)
@@ -210,6 +237,11 @@ namespace CityX.World
                     break;
                 }
                 layout.Floors[f] = PlanMixed(seed, f, rises[f], hx, hz, roof && hasObstacle ? roofObstacle : Rect.zero, f == 0, previous, zone, mass);
+                if (layout.Floors[f] == null && roof && hasObstacle)
+                {
+                    // Nothing cleared the volume on the roof by its margin: settle for clearing the volume itself.
+                    layout.Floors[f] = PlanMixed(seed, f, rises[f], hx, hz, Inflate(roofObstacle, -0.4f), f == 0, previous, zone, mass);
+                }
                 previous = layout.Floors[f] ?? previous;
             }
             return layout;
@@ -472,6 +504,9 @@ namespace CityX.World
             public Rect Avoid;         // the hole must not overlap this (a volume standing on the roof)
             public StairPlan Previous; // the stair that arrives on this floor
             public float Pad;          // extra clearance round the stair (a core's walls)
+            public int Floor;          // which floor this is (the lobby is 0)
+            public float OuterHx, OuterHz;   // half extents of the whole footprint (the carved room is cut against these)
+            public bool Reach;         // check that a body can walk from where it arrives to the stair
         }
 
         /// <summary>The stair of the given shape on one floor, at the given placement; null if anything is wrong with it.</summary>
@@ -520,7 +555,22 @@ namespace CityX.World
 
             // ---- the rules ----
             Rect room = Rect.MinMaxRect(-c.Hx, -c.Hz, c.Hx, c.Hz);
-            Rect padded = Rect.MinMaxRect(plan.Bounds.xMin - c.Pad, plan.Bounds.yMin - c.Pad, plan.Bounds.xMax + c.Pad, plan.Bounds.yMax + c.Pad);
+            // A core has its doorway in the end wall (directly away from the first step), and needs a lobby in front of it: room to stand and turn,
+            // not a gap a body cannot squeeze down between the shaft and the outer wall.
+            float padLeft = c.Pad, padRight = c.Pad, padBack = c.Pad, padFront = c.Pad;
+            if (enclosed)
+            {
+                Vector2 away = plan.Entry.center - plan.Treads[0].center;
+                plan.DoorSide = Mathf.Abs(away.x) > Mathf.Abs(away.y) ? (away.x < 0.0f ? 0 : 1) : (away.y < 0.0f ? 2 : 3);
+                switch (plan.DoorSide)
+                {
+                    case 0: padLeft = DoorLobby; break;
+                    case 1: padRight = DoorLobby; break;
+                    case 2: padBack = DoorLobby; break;
+                    default: padFront = DoorLobby; break;
+                }
+            }
+            Rect padded = Rect.MinMaxRect(plan.Bounds.xMin - padLeft, plan.Bounds.yMin - padBack, plan.Bounds.xMax + padRight, plan.Bounds.yMax + padFront);
             const float slack = 0.001f;
             if (padded.xMin < room.xMin - slack || padded.xMax > room.xMax + slack || padded.yMin < room.yMin - slack || padded.yMax > room.yMax + slack)
             {
@@ -564,13 +614,180 @@ namespace CityX.World
                 }
             }
 
-            // The doorway of a core: the side of the bounds the entry cell touches.
-            if (enclosed)
+            // A body must be able to WALK from where it arrives on this floor (off the last stair, or in at the front door) to the foot of this one:
+            // past the shaft walls and their doorway, the carved room's partition, the opening below. A stair that fits and clears the ceiling can still
+            // be walled in by its own neighbours.
+            if (c.Reach && !CanReach(plan, prev, c))
             {
-                Rect b = plan.Bounds, e = plan.Entry;
-                plan.DoorSide = Mathf.Abs(e.xMin - b.xMin) < 0.01f ? 0 : Mathf.Abs(e.xMax - b.xMax) < 0.01f ? 1 : Mathf.Abs(e.yMin - b.yMin) < 0.01f ? 2 : 3;
+                // The carved room may be what shuts it in (a partition across the way): give that floor no room rather than no stair.
+                plan.SuppressRoom = true;
+                if (!CanReach(plan, prev, c))
+                {
+                    return null;
+                }
             }
+
             return plan;
+        }
+
+        // ---- walking on a floor ----
+
+        private static bool CanReach(StairPlan plan, StairPlan prev, in Context c)
+        {
+            List<Rect> solids = FloorSolids(plan, prev, c.Floor, c.OuterHx, c.OuterHz);
+            // From the front door (on the lobby), and from the stair that arrives here (a basement flight, on the lobby).
+            if ((c.Floor == 0 || prev == null) && WalkPath(solids, c.Hx, c.Hz, new Vector2(0.0f, c.Hz - 1.0f), plan.EntryPoint) == null)
+            {
+                return false;
+            }
+            return prev == null || WalkPath(solids, c.Hx, c.Hz, prev.ExitPoint, plan.EntryPoint) != null;
+        }
+
+        /// <summary>
+        /// The solid things on one floor that a body cannot walk through, as rectangles in the building frame: the stair's own steps (the lowest ones are the
+        /// way on, so not those), a core's walls (with the doorway left open), the opening in the floor below the stair that arrives, and the carved room's
+        /// partitions (with their doorway). <paramref name="outerHx"/> and <paramref name="outerHz"/> are the footprint's half extents.
+        /// </summary>
+        public static List<Rect> FloorSolids(StairPlan plan, StairPlan arriving, int floor, float outerHx, float outerHz)
+        {
+            var solids = new List<Rect>();
+            if (plan != null)
+            {
+                for (int i = 0; i < plan.Treads.Length; i++)
+                {
+                    // A step whose underside is lower than a body is tall is a wall to someone beside it.
+                    if (Mathf.Max(0.0f, plan.Tops[i] - Soffit) < 2.8f && plan.Tops[i] > 0.45f)
+                    {
+                        solids.Add(plan.Treads[i]);
+                    }
+                }
+                if (plan.Enclosed)
+                {
+                    float t = CoreWall;
+                    Rect b = plan.Bounds;
+                    Rect[] sides =
+                    {
+                        Rect.MinMaxRect(b.xMin - t, b.yMin - t, b.xMin, b.yMax + t),
+                        Rect.MinMaxRect(b.xMax, b.yMin - t, b.xMax + t, b.yMax + t),
+                        Rect.MinMaxRect(b.xMin, b.yMin - t, b.xMax, b.yMin),
+                        Rect.MinMaxRect(b.xMin, b.yMax, b.xMax, b.yMax + t),
+                    };
+                    for (int side = 0; side < 4; side++)
+                    {
+                        Rect wall = sides[side];
+                        if (side != plan.DoorSide)
+                        {
+                            solids.Add(wall);
+                            continue;
+                        }
+                        bool alongZ = side < 2;
+                        float a0 = alongZ ? wall.yMin : wall.xMin, a1 = alongZ ? wall.yMax : wall.xMax;
+                        float mid = (a0 + a1) * 0.5f, g0 = mid - CoreDoor * 0.5f, g1 = mid + CoreDoor * 0.5f;
+                        if (alongZ)
+                        {
+                            solids.Add(Rect.MinMaxRect(wall.xMin, wall.yMin, wall.xMax, g0));
+                            solids.Add(Rect.MinMaxRect(wall.xMin, g1, wall.xMax, wall.yMax));
+                        }
+                        else
+                        {
+                            solids.Add(Rect.MinMaxRect(wall.xMin, wall.yMin, g0, wall.yMax));
+                            solids.Add(Rect.MinMaxRect(g1, wall.yMin, wall.xMax, wall.yMax));
+                        }
+                    }
+                }
+            }
+            if (arriving != null && arriving.Hole.width > 0.0f)
+            {
+                solids.Add(arriving.Hole);
+            }
+
+            BuildingInterior.Room room = RoomFor(Mathf.Max(floor, 0), outerHx, outerHz, plan, arriving);
+            if (room.Exists)
+            {
+                const float t = 0.2f;
+                solids.Add(Rect.MinMaxRect(room.DoorWallX - t * 0.5f, room.Plan.yMin, room.DoorWallX + t * 0.5f, room.DoorZ0));
+                solids.Add(Rect.MinMaxRect(room.DoorWallX - t * 0.5f, room.DoorZ1, room.DoorWallX + t * 0.5f, room.Plan.yMax));
+                solids.Add(Rect.MinMaxRect(room.Plan.xMin, room.Plan.yMax - t * 0.5f, room.Plan.xMax, room.Plan.yMax + t * 0.5f));
+            }
+            return solids;
+        }
+
+        /// <summary>
+        /// A route a body (0.45 m radius) can walk across a floor (half extents <paramref name="hx"/> by <paramref name="hz"/>, centred on the origin) between
+        /// two points, round the given solid rectangles; null where there is none. Waypoints about every metre and a half.
+        /// </summary>
+        public static List<Vector2> WalkPath(List<Rect> solids, float hx, float hz, Vector2 from, Vector2 to)
+        {
+            const float radius = 0.45f;
+            float cell = Mathf.Max(0.25f, Mathf.Sqrt(4.0f * hx * hz / 40000.0f));
+            int nx = Mathf.Max(1, Mathf.CeilToInt(2.0f * hx / cell)), nz = Mathf.Max(1, Mathf.CeilToInt(2.0f * hz / cell));
+            var free = new bool[nx * nz];
+            for (int iz = 0; iz < nz; iz++)
+            {
+                for (int ix = 0; ix < nx; ix++)
+                {
+                    float x = -hx + (ix + 0.5f) * cell, z = -hz + (iz + 0.5f) * cell;
+                    bool ok = x > -hx + radius && x < hx - radius && z > -hz + radius && z < hz - radius;
+                    for (int s = 0; s < solids.Count && ok; s++)
+                    {
+                        Rect r = solids[s];
+                        ok = !(x > r.xMin - radius && x < r.xMax + radius && z > r.yMin - radius && z < r.yMax + radius);
+                    }
+                    free[iz * nx + ix] = ok;
+                }
+            }
+            int Index(Vector2 p) => Mathf.Clamp(Mathf.FloorToInt((p.y + hz) / cell), 0, nz - 1) * nx + Mathf.Clamp(Mathf.FloorToInt((p.x + hx) / cell), 0, nx - 1);
+            int start = Index(from), goal = Index(to);
+            if (!free[start] || !free[goal])
+            {
+                return null;
+            }
+            var parent = new int[nx * nz];
+            for (int i = 0; i < parent.Length; i++)
+            {
+                parent[i] = -2;
+            }
+            var queue = new Queue<int>();
+            queue.Enqueue(start);
+            parent[start] = -1;
+            while (queue.Count > 0)
+            {
+                int c = queue.Dequeue();
+                if (c == goal)
+                {
+                    break;
+                }
+                int cx = c % nx, cz = c / nx;
+                for (int d = 0; d < 4; d++)
+                {
+                    int ax = cx + (d == 0 ? 1 : d == 1 ? -1 : 0), az = cz + (d == 2 ? 1 : d == 3 ? -1 : 0);
+                    if (ax < 0 || az < 0 || ax >= nx || az >= nz)
+                    {
+                        continue;
+                    }
+                    int a = az * nx + ax;
+                    if (free[a] && parent[a] == -2)
+                    {
+                        parent[a] = c;
+                        queue.Enqueue(a);
+                    }
+                }
+            }
+            if (parent[goal] == -2)
+            {
+                return null;
+            }
+            var path = new List<Vector2>();
+            int step = 0;
+            for (int c = goal; c != -1; c = parent[c], step++)
+            {
+                if (step % Mathf.Max(1, Mathf.RoundToInt(1.5f / cell)) == 0 || c == start)
+                {
+                    path.Add(new Vector2(-hx + ((c % nx) + 0.5f) * cell, -hz + ((c / nx) + 0.5f) * cell));
+                }
+            }
+            path.Reverse();
+            return path;
         }
 
         /// <summary>
@@ -635,16 +852,17 @@ namespace CityX.World
             return null;
         }
 
-        private static StairPlan PlanMixed(int seed, int floor, float rise, float hx, float hz, Rect avoid, bool frontDoor, StairPlan previous, ZoneKind zone, BuildingMass mass)
+        private static StairPlan PlanMixed(int seed, int floor, float rise, float hx, float hz, Rect avoid, bool frontDoor, StairPlan previous, ZoneKind zone, BuildingMass mass, int variant = 0)
         {
             var c = new Context
             {
                 Hx = hx, Hz = hz, Rise = rise,
                 Door = frontDoor ? Rect.MinMaxRect(-1.7f, hz - 2.6f, 1.7f, hz) : Rect.zero,
                 Avoid = avoid, Previous = previous, Pad = 0.0f,
+                Floor = floor, OuterHx = hx + OuterWall, OuterHz = hz + OuterWall, Reach = floor >= 0,
             };
             int need = Mathf.CeilToInt(rise / MaxRiser - 0.0001f);
-            StairKind first = Preferred(seed, floor, zone, mass);
+            StairKind first = Preferred(seed + variant * 31, floor, zone, mass);
 
             var order = new List<(StairKind, int)>(8) { (first, first == StairKind.Switchback ? 2 : 0) };
             foreach (StairKind kind in Fallbacks)
@@ -662,7 +880,7 @@ namespace CityX.World
                 }
             }
 
-            int salt = Mix(seed, floor + 77);
+            int salt = Mix(seed, floor + 77 + variant * 1013);
             foreach ((StairKind kind, int flights) in order)
             {
                 int k = kind == StairKind.Switchback ? flights : 0;
@@ -689,6 +907,7 @@ namespace CityX.World
             {
                 Hx = hx, Hz = hz, Rise = maxRise, Door = door,
                 Avoid = !layout.SealedTop && hasObstacle ? obstacle : Rect.zero, Pad = CoreWall,
+                Floor = 0, OuterHx = hx + OuterWall, OuterHz = hz + OuterWall, Reach = true,
             };
             StairPlan lead = Place(shape, c, Mix(seed, 991), true, out Xf placement);
             if (lead == null)
@@ -699,7 +918,7 @@ namespace CityX.World
             StairPlan previous = null;
             if (basement)
             {
-                var cb = c; cb.Rise = layout.Storey; cb.Avoid = Rect.zero; cb.Door = Rect.zero;
+                var cb = c; cb.Rise = layout.Storey; cb.Avoid = Rect.zero; cb.Door = Rect.zero; cb.Reach = false;
                 layout.Basement = Realize(shape, placement, cb, true);
                 if (layout.Basement == null)
                 {
@@ -715,6 +934,7 @@ namespace CityX.World
                 }
                 var cf = c;
                 cf.Rise = rises[f];
+                cf.Floor = f;
                 cf.Previous = previous;
                 bool top = f == layout.FloorCount - 1;
                 cf.Avoid = top && hasObstacle ? obstacle : Rect.zero;
@@ -738,6 +958,10 @@ namespace CityX.World
         /// </summary>
         public static BuildingInterior.Room RoomFor(int floor, float halfX, float halfZ, StairPlan stair, StairPlan arriving)
         {
+            if (stair != null && stair.SuppressRoom)
+            {
+                return default;
+            }
             BuildingInterior.Room room = BuildingInterior.RoomFor(floor, halfX, halfZ);
             if (!room.Exists)
             {
