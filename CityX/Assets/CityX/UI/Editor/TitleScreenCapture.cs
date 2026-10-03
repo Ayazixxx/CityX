@@ -115,6 +115,7 @@ namespace CityX.UIEditor
             {
                 Character.CharacterHair.AnimeHair, Character.CharacterHair.ChadHair,
                 Character.CharacterHair.OldManHair, Character.CharacterHair.SpikeX, Character.CharacterHair.SwipeCut,
+                Character.CharacterHair.IdkNeedsWork, Character.CharacterHair.ChadHair2,
             })
             {
                 Shoot("hair-" + style + "-front", TitleScreen.Panel.Creator, seedCharacters: false, hairStyle: style, headView: "front");

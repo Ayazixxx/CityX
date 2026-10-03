@@ -148,3 +148,9 @@ ANI/CHAD/OLD/SPIKE/SWIPE. All on the AUTOMATIC fit (nothing hand-tuned yet) -- p
   have NOT been re-baked -- Danny's original "a couple of spikes" look may have been the same cause (not checked).
 - `oldmanhair` really is side tufts with a bald top (renders that way); the other four sit on the head sensibly.
 - Rebuilt BOTH Title and CityMassing scenes (the world player's `StyleMeshes` is baked at scene build -- see the Danny note above).
+
+## Added 2026-10-02: idkneedswork, chadhair2
+
+`IdkNeedsWork.glb` (the user's `idkneedswork.glb`) is style `idkneedswork`, button IDK. The user's `chadhair.glb` of this date is NOT byte-identical
+to the `ChadHair.glb` added on 2026-10-01 (same name, different file), so it went in as its own style `chadhair2`, button CHAD2, and the old CHAD is untouched.
+Both are on the automatic fit; tune by hand with the Inspector + Save. Both scenes (CityMassing, Title) were rebuilt. With 10 styles the creator row wraps to three rows.

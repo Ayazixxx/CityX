@@ -28,6 +28,10 @@ namespace CityX.UIEditor
         public const string SpikeXBaked = Folder + "/SpikeXMesh.asset";
         public const string SwipeCutSource = Folder + "/SwipeCut.glb";
         public const string SwipeCutBaked = Folder + "/SwipeCutMesh.asset";
+        public const string IdkNeedsWorkSource = Folder + "/IdkNeedsWork.glb";
+        public const string IdkNeedsWorkBaked = Folder + "/IdkNeedsWorkMesh.asset";
+        public const string ChadHair2Source = Folder + "/ChadHair2.glb";
+        public const string ChadHair2Baked = Folder + "/ChadHair2Mesh.asset";
 
         /// <summary>Where the saved hand-tuned fits live: a Resources folder, so every head reads them with nothing wired.</summary>
         public const string FitSettingsPath = HairFitSettings.AssetPath;
@@ -113,6 +117,8 @@ namespace CityX.UIEditor
                 case CharacterHair.OldManHair: return BakedFromModel(OldManHairSource, OldManHairBaked, "OldManHairMesh");
                 case CharacterHair.SpikeX: return BakedFromModel(SpikeXSource, SpikeXBaked, "SpikeXMesh");
                 case CharacterHair.SwipeCut: return BakedFromModel(SwipeCutSource, SwipeCutBaked, "SwipeCutMesh");
+                case CharacterHair.IdkNeedsWork: return BakedFromModel(IdkNeedsWorkSource, IdkNeedsWorkBaked, "IdkNeedsWorkMesh");
+                case CharacterHair.ChadHair2: return BakedFromModel(ChadHair2Source, ChadHair2Baked, "ChadHair2Mesh");
                 default:
                     Debug.LogWarning($"CityX: no model is wired for the hairstyle \"{style}\" -- add it to HairAssets.MeshFor.");
                     return null;
