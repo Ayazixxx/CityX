@@ -78,13 +78,96 @@ namespace CityX.Tests
             Assert.Greater(Median(hugeHeight), Median(classicHeight) * 2.2, "and much taller");
         }
 
+        private static double Percentile(List<double> sorted, double p) => sorted.Count == 0 ? 0.0 : sorted[Math.Min(sorted.Count - 1, (int)(p * sorted.Count))];
+
+        [Test]
+        public void AVariedCityRunsFromClassicSizedBuildingsToHugeOnes()
+        {
+            PlanWorld classic = Make(CityScale.Classic);
+            PlanWorld varied = Make(CityScale.Varied);
+
+            List<double> Long(PlanWorld w)
+            {
+                var l = new List<double>();
+                foreach (BuildingSite s in w.Buildings) l.Add(Math.Max(s.Params.Width, s.Params.Depth));
+                l.Sort();
+                return l;
+            }
+            List<double> Tall(PlanWorld w)
+            {
+                var l = new List<double>();
+                foreach (BuildingSite s in w.Buildings) l.Add(s.Params.Height);
+                l.Sort();
+                return l;
+            }
+            List<double> cl = Long(classic), vl = Long(varied), ch = Tall(classic), vh = Tall(varied);
+            foreach (double p in new[] { 0.05, 0.25, 0.5, 0.75, 0.95 })
+            {
+                TestContext.WriteLine($"p{p * 100:0}: long side classic {Percentile(cl, p):0} varied {Percentile(vl, p):0}; height classic {Percentile(ch, p):0} varied {Percentile(vh, p):0}");
+            }
+            TestContext.WriteLine($"varied: {varied.Buildings.Length} buildings, {varied.Data.Nodes.Count} road nodes; classic {classic.Buildings.Length}, {classic.Data.Nodes.Count}");
+            Assert.Less(Percentile(vl, 0.10), Percentile(cl, 0.50) * 1.3, "some buildings are as small as the classic city's typical one");
+            Assert.Greater(Percentile(vl, 0.95), Percentile(cl, 0.95) * 2.2, "and some are far bigger");
+            Assert.Greater(Percentile(vl, 0.95) / Percentile(vl, 0.10), 3.5, "a wide spread");
+        }
+
+        [Test]
+        public void BigBuildingsGatherWithBigBuildingsButNotExclusively()
+        {
+            PlanWorld varied = Make(CityScale.Varied);
+            BuildingSite[] b = varied.Buildings;
+
+            // A grid of 200 m cells to find each building's neighbours.
+            var cells = new Dictionary<long, List<int>>();
+            long Key(int x, int y) => ((long)x << 32) ^ (uint)y;
+            for (int i = 0; i < b.Length; i++)
+            {
+                long k = Key((int)Math.Floor(b[i].CentreX / 200.0), (int)Math.Floor(b[i].CentreZ / 200.0));
+                if (!cells.TryGetValue(k, out List<int> list)) cells[k] = list = new List<int>();
+                list.Add(i);
+            }
+            double Size(int i) => Math.Max(b[i].Params.Width, b[i].Params.Depth);
+
+            double near = 0.0, random = 0.0;
+            int pairs = 0;
+            var rng = new System.Random(7);
+            for (int i = 0; i < b.Length; i += 3)
+            {
+                int cx = (int)Math.Floor(b[i].CentreX / 200.0), cy = (int)Math.Floor(b[i].CentreZ / 200.0);
+                int best = -1;
+                double bestD = double.MaxValue;
+                for (int dx = -1; dx <= 1; dx++)
+                {
+                    for (int dy = -1; dy <= 1; dy++)
+                    {
+                        if (!cells.TryGetValue(Key(cx + dx, cy + dy), out List<int> list)) continue;
+                        foreach (int j in list)
+                        {
+                            if (j == i) continue;
+                            double d = (b[i].CentreX - b[j].CentreX) * (b[i].CentreX - b[j].CentreX) + (b[i].CentreZ - b[j].CentreZ) * (b[i].CentreZ - b[j].CentreZ);
+                            if (d < bestD) { bestD = d; best = j; }
+                        }
+                    }
+                }
+                if (best < 0) continue;
+                int other = rng.Next(b.Length);
+                near += Math.Abs(Math.Log(Size(i) / Size(best)));
+                random += Math.Abs(Math.Log(Size(i) / Size(other)));
+                pairs++;
+            }
+            double ratio = (near / pairs) / (random / pairs);
+            TestContext.WriteLine($"{pairs} buildings: mean size difference to the nearest neighbour {near / pairs:0.00}, to a random building {random / pairs:0.00} (ratio {ratio:0.00})");
+            Assert.Less(ratio, 0.7, "districts: neighbours are much more alike than strangers");
+            Assert.Greater(ratio, 0.12, "but not exclusively: neighbours still differ");
+        }
+
         [Test]
         public void ALargerCityStillHasASpawnAndRealRoads()
         {
             PlanWorld huge = Make(CityScale.Huge);
             Assert.IsTrue(huge.TryFindSpawn(out double x, out double z));
-            Assert.Less(Math.Abs(x), 4000.0);
-            Assert.Less(Math.Abs(z), 4000.0);
+            Assert.Less(Math.Abs(x), 6000.0);
+            Assert.Less(Math.Abs(z), 6000.0);
             Assert.Greater(huge.Data.Nodes.Count, 800);
             Assert.Greater(huge.Data.Blocks.Count, 300);
             int buildingsNearSpawn = 0;

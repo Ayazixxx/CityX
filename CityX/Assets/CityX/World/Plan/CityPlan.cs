@@ -35,6 +35,10 @@ namespace CityX.World.Plan
 
         public double Population;
         public double Height;
+
+        /// <summary>The district scale this lot was cut at (see CityScale): how much bigger than the classic city, and how much taller.</summary>
+        public double Scale = 1.0;
+        public double HeightScale = 1.0;
         public RoadClass FrontClass;
     }
 
@@ -146,7 +150,7 @@ namespace CityX.World.Plan
                     block.EdgeClass.Add(e.Class);
                 }
                 double area = PlanMath.SignedArea(block.Poly);
-                if (area < 400.0 * cfg.Scale * cfg.Scale)
+                if (area < 400.0 * cfg.MinScale * cfg.MinScale)
                 {
                     continue;   // the outer face (negative) and slivers
                 }
@@ -326,6 +330,14 @@ namespace CityX.World.Plan
                 }
 
                 Vec2 c = PlanMath.Centroid(inset);
+                if (cfg.Varied)
+                {
+                    // This block's own size: its district, pushed a little either way so neighbours are not all alike.
+                    double jitter = (PlanNoise.Mix(seed, (uint)(blockIndex * 3 + 5)) / 4294967296.0 - 0.5) * 0.4;
+                    double t = PlanMath.Clamp01(fields.DistrictAt(c.X, c.Y) + jitter);
+                    _s = PlanFields.Lerp(cfg.MinScale, cfg.Scale, t);
+                    _h = PlanFields.Lerp(cfg.MinHeightScale, cfg.HeightScale, t);
+                }
                 double pop = fields.Population(c);
                 double baseArea = (380.0 + (1.0 - pop) * 1500.0) * _s * _s;
                 double blockRand = PlanNoise.Mix(seed, (uint)blockIndex) / 4294967296.0;
@@ -603,6 +615,8 @@ namespace CityX.World.Plan
                 Area = footArea,
                 Population = pop,
                 Height = height,
+                Scale = _s,
+                HeightScale = _h,
                 FrontClass = RoadClass.Street,
             });
         }

@@ -43,7 +43,7 @@ namespace CityX.World.Plan
             {
                 // One plan per seed AND scale (CityScale.Active can be changed, which tests and tools do).
                 CityScale scale = CityScale.Active;
-                var key = (seed, scale.Footprint, scale.Height);
+                var key = (seed, scale.Footprint * 1000.0 + scale.MinFootprint, scale.Height * 1000.0 + scale.MinHeight);
                 if (!Cache.TryGetValue(key, out PlanWorld world))
                 {
                     world = new PlanWorld(seed, null);
@@ -175,13 +175,13 @@ namespace CityX.World.Plan
         /// <summary>A road junction near the origin with three or more roads, or the nearest node: where the player starts.</summary>
         public bool TryFindSpawn(out double x, out double z)
         {
-            double scale = Data.Config.Scale;
-            int reach = (int)Math.Ceiling(60.0 * scale / ChunkSize) + 1;
             RoadNode best = null;
             double bestScore = double.MaxValue;
             foreach (RoadNode n in Data.Nodes)
             {
                 if (n.Edges.Count < 3) continue;
+                double scale = Fields.ScaleAt(n.P.X, n.P.Y);
+                int reach = (int)Math.Ceiling(60.0 * scale / ChunkSize) + 1;
                 double d = n.P.Length;
                 if (d > 900.0 * scale) continue;
                 bool bridge = false;
@@ -433,17 +433,17 @@ namespace CityX.World.Plan
         public static BuildingSite[] Resolve(CityPlanData data, PlanFields fields, uint seed)
         {
             var list = new List<BuildingSite>(data.Lots.Count);
-            double s = data.Config.Scale;
-            double hs = data.Config.HeightScale;
             uint characterSeed = PlanNoise.Mix(seed, 0x7A6F6E65U);   // "zone"
 
             foreach (PlanLot lot in data.Lots)
             {
-                if (!FitRectangle(lot.Footprint, lot.FrontEdge, out Vec2 centre, out Vec2 ex, out double width, out double depth, s))
+                if (!FitRectangle(lot.Footprint, lot.FrontEdge, out Vec2 centre, out Vec2 ex, out double width, out double depth, lot.Scale))
                 {
                     continue;
                 }
 
+                double s = lot.Scale;
+                double hs = lot.HeightScale;
                 int id = list.Count;
                 uint h = PlanNoise.Mix(seed, unchecked((uint)(lot.Id * 7 + 3)));
                 var rng = new DeterministicRandom(unchecked((int)h));

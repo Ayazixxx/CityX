@@ -1,12 +1,14 @@
 # City scale: bigger buildings, same city (2026-10-02)
 
+> **Update, same day: the default is now VARIED districts, not uniformly huge.** Asked: "buildings as small as before this change and as large as they can be now, a wide variety, like districts so larger buildings tend to be around larger ones, but not exclusively." See "Varied districts" below; the uniform presets are still there.
+
 Asked: "make the buildings in the city orders of magnitude larger, both significantly wider and significantly taller. I want to see how this would
 look but still remember how the city as we have it now is configured."
 
 ## How to remember the old city
 - **Git tag `city-classic-2026-10-02`** is the last commit before any of this (stairs and paint fixes included).
 - **`CityScale.Classic` (footprint 1, height 1) is the old city, building for building** (`PlanConfig.For(Classic)` equals the old default; a test pins it).
-  Every test runs pinned to classic (`ClassicCityScaleFixture` in both test assemblies); the game starts at `CityScale.Default` (Huge).
+  Every test runs pinned to classic (`ClassicCityScaleFixture` in both test assemblies); the game starts at `CityScale.Default` (Varied).
 
 ## How to switch
 - **Editor:** menu **CityX / City Scale /** Classic, Large, Huge, Colossal (kept in EditorPrefs; press Play to rebuild the world).
@@ -17,8 +19,9 @@ look but still remember how the city as we have it now is configured."
 |---|---|---|---|---|
 | classic | x1 | x1 | 31 m long side, 34 m tall | about 320 m |
 | large | x2.5 | x2 | | |
-| **huge (default)** | x4 | x3 | 133 m long side, 100 m tall (median) | about 720 m |
+| huge | x4 | x3 | 133 m long side, 100 m tall (median) | about 720 m |
 | colossal | x8 | x5 | | |
+| **varied (default)** | x1 to x4 by district | x1 to x3 | 44 m long side, 52 m tall (median); 21 m to 124 m (5th to 95th percentile) | about 700 m |
 
 ## What scales
 FOOTPRINT multiplies every length in the plan (`PlanConfig.For`): road growth, snap distances, bridge spans, hills, rivers, population, the downtown radius, the
@@ -45,3 +48,19 @@ tangents and the collider are built on the main thread. Fixes:
 - Interiors scale with the footprint (a carved "room" is 40% of the plan: 50 m wide at huge).
 - Tangents and the collider of a large chunk are still built on the main thread (200 ms for the biggest); worker-thread baking would remove that hitch.
 - The chunk of a very large building (colossal) can be far from its own door; full detail is chosen by the centre's distance.
+
+## Varied districts (the default)
+`CityScale.Varied` = footprint x1 to x4, height x1 to x3. A scale is now a range (`MinFootprint`/`Footprint`, `MinHeight`/`Height`):
+- **Districts** (`PlanFields.DistrictAt`): smooth noise with a 1.5 km wavelength, spread so a district is clearly small or clearly large, nudged toward larger
+  downtown. `ScaleAt(x, z)` / `HeightScaleAt(x, z)` blend the range by it (linearly: no pow, the plan must be identical on every machine).
+- **The road network grows at the local scale** (`RoadNetwork.Local`): segment lengths, probes, snap distances, bridge steps. So a small district gets short blocks
+  and a large one long blocks, and lots follow the blocks. (The uniform presets are the same code with a constant.)
+- **Not exclusively**: each block's size is its district pushed up to +-0.2 of the range by a hash of the block (neighbours are not all alike), a lot carries the
+  scale it was cut at (`PlanLot.Scale`, `HeightScale`) and a big district is taller. Roads widen by sqrt of the geometric middle of the range (x1.4 street widths).
+- Window columns follow the building, not the city (`WindowGrid.ColumnScaleFor`: 1.6 m up to 3.8 m on a 200 m facade); classic stays exactly 1.6.
+- The region is 10 km across (`Half = 2500 * RoadWidth^2`), 3,300 road nodes, 21,000 buildings (classic 13,600, huge 17,200); the plan takes about 1.7 s (classic 1.0 s).
+
+Measured (`CityScaleTests`, seed 61472093), long side of a building: 5th percentile classic 17 m / varied 21 m, 25th 25 / 32, median 31 / 44, 75th 37 / 69, 95th 47 / 124.
+A building's size is much more like its nearest neighbour's than a random building's (mean log-size difference 0.22 against 0.61, ratio 0.35), and not identical (a test pins
+the ratio between 0.12 and 0.7).
+Player build, 2560x1600: 176 fps standing, 170 sprinting, worst frame 93 ms (the uniform huge city: 199 / 195 / 78).

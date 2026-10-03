@@ -66,11 +66,23 @@ namespace CityX.World.Plan
 
         public double MaxBridge = 280.0;
 
-        /// <summary>The classic city is 1: every length in the plan is generated this many times larger (see <see cref="CityScale"/>).</summary>
+        /// <summary>
+        /// The classic city is 1: every length in the plan is generated this many times larger (see <see cref="CityScale"/>). This is the LARGEST
+        /// multiple; where the city is varied it is the multiple in the biggest districts, and <see cref="MinScale"/> the smallest.
+        /// </summary>
         public double Scale = 1.0;
 
-        /// <summary>How much taller buildings are than in the classic city.</summary>
+        public double MinScale = 1.0;
+
+        /// <summary>How much taller buildings are than in the classic city (at most, and at least).</summary>
         public double HeightScale = 1.0;
+
+        public double MinHeightScale = 1.0;
+
+        public bool Varied => MinScale != Scale || MinHeightScale != HeightScale;
+
+        /// <summary>The wavelength of the districts, metres: how far across a stretch of the city is the same size of building.</summary>
+        public double DistrictWavelength = 1500.0;
 
         /// <summary>
         /// The configuration of the game's own city at a scale: the classic numbers with every length multiplied (roads only by the square root,
@@ -80,8 +92,9 @@ namespace CityX.World.Plan
         {
             double s = scale.Footprint;
             double r = scale.RoadWidth;
-            var cfg = new PlanConfig { Scale = s, HeightScale = scale.Height };
-            cfg.Half = 2500.0 * s;
+            var cfg = new PlanConfig { Scale = s, MinScale = scale.MinFootprint, HeightScale = scale.Height, MinHeightScale = scale.MinHeight };
+            cfg.MaxNodes = scale.IsVaried ? 16000 : cfg.MaxNodes;
+            cfg.Half = 2500.0 * r * r;   // r squared is the footprint for a uniform scale, and the geometric middle of the range for a varied one
             cfg.HillAmplitude = 30.0 * r;
             cfg.HillWavelength *= s;
             cfg.RiverWavelength *= s;
@@ -91,10 +104,7 @@ namespace CityX.World.Plan
             cfg.ArterialHalfWidth *= r;
             cfg.StreetHalfWidth *= r;
             cfg.SidewalkWidth *= r;
-            cfg.MinSegment *= s;
-            cfg.SnapNode *= s;
-            cfg.SnapEdge *= s;
-            cfg.MaxBridge *= s;
+            // MinSegment, SnapNode, SnapEdge and MaxBridge stay as they were: the road network multiplies them by the scale where it is growing.
             return cfg;
         }
     }
@@ -113,6 +123,7 @@ namespace CityX.World.Plan
         private readonly uint _seedRiver;
         private readonly uint _seedPop;
         private readonly uint _seedLake;
+        private readonly uint _seedDistrict;
 
         public PlanFields(int worldSeed, PlanConfig cfg)
         {
@@ -122,9 +133,54 @@ namespace CityX.World.Plan
             _seedRiver = PlanNoise.Mix(s, 0x72697665U);   // "rive"
             _seedPop = PlanNoise.Mix(s, 0x706F7075U);     // "popu"
             _seedLake = PlanNoise.Mix(s, 0x6C616B65U);    // "lake"
+            _seedDistrict = PlanNoise.Mix(s, 0x64697374U);  // "dist"
         }
 
         public PlanConfig Config => _cfg;
+
+        /// <summary>
+        /// Which kind of district a place is, 0 (the smallest buildings) to 1 (the largest): smooth noise a kilometre or two across, pushed a
+        /// little toward the downtown. Only meaningful where the city is varied.
+        /// </summary>
+        public double DistrictAt(double x, double y)
+        {
+            double k = 1.0 / _cfg.DistrictWavelength;
+            double n = PlanNoise.Fbm(x * k, y * k, 2, _seedDistrict) * 0.5 + 0.5;   // 0..1
+            double t = PlanMath.Clamp01((n - 0.35) / 0.30);                         // spread to the ends, so districts are clearly one or the other
+            t = t * t * (3.0 - 2.0 * t);
+            t += (Population(x, y) - 0.5) * 0.25;
+            return PlanMath.Clamp01(t);
+        }
+
+        /// <summary>How much bigger than the classic city its roads, blocks and lots are here.</summary>
+        public double ScaleAt(double x, double y)
+        {
+            if (!_cfg.Varied)
+            {
+                return _cfg.Scale;
+            }
+            return Lerp(_cfg.MinScale, _cfg.Scale, DistrictAt(x, y));
+        }
+
+        /// <summary>How much taller than the classic city buildings are here (a district that is bigger is taller too).</summary>
+        public double HeightScaleAt(double x, double y)
+        {
+            if (!_cfg.Varied)
+            {
+                return _cfg.HeightScale;
+            }
+            return Lerp(_cfg.MinHeightScale, _cfg.HeightScale, DistrictAt(x, y));
+        }
+
+        /// <summary>The two ends of a range, blended linearly (no pow: the plan must come out the same on every machine).</summary>
+        public static double Lerp(double low, double high, double t)
+        {
+            if (high <= low)
+            {
+                return low;
+            }
+            return low + (high - low) * t;
+        }
 
         /// <summary>The river noise: rivers lie where its absolute value is small.</summary>
         public double RiverNoise(double x, double y)

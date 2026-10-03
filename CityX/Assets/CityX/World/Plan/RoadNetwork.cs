@@ -56,6 +56,9 @@ namespace CityX.World.Plan
     {
         private double CellSize => 64.0 * _cfg.Scale;
 
+        /// <summary>The plan's scale where a point is: how much bigger than the classic city its roads and blocks are there (see CityScale).</summary>
+        private double Local(Vec2 p) => _fields.ScaleAt(p.X, p.Y);
+
         private readonly PlanFields _fields;
         private readonly PlanConfig _cfg;
         private readonly uint _seed;
@@ -171,9 +174,9 @@ namespace CityX.World.Plan
             double jitter = 0.88 + 0.24 * Rand(from.Id, 21U + (uint)cls);
             switch (cls)
             {
-                case RoadClass.Highway: return (190.0 + 80.0 * Rand(from.Id, 5U)) * _cfg.Scale;
-                case RoadClass.Arterial: return (150.0 + 60.0 * Rand(from.Id, 6U)) * _cfg.Scale;
-                default: return (74.0 + (1.0 - pop) * 120.0) * jitter * _cfg.Scale;
+                case RoadClass.Highway: return (190.0 + 80.0 * Rand(from.Id, 5U)) * Local(from.P);
+                case RoadClass.Arterial: return (150.0 + 60.0 * Rand(from.Id, 6U)) * Local(from.P);
+                default: return (74.0 + (1.0 - pop) * 120.0) * jitter * Local(from.P);
             }
         }
 
@@ -202,7 +205,7 @@ namespace CityX.World.Plan
                 double score = 0.0;
                 for (int k = 1; k <= 3; k++)
                 {
-                    Vec2 p = a + d * (150.0 * _cfg.Scale * k);
+                    Vec2 p = a + d * (150.0 * Local(a) * k);
                     if (Math.Abs(p.X) > _cfg.Half || Math.Abs(p.Y) > _cfg.Half)
                     {
                         score -= 0.35;
@@ -241,7 +244,8 @@ namespace CityX.World.Plan
         {
             bridgeLength = 0.0;
             bool wasWater = false;
-            for (double d = 12.0 * _cfg.Scale; d <= _cfg.MaxBridge; d += 12.0 * _cfg.Scale)
+            double ls = Local(a);
+            for (double d = 12.0 * ls; d <= _cfg.MaxBridge * ls; d += 12.0 * ls)
             {
                 Vec2 p = a + dir * d;
                 if (!InRegion(p))
@@ -258,7 +262,7 @@ namespace CityX.World.Plan
                     continue;   // still on the near bank
                 }
                 // Landed on the far side: demand a little real land past it.
-                Vec2 beyond = a + dir * (d + 24.0 * _cfg.Scale);
+                Vec2 beyond = a + dir * (d + 24.0 * ls);
                 if (!InRegion(beyond) || _fields.IsWater(beyond))
                 {
                     continue;
@@ -268,7 +272,7 @@ namespace CityX.World.Plan
                 {
                     return false;
                 }
-                bridgeLength = d + 12.0 * _cfg.Scale;
+                bridgeLength = d + 12.0 * ls;
                 return true;
             }
             return false;
@@ -314,7 +318,7 @@ namespace CityX.World.Plan
                 }
                 break;
             }
-            if (len < _cfg.MinSegment || !InRegion(b) || (!bridge && SegmentTouchesWater(a, b)))
+            if (len < _cfg.MinSegment * Local(a) || !InRegion(b) || (!bridge && SegmentTouchesWater(a, b)))
             {
                 return;
             }
@@ -336,11 +340,11 @@ namespace CityX.World.Plan
                 }
                 Vec2 x = a + (b - a) * bestT;
                 double dist = bestT * len;
-                if ((x - crossed.A.P).Length < _cfg.SnapNode * 0.6)
+                if ((x - crossed.A.P).Length < _cfg.SnapNode * 0.6 * Local(x))
                 {
                     endNode = crossed.A;
                 }
-                else if ((x - crossed.B.P).Length < _cfg.SnapNode * 0.6)
+                else if ((x - crossed.B.P).Length < _cfg.SnapNode * 0.6 * Local(x))
                 {
                     endNode = crossed.B;
                 }
@@ -349,7 +353,7 @@ namespace CityX.World.Plan
                     splitEdge = crossed;
                     splitPoint = x;
                 }
-                if (dist < _cfg.MinSegment && endNode == null)
+                if (dist < _cfg.MinSegment * Local(a) && endNode == null)
                 {
                     return;
                 }
@@ -361,7 +365,7 @@ namespace CityX.World.Plan
             else
             {
                 // Snap onto a junction near the end.
-                RoadNode near = NearestNode(b, _cfg.SnapNode, from);
+                RoadNode near = NearestNode(b, _cfg.SnapNode * Local(b), from);
                 if (near != null && !bridge)
                 {
                     endNode = near;
@@ -369,9 +373,9 @@ namespace CityX.World.Plan
                 }
                 else if (!bridge)
                 {
-                    RoadEdge nearEdge = NearestEdge(b, _cfg.SnapEdge, from, out Vec2 proj, out double t);
+                    RoadEdge nearEdge = NearestEdge(b, _cfg.SnapEdge * Local(b), from, out Vec2 proj, out double t);
                     if (nearEdge != null && t > 0.1 && t < 0.9 &&
-                        (proj - nearEdge.A.P).Length > _cfg.SnapNode * 0.6 && (proj - nearEdge.B.P).Length > _cfg.SnapNode * 0.6)
+                        (proj - nearEdge.A.P).Length > _cfg.SnapNode * 0.6 * Local(b) && (proj - nearEdge.B.P).Length > _cfg.SnapNode * 0.6 * Local(b))
                     {
                         splitEdge = nearEdge;
                         splitPoint = proj;
@@ -387,7 +391,7 @@ namespace CityX.World.Plan
                     {
                         return;
                     }
-                    if ((b - a).Length < _cfg.MinSegment)
+                    if ((b - a).Length < _cfg.MinSegment * Local(a))
                     {
                         return;
                     }

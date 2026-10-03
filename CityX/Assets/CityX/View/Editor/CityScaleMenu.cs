@@ -49,6 +49,12 @@ namespace CityX.ViewEditor
 
         private static bool Is(CityScale scale) => CityScale.Active.Name == scale.Name;
 
+        [MenuItem("CityX/City Scale/Varied districts, 1x to 4x wide (default)")]
+        private static void Varied() => Choose(CityScale.Varied);
+
+        [MenuItem("CityX/City Scale/Varied districts, 1x to 4x wide (default)", true)]
+        private static bool VariedCheck() { Menu.SetChecked("CityX/City Scale/Varied districts, 1x to 4x wide (default)", Is(CityScale.Varied)); return true; }
+
         [MenuItem("CityX/City Scale/Classic (the city as it was)")]
         private static void Classic() => Choose(CityScale.Classic);
 

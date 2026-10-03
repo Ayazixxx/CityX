@@ -236,7 +236,26 @@ namespace CityX.World
             }
 
             return new WindowPlan(seed, style, blank, storefront, pitch, phase, bandParity, scatter,
-                bandRow, sill, head);
+                bandRow, sill, head, ColumnScaleFor(building));
+        }
+
+        /// <summary>
+        /// How much wider than the classic 1.6 m a building's window columns are: the square root of how much longer than a classic building (about 36 m on
+        /// its long side) it is, between 1 and 2.4. A 130 m facade has 3 m windows rather than 80 of them.
+        /// </summary>
+        public static float ColumnScaleFor(BuildingParams building)
+        {
+            if (CityX.World.Plan.CityScale.Active.IsClassic)
+            {
+                return 1.0f;   // the classic city is exactly as it was
+            }
+            float longSide = building.Width > building.Depth ? building.Width : building.Depth;
+            float ratio = longSide / 36.0f;
+            if (ratio <= 1.0f)
+            {
+                return 1.0f;
+            }
+            return ratio >= 5.76f ? 2.4f : (float)System.Math.Sqrt(ratio);
         }
 
         /// <summary>The style a roll in [0,1) picks, given where the building stands and how big it is.</summary>

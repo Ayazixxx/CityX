@@ -79,7 +79,7 @@ namespace CityX.World
         public readonly float ColumnMetres;
 
         public WindowPlan(int seed, FacadeStyle style, int blankWalls, bool storefront, int pitch, int phase,
-            int bandParity, double scatterShare, int bandRow, float sill, float head)
+            int bandParity, double scatterShare, int bandRow, float sill, float head, float columnScale = 1.0f)
         {
             Seed = seed;
             Style = style;
@@ -92,8 +92,8 @@ namespace CityX.World
             BandRow = bandRow;
             Sill = sill;
             Head = head;
-            // A bigger city has bigger windows (by the square root of its footprint scale): a thousand panes across a facade is a cost, not a look.
-            float scaleUp = (float)CityX.World.Plan.CityScale.Active.RoadWidth;
+            // A bigger building has bigger windows (see WindowGrid.ColumnScaleFor): a hundred panes across a facade is a cost, not a look.
+            float scaleUp = columnScale;
             ColumnMetres = style == FacadeStyle.Curtain || style == FacadeStyle.Ribbon
                 ? CellLayout.NominalColumnMetres * 2.0f * scaleUp
                 : CellLayout.NominalColumnMetres * scaleUp;
