@@ -1713,11 +1713,21 @@ namespace CityX.Character
         /// </summary>
         public const float GunAimDepthSmoothSeconds = 0.07f;
 
+        /// <summary>
+        /// How slowly the aim depth comes IN (the crosshair landing on something nearer). Against a half ledge or a railing the crosshair ray flickers
+        /// across the edge between the ledge a metre or two away and the street beyond it, and following every flip made the gun spasm: coming in is eased
+        /// over a quarter of a second, going out stays quick.
+        /// </summary>
+        public const float GunAimDepthCloserSmoothSeconds = 0.25f;
+
+        /// <summary>Changes of aim depth smaller than this (in log space, about 12%) are ignored: the edge of a ledge under a trembling crosshair.</summary>
+        public const float GunAimDepthDeadZone = 0.12f;
+
         private float _aimLogDepth;
         private bool _aimDepthValid;
 
         /// <summary>The aim point is never closer than this to the shoulder along the camera ray (aiming at your own feet swings the arm absurdly).</summary>
-        public const float GunAimPointMinMetres = 1.5f;
+        public const float GunAimPointMinMetres = 4.0f;
 
         /// <summary>How fast _gunAimBlend eases toward 1 (or back to 0) -- reaches full strength in ~1/6s, comfortably inside the Animator's own 0.12s crossfade into the Aiming state.</summary>
         public const float GunAimBlendPerSecond = 6.0f;
@@ -1880,8 +1890,12 @@ namespace CityX.Character
                 }
                 else
                 {
-                    _aimLogDepth = Mathf.Lerp(_aimLogDepth, wantedLogDepth,
-                        1.0f - Mathf.Exp(-deltaTime / GunAimDepthSmoothSeconds));
+                    float change = wantedLogDepth - _aimLogDepth;
+                    if (Mathf.Abs(change) > GunAimDepthDeadZone)
+                    {
+                        float seconds = change < 0.0f ? GunAimDepthCloserSmoothSeconds : GunAimDepthSmoothSeconds;
+                        _aimLogDepth = Mathf.Lerp(_aimLogDepth, wantedLogDepth, 1.0f - Mathf.Exp(-deltaTime / seconds));
+                    }
                 }
                 Vector3 aimPoint = _gunAimCameraPosition + cameraForward * Mathf.Exp(_aimLogDepth);
                 _aimedPoint = aimPoint;
