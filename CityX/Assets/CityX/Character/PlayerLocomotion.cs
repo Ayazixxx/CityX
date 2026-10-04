@@ -1723,6 +1723,8 @@ namespace CityX.Character
         /// <summary>Changes of aim depth smaller than this (in log space, about 12%) are ignored: the edge of a ledge under a trembling crosshair.</summary>
         public const float GunAimDepthDeadZone = 0.12f;
 
+        private BloodrageAbility _bloodrage;
+        private bool _bloodrageLooked;
         private float _aimLogDepth;
         private bool _aimDepthValid;
 
@@ -2296,6 +2298,19 @@ namespace CityX.Character
             if (input.Aiming && !input.JetpackBoosting && !input.JetpackDiving)
             {
                 speed *= AimMoveSpeedMultiplier;
+            }
+            // BLOODRAGE: +25% movement speed on foot (a jetpack's own speed is its own business).
+            if (!input.JetpackBoosting && !input.JetpackDiving)
+            {
+                if (!_bloodrageLooked)
+                {
+                    _bloodrage = GetComponent<BloodrageAbility>();
+                    _bloodrageLooked = true;
+                }
+                if (_bloodrage != null)
+                {
+                    speed *= _bloodrage.SpeedFactor;
+                }
             }
             Vector3 targetHorizontal = direction * speed;
             Vector3 horizontal;

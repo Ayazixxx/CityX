@@ -527,6 +527,23 @@ namespace CityX.Character
             return transform.position + Vector3.up * (height * OriginHeightFraction);
         }
 
+        private BloodrageAbility _bloodrage;
+        private bool _bloodrageLooked;
+
+        /// <summary>The melee damage multiplier from Bloodrage (1 when it is not running or this body has none).</summary>
+        public float BloodrageFactor
+        {
+            get
+            {
+                if (!_bloodrageLooked)
+                {
+                    _bloodrage = GetComponent<BloodrageAbility>();
+                    _bloodrageLooked = true;
+                }
+                return _bloodrage != null ? _bloodrage.DamageFactor : 1.0f;
+            }
+        }
+
         private void LandBlow()
         {
             int strength = _vitals != null ? _vitals.Strength : 0;
@@ -560,6 +577,7 @@ namespace CityX.Character
                 damage = CombatTuning.DamageFor(_currentStage, strength);
                 hitstun = CombatTuning.HitstunFor(_currentStage);
             }
+            damage *= BloodrageFactor;
 
             bool connected = false;
             bool blocked = false;
@@ -698,7 +716,7 @@ namespace CityX.Character
                 return;
             }
             int strength = _vitals != null ? _vitals.Strength : 0;
-            float damage = CombatTuning.DamageFor(EquippedWeapon.GetMeleeDamage() * SpinAttackDamageScale, strength);
+            float damage = CombatTuning.DamageFor(EquippedWeapon.GetMeleeDamage() * SpinAttackDamageScale, strength) * BloodrageFactor;
 
             bool connected = false;
             Vector3 origin = SwingOrigin();

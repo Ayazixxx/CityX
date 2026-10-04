@@ -1792,6 +1792,7 @@ GameObject:
   - component: {fileID: 3769699118338291644}
   - component: {fileID: 4910067816593233630}
   - component: {fileID: 5839117258275935416}
+  - component: {fileID: 6850277564297992118}
   - component: {fileID: 5092774740799806781}
   - component: {fileID: 1783639418050803174}
   - component: {fileID: 4230536320211725702}
@@ -1997,6 +1998,27 @@ MonoBehaviour:
   m_EditorClassIdentifier: CityX.Character::CityX.Character.PlayerAnimationDriver
   SwingBlendSeconds: 0.06
   UpperBodyReleaseBlendSeconds: 0.15
+--- !u!114 &6850277564297992118
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8412405609517267180}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9822e37eff6d6ea47b5e46e353abd086, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.BloodrageAbility
+  OriginalClips:
+  - {fileID: 7400000, guid: f28259fed4c92d54db728d57ed93d64d, type: 2}
+  - {fileID: 7400000, guid: 1b583fd82e3e6494d99b0159c29ec271, type: 2}
+  - {fileID: -203655887218126122, guid: a02750c3113c3c147a77e9b0eeb33fdb, type: 3}
+  BloodrageClips:
+  - {fileID: 7400000, guid: aa3d20c40a411da4c81b724ef70bb6b5, type: 2}
+  - {fileID: 7400000, guid: 7aa079e69f6a3544c87b14c7f9d51881, type: 2}
+  - {fileID: -203655887218126122, guid: 4deacc3eb49294243b9e24eddbc0bc17, type: 3}
+  AuraPrefab: {fileID: 2292405495710506435, guid: a282b28c718938640ac3de9ed8fe2d6c, type: 3}
 --- !u!114 &5092774740799806781
 MonoBehaviour:
   m_ObjectHideFlags: 0

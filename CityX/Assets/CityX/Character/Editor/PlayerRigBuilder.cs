@@ -80,6 +80,18 @@ namespace CityX.CharacterEditor
             left = ExaggerateStride(left, "walk_left");
             right = ExaggerateStride(right, "walk_right");
 
+            // BLOODRAGE (key 8) swaps the walking, running and jumping clips above for the user's own. Looped and stride-widened exactly as the
+            // ordinary ones are, and paired with the clips the controller actually uses so BloodrageAbility can override them.
+            AnimationClip bloodWalk = FindClip("bloodrage_walking");
+            AnimationClip bloodRun = FindClip("bloodrage_run");
+            AnimationClip bloodJump = FindClip("bloodrage_jump");
+            MakeLooping(bloodWalk);
+            MakeLooping(bloodRun);
+            bloodWalk = ExaggerateStride(bloodWalk, "bloodrage_walking");
+            bloodRun = ExaggerateStride(bloodRun, "bloodrage_run");
+            _bloodrageOriginals = new[] { walk, sprint, jump };
+            _bloodrageReplacements = new[] { bloodWalk, bloodRun, bloodJump };
+
             AnimatorController controller = BuildController(idle, walk, sprint, jump, back, left, right);
             GameObject prefab = BuildPrefab(controller);
 
@@ -1488,6 +1500,9 @@ namespace CityX.CharacterEditor
             }
         }
 
+        private static AnimationClip[] _bloodrageOriginals = new AnimationClip[0];
+        private static AnimationClip[] _bloodrageReplacements = new AnimationClip[0];
+
         private static GameObject BuildPrefab(AnimatorController controller)
         {
             var root = new GameObject("Player");
@@ -1524,6 +1539,10 @@ namespace CityX.CharacterEditor
                 melee.BloodPrefab = BloodSplatterBuilder.Build();
                 AddAudio(root);
                 root.AddComponent<PlayerAnimationDriver>();
+                BloodrageAbility bloodrage = root.AddComponent<BloodrageAbility>();
+                bloodrage.OriginalClips = _bloodrageOriginals;
+                bloodrage.BloodrageClips = _bloodrageReplacements;
+                bloodrage.AuraPrefab = BloodrageAuraBuilder.Build();
                 // Makes the body be whoever was chosen in the menu, and does
                 // nothing at all when the world is opened directly -- which is
                 // how it is opened most of the time.

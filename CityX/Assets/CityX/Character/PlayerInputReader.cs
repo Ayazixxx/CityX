@@ -160,6 +160,7 @@ namespace CityX.Character
         /// </summary>
         private IFireballCaster _fireballCaster;
         private ISwordWaveCaster _swordWave;
+        private BloodrageAbility _bloodrageAbility;
 
         /// <summary>
         /// How long after tapping sprint a second tap still counts as a dash.
@@ -837,6 +838,16 @@ namespace CityX.Character
                 float height = (_locomotion != null ? _locomotion.StandingHeight : 1.8f) * 0.68f;
                 Vector3 origin = transform.position + Vector3.up * height;
                 _fireballCaster.TryCast(origin, ConvergedDirection(origin, yawSource), GetComponentsInChildren<Collider>());
+            }
+
+            // 8: BLOODRAGE, innate like the fireball (see BloodrageAbility): +25% speed and melee damage, the Bloodrage walk/run/jump, a red aura, 7.5 s.
+            if (keyboard.digit8Key.wasPressedThisFrame)
+            {
+                if (_bloodrageAbility == null)
+                {
+                    _bloodrageAbility = GetComponent<BloodrageAbility>();
+                }
+                _bloodrageAbility?.TryActivate();
             }
 
             // A JETPACK TAKES SHIFT OVER TOO WHILE ACTUALLY THRUSTING, not

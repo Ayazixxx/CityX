@@ -11,3 +11,13 @@ light-attack swing and 0.18 s later a white swoosh (three layered streaky ribbon
 (white for now). `CityX/Capture Sword Wave` renders it to Logs/CityShots. Not done: a dedicated slash animation (it reuses the light attack), impact effect, sound.
 
 **Spawn:** the scene bakes a spawn for the scale it was built at, so `CityStreamer.PlaceAtSpawn` re-places the player (and the Old Guy) at the spawn of the world actually made.
+
+## Bloodrage, key 8 (2026-10-04)
+
+`Character/BloodrageAbility.cs` (innate, like the fireball). For 7.5 s: movement speed x1.25 on foot (`PlayerLocomotion`, not a jetpack's speed), melee damage x1.25
+(`MeleeAttacker.BloodrageFactor`, read by fists, the weapon swing, the spin attack and `SoulsSwordCombat`), the walk, run and jump animations replaced by the user's
+`bloodrage_walking/run/jump.fbx` (`Character/Animations`, looped and stride-widened like the ordinary clips by `PlayerRigBuilder`), and a red aura (`BloodrageAuraBuilder`: two
+particle layers rising off the body in world space plus a red light) that builds up in 0.35 s and fades over 1.4 s after the effect ends. The swap is an `AnimatorOverrideController`
+made over the player's own at Awake and changed with one `ApplyOverrides` call, so the animator keeps its state; the sword's, gun's and other states are untouched. It cannot be
+restarted mid-rage. `CityX/Capture Bloodrage Aura` renders the aura. Not done: a cooldown, a sound, the animation clip speed matching the faster body, a sword-equipped walk/run (those
+are the sword's own clips).

@@ -813,7 +813,7 @@ namespace CityX.Character
         {
             int strength = _vitals != null ? _vitals.Strength : 0;
             float baseDamage = _sword != null ? _sword.GetMeleeDamage() : CombatTuning.PunchDamage;
-            float damage = CombatTuning.DamageFor(baseDamage * _current.DamageScale, strength);
+            float damage = CombatTuning.DamageFor(baseDamage * _current.DamageScale, strength) * (_melee != null ? _melee.BloodrageFactor : 1.0f);
 
             HitResponse response = _melee != null
                 ? _melee.RegisterExternalHit(target, point, damage, _current.HitstunSeconds)
