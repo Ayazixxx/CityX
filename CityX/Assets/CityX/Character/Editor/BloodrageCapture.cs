@@ -55,6 +55,44 @@ namespace CityX.CharacterEditor
             }
         }
 
+        /// <summary>The player body posed mid-stride in the ordinary sprint and in the Bloodrage run, from the side, to compare the head.</summary>
+        [MenuItem("CityX/Capture Bloodrage Run Pose")]
+        public static void CaptureRunPose()
+        {
+            var player = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab");
+            string directory = Path.Combine(Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
+            Directory.CreateDirectory(directory);
+            var rig = new GameObject("BloodrageRunCaptureRig");
+            try
+            {
+                GameObject body = (GameObject)PrefabUtility.InstantiatePrefab(player);
+                body.transform.SetParent(rig.transform, false);
+                foreach (var behaviour in body.GetComponentsInChildren<MonoBehaviour>())
+                {
+                    behaviour.enabled = false;
+                }
+                var sun = new GameObject("Sun").AddComponent<Light>();
+                sun.transform.SetParent(rig.transform, false);
+                sun.type = LightType.Directional;
+                sun.transform.rotation = Quaternion.Euler(40.0f, 130.0f, 0.0f);
+                var cameraObject = new GameObject("Camera");
+                cameraObject.transform.SetParent(rig.transform, false);
+                Camera camera = cameraObject.AddComponent<Camera>();
+                camera.clearFlags = CameraClearFlags.SolidColor;
+                camera.backgroundColor = new Color(0.12f, 0.13f, 0.16f);
+                foreach (string name in new[] { "sprint_stride", "bloodrage_run_stride" })
+                {
+                    var clip = AssetDatabase.LoadAssetAtPath<AnimationClip>("Assets/CityX/Character/Animations/" + name + ".anim");
+                    BloodrageHeadFit.Pose(body.GetComponentInChildren<Animator>(), clip, clip.length * 0.25f);
+                    Shoot(camera, directory, "pose-" + name, new Vector3(6.0f, 1.3f, 0.0f), Quaternion.Euler(0.0f, -90.0f, 0.0f));
+                }
+            }
+            finally
+            {
+                Object.DestroyImmediate(rig);
+            }
+        }
+
         private static void Shoot(Camera camera, string directory, string name, Vector3 position, Quaternion rotation)
         {
             camera.transform.position = position;

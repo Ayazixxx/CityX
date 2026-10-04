@@ -21,3 +21,8 @@ particle layers rising off the body in world space plus a red light) that builds
 made over the player's own at Awake and changed with one `ApplyOverrides` call, so the animator keeps its state; the sword's, gun's and other states are untouched. It cannot be
 restarted mid-rage. `CityX/Capture Bloodrage Aura` renders the aura. Not done: a cooldown, a sound, the animation clip speed matching the faster body, a sword-equipped walk/run (those
 are the sword's own clips).
+
+**Bloodrage run head (2026-10-04):** the Mutant Run's neck nod averages 1.11 (the sprint's is 0.07) with peaks of 1.32, past the muscle limit of 1, which Mecanim plays beyond the limit: the head stared upward.
+`BloodrageHeadFit` (run by `PlayerRigBuilder.Build` after the prefab is made) poses the real player body in the sprint and in the run through a playable graph, measures the head's average
+pitch, and fits the run's neck nod (a shift search; clamped to the limit) so it matches the sprint's: -19.2 against -19.1 degrees, from -13.5. `CityX/Capture Bloodrage Run Pose` renders both for comparison.
+(`AnimationClip.SampleAnimation` leaves a humanoid body in its rest pose; use a playable graph.)

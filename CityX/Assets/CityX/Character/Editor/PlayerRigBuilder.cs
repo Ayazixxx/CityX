@@ -95,6 +95,9 @@ namespace CityX.CharacterEditor
             AnimatorController controller = BuildController(idle, walk, sprint, jump, back, left, right);
             GameObject prefab = BuildPrefab(controller);
 
+            // The Bloodrage run's head is brought to where the ordinary sprint carries it (see BloodrageHeadFit).
+            BloodrageHeadFit.Apply(prefab, bloodRun, sprint);
+
             AssetDatabase.SaveAssets();
             Debug.Log($"CityX: player rig written to {PrefabPath}");
             return prefab;
