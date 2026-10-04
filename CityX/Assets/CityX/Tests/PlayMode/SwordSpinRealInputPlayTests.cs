@@ -304,6 +304,73 @@ namespace CityX.Tests
 #endif
         }
 
+        /// <summary>
+        /// REPORTED: "when jumping in the air and doing spin attack the character just kinda stops mid air after that attack, can you make
+        /// the momentum of the movement keep flowing." Sprint, jump, let go of every key and spin: the body has to keep its speed through
+        /// the spin AND after it, until it lands (where the ordinary ground rules take over again).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheBodyKeepsFlowingThroughTheAirSpinAndAfterIt()
+        {
+#if UNITY_EDITOR
+            yield return LoadSceneWithASword();
+
+            float groundY = _vitals.transform.position.y;
+            Vector3 startAt = _vitals.transform.position;
+            // (One key event per frame: two queued in the same frame overwrite each other in the test device.)
+            Press(_keyboard.wKey);
+            yield return null;
+            Press(_keyboard.leftShiftKey);
+            yield return Seconds(0.8f);
+            Assert.Greater(_locomotion.CurrentSpeed, 6.0f,
+                $"setup: the body should be at a sprint (W down {_keyboard.wKey.isPressed}, moved {(_vitals.transform.position - startAt).magnitude:0.00} m, " +
+                $"stamina {_vitals.Stamina:0.0}, sprinting {_locomotion.IsSprinting}, swinging {_melee.IsSwinging})");
+
+            yield return JumpToHeight(groundY, 0.6f);
+            Press(_keyboard.digit2Key);
+            yield return null;
+            Release(_keyboard.digit2Key);
+            yield return null;
+            Assert.IsTrue(_melee.IsSpinTurning, "setup: the aerial spin should be under way");
+            float flowing = _locomotion.CurrentSpeed;
+            Assert.Greater(flowing, 5.5f, "the spin should start with the sprint's momentum, not slow to a half-pace walk");
+
+            // Now let go of every key: nothing asks the body to move any more.
+            Release(_keyboard.wKey);
+            yield return null;
+            Release(_keyboard.leftShiftKey);
+            yield return null;
+
+            yield return Seconds(0.6f);
+            Assert.Greater(_locomotion.CurrentSpeed, flowing * 0.9f, "the body braked while it was spinning");
+
+            float elapsed = 0.0f;
+            while (_melee.IsSpinAttacking && elapsed < 3.0f)
+            {
+                elapsed += Time.deltaTime;
+                yield return null;
+            }
+            Assert.IsFalse(_locomotion.IsGrounded, "setup: the spin should end with the body still in the air");
+            Assert.Greater(_locomotion.CurrentSpeed, flowing * 0.85f, "the body stopped dead when the spin handed it back");
+
+            yield return Seconds(0.15f);
+            if (!_locomotion.IsGrounded)
+            {
+                Assert.Greater(_locomotion.CurrentSpeed, flowing * 0.75f, "the body lost its momentum in the air after the spin");
+            }
+
+            // Landed: the ordinary rules take it back, and with no key held it comes to rest.
+            for (int i = 0; i < 4000 && !_locomotion.IsGrounded; i++)
+            {
+                yield return null;
+            }
+            yield return Seconds(0.4f);
+            Assert.Less(_locomotion.CurrentSpeed, 1.0f, "the momentum carried on after landing");
+#else
+            yield break;
+#endif
+        }
+
         [UnityTest]
         public IEnumerator TheAirSpinCanBeUsedOncePerTimeInTheAir()
         {

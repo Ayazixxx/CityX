@@ -783,6 +783,15 @@ namespace CityX.Character
         public float GravityScale { get; set; } = 1.0f;
 
         /// <summary>
+        /// While true and in the air, horizontal velocity is kept rather than eased toward the keys' target, and the keys only steer it (see
+        /// the horizontal step in Tick). The aerial sword spin sets it so the body keeps flowing the way it was going, and clears it on landing.
+        /// </summary>
+        public bool KeepsAirMomentum { get; set; }
+
+        /// <summary>How hard the keys can push a body that is keeping its momentum, in metres per second squared (a full stop from a sprint takes about half a second).</summary>
+        public const float AirMomentumSteerAcceleration = 14.0f;
+
+        /// <summary>
         /// Adds a burst of horizontal momentum that persists untouched
         /// until the body actually lands -- the horizontal half of a
         /// GrappleSwing release. An EARLIER version of this file deliberately
@@ -2446,6 +2455,23 @@ namespace CityX.Character
                 // out of it. See HorizontalAcceleration's own doc comment
                 // for why this whole smoothing exists in the first place.
                 _horizontalVelocity = horizontal;
+            }
+            else if (KeepsAirMomentum && !_controller.isGrounded)
+            {
+                // MOMENTUM CARRIES (the aerial sword spin, until the body lands). The ordinary easing below pulls the velocity toward
+                // what the keys ask for at 60 m/s^2, and a spin asks for nothing -- so the body used to brake to a dead stop in mid-air,
+                // twice: when the spin took the keys away, and again when it handed them back with none held. Here the velocity is
+                // simply kept, and the keys only STEER it: they add acceleration (AirMomentumSteerAcceleration), can slow it by
+                // opposing it, and cannot build it past what it already was (or a walk, if it was slower).
+                Vector3 carried = _horizontalVelocity;
+                Vector3 steered = carried + direction * (AirMomentumSteerAcceleration * deltaTime);
+                float cap = Mathf.Max(carried.magnitude, WalkSpeed);
+                if (steered.sqrMagnitude > cap * cap)
+                {
+                    steered = steered.normalized * cap;
+                }
+                _horizontalVelocity = steered;
+                horizontal = steered;
             }
             else
             {

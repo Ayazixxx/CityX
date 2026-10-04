@@ -186,10 +186,10 @@ namespace CityX.Character
 
         /// <summary>
         /// How much of its normal pace the body may move at while this holds it: nothing for an ordinary swing or a ground spin,
-        /// half for the aerial spin's turn (it can be steered a little, as in Smash).
+        /// half for the whole of an aerial spin (it can be steered a little, as in Smash -- on top of the momentum it keeps).
         /// </summary>
         public float SwingMoveFraction =>
-            _spinState == SpinState.Turning && _spinKind == SpinKind.Air && _spinTime < SwordSpinMove.AirActiveSeconds
+            _spinState == SpinState.Turning && _spinKind == SpinKind.Air
                 ? AirSpinMoveFraction
                 : 0.0f;
 
@@ -447,6 +447,8 @@ namespace CityX.Character
                 {
                     _locomotion.SetVerticalVelocity(AirSpinRiseSpeed);
                     _locomotion.GravityScale = AirSpinGravityScale;
+                    // And keeps going the way it was going, through the spin and the rest of the fall (until it lands -- see Tick).
+                    _locomotion.KeepsAirMomentum = true;
                 }
             }
             SpinTrail?.SetTarget(1.0f);
@@ -511,6 +513,7 @@ namespace CityX.Character
             if (_locomotion != null && _locomotion.IsGrounded && _spinState != SpinState.Turning)
             {
                 _airSpinUsed = false;
+                _locomotion.KeepsAirMomentum = false;   // landed: the ordinary ground movement takes back over
             }
 
             if (_spinState != SpinState.None)
@@ -559,6 +562,9 @@ namespace CityX.Character
                 }
             }
         }
+
+        /// <summary>After the last blow of an aerial spin, how long gravity takes to come back to normal.</summary>
+        private const float AirGravityReturnSeconds = 0.4f;
 
         /// <summary>How far back the blade is drawn while a ground spin charges, from straight out to the right.</summary>
         private const float ChargeBackDegrees = 70.0f;
@@ -618,10 +624,13 @@ namespace CityX.Character
 
             if (_spinKind == SpinKind.Air)
             {
-                bool thin = _spinTime < SwordSpinMove.AirActiveSeconds;
                 if (_locomotion != null)
                 {
-                    _locomotion.GravityScale = thin ? AirSpinGravityScale : 1.0f;
+                    // Thin gravity while it turns, then back to normal OVER A MOMENT: snapping it back at the last blow, with the body
+                    // still rising, stalled the climb at its top, which read as the spin stopping the body in mid-air.
+                    float sinceTurn = _spinTime - SwordSpinMove.AirActiveSeconds;
+                    float back = sinceTurn <= 0.0f ? 0.0f : Mathf.SmoothStep(0.0f, 1.0f, sinceTurn / AirGravityReturnSeconds);
+                    _locomotion.GravityScale = Mathf.Lerp(AirSpinGravityScale, 1.0f, back);
                     // A ceiling stops the climb outright; otherwise it would keep its speed and press on the roof.
                     if ((_locomotion.LastMoveCollisionFlags & CollisionFlags.Above) != 0 && _locomotion.VerticalVelocity > 0.0f)
                     {
@@ -643,6 +652,7 @@ namespace CityX.Character
                     _spinState = SpinState.Landing;
                     _landingLagRemaining = SwordSpinMove.AirLandingLagSeconds;
                     _locomotion.GravityScale = 1.0f;
+                    _locomotion.KeepsAirMomentum = false;
                     _locomotion.SetSwordSpinPose(0.0f);
                     _trail?.SetTarget(0.0f);
                     return;
@@ -684,6 +694,10 @@ namespace CityX.Character
             if (_spinState != SpinState.None)
             {
                 EndSpin();
+            }
+            if (_locomotion != null)
+            {
+                _locomotion.KeepsAirMomentum = false;
             }
         }
 

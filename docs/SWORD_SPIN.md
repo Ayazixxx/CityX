@@ -29,7 +29,7 @@ checked against the above (`SwordSpinMoveTests`).
 | Press | **hold 2**: sword drawn back, charging up to 1 s; **release** to spin (a quick tap spins at once) | 2 spins at once |
 | Turn | 2 revolutions over 50 frames, speed 55%-145% of average (undulating) | 3 revolutions over 49 frames, fast then easing |
 | Blows | each target once, 14/12/9/7% of the sword's damage by when it connects (x charge) | 8 blows 4%/2%, then a 12% blow (Smash: 4%) |
-| Movement | rooted, no jumping out of it | **climbs**: starts at 7 m/s under 0.55 gravity (about 4 m), steerable at half pace |
+| Movement | rooted, no jumping out of it | **climbs**: starts at 7 m/s under 0.55 gravity (about 4 m, gravity easing back over 0.4 s after the last blow); **keeps the momentum it had** (sprint, jump, spin: the body keeps flowing) until it lands, the keys only steer it (14 m/s^2, half strength during the spin) |
 | Holds the body | 74 frames | 91 frames; landing before then = 30 frames of landing lag |
 | Reach | 2.8 m from the chest (the 2.1 m blade and the arm holding it out) | same |
 | After | 0.4 s before another spin | once per time off the ground |
