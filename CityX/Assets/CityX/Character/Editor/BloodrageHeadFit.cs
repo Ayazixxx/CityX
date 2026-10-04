@@ -130,16 +130,27 @@ namespace CityX.CharacterEditor
             return best;
         }
 
-        /// <summary>The average, over the clip's length, of how many degrees above the body's own horizontal the head's facing axis points.</summary>
+        /// <summary>
+        /// The average, over the clip's length, of how far the head is tipped forward RELATIVE TO THE TORSO, in degrees (positive: the top of the head
+        /// is ahead of where the spine points; negative: the head is cocked back on it). Measured against the torso rather than the world because the
+        /// Mutant Run is a far more hunched run than the sprint (the torso leans 46 degrees against 28): matching the head's world pitch left it level
+        /// with the horizon but cranked back on a body bent double, which is what looked wrong.
+        /// </summary>
         private static float MeanPitch(GameObject body, Transform head, Transform root, Vector3 axis, AnimationClip clip)
         {
             const int samples = 16;
+            var animator = body.GetComponentInChildren<Animator>();
+            Transform hips = animator.GetBoneTransform(HumanBodyBones.Hips);
+            Transform neck = animator.GetBoneTransform(HumanBodyBones.Neck);
             float sum = 0.0f;
             for (int i = 0; i < samples; i++)
             {
-                Pose(body.GetComponentInChildren<Animator>(), clip, clip.length * i / samples);
-                Vector3 facing = root.InverseTransformDirection(head.rotation * axis);
-                sum += Mathf.Asin(Mathf.Clamp(facing.y, -1.0f, 1.0f)) * Mathf.Rad2Deg;
+                Pose(animator, clip, clip.length * i / samples);
+                Vector3 spine = root.InverseTransformDirection(neck.position - hips.position);
+                float torsoLean = 90.0f - Mathf.Atan2(spine.y, spine.z) * Mathf.Rad2Deg;      // 0 upright, bigger = bent further forward
+                Vector3 top = root.InverseTransformDirection(head.rotation * Vector3.up);
+                float headTipped = Mathf.Atan2(top.z, top.y) * Mathf.Rad2Deg;                  // 0 upright head, bigger = top tipped forward
+                sum += headTipped - torsoLean;
             }
             return sum / samples;
         }

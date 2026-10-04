@@ -29,7 +29,7 @@ namespace CityX.WeaponsEditor
                 Material material = EnsureMaterial(EnsureTexture());
 
                 // A little diagonal, like a slash that came down across the body, not a perfectly upright arc.
-                var visual = new GameObject("Visual");
+                var visual = new GameObject("Visual");   // (also carries the hitbox, below)
                 visual.transform.SetParent(root.transform, false);
                 visual.transform.localRotation = Quaternion.Euler(0.0f, 0.0f, 18.0f);
 
@@ -46,10 +46,13 @@ namespace CityX.WeaponsEditor
                 light.intensity = 3.0f;
                 light.shadows = LightShadows.None;
 
-                var collider = root.AddComponent<BoxCollider>();
+                // THE WHOLE CRESCENT IS THE HITBOX for enemies: a trigger box round all of it (its full height and depth, on the tilted visual so it
+                // leans with it). It hurts what it touches and never stops the wave: only the CENTRE of the wave meets the world (see
+                // SwordWaveProjectile.WorldCheckRadius), so a tip grazing the ground does not end it.
+                var collider = visual.AddComponent<BoxCollider>();
                 collider.isTrigger = true;
-                collider.size = new Vector3(0.5f, 3.2f, 0.7f);
-                collider.center = new Vector3(0.0f, 0.0f, -0.1f);
+                collider.size = new Vector3(1.0f, 3.9f, 2.5f);
+                collider.center = new Vector3(0.0f, 0.0f, -0.45f);
 
                 Rigidbody body = root.AddComponent<Rigidbody>();
                 body.useGravity = false;

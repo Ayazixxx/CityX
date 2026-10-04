@@ -26,3 +26,11 @@ are the sword's own clips).
 `BloodrageHeadFit` (run by `PlayerRigBuilder.Build` after the prefab is made) poses the real player body in the sprint and in the run through a playable graph, measures the head's average
 pitch, and fits the run's neck nod (a shift search; clamped to the limit) so it matches the sprint's: -19.2 against -19.1 degrees, from -13.5. `CityX/Capture Bloodrage Run Pose` renders both for comparison.
 (`AnimationClip.SampleAnimation` leaves a humanoid body in its rest pose; use a playable graph.)
+
+**Bloodrage run head, second fix (2026-10-04):** matching the head's pitch to the horizon (the first fix) left it level but cranked back on a torso bent far more than the sprint's (46 degrees of lean
+against 28), which still read as "tilted backwards". `BloodrageHeadFit` now matches the head's tilt RELATIVE TO THE TORSO (the sprint's is -9.3 degrees, the run now -9.3: neck nod shifted by -0.6),
+so the head hangs forward off the hunched back the way the sprint's does.
+
+**Sword wave hitbox (2026-10-04):** the WHOLE crescent is the hitbox for enemies (a trigger box round all of it, on the tilted visual; each target is hurt once and the wave passes through).
+Only a 0.3 m sphere at its CENTRE meets the world, swept along each fixed step and checked where it stands (`SwordWaveProjectile.WorldCheckRadius`), so the lower tip scraping the ground no longer
+ends it. `SwordWaveProjectilePlayTests` pins both (ground under the lower edge does not stop it; centre in the ground does; a wall does; middle, top tip and bottom tip all hurt).
