@@ -258,7 +258,7 @@ namespace CityX.Weapons
             }
 
             var inventory = player.GetComponent<Inventory>();
-            inventory?.ClearEquipSlotWithoutReturning("hand_r");
+            inventory?.ClearEquipSlotWithoutReturning(inventory.ActiveWeaponSlot);
 
             Destroy(gameObject);
         }

@@ -46,6 +46,101 @@ namespace CityX.Character
         public GameObject EquippedInstance(string slot) =>
             _equippedInstances.TryGetValue(slot, out GameObject instance) ? instance : null;
 
+        // ---- primary / secondary weapons ----
+
+        /// <summary>The primary weapon slot. (The key is the old "right hand" one: saves, the registry and the tests all know it by that name.)</summary>
+        public const string PrimarySlot = "hand_r";
+
+        /// <summary>The secondary weapon slot (the old "left hand" key).</summary>
+        public const string SecondarySlot = "hand_l";
+
+        /// <summary>Which of the two weapons is in hand. Only that one exists as an object; the other is holstered (see <see cref="CycleWeapon"/>).</summary>
+        public string ActiveWeaponSlot { get; private set; } = PrimarySlot;
+
+        // What a holstered weapon remembers (its ammo, its durability), kept here while its object is gone.
+        private readonly System.Collections.Generic.Dictionary<string, ItemInstanceData> _holstered =
+            new System.Collections.Generic.Dictionary<string, ItemInstanceData>();
+
+        public static bool IsWeaponSlot(string slot) => slot == PrimarySlot || slot == SecondarySlot;
+
+        public bool IsHolstered(string slot) => _holstered.ContainsKey(slot);
+
+        private string OtherWeaponSlot(string slot) => slot == PrimarySlot ? SecondarySlot : PrimarySlot;
+
+        /// <summary>
+        /// Puts the weapon in hand away and takes the other one out (primary to secondary and back). With the active slot empty (a thrown bottle,
+        /// nothing equipped yet) it just draws whichever weapon there is. False when there is nothing to change to.
+        /// A weapon is a real object only while it is in hand: holstering reads its state, runs its own OnUnequip (which puts down its hand
+        /// pose, ammo UI, input hooks and so on) and remembers the state; drawing builds it again with that state, through the same OnEquip as any equip.
+        /// </summary>
+        public bool CycleWeapon(GameObject player)
+        {
+            string from = ActiveWeaponSlot;
+            string to = OtherWeaponSlot(from);
+            if (string.IsNullOrEmpty(EquippedItemId(to)))
+            {
+                return false;
+            }
+            Holster(from, player);
+            if (!Draw(to, player))
+            {
+                Draw(from, player);
+                return false;
+            }
+            return true;
+        }
+
+        private void Holster(string slot, GameObject player)
+        {
+            if (!_equippedInstances.TryGetValue(slot, out GameObject instance) || instance == null)
+            {
+                return;
+            }
+            var equippable = instance.GetComponent<IEquippableItem>();
+            ItemInstanceData data = equippable != null ? equippable.GetInstanceData() : ItemInstanceData.None;
+            equippable?.OnUnequip(player);
+            _equippedInstances[slot] = null;
+            _holstered[slot] = data;
+        }
+
+        private bool Draw(string slot, GameObject player)
+        {
+            string itemId = EquippedItemId(slot);
+            if (string.IsNullOrEmpty(itemId) || !_holstered.TryGetValue(slot, out ItemInstanceData data))
+            {
+                return false;
+            }
+            if (!Spawn(itemId, player, data, out GameObject instance))
+            {
+                return false;
+            }
+            _equippedInstances[slot] = instance;
+            _holstered.Remove(slot);
+            ActiveWeaponSlot = slot;
+            return true;
+        }
+
+        private bool Spawn(string itemId, GameObject player, ItemInstanceData data, out GameObject instance)
+        {
+            instance = null;
+            GameObject prefab = PrefabFor(itemId);
+            if (prefab == null)
+            {
+                return false;
+            }
+            GameObject made = UnityEngine.Object.Instantiate(prefab);
+            made.transform.SetParent(player.transform, false);
+            var equippable = made.GetComponent<IEquippableItem>();
+            if (equippable == null)
+            {
+                UnityEngine.Object.Destroy(made);
+                return false;
+            }
+            equippable.OnEquip(player, data);
+            instance = made;
+            return true;
+        }
+
         public bool HasItem(string itemId)
         {
             foreach (StorageSlot slot in Storage)
@@ -132,6 +227,23 @@ namespace CityX.Character
             }
 
             string slot = definition.EquipSlot;
+            bool weapon = IsWeaponSlot(slot);
+            bool drawNow = true;
+            if (weapon)
+            {
+                // A weapon goes to the primary slot, or the secondary if the primary is taken, or (both taken) replaces the one in hand.
+                // It is drawn at once when nothing is in hand, or when it replaces the weapon in hand; otherwise it is holstered until the player scrolls to it.
+                string inHand = EquippedInstance(ActiveWeaponSlot) != null ? ActiveWeaponSlot : null;
+                if (string.IsNullOrEmpty(EquippedItemId(PrimarySlot))) slot = PrimarySlot;
+                else if (string.IsNullOrEmpty(EquippedItemId(SecondarySlot))) slot = SecondarySlot;
+                else slot = ActiveWeaponSlot;
+                drawNow = inHand == null || inHand == slot;
+            }
+
+            if (PrefabFor(itemId) == null)
+            {
+                return false;
+            }
             if (_equipment.TryGetValue(slot, out string currentItemId) && !string.IsNullOrEmpty(currentItemId))
             {
                 if (!UnequipToSlot(slot, player))
@@ -140,24 +252,25 @@ namespace CityX.Character
                 }
             }
 
-            GameObject prefab = PrefabFor(itemId);
-            if (prefab == null)
+            if (!drawNow)
+            {
+                _equipment[slot] = itemId;
+                _equippedInstances[slot] = null;
+                _holstered[slot] = instanceData;
+                return true;
+            }
+
+            if (!Spawn(itemId, player, instanceData, out GameObject instance))
             {
                 return false;
             }
-
-            GameObject instance = UnityEngine.Object.Instantiate(prefab);
-            instance.transform.SetParent(player.transform, false);
-            var equippable = instance.GetComponent<IEquippableItem>();
-            if (equippable == null)
-            {
-                UnityEngine.Object.Destroy(instance);
-                return false;
-            }
-            equippable.OnEquip(player, instanceData);
-
             _equipment[slot] = itemId;
             _equippedInstances[slot] = instance;
+            _holstered.Remove(slot);
+            if (weapon)
+            {
+                ActiveWeaponSlot = slot;
+            }
             return true;
         }
 
@@ -171,6 +284,18 @@ namespace CityX.Character
             if (!_equipment.TryGetValue(slotKey, out string itemId) || string.IsNullOrEmpty(itemId))
             {
                 return false;
+            }
+            if (_holstered.TryGetValue(slotKey, out ItemInstanceData holsteredData))
+            {
+                // Away in its holster: there is no object to tear down, only the remembered state to hand back.
+                if (!AddItem(itemId, 1, holsteredData))
+                {
+                    return false;
+                }
+                _holstered.Remove(slotKey);
+                _equipment[slotKey] = string.Empty;
+                _equippedInstances[slotKey] = null;
+                return true;
             }
             if (!_equippedInstances.TryGetValue(slotKey, out GameObject instance) || instance == null)
             {
@@ -197,6 +322,7 @@ namespace CityX.Character
         /// </summary>
         public void ClearEquipSlotWithoutReturning(string slotKey)
         {
+            _holstered.Remove(slotKey);
             _equipment[slotKey] = string.Empty;
             _equippedInstances[slotKey] = null;
         }

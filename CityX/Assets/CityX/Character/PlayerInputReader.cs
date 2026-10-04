@@ -159,6 +159,7 @@ namespace CityX.Character
         /// way PlayerVitals/MeleeAttacker already are.
         /// </summary>
         private IFireballCaster _fireballCaster;
+        private ISwordWaveCaster _swordWave;
 
         /// <summary>
         /// How long after tapping sprint a second tap still counts as a dash.
@@ -193,6 +194,7 @@ namespace CityX.Character
         /// animator without threading a whole extra parameter through.
         /// </summary>
         private bool _isAimingGun;
+        private float _nextWeaponSwitch;
 
         /// <summary>
         /// Set by PlayerChat's own /dance and /breakdance commands (see
@@ -285,6 +287,7 @@ namespace CityX.Character
             _climbing = GetComponent<PlayerClimbing>();
             _wallStick = GetComponent<WallStick>();
             _fireballCaster = GetComponent<IFireballCaster>();
+            _swordWave = GetComponent<ISwordWaveCaster>();
 
             // The player gets wet in the rain and dries under cover. Added here
             // rather than baked into the prefab: only the real, local player has
@@ -471,6 +474,7 @@ namespace CityX.Character
             }
             SoulsSword?.Tick(deltaTime);
             _fireballCaster?.Tick(deltaTime);
+            _swordWave?.Tick(deltaTime);
 
             // DEATH IS POLLED HERE, NOT EVENT-DRIVEN -- see GrabCarry's own
             // doc comment for why an OnEnable subscription to
@@ -1218,6 +1222,20 @@ namespace CityX.Character
                 return;
             }
 
+            // SCROLL WHEEL: put the weapon in hand away and take out the other (primary <-> secondary). Not while carrying (returned above), and not
+            // mid-aim: a gun being aimed down would otherwise vanish out of the player's hands.
+            if (_inventory != null && !(Mouse.current.rightButton.isPressed))
+            {
+                float wheel = Mouse.current.scroll.ReadValue().y;
+                if (Mathf.Abs(wheel) > 0.01f && Time.unscaledTime >= _nextWeaponSwitch)
+                {
+                    if (_inventory.CycleWeapon(gameObject))
+                    {
+                        _nextWeaponSwitch = Time.unscaledTime + 0.25f;
+                    }
+                }
+            }
+
             // A GUN TAKES OVER LEFT/RIGHT-CLICK AND RELOAD ENTIRELY WHILE
             // EQUIPPED, matching player.gd's own separate `if _equipped_gun
             // != null` branch: semi-automatic (a fresh press fires once,
@@ -1332,7 +1350,7 @@ namespace CityX.Character
             // here needs to know a sword is equipped at all -- it already
             // gets its own moveset/chain/heavy stage for free.
             IEquippableWeapon weapon = _inventory != null
-                ? _inventory.EquippedInstance("hand_r")?.GetComponent<IEquippableWeapon>()
+                ? _inventory.EquippedInstance(_inventory.ActiveWeaponSlot)?.GetComponent<IEquippableWeapon>()
                 : null;
 
             // THE SWORD IS FOUGHT THE SOULSLIKE WAY -- see SoulsSwordCombat.
@@ -1469,6 +1487,19 @@ namespace CityX.Character
             if (keyboard != null && keyboard.digit2Key.wasPressedThisFrame && !souls.IsCommitted && _melee != null)
             {
                 _melee.TrySpinAttack();
+            }
+
+            // 7: THE SWORD'S WAVE (a Getsuga Tensho style crescent). The sword swings (a light attack) and a crescent of light leaves the
+            // blade down the crosshair, exactly where the fireball would go. Only with the sword in hand, and not mid-swing.
+            if (keyboard != null && keyboard.digit7Key.wasPressedThisFrame && _swordWave != null && source != null
+                && !spinning && !souls.IsCommitted && _swordWave.CanCast)
+            {
+                float height = (_locomotion != null ? _locomotion.StandingHeight : 1.8f) * 0.68f;
+                Vector3 origin = transform.position + Vector3.up * height;
+                if (_swordWave.TryCast(height, ConvergedDirection(origin, source), GetComponentsInChildren<Collider>()))
+                {
+                    souls.RequestLight(yaw);
+                }
             }
 
             souls.SetBlockHeld(mouse.rightButton.isPressed && !spinning);

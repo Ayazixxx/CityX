@@ -44,7 +44,7 @@ namespace CityX.ViewEditor
         {
             EditorPrefs.SetString(Key, scale.Name);
             CityScale.Active = scale;
-            Debug.Log($"CityX: city scale {scale}. Takes effect the next time the world is built (press Play).");
+            Debug.Log($"CityX: city scale {scale}. Takes effect the next time Play starts.");
         }
 
         private static bool Is(CityScale scale) => CityScale.Active.Name == scale.Name;

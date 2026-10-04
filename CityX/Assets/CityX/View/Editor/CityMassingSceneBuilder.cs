@@ -460,6 +460,10 @@ namespace CityX.ViewEditor
                 castAudio.playOnAwake = false;
                 castAudio.spatialBlend = 0.0f;
                 fireballCaster.CastAudio = castAudio;
+
+                // --- the sword's crescent wave (key 7 with the sword in hand); see SwordWaveCaster.
+                var swordWave = player.AddComponent<CityX.Weapons.SwordWaveCaster>();
+                swordWave.WavePrefab = CityX.WeaponsEditor.SwordWaveBuilder.Build();
             }
             else
             {
@@ -690,6 +694,8 @@ namespace CityX.ViewEditor
             // streamed edge moves. See the fog comment above for how its own
             // distances were retimed to this new edge.
             streamer.RadiusChunks = 24;
+            // The spawn above is for the world at the scale in force NOW; the game may run at another, so the streamer re-places the player.
+            streamer.PlaceAtSpawn = true;
             streamer.GroundMaterial = ground;
             streamer.PavementMaterial = pavement;
             streamer.StructureMaterial = structure;

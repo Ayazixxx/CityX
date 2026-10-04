@@ -29,6 +29,9 @@ namespace CityX.View
         // change to the city generation."
         public int WorldSeed = 61472093;
 
+        [Tooltip("Put the player (and the Old Guy, who is placed relative to them) at the spawn point of the world this streamer makes, when it wakes. The scene bakes a spawn point at build time, but the world depends on the city scale in force when the game runs.")]
+        public bool PlaceAtSpawn = false;
+
         [Tooltip("Chunks of radius kept loaded around the viewer.")]
         public int RadiusChunks = 14;
 
@@ -271,6 +274,24 @@ namespace CityX.View
             var player = FindFirstObjectByType<PlayerInputReader>();
             if (player != null)
             {
+                if (PlaceAtSpawn && _world.Plan.TryFindSpawn(out double spawnX, out double spawnZ))
+                {
+                    Vector3 from = player.transform.position;
+                    float ground = (float)_world.Terrain.ContinuousHeightAt(spawnX, spawnZ);
+                    var to = new Vector3((float)spawnX, ground + 0.5f, (float)spawnZ);
+                    if ((to - from).sqrMagnitude > 0.25f)
+                    {
+                        var controller = player.GetComponent<CharacterController>();
+                        bool wasEnabled = controller != null && controller.enabled;
+                        if (controller != null) controller.enabled = false;   // a controller keeps its own copy of where it is
+                        player.transform.position = to;
+                        if (controller != null) controller.enabled = wasEnabled;
+                        foreach (CityX.Character.OldGuySpawner oldGuy in FindObjectsByType<CityX.Character.OldGuySpawner>(FindObjectsSortMode.None))
+                        {
+                            oldGuy.SpawnPosition += to - from;
+                        }
+                    }
+                }
                 StreamAround(player.transform.position, SpawnPreStreamBudget);
             }
         }

@@ -159,20 +159,71 @@ namespace CityX.Tests
         [Test]
         public void EquipItemIdWhenTheSlotIsAlreadyOccupiedEvictsTheOldItemBackToStorageFirst()
         {
-            _inventory.EquipItemId(ItemRegistry.GlassBottle, _playerObject);
+            _inventory.EquipItemId(ItemRegistry.GlassBottle, _playerObject);   // primary
+            _inventory.EquipItemId(ItemRegistry.GlassBottle, _playerObject);   // secondary (holstered)
             Assert.IsFalse(_inventory.HasItem(ItemRegistry.GlassBottle));
 
-            _inventory.AddItem(ItemRegistry.GlassBottle, 1); // a second bottle to equip over the first
+            _inventory.AddItem(ItemRegistry.GlassBottle, 1); // a third bottle: both slots are taken, so it replaces the one in hand
             Assert.IsTrue(_inventory.EquipItemId(ItemRegistry.GlassBottle, _playerObject));
 
             Assert.IsTrue(_inventory.HasItem(ItemRegistry.GlassBottle), "the evicted bottle should have returned to storage");
         }
 
         [Test]
+        public void ASecondWeaponGoesToTheSecondarySlotHolsteredAndScrollingSwapsThem()
+        {
+            Assert.IsTrue(_inventory.EquipItemId(ItemRegistry.GlassBottle, _playerObject, new ItemInstanceData { HasDurability = true, Durability = 11 }));
+            Assert.IsTrue(_inventory.EquipItemId(ItemRegistry.GlassBottle, _playerObject, new ItemInstanceData { HasDurability = true, Durability = 22 }));
+
+            Assert.AreEqual(Inventory.PrimarySlot, _inventory.ActiveWeaponSlot, "the first weapon is the one in hand");
+            Assert.AreEqual(ItemRegistry.GlassBottle, _inventory.EquippedItemId(Inventory.SecondarySlot));
+            Assert.IsNull(_inventory.EquippedInstance(Inventory.SecondarySlot), "the secondary is away, not in the world");
+            Assert.IsTrue(_inventory.IsHolstered(Inventory.SecondarySlot));
+            GameObject primary = _inventory.EquippedInstance(Inventory.PrimarySlot);
+            Assert.IsNotNull(primary);
+
+            Assert.IsTrue(_inventory.CycleWeapon(_playerObject));
+            Assert.AreEqual(Inventory.SecondarySlot, _inventory.ActiveWeaponSlot);
+            Assert.IsNotNull(_inventory.EquippedInstance(Inventory.SecondarySlot));
+            Assert.IsNull(_inventory.EquippedInstance(Inventory.PrimarySlot));
+            Assert.IsTrue(primary.GetComponent<TestEquippableItem>().UnequipCalled, "putting a weapon away runs its own OnUnequip");
+            Assert.AreEqual(22, _inventory.EquippedInstance(Inventory.SecondarySlot).GetComponent<TestEquippableItem>().LastEquipData.Durability, "it is drawn with what it remembered");
+
+            Assert.IsTrue(_inventory.CycleWeapon(_playerObject));
+            Assert.AreEqual(Inventory.PrimarySlot, _inventory.ActiveWeaponSlot);
+        }
+
+        [Test]
+        public void ScrollingWithOnlyOneWeaponDoesNothingAndAHolsteredWeaponCanStillBeUnequipped()
+        {
+            _inventory.EquipItemId(ItemRegistry.GlassBottle, _playerObject);
+            Assert.IsFalse(_inventory.CycleWeapon(_playerObject), "nothing to change to");
+            Assert.IsNotNull(_inventory.EquippedInstance(Inventory.PrimarySlot));
+
+            _inventory.EquipItemId(ItemRegistry.GlassBottle, _playerObject);
+            Assert.IsTrue(_inventory.UnequipToSlot(Inventory.SecondarySlot, _playerObject), "a holstered weapon goes back to storage");
+            Assert.IsTrue(_inventory.HasItem(ItemRegistry.GlassBottle));
+            Assert.AreEqual(string.Empty, _inventory.EquippedItemId(Inventory.SecondarySlot));
+            Assert.IsNotNull(_inventory.EquippedInstance(Inventory.PrimarySlot), "the weapon in hand is untouched");
+        }
+
+        [Test]
+        public void ThrowingTheWeaponInHandLeavesTheHolsteredOneToBeDrawnByScrolling()
+        {
+            _inventory.EquipItemId(ItemRegistry.GlassBottle, _playerObject);
+            _inventory.EquipItemId(ItemRegistry.GlassBottle, _playerObject);
+            _inventory.ClearEquipSlotWithoutReturning(_inventory.ActiveWeaponSlot);   // what BottleWeapon does when it is thrown
+            Assert.IsTrue(_inventory.CycleWeapon(_playerObject));
+            Assert.AreEqual(Inventory.SecondarySlot, _inventory.ActiveWeaponSlot);
+            Assert.IsNotNull(_inventory.EquippedInstance(Inventory.SecondarySlot));
+        }
+
+        [Test]
         public void EquipItemIdAbortsEntirelyWhenEvictingTheCurrentOccupantWouldFail()
         {
             _inventory.EquipItemId(ItemRegistry.GlassBottle, _playerObject);
-            GameObject firstInstance = _inventory.EquippedInstance("hand_r");
+            _inventory.EquipItemId(ItemRegistry.GlassBottle, _playerObject);   // both weapon slots taken
+            GameObject firstInstance = _inventory.EquippedInstance(_inventory.ActiveWeaponSlot);
 
             for (int i = 0; i < Inventory.StorageSlotCount; i++)
             {
@@ -183,7 +234,7 @@ namespace CityX.Tests
             Assert.IsFalse(_inventory.EquipItemId(ItemRegistry.GlassBottle, _playerObject),
                 "storage is full, so evicting the currently-equipped bottle must fail");
 
-            Assert.AreSame(firstInstance, _inventory.EquippedInstance("hand_r"),
+            Assert.AreSame(firstInstance, _inventory.EquippedInstance(_inventory.ActiveWeaponSlot),
                 "the previously equipped item must still be the one equipped");
         }
 

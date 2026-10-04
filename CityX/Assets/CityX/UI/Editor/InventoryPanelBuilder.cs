@@ -168,7 +168,7 @@ namespace CityX.UIEditor
                 Button button = go.AddComponent<Button>();
                 button.targetGraphic = background;
 
-                Text keyCaption = MakeText(go.transform, "Key", keys[i].ToUpperInvariant(), 9, HintColour);
+                Text keyCaption = MakeText(go.transform, "Key", keys[i] == "hand_r" ? "PRIMARY" : keys[i] == "hand_l" ? "SECONDARY" : keys[i].ToUpperInvariant(), 9, HintColour);
                 var keyRect = (RectTransform)keyCaption.transform;
                 keyRect.anchorMin = new Vector2(0.0f, 1.0f);
                 keyRect.anchorMax = new Vector2(1.0f, 1.0f);

@@ -162,7 +162,7 @@ namespace CityX.UI
                 case "celshade": return "/celshade -- toggles toon shading on every character skin";
                 case "equip": return "/equip <bottle|jeans|cloak|coat|jacket|grapple|pistol|sword|flamethrower|" +
                     "jetpack|parachute|top_hat|farmer_hat>";
-                case "unequip": return "/unequip <hand_r|legs|top|back|helmet>";
+                case "unequip": return "/unequip <hand_r (primary)|hand_l (secondary)|legs|top|back|helmet>";
                 case "goto": return "/goto <slope|district> -- teleports to the nearest one";
                 case "jacket": return "/jacket <scale|offset> <value>, or /jacket pose -- " +
                     "live-tunes the equipped top's own size/vertical position (wear only one top while tuning)";

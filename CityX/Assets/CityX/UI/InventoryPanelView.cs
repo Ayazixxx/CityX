@@ -263,7 +263,9 @@ namespace CityX.UI
                     continue;
                 }
                 string itemId = Inventory.EquippedItemId(EquipSlotKeys[i]);
-                EquipLabels[i].text = string.IsNullOrEmpty(itemId) ? "--" : DisplayNameFor(itemId);
+                string name = string.IsNullOrEmpty(itemId) ? "--" : DisplayNameFor(itemId);
+                bool inHand = !string.IsNullOrEmpty(itemId) && Inventory.IsWeaponSlot(EquipSlotKeys[i]) && Inventory.ActiveWeaponSlot == EquipSlotKeys[i] && !Inventory.IsHolstered(EquipSlotKeys[i]);
+                EquipLabels[i].text = inHand ? "> " + name : name;
             }
         }
 
