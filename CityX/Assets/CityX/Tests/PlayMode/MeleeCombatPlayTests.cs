@@ -376,17 +376,92 @@ namespace CityX.Tests
             Assert.Greater(_dummy.TimesHit, 0, "a target directly behind the attacker was never hit by the spin");
         }
 
+        /// <summary>
+        /// LINK'S GROUND SPIN: one hit on each target, worth the most when it connects at the very start (Smash: the clean hit, 14%, a
+        /// light swing being 10%). The fake sword is worth 20 here, so the clean hit is 20 x 1.4.
+        /// </summary>
         [Test]
-        public void SpinAttackLandsSeveralHitsOverItsOwnDuration()
+        public void TheGroundSpinHitsATargetOnceAtItsCleanHitDamage()
         {
             _attacker.EquippedWeapon = new FakeSwordWeapon();
             Assert.IsTrue(_attacker.TrySpinAttack());
             Step(_attacker.SpinAttackSeconds + 0.05f);
 
-            int expectedHits = Mathf.FloorToInt(_attacker.SpinAttackSeconds / _attacker.SpinAttackDamageIntervalSeconds);
-            Assert.GreaterOrEqual(_dummy.TimesHit, 2,
-                $"a spin lasting {_attacker.SpinAttackSeconds}s at a hit every {_attacker.SpinAttackDamageIntervalSeconds}s " +
-                $"(expected around {expectedHits}) landed only {_dummy.TimesHit} time(s) -- reads as one swing, not a spin");
+            Assert.AreEqual(1, _dummy.TimesHit, "a ground spin hits each target once, not once a frame");
+            Assert.AreEqual(20.0f * 1.4f, _dummy.TotalDamageTaken, 0.01f, "the clean hit of the first frames: 14% against a light swing's 10%");
+        }
+
+        /// <summary>The first frames are the strongest and it fades to half: something that walks into reach late is hit for the weakest band.</summary>
+        [Test]
+        public void ATargetThatArrivesLateIsHitForLess()
+        {
+            _attacker.EquippedWeapon = new FakeSwordWeapon();
+            _dummyObject.transform.position = new Vector3(0.0f, 1.0f, 8.0f);   // far out of reach to begin with
+            Physics.SyncTransforms();
+            Assert.IsTrue(_attacker.TrySpinAttack());
+            Step(0.41f);   // frame 24-25: into the "latest" band
+
+            _dummyObject.transform.position = new Vector3(0.0f, 1.0f, 1.5f);
+            Physics.SyncTransforms();
+            Step(_attacker.SpinAttackSeconds);
+
+            Assert.AreEqual(1, _dummy.TimesHit);
+            Assert.AreEqual(20.0f * 0.7f, _dummy.TotalDamageTaken, 0.01f, "arriving in the last band is worth 7%, half the clean hit");
+        }
+
+        /// <summary>Holding the key charges it, up to a second, for 1 + 0.6 x charge: a full second is 1.6x.</summary>
+        [Test]
+        public void ChargingAGroundSpinForAFullSecondDoes1Point6Times()
+        {
+            _attacker.EquippedWeapon = new FakeSwordWeapon();
+            Assert.IsTrue(_attacker.TrySpinAttack(charge: true));
+            Assert.IsTrue(_attacker.IsChargingSpin);
+            Assert.IsFalse(_attacker.IsSpinTurning, "it should be waiting for the key to be let go, not spinning");
+            Step(0.2f);
+            Assert.AreEqual(0, _dummy.TimesHit, "a spin that is still charging has hit nothing");
+
+            Step(1.0f);   // past the full second: it lets go by itself
+            Assert.IsTrue(_attacker.IsSpinTurning || _dummy.TimesHit > 0, "a full charge should release by itself");
+            Step(_attacker.SpinAttackSeconds);
+
+            Assert.AreEqual(1, _dummy.TimesHit);
+            Assert.AreEqual(20.0f * 1.4f * 1.6f, _dummy.TotalDamageTaken, 0.05f);
+        }
+
+        [Test]
+        public void ReleasingAHalfChargedSpinDoes1Point3Times()
+        {
+            _attacker.EquippedWeapon = new FakeSwordWeapon();
+            Assert.IsTrue(_attacker.TrySpinAttack(charge: true));
+            Step(0.5f);
+            _attacker.ReleaseSpinAttack();
+            Assert.IsTrue(_attacker.IsSpinTurning, "letting go should start the spin");
+            Step(_attacker.SpinAttackSeconds);
+
+            Assert.AreEqual(20.0f * 1.4f * 1.3f, _dummy.TotalDamageTaken, 0.1f);
+        }
+
+        /// <summary>A tap is not a charge: with no key to wait on, it goes at once.</summary>
+        [Test]
+        public void ATapSpinsAtOnceWithNoChargeToWaitFor()
+        {
+            _attacker.EquippedWeapon = new FakeSwordWeapon();
+            Assert.IsTrue(_attacker.TrySpinAttack());
+            Assert.IsTrue(_attacker.IsSpinTurning);
+            Assert.IsFalse(_attacker.IsChargingSpin);
+        }
+
+        /// <summary>Hits do not need an animation clip to say when: spun with no animator at all the ground spin lasts 74 frames (interruptible).</summary>
+        [Test]
+        public void TheGroundSpinHoldsTheBodySeventyFourFrames()
+        {
+            _attacker.EquippedWeapon = new FakeSwordWeapon();
+            Assert.IsTrue(_attacker.TrySpinAttack());
+            Assert.AreEqual(74.0f / 60.0f, _attacker.SpinAttackSeconds, 1e-4f);
+            Step(73.0f / 60.0f);
+            Assert.IsTrue(_attacker.IsSpinAttacking, "let go of the body before frame 74");
+            Step(3.0f / 60.0f);
+            Assert.IsFalse(_attacker.IsSpinAttacking, "still holding the body after frame 74");
         }
 
         /// <summary>Matches PlayerInputReader's own "Swinging roots the body" movement gate, which reads this same flag.</summary>
@@ -432,6 +507,34 @@ namespace CityX.Tests
             float rotated = Quaternion.Angle(before, _attackerObject.transform.rotation);
             Assert.Greater(rotated, 45.0f,
                 $"the body only turned {rotated:0.0} degrees halfway through the spin -- that reads as standing still, not spinning");
+        }
+
+        /// <summary>Whole revolutions, so the body is facing where it started when it lets go -- not left pointing wherever a speed profile ended.</summary>
+        [Test]
+        public void TheSpinEndsFacingWhereItBegan()
+        {
+            _attacker.EquippedWeapon = new FakeSwordWeapon();
+            _attackerObject.transform.rotation = Quaternion.Euler(0.0f, 37.0f, 0.0f);
+            Quaternion before = _attackerObject.transform.rotation;
+
+            Assert.IsTrue(_attacker.TrySpinAttack());
+            Step(_attacker.SpinAttackSeconds + 0.05f);
+
+            Assert.Less(Quaternion.Angle(before, _attackerObject.transform.rotation), 0.5f, "the spin left the body turned");
+        }
+
+        /// <summary>Holding the sword out wide: the sword is a long reach, so a target 2.6 m away (well past a punch) is still hit.</summary>
+        [Test]
+        public void TheBladeReachesFurtherThanAPunch()
+        {
+            _attacker.EquippedWeapon = new FakeSwordWeapon();
+            _dummyObject.transform.position = new Vector3(0.0f, 1.0f, 2.6f);
+            Physics.SyncTransforms();
+            Assert.Greater(2.6f, _attacker.Range, "setup: the target should be out of an ordinary swing's reach");
+
+            Assert.IsTrue(_attacker.TrySpinAttack());
+            Step(_attacker.SpinAttackSeconds + 0.05f);
+            Assert.AreEqual(1, _dummy.TimesHit);
         }
 
         [Test]

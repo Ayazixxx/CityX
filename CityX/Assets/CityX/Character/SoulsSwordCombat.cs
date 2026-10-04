@@ -101,6 +101,12 @@ namespace CityX.Character
         /// <summary>The blade's tip, in world space.</summary>
         Vector3 BladeTipWorld { get; }
 
+        /// <summary>
+        /// The way the cutting edge faces (perpendicular to the blade), in world space, or zero when the blade does not say. The sword
+        /// spin rolls the hand to lead with it.
+        /// </summary>
+        Vector3 EdgeDirectionWorld => Vector3.zero;
+
         float GetMeleeDamage();
     }
 

@@ -1939,11 +1939,15 @@ MonoBehaviour:
   SwingSeconds: 0.35
   HeavySwingSeconds: 0.6
   ContactFraction: 0.45
-  SpinAttackSeconds: 1.2
-  SpinAttackDegreesPerSecond: 720
-  SpinAttackDamageIntervalSeconds: 0.3
-  SpinAttackCooldownSeconds: 4
-  SpinAttackDamageScale: 0.6
+  SpinReachMetres: 2.8
+  SpinAttackCooldownSeconds: 0.4
+  SpinAttackDamageScale: 1
+  AirSpinRiseSpeed: 7
+  AirSpinGravityScale: 0.55
+  AirSpinMoveFraction: 0.5
+  AirSpinLaunchUp: 9
+  AirSpinLaunchAway: 3
+  SpinTrailPrefab: {fileID: 39743738579222980, guid: 9def757261269bc47a393e7e64b4df75, type: 3}
   ImpactSounds:
   - {fileID: 8300000, guid: 2653802eb30c13044b5710cc20f73b48, type: 3}
   - {fileID: 8300000, guid: 26785f141b5374340a94ed5a3e1adb79, type: 3}

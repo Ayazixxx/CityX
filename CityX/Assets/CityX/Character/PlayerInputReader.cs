@@ -911,7 +911,8 @@ namespace CityX.Character
             bool soulsArmed = soulsNow != null && soulsNow.IsEquipped;
             if (_melee != null && _melee.IsSwinging)
             {
-                move = Vector2.zero;
+                // Nothing moves a swing -- but the aerial sword spin can be steered a little (half pace), as Link's can.
+                move *= _melee.SwingMoveFraction;
                 sprinting = false;
             }
             else if (soulsArmed && soulsNow.IsCommitted)
@@ -954,7 +955,9 @@ namespace CityX.Character
             // already forced false while grounded (see its own doc comment
             // just above), so a tap of Space always means jump there,
             // jetpack equipped or not.
-            bool jumpReleased = _locomotion.IsGrounded && keyboard.spaceKey.wasPressedThisFrame;
+            // (A sword spin on the ground holds the body, charge included: no jumping out of it.)
+            bool jumpReleased = _locomotion.IsGrounded && keyboard.spaceKey.wasPressedThisFrame
+                && !(_melee != null && _melee.IsSpinAttacking);
 
             // A JETPACK TAKES SPACE OVER ONLY ONCE ACTUALLY AIRBORNE --
             // EXPLICIT BUG REPORT: "when you press space on the floor with
@@ -1425,10 +1428,7 @@ namespace CityX.Character
             // decide nothing here" split digit1Key's own fireball check
             // above already uses, just scoped to melee instead of an
             // innate ability available regardless of loadout.
-            if (Keyboard.current != null && Keyboard.current.digit2Key.wasPressedThisFrame)
-            {
-                _melee.TrySpinAttack();
-            }
+            TickSpinKey(Keyboard.current, canStart: true);
 
             if (Mouse.current.leftButton.wasPressedThisFrame)
             {
@@ -1444,6 +1444,27 @@ namespace CityX.Character
             {
                 _punchHeld = false;
                 _melee.TryAttack(heavy: _punchHeldSeconds >= HeavyPunchHoldSeconds);
+            }
+        }
+
+        /// <summary>
+        /// 2, the sword's spin (Link's Up Special): pressed on the ground it starts CHARGING for as long as the key is held (up to a
+        /// second, for up to 1.6x the damage) and spins when let go; pressed in the air it goes at once, climbing. MeleeAttacker
+        /// decides everything else, including that there is a sword in hand.
+        /// </summary>
+        private void TickSpinKey(Keyboard keyboard, bool canStart)
+        {
+            if (keyboard == null || _melee == null)
+            {
+                return;
+            }
+            if (canStart && keyboard.digit2Key.wasPressedThisFrame)
+            {
+                _melee.TrySpinAttack(charge: true);
+            }
+            if (_melee.IsChargingSpin && !keyboard.digit2Key.isPressed)
+            {
+                _melee.ReleaseSpinAttack();
             }
         }
 
@@ -1495,10 +1516,7 @@ namespace CityX.Character
                 souls.RequestLight(yaw);
             }
 
-            if (keyboard != null && keyboard.digit2Key.wasPressedThisFrame && !souls.IsCommitted && _melee != null)
-            {
-                _melee.TrySpinAttack();
-            }
+            TickSpinKey(keyboard, canStart: !souls.IsCommitted);
 
             // 7: THE SWORD'S WAVE (a Getsuga Tensho style crescent). The sword swings (a light attack) and a crescent of light leaves the
             // blade down the crosshair, exactly where the fireball would go. Only with the sword in hand, and not mid-swing.

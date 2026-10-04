@@ -21,7 +21,7 @@ namespace CityX.Character
     /// far longer and give a worse answer to that question.
     /// </summary>
     [RequireComponent(typeof(CharacterController))]
-    public sealed class Civilian : MonoBehaviour, IDamageable, IXpReward
+    public sealed class Civilian : MonoBehaviour, IDamageable, IXpReward, ILaunchable
     {
         public const float MaxHealth = 100.0f;
 
@@ -177,9 +177,13 @@ namespace CityX.Character
             }
 
             float pace = CivilianBrain.WalkSpeed * _brain.SpeedMultiplier;
-            Vector3 motion = direction * pace;
+            Vector3 motion = direction * pace + _launchHorizontal;
             motion.y = _verticalVelocity;
             _controller.Move(motion * deltaTime);
+            // A launch's sideways push dies away in the air faster than it would on the ground; landing ends it.
+            _launchHorizontal = _controller.isGrounded
+                ? Vector3.zero
+                : Vector3.MoveTowards(_launchHorizontal, Vector3.zero, 2.0f * deltaTime);
 
             if (direction.sqrMagnitude > 0.0001f)
             {
@@ -194,6 +198,19 @@ namespace CityX.Character
                     direction.sqrMagnitude > 0.0001f ? pace : 0.0f);
                 _animator.SetBool(GroundedParameter, _controller.isGrounded);
             }
+        }
+
+        private Vector3 _launchHorizontal;
+
+        /// <summary>Thrown by something that launches (the aerial sword spin's last blow): up, and a little away.</summary>
+        public void Launch(Vector3 velocity)
+        {
+            if (IsDead)
+            {
+                return;
+            }
+            _verticalVelocity = velocity.y;
+            _launchHorizontal = new Vector3(velocity.x, 0.0f, velocity.z);
         }
 
         HitResponse IDamageable.ApplyHit(float amount, Vector3 fromPosition, float hitstunSeconds)

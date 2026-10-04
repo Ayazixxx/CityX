@@ -62,6 +62,12 @@ namespace CityX.Weapons
         /// <summary>The blade's tip, in world space -- what a swing actually sweeps.</summary>
         public Vector3 BladeTipWorld => transform.TransformPoint(new Vector3(0.0f, BladeLocalLength, 0.0f));
 
+        /// <summary>
+        /// The cutting edge faces local -X: SwordBuilder's blade profile puts the sharp slice (no thickness) at edge_x - half the width, the
+        /// thick spine at edge_x + half, and curves the tip toward -X (a kopis: the edge is on the inside of the curve).
+        /// </summary>
+        public Vector3 EdgeDirectionWorld => transform.TransformDirection(Vector3.left);
+
         // ---- THE HOLD ----
         //
         // DERIVED FROM THE MOCAP by default. The Godot mount (position (-0.055,-0.197,-0.343), rotation

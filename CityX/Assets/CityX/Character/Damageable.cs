@@ -53,6 +53,17 @@ namespace CityX.Character
         int XpReward { get; }
     }
 
+    /// <summary>
+    /// Optional add-on for something IDamageable that can be sent flying: the aerial sword spin's last blow launches whatever it
+    /// reaches upward. Separate from IDamageable for the same reason IXpReward is: most targets (a dummy, a prop) have no way to
+    /// be thrown and simply ignore it.
+    /// </summary>
+    public interface ILaunchable
+    {
+        /// <summary>Throws the body with this velocity (metres per second, world space); gravity takes it from there.</summary>
+        void Launch(Vector3 velocity);
+    }
+
     /// <summary>What a target did with a hit.</summary>
     public enum HitResponse
     {

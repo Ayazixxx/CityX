@@ -56,26 +56,32 @@ namespace CityX.Character
         [Tooltip("Fraction into the swing at which the blow actually lands.")]
         public float ContactFraction = 0.45f;
 
-        [Header("Sword Spin Attack")]
-        [Tooltip("How long the whole spin lasts, in seconds.")]
-        public float SpinAttackSeconds = 1.2f;
+        [Header("Sword Spin Attack (Link's Up Special -- see SwordSpinMove and docs/SWORD_SPIN.md)")]
+        [Tooltip("How far the blade reaches from the body's middle: the sword (2.1 m) and the arm holding it out.")]
+        public float SpinReachMetres = 2.8f;
 
-        [Tooltip("How fast the body spins during the attack, in degrees per second.")]
-        public float SpinAttackDegreesPerSecond = 720.0f;
+        [Tooltip("Seconds after one spin before another can begin. Smash has none (the move's own lag is the cost); a short one stops a held key chaining them.")]
+        public float SpinAttackCooldownSeconds = 0.4f;
 
-        [Tooltip("How often, in seconds, a spinning blade actually lands a hit -- several landings per use, not one.")]
-        public float SpinAttackDamageIntervalSeconds = 0.3f;
+        [Tooltip("Multiplier on every spin blow, on top of SwordSpinMove's own table.")]
+        public float SpinAttackDamageScale = 1.0f;
 
-        [Tooltip("Cooldown, counted from the moment a spin starts, before another can begin.")]
-        public float SpinAttackCooldownSeconds = 4.0f;
+        [Tooltip("How fast the aerial spin starts climbing, in metres per second. With its thinner gravity this carries the body about 4 m up.")]
+        public float AirSpinRiseSpeed = 7.0f;
 
-        /// <summary>
-        /// Scaled down from an ordinary sword swing -- a full spin lands
-        /// several hits (SpinAttackSeconds / SpinAttackDamageIntervalSeconds
-        /// worth), so per-hit damage has to give something back for that or
-        /// spamming 2 would strictly outclass the ordinary combo.
-        /// </summary>
-        public float SpinAttackDamageScale = 0.6f;
+        [Tooltip("Gravity while the aerial spin turns, as a fraction of normal (Smash: 0.55).")]
+        public float AirSpinGravityScale = 0.55f;
+
+        [Tooltip("How much of its normal pace the body can steer at while the aerial spin turns (Smash: 0.5).")]
+        public float AirSpinMoveFraction = 0.5f;
+
+        [Tooltip("What the aerial spin's last blow throws its target at: upward speed, and the speed away from the spinner.")]
+        public float AirSpinLaunchUp = 9.0f;
+
+        public float AirSpinLaunchAway = 3.0f;
+
+        [Tooltip("The glowing swoosh drawn round the body while it spins. Built by SwordSpinTrailBuilder; empty draws none.")]
+        public GameObject SpinTrailPrefab;
 
         [Header("Feedback (ported from player.gd)")]
         [Tooltip("player.gd PunchImpactSounds -- one is picked at random per LANDED hit.")]
@@ -104,19 +110,35 @@ namespace CityX.Character
         private bool _contactDone;
         private ComboStage _currentStage;
 
-        private float _spinRemaining;
+        private enum SpinState
+        {
+            None,
+            Charging,   // ground only: the key is held, the sword drawn back
+            Turning,    // the spin itself, through to when the body is handed back
+            Landing,    // came down out of an aerial spin before it was over
+        }
+
+        private SpinState _spinState;
+        private SpinKind _spinKind;
+        private float _spinTime;
+        private float _spinChargeSeconds;
+        private float _spinChargeMultiplier = 1.0f;
+        private float _spinAngleDone;
+        private int _nextPulse;
+        private float _landingLagRemaining;
         private float _spinCooldownRemaining;
-        private float _spinDamageTimer;
+        private bool _airSpinUsed;
+        private readonly HashSet<IDamageable> _spinHit = new HashSet<IDamageable>();
+        private SwordSpinTrail _trail;
 
         /// <summary>
-        /// Reuses sword_attack's own clip rather than inventing a new one --
-        /// there is no dedicated spin animation asset, and retriggering a
-        /// real swing clip every SpinAttackDamageIntervalSeconds while the
-        /// body itself physically rotates (see Tick) is what reads as
-        /// "spinning with the sword" using only what already exists.
+        /// THE ANIMATOR IS TOLD TO PLAY "UpperEmpty" when a spin starts, which shows nothing new: the spin's arms are placed by
+        /// PlayerLocomotion.ApplySwordSpinPose, not by a clip. What the call is for is PlayerAnimationDriver.PlayState's forced
+        /// zero-delta evaluation (an Animator that has never run sits in its bind pose -- see SpinningTheInstantAfterSpawn...) and
+        /// for letting go of any swing still playing on the upper body.
         /// </summary>
         private static readonly ComboStage SpinAttackStage =
-            new ComboStage("sword_attack", 1.0f, 1.0f, 0.0f, false);
+            new ComboStage(PlayerAnimationDriver.UpperEmptyStateName, 1.0f, 1.0f, 0.0f, false);
 
         /// <summary>
         /// The swing duration actually in effect for the swing in progress --
@@ -142,10 +164,34 @@ namespace CityX.Character
         /// free, matching Smash's own up-special commitment rather than
         /// needing a second gate wired through separately.
         /// </summary>
-        public bool IsSwinging => _swingRemaining > 0.0f || _spinRemaining > 0.0f;
+        public bool IsSwinging => _swingRemaining > 0.0f || _spinState != SpinState.None;
 
-        /// <summary>True while the sword's own spin attack is spinning.</summary>
-        public bool IsSpinAttacking => _spinRemaining > 0.0f;
+        /// <summary>True from the moment 2 is pressed until the body is handed back: charging, turning or landing.</summary>
+        public bool IsSpinAttacking => _spinState != SpinState.None;
+
+        /// <summary>True while a ground spin is being charged (the key held).</summary>
+        public bool IsChargingSpin => _spinState == SpinState.Charging;
+
+        /// <summary>True while the spin is actually turning (not charging, not landing).</summary>
+        public bool IsSpinTurning => _spinState == SpinState.Turning;
+
+        /// <summary>Which spin is under way (meaningful while <see cref="IsSpinAttacking"/>).</summary>
+        public SpinKind CurrentSpinKind => _spinKind;
+
+        /// <summary>How long the spin about to start (or in progress) keeps the body: the ground one's 74 frames, the air one's 91.</summary>
+        public float SpinAttackSeconds => SwordSpinMove.CommitSeconds(_spinKind);
+
+        /// <summary>Seconds into the spin that is turning.</summary>
+        public float SpinElapsedSeconds => _spinTime;
+
+        /// <summary>
+        /// How much of its normal pace the body may move at while this holds it: nothing for an ordinary swing or a ground spin,
+        /// half for the aerial spin's turn (it can be steered a little, as in Smash).
+        /// </summary>
+        public float SwingMoveFraction =>
+            _spinState == SpinState.Turning && _spinKind == SpinKind.Air && _spinTime < SwordSpinMove.AirActiveSeconds
+                ? AirSpinMoveFraction
+                : 0.0f;
 
         /// <summary>The stage currently being swung. Meaningless when not swinging.</summary>
         public ComboStage CurrentStage => _currentStage;
@@ -322,7 +368,7 @@ namespace CityX.Character
         /// spinning (IsSwinging covers both) or on cooldown, same shape
         /// TryAttack's own busy-body guard uses.
         /// </summary>
-        public bool TrySpinAttack()
+        public bool TrySpinAttack(bool charge = false)
         {
             if (IsSwinging || (_vitals != null && _vitals.IsDead))
             {
@@ -337,18 +383,118 @@ namespace CityX.Character
                 return false;
             }
 
-            _spinRemaining = SpinAttackSeconds;
-            _spinDamageTimer = SpinAttackDamageIntervalSeconds;
-            // Counted from NOW, covering the spin's own duration plus the
-            // cooldown after it -- so the very next TrySpinAttack call
-            // (which IsSwinging above already refuses on its own while
-            // spinning) still finds a real cooldown waiting once the spin
-            // ends, rather than being free to restart the instant
-            // _spinRemaining reaches zero.
-            _spinCooldownRemaining = SpinAttackSeconds + SpinAttackCooldownSeconds;
+            // IN THE AIR it goes straight into the rising spin (nothing to charge), once per time off the ground -- a move that climbs,
+            // pressed again at the top, would otherwise be a way to fly. On the ground it is the slow strong spin, which waits to be
+            // CHARGED when the key is being held (charge: true, then ReleaseSpinAttack) and goes at once when it is only a tap.
+            if (IsAirborne())
+            {
+                if (_airSpinUsed)
+                {
+                    return false;
+                }
+                BeginTurning(SpinKind.Air, 0.0f);
+                return true;
+            }
+
             _currentStage = SpinAttackStage;
-            SwingStarted?.Invoke(_currentStage);
+            if (charge)
+            {
+                _spinState = SpinState.Charging;
+                _spinKind = SpinKind.Ground;
+                _spinChargeSeconds = 0.0f;
+                _spinTime = 0.0f;
+                SwingStarted?.Invoke(_currentStage);
+                return true;
+            }
+            BeginTurning(SpinKind.Ground, 0.0f);
             return true;
+        }
+
+        /// <summary>
+        /// The key was let go: a ground spin that was being charged goes now, with whatever it charged. (It also goes by itself when
+        /// the charge is full, as Link's does.) Does nothing when no charge is under way.
+        /// </summary>
+        public void ReleaseSpinAttack()
+        {
+            if (_spinState != SpinState.Charging)
+            {
+                return;
+            }
+            BeginTurning(SpinKind.Ground, _spinChargeSeconds);
+        }
+
+        private void BeginTurning(SpinKind kind, float chargeSeconds)
+        {
+            bool wasCharging = _spinState == SpinState.Charging;
+            _spinState = SpinState.Turning;
+            _spinKind = kind;
+            _spinTime = 0.0f;
+            _spinAngleDone = 0.0f;
+            _nextPulse = 0;
+            _spinHit.Clear();
+            _spinChargeMultiplier = SwordSpinMove.ChargeMultiplier(chargeSeconds);
+            _currentStage = SpinAttackStage;
+            if (!wasCharging)
+            {
+                SwingStarted?.Invoke(_currentStage);
+            }
+
+            if (kind == SpinKind.Air)
+            {
+                _airSpinUsed = true;
+                // Starts climbing at once, from whatever the body was doing (a fall is cut short, as in Smash), under thinner gravity.
+                if (_locomotion != null)
+                {
+                    _locomotion.SetVerticalVelocity(AirSpinRiseSpeed);
+                    _locomotion.GravityScale = AirSpinGravityScale;
+                }
+            }
+            SpinTrail?.SetTarget(1.0f);
+        }
+
+        /// <summary>
+        /// Feet off the ground: the controller says so AND there is no ground within a step below. The controller alone flickers
+        /// to "not grounded" on stairs and kerbs, which would turn an ordinary spin into a leap.
+        /// </summary>
+        private bool IsAirborne()
+        {
+            if (_locomotion == null || _locomotion.IsGrounded)
+            {
+                return false;
+            }
+            Vector3 from = transform.position + Vector3.up * 0.4f;
+            int count = Physics.RaycastNonAlloc(from, Vector3.down, GroundProbe, 0.4f + AirborneClearanceMetres, ~0, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < count; i++)
+            {
+                if (!GroundProbe[i].collider.transform.IsChildOf(transform))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>How far above the ground the body must be for a press of 2 to count as an aerial spin.</summary>
+        private const float AirborneClearanceMetres = 0.35f;
+
+        private static readonly RaycastHit[] GroundProbe = new RaycastHit[8];
+
+        private SwordSpinTrail SpinTrail
+        {
+            get
+            {
+                if (_trail == null && SpinTrailPrefab != null)
+                {
+                    GameObject made = Instantiate(SpinTrailPrefab, transform);
+                    made.name = "SwordSpinTrail";
+                    _trail = made.GetComponent<SwordSpinTrail>();
+                    if (_trail != null)
+                    {
+                        _trail.Follow(_locomotion != null ? _locomotion.SwordArmShoulder : null);
+                    }
+                }
+                return _trail;
+            }
         }
 
         /// <summary>
@@ -362,38 +508,14 @@ namespace CityX.Character
                 _spinCooldownRemaining -= deltaTime;
             }
 
-            if (_spinRemaining > 0.0f)
+            if (_locomotion != null && _locomotion.IsGrounded && _spinState != SpinState.Turning)
             {
-                // WORLD SPACE, not local -- Space.Self would spin around
-                // whatever local up the body currently has, which does not
-                // matter here since the character always stands upright,
-                // but World is the same axis PlayerLocomotion's own facing
-                // turn (Quaternion.Euler(0, yaw, 0)) already uses, so a spin
-                // reads as the same kind of turn, just much faster and not
-                // player-steered.
-                transform.Rotate(Vector3.up, SpinAttackDegreesPerSecond * deltaTime, Space.World);
+                _airSpinUsed = false;
+            }
 
-                _spinRemaining -= deltaTime;
-                _spinDamageTimer -= deltaTime;
-                if (_spinDamageTimer <= 0.0f)
-                {
-                    _spinDamageTimer += SpinAttackDamageIntervalSeconds;
-                    LandSpinBlow();
-                    // RETRIGGERS THE SAME SWING CLIP -- a single CrossFade
-                    // at the start of a 1.2s spin would play one short swing
-                    // and then sit idle in whatever state follows it for
-                    // the rest of the rotation. Firing SwingStarted again on
-                    // every damage tick keeps a real swing animation
-                    // playing in sync with each landed hit for the whole
-                    // spin, using the exact same "told by name" listener
-                    // PlayerAnimationDriver already has -- no new wiring
-                    // needed there at all.
-                    SwingStarted?.Invoke(_currentStage);
-                }
-                if (_spinRemaining <= 0.0f)
-                {
-                    _spinRemaining = 0.0f;
-                }
+            if (_spinState != SpinState.None)
+            {
+                TickSpin(deltaTime);
                 return;
             }
 
@@ -438,6 +560,133 @@ namespace CityX.Character
             }
         }
 
+        /// <summary>How far back the blade is drawn while a ground spin charges, from straight out to the right.</summary>
+        private const float ChargeBackDegrees = 70.0f;
+
+        /// <summary>How much longer the arm stays out after the body stops turning, before the pose lets go.</summary>
+        private static readonly float GroundPoseLingerSeconds = SwordSpinMove.Frames(8.0f);
+
+        private static readonly float AirPoseLingerSeconds = SwordSpinMove.Frames(12.0f);
+
+        private void SetSpinPose(float target, float backDegrees)
+        {
+            if (_locomotion != null)
+            {
+                _locomotion.SetSwordSpinPose(target, backDegrees, 0.0f, EquippedWeapon as ISwordBlade);
+            }
+        }
+
+        private void TickSpin(float deltaTime)
+        {
+            if (EquippedWeapon == null || (_vitals != null && _vitals.IsDead))
+            {
+                EndSpin();
+                return;
+            }
+
+            if (_spinState == SpinState.Charging)
+            {
+                _spinChargeSeconds += deltaTime;
+                SetSpinPose(1.0f, ChargeBackDegrees);
+                if (_spinChargeSeconds >= SwordSpinMove.MaxChargeSeconds || IsAirborne())
+                {
+                    // Full charge goes by itself, and so does a charge whose ground was lost (an edge, a shove): no standing in the air.
+                    BeginTurning(SpinKind.Ground, _spinChargeSeconds);
+                }
+                return;
+            }
+
+            if (_spinState == SpinState.Landing)
+            {
+                _landingLagRemaining -= deltaTime;
+                if (_landingLagRemaining <= 0.0f)
+                {
+                    EndSpin();
+                }
+                return;
+            }
+
+            float before = _spinTime;
+            _spinTime += deltaTime;
+
+            // THE TURN is an exact function of the time (SwordSpinMove.AngleAt), so it ends on a whole number of revolutions facing
+            // where it began. WORLD SPACE about up -- the axis PlayerLocomotion's own facing turn uses -- and NEGATIVE, so the sword
+            // (out to the right) sweeps forward across the front of the body rather than back across it.
+            float angle = SwordSpinMove.AngleAt(_spinKind, _spinTime);
+            transform.Rotate(Vector3.up, -(angle - _spinAngleDone), Space.World);
+            _spinAngleDone = angle;
+
+            if (_spinKind == SpinKind.Air)
+            {
+                bool thin = _spinTime < SwordSpinMove.AirActiveSeconds;
+                if (_locomotion != null)
+                {
+                    _locomotion.GravityScale = thin ? AirSpinGravityScale : 1.0f;
+                    // A ceiling stops the climb outright; otherwise it would keep its speed and press on the roof.
+                    if ((_locomotion.LastMoveCollisionFlags & CollisionFlags.Above) != 0 && _locomotion.VerticalVelocity > 0.0f)
+                    {
+                        _locomotion.SetVerticalVelocity(0.0f);
+                    }
+                }
+
+                var pulses = SwordSpinMove.AirPulses;
+                while (_nextPulse < pulses.Length && _spinTime >= pulses[_nextPulse].Time)
+                {
+                    LandSpinBlow(pulses[_nextPulse].DamageScale, pulses[_nextPulse].Final, oncePerTarget: false);
+                    _nextPulse++;
+                }
+
+                // Coming down before the animation is over costs the landing lag.
+                if (_locomotion != null && _spinTime > 0.15f && _locomotion.IsGrounded && _locomotion.VerticalVelocity <= 0.0f
+                    && _spinTime < SwordSpinMove.AirCommitSeconds)
+                {
+                    _spinState = SpinState.Landing;
+                    _landingLagRemaining = SwordSpinMove.AirLandingLagSeconds;
+                    _locomotion.GravityScale = 1.0f;
+                    _locomotion.SetSwordSpinPose(0.0f);
+                    _trail?.SetTarget(0.0f);
+                    return;
+                }
+            }
+            else if (_spinTime >= SwordSpinMove.GroundHitStart && before <= SwordSpinMove.GroundHitEnd)
+            {
+                // Every frame of the window: each target is hit once, by whatever the blow is worth at the moment it first connects.
+                float sampled = Mathf.Clamp(_spinTime, SwordSpinMove.GroundHitStart, SwordSpinMove.GroundHitEnd);
+                LandSpinBlow(SwordSpinMove.GroundDamageScale(sampled) * _spinChargeMultiplier, false, oncePerTarget: true);
+            }
+
+            float turnSeconds = SwordSpinMove.TurnSeconds(_spinKind);
+            float poseSeconds = turnSeconds + (_spinKind == SpinKind.Air ? AirPoseLingerSeconds : GroundPoseLingerSeconds);
+            SetSpinPose(_spinTime < poseSeconds ? 1.0f : 0.0f, 0.0f);
+            _trail?.SetTarget(_spinTime < turnSeconds ? 1.0f : 0.0f);
+
+            if (_spinTime >= SwordSpinMove.CommitSeconds(_spinKind))
+            {
+                EndSpin();
+            }
+        }
+
+        private void EndSpin()
+        {
+            _spinState = SpinState.None;
+            _landingLagRemaining = 0.0f;
+            _spinCooldownRemaining = SpinAttackCooldownSeconds;
+            if (_locomotion != null)
+            {
+                _locomotion.GravityScale = 1.0f;
+                _locomotion.SetSwordSpinPose(0.0f);
+            }
+            _trail?.SetTarget(0.0f);
+        }
+
+        private void OnDisable()
+        {
+            if (_spinState != SpinState.None)
+            {
+                EndSpin();
+            }
+        }
+
         /// <summary>
         /// Everything within reach and in front. Public so a test can check
         /// what a swing WOULD hit without swinging.
@@ -477,12 +726,12 @@ namespace CityX.Character
         /// up-special hitting all around rather than only what an ordinary
         /// swing's HalfArcDegrees would let it reach.
         /// </summary>
-        private List<Contact> ContactsInReach(bool fullCircle = false)
+        private List<Contact> ContactsInReach(bool fullCircle = false, float reach = -1.0f)
         {
             var found = new List<Contact>();
             Vector3 origin = SwingOrigin();
 
-            Collider[] hits = Physics.OverlapSphere(origin, Range, TargetLayers,
+            Collider[] hits = Physics.OverlapSphere(origin, reach > 0.0f ? reach : Range, TargetLayers,
                 QueryTriggerInteraction.Ignore);
             float cosLimit = Mathf.Cos(HalfArcDegrees * Mathf.Deg2Rad);
 
@@ -695,41 +944,56 @@ namespace CityX.Character
         }
 
         /// <summary>
-        /// One landed pulse of the spin attack -- FULL CIRCLE, not the
-        /// forward arc LandBlow's own ContactsInReach uses, which is the
-        /// entire point of a spin. Deliberately much simpler than LandBlow:
-        /// no combo/chain/finisher/window bookkeeping, no glass-punching,
-        /// no block handling -- TrySpinAttack's own gate already guarantees
-        /// a real EquippedWeapon.MovesetId == ComboChain.Sword every time
-        /// this runs, so there is no unarmed/bottle path to branch on
-        /// either, unlike LandBlow.
+        /// One blow of the spin attack -- FULL CIRCLE, not the forward arc LandBlow's own ContactsInReach uses, which is the entire
+        /// point of a spin, and out to the blade's own reach (SpinReachMetres). Deliberately much simpler than LandBlow: no
+        /// combo/chain/finisher/window bookkeeping, no glass-punching, no block handling -- TrySpinAttack's own gate already
+        /// guarantees a real EquippedWeapon.MovesetId == ComboChain.Sword every time this runs.
         /// </summary>
-        private void LandSpinBlow()
+        /// <param name="scale">Multiplier on the sword's damage for this blow (SwordSpinMove's table, with the charge folded in).</param>
+        /// <param name="final">The aerial spin's last blow: launches whatever can be launched.</param>
+        /// <param name="oncePerTarget">The ground spin hits each target only once (the first frame it connects is what sets the damage).</param>
+        private void LandSpinBlow(float scale, bool final, bool oncePerTarget)
         {
             // BELT AND BRACES: TrySpinAttack already refuses without a
             // sword equipped, but nothing stops the sword being unequipped
             // WHILE the spin it started is still running -- this guard is
             // what stands between that and a null EquippedWeapon.GetMeleeDamage()
             // crash mid-spin.
-            if (EquippedWeapon == null)
+            if (EquippedWeapon == null || scale <= 0.0f)
             {
                 return;
             }
             int strength = _vitals != null ? _vitals.Strength : 0;
-            float damage = CombatTuning.DamageFor(EquippedWeapon.GetMeleeDamage() * SpinAttackDamageScale, strength) * BloodrageFactor;
+            float damage = CombatTuning.DamageFor(EquippedWeapon.GetMeleeDamage() * SpinAttackDamageScale * scale, strength) * BloodrageFactor;
 
             bool connected = false;
             Vector3 origin = SwingOrigin();
-            foreach (Contact contact in ContactsInReach(fullCircle: true))
+            foreach (Contact contact in ContactsInReach(fullCircle: true, reach: SpinReachMetres))
             {
+                if (oncePerTarget && _spinHit.Contains(contact.Target))
+                {
+                    continue;
+                }
                 HitResponse response = contact.Target.ApplyHit(damage, transform.position, CombatTuning.HitstunSeconds);
                 if (response == HitResponse.Ignored)
                 {
                     continue;
                 }
+                if (oncePerTarget)
+                {
+                    _spinHit.Add(contact.Target);
+                }
 
                 Landed?.Invoke(contact.Target, damage);
                 connected = true;
+
+                if (final && contact.Target.IsAlive && contact.Target is ILaunchable launchable)
+                {
+                    Vector3 away = contact.Point - transform.position;
+                    away.y = 0.0f;
+                    away = away.sqrMagnitude > 1e-4f ? away.normalized : transform.forward;
+                    launchable.Launch(away * AirSpinLaunchAway + Vector3.up * AirSpinLaunchUp);
+                }
 
                 if (!contact.Target.IsAlive && contact.Target is IXpReward xpSource)
                 {
