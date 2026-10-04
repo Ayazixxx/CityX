@@ -159,7 +159,39 @@ namespace CityX.Character
         /// way PlayerVitals/MeleeAttacker already are.
         /// </summary>
         private IFireballCaster _fireballCaster;
+        private IIceShardCaster _iceShards;
         private ISwordWaveCaster _swordWave;
+
+        /// <summary>The raised-hand pose strength of whichever spell is being cast (the fireball's or the ice shards').</summary>
+        private float SpellCastFraction =>
+            Mathf.Max(_fireballCaster != null ? _fireballCaster.CastFraction : 0.0f, _iceShards != null ? _iceShards.CastFraction : 0.0f);
+
+        private bool IsCastingSpell =>
+            (_fireballCaster != null && _fireballCaster.IsCasting) || (_iceShards != null && _iceShards.IsCasting);
+
+        /// <summary>3: starts an ice shard volley from the chest down the crosshair, from wherever the camera is looking.</summary>
+        private void CastIceShards(Transform aimSource)
+        {
+            if (_iceShards == null || aimSource == null)
+            {
+                return;
+            }
+            float height = (_locomotion != null ? _locomotion.StandingHeight : 1.8f) * 0.68f;
+            Vector3 origin = transform.position + Vector3.up * height;
+            _iceShards.TryCast(origin, ConvergedDirection(origin, aimSource), GetComponentsInChildren<Collider>());
+        }
+
+        /// <summary>While a volley is going out its remaining shards follow the crosshair.</summary>
+        private void AimIceShards(Transform aimSource)
+        {
+            if (_iceShards == null || aimSource == null || !_iceShards.IsVolleying)
+            {
+                return;
+            }
+            float height = (_locomotion != null ? _locomotion.StandingHeight : 1.8f) * 0.68f;
+            Vector3 origin = transform.position + Vector3.up * height;
+            _iceShards.Aim(origin, ConvergedDirection(origin, aimSource));
+        }
         private BloodrageAbility _bloodrageAbility;
 
         /// <summary>
@@ -288,6 +320,7 @@ namespace CityX.Character
             _climbing = GetComponent<PlayerClimbing>();
             _wallStick = GetComponent<WallStick>();
             _fireballCaster = GetComponent<IFireballCaster>();
+            _iceShards = GetComponent<IIceShardCaster>();
             _swordWave = GetComponent<ISwordWaveCaster>();
 
             // The player gets wet in the rain and dries under cover. Added here
@@ -475,6 +508,7 @@ namespace CityX.Character
             }
             SoulsSword?.Tick(deltaTime);
             _fireballCaster?.Tick(deltaTime);
+            _iceShards?.Tick(deltaTime);
             _swordWave?.Tick(deltaTime);
 
             // DEATH IS POLLED HERE, NOT EVENT-DRIVEN -- see GrabCarry's own
@@ -670,6 +704,11 @@ namespace CityX.Character
                     Vector3 origin = transform.position + Vector3.up * height;
                     _fireballCaster.TryCast(origin, ConvergedDirection(origin, swingYawSource), GetComponentsInChildren<Collider>());
                 }
+                if (keyboard.digit3Key.wasPressedThisFrame)
+                {
+                    CastIceShards(swingYawSource);
+                }
+                AimIceShards(swingYawSource);
 
                 // THE ORDINARY WASD-MOVEMENT BRANCH BELOW NEVER RUNS WHILE
                 // SWINGING (this whole block returns before reaching it),
@@ -681,8 +720,7 @@ namespace CityX.Character
                 // ApplyCastingPose is free to layer this on top of whatever
                 // the swing's own DriveAnimatorFromExternalVelocity pose is,
                 // exactly like it would during ordinary ground movement.
-                _locomotion.SetCastPose(
-                    _fireballCaster != null ? _fireballCaster.CastFraction : 0.0f, useLeftArm: true);
+                _locomotion.SetCastPose(SpellCastFraction, useLeftArm: true);
 
                 _grappleSwing.Tick(swingMove, swingYaw, boostedRelease, plainRelease,
                     reelHeld, payoutHeld, deltaTime);
@@ -839,6 +877,14 @@ namespace CityX.Character
                 Vector3 origin = transform.position + Vector3.up * height;
                 _fireballCaster.TryCast(origin, ConvergedDirection(origin, yawSource), GetComponentsInChildren<Collider>());
             }
+
+            // 3: ICE SHARDS, innate like the fireball: four shards one after another down the crosshair, each sticking where it lands. The
+            // rest of a volley follows the crosshair as it goes out.
+            if (keyboard.digit3Key.wasPressedThisFrame)
+            {
+                CastIceShards(yawSource);
+            }
+            AimIceShards(yawSource);
 
             // 8: BLOODRAGE, innate like the fireball (see BloodrageAbility): +25% speed and melee damage, the Bloodrage walk/run/jump, a red aura, 7.5 s.
             if (keyboard.digit8Key.wasPressedThisFrame)
@@ -1025,15 +1071,14 @@ namespace CityX.Character
             // below, the same way gun-aiming does; the actual visual is a
             // separate procedural pose (see PlayerLocomotion.SetCastPose)
             // rather than a second state sharing LocomotionInput.Aiming.
-            bool isCastingFireball = _fireballCaster != null && _fireballCaster.IsCasting;
+            bool isCastingFireball = IsCastingSpell;
             bool isAiming = _isAimingGun || isCastingFireball;
             // THE GRAPPLE GUN OWNS THE RIGHT HAND -- see SetCastPose's own
             // doc comment. EquippedHook alone, not GrappleSwing.IsActive:
             // the gun is in that hand whether or not a rope currently
             // happens to be attached.
             bool castRaisesLeftArm = _grappleSwing != null && _grappleSwing.EquippedHook != null;
-            _locomotion.SetCastPose(
-                _fireballCaster != null ? _fireballCaster.CastFraction : 0.0f, castRaisesLeftArm);
+            _locomotion.SetCastPose(SpellCastFraction, castRaisesLeftArm);
 
             var input = new LocomotionInput
             {

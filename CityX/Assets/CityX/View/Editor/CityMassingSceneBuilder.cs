@@ -461,6 +461,10 @@ namespace CityX.ViewEditor
                 castAudio.spatialBlend = 0.0f;
                 fireballCaster.CastAudio = castAudio;
 
+                // --- the ice shards spell (key 3): innate like the fireball; see IceShardCaster.
+                var iceShards = player.AddComponent<CityX.Weapons.IceShardCaster>();
+                iceShards.ShardPrefab = CityX.WeaponsEditor.IceShardBuilder.Build();
+
                 // --- the sword's crescent wave (key 7 with the sword in hand); see SwordWaveCaster.
                 var swordWave = player.AddComponent<CityX.Weapons.SwordWaveCaster>();
                 swordWave.WavePrefab = CityX.WeaponsEditor.SwordWaveBuilder.Build();
