@@ -16,7 +16,7 @@ light-attack swing and 0.18 s later a white swoosh (three layered streaky ribbon
 
 `Character/BloodrageAbility.cs` (innate, like the fireball). For 7.5 s: movement speed x1.25 on foot (`PlayerLocomotion`, not a jetpack's speed), melee damage x1.25
 (`MeleeAttacker.BloodrageFactor`, read by fists, the weapon swing, the spin attack and `SoulsSwordCombat`), the walk, run and jump animations replaced by the user's
-`bloodrage_walking/run/jump.fbx` (`Character/Animations`, looped and stride-widened like the ordinary clips by `PlayerRigBuilder`), and a red aura (`BloodrageAuraBuilder`: two
+`bloodrage_walking/run/jump.fbx` (walk and run replaced on 2026-10-04 by the user's Mutant Walking and Mutant Run; the jump is still the original Bloodrage jump) (`Character/Animations`, looped and stride-widened like the ordinary clips by `PlayerRigBuilder`), and a red aura (`BloodrageAuraBuilder`: two
 particle layers rising off the body in world space plus a red light) that builds up in 0.35 s and fades over 1.4 s after the effect ends. The swap is an `AnimatorOverrideController`
 made over the player's own at Awake and changed with one `ApplyOverrides` call, so the animator keeps its state; the sword's, gun's and other states are untouched. It cannot be
 restarted mid-rage. `CityX/Capture Bloodrage Aura` renders the aura. Not done: a cooldown, a sound, the animation clip speed matching the faster body, a sword-equipped walk/run (those
