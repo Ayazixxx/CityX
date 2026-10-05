@@ -116,6 +116,36 @@ namespace CityX.Tests
             new Vector3(90.0f, 135.0f, 0.0f),
         };
 
+        /// <summary>REPORTED: "after standing up the character freezes for a second and can't move." The clip's last third is the character standing still.</summary>
+        [UnityTest]
+        public IEnumerator ControlComesBackAsSoonAsTheBodyIsUpAndTheAnimatorIsHandedToLocomotion()
+        {
+#if UNITY_EDITOR
+            Ragdoll ragdoll = Spawn();
+            Animator animator = _player.GetComponentInChildren<Animator>();
+            yield return null;
+            ragdoll.Activate(Vector3.zero, allowImmediateStandUp: true);
+            yield return new WaitForSeconds(1.5f);
+            ragdoll.BeginStandingUp(force: true);
+
+            float elapsed = 0.0f;
+            while (ragdoll.IsLimp && elapsed < 4.0f)
+            {
+                ragdoll.Tick(Time.deltaTime);
+                elapsed += Time.deltaTime;
+                yield return null;
+            }
+            Assert.Less(elapsed, 1.5f, "the body was held after it was already standing (the clip's idle tail)");
+            Assert.IsTrue(_player.GetComponent<CharacterController>().enabled, "control did not come back");
+            yield return null;
+            yield return null;
+            Assert.IsFalse(animator.GetCurrentAnimatorStateInfo(0).IsName("GettingUp") && !animator.IsInTransition(0),
+                "the animator was left holding the get-up pose instead of being handed to locomotion");
+#else
+            yield break;
+#endif
+        }
+
         [UnityTest]
         public IEnumerator AFinisherKnockdownGetsUpWithTheAnimationNotAPop()
         {

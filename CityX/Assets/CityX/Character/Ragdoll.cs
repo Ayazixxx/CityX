@@ -95,11 +95,22 @@ namespace CityX.Character
         /// control returns -- just quickly, the way an ordinary in-game
         /// recovery should feel, without needing a second baked animation.
         /// </summary>
-        public const float StandUpRecoverySeconds = 1.8f;
+        public const float StandUpPaceSeconds = 1.8f;
+
+        /// <summary>
+        /// The get-up clip's last stretch (from about 5.0 of its 7.6 seconds, measured by sampling the pose) is the character standing perfectly
+        /// still: the clip was cut for a cutscene that then looks around. Holding the player through it was the reported "freezes for a second
+        /// and can't move after standing up". Control comes back when the body is up, which at this pace is after 5.0/7.6 of the clip, and the
+        /// animator is cross-faded to locomotion so the tail never plays.
+        /// </summary>
+        public const float StandUpRecoverySeconds = StandUpPaceSeconds * (5.0f / 7.6f);
+
+        /// <summary>How long the hand-back from the get-up clip to ordinary locomotion blends, in seconds.</summary>
+        public const float StandUpHandBackBlendSeconds = 0.25f;
 
         /// <summary>How much faster than IntroCutscene's own cinematic pace the GettingUp clip plays for an ordinary recovery -- see StandUpRecoverySeconds' own doc comment.</summary>
         public static readonly float StandUpPlaybackSpeed =
-            IntroCutscene.GettingUpClipSeconds / StandUpRecoverySeconds;
+            IntroCutscene.GettingUpClipSeconds / StandUpPaceSeconds;
 
         [Tooltip("Every rigid body in the rig. Filled in by RagdollBuilder.")]
         public Rigidbody[] Bodies;
@@ -861,6 +872,12 @@ namespace CityX.Character
             if (Animator != null)
             {
                 Animator.speed = 1.0f;
+                // The GettingUp state has no exit of its own (the cutscene states are driven by name), so it would hold its last pose for
+                // good: hand the body back to locomotion explicitly, blended.
+                if (Animator.HasState(0, Animator.StringToHash("Locomotion")))
+                {
+                    Animator.CrossFadeInFixedTime("Locomotion", StandUpHandBackBlendSeconds, 0);
+                }
             }
 
             if (_controller != null)
