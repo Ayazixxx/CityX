@@ -444,6 +444,63 @@ namespace CityX.Character
         // While climbing toward a ledge and while pulling up over it, both palms are put ON the ledge's lip (two-bone IK, after the Animator), so a
         // climb reads as gripping the edge rather than as a generic clip whose hands float wherever it was authored.
 
+        private float _climbWallWeight;
+        private Vector3 _climbWallPoint;
+        private Vector3 _climbWallNormal = Vector3.forward;
+
+        /// <summary>Hands and feet keep at least this far off the wall plane while climbing, in metres.</summary>
+        public const float HandWallClearance = 0.05f;
+
+        public const float FootWallClearance = 0.09f;
+
+        /// <summary>
+        /// While climbing, tells the body where the wall is (a point on its face and its outward normal) so that no hand, foot, elbow or knee can be
+        /// animated THROUGH it: the climb clip's limbs swing wherever it likes, and the body hangs a capsule's radius from the wall.
+        /// </summary>
+        public void SetClimbWall(Vector3 point, Vector3 normal, float weight)
+        {
+            _climbWallWeight = Mathf.Clamp01(weight);
+            _climbWallPoint = point;
+            _climbWallNormal = normal.sqrMagnitude > 0.0001f ? normal.normalized : Vector3.forward;
+        }
+
+        /// <summary>
+        /// After the Animator: any hand or foot (or elbow / knee) that the animation put behind the wall plane is moved out to just in front of it and
+        /// its limb is solved to reach there (two-bone IK), so the hands and feet TOUCH the wall and never go through it. A limb already in front is not
+        /// touched, so the animation is only corrected where it is wrong.
+        /// </summary>
+        private void ApplyClimbWallLimbs()
+        {
+            if (_climbWallWeight <= 0.01f)
+            {
+                return;
+            }
+            Vector3 n = _climbWallNormal;
+            Vector3 elbowHint = n * 0.8f + Vector3.down * 0.2f;
+            Vector3 kneeHint = n * 0.5f + Vector3.up * 0.5f;
+            KeepOffWall(_rightUpperArm, _rightLowerArm, _handR, HandWallClearance, elbowHint);
+            KeepOffWall(_leftUpperArm, _leftLowerArm, _handL, HandWallClearance, elbowHint);
+            KeepOffWall(_rightUpperLeg, _rightLowerLeg, _rightFoot, FootWallClearance, kneeHint);
+            KeepOffWall(_leftUpperLeg, _leftLowerLeg, _leftFoot, FootWallClearance, kneeHint);
+        }
+
+        private void KeepOffWall(Transform upper, Transform lower, Transform end, float clearance, Vector3 hint)
+        {
+            if (upper == null || lower == null || end == null)
+            {
+                return;
+            }
+            float endDepth = Vector3.Dot(end.position - _climbWallPoint, _climbWallNormal);
+            float midDepth = Vector3.Dot(lower.position - _climbWallPoint, _climbWallNormal);
+            float push = Mathf.Max(clearance - endDepth, 0.0f);
+            if (push <= 0.001f && midDepth >= 0.02f)
+            {
+                return;
+            }
+            Vector3 target = end.position + _climbWallNormal * push;
+            TwoBoneIK.Solve(upper, lower, end, target, hint, _climbWallWeight);
+        }
+
         private float _ledgeHandsWeight;
         private Vector3 _ledgeLip;
         private Vector3 _ledgeNormal;
@@ -1052,6 +1109,7 @@ namespace CityX.Character
             ApplyGunAimPose();
             ApplySupportHand();
             ApplySwordSpinPose();
+            ApplyClimbWallLimbs();
             ApplyLedgeHands();
             if (IsSitting)
             {

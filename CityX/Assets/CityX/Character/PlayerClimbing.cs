@@ -179,19 +179,11 @@ namespace CityX.Character
                 return;
             }
 
-            // Same pool sprinting drains, same exhaustion latch -- see this
-            // class's own doc comment.
+            // Same pool sprinting drains, same exhaustion latch -- see this class's own doc comment. It is DRAINED ONLY WHILE MOVING (climbing up or
+            // down, or sliding on a wet wall): hanging still is free, so a rest on the wall costs nothing. (Charged after the direction is known, below.)
             //
-            // A WET LADDER COSTS MORE AND SLIPS -- see WallStick.Tick's own
-            // comment on rain and grip. Nothing changes on a dry or covered wall.
+            // A WET LADDER COSTS MORE AND SLIPS -- see WallStick.Tick's own comment on rain and grip. Nothing changes on a dry or covered wall.
             float wet = CurrentWeather.SurfaceWetness(transform.position);
-            bool stillHasStamina = vitals == null
-                || vitals.TickStamina(true, deltaTime * Weather.WallStaminaDrain(wet));
-            if (!stillHasStamina)
-            {
-                EndClimb(false, deltaTime);
-                return;
-            }
             float slip = Weather.WallSlipSpeed(wet);
 
             int direction = 0;
@@ -223,6 +215,13 @@ namespace CityX.Character
                 direction = -1;
             }
 
+            bool moving = direction != 0 || slip > 0.0f;
+            if (moving && vitals != null && !vitals.TickStamina(true, deltaTime * Weather.WallStaminaDrain(wet)))
+            {
+                EndClimb(false, deltaTime);
+                return;
+            }
+
             // Hands go to the ledge as it comes within reach (an easing weight), so they are on it when the mantle starts.
             if (_locomotion != null)
             {
@@ -239,6 +238,7 @@ namespace CityX.Character
             Vector3 move = new Vector3(toAnchor.x, direction * ClimbSpeed * deltaTime - slip * deltaTime, toAnchor.y);
             float yBefore = transform.position.y;
             _controller.Move(move);
+            UpdateWallPlane();
 
             // STUCK GUARD: asked to climb but not rising (jammed on a lip or geometry): let go rather than hang there for ever.
             if (direction > 0 && deltaTime > 0.0f)
@@ -331,6 +331,7 @@ namespace CityX.Character
             IsClimbing = false;
             _handsWeight = 0.0f;
             _locomotion?.SetLedgeHands(0.0f, Vector3.zero, Vector3.zero);
+            _locomotion?.SetClimbWall(Vector3.zero, Vector3.forward, 0.0f);
             _intent?.BeginCooldown();   // a hop-off is not undone by the next frame's grab
             if (_animator != null)
             {
@@ -349,6 +350,31 @@ namespace CityX.Character
             _wallNormal = Vector3.zero;
         }
 
+        private Vector3 _planePoint;
+        private Vector3 _planeNormal;
+
+        /// <summary>Finds the wall face next to the chest and gives it to the body, so the limbs are kept out of it (PlayerLocomotion.ApplyClimbWallLimbs).</summary>
+        private void UpdateWallPlane()
+        {
+            if (_locomotion == null || _wallNormal.sqrMagnitude < 0.0001f)
+            {
+                return;
+            }
+            float height = _locomotion.StandingHeight;
+            Vector3 origin = transform.position + Vector3.up * (height * 0.5f) + _wallNormal * 0.8f;
+            if (LedgeProbe.SolidHit(origin, -_wallNormal, 1.6f, transform, out RaycastHit hit) && Mathf.Abs(hit.normal.y) < 0.5f)
+            {
+                _planePoint = hit.point;
+                _planeNormal = new Vector3(hit.normal.x, 0.0f, hit.normal.z).normalized;
+            }
+            else
+            {
+                _planePoint = transform.position - _wallNormal * ((_controller != null ? _controller.radius : 0.3f) + HangStandoffMetres);
+                _planeNormal = _wallNormal;
+            }
+            _locomotion.SetClimbWall(_planePoint, _planeNormal, 1.0f);
+        }
+
         // ---- THE MANTLE: up and over a real ledge, warped to where the ledge actually is ------------------------------------------------
         //
         // Researched (Unity ledge/parkour write-ups, Dynamic Parkour System's feature list, Unity's MatchTarget): a mantle authored for one height
@@ -357,7 +383,7 @@ namespace CityX.Character
         // and then teleported the body up a fixed 2.2 m and 0.6 m INTO the wall.
 
         /// <summary>How far above the feet the ledge may be for the mantle to start, as a fraction of standing height (the hands' reach).</summary>
-        public const float MantleReachFraction = 1.0f;
+        public const float MantleReachFraction = 1.2f;
 
         /// <summary>The whole mantle takes this long, in seconds.</summary>
         public const float MantleSeconds = 1.2f;
@@ -367,6 +393,9 @@ namespace CityX.Character
 
         /// <summary>Of the mantle, the first part is the pull straight up the wall; the rest is stepping forward onto the ledge.</summary>
         private const float RiseFraction = 0.6f;
+
+        /// <summary>The capsule radius the mantle path clears a jutting ledge by (the real radius is the controller's).</summary>
+        private const float BodyRadius = 0.3f;
 
         private LedgeProbe.Ledge _mantle;
         private Vector3 _mantleStart;
@@ -400,15 +429,29 @@ namespace CityX.Character
             }
         }
 
+        /// <summary>The mantle never lowers the body more than this by itself; past a taller parapet it ends in the air beyond the far edge and the controller drops the rest.</summary>
+        public const float MaxMantleDropMetres = 0.8f;
+
+        /// <summary>The height the mantle's last frame puts the feet at: the stand spot's, or at most <see cref="MaxMantleDropMetres"/> below the ledge.</summary>
+        public static float MantleEndY(LedgeProbe.Ledge ledge) => Mathf.Max(ledge.Stand.y, ledge.Height - MaxMantleDropMetres);
+
         /// <summary>The body's position along the mantle at <paramref name="u"/> (0 to 1): pull up the wall, then step over the lip onto the ledge.</summary>
         public static Vector3 MantlePath(Vector3 start, LedgeProbe.Ledge ledge, float u)
         {
             u = Mathf.Clamp01(u);
-            float rise = Mathf.SmoothStep(0.0f, 1.0f, Mathf.Clamp01(u / RiseFraction));
+            // A ledge that juts out past the wall (a cornice) is climbed OVER ITS OUTER EDGE: the body first moves out until it is clear of it, and only
+            // then rises (otherwise it goes up through the slab it is hanging under).
+            float shift = Mathf.Max(0.0f, Vector3.Dot(ledge.Lip + ledge.Normal * (BodyRadius + 0.03f) - start, ledge.Normal));
+            float outFraction = shift > 0.02f ? 0.15f : 0.0f;
+            Vector3 clear = start + ledge.Normal * (shift * Mathf.SmoothStep(0.0f, 1.0f, outFraction > 0.0f ? Mathf.Clamp01(u / outFraction) : 1.0f));
+            clear.y = start.y;
+            float rise = Mathf.SmoothStep(0.0f, 1.0f, Mathf.Clamp01((u - outFraction) / (RiseFraction - outFraction)));
             float step = Mathf.SmoothStep(0.0f, 1.0f, Mathf.Clamp01((u - RiseFraction) / (1.0f - RiseFraction)));
-            Vector3 hang = new Vector3(start.x, Mathf.Lerp(start.y, ledge.Height, rise), start.z);
-            Vector3 over = new Vector3(Mathf.Lerp(start.x, ledge.Stand.x, step), hang.y, Mathf.Lerp(start.z, ledge.Stand.z, step));
+            Vector3 hang = new Vector3(clear.x, Mathf.Lerp(start.y, ledge.Height, rise), clear.z);
+            Vector3 over = new Vector3(Mathf.Lerp(clear.x, ledge.Stand.x, step), hang.y, Mathf.Lerp(clear.z, ledge.Stand.z, step));
             // A small lift while stepping, so the feet clear the lip instead of dragging along it.
+            // A thin-topped ledge (a parapet) has its standing ground BELOW the top: come down only once the feet are past the far edge.
+            over.y = Mathf.Lerp(over.y, MantleEndY(ledge), Mathf.SmoothStep(0.0f, 1.0f, Mathf.Clamp01((step - 0.78f) / 0.22f)));
             over.y += Mathf.Sin(step * Mathf.PI) * 0.12f;
             return over;
         }
@@ -440,6 +483,7 @@ namespace CityX.Character
             }
 
             transform.position = MantlePath(_mantleStart, _mantle, u);
+            _locomotion?.SetClimbWall(_planePoint, _planeNormal, u < RiseFraction ? 1.0f : 0.0f);
             if (_mantle.Normal.sqrMagnitude > 0.0001f)
             {
                 transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(-_mantle.Normal, Vector3.up),
@@ -461,10 +505,12 @@ namespace CityX.Character
             IsToppingOut = false;
             _intent?.BeginCooldown();
             Vector3 stand = _mantle.Stand;
-            if (Physics.Raycast(stand + Vector3.up * 0.6f, Vector3.down, out RaycastHit hit, 1.6f, ~0, QueryTriggerInteraction.Ignore))
+            if (MantleEndY(_mantle) <= _mantle.Stand.y + 0.001f
+                && Physics.Raycast(stand + Vector3.up * 0.6f, Vector3.down, out RaycastHit hit, 1.6f, ~0, QueryTriggerInteraction.Ignore))
             {
                 stand.y = hit.point.y;
             }
+            stand.y = MantleEndY(_mantle) > _mantle.Stand.y + 0.001f ? MantleEndY(_mantle) : stand.y;
             transform.position = stand;
             if (_controller != null)
             {
@@ -473,6 +519,7 @@ namespace CityX.Character
             Physics.SyncTransforms();
 
             _handsWeight = 0.0f;
+            _locomotion?.SetClimbWall(Vector3.zero, Vector3.forward, 0.0f);
             _locomotion?.SetLedgeHands(0.0f, Vector3.zero, Vector3.zero);
             _locomotion?.SetVerticalVelocity(0.0f);
             if (_animator != null)

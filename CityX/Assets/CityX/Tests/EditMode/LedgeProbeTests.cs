@@ -57,6 +57,38 @@ namespace CityX.Tests
         }
 
         [Test]
+        public void AParapetOnARoofEdgeIsALedgeAndTheStandSpotIsOnTheRoofBehindIt()
+        {
+            // A roof with a thin parapet: the top is 0.3 m deep and 1 m above the roof. This is the ledge a climb up a building ends at.
+            Box(new Vector3(0.0f, 1.1f, 2.75f), new Vector3(10.0f, 2.2f, 4.5f));      // the building up to the roof at y = 2.2, near face z = 0.5
+            Box(new Vector3(0.0f, 1.6f, 0.65f), new Vector3(10.0f, 3.2f, 0.3f));      // the parapet, top y = 3.2
+            Physics.SyncTransforms();
+            Assert.IsTrue(Find(1.0f, out LedgeProbe.Ledge ledge), "a parapet was not accepted as a ledge");
+            Assert.AreEqual(3.2f, ledge.Height, 0.06f);
+            Assert.AreEqual(2.2f, ledge.Stand.y, 0.06f, "the stand spot must be on the roof behind the parapet");
+            Assert.Greater(ledge.Stand.z, 0.85f, "and behind it");
+            Vector3 end = CityX.Character.PlayerClimbing.MantlePath(new Vector3(0.0f, 1.0f, 0.2f), ledge, 1.0f);
+            Assert.AreEqual(CityX.Character.PlayerClimbing.MantleEndY(ledge), end.y, 0.01f);
+            // Never inside the parapet on the way: while the feet are over it (z between its faces) they are above its top.
+            for (float u = 0.0f; u <= 1.0f; u += 0.01f)
+            {
+                Vector3 p = CityX.Character.PlayerClimbing.MantlePath(new Vector3(0.0f, 1.0f, 0.2f), ledge, u);
+                if (p.z + Radius > 0.52f && p.z - Radius < 0.78f)
+                {
+                    Assert.GreaterOrEqual(p.y, 3.2f - 0.02f, $"feet in the parapet at u={u:F2} (z={p.z:F2}, y={p.y:F2})");
+                }
+            }
+        }
+
+        [Test]
+        public void AThinPostIsNotALedge()
+        {
+            Box(new Vector3(0.0f, 1.6f, 0.65f), new Vector3(0.1f, 3.2f, 0.3f));
+            Physics.SyncTransforms();
+            Assert.IsFalse(Find(1.0f, out _), "a narrow post was taken for a ledge");
+        }
+
+        [Test]
         public void TheFloorOfAStoreyInsideATallBuildingIsNotALedgeFromOutside()
         {
             // THE REPORTED BUG: a tall facade (thin outer wall, 10 m) with a floor slab inside at 3.2 m. The slab's top is flat and in reach,

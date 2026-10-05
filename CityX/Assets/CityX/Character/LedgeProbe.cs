@@ -53,12 +53,17 @@ namespace CityX.Character
         public const float StandInMetres = 0.3f;
 
         /// <summary>Heights (fractions of standing height above the ledge) at which the way over the lip must be clear.</summary>
-        private static readonly float[] PathHeights = { 0.06f, 0.3f, 0.6f, 0.9f };
+        private static readonly float[] PathHeights = { 0.15f, 0.4f, 0.7f, 0.95f };
 
         private static readonly RaycastHit[] Hits = new RaycastHit[8];
         private static readonly Collider[] Overlaps = new Collider[16];
 
         public static bool TryFind(Vector3 feet, Vector3 outward, float standingHeight, float radius, Transform self, out Ledge ledge)
+        {
+            return TryFindShelf(feet, outward, standingHeight, radius, self, out ledge) || TryFindThin(feet, outward, standingHeight, radius, self, out ledge);
+        }
+
+        private static bool TryFindShelf(Vector3 feet, Vector3 outward, float standingHeight, float radius, Transform self, out Ledge ledge)
         {
             ledge = default;
             outward.y = 0.0f;
@@ -145,6 +150,137 @@ namespace CityX.Character
             };
             return true;
         }
+        /// <summary>
+        /// A THIN-TOPPED ledge: a parapet, a low roof-edge wall. Its top is only a hand's width deep and the roof it guards is LOWER than the top, so the
+        /// shelf test (a deep flat top, standing level with it) refuses it, and a roof's edge is exactly the ledge a climb is for. Accepted when the top
+        /// is flat and wide across, ends within <see cref="MaxThinDepthMetres"/>, and there is clear, standable ground within a short drop past it:
+        /// the stand spot is that ground, so the mantle goes up over the parapet and down onto the roof.
+        /// </summary>
+        private static bool TryFindThin(Vector3 feet, Vector3 outward, float standingHeight, float radius, Transform self, out Ledge ledge)
+        {
+            ledge = default;
+            outward.y = 0.0f;
+            if (outward.sqrMagnitude < 0.0001f)
+            {
+                return false;
+            }
+            outward.Normalize();
+            Vector3 tangent = Vector3.Cross(Vector3.up, outward);
+
+            Vector3 handHeight = feet + Vector3.up * (standingHeight * 0.7f);
+            if (!SolidHit(handHeight + outward * 0.5f, -outward, 1.5f, self, out RaycastHit face) || Mathf.Abs(face.normal.y) > 0.3f)
+            {
+                return false;
+            }
+            Vector3 faceNormal = new Vector3(face.normal.x, 0.0f, face.normal.z).normalized;
+            Vector3 facePoint = face.point;
+
+            float yLow = feet.y + standingHeight * BandLowFraction;
+            float yHigh = feet.y + standingHeight * BandHighFraction;
+            float height = float.NaN;
+            float lastTop = -1.0f;
+            bool ended = false;
+            float firstTop = float.NaN;
+            for (float depth = -MaxOverhangMetres; depth <= MaxThinDepthMetres + 0.12f; depth += 0.12f)
+            {
+                bool top = true;
+                float low = float.MaxValue, high = float.MinValue;
+                for (int s = -1; s <= 1 && top; s++)
+                {
+                    Vector3 from = facePoint - faceNormal * depth + tangent * (s * HalfWidth);
+                    from.y = yHigh;
+                    top = SolidHit(from, Vector3.down, yHigh - yLow, self, out RaycastHit h) && h.normal.y >= 0.85f;
+                    if (top)
+                    {
+                        low = Mathf.Min(low, h.point.y);
+                        high = Mathf.Max(high, h.point.y);
+                    }
+                }
+                top = top && high - low <= FlatnessMetres;
+                if (!top)
+                {
+                    if (lastTop < 0.0f && float.IsNaN(firstTop) && depth < 0.0f)
+                    {
+                        continue;   // still outside the wall plane: a cornice may or may not jut out here
+                    }
+                    if (float.IsNaN(firstTop))
+                    {
+                        return false;
+                    }
+                    ended = true;
+                    break;
+                }
+                if (float.IsNaN(height))
+                {
+                    height = (low + high) * 0.5f;
+                }
+                else if (Mathf.Abs((low + high) * 0.5f - height) > FlatnessMetres)
+                {
+                    return false;
+                }
+                if (float.IsNaN(firstTop))
+                {
+                    firstTop = depth;
+                }
+                lastTop = depth;
+            }
+            if (!ended || float.IsNaN(firstTop) || lastTop - firstTop < 0.1f)
+            {
+                return false;   // not flat and wide for a hand's width at least, or it never ends (that is the shelf case)
+            }
+
+            // The face just under the top is this face.
+            Vector3 under = new Vector3(facePoint.x, height - 0.3f, facePoint.z) + faceNormal * 0.5f;
+            if (!SolidHit(under, -faceNormal, 1.0f, self, out RaycastHit underFace)
+                || Vector3.Angle(underFace.normal, face.normal) > 25.0f
+                || Mathf.Abs(Vector3.Dot(underFace.point - facePoint, faceNormal)) > 0.25f + Mathf.Max(0.0f, -firstTop))
+            {
+                return false;
+            }
+
+            // Standable ground just past the far edge, within a short drop.
+            Vector3 far = facePoint - faceNormal * lastTop;
+            Vector3 stand = far - faceNormal * (radius + 0.3f);
+            if (!SolidHit(new Vector3(stand.x, height + 0.5f, stand.z), Vector3.down, 0.5f + MaxThinDropMetres, self, out RaycastHit ground) || ground.normal.y < 0.7f)
+            {
+                return false;
+            }
+            stand.y = ground.point.y;
+            if (stand.y > height + 0.05f || !HasRoom(stand, standingHeight, radius, self))
+            {
+                return false;
+            }
+
+            // The way over must be open, as for a shelf (see TryFindShelf, stage 5), now over the lip and out across the top to the stand spot.
+            Vector3 outside = new Vector3(facePoint.x, height, facePoint.z) + faceNormal * (radius + 0.1f);
+            float run = Vector3.Distance(outside, new Vector3(stand.x, height, stand.z));
+            foreach (float up in PathHeights)
+            {
+                if (SolidHit(outside + Vector3.up * (up * standingHeight), -faceNormal, run, self, out _))
+                {
+                    return false;
+                }
+            }
+
+            ledge = new Ledge
+            {
+                Lip = new Vector3(facePoint.x, height, facePoint.z) - faceNormal * firstTop,   // the OUTERMOST edge of the top (a cornice juts out past the wall)
+                Stand = stand,
+                Height = height,
+                Normal = faceNormal,
+            };
+            return true;
+        }
+
+        /// <summary>A cornice may jut out past the wall face by this much, in metres, and still be the ledge.</summary>
+        public const float MaxOverhangMetres = 0.5f;
+
+        /// <summary>A thin-topped ledge (a parapet) may be at most this deep, in metres.</summary>
+        public const float MaxThinDepthMetres = 0.9f;
+
+        /// <summary>The ground behind a thin-topped ledge may be this far below its top, in metres, at most.</summary>
+        public const float MaxThinDropMetres = 4.5f;
+
 
         /// <summary>True when a standing capsule at <paramref name="feet"/> overlaps nothing solid except <paramref name="self"/>.</summary>
         public static bool HasRoom(Vector3 feet, float standingHeight, float radius, Transform self)

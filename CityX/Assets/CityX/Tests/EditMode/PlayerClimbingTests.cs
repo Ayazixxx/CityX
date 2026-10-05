@@ -182,11 +182,25 @@ namespace CityX.Tests
             // testability convention.
             _vitals.TrySpendStamina(_vitals.Stamina - 0.05f);
 
-            _climbing.Tick(false, false, false, _vitals, 1.0f / 60.0f);
+            _climbing.Tick(false, true, false, _vitals, 1.0f / 60.0f);   // climbing UP: moving, so it costs stamina
 
             Assert.IsFalse(_climbing.IsClimbing, "player kept climbing after stamina hit 0");
             Assert.AreEqual(Vector3.zero, _climbing.LastEndVelocity,
                 "a stamina-exhausted release incorrectly applied a hop-off-style push");
+        }
+
+        [Test]
+        public void HangingStillCostsNoStaminaAndMovingDoes()
+        {
+            MakeWall(30.0f, 0.2f);
+            Physics.SyncTransforms();
+            Assert.IsTrue(_climbing.TryStart(GrabIntent.AlreadyHeld(), true, 100.0f));
+            _vitals.TrySpendStamina(20.0f);
+            float before = _vitals.Stamina;
+            for (int i = 0; i < 60; i++) _climbing.Tick(false, false, false, _vitals, 1.0f / 60.0f);   // hang for a second
+            Assert.AreEqual(before, _vitals.Stamina, 0.001f, "hanging still drained (or regenerated) stamina");
+            for (int i = 0; i < 60; i++) _climbing.Tick(false, true, false, _vitals, 1.0f / 60.0f);    // climb for a second
+            Assert.Less(_vitals.Stamina, before - 1.0f, "climbing did not cost stamina");
         }
 
         [Test]

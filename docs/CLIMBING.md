@@ -106,3 +106,15 @@ hit nothing (a real ledge has nothing above its lip; an inner floor has the wall
 window or recess instead (it lets go), it does not top out through the wall.
 
 Also: running or diving into an intact window no longer breaks it (windows break only from a punch, a bullet, a weapon, a thrown bottle; a cracked pane gives way to a knock).
+
+## Update: roof parapets, limbs kept out of the wall, stamina only while moving
+
+- **Roof edges climb again.** The open-path fix above refused real roof edges, which are PARAPETS (a thin top, with the roof lower behind it). `LedgeProbe` now also
+  accepts a thin-topped ledge (a flat top at least a hand's width deep, up to 0.9 m, that ENDS, with standable ground behind it, up to 4.5 m lower) and a cornice
+  that juts out up to 0.5 m past the wall (the body moves out clear of it, then rises). The mantle ends over the far edge; behind a tall parapet it stops 0.8 m
+  below the top and the controller drops the rest. Hands reach overhead: mantle reach 1.2 x standing height. On the real city, facade climbs that end at a plain
+  parapet now top out onto the roof. A climb that ends under a cornice that has a taller wall on top still just holds its grip (nothing to mantle onto).
+- **Limbs can't go through the wall** (`PlayerLocomotion.ApplyClimbWallLimbs`): after the Animator, any hand, foot, elbow or knee that the climb clip puts behind the
+  wall plane is moved out to just in front of it and its limb is solved to reach there (two-bone IK), so hands and feet touch the wall and never go through it.
+  Before: a hand 0.37 m through the wall in the test; after: nothing behind it (`ClimbLimbsPlayTests`).
+- **Stamina drains only while moving** up or down (or sliding on a wet wall). Hanging still costs nothing and does not regenerate either.

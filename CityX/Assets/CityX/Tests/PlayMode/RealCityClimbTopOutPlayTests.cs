@@ -76,6 +76,7 @@ namespace CityX.Tests
                 _made.Add(player);
                 var climbing = player.GetComponent<PlayerClimbing>();
                 var vitals = player.GetComponent<PlayerVitals>();
+                vitals.InfiniteStamina = true;
                 yield return null;
                 yield return null;
                 if (!climbing.TryStart(GrabIntent.AlreadyHeld(), true, 100.0f)) continue;
@@ -96,7 +97,7 @@ namespace CityX.Tests
                     else break;
                     yield return null;
                 }
-                Debug.Log($"CityX climb spot {i}: mantled={mantled} climbing={climbing.IsClimbing} y={player.transform.position.y:F1} roof={roofY:F1} start={floorY:F1}");
+                Debug.Log($"CityX climb spot {i}: mantled={mantled} climbing={climbing.IsClimbing} y={player.transform.position.y:F1} roof={roofY:F1} start={floorY:F1} stamina={vitals.Stamina:F1} grounded={player.GetComponent<CharacterController>().isGrounded}");
                 if (mantled)
                 {
                     mantles++;
@@ -109,6 +110,7 @@ namespace CityX.Tests
             }
             Debug.Log($"CityX facade climbs: {climbs} grabbed, {mantles} topped out");
             Assert.Greater(climbs, 0, "could not grab the facade anywhere");
+            Assert.Greater(mantles, 0, "no facade climb reached the roof");
 #else
             yield break;
 #endif
