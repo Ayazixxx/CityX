@@ -203,7 +203,9 @@ namespace CityX.Character
 
         private void Update()
         {
-            if (_animator == null || !IsOwner)
+            // IsLiveOwner, not bare IsOwner: a body with no initialised NetworkObject (singleplayer, the baked player before a session starts) makes
+            // FishNet's own IsOwner throw a NullReferenceException every frame.
+            if (_animator == null || !IsLiveOwner)
             {
                 return;
             }

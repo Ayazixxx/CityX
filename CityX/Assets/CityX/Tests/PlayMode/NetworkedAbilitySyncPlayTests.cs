@@ -184,8 +184,8 @@ namespace CityX.Tests
                 Assert.IsNotNull(body.GetComponent<FireballCaster>(), "a joining player cannot cast the fireball");
                 Assert.IsNotNull(body.GetComponent<IceShardCaster>(), "a joining player cannot cast ice shards");
                 Assert.IsNotNull(body.GetComponent<SwordWaveCaster>(), "a joining player cannot throw the sword wave");
-                Assert.IsNotNull(body.GetComponent<PoisonGasCaster>(), "a joining player cannot blow poison gas");
-                Assert.IsNotNull(body.GetComponent<PoisonGasCaster>().CloudPrefab, "the poison gas has no prefab");
+                Assert.IsNotNull(body.GetComponent<PoisonBreathCaster>(), "a joining player cannot blow poison gas");
+                Assert.IsNotNull(body.GetComponent<PoisonBreathCaster>().CloudPrefab, "the poison gas has no prefab");
                 Assert.IsNotNull(body.GetComponent<BloodrageAbility>(), "a joining player cannot use Bloodrage");
                 Assert.IsNotNull(body.GetComponent<FireballCaster>().FireballPrefab, "the fireball has no prefab");
                 Assert.IsNotNull(body.GetComponent<IceShardCaster>().ShardPrefab, "ice shards have no prefab");
@@ -235,9 +235,14 @@ namespace CityX.Tests
             }
             yield return WaitUntil(() => CountCosmetic<SwordWaveProjectile>(w => w != null && w.Cosmetic) >= 1, "B to be shown A's sword wave");
 
-            // --- the poison gas: a cosmetic cloud on B's copy, which must poison nothing
-            var gas = _ownerBody.GetComponent<PoisonGasCaster>();
+            // --- the poison breath: a cosmetic cloud on B's copy, which must poison nothing
+            var gas = _ownerBody.GetComponent<PoisonBreathCaster>();
             Assert.IsTrue(gas.TryCast(chest, Vector3.forward, _ownerBody.GetComponentsInChildren<Collider>()));
+            for (int i = 0; i < 30; i++)   // the scream winds up before the breath leaves the mouth: tick the owner's caster through it
+            {
+                gas.Tick(0.05f);
+                yield return null;
+            }
             yield return WaitUntil(() => CountCosmetic<PoisonGasCloud>(c => c != null && c.Cosmetic) >= 1, "B to be shown A's poison gas");
             Assert.AreEqual(1, CountCosmetic<PoisonGasCloud>(c => !c.Cosmetic), "and A has its own real cloud");
 #else

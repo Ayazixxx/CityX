@@ -1,6 +1,6 @@
-# Poison gas (key 4)
+# Poison breath (key 4)
 
-Asked for: research good-looking smoke/steam in Unity, then a key-4 ability "poison gas": the character blows out a cloud of purple gas that poisons
+Asked for: research good-looking smoke/steam in Unity, then a key-4 ability "poison breath": the character blows out a cloud of purple gas that poisons
 what it touches. Lasts 10 s for now (details to be tuned together), drain rate chosen by me, never affects the user.
 
 ## What it does
@@ -27,5 +27,14 @@ Not done: soft-particle depth fade at geometry (the legacy particle shader has n
 the cloud does not yet get pushed by wind or by moving bodies.
 
 ## Files
-`PoisonGasCaster`, `PoisonGasCloud`, `PoisonGasSounds`, `PoisonGasBuilder` (Weapons), `PoisonEffect`, `IPoisonable`, `IPoisonGasCaster` (Character).
-Tests: `PoisonGasPlayTests`, `PoisonGasRealInputPlayTests`, the replication tests, and the network test. `PoisonGasCapture` (Explicit, -Graphics) renders it to `Logs/CityShots/gas-*.png`.
+`PoisonBreathCaster`, `PoisonGasCloud`, `PoisonGasSounds`, `PoisonGasBuilder` (Weapons), `PoisonEffect`, `IPoisonable`, `IPoisonBreathCaster` (Character).
+Tests: `PoisonGasPlayTests`, `PoisonBreathRealInputPlayTests`, the replication tests, and the network test. `PoisonBreathCapture` (Explicit, -Graphics) renders it to `Logs/CityShots/gas-*.png`.
+
+## Update: it is a scream (renamed from "poison gas")
+- The ability is **poison breath**. Pressing 4 plays the **Scream** animation (`Animations/poison_breath_scream.fbx`, 2.8 s, played at 1.5x): the
+  head tilts back to breathe in, then snaps forward about 1.05 s of clip time in, and the gas is breathed out of the **mouth** at that moment
+  (the head bone moved out along the way the head faces; `PoisonBreathCaster.MouthOffset`), aimed at where the crosshair is then.
+- **Only the torso and head play the scream** (layer `ScreamTorso`, mask Body+Head), so the hips and legs keep walking. The **arms** play it on their own
+  layer (`ScreamArms`) which sits BELOW the sword's upper-body layer, so a sword swing or guard keeps the arms, and the gun-aim and cast poses (applied
+  after the Animator) do too: the arms do the scream's arm motion only when nothing else is using them.
+- Replicated with the rest of the animations (both states go through the timed-state sync); the gas itself rides the `poison-breath` ability event.

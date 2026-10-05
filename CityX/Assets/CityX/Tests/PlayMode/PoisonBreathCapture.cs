@@ -11,7 +11,7 @@ namespace CityX.Tests
 {
     /// <summary>Not a test: renders the poison gas (blown out, swelling, hanging, a poisoned dummy) to Logs/CityShots/gas-*.png. Explicit; needs -Graphics.</summary>
     [Explicit("renders screenshots; needs a graphics device")]
-    public sealed class PoisonGasCapture
+    public sealed class PoisonBreathCapture
     {
         private const string ScenePath = "Assets/CityX/Scenes/CityMassing.unity";
 
@@ -48,7 +48,7 @@ namespace CityX.Tests
             yield return null;
             var vitals = Object.FindFirstObjectByType<PlayerVitals>();
             var locomotion = vitals.GetComponent<PlayerLocomotion>();
-            var caster = vitals.GetComponent<PoisonGasCaster>();
+            var caster = vitals.GetComponent<PoisonBreathCaster>();
             for (int i = 0; i < 400 && !locomotion.IsGrounded; i++) yield return null;
             yield return new WaitForSeconds(0.5f);
 
@@ -68,15 +68,21 @@ namespace CityX.Tests
             Physics.SyncTransforms();
 
             Assert.IsTrue(caster.TryCast(chest, (dummy.transform.position - chest).normalized, vitals.GetComponentsInChildren<Collider>()));
-            float[] times = { 0.4f, 1.2f, 2.6f, 5.0f };
+            float[] times = { 0.35f, caster.ReleaseSeconds + 0.1f, caster.ReleaseSeconds + 0.5f, 2.0f, 4.0f };
             float last = 0.0f;
             for (int i = 0; i < times.Length; i++)
             {
-                yield return new WaitForSeconds(times[i] - last);
+                for (float w = 0.0f; w < times[i] - last; w += Time.deltaTime)
+                {
+                    caster.Tick(Time.deltaTime);   // no input devices here, so the player's own reader does not tick it
+                    yield return null;
+                }
                 last = times[i];
                 Vector3 look = dummy.transform.position;
                 Shoot(camera, directory, $"gas-{i}-side", look + body.right * 7.0f + Vector3.up * 1.2f - forward * 1.0f, look);
                 Shoot(camera, directory, $"gas-{i}-behind", chest - forward * 3.5f + Vector3.up * 1.0f, look);
+                Transform headBone = vitals.GetComponentInChildren<Animator>().GetBoneTransform(HumanBodyBones.Head);
+                Shoot(camera, directory, $"gas-{i}-head", headBone.position + body.right * 2.6f + Vector3.up * 0.2f, headBone.position);
             }
             Debug.Log($"CityX: gas capture: dummy poisoned = {dummy.GetComponent<PoisonEffect>() != null}");
             Object.Destroy(cameraObject);

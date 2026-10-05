@@ -47,7 +47,7 @@ namespace CityX.CharacterEditor
             iceShards.ShardPrefab = Load(IceShardPrefabPath) ?? iceShards.ShardPrefab;
 
             // --- the poison gas (key 4).
-            var poisonGas = GetOrAdd<PoisonGasCaster>(player);
+            var poisonGas = GetOrAdd<PoisonBreathCaster>(player);
             poisonGas.CloudPrefab = Load(PoisonGasPrefabPath) ?? poisonGas.CloudPrefab;
 
             // --- the sword's crescent wave (key 7, with the sword in hand).

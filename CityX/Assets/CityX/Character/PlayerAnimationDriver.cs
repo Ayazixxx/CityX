@@ -40,6 +40,13 @@ namespace CityX.Character
         private Animator _animator;
         private MeleeAttacker _melee;
         private int _upperLayer = -2;   // -2 = not looked up yet, -1 = this controller has none
+        private int _torsoLayer = -1;
+        private int _armsLayer = -1;
+
+        /// <summary>The masked layers the poison breath's scream plays on: torso and head, and the arms (separate, so a sword swing can keep them).</summary>
+        public const string TorsoLayerName = "ScreamTorso";
+
+        public const string ScreamArmsLayerName = "ScreamArms";
 
         /// <summary>
         /// Which layer plays this state: the upper-body layer if it has a
@@ -57,10 +64,31 @@ namespace CityX.Character
             if (_upperLayer == -2)
             {
                 _upperLayer = _animator.GetLayerIndex(UpperBodyLayerName);
+                _torsoLayer = _animator.GetLayerIndex(TorsoLayerName);
+                _armsLayer = _animator.GetLayerIndex(ScreamArmsLayerName);
             }
-            return _upperLayer > 0 && _animator.HasState(_upperLayer, Animator.StringToHash(stateName))
-                ? _upperLayer
-                : 0;
+            int hash = Animator.StringToHash(stateName);
+            if (_upperLayer > 0 && _animator.HasState(_upperLayer, hash))
+            {
+                return _upperLayer;
+            }
+            // The poison breath's scream: a torso+head layer and an arms layer of its own (see PlayerRigBuilder.AddScreamLayers).
+            if (_torsoLayer > 0 && _animator.HasState(_torsoLayer, hash))
+            {
+                return _torsoLayer;
+            }
+            if (_armsLayer > 0 && _animator.HasState(_armsLayer, hash))
+            {
+                return _armsLayer;
+            }
+            return 0;
+        }
+
+        /// <summary>True when this body's Animator has a state of that name (on whichever layer owns it).</summary>
+        public bool HasState(string stateName)
+        {
+            return _animator != null && !string.IsNullOrEmpty(stateName)
+                && _animator.HasState(LayerFor(stateName), Animator.StringToHash(stateName));
         }
 
         /// <summary>True while the named state is playing (or being blended into) on whichever layer owns it.</summary>

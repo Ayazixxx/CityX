@@ -69,7 +69,122 @@ namespace CityX.WeaponsEditor
         /// Four rings along the length: the tip (a point), the shoulder (0.2 back, full width), the body (0.62 back, a touch wider) and
         /// the butt (0.9 back, narrowed). Each ring is a hexagon with alternating radii so no two faces match. Flat-shaded.
         /// </summary>
+        private const string ModelPath = "Assets/CityX/Weapons/IceShardModel.glb";
+
+        /// <summary>The shard's length in metres (tip to butt) when it is made from the model.</summary>
+        private const float ModelLengthMetres = 1.1f;
+
+        /// <summary>Vertices closer than this (metres, in the model's own space after scaling) are welded: the model is 21,000 vertices and there can be dozens of shards out at once.</summary>
+        private const float WeldMetres = 0.012f;
+
+        /// <summary>
+        /// THE USER'S MODEL (Ice shard.glb) if it is in the project, else the mesh already baked from it, else the procedural crystal below. The
+        /// model's long axis is found, its SHARP end (the end whose last 15% is the narrower) is made the front, so it hits first, with the TIP AT THE ORIGIN
+        /// pointing down +Z (the shard's convention: where it strikes is where its origin goes), scaled to a length, welded down to a lighter mesh,
+        /// and baked into IceShardMesh.asset so the glb itself is not needed at runtime.
+        /// </summary>
         private static Mesh BuildMesh()
+        {
+            var model = AssetDatabase.LoadAssetAtPath<GameObject>(ModelPath);
+            MeshFilter source = model != null ? model.GetComponentInChildren<MeshFilter>() : null;
+            if (source != null && source.sharedMesh != null)
+            {
+                return BakeModel(source.sharedMesh);
+            }
+            var baked = AssetDatabase.LoadAssetAtPath<Mesh>(MeshPath);
+            if (baked != null && baked.vertexCount > 200)
+            {
+                return baked;   // already made from the model on an earlier build
+            }
+            return BuildProceduralMesh();
+        }
+
+        private static Mesh BakeModel(Mesh source)
+        {
+            Vector3[] vertices = source.vertices;
+            int[] triangles = source.triangles;
+            Vector3 size = source.bounds.size;
+            int axis = size.x >= size.y && size.x >= size.z ? 0 : size.y >= size.z ? 1 : 2;
+            int a1 = (axis + 1) % 3, a2 = (axis + 2) % 3;
+            float low = source.bounds.min[axis], span = size[axis];
+
+            // The sharp end is the narrower one: compare how wide the vertices in the last 15% at each end spread.
+            float WidthAt(bool high)
+            {
+                float min1 = float.MaxValue, max1 = float.MinValue, min2 = float.MaxValue, max2 = float.MinValue;
+                foreach (Vector3 p in vertices)
+                {
+                    float t = (p[axis] - low) / span;
+                    if (high ? t < 0.85f : t > 0.15f) continue;
+                    min1 = Mathf.Min(min1, p[a1]); max1 = Mathf.Max(max1, p[a1]);
+                    min2 = Mathf.Min(min2, p[a2]); max2 = Mathf.Max(max2, p[a2]);
+                }
+                return (max1 - min1) * (max2 - min2);
+            }
+            bool tipIsHigh = WidthAt(true) < WidthAt(false);
+            float tipCoordinate = tipIsHigh ? low + span : low;
+            float sign = tipIsHigh ? -1.0f : 1.0f;   // distance back from the tip, as a negative Z
+            float scale = ModelLengthMetres / span;
+            // Centre the cross-section on the long axis.
+            float centre1 = source.bounds.center[a1], centre2 = source.bounds.center[a2];
+
+            // Weld by snapping to a grid (averaging the positions in each cell): fewer vertices, same shape.
+            var cellOf = new System.Collections.Generic.Dictionary<Vector3Int, int>();
+            var sums = new System.Collections.Generic.List<Vector3>();
+            var counts = new System.Collections.Generic.List<int>();
+            var remap = new int[vertices.Length];
+            for (int i = 0; i < vertices.Length; i++)
+            {
+                Vector3 p = vertices[i];
+                // x, y across, z along (tip 0, body negative); a cyclic permutation keeps the handedness, and a flip of the direction along is paired with a flip of x.
+                Vector3 q = new Vector3((p[a1] - centre1) * (tipIsHigh ? -1.0f : 1.0f), p[a2] - centre2, (p[axis] - tipCoordinate) * (tipIsHigh ? 1.0f : -1.0f)) * scale;
+                var cell = new Vector3Int(Mathf.RoundToInt(q.x / WeldMetres), Mathf.RoundToInt(q.y / WeldMetres), Mathf.RoundToInt(q.z / WeldMetres));
+                if (!cellOf.TryGetValue(cell, out int index))
+                {
+                    index = sums.Count;
+                    cellOf[cell] = index;
+                    sums.Add(Vector3.zero);
+                    counts.Add(0);
+                }
+                sums[index] += q;
+                counts[index]++;
+                remap[i] = index;
+            }
+            var welded = new Vector3[sums.Count];
+            for (int i = 0; i < welded.Length; i++)
+            {
+                welded[i] = sums[i] / counts[i];
+            }
+            var kept = new System.Collections.Generic.List<int>();
+            for (int t = 0; t < triangles.Length; t += 3)
+            {
+                int a = remap[triangles[t]], b = remap[triangles[t + 1]], c = remap[triangles[t + 2]];
+                if (a == b || b == c || a == c)
+                {
+                    continue;
+                }
+                kept.Add(a); kept.Add(b); kept.Add(c);
+            }
+
+            Mesh mesh = AssetDatabase.LoadAssetAtPath<Mesh>(MeshPath);
+            if (mesh == null)
+            {
+                mesh = new Mesh();
+                AssetDatabase.CreateAsset(mesh, MeshPath);
+            }
+            mesh.Clear();
+            mesh.name = "IceShardMesh";
+            mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+            mesh.vertices = welded;
+            mesh.triangles = kept.ToArray();
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            EditorUtility.SetDirty(mesh);
+            Debug.Log($"CityX: ice shard model baked: {source.vertexCount} -> {welded.Length} vertices, {source.triangles.Length / 3} -> {kept.Count / 3} triangles; tip end was the {(tipIsHigh ? "high" : "low")} end of axis {axis}; bounds {mesh.bounds.size:0.00}");
+            return mesh;
+        }
+
+        private static Mesh BuildProceduralMesh()
         {
             const int sides = 6;
             float[] z = { 0.0f, -0.20f, -0.62f, -0.90f };

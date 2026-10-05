@@ -258,6 +258,9 @@ namespace CityX.CharacterEditor
             // AFTER AddSwordStates and every base state: the upper-body layer
             // plays the SAME sword clips as those base states, over the top of
             // whatever the legs are doing.
+            // The scream's torso+head layer and its arms layer go BELOW the sword's upper-body layer (added after them), so a sword swing or guard
+            // wins the arms (and torso) while one is playing, and the scream carries on underneath.
+            AddScreamLayers(controller);
             AddSwordUpperBodyLayer(controller);
             AddCutsceneStates(root);
 
@@ -1414,14 +1417,92 @@ namespace CityX.CharacterEditor
         ///    SoulsSwordCombat stretches each swing to fit its own timing, and
         ///    Animator.speed would ALSO speed the legs up 1.5x while swinging.
         /// </summary>
-        private static void AddSwordUpperBodyLayer(AnimatorController controller)
+        private static void EnsureUpperSpeedParameter(AnimatorController controller)
         {
+            foreach (AnimatorControllerParameter existing in controller.parameters)
+            {
+                if (existing.name == UpperSpeedParameterName)
+                {
+                    return;
+                }
+            }
             controller.AddParameter(new AnimatorControllerParameter
             {
                 name = UpperSpeedParameterName,
                 type = AnimatorControllerParameterType.Float,
                 defaultFloat = 1.0f,
             });
+        }
+
+        private const string TorsoLayerName = PlayerAnimationDriver.TorsoLayerName;
+        private const string ArmsLayerName = PlayerAnimationDriver.ScreamArmsLayerName;
+
+        /// <summary>
+        /// THE POISON BREATH'S SCREAM (key 4), on two masked layers so the legs and hips keep walking under it: one for the TORSO AND HEAD (the bow and
+        /// the head thrown back and forward), one for the ARMS. The arms are a layer of their own, below the sword's upper-body layer, because the
+        /// arms are often busy with something else: a sword swing or guard on the upper-body layer simply wins them, and the gun-aim and cast poses
+        /// are applied after the Animator anyway. So the arms do the scream's own arm motion only when nothing else is using them.
+        /// Both play at the caster's speed through the shared UpperSpeed parameter and leave to an empty state by an exit-time transition, like the swings.
+        /// </summary>
+        private static void AddScreamLayers(AnimatorController controller)
+        {
+            AnimationClip clip = FindClip("poison_breath_scream");
+            if (clip == null)
+            {
+                Debug.LogWarning("CityX: no scream clip -- the poison breath will not play its animation.");
+                return;
+            }
+            EnsureUpperSpeedParameter(controller);
+            AddScreamLayer(controller, TorsoLayerName, "PoisonBreath", clip, "Assets/CityX/Character/TorsoHeadMask.mask",
+                AvatarMaskBodyPart.Body, AvatarMaskBodyPart.Head);
+            AddScreamLayer(controller, ArmsLayerName, "PoisonBreathArms", clip, "Assets/CityX/Character/ScreamArmsMask.mask",
+                AvatarMaskBodyPart.LeftArm, AvatarMaskBodyPart.RightArm, AvatarMaskBodyPart.LeftFingers, AvatarMaskBodyPart.RightFingers);
+        }
+
+        private static void AddScreamLayer(AnimatorController controller, string layerName, string stateName, AnimationClip clip, string maskPath,
+            params AvatarMaskBodyPart[] parts)
+        {
+            var mask = AssetDatabase.LoadAssetAtPath<AvatarMask>(maskPath);
+            if (mask == null)
+            {
+                mask = new AvatarMask();
+                AssetDatabase.CreateAsset(mask, maskPath);
+            }
+            foreach (AvatarMaskBodyPart part in System.Enum.GetValues(typeof(AvatarMaskBodyPart)))
+            {
+                if (part == AvatarMaskBodyPart.LastBodyPart)
+                {
+                    continue;
+                }
+                mask.SetHumanoidBodyPartActive(part, System.Array.IndexOf(parts, part) >= 0);
+            }
+            EditorUtility.SetDirty(mask);
+
+            controller.AddLayer(layerName);
+            AnimatorControllerLayer[] layers = controller.layers;
+            AnimatorControllerLayer layer = layers[layers.Length - 1];
+            layer.avatarMask = mask;
+            layer.blendingMode = AnimatorLayerBlendingMode.Override;
+            layer.defaultWeight = 1.0f;
+            layer.iKPass = false;
+
+            AnimatorStateMachine machine = layer.stateMachine;
+            AnimatorState empty = machine.AddState(layerName + "Empty");
+            machine.defaultState = empty;
+            AnimatorState state = machine.AddState(stateName);
+            state.motion = clip;
+            state.speedParameterActive = true;
+            state.speedParameter = UpperSpeedParameterName;
+            AnimatorStateTransition back = state.AddTransition(empty);
+            back.hasExitTime = true;
+            back.exitTime = 0.9f;
+            back.duration = 0.15f;
+            controller.layers = layers;
+        }
+
+        private static void AddSwordUpperBodyLayer(AnimatorController controller)
+        {
+            EnsureUpperSpeedParameter(controller);
 
             AvatarMask mask = BuildUpperBodyMask();
 
@@ -1499,6 +1580,7 @@ namespace CityX.CharacterEditor
                 case "sword_attack2": return FindClip("2hsw_attack2");
                 case "sword_charged_attack": return FindClip("2hsw_chargedattack");
                 case "SwordBlock": return FindClip("2hsw_blocking");
+                case "PoisonBreath": return FindClip("poison_breath_scream");   // the Scream animation: the poison breath ability (key 4)
                 default: return null;
             }
         }

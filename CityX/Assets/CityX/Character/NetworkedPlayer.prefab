@@ -423,10 +423,13 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 86f508659fee6a94996438826981e59d, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.PoisonGasCaster
+  m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.PoisonBreathCaster
   CooldownSeconds: 6
-  CastPoseSeconds: 0.6
+  AnimationSpeed: 1.5
+  ClipSeconds: 2.8
+  ReleaseClipSeconds: 1.05
   CloudSpeed: 11
+  MouthOffset: {x: 0, y: -0.03, z: 0.16}
   CloudPrefab: {fileID: 4551588021056544961, guid: 3230127a207000f4a96883b259b11715, type: 3}
 --- !u!114 &8687249435336123883
 MonoBehaviour:

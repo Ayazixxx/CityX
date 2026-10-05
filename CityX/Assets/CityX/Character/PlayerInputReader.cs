@@ -160,29 +160,39 @@ namespace CityX.Character
         /// </summary>
         private IFireballCaster _fireballCaster;
         private IIceShardCaster _iceShards;
-        private IPoisonGasCaster _poisonGas;
+        private IPoisonBreathCaster _poisonBreath;
         private ISwordWaveCaster _swordWave;
 
         /// <summary>The raised-hand pose strength of whichever spell is being cast (fireball, ice shards or poison gas).</summary>
         private float SpellCastFraction =>
             Mathf.Max(
                 Mathf.Max(_fireballCaster != null ? _fireballCaster.CastFraction : 0.0f, _iceShards != null ? _iceShards.CastFraction : 0.0f),
-                _poisonGas != null ? _poisonGas.CastFraction : 0.0f);
+                _poisonBreath != null ? _poisonBreath.CastFraction : 0.0f);
 
         private bool IsCastingSpell =>
             (_fireballCaster != null && _fireballCaster.IsCasting) || (_iceShards != null && _iceShards.IsCasting)
-            || (_poisonGas != null && _poisonGas.IsCasting);
+            || (_poisonBreath != null && _poisonBreath.IsCasting);
 
-        /// <summary>4: blows a cloud of poison gas out from the chest down the crosshair.</summary>
-        private void CastPoisonGas(Transform aimSource)
+        /// <summary>While the scream winds up, the breath follows the crosshair: the point it is on in the world, handed in every frame.</summary>
+        private void AimPoisonBreath(Transform aimSource)
         {
-            if (_poisonGas == null || aimSource == null)
+            if (_poisonBreath == null || aimSource == null || !_poisonBreath.IsCasting)
+            {
+                return;
+            }
+            _poisonBreath.Aim(aimSource.position + aimSource.forward * PlayerLocomotion.GunAimConvergenceDistance);
+        }
+
+        /// <summary>4: the character screams and breathes a cloud of poison gas out of their mouth at the crosshair (the fallback origin is the chest).</summary>
+        private void CastPoisonBreath(Transform aimSource)
+        {
+            if (_poisonBreath == null || aimSource == null)
             {
                 return;
             }
             float height = (_locomotion != null ? _locomotion.StandingHeight : 1.8f) * 0.68f;
             Vector3 origin = transform.position + Vector3.up * height;
-            _poisonGas.TryCast(origin, ConvergedDirection(origin, aimSource), GetComponentsInChildren<Collider>());
+            _poisonBreath.TryCast(origin, ConvergedDirection(origin, aimSource), GetComponentsInChildren<Collider>());
         }
 
         /// <summary>3: starts an ice shard volley from the chest down the crosshair, from wherever the camera is looking.</summary>
@@ -337,7 +347,7 @@ namespace CityX.Character
             _wallStick = GetComponent<WallStick>();
             _fireballCaster = GetComponent<IFireballCaster>();
             _iceShards = GetComponent<IIceShardCaster>();
-            _poisonGas = GetComponent<IPoisonGasCaster>();
+            _poisonBreath = GetComponent<IPoisonBreathCaster>();
             _swordWave = GetComponent<ISwordWaveCaster>();
 
             // The player gets wet in the rain and dries under cover. Added here
@@ -526,7 +536,7 @@ namespace CityX.Character
             SoulsSword?.Tick(deltaTime);
             _fireballCaster?.Tick(deltaTime);
             _iceShards?.Tick(deltaTime);
-            _poisonGas?.Tick(deltaTime);
+            _poisonBreath?.Tick(deltaTime);
             _swordWave?.Tick(deltaTime);
 
             // DEATH IS POLLED HERE, NOT EVENT-DRIVEN -- see GrabCarry's own
@@ -728,9 +738,10 @@ namespace CityX.Character
                 }
                 if (keyboard.digit4Key.wasPressedThisFrame)
                 {
-                    CastPoisonGas(swingYawSource);
+                    CastPoisonBreath(swingYawSource);
                 }
                 AimIceShards(swingYawSource);
+                AimPoisonBreath(swingYawSource);
 
                 // THE ORDINARY WASD-MOVEMENT BRANCH BELOW NEVER RUNS WHILE
                 // SWINGING (this whole block returns before reaching it),
@@ -910,9 +921,10 @@ namespace CityX.Character
             // (never the one who blew it).
             if (keyboard.digit4Key.wasPressedThisFrame)
             {
-                CastPoisonGas(yawSource);
+                CastPoisonBreath(yawSource);
             }
             AimIceShards(yawSource);
+            AimPoisonBreath(yawSource);
 
             // 8: BLOODRAGE, innate like the fireball (see BloodrageAbility): +25% speed and melee damage, the Bloodrage walk/run/jump, a red aura, 7.5 s.
             if (keyboard.digit8Key.wasPressedThisFrame)
