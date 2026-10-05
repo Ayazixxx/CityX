@@ -16,8 +16,18 @@ namespace CityX.Character
     /// with their stat point, so a levelled character is genuinely tougher
     /// rather than just hitting harder.
     /// </summary>
-    public sealed class PlayerVitals : MonoBehaviour, IDamageable
+    public sealed class PlayerVitals : MonoBehaviour, IDamageable, IPoisonable
     {
+        /// <summary>Poison eats health quietly: no flinch, no block, no i-frames (see IPoisonable).</summary>
+        public void TakePoison(float amount)
+        {
+            if (IsDead || amount <= 0.0f)
+            {
+                return;
+            }
+            TakeDamage(amount, false);
+        }
+
         // --- tuning, ported from player.gd ---
 
         public const float BaseMaxHealth = 100.0f;

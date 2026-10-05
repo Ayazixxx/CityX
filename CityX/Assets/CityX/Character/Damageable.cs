@@ -64,6 +64,17 @@ namespace CityX.Character
         void Launch(Vector3 velocity);
     }
 
+    /// <summary>
+    /// Optional add-on for something IDamageable that takes poison as plain damage over time, WITHOUT the reactions a blow causes (no flinch, no
+    /// hit sound, no blocking, no invulnerability frames): a poisoned player coughing and flinching every half second would be a different
+    /// effect. Anything that does not implement it takes each tick as an ordinary zero-stun hit instead (see PoisonEffect).
+    /// </summary>
+    public interface IPoisonable
+    {
+        /// <summary>Takes <paramref name="amount"/> of poison damage.</summary>
+        void TakePoison(float amount);
+    }
+
     /// <summary>What a target did with a hit.</summary>
     public enum HitResponse
     {

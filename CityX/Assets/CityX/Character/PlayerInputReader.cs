@@ -160,14 +160,30 @@ namespace CityX.Character
         /// </summary>
         private IFireballCaster _fireballCaster;
         private IIceShardCaster _iceShards;
+        private IPoisonGasCaster _poisonGas;
         private ISwordWaveCaster _swordWave;
 
-        /// <summary>The raised-hand pose strength of whichever spell is being cast (the fireball's or the ice shards').</summary>
+        /// <summary>The raised-hand pose strength of whichever spell is being cast (fireball, ice shards or poison gas).</summary>
         private float SpellCastFraction =>
-            Mathf.Max(_fireballCaster != null ? _fireballCaster.CastFraction : 0.0f, _iceShards != null ? _iceShards.CastFraction : 0.0f);
+            Mathf.Max(
+                Mathf.Max(_fireballCaster != null ? _fireballCaster.CastFraction : 0.0f, _iceShards != null ? _iceShards.CastFraction : 0.0f),
+                _poisonGas != null ? _poisonGas.CastFraction : 0.0f);
 
         private bool IsCastingSpell =>
-            (_fireballCaster != null && _fireballCaster.IsCasting) || (_iceShards != null && _iceShards.IsCasting);
+            (_fireballCaster != null && _fireballCaster.IsCasting) || (_iceShards != null && _iceShards.IsCasting)
+            || (_poisonGas != null && _poisonGas.IsCasting);
+
+        /// <summary>4: blows a cloud of poison gas out from the chest down the crosshair.</summary>
+        private void CastPoisonGas(Transform aimSource)
+        {
+            if (_poisonGas == null || aimSource == null)
+            {
+                return;
+            }
+            float height = (_locomotion != null ? _locomotion.StandingHeight : 1.8f) * 0.68f;
+            Vector3 origin = transform.position + Vector3.up * height;
+            _poisonGas.TryCast(origin, ConvergedDirection(origin, aimSource), GetComponentsInChildren<Collider>());
+        }
 
         /// <summary>3: starts an ice shard volley from the chest down the crosshair, from wherever the camera is looking.</summary>
         private void CastIceShards(Transform aimSource)
@@ -321,6 +337,7 @@ namespace CityX.Character
             _wallStick = GetComponent<WallStick>();
             _fireballCaster = GetComponent<IFireballCaster>();
             _iceShards = GetComponent<IIceShardCaster>();
+            _poisonGas = GetComponent<IPoisonGasCaster>();
             _swordWave = GetComponent<ISwordWaveCaster>();
 
             // The player gets wet in the rain and dries under cover. Added here
@@ -509,6 +526,7 @@ namespace CityX.Character
             SoulsSword?.Tick(deltaTime);
             _fireballCaster?.Tick(deltaTime);
             _iceShards?.Tick(deltaTime);
+            _poisonGas?.Tick(deltaTime);
             _swordWave?.Tick(deltaTime);
 
             // DEATH IS POLLED HERE, NOT EVENT-DRIVEN -- see GrabCarry's own
@@ -708,6 +726,10 @@ namespace CityX.Character
                 {
                     CastIceShards(swingYawSource);
                 }
+                if (keyboard.digit4Key.wasPressedThisFrame)
+                {
+                    CastPoisonGas(swingYawSource);
+                }
                 AimIceShards(swingYawSource);
 
                 // THE ORDINARY WASD-MOVEMENT BRANCH BELOW NEVER RUNS WHILE
@@ -883,6 +905,12 @@ namespace CityX.Character
             if (keyboard.digit3Key.wasPressedThisFrame)
             {
                 CastIceShards(yawSource);
+            }
+            // 4: POISON GAS, innate like the fireball: a cloud of purple gas blown out down the crosshair; whatever breathes it is poisoned
+            // (never the one who blew it).
+            if (keyboard.digit4Key.wasPressedThisFrame)
+            {
+                CastPoisonGas(yawSource);
             }
             AimIceShards(yawSource);
 

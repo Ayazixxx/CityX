@@ -52,7 +52,7 @@ namespace CityX.Tests
             Assert.AreEqual(AbilityIds.Hash("fireball"), AbilityIds.Hash("fireball"));
             Assert.AreEqual(unchecked((int)0xE40C292Cu), AbilityIds.Hash("a"), "FNV-1a 32 of \"a\"");
             var seen = new HashSet<int>();
-            foreach (string id in new[] { FireballCaster.Id, IceShardCaster.Id, SwordWaveCaster.Id, BloodrageAbility.Id, MeleeAttacker.SpinAbilityId })
+            foreach (string id in new[] { FireballCaster.Id, IceShardCaster.Id, PoisonGasCaster.Id, SwordWaveCaster.Id, BloodrageAbility.Id, MeleeAttacker.SpinAbilityId })
             {
                 Assert.IsTrue(seen.Add(AbilityIds.Hash(id)), $"ability id '{id}' collides with another");
             }
@@ -119,6 +119,24 @@ namespace CityX.Tests
         }
 
         [Test]
+        public void ThePoisonGasAnnouncesItselfWhereItLeavesTheMouthAndHasACooldown()
+        {
+            var caster = Body().AddComponent<PoisonGasCaster>();
+            var heard = Listen(caster);
+
+            Assert.IsTrue(caster.TryCast(new Vector3(1.0f, 2.0f, 3.0f), Vector3.forward, null));
+            Assert.AreEqual(1, heard.Count);
+            Assert.AreEqual(3.0f + PoisonGasCaster.SpawnForwardOffset, heard[0].Origin.z, 1e-4f);
+            Assert.AreEqual(caster.CloudSpeed, heard[0].A, 1e-4f);
+
+            Assert.IsFalse(caster.TryCast(Vector3.zero, Vector3.forward, null), "cooldown");
+            Assert.AreEqual(1, heard.Count);
+            caster.Tick(caster.CooldownSeconds + 0.1f);
+            Assert.IsTrue(caster.CanCast);
+            Assert.IsTrue(caster.IsCasting == false, "the pose should have eased out");
+        }
+
+        [Test]
         public void BloodrageAnnouncesItsStartAndHowLongItLasts()
         {
             var rage = Body().AddComponent<BloodrageAbility>();
@@ -140,10 +158,11 @@ namespace CityX.Tests
             GameObject body = Body();
             var fireball = body.AddComponent<FireballCaster>();
             var ice = body.AddComponent<IceShardCaster>();
+            var gas = body.AddComponent<PoisonGasCaster>();
             var wave = body.AddComponent<SwordWaveCaster>();
             var rage = body.AddComponent<BloodrageAbility>();
             var melee = body.AddComponent<MeleeAttacker>();
-            var all = new IReplicatedAbility[] { fireball, ice, wave, rage, melee };
+            var all = new IReplicatedAbility[] { fireball, ice, gas, wave, rage, melee };
             var echoes = new List<AbilityEvent>();
             foreach (IReplicatedAbility ability in all)
             {
@@ -167,7 +186,7 @@ namespace CityX.Tests
             GameObject body = Body();
             var all = new IReplicatedAbility[]
             {
-                body.AddComponent<FireballCaster>(), body.AddComponent<IceShardCaster>(), body.AddComponent<SwordWaveCaster>(),
+                body.AddComponent<FireballCaster>(), body.AddComponent<IceShardCaster>(), body.AddComponent<PoisonGasCaster>(), body.AddComponent<SwordWaveCaster>(),
                 body.AddComponent<BloodrageAbility>(), body.AddComponent<MeleeAttacker>(),
             };
             foreach (IReplicatedAbility ability in all)

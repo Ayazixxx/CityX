@@ -24,6 +24,7 @@ namespace CityX.CharacterEditor
         private const string FireballPrefabPath = "Assets/CityX/Weapons/FireballProjectile.prefab";
         private const string FireballCastClipPath = "Assets/CityX/Weapons/Audio/fireball_cast.mp3";
         private const string IceShardPrefabPath = "Assets/CityX/Weapons/IceShard.prefab";
+        private const string PoisonGasPrefabPath = "Assets/CityX/Weapons/PoisonGasCloud.prefab";
         private const string SwordWavePrefabPath = "Assets/CityX/Weapons/SwordWave.prefab";
 
         /// <summary>Puts every innate ability on <paramref name="player"/> and gives each its prefabs.</summary>
@@ -44,6 +45,10 @@ namespace CityX.CharacterEditor
             // --- the ice shards (key 3).
             var iceShards = GetOrAdd<IceShardCaster>(player);
             iceShards.ShardPrefab = Load(IceShardPrefabPath) ?? iceShards.ShardPrefab;
+
+            // --- the poison gas (key 4).
+            var poisonGas = GetOrAdd<PoisonGasCaster>(player);
+            poisonGas.CloudPrefab = Load(PoisonGasPrefabPath) ?? poisonGas.CloudPrefab;
 
             // --- the sword's crescent wave (key 7, with the sword in hand).
             var swordWave = GetOrAdd<SwordWaveCaster>(player);

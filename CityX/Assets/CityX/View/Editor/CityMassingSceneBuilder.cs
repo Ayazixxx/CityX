@@ -452,6 +452,7 @@ namespace CityX.ViewEditor
                 // prefabs are (re)built first; the wiring loads them by path.
                 CityX.WeaponsEditor.FireballProjectileBuilder.Build();
                 CityX.WeaponsEditor.IceShardBuilder.Build();
+                CityX.WeaponsEditor.PoisonGasBuilder.Build();
                 CityX.WeaponsEditor.SwordWaveBuilder.Build();
                 CityX.CharacterEditor.PlayerAbilityWiring.AddAbilities(player);
             }
