@@ -353,7 +353,16 @@ namespace CityX.Character
                 if (_finisherRagdollRemaining <= 0.0f)
                 {
                     _finisherRagdollRemaining = 0.0f;
-                    _ragdoll?.Deactivate();
+                    // Gets up with the stand-up animation, from wherever the body is lying (no rest wait: the knockdown's own timer was it).
+                    // A rig with no animator has nothing to animate and just stands.
+                    if (_ragdoll != null && _ragdoll.Animator != null && _ragdoll.IsLimp)
+                    {
+                        _ragdoll.BeginStandingUp(force: true);
+                    }
+                    else
+                    {
+                        _ragdoll?.Deactivate();
+                    }
                     GrantInvulnerability(PostFinisherInvulnerabilitySeconds);
                 }
             }

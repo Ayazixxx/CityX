@@ -750,15 +750,21 @@ namespace CityX.Character
         /// own ragdoll branch (and this Tick) instead of ordinary movement
         /// while the clip plays.
         /// </summary>
-        public void BeginStandingUp()
+        public void BeginStandingUp(bool force = false)
         {
-            if (!CanStandUp)
+            if (!(force ? _limp && !IsStandingUp : CanStandUp))
             {
                 return;
             }
             _standingUpElapsed = 0.0f;
+            _blendElapsed = -1.0f;
 
-            RepositionToRagdollRest();
+            // FROM ANY POSITION: the pose the ragdoll is in RIGHT NOW is captured, the body is turned and moved so the get-up clip starts
+            // where the ragdoll is lying (head the same way, hips on the same spot), and the first moments of the clip are blended FROM the
+            // captured pose (LateUpdate) so there is no pop. Researched: this is the standard "pose snapshot" ragdoll recovery -- snapshot,
+            // align the animation's root to the body, cross-fade bone rotations, then let the animation run. A body face-down while the clip
+            // starts face-up rolls over during the blend rather than snapping.
+            CapturePose();
             SetKinematic(true);
 
             if (Animator != null)
@@ -766,6 +772,76 @@ namespace CityX.Character
                 Animator.enabled = true;
                 Animator.speed = StandUpPlaybackSpeed;
                 Animator.Play("GettingUp", 0, 0.0f);
+                Animator.Update(0.0f);   // the clip's first frame is posed now, so it can be measured
+            }
+            RepositionToRagdollRest();
+            _blendElapsed = _snapshotBones != null ? 0.0f : -1.0f;
+        }
+
+        /// <summary>Seconds over which the captured ragdoll pose is blended into the get-up animation.</summary>
+        public const float StandUpBlendSeconds = 0.4f;
+
+        private Transform[] _snapshotBones;
+        private Quaternion[] _snapshotRotations;
+        private Vector3 _snapshotHipsPosition;
+        private float _blendElapsed = -1.0f;
+
+        /// <summary>True while the ragdoll pose is still being blended into the get-up clip.</summary>
+        public bool IsBlendingToStandUp => _blendElapsed >= 0.0f;
+
+        private void CapturePose()
+        {
+            _snapshotBones = null;
+            if (Animator == null || !Animator.isHuman)
+            {
+                return;
+            }
+            var bones = new System.Collections.Generic.List<Transform>();
+            for (int i = 0; i < (int)HumanBodyBones.LastBone; i++)
+            {
+                Transform bone = Animator.GetBoneTransform((HumanBodyBones)i);
+                if (bone != null)
+                {
+                    bones.Add(bone);
+                }
+            }
+            _snapshotBones = bones.ToArray();
+            _snapshotRotations = new Quaternion[_snapshotBones.Length];
+            for (int i = 0; i < _snapshotBones.Length; i++)
+            {
+                _snapshotRotations[i] = _snapshotBones[i].rotation;
+            }
+            Transform hips = Animator.GetBoneTransform(HumanBodyBones.Hips);
+            _snapshotHipsPosition = hips != null ? hips.position : Vector3.zero;
+            Transform head = Animator.GetBoneTransform(HumanBodyBones.Head);
+            _headWorldAtCapture = head != null ? head.position : _snapshotHipsPosition;
+        }
+
+        private void LateUpdate()
+        {
+            if (_blendElapsed < 0.0f || _snapshotBones == null)
+            {
+                return;
+            }
+            _blendElapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(_blendElapsed / StandUpBlendSeconds);
+            float eased = t * t * (3.0f - 2.0f * t);
+            Transform hips = Animator != null ? Animator.GetBoneTransform(HumanBodyBones.Hips) : null;
+            if (hips != null)
+            {
+                hips.position = Vector3.Lerp(_snapshotHipsPosition, hips.position, eased);
+            }
+            for (int i = 0; i < _snapshotBones.Length; i++)
+            {
+                if (_snapshotBones[i] != null)
+                {
+                    _snapshotBones[i].rotation = Quaternion.Slerp(_snapshotRotations[i], _snapshotBones[i].rotation, eased);
+                }
+            }
+            if (t >= 1.0f)
+            {
+                _blendElapsed = -1.0f;
+                _snapshotBones = null;
             }
         }
 
@@ -822,7 +898,8 @@ namespace CityX.Character
             {
                 return;
             }
-            Vector3 hips = Torso.transform.position;
+            // Where the ragdoll's hips WERE (captured before the clip was posed over it), not where the bones are now.
+            Vector3 hips = _snapshotBones != null ? _snapshotHipsPosition : Torso.transform.position;
 
             SetBodyCollidersEnabled(false);
             float groundY = hips.y;
@@ -843,7 +920,44 @@ namespace CityX.Character
             {
                 transform.rotation = Quaternion.LookRotation(forward.normalized, Vector3.up);
             }
+
+            AlignClipToLyingBody(hips);
         }
+
+        /// <summary>
+        /// Turns and slides the root so the get-up clip's FIRST frame (already posed: see BeginStandingUp) lies where the ragdoll lies: its
+        /// head pointing the same way along the ground, its hips on the ragdoll's hips. Without this the clip starts facing whichever way
+        /// the root happened to point, so a body that landed sideways to it blends round through a quarter turn.
+        /// </summary>
+        private void AlignClipToLyingBody(Vector3 ragdollHips)
+        {
+            if (Animator == null || !Animator.isHuman || _snapshotBones == null)
+            {
+                return;
+            }
+            Transform clipHips = Animator.GetBoneTransform(HumanBodyBones.Hips);
+            Transform clipHead = Animator.GetBoneTransform(HumanBodyBones.Head);
+            if (clipHips == null || clipHead == null)
+            {
+                return;
+            }
+            // Where the ragdoll's head lies: its captured pose is the snapshot, so ask the snapshot (the bones themselves now show the clip).
+            Vector3 ragdollHead = _headWorldAtCapture;
+            Vector3 lying = ragdollHead - _snapshotHipsPosition;
+            lying.y = 0.0f;
+            Vector3 clipLying = clipHead.position - clipHips.position;
+            clipLying.y = 0.0f;
+            if (lying.sqrMagnitude > 0.01f && clipLying.sqrMagnitude > 0.01f)
+            {
+                float turn = Vector3.SignedAngle(clipLying, lying, Vector3.up);
+                transform.RotateAround(clipHips.position, Vector3.up, turn);
+            }
+            Vector3 slide = _snapshotHipsPosition - clipHips.position;
+            slide.y = 0.0f;
+            transform.position += slide;
+        }
+
+        private Vector3 _headWorldAtCapture;
 
         private void SetBodyCollidersEnabled(bool enabled)
         {
