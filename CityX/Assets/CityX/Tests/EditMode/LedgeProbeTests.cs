@@ -57,6 +57,18 @@ namespace CityX.Tests
         }
 
         [Test]
+        public void TheFloorOfAStoreyInsideATallBuildingIsNotALedgeFromOutside()
+        {
+            // THE REPORTED BUG: a tall facade (thin outer wall, 10 m) with a floor slab inside at 3.2 m. The slab's top is flat and in reach,
+            // and the probes behind the face start inside the wall's thickness, so it read as a ledge and the mantle went through the wall.
+            Box(new Vector3(0.0f, 5.0f, 0.65f), new Vector3(10.0f, 10.0f, 0.3f));
+            Box(new Vector3(0.0f, 3.1f, 3.0f), new Vector3(10.0f, 0.2f, 4.0f));
+            Physics.SyncTransforms();
+            Assert.IsFalse(Find(1.0f, out _), "an interior floor was taken for a ledge");
+            Assert.IsFalse(Find(0.2f, out _));
+        }
+
+        [Test]
         public void ATallWallWithNoTopWithinReachIsNotALedge()
         {
             Wall(30.0f);

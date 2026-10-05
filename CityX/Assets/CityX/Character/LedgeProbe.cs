@@ -52,6 +52,9 @@ namespace CityX.Character
         /// <summary>How far into the ledge the feet stand, past the face, in metres (plus the capsule radius).</summary>
         public const float StandInMetres = 0.3f;
 
+        /// <summary>Heights (fractions of standing height above the ledge) at which the way over the lip must be clear.</summary>
+        private static readonly float[] PathHeights = { 0.06f, 0.3f, 0.6f, 0.9f };
+
         private static readonly RaycastHit[] Hits = new RaycastHit[8];
         private static readonly Collider[] Overlaps = new Collider[16];
 
@@ -117,6 +120,20 @@ namespace CityX.Character
             if (!HasRoom(stand, standingHeight, radius, self))
             {
                 return false;
+            }
+
+            // 5. The way up and over must be OPEN: from just outside the lip, level, at the feet's height and at the body's, to the standing spot
+            // nothing may be in the way. Without this the floor of a storey INSIDE a building (seen through the window openings, or from inside the wall's
+            // own thickness) passed as a ledge, and the mantle carried the body through the outer wall: a real ledge has nothing above its lip.
+            Vector3 outside = new Vector3(facePoint.x, height, facePoint.z) + faceNormal * (radius + 0.1f);
+            float run = Vector3.Distance(outside, new Vector3(stand.x, height, stand.z));
+            foreach (float up in PathHeights)
+            {
+                Vector3 from = outside + Vector3.up * (up * standingHeight);
+                if (SolidHit(from, -faceNormal, run, self, out _))
+                {
+                    return false;
+                }
             }
 
             ledge = new Ledge

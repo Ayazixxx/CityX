@@ -9,8 +9,8 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// The things that break a window besides a fist and a bullet: a sword swung through it, and a body going
-    /// through it at a sprint. Both are HEAVY blows. The glass here is a stand-in that records what hit it.
+    /// The things that break a window besides a fist and a bullet: a sword swung through it, and a weapon swung
+    /// (a body running into an intact pane breaks nothing; a CRACKED pane still gives way to a knock). The glass here is a stand-in that records what hit it.
     /// </summary>
     public sealed class GlassBlowsPlayTests
     {
@@ -167,7 +167,7 @@ namespace CityX.Tests
         }
 
         [UnityTest]
-        public IEnumerator SprintingIntoAWindowGoesThroughItWithAHeavyBlow()
+        public IEnumerator SprintingIntoAnIntactWindowDoesNotBreakIt()
         {
 #if UNITY_EDITOR
             GameObject player = BuildPlayer();
@@ -176,9 +176,7 @@ namespace CityX.Tests
 
             yield return Run(locomotion, sprint: true, seconds: 3.0f);
 
-            Assert.IsNotEmpty(glass.Blows, "a sprint into the glass never broke it");
-            Assert.AreEqual(BlowStrength.Heavy, glass.Blows[0]);
-            Assert.Greater(glass.Directions[0].z, 0.3f, "the blow should go the way the body was going");
+            Assert.IsEmpty(glass.Blows, "running into an intact window broke it: only a crack, a shot or a weapon should");
 #else
             yield break;
 #endif

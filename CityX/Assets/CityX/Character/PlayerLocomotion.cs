@@ -2708,33 +2708,6 @@ namespace CityX.Character
         /// should react" needs and nothing in this project provided before
         /// now.
         /// </summary>
-        /// <summary>
-        /// The speed, in m/s, at which the body goes THROUGH a window instead of stopping against it: a full
-        /// sprint (SprintSpeed is 7.5) or a jetpack dive. Walking into glass does nothing.
-        /// </summary>
-        public const float GlassBreakSpeed = 6.5f;
-
-        private float _nextGlassBreakTime;
-
-        /// <summary>
-        /// A sprint or a dive into a window takes the pane out at once (a heavy blow), so the way into a
-        /// building is to run at it. Throttled, since a body pressed against a wall reports a contact
-        /// every frame and each one costs a search for the window it touched.
-        /// </summary>
-        private void BreakGlassOnImpact(ControllerColliderHit hit)
-        {
-            if (Time.time < _nextGlassBreakTime || Mathf.Max(CurrentSpeed, _controller != null ? _controller.velocity.magnitude : 0.0f) < GlassBreakSpeed)
-            {
-                return;
-            }
-            var breakable = hit.collider.GetComponentInParent<World.IBreakableSurface>();
-            if (breakable == null)
-            {
-                return;
-            }
-            _nextGlassBreakTime = Time.time + 0.2f;
-            breakable.TakeBlow(hit.point, hit.moveDirection, World.BlowStrength.Heavy);
-        }
 
         private void OnControllerColliderHit(ControllerColliderHit hit)
         {
@@ -2753,7 +2726,6 @@ namespace CityX.Character
                 LastWallHitNormal = hit.normal;
             }
 
-            BreakGlassOnImpact(hit);
 
             Rigidbody body = hit.collider.attachedRigidbody;
             if (body == null || body.isKinematic)

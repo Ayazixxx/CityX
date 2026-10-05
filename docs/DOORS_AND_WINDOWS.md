@@ -57,7 +57,7 @@ of the longer articles blocked the fetch, so those points come from the search s
 `Character/PlayerLocomotion.cs`, `Weapons/ThrownBottle.cs`)
 - Blows have a **strength**. A fist or a bullet is *light* (a whole pane cracks, a second blow shatters it,
   as before). A **sword swing** (the blade is traced through space each active frame, so a fast swing cannot
-  skip over a pane), a **thrown bottle** (4 m/s or faster) and a **sprint or jetpack dive at 6.5 m/s or
+  skip over a pane), a **thrown bottle** (4 m/s or faster) and (running or diving into an INTACT pane no longer breaks it: removed 2026-10-05 by request; a CRACKED pane still gives way to a knock) a ~~sprint or jetpack dive at 6.5 m/s or
   faster** are *heavy*: the pane goes at once. Walking into glass does nothing.
 - **Shards fly the way the blow went** (through the pane): someone outside sends glass INTO the building,
   someone inside sends it out over the street (`GlassBreaker.ShardDirection`).
@@ -70,7 +70,7 @@ of the longer articles blocked the fetch, so those points come from the search s
 
 `BuildingDoorPlayTests` (13: swing side, spring feel, reversal, blocking, flush-to-the-door, doorway, bump,
 run versus walk, look-at, NPC `SetOpen`, restored-open), `GlassBlowTests` (6), `GlassBlowsPlayTests` (4: sword
-through glass, wind-up breaks nothing, sprint breaks, walking does not). The look and sound of the door and the
+through glass, wind-up breaks nothing, sprinting into an intact window breaks nothing). The look and sound of the door and the
 glass are not something these can judge; they have not been seen or heard in the game.
 
 ## Update 2026-09-26 (later): every bullet makes its own hole

@@ -95,3 +95,14 @@ lands on the far side. Running past something or walking into it does nothing; h
 - Tests: `VaultProbeTests` (a fence, a kerb, a head-high wall, a building-sized block, a boxed-in gap, facing away, a pole, feet always above the obstacle while over it),
   `VaultPlayTests` (real rig: over a fence to the far side with the controller on; no vault when walking, not moving forward or airborne), `VaultCapture` (Explicit, -Graphics).
 - Not done: slide (the Dynamic Parkour System's C; would be Control), vault-on-jump-tap, kong/speed vault variants, a clip.
+
+## Fix: floors of inner storeys read as ledges
+
+Climbing a real facade mantled at the floor of an inner storey and carried the body through the outer wall (reproduced on the real city before the fix:
+began the mantle at y=22.6 on a building 50 m tall). The top probes behind the wall face start inside the wall's thickness, so they found the interior floor slab.
+`LedgeProbe` now also requires the way over the lip to be OPEN: level rays from just outside the lip to the standing spot, at four heights up the body, must
+hit nothing (a real ledge has nothing above its lip; an inner floor has the wall above it). Tests: `LedgeProbeTests.TheFloorOfAStoreyInside...`,
+`RealCityClimbTopOutPlayTests` (six real facade climbs: never a mantle below the roof, never inside geometry). A climb up a facade now ends at the first
+window or recess instead (it lets go), it does not top out through the wall.
+
+Also: running or diving into an intact window no longer breaks it (windows break only from a punch, a bullet, a weapon, a thrown bottle; a cracked pane gives way to a knock).
