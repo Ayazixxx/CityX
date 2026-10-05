@@ -95,7 +95,23 @@ namespace CityX.View
                     TimeOfDay + Time.deltaTime * TimeScale, SkyCycle.CycleSeconds);
             }
             Apply(SkyCycle.At(TimeOfDay));
+
+            // The sky changes slowly, so its reflections and ambient are re-captured every few seconds, not every frame.
+            if (Application.isPlaying)
+            {
+                _sinceEnvironmentUpdate += Time.unscaledDeltaTime;
+                if (_sinceEnvironmentUpdate >= EnvironmentUpdateSeconds)
+                {
+                    _sinceEnvironmentUpdate = 0.0f;
+                    DynamicGI.UpdateEnvironment();
+                }
+            }
         }
+
+        /// <summary>How often the sky is re-captured into the reflection probe (shiny glass, wet streets, car paint reflect the real sky).</summary>
+        public const float EnvironmentUpdateSeconds = 3.0f;
+
+        private float _sinceEnvironmentUpdate = 99.0f;
 
         /// <summary>
         /// Public so an editor tool can pose the sky at an arbitrary moment
@@ -137,8 +153,20 @@ namespace CityX.View
             // FLAT, not Trilight, and dim. Godot's ambient is a single colour
             // at a low energy, and SkyCycle's own note explains why that
             // matters more than the shape of the fill does.
-            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
-            RenderSettings.ambientLight = state.AmbientColour;
+            // (Was a single flat colour. URP has no ray-traced or baked GI to give surfaces a sense of where the light comes from, so the
+            // cheap honest stand-in is a TRILIGHT ambient: more and bluer light from the open sky above, the base colour at the horizon, and a
+            // darker, warmer bounce off the street from below. Same average brightness as the old flat one, but up-facing roofs and
+            // down-facing undersides, and the two sides of a street canyon, no longer light identically.)
+            Color baseAmbient = state.AmbientColour;
+            Color skyTint = SkyCycle.Weathered(state.SkyTopColour, Overcast, Flash);
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
+            RenderSettings.ambientSkyColor = Color.Lerp(baseAmbient, skyTint * baseAmbient.maxColorComponent * 2.0f, 0.4f) * 1.35f;
+            RenderSettings.ambientEquatorColor = baseAmbient;
+            RenderSettings.ambientGroundColor = Color.Lerp(baseAmbient, new Color(0.45f, 0.38f, 0.3f) * baseAmbient.maxColorComponent * 2.0f, 0.5f) * 0.5f;
+
+            // Reflections come from the real sky dome, captured by DynamicGI.UpdateEnvironment (see Update).
+            RenderSettings.defaultReflectionMode = UnityEngine.Rendering.DefaultReflectionMode.Skybox;
+            RenderSettings.reflectionIntensity = 1.0f;
 
             // Weather goes through the sky, the fog and the camera background
             // ALL TOGETHER, from the same colour: the horizon end of the dome
