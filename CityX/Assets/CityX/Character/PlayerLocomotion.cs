@@ -440,6 +440,41 @@ namespace CityX.Character
             _spinBlade = blade;
         }
 
+        // ---- hands on a ledge --------------------------------------------------------------------------------------
+        // While climbing toward a ledge and while pulling up over it, both palms are put ON the ledge's lip (two-bone IK, after the Animator), so a
+        // climb reads as gripping the edge rather than as a generic clip whose hands float wherever it was authored.
+
+        private float _ledgeHandsWeight;
+        private Vector3 _ledgeLip;
+        private Vector3 _ledgeNormal;
+
+        /// <summary>The ledge the hands reach for: 0 weight lets go. <paramref name="lip"/> is the wall's top edge, <paramref name="outward"/> the wall's normal.</summary>
+        public void SetLedgeHands(float weight, Vector3 lip, Vector3 outward)
+        {
+            _ledgeHandsWeight = Mathf.Clamp01(weight);
+            _ledgeLip = lip;
+            _ledgeNormal = outward;
+        }
+
+        /// <summary>How strongly the hands are on a ledge right now (0 to 1).</summary>
+        public float LedgeHandsWeight => _ledgeHandsWeight;
+
+        private void ApplyLedgeHands()
+        {
+            if (_ledgeHandsWeight <= 0.01f || _rightUpperArm == null || _rightLowerArm == null || _handR == null
+                || _leftUpperArm == null || _leftLowerArm == null || _handL == null)
+            {
+                return;
+            }
+            Vector3 across = Vector3.Cross(Vector3.up, _ledgeNormal).normalized;
+            // Palms on top of the lip, a shoulder's width apart, a little back from the edge.
+            Vector3 centre = _ledgeLip - _ledgeNormal * 0.06f + Vector3.up * 0.03f;
+            Vector3 hint = _ledgeNormal * 0.6f - Vector3.up;
+            float weight = Mathf.SmoothStep(0.0f, 1.0f, _ledgeHandsWeight);
+            TwoBoneIK.Solve(_rightUpperArm, _rightLowerArm, _handR, centre - across * 0.28f, hint, weight);   // facing the wall (-normal), the right hand is on the -across side
+            TwoBoneIK.Solve(_leftUpperArm, _leftLowerArm, _handL, centre + across * 0.28f, hint, weight);
+        }
+
         /// <summary>Where the sword arm's hand is put, relative to the shoulder, as a fraction of the arm's length: all the way out.</summary>
         private const float SpinArmReach = 0.99f;
 
@@ -1017,6 +1052,7 @@ namespace CityX.Character
             ApplyGunAimPose();
             ApplySupportHand();
             ApplySwordSpinPose();
+            ApplyLedgeHands();
             if (IsSitting)
             {
                 ApplySittingPose();

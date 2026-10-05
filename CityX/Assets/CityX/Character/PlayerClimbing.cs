@@ -159,7 +159,7 @@ namespace CityX.Character
         /// player.gd's own _process_climbing exactly, including its order
         /// of checks.
         /// </summary>
-        public void Tick(bool jumpPressed, bool climbUpHeld, bool climbDownHeld, PlayerVitals vitals, float deltaTime)
+        public void Tick(bool jumpPressed, bool climbUpHeld, bool climbDownHeld, PlayerVitals vitals, float deltaTime, bool dropPressed = false)
         {
             if (!IsClimbing)
             {
@@ -169,6 +169,13 @@ namespace CityX.Character
             if (jumpPressed)
             {
                 EndClimb(true, deltaTime);
+                return;
+            }
+            // CONTROL drops: let go and fall straight down, no push (Space hops off outward; the Dynamic Parkour System this was modelled on
+            // uses C for drop, moved to Control here).
+            if (dropPressed)
+            {
+                EndClimb(false, deltaTime);
                 return;
             }
 
@@ -188,23 +195,40 @@ namespace CityX.Character
             float slip = Weather.WallSlipSpeed(wet);
 
             int direction = 0;
+            float standingHeight = _locomotion != null ? _locomotion.StandingHeight : BodyRig.StandingHeight;
+            float radius = _controller != null ? _controller.radius : 0.3f;
+            bool ledgeAhead = LedgeProbe.TryFind(transform.position, _wallNormal, standingHeight, radius, transform, out LedgeProbe.Ledge ledge);
             if (climbUpHeld && !climbDownHeld)
             {
-                // Reached the top? Checked BEFORE moving this frame: a
-                // forward raycast from above the player's own current grip,
-                // same technique TryStart used to grab on in the first
-                // place, just from a higher vantage point -- once IT stops
-                // finding the wall, there is no more surface left to climb.
-                if (!WallInDirection(transform.position + Vector3.up * TopCheckHeight, -_wallNormal, out _))
+                // REACHED A REAL LEDGE? Not "the wall stopped": a gap in a wall (a window, a recess, a balcony) is not an edge, and mantling
+                // there put the body inside the wall. A ledge is a validated flat, deep, wide top with room to stand (LedgeProbe), and it is
+                // mantled once it is within reach of the hands.
+                if (ledgeAhead && ledge.Height - transform.position.y <= standingHeight * MantleReachFraction)
                 {
-                    BeginTopOut();
+                    BeginMantle(ledge);
                     return;
                 }
-                direction = 1;
+                // Neither a ledge nor wall left at head height: there is nothing to climb into. Hold the grip rather than climb up into thin air.
+                if (!ledgeAhead && !WallInDirection(transform.position + Vector3.up * (standingHeight * 0.85f), -_wallNormal, out _))
+                {
+                    direction = 0;
+                }
+                else
+                {
+                    direction = 1;
+                }
             }
             else if (climbDownHeld && !climbUpHeld)
             {
                 direction = -1;
+            }
+
+            // Hands go to the ledge as it comes within reach (an easing weight), so they are on it when the mantle starts.
+            if (_locomotion != null)
+            {
+                bool near = ledgeAhead && ledge.Height - transform.position.y <= standingHeight * (MantleReachFraction + 0.25f);
+                _handsWeight = Mathf.MoveTowards(_handsWeight, near ? 1.0f : 0.0f, 4.0f * deltaTime);
+                _locomotion.SetLedgeHands(_handsWeight, ledge.Lip, ledge.Normal);
             }
 
             // Drawn onto the wall face and turned to look at it, rather than snapped or left where the grab
@@ -213,7 +237,25 @@ namespace CityX.Character
                 new Vector2(_anchorX - transform.position.x, _anchorZ - transform.position.z),
                 SnapToWallSpeed * deltaTime);
             Vector3 move = new Vector3(toAnchor.x, direction * ClimbSpeed * deltaTime - slip * deltaTime, toAnchor.y);
+            float yBefore = transform.position.y;
             _controller.Move(move);
+
+            // STUCK GUARD: asked to climb but not rising (jammed on a lip or geometry): let go rather than hang there for ever.
+            if (direction > 0 && deltaTime > 0.0f)
+            {
+                float rose = transform.position.y - yBefore;
+                _stuckSeconds = rose < ClimbSpeed * deltaTime * 0.2f ? _stuckSeconds + deltaTime : 0.0f;
+                if (_stuckSeconds > StuckReleaseSeconds)
+                {
+                    _stuckSeconds = 0.0f;
+                    EndClimb(false, deltaTime);
+                    return;
+                }
+            }
+            else
+            {
+                _stuckSeconds = 0.0f;
+            }
 
             if (_wallNormal.sqrMagnitude > 0.0001f)
             {
@@ -287,6 +329,8 @@ namespace CityX.Character
         private void EndClimb(bool applyPush, float deltaTime)
         {
             IsClimbing = false;
+            _handsWeight = 0.0f;
+            _locomotion?.SetLedgeHands(0.0f, Vector3.zero, Vector3.zero);
             _intent?.BeginCooldown();   // a hop-off is not undone by the next frame's grab
             if (_animator != null)
             {
@@ -305,89 +349,140 @@ namespace CityX.Character
             _wallNormal = Vector3.zero;
         }
 
-        /// <summary>
-        /// Reached the top of a climbable wall (see Tick's own check) --
-        /// freezes movement and fires the one-shot mantle trigger.
-        /// character.gd's own play_climb_top_out carries real hip-position
-        /// root motion that visually sells the transition; PlayerInputReader
-        /// polls <see cref="TickTopOut"/> every frame this is true, which
-        /// watches the Animator directly for that same clip finishing --
-        /// the closest Unity equivalent to player.gd's own
-        /// anim_player.animation_finished listener -- to know the exact
-        /// moment to actually relocate the real CharacterController.
-        /// </summary>
-        private void BeginTopOut()
+        // ---- THE MANTLE: up and over a real ledge, warped to where the ledge actually is ------------------------------------------------
+        //
+        // Researched (Unity ledge/parkour write-ups, Dynamic Parkour System's feature list, Unity's MatchTarget): a mantle authored for one height
+        // looks broken on any other, so the standard answer is MOTION WARPING -- play the animation, but drive the body along a path computed from
+        // the real ledge (hand-hold to the standing spot), and put the hands ON the ledge while it happens. The old code waited for a clip to end
+        // and then teleported the body up a fixed 2.2 m and 0.6 m INTO the wall.
+
+        /// <summary>How far above the feet the ledge may be for the mantle to start, as a fraction of standing height (the hands' reach).</summary>
+        public const float MantleReachFraction = 1.0f;
+
+        /// <summary>The whole mantle takes this long, in seconds.</summary>
+        public const float MantleSeconds = 1.2f;
+
+        /// <summary>Climbing up while not rising for this long lets go (jammed).</summary>
+        public const float StuckReleaseSeconds = 0.8f;
+
+        /// <summary>Of the mantle, the first part is the pull straight up the wall; the rest is stepping forward onto the ledge.</summary>
+        private const float RiseFraction = 0.6f;
+
+        private LedgeProbe.Ledge _mantle;
+        private Vector3 _mantleStart;
+        private float _mantleElapsed;
+        private float _handsWeight;
+        private float _stuckSeconds;
+        private float _animatorSpeedBefore = 1.0f;
+
+        /// <summary>Where the mantle is, 0 (hanging) to 1 (standing on the ledge). Meaningless outside a mantle.</summary>
+        public float MantleProgress => Mathf.Clamp01(_mantleElapsed / MantleSeconds);
+
+        private void BeginMantle(LedgeProbe.Ledge ledge)
         {
             IsClimbing = false;
             IsToppingOut = true;
+            _mantle = ledge;
+            _mantleStart = transform.position;
+            _mantleElapsed = 0.0f;
             _locomotion?.SetVerticalVelocity(0.0f);
-            if (_animator != null)
+            if (_animator == null)
             {
-                _animator.SetBool(ClimbingParameter, false);
-                _animator.SetTrigger(ClimbTopOutParameter);
+                CompleteMantle();   // no animator (a bare test body): the mantle is instant
+                return;
             }
-            else
+            _animator.SetBool(ClimbingParameter, false);
+            _animator.SetTrigger(ClimbTopOutParameter);
+            _animatorSpeedBefore = _animator.speed;
+            if (_controller != null)
             {
-                CompleteTopOut();
+                _controller.enabled = false;   // the path is driven directly; the validated end spot is what keeps it out of the wall
             }
         }
 
-        /// <summary>
-        /// Called every frame by PlayerInputReader while IsToppingOut --
-        /// no-ops until the ClimbTopOut animator state has actually finished
-        /// playing (normalizedTime reaching 1), then relocates the body.
-        /// </summary>
+        /// <summary>The body's position along the mantle at <paramref name="u"/> (0 to 1): pull up the wall, then step over the lip onto the ledge.</summary>
+        public static Vector3 MantlePath(Vector3 start, LedgeProbe.Ledge ledge, float u)
+        {
+            u = Mathf.Clamp01(u);
+            float rise = Mathf.SmoothStep(0.0f, 1.0f, Mathf.Clamp01(u / RiseFraction));
+            float step = Mathf.SmoothStep(0.0f, 1.0f, Mathf.Clamp01((u - RiseFraction) / (1.0f - RiseFraction)));
+            Vector3 hang = new Vector3(start.x, Mathf.Lerp(start.y, ledge.Height, rise), start.z);
+            Vector3 over = new Vector3(Mathf.Lerp(start.x, ledge.Stand.x, step), hang.y, Mathf.Lerp(start.z, ledge.Stand.z, step));
+            // A small lift while stepping, so the feet clear the lip instead of dragging along it.
+            over.y += Mathf.Sin(step * Mathf.PI) * 0.12f;
+            return over;
+        }
+
+        /// <summary>Called every frame by PlayerInputReader while IsToppingOut: advances the mantle along its warped path.</summary>
         public void TickTopOut()
         {
-            if (!IsToppingOut || _animator == null)
-            {
-                return;
-            }
-            AnimatorStateInfo info = _animator.GetCurrentAnimatorStateInfo(0);
-            if (!info.IsName("ClimbTopOut") || info.normalizedTime < 1.0f)
-            {
-                return;
-            }
-            CompleteTopOut();
+            TickMantle(Time.deltaTime);
         }
 
-        /// <summary>
-        /// Actually relocates the real CharacterController up onto the
-        /// ledge once the mantle clip finishes -- MantleUp/MantleForward are
-        /// a starting estimate, not trusted blindly (roof/ledge thickness
-        /// varies by building), so a real downward raycast from that
-        /// estimate snaps the final position onto whatever surface is
-        /// actually there. Direct transform writes, not CharacterController
-        /// .Move() -- matches player.gd's own _complete_climb_top_out doing
-        /// two raw global_position assignments rather than a further
-        /// move_and_slide, so a physics collision resolving the estimate
-        /// away from where the raycast actually snaps it never happens.
-        ///
-        /// TOP-OUT TRIGGERS CLIMB_TOP_CHECK_HEIGHT ABOVE THE CURRENT GRIP,
-        /// not the player's own current height -- a real bug player.gd's own
-        /// comment names outright: an earlier version only added MantleUp
-        /// (a small ledge-clearance nudge) to the CURRENT position, landing
-        /// well short of the actual ledge in open air, and the downward
-        /// raycast then found nothing to snap onto.
-        /// </summary>
-        private void CompleteTopOut()
+        /// <summary>Advances the mantle by <paramref name="deltaTime"/>; public so a test can step it without frames.</summary>
+        public void TickMantle(float deltaTime)
+        {
+            if (!IsToppingOut)
+            {
+                return;
+            }
+            _mantleElapsed += deltaTime;
+            float u = MantleProgress;
+
+            // The clip is fitted to the mantle's own length (once the state is playing), so its pull-up and its step-over line up with the path.
+            if (_animator != null)
+            {
+                AnimatorStateInfo info = _animator.GetCurrentAnimatorStateInfo(0);
+                if (info.IsName("ClimbTopOut") && info.length > 0.01f)
+                {
+                    _animator.speed = info.length / MantleSeconds;
+                }
+            }
+
+            transform.position = MantlePath(_mantleStart, _mantle, u);
+            if (_mantle.Normal.sqrMagnitude > 0.0001f)
+            {
+                transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(-_mantle.Normal, Vector3.up),
+                    FaceWallDegreesPerSecond * deltaTime);
+            }
+            // Hands stay on the lip through the pull-up and let go as the body steps over it.
+            _locomotion?.SetLedgeHands(u < RiseFraction ? 1.0f : Mathf.Clamp01(1.0f - (u - RiseFraction) / ((1.0f - RiseFraction) * 0.6f)),
+                _mantle.Lip, _mantle.Normal);
+
+            if (u >= 1.0f)
+            {
+                CompleteMantle();
+            }
+        }
+
+        /// <summary>Puts the feet on the ledge's standing spot (snapped to the real surface), hands the body back to the controller and to locomotion.</summary>
+        private void CompleteMantle()
         {
             IsToppingOut = false;
             _intent?.BeginCooldown();
-            Vector3 mantleTarget = transform.position
-                + Vector3.up * (TopCheckHeight + MantleUp)
-                - _wallNormal * MantleForward;
-            transform.position = mantleTarget;
-
-            if (Physics.Raycast(mantleTarget + Vector3.up * 0.5f, Vector3.down, out RaycastHit hit, 3.5f,
-                    ~0, QueryTriggerInteraction.Ignore))
+            Vector3 stand = _mantle.Stand;
+            if (Physics.Raycast(stand + Vector3.up * 0.6f, Vector3.down, out RaycastHit hit, 1.6f, ~0, QueryTriggerInteraction.Ignore))
             {
-                Vector3 snapped = transform.position;
-                snapped.y = hit.point.y;
-                transform.position = snapped;
+                stand.y = hit.point.y;
             }
+            transform.position = stand;
+            if (_controller != null)
+            {
+                _controller.enabled = true;
+            }
+            Physics.SyncTransforms();
 
+            _handsWeight = 0.0f;
+            _locomotion?.SetLedgeHands(0.0f, Vector3.zero, Vector3.zero);
             _locomotion?.SetVerticalVelocity(0.0f);
+            if (_animator != null)
+            {
+                _animator.speed = _animatorSpeedBefore;
+                if (_animator.HasState(0, Animator.StringToHash("Locomotion")))
+                {
+                    _animator.CrossFadeInFixedTime("Locomotion", 0.2f, 0);
+                }
+            }
             _wallNormal = Vector3.zero;
         }
     }

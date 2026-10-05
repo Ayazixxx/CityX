@@ -789,7 +789,8 @@ namespace CityX.Character
             if (_climbing != null && _climbing.IsClimbing)
             {
                 _climbing.Tick(keyboard.spaceKey.wasPressedThisFrame,
-                    keyboard.wKey.isPressed, keyboard.sKey.isPressed, _vitals, deltaTime);
+                    keyboard.wKey.isPressed, keyboard.sKey.isPressed, _vitals, deltaTime,
+                    dropPressed: keyboard.leftCtrlKey.wasPressedThisFrame);
                 _audio?.SilenceFootsteps();
                 return;
             }
@@ -811,7 +812,8 @@ namespace CityX.Character
                 if (_climbing.TryStart(_grabIntent, keyboard.wKey.isPressed, stamina))
                 {
                     _climbing.Tick(keyboard.spaceKey.wasPressedThisFrame,
-                        keyboard.wKey.isPressed, keyboard.sKey.isPressed, _vitals, deltaTime);
+                        keyboard.wKey.isPressed, keyboard.sKey.isPressed, _vitals, deltaTime,
+                    dropPressed: keyboard.leftCtrlKey.wasPressedThisFrame);
                     _audio?.SilenceFootsteps();
                     return;
                 }
