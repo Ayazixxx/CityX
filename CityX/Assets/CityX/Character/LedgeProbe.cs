@@ -149,7 +149,7 @@ namespace CityX.Character
         }
 
         /// <summary>The nearest solid hit that is not this body or a person.</summary>
-        private static bool SolidHit(Vector3 origin, Vector3 direction, float distance, Transform self, out RaycastHit best)
+        internal static bool SolidHit(Vector3 origin, Vector3 direction, float distance, Transform self, out RaycastHit best)
         {
             best = default;
             int count = Physics.RaycastNonAlloc(origin, direction, Hits, distance, ~0, QueryTriggerInteraction.Ignore);

@@ -1613,6 +1613,7 @@ namespace CityX.CharacterEditor
 
                 root.AddComponent<PlayerLocomotion>();
                 root.AddComponent<PlayerClimbing>();
+                root.AddComponent<PlayerVaulting>();
                 root.AddComponent<WallStick>();
                 root.AddComponent<PlayerVitals>();
                 MeleeAttacker melee = root.AddComponent<MeleeAttacker>();

@@ -1786,6 +1786,7 @@ GameObject:
   - component: {fileID: 8936631163892899077}
   - component: {fileID: 4406035457774837878}
   - component: {fileID: 2773703700834389877}
+  - component: {fileID: 4039113971223886325}
   - component: {fileID: 4785698498831352452}
   - component: {fileID: 5487257228465472575}
   - component: {fileID: 4004694634336102832}
@@ -1883,6 +1884,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5642efb61d6474c4682e5c0ef3f60fb2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Character::CityX.Character.PlayerClimbing
+--- !u!114 &4039113971223886325
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8412405609517267180}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3d10b86384286b44f90c8879d236b9d9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.PlayerVaulting
 --- !u!114 &4785698498831352452
 MonoBehaviour:
   m_ObjectHideFlags: 0

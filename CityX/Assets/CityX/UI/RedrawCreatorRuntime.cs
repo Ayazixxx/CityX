@@ -147,6 +147,7 @@ namespace CityX.UI
             Strip<PlayerInputReader>(body);
             Strip<PlayerLocomotion>(body);
             Strip<PlayerClimbing>(body);
+            Strip<PlayerVaulting>(body);
             Strip<WallStick>(body);
             Strip<GrappleSwing>(body);
             Strip<CharacterController>(body);

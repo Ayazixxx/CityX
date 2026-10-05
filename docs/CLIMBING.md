@@ -77,3 +77,21 @@ Tests: `LedgeProbeTests` (a plain top, a tall wall, a window gap, a pole, a slop
 drops). `LedgeMantleCapture` (Explicit, -Graphics) renders it to `Logs/CityShots/mantle-*.png`.
 Not done: shimmy along a ledge, ledge-to-ledge jumps, corner turns, drainpipes, a dedicated hang clip (the existing climb clip is reused), and the climbing
 state is still not replicated to other players.
+
+
+## Update: the vault
+
+**Use it:** run (Shift + W) at a waist-to-chest-high obstacle with a flat, thin top (a fence, a low wall, a car, a stack of crates) and the player goes over it and
+lands on the far side. Running past something or walking into it does nothing; holding Space at a wall is still the climb.
+
+- `VaultProbe` validates in stages, like `LedgeProbe`: a face at waist height that the player is facing (not a graze); a flat top just behind it, inside the band
+  0.30 to 0.68 of standing height (lower is a step, higher is a climb); the top must END within 1.1 m (a building is not vaulted); ground within 1.6 m below
+  past the far edge with a standing capsule's room, and open space over the far edge (no rail just beyond).
+- `PlayerVaulting` drives the body along `Path` (motion warping, 0.7 s, controller off while it runs): up to 12 cm over the top first, travel across, drop to the
+  landing; the body leans 35 degrees into it about the hips and the hands reach for the top. Needs 3 m/s of running speed.
+- Wired in `PlayerInputReader` after the Space-hold grab check, so a grab wins. There is no vault clip in the project, so the legs hang while the body leans:
+  an authored vault clip would improve the look; the path and hands would not change.
+- Multiplayer: the body's position is what other players see (owner-authoritative movement), so they see it go over; the hand IK and the lean are local.
+- Tests: `VaultProbeTests` (a fence, a kerb, a head-high wall, a building-sized block, a boxed-in gap, facing away, a pole, feet always above the obstacle while over it),
+  `VaultPlayTests` (real rig: over a fence to the far side with the controller on; no vault when walking, not moving forward or airborne), `VaultCapture` (Explicit, -Graphics).
+- Not done: slide (the Dynamic Parkour System's C; would be Control), vault-on-jump-tap, kong/speed vault variants, a clip.

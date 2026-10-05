@@ -280,6 +280,7 @@ namespace CityX.Character
         private Inventory _inventory;
         private GrappleSwing _grappleSwing;
         private PlayerClimbing _climbing;
+        private PlayerVaulting _vaulting;
         private WallStick _wallStick;
 
         /// <summary>Whether the player is asking to grab a wall (Space held a moment): see GrabIntent.</summary>
@@ -344,6 +345,7 @@ namespace CityX.Character
             _inventory = GetComponent<Inventory>();
             _grappleSwing = GetComponent<GrappleSwing>();
             _climbing = GetComponent<PlayerClimbing>();
+            _vaulting = GetComponent<PlayerVaulting>();
             _wallStick = GetComponent<WallStick>();
             _fireballCaster = GetComponent<IFireballCaster>();
             _iceShards = GetComponent<IIceShardCaster>();
@@ -676,6 +678,14 @@ namespace CityX.Character
                 return;
             }
 
+            // A VAULT OWNS THE FRAME TOO: the body follows a path over the obstacle (PlayerVaulting).
+            if (_vaulting != null && _vaulting.IsVaulting)
+            {
+                _vaulting.Tick(deltaTime);
+                _audio?.SilenceFootsteps();
+                return;
+            }
+
             // THE SWING OWNS THE WHOLE FRAME WHILE ACTIVE, matching
             // player.gd's own _physics_process early-return into
             // _process_grapple_swing -- placed above TickCombat and the
@@ -817,6 +827,15 @@ namespace CityX.Character
                     _audio?.SilenceFootsteps();
                     return;
                 }
+            }
+
+            // RUNNING AT A LOW OBSTACLE VAULTS IT (Shift + W; holding Space is still the way to ask for a climb, checked above).
+            if (_vaulting != null && !_locomotion.IsDashing && (_grabCarry == null || !_grabCarry.IsCarrying)
+                && _vaulting.TryStart(keyboard.wKey.isPressed, keyboard.leftShiftKey.isPressed, _locomotion.IsGrounded, _locomotion.CurrentSpeed, deltaTime))
+            {
+                _vaulting.Tick(deltaTime);
+                _audio?.SilenceFootsteps();
+                return;
             }
 
             // ALREADY STUCK TO A WALL OWNS THE WHOLE FRAME TOO -- same
