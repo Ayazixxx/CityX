@@ -14,8 +14,15 @@ namespace CityX.Weapons
     ///
     /// Everything is a function of a delta (Tick), like the other casters.
     /// </summary>
-    public sealed class IceShardCaster : MonoBehaviour, IIceShardCaster
+    public sealed class IceShardCaster : MonoBehaviour, IIceShardCaster, IReplicatedAbility
     {
+        public const string Id = "ice-shards";
+
+        string IReplicatedAbility.AbilityId => Id;
+
+        /// <summary>Raised on the owner's copy as each shard leaves (N is which of the volley it is). See IReplicatedAbility.</summary>
+        public event System.Action<AbilityEvent> Fired;
+
         [Tooltip("Shards in a volley.")]
         public int ShardCount = 4;
 
@@ -158,11 +165,38 @@ namespace CityX.Weapons
             Vector3 aimed = (_direction + right * Mathf.Tan(nudge.x) + up * Mathf.Tan(nudge.y)).normalized;
 
             int strength = _vitals != null ? _vitals.Strength : 0;
-            _volley.Add(IceShardProjectile.Spawn(ShardPrefab, _origin + aimed * SpawnForwardOffset, aimed * ShardSpeed, strength, _ignore));
+            Vector3 spawnAt = _origin + aimed * SpawnForwardOffset;
+            _volley.Add(IceShardProjectile.Spawn(ShardPrefab, spawnAt, aimed * ShardSpeed, strength, _ignore));
             PlayCastSound();
+            // B is how long the raised-hand pose should be held in all (the whole volley and its follow-through): sent with the first shard.
+            float poseSeconds = FollowThroughSeconds + (Mathf.Max(1, ShardCount) - 1) * ShardIntervalSeconds;
+            Fired?.Invoke(new AbilityEvent(0, spawnAt, aimed, ShardSpeed, poseSeconds, _shotsFired));
 
             _shotsLeft--;
             _shotsFired++;
+        }
+
+        /// <summary>
+        /// Another player's shard, shown on this copy of their body: the shard itself (flying, sticking in the wall or the character it
+        /// meets and melting away on the same clock, but hurting nothing), its "shing", and -- with the first shard of a volley -- the raised hand.
+        /// </summary>
+        public void PlayRemote(AbilityEvent evt)
+        {
+            if (evt.Direction.sqrMagnitude < 0.0001f)
+            {
+                return;
+            }
+            float speed = evt.A > 0.0f ? evt.A : ShardSpeed;
+            IceShardProjectile.Spawn(ShardPrefab, evt.Origin, evt.Direction.normalized * speed, 0, GetComponentsInChildren<Collider>(), cosmetic: true);
+            if (Application.isPlaying)
+            {
+                AudioSource.PlayClipAtPoint(IceShardSounds.Cast, evt.Origin, 0.55f);
+            }
+            if (evt.N == 0)
+            {
+                float total = evt.B > 0.0f ? evt.B : FollowThroughSeconds;
+                RemoteAbilityPose.Show(gameObject, Mathf.Max(0.0f, total - FollowThroughSeconds), FollowThroughSeconds);
+            }
         }
 
         private void PlayCastSound()

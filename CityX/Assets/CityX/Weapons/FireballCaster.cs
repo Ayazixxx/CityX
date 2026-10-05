@@ -29,8 +29,15 @@ namespace CityX.Weapons
     /// _sword_swing_in_progress flag repeatedly did (see ComboChain.Sword's
     /// own doc comment).
     /// </summary>
-    public sealed class FireballCaster : MonoBehaviour, IFireballCaster
+    public sealed class FireballCaster : MonoBehaviour, IFireballCaster, IReplicatedAbility
     {
+        public const string Id = "fireball";
+
+        string IReplicatedAbility.AbilityId => Id;
+
+        /// <summary>Raised on the owner's copy when a fireball leaves the hand: where, and which way, and how fast. See IReplicatedAbility.</summary>
+        public event System.Action<AbilityEvent> Fired;
+
         [Tooltip("Seconds between casts.")]
         public float CooldownSeconds = 1.5f;
 
@@ -121,7 +128,28 @@ namespace CityX.Weapons
             FireballProjectile.Spawn(
                 FireballPrefab, origin + forward * SpawnForwardOffset,
                 forward * FireballSpeed, strength, ignoreColliders);
+            Fired?.Invoke(new AbilityEvent(0, origin + forward * SpawnForwardOffset, forward, FireballSpeed));
             return true;
+        }
+
+        /// <summary>
+        /// Another player's fireball, shown on this copy of their body: the raised hand, the cast sound at the hand and the fireball itself
+        /// flying (bursting where it lands, like the real one), but hurting nothing and starting no cooldown.
+        /// </summary>
+        public void PlayRemote(AbilityEvent evt)
+        {
+            if (evt.Direction.sqrMagnitude < 0.0001f)
+            {
+                return;
+            }
+            Vector3 forward = evt.Direction.normalized;
+            float speed = evt.A > 0.0f ? evt.A : FireballSpeed;
+            FireballProjectile.Spawn(FireballPrefab, evt.Origin, forward * speed, 0, GetComponentsInChildren<Collider>(), cosmetic: true);
+            RemoteAbilityPose.Show(gameObject, 0.0f, CastPoseSeconds);
+            if (Application.isPlaying && CastAudio != null && CastAudio.clip != null)
+            {
+                AudioSource.PlayClipAtPoint(CastAudio.clip, evt.Origin);
+            }
         }
     }
 }

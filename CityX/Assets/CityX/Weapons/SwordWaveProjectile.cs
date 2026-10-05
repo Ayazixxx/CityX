@@ -30,7 +30,11 @@ namespace CityX.Weapons
         private static readonly RaycastHit[] Hits = new RaycastHit[16];
         private static readonly Collider[] Overlaps = new Collider[16];
 
-        public static SwordWaveProjectile Spawn(GameObject prefab, Vector3 origin, Vector3 velocity, int casterStrength, Collider[] ignoreColliders)
+        /// <summary>True for the copy another player's machine shows of a wave they threw: it flies and stops at the world the same, but hurts nothing.</summary>
+        public bool Cosmetic { get; private set; }
+
+        public static SwordWaveProjectile Spawn(GameObject prefab, Vector3 origin, Vector3 velocity, int casterStrength, Collider[] ignoreColliders,
+            bool cosmetic = false)
         {
             if (prefab == null)
             {
@@ -43,6 +47,7 @@ namespace CityX.Weapons
                 return null;
             }
             wave._casterStrength = casterStrength;
+            wave.Cosmetic = cosmetic;
             wave._ignore = ignoreColliders;
             wave._rigidbody = instance.GetComponent<Rigidbody>();
             wave._rigidbody.linearVelocity = velocity;
@@ -126,6 +131,10 @@ namespace CityX.Weapons
                 return;
             }
             if (_ignore != null && System.Array.IndexOf(_ignore, other) >= 0)
+            {
+                return;
+            }
+            if (Cosmetic)
             {
                 return;
             }

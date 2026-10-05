@@ -447,27 +447,13 @@ namespace CityX.ViewEditor
                 // --- FireballCaster's own doc comment for why this lives
                 // --- directly on the player rather than behind a pickup
                 // --- like the sword/jetpack above.
-                var fireballCaster = player.AddComponent<CityX.Weapons.FireballCaster>();
-                fireballCaster.FireballPrefab = CityX.WeaponsEditor.FireballProjectileBuilder.Build();
-
-                // No separate builder for FireballCaster itself (it's added
-                // directly here, not behind a pickup item) -- so the cast
-                // sound is wired inline too, the same non-positional way
-                // PlayerAudio's own footstep/ambience loops are (this is
-                // the sound of THIS BODY casting, heard from inside it).
-                var castAudio = player.AddComponent<AudioSource>();
-                castAudio.clip = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/CityX/Weapons/Audio/fireball_cast.mp3");
-                castAudio.playOnAwake = false;
-                castAudio.spatialBlend = 0.0f;
-                fireballCaster.CastAudio = castAudio;
-
-                // --- the ice shards spell (key 3): innate like the fireball; see IceShardCaster.
-                var iceShards = player.AddComponent<CityX.Weapons.IceShardCaster>();
-                iceShards.ShardPrefab = CityX.WeaponsEditor.IceShardBuilder.Build();
-
-                // --- the sword's crescent wave (key 7 with the sword in hand); see SwordWaveCaster.
-                var swordWave = player.AddComponent<CityX.Weapons.SwordWaveCaster>();
-                swordWave.WavePrefab = CityX.WeaponsEditor.SwordWaveBuilder.Build();
+                // THE INNATE ABILITIES -- the fireball (key 1), the ice shards (key 3) and the sword's crescent wave (key 7) -- go on through
+                // PlayerAbilityWiring, the one list shared with the NetworkedPlayer.prefab that every joining player is spawned as. The projectile
+                // prefabs are (re)built first; the wiring loads them by path.
+                CityX.WeaponsEditor.FireballProjectileBuilder.Build();
+                CityX.WeaponsEditor.IceShardBuilder.Build();
+                CityX.WeaponsEditor.SwordWaveBuilder.Build();
+                CityX.CharacterEditor.PlayerAbilityWiring.AddAbilities(player);
             }
             else
             {
@@ -643,6 +629,7 @@ namespace CityX.ViewEditor
                 playerObjectForWatchdog.AddComponent<NetworkTransform>();
                 playerObjectForWatchdog.AddComponent<CityX.Character.NetworkedPlayerIdentity>();
                 playerObjectForWatchdog.AddComponent<CityX.Character.NetworkedAnimatorSync>();
+                playerObjectForWatchdog.AddComponent<CityX.Character.NetworkedAbilitySync>();
                 // Same view-distance culling the derived clone prefab gets
                 // just below (NetworkedPlayerBuilder.Build) -- without this,
                 // the HOST's own baked body would observe (and be observed

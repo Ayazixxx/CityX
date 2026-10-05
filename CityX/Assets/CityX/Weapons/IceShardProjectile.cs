@@ -59,7 +59,14 @@ namespace CityX.Weapons
         private static readonly RaycastHit[] Hits = new RaycastHit[16];
         private static readonly Collider[] Overlaps = new Collider[16];
 
-        public static IceShardProjectile Spawn(GameObject prefab, Vector3 origin, Vector3 velocity, int casterStrength, Collider[] ignoreColliders)
+        /// <summary>
+        /// True for the copy another player's machine shows of a shard they fired: it flies and sticks (and ages) exactly the same, in a wall or
+        /// in a character, but hurts nothing -- the caster's own machine decides who the real shard hurt.
+        /// </summary>
+        public bool Cosmetic { get; private set; }
+
+        public static IceShardProjectile Spawn(GameObject prefab, Vector3 origin, Vector3 velocity, int casterStrength, Collider[] ignoreColliders,
+            bool cosmetic = false)
         {
             if (prefab == null || velocity.sqrMagnitude < 1e-6f)
             {
@@ -73,6 +80,7 @@ namespace CityX.Weapons
             }
             shard._velocity = velocity;
             shard._casterStrength = casterStrength;
+            shard.Cosmetic = cosmetic;
             shard._ignore = ignoreColliders;
             shard._trail = instance.GetComponentInChildren<TrailRenderer>();
             return shard;
@@ -177,7 +185,7 @@ namespace CityX.Weapons
         {
             IDamageable target = what.GetComponentInParent<IDamageable>();
             bool character = target != null;
-            if (character && target.IsAlive)
+            if (character && target.IsAlive && !Cosmetic)
             {
                 float damage = CombatTuning.DamageFor(BaseDamage, _casterStrength);
                 target.ApplyHit(damage, transform.position, CombatTuning.HitstunSeconds * 0.5f);

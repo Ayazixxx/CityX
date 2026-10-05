@@ -8,8 +8,15 @@ namespace CityX.Weapons
     /// blade down the crosshair, like the fireball spell but a different animation and look. PlayerInputReader only offers the key while the
     /// sword is in hand.
     /// </summary>
-    public sealed class SwordWaveCaster : MonoBehaviour, ISwordWaveCaster
+    public sealed class SwordWaveCaster : MonoBehaviour, ISwordWaveCaster, IReplicatedAbility
     {
+        public const string Id = "sword-wave";
+
+        string IReplicatedAbility.AbilityId => Id;
+
+        /// <summary>Raised on the owner's copy when the crescent leaves the blade. See IReplicatedAbility.</summary>
+        public event System.Action<AbilityEvent> Fired;
+
         public float CooldownSeconds = 1.2f;
 
         /// <summary>How long after the swing starts the crescent leaves the blade: the middle of the slash.</summary>
@@ -71,6 +78,21 @@ namespace CityX.Weapons
             // From where the body is when the blade comes through, along the direction the crosshair had when the key was pressed.
             Vector3 origin = transform.position + Vector3.up * _chestHeight;
             SwordWaveProjectile.Spawn(WavePrefab, origin + _direction * SpawnForwardOffset, _direction * WaveSpeed, strength, _ignore);
+            Fired?.Invoke(new AbilityEvent(0, origin + _direction * SpawnForwardOffset, _direction, WaveSpeed));
+        }
+
+        /// <summary>
+        /// Another player's crescent, shown on this copy of their body: flying down the same line and stopped by the same world, hurting
+        /// nothing. (The sword swing that throws it is replicated with the rest of the sword's animations.)
+        /// </summary>
+        public void PlayRemote(AbilityEvent evt)
+        {
+            if (evt.Direction.sqrMagnitude < 0.0001f)
+            {
+                return;
+            }
+            float speed = evt.A > 0.0f ? evt.A : WaveSpeed;
+            SwordWaveProjectile.Spawn(WavePrefab, evt.Origin, evt.Direction.normalized * speed, 0, GetComponentsInChildren<Collider>(), cosmetic: true);
         }
     }
 }

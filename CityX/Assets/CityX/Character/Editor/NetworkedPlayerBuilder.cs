@@ -85,7 +85,12 @@ namespace CityX.CharacterEditor
                 root.AddComponent<NetworkTransform>();
                 root.AddComponent<NetworkedPlayerIdentity>();
                 root.AddComponent<NetworkedAnimatorSync>();
+                root.AddComponent<NetworkedAbilitySync>();
                 AddViewDistanceObserver(root);
+
+                // THE SAME ABILITIES THE HOST'S BODY HAS. Before this a joining player's spawned body had no spell casters at all (they were added
+                // only to the scene's baked player), so only the host could cast anything. See PlayerAbilityWiring.
+                PlayerAbilityWiring.AddAbilities(root);
 
                 // Same reasoning as the scene-baked player's own doc comment
                 // in CityMassingSceneBuilder: Unity normally calls

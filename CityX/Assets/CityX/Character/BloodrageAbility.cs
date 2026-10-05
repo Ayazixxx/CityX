@@ -16,8 +16,15 @@ namespace CityX.Character
     /// ApplyOverrides call, which keeps the animator in the state it was in), and ending it puts them back. Every other state (the sword's,
     /// the gun's, climbing) is untouched.
     /// </summary>
-    public sealed class BloodrageAbility : MonoBehaviour
+    public sealed class BloodrageAbility : MonoBehaviour, IReplicatedAbility
     {
+        public const string Id = "bloodrage";
+
+        string IReplicatedAbility.AbilityId => Id;
+
+        /// <summary>Raised on the owner's copy when Bloodrage starts (A is how long it lasts). See IReplicatedAbility.</summary>
+        public event System.Action<AbilityEvent> Fired;
+
         public const float DurationSeconds = 7.5f;
         public const float SpeedMultiplier = 1.25f;
         public const float DamageMultiplier = 1.25f;
@@ -95,7 +102,26 @@ namespace CityX.Character
             _remaining = DurationSeconds;
             SwapAnimations(true);
             StartAura();
+            Fired?.Invoke(new AbilityEvent(0, transform.position, Vector3.zero, DurationSeconds));
             return true;
+        }
+
+        /// <summary>
+        /// Another player's Bloodrage, shown on this copy of their body: the Bloodrage walk, run and jump and the red aura for as long as theirs
+        /// lasts (this component's own Update counts it down and puts everything back, as on the owner). Changes no speed or damage here:
+        /// those are the owner's, read by the owner's movement and melee.
+        /// </summary>
+        public void PlayRemote(AbilityEvent evt)
+        {
+            if (IsActive)
+            {
+                return;
+            }
+            Bind();
+            float seconds = evt.A > 0.0f ? Mathf.Min(evt.A, 60.0f) : DurationSeconds;
+            _remaining = seconds;
+            SwapAnimations(true);
+            StartAura();
         }
 
         private void Update()

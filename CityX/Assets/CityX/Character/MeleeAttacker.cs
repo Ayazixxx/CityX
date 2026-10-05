@@ -20,8 +20,22 @@ namespace CityX.Character
     /// a specific sequence. Those are exactly the bugs a test can catch and a
     /// playthrough usually will not.
     /// </summary>
-    public sealed class MeleeAttacker : MonoBehaviour
+    public sealed class MeleeAttacker : MonoBehaviour, IReplicatedAbility
     {
+        /// <summary>The sword spin (key 2) as an ability other players can see; see IReplicatedAbility. (The ordinary swings go over the animation sync.)</summary>
+        public const string SpinAbilityId = "sword-spin";
+
+        string IReplicatedAbility.AbilityId => SpinAbilityId;
+
+        /// <summary>The kinds of event the spin raises: charging began, the turn began (A is 1 for an air spin, B the charge in seconds), it ended.</summary>
+        public const int SpinEventCharging = 1;
+
+        public const int SpinEventTurning = 2;
+        public const int SpinEventEnded = 3;
+
+        /// <summary>Raised on the owner's copy as the sword spin charges, turns and ends. See IReplicatedAbility.</summary>
+        public event System.Action<AbilityEvent> Fired;
+
         [Header("Reach (ported from player.gd)")]
         [Tooltip("player.gd PUNCH_RANGE")]
         public float Range = 2.5f;
@@ -404,6 +418,7 @@ namespace CityX.Character
                 _spinChargeSeconds = 0.0f;
                 _spinTime = 0.0f;
                 SwingStarted?.Invoke(_currentStage);
+                Fired?.Invoke(new AbilityEvent(SpinEventCharging, transform.position, transform.forward));
                 return true;
             }
             BeginTurning(SpinKind.Ground, 0.0f);
@@ -452,6 +467,8 @@ namespace CityX.Character
                 }
             }
             SpinTrail?.SetTarget(1.0f);
+            Fired?.Invoke(new AbilityEvent(SpinEventTurning, transform.position, transform.forward,
+                kind == SpinKind.Air ? 1.0f : 0.0f, chargeSeconds));
         }
 
         /// <summary>
@@ -655,6 +672,7 @@ namespace CityX.Character
                     _locomotion.KeepsAirMomentum = false;
                     _locomotion.SetSwordSpinPose(0.0f);
                     _trail?.SetTarget(0.0f);
+                    Fired?.Invoke(new AbilityEvent(SpinEventEnded, transform.position, transform.forward));
                     return;
                 }
             }
@@ -678,6 +696,7 @@ namespace CityX.Character
 
         private void EndSpin()
         {
+            bool wasSpinning = _spinState != SpinState.None;
             _spinState = SpinState.None;
             _landingLagRemaining = 0.0f;
             _spinCooldownRemaining = SpinAttackCooldownSeconds;
@@ -686,6 +705,88 @@ namespace CityX.Character
                 _locomotion.GravityScale = 1.0f;
                 _locomotion.SetSwordSpinPose(0.0f);
             }
+            _trail?.SetTarget(0.0f);
+            if (wasSpinning)
+            {
+                Fired?.Invoke(new AbilityEvent(SpinEventEnded, transform.position, transform.forward));
+            }
+        }
+
+        // ---- the spin on a copy of the body someone else owns ----------------------------------------------------------------
+        // The turn and the rise are ordinary movement and arrive with the body's own transform. What does not is the look of it: the arm out
+        // to the side and the swoosh. A remote copy runs no input and no Tick, so it plays the same timeline here from the events the owner
+        // raised, with no hitting, no cooldown and nothing sent back.
+
+        private SpinState _remoteSpin;
+        private SpinKind _remoteKind;
+        private float _remoteTime;
+
+        /// <summary>True while this copy of a remote player's body is showing their spin.</summary>
+        public bool IsShowingRemoteSpin => _remoteSpin != SpinState.None;
+
+        public void PlayRemote(AbilityEvent evt)
+        {
+            switch (evt.Kind)
+            {
+                case SpinEventCharging:
+                    _remoteSpin = SpinState.Charging;
+                    _remoteKind = SpinKind.Ground;
+                    _remoteTime = 0.0f;
+                    break;
+                case SpinEventTurning:
+                    _remoteSpin = SpinState.Turning;
+                    _remoteKind = evt.A > 0.5f ? SpinKind.Air : SpinKind.Ground;
+                    _remoteTime = 0.0f;
+                    SpinTrail?.SetTarget(1.0f);
+                    break;
+                case SpinEventEnded:
+                    EndRemoteSpin();
+                    break;
+            }
+        }
+
+        private void Update()
+        {
+            if (_remoteSpin != SpinState.None)
+            {
+                TickRemoteSpin(Time.deltaTime);
+            }
+        }
+
+        /// <summary>Advances the remote spin's look by a step; public so a test can drive it without frames.</summary>
+        public void TickRemoteSpin(float deltaTime)
+        {
+            if (_remoteSpin == SpinState.None)
+            {
+                return;
+            }
+            _remoteTime += deltaTime;
+            if (_remoteSpin == SpinState.Charging)
+            {
+                // Held up for as long as the owner holds the key (at most a full charge, then it goes by itself); a lost "ended" event cannot strand the pose.
+                _locomotion?.SetSwordSpinPose(1.0f, ChargeBackDegrees, 0.0f, null);
+                if (_remoteTime > SwordSpinMove.MaxChargeSeconds + 1.0f)
+                {
+                    EndRemoteSpin();
+                }
+                return;
+            }
+
+            float turnSeconds = SwordSpinMove.TurnSeconds(_remoteKind);
+            float poseSeconds = turnSeconds + (_remoteKind == SpinKind.Air ? AirPoseLingerSeconds : GroundPoseLingerSeconds);
+            _locomotion?.SetSwordSpinPose(_remoteTime < poseSeconds ? 1.0f : 0.0f, 0.0f, 0.0f, null);
+            _trail?.SetTarget(_remoteTime < turnSeconds ? 1.0f : 0.0f);
+            if (_remoteTime >= SwordSpinMove.CommitSeconds(_remoteKind))
+            {
+                EndRemoteSpin();
+            }
+        }
+
+        private void EndRemoteSpin()
+        {
+            _remoteSpin = SpinState.None;
+            _remoteTime = 0.0f;
+            _locomotion?.SetSwordSpinPose(0.0f);
             _trail?.SetTarget(0.0f);
         }
 

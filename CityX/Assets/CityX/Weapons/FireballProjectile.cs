@@ -22,8 +22,14 @@ namespace CityX.Weapons
         private int _casterStrength;
         private bool _consumed;
 
+        /// <summary>
+        /// True for the copy another player's machine shows of a fireball they cast: it flies, bursts and sounds exactly as the real one
+        /// does, but hurts nothing (the caster's own machine decides what the real fireball hits).
+        /// </summary>
+        public bool Cosmetic { get; private set; }
+
         public static FireballProjectile Spawn(GameObject prefab, Vector3 origin, Vector3 velocity,
-            int casterStrength, Collider[] ignoreColliders)
+            int casterStrength, Collider[] ignoreColliders, bool cosmetic = false)
         {
             if (prefab == null)
             {
@@ -38,6 +44,7 @@ namespace CityX.Weapons
             }
 
             fireball._casterStrength = casterStrength;
+            fireball.Cosmetic = cosmetic;
             // GetComponent RATHER THAN THE CACHED FIELD -- see ThrownBottle.
             // Spawn's own comment: Awake has not necessarily run yet on a
             // clone made from an inactive prefab template.
@@ -109,7 +116,7 @@ namespace CityX.Weapons
                 normal = contact.normal;
             }
 
-            var target = collision.collider.GetComponentInParent<IDamageable>();
+            var target = Cosmetic ? null : collision.collider.GetComponentInParent<IDamageable>();
             if (target != null && target.IsAlive)
             {
                 float damage = CombatTuning.DamageFor(BaseDamage, _casterStrength);
