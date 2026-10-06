@@ -444,6 +444,89 @@ namespace CityX.Character
         // While climbing toward a ledge and while pulling up over it, both palms are put ON the ledge's lip (two-bone IK, after the Animator), so a
         // climb reads as gripping the edge rather than as a generic clip whose hands float wherever it was authored.
 
+        // ---- PROCEDURAL CLIMBING: hands and feet planted on the wall, stepping in diagonal pairs (see ClimbLimbStepper) -----------------------
+
+        private readonly ClimbLimbStepper _climbStepper = new ClimbLimbStepper();
+        private float _climbIkBlend;
+        private int _lastClimbDirection = 1;
+        private static readonly int ClimbDirectionParameterHash = Animator.StringToHash("ClimbDirection");
+
+        /// <summary>True while the limbs are being placed on the wall by the climb stepper.</summary>
+        public bool ClimbLimbsActive => _climbIkBlend > 0.01f;
+
+        private Vector3 SnapToClimbWall(Vector3 point, Vector3 normal)
+        {
+            // Onto the real surface (a wall is rarely a perfect plane: reveals, sills, panels), keeping the hold's own small offset from it.
+            float offset = Vector3.Dot(point - _climbWallPoint, normal);
+            if (LedgeProbe.SolidHit(point + normal * 0.5f, -normal, 1.0f, transform, out RaycastHit hit) && Mathf.Abs(hit.normal.y) < 0.5f)
+            {
+                return hit.point + normal * Mathf.Clamp(offset, 0.0f, 0.12f);
+            }
+            return point;
+        }
+
+        private static float LimbLength(Transform upper, Transform lower, Transform end)
+        {
+            return Vector3.Distance(upper.position, lower.position) + Vector3.Distance(lower.position, end.position);
+        }
+
+        /// <summary>
+        /// After the Animator: while climbing, the four limbs go where the stepper puts them on the wall: the hands and feet touch it, the body leans in, and nothing waves
+        /// in the air or bends through it. The climb clip is left to move the hips and spine, nothing else.
+        /// </summary>
+        private void ApplyClimbLimbs()
+        {
+            bool bones = _leftUpperArm != null && _leftLowerArm != null && _handL != null && _rightUpperArm != null && _rightLowerArm != null && _handR != null
+                && _leftUpperLeg != null && _leftLowerLeg != null && _leftFoot != null && _rightUpperLeg != null && _rightLowerLeg != null && _rightFoot != null;
+            float deltaTime = Time.deltaTime;
+            bool wanted = bones && _climbWallWeight > 0.01f && _animator != null;
+            _climbIkBlend = Mathf.MoveTowards(_climbIkBlend, wanted ? 1.0f : 0.0f, deltaTime * 8.0f);
+            if (!wanted)
+            {
+                if (_climbIkBlend <= 0.0f)
+                {
+                    _climbStepper.Reset();
+                }
+                return;
+            }
+
+            int direction = _animator.GetInteger(ClimbDirectionParameterHash);
+            if (direction != 0)
+            {
+                _lastClimbDirection = direction;
+            }
+            Vector3 n = _climbWallNormal;
+            var body = new ClimbLimbStepper.Body
+            {
+                LeftShoulder = _leftUpperArm.position,
+                RightShoulder = _rightUpperArm.position,
+                LeftHip = _leftUpperLeg.position,
+                RightHip = _rightUpperLeg.position,
+                ArmLength = 0.5f * (LimbLength(_leftUpperArm, _leftLowerArm, _handL) + LimbLength(_rightUpperArm, _rightLowerArm, _handR)),
+                LegLength = 0.5f * (LimbLength(_leftUpperLeg, _leftLowerLeg, _leftFoot) + LimbLength(_rightUpperLeg, _rightLowerLeg, _rightFoot)),
+            };
+            _climbStepper.Tick(deltaTime, body, _climbWallPoint, n, _lastClimbDirection, SnapToClimbWall);
+
+            float weight = Mathf.SmoothStep(0.0f, 1.0f, _climbIkBlend) * Mathf.Clamp01(_climbWallWeight);
+
+            // The chest leans in to the wall, and turns a little toward whichever hand reaches.
+            Vector3 across = Vector3.Cross(Vector3.up, -n).normalized;   // the body's right when it faces the wall
+            if (_spine != null)
+            {
+                float reach = (_climbStepper.IsStepping(ClimbLimbStepper.Limb.RightHand) ? 1.0f : 0.0f) - (_climbStepper.IsStepping(ClimbLimbStepper.Limb.LeftHand) ? 1.0f : 0.0f);
+                _spine.rotation = Quaternion.AngleAxis(-reach * 7.0f * weight, Vector3.up) * Quaternion.AngleAxis(9.0f * weight, across) * _spine.rotation;
+            }
+
+            Vector3 elbowLeft = -Vector3.up * 0.5f - across * 0.9f + n * 0.3f;
+            Vector3 elbowRight = -Vector3.up * 0.5f + across * 0.9f + n * 0.3f;
+            Vector3 kneeLeft = -across * 0.8f + n * 0.8f;
+            Vector3 kneeRight = across * 0.8f + n * 0.8f;
+            TwoBoneIK.Solve(_leftUpperArm, _leftLowerArm, _handL, _climbStepper.Target(ClimbLimbStepper.Limb.LeftHand, n), elbowLeft, weight);
+            TwoBoneIK.Solve(_rightUpperArm, _rightLowerArm, _handR, _climbStepper.Target(ClimbLimbStepper.Limb.RightHand, n), elbowRight, weight);
+            TwoBoneIK.Solve(_leftUpperLeg, _leftLowerLeg, _leftFoot, _climbStepper.Target(ClimbLimbStepper.Limb.LeftFoot, n), kneeLeft, weight);
+            TwoBoneIK.Solve(_rightUpperLeg, _rightLowerLeg, _rightFoot, _climbStepper.Target(ClimbLimbStepper.Limb.RightFoot, n), kneeRight, weight);
+        }
+
         // ---- UNARMED STRIKES: the fists and torso (see FistStrikes / FistPoseDriver) ------------------------------------------------------------
 
         private FistFrame _fistFrame;
@@ -1201,6 +1284,7 @@ namespace CityX.Character
             ApplySupportHand();
             ApplySwordSpinPose();
             ApplyFistPose();
+            ApplyClimbLimbs();
             ApplyClimbWallLimbs();
             ApplyLedgeHands();
             if (IsSitting)

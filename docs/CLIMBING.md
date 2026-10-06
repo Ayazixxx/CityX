@@ -144,3 +144,23 @@ not beside a door; not up a 14-step staircase into the wall at its top; Shift+W 
 the vault and the auto-climb the direction the player is trying to go (camera yaw + WASD), and `VaultProbe` finds the face with body-wide SPHERE casts in a 5-way fan (0, +-30, +-55 degrees) at four heights, and
 looks for the top at the hit point and to either side of it (a corner clip hits the edge of a narrow box, not its middle). Tests: `ANarrowBoxIsVaultedEvenWhenRunningAtItsEdge` (0.8 m wide box from 0.45 m either side),
 `AnObstacleBeingRunAtNotQuiteHeadOnIsStillVaulted` (+-50 degrees).
+
+## Update: procedural climbing (hands and feet on the wall, stepping in pairs)
+
+Reported: "the climbing animation looks like shit, the limbs keep bending weirdly; it has always looked bad: find a better climb animation like Breath of the Wild".
+The climb was one clip (both arms waving over the head, the legs bent wherever it liked) with every limb then shoved off the wall by a clamp: bent the wrong way, touching nothing, and
+the same every frame (no climbing motion at all).
+
+No free climbing clip was fetched (a download needs permission; see the end of this note); what Breath of the Wild shows is not a clip but PLANTED LIMBS: the hands and feet hold the wall, the body moves
+up past them, and a limb that has been left behind takes a quick step to a new hold, the diagonal pairs taking turns. That is built procedurally, so it works at any height and speed, down as well as up:
+
+- `Character/ClimbLimbStepper.cs` (pure, tested): four anchors on the wall surface; a limb steps (0.13 s, a small lift off the wall) when it is more than 0.30 of its length behind its ideal hold; only
+  one diagonal pair (left hand + right foot, or right hand + left foot) steps at a time, so the other carries the weight, and the two hands never let go together; holds are spread wider than the shoulders and
+  hips, as a climber's are; each is snapped onto the real surface (a raycast) a few centimetres off it; no hold is ever inside the wall.
+- `PlayerLocomotion.ApplyClimbLimbs` (LateUpdate, after the Animator): puts each hand and foot on its target with two-bone IK (elbows out and down, knees out and away from the wall), leans the chest into the
+  wall and turns it a little toward whichever hand reaches. The old clamp (`ApplyClimbWallLimbs`) stays as a safety net and now does nothing in normal climbing.
+- Other players' copies run the same stepper from the wall plane and `Climbing` flag they already receive, driven by the (smoothed) movement of the copy's body.
+- Tests: `ClimbLimbStepperTests` (steps again and again up and down, nothing out of reach, every hold on the wall, one pair at a time, holds do not move while holding, the pairs alternate),
+  `ClimbLimbsPlayTests` (no limb through the wall on the real rig), `ClimbCapture` (Explicit, -Graphics: `Logs/CityShots/climb-sheet*.png`; it sets `Time.captureFramerate = 60` because the limb
+  steps run in real frame time).
+- Still not BotW: it climbs only straight up and down (no sideways), the feet are not turned flat to the wall, and the pull-up over a ledge still uses the old clip.
