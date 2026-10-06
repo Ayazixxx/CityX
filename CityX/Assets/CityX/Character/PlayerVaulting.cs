@@ -52,7 +52,7 @@ namespace CityX.Character
         }
 
         /// <summary>Checked every frame the player is on foot and free: starts a vault when running at a vaultable obstacle.</summary>
-        public bool TryStart(bool forwardHeld, bool runHeld, bool grounded, float speed, float deltaTime)
+        public bool TryStart(bool forwardHeld, bool runHeld, bool grounded, float speed, float deltaTime, Vector3 direction = default)
         {
             _cooldown = Mathf.Max(0.0f, _cooldown - deltaTime);
             if (IsVaulting || _cooldown > 0.0f || !forwardHeld || !runHeld || !grounded)
@@ -65,7 +65,8 @@ namespace CityX.Character
             }
             float height = _locomotion != null ? _locomotion.StandingHeight : BodyRig.StandingHeight;
             float radius = _controller != null ? _controller.radius : 0.3f;
-            if (!VaultProbe.TryFind(transform.position, transform.forward, height, radius, transform, out VaultProbe.Vault vault))
+            Vector3 run = direction.sqrMagnitude > 0.0001f ? direction : transform.forward;   // the way the player is trying to go, not the way the body happens to face
+            if (!VaultProbe.TryFind(transform.position, run, height, radius, transform, out VaultProbe.Vault vault))
             {
                 return false;
             }

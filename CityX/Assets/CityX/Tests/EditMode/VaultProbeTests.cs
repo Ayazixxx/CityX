@@ -78,6 +78,29 @@ namespace CityX.Tests
         }
 
         [Test]
+        public void ANarrowBoxIsVaultedEvenWhenRunningAtItsEdge()
+        {
+            // "It only vaults when I look right at the edge": a thin ray found a narrow obstacle only when aimed at it. A body-wide sweep finds it.
+            Box(new Vector3(0.0f, 0.9f, 1.0f), new Vector3(0.8f, 1.8f, 0.6f));    // 0.8 m wide, 1.8 m tall, face at z = 0.7
+            foreach (float x in new[] { -0.45f, -0.3f, 0.0f, 0.3f, 0.45f })
+            {
+                Assert.IsTrue(VaultProbe.TryFind(new Vector3(x, 0.0f, 0.0f), Vector3.forward, Height, Radius, null, out _),
+                    $"running at the box from {x:F2} m to one side was not vaultable");
+            }
+        }
+
+        [Test]
+        public void AnObstacleBeingRunAtNotQuiteHeadOnIsStillVaulted()
+        {
+            Obstacle(1.5f, 0.5f);
+            foreach (float degrees in new[] { -50.0f, -35.0f, -20.0f, 0.0f, 20.0f, 35.0f, 50.0f })
+            {
+                Vector3 direction = Quaternion.Euler(0.0f, degrees, 0.0f) * Vector3.forward;
+                Assert.IsTrue(Find(direction, out _), $"running at the fence {degrees} degrees off square was not vaultable");
+            }
+        }
+
+        [Test]
         public void AnAngledApproachStillFindsTheObstacle()
         {
             Obstacle(1.4f, 0.4f);

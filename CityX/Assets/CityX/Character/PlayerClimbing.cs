@@ -230,7 +230,7 @@ namespace CityX.Character
         /// <summary>
         /// Called every frame on foot. Starts a climb when run + forward have been pressed into a real wall (see the guards above). Returns true on the frame it starts.
         /// </summary>
-        public bool TryStartAuto(bool forwardHeld, bool runHeld, bool grounded, float stamina, float deltaTime)
+        public bool TryStartAuto(bool forwardHeld, bool runHeld, bool grounded, float stamina, float deltaTime, Vector3 direction = default)
         {
             TrackGround(grounded, deltaTime);
             if (!forwardHeld || !runHeld)
@@ -245,13 +245,14 @@ namespace CityX.Character
                 return false;
             }
             float standingHeight = _locomotion != null ? _locomotion.StandingHeight : BodyRig.StandingHeight;
-            if (!WallProbe.TryFind(transform.position, transform.forward, standingHeight, out WallProbe.Result wall))
+            Vector3 run = direction.sqrMagnitude > 0.0001f ? direction : transform.forward;   // the way the player is trying to go, not the way the body happens to face
+            if (!WallProbe.TryFind(transform.position, run, standingHeight, out WallProbe.Result wall))
             {
                 _autoPress = 0.0f;
                 return false;
             }
             Vector3 flatNormal = new Vector3(wall.Normal.x, 0.0f, wall.Normal.z);
-            Vector3 flatForward = new Vector3(transform.forward.x, 0.0f, transform.forward.z);
+            Vector3 flatForward = new Vector3(run.x, 0.0f, run.z);
             if (flatNormal.sqrMagnitude < 1e-6f || flatForward.sqrMagnitude < 1e-6f || Vector3.Angle(flatForward, -flatNormal) > AutoMaxFacingDegrees || NearDoor())
             {
                 _autoPress = 0.0f;

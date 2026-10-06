@@ -829,9 +829,23 @@ namespace CityX.Character
                 }
             }
 
+            // WHERE THE PLAYER IS TRYING TO GO (camera yaw + WASD), not where the body happens to face: the vault and the auto-climb look along this, so they work
+            // however the camera is turned and however the body has caught up with it.
+            Vector3 wishDirection = Vector3.zero;
+            {
+                Transform wishYaw = YawSource != null ? YawSource : (Camera.main != null ? Camera.main.transform : null);
+                float yaw = wishYaw != null ? wishYaw.eulerAngles.y : transform.eulerAngles.y;
+                float wx = (keyboard.dKey.isPressed ? 1.0f : 0.0f) - (keyboard.aKey.isPressed ? 1.0f : 0.0f);
+                float wz = (keyboard.wKey.isPressed ? 1.0f : 0.0f) - (keyboard.sKey.isPressed ? 1.0f : 0.0f);
+                if (wx != 0.0f || wz != 0.0f)
+                {
+                    wishDirection = Quaternion.Euler(0.0f, yaw, 0.0f) * new Vector3(wx, 0.0f, wz).normalized;
+                }
+            }
+
             // RUNNING AT A LOW OBSTACLE VAULTS IT (Shift + W; holding Space is still the way to ask for a climb, checked above).
             if (_vaulting != null && !_locomotion.IsDashing && (_grabCarry == null || !_grabCarry.IsCarrying)
-                && _vaulting.TryStart(keyboard.wKey.isPressed, keyboard.leftShiftKey.isPressed, _locomotion.IsGrounded, _locomotion.CurrentSpeed, deltaTime))
+                && _vaulting.TryStart(keyboard.wKey.isPressed, keyboard.leftShiftKey.isPressed, _locomotion.IsGrounded, _locomotion.CurrentSpeed, deltaTime, wishDirection))
             {
                 _vaulting.Tick(deltaTime);
                 _audio?.SilenceFootsteps();
@@ -843,7 +857,7 @@ namespace CityX.Character
             if (_climbing != null && wallGrabsAllowed && !_locomotion.IsDashing && (_grabCarry == null || !_grabCarry.IsCarrying))
             {
                 float stamina = _vitals != null ? _vitals.Stamina : float.MaxValue;
-                if (_climbing.TryStartAuto(keyboard.wKey.isPressed, keyboard.leftShiftKey.isPressed, _locomotion.IsGrounded, stamina, deltaTime))
+                if (_climbing.TryStartAuto(keyboard.wKey.isPressed, keyboard.leftShiftKey.isPressed, _locomotion.IsGrounded, stamina, deltaTime, wishDirection))
                 {
                     _climbing.Tick(keyboard.spaceKey.wasPressedThisFrame,
                         keyboard.wKey.isPressed, keyboard.sKey.isPressed, _vitals, deltaTime,

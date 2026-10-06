@@ -47,61 +47,54 @@ namespace CityX.Character
         public const float MaxDropMetres = 2.6f;
 
         /// <summary>The face-finding rays fan out by these angles from the running direction, in degrees.</summary>
-        private static readonly float[] FanDegrees = { 0.0f, -25.0f, 25.0f };
+        private static readonly float[] FanDegrees = { 0.0f, -30.0f, 30.0f, -55.0f, 55.0f };
+
+        /// <summary>The radius of the sphere cast that finds the face, in metres.</summary>
+        private const float SphereRadius = 0.22f;
+
+        private static readonly RaycastHit[] SphereHits = new RaycastHit[8];
+
+        /// <summary>The nearest solid thing a sphere sweeps into that is not this body or a person (a sphere that starts inside something is skipped).</summary>
+        private static bool SolidSphereHit(Vector3 origin, float sphereRadius, Vector3 direction, float distance, Transform self, out RaycastHit best)
+        {
+            best = default;
+            int count = Physics.SphereCastNonAlloc(origin, sphereRadius, direction, SphereHits, distance, ~0, QueryTriggerInteraction.Ignore);
+            float nearest = float.MaxValue;
+            bool found = false;
+            for (int i = 0; i < count; i++)
+            {
+                RaycastHit h = SphereHits[i];
+                Collider c = h.collider;
+                if (c == null || h.point == Vector3.zero || (self != null && c.transform.IsChildOf(self)) || c.GetComponentInParent<IDamageable>() != null)
+                {
+                    continue;
+                }
+                if (h.distance < nearest)
+                {
+                    nearest = h.distance;
+                    best = h;
+                    found = true;
+                }
+            }
+            return found;
+        }
 
         /// <summary>The face-finding rays go at these fractions of standing height (knee to chest).</summary>
         private static readonly float[] FaceHeightFractions = { 0.26f, 0.4f, 0.55f, 0.7f };
 
         /// <summary>How squarely the player must be facing the obstacle (dot of the facing and the face normal): within 60 degrees.</summary>
-        public const float MinFacingDot = 0.5f;
+        public const float MinFacingDot = 0.45f;
 
         private const float FlatnessMetres = 0.1f;
         private const float StepMetres = 0.15f;
 
-        public static bool TryFind(Vector3 feet, Vector3 forward, float standingHeight, float radius, Transform self, out Vault vault)
+        private static readonly float[] SidewaysMetres = { 0.0f, -0.25f, 0.25f, -0.45f, 0.45f };
+
+        /// <summary>Walks a flat top away from <paramref name="origin"/> (on the face) in steps: true when it is flat, in the band, and ENDS within the allowed thickness.</summary>
+        private static bool TryWalkTop(Vector3 origin, Vector3 into, Vector3 across, float bandLow, float bandHigh, Transform self, out float height, out float lastTopDepth)
         {
-            vault = default;
-            forward.y = 0.0f;
-            if (forward.sqrMagnitude < 0.0001f)
-            {
-                return false;
-            }
-            forward.Normalize();
-            float bandLow = feet.y + standingHeight * BandLowFraction;
-            float bandHigh = feet.y + standingHeight * BandHighFraction;
-
-            // 1. The face, in a small fan (so a corner or an angled approach still finds it), facing the player.
-            // Rays go at several heights inside the vaultable band, because an obstacle only has a face at heights below its top.
-            RaycastHit mid = default;
-            bool seen = false;
-            float nearest = float.MaxValue;
-            foreach (float fraction in FaceHeightFractions)
-            foreach (float angle in FanDegrees)
-            {
-                Vector3 direction = Quaternion.AngleAxis(angle, Vector3.up) * forward;
-                if (LedgeProbe.SolidHit(feet + Vector3.up * (standingHeight * fraction), direction, radius + ReachMetres, self, out RaycastHit candidate) && Mathf.Abs(candidate.normal.y) <= 0.3f
-                    && candidate.distance < nearest)
-                {
-                    Vector3 flatNormal = new Vector3(candidate.normal.x, 0.0f, candidate.normal.z).normalized;
-                    if (Vector3.Dot(-flatNormal, forward) >= MinFacingDot)
-                    {
-                        mid = candidate;
-                        nearest = candidate.distance;
-                        seen = true;
-                    }
-                }
-            }
-            if (!seen)
-            {
-                return false;
-            }
-            Vector3 faceNormal = new Vector3(mid.normal.x, 0.0f, mid.normal.z).normalized;
-            Vector3 into = -faceNormal;
-            Vector3 across = Vector3.Cross(Vector3.up, faceNormal);
-
-            // 2 + 3. The top, walked away from the player in steps: flat and agreeing, until it ends.
-            float height = float.NaN;
-            float lastTopDepth = -1.0f;
+            height = float.NaN;
+            lastTopDepth = -1.0f;
             bool ended = false;
             float castHeight = bandHigh + 0.4f;
             for (float depth = 0.1f; depth <= MaxThicknessMetres + StepMetres; depth += StepMetres)
@@ -110,7 +103,7 @@ namespace CityX.Character
                 float sample = 0.0f;
                 for (int s = -1; s <= 1 && top; s += 2)
                 {
-                    Vector3 from = mid.point + into * depth + across * (s * 0.25f);
+                    Vector3 from = origin + into * depth + across * (s * 0.12f);
                     from.y = castHeight;
                     top = LedgeProbe.SolidHit(from, Vector3.down, castHeight - bandLow + 0.2f, self, out RaycastHit h)
                         && h.normal.y >= 0.85f && h.point.y >= bandLow - 0.2f && h.point.y <= bandHigh + 0.2f
@@ -139,13 +132,73 @@ namespace CityX.Character
                 }
                 lastTopDepth = depth;
             }
-            if (!ended || height < bandLow || height > bandHigh)
+            return ended && height >= bandLow && height <= bandHigh;
+        }
+
+        public static bool TryFind(Vector3 feet, Vector3 forward, float standingHeight, float radius, Transform self, out Vault vault)
+        {
+            vault = default;
+            forward.y = 0.0f;
+            if (forward.sqrMagnitude < 0.0001f)
+            {
+                return false;
+            }
+            forward.Normalize();
+            float bandLow = feet.y + standingHeight * BandLowFraction;
+            float bandHigh = feet.y + standingHeight * BandHighFraction;
+
+            // 1. The face the body would run into. SPHERE casts (the width of a body), not rays, at several heights inside the vaultable band (an obstacle only
+            // has a face below its top), in a wide fan: a thin ray only found the obstacle when it was aimed right at it ("it only vaults when I look at the edge").
+            RaycastHit mid = default;
+            bool seen = false;
+            float nearest = float.MaxValue;
+            foreach (float fraction in FaceHeightFractions)
+            foreach (float angle in FanDegrees)
+            {
+                Vector3 direction = Quaternion.AngleAxis(angle, Vector3.up) * forward;
+                Vector3 origin = feet + Vector3.up * (standingHeight * fraction);
+                if (SolidSphereHit(origin, SphereRadius, direction, radius + ReachMetres, self, out RaycastHit candidate) && Mathf.Abs(candidate.normal.y) <= 0.3f
+                    && candidate.distance < nearest)
+                {
+                    Vector3 flatNormal = new Vector3(candidate.normal.x, 0.0f, candidate.normal.z).normalized;
+                    if (Vector3.Dot(-flatNormal, forward) >= MinFacingDot)
+                    {
+                        mid = candidate;
+                        nearest = candidate.distance;
+                        seen = true;
+                    }
+                }
+            }
+            if (!seen)
+            {
+                return false;
+            }
+            Vector3 faceNormal = new Vector3(mid.normal.x, 0.0f, mid.normal.z).normalized;
+            Vector3 into = -faceNormal;
+            Vector3 across = Vector3.Cross(Vector3.up, faceNormal);
+
+            // 2 + 3. The top, walked away from the player in steps: flat and agreeing, until it ends. Tried at the hit point and then to either side of it, since
+            // a sphere that clips a narrow obstacle's corner hits the edge of it, not the middle.
+            float height = float.NaN;
+            float lastTopDepth = -1.0f;
+            Vector3 origin2 = mid.point;
+            bool walked = false;
+            foreach (float sideways in SidewaysMetres)
+            {
+                origin2 = mid.point + across * sideways;
+                if (TryWalkTop(origin2, into, across, bandLow, bandHigh, self, out height, out lastTopDepth))
+                {
+                    walked = true;
+                    break;
+                }
+            }
+            if (!walked)
             {
                 return false;
             }
 
             // 4. Ground to land on past the far edge, within a short drop, with room to stand.
-            Vector3 farEdge = mid.point + into * lastTopDepth;
+            Vector3 farEdge = origin2 + into * lastTopDepth;
             farEdge.y = height;
             Vector3 land = farEdge + into * (radius + 0.35f);
             if (!LedgeProbe.SolidHit(new Vector3(land.x, height + 0.5f, land.z), Vector3.down, 0.5f + MaxDropMetres, self, out RaycastHit ground)
@@ -166,7 +219,7 @@ namespace CityX.Character
 
             vault = new Vault
             {
-                NearEdge = new Vector3(mid.point.x, height, mid.point.z),
+                NearEdge = new Vector3(origin2.x, height, origin2.z),
                 FarEdge = farEdge,
                 Land = land,
                 Height = height,

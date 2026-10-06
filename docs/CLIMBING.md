@@ -137,3 +137,10 @@ is guarded so ordinary running does not trigger it (`PlayerClimbing.TryStartAuto
 - grounded only, and after any climb ends the run keys must be released before the next automatic one.
 Tests: `PlayerClimbingTests` (dwell, no run key, stairs, a door nearby, grazing, release after a drop), `RealInputClimbingPlayTests` (real keyboard: Shift+W climbs a tall wall;
 not beside a door; not up a 14-step staircase into the wall at its top; Shift+W at a 1.9 m box vaults it), `VaultProbeTests` (a knee-high obstacle, a 1.9 m box, an angled approach).
+
+## Update: the vault no longer depends on where you look
+
+"It only vaults when I look right at the edge": the probe used thin rays along the BODY's facing, so a narrow obstacle was found only when aimed at, and the body's facing lags the camera. Now `PlayerInputReader` hands
+the vault and the auto-climb the direction the player is trying to go (camera yaw + WASD), and `VaultProbe` finds the face with body-wide SPHERE casts in a 5-way fan (0, +-30, +-55 degrees) at four heights, and
+looks for the top at the hit point and to either side of it (a corner clip hits the edge of a narrow box, not its middle). Tests: `ANarrowBoxIsVaultedEvenWhenRunningAtItsEdge` (0.8 m wide box from 0.45 m either side),
+`AnObstacleBeingRunAtNotQuiteHeadOnIsStillVaulted` (+-50 degrees).
