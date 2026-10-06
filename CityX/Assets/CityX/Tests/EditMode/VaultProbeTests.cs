@@ -61,6 +61,31 @@ namespace CityX.Tests
         }
 
         [Test]
+        public void AKneeHighObstacleBelowTheWaistIsVaultable()
+        {
+            // The waist-height ray the first version used missed anything lower than the waist: "it only vaults objects this high sometimes".
+            Obstacle(0.75f, 0.5f);
+            Assert.IsTrue(Find(Vector3.forward, out VaultProbe.Vault vault), "a knee-high obstacle was not vaultable");
+            Assert.AreEqual(0.75f, vault.Height, 0.05f);
+        }
+
+        [Test]
+        public void ARoadsideBoxAsTallAsTheChestAndAMetreDeepIsVaultable()
+        {
+            Obstacle(1.9f, 1.0f);   // a utility box: 1.9 m tall, 1 m deep
+            Assert.IsTrue(Find(Vector3.forward, out VaultProbe.Vault vault), "a 1.9 m, 1 m deep box was not vaultable");
+            Assert.Greater(vault.Land.z, 1.5f);
+        }
+
+        [Test]
+        public void AnAngledApproachStillFindsTheObstacle()
+        {
+            Obstacle(1.4f, 0.4f);
+            Vector3 angled = Quaternion.Euler(0.0f, 35.0f, 0.0f) * Vector3.forward;
+            Assert.IsTrue(Find(angled, out _), "running at the fence 35 degrees off square was not vaultable");
+        }
+
+        [Test]
         public void AStepTooLowToBotherWithIsNotAVault()
         {
             Obstacle(0.4f, 0.4f);

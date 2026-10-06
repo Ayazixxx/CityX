@@ -85,6 +85,99 @@ namespace CityX.Tests
             Assert.IsTrue(_climbing.IsClimbing);
         }
 
+
+        // ---- run (Shift + W) into a wall climbs it, guarded ----------------------------------------------------------------------------------
+
+        private sealed class FakeDoor : MonoBehaviour, CityX.World.IOpenableDoor
+        {
+            public Vector3 Position => transform.position;
+            public void SetOpen(bool open) { }
+        }
+
+        private bool RunAtWall(float seconds, bool run = true, bool forward = true)
+        {
+            const float dt = 1.0f / 60.0f;
+            for (float t = 0.0f; t < seconds; t += dt)
+            {
+                if (_climbing.TryStartAuto(forward, run, true, 100.0f, dt)) return true;
+            }
+            return false;
+        }
+
+        [Test]
+        public void RunningIntoATallWallStartsTheClimbAfterAMoment()
+        {
+            MakeWall(30.0f, 0.2f);
+            Physics.SyncTransforms();
+            Assert.IsFalse(RunAtWall(0.1f), "it grabbed instantly, before the dwell");
+            Assert.IsTrue(RunAtWall(0.3f), "running into a tall wall never started a climb");
+            Assert.IsTrue(_climbing.IsClimbing);
+        }
+
+        [Test]
+        public void NoRunKeyOrNoForwardMeansNoAutomaticClimb()
+        {
+            MakeWall(30.0f, 0.2f);
+            Physics.SyncTransforms();
+            Assert.IsFalse(RunAtWall(1.0f, run: false), "walking into a wall started a climb");
+            Assert.IsFalse(RunAtWall(1.0f, forward: false), "running without pushing forward started a climb");
+        }
+
+        [Test]
+        public void StairsHoldOffTheAutomaticClimb()
+        {
+            MakeWall(30.0f, 0.2f);
+            Physics.SyncTransforms();
+            _climbing.MarkStairs();
+            Assert.IsFalse(RunAtWall(0.5f), "running up a staircase into the wall at its top started a climb");
+            Assert.IsTrue(_climbing.RecentlyOnStairs);
+            Assert.IsFalse(RunAtWall(PlayerClimbing.StairMemorySeconds + 0.5f), "carrying on into the wall at the top of the stairs started a climb with the keys still held");
+            RunAtWall(0.1f, run: false);   // let go of the run key
+            Assert.IsTrue(RunAtWall(0.5f), "a fresh press after the stairs should climb");
+        }
+
+        [Test]
+        public void ADoorNearbyHoldsOffTheAutomaticClimb()
+        {
+            MakeWall(30.0f, 0.2f);
+            var door = new GameObject("Door");
+            door.transform.position = new Vector3(2.0f, 1.0f, 0.5f);
+            door.AddComponent<BoxCollider>().isTrigger = true;
+            door.AddComponent<FakeDoor>();
+            Physics.SyncTransforms();
+            try
+            {
+                Assert.IsFalse(RunAtWall(1.0f), "running at the wall beside a doorway started a climb");
+            }
+            finally
+            {
+                Object.DestroyImmediate(door);
+            }
+        }
+
+        [Test]
+        public void GrazingAWallAtAnAngleDoesNotClimb()
+        {
+            MakeWall(30.0f, 0.2f);
+            Physics.SyncTransforms();
+            _player.transform.rotation = Quaternion.Euler(0.0f, 50.0f, 0.0f);   // 50 degrees off square
+            Assert.IsFalse(RunAtWall(1.0f), "brushing along a wall at an angle started a climb");
+        }
+
+        [Test]
+        public void AfterLettingGoTheRunKeysMustBeReleasedBeforeClimbingAgain()
+        {
+            MakeWall(30.0f, 0.2f);
+            Physics.SyncTransforms();
+            Assert.IsTrue(RunAtWall(0.5f));
+            _climbing.Tick(false, false, false, _vitals, 1.0f / 60.0f, dropPressed: true);
+            Assert.IsFalse(_climbing.IsClimbing);
+            _player.transform.position = Vector3.zero;
+            Physics.SyncTransforms();
+            Assert.IsFalse(RunAtWall(2.0f), "grabbed again straight after a drop with the keys still held");
+            RunAtWall(0.1f, run: false);   // release
+            Assert.IsTrue(RunAtWall(0.5f), "a fresh press after releasing should grab again");
+        }
         [Test]
         public void NoStaminaMeansNoGrab()
         {

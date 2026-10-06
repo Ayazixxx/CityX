@@ -17,7 +17,7 @@ namespace CityX.Character
         public const float VaultSeconds = 0.7f;
 
         /// <summary>Slowest running speed (m/s) at which an obstacle is vaulted rather than bumped into.</summary>
-        public const float MinRunSpeed = 3.0f;
+        public const float MinRunSpeed = 0.0f;
 
         /// <summary>The body clears the top by this much at the highest point of the path, in metres.</summary>
         public const float ClearanceMetres = 0.12f;
@@ -36,7 +36,9 @@ namespace CityX.Character
         public bool IsVaulting { get; private set; }
 
         /// <summary>Where the vault is, 0 (start) to 1 (landed). Meaningless outside a vault.</summary>
-        public float Progress => Mathf.Clamp01(_elapsed / VaultSeconds);
+        public float Progress => Mathf.Clamp01(_elapsed / _seconds);
+
+        private float _seconds = VaultSeconds;
 
         private void Awake()
         {
@@ -57,7 +59,7 @@ namespace CityX.Character
             {
                 return false;
             }
-            if (speed < MinRunSpeed)
+            if (speed < MinRunSpeed)   // no gate by default: holding run and forward at an obstacle IS the request, even when pressed against it
             {
                 return false;
             }
@@ -79,6 +81,7 @@ namespace CityX.Character
             _start = transform.position;
             _yaw = transform.rotation;
             _elapsed = 0.0f;
+            _seconds = VaultSeconds + 0.3f * Mathf.Clamp01((vault.Height - _start.y - 1.2f) / 1.0f);   // a taller obstacle takes a little longer
             _locomotion?.SetVerticalVelocity(0.0f);
             if (_controller != null)
             {
@@ -134,7 +137,7 @@ namespace CityX.Character
         private void Complete()
         {
             IsVaulting = false;
-            _cooldown = 0.4f;
+            _cooldown = 0.25f;
             Vector3 land = _vault.Land;
             if (Physics.Raycast(land + Vector3.up * 0.6f, Vector3.down, out RaycastHit hit, 1.6f + VaultProbe.MaxDropMetres, ~0, QueryTriggerInteraction.Ignore))
             {

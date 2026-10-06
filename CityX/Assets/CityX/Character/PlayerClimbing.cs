@@ -137,9 +137,16 @@ namespace CityX.Character
                 return false;
             }
 
+            BeginClimb(wall, intent);
+            return true;
+        }
+
+        private void BeginClimb(WallProbe.Result wall, GrabIntent intent)
+        {
             IsClimbing = true;
             _intent = intent;
-            intent.Consume();
+            intent?.Consume();
+            _autoPress = 0.0f;
             _wallNormal = new Vector3(wall.Normal.x, 0.0f, wall.Normal.z).normalized;
 
             // Hang against the face itself, the capsule's own radius off it.
@@ -148,7 +155,130 @@ namespace CityX.Character
             _anchorX = hang.x;
             _anchorZ = hang.z;
             _locomotion?.SetVerticalVelocity(0.0f);
+        }
+
+        // ---- AUTOMATIC CLIMB: run (Shift + W) into a wall ----------------------------------------------------------------------------------------
+        //
+        // Holding run and forward into a tall wall starts the climb with no further input, as Assassin's Creed's free-running does. Shift + W is also how the
+        // player simply RUNS, which is why it used to fire running up a staircase, through a doorway and out of a window; so it is guarded:
+        //   * the wall must be a real one (WallProbe: a wide, tall, flat face, no gaps), faced squarely (within 30 degrees, not grazed);
+        //   * it must be pressed into for a moment (AutoDwellSeconds), so brushing past a wall as you turn a corner does nothing;
+        //   * not while climbing stairs or a ramp (the ground has been rising under the feet in the last second), where the wall is the top landing's;
+        //   * not within DoorRadiusMetres of a door (the doorway's jambs and the walls round it);
+        //   * not on the ground only: it has to be grounded, and after a climb ends the run keys must be released before another can start.
+        // Holding Space at a wall still grabs it from anywhere, as before.
+
+        /// <summary>How long run + forward must be pressed into the wall before it is grabbed, in seconds.</summary>
+        public const float AutoDwellSeconds = 0.2f;
+
+        /// <summary>The wall must be faced within this many degrees.</summary>
+        public const float AutoMaxFacingDegrees = 30.0f;
+
+        /// <summary>No automatic climb within this distance of a door, in metres.</summary>
+        public const float DoorRadiusMetres = 3.0f;
+
+        /// <summary>The standing height rising faster than this (m/s) means a staircase or a steep ramp.</summary>
+        public const float StairRiseSpeed = 0.8f;
+
+        /// <summary>How long after the last stair-like rise an automatic climb stays off, in seconds.</summary>
+        public const float StairMemorySeconds = 1.0f;
+
+        private float _autoPress;
+        private float _stairTimer;
+        private float _lastGroundedY;
+        private float _lastGroundedTime = -10.0f;
+        private bool _autoNeedsRelease;
+        private static readonly Collider[] DoorOverlaps = new Collider[16];
+
+        /// <summary>True while the recent walk has been up stairs or a ramp (so an automatic climb is held off).</summary>
+        public bool RecentlyOnStairs => _stairTimer > 0.0f;
+
+        /// <summary>Call once per frame the player is on foot (not already climbing): tracks the ground under the feet to spot stairs and ramps.</summary>
+        public void TrackGround(bool grounded, float deltaTime)
+        {
+            _stairTimer = Mathf.Max(0.0f, _stairTimer - deltaTime);
+            if (!grounded)
+            {
+                return;
+            }
+            // Compared with a reference height from 0.15 to 0.6 s ago (not the last frame, which is noise, and running up steps the controller is only
+            // "grounded" some frames): how fast has the standing height been rising?
+            float now = Time.time;
+            float y = transform.position.y;
+            float since = now - _lastGroundedTime;
+            if (since >= 0.15f)
+            {
+                if (since < 0.6f && (y - _lastGroundedY) / since > StairRiseSpeed)
+                {
+                    MarkStairs();
+                }
+                _lastGroundedTime = now;
+                _lastGroundedY = y;
+            }
+        }
+
+        /// <summary>
+        /// The ground has been rising like a staircase: no automatic climb for a moment, AND the run keys must be let go and pressed again first, so running
+        /// up a flight and carrying on into the wall at its top never turns into a climb by itself. (Also a test hook.)
+        /// </summary>
+        public void MarkStairs()
+        {
+            _stairTimer = StairMemorySeconds;
+            _autoNeedsRelease = true;
+        }
+
+        /// <summary>
+        /// Called every frame on foot. Starts a climb when run + forward have been pressed into a real wall (see the guards above). Returns true on the frame it starts.
+        /// </summary>
+        public bool TryStartAuto(bool forwardHeld, bool runHeld, bool grounded, float stamina, float deltaTime)
+        {
+            TrackGround(grounded, deltaTime);
+            if (!forwardHeld || !runHeld)
+            {
+                _autoNeedsRelease = false;   // let go of the run keys: the next press is a new attempt
+                _autoPress = 0.0f;
+                return false;
+            }
+            if (IsClimbing || IsToppingOut || _autoNeedsRelease || !grounded || stamina <= 0.0f || _stairTimer > 0.0f)
+            {
+                _autoPress = 0.0f;
+                return false;
+            }
+            float standingHeight = _locomotion != null ? _locomotion.StandingHeight : BodyRig.StandingHeight;
+            if (!WallProbe.TryFind(transform.position, transform.forward, standingHeight, out WallProbe.Result wall))
+            {
+                _autoPress = 0.0f;
+                return false;
+            }
+            Vector3 flatNormal = new Vector3(wall.Normal.x, 0.0f, wall.Normal.z);
+            Vector3 flatForward = new Vector3(transform.forward.x, 0.0f, transform.forward.z);
+            if (flatNormal.sqrMagnitude < 1e-6f || flatForward.sqrMagnitude < 1e-6f || Vector3.Angle(flatForward, -flatNormal) > AutoMaxFacingDegrees || NearDoor())
+            {
+                _autoPress = 0.0f;
+                return false;
+            }
+            _autoPress += deltaTime;
+            if (_autoPress < AutoDwellSeconds)
+            {
+                return false;
+            }
+            _autoPress = 0.0f;
+            BeginClimb(wall, null);
             return true;
+        }
+
+        /// <summary>True when a door is within <see cref="DoorRadiusMetres"/> of the player (doors have trigger volumes, so triggers count).</summary>
+        private bool NearDoor()
+        {
+            int count = Physics.OverlapSphereNonAlloc(transform.position + Vector3.up, DoorRadiusMetres, DoorOverlaps, ~0, QueryTriggerInteraction.Collide);
+            for (int i = 0; i < count; i++)
+            {
+                if (DoorOverlaps[i] != null && DoorOverlaps[i].GetComponentInParent<IOpenableDoor>() != null)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>
@@ -333,6 +463,7 @@ namespace CityX.Character
             _locomotion?.SetLedgeHands(0.0f, Vector3.zero, Vector3.zero);
             _locomotion?.SetClimbWall(Vector3.zero, Vector3.forward, 0.0f);
             _intent?.BeginCooldown();   // a hop-off is not undone by the next frame's grab
+            _autoNeedsRelease = true;   // and the run keys must be let go before an automatic climb can start again
             if (_animator != null)
             {
                 _animator.SetBool(ClimbingParameter, false);
@@ -504,6 +635,7 @@ namespace CityX.Character
         {
             IsToppingOut = false;
             _intent?.BeginCooldown();
+            _autoNeedsRelease = true;
             Vector3 stand = _mantle.Stand;
             if (MantleEndY(_mantle) <= _mantle.Stand.y + 0.001f
                 && Physics.Raycast(stand + Vector3.up * 0.6f, Vector3.down, out RaycastHit hit, 1.6f, ~0, QueryTriggerInteraction.Ignore))

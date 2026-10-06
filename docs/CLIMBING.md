@@ -118,3 +118,22 @@ Also: running or diving into an intact window no longer breaks it (windows break
   wall plane is moved out to just in front of it and its limb is solved to reach there (two-bone IK), so hands and feet touch the wall and never go through it.
   Before: a hand 0.37 m through the wall in the test; after: nothing behind it (`ClimbLimbsPlayTests`).
 - **Stamina drains only while moving** up or down (or sliding on a wet wall). Hanging still costs nothing and does not regenerate either.
+
+## Update: automatic vault and automatic climb (run into it)
+
+**Vault.** Holding run (Shift) + W at a vaultable obstacle now just vaults it, with no speed requirement (standing against it counts). It used to work only "sometimes" because
+(1) the face was looked for with ONE ray at waist height, so anything below the waist (a knee-high planter) had no face at that height, (2) the top had to be under 0.68 x
+height, (3) it had to be square on, and (4) it needed 3 m/s of running speed, which a player pressed against the obstacle does not have. Now the face rays go at four heights
+(knee to chest) in a 3-ray fan, the vaultable band is 0.22 to 0.8 x height (0.57 to 2.08 m on the 2.6 m player: it vaults a 1.9 m roadside box), up to 1.6 m thick, up to 60
+degrees off square, landing up to 2.6 m below the top. A taller obstacle takes up to 0.3 s longer.
+
+**Climb.** Holding run (Shift) + W into a tall wall now starts the climb by itself (holding Space at a wall still grabs from anywhere). It is a vault first, a climb second, and it
+is guarded so ordinary running does not trigger it (`PlayerClimbing.TryStartAuto`):
+- the wall must pass `WallProbe` (wide, tall, flat, no gaps: a doorway or window opening fails) and be faced squarely, within 30 degrees (brushing along it does nothing);
+- it must be pressed into for 0.2 s;
+- **stairs**: if the standing height has been rising faster than 0.8 m/s (a staircase or a steep ramp), no automatic climb for a second, AND the run keys must be let go and pressed
+  again, so running up a flight and on into the wall at its top never turns into a climb;
+- **doors**: none within 3 m of a door;
+- grounded only, and after any climb ends the run keys must be released before the next automatic one.
+Tests: `PlayerClimbingTests` (dwell, no run key, stairs, a door nearby, grazing, release after a drop), `RealInputClimbingPlayTests` (real keyboard: Shift+W climbs a tall wall;
+not beside a door; not up a 14-step staircase into the wall at its top; Shift+W at a 1.9 m box vaults it), `VaultProbeTests` (a knee-high obstacle, a 1.9 m box, an angled approach).

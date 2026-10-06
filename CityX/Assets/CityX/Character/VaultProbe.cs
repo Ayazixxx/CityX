@@ -6,7 +6,7 @@ namespace CityX.Character
     /// Finds a VAULT: a waist-to-chest-high obstacle with a flat top, thin enough to go over in one move, with clear ground to land on past it.
     ///
     /// The same staged-validation idea as <see cref="LedgeProbe"/> (a wall face, a flat top, room to be), but the body ends up on the FAR side:
-    ///  1. a ray forward at waist height must hit a near-vertical face the player is facing (a person fails, a glancing graze fails);
+    ///  1. a ray forward (at several heights, in a small fan) must hit a near-vertical face the player is facing (a person fails, a glancing graze fails);
     ///  2. the top, probed straight down just behind the face, must be flat and inside the vaultable band (below it is a step, above it a climb);
     ///  3. walking the top away from the player, it must end within <see cref="MaxThicknessMetres"/> (a building is not vaulted);
     ///  4. just past the far edge there must be ground within a short drop, with a standing capsule's worth of room.
@@ -33,18 +33,27 @@ namespace CityX.Character
         }
 
         /// <summary>The top must be between these fractions of standing height above the feet: lower is a step, higher is a climb.</summary>
-        public const float BandLowFraction = 0.3f;
+        public const float BandLowFraction = 0.22f;
 
-        public const float BandHighFraction = 0.68f;
+        public const float BandHighFraction = 0.8f;
 
         /// <summary>The obstacle may be at most this thick, in metres.</summary>
-        public const float MaxThicknessMetres = 1.1f;
+        public const float MaxThicknessMetres = 1.6f;
 
         /// <summary>How far ahead of the capsule the face is looked for, in metres.</summary>
-        public const float ReachMetres = 0.9f;
+        public const float ReachMetres = 1.1f;
 
         /// <summary>The ground past the far edge may be this far below the top, in metres, at most.</summary>
-        public const float MaxDropMetres = 1.6f;
+        public const float MaxDropMetres = 2.6f;
+
+        /// <summary>The face-finding rays fan out by these angles from the running direction, in degrees.</summary>
+        private static readonly float[] FanDegrees = { 0.0f, -25.0f, 25.0f };
+
+        /// <summary>The face-finding rays go at these fractions of standing height (knee to chest).</summary>
+        private static readonly float[] FaceHeightFractions = { 0.26f, 0.4f, 0.55f, 0.7f };
+
+        /// <summary>How squarely the player must be facing the obstacle (dot of the facing and the face normal): within 60 degrees.</summary>
+        public const float MinFacingDot = 0.5f;
 
         private const float FlatnessMetres = 0.1f;
         private const float StepMetres = 0.15f;
@@ -61,17 +70,32 @@ namespace CityX.Character
             float bandLow = feet.y + standingHeight * BandLowFraction;
             float bandHigh = feet.y + standingHeight * BandHighFraction;
 
-            // 1. The face, at waist height, facing the player.
-            Vector3 waist = feet + Vector3.up * (standingHeight * 0.5f);
-            if (!LedgeProbe.SolidHit(waist, forward, radius + ReachMetres, self, out RaycastHit mid) || Mathf.Abs(mid.normal.y) > 0.3f)
+            // 1. The face, in a small fan (so a corner or an angled approach still finds it), facing the player.
+            // Rays go at several heights inside the vaultable band, because an obstacle only has a face at heights below its top.
+            RaycastHit mid = default;
+            bool seen = false;
+            float nearest = float.MaxValue;
+            foreach (float fraction in FaceHeightFractions)
+            foreach (float angle in FanDegrees)
+            {
+                Vector3 direction = Quaternion.AngleAxis(angle, Vector3.up) * forward;
+                if (LedgeProbe.SolidHit(feet + Vector3.up * (standingHeight * fraction), direction, radius + ReachMetres, self, out RaycastHit candidate) && Mathf.Abs(candidate.normal.y) <= 0.3f
+                    && candidate.distance < nearest)
+                {
+                    Vector3 flatNormal = new Vector3(candidate.normal.x, 0.0f, candidate.normal.z).normalized;
+                    if (Vector3.Dot(-flatNormal, forward) >= MinFacingDot)
+                    {
+                        mid = candidate;
+                        nearest = candidate.distance;
+                        seen = true;
+                    }
+                }
+            }
+            if (!seen)
             {
                 return false;
             }
             Vector3 faceNormal = new Vector3(mid.normal.x, 0.0f, mid.normal.z).normalized;
-            if (Vector3.Dot(-faceNormal, forward) < 0.6f)
-            {
-                return false;
-            }
             Vector3 into = -faceNormal;
             Vector3 across = Vector3.Cross(Vector3.up, faceNormal);
 

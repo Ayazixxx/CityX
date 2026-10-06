@@ -64,8 +64,10 @@ namespace CityX.Tests
                 {
                     Transform t = animator.GetBoneTransform(bone);
                     if (t == null) continue;
-                    float depth = 1.0f - t.position.z;     // metres in FRONT of the wall face (z = 1); negative is through it
-                    if (depth < worst) { worst = depth; worstBone = bone.ToString(); }
+                    // An elbow or knee is a joint centre inside a limb about 5 cm thick: a couple of centimetres behind the face is the limb resting on it.
+                    bool joint = bone == HumanBodyBones.LeftLowerArm || bone == HumanBodyBones.RightLowerArm || bone == HumanBodyBones.LeftLowerLeg || bone == HumanBodyBones.RightLowerLeg;
+                    float depth = 1.0f - t.position.z + (joint ? 0.025f : 0.0f);     // metres in FRONT of the wall face (z = 1); negative is through it
+                    if (depth < worst) { worst = depth; worstBone = bone.ToString() + " at frame " + i + " y=" + _player.transform.position.y.ToString("F2"); }
                 }
             }
             Debug.Log($"CityX climb limbs: worst depth in front of the wall {worst:F3} m ({worstBone})");

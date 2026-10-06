@@ -14,7 +14,7 @@ namespace CityX.Tests
     /// even sometimes when running through a doorway."
     ///
     /// A wall is put in front of the real player, and the same wall is run into, jumped at and grabbed:
-    /// Shift+W (running) must never climb it, a tap of Space (a jump) must not, and holding Space with W must.
+    /// Shift+W (running) into it climbs it at once (guarded near doors, stairs and when grazing, see PlayerClimbing.TryStartAuto), a tap of Space (a jump) does not, and holding Space with W does.
     /// </summary>
     public sealed class RealInputClimbingPlayTests : InputTestFixture
     {
@@ -100,26 +100,148 @@ namespace CityX.Tests
 #endif
         }
 
+        private sealed class FakeDoor : MonoBehaviour, CityX.World.IOpenableDoor
+        {
+            public Vector3 Position => transform.position;
+            public void SetOpen(bool open) { }
+        }
+
         [UnityTest]
-        public IEnumerator RunningAtAWallWithShiftAndWNeverClimbsIt()
+        public IEnumerator RunningAtATallWallWithShiftAndWClimbsItWithNoOtherInput()
         {
 #if UNITY_EDITOR
             Rig rig = default;
             yield return Stage(r => rig = r);
             Assert.IsNotNull(rig.Climbing, "the player has no climbing component");
+            float startY = rig.Locomotion.transform.position.y;
+
+            Press(_keyboard.leftShiftKey);
+            Press(_keyboard.wKey);
+            bool climbed = false;
+            for (float elapsed = 0.0f; elapsed < 2.5f; elapsed += Time.deltaTime)
+            {
+                climbed |= rig.Climbing.IsClimbing;
+                yield return null;
+            }
+            float endY = rig.Locomotion.transform.position.y;
+            Release(_keyboard.wKey);
+            Release(_keyboard.leftShiftKey);
+
+            Assert.IsTrue(climbed, "running (Shift+W) into a tall wall did not start a climb");
+            Assert.Greater(endY, startY + 1.0f, "it grabbed but did not climb");
+#else
+            yield break;
+#endif
+        }
+
+        [UnityTest]
+        public IEnumerator RunningAtTheSameWallBesideADoorDoesNotClimb()
+        {
+#if UNITY_EDITOR
+            Rig rig = default;
+            yield return Stage(r => rig = r);
+            var door = new GameObject("Door");
+            door.transform.position = rig.Locomotion.transform.position + Vector3.up + rig.Locomotion.transform.right * 2.0f;
+            door.AddComponent<BoxCollider>().isTrigger = true;
+            door.AddComponent<FakeDoor>();
+            Physics.SyncTransforms();
 
             Press(_keyboard.leftShiftKey);
             Press(_keyboard.wKey);
             float climbedFor = 0.0f;
             for (float elapsed = 0.0f; elapsed < 2.0f; elapsed += Time.deltaTime)
             {
-                if (rig.Climbing.IsClimbing || rig.Stick.IsSticking) climbedFor += Time.deltaTime;
+                if (rig.Climbing.IsClimbing) climbedFor += Time.deltaTime;
+                yield return null;
+            }
+            Release(_keyboard.wKey);
+            Release(_keyboard.leftShiftKey);
+            Object.Destroy(door);
+
+            Assert.AreEqual(0.0f, climbedFor, 1e-4f, "running at a wall next to a doorway started a climb");
+#else
+            yield break;
+#endif
+        }
+
+        [UnityTest]
+        public IEnumerator RunningAtAChestHighBoxVaultsOverItAutomatically()
+        {
+#if UNITY_EDITOR
+            Rig rig = default;
+            yield return Stage(r => rig = r);
+            var vaulting = rig.Locomotion.GetComponent<PlayerVaulting>();
+            Assert.IsNotNull(vaulting, "the player has no vaulting component (rebuild the player prefab)");
+
+            // Turn the test wall into a 1.9 m, 1 m deep box standing on the ground where the player runs.
+            float groundY = rig.Locomotion.transform.position.y;
+            Vector3 ahead = rig.Locomotion.transform.forward;
+            ahead.y = 0.0f;
+            ahead.Normalize();
+            Vector3 box = rig.Locomotion.transform.position + ahead * 2.6f;
+            _wall.transform.position = new Vector3(box.x, groundY + 0.95f, box.z);
+            _wall.GetComponent<BoxCollider>().size = new Vector3(14.0f, 1.9f, 1.0f);
+            Physics.SyncTransforms();
+            Vector3 start = rig.Locomotion.transform.position;
+
+            Press(_keyboard.leftShiftKey);
+            Press(_keyboard.wKey);
+            bool vaulted = false;
+            for (float elapsed = 0.0f; elapsed < 3.0f; elapsed += Time.deltaTime)
+            {
+                vaulted |= vaulting.IsVaulting;
                 yield return null;
             }
             Release(_keyboard.wKey);
             Release(_keyboard.leftShiftKey);
 
-            Assert.AreEqual(0.0f, climbedFor, 1e-4f, "running into a wall (Shift+W) started a climb -- what the player reported");
+            Assert.IsTrue(vaulted, "running (Shift+W) at a chest-high box did not vault it");
+            float along = Vector3.Dot(rig.Locomotion.transform.position - start, ahead);
+            Assert.Greater(along, 3.6f, "the player did not end up on the far side of the box");
+#else
+            yield break;
+#endif
+        }
+
+        [UnityTest]
+        public IEnumerator RunningUpAStaircaseIntoTheWallAtItsTopDoesNotClimb()
+        {
+#if UNITY_EDITOR
+            Rig rig = default;
+            yield return Stage(r => rig = r);
+            Vector3 ahead = rig.Locomotion.transform.forward;
+            ahead.y = 0.0f;
+            ahead.Normalize();
+            Vector3 origin = rig.Locomotion.transform.position;
+            var steps = new System.Collections.Generic.List<GameObject>();
+            for (int i = 0; i < 14; i++)
+            {
+                var step = new GameObject("Step");
+                step.transform.position = origin + ahead * (0.9f + 0.32f * i + 0.16f) + Vector3.up * (0.1f * (i + 1));
+                step.transform.rotation = Quaternion.LookRotation(ahead);
+                step.AddComponent<BoxCollider>().size = new Vector3(3.0f, 0.2f * (i + 1), 0.32f);
+                steps.Add(step);
+            }
+            // The wall at the top of the stair, a step's depth past the last tread.
+            _wall.transform.position = origin + ahead * (0.9f + 0.32f * 14 + 0.5f) + Vector3.up * 14.0f;
+            Physics.SyncTransforms();
+
+            Press(_keyboard.leftShiftKey);
+            Press(_keyboard.wKey);
+            float climbedFor = 0.0f;
+            float peak = origin.y;
+            for (float elapsed = 0.0f; elapsed < 4.0f; elapsed += Time.deltaTime)
+            {
+                peak = Mathf.Max(peak, rig.Locomotion.transform.position.y);
+                if (rig.Climbing.IsClimbing) climbedFor += Time.deltaTime;
+                yield return null;
+            }
+            Release(_keyboard.wKey);
+            Release(_keyboard.leftShiftKey);
+            foreach (GameObject step in steps) Object.Destroy(step);
+
+            Assert.Greater(peak, origin.y + 1.0f, "setup: the player never got up the stairs");
+            Assert.AreEqual(0.0f, climbedFor, 1e-4f, "running up a staircase into the wall at its top started a climb");
 #else
             yield break;
 #endif

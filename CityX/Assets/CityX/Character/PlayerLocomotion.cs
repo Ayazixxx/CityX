@@ -449,9 +449,9 @@ namespace CityX.Character
         private Vector3 _climbWallNormal = Vector3.forward;
 
         /// <summary>Hands and feet keep at least this far off the wall plane while climbing, in metres.</summary>
-        public const float HandWallClearance = 0.05f;
+        public const float HandWallClearance = 0.09f;
 
-        public const float FootWallClearance = 0.09f;
+        public const float FootWallClearance = 0.11f;
 
         /// <summary>
         /// While climbing, tells the body where the wall is (a point on its face and its outward normal) so that no hand, foot, elbow or knee can be
@@ -478,10 +478,13 @@ namespace CityX.Character
             Vector3 n = _climbWallNormal;
             Vector3 elbowHint = n * 0.8f + Vector3.down * 0.2f;
             Vector3 kneeHint = n * 0.5f + Vector3.up * 0.5f;
-            KeepOffWall(_rightUpperArm, _rightLowerArm, _handR, HandWallClearance, elbowHint);
-            KeepOffWall(_leftUpperArm, _leftLowerArm, _handL, HandWallClearance, elbowHint);
-            KeepOffWall(_rightUpperLeg, _rightLowerLeg, _rightFoot, FootWallClearance, kneeHint);
-            KeepOffWall(_leftUpperLeg, _leftLowerLeg, _leftFoot, FootWallClearance, kneeHint);
+            for (int pass = 0; pass < 2; pass++)   // a second pass takes out what the first one left (an arm at full stretch, a blend that moved)
+            {
+                KeepOffWall(_rightUpperArm, _rightLowerArm, _handR, HandWallClearance, elbowHint);
+                KeepOffWall(_leftUpperArm, _leftLowerArm, _handL, HandWallClearance, elbowHint);
+                KeepOffWall(_rightUpperLeg, _rightLowerLeg, _rightFoot, FootWallClearance, kneeHint);
+                KeepOffWall(_leftUpperLeg, _leftLowerLeg, _leftFoot, FootWallClearance, kneeHint);
+            }
         }
 
         private void KeepOffWall(Transform upper, Transform lower, Transform end, float clearance, Vector3 hint)

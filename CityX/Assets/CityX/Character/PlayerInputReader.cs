@@ -838,6 +838,21 @@ namespace CityX.Character
                 return;
             }
 
+            // RUNNING INTO A TALL WALL CLIMBS IT (Shift + W, held; guarded against stairs, doors and grazing -- see PlayerClimbing.TryStartAuto). After the
+            // vault above so a low obstacle is vaulted, and after the Space-hold grab so a deliberate grab always wins.
+            if (_climbing != null && wallGrabsAllowed && !_locomotion.IsDashing && (_grabCarry == null || !_grabCarry.IsCarrying))
+            {
+                float stamina = _vitals != null ? _vitals.Stamina : float.MaxValue;
+                if (_climbing.TryStartAuto(keyboard.wKey.isPressed, keyboard.leftShiftKey.isPressed, _locomotion.IsGrounded, stamina, deltaTime))
+                {
+                    _climbing.Tick(keyboard.spaceKey.wasPressedThisFrame,
+                        keyboard.wKey.isPressed, keyboard.sKey.isPressed, _vitals, deltaTime,
+                        dropPressed: keyboard.leftCtrlKey.wasPressedThisFrame);
+                    _audio?.SilenceFootsteps();
+                    return;
+                }
+            }
+
             // ALREADY STUCK TO A WALL OWNS THE WHOLE FRAME TOO -- same
             // pattern as the climbing block above.
             if (_wallStick != null && _wallStick.IsSticking)
