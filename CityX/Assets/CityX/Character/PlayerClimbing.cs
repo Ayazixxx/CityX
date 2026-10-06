@@ -82,6 +82,9 @@ namespace CityX.Character
         /// <summary>True only during climb_top_out's own one-shot mantle -- see BeginTopOut.</summary>
         public bool IsToppingOut { get; private set; }
 
+        /// <summary>Raised when a mantle begins, so another player's copy of this body can play the pull-up too.</summary>
+        public event System.Action MantleStarted;
+
         /// <summary>Exposed for tests -- the raw push _end_climb would have applied, push or no push.</summary>
         public Vector3 LastEndVelocity { get; private set; }
 
@@ -554,6 +557,7 @@ namespace CityX.Character
             }
             _animator.SetBool(ClimbingParameter, false);
             _animator.SetTrigger(ClimbTopOutParameter);
+            MantleStarted?.Invoke();
             _animatorSpeedBefore = _animator.speed;
             if (_controller != null)
             {

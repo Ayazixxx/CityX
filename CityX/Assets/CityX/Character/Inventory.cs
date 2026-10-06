@@ -87,7 +87,7 @@ namespace CityX.Character
                 Draw(from, player);
                 return false;
             }
-            return true;
+            NotifyEquipmentChanged(); return true;
         }
 
         private void Holster(string slot, GameObject player)
@@ -257,7 +257,7 @@ namespace CityX.Character
                 _equipment[slot] = itemId;
                 _equippedInstances[slot] = null;
                 _holstered[slot] = instanceData;
-                return true;
+                NotifyEquipmentChanged(); return true;
             }
 
             if (!Spawn(itemId, player, instanceData, out GameObject instance))
@@ -271,7 +271,7 @@ namespace CityX.Character
             {
                 ActiveWeaponSlot = slot;
             }
-            return true;
+            NotifyEquipmentChanged(); return true;
         }
 
         /// <summary>
@@ -295,7 +295,7 @@ namespace CityX.Character
                 _holstered.Remove(slotKey);
                 _equipment[slotKey] = string.Empty;
                 _equippedInstances[slotKey] = null;
-                return true;
+                NotifyEquipmentChanged(); return true;
             }
             if (!_equippedInstances.TryGetValue(slotKey, out GameObject instance) || instance == null)
             {
@@ -313,7 +313,7 @@ namespace CityX.Character
             equippable?.OnUnequip(player);
             _equipment[slotKey] = string.Empty;
             _equippedInstances[slotKey] = null;
-            return true;
+            NotifyEquipmentChanged(); return true;
         }
 
         /// <summary>
@@ -325,6 +325,33 @@ namespace CityX.Character
             _holstered.Remove(slotKey);
             _equipment[slotKey] = string.Empty;
             _equippedInstances[slotKey] = null;
+            NotifyEquipmentChanged();
+        }
+
+        /// <summary>The prefab for an item id (the same list equipping uses). Public so another player's COPY can build a model of what its owner holds.</summary>
+        public GameObject PrefabForItem(string itemId) => PrefabFor(itemId);
+
+        /// <summary>Raised whenever what is IN HAND or ON THE BACK changes (equip, unequip, holster, draw, a thrown bottle): another player's copy shows it.</summary>
+        public event System.Action EquipmentChanged;
+
+        private void NotifyEquipmentChanged()
+        {
+            EquipmentChanged?.Invoke();
+        }
+
+        /// <summary>The ids of every equipped item that exists as an object right now (a holstered weapon is not one).</summary>
+        public System.Collections.Generic.List<string> VisibleItemIds()
+        {
+            var ids = new System.Collections.Generic.List<string>();
+            foreach (System.Collections.Generic.KeyValuePair<string, GameObject> pair in _equippedInstances)
+            {
+                if (pair.Value != null && _equipment.TryGetValue(pair.Key, out string id) && !string.IsNullOrEmpty(id))
+                {
+                    ids.Add(id);
+                }
+            }
+            ids.Sort(System.StringComparer.Ordinal);
+            return ids;
         }
 
         private GameObject PrefabFor(string itemId)

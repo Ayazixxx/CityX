@@ -15,7 +15,7 @@ namespace CityX.Weapons
     /// the key itself.
     /// </summary>
     [RequireComponent(typeof(Rigidbody))]
-    public sealed class BottleWeapon : MonoBehaviour, IEquippableItem, IEquippableWeapon
+    public sealed class BottleWeapon : MonoBehaviour, IEquippableItem, IEquippableWeapon, ICosmeticMountable
     {
         public enum DurabilityState
         {
@@ -237,6 +237,19 @@ namespace CityX.Weapons
                 melee.EquippedWeapon = null;
             }
             Destroy(gameObject);
+        }
+
+        public void MountCosmetic(GameObject body)
+        {
+            CosmeticMount.ToBone(transform, body, HumanBodyBones.RightHand, GripHandPosition, GripHandRotationEuler, 1.0f);
+        }
+
+        public void UnmountCosmetic(GameObject body)
+        {
+        }
+
+        public void SetCosmeticActive(bool active)
+        {
         }
 
         public ItemInstanceData GetInstanceData() =>

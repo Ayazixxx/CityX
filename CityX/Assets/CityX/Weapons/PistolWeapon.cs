@@ -26,7 +26,7 @@ namespace CityX.Weapons
     // AFTER PlayerLocomotion (order 0): the kick is put on the gun once the arms have been solved -- see LateUpdate.
     [DefaultExecutionOrder(100)]
     [RequireComponent(typeof(SphereCollider))]
-    public sealed class PistolWeapon : MonoBehaviour, IEquippableItem, IEquippableGun
+    public sealed class PistolWeapon : MonoBehaviour, IEquippableItem, IEquippableGun, ICosmeticMountable
     {
         public string ItemId => ItemRegistry.Pistol;
 
@@ -573,6 +573,20 @@ namespace CityX.Weapons
                 locomotionOnUnequip.GunMuzzle = null;
             }
             Destroy(gameObject);
+        }
+
+        // ---- on another player's copy: the model in the right hand, nothing else (its aim pose is the synced Aiming animation) ----
+        public void MountCosmetic(GameObject body)
+        {
+            CosmeticMount.ToBone(transform, body, HumanBodyBones.RightHand, _liveGripPosition, _liveGripRotation, _liveGripScale);
+        }
+
+        public void UnmountCosmetic(GameObject body)
+        {
+        }
+
+        public void SetCosmeticActive(bool active)
+        {
         }
 
         public ItemInstanceData GetInstanceData() => ItemInstanceData.None;

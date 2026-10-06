@@ -453,6 +453,17 @@ namespace CityX.Character
 
         public const float FootWallClearance = 0.11f;
 
+        /// <summary>The wall plane the limbs are being kept off (read back so a network copy can be told it).</summary>
+        public float ClimbWallWeight => _climbWallWeight;
+
+        public Vector3 ClimbWallPoint => _climbWallPoint;
+
+        public Vector3 ClimbWallNormal => _climbWallNormal;
+
+        /// <summary>Where the hands are being put on a ledge (read back so a network copy can be told it).</summary>
+        public Vector3 LedgeLip => _ledgeLip;
+
+        public Vector3 LedgeNormal => _ledgeNormal;
         /// <summary>
         /// While climbing, tells the body where the wall is (a point on its face and its outward normal) so that no hand, foot, elbow or knee can be
         /// animated THROUGH it: the climb clip's limbs swing wherever it likes, and the body hangs a capsule's radius from the wall.

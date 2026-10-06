@@ -26,7 +26,7 @@ namespace CityX.Weapons
     /// putting on a second coat already replaces the first.
     /// </summary>
     [RequireComponent(typeof(SphereCollider))]
-    public sealed class Parachute : MonoBehaviour, IEquippableItem, IParachute
+    public sealed class Parachute : MonoBehaviour, IEquippableItem, IParachute, ICosmeticMountable
     {
         public string ItemId => ItemRegistry.Parachute;
 
@@ -152,6 +152,19 @@ namespace CityX.Weapons
                 input.EquippedParachute = null;
             }
             Destroy(gameObject);
+        }
+
+        public void MountCosmetic(GameObject body)
+        {
+            CosmeticMount.ToBone(transform, body, HumanBodyBones.Spine, BackPosition, BackRotationEuler, 1.0f);
+        }
+
+        public void UnmountCosmetic(GameObject body)
+        {
+        }
+
+        public void SetCosmeticActive(bool active)
+        {
         }
 
         public ItemInstanceData GetInstanceData() => ItemInstanceData.None;

@@ -1,0 +1,97 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using CityX.Character;
+using CityX.Items;
+using FishNet.Component.Transforming;
+using NUnit.Framework;
+using UnityEngine;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
+
+namespace CityX.Tests
+{
+    /// <summary>
+    /// THE GUARD THAT KEEPS EVERY FUTURE HELD ITEM VISIBLE TO OTHER PLAYERS, the same standing rule as for abilities: a weapon or tool is not finished
+    /// until other players can see it in the holder's hand (or on their back). A new item that is not wearable clothing must implement
+    /// <see cref="ICosmeticMountable"/> (see NetworkedEquipmentSync), and its prefab must be in the networked player's inventory list
+    /// (NetworkedPlayerWiring). Also guards the networked body's wiring: damage relay, equipment sync, hair, smooth movement.
+    /// </summary>
+    public sealed class EquipmentReplicationGuardTests
+    {
+        private const string NetworkedPlayerPath = "Assets/CityX/Character/NetworkedPlayer.prefab";
+
+        private static IEnumerable<Type> HeldItemTypes()
+        {
+            foreach (System.Reflection.Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                string name = assembly.GetName().Name;
+                if (!name.StartsWith("CityX.") || name.Contains("Tests") || name.Contains("Editor") || name.Contains("Spike"))
+                {
+                    continue;
+                }
+                Type[] types;
+                try { types = assembly.GetTypes(); } catch (System.Reflection.ReflectionTypeLoadException e) { types = e.Types.Where(t => t != null).ToArray(); }
+                foreach (Type type in types)
+                {
+                    if (type.IsAbstract || !typeof(MonoBehaviour).IsAssignableFrom(type) || !typeof(IEquippableItem).IsAssignableFrom(type))
+                    {
+                        continue;
+                    }
+                    if (type.Namespace != null && type.Namespace.EndsWith("Wearables"))
+                    {
+                        continue;   // clothing is not held; it is not shown on copies yet (see docs/MULTIPLAYER_STATE.md)
+                    }
+                    yield return type;
+                }
+            }
+        }
+
+        [Test]
+        public void EveryHeldItemCanBeShownOnAnotherPlayersCopy()
+        {
+            var missing = HeldItemTypes().Where(t => !typeof(ICosmeticMountable).IsAssignableFrom(t)).Select(t => t.Name).ToList();
+            Assert.IsEmpty(missing,
+                "these held items do not implement ICosmeticMountable, so other players would see an empty hand: " + string.Join(", ", missing)
+                + ". Implement MountCosmetic/UnmountCosmetic/SetCosmeticActive (see SwordWeapon) and add the prefab to NetworkedPlayerWiring.");
+        }
+
+#if UNITY_EDITOR
+        [Test]
+        public void TheNetworkedBodyCarriesTheSharedState()
+        {
+            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(NetworkedPlayerPath);
+            Assert.IsNotNull(prefab, "no NetworkedPlayer.prefab");
+            Assert.IsNotNull(prefab.GetComponent<NetworkedEquipmentSync>(), "the networked body does not share what it holds");
+            Assert.IsNotNull(prefab.GetComponent<NetworkedDamage>(), "the networked body cannot take damage from other players");
+            Assert.IsNotNull(prefab.GetComponentInChildren<CharacterHair>(true), "the networked body has no hair, so no hairstyle can show on it");
+
+            var inventory = prefab.GetComponent<Inventory>();
+            Assert.IsNotNull(inventory, "the networked body has no inventory: it cannot hold anything or build models of what others hold");
+            foreach (Type type in HeldItemTypes())
+            {
+                bool found = false;
+                foreach (Inventory.ItemPrefabEntry entry in inventory.ItemPrefabs ?? new Inventory.ItemPrefabEntry[0])
+                {
+                    if (entry.Prefab != null && entry.Prefab.GetComponent(type) != null)
+                    {
+                        found = true;
+                    }
+                }
+                Assert.IsTrue(found, $"no prefab for {type.Name} in the networked body's inventory list (NetworkedPlayerWiring.ItemPrefabPaths)");
+            }
+        }
+
+        [Test]
+        public void TheNetworkedBodyMovesSmoothly()
+        {
+            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(NetworkedPlayerPath);
+            var so = new SerializedObject(prefab.GetComponent<NetworkTransform>());
+            Assert.GreaterOrEqual(so.FindProperty("_interpolation").intValue, 3, "movement is interpolated over too few ticks: it will step");
+            Assert.AreEqual(0, so.FindProperty("_packing.Position").enumValueIndex, "position is quantised (stepped)");
+            Assert.AreEqual(0, so.FindProperty("_packing.Rotation").enumValueIndex, "rotation is quantised (stepped)");
+        }
+#endif
+    }
+}

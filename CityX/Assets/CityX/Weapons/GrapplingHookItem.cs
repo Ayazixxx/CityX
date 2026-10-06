@@ -41,7 +41,7 @@ namespace CityX.Weapons
     /// copy onto the hand bone.
     /// </summary>
     [RequireComponent(typeof(Rigidbody))]
-    public sealed class GrapplingHookItem : MonoBehaviour, IEquippableItem, IGrappleLauncher
+    public sealed class GrapplingHookItem : MonoBehaviour, IEquippableItem, IGrappleLauncher, ICosmeticMountable
     {
         public static readonly Color HookColour = new Color(0.62f, 0.64f, 0.68f);
         public static readonly Color RopeColour = new Color(0.14f, 0.13f, 0.12f);
@@ -411,6 +411,19 @@ namespace CityX.Weapons
             }
             HideRope();
             Destroy(gameObject);
+        }
+
+        public void MountCosmetic(GameObject body)
+        {
+            CosmeticMount.ToBone(transform, body, HumanBodyBones.RightHand, GripHandPosition, GripHandRotationEuler, GripScale);
+        }
+
+        public void UnmountCosmetic(GameObject body)
+        {
+        }
+
+        public void SetCosmeticActive(bool active)
+        {
         }
 
         public ItemInstanceData GetInstanceData() => ItemInstanceData.None;

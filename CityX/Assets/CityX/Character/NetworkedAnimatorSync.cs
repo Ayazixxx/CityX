@@ -38,7 +38,7 @@ namespace CityX.Character
     [RequireComponent(typeof(NetworkObject))]
     public sealed class NetworkedAnimatorSync : NetworkBehaviour
     {
-        public float SendIntervalSeconds = 0.08f;
+        public float SendIntervalSeconds = 0.05f;
 
         private static readonly int SpeedParameter = Animator.StringToHash("Speed");
         private static readonly int MoveXParameter = Animator.StringToHash("MoveX");
@@ -65,6 +65,7 @@ namespace CityX.Character
             _animator = GetComponentInChildren<Animator>();
             _locomotion = GetComponent<PlayerLocomotion>();
             _animationDriver = GetComponent<PlayerAnimationDriver>();
+            _climbing = GetComponent<PlayerClimbing>();
         }
 
         // ONE-SHOTS (JUMP, DASH, PUNCHES/SWINGS, BLOCK). The continuous
@@ -87,6 +88,10 @@ namespace CityX.Character
                 _animationDriver.StatePlayed += OnStatePlayed;
                 _animationDriver.TimedStatePlayed += OnTimedStatePlayed;
             }
+            if (_climbing != null)
+            {
+                _climbing.MantleStarted += OnMantleStarted;
+            }
         }
 
         private void OnDisable()
@@ -99,6 +104,10 @@ namespace CityX.Character
             {
                 _animationDriver.StatePlayed -= OnStatePlayed;
                 _animationDriver.TimedStatePlayed -= OnTimedStatePlayed;
+            }
+            if (_climbing != null)
+            {
+                _climbing.MantleStarted -= OnMantleStarted;
             }
         }
 
@@ -201,11 +210,160 @@ namespace CityX.Character
             }
         }
 
+        // ---- CLIMBING, VAULTING AND THE MANTLE ------------------------------------------------------------------------------------------------
+        // The body's position already travels with the transform, so another player sees it slide up a wall or over a fence; what was missing was
+        // the POSE: the climbing animation, the hands on the ledge, the limbs kept off the wall. The owner sends them with the continuous state;
+        // the copy sets the same Animator parameters and hands the same two plane/hand targets to its own PlayerLocomotion, whose LateUpdate does
+        // the IK exactly as on the owner. The mantle's pull-up is a one-shot, so it goes as its own reliable event.
+        private static readonly int ClimbingParameter = Animator.StringToHash("Climbing");
+        private static readonly int ClimbDirectionParameter = Animator.StringToHash("ClimbDirection");
+        private static readonly int ClimbSpeedScaleParameter = Animator.StringToHash("ClimbSpeedScale");
+        private static readonly int ClimbTopOutParameter = Animator.StringToHash("ClimbTopOut");
+
+        private PlayerClimbing _climbing;
+        private bool _motionWasActive;
+
+        // The continuous values a remote copy glides toward instead of snapping to (a copy hears them about twenty times a second).
+        private float _targetSpeed, _targetMoveX, _targetMoveZ;
+        private bool _hasTargets;
+
+        /// <summary>How quickly a copy's walk/run blend follows what the owner sent, in seconds (a damped follow).</summary>
+        public const float RemoteSmoothSeconds = 0.09f;
+
+        private bool IsRemoteCopy => NetworkObject != null && IsSpawned && !IsOwner;
+
+        private void OnMantleStarted()
+        {
+            if (!IsLiveOwner)
+            {
+                return;
+            }
+            SendMantleToServer();
+        }
+
+        [ServerRpc(RequireOwnership = true)]
+        private void SendMantleToServer()
+        {
+            BroadcastMantle();
+        }
+
+        [ObserversRpc(ExcludeOwner = true)]
+        private void BroadcastMantle()
+        {
+            if (_animator == null)
+            {
+                return;
+            }
+            _animator.SetBool(ClimbingParameter, false);
+            _animator.SetTrigger(ClimbTopOutParameter);
+        }
+
+        /// <summary>The owner's climbing/hands pose, sent at the same rate as the rest of the state, and once more when it ends so a copy lets go.</summary>
+        private void SendMotionIfNeeded()
+        {
+            if (_locomotion == null)
+            {
+                return;
+            }
+            bool climbing = _animator.GetBool(ClimbingParameter);
+            float wall = _locomotion.ClimbWallWeight;
+            float hands = _locomotion.LedgeHandsWeight;
+            bool active = climbing || wall > 0.01f || hands > 0.01f;
+            if (!active && !_motionWasActive)
+            {
+                return;
+            }
+            _motionWasActive = active;
+            SendMotionToServer(climbing, _animator.GetInteger(ClimbDirectionParameter), _animator.GetFloat(ClimbSpeedScaleParameter),
+                wall, _locomotion.ClimbWallPoint, _locomotion.ClimbWallNormal,
+                hands, _locomotion.LedgeLip, _locomotion.LedgeNormal);
+        }
+
+        [ServerRpc(RequireOwnership = true)]
+        private void SendMotionToServer(bool climbing, int direction, float speedScale, float wallWeight, Vector3 wallPoint, Vector3 wallNormal,
+            float handsWeight, Vector3 lip, Vector3 ledgeNormal)
+        {
+            // A garbled packet must not poison a copy's IK.
+            if (!Finite(wallPoint) || !Finite(wallNormal) || !Finite(lip) || !Finite(ledgeNormal)
+                || float.IsNaN(wallWeight) || float.IsNaN(handsWeight) || float.IsNaN(speedScale))
+            {
+                return;
+            }
+            BroadcastMotion(climbing, Mathf.Clamp(direction, -1, 1), Mathf.Clamp(speedScale, 0.0f, 4.0f),
+                Mathf.Clamp01(wallWeight), wallPoint, wallNormal, Mathf.Clamp01(handsWeight), lip, ledgeNormal);
+        }
+
+        [ObserversRpc(ExcludeOwner = true)]
+        private void BroadcastMotion(bool climbing, int direction, float speedScale, float wallWeight, Vector3 wallPoint, Vector3 wallNormal,
+            float handsWeight, Vector3 lip, Vector3 ledgeNormal)
+        {
+            ApplyRemoteMotion(climbing, direction, speedScale, wallWeight, wallPoint, wallNormal, handsWeight, lip, ledgeNormal);
+        }
+
+        /// <summary>Puts the owner's climbing pose on THIS copy. Public so a test can drive it without a network.</summary>
+        public void ApplyRemoteMotion(bool climbing, int direction, float speedScale, float wallWeight, Vector3 wallPoint, Vector3 wallNormal,
+            float handsWeight, Vector3 lip, Vector3 ledgeNormal)
+        {
+            if (_animator != null)
+            {
+                _animator.SetBool(ClimbingParameter, climbing);
+                _animator.SetInteger(ClimbDirectionParameter, direction);
+                _animator.SetFloat(ClimbSpeedScaleParameter, speedScale);
+            }
+            if (_locomotion != null)
+            {
+                _locomotion.SetClimbWall(wallPoint, wallNormal, wallWeight);
+                _locomotion.SetLedgeHands(handsWeight, lip, ledgeNormal);
+            }
+        }
+
+        private static bool Finite(Vector3 v) => !(float.IsNaN(v.x) || float.IsNaN(v.y) || float.IsNaN(v.z) || float.IsInfinity(v.x) || float.IsInfinity(v.y) || float.IsInfinity(v.z));
+
+        /// <summary>A copy's per-frame work: glide the walk blend toward the owner's, and fit the mantle clip to the mantle's own length like the owner does.</summary>
+        private void TickRemoteCopy(float deltaTime)
+        {
+            if (_animator == null)
+            {
+                return;
+            }
+            if (_hasTargets)
+            {
+                _animator.SetFloat(SpeedParameter, _targetSpeed, RemoteSmoothSeconds, deltaTime);
+                _animator.SetFloat(MoveXParameter, _targetMoveX, RemoteSmoothSeconds, deltaTime);
+                _animator.SetFloat(MoveZParameter, _targetMoveZ, RemoteSmoothSeconds, deltaTime);
+            }
+            AnimatorStateInfo info = _animator.GetCurrentAnimatorStateInfo(0);
+            if (info.IsName("ClimbTopOut") && info.length > 0.01f)
+            {
+                _animator.speed = info.length / PlayerClimbing.MantleSeconds;
+            }
+            else if (_animator.speed != 1.0f && _animationDriver != null && !_animationDriver.IsPlaying("ClimbTopOut"))
+            {
+                // Only undo OUR fit (the swing replay manages its own speed through PlayerAnimationDriver on states it plays).
+                if (_fittedMantle)
+                {
+                    _animator.speed = 1.0f;
+                }
+            }
+            _fittedMantle = info.IsName("ClimbTopOut");
+        }
+
+        private bool _fittedMantle;
+
         private void Update()
         {
             // IsLiveOwner, not bare IsOwner: a body with no initialised NetworkObject (singleplayer, the baked player before a session starts) makes
             // FishNet's own IsOwner throw a NullReferenceException every frame.
-            if (_animator == null || !IsLiveOwner)
+            if (_animator == null)
+            {
+                return;
+            }
+            if (IsRemoteCopy)
+            {
+                TickRemoteCopy(Time.deltaTime);
+                return;
+            }
+            if (!IsLiveOwner)
             {
                 return;
             }
@@ -229,6 +387,7 @@ namespace CityX.Character
                 _animator.GetBool(JetpackThrustingParameter),
                 _animator.GetBool(DancingParameter),
                 _animator.GetBool(BreakdancingParameter));
+            SendMotionIfNeeded();
         }
 
         [ServerRpc(RequireOwnership = true)]
@@ -254,9 +413,17 @@ namespace CityX.Character
             {
                 return;
             }
-            _animator.SetFloat(SpeedParameter, speed);
-            _animator.SetFloat(MoveXParameter, moveX);
-            _animator.SetFloat(MoveZParameter, moveZ);
+            _targetSpeed = speed;
+            _targetMoveX = moveX;
+            _targetMoveZ = moveZ;
+            if (!_hasTargets)
+            {
+                // The first packet snaps (no glide from a stale pose); after that the copy follows (see TickRemoteCopy).
+                _hasTargets = true;
+                _animator.SetFloat(SpeedParameter, speed);
+                _animator.SetFloat(MoveXParameter, moveX);
+                _animator.SetFloat(MoveZParameter, moveZ);
+            }
             _animator.SetBool(GroundedParameter, grounded);
             _animator.SetBool(CrouchingParameter, crouching);
             _animator.SetBool(AimingParameter, aiming);

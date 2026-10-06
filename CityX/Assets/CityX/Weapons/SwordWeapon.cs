@@ -22,7 +22,7 @@ namespace CityX.Weapons
     /// dispatch (gated on CanThrow first) will never actually reach.
     /// </summary>
     [RequireComponent(typeof(SphereCollider))]
-    public sealed class SwordWeapon : MonoBehaviour, IEquippableItem, IEquippableWeapon, ISwordBlade
+    public sealed class SwordWeapon : MonoBehaviour, IEquippableItem, IEquippableWeapon, ISwordBlade, ICosmeticMountable
     {
         /// <summary>
         /// Godot has no separate sword damage constant at all -- player.gd's
@@ -308,6 +308,32 @@ namespace CityX.Weapons
                 souls.Unequip(this);
             }
             Destroy(gameObject);
+        }
+
+        // ---- on another player's copy: the model in the right hand and the free hand on the grip, nothing else ----
+        public void MountCosmetic(GameObject body)
+        {
+            Animator animator = body.GetComponentInChildren<Animator>();
+            Transform hand = animator != null ? animator.GetBoneTransform(HumanBodyBones.RightHand) : null;
+            if (hand != null)
+            {
+                transform.SetParent(hand, false);
+            }
+            if (_leftHandGrip == null)
+            {
+                _leftHandGrip = GripMarker.Create(transform, "LeftHandGrip", "left hand", new Color(1.0f, 0.55f, 0.1f));
+            }
+            ApplyGrip();
+            body.GetComponent<PlayerLocomotion>()?.SetSupportHand(_leftHandGrip, Vector3.zero);
+        }
+
+        public void UnmountCosmetic(GameObject body)
+        {
+            body.GetComponent<PlayerLocomotion>()?.ClearSupportHand(_leftHandGrip);
+        }
+
+        public void SetCosmeticActive(bool active)
+        {
         }
 
         public ItemInstanceData GetInstanceData() => ItemInstanceData.None;

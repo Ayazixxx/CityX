@@ -25,7 +25,7 @@ namespace CityX.Weapons
     /// itself carries no stamina cost either.
     /// </summary>
     [RequireComponent(typeof(SphereCollider))]
-    public sealed class Jetpack : MonoBehaviour, IEquippableItem, IJetpack
+    public sealed class Jetpack : MonoBehaviour, IEquippableItem, IJetpack, ICosmeticMountable
     {
         public string ItemId => ItemRegistry.Jetpack;
 
@@ -451,6 +451,36 @@ namespace CityX.Weapons
                 _animatorTransform.localRotation = Quaternion.identity;
             }
             Destroy(gameObject);
+        }
+
+        public void MountCosmetic(GameObject body)
+        {
+            CosmeticMount.ToBone(transform, body, HumanBodyBones.Spine, BackPosition, BackRotationEuler, 1.0f);
+            if (FlameEffect != null)
+            {
+                FlameEffect.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            }
+        }
+
+        public void UnmountCosmetic(GameObject body)
+        {
+        }
+
+        /// <summary>The wearer is thrusting: the flame shows (the owner's own flame is driven by its real Tick).</summary>
+        public void SetCosmeticActive(bool active)
+        {
+            if (FlameEffect == null)
+            {
+                return;
+            }
+            if (active && !FlameEffect.isEmitting)
+            {
+                FlameEffect.Play();
+            }
+            else if (!active && FlameEffect.isEmitting)
+            {
+                FlameEffect.Stop(true, ParticleSystemStopBehavior.StopEmitting);
+            }
         }
 
         public ItemInstanceData GetInstanceData() => ItemInstanceData.None;

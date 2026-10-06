@@ -18,9 +18,16 @@ namespace CityX.Character
     /// </summary>
     public sealed class PlayerVitals : MonoBehaviour, IDamageable, IPoisonable
     {
+        /// <summary>Set on a body that other players can hit (see NetworkedDamage): another player's copy forwards hits to the real body instead of applying them.</summary>
+        public IRemoteDamageRelay Relay;
+
         /// <summary>Poison eats health quietly: no flinch, no block, no i-frames (see IPoisonable).</summary>
         public void TakePoison(float amount)
         {
+            if (Relay != null && amount > 0.0f && Relay.TryRelayPoison(amount))
+            {
+                return;
+            }
             if (IsDead || amount <= 0.0f)
             {
                 return;
@@ -293,6 +300,12 @@ namespace CityX.Character
 
         HitResponse IDamageable.ApplyHit(float amount, Vector3 fromPosition, float hitstunSeconds)
         {
+            // Another player's copy: the hit is sent to the real body's owner, who decides what it does (block, stun, health).
+            if (Relay != null && Relay.TryRelayHit(amount, fromPosition, hitstunSeconds))
+            {
+                return HitResponse.Landed;
+            }
+
             if (IsDead || IsInvulnerable)
             {
                 return HitResponse.Ignored;
@@ -394,6 +407,15 @@ namespace CityX.Character
             _wasAirborne = false;
             HitstunRemaining = 0.0f;
             Revived?.Invoke();
+        }
+
+        /// <summary>
+        /// Another player's copy: shows the owner's health (so a copy that has died ignores further hits, and anything that reads it sees the truth).
+        /// Raises nothing and costs nothing; only the owner's own vitals ever decide damage.
+        /// </summary>
+        public void SetHealthFromNetwork(float health)
+        {
+            _health = Mathf.Clamp(float.IsNaN(health) ? _health : health, 0.0f, MaxHealth);
         }
 
         /// <summary>

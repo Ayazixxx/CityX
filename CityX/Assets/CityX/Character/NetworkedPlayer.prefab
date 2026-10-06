@@ -93,6 +93,15 @@ PrefabInstance:
       addedObject: {fileID: 8226390928990183681}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
+      addedObject: {fileID: 1256123422137960987}
+    - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 9000774068455604173}
+    - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 6445160733858665133}
+    - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
+      insertIndex: -1
       addedObject: {fileID: 752554928827252169}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
@@ -109,6 +118,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
       addedObject: {fileID: 8687249435336123883}
+    - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 9014174319374984290}
   m_SourcePrefab: {fileID: 100100000, guid: c573dea59fa2558478b70344c659896a, type: 3}
 --- !u!1 &5771231832799346164 stripped
 GameObject:
@@ -190,11 +202,11 @@ MonoBehaviour:
   _componentConfiguration: 0
   _synchronizeParent: 0
   _packing:
-    Position: 1
-    Rotation: 1
+    Position: 0
+    Rotation: 0
     Scale: 0
   _useScaledTime: 1
-  _interpolation: 2
+  _interpolation: 3
   _extrapolation: 2
   _enableTeleport: 0
   _teleportThreshold: 1
@@ -248,7 +260,7 @@ MonoBehaviour:
   _componentIndexCache: 255
   _addedNetworkObject: {fileID: 5667752943850900184}
   _networkObjectCache: {fileID: 0}
-  SendIntervalSeconds: 0.08
+  SendIntervalSeconds: 0.05
 --- !u!114 &8226390928990183681
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -264,6 +276,104 @@ MonoBehaviour:
   _componentIndexCache: 255
   _addedNetworkObject: {fileID: 5667752943850900184}
   _networkObjectCache: {fileID: 0}
+--- !u!114 &1256123422137960987
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5771231832799346164}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5bd5b70ce1783d4498771ca208be4301, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.NetworkedEquipmentSync
+  _componentIndexCache: 255
+  _addedNetworkObject: {fileID: 5667752943850900184}
+  _networkObjectCache: {fileID: 0}
+--- !u!114 &9000774068455604173
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5771231832799346164}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d13dbd993248aff45b9e5a4f06c0307a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.NetworkedDamage
+  _componentIndexCache: 255
+  _addedNetworkObject: {fileID: 5667752943850900184}
+  _networkObjectCache: {fileID: 0}
+--- !u!114 &6445160733858665133
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5771231832799346164}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 691ae84f9354cea42ba75ebb663343e0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.Inventory
+  Storage:
+  - ItemId: 
+    Count: 0
+  - ItemId: 
+    Count: 0
+  - ItemId: 
+    Count: 0
+  - ItemId: 
+    Count: 0
+  - ItemId: 
+    Count: 0
+  - ItemId: 
+    Count: 0
+  - ItemId: 
+    Count: 0
+  - ItemId: 
+    Count: 0
+  - ItemId: 
+    Count: 0
+  - ItemId: 
+    Count: 0
+  - ItemId: 
+    Count: 0
+  - ItemId: 
+    Count: 0
+  - ItemId: 
+    Count: 0
+  - ItemId: 
+    Count: 0
+  - ItemId: 
+    Count: 0
+  - ItemId: 
+    Count: 0
+  - ItemId: 
+    Count: 0
+  - ItemId: 
+    Count: 0
+  - ItemId: 
+    Count: 0
+  - ItemId: 
+    Count: 0
+  ItemPrefabs:
+  - ItemId: glass_bottle
+    Prefab: {fileID: 7564380461121874261, guid: f615af9ba7ae76e4b9494e58e831bcc7, type: 3}
+  - ItemId: grappling_hook
+    Prefab: {fileID: 8748897049915689983, guid: aa1a3e054dafd1e4689204413768550a, type: 3}
+  - ItemId: pistol
+    Prefab: {fileID: 4649860066421000104, guid: ae0035a6ab563a94591c2cab359f7c4b, type: 3}
+  - ItemId: jetpack
+    Prefab: {fileID: 1497176507958876276, guid: 1a6940b80ae2d7b44b2ee294839c1047, type: 3}
+  - ItemId: parachute
+    Prefab: {fileID: 2779368628204385612, guid: 8c41f06cce0cc4e43b663686ba80e7bc, type: 3}
+  - ItemId: sword
+    Prefab: {fileID: 8618594126550342705, guid: 2a07fb92a0a87fe40b529df87e9c5a25, type: 3}
+  - ItemId: flamethrower
+    Prefab: {fileID: 8108801630605861456, guid: ec74bb0ff03d4944ba0469e6b93ad465, type: 3}
 --- !u!114 &752554928827252169
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -446,3 +556,34 @@ MonoBehaviour:
   CooldownSeconds: 1.2
   ReleaseDelaySeconds: 0.18
   WavePrefab: {fileID: 8260423564122488192, guid: 9f4c373cbfecf834dbdffc0389b2fa3a, type: 3}
+--- !u!114 &9014174319374984290
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5771231832799346164}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1104293235b3f6148ace8f0839fc964d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.CharacterHair
+  Head: {fileID: 8871751881973151726}
+  StyleMeshes:
+  - {fileID: 4300000, guid: cab69372b4a80e449bc5cb695735d3b4, type: 2}
+  - {fileID: 4300000, guid: 351634c2c34956247bea134c155deddc, type: 2}
+  - {fileID: 4300000, guid: 10897ed63f492f646b4c90cc071866ef, type: 2}
+  - {fileID: 4300000, guid: 3c4e3053e078b514a9a057ccf0474ecd, type: 2}
+  - {fileID: 4300000, guid: b7bc0bb7b1a177c4ea7f6ca62b2f952c, type: 2}
+  - {fileID: 4300000, guid: a7943f417df638646b6b7fc95c16d8a0, type: 2}
+  - {fileID: 4300000, guid: 194c8ab756031594aabddac3b97b5862, type: 2}
+  - {fileID: 4300000, guid: a5f06069bb7ca79439e85ece7c82fc7f, type: 2}
+  - {fileID: 4300000, guid: c1f1395e2cd7ce14cb9a7ae065ba9dce, type: 2}
+  HairMaterial: {fileID: 2100000, guid: 0b008e783feb73b44af6844a251bcfcf, type: 2}
+  _style: none
+  _colour: {r: 0.75, g: 0.55, b: 0.15, a: 1}
+--- !u!4 &8871751881973151726 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 6897154836521841398, guid: c573dea59fa2558478b70344c659896a, type: 3}
+  m_PrefabInstance: {fileID: 2641737845582710040}
+  m_PrefabAsset: {fileID: 0}

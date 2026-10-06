@@ -631,6 +631,7 @@ namespace CityX.ViewEditor
                 playerObjectForWatchdog.AddComponent<CityX.Character.NetworkedPlayerIdentity>();
                 playerObjectForWatchdog.AddComponent<CityX.Character.NetworkedAnimatorSync>();
                 playerObjectForWatchdog.AddComponent<CityX.Character.NetworkedAbilitySync>();
+                CityX.CharacterEditor.NetworkedPlayerWiring.AddSharedState(playerObjectForWatchdog, false);
                 // Same view-distance culling the derived clone prefab gets
                 // just below (NetworkedPlayerBuilder.Build) -- without this,
                 // the HOST's own baked body would observe (and be observed
@@ -661,6 +662,18 @@ namespace CityX.ViewEditor
                     bakedNetworkObject, scene);
 
                 GameObject networkedPlayerPrefab = CityX.CharacterEditor.NetworkedPlayerBuilder.Build();
+
+                // HAIR ON THE JOINING PLAYER'S BODY TOO. Only the baked player above was given the hair component (HairAssets.AddTo, near the top of
+                // this method), so a joining player had no hair at all and nobody's hairstyle could show on a copy of their body: the appearance
+                // broadcast (NetworkedPlayerIdentity) found nothing to put it on. Done on the saved prefab, after the networking components exist.
+                if (networkedPlayerPrefab != null)
+                {
+                    string networkedPath = AssetDatabase.GetAssetPath(networkedPlayerPrefab);
+                    GameObject networkedContents = PrefabUtility.LoadPrefabContents(networkedPath);
+                    CityX.UIEditor.HairAssets.AddTo(networkedContents);
+                    PrefabUtility.SaveAsPrefabAsset(networkedContents, networkedPath);
+                    PrefabUtility.UnloadPrefabContents(networkedContents);
+                }
 
                 var spawnPointObject = new GameObject("NetworkSpawnPoint");
                 spawnPointObject.transform.position = playerObjectForWatchdog.transform.position;

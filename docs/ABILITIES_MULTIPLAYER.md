@@ -64,7 +64,7 @@ an `IReplicatedAbility` that is not on `NetworkedPlayer.prefab`; duplicate ids.
 
 ## Not covered (and why)
 
-- **Held items are not replicated at all** (inventory and equipment are not networked): other players do not see a sword in your hand, so the
+- **Held items**: replicated since 2026-10-05, see docs/MULTIPLAYER_STATE.md (the sword spin now shows the blade; the old note below is out of date).
   sword spin shows the arm and swoosh without the blade, and the wave appears without a sword swinging it. Equipping is its own piece of work.
   The flamethrower, an equippable item, is in the same gap.
 - A joining player has no inventory, so the sword abilities (2, 7) are only usable on the host's body until equipment exists on spawned bodies.

@@ -1,0 +1,35 @@
+# What other players see: movement, items, hair, damage
+
+Everything below is owner-authoritative (the player's own machine decides, the server relays) and is tested over real sockets by `NetworkedPlayerStateSyncPlayTests`
+(a server and two clients). The standing rule: a new thing a player can do or have is not finished until other players can see it (abilities: `docs/ABILITIES_MULTIPLAYER.md`).
+
+## Synced
+
+| What | How | Where |
+|---|---|---|
+| Position, rotation | `NetworkTransform`, interpolated over 3 ticks, position and rotation sent UNPACKED (no quantisation steps) | `NetworkedPlayerWiring.TuneTransform` |
+| Walk/run/aim/crouch animation | Animator parameters 20 times a second; a copy glides toward them (0.09 s damped follow) instead of snapping | `NetworkedAnimatorSync` |
+| Jump, dash, punches, sword swings, block | one reliable event each | `NetworkedAnimatorSync` |
+| **Climbing** | the Animator `Climbing`/`ClimbDirection`/`ClimbSpeedScale`, plus the wall plane the limbs are kept off and the ledge the hands reach for, so a copy runs the same IK in its own LateUpdate | `NetworkedAnimatorSync.SendMotionIfNeeded` / `ApplyRemoteMotion` |
+| **Mantle** (the pull-up over a ledge) | one reliable event (`PlayerClimbing.MantleStarted`); the copy plays `ClimbTopOut` fitted to the mantle's length. The body moves with the transform. | `NetworkedAnimatorSync` |
+| **Vault** | the body's path and lean travel with the transform; the hands on the obstacle go with the ledge-hands packet | same |
+| **Held items and back items** (sword, pistol, bottle, flamethrower, grappling hook, jetpack, parachute) | the owner sends the ids of the items that exist as objects, whenever they change (`Inventory.EquipmentChanged`); a copy builds a cosmetic model of each (`ICosmeticMountable.MountCosmetic`: the right bone and grip, the sword's two-handed hold) and switches every behaviour off. The jetpack's flame follows the thrust parameter. BufferLast: a late joiner is told. | `NetworkedEquipmentSync`, `Inventory`, `Items/ICosmeticMountable` |
+| **Hairstyle and colour, skin, paint, name** | once when the body appears (BufferLast). The joining player's body had NO hair component before this, so no hairstyle could show on it: added to `NetworkedPlayer.prefab` by the scene builder. | `NetworkedPlayerIdentity`, `CityMassingSceneBuilder` |
+| **Damage between players** | every hit (punch, sword, bullet, fireball, ice shard, sword wave, flame, thrown bottle, poison) is worked out on the attacker's machine against the target's COPY; the copy forwards it (`PlayerVitals.Relay`) to the server, which checks it (sender is not the victim, a sane amount, the attacker's body within 90 m, at most 40 hits a second) and sends it to the real body's owner, whose own vitals take it: block, stun, health and reaction as for any hit. | `NetworkedDamage`, `IRemoteDamageRelay` |
+| **Health** | the owner shares their health 4 times a second, so a copy shows it (and a copy that has died stops being a target) | `NetworkedDamage` |
+| Abilities (1, 2, 3, 4, 7, 8) | see `docs/ABILITIES_MULTIPLAYER.md` | |
+
+A joining player's body now has an `Inventory` with the item prefabs (it had none), so it can hold things at all.
+
+## Not synced yet
+
+- **Clothing** (jackets, jeans, coats, hats): they are equipment, but a garment merges into the body's skinned mesh and is not shown on copies. `EquipmentReplicationGuardTests` exempts `Wearables`.
+- **Ragdoll / knockdown / stand-up**: a hit's knockdown plays on the victim's machine only; other players see the body's transform but not the limp pose.
+- **Whether a hit was blocked** is only known on the victim's machine: the attacker is told "landed", so a timed block does not punish a remote attacker.
+- **Parachute canopy open/closed**, **grapple rope**, **bottle throw projectile**, **vehicles**, **sitting on benches**, **doors**.
+- Death is shown as health 0 only.
+
+## Adding a new held item
+
+Implement `ICosmeticMountable` on its component (copy `SwordWeapon`), and add its prefab to `NetworkedPlayerWiring.ItemPrefabPaths`.
+`EquipmentReplicationGuardTests` fails otherwise.

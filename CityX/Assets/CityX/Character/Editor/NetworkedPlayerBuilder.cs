@@ -86,6 +86,7 @@ namespace CityX.CharacterEditor
                 root.AddComponent<NetworkedPlayerIdentity>();
                 root.AddComponent<NetworkedAnimatorSync>();
                 root.AddComponent<NetworkedAbilitySync>();
+                NetworkedPlayerWiring.AddSharedState(root, true);
                 AddViewDistanceObserver(root);
 
                 // THE SAME ABILITIES THE HOST'S BODY HAS. Before this a joining player's spawned body had no spell casters at all (they were added

@@ -32,7 +32,7 @@ namespace CityX.Weapons
     /// track" among its new mechanics ("INFINITE FUEL, on purpose").
     /// </summary>
     [RequireComponent(typeof(SphereCollider))]
-    public sealed class Flamethrower : MonoBehaviour, IEquippableItem, IEquippableFlamethrower
+    public sealed class Flamethrower : MonoBehaviour, IEquippableItem, IEquippableFlamethrower, ICosmeticMountable
     {
         public string ItemId => ItemRegistry.Flamethrower;
 
@@ -201,6 +201,19 @@ namespace CityX.Weapons
                 input.EquippedFlamethrower = null;
             }
             Destroy(gameObject);
+        }
+
+        public void MountCosmetic(GameObject body)
+        {
+            CosmeticMount.ToBone(transform, body, HumanBodyBones.RightHand, GripHandPosition, GripHandRotationEuler, GripScale);
+        }
+
+        public void UnmountCosmetic(GameObject body)
+        {
+        }
+
+        public void SetCosmeticActive(bool active)
+        {
         }
 
         public ItemInstanceData GetInstanceData() => ItemInstanceData.None;
