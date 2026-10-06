@@ -1090,7 +1090,11 @@ namespace CityX.CharacterEditor
             {
                 if (FindState(root, stage.Animation) != null)
                 {
-                    continue;   // the chain reuses punch_right and punch_left
+                    continue;
+                }
+                if (FistStrikes.Has(stage.Animation))
+                {
+                    continue;   // the unarmed strikes are procedural (FistStrikes / FistPoseDriver): no clip, no state, and the legs keep walking
                 }
 
                 AnimationClip clip = ClipForPunch(stage.Animation);

@@ -42,6 +42,7 @@ namespace CityX.Character
         private int _upperLayer = -2;   // -2 = not looked up yet, -1 = this controller has none
         private int _torsoLayer = -1;
         private int _armsLayer = -1;
+        private FistPoseDriver _fist;
 
         /// <summary>The masked layers the poison breath's scream plays on: torso and head, and the arms (separate, so a sword swing can keep them).</summary>
         public const string TorsoLayerName = "ScreamTorso";
@@ -115,6 +116,12 @@ namespace CityX.Character
         {
             _animator = GetComponentInChildren<Animator>();
             _melee = GetComponent<MeleeAttacker>();
+            // The unarmed strikes are procedural (FistStrikes), played by this on every body: the owner's and a network copy's.
+            _fist = GetComponent<FistPoseDriver>();
+            if (_fist == null)
+            {
+                _fist = gameObject.AddComponent<FistPoseDriver>();
+            }
         }
 
         private void OnEnable()
@@ -256,6 +263,11 @@ namespace CityX.Character
             {
                 return;
             }
+            if (FistStrikes.Has(stateName))
+            {
+                PlayState(stateName);   // a copy of someone else's body throws the same procedural strike
+                return;
+            }
             if (!_animator.HasState(LayerFor(stateName), Animator.StringToHash(stateName)))
             {
                 return;
@@ -270,6 +282,15 @@ namespace CityX.Character
 
         private void PlayState(string stateName, float startSeconds = 0.0f)
         {
+            // An unarmed strike has no clip: the fists and torso are posed by FistPoseDriver (and the legs go on walking).
+            if (FistStrikes.TryGet(stateName, out FistKind fistKind))
+            {
+                _fist?.Begin(fistKind);
+                return;
+            }
+            // Anything else (a block, a sword swing) takes the arms back from the guard.
+            _fist?.Cancel();
+
             int layer = LayerFor(stateName);
             if (!_animator.HasState(layer, Animator.StringToHash(stateName)))
             {

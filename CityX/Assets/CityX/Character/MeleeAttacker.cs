@@ -205,7 +205,48 @@ namespace CityX.Character
         public float SwingMoveFraction =>
             _spinState == SpinState.Turning && _spinKind == SpinKind.Air
                 ? AirSpinMoveFraction
-                : 0.0f;
+                : UnarmedMoveFraction;
+
+        /// <summary>Where in the swing in progress the blow lands (the contact moment): a weapon's is <see cref="ContactFraction"/>, a fist strike's is its own.</summary>
+        private float _activeContact = 0.45f;
+
+        private bool UnarmedSwingInProgress => EquippedWeapon == null && _swingRemaining > 0.0f && _spinState == SpinState.None && FistStrikes.Has(_currentStage.Animation);
+
+        /// <summary>How far through the swing in progress it is, 0 to 1.</summary>
+        public float SwingProgress => _activeSwingSeconds > 0.0f && _swingRemaining > 0.0f ? Mathf.Clamp01(1.0f - _swingRemaining / _activeSwingSeconds) : 0.0f;
+
+        /// <summary>
+        /// Walking pace kept during an unarmed strike (the legs go on walking under it; only the aerial spin ever kept any before): a fist strike
+        /// slows the body, it no longer nails it to the floor.
+        /// </summary>
+        public float UnarmedMoveFraction =>
+            UnarmedSwingInProgress && FistStrikes.TryGet(_currentStage.Animation, out FistKind k) ? FistStrikes.MoveFraction(k) : 0.0f;
+
+        /// <summary>The step INTO the blow, as a share of walking pace, while the fist is still going out; zero after the contact.</summary>
+        public float LungeFraction
+        {
+            get
+            {
+                if (!UnarmedSwingInProgress || !FistStrikes.TryGet(_currentStage.Animation, out FistKind k))
+                {
+                    return 0.0f;
+                }
+                return SwingProgress < FistStrikes.ContactFraction(k) ? FistStrikes.LungeFraction(k) : 0.0f;
+            }
+        }
+
+        /// <summary>The share of the swing that is only recovery, during which the next punch of a chain may already be thrown (cancelling the rest).</summary>
+        public const float ChainCancelFraction = 0.35f;
+
+        /// <summary>A punch pressed during a swing is remembered this long, seconds, and thrown the moment the swing allows.</summary>
+        public const float InputBufferSeconds = 0.25f;
+
+        private float _bufferRemaining;
+        private bool _bufferedHeavy;
+
+        private bool CanChainNow =>
+            EquippedWeapon == null && _spinState == SpinState.None && _contactDone && _swingRemaining > 0.0f
+            && _swingRemaining <= _activeSwingSeconds * ChainCancelFraction;
 
         /// <summary>The stage currently being swung. Meaningless when not swinging.</summary>
         public ComboStage CurrentStage => _currentStage;
@@ -249,10 +290,21 @@ namespace CityX.Character
         /// </summary>
         public bool TryAttack(bool heavy = false)
         {
-            if (IsSwinging || (_vitals != null && _vitals.IsDead))
+            if (_vitals != null && _vitals.IsDead)
             {
                 return false;
             }
+            if (IsSwinging && !CanChainNow)
+            {
+                // Busy: remember the press so it fires the moment the swing lets it (input buffering), instead of being lost.
+                if (EquippedWeapon == null && _spinState == SpinState.None)
+                {
+                    _bufferRemaining = InputBufferSeconds;
+                    _bufferedHeavy = heavy;
+                }
+                return false;
+            }
+            _activeContact = ContactFraction;
 
             if (EquippedWeapon != null)
             {
@@ -329,8 +381,9 @@ namespace CityX.Character
             if (heavy)
             {
                 _currentStage = CombatTuning.HeavyPunch;
-                _activeSwingSeconds = HeavySwingSeconds;
-                _swingRemaining = HeavySwingSeconds;
+                _activeSwingSeconds = FistStrikes.Seconds(FistKind.Haymaker);
+                _swingRemaining = _activeSwingSeconds;
+                _activeContact = FistStrikes.ContactFraction(FistKind.Haymaker);
                 _contactDone = false;
                 _nextStage = 0;
                 _windowRemaining = 0.0f;
@@ -352,8 +405,14 @@ namespace CityX.Character
             }
 
             _currentStage = chain[_nextStage];
-            _activeSwingSeconds = SwingSeconds;
-            _swingRemaining = SwingSeconds;
+            float chainSeconds = SwingSeconds;
+            if (FistStrikes.TryGet(_currentStage.Animation, out FistKind chainKind))
+            {
+                chainSeconds = FistStrikes.Seconds(chainKind);
+                _activeContact = FistStrikes.ContactFraction(chainKind);
+            }
+            _activeSwingSeconds = chainSeconds;
+            _swingRemaining = chainSeconds;
             _contactDone = false;
 
             // A finisher closes the chain; anything else opens the window for
@@ -368,7 +427,7 @@ namespace CityX.Character
             else
             {
                 _nextStage++;
-                _windowRemaining = SwingSeconds + _currentStage.WindowSeconds;
+                _windowRemaining = chainSeconds + _currentStage.WindowSeconds;
             }
 
             SwingStarted?.Invoke(_currentStage);
@@ -549,6 +608,18 @@ namespace CityX.Character
                 }
             }
 
+            // A punch pressed while busy (remembered by TryAttack) is thrown the moment the swing allows: when it ends, or once it is only recovery.
+            if (_bufferRemaining > 0.0f)
+            {
+                _bufferRemaining -= deltaTime;
+                if (_swingRemaining <= 0.0f || CanChainNow)
+                {
+                    bool heavyBuffered = _bufferedHeavy;
+                    _bufferRemaining = 0.0f;
+                    TryAttack(heavyBuffered);
+                }
+            }
+
             if (_swingRemaining <= 0.0f)
             {
                 return;
@@ -560,7 +631,7 @@ namespace CityX.Character
             // Contact is a moment inside the swing, not its start or end. Fire
             // it when the timer crosses that point, so a long frame cannot skip
             // it -- a dropped frame swallowing a punch is a miserable bug.
-            float contactAt = _activeSwingSeconds * (1.0f - ContactFraction);
+            float contactAt = _activeSwingSeconds * (1.0f - _activeContact);
             if (!_contactDone && before > contactAt && _swingRemaining <= contactAt)
             {
                 _contactDone = true;
@@ -812,6 +883,50 @@ namespace CityX.Character
             foreach (Contact contact in ContactsInReach())
             {
                 found.Add(contact.Target);
+            }
+            return found;
+        }
+
+        /// <summary>How far a punch will pull toward a target near where the camera looks, metres.</summary>
+        public const float MagnetRadiusMetres = 4.5f;
+
+        /// <summary>A target must be within this many degrees of where the camera looks to be pulled toward.</summary>
+        public const float MagnetHalfArcDegrees = 70.0f;
+
+        /// <summary>
+        /// PUNCH MAGNETISM, as in the Arkham and Yakuza games and every third-person brawler: a blow is thrown at the enemy NEAR where the camera looks,
+        /// not into the empty air a few degrees to one side of him. Finds the living target closest to the camera's aim (within
+        /// <see cref="MagnetRadiusMetres"/> and <see cref="MagnetHalfArcDegrees"/>) and gives the yaw (degrees) that faces it; false when there is none.
+        /// </summary>
+        public bool TryFindMagnetYaw(float cameraYawDegrees, out float yawDegrees)
+        {
+            yawDegrees = cameraYawDegrees;
+            Vector3 origin = SwingOrigin();
+            Collider[] hits = Physics.OverlapSphere(origin, MagnetRadiusMetres, TargetLayers, QueryTriggerInteraction.Ignore);
+            Vector3 aim = Quaternion.Euler(0.0f, cameraYawDegrees, 0.0f) * Vector3.forward;
+            IDamageable self = GetComponent<IDamageable>();
+            float bestAngle = MagnetHalfArcDegrees;
+            bool found = false;
+            foreach (Collider collider in hits)
+            {
+                var target = collider.GetComponentInParent<IDamageable>();
+                if (target == null || !target.IsAlive || ReferenceEquals(target, self))
+                {
+                    continue;
+                }
+                Vector3 toTarget = collider.bounds.center - origin;
+                toTarget.y = 0.0f;
+                if (toTarget.sqrMagnitude < 0.0004f)
+                {
+                    continue;
+                }
+                float angle = Vector3.Angle(aim, toTarget);
+                if (angle < bestAngle)
+                {
+                    bestAngle = angle;
+                    yawDegrees = Mathf.Atan2(toTarget.x, toTarget.z) * Mathf.Rad2Deg;
+                    found = true;
+                }
             }
             return found;
         }

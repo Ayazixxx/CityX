@@ -178,7 +178,7 @@ namespace CityX.Tests
             Assert.IsTrue(melee.TryAttack(), "the punch was refused, so there is nothing to announce");
 
             Assert.AreEqual(1, heard.Count, "one punch should announce exactly one state");
-            Assert.AreEqual("punch_right", heard[0], "the opening punch of the unarmed chain");
+            Assert.AreEqual(FistStrikes.JabName, heard[0], "the opening punch of the unarmed chain");
 #else
             Assert.Ignore("Player.prefab can only be loaded by path inside the editor.");
             yield break;
@@ -199,8 +199,8 @@ namespace CityX.Tests
             driver.StatePlayed += _ => announced++;
 
             yield return null;
-            driver.PlayRemoteState("punch_right");
-            yield return WaitForState(animator, "punch_right");
+            driver.PlayRemoteState(FistStrikes.JabName);
+            yield return WaitUntil(() => _player.GetComponent<FistPoseDriver>().IsStriking, "the replayed punch to play");
 
             Assert.AreEqual(0, announced,
                 "a replayed state was announced again -- that would bounce it back over the network forever");
@@ -305,7 +305,7 @@ namespace CityX.Tests
             yield return WaitForState(remoteAnimator, "Dash");
 
             Assert.IsTrue(ownerMelee.TryAttack(), "player A's punch was refused");
-            yield return WaitForState(remoteAnimator, "punch_right");
+            yield return WaitUntil(() => remoteCopy.GetComponent<FistPoseDriver>().IsStriking || remoteCopy.GetComponent<FistPoseDriver>().Engage > 0.2f, "the punch to play on another player's copy");
 #else
             Assert.Ignore("needs the editor to load the networked player prefab.");
             yield break;

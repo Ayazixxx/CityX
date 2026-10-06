@@ -128,8 +128,10 @@ namespace CityX.Tests
 
             foreach (ComboStage stage in ComboChain.For(ComboChain.Unarmed))
             {
-                Assert.IsTrue(stateNames.Contains(stage.Animation),
-                    $"the chain plays '{stage.Animation}' but the animator has no such state -- " +
+                // The unarmed strikes are PROCEDURAL (FistStrikes / FistPoseDriver): no animator state, so the legs keep walking under them.
+                // What must be true instead is that the strike exists, or the punch would land with no swing.
+                Assert.IsTrue(FistStrikes.Has(stage.Animation) || stateNames.Contains(stage.Animation),
+                    $"the chain plays '{stage.Animation}' but there is neither a procedural strike nor an animator state for it -- " +
                     "the punch would land with no swing");
             }
         }

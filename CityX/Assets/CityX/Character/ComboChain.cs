@@ -98,14 +98,16 @@ namespace CityX.Character
             {
                 [Unarmed] = new[]
                 {
-                    new ComboStage("punch_right", 1.0f, 1.0f, 0.9f, false),
-                    new ComboStage("punch_left", 1.0f, 1.0f, 0.9f, false),
-                    new ComboStage("punch_right", 1.0f, 1.0f, 0.9f, false),
-                    new ComboStage("punch_left", 1.0f, 1.1f, 0.9f, false),
+                    // A boxer's one-two, then a hook and an uppercut, then the haymaker: five different punches along five different paths
+                    // (see FistStrikes), not one jab played alternately by each hand. Same damage and hitstun as the chain this replaces.
+                    new ComboStage(FistStrikes.JabName, 1.0f, 1.0f, 0.9f, false),
+                    new ComboStage(FistStrikes.CrossName, 1.0f, 1.0f, 0.9f, false),
+                    new ComboStage(FistStrikes.HookName, 1.0f, 1.0f, 0.9f, false),
+                    new ComboStage(FistStrikes.UppercutName, 1.0f, 1.1f, 0.9f, false),
                     // The finisher's hitstun scale is zero on purpose: it
                     // ragdolls the target instead, so hitstun would be a second
                     // competing reaction to the same hit.
-                    new ComboStage("punch_heavy", 1.5f, 0.0f, 0.0f, true),
+                    new ComboStage(FistStrikes.HaymakerName, 1.5f, 0.0f, 0.0f, true),
                 },
                 [Sword] = new[]
                 {
@@ -171,7 +173,7 @@ namespace CityX.Character
         /// reason (ragdoll instead). Confirmed by reading player.gd directly.
         /// </summary>
         public static readonly ComboStage HeavyPunch =
-            new ComboStage("punch_heavy", 1.5f, 0.0f, 0.0f, false);
+            new ComboStage(FistStrikes.HaymakerName, 1.5f, 0.0f, 0.0f, false);
 
         /// <summary>
         /// The sword's own held-attack variant, played from

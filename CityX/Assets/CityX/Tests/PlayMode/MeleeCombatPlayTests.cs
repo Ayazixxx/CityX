@@ -56,10 +56,17 @@ namespace CityX.Tests
         private void SwingOnce()
         {
             Assert.IsTrue(_attacker.TryAttack(), "the attacker refused to swing");
-            Step(_attacker.SwingSeconds + 0.01f);
+            Step(FullSwing());
         }
 
         /// <summary>Advances time in small slices so contact moments are not skipped.</summary>
+        /// <summary>How long the swing in progress takes to play out (each unarmed strike has its own length: see FistStrikes), plus a hair.</summary>
+        private float FullSwing()
+        {
+            float seconds = FistStrikes.TryGet(_attacker.CurrentStage.Animation, out FistKind kind) ? FistStrikes.Seconds(kind) : _attacker.SwingSeconds;
+            return seconds + 0.01f;
+        }
+
         private void Step(float seconds, float slice = 1.0f / 60.0f)
         {
             for (float t = 0.0f; t < seconds; t += slice)
@@ -129,12 +136,48 @@ namespace CityX.Tests
             Assert.IsTrue(_attacker.IsSwinging);
             Assert.IsFalse(_attacker.TryAttack(), "started a second swing during the first");
 
-            Step(_attacker.SwingSeconds * 0.5f);
-            Assert.IsFalse(_attacker.TryAttack(), "swing released halfway through");
+            Step(FistStrikes.Seconds(FistKind.Jab) * 0.2f);
+            Assert.IsFalse(_attacker.TryAttack(), "swing released early in the windup");
 
-            Step(_attacker.SwingSeconds);
+            // The presses above were remembered (input buffering), so the next punch comes by itself; let the whole chain play out and finish.
+            Step(4.0f);
             Assert.IsFalse(_attacker.IsSwinging, "the swing never released the body");
             Assert.IsTrue(_attacker.TryAttack(), "could not swing again after the swing finished");
+        }
+
+        /// <summary>A punch pressed while the last is still going is remembered and thrown as soon as it allows, instead of being lost.</summary>
+        [Test]
+        public void APunchPressedWhileBusyIsBufferedAndThrownAsSoonAsItAllows()
+        {
+            Assert.IsTrue(_attacker.TryAttack());
+            Assert.AreEqual(FistStrikes.JabName, _attacker.CurrentStage.Animation);
+            Step(0.05f);
+            Assert.IsFalse(_attacker.TryAttack(), "a second swing started in the middle of the first");   // remembered, not thrown
+
+            Step(FistStrikes.Seconds(FistKind.Jab));
+            Assert.AreEqual(FistStrikes.CrossName, _attacker.CurrentStage.Animation, "the remembered press was lost");
+            Assert.IsTrue(_attacker.IsSwinging);
+        }
+
+        /// <summary>The recovery of a punch can be cancelled into the next one: the chain flows instead of waiting out every tail.</summary>
+        [Test]
+        public void TheRecoveryOfAPunchCanBeCancelledIntoTheNext()
+        {
+            Assert.IsTrue(_attacker.TryAttack());
+            Step(FistStrikes.Seconds(FistKind.Jab) * 0.8f);   // past the contact, in the recovery
+            Assert.IsTrue(_attacker.TryAttack(), "the next punch could not cancel the recovery");
+            Assert.AreEqual(FistStrikes.CrossName, _attacker.CurrentStage.Animation);
+        }
+
+        /// <summary>The body keeps part of its pace during a punch (the legs keep walking) and steps into it; it is no longer rooted.</summary>
+        [Test]
+        public void ThePlayerKeepsWalkingAndStepsIntoAPunch()
+        {
+            Assert.IsTrue(_attacker.TryAttack());
+            Assert.Greater(_attacker.SwingMoveFraction, 0.3f, "the body is rooted for a punch");
+            Assert.Greater(_attacker.LungeFraction, 0.3f, "no step into the punch while the fist goes out");
+            Step(FistStrikes.Seconds(FistKind.Jab) * 0.9f);
+            Assert.AreEqual(0.0f, _attacker.LungeFraction, 0.001f, "still lunging after the contact");
         }
 
         [Test]
@@ -147,7 +190,7 @@ namespace CityX.Tests
                 Assert.IsTrue(_attacker.TryAttack(), $"could not start stage {i}");
                 Assert.AreEqual(chain[i].Animation, _attacker.CurrentStage.Animation,
                     $"stage {i} played the wrong animation");
-                Step(_attacker.SwingSeconds + 0.01f);
+                Step(FullSwing());
             }
 
             Assert.AreEqual(chain.Length, _dummy.TimesHit, "not every stage of the chain landed");
@@ -168,7 +211,7 @@ namespace CityX.Tests
             for (int i = 1; i < chain.Length; i++)
             {
                 Assert.IsTrue(_attacker.TryAttack());
-                Step(_attacker.SwingSeconds + 0.01f);
+                Step(FullSwing());
             }
 
             _dummy.Reset();
@@ -177,11 +220,11 @@ namespace CityX.Tests
             for (int i = 0; i < chain.Length - 1; i++)
             {
                 Assert.IsTrue(_attacker.TryAttack());
-                Step(_attacker.SwingSeconds + 0.01f);
+                Step(FullSwing());
             }
             float beforeFinisher = _dummy.TotalDamageTaken;
             Assert.IsTrue(_attacker.TryAttack());
-            Step(_attacker.SwingSeconds + 0.01f);
+            Step(FullSwing());
             float finisherDamage = _dummy.TotalDamageTaken - beforeFinisher;
 
             Assert.Greater(finisherDamage, first,
@@ -200,7 +243,7 @@ namespace CityX.Tests
             ComboStage[] chain = ComboChain.For(ComboChain.Unarmed);
 
             Assert.IsTrue(_attacker.TryAttack());
-            Step(_attacker.SwingSeconds + 0.01f);
+            Step(FullSwing());
             Assert.AreEqual(1, _attacker.NextStageIndex, "the chain did not advance");
 
             // Well past the first stage's window.
@@ -218,7 +261,7 @@ namespace CityX.Tests
             ComboStage[] chain = ComboChain.For(ComboChain.Unarmed);
 
             Assert.IsTrue(_attacker.TryAttack());
-            Step(_attacker.SwingSeconds + 0.01f);
+            Step(FullSwing());
 
             // Comfortably inside the window.
             Step(chain[0].WindowSeconds * 0.4f);
@@ -239,7 +282,7 @@ namespace CityX.Tests
             Physics.SyncTransforms();
 
             Assert.IsTrue(_attacker.TryAttack());
-            Step(_attacker.SwingSeconds + 0.01f);
+            Step(FullSwing());
 
             Assert.AreEqual(0, _dummy.TimesHit, "somehow hit a target 50m away");
             Assert.AreEqual(1, _attacker.NextStageIndex, "a miss stalled the chain");

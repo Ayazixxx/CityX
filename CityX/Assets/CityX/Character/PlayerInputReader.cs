@@ -339,6 +339,10 @@ namespace CityX.Character
             // player.
             _vitals = GetComponent<PlayerVitals>();
             _melee = GetComponent<MeleeAttacker>();
+            if (_melee != null)
+            {
+                _melee.SwingStarted += OnMeleeSwingStarted;
+            }
             _ragdoll = GetComponent<Ragdoll>();
             _audio = GetComponent<PlayerAudio>();
             _grabCarry = GetComponent<GrabCarry>();
@@ -1042,13 +1046,26 @@ namespace CityX.Character
             //
             // A soulslike swing roots the same way, from the click to the end
             // of its recovery -- and a held guard walks at half speed.
+            if (_melee == null || !_melee.IsSwinging)
+            {
+                _swingFacingActive = false;
+            }
             Vector2 heldMove = move;
             SoulsSwordCombat soulsNow = SoulsSword;
             bool soulsArmed = soulsNow != null && soulsNow.IsEquipped;
             if (_melee != null && _melee.IsSwinging)
             {
-                // Nothing moves a swing -- but the aerial sword spin can be steered a little (half pace), as Link's can.
+                // The aerial sword spin can be steered a little (half pace), as Link's can. An UNARMED strike keeps part of the pace (the legs walk
+                // under it, no longer frozen) and STEPS INTO the blow toward where the body faces while the fist is going out (see
+                // MeleeAttacker.UnarmedMoveFraction / LungeFraction).
                 move *= _melee.SwingMoveFraction;
+                float lunge = _melee.LungeFraction;
+                if (lunge > 0.0f && yawSource != null)
+                {
+                    Vector3 stepWorld = _swingFacingActive ? Quaternion.Euler(0.0f, _swingYaw, 0.0f) * Vector3.forward : transform.forward;
+                    Vector3 stepLocal = Quaternion.Euler(0.0f, -yawSource.eulerAngles.y, 0.0f) * stepWorld;
+                    move = Vector2.ClampMagnitude(move + new Vector2(stepLocal.x, stepLocal.z) * lunge, 1.0f);
+                }
                 sprinting = false;
             }
             else if (soulsArmed && soulsNow.IsCommitted)
@@ -1068,6 +1085,7 @@ namespace CityX.Character
             }
 
             float yawDegrees = yawSource != null ? yawSource.eulerAngles.y : 0.0f;
+            _lastYawDegrees = yawDegrees;
             // A roll goes where the keys were held even out of a swing that
             // was rooting the body -- the pre-rooting input, not the zeroed one.
             TickDash(keyboard, soulsArmed ? heldMove : move, yawDegrees, deltaTime);
@@ -1324,6 +1342,30 @@ namespace CityX.Character
                 _locomotion.CurrentSpeed > 0.01f, _locomotion.IsGrounded, _locomotion.IsSprinting);
         }
 
+        // ---- UNARMED STRIKES: turn to the target, remember the facing for the lunge -------------------------------------------------------------
+
+        private bool _swingFacingActive;
+        private float _swingYaw;
+        private float _lastYawDegrees;
+
+        /// <summary>
+        /// A punch goes where the body faces, and the body only turned to the camera while MOVING: standing still after turning the camera the punch went
+        /// the way you used to face. So a punch turns the body, quickly, to the nearest enemy near where the camera looks (punch magnetism), else to the camera.
+        /// </summary>
+        private void OnMeleeSwingStarted(ComboStage stage)
+        {
+            if (_melee == null || _locomotion == null || _melee.EquippedWeapon != null || !FistStrikes.Has(stage.Animation))
+            {
+                return;
+            }
+            Transform yawSource = YawSource != null ? YawSource : (Camera.main != null ? Camera.main.transform : null);
+            float cameraYaw = yawSource != null ? yawSource.eulerAngles.y : _lastYawDegrees;
+            float yaw = _melee.TryFindMagnetYaw(cameraYaw, out float toTarget) ? toTarget : cameraYaw;
+            _swingYaw = yaw;
+            _swingFacingActive = true;
+            _locomotion.SetFacingOverride(yaw, 1200.0f, 0.22f);
+        }
+
         /// <summary>
         /// How long left-click has to be held before it becomes a heavy punch.
         ///
@@ -1565,10 +1607,14 @@ namespace CityX.Character
             // innate ability available regardless of loadout.
             TickSpinKey(Keyboard.current, canStart: true);
 
+            // A PUNCH GOES OUT ON THE PRESS, not on the release. It used to wait for the button to come back up (to tell a tap from a hold), which put
+            // 100 ms or more between the click and the fist: the "horrible" lag. Now the click throws the punch at once; holding the button on
+            // past HeavyPunchHoldSeconds and letting go follows it with the haymaker (buffered if the first punch is still going).
             if (Mouse.current.leftButton.wasPressedThisFrame)
             {
                 _punchHeld = true;
                 _punchHeldSeconds = 0.0f;
+                _melee.TryAttack();
             }
             else if (_punchHeld && Mouse.current.leftButton.isPressed)
             {
@@ -1578,7 +1624,10 @@ namespace CityX.Character
             if (_punchHeld && Mouse.current.leftButton.wasReleasedThisFrame)
             {
                 _punchHeld = false;
-                _melee.TryAttack(heavy: _punchHeldSeconds >= HeavyPunchHoldSeconds);
+                if (_punchHeldSeconds >= HeavyPunchHoldSeconds)
+                {
+                    _melee.TryAttack(heavy: true);
+                }
             }
         }
 
