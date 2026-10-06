@@ -529,7 +529,7 @@ namespace CityX.World.Plan
                     list.Add(new BuildingSite(list.Count, volumeParameters, zone, vBase,
                         bottom ? (float)lo : vBase, bottom ? (float)doorGround : vBase,
                         cx, cz, axisX, axisZ, PlanWorld.ChunkOf(cx), PlanWorld.ChunkOf(cz), volumeSeed,
-                        ox0, ox1, oz0, oz1));
+                        ox0, ox1, oz0, oz1, !bottom));
 
                     // The next volume stands a hair above this roof so its floor and the roof's top face never fight for one plane.
                     stackBase = vBase + vol.Height + 0.05;

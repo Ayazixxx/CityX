@@ -51,6 +51,12 @@ namespace CityX.World
         /// </summary>
         public readonly float ObstacleX0, ObstacleX1, ObstacleZ0, ObstacleZ1;
 
+        /// <summary>
+        /// This volume stands on the roof of another volume of the same building (a tower on a podium, a stage of a stepped tower): an attachment to the
+        /// building, not a building of its own, so it has no shopfront, awnings or signs, and its door is not a street entrance.
+        /// </summary>
+        public readonly bool OnRoof;
+
         public bool HasRoofObstacle => ObstacleX1 > ObstacleX0 && ObstacleZ1 > ObstacleZ0;
 
         public static readonly BuildingSite None = default;
@@ -58,7 +64,7 @@ namespace CityX.World
         public BuildingSite(int id, BuildingParams parameters, ZoneKind zone, float baseHeight, float podiumBase,
             float doorGroundHeight, double centreX, double centreZ, double axisX, double axisZ,
             int ownerChunkX, int ownerChunkY, int seed,
-            float obstacleX0 = 0.0f, float obstacleX1 = 0.0f, float obstacleZ0 = 0.0f, float obstacleZ1 = 0.0f)
+            float obstacleX0 = 0.0f, float obstacleX1 = 0.0f, float obstacleZ0 = 0.0f, float obstacleZ1 = 0.0f, bool onRoof = false)
         {
             Id = id;
             Params = parameters;
@@ -77,6 +83,7 @@ namespace CityX.World
             ObstacleX1 = obstacleX1;
             ObstacleZ0 = obstacleZ0;
             ObstacleZ1 = obstacleZ1;
+            OnRoof = onRoof;
         }
 
 

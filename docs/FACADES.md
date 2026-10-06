@@ -55,3 +55,10 @@ in it is one wall panel instead of three.
 `CityMeshBuilder` (`AddWindowedWall`, `AddDoorRow`, `AddPane`), `GlassDamage.TryPaneAt` / `FractionWithinPane`
 (shooting finds the pane the mesh actually hung), `TitleSkylineBaker`. Never call the old per-cell hash -- it no
 longer exists; build a `WindowPlan` with `WindowPlan.For(world, site)` and ask it.
+
+## Update: a tower on a podium is an attachment, not a second building
+
+`BuildingSite.OnRoof` marks every volume that stands on another volume's roof (a tower on a podium, a stage of a stepped tower). Such a volume gets no shopfront (`WindowPlan.For`
+drops the storefront), no awning/canopy/sign board/blade signs, and its ground row uses the ordinary wall look instead of the heavier street-level base, so it reads as the
+building continuing upward. Its door is a plain door in the wall and is dark grey (`CityStreamer.UpperDoorMaterial`) so it differs from the brown street entrances.
+Tests: `StackedVolumeTests`; guard: `BuildingOverlapTests` (no two buildings share space).

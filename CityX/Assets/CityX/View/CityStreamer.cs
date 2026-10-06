@@ -928,6 +928,21 @@ namespace CityX.View
             }
         }
 
+        private Material _upperDoorMaterial;
+
+        /// <summary>The dark grey door of a volume standing on a roof (a tower on a podium), so it reads differently from the brown street-level entrances. Made once from the street door's material.</summary>
+        private Material UpperDoorMaterial()
+        {
+            if (_upperDoorMaterial == null)
+            {
+                _upperDoorMaterial = new Material(DoorMaterial) { name = "BuildingDoorUpper" };
+                var grey = new Color(0.17f, 0.18f, 0.20f);
+                if (_upperDoorMaterial.HasProperty("_BaseColor")) _upperDoorMaterial.SetColor("_BaseColor", grey);
+                if (_upperDoorMaterial.HasProperty("_Color")) _upperDoorMaterial.SetColor("_Color", grey);
+            }
+            return _upperDoorMaterial;
+        }
+
         /// <summary>
         /// The front door of every building the chunk builds.
         ///
@@ -970,7 +985,7 @@ namespace CityX.View
                         _openDoors.Remove(buildingId);
                     }
                 };
-                door.Hang(BuildingDoor.PanelFor(site), DoorMaterial, DoorHandleMaterial,
+                door.Hang(BuildingDoor.PanelFor(site), site.OnRoof ? UpperDoorMaterial() : DoorMaterial, DoorHandleMaterial,
                     _openDoors.Contains(buildingId));
             }
         }

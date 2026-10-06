@@ -1313,7 +1313,7 @@ namespace CityX.View
                 // The ground floor row is made of something sturdier, darker and dirtier than the storeys above it.
                 if (looks.HasValue)
                 {
-                    wallBuffer.Look = row == 0 ? looks.Value.Base : looks.Value.Wall;
+                    wallBuffer.Look = row == 0 && !site.OnRoof ? looks.Value.Base : looks.Value.Wall;   // an attachment on a roof has no heavier "street" ground row
                 }
                 float y0 = floorY + row * rows.Size;
                 float y1 = y0 + rows.Size;
@@ -1459,15 +1459,20 @@ namespace CityX.View
             // What marks the entrance from the street. Only the outward pass builds it.
             if (glazing.HangsGlass && looks.HasValue)
             {
-                if (storefront)
+                // A volume standing on a roof (a tower on a podium) is an attachment to the building, not a building of its own: its door is a plain
+                // door in the wall, with no shopfront, awning, canopy or sign.
+                if (!site.OnRoof)
                 {
-                    AddStorefrontTrim(wallBuffer, site, wall, u0, columns, y0, y1, paneY1, doorU0, doorU1, normal);
+                    if (storefront)
+                    {
+                        AddStorefrontTrim(wallBuffer, site, wall, u0, columns, y0, y1, paneY1, doorU0, doorU1, normal);
+                    }
+                    else
+                    {
+                        AddEntranceCanopy(wallBuffer, wall, doorU0, doorU1, doorTop, normal, looks.Value);
+                    }
+                    AddBladeSigns(wallBuffer, glazing, site, wall, u0, u0 + columns.Count * columns.Size, y0, doorU0, doorU1, normal, looks.Value, storefront);
                 }
-                else
-                {
-                    AddEntranceCanopy(wallBuffer, wall, doorU0, doorU1, doorTop, normal, looks.Value);
-                }
-                AddBladeSigns(wallBuffer, glazing, site, wall, u0, u0 + columns.Count * columns.Size, y0, doorU0, doorU1, normal, looks.Value, storefront);
             }
         }
 

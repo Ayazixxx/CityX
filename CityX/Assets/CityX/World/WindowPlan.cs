@@ -99,6 +99,15 @@ namespace CityX.World
                 : CellLayout.NominalColumnMetres * scaleUp;
         }
 
+        /// <summary>The same plan with no shopfront glass on the door wall's ground floor.</summary>
+        public WindowPlan WithoutStorefront()
+        {
+            float nominal = Style == FacadeStyle.Curtain || Style == FacadeStyle.Ribbon
+                ? CellLayout.NominalColumnMetres * 2.0f
+                : CellLayout.NominalColumnMetres;
+            return new WindowPlan(Seed, Style, _blankWalls, false, Pitch, Phase, BandParity, ScatterShare, BandRow, Sill, Head, ColumnMetres / nominal);
+        }
+
         /// <summary>The columns of a wall of the given span, at this facade's own unit width.</summary>
         public CellLayout ColumnsFor(float span) => CellLayout.For(span, ColumnMetres);
 
@@ -175,7 +184,9 @@ namespace CityX.World
         /// </summary>
         public static WindowPlan For(CityWorld world, BuildingSite site)
         {
-            return WindowGrid.PlanFor(site.Seed, site.Zone, site.Params);
+            WindowPlan plan = WindowGrid.PlanFor(site.Seed, site.Zone, site.Params);
+            // A volume on a roof is an attachment, not a shop: whatever its roll, its ground row is ordinary windows.
+            return site.OnRoof && plan.Storefront ? plan.WithoutStorefront() : plan;
         }
     }
 }
