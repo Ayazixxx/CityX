@@ -50,7 +50,7 @@ namespace CityX.Tests
         public void EveryPartSpreadsAcrossItsOwnRowRatherThanCollapsingIntoALine()
         {
             List<FusedBodyShape.Segment> segments = FusedBodyShape.Segments(
-                BodyRig.PositionOf, FusedBodyShape.ReferenceHeight);
+                BodyRig.ShapePositionOf, FusedBodyShape.ReferenceHeight);
             Bounds bounds = FusedBodyShape.BoundsOf(segments);
 
             FusedBodyMesh.Extract(segments, bounds, FusedBodyShape.CellSize,
@@ -317,7 +317,7 @@ namespace CityX.Tests
         public void TheUnwrappedBodyIsPaintable()
         {
             List<FusedBodyShape.Segment> segments = FusedBodyShape.Segments(
-                BodyRig.PositionOf, FusedBodyShape.ReferenceHeight);
+                BodyRig.ShapePositionOf, FusedBodyShape.ReferenceHeight);
             Bounds bounds = FusedBodyShape.BoundsOf(segments);
 
             FusedBodyMesh.Extract(segments, bounds, FusedBodyShape.CellSize,

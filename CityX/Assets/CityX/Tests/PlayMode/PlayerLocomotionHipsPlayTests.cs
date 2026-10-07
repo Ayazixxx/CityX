@@ -54,7 +54,7 @@ namespace CityX.Tests
         }
 
         [UnityTest]
-        public IEnumerator TheHipsAndSpineNeverRotateAwayFromIdentityWhileSprinting()
+        public IEnumerator TheHipsStayLevelAndTheSpineLeansWithoutWaddlingWhileSprinting()
         {
 #if UNITY_EDITOR
             GameObject playerPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
@@ -95,9 +95,15 @@ namespace CityX.Tests
                     $"hips rotated {hipsAngle:0.000} degrees off identity at step {step} -- " +
                     "the reported side-to-side wiggle is still there");
 
+                // THE SPINE NOW FOLLOWS THE CLIP while the plain walk/run blend plays (LocomotionClipsOwnTheSpine): those are the Godot character's own baked clips, with
+                // the forward lean of a sprint (about 26 degrees) and a little twist, and held upright the run looked stiff next to Godot's. What the reported
+                // "waddle" was is side-to-side roll, which the Godot clips do not have, so that is what is still forbidden, along with any lurch past a sprint's lean.
                 float spineAngle = Quaternion.Angle(_spine.localRotation, Quaternion.identity);
-                Assert.Less(spineAngle, 0.01f,
-                    $"spine rotated {spineAngle:0.000} degrees off identity at step {step} -- " +
+                Assert.Less(spineAngle, 40.0f,
+                    $"spine rotated {spineAngle:0.0} degrees off identity at step {step} -- more than a sprint's lean");
+                float spineRoll = Mathf.Abs(Mathf.DeltaAngle(0.0f, _spine.localEulerAngles.z));
+                Assert.Less(spineRoll, 10.0f,
+                    $"spine rolled {spineRoll:0.0} degrees side to side at step {step} -- " +
                     "the reported top-of-the-torso waddle is still there");
             }
 

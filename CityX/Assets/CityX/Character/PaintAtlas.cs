@@ -143,13 +143,13 @@ namespace CityX.Character
                     return;
 
                 case HumanBodyBones.LeftUpperArm:
-                    a = BodyRig.PositionOf(HumanBodyBones.LeftUpperArm);
-                    b = FingertipOf(-1.0f);
+                    a = BodyRig.ShapePositionOf(HumanBodyBones.LeftUpperArm);
+                    b = BodyRig.ShapePositionOf(HumanBodyBones.LeftHand);
                     return;
 
                 case HumanBodyBones.RightUpperArm:
-                    a = BodyRig.PositionOf(HumanBodyBones.RightUpperArm);
-                    b = FingertipOf(1.0f);
+                    a = BodyRig.ShapePositionOf(HumanBodyBones.RightUpperArm);
+                    b = BodyRig.ShapePositionOf(HumanBodyBones.RightHand);
                     return;
 
                 case HumanBodyBones.LeftUpperLeg:

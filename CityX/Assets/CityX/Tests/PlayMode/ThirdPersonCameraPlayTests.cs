@@ -223,6 +223,10 @@ namespace CityX.Tests
 
             ragdoll.Activate(Vector3.zero);
 
+            // A limp body is interpolated between physics steps (Ragdoll.SetKinematic), and an interpolated body's transform is put back where physics says it is on the
+            // next frame, undoing the move by hand below. This test stands in for physics, so it opts out.
+            torso.interpolation = RigidbodyInterpolation.None;
+
             // Moved by hand rather than simulated -- physics owns the torso
             // now, and this stands in for wherever a real crash/push/slide
             // would have actually carried it, well away from the frozen root.

@@ -42,5 +42,6 @@ Unity port of a Godot game: a procedurally generated multiplayer megacity with t
 - In batch captures frames are about 0.4 ms: set `Time.captureFramerate = 60` before rendering anything timed (IK steps, animators). A cube seen edge-on along its face is invisible.
 - `InputTestFixture`: one key event per frame, and a Mouse device is required. Runtime instance IDs are not ordered.
 - `StreamAround` never re-details a chunk loaded far; captures must `Rebuild()`.
+- **The body must look like Godot's** (`docs/CHARACTER_LOOK.md`): shaped and bound arms-down (`BodyRig.ShapePositionOf`/`RestBindMatrix`); walk/run/idle clips are **baked from the Godot clips** (`GodotMotionBaker`); the humanoid avatar's twist distribution stays **0**; ragdoll rigidbodies must have **interpolation off while kinematic**. Each of these, undone, tears or distorts limbs in sprints (`LimbFlipPlayTests` guards it).
 - Shell quirks (Windows, Git Bash): heredocs containing apostrophes fail, and multi-line `sed -i 'a\'` collapses onto one line; use the Write/Edit tools for multi-line code.
 - Persistent memory notes live outside the repo (the Claude memory folder), not here.

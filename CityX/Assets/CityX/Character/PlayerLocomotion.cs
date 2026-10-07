@@ -281,6 +281,26 @@ namespace CityX.Character
 
         private SoulsSwordCombat _souls;
         private float _torsoFollowBlend;
+        private float _locomotionSpineBlend;
+
+        /// <summary>
+        /// True while the plain walk/run/idle blend is playing: those are the Godot character's own baked clips (GodotMotionBaker), made for this one-spine-bone body,
+        /// so the spine keeps their forward lean and twist instead of being held upright. (The hips stay locked: the Godot clips carry no hips rotation, as
+        /// character.gd's retarget() guaranteed.) Every other state still plays a retargeted Mixamo clip that spreads its lean over three spine bones this rig does not
+        /// have, and keeps the lock -- measured, one light swing bowed this bone 64 degrees.
+        /// </summary>
+        public bool LocomotionClipsOwnTheSpine
+        {
+            get
+            {
+                if (_animator == null || !_animator.enabled || _animator.runtimeAnimatorController == null)
+                {
+                    return false;
+                }
+                bool nowLocomotion = _animator.GetCurrentAnimatorStateInfo(0).IsName("Locomotion");
+                return nowLocomotion && (!_animator.IsInTransition(0) || _animator.GetNextAnimatorStateInfo(0).IsName("Locomotion"));
+            }
+        }
 
         /// <summary>How fast the torso takes up (and gives up) the clip's own hips/spine motion, per second.</summary>
         public const float TorsoFollowBlendPerSecond = 10.0f;
@@ -1232,6 +1252,9 @@ namespace CityX.Character
             _torsoFollowBlend = Mathf.MoveTowards(
                 _torsoFollowBlend, (animatorLive && TorsoFollowsClip) ? Mathf.Clamp01(TorsoFollowStrength) : 0.0f,
                 TorsoFollowBlendPerSecond * Mathf.Max(_lastTickDeltaTime, 0.0f));
+            _locomotionSpineBlend = Mathf.MoveTowards(
+                _locomotionSpineBlend, (animatorLive && LocomotionClipsOwnTheSpine) ? 1.0f : 0.0f,
+                TorsoFollowBlendPerSecond * Mathf.Max(_lastTickDeltaTime, 0.0f));
             if (!InCarSeat && !IsSitting)
             {
                 if (_hips != null)
@@ -1240,7 +1263,7 @@ namespace CityX.Character
                 }
                 if (_spine != null)
                 {
-                    _spine.localRotation = Quaternion.Slerp(Quaternion.identity, _spine.localRotation, _torsoFollowBlend);
+                    _spine.localRotation = Quaternion.Slerp(Quaternion.identity, _spine.localRotation, Mathf.Max(_torsoFollowBlend, _locomotionSpineBlend));
                 }
             }
 

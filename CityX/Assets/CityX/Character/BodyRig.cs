@@ -242,6 +242,82 @@ namespace CityX.Character
         }
 
         /// <summary>
+        /// How far the shoulder turns from the T-pose to hang the arm along fused_body.gd's own rest line, shoulder to hand: about 77 degrees.
+        /// </summary>
+        public static readonly float ArmDownDegrees = Mathf.Atan2(ShoulderY - HandY, HandX - ShoulderX) * Mathf.Rad2Deg;
+
+        /// <summary>
+        /// Where the joints of the body's SHAPE are: fused_body.gd's own rest, arms hanging down and outward, and each arm's "hand" the END of the arm capsule
+        /// (<c>HAND_X, HAND_Y</c>), not the wrist joint that <see cref="PositionOf"/> gives.
+        ///
+        /// WHY THE SHAPE CANNOT USE <see cref="PositionOf"/>. That is where the BONES are, laid out as a T-pose for Unity's humanoid retargeting, and its hand is
+        /// the wrist, 85% of the way along the arm. The body used to be extracted from it, which did two things wrong at once. Every arm was 15% short, because the
+        /// capsule ended at the wrist and the whole hand beyond it was missing (the Godot character's arms reach mid-thigh, this one's stopped above the hip). And
+        /// the surface was modelled with the arms straight out sideways and then swung down about 77 degrees by every clip, which shears a shoulder into a knob with
+        /// a crease under it; the Godot body was modelled hanging, so its clips only ever bend it a little.
+        /// </summary>
+        public static Vector3 ShapePositionOf(HumanBodyBones human)
+        {
+            var shoulderL = new Vector3(-ShoulderX, ShoulderY, 0.0f);
+            var shoulderR = new Vector3(ShoulderX, ShoulderY, 0.0f);
+            var handL = new Vector3(-HandX, HandY, 0.0f);
+            var handR = new Vector3(HandX, HandY, 0.0f);
+            switch (human)
+            {
+                case HumanBodyBones.LeftUpperArm: return shoulderL;
+                case HumanBodyBones.LeftLowerArm: return Vector3.Lerp(shoulderL, handL, ElbowT);
+                case HumanBodyBones.LeftHand: return handL;
+                case HumanBodyBones.RightUpperArm: return shoulderR;
+                case HumanBodyBones.RightLowerArm: return Vector3.Lerp(shoulderR, handR, ElbowT);
+                case HumanBodyBones.RightHand: return handR;
+                default: return PositionOf(human);
+            }
+        }
+
+        /// <summary>
+        /// The matrix that puts a bone where it is in fused_body.gd's own rest pose (arms hanging), in character space: the skin's bind pose is this matrix's inverse.
+        ///
+        /// The live skeleton is a T-pose (see <see cref="Bones"/>), so the bones themselves are never at this pose until a clip puts them there. The bind pose is
+        /// a separate thing from where the transforms happen to start, and it is the one that decides what the surface looks like when a clip hangs the arms:
+        /// bound arms-down, an idle that hangs them at about the same angle bends the skin by almost nothing. The arm chain turns together (forearm and hand are
+        /// colinear with the upper arm and have no rotation of their own), so all three share the shoulder's rotation.
+        /// </summary>
+        public static Matrix4x4 RestBindMatrix(HumanBodyBones human)
+        {
+            Vector3 position = Vector3.zero;
+            bool found = false;
+            foreach (Bone bone in RestBones())
+            {
+                if (bone.Human == human)
+                {
+                    position = bone.Position;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found)
+            {
+                position = PositionOf(human);
+            }
+
+            Quaternion rotation = Quaternion.identity;
+            switch (human)
+            {
+                case HumanBodyBones.LeftUpperArm:
+                case HumanBodyBones.LeftLowerArm:
+                case HumanBodyBones.LeftHand:
+                    rotation = Quaternion.Euler(0.0f, 0.0f, ArmDownDegrees);
+                    break;
+                case HumanBodyBones.RightUpperArm:
+                case HumanBodyBones.RightLowerArm:
+                case HumanBodyBones.RightHand:
+                    rotation = Quaternion.Euler(0.0f, 0.0f, -ArmDownDegrees);
+                    break;
+            }
+            return Matrix4x4.TRS(position, rotation, Vector3.one);
+        }
+
+        /// <summary>
         /// The crown of the head: the top of the sphere. Used as the body's
         /// height, which every radius is expressed as a fraction of.
         /// </summary>

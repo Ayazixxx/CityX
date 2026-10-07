@@ -41,13 +41,16 @@ namespace CityX.CharacterEditor
             // then silently animates nothing.
             CharacterImportSetup.Import();
 
-            AnimationClip idle = FindClip("idle");
-            AnimationClip walk = FindClip("walking");
-            AnimationClip sprint = FindClip("sprint");
+            // THE GODOT CHARACTER'S OWN MOTION where it has been baked (GodotMotionBaker), the retargeted Mixamo files only if not. Both come from the same
+            // source clips, but the Godot ones are what the owner means by "looks better": see GodotMotionBaker for the measured difference.
+            GodotMotionBaker.BakeAll();
+            AnimationClip idle = GodotOrMixamo("idle", "idle");
+            AnimationClip walk = GodotOrMixamo("walk", "walking");
+            AnimationClip sprint = GodotOrMixamo("run", "sprint");
             AnimationClip jump = FindClip("jump");
-            AnimationClip back = FindClip("walk_backward");
-            AnimationClip left = FindClip("walk_left");
-            AnimationClip right = FindClip("walk_right");
+            AnimationClip back = GodotOrMixamo("walk_backward", "walk_backward");
+            AnimationClip left = GodotOrMixamo("walk_left", "walk_left");
+            AnimationClip right = GodotOrMixamo("walk_right", "walk_right");
 
             if (idle == null || walk == null || sprint == null)
             {
@@ -74,11 +77,12 @@ namespace CityX.CharacterEditor
             // smaller. Widening it back out around each curve's own mean
             // fixes that proportion mismatch without touching anything the
             // limit-clamping fix would have addressed instead.
-            walk = ExaggerateStride(walk, "walking");
-            sprint = ExaggerateStride(sprint, "sprint");
-            back = ExaggerateStride(back, "walk_backward");
-            left = ExaggerateStride(left, "walk_left");
-            right = ExaggerateStride(right, "walk_right");
+            // Baked Godot clips are already the right size (see StrideExaggeration), so only the Mixamo fallbacks pass through this.
+            walk = ExaggerateStrideIfMixamo(walk, "walking");
+            sprint = ExaggerateStrideIfMixamo(sprint, "sprint");
+            back = ExaggerateStrideIfMixamo(back, "walk_backward");
+            left = ExaggerateStrideIfMixamo(left, "walk_left");
+            right = ExaggerateStrideIfMixamo(right, "walk_right");
 
             // BLOODRAGE (key 8) swaps the walking, running and jumping clips above for the user's own. Looped and stride-widened exactly as the
             // ordinary ones are, and paired with the clips the controller actually uses so BloodrageAbility can override them.
@@ -1716,8 +1720,30 @@ namespace CityX.CharacterEditor
             return found[0];
         }
 
-        /// <summary>How much wider than the raw retargeted swing the leg motion is stretched.</summary>
-        private const float StrideExaggeration = 1.8f;
+        /// <summary>
+        /// The baked Godot clip of that name if there is one, otherwise the Mixamo clip retargeted through the humanoid avatar.
+        /// </summary>
+        private static AnimationClip GodotOrMixamo(string godotName, string mixamoName)
+        {
+            AnimationClip baked = GodotMotionBaker.Load(godotName);
+            return baked != null ? baked : FindClip(mixamoName);
+        }
+
+        private static bool IsBakedGodotClip(AnimationClip clip)
+        {
+            return clip != null && AssetDatabase.GetAssetPath(clip).StartsWith(GodotMotionBaker.OutputDirectory, System.StringComparison.Ordinal);
+        }
+
+        private static AnimationClip ExaggerateStrideIfMixamo(AnimationClip clip, string modelName)
+        {
+            return IsBakedGodotClip(clip) ? clip : ExaggerateStride(clip, modelName);
+        }
+
+        /// <summary>
+        /// How much wider than the raw retargeted swing the leg motion is stretched, for the Mixamo clips only. 1.0 (no stretch): an earlier 1.8 was added to cure a
+        /// stride that looked short and measured, on the sprint, as thighs swinging 130 degrees each way where the Godot character's own clip swings 66 forward and 40 back.
+        /// </summary>
+        private const float StrideExaggeration = 1.0f;
 
         /// <summary>
         /// The muscle channels that actually carry a walking stride's knee

@@ -1037,7 +1037,16 @@ namespace CityX.Character
                 {
                     continue;
                 }
+                // Interpolation only while limp, never on a bone the Animator is writing -- see RagdollBuilder.MakeBody.
+                if (kinematic)
+                {
+                    body.interpolation = RigidbodyInterpolation.None;
+                }
                 body.isKinematic = kinematic;
+                if (!kinematic)
+                {
+                    body.interpolation = RigidbodyInterpolation.Interpolate;
+                }
                 // Colliders stay enabled either way; a kinematic body's
                 // collider costs nothing and toggling them is one more thing to
                 // get out of step with the kinematic flag.

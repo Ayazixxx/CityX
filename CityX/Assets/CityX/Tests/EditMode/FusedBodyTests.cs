@@ -28,7 +28,15 @@ namespace CityX.Tests
         /// </summary>
         private static Vector3 Bone(HumanBodyBones bone)
         {
-            return BodyRig.PositionOf(bone);
+            return BodyRig.ShapePositionOf(bone);
+        }
+
+        /// <summary>A point exactly one arm radius off the elbow, straight out from the (hanging, diagonal) arm's axis: on the skin of an unbroken arm capsule.</summary>
+        private static Vector3 OnTheSkinAtTheElbow()
+        {
+            Vector3 axis = (Bone(HumanBodyBones.LeftHand) - Bone(HumanBodyBones.LeftUpperArm)).normalized;
+            Vector3 outward = new Vector3(-axis.y, axis.x, 0.0f).normalized;
+            return Bone(HumanBodyBones.LeftLowerArm) + outward * FusedBodyShape.ArmRadius;
         }
 
         /// <summary>
@@ -317,8 +325,7 @@ namespace CityX.Tests
         [Test]
         public void LimbCapsulesHaveNoBulgeAtWhatWouldHaveBeenAnElbowSeam()
         {
-            Vector3 elbow = Bone(HumanBodyBones.LeftLowerArm);
-            Vector3 probe = elbow + Vector3.up * FusedBodyShape.ArmRadius;
+            Vector3 probe = OnTheSkinAtTheElbow();
 
             List<FusedBodyShape.Segment> limbs = FusedBodyShape.LimbCapsules(Bone, Height);
             float distance = FusedBodyShape.Distance(limbs, probe);
@@ -339,8 +346,7 @@ namespace CityX.Tests
         [Test]
         public void ThePerBoneSegmentListStillBulgesAtAnElbowSeam()
         {
-            Vector3 elbow = Bone(HumanBodyBones.LeftLowerArm);
-            Vector3 probe = elbow + Vector3.up * FusedBodyShape.ArmRadius;
+            Vector3 probe = OnTheSkinAtTheElbow();
 
             List<FusedBodyShape.Segment> segments = MakeSegments();
             float distance = FusedBodyShape.Distance(segments, probe);
@@ -554,8 +560,11 @@ namespace CityX.Tests
             // long, so 0.35 along it is still inside the elbow's handover and
             // SHOULD be shared. Testing there measured the elbow and called it
             // the forearm.
-            Vector3 midForearm = Vector3.Lerp(
-                Bone(HumanBodyBones.LeftLowerArm), Bone(HumanBodyBones.LeftHand), 0.5f);
+            // The forearm runs from the elbow to the wrist, and the hand
+            // capsule is the last HandFraction of what is left to the fingertip.
+            Vector3 elbow = Bone(HumanBodyBones.LeftLowerArm);
+            Vector3 wrist = Vector3.Lerp(elbow, Bone(HumanBodyBones.LeftHand), FusedBodyShape.HandFraction);
+            Vector3 midForearm = Vector3.Lerp(elbow, wrist, 0.5f);
 
             int used = FusedBodyShape.WeightsAt(segments, midForearm, bones, weights);
 

@@ -83,7 +83,7 @@ Rigidbody:
   m_ImplicitTensor: 1
   m_UseGravity: 1
   m_IsKinematic: 1
-  m_Interpolate: 1
+  m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 2
 --- !u!114 &7514570834022727689
@@ -289,7 +289,7 @@ Rigidbody:
   m_ImplicitTensor: 1
   m_UseGravity: 1
   m_IsKinematic: 1
-  m_Interpolate: 1
+  m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 2
 --- !u!114 &4432401226103680020
@@ -464,7 +464,7 @@ Rigidbody:
   m_ImplicitTensor: 1
   m_UseGravity: 1
   m_IsKinematic: 1
-  m_Interpolate: 1
+  m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 2
 --- !u!114 &8449905220960443374
@@ -607,7 +607,7 @@ Rigidbody:
   m_ImplicitTensor: 1
   m_UseGravity: 1
   m_IsKinematic: 1
-  m_Interpolate: 1
+  m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 2
 --- !u!114 &7286728129341603700
@@ -866,7 +866,7 @@ Rigidbody:
   m_ImplicitTensor: 1
   m_UseGravity: 1
   m_IsKinematic: 1
-  m_Interpolate: 1
+  m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 2
 --- !u!114 &2667534871763002820
@@ -1042,7 +1042,7 @@ Rigidbody:
   m_ImplicitTensor: 1
   m_UseGravity: 1
   m_IsKinematic: 1
-  m_Interpolate: 1
+  m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 2
 --- !u!114 &5797433293388788498
@@ -1186,7 +1186,7 @@ Rigidbody:
   m_ImplicitTensor: 1
   m_UseGravity: 1
   m_IsKinematic: 1
-  m_Interpolate: 1
+  m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 2
 --- !u!114 &6897272176533176912
@@ -1361,7 +1361,7 @@ Rigidbody:
   m_ImplicitTensor: 1
   m_UseGravity: 1
   m_IsKinematic: 1
-  m_Interpolate: 1
+  m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 2
 --- !u!114 &3928639025390596194
@@ -1505,7 +1505,7 @@ Rigidbody:
   m_ImplicitTensor: 1
   m_UseGravity: 1
   m_IsKinematic: 1
-  m_Interpolate: 1
+  m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 2
 --- !u!114 &8254567409834157895
@@ -1681,7 +1681,7 @@ Rigidbody:
   m_ImplicitTensor: 1
   m_UseGravity: 1
   m_IsKinematic: 1
-  m_Interpolate: 1
+  m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 2
 --- !u!114 &8442741839326326175
@@ -2028,8 +2028,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: CityX.Character::CityX.Character.BloodrageAbility
   OriginalClips:
-  - {fileID: 7400000, guid: f28259fed4c92d54db728d57ed93d64d, type: 2}
-  - {fileID: 7400000, guid: 1b583fd82e3e6494d99b0159c29ec271, type: 2}
+  - {fileID: 7400000, guid: 2630a70530045c04eb0917f6e971293b, type: 2}
+  - {fileID: 7400000, guid: 8b4be7368b5d89c44b8d5711f8015ed2, type: 2}
   - {fileID: -203655887218126122, guid: a02750c3113c3c147a77e9b0eeb33fdb, type: 3}
   BloodrageClips:
   - {fileID: 7400000, guid: aa3d20c40a411da4c81b724ef70bb6b5, type: 2}
@@ -2259,7 +2259,7 @@ Rigidbody:
   m_ImplicitTensor: 1
   m_UseGravity: 1
   m_IsKinematic: 1
-  m_Interpolate: 1
+  m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 2
 --- !u!114 &697336855627023730

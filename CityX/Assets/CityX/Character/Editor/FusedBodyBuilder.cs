@@ -162,12 +162,22 @@ namespace CityX.CharacterEditor
                 weights[i] = weight;
             }
 
+            // BOUND ARMS-DOWN, NOT WHERE THE TRANSFORMS HAPPEN TO START. The
+            // mesh is modelled in fused_body.gd's own rest (arms hanging), and
+            // the bind pose maps that into each bone's space, so a clip that
+            // hangs the arms about as far as that bends the skin by almost
+            // nothing -- see BodyRig.RestBindMatrix. Reading the live T-pose
+            // skeleton here (what this did) bound a hanging mesh to bones
+            // lying out sideways.
+            var boundHuman = new HumanBodyBones[skinBones.Count];
+            foreach (KeyValuePair<HumanBodyBones, int> entry in boneIndex)
+            {
+                boundHuman[entry.Value] = entry.Key;
+            }
             var bindPoses = new Matrix4x4[skinBones.Count];
             for (int i = 0; i < skinBones.Count; i++)
             {
-                // The bind pose maps from the mesh's space into the bone's, so
-                // the bone's own transform undoes it exactly at rest.
-                bindPoses[i] = skinBones[i].worldToLocalMatrix * root.localToWorldMatrix;
+                bindPoses[i] = BodyRig.RestBindMatrix(boundHuman[i]).inverse;
             }
 
             var mesh = new Mesh

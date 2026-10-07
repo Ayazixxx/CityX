@@ -111,10 +111,14 @@ namespace CityX.CharacterEditor
             {
                 human = humanBones.ToArray(),
                 skeleton = skeleton.ToArray(),
-                upperArmTwist = 0.5f,
-                lowerArmTwist = 0.5f,
-                upperLegTwist = 0.5f,
-                lowerLegTwist = 0.5f,
+                // ZERO: THIS BODY HAS NO TWIST BONES. These say how much of a limb's roll is handed to the upper and lower bone of it (Unity's default, 0.5, is for rigs
+                // that have the extra twist bones to take it). Left at the default here they made a bent leg or arm spin about its own length by up to 130 degrees for
+                // a few frames of every fast stride -- measured by playing one run clip on avatars built with each setting: the largest one-frame jump of a lower leg was
+                // 179 degrees as it was and 40 (just fast running) with these at zero. It was the tear at the pelvis and the flung arms in every sprint capture, from any clip.
+                upperArmTwist = 0.0f,
+                lowerArmTwist = 0.0f,
+                upperLegTwist = 0.0f,
+                lowerLegTwist = 0.0f,
                 armStretch = 0.05f,
                 legStretch = 0.05f,
                 feetSpacing = 0.0f,
@@ -178,14 +182,14 @@ namespace CityX.CharacterEditor
         public static List<FusedBodyShape.Segment> Segments()
         {
             return FusedBodyShape.Segments(
-                BodyRig.PositionOf, FusedBodyShape.ReferenceHeight);
+                BodyRig.ShapePositionOf, FusedBodyShape.ReferenceHeight);
         }
 
         /// <summary>The body's SHAPE, one capsule per limb -- see FusedBodyShape.LimbCapsules' own comment for why this is not Segments().</summary>
         public static List<FusedBodyShape.Segment> LimbCapsules()
         {
             return FusedBodyShape.LimbCapsules(
-                BodyRig.PositionOf, FusedBodyShape.ReferenceHeight);
+                BodyRig.ShapePositionOf, FusedBodyShape.ReferenceHeight);
         }
     }
 }

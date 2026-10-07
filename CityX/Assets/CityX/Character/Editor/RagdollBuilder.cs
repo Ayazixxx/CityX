@@ -253,7 +253,10 @@ namespace CityX.CharacterEditor
             // one step than it is thick, and would otherwise pass through the
             // road it is supposed to land on.
             body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
-            body.interpolation = RigidbodyInterpolation.Interpolate;
+            // NONE WHILE THE BODY IS ANIMATED (it starts kinematic). Interpolation rewrites a body's transform every frame to smooth it between physics steps, and on a
+            // limb bone that the Animator is also writing that is two writers on one rotation: a lower leg or arm flipped through 130 degrees for a few frames of every fast
+            // stride (measured: gone with interpolation off, or with the Animator in Fixed update mode). Ragdoll.SetKinematic turns it on only while the limbs are limp.
+            body.interpolation = RigidbodyInterpolation.None;
             // The default lets a badly overlapping pair fire itself into orbit
             // while separating. The rig starts with overlaps by construction.
             body.maxDepenetrationVelocity = 3.0f;
