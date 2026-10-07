@@ -144,10 +144,14 @@ namespace CityX.Character
             }
         }
 
-        /// <summary>Where each fist rests in the guard, in the same units: the lead (left) hand a little further out than the rear.</summary>
+        /// <summary>
+        /// Where each fist rests in the guard, in the same units: the lead (left) hand a little further out than the rear. These place the WRIST; the hand now reaches a
+        /// further 0.16 m past it (the arm is the Godot character's full length, see BodyRig.ShapePositionOf), so the guard sits lower than it did, at chin height:
+        /// with the old height the fists covered the eyes of anyone looking at the fighter from the front.
+        /// </summary>
         public static Vector3 GuardOffset(bool rightHand)
         {
-            return rightHand ? new Vector3(-0.16f, 0.28f, 0.52f) : new Vector3(0.16f, 0.28f, 0.64f);
+            return rightHand ? new Vector3(-0.16f, 0.10f, 0.52f) : new Vector3(0.16f, 0.10f, 0.64f);
         }
 
         // The key times of a blow, as fractions of it: the end of the anticipation, the contact (full reach), the end of the hold on contact.

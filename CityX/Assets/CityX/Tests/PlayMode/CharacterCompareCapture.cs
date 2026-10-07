@@ -203,6 +203,42 @@ namespace CityX.Tests
 #endif
         }
 
+        /// <summary>
+        /// The upper body close up from the front-right, one baked clip sampled across its cycle (no controller): Logs/CityShots/unity-arms-closeup.png, to hold against
+        /// godot-arms-closeup.png (tests/scratch_render_arms_closeup.gd). The camera is on the x-mirrored side, since the clips are baked mirrored (see GodotMotionBaker).
+        /// Set <see cref="CloseupClip"/> to look at another clip.
+        /// </summary>
+        public static string CloseupClip = "run";
+
+        [UnityTest]
+        public IEnumerator RenderTheArmsCloseUp()
+        {
+#if UNITY_EDITOR
+            Stage(out GameObject player, out Camera camera);
+            player.GetComponent<PlayerLocomotion>().enabled = false;
+            var animator = player.GetComponentInChildren<Animator>();
+            animator.enabled = false;
+            var clip = AssetDatabase.LoadAssetAtPath<AnimationClip>($"Assets/CityX/Character/Animations/Godot/godot_{CloseupClip}.anim");
+            Assert.IsNotNull(clip, "bake the Godot motion first");
+            camera.fieldOfView = 24.0f;
+            const int frames = 10;
+            var sheet = new Texture2D(Cell * frames, Cell, TextureFormat.RGB24, false);
+            Vector3 p = player.transform.position;
+            for (int i = 0; i < frames; i++)
+            {
+                clip.SampleAnimation(animator.gameObject, clip.length * i / frames);
+                yield return null;
+                Texture2D image = Shoot(camera, p + new Vector3(-2.6f, 1.9f, 3.0f), p + new Vector3(0, 1.5f, 0));
+                sheet.SetPixels(i * Cell, 0, Cell, Cell, image.GetPixels());
+                Object.Destroy(image);
+            }
+            Save(sheet, "unity-arms-closeup.png");
+            Time.captureFramerate = 0;
+#else
+            yield break;
+#endif
+        }
+
         /// <summary>A side-on strip of one stride, every few frames, driven the way the game drives it (locomotion script, controller, everything). Logs/CityShots/unity-stride-strip.png: walk on top, run below.</summary>
         [UnityTest]
         public IEnumerator RenderAStrideStrip()

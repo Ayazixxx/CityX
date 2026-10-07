@@ -13,14 +13,6 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 9100000, guid: c0808131d916ea540becd941709dc711, type: 2}
     - target: {fileID: 6850277564297992118, guid: c573dea59fa2558478b70344c659896a, type: 3}
-      propertyPath: 'OriginalClips.Array.data[0]'
-      value: 
-      objectReference: {fileID: 0}
-    - target: {fileID: 6850277564297992118, guid: c573dea59fa2558478b70344c659896a, type: 3}
-      propertyPath: 'OriginalClips.Array.data[1]'
-      value: 
-      objectReference: {fileID: 0}
-    - target: {fileID: 6850277564297992118, guid: c573dea59fa2558478b70344c659896a, type: 3}
       propertyPath: 'BloodrageClips.Array.data[0]'
       value: 
       objectReference: {fileID: 0}
@@ -120,7 +112,7 @@ PrefabInstance:
       addedObject: {fileID: 8687249435336123883}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 9014174319374984290}
+      addedObject: {fileID: 7205654303690452880}
   m_SourcePrefab: {fileID: 100100000, guid: c573dea59fa2558478b70344c659896a, type: 3}
 --- !u!1 &5771231832799346164 stripped
 GameObject:
@@ -556,7 +548,7 @@ MonoBehaviour:
   CooldownSeconds: 1.2
   ReleaseDelaySeconds: 0.18
   WavePrefab: {fileID: 8260423564122488192, guid: 9f4c373cbfecf834dbdffc0389b2fa3a, type: 3}
---- !u!114 &9014174319374984290
+--- !u!114 &7205654303690452880
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

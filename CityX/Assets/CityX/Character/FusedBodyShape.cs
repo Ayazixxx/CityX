@@ -402,158 +402,59 @@ namespace CityX.Character
         }
 
         /// <summary>
-        /// How wide the handover between two bones is, as a multiple of the
-        /// THICKER of the two limbs meeting there.
+        /// The bones a vertex is attached to, and how much each one owns of it: fused_body.gd's own rule, exactly. Every capsule contributes
+        /// exp(-(distance - nearestDistance) / BlendRadius), the contributions are summed per BONE, and the four heaviest bones are normalised.
         ///
-        /// RELATIVE TO THE LIMB, NOT A FIXED DISTANCE. A fixed width was tried
-        /// first and has no good value: 0.24m is about right across a shoulder
-        /// and catastrophic on a forearm, where it reaches past both the elbow
-        /// and the wrist at once.
+        /// THIS REPLACED A WIDER, SMOOTHER HANDOVER, and the replacement is the point. The first port gave every capsule within three quarters of the thicker limb's
+        /// radius (about 0.2 m at a shoulder) a share, on the reasoning that Godot's nearest-capsule rule "tears". Godot's rule is not nearest-only (it is this softmin,
+        /// the same k as the surface blend), and a 0.2 m handover is what made the torso drag and wrinkle around the armpit whenever an arm swung: half the chest
+        /// followed the arm. With Godot's own narrow handover the armpit stays crisp, as in the Godot character, and the joint still deforms because the blend is
+        /// the width of the smooth union itself.
         ///
-        /// UNDER ONE RADIUS, which took measuring to find. At 1.5 radii the
-        /// middle of a forearm was still only 57% its own -- because a forearm
-        /// is under three radii long, so a handover a radius and a half wide
-        /// arrives from both ends at once and meets in the middle. The
-        /// neighbouring capsules' rounded caps already overlap it heavily
-        /// before any falloff is applied. Three quarters of a radius is wide
-        /// enough that a joint is genuinely shared and narrow enough that the
-        /// middle of a limb belongs to itself.
-        /// </summary>
-        public const float WeightFalloffRadii = 0.75f;
-
-        /// <summary>
-        /// The bones a vertex is attached to, and how much each one owns of it.
-        ///
-        /// BLENDED, NOT NEAREST-ONLY -- and this was got wrong first time. The
-        /// original assigns each vertex wholly to its closest capsule, which is
-        /// what fused_body.gd does, so that is what was ported. It tears. The
-        /// torso capsule is thick and the arm capsule is thin, and the smooth
-        /// union between them fills a large blob at the shoulder; giving every
-        /// point of that blob entirely to whichever capsule happens to be a
-        /// millimetre nearer means half a shoulder swings with the arm and the
-        /// other half stays with the chest. The seam between them stretches
-        /// like a sheet.
-        ///
-        /// Sharing a vertex between every capsule within <see cref="WeightFalloff"/>
-        /// of the nearest one makes that handover gradual, which is what a
-        /// shoulder actually does.
-        ///
-        /// Fills <paramref name="bones"/> and <paramref name="weights"/>, which
-        /// must each hold four, and returns how many were used. Four because
-        /// that is what a Unity BoneWeight carries -- past the fourth the
-        /// smallest influences are dropped and the rest renormalised.
+        /// Fills <paramref name="bones"/> and <paramref name="weights"/>, which must each hold four, and returns how many were used. A bone whose share is under
+        /// half a percent of the nearest's is dropped (Godot keeps it at a weight of 1e-5 or so, which changes nothing).
         /// </summary>
         public static int WeightsAt(IReadOnlyList<Segment> segments, Vector3 p,
             HumanBodyBones[] bones, float[] weights)
         {
             float nearest = float.MaxValue;
-            float nearestRadius = 0.0f;
-            HumanBodyBones nearestBone = HumanBodyBones.Hips;
-            foreach (Segment segment in segments)
+            var distances = new float[segments.Count];
+            for (int i = 0; i < segments.Count; i++)
             {
-                float d = segment.Distance(p);
-                if (d < nearest)
-                {
-                    nearest = d;
-                    nearestRadius = segment.Radius;
-                    nearestBone = segment.Bone;
-                }
+                distances[i] = segments[i].Distance(p);
+                nearest = Mathf.Min(nearest, distances[i]);
             }
 
+            // Summed per bone: two capsules of one bone (a torso half and the neck, a thigh) add their claims.
+            var boneShare = new List<(HumanBodyBones bone, float share)>();
+            for (int i = 0; i < segments.Count; i++)
+            {
+                float share = Mathf.Exp(-(distances[i] - nearest) / BlendRadius);
+                int found = boneShare.FindIndex(entry => entry.bone == segments[i].Bone);
+                if (found >= 0)
+                {
+                    boneShare[found] = (boneShare[found].bone, boneShare[found].share + share);
+                }
+                else
+                {
+                    boneShare.Add((segments[i].Bone, share));
+                }
+            }
+            boneShare.Sort((a, b) => b.share.CompareTo(a.share));
+
+            float heaviest = boneShare[0].share;
             int used = 0;
-            foreach (Segment segment in segments)
-            {
-                // ONLY BETWEEN BONES THAT ARE ACTUALLY CONNECTED. Without this
-                // the head sphere, which is big and sits directly above the
-                // shoulder line, takes a third of the top of each shoulder --
-                // so turning the head drags the shoulders with it. Distance
-                // alone cannot tell "these two pieces of skin meet at a joint"
-                // apart from "these two pieces of skin happen to be near each
-                // other".
-                if (!AreConnected(nearestBone, segment.Bone))
-                {
-                    continue;
-                }
-
-                // THE HANDOVER IS AS WIDE AS THE THICKER OF THE TWO LIMBS
-                // MEETING HERE, and using only the nearer one's thickness was
-                // wrong in the exact place it mattered most. At a CITY X
-                // shoulder the arm is 0.09 thick and the torso 0.26, and the
-                // joint sits proud of the torso, so the arm always wins
-                // "nearest" -- which handed the whole shoulder over across
-                // 34mm. The blob the smooth union fills there is several times
-                // that across, so most of it was rigidly weighted and creased
-                // when the arm swung. Against the torso's own thickness the
-                // handover is about 200mm, which is the size of the thing
-                // actually being blended.
-                //
-                // Taken per PAIR rather than once for the whole point, so it
-                // stays continuous: where two capsules are equidistant the
-                // falloff cancels out of the share entirely.
-                float falloff = Mathf.Max(
-                    Mathf.Max(nearestRadius, segment.Radius) * WeightFalloffRadii, 1e-4f);
-
-                // Linear falloff from the nearest capsule outward. A capsule
-                // exactly at the nearest distance takes a full share; one a
-                // whole falloff further away takes none.
-                float share = 1.0f - (segment.Distance(p) - nearest) / falloff;
-                if (share <= 0.0f)
-                {
-                    continue;
-                }
-
-                // Two capsules of the same limb share a bone at the elbow and
-                // the knee; their shares add rather than competing for a slot.
-                int existing = -1;
-                for (int i = 0; i < used; i++)
-                {
-                    if (bones[i] == segment.Bone)
-                    {
-                        existing = i;
-                        break;
-                    }
-                }
-                if (existing >= 0)
-                {
-                    weights[existing] = Mathf.Max(weights[existing], share);
-                    continue;
-                }
-
-                if (used < bones.Length)
-                {
-                    bones[used] = segment.Bone;
-                    weights[used] = share;
-                    used++;
-                    continue;
-                }
-
-                // Full: displace the weakest, if this one beats it.
-                int weakest = 0;
-                for (int i = 1; i < used; i++)
-                {
-                    if (weights[i] < weights[weakest])
-                    {
-                        weakest = i;
-                    }
-                }
-                if (share > weights[weakest])
-                {
-                    bones[weakest] = segment.Bone;
-                    weights[weakest] = share;
-                }
-            }
-
-            if (used == 0)
-            {
-                bones[0] = NearestBone(segments, p);
-                weights[0] = 1.0f;
-                return 1;
-            }
-
             float total = 0.0f;
-            for (int i = 0; i < used; i++)
+            for (int i = 0; i < boneShare.Count && used < bones.Length; i++)
             {
-                total += weights[i];
+                if (boneShare[i].share < heaviest * 0.005f)
+                {
+                    break;
+                }
+                bones[used] = boneShare[i].bone;
+                weights[used] = boneShare[i].share;
+                total += boneShare[i].share;
+                used++;
             }
             for (int i = 0; i < used; i++)
             {

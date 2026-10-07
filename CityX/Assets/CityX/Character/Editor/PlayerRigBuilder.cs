@@ -66,6 +66,12 @@ namespace CityX.CharacterEditor
             MakeLooping(back);
             MakeLooping(left);
             MakeLooping(right);
+            // The Mixamo originals of those six are only the fallback now, but they stay set to loop: left alone, the importer settings flip back and forth on every
+            // rebuild (and the fallback would play once and freeze mid-step).
+            foreach (string mixamo in new[] { "idle", "walking", "sprint", "walk_backward", "walk_left", "walk_right" })
+            {
+                MakeLooping(FindClip(mixamo));
+            }
 
             // Mecanim's Humanoid retargeting is proportion-aware: it resolves
             // the source stride against THIS avatar's own bone lengths, and on

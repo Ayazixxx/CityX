@@ -501,7 +501,10 @@ namespace CityX.Tests
             {
                 heaviest = Mathf.Max(heaviest, weights[i]);
             }
-            Assert.Less(heaviest, 0.8f,
+            // 0.9, NOT 0.8: the weights are fused_body.gd's own narrow softmin now (see FusedBodyShape.WeightsAt), and the top of the shoulder really is mostly the
+            // spine's in the Godot character too. What is forbidden is a rigid joint (one bone with all of it); a wider handover than Godot's is what made the torso
+            // drag and wrinkle around the armpit.
+            Assert.Less(heaviest, 0.9f,
                 "one bone takes essentially all of the shoulder, which is rigid weighting " +
                 "wearing a blend's clothes");
 

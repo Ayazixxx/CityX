@@ -25,8 +25,9 @@ namespace CityX.CharacterEditor
     /// (<see cref="BodyRig.RestBindMatrix"/>) that is exactly Godot's deformation. Every other bone has the same rest in both, and takes the Godot rotation as it is.
     /// Each frame is applied to a throwaway skeleton and read back as humanoid muscle values with a <see cref="HumanPoseHandler"/>, which is what a humanoid clip is.
     ///
-    /// The Godot and Unity coordinate frames agree (the same joint numbers, the body facing +Z), and a quaternion's components mean the same thing in both, so no
-    /// conversion is needed beyond that.
+    /// The Godot and Unity bodies share joint numbers and face +Z, but Godot is right-handed and Unity left-handed, and Godot's "_l" bones are the character's physical
+    /// right side. Copying joint for joint therefore gives a MIRROR IMAGE of the Godot character: unnoticeable in a walk or run, but the left strafe played on a press of
+    /// D. So every track is reflected across the body's own x = 0 plane while it is baked: left and right bones swap, and a rotation (x, y, z, w) becomes (x, -y, -z, w).
     /// </summary>
     public static class GodotMotionBaker
     {
@@ -171,25 +172,30 @@ namespace CityX.CharacterEditor
                             // Only the hips carry a position; it is the hips' own rest position replaced, in the body's own space.
                             if (track.Bone == "hips")
                             {
-                                bones["hips"].position = new Vector3(value.x, value.y, value.z);
+                                bones["hips"].position = new Vector3(-value.x, value.y, value.z);   // reflected across x, like every rotation below
                             }
                             continue;
                         }
 
-                        var q = new Quaternion(value.x, value.y, value.z, value.w);
+                        // MIRRORED, NOT COPIED. Godot's "_l" bones are the character's physical RIGHT side (character.gd: the body's +X ends up on the player's left once the
+                        // model is turned to face its way of travel), and Godot is right-handed where Unity is left-handed, so the same joint numbers in Unity are a mirror
+                        // image of Godot's character. Walking and running look the same mirrored, but a strafe does not: the left strafe played on a press of D. Reflecting
+                        // across the body's own x = 0 plane (swap the left and right bones, and a rotation (x, y, z, w) becomes (x, -y, -z, w)) gives the character Godot shows.
+                        string target = Mirror(track.Bone);
+                        var q = new Quaternion(value.x, -value.y, -value.z, value.w);
                         q = Normalize(q);
-                        bool left = track.Bone.EndsWith("_l", StringComparison.Ordinal);
-                        bool armChain = track.Bone.StartsWith("arm_", StringComparison.Ordinal) ||
-                                        track.Bone.StartsWith("forearm_", StringComparison.Ordinal) ||
-                                        track.Bone.StartsWith("hand_", StringComparison.Ordinal);
+                        bool left = target.EndsWith("_l", StringComparison.Ordinal);
+                        bool armChain = target.StartsWith("arm_", StringComparison.Ordinal) ||
+                                        target.StartsWith("forearm_", StringComparison.Ordinal) ||
+                                        target.StartsWith("hand_", StringComparison.Ordinal);
                         if (armChain)
                         {
                             Quaternion hang = left ? hangLeft : hangRight;
-                            q = track.Bone.StartsWith("arm_", StringComparison.Ordinal)
+                            q = target.StartsWith("arm_", StringComparison.Ordinal)
                                 ? q * hang
                                 : Quaternion.Inverse(hang) * q * hang;
                         }
-                        bones[track.Bone].localRotation = q;
+                        bones[target].localRotation = q;
                     }
 
                     handler.GetHumanPose(ref pose);
@@ -371,6 +377,13 @@ namespace CityX.CharacterEditor
                 curve.AddKey(new Keyframe(times[i], values[i], inSlope, outSlope));
             }
             return curve;
+        }
+
+        private static string Mirror(string bone)
+        {
+            if (bone.EndsWith("_l", StringComparison.Ordinal)) return bone.Substring(0, bone.Length - 2) + "_r";
+            if (bone.EndsWith("_r", StringComparison.Ordinal)) return bone.Substring(0, bone.Length - 2) + "_l";
+            return bone;
         }
 
         private static Quaternion Normalize(Quaternion q)
