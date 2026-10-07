@@ -279,6 +279,87 @@ namespace CityX.Tests
 #endif
         }
 
+        /// <summary>For every bone: how far its own skin (vertices it owns most) reaches from the bone's segment, posed against at rest, to find skin that swells.</summary>
+        private static string SwellReport(SkinnedMeshRenderer skin, Mesh baked)
+        {
+            skin.BakeMesh(baked);
+            Mesh shared = skin.sharedMesh;
+            BoneWeight[] weights = shared.boneWeights;
+            Vector3[] posed = baked.vertices;
+            Vector3[] rest = shared.vertices;
+            Transform[] bones = skin.bones;
+            var sb = new System.Text.StringBuilder();
+            var posedMax = new float[bones.Length];
+            var restMax = new float[bones.Length];
+            var worstT = new float[bones.Length]; var worstW = new float[bones.Length]; var worstB1 = new string[bones.Length];
+            for (int i = 0; i < weights.Length; i++)
+            {
+                int b = weights[i].boneIndex0;
+                Transform bone = bones[b];
+                Transform child = bone.childCount > 0 ? bone.GetChild(0) : null;
+                if (child == null) continue;
+                // Rest segment from the bind pose, posed segment from the live bones (both in the renderer's space).
+                Vector3 pa = skin.transform.InverseTransformPoint(bone.position), pb = skin.transform.InverseTransformPoint(child.position);
+                Matrix4x4 bind = shared.bindposes[b].inverse;
+                Vector3 ra = bind.MultiplyPoint3x4(Vector3.zero);
+                Vector3 rb = bind.MultiplyPoint3x4(bone.InverseTransformPoint(child.position));
+                { float dd = DistanceToSegment(posed[i], pa, pb); if (dd > posedMax[b]) { Vector3 abv = pb - pa; worstT[b] = Mathf.Clamp01(Vector3.Dot(posed[i] - pa, abv) / Mathf.Max(abv.sqrMagnitude, 1e-8f)); worstW[b] = weights[i].weight0; worstB1[b] = bones[weights[i].boneIndex1].name + ":" + weights[i].weight1.ToString("F2"); } }
+                posedMax[b] = Mathf.Max(posedMax[b], DistanceToSegment(posed[i], pa, pb));
+                restMax[b] = Mathf.Max(restMax[b], DistanceToSegment(rest[i], ra, rb));
+            }
+            for (int b = 0; b < bones.Length; b++)
+            {
+                if (restMax[b] > 0.0f) sb.Append($"  {bones[b].name}: reaches {posedMax[b]:F3} m from its bone, at rest {restMax[b]:F3} m (x{posedMax[b] / restMax[b]:F2})\n");
+            }
+            return sb.ToString();
+        }
+
+        private static float DistanceToSegment(Vector3 p, Vector3 a, Vector3 b)
+        {
+            Vector3 ab = b - a;
+            float t = Mathf.Clamp01(Vector3.Dot(p - a, ab) / Mathf.Max(ab.sqrMagnitude, 1e-8f));
+            return Vector3.Distance(p, a + ab * t);
+        }
+
+        /// <summary>The wall climb seen the way the third-person camera sees it (from behind and below): Logs/CityShots/unity-climb-behind.png, a frame every 0.2 s.</summary>
+        [UnityTest]
+        public IEnumerator RenderTheClimbFromBehind()
+        {
+#if UNITY_EDITOR
+            Stage(out GameObject player, out Camera camera);
+            var wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            wall.transform.position = new Vector3(0, 20.0f, 52.0f); wall.transform.localScale = new Vector3(20, 40, 2);
+            Physics.SyncTransforms();
+            PlaceAt(player, new Vector3(0, 0.05f, 50.3f));
+            var climbing = player.GetComponent<PlayerClimbing>();
+            var vitals = player.GetComponent<PlayerVitals>();
+            vitals.InfiniteStamina = true;
+            camera.fieldOfView = 55.0f;
+            yield return null; yield return null;
+            Assert.IsTrue(climbing.TryStart(GrabIntent.AlreadyHeld(), true, 100.0f));
+            const float dt = 1.0f / 60.0f;
+            const int frames = 10;
+            var sheet = new Texture2D(Cell * frames, Cell, TextureFormat.RGB24, false);
+            for (int f = 0; f < frames; f++)
+            {
+                for (int i = 0; i < 12; i++)
+                {
+                    climbing.Tick(false, true, false, vitals, dt);
+                    yield return null;
+                }
+                Vector3 p = player.transform.position;
+                Texture2D image = Shoot(camera, p + new Vector3(1.0f, 0.9f, -2.4f), p + new Vector3(0, 1.2f, 0.6f));
+                sheet.SetPixels(f * Cell, 0, Cell, Cell, image.GetPixels());
+                Object.Destroy(image);
+            }
+            Debug.Log("SWELLCLIMB\n" + SwellReport(player.GetComponentInChildren<SkinnedMeshRenderer>(), new Mesh()));
+            Save(sheet, "unity-climb-behind.png");
+            Time.captureFramerate = 0;
+#else
+            yield break;
+#endif
+        }
+
         /// <summary>The idle from behind and to the side, the way the third-person camera sees it: Logs/CityShots/unity-idle-back.png against godot-idle-back.png (tests/scratch_render_idle_back.gd).</summary>
         [UnityTest]
         public IEnumerator RenderTheIdleFromBehind()

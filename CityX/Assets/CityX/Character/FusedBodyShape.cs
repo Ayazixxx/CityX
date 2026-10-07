@@ -401,6 +401,26 @@ namespace CityX.Character
             return best;
         }
 
+        /// <summary>How much wider than Godot's k the handover is between two bones of the same arm or leg.</summary>
+        public const float LimbHandoverWidening = 2.5f;
+
+        private static bool SameLimb(HumanBodyBones a, HumanBodyBones b)
+        {
+            return LimbOf(a) != 0 && LimbOf(a) == LimbOf(b);
+        }
+
+        private static int LimbOf(HumanBodyBones bone)
+        {
+            switch (bone)
+            {
+                case HumanBodyBones.LeftUpperArm: case HumanBodyBones.LeftLowerArm: case HumanBodyBones.LeftHand: return 1;
+                case HumanBodyBones.RightUpperArm: case HumanBodyBones.RightLowerArm: case HumanBodyBones.RightHand: return 2;
+                case HumanBodyBones.LeftUpperLeg: case HumanBodyBones.LeftLowerLeg: case HumanBodyBones.LeftFoot: return 3;
+                case HumanBodyBones.RightUpperLeg: case HumanBodyBones.RightLowerLeg: case HumanBodyBones.RightFoot: return 4;
+                default: return 0;
+            }
+        }
+
         /// <summary>
         /// The bones a vertex is attached to, and how much each one owns of it: fused_body.gd's own rule, exactly. Every capsule contributes
         /// exp(-(distance - nearestDistance) / BlendRadius), the contributions are summed per BONE, and the four heaviest bones are normalised.
@@ -425,11 +445,27 @@ namespace CityX.Character
                 nearest = Mathf.Min(nearest, distances[i]);
             }
 
+            // THE BONES OF ONE LIMB SHARE EACH OTHER'S SKIN TWICE AS WIDELY (a knee, an elbow, a wrist). Godot's narrow softmin is right where a limb meets the torso (a crisp
+            // armpit), but across a knee or elbow bent a hundred degrees it leaves each bone dragging its own half of the joint with it, and the outside of the bend swells
+            // (measured on a wall climb: a shin's skin reached twice as far from its bone as at rest, the "leg twice as wide"). A wider handover only WITHIN a limb spreads
+            // the bend, and leaves the torso joints alone.
+            HumanBodyBones nearestBone = HumanBodyBones.Hips;
+            float nearestDistance = float.MaxValue;
+            for (int i = 0; i < segments.Count; i++)
+            {
+                if (distances[i] < nearestDistance)
+                {
+                    nearestDistance = distances[i];
+                    nearestBone = segments[i].Bone;
+                }
+            }
+
             // Summed per bone: two capsules of one bone (a torso half and the neck, a thigh) add their claims.
             var boneShare = new List<(HumanBodyBones bone, float share)>();
             for (int i = 0; i < segments.Count; i++)
             {
-                float share = Mathf.Exp(-(distances[i] - nearest) / BlendRadius);
+                float k = SameLimb(nearestBone, segments[i].Bone) ? BlendRadius * LimbHandoverWidening : BlendRadius;
+                float share = Mathf.Exp(-(distances[i] - nearest) / k);
                 int found = boneShare.FindIndex(entry => entry.bone == segments[i].Bone);
                 if (found >= 0)
                 {
