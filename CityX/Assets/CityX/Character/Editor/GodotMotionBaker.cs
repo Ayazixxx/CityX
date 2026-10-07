@@ -188,7 +188,12 @@ namespace CityX.CharacterEditor
                         bool armChain = target.StartsWith("arm_", StringComparison.Ordinal) ||
                                         target.StartsWith("forearm_", StringComparison.Ordinal) ||
                                         target.StartsWith("hand_", StringComparison.Ordinal);
-                        if (armChain)
+                        if (target.StartsWith("hand_", StringComparison.Ordinal))
+                        {
+                            // One bend per arm, at the elbow: the hand stays straight along the forearm (see PlayerLocomotion.ApplyStraightWrists).
+                            q = Quaternion.identity;
+                        }
+                        else if (armChain)
                         {
                             Quaternion hang = left ? hangLeft : hangRight;
                             q = target.StartsWith("arm_", StringComparison.Ordinal)

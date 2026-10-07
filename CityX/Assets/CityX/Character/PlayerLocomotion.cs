@@ -1310,9 +1310,30 @@ namespace CityX.Character
             ApplyClimbLimbs();
             ApplyClimbWallLimbs();
             ApplyLedgeHands();
+            ApplyStraightWrists();
             if (IsSitting)
             {
                 ApplySittingPose();
+            }
+        }
+
+        /// <summary>
+        /// EVERY ARM BENDS AT THE ELBOW AND NOWHERE ELSE: an empty hand is held straight along its forearm. The clips turn the wrist through tens of degrees, and on this
+        /// body (a hand is just the last stretch of a tube) that reads as a second and third bend in the arm: a kinked, snaking limb in walks, runs and above all punches.
+        /// The owner asked for one bend only. A hand that holds something keeps the clip's wrist (a pistol or a sword is aimed through it); the leaf fingertip bone is the
+        /// hand's only child when it is empty.
+        /// </summary>
+        private void ApplyStraightWrists()
+        {
+            StraightenWrist(_handL);
+            StraightenWrist(_handR);
+        }
+
+        private static void StraightenWrist(Transform hand)
+        {
+            if (hand != null && hand.childCount <= 1)
+            {
+                hand.localRotation = Quaternion.identity;
             }
         }
 

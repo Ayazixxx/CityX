@@ -239,6 +239,75 @@ namespace CityX.Tests
 #endif
         }
 
+        /// <summary>A jab thrown through the real combat code, close up from the front (x-mirrored, like the other Godot comparisons), a frame every 0.045 s: Logs/CityShots/unity-jab-closeup.png against godot-jab-closeup.png.</summary>
+        [UnityTest]
+        public IEnumerator RenderTheJabCloseUp()
+        {
+#if UNITY_EDITOR
+            Stage(out GameObject player, out Camera camera);
+            var locomotion = player.GetComponent<PlayerLocomotion>();
+            var melee = player.GetComponent<MeleeAttacker>();
+            camera.fieldOfView = 26.0f;
+            const float dt = 1.0f / 60.0f;
+            const int frames = 10;
+            var sheet = new Texture2D(Cell * frames, Cell, TextureFormat.RGB24, false);
+            PlaceAt(player, new Vector3(0, 0.05f, 0));
+            for (int i = 0; i < 40; i++)
+            {
+                locomotion.Tick(default, dt);
+                melee.Tick(dt);
+                yield return null;
+            }
+            melee.TryAttack();
+            for (int f = 0; f < frames; f++)
+            {
+                for (int i = 0; i < 3; i++)
+                {
+                    locomotion.Tick(default, dt);
+                    melee.Tick(dt);
+                    yield return null;
+                }
+                Vector3 p = player.transform.position;
+                Texture2D image = Shoot(camera, p + new Vector3(-1.3f, 1.2f, 1.9f), p + new Vector3(0, 1.75f, 0.1f));
+                sheet.SetPixels(f * Cell, 0, Cell, Cell, image.GetPixels());
+                Object.Destroy(image);
+            }
+            Save(sheet, "unity-jab-closeup.png");
+            Time.captureFramerate = 0;
+#else
+            yield break;
+#endif
+        }
+
+        /// <summary>The idle from behind and to the side, the way the third-person camera sees it: Logs/CityShots/unity-idle-back.png against godot-idle-back.png (tests/scratch_render_idle_back.gd).</summary>
+        [UnityTest]
+        public IEnumerator RenderTheIdleFromBehind()
+        {
+#if UNITY_EDITOR
+            Stage(out GameObject player, out Camera camera);
+            player.GetComponent<PlayerLocomotion>().enabled = false;
+            var animator = player.GetComponentInChildren<Animator>();
+            animator.enabled = false;
+            var clip = AssetDatabase.LoadAssetAtPath<AnimationClip>("Assets/CityX/Character/Animations/Godot/godot_idle.anim");
+            Assert.IsNotNull(clip, "bake the Godot motion first");
+            const int frames = 10;
+            var sheet = new Texture2D(Cell * frames, Cell, TextureFormat.RGB24, false);
+            Vector3 p = player.transform.position;
+            for (int i = 0; i < frames; i++)
+            {
+                clip.SampleAnimation(animator.gameObject, clip.length * i / frames);
+                yield return null;
+                Texture2D image = Shoot(camera, p + new Vector3(-2.2f, 1.9f, -3.4f), p + new Vector3(0, 1.3f, 0));
+                sheet.SetPixels(i * Cell, 0, Cell, Cell, image.GetPixels());
+                Object.Destroy(image);
+            }
+            Save(sheet, "unity-idle-back.png");
+            Time.captureFramerate = 0;
+#else
+            yield break;
+#endif
+        }
+
         /// <summary>A side-on strip of one stride, every few frames, driven the way the game drives it (locomotion script, controller, everything). Logs/CityShots/unity-stride-strip.png: walk on top, run below.</summary>
         [UnityTest]
         public IEnumerator RenderAStrideStrip()
