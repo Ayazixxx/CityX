@@ -180,9 +180,13 @@ namespace CityX.View
             public readonly int GlassTint;
             public readonly Vector2 UvOffset;
 
+            /// <summary>The relief on the walls: courses, cornice, piers, lintels (FacadeOrnament).</summary>
+            public readonly FacadeOrnament Ornament;
+
             private SiteLooks(Color32 wall, Color32 baseLook, Color32 roof, Color32 trim, Color32 frame, Color32 band, Color32 appliance,
-                float acDensity, int glassTint, Vector2 uvOffset)
+                float acDensity, int glassTint, Vector2 uvOffset, FacadeOrnament ornament)
             {
+                Ornament = ornament;
                 Wall = wall;
                 Base = baseLook;
                 Roof = roof;
@@ -208,7 +212,8 @@ namespace CityX.View
                     SurfaceLook.Pack(new Color(0.86f, 0.87f, 0.88f), (int)WallMaterial.Metal, 0.55f),
                     look.AcDensity,
                     look.GlassTint,
-                    look.UvOffset);
+                    look.UvOffset,
+                    FacadeOrnament.For(site, style, look.Wall));
             }
         }
 
@@ -366,13 +371,19 @@ namespace CityX.View
             // A building that is sealed above its last fitted-out floor is only DETAILED that far (windows with reveals and frames, inside walls):
             // above it the walls are the distant version -- one panel and flat glass strips -- because nobody sees into a sealed void and a
             // 700 m tower with a million window frames is a cost, not a look.
-            int detailRows = rows.Count;
+            // (2026-10-09) The real windows now carry on past the fitted-out floors up to FullDetailRows: every tower over 64 m used to switch to flat
+            // painted-on strips there, and that seam -- a cheaper top on every tall building -- was a large part of why the city looked cheap. Only the
+            // walls' INSIDE faces stop at the last fitted-out floor (there is nothing inside the sealed part to see them from).
+            int fittedRows = rows.Count;
             if (stairs.SealedTop)
             {
-                detailRows = Mathf.Min(rows.Count, floors * BuildingInterior.StoreyHeightRows);
+                fittedRows = Mathf.Min(rows.Count, floors * BuildingInterior.StoreyHeightRows);
             }
+            int detailRows = Mathf.Min(rows.Count, Mathf.Max(fittedRows, FullDetailRows));
             var detailed = new CellLayout(detailRows, rows.Size);
+            var fitted = new CellLayout(fittedRows, rows.Size);
             float detailTop = detailRows < rows.Count ? lobbyY + detailRows * rows.Size : roofY;
+            float fittedTop = fittedRows < rows.Count ? lobbyY + fittedRows * rows.Size : roofY;
 
             // The podium, below the lobby floor. Solid: it is buried on the
             // uphill side and exposed downhill, so glazing it would put windows
@@ -400,14 +411,21 @@ namespace CityX.View
             // The wall is BuildingInterior.WallThickness thick: the inside face is that far in from the outside one, over the same span
             // so every window column still lines up. Each opening's reveals (AddWindowReveals) join the two faces.
             float t = BuildingInterior.WallThickness;
-            AddWindowedWall(concrete, Glazing.OpeningsOnly, site, new Wall(true, x0 + t, z0, z1), z0, z1, lobbyY, detailTop,
-                Vector3.right, plan, WindowGrid.Wall.West, detailed, 0.0f, 0.0f, false);
-            AddWindowedWall(concrete, Glazing.OpeningsOnly, site, new Wall(true, x1 - t, z0, z1), z0, z1, lobbyY, detailTop,
-                Vector3.left, plan, WindowGrid.Wall.East, detailed, 0.0f, 0.0f, false);
-            AddWindowedWall(concrete, Glazing.OpeningsOnly, site, new Wall(false, z0 + t, x0, x1), x0, x1, lobbyY, detailTop,
-                Vector3.forward, plan, WindowGrid.Wall.South, detailed, 0.0f, 0.0f, false);
-            AddWindowedWall(concrete, Glazing.OpeningsOnly, site, new Wall(false, z1 - t, x0, x1), x0, x1, lobbyY, detailTop,
-                Vector3.back, plan, WindowGrid.Wall.North, detailed, doorU0, doorU1, true);
+            AddWindowedWall(concrete, Glazing.OpeningsOnly, site, new Wall(true, x0 + t, z0, z1), z0, z1, lobbyY, fittedTop,
+                Vector3.right, plan, WindowGrid.Wall.West, fitted, 0.0f, 0.0f, false);
+            AddWindowedWall(concrete, Glazing.OpeningsOnly, site, new Wall(true, x1 - t, z0, z1), z0, z1, lobbyY, fittedTop,
+                Vector3.left, plan, WindowGrid.Wall.East, fitted, 0.0f, 0.0f, false);
+            AddWindowedWall(concrete, Glazing.OpeningsOnly, site, new Wall(false, z0 + t, x0, x1), x0, x1, lobbyY, fittedTop,
+                Vector3.forward, plan, WindowGrid.Wall.South, fitted, 0.0f, 0.0f, false);
+            AddWindowedWall(concrete, Glazing.OpeningsOnly, site, new Wall(false, z1 - t, x0, x1), x0, x1, lobbyY, fittedTop,
+                Vector3.back, plan, WindowGrid.Wall.North, fitted, doorU0, doorU1, true);
+
+            // The relief: courses, cornice, piers, corner piers (CityMeshBuilder.Ornament.cs, FacadeOrnament).
+            AddWallOrnament(structures, site, looks, west, z0, z1, Vector3.left, WindowGrid.Wall.West, lobbyY, roofY, rows, plan.ColumnsFor(z1 - z0), false);
+            AddWallOrnament(structures, site, looks, east, z0, z1, Vector3.right, WindowGrid.Wall.East, lobbyY, roofY, rows, plan.ColumnsFor(z1 - z0), false);
+            AddWallOrnament(structures, site, looks, south, x0, x1, Vector3.back, WindowGrid.Wall.South, lobbyY, roofY, rows, plan.ColumnsFor(x1 - x0), false);
+            AddWallOrnament(structures, site, looks, north, x0, x1, Vector3.forward, WindowGrid.Wall.North, lobbyY, roofY, rows, plan.ColumnsFor(x1 - x0), false);
+            AddCornerPiers(structures, site, looks, x0, x1, z0, z1, podiumY, roofY + ParapetWallHeight);
 
             if (detailRows < rows.Count)
             {
@@ -490,6 +508,12 @@ namespace CityX.View
         }
 
         private static Rect Shift(Rect r, float x, float z) => new Rect(r.x + x, r.y + z, r.width, r.height);
+
+        /// <summary>
+        /// How many window rows of a tower get real recessed windows (frames, sills, reveals, breakable glass) whether or not there is a fitted-out floor
+        /// behind them: 50 rows is 160 m. Above that a supertall's windows are the distant kind (flat strips), which from the street, that far up, is fine.
+        /// </summary>
+        public const int FullDetailRows = 50;
 
         /// <summary>
         /// One floor's stair: the steps and landings as stringers (each box hangs <see cref="BuildingStairs.Soffit"/> below its tread, so a
@@ -588,12 +612,16 @@ namespace CityX.View
             // The podium and the ground floor in the building's base material, then the rest of the wall in one panel each. The
             // distant building must wear the same look as the near one (the same two materials, split at the same height), or it
             // would change as you walk up to it.
-            float baseTop = Mathf.Min(roofY, lobbyY + BuildingInterior.RowHeight(height));
-            structures.Look = looks.Base;
-            AddWallPanel(structures, west, z0, z1, podiumY, baseTop, Vector3.left);
-            AddWallPanel(structures, east, z0, z1, podiumY, baseTop, Vector3.right);
-            AddWallPanel(structures, south, x0, x1, podiumY, baseTop, Vector3.back);
-            AddWallPanel(structures, north, x0, x1, podiumY, baseTop, Vector3.forward);
+            // An attachment on a roof (a tower on its podium) has no heavier street row, up close or far away (AddWindowedWall's row 0 rule).
+            float baseTop = site.OnRoof ? lobbyY : Mathf.Min(roofY, lobbyY + BuildingInterior.RowHeight(height));
+            if (baseTop > podiumY + 0.01f)
+            {
+                structures.Look = looks.Base;
+                AddWallPanel(structures, west, z0, z1, podiumY, baseTop, Vector3.left);
+                AddWallPanel(structures, east, z0, z1, podiumY, baseTop, Vector3.right);
+                AddWallPanel(structures, south, x0, x1, podiumY, baseTop, Vector3.back);
+                AddWallPanel(structures, north, x0, x1, podiumY, baseTop, Vector3.forward);
+            }
             structures.Look = looks.Wall;
             AddWallPanel(structures, west, z0, z1, baseTop, roofY, Vector3.left);
             AddWallPanel(structures, east, z0, z1, baseTop, roofY, Vector3.right);
@@ -622,6 +650,16 @@ namespace CityX.View
                 // Its underside: a turned or slid block hangs out past the one it stands on, and from the street you look straight up at it.
                 structures.Look = looks.Trim;
                 AddSlabFace(structures, x0, x1, z0, z1, Rect.zero, lobbyY, Vector3.down);
+            }
+            // The relief that reads from a distance: base course, cornice, corner piers.
+            {
+                CellLayout shellRows = WindowGrid.RowsFor(height);
+                WindowPlan shellPlan = WindowPlan.For(world, site);
+                AddWallOrnament(structures, site, looks, west, z0, z1, Vector3.left, WindowGrid.Wall.West, lobbyY, roofY, shellRows, shellPlan.ColumnsFor(z1 - z0), true);
+                AddWallOrnament(structures, site, looks, east, z0, z1, Vector3.right, WindowGrid.Wall.East, lobbyY, roofY, shellRows, shellPlan.ColumnsFor(z1 - z0), true);
+                AddWallOrnament(structures, site, looks, south, x0, x1, Vector3.back, WindowGrid.Wall.South, lobbyY, roofY, shellRows, shellPlan.ColumnsFor(x1 - x0), true);
+                AddWallOrnament(structures, site, looks, north, x0, x1, Vector3.forward, WindowGrid.Wall.North, lobbyY, roofY, shellRows, shellPlan.ColumnsFor(x1 - x0), true);
+                AddCornerPiers(structures, site, looks, x0, x1, z0, z1, podiumY, roofY + ParapetWallHeight);
             }
             structures.Look = SurfaceLook.Default;
 
@@ -1810,6 +1848,15 @@ namespace CityX.View
                         && AirConditionerAt(site, which, column, row) < looks.Value.AcDensity)
                     {
                         AddAirConditioner(wallBuffer, wall, u0, u1, y0, normal, looks.Value);
+                    }
+                    if (looks.Value.Ornament.Lintels)
+                    {
+                        // A stone lintel over the window, in the solid head between it and the row above (FacadeOrnament).
+                        Color32 savedLook = wallBuffer.Look;
+                        wallBuffer.Look = looks.Value.Trim;
+                        AddOutset(wallBuffer, wall, normal, u0 - FacadeOrnament.LintelOverhang, u1 + FacadeOrnament.LintelOverhang,
+                            y1 + 0.03f, y1 + 0.03f + FacadeOrnament.LintelHeight, FacadeOrnament.LintelDepth, true);
+                        wallBuffer.Look = savedLook;
                     }
                 }
             }

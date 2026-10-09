@@ -324,6 +324,14 @@ namespace CityX.Character
             float standingHeight = _locomotion != null ? _locomotion.StandingHeight : BodyRig.StandingHeight;
             float radius = _controller != null ? _controller.radius : 0.3f;
             bool ledgeAhead = LedgeProbe.TryFind(transform.position, _wallNormal, standingHeight, radius, transform, out LedgeProbe.Ledge ledge);
+
+            // LEAN ROUND WHAT JUTS FROM THE WALL (ClimbJut): a course, a sill or a cornice alongside the body, or coming up over the head (down under the
+            // feet when climbing down), pushes the hang point out by its depth; past it, the body settles back. Measured from the plane the climb holds.
+            float standoff = radius + HangStandoffMetres;
+            var planePoint = new Vector3(_anchorX, transform.position.y, _anchorZ) - _wallNormal * standoff;
+            float lookBelow = climbDownHeld && !climbUpHeld ? ClimbJut.LookAhead : 0.1f;   // up: until the feet are clear of its top
+            float lookAbove = climbUpHeld && !climbDownHeld ? ClimbJut.LookAhead : 0.1f;
+            _lean = ClimbJut.LeanFor(ClimbJut.Measure(transform.position, standingHeight, lookBelow, lookAbove, planePoint, _wallNormal, transform));
             if (climbUpHeld && !climbDownHeld)
             {
                 // REACHED A REAL LEDGE? Not "the wall stopped": a gap in a wall (a window, a recess, a balcony) is not an edge, and mantling
@@ -335,7 +343,9 @@ namespace CityX.Character
                     return;
                 }
                 // Neither a ledge nor wall left at head height: there is nothing to climb into. Hold the grip rather than climb up into thin air.
-                if (!ledgeAhead && !WallInDirection(transform.position + Vector3.up * (standingHeight * 0.85f), -_wallNormal, out _))
+                // (Looked for as far beyond the usual reach as the body is leaning out round a jut.)
+                if (!ledgeAhead && !WallInDirection(transform.position + Vector3.up * (standingHeight * 0.85f), -_wallNormal, out _,
+                        GrabCheckDistance + _lean))
                 {
                     direction = 0;
                 }
@@ -367,7 +377,7 @@ namespace CityX.Character
             // Drawn onto the wall face and turned to look at it, rather than snapped or left where the grab
             // happened. Both are eased: a grab is a reach, not a teleport.
             Vector2 toAnchor = Vector2.ClampMagnitude(
-                new Vector2(_anchorX - transform.position.x, _anchorZ - transform.position.z),
+                new Vector2(_anchorX + _wallNormal.x * _lean - transform.position.x, _anchorZ + _wallNormal.z * _lean - transform.position.z),
                 SnapToWallSpeed * deltaTime);
             Vector3 move = new Vector3(toAnchor.x, direction * ClimbSpeed * deltaTime - slip * deltaTime, toAnchor.y);
             float yBefore = transform.position.y;
@@ -423,10 +433,10 @@ namespace CityX.Character
         /// while climbing (from above the player's own current grip,
         /// direction = back into the wall the grip is already on).
         /// </summary>
-        private static bool WallInDirection(Vector3 origin, Vector3 direction, out Vector3 normal)
+        private static bool WallInDirection(Vector3 origin, Vector3 direction, out Vector3 normal, float distance = GrabCheckDistance)
         {
             normal = Vector3.zero;
-            if (!Physics.Raycast(origin, direction.normalized, out RaycastHit hit, GrabCheckDistance,
+            if (!Physics.Raycast(origin, direction.normalized, out RaycastHit hit, distance,
                     ~0, QueryTriggerInteraction.Ignore))
             {
                 return false;
@@ -466,6 +476,7 @@ namespace CityX.Character
         private void EndClimb(bool applyPush, float deltaTime)
         {
             IsClimbing = false;
+            _lean = 0.0f;
             _handsWeight = 0.0f;
             _locomotion?.SetLedgeHands(0.0f, Vector3.zero, Vector3.zero);
             _locomotion?.SetClimbWall(Vector3.zero, Vector3.forward, 0.0f);
@@ -543,6 +554,13 @@ namespace CityX.Character
         private float _mantleElapsed;
         private float _handsWeight;
         private float _stuckSeconds;
+
+        /// <summary>How far out the body is hanging this frame to clear what juts from the wall (ClimbJut); 0 on a flat wall.</summary>
+        private float _lean;
+
+        /// <summary>How far out from the wall the climb is leaning round a jut right now (0 on a flat wall). For tests and the pose.</summary>
+        public float Lean => _lean;
+
         private float _animatorSpeedBefore = 1.0f;
 
         /// <summary>Where the mantle is, 0 (hanging) to 1 (standing on the ledge). Meaningless outside a mantle.</summary>
@@ -551,6 +569,7 @@ namespace CityX.Character
         private void BeginMantle(LedgeProbe.Ledge ledge)
         {
             IsClimbing = false;
+            _lean = 0.0f;
             IsToppingOut = true;
             _mantle = ledge;
             _mantleStart = transform.position;

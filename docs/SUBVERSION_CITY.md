@@ -24,7 +24,7 @@ searching the street map; blocks are meant to be divided into allotments, one bu
 - `PlanWorld.cs` -- the city as the game asks about it: the plan, its geometry, every building (`PlanBuildings`: the largest rectangle that fits a
   lot with a side on its street frontage, turned to face the street), indexes by 24 m chunk, `BuildingAt`, `GroundHeight`, `TryFindSpawn`.
   One `PlanWorld` per seed, cached, read-only -> safe to read from the chunk worker threads.
-- Render: `dotnet run -c Release --project tools/cityplan -- [seed] [halfMetres] [px] [out.png] [cx cz viewHalf]`. Seed 87650022, 5 km region:
+- Render: `dotnet run -c Release --project tools/cityplan -- [seed] [halfMetres] [px] [out.png] [cx cz viewHalf]`. Seed 53190847, 5 km region:
   ~2,600 nodes, ~4,600 roads, ~1,250 blocks, ~12,100 buildings, generated in ~0.6 s. EditMode: `PlanWorldTests`, `PlanChunkMeshTests`.
 
 Determinism (server and clients must grow the same city): double + - * / sqrt only (angles come from literal tables, no sin/cos/pow), integer-hash
@@ -48,6 +48,16 @@ thousand edges, so a server can send it.
 - Spawn: the junction nearest the origin with no water within 90 m and plenty of buildings around it.
 - The generated region is finite (5 km square) and the terrain carries on beyond it as bare ground.
 
+- **Street walls** (2026-10-09, "don't be afraid to alter building size and the layout"): every building used to stand 2.2 m back from the pavement
+  and 1.2 m in from each neighbour's lot line (+0.3 m of fitting margin), so the whole city -- downtown included -- was detached blocks with 3 m gaps,
+  which read as a suburb of towers. Now a lot whose population is over `LotSubdivider.StreetWallPopulation` (0.55) is a **street wall**
+  (`PlanLot.StreetWall`): no setback to its neighbours, 1.0 m to the pavement, 0.08 m fitting margin, so neighbours stand ~0.16 m apart, shoulder to
+  shoulder. `PlanBuildings.AddPartyWalls` then gives both sides of every such joint a `WallContact` (parallel or quarter-turned neighbours in one
+  block, facing walls within 0.6 m), which blanks the windows (`WindowPlan` takes any number of contacts now), drops the ornament and corner piers,
+  and stops cornices wrapping round into the neighbour (`CityMeshBuilder.AgainstCorner`). About 60% of street-level buildings now share a wall.
+  Measure with `dotnet run -c Release --project tools/cityplan -- partywalls` and `-- overlaps` / `-- fitcheck`.
+- **Fit fix found by the street walls**: `FitRectangle` sampled the lot's chords 0.15 m shallower than the rectangle it returned; the old 0.3 m margin hid
+  it. The chords now cover the whole depth (`fitcheck`: 0 rectangles outside their lot).
 - **Shapes** (2026-10-08): a lot's rectangle is no longer always one box or a stack; `Massing.Compose` also makes L/T/U blocks, staggered pairs, twisted,
   wonky, cantilevered and round towers. See `docs/BUILDING_SHAPES.md`.
 

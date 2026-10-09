@@ -113,6 +113,15 @@ namespace CityX.View
 
         private float _sinceEnvironmentUpdate = 99.0f;
 
+        [Tooltip("Off goes back to the built-in linear fog instead of the haze pass (for a renderer without the CityXHaze feature).")]
+        public bool HazeDrawn = true;
+
+        private void OnDisable()
+        {
+            // Shader globals outlive the scene: a scene without a sky cycle (the title screen) must not inherit this one's air.
+            CityHaze.Clear();
+        }
+
         /// <summary>
         /// Public so an editor tool can pose the sky at an arbitrary moment
         /// without running the game -- which is the only way to look at dusk
@@ -175,6 +184,22 @@ namespace CityX.View
             Color horizon = SkyCycle.Weathered(state.HorizonColour, Overcast, Flash);
 
             RenderSettings.fogColor = horizon;
+
+            // The air (CityHaze): it does the old linear fog's job of hiding the end of the streamed city, out at the same fog distances the storm
+            // and the intro still drive, and it also does what that fog never did -- fade each tower by how far away and how high it is. The
+            // built-in fog is switched off so the two don't stack; its colour and distances are still kept, as the haze's inputs.
+            if (HazeDrawn)
+            {
+                Vector3 towardSun = Sun != null ? -Sun.transform.forward : Vector3.up;
+                CityHaze.Push(CityHaze.For(horizon, SkyCycle.Weathered(state.SkyTopColour, Overcast, Flash), state.SkyEnergy,
+                    state.SunColour, state.SunIntensity, Overcast, 1.0f - Overcast * OvercastDiscHiding,
+                    RenderSettings.fogStartDistance, RenderSettings.fogEndDistance), towardSun);
+            }
+            else
+            {
+                CityHaze.Clear();
+            }
+            RenderSettings.fog = !HazeDrawn;
 
             if (Sky != null)
             {

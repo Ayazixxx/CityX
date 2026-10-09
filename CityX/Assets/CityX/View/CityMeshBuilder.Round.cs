@@ -33,13 +33,16 @@ namespace CityX.View
             BuildingStairs.Layout stairs = outsideOnly ? null : BuildingStairs.PlanFor(site);
             int floors = BuildingInterior.FloorCountFor(height);
             float storey = BuildingInterior.StoreyHeight(height);
-            int detailRows = 0;
+            int detailRows = 0, fittedRows = 0;
             if (!outsideOnly)
             {
-                detailRows = stairs.SealedTop ? Mathf.Min(rows.Count, floors * BuildingInterior.StoreyHeightRows) : rows.Count;
+                fittedRows = stairs.SealedTop ? Mathf.Min(rows.Count, floors * BuildingInterior.StoreyHeightRows) : rows.Count;
+                detailRows = Mathf.Min(rows.Count, Mathf.Max(fittedRows, FullDetailRows));   // real windows above the fitted floors too (BuildBuilding)
             }
             var detailed = new CellLayout(detailRows, rows.Size);
+            var fitted = new CellLayout(fittedRows, rows.Size);
             float detailTop = detailRows < rows.Count ? lobbyY + detailRows * rows.Size : roofY;
+            float fittedTop = fittedRows < rows.Count ? lobbyY + fittedRows * rows.Size : roofY;
             float baseTop = outsideOnly ? Mathf.Min(roofY, lobbyY + BuildingInterior.RowHeight(height)) : lobbyY;
             float doorTop = lobbyY + BuildingInterior.DoorHeight(height);
 
@@ -69,7 +72,7 @@ namespace CityX.View
                 {
                     AddWindowedWall(structures, glazing, site, outer, -half, half, lobbyY, detailTop, Vector3.forward, plan, which, detailed,
                         doorU0, doorU1, door, looks);
-                    AddWindowedWall(concrete, Glazing.OpeningsOnly, site, inner, -half, half, lobbyY, detailTop, Vector3.back, plan, which, detailed,
+                    AddWindowedWall(concrete, Glazing.OpeningsOnly, site, inner, -half, half, lobbyY, fittedTop, Vector3.back, plan, which, fitted,
                         doorU0, doorU1, door);
                 }
                 if (detailRows < rows.Count)
@@ -93,6 +96,10 @@ namespace CityX.View
                 structures.Look = looks.Trim;
                 structures.AddBox(new Vector3(-half - corner - CopingOverhang, roofY + ParapetWallHeight, -ParapetWallThickness - CopingOverhang),
                     new Vector3(half + corner + CopingOverhang, roofY + ParapetWallHeight + CopingHeight, CopingOverhang));
+
+                // The relief (FacadeOrnament): courses and cornice run round the tower side by side; no piers, its corners are the polygon's.
+                AddWallOrnament(structures, site, looks, outer, -half, half, Vector3.forward, which, lobbyY, roofY, rows, plan.ColumnsFor(fp.SideLength),
+                    outsideOnly, true);
 
                 // A cracked pane's trigger box was written in the side's frame: put it in the building's, turned with the side.
                 if (glazing.Openings != null)

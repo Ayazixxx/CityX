@@ -13,7 +13,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class BuildingShapeTests
     {
-        private const int Seed = 87650022;
+        private const int Seed = 53190847;
 
         private static CityWorld _world;
         private static CityWorld World => _world ?? (_world = new CityWorld(Seed));
@@ -42,8 +42,9 @@ namespace CityX.Tests
         [Test]
         public void EveryFormTurnsUp()
         {
+            // The odd stacks are rare on purpose (Massing.OddStackChance), so it takes a lot of lots to meet every form.
             var seen = new HashSet<BuildingForm>();
-            foreach (var s in Samples(3000))
+            foreach (var s in Samples(40000))
             {
                 seen.Add(s.form);
             }
@@ -196,24 +197,34 @@ namespace CityX.Tests
         [Test]
         public void TheCityHasEveryKindOfShape()
         {
-            int wings = 0, turned = 0, slid = 0, plain = 0;
+            // Whole buildings: a street-level volume that is not a wing, and the wings and volumes after it.
+            int buildings = 0, winged = 0, odd = 0, round = 0, plain = 0;
             for (int id = 0; id < World.BuildingCount; id++)
             {
-                BuildingSite site = World.Building(id);
-                if (site.Wing) wings++;
-                if (site.Shell && site.OnRoof)
+                BuildingSite first = World.Building(id);
+                if (first.OnRoof || first.Wing)
                 {
-                    BuildingSite below = World.Building(id - 1);
-                    if (Math.Abs(below.AxisX - site.AxisX) > 1e-6 || Math.Abs(below.AxisZ - site.AxisZ) > 1e-6) turned++;
-                    else slid++;
+                    continue;
                 }
-                if (!site.OnRoof && !site.Wing && site.Contacts == null && !site.HasRoofObstacle) plain++;
+                buildings++;
+                bool hasWing = false, hasShell = false, stacked = false;
+                for (int k = id + 1; k < World.BuildingCount && (World.Building(k).OnRoof || World.Building(k).Wing); k++)
+                {
+                    hasWing |= World.Building(k).Wing;
+                    hasShell |= World.Building(k).Shell;
+                    stacked = true;
+                }
+                if (first.Sides >= 3) round++;
+                else if (hasShell) odd++;
+                else if (hasWing) winged++;
+                else if (!stacked) plain++;
             }
-            Debug.Log($"CityX shapes: {wings} wings, {turned} turned stages, {slid} cantilevered blocks, {plain} plain boxes of {World.BuildingCount} volumes");
-            Assert.Greater(wings, 200, "L, T, U and staggered blocks");
-            Assert.Greater(turned, 100, "twisted and wonky towers");
-            Assert.Greater(slid, 10, "cantilevered blocks");
-            Assert.Greater(plain, wings, "plain boxes are still the most common building");
+            Debug.Log($"CityX shapes: {buildings} buildings: {plain} plain boxes, {winged} with wings, {round} round, {odd} odd stacks");
+            Assert.Greater(winged, 200, "L, T, U and staggered blocks");
+            Assert.Greater(round, 20, "round towers");
+            Assert.Greater(odd, 0, "a twisted, wonky or cantilevered tower somewhere");
+            Assert.Less(odd, buildings * 0.01, "the odd stacks are rare (Massing.OddStackChance)");
+            Assert.Greater(plain, winged, "plain boxes are still the most common building");
         }
 
         [Test]

@@ -420,6 +420,15 @@ namespace CityX.World.Plan
         public const double MinSide = 8.0;
         public const double MaxSlenderness = 7.5;
 
+        /// <summary>How far inside its footprint a building's rectangle stays on every side (metres).</summary>
+        public const double FitMargin = 0.3;
+
+        /// <summary>The same for a street-wall lot (PlanLot.StreetWall): two neighbours end up this far apart twice over -- a joint, not a gap.</summary>
+        public const double StreetWallFitMargin = 0.08;
+
+        /// <summary>Two buildings whose facing walls are at most this far apart share a party wall (AddPartyWalls).</summary>
+        public const double PartyWallReach = 0.6;
+
         private static readonly string[][] RoofsByZone =
         {
             /* Core        */ new[] { "antenna", "antenna", "parapet", "", "antenna", "parapet", "", "water_tower" },
@@ -433,11 +442,14 @@ namespace CityX.World.Plan
         public static BuildingSite[] Resolve(CityPlanData data, PlanFields fields, uint seed)
         {
             var list = new List<BuildingSite>(data.Lots.Count);
+            var blockOf = new List<int>(data.Lots.Count);
+            var lotOf = new List<int>(data.Lots.Count);
             uint characterSeed = PlanNoise.Mix(seed, 0x7A6F6E65U);   // "zone"
 
             foreach (PlanLot lot in data.Lots)
             {
-                if (!FitRectangle(lot.Footprint, lot.FrontEdge, out Vec2 centre, out Vec2 ex, out double width, out double depth, lot.Scale))
+                if (!FitRectangle(lot.Footprint, lot.FrontEdge, out Vec2 centre, out Vec2 ex, out double width, out double depth, lot.Scale,
+                    lot.StreetWall ? StreetWallFitMargin : FitMargin))
                 {
                     continue;
                 }
@@ -486,6 +498,20 @@ namespace CityX.World.Plan
                 // The shape: one box, a stack of them (a tower on a podium, a crown that steps in), a bar with wings (L, T, U, a staggered pair) or a
                 // sculpted tower (twisted, wonky, cantilevered). Drawn last, so the roof and basement rolled above are what they would have been anyway.
                 List<MassVolume> volumes = Massing.Compose(zone, mass, width, depth, height, rng, out bool hasPodium, out BuildingForm form, s, hs);
+                if (!InsideLot(volumes, width, depth))
+                {
+                    // A shape whose minimum sizes outgrew a narrow lot: downtown the neighbour stands right at the lot line (PlanLot.StreetWall), so
+                    // a block poking past it would stand inside the next building. A plain box always fits.
+                    volumes = new List<MassVolume> { new MassVolume(-width * 0.5, width * 0.5, -depth * 0.5, depth * 0.5, height) };
+                    hasPodium = false;
+                    form = BuildingForm.Box;
+                }
+                if (AnyBlockInWater(fields, volumes, centre, axisX, axisZ))
+                {
+                    // A narrow river channel can run through the middle of a lot between the corners and centre the lot was checked at
+                    // (CityPlan.LotSubdivider); a building whose block would stand in it is not built.
+                    continue;
+                }
                 List<WallContact>[] contacts = ContactsBetween(volumes);
 
                 // Every volume is its own BuildingSite. One at street level has the ground under it; one above stands on the roof of the one it
@@ -579,9 +605,177 @@ namespace CityX.World.Plan
                         ox0, ox1, oz0, oz1, !ground, vol.Shell, vol.Wing,
                         contacts[v] != null ? contacts[v].ToArray() : null,
                         !isTop && volumes[above].Shell, vol.Sides));
+                    blockOf.Add(lot.BlockIndex);
+                    lotOf.Add(lot.Id);
                 }
             }
-            return list.ToArray();
+            BuildingSite[] sites = list.ToArray();
+            AddPartyWalls(sites, blockOf, lotOf);
+            return sites;
+        }
+
+        /// <summary>
+        /// Party walls: where the street-level blocks of two DIFFERENT buildings in one city block stand against each other (a downtown street wall,
+        /// LotSubdivider.StreetWallPopulation), each gets a contact on the wall that faces the other, so neither puts windows, ornament or corner piers
+        /// into the joint -- the blank-wall rule the blocks of one building already follow (ContactsBetween). Only neighbours turned the same way or a
+        /// quarter turn apart are matched (the lots along one frontage); anything at an angle keeps its gap and its windows.
+        /// </summary>
+        public static void AddPartyWalls(BuildingSite[] sites, IList<int> blockOf, IList<int> lotOf)
+        {
+            var byBlock = new Dictionary<int, List<int>>();
+            var order = new List<int>();
+            for (int i = 0; i < sites.Length; i++)
+            {
+                BuildingSite s = sites[i];
+                if (s.OnRoof || s.Sides >= 3)
+                {
+                    continue;
+                }
+                if (!byBlock.TryGetValue(blockOf[i], out List<int> members))
+                {
+                    byBlock[blockOf[i]] = members = new List<int>();
+                    order.Add(blockOf[i]);
+                }
+                members.Add(i);
+            }
+
+            var added = new List<WallContact>[sites.Length];
+            foreach (int block in order)
+            {
+                List<int> members = byBlock[block];
+                foreach (int a in members)
+                {
+                    foreach (int b in members)
+                    {
+                        if (a != b && lotOf[a] != lotOf[b])
+                        {
+                            PartyWall(sites[a], sites[b], ref added[a]);
+                        }
+                    }
+                }
+            }
+
+            for (int i = 0; i < sites.Length; i++)
+            {
+                if (added[i] == null)
+                {
+                    continue;
+                }
+                if (sites[i].Contacts != null)
+                {
+                    added[i].AddRange(sites[i].Contacts);
+                }
+                sites[i] = sites[i].WithContacts(added[i].ToArray());
+            }
+        }
+
+        /// <summary>The contacts building <paramref name="b"/> makes on the walls of building <paramref name="a"/>, if they stand against each other.</summary>
+        private static void PartyWall(in BuildingSite a, in BuildingSite b, ref List<WallContact> into)
+        {
+            double cos = a.AxisX * b.AxisX + a.AxisZ * b.AxisZ;
+            if (Math.Abs(cos) < 0.9995 && Math.Abs(cos) > 0.03)
+            {
+                return;
+            }
+            double hw = a.Params.Width * 0.5, hd = a.Params.Depth * 0.5;
+            double reach = Math.Max(hw, hd) + Math.Max(b.Params.Width, b.Params.Depth) + PartyWallReach;
+            double dx = b.CentreX - a.CentreX, dz = b.CentreZ - a.CentreZ;
+            if (dx * dx + dz * dz > reach * reach)
+            {
+                return;
+            }
+
+            // b's footprint as a box in a's frame (relative to a's centre).
+            double x0 = double.MaxValue, x1 = double.MinValue, z0 = double.MaxValue, z1 = double.MinValue;
+            double bhw = b.Params.Width * 0.5, bhd = b.Params.Depth * 0.5;
+            for (int k = 0; k < 4; k++)
+            {
+                b.LocalToWorld((k & 1) == 0 ? -bhw : bhw, (k & 2) == 0 ? -bhd : bhd, out double wx, out double wz);
+                a.WorldToLocal(wx, wz, out double lx, out double lz);
+                x0 = Math.Min(x0, lx);
+                x1 = Math.Max(x1, lx);
+                z0 = Math.Min(z0, lz);
+                z1 = Math.Max(z1, lz);
+            }
+
+            float top = b.Top - a.BaseHeight;
+            if (top <= 0.0f)
+            {
+                return;
+            }
+            const double overlap = 0.3, behind = 0.05;
+            // East and west walls run along z (measured from a's -z end), north and south along x (from its -x end).
+            double zLo = Math.Max(-hd, z0), zHi = Math.Min(hd, z1);
+            double xLo = Math.Max(-hw, x0), xHi = Math.Min(hw, x1);
+            if (zHi - zLo > overlap && InReach(x0 - hw))
+            {
+                Add(ref into, new WallContact(WindowGrid.Wall.East, (float)(zLo + hd), (float)(zHi + hd), top));
+            }
+            if (zHi - zLo > overlap && InReach(-hw - x1))
+            {
+                Add(ref into, new WallContact(WindowGrid.Wall.West, (float)(zLo + hd), (float)(zHi + hd), top));
+            }
+            if (xHi - xLo > overlap && InReach(z0 - hd))
+            {
+                Add(ref into, new WallContact(WindowGrid.Wall.North, (float)(xLo + hw), (float)(xHi + hw), top));
+            }
+            if (xHi - xLo > overlap && InReach(-hd - z1))
+            {
+                Add(ref into, new WallContact(WindowGrid.Wall.South, (float)(xLo + hw), (float)(xHi + hw), top));
+            }
+
+            bool InReach(double gap) => gap >= -behind && gap <= PartyWallReach;
+        }
+
+        private static void Add(ref List<WallContact> into, WallContact contact)
+        {
+            (into ?? (into = new List<WallContact>(2))).Add(contact);
+        }
+
+        /// <summary>Whether every block of a building, turned ones by their corners, stays inside its lot rectangle (a few centimetres of rounding allowed).</summary>
+        public static bool InsideLot(List<MassVolume> volumes, double width, double depth)
+        {
+            const double slack = 0.02;
+            double hx = width * 0.5 + slack, hz = depth * 0.5 + slack;
+            var xs = new double[4];
+            var zs = new double[4];
+            foreach (MassVolume v in volumes)
+            {
+                v.Corners(xs, zs);
+                for (int k = 0; k < 4; k++)
+                {
+                    if (Math.Abs(xs[k]) > hx || Math.Abs(zs[k]) > hz)
+                    {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        /// <summary>Whether the centre or a corner of any street-level block of a building is over water.</summary>
+        private static bool AnyBlockInWater(PlanFields fields, List<MassVolume> volumes, Vec2 centre, double axisX, double axisZ)
+        {
+            var xs = new double[4];
+            var zs = new double[4];
+            foreach (MassVolume v in volumes)
+            {
+                if (v.Support >= 0)
+                {
+                    continue;
+                }
+                v.Corners(xs, zs);
+                for (int k = -1; k < 4; k++)
+                {
+                    double lx = k < 0 ? v.CentreX : xs[k];
+                    double lz = k < 0 ? v.CentreZ : zs[k];
+                    if (fields.IsWater(centre.X + lx * axisX - lz * axisZ, centre.Y + lx * axisZ + lz * axisX))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
 
         /// <summary>
@@ -690,7 +884,8 @@ namespace CityX.World.Plan
         /// world direction of the rectangle's local +X, and its width (along the frontage) and depth (into the lot).
         /// Local +Z is the outward normal of the frontage, so a door on the +Z wall faces the street.
         /// </summary>
-        public static bool FitRectangle(Vec2[] poly, int front, out Vec2 centre, out Vec2 ex, out double width, out double depth, double scale = 1.0)
+        public static bool FitRectangle(Vec2[] poly, int front, out Vec2 centre, out Vec2 ex, out double width, out double depth, double scale = 1.0,
+            double margin = FitMargin)
         {
             double minSide = MinSide * scale;
             centre = default;
@@ -728,7 +923,7 @@ namespace CityX.World.Plan
                 bool ok = true;
                 for (int s = 0; s <= 8 && ok; s++)
                 {
-                    double z = -0.15 - (dep - 0.15) * (s / 8.0);
+                    double z = -0.15 - dep * (s / 8.0);   // the whole depth the rectangle will cover, from its front (-0.15) to its back
                     ok = Chord(lx, lz, z, xs, out double a, out double b);
                     if (ok)
                     {
@@ -750,8 +945,8 @@ namespace CityX.World.Plan
             }
             if (bestArea <= 0.0) return false;
 
-            width = bestX1 - bestX0 - 0.6;
-            depth = bestDepth - 0.6;
+            width = bestX1 - bestX0 - 2.0 * margin;
+            depth = bestDepth - 2.0 * margin;
             if (width < minSide || depth < minSide) return false;
             double cx = (bestX0 + bestX1) * 0.5;
             double cz = -0.15 - bestDepth * 0.5 + 0.0;

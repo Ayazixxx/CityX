@@ -47,6 +47,12 @@ namespace CityX.World.Plan
         public double Scale = 1.0;
         public double HeightScale = 1.0;
         public RoadClass FrontClass;
+
+        /// <summary>
+        /// Downtown (LotSubdivider.StreetWallPopulation): the building fills its lot to the lot lines it shares with its neighbours, so the street
+        /// is lined by one continuous wall of buildings with party walls between them, instead of a row of detached blocks with gaps.
+        /// </summary>
+        public bool StreetWall;
     }
 
     /// <summary>The whole generated plan for one region.</summary>
@@ -352,6 +358,18 @@ namespace CityX.World.Plan
         private const double ClassicMinWidth = 12.0;
         private const double ClassicMaxDepth = 52.0;
 
+        /// <summary>How far a building stands back from the pavement, and from the lot lines it shares with its neighbours (classic metres).</summary>
+        public const double FrontSetback = 2.2;
+        public const double SideSetback = 1.2;
+
+        /// <summary>
+        /// Above this population a block is downtown and its lots form a street wall (PlanLot.StreetWall): no gap to the neighbours, and only this
+        /// much to the pavement (room for a shallow entrance step). Every dense city on earth looks like this; detached blocks with three-metre gaps
+        /// between them were what made ours read as a suburb of towers.
+        /// </summary>
+        public const double StreetWallPopulation = 0.55;
+        public const double StreetWallFrontSetback = 1.0;
+
         // The scale of the plan being subdivided (see CityScale); every length below is the classic one times this. Set at the start of Subdivide, which
         // runs to the end on one thread.
         [ThreadStatic] private static double _s;
@@ -615,13 +633,17 @@ namespace CityX.World.Plan
             }
             PlanFields fields = data.Fields;
 
-            // Footprint: set back from the street more than from its neighbours.
+            // Footprint: set back from the street more than from its neighbours. Downtown there is no gap to the neighbours at all (a street wall)
+            // and only a shallow one to the street.
+            bool streetWall = fields.Population(PlanMath.Centroid(lot.V)) > StreetWallPopulation;
             var distances = new double[n];
             double? frontLen = null;
             int front = -1;
             for (int i = 0; i < n; i++)
             {
-                distances[i] = (lot.Front[i] ? 2.2 : 1.2) * Math.Sqrt(_s);
+                distances[i] = streetWall
+                    ? (lot.Front[i] ? StreetWallFrontSetback : 0.0) * Math.Sqrt(_s)
+                    : (lot.Front[i] ? FrontSetback : SideSetback) * Math.Sqrt(_s);
                 if (lot.Front[i])
                 {
                     double len = (lot.V[(i + 1) % n] - lot.V[i]).Length;
@@ -691,6 +713,7 @@ namespace CityX.World.Plan
                 Scale = _s,
                 HeightScale = _h,
                 FrontClass = RoadClass.Street,
+                StreetWall = streetWall,
             });
         }
     }

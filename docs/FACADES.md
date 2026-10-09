@@ -43,6 +43,22 @@ blank). See `StyleWeightsByMass` and `StyleBiasFor` -- both are plain tables to 
   the building) -- random speckle over a fully glazed face reads as noise. Other styles keep per-window lights.
 - **Special buildings:** supermarket = blank + shopfront, hospital = ribbon, bank/police = punched.
 
+## Relief: base, shaft, top (`World/FacadeOrnament.cs`, `View/CityMeshBuilder.Ornament.cs`, 2026-10-09)
+
+From the Kelly & McCabe survey of procedural cities the owner sent: the one system it calls realistic is Wonka et al.'s split grammars (Instant
+Architecture, 2003) -- a facade divided into a base, a shaft and a top, floors into bays, with vertical details at the building's edges. Our walls had
+the window grid and nothing proud of it, so they read flat. Every building now rolls (from its seed, by family) a set of boxes in the wall buffer:
+
+- **Base course** over the street storey; **string courses** every 1-2 floor lines; **cornice** capping the parapet, its top flush with the coping so a climber
+  can pull up over it (`docs/CLIMBING.md`), up to 0.85 m deep on masonry (a
+  crown band above the roof on glass) with a smaller step under it; **piers** on every 2nd-4th column line; **corner piers**; **lintels** over windows.
+- Masonry (punched) gets the full classical set, glass only a canopy and a crown, sheds pilasters. Everything sits on row/column lines, in the solid
+  wall between panes, so nothing crosses glass.
+- Never on a stretch another block or a neighbour stands against (`BuildingSite.Contacts`), and a band does not round a corner into one.
+- Towers taller than 10 fitted floors no longer switch to flat strip glass above 64 m (`CityMeshBuilder.FullDetailRows` = 50): that switch was a
+  visible seam halfway up every tall tower.
+- Tests: `StreetWallTests.TheReliefStaysOnItsOwnWall`, `MostOfTheCityWearsSomeRelief`.
+
 ## Frame-rate guard
 
 Every pane is geometry, a collider triangle and a transparent draw, so the plan is budgeted:

@@ -164,3 +164,19 @@ up past them, and a limb that has been left behind takes a quick step to a new h
   `ClimbLimbsPlayTests` (no limb through the wall on the real rig), `ClimbCapture` (Explicit, -Graphics: `Logs/CityShots/climb-sheet*.png`; it sets `Time.captureFramerate = 60` because the limb
   steps run in real frame time).
 - Still not BotW: it climbs only straight up and down (no sideways), the feet are not turned flat to the wall, and the pull-up over a ledge still uses the old clip.
+
+## Update: leaning round courses and cornices (2026-10-09)
+
+Facades got real relief (`World/FacadeOrnament.cs`: a base course over the shop fronts, string courses, cornices up to 0.85 m deep). The first full PlayMode run after
+it showed every real-city facade climb letting go a metre up: the body rose into the underside of the base course, stopped rising, and the stuck guard released it.
+
+- `Character/ClimbJut.cs`: one box sweep per frame, a column as wide as the body from just under the feet to 0.5 m over the head (down past the feet when climbing
+  down), swept in toward the wall: the deepest thing jutting out past the plane the climb holds. `LeanFor`: lean out by all of it, up to 0.9 m (`MaxLean`, deeper than
+  the deepest cornice); anything deeper (a balcony) is not leaned round. `PlayerClimbing.Tick` adds the lean to the hang point, so the body swings out ahead of the
+  ledge and settles back once its feet are past. The head-height "is there wall left" check reaches as far again as the lean.
+- The roof edge: the cornice now CAPS the parapet (its top flush with the coping, `CityMeshBuilder.AddWallOrnament`), so the edge is one flat top. A cornice a step below
+  the coping was two tops at two heights and `LedgeProbe` refused it. `LedgeProbe.MaxOverhangMetres` is now `ClimbJut.MaxLean` (was 0.5), `MaxThinDepthMetres` 1.3
+  (cornice + parapet + coping), and the thin-ledge face ray reaches past a leaning body.
+- A deep cornice or a balcony partway up is a ledge like any other: the climb may pull up and stand on it.
+- Tests: `ClimbJutTests`, `ClimbPastJutPlayTests` (a 0.24 m course climbed past with the body back on the wall after, a 0.85 m cornice climbed past or stood on, a
+  1.4 m balcony not leaned round and never passed through), and `RealCityClimbTopOutPlayTests` again tops out on all six spots of a real ornamented facade.

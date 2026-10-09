@@ -31,6 +31,7 @@ namespace CityX.Tests
             yield return new WaitForSeconds(0.5f);
             var cycle = Object.FindFirstObjectByType<DayNightCycle>();
             cycle.Running = false;
+            BuildingShapeCapture.UseTheScenesAir();
 
             var cameraObject = new GameObject("LightCam");
             Camera camera = cameraObject.AddComponent<Camera>();

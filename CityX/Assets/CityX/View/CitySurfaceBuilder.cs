@@ -25,8 +25,11 @@ namespace CityX.View
         /// <summary>How far the pavement stands above the road: the kerb height.</summary>
         public const float KerbHeight = 0.16f;
 
-        /// <summary>Lane paint floats this far above the road (not lower: it would vanish into the road where two ribbons overlap).</summary>
-        public const float PaintLift = 0.02f;
+        /// <summary>
+        /// Lane paint floats this far above the road (not lower: it would vanish into the road where two ribbons overlap). 2 cm until 2026-10-09; the
+        /// hillier spawn of seed 53190847 buried a tenth of its paint at 2 cm (RoadPaintTests), so 2.5.
+        /// </summary>
+        public const float PaintLift = 0.025f;
 
         /// <summary>Terrain is sampled on this grid, metres (coarser for distant chunks).</summary>
         public const float TerrainStep = 4.0f;

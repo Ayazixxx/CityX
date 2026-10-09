@@ -148,6 +148,12 @@ namespace CityX.World.Plan
         /// <summary>The narrowest yard a wing may open its door onto, metres (classic scale).</summary>
         public const double MinYard = 7.0;
 
+        /// <summary>
+        /// The chance a tower is one of the odd stacked shapes (twisted, wonky, cantilevered). Asked 2026-10-09, after seeing one in game: "make these
+        /// weird stacked buildings super uncommon like 1% chance or something even if its just 1 stack".
+        /// </summary>
+        public const double OddStackChance = 0.01;
+
         /// <summary>How far one stage of a twisted tower turns from the one below: tan of 4..9 degrees.</summary>
         private static readonly double[] TwistTangents = { 0.0699268119, 0.0874886635, 0.1051042353, 0.1227845609, 0.1405408347, 0.1583844403 };
 
@@ -297,32 +303,33 @@ namespace CityX.World.Plan
             bool tall = mass == BuildingMass.Tower || mass == BuildingMass.Supertall;
             bool plainZone = zone == ZoneKind.Industrial || zone == ZoneKind.Outskirts;
 
-            // Sculpted towers: twisted, wonky or cantilevered, instead of the classic podium and setbacks.
-            double sculptChance = plainZone ? 0.0
-                : tall ? 0.42
-                : (mass == BuildingMass.MidRise && rh >= 40.0 ? 0.22 : (mass == BuildingMass.Slab && rh >= 45.0 ? 0.12 : 0.0));
+            // Sculpted towers, instead of the classic podium and setbacks: rarely twisted, wonky or cantilevered (OddStackChance), more often round.
+            bool canSculpt = !plainZone && (tall || mass == BuildingMass.MidRise && rh >= 40.0 || mass == BuildingMass.Slab && rh >= 45.0);
+            double oddChance = canSculpt ? OddStackChance : 0.0;
+            double roundChance = plainZone ? 0.0 : tall ? 0.13 : (mass == BuildingMass.MidRise && rh >= 40.0 ? 0.07 : 0.0);
+            double sculptChance = oddChance + roundChance;
             if (formRoll < sculptChance)
             {
                 List<MassVolume> sculpted = null;
-                if (pickRoll < 0.28)
+                if (formRoll >= oddChance)
+                {
+                    sculpted = Round(width, depth, height, shapeRng, scale);
+                    form = BuildingForm.Round;
+                }
+                else if (pickRoll < 0.40)
                 {
                     sculpted = Twisted(width, depth, height, shapeRng, scale);
                     form = BuildingForm.Twisted;
                 }
-                else if (pickRoll < 0.50)
+                else if (pickRoll < 0.70)
                 {
                     sculpted = Wonky(width, depth, height, shapeRng, scale);
                     form = BuildingForm.Wonky;
                 }
-                else if (pickRoll < 0.68)
+                else
                 {
                     sculpted = Cantilever(width, depth, height, shapeRng, scale);
                     form = BuildingForm.Cantilever;
-                }
-                else
-                {
-                    sculpted = Round(width, depth, height, shapeRng, scale);
-                    form = BuildingForm.Round;
                 }
                 if (sculpted != null)
                 {
@@ -615,8 +622,8 @@ namespace CityX.World.Plan
                 return null;
             }
             // The shaft is narrower than the lot so the block above has somewhere to hang out to.
-            double shaftW = Math.Max(min, width * (0.45 + 0.15 * rng.NextDouble()));
-            double shaftD = Math.Max(min, depth * (0.45 + 0.15 * rng.NextDouble()));
+            double shaftW = Math.Min(width, Math.Max(min, width * (0.45 + 0.15 * rng.NextDouble())));
+            double shaftD = Math.Min(depth, Math.Max(min, depth * (0.45 + 0.15 * rng.NextDouble())));
             double shaftX = (width - shaftW) * (rng.NextDouble() - 0.5);
             double shaftZ = (depth - shaftD) * (rng.NextDouble() - 0.5);
             var shaft = new MassVolume(shaftX - shaftW * 0.5, shaftX + shaftW * 0.5, shaftZ - shaftD * 0.5, shaftZ + shaftD * 0.5, shaftHeight);

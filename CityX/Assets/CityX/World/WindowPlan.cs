@@ -79,38 +79,36 @@ namespace CityX.World
         public readonly float ColumnMetres;
 
         /// <summary>
-        /// The cells another block of the building stands against (see BuildingSite.Contacts): up to four stretches, each a wall, a run of columns
-        /// [from, to) and the rows below a top row. Kept as plain numbers so the plan stays an allocation-free struct.
+        /// The cells another block of the building, or a neighbour's party wall, stands against (see BuildingSite.Contacts): any number of stretches,
+        /// each a wall, a run of columns [from, to) and the rows below a top row. The arrays are made once, when the plan takes its contacts.
         /// </summary>
         private readonly ContactCells _contacts;
 
         private readonly struct ContactCells
         {
             public readonly int Count;
-            private readonly int _w0, _w1, _w2, _w3;
-            private readonly int _a0, _a1, _a2, _a3;
-            private readonly int _b0, _b1, _b2, _b3;
-            private readonly int _r0, _r1, _r2, _r3;
+            private readonly int[] _wall, _from, _to, _rows;
 
             public ContactCells(int count, int[] wall, int[] from, int[] to, int[] rows)
             {
                 Count = count;
-                _w0 = wall[0]; _w1 = wall[1]; _w2 = wall[2]; _w3 = wall[3];
-                _a0 = from[0]; _a1 = from[1]; _a2 = from[2]; _a3 = from[3];
-                _b0 = to[0]; _b1 = to[1]; _b2 = to[2]; _b3 = to[3];
-                _r0 = rows[0]; _r1 = rows[1]; _r2 = rows[2]; _r3 = rows[3];
+                _wall = wall;
+                _from = from;
+                _to = to;
+                _rows = rows;
             }
 
             public bool Covers(int wall, int column, int row)
             {
-                return Count > 0 && Hit(_w0, _a0, _b0, _r0, wall, column, row)
-                    || Count > 1 && Hit(_w1, _a1, _b1, _r1, wall, column, row)
-                    || Count > 2 && Hit(_w2, _a2, _b2, _r2, wall, column, row)
-                    || Count > 3 && Hit(_w3, _a3, _b3, _r3, wall, column, row);
+                for (int i = 0; i < Count; i++)
+                {
+                    if (_wall[i] == wall && column >= _from[i] && column < _to[i] && row < _rows[i])
+                    {
+                        return true;
+                    }
+                }
+                return false;
             }
-
-            private static bool Hit(int w, int a, int b, int r, int wall, int column, int row) =>
-                w == wall && column >= a && column < b && row < r;
         }
 
         private WindowPlan(in WindowPlan from, ContactCells contacts)
@@ -141,13 +139,13 @@ namespace CityX.World
             {
                 return this;
             }
-            var wall = new int[4];
-            var from = new int[4];
-            var to = new int[4];
-            var rows = new int[4];
+            var wall = new int[contacts.Length];
+            var from = new int[contacts.Length];
+            var to = new int[contacts.Length];
+            var rows = new int[contacts.Length];
             CellLayout rowLayout = WindowGrid.RowsFor(site.Params.Height);
             int count = 0;
-            for (int i = 0; i < contacts.Length && count < 4; i++)
+            for (int i = 0; i < contacts.Length; i++)
             {
                 WallContact c = contacts[i];
                 bool northSouth = c.Wall == WindowGrid.Wall.North || c.Wall == WindowGrid.Wall.South;

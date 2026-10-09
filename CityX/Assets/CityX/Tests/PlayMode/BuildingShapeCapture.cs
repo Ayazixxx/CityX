@@ -34,6 +34,7 @@ namespace CityX.Tests
             var streamer = Object.FindFirstObjectByType<CityStreamer>();
             var world = new CityWorld(streamer.WorldSeed);
             var cycle = Object.FindFirstObjectByType<DayNightCycle>();
+            UseTheScenesAir();
             if (cycle != null)
             {
                 cycle.Running = false;
@@ -46,9 +47,13 @@ namespace CityX.Tests
             var picks = new Dictionary<string, BuildingSite>();
             foreach (BuildingSite site in TestSites.NearSpawn(world, 80))
             {
-                if (picks.Count >= 9) break;
+                if (picks.Count >= 14) break;
                 if (site.OnRoof || site.Wing) continue;   // classify whole buildings, from their first volume
                 string kind = KindOf(world, site);
+                if (kind == null && site.Params.Height > 20.0f && site.Params.Width > 14.0f)
+                {
+                    kind = "box-" + WindowPlan.For(world, site).Style.ToString().ToLowerInvariant();   // a plain building of each facade family
+                }
                 if (kind != null && !picks.ContainsKey(kind)) picks[kind] = site;
             }
 
@@ -96,6 +101,13 @@ namespace CityX.Tests
 
             // Studio shots: each building rebuilt alone, high above the city, so its shape reads with nothing in the way (and no distance fog).
             RenderSettings.fog = false;
+            // No city edge to hide up here: a studio camera stands further from a tall tower than the streamed city reaches.
+            RenderSettings.fogStartDistance = 4000.0f;
+            RenderSettings.fogEndDistance = 5000.0f;
+            if (cycle != null)
+            {
+                cycle.Apply(SkyCycle.At(cycle.TimeOfDay));
+            }
             foreach (KeyValuePair<string, BuildingSite> pick in picks)
             {
                 GameObject alone = BuildAlone(world, streamer, FirstOf(world, pick.Value), new Vector3(0.0f, 3000.0f, 0.0f), out float top, out float size);
@@ -112,6 +124,17 @@ namespace CityX.Tests
 #else
             yield break;
 #endif
+        }
+
+        /// <summary>
+        /// The city scene is loaded ADDITIVELY, so the render settings in force are the test scene's, not its own: set the fog distances the haze's
+        /// edge is drawn from (DayNightCycle) to the city's clear-weather ones, which the scene builder hands RainEffect.
+        /// </summary>
+        public static void UseTheScenesAir()
+        {
+            var rain = Object.FindFirstObjectByType<RainEffect>();
+            RenderSettings.fogStartDistance = rain != null ? rain.ClearFogStart : 150.0f;
+            RenderSettings.fogEndDistance = rain != null ? rain.ClearFogEnd : 380.0f;
         }
 
         /// <summary>

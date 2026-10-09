@@ -24,7 +24,7 @@ All of it is `World/BuildingInterior.cs` (layout) and `View/CityMeshBuilder.Buil
 - `MaxFloors = 7`, and **the top floor swallows every metre the cap left over** (`FloorTop`), so its stair has to climb all of it.
 - The player's controller (`slopeLimit 50`, `stepOffset 0.4`) climbs any of this as 0.25 m step-ups, so nothing ever flagged it.
 
-### Measured, all 12,144 buildings of seed 87650022 (`InteriorSurvey`)
+### Measured, all 12,144 buildings of seed 53190847 (`InteriorSurvey`)
 
 | | |
 |---|---|

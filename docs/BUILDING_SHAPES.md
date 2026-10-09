@@ -53,7 +53,16 @@ overlapping buildings and nested lots in seconds (run with `CITYX_CITY_SCALE=cla
 `BuildingShapeCapture` (Explicit, -Graphics) renders one of each near the spawn, in the city and alone ("studio" shots high above it), to
 `Logs/CityShots/shape-*.png`.
 
+## Rarer sculptures, and a box when a shape does not fit (2026-10-09)
+
+- Twisted, wonky and cantilevered towers ("these weird stacked buildings") are now 1 in 100 buildings that could be sculpted
+  (`Massing.OddStackChance`); round towers stay at 13% of the tall ones.
+- `PlanBuildings.InsideLot`: if any block of a composed shape leaves the lot rectangle, the building falls back to a plain box. Found when downtown lots
+  became street walls (no gap to absorb an overhang): a cantilever's shaft has a minimum width (`Massing.MinSide` 9 m x scale) that can exceed a narrow
+  lot (whose own minimum is 8 m x scale), and poked 1 m into the next building. The shaft is now also clamped to the lot.
+- `PlanBuildings.AnyBlockInWater`: a building is not built if any of its street-level blocks stands over a river channel the lot's corner checks missed.
+
 ## Next
 
 - A filler for the open blocks (park, plaza) left by `MarkEnclosing`.
-- Look pass learned from the references: height haze for depth, stronger weathering streaks, more lit rooms and signs at night.
+- Stronger weathering streaks, more lit rooms and signs at night. (Height haze is done: see `LIGHTING.md`.)

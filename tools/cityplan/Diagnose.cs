@@ -31,6 +31,18 @@ public static class PlanDiagnose
                     if (bad <= 10)
                     {
                         Console.WriteLine($"#{sa.Id} {sa.Params.Width:F0}x{sa.Params.Depth:F0} wing={sa.Wing} roof={sa.OnRoof} shell={sa.Shell} lot={LotOf(world, sa)}  vs  #{sb.Id} {sb.Params.Width:F0}x{sb.Params.Depth:F0} wing={sb.Wing} roof={sb.OnRoof} lot={LotOf(world, sb)}  by {depth:F1} m");
+                        foreach (BuildingSite s in new[] { sa, sb })
+                        {
+                            Console.WriteLine($"  #{s.Id} corners " + string.Join(" ", Array.ConvertAll(Corners(s), p => $"({p[0]:F1},{p[1]:F1})")));
+                            foreach (PlanLot lot in world.Data.Lots)
+                            {
+                                if (Inside(lot.Footprint, new Vec2(s.CentreX, s.CentreZ)))
+                                {
+                                    Console.WriteLine($"    in lot {lot.Id} block {lot.BlockIndex} wall={lot.StreetWall} front={lot.FrontEdge} lot " + string.Join(" ", Array.ConvertAll(lot.Lot, p => $"({p.X:F1},{p.Y:F1})")));
+                                    Console.WriteLine($"      footprint " + string.Join(" ", Array.ConvertAll(lot.Footprint, p => $"({p.X:F1},{p.Y:F1})")));
+                                }
+                            }
+                        }
                     }
                 }
             }

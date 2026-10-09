@@ -11,7 +11,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class BuildingStairsTests
     {
-        private const int Seed = 87650022;
+        private const int Seed = 53190847;
         private static CityWorld _world;
         private static CityWorld World => _world ?? (_world = new CityWorld(Seed));
 
@@ -292,7 +292,14 @@ namespace CityX.Tests
             var firsts = new List<string>();
             foreach (BuildingSite site in Buildings(7))
             {
-                float hx = site.Params.Width * 0.5f - BuildingInterior.WallThickness - 0.05f, hz = site.Params.Depth * 0.5f - BuildingInterior.WallThickness - 0.05f;
+                // The room the stairs are planned in: the building, or for a round one the square in its middle (BuildingStairs.PlanFor), whose front
+                // edge the lobby reaches from the door across open floor.
+                float halfW = site.Params.Width * 0.5f, halfD = site.Params.Depth * 0.5f;
+                if (site.Sides >= 3)
+                {
+                    halfW = halfD = RoundFootprint.Of(site).InnerHalf + BuildingInterior.WallThickness + 0.05f;
+                }
+                float hx = halfW - BuildingInterior.WallThickness - 0.05f, hz = halfD - BuildingInterior.WallThickness - 0.05f;
                 if (hx > 60.0f || hz > 60.0f)
                 {
                     continue;   // a grid for a 200 m room is a lot of cells; the small and middling ones carry the same cases
@@ -315,7 +322,7 @@ namespace CityX.Tests
                     {
                         starts.Add(arriving.ExitPoint);   // off the last stair
                     }
-                    List<Rect> solids = BuildingStairs.FloorSolids(plan, arriving, f, site.Params.Width * 0.5f, site.Params.Depth * 0.5f);
+                    List<Rect> solids = BuildingStairs.FloorSolids(plan, arriving, f, halfW, halfD);
                     floorsChecked++;
                     Vector2 stuckFrom = default;
                     bool stuck = false;

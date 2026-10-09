@@ -47,7 +47,7 @@ namespace CityX.ViewEditor
         /// screen's backdrop and the massing scene's own city stop
         /// matching.
         /// </summary>
-        private const int WorldSeed = 87650022;
+        private const int WorldSeed = 53190847;
 
         /// <summary>How glossy the city's three shared surfaces are when DRY. The rain restores to exactly these.</summary>
         private const float GroundDrySmoothness = 0.10f;
@@ -61,6 +61,7 @@ namespace CityX.ViewEditor
             Directory.CreateDirectory(MaterialDirectory);
 
             CityFacadeTextures.Build();
+            HazeSetup.EnsureFeature();   // the city's air: a full-screen height-fog pass (Shaders/CityXHaze.shader), driven by DayNightCycle
 
             // The mesh builder writes UVs in METRES, so tiling is simply the
             // reciprocal of how many metres of world each texture covers. That
@@ -958,7 +959,17 @@ namespace CityX.ViewEditor
         /// oranges toward yellow, which would pull the sunset and the sky dome
         /// away from the values Godot tuned. Swap the mode below if a punchier
         /// image is wanted over a faithful one.
+        /// (2026-10-09: ACES tried and reverted -- see the tonemapping line below.)
         /// </summary>
+        /// <summary>Stops of exposure added before the tonemap (0: the sun and sky are already tuned for the neutral curve).</summary>
+        public const float GradeExposure = 0.0f;
+
+        /// <summary>Split toning's tint for the shade (grey 0.5 is none): a little blue.</summary>
+        public static readonly Color GradeShadowTone = new Color(0.48f, 0.495f, 0.525f);
+
+        /// <summary>Split toning's tint for the light: a little warm.</summary>
+        public static readonly Color GradeHighlightTone = new Color(0.535f, 0.51f, 0.475f);
+
         private static VolumeProfile EnsureGradeProfile()
         {
             string path = $"{MaterialDirectory}/CityGrade.asset";
@@ -995,6 +1006,8 @@ namespace CityX.ViewEditor
             }
             tonemapping.active = true;
             tonemapping.mode.overrideState = true;
+            // Neutral. ACES was tried (2026-10-09) for a more filmic look and rendered every shaded street canyon -- most of a dense city -- a dark
+            // navy with the facades' colours gone; the depth it was after comes from the haze (CityHaze) instead.
             tonemapping.mode.value = TonemappingMode.Neutral;
 
             // city.tscn's adjustment_contrast / adjustment_saturation, both
@@ -1006,10 +1019,27 @@ namespace CityX.ViewEditor
                 AssetDatabase.AddObjectToAsset(adjustments, profile);
             }
             adjustments.active = true;
+            adjustments.postExposure.overrideState = true;
+            adjustments.postExposure.value = GradeExposure;
             adjustments.contrast.overrideState = true;
             adjustments.contrast.value = 8.0f;
             adjustments.saturation.overrideState = true;
             adjustments.saturation.value = 8.0f;
+
+            // Split toning: shade a little cool (lit by the blue sky), sunlight a little warm (lit by the sun). Real light does this; a grade that
+            // does it is the cheapest way to separate the lit side of a street from the shaded one.
+            if (!profile.TryGet(out SplitToning splitToning))
+            {
+                splitToning = profile.Add<SplitToning>();
+                AssetDatabase.AddObjectToAsset(splitToning, profile);
+            }
+            splitToning.active = true;
+            splitToning.shadows.overrideState = true;
+            splitToning.shadows.value = GradeShadowTone;
+            splitToning.highlights.overrideState = true;
+            splitToning.highlights.value = GradeHighlightTone;
+            splitToning.balance.overrideState = true;
+            splitToning.balance.value = 0.0f;
 
             // Bloom, new -- no Godot equivalent to port (city.tscn has none),
             // an explicit ask alongside the fog/render-distance change to
@@ -1024,11 +1054,13 @@ namespace CityX.ViewEditor
             }
             bloom.active = true;
             bloom.threshold.overrideState = true;
-            bloom.threshold.value = 1.05f;
+            // A little stronger than it was (1.05 / 0.35): at dusk and night the lit windows (DayNightCycle.WindowGlow) are what the city is
+            // made of, and a window that glows into the air around it is what makes a night skyline read as lights rather than as dots.
+            bloom.threshold.value = 0.95f;
             bloom.intensity.overrideState = true;
-            bloom.intensity.value = 0.35f;
+            bloom.intensity.value = 0.5f;
             bloom.scatter.overrideState = true;
-            bloom.scatter.value = 0.6f;
+            bloom.scatter.value = 0.65f;
 
             // Vignette and a touch of chromatic aberration, new -- same
             // "read as a modern AAA reference" ask Bloom's own comment

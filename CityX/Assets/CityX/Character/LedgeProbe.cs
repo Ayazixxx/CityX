@@ -168,7 +168,8 @@ namespace CityX.Character
             Vector3 tangent = Vector3.Cross(Vector3.up, outward);
 
             Vector3 handHeight = feet + Vector3.up * (standingHeight * 0.7f);
-            if (!SolidHit(handHeight + outward * 0.5f, -outward, 1.5f, self, out RaycastHit face) || Mathf.Abs(face.normal.y) > 0.3f)
+            // Reaching as far again as a climber leans out round a cornice (ClimbJut), or a body leaning under one would never find the face.
+            if (!SolidHit(handHeight + outward * 0.5f, -outward, 1.5f + MaxOverhangMetres, self, out RaycastHit face) || Mathf.Abs(face.normal.y) > 0.3f)
             {
                 return false;
             }
@@ -272,11 +273,14 @@ namespace CityX.Character
             return true;
         }
 
-        /// <summary>A cornice may jut out past the wall face by this much, in metres, and still be the ledge.</summary>
-        public const float MaxOverhangMetres = 0.5f;
+        /// <summary>
+        /// A cornice may jut out past the wall face by this much, in metres, and still be the ledge: as deep as a climber leans round (ClimbJut), which
+        /// covers the deepest cornice the city builds (0.5 until 2026-10-09, when facades got real cornices up to 0.85 m deep).
+        /// </summary>
+        public const float MaxOverhangMetres = ClimbJut.MaxLean;
 
-        /// <summary>A thin-topped ledge (a parapet) may be at most this deep, in metres.</summary>
-        public const float MaxThinDepthMetres = 0.9f;
+        /// <summary>A thin-topped ledge (a parapet, and a cornice capping it: 0.85 + 0.3 + the coping) may be at most this deep, in metres.</summary>
+        public const float MaxThinDepthMetres = 1.3f;
 
         /// <summary>The ground behind a thin-topped ledge may be this far below its top, in metres, at most.</summary>
         public const float MaxThinDropMetres = 4.5f;

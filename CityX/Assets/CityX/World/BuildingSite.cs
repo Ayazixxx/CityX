@@ -153,6 +153,13 @@ namespace CityX.World
         }
 
 
+        /// <summary>The same building with other wall contacts (PlanBuildings.AddPartyWalls adds the walls its neighbours stand against).</summary>
+        public BuildingSite WithContacts(WallContact[] contacts)
+        {
+            return new BuildingSite(Id, Params, Zone, BaseHeight, PodiumBase, DoorGroundHeight, CentreX, CentreZ, AxisX, AxisZ, OwnerChunkX, OwnerChunkY,
+                Seed, ObstacleX0, ObstacleX1, ObstacleZ0, ObstacleZ1, OnRoof, Shell, Wing, contacts, RoofSealed, Sides);
+        }
+
         public bool Exists => Params.HasBuilding;
 
         /// <summary>Height of the roof above sea level.</summary>

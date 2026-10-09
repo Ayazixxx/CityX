@@ -12,7 +12,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class FacadeLookTests
     {
-        private const int Seed = 87650022;
+        private const int Seed = 53190847;
 
         private static CityWorld _world;
         private static CityWorld World => _world ?? (_world = new CityWorld(Seed));
@@ -269,12 +269,14 @@ namespace CityX.Tests
                 return set;
             }
 
-            // The near building also has trim (slice 0) the shell does not; every material the shell shows, the near one shows too.
+            // The near building also has trim (slice 0) the shell does not; every material the shell shows, the near one shows too. (Seed 53190847
+            // picks a tower standing on its podium, whose shell used to paint a street row in the base material the near tower never has.)
             HashSet<int> near = Slices(false);
             HashSet<int> far = Slices(true);
             foreach (int slice in far)
             {
-                Assert.IsTrue(near.Contains(slice) || slice == (int)WallMaterial.Concrete, $"far uses material {slice} that the near building does not");
+                Assert.IsTrue(near.Contains(slice) || slice == (int)WallMaterial.Concrete,
+                    $"far uses material {slice} that the near building ({WindowPlan.For(World, site).Style}, on a roof: {site.OnRoof}) does not");
             }
             Assert.IsTrue(far.Contains((int)WallMaterial.Roof));
         }
