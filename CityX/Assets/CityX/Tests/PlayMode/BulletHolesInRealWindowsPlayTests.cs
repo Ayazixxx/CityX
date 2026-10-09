@@ -15,11 +15,11 @@ namespace CityX.Tests
     ///
     /// A cracked pane is drawn without a solid collider (it has to be walkable at once), so the second bullet at
     /// it used to fly through the first bullet's hole and never reach the glass at all. Every shot here goes
-    /// through PistolWeapon.Fire -- the traces, the breakable lookup and all -- and each one has to register.
+    /// through PistolWeapon.Fire -- the traces, the breakable lookup and all -- and each one has to register; the fifth shatters the window.
     /// </summary>
     public sealed class BulletHolesInRealWindowsPlayTests
     {
-        private const int Seed = 38207461;
+        private const int Seed = 61839025;
 
         private readonly List<GameObject> _made = new List<GameObject>();
 
@@ -125,7 +125,7 @@ namespace CityX.Tests
             PaneKey key = target.Key;
             Assert.AreEqual(PaneState.Intact, streamer.Damage.StateOf(key));
 
-            for (int shot = 1; shot <= 8; shot++)
+            for (int shot = 1; shot <= GlassDamage.MaxBulletHoles; shot++)
             {
                 // A shade different each time, so the holes are not one on top of another.
                 Vector3 at = aim + Vector3.Cross(Vector3.up, target.Outward) * (0.04f * (shot % 3 - 1)) + Vector3.up * (0.05f * (shot % 2));
@@ -138,11 +138,11 @@ namespace CityX.Tests
                     $"bullet {shot} did not make its own hole ({streamer.Damage.HoleCount(key)} holes) -- it flew through the first one");
             }
 
-            // Bullets never bring the window down, however many: the pane still stands and keeps its holes.
+            // The next bullet (the fifth) brings the window down.
             yield return Wait(PistolWeapon.FireCooldownSeconds + 0.05f);
             Assert.IsTrue(pistol.Fire(standing, (aim - standing).normalized, true, null));
             yield return Wait(0.3f);
-            Assert.AreEqual(PaneState.Cracked, streamer.Damage.StateOf(key), "a shot-up window shattered by itself: only a knock may do that");
+            Assert.AreEqual(PaneState.Shattered, streamer.Damage.StateOf(key), $"bullet {GlassDamage.ShatteringBullet} left the window standing");
 #else
             yield break;
 #endif

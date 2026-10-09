@@ -5,7 +5,7 @@ using UnityEngine;
 namespace CityX.Tests
 {
     /// <summary>
-    /// A pistol round leaves a hole and the window stays up, hole after hole, for good -- only a knock brings it down;
+    /// A pistol round leaves a hole and the window stays up for four of them; the fifth shatters it (as a knock does);
     /// a fist or a blade still does what it always did.
     /// </summary>
     public sealed class BulletHoleDamageTests
@@ -30,19 +30,23 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void BulletsNeverBringTheWindowDownAndTheOldestHoleMakesWay()
+        public void TheFifthBulletShattersTheWindow()
         {
+            // Owner, 2026-10-09: "make the windows just shatter if a 5th bullet hits them".
+            Assert.AreEqual(5, GlassDamage.ShatteringBullet);
             var damage = new GlassDamage();
-            for (int i = 0; i < GlassDamage.MaxBulletHoles * 3; i++)
+            var heard = new System.Collections.Generic.List<PaneState>();
+            damage.Changed += (_, state) => heard.Add(state);
+            for (int i = 1; i < GlassDamage.ShatteringBullet; i++)
             {
-                PaneState state = damage.Shoot(Pane, new Vector2(0.02f * (i % 40), 0.5f), out bool changed);
-                Assert.AreEqual(PaneState.Cracked, state, $"bullet {i + 1} brought the window down: only a knock may");
-                Assert.IsTrue(changed);
+                Assert.AreEqual(PaneState.Cracked, damage.Shoot(Pane, new Vector2(0.15f * i, 0.5f), out _), $"bullet {i} took the window down");
             }
-
-            Assert.AreEqual(GlassDamage.MaxBulletHoles, damage.HoleCount(Pane), "a shot-up window keeps a fixed number of holes");
-            Assert.IsTrue(damage.TryGetImpact(Pane, out Vector2 newest));
-            Assert.AreEqual(0.02f * ((GlassDamage.MaxBulletHoles * 3 - 1) % 40), newest.x, 1e-5f, "the newest hole is the one kept");
+            PaneState fifth = damage.Shoot(Pane, new Vector2(0.5f, 0.2f), out bool changed);
+            Assert.AreEqual(PaneState.Shattered, fifth, "the fifth bullet left the window up");
+            Assert.IsTrue(changed);
+            Assert.AreEqual(PaneState.Shattered, damage.StateOf(Pane));
+            Assert.AreEqual(PaneState.Shattered, heard[heard.Count - 1], "the chunk was not told the window is gone");
+            Assert.AreEqual(0, damage.HoleCount(Pane), "a window that is gone has no holes left to draw");
         }
 
         [Test]

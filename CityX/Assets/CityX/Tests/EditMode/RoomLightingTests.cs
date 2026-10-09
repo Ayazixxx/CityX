@@ -1,0 +1,216 @@
+using System.Collections.Generic;
+using CityX.Character;
+using CityX.View;
+using CityX.World;
+using NUnit.Framework;
+using UnityEngine;
+
+namespace CityX.Tests
+{
+    /// <summary>
+    /// Room lights (World.RoomLighting): every room has a switch by its door and lights on its ceiling, in several patterns; one building in ten has
+    /// power; switches are shared state (World.RoomLights) that a session keeps the same on every machine (Character.RoomLightsNetwork).
+    /// </summary>
+    public sealed class RoomLightingTests
+    {
+        private const int Seed = 61839025;
+
+        private static CityWorld _world;
+        private static CityWorld World => _world ?? (_world = new CityWorld(Seed));
+
+        [TearDown]
+        public void TearDown()
+        {
+            RoomLights.Clear();
+            RoomLights.Relay = null;
+            PowerGrid.Reset();
+        }
+
+        private static IEnumerable<BuildingSite> Interiors(int count)
+        {
+            int n = 0;
+            foreach (BuildingSite s in TestSites.NearSpawn(World, 12))
+            {
+                if (s.Shell || s.Sides >= 3)
+                {
+                    continue;
+                }
+                yield return s;
+                if (++n >= count)
+                {
+                    yield break;
+                }
+            }
+        }
+
+        [Test]
+        public void OneBuildingInTenHasPower()
+        {
+            int all = 0, powered = 0;
+            foreach (BuildingSite s in World.Plan.Buildings)
+            {
+                all++;
+                if (PowerGrid.HasPowerFromTheStart(s)) powered++;
+            }
+            double share = powered / (double)all;
+            Assert.That(share, Is.InRange(0.08, 0.12), $"{powered} of {all} buildings have power");
+        }
+
+        [Test]
+        public void RestoringPowerTurnsABuildingOn()
+        {
+            foreach (BuildingSite s in World.Plan.Buildings)
+            {
+                if (PowerGrid.IsOn(s)) continue;
+                PowerGrid.Restore(s.Id);
+                Assert.IsTrue(PowerGrid.IsOn(s));
+                return;
+            }
+            Assert.Fail("every building already had power");
+        }
+
+        [Test]
+        public void EveryRoomHasASwitchAndLightsAboveHeadHeight()
+        {
+            int rooms = 0;
+            foreach (BuildingSite site in Interiors(60))
+            {
+                List<RoomLightPlan> plans = RoomLighting.PlansFor(site);
+                Assert.GreaterOrEqual(plans.Count, BuildingInterior.FloorCountFor(site.Params.Height), $"building {site.Id}: a floor with no lit room");
+                float storey = BuildingInterior.StoreyHeight(site.Params.Height);
+                foreach (RoomLightPlan plan in plans)
+                {
+                    rooms++;
+                    float floorY = site.BaseHeight + plan.Key.Floor * storey;
+                    Assert.Greater(plan.Fixtures.Count, 0, $"{plan.Key}: a room with no light in it");
+                    Assert.LessOrEqual(plan.Fixtures.Count, RoomLighting.MaxFixtures);
+                    Assert.Greater(plan.LightPoints.Count, 0, $"{plan.Key}: its fittings would light nothing");
+                    foreach (Fixture f in plan.Fixtures)
+                    {
+                        Assert.Greater(f.HousingMin.y, floorY + BodyRig.StandingHeight + 0.1f, $"{plan.Key}: a light hangs where a 2.6 m player walks into it");
+                        Assert.LessOrEqual(Mathf.Abs(f.HousingMin.x), site.Params.Width * 0.5f, $"{plan.Key}: a light outside the building");
+                        Assert.LessOrEqual(Mathf.Abs(f.HousingMin.z), site.Params.Depth * 0.5f, $"{plan.Key}: a light outside the building");
+                    }
+                    Assert.AreEqual(floorY + RoomLighting.SwitchHeight, plan.Switch.y, 0.01f, $"{plan.Key}: the switch is not at hand height");
+                    Assert.LessOrEqual(Mathf.Abs(plan.Switch.x), site.Params.Width * 0.5f);
+                    Assert.LessOrEqual(Mathf.Abs(plan.Switch.z), site.Params.Depth * 0.5f);
+                }
+            }
+            Assert.Greater(rooms, 200, "need a real sample");
+        }
+
+        [Test]
+        public void TheCityHasManyKindsOfLighting()
+        {
+            var seen = new HashSet<LightPattern>();
+            foreach (BuildingSite site in Interiors(120))
+            {
+                foreach (RoomLightPlan plan in RoomLighting.PlansFor(site))
+                {
+                    seen.Add(plan.Pattern);
+                }
+            }
+            Assert.GreaterOrEqual(seen.Count, 4, $"only {string.Join(", ", seen)}");
+        }
+
+        [Test]
+        public void NoLightHangsOverTheStairHole()
+        {
+            foreach (BuildingSite site in Interiors(40))
+            {
+                BuildingStairs.Layout stairs = BuildingStairs.PlanFor(site);
+                foreach (RoomLightPlan plan in RoomLighting.PlansFor(site))
+                {
+                    StairPlan flight = stairs.Floors[plan.Key.Floor];
+                    if (flight == null) continue;
+                    foreach (Fixture f in plan.Fixtures)
+                    {
+                        var foot = Rect.MinMaxRect(f.HousingMin.x, f.HousingMin.z, f.HousingMax.x, f.HousingMax.z);
+                        Assert.IsFalse(foot.Overlaps(flight.Hole), $"{plan.Key}: a light over the hole the stairs come up through");
+                    }
+                }
+            }
+        }
+
+        [Test]
+        public void AFlipIsSharedThroughTheSession()
+        {
+            var relay = new RecordingRelay();
+            RoomLights.Relay = relay;
+            var key = new RoomKey(3, 1, 0);
+            var heard = new List<bool>();
+            System.Action<RoomKey, bool> listen = (k, on) => { if (k.Equals(key)) heard.Add(on); };
+            RoomLights.Changed += listen;
+            try
+            {
+                RoomLights.Flip(key);
+                Assert.IsTrue(RoomLights.IsOn(key));
+                RoomLights.Set(key, true);   // the server's echo changes nothing
+                RoomLights.Flip(key);
+                Assert.IsFalse(RoomLights.IsOn(key));
+                CollectionAssert.AreEqual(new[] { true, false }, heard);
+                CollectionAssert.AreEqual(new[] { true, false }, relay.Sent);
+            }
+            finally
+            {
+                RoomLights.Changed -= listen;
+            }
+        }
+
+        [Test]
+        public void TheServerRefusesARoomThatCannotExist()
+        {
+            Assert.IsTrue(RoomLightsNetwork.Acceptable(new LightSwitchMessage { Building = 0, Floor = 2, Room = 1, On = true }));
+            Assert.IsFalse(RoomLightsNetwork.Acceptable(new LightSwitchMessage { Building = -1, Floor = 0, Room = 0 }));
+            Assert.IsFalse(RoomLightsNetwork.Acceptable(new LightSwitchMessage { Building = 0, Floor = 0, Room = 7 }));
+            Assert.IsFalse(RoomLightsNetwork.Acceptable(new LightSwitchMessage { Building = 0, Floor = 100000, Room = 0 }));
+        }
+
+        [Test]
+        public void OnlyAPoweredBuildingGetsLightsThatCanComeOn()
+        {
+            BuildingSite powered = default, dead = default;
+            foreach (BuildingSite site in Interiors(400))
+            {
+                if (PowerGrid.IsOn(site) && !powered.Exists) powered = site;
+                if (!PowerGrid.IsOn(site) && !dead.Exists) dead = site;
+            }
+            Assert.IsTrue(powered.Exists && dead.Exists, "need one of each");
+            Assert.Greater(Glows(powered).Count, 0, "a powered building has no lights to switch on");
+            Assert.AreEqual(0, Glows(dead).Count, "a building without power has lights that could come on");
+        }
+
+        [Test]
+        public void TheSwitchByTheDoorIsTheOneYouFlip()
+        {
+            BuildingSite site = default;
+            foreach (BuildingSite s in Interiors(10)) { site = s; break; }
+            RoomLightPlan hall = RoomLighting.PlansFor(site)[0];
+            site.LocalToWorld(hall.Switch.x, hall.Switch.z + 1.2f * hall.SwitchFacing.z, out double fx, out double fz);
+            var feet = new Vector3((float)fx, site.BaseHeight, (float)fz);
+            site.LocalToWorld(hall.Switch.x, hall.Switch.z, out double sx, out double sz);
+            var at = new Vector3((float)sx, hall.Switch.y, (float)sz);
+            Vector3 eye = feet + Vector3.up * 2.2f;
+            Assert.IsTrue(LightSwitchInteractor.TryFind(World, feet, eye, (at - eye).normalized, out BuildingSite found, out RoomLightPlan plan),
+                "standing at the switch, looking at it, nothing to flip");
+            Assert.AreEqual(site.Id, found.Id);
+            Assert.AreEqual(hall.Key, plan.Key);
+            Assert.IsFalse(LightSwitchInteractor.TryFind(World, feet, eye, -(at - eye).normalized, out _, out _), "flipped a switch behind the player");
+        }
+
+        private static List<CityMeshBuilder.RoomGlow> Glows(BuildingSite site)
+        {
+            var glows = new List<CityMeshBuilder.RoomGlow>();
+            var origin = new Vector3(site.OwnerChunkX * CityLayout.ChunkSize, 0, site.OwnerChunkY * CityLayout.ChunkSize);
+            CityMeshBuilder.BuildSite(World, site, origin, new MeshBuffer(), new MeshBuffer(), new MeshBuffer(), new MeshBuffer(), new MeshBuffer(),
+                null, null, new MeshBuffer(), false, glows);
+            return glows;
+        }
+
+        private sealed class RecordingRelay : IRoomLightRelay
+        {
+            public readonly List<bool> Sent = new List<bool>();
+            public void Send(RoomKey key, bool on) => Sent.Add(on);
+        }
+    }
+}

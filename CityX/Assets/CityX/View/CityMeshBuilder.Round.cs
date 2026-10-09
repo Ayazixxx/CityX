@@ -51,7 +51,7 @@ namespace CityX.View
                 BuildingDecor.EntranceStyle entrance = BuildingDecor.EntranceStyleFor(site.BaseHeight - site.DoorGroundHeight);
                 if (entrance.NeedsStairs)
                 {
-                    AddEntranceStairs(concrete, new Vector3(0.0f, lobbyY, fp.Apothem), entrance.Rise);
+                    AddEntranceStairs(world, site, concrete, new Vector3(0.0f, lobbyY, fp.Apothem));
                 }
             }
 

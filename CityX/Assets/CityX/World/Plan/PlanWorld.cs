@@ -688,7 +688,8 @@ namespace CityX.World.Plan
         private static void PartyWall(in BuildingSite a, in BuildingSite b, ref List<WallContact> into)
         {
             double cos = a.AxisX * b.AxisX + a.AxisZ * b.AxisZ;
-            if (Math.Abs(cos) < 0.9995 && Math.Abs(cos) > 0.03)
+            // Square to each other within a third of a degree: a tilt of a degree opens up a real gap along a 40 m wall (seed 61839025, #1249).
+            if (Math.Abs(cos) < 0.99998 && Math.Abs(cos) > 0.005)
             {
                 return;
             }

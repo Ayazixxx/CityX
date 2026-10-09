@@ -202,3 +202,11 @@ buildings (the bias scaled with slope and distance), so it was reverted. Paint i
 Measured (`RoadPaintTests`): where road ribbons and junction plates overlap, 6-9% of paint sample points sit under a neighbouring road triangle whatever the
 lift (1 cm: 9%, 3 cm: 6%), so a lower lift buries more paint. The proper fix is to make paint part of the road: either carve it out of the road triangles, or
 rasterize each chunk's paint into a small mask the road shader reads (needs a per-chunk texture, so it costs batching; not done).
+
+## Update: entrance stairs hug the building (2026-10-09)
+
+Reported with screenshots: floating staircases, some blocking streets. On a slope a building's floor is set by the highest ground under it, so a
+downhill front door can be metres up; its flight ran straight OUT from the door, sized from the ground 2 m out, so on a falling slope the foot
+hung in the air and a tall rise carried it across the pavement into the road. Now (`World/EntranceStairs.cs`, `CityMeshBuilder.AddEntranceStairs`)
+a landing stands in front of the door and the flight runs down ALONG the wall, on whichever side the ground comes up to meet it sooner; every step
+is a solid block down to the paving under it, and the flight stops at the first step the ground reaches. Tests: `EntranceStairsTests`.

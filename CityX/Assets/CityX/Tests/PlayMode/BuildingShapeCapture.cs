@@ -47,7 +47,7 @@ namespace CityX.Tests
             var picks = new Dictionary<string, BuildingSite>();
             foreach (BuildingSite site in TestSites.NearSpawn(world, 80))
             {
-                if (picks.Count >= 14) break;
+                if (picks.Count >= 15) break;
                 if (site.OnRoof || site.Wing) continue;   // classify whole buildings, from their first volume
                 string kind = KindOf(world, site);
                 if (kind == null && site.Params.Height > 20.0f && site.Params.Width > 14.0f)
@@ -55,6 +55,12 @@ namespace CityX.Tests
                     kind = "box-" + WindowPlan.For(world, site).Style.ToString().ToLowerInvariant();   // a plain building of each facade family
                 }
                 if (kind != null && !picks.ContainsKey(kind)) picks[kind] = site;
+                // A door well above the paving: its entrance stairs (EntranceStairs) must run down along the wall to the ground.
+                if (!picks.ContainsKey("stairs") && !site.Shell && site.Sides < 3
+                    && BuildingDecor.EntranceStyleFor(site.BaseHeight - site.DoorGroundHeight).Rise > 1.5f)
+                {
+                    picks["stairs"] = site;
+                }
             }
 
             var cameraObject = new GameObject("ShapeCam");
@@ -259,7 +265,7 @@ namespace CityX.Tests
             return top;
         }
 
-        private static void Shoot(Camera camera, string directory, string name, Vector3 position, Vector3 lookAt)
+        internal static void Shoot(Camera camera, string directory, string name, Vector3 position, Vector3 lookAt)
         {
             camera.transform.position = position;
             camera.transform.rotation = Quaternion.LookRotation(lookAt - position, Vector3.up);

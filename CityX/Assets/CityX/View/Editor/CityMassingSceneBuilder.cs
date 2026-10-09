@@ -47,7 +47,7 @@ namespace CityX.ViewEditor
         /// screen's backdrop and the massing scene's own city stop
         /// matching.
         /// </summary>
-        private const int WorldSeed = 38207461;
+        private const int WorldSeed = 61839025;
 
         /// <summary>How glossy the city's three shared surfaces are when DRY. The rain restores to exactly these.</summary>
         private const float GroundDrySmoothness = 0.10f;
@@ -525,8 +525,8 @@ namespace CityX.ViewEditor
             // extends to the horizon, both bigger jobs than this pass.
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.Linear;
-            RenderSettings.fogStartDistance = 150.0f;
-            RenderSettings.fogEndDistance = 380.0f;
+            RenderSettings.fogStartDistance = ClearFogStartMetres;
+            RenderSettings.fogEndDistance = ClearFogEndMetres;
 
             // --- rain's own environmental reach, wired here rather than
             // --- where Rain itself was built above: `rain` there is a local
@@ -699,7 +699,7 @@ namespace CityX.ViewEditor
             // steady-state chunk count/memory, not a one-frame hitch when the
             // streamed edge moves. See the fog comment above for how its own
             // distances were retimed to this new edge.
-            streamer.RadiusChunks = 24;
+            streamer.RadiusChunks = ViewRadiusChunks;   // 30 since 2026-10-09 (was 24): "can we up the render distance?"
             // The spawn above is for the world at the scale in force NOW; the game may run at another, so the streamer re-places the player.
             streamer.PlaceAtSpawn = true;
             streamer.GroundMaterial = ground;
@@ -709,6 +709,10 @@ namespace CityX.ViewEditor
             streamer.LitGlassMaterial = litGlass;
             streamer.CrackedGlassMaterial = crackedGlass;
             streamer.CrackDecalMaterial = crackDecal;
+            streamer.RoomGlowMaterial = EnsureRoomGlowMaterial();
+            // Every room's light switch (E at the switch), and keeping everyone's switches the same in a session.
+            streamerObject.AddComponent<LightSwitchInteractor>();
+            streamerObject.AddComponent<CityX.Character.RoomLightsNetwork>();
             streamer.RoadLineMaterial = roadLine;
             streamer.CrosswalkMaterial = crosswalk;
             streamer.DoorMaterial = door;
@@ -961,6 +965,15 @@ namespace CityX.ViewEditor
         /// image is wanted over a faithful one.
         /// (2026-10-09: ACES tried and reverted -- see the tonemapping line below.)
         /// </summary>
+        /// <summary>
+        /// How far the city streams, in 24 m chunks (30 = 720 m), and the clear-weather fog distances that hide its edge: the haze is total at the fog
+        /// end, which must stay inside the streamed ring. 24 / 150-380 m until 2026-10-09, when the owner asked for more render distance -- the streamed
+        /// city then reached 576 m but the fog hid everything past 380.
+        /// </summary>
+        public const int ViewRadiusChunks = 30;
+        public const float ClearFogStartMetres = 460.0f;
+        public const float ClearFogEndMetres = 690.0f;
+
         /// <summary>Stops of exposure added before the tonemap (0: the sun and sky are already tuned for the neutral curve).</summary>
         public const float GradeExposure = 0.0f;
 
@@ -1439,6 +1452,31 @@ namespace CityX.ViewEditor
             Texture2D ring = EnsureRippleTexture();
             material.SetTexture("_BaseMap", ring);
             material.mainTexture = ring;
+            EditorUtility.SetDirty(material);
+            return material;
+        }
+
+        /// <summary>
+        /// The glowing face of a lit room's light fitting: opaque URP Unlit, its colour set per room above 1 (CityStreamer.AddRoomLights) so it reads
+        /// as a lamp and blooms a little. No texture.
+        /// </summary>
+        private static Material EnsureRoomGlowMaterial()
+        {
+            string path = $"{MaterialDirectory}/RoomGlow.mat";
+            Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material == null)
+            {
+                Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
+                if (shader == null)
+                {
+                    Debug.LogError("CityX: no URP unlit shader -- room lights will render magenta.");
+                    return null;
+                }
+                material = new Material(shader);
+                AssetDatabase.CreateAsset(material, path);
+            }
+            material.SetColor("_BaseColor", Color.white);
+            material.enableInstancing = false;
             EditorUtility.SetDirty(material);
             return material;
         }

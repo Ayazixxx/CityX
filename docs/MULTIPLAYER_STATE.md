@@ -18,6 +18,7 @@ Everything below is owner-authoritative (the player's own machine decides, the s
 | **Damage between players** | every hit (punch, sword, bullet, fireball, ice shard, sword wave, flame, thrown bottle, poison) is worked out on the attacker's machine against the target's COPY; the copy forwards it (`PlayerVitals.Relay`) to the server, which checks it (sender is not the victim, a sane amount, the attacker's body within 90 m, at most 40 hits a second) and sends it to the real body's owner, whose own vitals take it: block, stun, health and reaction as for any hit. | `NetworkedDamage`, `IRemoteDamageRelay` |
 | **Health** | the owner shares their health 4 times a second, so a copy shows it (and a copy that has died stops being a target) | `NetworkedDamage` |
 | Abilities (1, 2, 3, 4, 7, 8) | see `docs/ABILITIES_MULTIPLAYER.md` | |
+| **Light switches** (world state, not a body) | FishNet broadcasts: flip -> server (sane room, 12/s) -> every client; a joiner is sent every light that is on. Not RPCs on a player body: those stop at the 100 m view distance. | `RoomLightsNetwork`, `docs/ROOM_LIGHTS.md` |
 
 A joining player's body now has an `Inventory` with the item prefabs (it had none), so it can hold things at all.
 

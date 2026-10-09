@@ -1,6 +1,7 @@
 using System.Collections;
 using CityX.Character;
 using CityX.Items;
+using CityX.World;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -119,6 +120,42 @@ namespace CityX.Tests
 #else
             yield break;
 #endif
+        }
+
+        /// <summary>
+        /// Points W (the movement's yaw source; the camera stays as it was) along the flattest open direction from where the body stands:
+        /// 30 m with no building within 3 m and the least ground rising ahead (level or downhill).
+        /// </summary>
+        private IEnumerator FaceALevelRun()
+        {
+            CityWorld world = CurrentWorld.Instance;
+            Assert.IsNotNull(world, "setup: no world");
+            Vector3 from = _vitals.transform.position;
+            float bestRise = float.MaxValue;
+            Vector3 heading = Vector3.forward;
+            for (int a = 0; a < 72; a++)
+            {
+                var dir = new Vector3(Mathf.Sin(a * 5.0f * Mathf.Deg2Rad), 0.0f, Mathf.Cos(a * 5.0f * Mathf.Deg2Rad));
+                double h0 = world.Plan.GroundHeight(from.x, from.z);
+                float rise = 0.0f;
+                bool open = true;
+                for (float run = 2.0f; run <= 30.0f && open; run += 2.0f)
+                {
+                    Vector3 p = from + dir * run;
+                    rise = Mathf.Max(rise, (float)(world.Plan.GroundHeight(p.x, p.z) - h0));   // only ground coming UP to meet the jump matters
+                    open = world.Plan.BuildingAt(p.x, p.z, 3.0) < 0;
+                }
+                if (open && rise < bestRise)
+                {
+                    bestRise = rise;
+                    heading = dir;
+                }
+            }
+            Assert.Less(bestRise, 0.4f, "setup: no level or downhill open direction from the spawn");
+            var yaw = new GameObject("TestYaw");
+            yaw.transform.rotation = Quaternion.LookRotation(heading, Vector3.up);
+            _vitals.GetComponent<PlayerInputReader>().YawSource = yaw.transform;
+            yield return null;
         }
 
         private IEnumerator Seconds(float seconds)
@@ -314,6 +351,9 @@ namespace CityX.Tests
         {
 #if UNITY_EDITOR
             yield return LoadSceneWithASword();
+            // On level ground: the spawn of a city seed can face a hill (seed 61839025's rises 16% ahead), where the jump lands early on the slope,
+            // the released keys brake the body on the ground, and the test would measure the hill, not the spin.
+            yield return FaceALevelRun();
 
             float groundY = _vitals.transform.position.y;
             Vector3 startAt = _vitals.transform.position;
@@ -326,6 +366,7 @@ namespace CityX.Tests
                 $"setup: the body should be at a sprint (W down {_keyboard.wKey.isPressed}, moved {(_vitals.transform.position - startAt).magnitude:0.00} m, " +
                 $"stamina {_vitals.Stamina:0.0}, sprinting {_locomotion.IsSprinting}, swinging {_melee.IsSwinging})");
 
+            groundY = _vitals.transform.position.y;   // the sprint may have run down a slope: the jump is from here
             yield return JumpToHeight(groundY, 0.6f);
             Press(_keyboard.digit2Key);
             yield return null;
@@ -342,7 +383,16 @@ namespace CityX.Tests
             yield return null;
 
             yield return Seconds(0.6f);
-            Assert.Greater(_locomotion.CurrentSpeed, flowing * 0.9f, "the body braked while it was spinning");
+            Vector3 body = _vitals.transform.position;
+            Vector3 ahead = new Vector3(_vitals.transform.forward.x, 0.0f, _vitals.transform.forward.z).normalized;
+            string blocker = Physics.Raycast(body + Vector3.up * 1.3f, ahead, out RaycastHit block, 3.0f, ~0, QueryTriggerInteraction.Ignore)
+                ? $"{block.collider.name} {block.distance:0.00} m ahead" : "nothing ahead";
+            foreach (Collider near in Physics.OverlapCapsule(body + Vector3.up * 0.2f, body + Vector3.up * 2.4f, 0.6f, ~0, QueryTriggerInteraction.Ignore))
+            {
+                if (!near.transform.IsChildOf(_vitals.transform)) blocker += $"; touching {near.name} ({near.GetType().Name}) at {near.ClosestPoint(body + Vector3.up)}";
+            }
+            Assert.Greater(_locomotion.CurrentSpeed, flowing * 0.9f,
+                $"the body braked while it was spinning (from {startAt} to {body}, {body.y - groundY:0.00} m up, grounded {_locomotion.IsGrounded}, {blocker})");
 
             float elapsed = 0.0f;
             while (_melee.IsSpinAttacking && elapsed < 3.0f)

@@ -194,3 +194,9 @@ cell-breaking logic in `GlassDamage` with focused unit tests (mirroring `GlassBl
 `AddPaneWithHoles` extension with `CityMeshBuilderTests` coverage, then a real batch-rendered close-up
 screenshot of a pane part-way through breaking before calling it done -- this is exactly the kind of visual
 result a green test suite cannot judge on its own.
+
+## Update: the fifth bullet shatters a window (2026-10-09)
+
+Owner: "make the windows just shatter if a 5th bullet hits them". `GlassDamage.MaxBulletHoles` is 4 (was 12, with the pane never falling); the next
+bullet (`ShatteringBullet`, 5) shatters it like a knock does -- shards, the break sound. Tests: `BulletHoleDamageTests.TheFifthBulletShattersTheWindow`,
+`BulletHolesInRealWindowsPlayTests`.

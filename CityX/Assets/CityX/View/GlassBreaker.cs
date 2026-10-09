@@ -80,7 +80,7 @@ namespace CityX.View
             Vector2 impactUV = GlassDamage.FractionWithinPane(_world, site, key, point);
             if (strength == BlowStrength.Bullet)
             {
-                // A bullet makes its own hole and the window stays up, however many it takes: only
+                // A bullet makes its own hole and the window stays up -- until the fifth (GlassDamage.ShatteringBullet) brings it down. Otherwise only
                 // something knocking into it brings it down (see CrackedPane.IsAKnock).
                 PaneState after = _streamer.Damage.Shoot(key, impactUV, out bool madeHole);
                 if (!madeHole)

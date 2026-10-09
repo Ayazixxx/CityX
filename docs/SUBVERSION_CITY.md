@@ -24,7 +24,7 @@ searching the street map; blocks are meant to be divided into allotments, one bu
 - `PlanWorld.cs` -- the city as the game asks about it: the plan, its geometry, every building (`PlanBuildings`: the largest rectangle that fits a
   lot with a side on its street frontage, turned to face the street), indexes by 24 m chunk, `BuildingAt`, `GroundHeight`, `TryFindSpawn`.
   One `PlanWorld` per seed, cached, read-only -> safe to read from the chunk worker threads.
-- Render: `dotnet run -c Release --project tools/cityplan -- [seed] [halfMetres] [px] [out.png] [cx cz viewHalf]`. Seed 38207461, 5 km region:
+- Render: `dotnet run -c Release --project tools/cityplan -- [seed] [halfMetres] [px] [out.png] [cx cz viewHalf]`. Seed 61839025, 5 km region:
   ~2,600 nodes, ~4,600 roads, ~1,250 blocks, ~12,100 buildings, generated in ~0.6 s. EditMode: `PlanWorldTests`, `PlanChunkMeshTests`.
 
 Determinism (server and clients must grow the same city): double + - * / sqrt only (angles come from literal tables, no sin/cos/pow), integer-hash
@@ -83,4 +83,4 @@ paved as ONE surface from the kerb to the walls (`CitySurfaceBuilder.BuildBlockP
 (`PlanBlock.InnerTriangles`, `PlanMath.Triangulate`, ear clipping), each triangle clipped to the terrain grid so it follows the ground, at the
 pavement's height and in one paving look per block. The old pavement ring is drawn only for unpaved blocks; terrain squares wholly under paving
 are skipped. Ground floors were raised to stand on the paving (`PlanBuildings.PavingRise` 0.23 m: floor = ceil(highest ground + 0.23) to the
-decimetre; the door's ground is the paving 2 m out). Seed rerolled to 38207461. Tests: `BlockPavingTests`.
+decimetre; the door's ground is the paving 2 m out). Seed rerolled to 61839025. Tests: `BlockPavingTests`.

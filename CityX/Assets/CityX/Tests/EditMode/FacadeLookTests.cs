@@ -12,7 +12,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class FacadeLookTests
     {
-        private const int Seed = 38207461;
+        private const int Seed = 61839025;
 
         private static CityWorld _world;
         private static CityWorld World => _world ?? (_world = new CityWorld(Seed));
@@ -269,7 +269,7 @@ namespace CityX.Tests
                 return set;
             }
 
-            // The near building also has trim (slice 0) the shell does not; every material the shell shows, the near one shows too. (Seed 38207461
+            // The near building also has trim (slice 0) the shell does not; every material the shell shows, the near one shows too. (Seed 61839025
             // picks a tower standing on its podium, whose shell used to paint a street row in the base material the near tower never has.)
             HashSet<int> near = Slices(false);
             HashSet<int> far = Slices(true);

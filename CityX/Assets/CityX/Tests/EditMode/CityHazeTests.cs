@@ -55,6 +55,17 @@ namespace CityX.Tests
         }
 
         [Test]
+        public void TheFogEndsJustInsideTheStreamedCity()
+        {
+            // Past the fog end everything is sky, so the streamed ring must reach at least that far, and the fog should end near its edge, not hide
+            // half of it (it did: 576 m streamed, 380 m seen).
+            float streamed = CityMassingSceneBuilder.ViewRadiusChunks * CityX.World.CityLayout.ChunkSize;
+            Assert.Less(CityMassingSceneBuilder.ClearFogEndMetres, streamed, "the edge of the streamed city would show past the fog");
+            Assert.Greater(CityMassingSceneBuilder.ClearFogEndMetres, streamed * 0.85f, "the fog hides city that is streamed and paid for");
+            Assert.Less(CityMassingSceneBuilder.ClearFogStartMetres, CityMassingSceneBuilder.ClearFogEndMetres);
+        }
+
+        [Test]
         public void TheSunGlowsOnlyWhenItIsUp()
         {
             CityHaze.Settings night = CityHaze.For(Horizon, Top, 1.0f, new Color(1.0f, 0.8f, 0.6f), 0.0f, 0.0f, 1.0f, 150.0f, 380.0f);

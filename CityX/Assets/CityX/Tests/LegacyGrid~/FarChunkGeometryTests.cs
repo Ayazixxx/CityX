@@ -12,7 +12,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class FarChunkGeometryTests
     {
-        private const int Seed = 38207461;
+        private const int Seed = 61839025;
 
         private sealed class Built
         {

@@ -27,7 +27,7 @@ namespace CityX.View
         // real scenes always set this from that same constant at build
         // time. EXPLICIT ASK: "generate a new world every time you make a
         // change to the city generation."
-        public int WorldSeed = 38207461;
+        public int WorldSeed = 61839025;
 
         [Tooltip("Put the player (and the Old Guy, who is placed relative to them) at the spawn point of the world this streamer makes, when it wakes. The scene bakes a spawn point at build time, but the world depends on the city scale in force when the game runs.")]
         public bool PlaceAtSpawn = false;
@@ -116,6 +116,9 @@ namespace CityX.View
 
         [Tooltip("The real crack-texture decal at a known shot's own impact point. Drawn, never collided with.")]
         public Material CrackDecalMaterial;
+
+        [Tooltip("The glowing faces of a powered room's light fittings while its switch is on (unlit; the colour is set per room).")]
+        public Material RoomGlowMaterial;
 
         [Header("Doors")]
         [Tooltip("The door leaf. Warm wood brown, a fixed prop accent.")]
@@ -220,6 +223,9 @@ namespace CityX.View
             public readonly MeshBuffer Greenery = new MeshBuffer();
             public readonly MeshBuffer Bark = new MeshBuffer();
 
+            /// <summary>The powered rooms' lights (CityMeshBuilder.RoomGlow), built near only.</summary>
+            public readonly List<CityMeshBuilder.RoomGlow> RoomGlows = new List<CityMeshBuilder.RoomGlow>();
+
             // The main mesh's five submeshes, combined off the main thread.
             public Vector3[] Vertices;
             public Vector3[] Normals;
@@ -249,6 +255,11 @@ namespace CityX.View
         private readonly ConcurrentQueue<ChunkPayload> _finished = new ConcurrentQueue<ChunkPayload>();
         private readonly HashSet<Vector2Int> _inFlight = new HashSet<Vector2Int>();
         private readonly HashSet<Vector2Int> _changedInFlight = new HashSet<Vector2Int>();
+
+        // Chunks being rebuilt because a window in them was hit (true: only their cracked glass needs swapping), and the last state seen of each
+        // pane, which tells another hole in a cracked pane from a pane changing state (OnPaneChanged).
+        private readonly Dictionary<Vector2Int, bool> _refreshing = new Dictionary<Vector2Int, bool>();
+        private readonly Dictionary<PaneKey, PaneState> _paneSeen = new Dictionary<PaneKey, PaneState>();
         private SemaphoreSlim _workers;
         private int _generation;
         private Vector2Int _wantedCentre = new Vector2Int(int.MinValue, int.MinValue);
@@ -311,6 +322,8 @@ namespace CityX.View
             _generation++;
             _inFlight.Clear();
             _changedInFlight.Clear();
+            _refreshing.Clear();
+            _paneSeen.Clear();
             while (_finished.TryDequeue(out _))
             {
             }
@@ -384,6 +397,32 @@ namespace CityX.View
         {
             BuildingSite owner = _world.Building(key.Building);
             var chunk = new Vector2Int(owner.OwnerChunkX, owner.OwnerChunkY);
+
+            // ANOTHER HOLE IN AN ALREADY CRACKED PANE changes only the cracked glass and its decals, which are objects of their own: the chunk's
+            // big mesh and its collider are exactly what they were. Rebuilding all of it on every bullet (2026-10-09: "frame drops when spamming
+            // shots with the pistol at a window") cost a whole chunk's mesh upload and collider cook per shot.
+            bool glassOnly = _paneSeen.TryGetValue(key, out PaneState before) && before == state && state == PaneState.Cracked;
+            _paneSeen[key] = state;
+
+            if (_loaded.TryGetValue(chunk, out GameObject loadedNow) && GeneratorThreads > 0)
+            {
+                // In the background: the chunk on screen stays until its replacement is ready, and a burst of hits on one chunk is one rebuild.
+                _refreshing[chunk] = _refreshing.TryGetValue(chunk, out bool wasGlassOnly) ? wasGlassOnly && glassOnly : glassOnly;
+                if (_inFlight.Contains(chunk))
+                {
+                    _changedInFlight.Add(chunk);
+                    return;
+                }
+                _inFlight.Add(chunk);
+                QueueGeneration(chunk, _far.Contains(chunk));
+                return;
+            }
+            if (loadedNow != null && glassOnly && !_inFlight.Contains(chunk))
+            {
+                ReplaceGlass(loadedNow, GenerateChunk(chunk, false, _far.Contains(chunk)));
+                return;
+            }
+
             if (!_loaded.TryGetValue(chunk, out GameObject existing))
             {
                 // Not on screen. The rebuild happens when it streams back in,
@@ -583,6 +622,33 @@ namespace CityX.View
 
                 bool outOfRange = (Mathf.Abs(payload.Key.x - centre.x) > RadiusChunks + 1 || Mathf.Abs(payload.Key.y - centre.y) > RadiusChunks + 1)
                     && !IsLandmarkInRange(payload.Key, centre.x, centre.y);
+
+                // A refresh after a window was hit (OnPaneChanged): swap in the new glass, or the whole chunk, and go again if it was hit again meanwhile.
+                if (_refreshing.TryGetValue(payload.Key, out bool glassOnly) && _loaded.TryGetValue(payload.Key, out GameObject onScreen)
+                    && payload.Vertices != null && _far.Contains(payload.Key) == payload.Far)
+                {
+                    _refreshing.Remove(payload.Key);
+                    if (glassOnly)
+                    {
+                        ReplaceGlass(onScreen, payload);
+                    }
+                    else
+                    {
+                        DestroyChunk(onScreen);
+                        _loaded[payload.Key] = AssembleChunk(payload);
+                    }
+                    if (_changedInFlight.Remove(payload.Key))
+                    {
+                        RefreshAgain(payload.Key, glassOnly);
+                    }
+                    if (clock.Elapsed.TotalMilliseconds >= AssembleTimeBudgetMs)
+                    {
+                        break;
+                    }
+                    continue;
+                }
+                _refreshing.Remove(payload.Key);
+
                 bool alreadyThere = _loaded.ContainsKey(payload.Key) && _far.Contains(payload.Key) == payload.Far;
                 if (outOfRange || alreadyThere)
                 {
@@ -748,7 +814,7 @@ namespace CityX.View
                 far ? null : payload.CrackedGlass, Damage,
                 far ? null : payload.CrackedOpenings, far ? null : payload.Markings, payload.GuardRail,
                 far ? null : payload.LaneDividers, far ? null : payload.CrackDecals,
-                includeSurface: true, far: far);
+                includeSurface: true, far: far, roomGlows: far ? null : payload.RoomGlows);
 
             // Road, pavement and concrete want different materials, so they go
             // into one mesh as submeshes rather than separate objects. Same
@@ -871,6 +937,7 @@ namespace CityX.View
             AddGuardRail(go, key);
             AddDoor(go, key);
             AddInteriorVolume(go, key);
+            AddRoomLights(go, payload);
             _current = null;
             return go;
         }
@@ -1134,6 +1201,94 @@ namespace CityX.View
 
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
             go.AddComponent<MeshRenderer>().sharedMaterial = CrackDecalMaterial;
+        }
+
+        /// <summary>How bright a lit fitting's face is, above white (it should bloom a little, like a lamp).</summary>
+        public const float RoomGlowBrightness = 3.0f;
+
+        private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
+
+        /// <summary>
+        /// A powered room's lights (RoomLightGroup): the glow under its fittings and its few real lights, off until its switch is on. Only the one
+        /// building in ten with power has any (World.PowerGrid); the rest have fittings and switches drawn into the chunk and nothing to light.
+        /// </summary>
+        private void AddRoomLights(GameObject chunk, ChunkPayload payload)
+        {
+            foreach (CityMeshBuilder.RoomGlow glow in payload.RoomGlows)
+            {
+                var go = new GameObject($"RoomLight {glow.Key.Building}/{glow.Key.Floor}/{glow.Key.Room}");
+                go.transform.SetParent(chunk.transform, false);
+
+                Renderer renderer = null;
+                if (!glow.Glow.IsEmpty)
+                {
+                    var mesh = new Mesh { name = "room-glow" };
+                    mesh.SetVertices(glow.Glow.Vertices);
+                    mesh.SetNormals(glow.Glow.Normals);
+                    mesh.SetTriangles(glow.Glow.Triangles, 0);
+                    mesh.RecalculateBounds();
+                    go.AddComponent<MeshFilter>().sharedMesh = mesh;
+                    renderer = go.AddComponent<MeshRenderer>();
+                    renderer.sharedMaterial = RoomGlowMaterial;
+                    renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                    var block = new MaterialPropertyBlock();
+                    block.SetColor(BaseColorId, glow.Colour * RoomGlowBrightness);
+                    renderer.SetPropertyBlock(block);
+                }
+
+                var lights = new Light[glow.Lights.Length];
+                for (int i = 0; i < lights.Length; i++)
+                {
+                    var lightObject = new GameObject("Light");
+                    lightObject.transform.SetParent(go.transform, false);
+                    lightObject.transform.localPosition = glow.Lights[i];
+                    Light light = lightObject.AddComponent<Light>();
+                    light.type = LightType.Point;
+                    light.color = glow.Colour;
+                    light.range = glow.Range;
+                    light.intensity = glow.Intensity;
+                    // No shadows: a point light's shadow is six extra renders, and a lit building has dozens of rooms.
+                    light.shadows = LightShadows.None;
+                    lights[i] = light;
+                }
+
+                go.AddComponent<RoomLightGroup>().Bind(glow.Key, renderer, lights);
+            }
+        }
+
+        /// <summary>Another hit landed while a chunk's refresh was being built: build it once more, in the background, the same kind as before.</summary>
+        private void RefreshAgain(Vector2Int chunk, bool glassOnly)
+        {
+            _refreshing[chunk] = glassOnly;
+            _inFlight.Add(chunk);
+            QueueGeneration(chunk, _far.Contains(chunk));
+        }
+
+        /// <summary>
+        /// Swaps a chunk's cracked glass and crack decals (and the openings' triggers) for a freshly generated chunk's, leaving its big mesh and
+        /// collider alone: what another bullet hole in an already cracked pane changes.
+        /// </summary>
+        private void ReplaceGlass(GameObject chunk, ChunkPayload payload)
+        {
+            foreach (string part in new[] { "CrackedGlass", "CrackDecals" })
+            {
+                Transform old = chunk.transform.Find(part);
+                if (old == null)
+                {
+                    continue;
+                }
+                MeshFilter filter = old.GetComponent<MeshFilter>();
+                if (filter != null && filter.sharedMesh != null)
+                {
+                    if (Application.isPlaying) Destroy(filter.sharedMesh); else DestroyImmediate(filter.sharedMesh);
+                }
+                old.SetParent(null);
+                if (Application.isPlaying) Destroy(old.gameObject); else DestroyImmediate(old.gameObject);
+            }
+            _current = payload;
+            AddCrackedGlass(chunk, payload.Key);
+            AddCrackDecals(chunk, payload.Key);
+            _current = null;
         }
 
         private static void DestroyChunk(GameObject go)

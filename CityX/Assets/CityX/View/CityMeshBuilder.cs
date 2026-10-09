@@ -38,7 +38,7 @@ namespace CityX.View
             MeshBuffer crackedGlass = null, GlassDamage damage = null,
             List<CrackedOpening> crackedOpenings = null, MeshBuffer markings = null,
             MeshBuffer guardRail = null, MeshBuffer laneDividers = null,
-            MeshBuffer crackDecals = null, bool includeSurface = true, bool far = false)
+            MeshBuffer crackDecals = null, bool includeSurface = true, bool far = false, List<RoomGlow> roomGlows = null)
         {
             // includeSurface false builds the BUILDINGS alone -- no terrain, road, pavement or paint. The title screen bakes a row of
             // real generated buildings that stand on a plane of its own.
@@ -55,7 +55,7 @@ namespace CityX.View
             for (int i = 0; i < owned.Count; i++)
             {
                 BuildSite(world, world.Building(owned[i]), origin, structures, flatConcrete, litGlass, darkGlass,
-                    crackedGlass, damage, crackedOpenings, crackDecals, far);
+                    crackedGlass, damage, crackedOpenings, crackDecals, far, roomGlows);
             }
         }
 
@@ -78,7 +78,7 @@ namespace CityX.View
         public static void BuildSite(CityWorld world, BuildingSite site, Vector3 chunkOrigin,
             MeshBuffer structures, MeshBuffer concrete, MeshBuffer litGlass, MeshBuffer darkGlass,
             MeshBuffer crackedGlass, GlassDamage damage, List<CrackedOpening> crackedOpenings,
-            MeshBuffer crackDecals, bool far)
+            MeshBuffer crackDecals, bool far, List<RoomGlow> roomGlows = null)
         {
             if (!site.Exists)
             {
@@ -124,6 +124,8 @@ namespace CityX.View
                     new Glazing(litGlass, darkGlass, crackedGlass, damage, crackedOpenings, crackDecals, litShare), looks);
                 AddBalconies(world, site, builderOrigin, structures, looks);
                 AddRibs(world, site, builderOrigin, structures, looks);
+                // Every room's ceiling lights and the switch by its door; a powered building's glow (CityMeshBuilder.RoomLights.cs).
+                AddRoomLighting(site, concrete, structures, offset, roomGlows);
             }
             if (site.Sides < 3)
             {
@@ -354,7 +356,7 @@ namespace CityX.View
                 BuildingDecor.EntranceStyleFor(site.BaseHeight - site.DoorGroundHeight);
             if (entrance.NeedsStairs)
             {
-                AddEntranceStairs(concrete, new Vector3(centreX, lobbyY, z1), entrance.Rise);
+                AddEntranceStairs(world, site, concrete, new Vector3(centreX, lobbyY, z1));
             }
 
             var west = new Wall(true, x0, z0, z1);
@@ -783,15 +785,37 @@ namespace CityX.View
         /// BuildingDoor.Panel.Facing), climbing down and outward by
         /// <paramref name="rise"/> to the real ground below it.
         /// </summary>
-        private static void AddEntranceStairs(MeshBuffer concrete, Vector3 doorThreshold, float rise)
+        /// (2026-10-09: rebuilt as a landing at the door and a flight down ALONG the wall, every step a solid block to the paving under it and the
+        /// flight ending where the ground meets it -- see World/EntranceStairs.cs for why the straight-out flight floated and blocked streets.)
+        /// <paramref name="doorThreshold"/> is in the building's own frame relative to its centre (the door wall's outward normal +z, along it +x).
+        private static void AddEntranceStairs(CityWorld world, BuildingSite site, MeshBuffer concrete, Vector3 doorThreshold)
         {
-            float run = BuildingInterior.StepsFor(rise) * StreetStairTreadDepth;
-            float floorY = doorThreshold.y - rise;
-            var well = new BuildingInterior.Stairwell(doorThreshold, Vector3.forward, Vector3.right, default);
-            foreach (BuildingInterior.Step step in BuildingInterior.Steps(well, run, floorY, rise))
+            float wallZ = doorThreshold.z;
+            float lineZ = wallZ + EntranceStairs.Width * 0.5f;   // the flight's centre line, out from the wall
+            float halfLanding = EntranceStairs.LandingLength * 0.5f;
+            float Paving(float x, float z)
             {
-                Vector3 half = step.Size * 0.5f;
-                concrete.AddBox(step.Centre - half, step.Centre + half);
+                site.LocalToWorld(x, z, out double wx, out double wz);
+                return (float)(world.Plan.GroundHeight(wx, wz) + CityX.World.Plan.PlanBuildings.PavingRise);
+            }
+
+            EntranceStairs.Flight flight = EntranceStairs.Plan(doorThreshold.y,
+                (side, along) => Paving(doorThreshold.x + side * (halfLanding + along), lineZ));
+
+            // The landing in front of the door, solid down to the lowest paving under it.
+            float x0 = doorThreshold.x - halfLanding, x1 = doorThreshold.x + halfLanding;
+            float z1 = wallZ + EntranceStairs.Width;
+            float landingFoot = Mathf.Min(Mathf.Min(Paving(x0, wallZ), Paving(x1, wallZ)), Mathf.Min(Paving(x0, z1), Paving(x1, z1))) - EntranceStairs.Footing;
+            concrete.AddBox(new Vector3(x0, landingFoot, wallZ), new Vector3(x1, doorThreshold.y, z1));
+
+            // The flight, down along the wall.
+            for (int k = 1; k <= flight.Steps; k++)
+            {
+                float a = doorThreshold.x + flight.Side * (halfLanding + flight.StartOf(k));
+                float b = a + flight.Side * EntranceStairs.Tread;
+                float top = flight.TopOf(k, doorThreshold.y);
+                float foot = Mathf.Min(Mathf.Min(Paving(a, wallZ), Paving(b, wallZ)), Mathf.Min(Paving(a, z1), Paving(b, z1))) - EntranceStairs.Footing;
+                concrete.AddBox(new Vector3(Mathf.Min(a, b), Mathf.Min(foot, top - 0.05f), wallZ), new Vector3(Mathf.Max(a, b), top, z1));
             }
         }
 

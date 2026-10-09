@@ -13,7 +13,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class StreetWallTests
     {
-        private const int Seed = 38207461;
+        private const int Seed = 61839025;
 
         private static CityWorld _world;
         private static CityWorld World => _world ?? (_world = new CityWorld(Seed));
@@ -210,7 +210,7 @@ namespace CityX.Tests
         public void MostOfTheCityWearsSomeRelief()
         {
             int sites = 0, cornices = 0, bases = 0;
-            foreach (BuildingSite site in TestSites.NearSpawn(World, 10))
+            foreach (BuildingSite site in TestSites.NearSpawn(World, 14))
             {
                 if (site.OnRoof || site.Shell)
                 {
