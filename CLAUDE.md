@@ -13,6 +13,7 @@ Unity port of a Godot game: a procedurally generated multiplayer megacity with t
 - `CityX/` = the Unity project. Code is in `CityX/Assets/CityX/<Area>/`, one assembly each: `Core`, `Items`, `World` (pure city/plan logic), `Character`, `Weapons`, `Wearables`, `Vehicles`, `View` (mesh building, chunk streaming), `UI`, `Net`. `Spike/` is a networking sandbox: ignore it.
 - Editor-only builders live in `*/Editor/`. Tests: `Assets/CityX/Tests/EditMode` and `PlayMode`.
 - `docs/*.md` hold the design notes per feature (CLIMBING, FIST_COMBAT, MULTIPLAYER_STATE, ...). Read the relevant one before changing a feature; update it after.
+- `docs/GAME_DESIGN.md` is the whole-game plan (progression, world layers, death, karma, factions, roadmap, open decisions). Read it before starting any new system; build in its roadmap order.
 - `tools/unity_tests.ps1` runs tests headless.
 
 ## Commands (PowerShell; the Unity editor must be closed)
