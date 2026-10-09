@@ -17,7 +17,7 @@ namespace CityX.View
     /// coordinate, exactly like everything it is built from, so it can be
     /// rebuilt at any time from nothing.
     /// </summary>
-    public static class CityMeshBuilder
+    public static partial class CityMeshBuilder
     {
         /// <summary>The depth of one tread of an entrance staircase, metres.</summary>
         public const float StreetStairTreadDepth = 0.32f;
@@ -103,7 +103,17 @@ namespace CityX.View
             SiteLooks looks = SiteLooks.For(site, WindowPlan.For(world, site).Style);
             structures.UvOffset = looks.UvOffset;
 
-            if (far)
+            if (site.Sides >= 3)
+            {
+                // Round and many-sided: every side a short flat wall (CityMeshBuilder.Round.cs).
+                BuildRound(world, site, builderOrigin, offset, structures, concrete,
+                    far || site.Shell
+                        ? new Glazing(litGlass, darkGlass, null, damage, null, null, litShare)
+                        : new Glazing(litGlass, darkGlass, crackedGlass, damage, crackedOpenings, crackDecals, litShare),
+                    looks, far || site.Shell);
+            }
+            // A sealed block (a stage of a twisted tower, a block of a wonky pile) is its outside only at every distance: nothing in it to go into.
+            else if (far || site.Shell)
             {
                 BuildBuildingShell(world, site, builderOrigin, structures, concrete,
                     new Glazing(litGlass, darkGlass, null, damage, null, null, litShare), looks);
@@ -115,6 +125,7 @@ namespace CityX.View
                 AddBalconies(world, site, builderOrigin, structures, looks);
                 AddRibs(world, site, builderOrigin, structures, looks);
             }
+            if (site.Sides < 3)
             {
                 // The skyline lights, on near and far alike: they are what the building is from a long way off.
                 float rx0 = (float)(site.MinX - builderOrigin.x), rx1 = (float)(site.MaxX - builderOrigin.x);
@@ -132,14 +143,15 @@ namespace CityX.View
                 darkGlass.Look = SurfaceLook.Default;
             }
 
-            // A cracked opening's trigger box was written in the building's frame; hand it out turned and placed.
+            // A cracked opening's trigger box was written in the building's frame; hand it out turned and placed. (One on a side of a round building
+            // already carries that side's own turn.)
             if (crackedOpenings != null && crackedOpenings.Count > firstOpening)
             {
                 Quaternion rotation = Quaternion.Euler(0.0f, YawDegreesOf(site), 0.0f);
                 for (int i = firstOpening; i < crackedOpenings.Count; i++)
                 {
                     CrackedOpening o = crackedOpenings[i];
-                    crackedOpenings[i] = new CrackedOpening(o.Key, structures.FramePoint(o.Centre), o.Size, rotation);
+                    crackedOpenings[i] = new CrackedOpening(o.Key, structures.FramePoint(o.Centre), o.Size, rotation * o.Rotation);
                 }
             }
 
@@ -593,14 +605,23 @@ namespace CityX.View
             structures.Look = looks.Roof;
             AddSlabFace(structures, x0, x1, z0, z1, Rect.zero, roofY, Vector3.up);
             {
-                float shellCentreX = (x0 + x1) * 0.5f;
-                float shellCentreZ = (z0 + z1) * 0.5f;
-                float shellHalfX = site.Params.Width * 0.5f;
-                float shellHalfZ = site.Params.Depth * 0.5f;
-                int shellFloors = BuildingInterior.FloorCountFor(height);
-                StairPlan topStair = BuildingStairs.PlanFor(site).Floors[shellFloors - 1];
-                Rect hatch = topStair != null ? Shift(topStair.Hole, shellCentreX, shellCentreZ) : Rect.zero;
+                // A sealed block has no stair, so no hatch to keep the roof plant off.
+                Rect hatch = Rect.zero;
+                if (!site.Shell)
+                {
+                    float shellCentreX = (x0 + x1) * 0.5f;
+                    float shellCentreZ = (z0 + z1) * 0.5f;
+                    int shellFloors = BuildingInterior.FloorCountFor(height);
+                    StairPlan topStair = BuildingStairs.PlanFor(site).Floors[shellFloors - 1];
+                    hatch = topStair != null ? Shift(topStair.Hole, shellCentreX, shellCentreZ) : Rect.zero;
+                }
                 AddRoof(structures, site, x0, x1, z0, z1, roofY, looks, hatch);
+            }
+            if (site.Shell && site.OnRoof)
+            {
+                // Its underside: a turned or slid block hangs out past the one it stands on, and from the street you look straight up at it.
+                structures.Look = looks.Trim;
+                AddSlabFace(structures, x0, x1, z0, z1, Rect.zero, lobbyY, Vector3.down);
             }
             structures.Look = SurfaceLook.Default;
 
@@ -761,6 +782,13 @@ namespace CityX.View
 
             foreach (BuildingDecor.Balcony balcony in balconies)
             {
+                // Not on a stretch of wall another block of the building stands against.
+                if (TouchesAnotherBlock(site, balcony.Normal, balcony.WidthAlongX ? balcony.Centre.x : balcony.Centre.z,
+                    BuildingDecor.BalconyWidth * 0.5f, balcony.Centre.y))
+                {
+                    continue;
+                }
+
                 Vector3 centre = new Vector3(
                     balcony.Centre.x + centreX,
                     balcony.Centre.y + baseY,
@@ -808,6 +836,22 @@ namespace CityX.View
         }
 
         /// <summary>
+        /// Whether something fixed to the outside of a wall -- a balcony, a fin -- would be inside another block of the same building: the wall it is on
+        /// (its outward normal, in the building's frame), where along it (relative to the centre), how far either side, and from what height up.
+        /// </summary>
+        private static bool TouchesAnotherBlock(BuildingSite site, Vector3 normal, float along, float halfWidth, float fromY)
+        {
+            if (site.Contacts == null)
+            {
+                return false;
+            }
+            WindowGrid.Wall wall = Mathf.Abs(normal.x) > 0.5f
+                ? (normal.x > 0.0f ? WindowGrid.Wall.East : WindowGrid.Wall.West)
+                : (normal.z > 0.0f ? WindowGrid.Wall.North : WindowGrid.Wall.South);
+            return site.ContactTopCentred(wall, along - halfWidth, along + halfWidth) > fromY - 0.5f;
+        }
+
+        /// <summary>
         /// Vertical concrete fins standing proud of the facade.
         ///
         /// FACADE MATERIAL, NOT CONCRETE, which is city_chunk.gd's own choice
@@ -848,6 +892,10 @@ namespace CityX.View
             foreach (BuildingDecor.Rib rib in ribbed.Fins)
             {
                 bool runsInZ = Mathf.Abs(rib.Normal.x) > 0.5f;
+                if (TouchesAnotherBlock(site, rib.Normal, (rib.U0 + rib.U1) * 0.5f, (rib.U1 - rib.U0) * 0.5f + 0.5f, ribbed.BaseY))
+                {
+                    continue;
+                }
                 Wall wall = runsInZ
                     ? new Wall(true, centreX + rib.Normal.x * halfX, rib.U0, rib.U1)
                     : new Wall(false, centreZ + rib.Normal.z * halfZ, rib.U0, rib.U1);
@@ -1600,10 +1648,12 @@ namespace CityX.View
                 lit.Look = SurfaceLook.PackGlass(0, colours[rng.Below(colours.Length)], 0.0f);
                 float top = roofY - 2.2f;
                 float bottom = top - 1.7f;
-                AddLitStrip(lit, west, z0, z1, bottom, top, Vector3.left);
-                AddLitStrip(lit, east, z0, z1, bottom, top, Vector3.right);
-                AddLitStrip(lit, south, x0, x1, bottom, top, Vector3.back);
-                AddLitStrip(lit, north, x0, x1, bottom, top, Vector3.forward);
+                // Not on a stretch of wall another block of the building stands against: the strip would be inside it.
+                float above = bottom - lobbyY;
+                if (site.ContactTop(WindowGrid.Wall.West, 0.0f, z1 - z0) <= above) AddLitStrip(lit, west, z0, z1, bottom, top, Vector3.left);
+                if (site.ContactTop(WindowGrid.Wall.East, 0.0f, z1 - z0) <= above) AddLitStrip(lit, east, z0, z1, bottom, top, Vector3.right);
+                if (site.ContactTop(WindowGrid.Wall.South, 0.0f, x1 - x0) <= above) AddLitStrip(lit, south, x0, x1, bottom, top, Vector3.back);
+                if (site.ContactTop(WindowGrid.Wall.North, 0.0f, x1 - x0) <= above) AddLitStrip(lit, north, x0, x1, bottom, top, Vector3.forward);
             }
 
             if (panel)
@@ -1617,7 +1667,12 @@ namespace CityX.View
                 float height = Mathf.Min(site.Params.Height * 0.22f, 15.0f);
                 float centre = Mathf.Lerp((onFront ? x0 : z0) + width * 0.5f + 1.0f, (onFront ? x1 : z1) - width * 0.5f - 1.0f, (float)rng.NextDouble());
                 float bottom = lobbyY + site.Params.Height * 0.35f + (float)rng.NextDouble() * site.Params.Height * 0.2f;
-                AddLitStrip(lit, wall, centre - width * 0.5f, centre + width * 0.5f, bottom, bottom + height, normal);
+                WindowGrid.Wall which = onFront ? WindowGrid.Wall.North : (wall.Plane < 0.0f ? WindowGrid.Wall.West : WindowGrid.Wall.East);
+                float start = onFront ? x0 : z0;
+                if (site.ContactTop(which, centre - width * 0.5f - start, centre + width * 0.5f - start) <= bottom - lobbyY)
+                {
+                    AddLitStrip(lit, wall, centre - width * 0.5f, centre + width * 0.5f, bottom, bottom + height, normal);
+                }
             }
             lit.Look = saved;
         }

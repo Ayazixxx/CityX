@@ -24,7 +24,7 @@ searching the street map; blocks are meant to be divided into allotments, one bu
 - `PlanWorld.cs` -- the city as the game asks about it: the plan, its geometry, every building (`PlanBuildings`: the largest rectangle that fits a
   lot with a side on its street frontage, turned to face the street), indexes by 24 m chunk, `BuildingAt`, `GroundHeight`, `TryFindSpawn`.
   One `PlanWorld` per seed, cached, read-only -> safe to read from the chunk worker threads.
-- Render: `dotnet run -c Release --project tools/cityplan -- [seed] [halfMetres] [px] [out.png] [cx cz viewHalf]`. Seed 61472093, 5 km region:
+- Render: `dotnet run -c Release --project tools/cityplan -- [seed] [halfMetres] [px] [out.png] [cx cz viewHalf]`. Seed 87650022, 5 km region:
   ~2,600 nodes, ~4,600 roads, ~1,250 blocks, ~12,100 buildings, generated in ~0.6 s. EditMode: `PlanWorldTests`, `PlanChunkMeshTests`.
 
 Determinism (server and clients must grow the same city): double + - * / sqrt only (angles come from literal tables, no sin/cos/pow), integer-hash
@@ -47,6 +47,9 @@ thousand edges, so a server can send it.
 - **Pedestrians**: `StreetNetwork` now walks the road graph (nearest road, a side of it, round junctions) via `CurrentWorld`.
 - Spawn: the junction nearest the origin with no water within 90 m and plenty of buildings around it.
 - The generated region is finite (5 km square) and the terrain carries on beyond it as bare ground.
+
+- **Shapes** (2026-10-08): a lot's rectangle is no longer always one box or a stack; `Massing.Compose` also makes L/T/U blocks, staggered pairs, twisted,
+  wonky, cantilevered and round towers. See `docs/BUILDING_SHAPES.md`.
 
 ## Set aside, not deleted (user: "just set them aside for now")
 The old grid world lives in `World/LegacyGrid~/` (CityBlocks, CityChunkGenerator, CityZones, SkybridgeLayout, CityPlanSvg) and

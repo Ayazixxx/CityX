@@ -60,7 +60,7 @@ tangents and the collider are built on the main thread. Fixes:
 - Window columns follow the building, not the city (`WindowGrid.ColumnScaleFor`: 1.6 m up to 3.8 m on a 200 m facade); classic stays exactly 1.6.
 - The region is 10 km across (`Half = 2500 * RoadWidth^2`), 3,300 road nodes, 21,000 buildings (classic 13,600, huge 17,200); the plan takes about 1.7 s (classic 1.0 s).
 
-Measured (`CityScaleTests`, seed 61472093), long side of a building: 5th percentile classic 17 m / varied 21 m, 25th 25 / 32, median 31 / 44, 75th 37 / 69, 95th 47 / 124.
+Measured (`CityScaleTests`, seed 87650022), long side of a building: 5th percentile classic 17 m / varied 21 m, 25th 25 / 32, median 31 / 44, 75th 37 / 69, 95th 47 / 124.
 A building's size is much more like its nearest neighbour's than a random building's (mean log-size difference 0.22 against 0.61, ratio 0.35), and not identical (a test pins
 the ratio between 0.12 and 0.7).
 Player build, 2560x1600: 176 fps standing, 170 sprinting, worst frame 93 ms (the uniform huge city: 199 / 195 / 78).

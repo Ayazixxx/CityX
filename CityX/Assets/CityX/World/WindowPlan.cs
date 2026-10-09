@@ -78,12 +78,104 @@ namespace CityX.World
         /// </summary>
         public readonly float ColumnMetres;
 
+        /// <summary>
+        /// The cells another block of the building stands against (see BuildingSite.Contacts): up to four stretches, each a wall, a run of columns
+        /// [from, to) and the rows below a top row. Kept as plain numbers so the plan stays an allocation-free struct.
+        /// </summary>
+        private readonly ContactCells _contacts;
+
+        private readonly struct ContactCells
+        {
+            public readonly int Count;
+            private readonly int _w0, _w1, _w2, _w3;
+            private readonly int _a0, _a1, _a2, _a3;
+            private readonly int _b0, _b1, _b2, _b3;
+            private readonly int _r0, _r1, _r2, _r3;
+
+            public ContactCells(int count, int[] wall, int[] from, int[] to, int[] rows)
+            {
+                Count = count;
+                _w0 = wall[0]; _w1 = wall[1]; _w2 = wall[2]; _w3 = wall[3];
+                _a0 = from[0]; _a1 = from[1]; _a2 = from[2]; _a3 = from[3];
+                _b0 = to[0]; _b1 = to[1]; _b2 = to[2]; _b3 = to[3];
+                _r0 = rows[0]; _r1 = rows[1]; _r2 = rows[2]; _r3 = rows[3];
+            }
+
+            public bool Covers(int wall, int column, int row)
+            {
+                return Count > 0 && Hit(_w0, _a0, _b0, _r0, wall, column, row)
+                    || Count > 1 && Hit(_w1, _a1, _b1, _r1, wall, column, row)
+                    || Count > 2 && Hit(_w2, _a2, _b2, _r2, wall, column, row)
+                    || Count > 3 && Hit(_w3, _a3, _b3, _r3, wall, column, row);
+            }
+
+            private static bool Hit(int w, int a, int b, int r, int wall, int column, int row) =>
+                w == wall && column >= a && column < b && row < r;
+        }
+
+        private WindowPlan(in WindowPlan from, ContactCells contacts)
+        {
+            Seed = from.Seed;
+            Style = from.Style;
+            _blankWalls = from._blankWalls;
+            Storefront = from.Storefront;
+            Pitch = from.Pitch;
+            Phase = from.Phase;
+            BandParity = from.BandParity;
+            ScatterShare = from.ScatterShare;
+            BandRow = from.BandRow;
+            Sill = from.Sill;
+            Head = from.Head;
+            ColumnMetres = from.ColumnMetres;
+            _contacts = contacts;
+        }
+
+        /// <summary>Whether a cell is inside another block of the building (no window, whatever the style says).</summary>
+        public bool IsAgainstAnotherBlock(WindowGrid.Wall wall, int column, int row) => _contacts.Covers((int)wall, column, row);
+
+        /// <summary>The same plan with the cells the site's other blocks stand against blanked out.</summary>
+        public WindowPlan WithContacts(BuildingSite site)
+        {
+            WallContact[] contacts = site.Contacts;
+            if (contacts == null || contacts.Length == 0)
+            {
+                return this;
+            }
+            var wall = new int[4];
+            var from = new int[4];
+            var to = new int[4];
+            var rows = new int[4];
+            CellLayout rowLayout = WindowGrid.RowsFor(site.Params.Height);
+            int count = 0;
+            for (int i = 0; i < contacts.Length && count < 4; i++)
+            {
+                WallContact c = contacts[i];
+                bool northSouth = c.Wall == WindowGrid.Wall.North || c.Wall == WindowGrid.Wall.South;
+                CellLayout columns = ColumnsFor(northSouth ? site.Params.Width : site.Params.Depth);
+                // A column is against the other block if any of it is: a window half in a wall is no window.
+                int a = Mathf.Max(0, Mathf.FloorToInt(c.U0 / columns.Size + 0.02f));
+                int b = Mathf.Min(columns.Count, Mathf.CeilToInt(c.U1 / columns.Size - 0.02f));
+                int r = Mathf.Min(rowLayout.Count, Mathf.CeilToInt(c.Top / rowLayout.Size - 0.05f));
+                if (b <= a || r <= 0)
+                {
+                    continue;
+                }
+                wall[count] = (int)c.Wall;
+                from[count] = a;
+                to[count] = b;
+                rows[count] = r;
+                count++;
+            }
+            return count == 0 ? this : new WindowPlan(this, new ContactCells(count, wall, from, to, rows));
+        }
+
         public WindowPlan(int seed, FacadeStyle style, int blankWalls, bool storefront, int pitch, int phase,
             int bandParity, double scatterShare, int bandRow, float sill, float head, float columnScale = 1.0f)
         {
             Seed = seed;
             Style = style;
             _blankWalls = blankWalls;
+            _contacts = default;
             Storefront = storefront;
             Pitch = pitch;
             Phase = phase;
@@ -119,7 +211,7 @@ namespace CityX.World
         /// </summary>
         public bool IsGlazed(WindowGrid.Wall wall, int column, int row)
         {
-            if (IsBlankWall(wall))
+            if (IsBlankWall(wall) || _contacts.Covers((int)wall, column, row))
             {
                 return false;
             }
@@ -185,8 +277,12 @@ namespace CityX.World
         public static WindowPlan For(CityWorld world, BuildingSite site)
         {
             WindowPlan plan = WindowGrid.PlanFor(site.Seed, site.Zone, site.Params);
-            // A volume on a roof is an attachment, not a shop: whatever its roll, its ground row is ordinary windows.
-            return site.OnRoof && plan.Storefront ? plan.WithoutStorefront() : plan;
+            // A volume on a roof is an attachment, not a shop: whatever its roll, its ground row is ordinary windows. So is a wing.
+            if ((site.OnRoof || site.Wing) && plan.Storefront)
+            {
+                plan = plan.WithoutStorefront();
+            }
+            return plan.WithContacts(site);
         }
     }
 }

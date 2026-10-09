@@ -12,7 +12,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class MassingTests
     {
-        private const int Seed = 61472093;
+        private const int Seed = 87650022;
 
         private static CityWorld _world;
         private static CityWorld World => _world ?? (_world = new CityWorld(Seed));
@@ -156,9 +156,13 @@ namespace CityX.Tests
                     continue;
                 }
                 BuildingSite upper = World.Building(id + 1);
-                checkedStacks++;
-
                 Assert.AreEqual(lower.BaseHeight + lower.Params.Height + 0.05f, upper.BaseHeight, 0.01f, $"building {id}");
+                if (upper.Shell)
+                {
+                    // A turned or slid sealed block (BuildingShapeTests) only has to stand on it, which the base height above says.
+                    continue;
+                }
+                checkedStacks++;
                 Assert.AreEqual(upper.BaseHeight, upper.PodiumBase, 1e-4f, "it has no podium of its own: it stands on a roof");
                 Assert.AreEqual(upper.BaseHeight, upper.DoorGroundHeight, 1e-4f, "and its door is level with it");
                 Assert.AreEqual(lower.AxisX, upper.AxisX, 1e-9, "turned the same way");
@@ -206,9 +210,9 @@ namespace CityX.Tests
             for (int id = 0; id < World.BuildingCount && cleared + blocked < 400; id++)
             {
                 BuildingSite site = World.Building(id);
-                if (!site.HasRoofObstacle)
+                if (!site.HasRoofObstacle || site.RoofSealed)
                 {
-                    continue;
+                    continue;   // a roof under a sealed block has no stair up to it at all
                 }
                 float halfX = site.Params.Width * 0.5f;
                 float halfZ = site.Params.Depth * 0.5f;

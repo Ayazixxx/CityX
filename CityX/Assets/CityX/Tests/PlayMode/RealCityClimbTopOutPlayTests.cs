@@ -19,7 +19,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class RealCityClimbTopOutPlayTests
     {
-        private const int Seed = 61472093;
+        private const int Seed = 87650022;
         private readonly List<GameObject> _made = new List<GameObject>();
 
         [TearDown]
@@ -38,7 +38,11 @@ namespace CityX.Tests
             bool found = false;
             foreach (BuildingSite candidate in TestSites.NearSpawn(world))
             {
-                if (candidate.Params.Width > 10.0f && candidate.Params.Height > 12.0f)
+                // A plain box with a roof to reach: not round, not sculpture, not under a sealed block, and no shop awning across the bottom
+                // (a climber cannot get past an overhang, which would make this a test of awnings).
+                bool plain = !candidate.Shell && !candidate.OnRoof && candidate.Sides < 3 && !candidate.RoofSealed
+                    && !WindowPlan.For(world, candidate).Storefront;
+                if (plain && candidate.Params.Width > 10.0f && candidate.Params.Height > 12.0f)
                 {
                     site = candidate;
                     found = true;
@@ -104,8 +108,16 @@ namespace CityX.Tests
                     Assert.Greater(player.transform.position.y, roofY - 1.0f,
                         $"spot {i}: topped out at y={player.transform.position.y:F1} (began mantle at {mantleStartY:F1}), well below the roof at {roofY:F1}: an interior floor");
                 }
-                Assert.IsTrue(LedgeProbe.HasRoom(player.transform.position, BodyRig.StandingHeight, 0.3f, player.transform),
-                    $"spot {i}: the body is inside geometry at {player.transform.position}");
+                if (!LedgeProbe.HasRoom(player.transform.position, BodyRig.StandingHeight, 0.3f, player.transform))
+                {
+                    var names = new List<string>();
+                    Vector3 p = player.transform.position;
+                    foreach (Collider c in Physics.OverlapCapsule(p + Vector3.up * 0.36f, p + Vector3.up * (BodyRig.StandingHeight - 0.3f), 0.27f, ~0, QueryTriggerInteraction.Ignore))
+                    {
+                        if (!c.transform.IsChildOf(player.transform)) names.Add($"{c.name} ({c.GetType().Name})");
+                    }
+                    Assert.Fail($"spot {i}: the body is inside geometry at {p}: {string.Join(", ", names)}");
+                }
                 Assert.IsTrue(player.GetComponent<CharacterController>().enabled, $"spot {i}: controller left off");
             }
             Debug.Log($"CityX facade climbs: {climbs} grabbed, {mantles} topped out");

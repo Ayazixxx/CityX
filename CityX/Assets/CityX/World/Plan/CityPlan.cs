@@ -18,6 +18,13 @@ namespace CityX.World.Plan
 
         /// <summary>The block shrunk by half width plus pavement: the edge of the lots. Same vertex count as Poly.</summary>
         public List<Vec2> Outer;
+
+        /// <summary>
+        /// Another block lies inside this one's outline: a loop of road standing alone in the middle of it, which the block's outline does not go
+        /// round (a face of the road graph with a hole in it). Cutting lots from the outline would lay them over the island's own buildings, so such a
+        /// block keeps its pavement and is left open ground. Seen with seed 87650022 (CityScale classic): one plot 432 m long over an island's houses.
+        /// </summary>
+        public bool Encloses;
     }
 
     /// <summary>
@@ -82,10 +89,72 @@ namespace CityX.World.Plan
             };
 
             data.Blocks = BlockExtractor.Extract(net, cfg);
+            MarkEnclosing(data.Blocks);
 
             uint lotSeed = PlanNoise.Mix(unchecked((uint)worldSeed), 0x6C6F7473U);    // "lots"
             LotSubdivider.Subdivide(data, lotSeed);
             return data;
+        }
+
+        /// <summary>Sets <see cref="PlanBlock.Encloses"/> on every block with another block inside its outline (a vertex of the smaller one inside it).</summary>
+        public static void MarkEnclosing(List<PlanBlock> blocks)
+        {
+            int n = blocks.Count;
+            var boxes = new double[n][];
+            for (int i = 0; i < n; i++)
+            {
+                double x0 = double.MaxValue, z0 = double.MaxValue, x1 = double.MinValue, z1 = double.MinValue;
+                foreach (Vec2 p in blocks[i].Poly)
+                {
+                    x0 = Math.Min(x0, p.X);
+                    z0 = Math.Min(z0, p.Y);
+                    x1 = Math.Max(x1, p.X);
+                    z1 = Math.Max(z1, p.Y);
+                }
+                boxes[i] = new[] { x0, z0, x1, z1 };
+            }
+            for (int a = 0; a < n; a++)
+            {
+                for (int b = 0; b < n && !blocks[a].Encloses; b++)
+                {
+                    if (a == b || blocks[b].Area >= blocks[a].Area || blocks[b].Poly.Count == 0)
+                    {
+                        continue;
+                    }
+                    double[] A = boxes[a], B = boxes[b];
+                    if (B[0] <= A[0] || B[1] <= A[1] || B[2] >= A[2] || B[3] >= A[3])
+                    {
+                        continue;   // not strictly inside the bigger one's box
+                    }
+                    // The island's middle (average of its corners) inside the outline. A neighbour sharing an edge never has its middle inside.
+                    double cx = 0.0, cz = 0.0;
+                    foreach (Vec2 p in blocks[b].Poly)
+                    {
+                        cx += p.X;
+                        cz += p.Y;
+                    }
+                    cx /= blocks[b].Poly.Count;
+                    cz /= blocks[b].Poly.Count;
+                    if (Inside(blocks[a].Poly, cx, cz))
+                    {
+                        blocks[a].Encloses = true;
+                    }
+                }
+            }
+        }
+
+        private static bool Inside(List<Vec2> poly, double x, double z)
+        {
+            bool inside = false;
+            for (int i = 0, j = poly.Count - 1; i < poly.Count; j = i++)
+            {
+                if ((poly[i].Y > z) != (poly[j].Y > z)
+                    && x < (poly[j].X - poly[i].X) * (z - poly[i].Y) / (poly[j].Y - poly[i].Y) + poly[i].X)
+                {
+                    inside = !inside;
+                }
+            }
+            return inside;
         }
 
         public static double HalfWidth(PlanConfig cfg, RoadClass c)
@@ -327,6 +396,10 @@ namespace CityX.World.Plan
                 {
                     block.Inner = kerb;
                     block.Outer = inset;
+                }
+                if (block.Encloses)
+                {
+                    continue;   // its pavement, but no lots: they would be laid over the island inside it
                 }
 
                 Vec2 c = PlanMath.Centroid(inset);

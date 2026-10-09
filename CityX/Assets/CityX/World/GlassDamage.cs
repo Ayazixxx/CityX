@@ -258,6 +258,15 @@ namespace CityX.World
             // The building is turned in the world; its windows are laid out in its own unturned frame (BuildingSite).
             site.ToBuilderFrame(point.x, point.z, out double frameX, out double frameZ);
             point = new Vector3((float)frameX, point.y, (float)frameZ);
+            if (site.Sides >= 3)
+            {
+                RoundAlong(site, point, out _, out float roundAlong, out _);
+                CellLayout roundRows = WindowGrid.RowsFor(site.Params.Height);
+                CellLayout roundColumns = WindowPlan.For(world, site).ColumnsFor(RoundFootprint.Of(site).SideLength);
+                return new Vector2(
+                    Mathf.Clamp01((roundAlong - key.Column * roundColumns.Size) / roundColumns.Size),
+                    Mathf.Clamp01((point.y - site.BaseHeight - key.Row * roundRows.Size) / roundRows.Size));
+            }
             bool runsInZ = key.Wall == WindowGrid.Wall.West || key.Wall == WindowGrid.Wall.East;
             float span = runsInZ ? site.Params.Depth : site.Params.Width;
             float along = runsInZ ? point.z - (float)site.MinZ : point.x - (float)site.MinX;
@@ -407,7 +416,8 @@ namespace CityX.World
                 site.ToBuilderFrame(point.x, point.z, out double frameX, out double frameZ);
                 point = new Vector3((float)frameX, point.y, (float)frameZ);
             }
-            if (!site.Exists)
+            // A sealed block's glass is the distant kind (flat strips over a solid wall): there is no pane in it to break.
+            if (!site.Exists || site.Shell)
             {
                 return false;
             }
@@ -417,6 +427,11 @@ namespace CityX.World
             if (aboveFloor < 0.0f || aboveFloor > site.Params.Height)
             {
                 return false;
+            }
+
+            if (site.Sides >= 3)
+            {
+                return TryRoundPaneAt(world, site, point, aboveFloor, out key);
             }
 
             // The nearest of the four wall planes, and how far off it the point
@@ -468,6 +483,49 @@ namespace CityX.World
         }
 
         /// <summary>
+        /// The pane of a round building under a point (in the builder's frame): the side the point is nearest, how far along it, and the cell there.
+        /// Each side is laid out like a north wall, from -half to +half along the side's own +X (RoundFootprint, CityMeshBuilder.Round).
+        /// </summary>
+        private static bool TryRoundPaneAt(CityWorld world, BuildingSite site, Vector3 framePoint, float aboveFloor, out PaneKey key)
+        {
+            key = default;
+            if (!RoundAlong(site, framePoint, out int side, out float along, out float off) || Mathf.Abs(off) > HitDepth)
+            {
+                return false;
+            }
+            var fp = RoundFootprint.Of(site);
+            WindowPlan plan = WindowPlan.For(world, site);
+            CellLayout rows = WindowGrid.RowsFor(site.Params.Height);
+            CellLayout columns = plan.ColumnsFor(fp.SideLength);
+            int row = Mathf.Clamp(Mathf.FloorToInt(aboveFloor / rows.Size), 0, rows.Count - 1);
+            int column = Mathf.Clamp(Mathf.FloorToInt(along / columns.Size), 0, columns.Count - 1);
+            WindowGrid.Wall which = WindowGrid.PolygonSide(side);
+            if (!plan.IsGlazed(which, column, row) || IsDoorCell(site, which, columns, column, row))
+            {
+                return false;
+            }
+            key = new PaneKey(site.Id, which, column, row);
+            return true;
+        }
+
+        /// <summary>
+        /// Where a point (in the builder's frame) is against a round building's sides: which side, how far along it from its start (0 .. side length),
+        /// and how far out of the wall's plane. False when it is past either end of the side.
+        /// </summary>
+        private static bool RoundAlong(BuildingSite site, Vector3 framePoint, out int side, out float along, out float off)
+        {
+            var fp = RoundFootprint.Of(site);
+            float lx = framePoint.x - (float)site.CentreX;
+            float lz = framePoint.z - (float)site.CentreZ;
+            side = fp.SideAt(lx, lz);
+            fp.SideNormal(side, out float nx, out float nz);
+            off = lx * nx + lz * nz - fp.Apothem;
+            // The side's own +X is (nz, -nx); its column 0 starts half a side back from the middle.
+            along = lx * nz - lz * nx + fp.SideLength * 0.5f;
+            return along >= 0.0f && along <= fp.SideLength;
+        }
+
+        /// <summary>
         /// A cell the entrance passes through. It never had a window cut in it,
         /// so it cannot be broken -- the same whole-cell exclusion the mesh
         /// builder uses when it builds the door row.
@@ -478,6 +536,17 @@ namespace CityX.World
             if (wall != WindowGrid.Wall.North || row != 0)
             {
                 return false;
+            }
+            if (site.Sides >= 3)
+            {
+                // The front side of a round building, laid out from -half to +half with the door in the middle.
+                if (site.Shell)
+                {
+                    return false;
+                }
+                float start = -RoundFootprint.Of(site).SideLength * 0.5f;
+                float cell0 = start + column * columns.Size;
+                return cell0 + columns.Size > -BuildingInterior.DoorWidth * 0.5f && cell0 < BuildingInterior.DoorWidth * 0.5f;
             }
 
             float centreX = (float)site.CentreX;

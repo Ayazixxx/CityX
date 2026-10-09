@@ -150,6 +150,15 @@ namespace CityX.World
             /// <summary>The ceiling of the top floor is not the roof: a tall building's upper part is sealed and has no stair.</summary>
             public bool SealedTop;
 
+            /// <summary>
+            /// The roof is under a sealed block (a twisted, wonky or cantilevered tower's sculpture, BuildingSite.Shell): there is no stair up to it, as
+            /// there would be nowhere to come out.
+            /// </summary>
+            public bool RoofCovered;
+
+            /// <summary>Whether the top floor has no stair: its ceiling is sealed, or its roof is covered.</summary>
+            public bool NoRoofStair => SealedTop || RoofCovered;
+
             /// <summary>Every floor shares one stair core.</summary>
             public bool Core;
 
@@ -163,13 +172,22 @@ namespace CityX.World
 
         public static Layout PlanFor(BuildingSite site)
         {
-            return PlanFor(site.Params.Width, site.Params.Depth, site.Params.Height, site.Params.HasBasement, site.Params.Mass,
+            float width = site.Params.Width, depth = site.Params.Depth;
+            if (site.Sides >= 3)
+            {
+                // A round building's stairs go in the square in its middle (RoundFootprint.InnerHalf): the room the planner sees is that square
+                // and a wall's thickness round it.
+                width = depth = 2.0f * (RoundFootprint.Of(site).InnerHalf + BuildingInterior.WallThickness + 0.05f);
+            }
+            return PlanFor(width, depth, site.Params.Height, site.Params.HasBasement && site.Sides < 3, site.Params.Mass,
                 site.Zone, site.Seed, site.HasRoofObstacle
                     ? Rect.MinMaxRect(site.ObstacleX0 - 0.4f, site.ObstacleZ0 - 0.4f, site.ObstacleX1 + 0.4f, site.ObstacleZ1 + 0.4f)
-                    : Rect.zero);
+                    : Rect.zero,
+                site.RoofSealed);
         }
 
-        public static Layout PlanFor(float width, float depth, float height, bool basement, BuildingMass mass, ZoneKind zone, int seed, Rect roofObstacle)
+        public static Layout PlanFor(float width, float depth, float height, bool basement, BuildingMass mass, ZoneKind zone, int seed, Rect roofObstacle,
+            bool roofCovered = false)
         {
             float storey = BuildingInterior.StoreyHeight(height);
             int floors = BuildingInterior.FloorCountFor(height);
@@ -180,6 +198,7 @@ namespace CityX.World
                 SealedTop = BuildingInterior.IsSealedTop(height, storey, floors),
                 Floors = new StairPlan[floors],
             };
+            layout.RoofCovered = roofCovered && !layout.SealedTop;
 
             float hx = width * 0.5f - BuildingInterior.WallThickness - 0.05f;
             float hz = depth * 0.5f - BuildingInterior.WallThickness - 0.05f;
@@ -217,8 +236,10 @@ namespace CityX.World
                         continue;
                     }
                     bool lobbyIsRoof = floors == 1 && !layout.SealedTop;
-                    StairPlan lobby = PlanMixed(seed, 0, rises[0], hx, hz, lobbyIsRoof && hasObstacle ? roofObstacle : Rect.zero, true, down, zone, mass);
-                    if (lobby != null || floors == 1 && layout.SealedTop)
+                    StairPlan lobby = floors == 1 && layout.NoRoofStair
+                        ? null
+                        : PlanMixed(seed, 0, rises[0], hx, hz, lobbyIsRoof && hasObstacle ? roofObstacle : Rect.zero, true, down, zone, mass);
+                    if (lobby != null || floors == 1 && layout.NoRoofStair)
                     {
                         layout.Basement = down;
                         layout.Floors[0] = lobby;
@@ -230,9 +251,9 @@ namespace CityX.World
             for (int f = firstFloor; f < floors; f++)
             {
                 bool roof = f == floors - 1 && !layout.SealedTop;
-                if (f == floors - 1 && layout.SealedTop)
+                if (f == floors - 1 && layout.NoRoofStair)
                 {
-                    // Nothing above the top storey to climb to.
+                    // Nothing above the top storey to climb to (or a sealed block standing on the roof).
                     layout.Floors[f] = null;
                     break;
                 }
@@ -906,7 +927,7 @@ namespace CityX.World
             var c = new Context
             {
                 Hx = hx, Hz = hz, Rise = maxRise, Door = door,
-                Avoid = !layout.SealedTop && hasObstacle ? obstacle : Rect.zero, Pad = CoreWall,
+                Avoid = !layout.NoRoofStair && hasObstacle ? obstacle : Rect.zero, Pad = CoreWall,
                 Floor = 0, OuterHx = hx + OuterWall, OuterHz = hz + OuterWall, Reach = true,
             };
             StairPlan lead = Place(shape, c, Mix(seed, 991), true, out Xf placement);
@@ -928,7 +949,7 @@ namespace CityX.World
             }
             for (int f = 0; f < layout.FloorCount; f++)
             {
-                if (f == layout.FloorCount - 1 && layout.SealedTop)
+                if (f == layout.FloorCount - 1 && layout.NoRoofStair)
                 {
                     break;
                 }

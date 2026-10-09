@@ -192,9 +192,9 @@ namespace CityX.Tests
             var seen = new HashSet<string>();
             foreach (BuildingSite site in TestSites.NearSpawn(world, 16))
             {
-                if (site.Params.Width < 14.0f || site.Params.Depth < 14.0f || BuildingInterior.FloorCountFor(site.Params.Height) < 4)
+                if (site.Params.Width < 14.0f || site.Params.Depth < 14.0f || BuildingInterior.FloorCountFor(site.Params.Height) < 4 || site.Shell)
                 {
-                    continue;
+                    continue;   // a sealed block is built with no stairs at all
                 }
                 BuildingStairs.Layout layout = BuildingStairs.PlanFor(site);
                 StairPlan first = layout.Floors[0];
@@ -329,7 +329,8 @@ namespace CityX.Tests
         {
             foreach (BuildingSite site in TestSites.NearSpawn(world))
             {
-                if (site.Params.Width < 14.0f || site.Params.Depth < 14.0f)
+                // A box you can go into: not a sealed sculpture block (no door, no stairs) and not round (its door is on the polygon's front side).
+                if (site.Params.Width < 14.0f || site.Params.Depth < 14.0f || site.Shell || site.Sides >= 3)
                 {
                     continue;
                 }

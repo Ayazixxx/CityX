@@ -382,6 +382,9 @@ namespace CityX.Character
                 if (_stuckSeconds > StuckReleaseSeconds)
                 {
                     _stuckSeconds = 0.0f;
+                    // Jammed under something overhead (an entrance canopy, a lip): drop clear of it as the grip goes, rather than let go with
+                    // the head still pressed into it (found climbing up a door's canopy, seed 87650022).
+                    _controller.Move(Vector3.down * StuckDropMetres);
                     EndClimb(false, deltaTime);
                     return;
                 }
@@ -525,6 +528,9 @@ namespace CityX.Character
 
         /// <summary>Climbing up while not rising for this long lets go (jammed).</summary>
         public const float StuckReleaseSeconds = 0.8f;
+
+        /// <summary>How far a jammed climb drops as it lets go, to come clear of whatever overhead stopped it.</summary>
+        public const float StuckDropMetres = 0.15f;
 
         /// <summary>Of the mantle, the first part is the pull straight up the wall; the rest is stepping forward onto the ledge.</summary>
         private const float RiseFraction = 0.6f;

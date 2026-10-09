@@ -483,59 +483,180 @@ namespace CityX.World.Plan
                 // A flat floor a little above the ground, on whole decimetres.
                 double baseHeight = Math.Round(hi * 10.0) / 10.0;
 
-                double doorX = centre.X + (depth * 0.5 + 2.0) * (-axisZ);
-                double doorZ = centre.Y + (depth * 0.5 + 2.0) * axisX;
-                double doorGround = fields.Height(doorX, doorZ);
+                // The shape: one box, a stack of them (a tower on a podium, a crown that steps in), a bar with wings (L, T, U, a staggered pair) or a
+                // sculpted tower (twisted, wonky, cantilevered). Drawn last, so the roof and basement rolled above are what they would have been anyway.
+                List<MassVolume> volumes = Massing.Compose(zone, mass, width, depth, height, rng, out bool hasPodium, out BuildingForm form, s, hs);
+                List<WallContact>[] contacts = ContactsBetween(volumes);
 
-                // The shape: one box, or a stack of them (a tower on a podium, a crown that steps in). Drawn last, so the roof and basement
-                // rolled above are what they would have been anyway.
-                List<MassVolume> volumes = Massing.Split(zone, mass, width, depth, height, rng, out bool hasPodium, s, hs);
-
-                // A building made of several volumes: the lowest has the door on the street and the ground under it; each one above stands
-                // on the roof of the one below and is reached from it. A tower on a podium is a different building from the podium and
-                // dresses differently; the stages of one stepped tower are one building and dress alike.
+                // Every volume is its own BuildingSite. One at street level has the ground under it; one above stands on the roof of the one it
+                // stands on and is reached from it. A tower on a podium is a different building from the podium and dresses differently; the stages of
+                // one stepped or twisted tower, and the wings of a block, are one building and dress alike; the blocks of a wonky pile each their own.
                 int towerSeed = unchecked((int)PlanNoise.Mix(h, 0x70746F77U));   // "ptow"
-                double stackBase = baseHeight;
+                var bases = new double[volumes.Count];
+                var corners = new double[2][] { new double[4], new double[4] };
                 for (int v = 0; v < volumes.Count; v++)
                 {
                     MassVolume vol = volumes[v];
-                    bool bottom = v == 0;
-                    bool isPodium = hasPodium && bottom;
-                    bool isTop = v == volumes.Count - 1;
+                    bool ground = vol.Support < 0;
+                    bool isPodium = hasPodium && v == 0;
+                    int above = -1;
+                    for (int j = v + 1; j < volumes.Count && above < 0; j++)
+                    {
+                        if (volumes[j].Support == v)
+                        {
+                            above = j;
+                        }
+                    }
+                    bool isTop = above < 0;
 
                     BuildingMass volumeMass = isPodium ? MassFor(zone, vol.Height, vol.Width, vol.Depth, s, hs) : mass;
-                    // Below the top a roof is a terrace with a parapet round it; only the top carries the zone's roof plant.
+                    // Below the top a roof is a terrace with a parapet round it; only a top carries the zone's roof plant.
                     string volumeRoof = isTop ? roof : "parapet";
-                    int volumeSeed = hasPodium && !bottom ? towerSeed : unchecked((int)h);
+                    int volumeSeed = unchecked((int)h);
+                    if (hasPodium && v > 0 || form == BuildingForm.Cantilever && !ground)
+                    {
+                        volumeSeed = towerSeed;
+                    }
+                    else if (form == BuildingForm.Wonky && !ground)
+                    {
+                        volumeSeed = unchecked((int)PlanNoise.Mix(h, (uint)(0x776F6E00 + v)));   // "won."
+                    }
 
                     var volumeParameters = new BuildingParams(true, (float)vol.Width, (float)vol.Height, (float)vol.Depth,
-                        0.0f, 0.0f, volumeRoof, 0, "", bottom && basement, volumeMass);
+                        0.0f, 0.0f, volumeRoof, 0, "", v == 0 && basement, volumeMass);
 
                     double cx = centre.X + vol.CentreX * axisX - vol.CentreZ * axisZ;
                     double cz = centre.Y + vol.CentreX * axisZ + vol.CentreZ * axisX;
+                    // The volume's own +X in the world: its turn in the lot frame, put through the lot's own turn.
+                    double vAxisX = vol.TurnX * axisX - vol.TurnZ * axisZ;
+                    double vAxisZ = vol.TurnX * axisZ + vol.TurnZ * axisX;
 
-                    // Where the next volume stands on this one's roof, relative to this one's centre.
+                    // Where the volume standing on this one's roof is, in this one's frame relative to its centre (its outline's box when it is turned).
                     float ox0 = 0.0f, ox1 = 0.0f, oz0 = 0.0f, oz1 = 0.0f;
                     if (!isTop)
                     {
-                        MassVolume next = volumes[v + 1];
-                        ox0 = (float)(next.X0 - vol.CentreX);
-                        ox1 = (float)(next.X1 - vol.CentreX);
-                        oz0 = (float)(next.Z0 - vol.CentreZ);
-                        oz1 = (float)(next.Z1 - vol.CentreZ);
+                        volumes[above].Corners(corners[0], corners[1]);
+                        double mnx = double.MaxValue, mxx = double.MinValue, mnz = double.MaxValue, mxz = double.MinValue;
+                        for (int k = 0; k < 4; k++)
+                        {
+                            vol.ToOwn(corners[0][k], corners[1][k], out double ox, out double oz);
+                            mnx = Math.Min(mnx, ox);
+                            mxx = Math.Max(mxx, ox);
+                            mnz = Math.Min(mnz, oz);
+                            mxz = Math.Max(mxz, oz);
+                        }
+                        ox0 = (float)mnx;
+                        ox1 = (float)mxx;
+                        oz0 = (float)mnz;
+                        oz1 = (float)mxz;
                     }
 
-                    float vBase = bottom ? (float)baseHeight : (float)stackBase;
-                    list.Add(new BuildingSite(list.Count, volumeParameters, zone, vBase,
-                        bottom ? (float)lo : vBase, bottom ? (float)doorGround : vBase,
-                        cx, cz, axisX, axisZ, PlanWorld.ChunkOf(cx), PlanWorld.ChunkOf(cz), volumeSeed,
-                        ox0, ox1, oz0, oz1, !bottom));
+                    // Every block at street level shares one floor, so the wings of a building meet the bar at the same level; the next volume up
+                    // stands a hair above the roof under it so its floor and that roof's top face never fight for one plane.
+                    double vBase = ground ? baseHeight : bases[vol.Support] + volumes[vol.Support].Height + 0.05;
+                    bases[v] = vBase;
+                    double podiumBase = vBase, doorGround = vBase;
+                    if (ground)
+                    {
+                        podiumBase = double.MaxValue;
+                        for (int sz = -1; sz <= 1; sz++)
+                        {
+                            for (int sx = -1; sx <= 1; sx++)
+                            {
+                                double lx = sx * vol.Width * 0.5, lz = sz * vol.Depth * 0.5;
+                                double gy = fields.Height(cx + lx * vAxisX - lz * vAxisZ, cz + lx * vAxisZ + lz * vAxisX);
+                                podiumBase = Math.Min(podiumBase, gy);
+                            }
+                        }
+                        podiumBase = Math.Min(podiumBase, lo);
+                        // The ground two metres out from the front wall: a polygon's front side stands at its apothem, not its half-depth.
+                        double out_ = (vol.Sides >= 3 ? vol.Width * 0.5 * BuildingSite.CosPiOver(vol.Sides) : vol.Depth * 0.5) + 2.0;
+                        doorGround = fields.Height(cx - out_ * vAxisZ, cz + out_ * vAxisX);
+                    }
 
-                    // The next volume stands a hair above this roof so its floor and the roof's top face never fight for one plane.
-                    stackBase = vBase + vol.Height + 0.05;
+                    list.Add(new BuildingSite(list.Count, volumeParameters, zone, (float)vBase, (float)podiumBase, (float)doorGround,
+                        cx, cz, vAxisX, vAxisZ, PlanWorld.ChunkOf(cx), PlanWorld.ChunkOf(cz), volumeSeed,
+                        ox0, ox1, oz0, oz1, !ground, vol.Shell, vol.Wing,
+                        contacts[v] != null ? contacts[v].ToArray() : null,
+                        !isTop && volumes[above].Shell, vol.Sides));
                 }
             }
             return list.ToArray();
+        }
+
+        /// <summary>
+        /// Where the blocks at street level of one building stand against each other: for each volume, the stretches of its walls another one covers,
+        /// and how high. Street-level blocks are only ever quarter-turned, so every touching pair shares a face along one of the lot's axes.
+        /// </summary>
+        public static List<WallContact>[] ContactsBetween(List<MassVolume> volumes)
+        {
+            var result = new List<WallContact>[volumes.Count];
+            const double eps = 0.05;
+            for (int a = 0; a < volumes.Count; a++)
+            {
+                if (volumes[a].Support >= 0)
+                {
+                    continue;
+                }
+                Box(volumes[a], out double ax0, out double ax1, out double az0, out double az1);
+                for (int b = 0; b < volumes.Count; b++)
+                {
+                    if (b == a || volumes[b].Support >= 0)
+                    {
+                        continue;
+                    }
+                    Box(volumes[b], out double bx0, out double bx1, out double bz0, out double bz1);
+                    double zLo = Math.Max(az0, bz0), zHi = Math.Min(az1, bz1);
+                    double xLo = Math.Max(ax0, bx0), xHi = Math.Min(ax1, bx1);
+                    if (zHi - zLo > 0.3 && Math.Abs(ax1 - bx0) < eps)
+                    {
+                        AddContact(result, a, volumes[a], 1.0, 0.0, ax1, zLo, ax1, zHi, volumes[b].Height);
+                    }
+                    if (zHi - zLo > 0.3 && Math.Abs(ax0 - bx1) < eps)
+                    {
+                        AddContact(result, a, volumes[a], -1.0, 0.0, ax0, zLo, ax0, zHi, volumes[b].Height);
+                    }
+                    if (xHi - xLo > 0.3 && Math.Abs(az1 - bz0) < eps)
+                    {
+                        AddContact(result, a, volumes[a], 0.0, 1.0, xLo, az1, xHi, az1, volumes[b].Height);
+                    }
+                    if (xHi - xLo > 0.3 && Math.Abs(az0 - bz1) < eps)
+                    {
+                        AddContact(result, a, volumes[a], 0.0, -1.0, xLo, az0, xHi, az0, volumes[b].Height);
+                    }
+                }
+            }
+            return result;
+        }
+
+        /// <summary>A volume's footprint box in the lot frame.</summary>
+        private static void Box(MassVolume v, out double x0, out double x1, out double z0, out double z1)
+        {
+            double ex = Math.Abs(v.TurnX) * v.Width * 0.5 + Math.Abs(v.TurnZ) * v.Depth * 0.5;
+            double ez = Math.Abs(v.TurnZ) * v.Width * 0.5 + Math.Abs(v.TurnX) * v.Depth * 0.5;
+            x0 = v.CentreX - ex;
+            x1 = v.CentreX + ex;
+            z0 = v.CentreZ - ez;
+            z1 = v.CentreZ + ez;
+        }
+
+        /// <summary>One contact: the face of volume <paramref name="index"/> pointing along lot (dx, dz), between two lot-frame points, up to a height.</summary>
+        private static void AddContact(List<WallContact>[] result, int index, MassVolume v, double dx, double dz,
+            double px0, double pz0, double px1, double pz1, double top)
+        {
+            // Which of its own walls that is: the lot direction in its own frame.
+            double ownX = dx * v.TurnX + dz * v.TurnZ;
+            double ownZ = -dx * v.TurnZ + dz * v.TurnX;
+            WindowGrid.Wall wall = ownX > 0.5 ? WindowGrid.Wall.East
+                : ownX < -0.5 ? WindowGrid.Wall.West
+                : ownZ > 0.5 ? WindowGrid.Wall.North : WindowGrid.Wall.South;
+            bool northSouth = wall == WindowGrid.Wall.North || wall == WindowGrid.Wall.South;
+            v.ToOwn(px0, pz0, out double ax, out double az);
+            v.ToOwn(px1, pz1, out double bx, out double bz);
+            double half = northSouth ? v.Width * 0.5 : v.Depth * 0.5;
+            double u0 = (northSouth ? Math.Min(ax, bx) : Math.Min(az, bz)) + half;
+            double u1 = (northSouth ? Math.Max(ax, bx) : Math.Max(az, bz)) + half;
+            (result[index] ?? (result[index] = new List<WallContact>(2))).Add(new WallContact(wall, (float)u0, (float)u1, (float)top));
         }
 
         private static BuildingMass MassFor(ZoneKind zone, double height, double width, double depth, double s = 1.0, double hs = 1.0)

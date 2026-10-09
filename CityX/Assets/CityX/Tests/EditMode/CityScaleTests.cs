@@ -12,7 +12,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class CityScaleTests
     {
-        private const int Seed = 61472093;
+        private const int Seed = 87650022;
 
         private static PlanWorld Make(CityScale scale) => PlanWorld.Create(Seed, PlanConfig.For(scale));
 
@@ -54,20 +54,8 @@ namespace CityX.Tests
             PlanWorld classic = Make(CityScale.Classic);
             PlanWorld huge = Make(CityScale.Huge);
 
-            var classicWidth = new List<double>();
-            var classicHeight = new List<double>();
-            foreach (BuildingSite s in classic.Buildings)
-            {
-                classicWidth.Add(Math.Max(s.Params.Width, s.Params.Depth));
-                classicHeight.Add(s.Params.Height);
-            }
-            var hugeWidth = new List<double>();
-            var hugeHeight = new List<double>();
-            foreach (BuildingSite s in huge.Buildings)
-            {
-                hugeWidth.Add(Math.Max(s.Params.Width, s.Params.Depth));
-                hugeHeight.Add(s.Params.Height);
-            }
+            WholeBuildings(classic, out List<double> classicWidth, out List<double> classicHeight);
+            WholeBuildings(huge, out List<double> hugeWidth, out List<double> hugeHeight);
 
             TestContext.WriteLine($"classic: {classic.Buildings.Length} buildings, median long side {Median(classicWidth):0} m, median height {Median(classicHeight):0} m");
             TestContext.WriteLine($"huge: {huge.Buildings.Length} buildings, median long side {Median(hugeWidth):0} m, median height {Median(hugeHeight):0} m");
@@ -76,6 +64,32 @@ namespace CityX.Tests
             Assert.Less(huge.Buildings.Length, classic.Buildings.Length * 2.0);
             Assert.Greater(Median(hugeWidth), Median(classicWidth) * 2.5, "buildings are much wider");
             Assert.Greater(Median(hugeHeight), Median(classicHeight) * 2.2, "and much taller");
+        }
+
+        /// <summary>
+        /// Per building, not per volume: a building is a street-level block that is not a wing, plus the wings and volumes that follow it in the list
+        /// (Massing.Compose). Its width is its main block's long side, its height from its floor to its highest roof. Counting volumes would weigh a
+        /// twisted tower's sixteen short stages as sixteen short buildings.
+        /// </summary>
+        private static void WholeBuildings(PlanWorld world, out List<double> widths, out List<double> heights)
+        {
+            widths = new List<double>();
+            heights = new List<double>();
+            BuildingSite[] b = world.Buildings;
+            for (int i = 0; i < b.Length; i++)
+            {
+                if (b[i].OnRoof || b[i].Wing)
+                {
+                    continue;
+                }
+                double top = b[i].Top;
+                for (int j = i + 1; j < b.Length && (b[j].OnRoof || b[j].Wing); j++)
+                {
+                    top = Math.Max(top, b[j].Top);
+                }
+                widths.Add(Math.Max(b[i].Params.Width, b[i].Params.Depth));
+                heights.Add(top - b[i].BaseHeight);
+            }
         }
 
         private static double Percentile(List<double> sorted, double p) => sorted.Count == 0 ? 0.0 : sorted[Math.Min(sorted.Count - 1, (int)(p * sorted.Count))];

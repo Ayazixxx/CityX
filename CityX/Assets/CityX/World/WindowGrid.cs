@@ -56,6 +56,14 @@ namespace CityX.World
         }
 
         /// <summary>
+        /// The window "walls" of a round building (RoundFootprint) are its sides: side 0, the front with the door, is <see cref="Wall.North"/> (so the
+        /// door row and shopfront rules apply to it as to any front), and side i is this plus i. Panes are keyed by it like any other wall.
+        /// </summary>
+        public const int PolygonSideBase = 8;
+
+        public static Wall PolygonSide(int side) => side == 0 ? Wall.North : (Wall)(PolygonSideBase + side);
+
+        /// <summary>
         /// Which way a wall faces the street -- matches CityMeshBuilder's own
         /// AddWindowedWall call sites exactly (Vector3.left/right/back/forward
         /// per wall), so anything spawned off a broken pane flies the same
