@@ -194,6 +194,81 @@ namespace CityX.World.Plan
             return inside;
         }
 
+        /// <summary>
+        /// Cuts a simple polygon (either winding, convex or not) into triangles by ear clipping: three vertex indices per triangle, wound like the polygon.
+        /// Plain arithmetic only, so every machine cuts a block the same way. A polygon too degenerate to clip completely is finished as a fan.
+        /// </summary>
+        public static int[] Triangulate(IList<Vec2> poly)
+        {
+            int n = poly.Count;
+            if (n < 3)
+            {
+                return new int[0];
+            }
+            double sign = SignedArea(poly) >= 0.0 ? 1.0 : -1.0;
+            var remaining = new List<int>(n);
+            for (int i = 0; i < n; i++)
+            {
+                remaining.Add(i);
+            }
+            var triangles = new List<int>((n - 2) * 3);
+            int guard = 0;
+            while (remaining.Count > 3 && guard++ < n * n)
+            {
+                bool clipped = false;
+                for (int k = 0; k < remaining.Count; k++)
+                {
+                    int ia = remaining[(k + remaining.Count - 1) % remaining.Count];
+                    int ib = remaining[k];
+                    int ic = remaining[(k + 1) % remaining.Count];
+                    Vec2 a = poly[ia], b = poly[ib], c = poly[ic];
+                    if (Vec2.Cross(b - a, c - b) * sign <= 1e-12)
+                    {
+                        continue;   // a reflex (or flat) corner is not an ear
+                    }
+                    bool empty = true;
+                    for (int m = 0; m < remaining.Count && empty; m++)
+                    {
+                        int im = remaining[m];
+                        if (im == ia || im == ib || im == ic)
+                        {
+                            continue;
+                        }
+                        empty = !InTriangle(poly[im], a, b, c, sign);
+                    }
+                    if (!empty)
+                    {
+                        continue;
+                    }
+                    triangles.Add(ia);
+                    triangles.Add(ib);
+                    triangles.Add(ic);
+                    remaining.RemoveAt(k);
+                    clipped = true;
+                    break;
+                }
+                if (!clipped)
+                {
+                    break;
+                }
+            }
+            for (int k = 1; k + 1 < remaining.Count; k++)
+            {
+                triangles.Add(remaining[0]);
+                triangles.Add(remaining[k]);
+                triangles.Add(remaining[k + 1]);
+            }
+            return triangles.ToArray();
+        }
+
+        /// <summary>Whether p is inside (or on the edge of) the triangle a, b, c wound the way <paramref name="sign"/> says.</summary>
+        private static bool InTriangle(Vec2 p, Vec2 a, Vec2 b, Vec2 c, double sign)
+        {
+            return Vec2.Cross(b - a, p - a) * sign >= 0.0
+                && Vec2.Cross(c - b, p - b) * sign >= 0.0
+                && Vec2.Cross(a - c, p - c) * sign >= 0.0;
+        }
+
         /// <summary>True if any two non-adjacent edges of the polygon cross.</summary>
         public static bool SelfIntersects(IList<Vec2> poly)
         {

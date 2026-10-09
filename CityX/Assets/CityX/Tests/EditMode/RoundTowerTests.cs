@@ -10,7 +10,7 @@ namespace CityX.Tests
     /// <summary>Round and many-sided towers (BuildingSite.Sides, RoundFootprint, CityMeshBuilder.BuildRound). See docs/BUILDING_SHAPES.md.</summary>
     public sealed class RoundTowerTests
     {
-        private const int Seed = 53190847;
+        private const int Seed = 38207461;
 
         private static CityWorld _world;
         private static CityWorld World => _world ?? (_world = new CityWorld(Seed));

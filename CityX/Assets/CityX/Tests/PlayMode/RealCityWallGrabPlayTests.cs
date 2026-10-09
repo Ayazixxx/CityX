@@ -17,7 +17,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class RealCityWallGrabPlayTests
     {
-        private const int Seed = 53190847;
+        private const int Seed = 38207461;
         private readonly List<GameObject> _made = new List<GameObject>();
 
         [TearDown]

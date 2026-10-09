@@ -429,6 +429,18 @@ namespace CityX.World.Plan
         /// <summary>Two buildings whose facing walls are at most this far apart share a party wall (AddPartyWalls).</summary>
         public const double PartyWallReach = 0.6;
 
+        /// <summary>
+        /// How far the paving of a block -- pavement and everything inside it up to the walls -- stands above the bare ground: the road's lift plus the
+        /// kerb (CitySurfaceBuilder.RoadLift + KerbHeight, which a test holds equal to this).
+        /// </summary>
+        public const double PavingRise = 0.23;
+
+        /// <summary>How far above the paving a ground floor stands at least: the ground can bulge a few centimetres between the points it is sampled at.</summary>
+        public const double FloorClearance = 0.05;
+
+        /// <summary>The ground under a lot is sampled at most this far apart to find the highest of it (the floor).</summary>
+        public const double GroundSampleMetres = 5.0;
+
         private static readonly string[][] RoofsByZone =
         {
             /* Core        */ new[] { "antenna", "antenna", "parapet", "", "antenna", "parapet", "", "water_tower" },
@@ -475,16 +487,18 @@ namespace CityX.World.Plan
                 string roof = RoofsByZone[(int)zone][rng.Below(8)];
                 bool basement = rng.NextDouble() < 0.12 && height > 10.0;
 
-                // The ground under the footprint, sampled at the corners, edge middles and centre.
+                // The ground under the footprint, sampled on a grid at most GroundSampleMetres apart (corners included): the floor stands above
+                // the highest of it, and a sparse sample missed a bulge the paving then came up through.
                 // (Local +Z is the front, so the door is at (0, +depth/2).)
                 double axisX = ex.X, axisZ = ex.Y;
                 double hi = double.MinValue, lo = double.MaxValue;
-                for (int sz = -1; sz <= 1; sz++)
+                int stepsX = Math.Max(2, (int)Math.Ceiling(width / GroundSampleMetres)), stepsZ = Math.Max(2, (int)Math.Ceiling(depth / GroundSampleMetres));
+                for (int iz = 0; iz <= stepsZ; iz++)
                 {
-                    for (int sx = -1; sx <= 1; sx++)
+                    for (int ix = 0; ix <= stepsX; ix++)
                     {
-                        double lx = sx * width * 0.5;
-                        double lz = sz * depth * 0.5;
+                        double lx = (ix / (double)stepsX - 0.5) * width;
+                        double lz = (iz / (double)stepsZ - 0.5) * depth;
                         double wx = centre.X + lx * axisX - lz * axisZ;
                         double wz = centre.Y + lx * axisZ + lz * axisX;
                         double gy = fields.Height(wx, wz);
@@ -492,8 +506,9 @@ namespace CityX.World.Plan
                         if (gy < lo) lo = gy;
                     }
                 }
-                // A flat floor a little above the ground, on whole decimetres.
-                double baseHeight = Math.Round(hi * 10.0) / 10.0;
+                // A flat floor level with (or a step above) the paving round it, on whole decimetres. The block is paved kerb to wall at the
+                // pavement's height (PavingRise above the ground); a floor at the bare ground's height had the paving lapping over its threshold.
+                double baseHeight = Math.Ceiling((hi + PavingRise + FloorClearance) * 10.0 - 1e-6) / 10.0;
 
                 // The shape: one box, a stack of them (a tower on a podium, a crown that steps in), a bar with wings (L, T, U, a staggered pair) or a
                 // sculpted tower (twisted, wonky, cantilevered). Drawn last, so the roof and basement rolled above are what they would have been anyway.
@@ -595,9 +610,9 @@ namespace CityX.World.Plan
                             }
                         }
                         podiumBase = Math.Min(podiumBase, lo);
-                        // The ground two metres out from the front wall: a polygon's front side stands at its apothem, not its half-depth.
+                        // The paving two metres out from the front wall: a polygon's front side stands at its apothem, not its half-depth.
                         double out_ = (vol.Sides >= 3 ? vol.Width * 0.5 * BuildingSite.CosPiOver(vol.Sides) : vol.Depth * 0.5) + 2.0;
-                        doorGround = fields.Height(cx - out_ * vAxisZ, cz + out_ * vAxisX);
+                        doorGround = fields.Height(cx - out_ * vAxisZ, cz + out_ * vAxisX) + PavingRise;
                     }
 
                     list.Add(new BuildingSite(list.Count, volumeParameters, zone, (float)vBase, (float)podiumBase, (float)doorGround,

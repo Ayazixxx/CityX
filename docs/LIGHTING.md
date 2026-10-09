@@ -36,3 +36,9 @@ paler, the far skyline melts into the sky. Ours had a flat linear fog wall at 15
 Next candidates: tune SSAO radius/intensity against the new ambient, a screen-space reflection renderer feature for wet streets, volumetric light shafts
 (a custom renderer feature), light-layer split for the sun vs window lights, emissive window glow with bloom thresholds. `LightingCapture` (Explicit, -Graphics)
 renders four times of day to Logs/CityShots/light-*.png.
+
+## Update: clear air round the player (2026-10-09)
+
+"I don't want to be walking around the whole game in fog." The haze now has a clear bubble round the camera: none at all within
+`CityHaze.ClearRadius` (25 m), fading in smoothly to full thickness at `CityHaze.FadeInEnd` (120 m). The street you stand in is crisp; the haze
+only shows on what is genuinely far. The streamed-city edge fade (and the storm and intro-fall fog distances) are unchanged.

@@ -20,6 +20,16 @@ namespace CityX.World.Plan
         public List<Vec2> Outer;
 
         /// <summary>
+        /// <see cref="Inner"/> cut into triangles (three indices each): the block is paved as ONE surface from the kerb to the walls of its buildings
+        /// (CitySurfaceBuilder), and a concave block cannot be drawn as a fan. Null when there is no kerb line, or for a block that <see cref="Encloses"/>
+        /// another (its middle is the island's).
+        /// </summary>
+        public int[] InnerTriangles;
+
+        /// <summary>The block is paved kerb to kerb (it has an outline to pave and no island inside it).</summary>
+        public bool Paved => InnerTriangles != null;
+
+        /// <summary>
         /// Another block lies inside this one's outline: a loop of road standing alone in the middle of it, which the block's outline does not go
         /// round (a face of the road graph with a hole in it). Cutting lots from the outline would lay them over the island's own buildings, so such a
         /// block keeps its pavement and is left open ground. Seen with seed 87650022 (CityScale classic): one plot 432 m long over an island's houses.
@@ -414,6 +424,10 @@ namespace CityX.World.Plan
                 {
                     block.Inner = kerb;
                     block.Outer = inset;
+                    if (!block.Encloses)
+                    {
+                        block.InnerTriangles = PlanMath.Triangulate(kerb);
+                    }
                 }
                 if (block.Encloses)
                 {

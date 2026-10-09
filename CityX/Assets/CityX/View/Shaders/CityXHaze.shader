@@ -34,7 +34,7 @@ Shader "CityX/Haze"
             float4 _CityXHazeSunColor;    // rgb: the haze looking toward the sun
             float4 _CityXHazeSunDir;      // xyz: direction TO the sun (unit)
             float4 _CityXHazeParams;      // x: density at BaseY (per metre), y: falloff (per metre), z: BaseY, w: max haze (0..1)
-            float4 _CityXHazeEdge;        // x: distance the streamed-city edge fade starts, y: where it is total (metres); 0 = none
+            float4 _CityXHazeEdge;        // x: distance the streamed-city edge fade starts, y: where it is total (metres); 0 = none; z, w: the clear bubble round the camera (haze starts at z, full at w)
             float4 _CityXHazeSkyTop;      // rgb: the sky dome's zenith colour
             float4 _CityXHazeSky;         // x: the dome's gradient curve (SkyCycle.SkyGradientCurve), y: the dome's energy
 
@@ -90,6 +90,12 @@ Shader "CityX/Haze"
                         tau = atCam * (1.0 - exp(-k * length_)) / k;
                     }
                     haze = min(1.0 - exp(-tau), maxHaze);
+
+                    // A clear bubble round the camera: no haze at all near the player, fading in gently out to _CityXHazeEdge.w.
+                    if (_CityXHazeEdge.w > 0.0)
+                    {
+                        haze *= smoothstep(_CityXHazeEdge.z, _CityXHazeEdge.w, length_);
+                    }
 
                     // The streamed city stops at a hard edge; whatever the air does, everything past the fade is haze.
                     if (_CityXHazeEdge.y > 0.0)

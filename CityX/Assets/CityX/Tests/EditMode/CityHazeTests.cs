@@ -34,6 +34,27 @@ namespace CityX.Tests
         }
 
         [Test]
+        public void ThePlayerWalksInClearAir()
+        {
+            // No haze round the player; it builds up gently, and is at full thickness well before the city's edge starts to fade.
+            CityHaze.Settings clear = CityHaze.For(Horizon, Top, 1.0f, Color.white, 1.0f, 0.0f, 1.0f, 150.0f, 380.0f);
+            Assert.Greater(CityHaze.ClearRadius, 15.0f, "the street round the player must be clear");
+            Assert.Greater(CityHaze.FadeInEnd - CityHaze.ClearRadius, 50.0f, "the haze should fade in slowly, not start at a wall");
+            Assert.Less(CityHaze.FadeInEnd, clear.EdgeStart);
+            CityHaze.Push(clear, Vector3.up);
+            try
+            {
+                Vector4 edge = Shader.GetGlobalVector("_CityXHazeEdge");
+                Assert.AreEqual(CityHaze.ClearRadius, edge.z, 1e-4f);
+                Assert.AreEqual(CityHaze.FadeInEnd, edge.w, 1e-4f);
+            }
+            finally
+            {
+                CityHaze.Clear();
+            }
+        }
+
+        [Test]
         public void TheSunGlowsOnlyWhenItIsUp()
         {
             CityHaze.Settings night = CityHaze.For(Horizon, Top, 1.0f, new Color(1.0f, 0.8f, 0.6f), 0.0f, 0.0f, 1.0f, 150.0f, 380.0f);

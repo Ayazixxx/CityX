@@ -27,7 +27,7 @@ namespace CityX.View
 
         /// <summary>
         /// Lane paint floats this far above the road (not lower: it would vanish into the road where two ribbons overlap). 2 cm until 2026-10-09; the
-        /// hillier spawn of seed 53190847 buried a tenth of its paint at 2 cm (RoadPaintTests), so 2.5.
+        /// hillier spawn of seed 38207461 buried a tenth of its paint at 2 cm (RoadPaintTests), so 2.5.
         /// </summary>
         public const float PaintLift = 0.025f;
 
@@ -56,11 +56,14 @@ namespace CityX.View
             var rect = new Rect2(chunkX * size, chunkY * size, (chunkX + 1) * size, (chunkY + 1) * size);
             var ctx = new Context(plan, origin, rect);
 
-            BuildTerrain(ctx, pavement, far ? FarTerrainStep : TerrainStep, plan.BlocksIn(chunkX, chunkY));
+            float step = far ? FarTerrainStep : TerrainStep;
+            BuildTerrain(ctx, pavement, step, plan.BlocksIn(chunkX, chunkY));
 
             foreach (int blockIndex in plan.BlocksIn(chunkX, chunkY))
             {
-                BuildPavement(ctx, plan.Data.Blocks[blockIndex], pavement, far);
+                PlanBlock block = plan.Data.Blocks[blockIndex];
+                BuildPavement(ctx, block, blockIndex, pavement, far);
+                BuildBlockPaving(ctx, block, blockIndex, pavement, step);
             }
 
             foreach (int edgeId in plan.EdgesIn(chunkX, chunkY))
@@ -440,7 +443,53 @@ namespace CityX.View
 
         // ---------------------------------------------------------------- pavement and kerb
 
-        private static void BuildPavement(Context ctx, PlanBlock block, MeshBuffer buffer, bool far)
+        /// <summary>The one look of a block's paving: the pavement and everything inside it up to the walls, so they read as one surface.</summary>
+        private static Color32 BlockPavingLook(int blockIndex) => PavingLook(RoadClass.Street, blockIndex);
+
+        /// <summary>
+        /// A paved block, kerb to walls, as ONE surface in the pavement's own look and height (PlanBlock.InnerTriangles), cut on the terrain grid so it
+        /// follows the ground. Replaces the old patchwork of 4 m ground squares (tarmac, setts, earth) with staircase edges between pavement and buildings.
+        /// The floors stand on it (PlanBuildings.PavingRise), so under a building it is hidden.
+        /// </summary>
+        private static void BuildBlockPaving(Context ctx, PlanBlock block, int blockIndex, MeshBuffer buffer, float step)
+        {
+            if (!block.Paved) return;
+            Bounds(block.Inner, out double bx0, out double bz0, out double bx1, out double bz1);
+            if (!ctx.Rect.Overlaps(bx0, bz0, bx1, bz1)) return;
+            Rect2 r = ctx.Rect;
+            int n = Mathf.Max(1, Mathf.RoundToInt((float)(r.X1 - r.X0) / step));
+            double s = (r.X1 - r.X0) / n;
+            buffer.Look = BlockPavingLook(blockIndex);
+            Func<double, double, double> height = (x, z) => ctx.Plan.GroundHeight(x, z) + RoadLift + KerbHeight;
+            int[] t = block.InnerTriangles;
+            for (int k = 0; k + 2 < t.Length; k += 3)
+            {
+                var tri = new List<Vec2> { block.Inner[t[k]], block.Inner[t[k + 1]], block.Inner[t[k + 2]] };
+                if (PlanMath.SignedArea(tri) < 0.0) tri.Reverse();
+                Bounds(tri, out double mx, out double mz, out double Mx, out double Mz);
+                if (!r.Overlaps(mx, mz, Mx, Mz)) continue;
+                for (int iz = 0; iz < n; iz++)
+                {
+                    for (int ix = 0; ix < n; ix++)
+                    {
+                        // The outer cells end exactly on the chunk's own edges, so a neighbour clips at the very same line.
+                        var cell = new Rect2(ix == 0 ? r.X0 : r.X0 + ix * s, iz == 0 ? r.Z0 : r.Z0 + iz * s,
+                            ix == n - 1 ? r.X1 : r.X0 + (ix + 1) * s, iz == n - 1 ? r.Z1 : r.Z0 + (iz + 1) * s);
+                        if (!cell.Overlaps(mx, mz, Mx, Mz)) continue;
+                        List<Vec2> piece = Clip(tri, cell);
+                        if (piece.Count >= 3 && PlanMath.SignedArea(piece) > SliverArea)
+                        {
+                            Fan(ctx, buffer, piece, height);   // a sliver where a triangle only grazes a cell is left out on both sides of a seam alike
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>A clipped piece of paving smaller than this (square metres) is a sliver of float noise, not ground: not drawn.</summary>
+        private const double SliverArea = 1e-4;
+
+        private static void BuildPavement(Context ctx, PlanBlock block, int blockIndex, MeshBuffer buffer, bool far)
         {
             if (block.Inner == null || block.Outer == null) return;
             Bounds(block.Poly, out double bx0, out double bz0, out double bx1, out double bz1);
@@ -464,8 +513,12 @@ namespace CityX.View
                     Bounds(quad, out double mx, out double mz, out double Mx, out double Mz);
                     if (!ctx.Rect.Overlaps(mx, mz, Mx, Mz)) continue;
 
-                    buffer.Look = PavingLook(block.EdgeClass[e], e);
-                    Fan(ctx, buffer, Clip(quad, ctx.Rect), (x, z) => ctx.Plan.GroundHeight(x, z) + RoadLift + KerbHeight);
+                    if (!block.Paved)
+                    {
+                        // A paved block's pavement is part of its one paving (BuildBlockPaving); only an unpaved block keeps the ring.
+                        buffer.Look = PavingLook(block.EdgeClass[e], e);
+                        Fan(ctx, buffer, Clip(quad, ctx.Rect), (x, z) => ctx.Plan.GroundHeight(x, z) + RoadLift + KerbHeight);
+                    }
                     buffer.Look = SurfaceLook.Pack(new Color32(214, 212, 206, 255), (int)WallMaterial.Concrete, 0.45f);
 
                     // The kerb: a vertical face along the inner edge, from the road up to the pavement, facing the road.

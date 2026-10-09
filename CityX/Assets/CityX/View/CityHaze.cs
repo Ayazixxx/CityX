@@ -26,6 +26,15 @@ namespace CityX.View
         /// <summary>The most the air ever hides of a building inside the streamed city, so a far silhouette still reads against the sky.</summary>
         public const float MaxHaze = 0.85f;
 
+        /// <summary>
+        /// The clear bubble round the player (owner, 2026-10-09: "I don't want to be walking around the whole game in fog"): no haze at all closer than
+        /// this, metres from the camera...
+        /// </summary>
+        public const float ClearRadius = 25.0f;
+
+        /// <summary>...fading in gently until the air is at its full thickness this far out. The edge of the streamed city still fades regardless.</summary>
+        public const float FadeInEnd = 120.0f;
+
         /// <summary>The edge fade starts this far between the fog start and the fog end distance (and is total at the end).</summary>
         public const float EdgeFadeFraction = 0.5f;
 
@@ -99,7 +108,7 @@ namespace CityX.View
             Shader.SetGlobalVector(SkyId, new Vector4(s.SkyCurve, s.SkyEnergy, 0.0f, 0.0f));
             Shader.SetGlobalVector(SunDirId, towardSun);
             Shader.SetGlobalVector(ParamsId, new Vector4(s.Density, s.Falloff, s.BaseY, MaxHaze));
-            Shader.SetGlobalVector(EdgeId, new Vector4(s.EdgeStart, s.EdgeEnd, 0.0f, 0.0f));
+            Shader.SetGlobalVector(EdgeId, new Vector4(s.EdgeStart, s.EdgeEnd, ClearRadius, FadeInEnd));
         }
 
         /// <summary>No haze: the pass leaves the image alone (a scene without a day/night cycle, like the title screen).</summary>
