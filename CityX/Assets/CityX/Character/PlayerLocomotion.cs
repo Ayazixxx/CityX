@@ -1301,6 +1301,7 @@ namespace CityX.Character
             {
                 ClampFeetAboveGround();
             }
+            ApplyStrafeLeadFoot();
             ApplyDrivingWheelPose();
             ApplyCastingPose();
             ApplyGunAimPose();
@@ -2597,6 +2598,85 @@ namespace CityX.Character
         }
 
         private const float MaxGroundClampCorrection = 2.0f;
+
+        /// <summary>
+        /// Walking sideways, the LEAD leg turns toward the way the body is going and the trailing one a little: it opens the legs so they do not
+        /// cross through each other, and reads as a real side-step (owner, 2026-10-10, from a game developer's movement tips: "when walking
+        /// sideways, angle the lead foot more than the other"). Degrees each leg turns about the body's up axis at a full sideways walk.
+        /// </summary>
+        public const float StrafeLeadFootDegrees = 35.0f;
+        public const float StrafeTrailFootDegrees = 10.0f;
+
+        /// <summary>
+        /// And both legs spread outward, degrees at a full side-step: the sideways walk clip swings one leg across the other, and turning alone
+        /// does not stop that (rendered, 2026-10-10: the legs still crossed). A slightly wider stance does.
+        /// </summary>
+        public const float StrafeStanceWidenDegrees = 9.0f;
+
+        /// <summary>How fast the turn comes and goes, degrees per second (it eases rather than snapping when you change direction).</summary>
+        public const float StrafeFootTurnPerSecond = 150.0f;
+
+        private float _leftLegYaw;
+        private float _rightLegYaw;
+        private float _strafeWiden;
+
+        /// <summary>How far each leg is turned for a side-step right now, degrees (positive toward the body's right).</summary>
+        public float LeftLegYaw => _leftLegYaw;
+        public float RightLegYaw => _rightLegYaw;
+
+        /// <summary>
+        /// How far each leg turns for a velocity in the body's frame (x right, y forward): positive turns toward the body's right. Pure, for tests.
+        /// Full at a straight side-step, nothing walking straight ahead or standing; a diagonal gets the sideways share of it.
+        /// </summary>
+        public static void StrafeLegYaw(Vector2 localVelocity, out float leftDegrees, out float rightDegrees)
+        {
+            float speed = localVelocity.magnitude;
+            float side = speed > 1e-4f ? localVelocity.x / speed : 0.0f;
+            float amount = Mathf.Abs(side) * Mathf.InverseLerp(0.3f, 1.5f, speed);
+            float sign = Mathf.Sign(side);
+            float lead = StrafeLeadFootDegrees * amount * sign;
+            float trail = StrafeTrailFootDegrees * amount * sign;
+            rightDegrees = side > 0.0f ? lead : trail;
+            leftDegrees = side > 0.0f ? trail : lead;
+        }
+
+        /// <summary>Turns the legs for a side-step (StrafeLegYaw), only on the ground in the plain walk/run blend, after the clip has posed them.</summary>
+        private void ApplyStrafeLeadFoot()
+        {
+            if (_leftUpperLeg == null || _rightUpperLeg == null)
+            {
+                return;
+            }
+            float left = 0.0f, right = 0.0f, widen = 0.0f;
+            if (_animator.GetBool(GroundedParameter) && !IsSitting && !InCarSeat && LocomotionClipsOwnTheSpine)   // the synced parameter: true on a remote copy too
+            {
+                // From the animator's own MoveX/MoveZ, not LocalVelocity: a copy of another player's body is not ticked here, but
+                // NetworkedAnimatorSync feeds it those, so everyone sees the same side-step.
+                var velocity = new Vector2(_animator.GetFloat(MoveXParameter), _animator.GetFloat(MoveZParameter));
+                StrafeLegYaw(velocity, out left, out right);
+                widen = StrafeStanceWidenDegrees * Mathf.Abs(right - left) / Mathf.Max(StrafeLeadFootDegrees - StrafeTrailFootDegrees, 1e-3f);
+            }
+            float step = StrafeFootTurnPerSecond * Mathf.Max(_lastTickDeltaTime, Time.deltaTime);
+            _leftLegYaw = Mathf.MoveTowards(_leftLegYaw, left, step);
+            _rightLegYaw = Mathf.MoveTowards(_rightLegYaw, right, step);
+            _strafeWiden = Mathf.MoveTowards(_strafeWiden, widen, step);
+            Vector3 up = transform.up;
+            if (_strafeWiden > 0.01f)
+            {
+                // Outward about the body's forward axis: the right leg's foot toward the right, the left's toward the left.
+                Vector3 forward = transform.forward;
+                _rightUpperLeg.rotation = Quaternion.AngleAxis(_strafeWiden, forward) * _rightUpperLeg.rotation;
+                _leftUpperLeg.rotation = Quaternion.AngleAxis(-_strafeWiden, forward) * _leftUpperLeg.rotation;
+            }
+            if (Mathf.Abs(_leftLegYaw) > 0.01f)
+            {
+                _leftUpperLeg.rotation = Quaternion.AngleAxis(_leftLegYaw, up) * _leftUpperLeg.rotation;
+            }
+            if (Mathf.Abs(_rightLegYaw) > 0.01f)
+            {
+                _rightUpperLeg.rotation = Quaternion.AngleAxis(_rightLegYaw, up) * _rightUpperLeg.rotation;
+            }
+        }
 
         /// <summary>
         /// Resizes the capsule and the visible body together.

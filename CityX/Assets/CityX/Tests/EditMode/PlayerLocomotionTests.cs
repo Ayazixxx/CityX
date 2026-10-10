@@ -455,5 +455,30 @@ namespace CityX.Tests
             Assert.AreEqual(45.0f, _locomotion.transform.eulerAngles.y, 0.01f,
                 "looking around while standing still must not spin the body (only lock-on does that)");
         }
+
+        [Test]
+        public void SideSteppingTurnsTheLeadLegTowardTheStepMoreThanTheOther()
+        {
+            // Walking right (A/D), the right leg leads: it turns toward the right more than the left leg does, so the legs open and do not cross.
+            PlayerLocomotion.StrafeLegYaw(new Vector2(3.0f, 0.0f), out float left, out float right);
+            Assert.AreEqual(PlayerLocomotion.StrafeLeadFootDegrees, right, 0.01f);
+            Assert.AreEqual(PlayerLocomotion.StrafeTrailFootDegrees, left, 0.01f);
+            Assert.Greater(left, 0.0f, "both legs turn the way the body goes");
+
+            PlayerLocomotion.StrafeLegYaw(new Vector2(-3.0f, 0.0f), out left, out right);
+            Assert.AreEqual(-PlayerLocomotion.StrafeLeadFootDegrees, left, 0.01f, "walking left the left leg leads");
+            Assert.AreEqual(-PlayerLocomotion.StrafeTrailFootDegrees, right, 0.01f);
+
+            PlayerLocomotion.StrafeLegYaw(new Vector2(0.0f, 4.0f), out left, out right);
+            Assert.AreEqual(0.0f, left, 1e-4f, "walking straight ahead turns nothing");
+            Assert.AreEqual(0.0f, right, 1e-4f);
+
+            PlayerLocomotion.StrafeLegYaw(Vector2.zero, out left, out right);
+            Assert.AreEqual(0.0f, left, 1e-4f, "standing still turns nothing");
+            Assert.AreEqual(0.0f, right, 1e-4f);
+
+            PlayerLocomotion.StrafeLegYaw(new Vector2(2.0f, 2.0f), out left, out right);
+            Assert.That(right, Is.InRange(1.0f, PlayerLocomotion.StrafeLeadFootDegrees - 1.0f), "a diagonal gets part of the turn");
+        }
     }
 }
