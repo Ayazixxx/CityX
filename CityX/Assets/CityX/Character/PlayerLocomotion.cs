@@ -306,6 +306,13 @@ namespace CityX.Character
         public const float TorsoFollowBlendPerSecond = 10.0f;
 
         /// <summary>
+        /// OFF since the body became separate tubes (2026-10-10): the torso is one rigid tube on the hips, and a spine leaning with the walk
+        /// swung the arms and head away from it (and, with the torso on the spine instead, swung the torso's bottom out behind the legs: owner,
+        /// "the legs aren't attached to the torso ... the butt is sticking out too much"). The whole upper body now moves with the hips, as one.
+        /// </summary>
+        public const bool LocomotionSpineLeans = false;
+
+        /// <summary>
         /// How much of the clip's torso motion a swing keeps, 0..1. The rig has ONE spine bone where Mixamo's
         /// skeleton spreads the same lean over three, and the bone is handed the clip's share for itself alone --
         /// measured, a light swing bows it 64 degrees, which reads as a deep stoop. Two thirds keeps the weight
@@ -1253,7 +1260,7 @@ namespace CityX.Character
                 _torsoFollowBlend, (animatorLive && TorsoFollowsClip) ? Mathf.Clamp01(TorsoFollowStrength) : 0.0f,
                 TorsoFollowBlendPerSecond * Mathf.Max(_lastTickDeltaTime, 0.0f));
             _locomotionSpineBlend = Mathf.MoveTowards(
-                _locomotionSpineBlend, (animatorLive && LocomotionClipsOwnTheSpine) ? 1.0f : 0.0f,
+                _locomotionSpineBlend, (animatorLive && LocomotionSpineLeans && LocomotionClipsOwnTheSpine) ? 1.0f : 0.0f,
                 TorsoFollowBlendPerSecond * Mathf.Max(_lastTickDeltaTime, 0.0f));
             if (!InCarSeat && !IsSitting)
             {

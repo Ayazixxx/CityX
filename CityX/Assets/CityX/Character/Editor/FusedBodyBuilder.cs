@@ -201,10 +201,10 @@ namespace CityX.CharacterEditor
         }
 
         /// <summary>
-        /// The torso as ONE tube, on the spine. It was two (the pelvis on the hips, which PlayerLocomotion holds still, and the chest on the
+        /// The torso as ONE tube, on the HIPS, where the legs hang from. It was two (the pelvis on the hips, which PlayerLocomotion holds still, and the chest on the
         /// spine, which leans with the walk), and walking or strafing moved the top half while the bottom stayed frozen (owner, 2026-10-10:
-        /// "the top half of the torso moves while the bottom stays frozen ... make the whole thing move as a unit"). On the spine the whole
-        /// torso leans and sways together; the legs' tops overlap its bottom.
+        /// "the top half of the torso moves while the bottom stays frozen ... make the whole thing move as a unit"). Then on the spine, and its bottom swung out
+        /// behind the legs ("the butt is sticking out too much", legs not attached). On the hips it stays on the legs; the spine no longer leans in a walk (PlayerLocomotion.LocomotionSpineLeans).
         /// </summary>
         private static List<FusedBodyShape.Segment> OneTorso(List<FusedBodyShape.Segment> segments)
         {
@@ -214,7 +214,7 @@ namespace CityX.CharacterEditor
             {
                 return segments;
             }
-            var torso = new FusedBodyShape.Segment(segments[hips].A, segments[spine].B, segments[spine].Radius, HumanBodyBones.Spine);
+            var torso = new FusedBodyShape.Segment(segments[hips].A, segments[spine].B, segments[spine].Radius, HumanBodyBones.Hips);
             var result = new List<FusedBodyShape.Segment>(segments.Count - 1) { torso };
             for (int i = 0; i < segments.Count; i++)
             {
