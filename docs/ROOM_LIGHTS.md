@@ -49,3 +49,50 @@ Instead, a powered building's rooms collect their windows while the panes are bu
 behind it, by floor and by whether it is in that floor's corner room), as a glowing face 5 cm behind the glass in the room's light colour
 (`CityStreamer.RoomWindowBrightness`), switched with the room's fittings and lights. From the street a lit room shows as its own windows lit, warm
 for pendants, cooler for offices. Tests: `ExteriorDetailTests.NoWindowLightsUpThatNobodySwitchedOn`, `RoomLightingTests.ALitRoomsWindowsGlowAndOnlyItsOwn`.
+
+## Update: the lighting pass -- lamps, bounce, pale rooms, clear glass, door lamps (2026-10-09)
+
+Owner: "the lighting really doesnt look good both indoors and looking from outdoors during nighttime. research indoor lighting in video games as
+well as city lighting at night time and implement what you learn". What the research said, and what was done with it:
+
+- **Ceiling lights are downward spots, not point lights.** A point light 40 cm under a fitting burnt a bright hot spot into the ceiling right
+  above it and left the floor dim -- the opposite of a real lit room, where the floor is bright and the ceiling is lit only by light bounced off
+  it. Each lamp (`RoomLightPlan.LightPoints`, one per cell of the room's split) is now a spot just under its fittings, shining straight down
+  (`RoomLighting.LampOuterAngle` 140, inner 80), as bright as its height needs (`FloorLight` x height squared). Up to 9 lamps a room (a 3x3
+  split for a big hall; it was 6, and the last third of every big hall was dark); a big hall with centre fittings gets a grid of them.
+- **A lamp is a fitting, not a point**: the facade shader softens a room light's falloff to 1 / (d^2 + r^2) (`CITYX_FITTING_RADIUS_SQ` 2.6), or
+  the wall a metre from a lamp got thirty times the floor's light and burnt white.
+- **A fake bounce instead of global illumination.** Under each lamp a second spot shines straight up
+  (`BouncePoints`, `BounceOuterAngle` 170) from INSIDE the floor slab (`BounceBelowFloor` 0.08 of the 0.2 m slab): it lights the ceiling and the
+  walls softly, never the floor it stands under (which faces away from it),
+  in the room's colour greyed a little, about a quarter as bright as the floor (`CeilingLight` 0.24 vs `FloorLight` 0.9). First try had it 0.8 m
+  down -- below the slab, inside the room underneath -- and every lit room burnt bright ovals into the ceiling below it.
+- **Nothing reaches another storey.** A lamp's range stops short of the floor of the storey below, a bounce's of the ceiling of the storey above.
+- **Lights know which side of a wall they are on** (`View/CityLightLayers`). Room lights are on rendering layer 1 ("inside"), the door lamps on
+  layer 2 ("outside"); the facade shader (`FacadeForwardPass.hlsl`, `CityXFragmentPBR`) skips a light on the wrong side of the surface it is
+  shading, so a lit room never shines through its walls onto the pavement or the building next door. Everything else (players, props) is lit by
+  both (URP's own layer test); unmarked lights (a muzzle flash) light everything, as before.
+- **Shadows only where the player is.** `View/RoomLightDirector` (made on demand by the first lit room) keeps real lights only for lit rooms within
+  110 m of the camera (at most 160 room lights at once -- one fully lit tower has hundreds; farther rooms are their glow alone) and gives the 4
+  lamps nearest the camera, within 30 m, soft shadows: bodies, stairs and partitions throw shadows in the room you are in. Bounces never do.
+- **Pale rooms.** The inside of every building is no longer bare grey concrete (which swallowed the light): plaster walls in a colour that says
+  what the building is (whites and greys for offices, cream/sage/pale blue/pink for homes, painted block for works), a white ceiling, a floor by
+  zone (tiles, terracotta, pale stone, polished concrete), concrete stairs (`CityMeshBuilder.Interior.cs`, `InteriorLooks`).
+- **Indoors is a flag on the surface.** `SurfaceLook` packs it into the vertex colour (wear went from 16 steps to 8 to make room); the facade
+  shader dims the sky's light (ambient and sky reflection) on it by `_CityXIndoorShade` (`DayNightCycle.IndoorShadeDay` 0.65 by day,
+  `IndoorShadeNight` 0.5 at night): a room is lit by its windows and lamps, not by the whole open sky.
+- **Windows with a room behind them are clear glass** (`SurfaceLook.PackGlass(clear)`, the glass shader's `_ClearAlpha` 0.4 instead of 0.72), so
+  from the street a lit window shows the real lit room -- its ceiling, its fittings -- instead of a flat painted panel. Glass with nothing behind it
+  (a distant building's strips, the sealed top of a tower) stays dark. The old opaque glow panel is now a faint additive veil just behind the glass
+  (`Shaders/CityXWindowLight.shader`, `CityStreamer.RoomWindowBrightness` 0.15), brighter towards the top, so a lit window still reads from down the
+  street; it is one-sided, so it is not there when you look out from inside.
+- **A lamp over every powered door** (`World/EntranceLighting`, `View/EntranceLamp`): a warm glowing box under the canopy and a spot shining down
+  on the steps and pavement, lit from dusk to dawn (`DayNightCycle.Daylight`). Pools of warm light at doorways with the street dark between them
+  are what a night street is made of -- and in a city where nine buildings in ten are dead, a lit doorway is how you find the ones with power.
+  Street lamps were NOT brought back (removed 2026-09-04 on request).
+- **Shop blade signs glow only on powered buildings**; a dead building's sign is dark glass like its windows.
+- **E works the thing you look at** (`View/InteractionFocus`): the door and the switch beside it used to both answer one press. Now each offers
+  itself with how far off the crosshair it is, and only the nearest acts; of several switches in reach, the one nearest the crosshair flips.
+
+Tests: `NightLightingTests` (indoor flag, pale rooms, lamps and bounces per storey, layers, clear glass, dark signs, door lamps, the night's
+stars/grade/indoor shade), `RoomLightsPlayTests` (spots, layers, the director's shadows and reach, the door lamp at night), `InteractionFocusTests`.

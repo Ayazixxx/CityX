@@ -21,10 +21,47 @@ SAMPLER(sampler_FacadeAlbedo);
 TEXTURE2D_ARRAY(_FacadeNormal);
 SAMPLER(sampler_FacadeNormal);
 
-// Set globally (Shader.SetGlobalFloat) by the rain: 0 dry, 1 soaked.
+// Set globally (Shader.SetGlobalFloat): _CityXWetness by the rain (0 dry, 1 soaked); _CityXIndoorShade by DayNightCycle, how much of the
+// sky's light the inside of a building does NOT get (0 = all of it, like the street; 0.7 = a third of it). 0 when nothing sets it.
 CBUFFER_START(CityXGlobals)
 float _CityXWetness;
+float _CityXIndoorShade;
 CBUFFER_END
+
+// Which side of a wall a light is on (View/CityLightLayers.cs): a light on the interior layer lights only indoor surfaces, one on the
+// exterior layer only outdoor ones. MUST match CityLightLayers.Interior / Exterior.
+#define CITYX_INTERIOR_LIGHT_LAYER (1u << 1)
+#define CITYX_EXTERIOR_LIGHT_LAYER (1u << 2)
+
+// A room light is a fitting, not a point: its light falls off as 1 / (d^2 + r^2), not 1 / d^2, with r this radius in metres (the squared value).
+// Without it the wall a metre from a lamp got thirty times the light of the floor six metres under it and burnt white while the floor stayed dim.
+#define CITYX_FITTING_RADIUS_SQ 2.6
+
+// Where additional light <i> is (the light loop's own index), the way URP's GetAdditionalLight finds it.
+float3 CityXAdditionalLightPosition(uint i)
+{
+#if USE_CLUSTER_LIGHT_LOOP
+    int lightIndex = i;
+#else
+    int lightIndex = GetPerObjectLightIndex(i);
+#endif
+#if USE_STRUCTURED_BUFFER_FOR_LIGHT_DATA
+    return _AdditionalLightsBuffer[lightIndex].position.xyz;
+#else
+    return _AdditionalLightsPosition[lightIndex].xyz;
+#endif
+}
+
+// A room light's falloff, softened near it (CITYX_FITTING_RADIUS_SQ).
+void CityXSoftenFitting(inout Light light, uint i, float3 positionWS)
+{
+    if ((light.layerMask & CITYX_INTERIOR_LIGHT_LAYER) != 0)
+    {
+        float3 toLight = CityXAdditionalLightPosition(i) - positionWS;
+        float d2 = dot(toLight, toLight);
+        light.distanceAttenuation *= d2 / (d2 + CITYX_FITTING_RADIUS_SQ);
+    }
+}
 
 // What a tile of each wall material covers, in metres across and up. MUST match FacadeTextures.TileMetresX / TileMetresY.
 static const float2 kTileMetres[12] =
@@ -107,14 +144,16 @@ float FacadeNoise(float2 p)
     return lerp(lerp(a, b, f.x), lerp(c, d, f.x), f.y);
 }
 
-void InitializeFacadeSurface(Varyings input, out SurfaceData surfaceData, out half3 normalTS)
+void InitializeFacadeSurface(Varyings input, out SurfaceData surfaceData, out half3 normalTS, out bool indoors)
 {
     surfaceData = (SurfaceData)0;
 
-    // The look: slice and wear out of the alpha, tint out of the colour.
+    // The look: slice, indoors and wear out of the alpha (SurfaceLook.Pack), tint out of the colour.
     float code = round((1.0 - input.look.a) * 255.0);
     float slice = floor(code / 16.0);
-    float wear = (code - slice * 16.0) / 15.0;
+    float rest = code - slice * 16.0;
+    indoors = rest > 7.5;
+    float wear = (rest - (indoors ? 8.0 : 0.0)) / 7.0;
     float3 tint = SRGBToLinear(input.look.rgb);
 
     float2 tileUV = input.uv / kTileMetres[(int)slice];
@@ -147,10 +186,110 @@ void InitializeFacadeSurface(Varyings input, out SurfaceData surfaceData, out ha
     surfaceData.metallic = 0.0;
     surfaceData.specular = half3(0.0, 0.0, 0.0);
     surfaceData.smoothness = smoothness;
-    surfaceData.occlusion = 1.0;
+    // Inside a building the open sky is mostly hidden: its light (the ambient and the sky's reflection, which URP scales by occlusion) is dimmed
+    // there. The sun and the moon still come in through the windows, and the room's own lights are what lights it at night.
+    surfaceData.occlusion = indoors ? 1.0 - _CityXIndoorShade : 1.0;
     surfaceData.emission = half3(0.0, 0.0, 0.0);
     surfaceData.normalTS = n;
     normalTS = n;
+}
+
+// URP's UniversalFragmentPBR (ShaderLibrary/Lighting.hlsl, URP 17.3) with one change: the city's lights know which side of a wall they are on
+// (CITYX_INTERIOR_LIGHT_LAYER / CITYX_EXTERIOR_LIGHT_LAYER). Without it a lit room's lamps, which cast no shadows, would shine straight through
+// the building's walls onto the pavement and the building next door.
+half4 CityXFragmentPBR(InputData inputData, SurfaceData surfaceData, bool indoors)
+{
+    #if defined(_SPECULARHIGHLIGHTS_OFF)
+    bool specularHighlightsOff = true;
+    #else
+    bool specularHighlightsOff = false;
+    #endif
+    BRDFData brdfData;
+    InitializeBRDFData(surfaceData, brdfData);
+
+    #if defined(DEBUG_DISPLAY)
+    half4 debugColor;
+    if (CanDebugOverrideOutputColor(inputData, surfaceData, brdfData, debugColor))
+    {
+        return debugColor;
+    }
+    #endif
+
+    BRDFData brdfDataClearCoat = CreateClearCoatBRDFData(surfaceData, brdfData);
+    half4 shadowMask = CalculateShadowMask(inputData);
+    AmbientOcclusionFactor aoFactor = CreateAmbientOcclusionFactor(inputData, surfaceData);
+    uint meshRenderingLayers = GetMeshRenderingLayer();
+    Light mainLight = GetMainLight(inputData, shadowMask, aoFactor);
+
+    MixRealtimeAndBakedGI(mainLight, inputData.normalWS, inputData.bakedGI);
+
+    LightingData lightingData = CreateLightingData(inputData, surfaceData);
+    lightingData.giColor = GlobalIllumination(brdfData, brdfDataClearCoat, surfaceData.clearCoatMask,
+                                              inputData.bakedGI, aoFactor.indirectAmbientOcclusion, inputData.positionWS,
+                                              inputData.normalWS, inputData.viewDirectionWS, inputData.normalizedScreenSpaceUV);
+#ifdef _LIGHT_LAYERS
+    if (IsMatchingLightLayer(mainLight.layerMask, meshRenderingLayers))
+#endif
+    {
+        lightingData.mainLightColor = LightingPhysicallyBased(brdfData, brdfDataClearCoat,
+                                                              mainLight,
+                                                              inputData.normalWS, inputData.viewDirectionWS,
+                                                              surfaceData.clearCoatMask, specularHighlightsOff);
+    }
+
+    // The lights that belong on the other side of this surface's wall.
+    uint wrongSide = indoors ? CITYX_EXTERIOR_LIGHT_LAYER : CITYX_INTERIOR_LIGHT_LAYER;
+
+    #if defined(_ADDITIONAL_LIGHTS)
+    uint pixelLightCount = GetAdditionalLightsCount();
+
+    #if USE_CLUSTER_LIGHT_LOOP
+    [loop] for (uint lightIndex = 0; lightIndex < min(URP_FP_DIRECTIONAL_LIGHTS_COUNT, MAX_VISIBLE_LIGHTS); lightIndex++)
+    {
+        CLUSTER_LIGHT_LOOP_SUBTRACTIVE_LIGHT_CHECK
+
+        Light light = GetAdditionalLight(lightIndex, inputData, shadowMask, aoFactor);
+        CityXSoftenFitting(light, lightIndex, inputData.positionWS);
+
+#ifdef _LIGHT_LAYERS
+        if (IsMatchingLightLayer(light.layerMask, meshRenderingLayers) && (light.layerMask & wrongSide) == 0)
+#else
+        if ((light.layerMask & wrongSide) == 0)
+#endif
+        {
+            lightingData.additionalLightsColor += LightingPhysicallyBased(brdfData, brdfDataClearCoat, light,
+                                                                          inputData.normalWS, inputData.viewDirectionWS,
+                                                                          surfaceData.clearCoatMask, specularHighlightsOff);
+        }
+    }
+    #endif
+
+    LIGHT_LOOP_BEGIN(pixelLightCount)
+        Light light = GetAdditionalLight(lightIndex, inputData, shadowMask, aoFactor);
+        CityXSoftenFitting(light, lightIndex, inputData.positionWS);
+
+#ifdef _LIGHT_LAYERS
+        if (IsMatchingLightLayer(light.layerMask, meshRenderingLayers) && (light.layerMask & wrongSide) == 0)
+#else
+        if ((light.layerMask & wrongSide) == 0)
+#endif
+        {
+            lightingData.additionalLightsColor += LightingPhysicallyBased(brdfData, brdfDataClearCoat, light,
+                                                                          inputData.normalWS, inputData.viewDirectionWS,
+                                                                          surfaceData.clearCoatMask, specularHighlightsOff);
+        }
+    LIGHT_LOOP_END
+    #endif
+
+    #if defined(_ADDITIONAL_LIGHTS_VERTEX)
+    lightingData.vertexLightingColor += inputData.vertexLighting * brdfData.diffuse;
+    #endif
+
+#if REAL_IS_HALF
+    return min(CalculateFinalColor(lightingData, surfaceData.alpha), HALF_MAX);
+#else
+    return CalculateFinalColor(lightingData, surfaceData.alpha);
+#endif
 }
 
 void InitializeInputData(Varyings input, half3 normalTS, out InputData inputData)
@@ -284,7 +423,8 @@ void FacadePassFragment(
 
     SurfaceData surfaceData;
     half3 normalTS;
-    InitializeFacadeSurface(input, surfaceData, normalTS);
+    bool indoors;
+    InitializeFacadeSurface(input, surfaceData, normalTS, indoors);
 
 #ifdef LOD_FADE_CROSSFADE
     LODFadeCrossFade(input.positionCS);
@@ -300,7 +440,7 @@ void FacadePassFragment(
 
     InitializeBakedGIData(input, inputData);
 
-    half4 color = UniversalFragmentPBR(inputData, surfaceData);
+    half4 color = CityXFragmentPBR(inputData, surfaceData, indoors);
     color.rgb = MixFog(color.rgb, inputData.fogCoord);
     color.a = 1.0;
 

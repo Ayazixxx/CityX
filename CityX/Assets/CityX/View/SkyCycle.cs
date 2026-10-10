@@ -45,7 +45,8 @@ namespace CityX.View
         public static readonly Color SunColour = new Color(1.0f, 0.955f, 0.885f);
 
         public static readonly Color SunsetSunColour = new Color(1.0f, 0.55f, 0.32f);
-        public static readonly Color MoonColour = new Color(0.62f, 0.72f, 1.0f);
+        // A paler blue than it was (0.62, 0.72, 1.0): moonlight reads as cold, not as a blue floodlight (2026-10-09 lighting pass).
+        public static readonly Color MoonColour = new Color(0.70f, 0.78f, 1.0f);
 
         /// <summary>
         /// Godot's own SUN_ENERGY, restored.
@@ -65,8 +66,11 @@ namespace CityX.View
         /// <summary>
         /// Real moonlight is about a millionth of sunlight, which is far too
         /// dim to see by. This is a legibility number, not a physical one.
+        /// (0.13 until 2026-10-09: research on night lighting in games is that night should FEEL dark without BEING dark -- the moon is the
+        /// key light that gives the city its shape and its shadows, against a dim cool fill -- and at 0.13 it shaped nothing; the night read
+        /// as one flat navy.)
         /// </summary>
-        public const float MoonIntensityPeak = 0.13f;
+        public const float MoonIntensityPeak = 0.3f;
 
         /// <summary>
         /// Keeps the golden hour actually lit. A straight sin() falls off so

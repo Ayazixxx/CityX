@@ -44,12 +44,18 @@ namespace CityX.View
             Camera camera = Camera.main;
             Vector3 look = camera != null ? camera.transform.forward : player.forward;
             Vector3 eye = camera != null ? camera.transform.position : player.position + Vector3.up * 2.2f;
-            TryFlip(player.position, eye, look);
+            CityWorld world = CurrentWorld.Instance;
+            if (world == null || !TryFind(world, player.position, eye, look, out BuildingSite site, out RoomLightPlan plan))
+            {
+                return;
+            }
+            // Not straight away: the door beside the switch may be what the player is looking at (InteractionFocus picks one).
+            InteractionFocus.Offer(InteractionFocus.DegreesOff(SwitchPoint(site, plan), eye, look), () => Flip(site, plan));
         }
 
         /// <summary>
-        /// Flips the switch nearest the player that is within reach, on their floor and in front of where they are looking. Public so a test can
-        /// drive it without a keyboard. False when there is none.
+        /// Flips the switch nearest the crosshair that is within reach, on the player's floor and in front of where they are looking. Public so a
+        /// test can drive it without a keyboard. False when there is none.
         /// </summary>
         public bool TryFlip(Vector3 feet, Vector3 eye, Vector3 look)
         {
@@ -58,20 +64,34 @@ namespace CityX.View
             {
                 return false;
             }
-            RoomLights.Flip(plan.Key);
-            LastFlipped = plan.Key;
-            LastHadPower = PowerGrid.IsOn(site);
-            site.LocalToWorld(plan.Switch.x, plan.Switch.z, out double wx, out double wz);
-            PlayClick(new Vector3((float)wx, plan.Switch.y, (float)wz), RoomLights.IsOn(plan.Key));
+            Flip(site, plan);
             return true;
         }
 
-        /// <summary>The switch a player at <paramref name="feet"/>, looking along <paramref name="look"/>, would flip. Pure apart from the plan lookup.</summary>
+        private void Flip(BuildingSite site, RoomLightPlan plan)
+        {
+            RoomLights.Flip(plan.Key);
+            LastFlipped = plan.Key;
+            LastHadPower = PowerGrid.IsOn(site);
+            PlayClick(SwitchPoint(site, plan), RoomLights.IsOn(plan.Key));
+        }
+
+        /// <summary>Where a room's switch is, in the world.</summary>
+        public static Vector3 SwitchPoint(BuildingSite site, RoomLightPlan plan)
+        {
+            site.LocalToWorld(plan.Switch.x, plan.Switch.z, out double wx, out double wz);
+            return new Vector3((float)wx, plan.Switch.y, (float)wz);
+        }
+
+        /// <summary>
+        /// The switch a player at <paramref name="feet"/>, looking along <paramref name="look"/>, would flip: of the switches in reach and in front,
+        /// the one nearest the crosshair (the one they are looking at, not merely the closest). Pure apart from the plan lookup.
+        /// </summary>
         public static bool TryFind(CityWorld world, Vector3 feet, Vector3 eye, Vector3 look, out BuildingSite found, out RoomLightPlan best)
         {
             found = default;
             best = null;
-            float bestDistance = float.MaxValue;
+            float bestDegrees = float.MaxValue;
             // The building the player stands in (a little margin: they may be right by the front door).
             if (!world.TryBuildingAt(feet + Vector3.up * 0.5f, out BuildingSite site, 0.5))
             {
@@ -79,22 +99,23 @@ namespace CityX.View
             }
             foreach (RoomLightPlan plan in RoomLighting.PlansFor(site))
             {
-                site.LocalToWorld(plan.Switch.x, plan.Switch.z, out double wx, out double wz);
-                var at = new Vector3((float)wx, plan.Switch.y, (float)wz);
+                Vector3 at = SwitchPoint(site, plan);
                 if (Mathf.Abs(at.y - (feet.y + RoomLighting.SwitchHeight)) > ReachUpDown)
                 {
                     continue;
                 }
                 float flat = new Vector2(at.x - feet.x, at.z - feet.z).magnitude;
-                if (flat > ReachMetres || flat >= bestDistance)
+                if (flat > ReachMetres || !BuildingDoor.IsLookingToward(eye, look, at))
                 {
                     continue;
                 }
-                if (!BuildingDoor.IsLookingToward(eye, look, at))
+                Vector3 to = at - eye;
+                float degrees = to.sqrMagnitude < 1e-6f ? 0.0f : Vector3.Angle(look, to);
+                if (degrees >= bestDegrees)
                 {
                     continue;
                 }
-                bestDistance = flat;
+                bestDegrees = degrees;
                 best = plan;
                 found = site;
             }

@@ -19,9 +19,16 @@ namespace CityX.View
 
             /// <summary>The room's windows, lit from inside: what a switched-on room looks like from the street.</summary>
             public readonly MeshBuffer Windows = new MeshBuffer();
+
+            /// <summary>The lamps (spots shining down, chunk-local) and their range and brightness (RoomLightPlan.LightPoints).</summary>
             public Vector3[] Lights;
             public float Range;
             public float Intensity;
+
+            /// <summary>The light bounced off the floor under each lamp (spots shining up, chunk-local; RoomLightPlan.BouncePoints).</summary>
+            public Vector3[] Bounces;
+            public float BounceRange;
+            public float BounceIntensity;
             public Color Colour;
         }
 
@@ -53,7 +60,11 @@ namespace CityX.View
                 _top = site.BaseHeight + BuildingInterior.FloorTop(_floors - 1, _floors, height, _storey);
                 foreach (RoomLightPlan plan in plans)
                 {
-                    var glow = new RoomGlow { Key = plan.Key, Range = plan.LightRange, Intensity = plan.LightIntensity, Colour = plan.Colour };
+                    var glow = new RoomGlow
+                    {
+                        Key = plan.Key, Range = plan.LightRange, Intensity = plan.LightIntensity, Colour = plan.Colour,
+                        BounceRange = plan.BounceRange, BounceIntensity = plan.BounceIntensity,
+                    };
                     glow.Glow.SetFrame(offset, site.AxisX, site.AxisZ);
                     glow.Windows.SetFrame(offset, site.AxisX, site.AxisZ);
                     Glows[plan.Key] = glow;
@@ -99,15 +110,15 @@ namespace CityX.View
                 {
                     return;
                 }
-                float w = u1 - u0, h = y1 - y0;
+                // UV'd 0..1 across the pane: the window light (Shaders/CityXWindowLight.shader) is brighter towards the top, where the lit ceiling is.
                 glow.Windows.AddQuad(wall.At(u0, y0), wall.At(u1, y0), wall.At(u1, y1), wall.At(u0, y1), normal,
-                    new Vector2(0, 0), new Vector2(w, 0), new Vector2(w, h), new Vector2(0, h));
+                    new Vector2(0, 0), new Vector2(1, 0), new Vector2(1, 1), new Vector2(0, 1));
             }
         }
 
-        private static readonly Color32 FittingLook = SurfaceLook.Pack(new Color(0.86f, 0.87f, 0.89f), (int)WallMaterial.Metal, 0.12f);
-        private static readonly Color32 SwitchLook = SurfaceLook.Pack(new Color(0.93f, 0.92f, 0.88f), (int)WallMaterial.Plaster, 0.05f);
-        private static readonly Color32 ToggleLook = SurfaceLook.Pack(new Color(0.70f, 0.70f, 0.68f), (int)WallMaterial.Metal, 0.1f);
+        private static readonly Color32 FittingLook = SurfaceLook.Pack(new Color(0.86f, 0.87f, 0.89f), (int)WallMaterial.Metal, 0.12f, indoors: true);
+        private static readonly Color32 SwitchLook = SurfaceLook.Pack(new Color(0.93f, 0.92f, 0.88f), (int)WallMaterial.Plaster, 0.05f, indoors: true);
+        private static readonly Color32 ToggleLook = SurfaceLook.Pack(new Color(0.70f, 0.70f, 0.68f), (int)WallMaterial.Metal, 0.1f, indoors: true);
 
         /// <summary>
         /// A building's fittings and switches into <paramref name="interior"/> (already framed to the building); for a powered one
@@ -148,6 +159,11 @@ namespace CityX.View
                     for (int i = 0; i < glow.Lights.Length; i++)
                     {
                         glow.Lights[i] = framed.FramePoint(plan.LightPoints[i]);
+                    }
+                    glow.Bounces = new Vector3[plan.BouncePoints.Count];
+                    for (int i = 0; i < glow.Bounces.Length; i++)
+                    {
+                        glow.Bounces[i] = framed.FramePoint(plan.BouncePoints[i]);
                     }
                     glows.Add(glow);
                 }

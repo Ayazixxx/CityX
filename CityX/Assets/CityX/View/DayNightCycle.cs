@@ -27,6 +27,27 @@ namespace CityX.View
         [Tooltip("The lit-window glass. This is where the city's night light actually comes from.")]
         public Material LitWindows;
 
+        [Tooltip("The night grade (a global Volume over the day grade). Its weight follows the dark: 0 by day, 1 at night. Optional.")]
+        public UnityEngine.Rendering.Volume NightGrade;
+
+        /// <summary>
+        /// How much of the sky's light the inside of a building does NOT get (the facade shader's _CityXIndoorShade, on every surface marked
+        /// indoors -- SurfaceLook): by day a room is lit by its windows, not by the whole open sky the street sees; at night the sky is dark anyway,
+        /// and a room is what its own lamps make it (2026-10-09 lighting pass).
+        /// </summary>
+        public const float IndoorShadeDay = 0.65f;
+        public const float IndoorShadeNight = 0.5f;
+
+        /// <summary>How bright the stars are on a clear night (CityXProceduralSky's _StarEnergy).</summary>
+        public const float StarBrightness = 1.0f;
+
+        /// <summary>How much daylight there is now (0 night .. 1 day), as last applied: what the lamps over powered doors go by (EntranceLamp). 1 when
+        /// nothing has applied a sky, so a scene without a day/night cycle has them off. Settable for tests.</summary>
+        public static float Daylight { get; set; } = 1.0f;
+
+        private static readonly int IndoorShade = Shader.PropertyToID("_CityXIndoorShade");
+        private static readonly int StarEnergy = Shader.PropertyToID("_StarEnergy");
+
         /// <summary>
         /// How bright a lit window burns once night has fully fallen. Above 1
         /// because the emission map's own colour is already a dim warm tint,
@@ -265,6 +286,23 @@ namespace CityX.View
             if (LitWindows != null)
             {
                 LitWindows.SetColor(EmissionColour, LitWindowColour * glow);
+            }
+
+            // Inside a building, less of the sky (CityMeshBuilder.Interior.cs marks what is inside).
+            Shader.SetGlobalFloat(IndoorShade, Mathf.Lerp(IndoorShadeNight, IndoorShadeDay, state.Daylight));
+            Daylight = state.Daylight;
+
+            // The stars come out as the light goes, and a cloud lid hides them.
+            if (SkyDome != null)
+            {
+                float dark = 1.0f - state.Daylight;
+                SkyDome.SetFloat(StarEnergy, StarBrightness * dark * dark * (1.0f - Overcast));
+            }
+
+            // The night grade: a little brighter, cooler and greyer, the way eyes see in the dark (CityMassingSceneBuilder.EnsureNightGradeProfile).
+            if (NightGrade != null)
+            {
+                NightGrade.weight = 1.0f - state.Daylight;
             }
         }
     }

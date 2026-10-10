@@ -42,3 +42,23 @@ renders four times of day to Logs/CityShots/light-*.png.
 "I don't want to be walking around the whole game in fog." The haze now has a clear bubble round the camera: none at all within
 `CityHaze.ClearRadius` (25 m), fading in smoothly to full thickness at `CityHaze.FadeInEnd` (120 m). The street you stand in is crisp; the haze
 only shows on what is genuinely far. The streamed-city edge fade (and the storm and intro-fall fog distances) are unchanged.
+
+## The night (2026-10-09 lighting pass)
+
+"The lighting really doesn't look good ... looking from outdoors during nighttime. Research ... city lighting at night time and implement what you
+learn." Research (game night-lighting write-ups, the RenderHub lighting guide the owner sent, real night photography): night should **feel dark
+without being dark** -- a dim, cool fill and a moon strong enough to be the key light that gives the city its shape and shadows; **warm practical
+lights against the cool dark** are the contrast a night scene is made of; scant lights (a lit doorway, a lit room) say more than many; fog pushes
+the background back. What changed:
+
+- **Moon** (`SkyCycle.MoonIntensityPeak` 0.13 -> 0.3, colour a paler blue 0.70/0.78/1.0): it lights and shadows the streets now; the night is no
+  longer one flat navy.
+- **Stars** (`CityXProceduralSky.shader`, `_StarEnergy` driven by DayNightCycle: the square of the dark, hidden by overcast): hashed cells of sky,
+  most stars faint and a few bright, a little twinkle, faded towards the horizon. With nine buildings in ten dark, the sky over this city is starry.
+- **Night grade** (`CityNightGrade.asset`, a second global Volume whose weight is 1 - daylight): +0.7 stops of exposure over the day grade (eyes
+  adapt), saturation -12, contrast +12, the darkest shadows a little blue and highlights warm (balance +25: a first try with strong blue split
+  toning turned every lit room cold blue). The day grade is untouched.
+- **Road paint is lit** (URP Lit, was Unlit): crossings no longer glow white in a dark street.
+- **Lamps over powered doors**, **clear glass on real rooms**, **lit rooms that cannot shine through walls**: see ROOM_LIGHTS.md.
+- Not done: no street lamps (removed 2026-09-04 on request: "they look bad and are clipping into the ground"); lit rooms beyond the full-detail
+  radius (8 chunks) show nothing (far chunks have no rooms) -- a far lit window could be added to the far shell if it is missed.

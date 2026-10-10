@@ -3,7 +3,8 @@
 
 // The window glass pass: URP's Lit forward pass for a transparent, premultiplied surface, with the look read off the vertex.
 //
-//   vertex colour  r, g  unused
+//   vertex colour  r     255: CLEAR glass, a real room behind it (alpha _ClearAlpha, not _BaseColor.a), 0: dark glass
+//                  g     unused
 //                  b     glass tint (high nibble, an index into kGlassTints) and light colour (low nibble, kLightColours)
 //                  a     how far a blind is drawn down the window, 0 .. 200 (a 255 b 255 means "unstyled": plain dark glass, no blind)
 //
@@ -49,6 +50,7 @@ CBUFFER_START(UnityPerMaterial)
 float4 _BaseColor;
 float4 _EmissionColor;
 float _Smoothness;
+float _ClearAlpha;
 CBUFFER_END
 
 struct Attributes
@@ -208,7 +210,9 @@ void GlassPassFragment(
     float blind = styled ? saturate(blindByte / 255.0) : 0.0;
 
     float3 glassTint = SRGBToLinear(kGlassTints[min(tintIndex, 7)]);
-    float alpha = _BaseColor.a;
+    // Clear glass (the red byte, SurfaceLook.PackGlass) has a real room behind it, and lets it show through: lit, it reads as a room from the street.
+    float clear = styled ? step(0.5, input.look.r) : 0.0;
+    float alpha = lerp(_BaseColor.a, _ClearAlpha, clear);
 
     SurfaceData surfaceData = (SurfaceData)0;
     surfaceData.albedo = glassTint;

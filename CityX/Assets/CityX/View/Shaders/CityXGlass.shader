@@ -12,6 +12,8 @@ Shader "CityX/Glass"
     {
         // The glass's own darkness (rgb is unused beyond a guide; the tint comes from the vertex) and how see-through it is (a).
         _BaseColor("Glass", Color) = (0.055, 0.062, 0.075, 0.72)
+        // How see-through CLEAR glass is (a window with a real room behind it, SurfaceLook.PackGlass): the room shows through it.
+        _ClearAlpha("Clear glass", Range(0.0, 1.0)) = 0.4
         _Smoothness("Smoothness", Range(0.0, 1.0)) = 0.86
         // Raised by DayNightCycle as the light goes, so the lit windows come on at dusk.
         [HDR] _EmissionColor("Emission", Color) = (0, 0, 0, 1)

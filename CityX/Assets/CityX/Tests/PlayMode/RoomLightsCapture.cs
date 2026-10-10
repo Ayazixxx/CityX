@@ -65,7 +65,11 @@ namespace CityX.Tests
                 streamer.Rebuild();
                 streamer.StreamAround(centre, int.MaxValue);
                 List<RoomLightPlan> plans = RoomLighting.PlansFor(site);
-                foreach (RoomLightPlan plan in plans) RoomLights.Set(plan.Key, true);
+                // Not every room: a lit building at night is some rooms on and some off. The ground and first floors, and every third floor above.
+                foreach (RoomLightPlan plan in plans)
+                {
+                    if (plan.Key.Floor < 2 || plan.Key.Floor % 3 == 0) RoomLights.Set(plan.Key, true);
+                }
                 yield return null;
                 yield return null;
 
@@ -86,12 +90,12 @@ namespace CityX.Tests
                     float eyeY = site.BaseHeight + 2.3f;
                     Vector3 from = World(site, -site.Params.Width * 0.3f, eyeY, -site.Params.Depth * 0.15f);
                     Vector3 to = World(site, hall.Switch.x, hall.Switch.y + 1.5f, hall.Switch.z);
-                    BuildingShapeCapture.Shoot(camera, directory, $"roomlights-{pick.Key}-hall-{when}", from, to);
+                    Shot(camera, directory, $"roomlights-{pick.Key}-hall-{when}", from, to);
 
                     // Close on the switch.
                     Vector3 sw = World(site, hall.Switch.x, hall.Switch.y, hall.Switch.z);
                     Vector3 facing = Quaternion.Euler(0.0f, CityMeshBuilder.YawDegreesOf(site), 0.0f) * hall.SwitchFacing;
-                    BuildingShapeCapture.Shoot(camera, directory, $"roomlights-{pick.Key}-switch-{when}", sw + facing * 1.6f + Vector3.up * 0.4f + Vector3.Cross(Vector3.up, facing) * 0.6f, sw);
+                    Shot(camera, directory, $"roomlights-{pick.Key}-switch-{when}", sw + facing * 1.6f + Vector3.up * 0.4f + Vector3.Cross(Vector3.up, facing) * 0.6f, sw);
 
                     // The corner room, if there is one.
                     if (plans.Count > 1 && plans[1].Key.Room == 1)
@@ -99,13 +103,22 @@ namespace CityX.Tests
                         RoomLightPlan room = plans[1];
                         Vector3 rs = World(site, room.Switch.x, room.Switch.y, room.Switch.z);
                         Vector3 rf = Quaternion.Euler(0.0f, CityMeshBuilder.YawDegreesOf(site), 0.0f) * room.SwitchFacing;
-                        BuildingShapeCapture.Shoot(camera, directory, $"roomlights-{pick.Key}-room-{when}", rs + rf * 0.6f + Vector3.up * 0.8f, rs + rf * 4.0f + Vector3.up * 2.5f);
+                        Shot(camera, directory, $"roomlights-{pick.Key}-room-{when}", rs + rf * 0.6f + Vector3.up * 0.8f, rs + rf * 4.0f + Vector3.up * 2.5f);
                     }
 
                     // From the street in front of it.
                     Vector3 front = CityMeshBuilder.WallNormal(site, WindowGrid.Wall.North);
                     Vector3 street = centre + front * (site.Params.Depth * 0.5f + 16.0f) + Vector3.up * 2.0f;
-                    BuildingShapeCapture.Shoot(camera, directory, $"roomlights-{pick.Key}-street-{when}", street, centre + Vector3.up * 8.0f);
+                    Shot(camera, directory, $"roomlights-{pick.Key}-street-{when}", street, centre + Vector3.up * 8.0f);
+
+                    // Further back and higher, the whole building with its lit and dark floors.
+                    Vector3 across = centre + front * (site.Params.Depth * 0.5f + 34.0f) + Vector3.up * 9.0f;
+                    Shot(camera, directory, $"roomlights-{pick.Key}-facade-{when}", across, centre + Vector3.up * Mathf.Min(site.Params.Height * 0.45f, 30.0f));
+
+                    // The front door from the pavement: a powered building's lamp over it at night.
+                    Vector3 door = World(site, 0.0f, site.BaseHeight + 1.6f, site.FrontHalfDepth);
+                    Vector3 side = Vector3.Cross(Vector3.up, front);
+                    Shot(camera, directory, $"roomlights-{pick.Key}-door-{when}", door + front * 8.0f + side * 3.0f + Vector3.up * 0.8f, door);
                 }
                 RoomLights.Clear();
             }
@@ -113,6 +126,13 @@ namespace CityX.Tests
 #else
             yield break;
 #endif
+        }
+
+        /// <summary>One shot, with the room lights the camera would have chosen from where it stands (RoomLightDirector goes by the main camera).</summary>
+        private static void Shot(Camera camera, string directory, string name, Vector3 from, Vector3 to)
+        {
+            RoomLightDirector.Direct(from);
+            BuildingShapeCapture.Shoot(camera, directory, name, from, to);
         }
 
         private static Vector3 World(BuildingSite site, float x, float y, float z)

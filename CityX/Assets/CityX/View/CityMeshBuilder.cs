@@ -249,9 +249,15 @@ namespace CityX.View
             /// <summary>A powered building's per-room window glow (lit while that room's switch is on), or null.</summary>
             public readonly RoomWindowGlow WindowGlow;
 
+            /// <summary>
+            /// Windows lower than this (in the builder's frame) have a fitted-out room behind them and get CLEAR glass (SurfaceLook.PackGlass): the
+            /// room shows through. Above it -- the sealed top of a tower, a distant building's strips -- there is nothing behind to show.
+            /// </summary>
+            public readonly float ClearBelow;
+
             public Glazing(MeshBuffer lit, MeshBuffer dark, MeshBuffer cracked, GlassDamage damage,
                 List<CrackedOpening> openings, MeshBuffer decals = null,
-                double litShare = WindowGrid.LitShare, RoomWindowGlow windowGlow = null)
+                double litShare = WindowGrid.LitShare, RoomWindowGlow windowGlow = null, float clearBelow = float.MinValue)
             {
                 WindowGlow = windowGlow;
                 Lit = lit;
@@ -261,6 +267,13 @@ namespace CityX.View
                 Openings = openings;
                 Decals = decals;
                 LitShare = litShare;
+                ClearBelow = clearBelow;
+            }
+
+            /// <summary>The same glazing, with clear glass below <paramref name="height"/>.</summary>
+            public Glazing WithClearBelow(float height)
+            {
+                return new Glazing(Lit, Dark, Cracked, Damage, Openings, Decals, LitShare, WindowGlow, height);
             }
 
             public bool HangsGlass => Lit != null;
@@ -388,6 +401,7 @@ namespace CityX.View
             var fitted = new CellLayout(fittedRows, rows.Size);
             float detailTop = detailRows < rows.Count ? lobbyY + detailRows * rows.Size : roofY;
             float fittedTop = fittedRows < rows.Count ? lobbyY + fittedRows * rows.Size : roofY;
+            glazing = glazing.WithClearBelow(fittedTop);   // a real room behind every window up to here: clear glass
 
             // The podium, below the lobby floor. Solid: it is buried on the
             // uphill side and exposed downhill, so glazing it would put windows
@@ -415,6 +429,9 @@ namespace CityX.View
             // The wall is BuildingInterior.WallThickness thick: the inside face is that far in from the outside one, over the same span
             // so every window column still lines up. Each opening's reveals (AddWindowReveals) join the two faces.
             float t = BuildingInterior.WallThickness;
+            // Everything from here into the concrete buffer is the INSIDE (CityMeshBuilder.Interior.cs): pale and marked indoors.
+            InteriorLooks inside = InteriorLooks.For(site);
+            concrete.Look = inside.Wall;
             AddWindowedWall(concrete, Glazing.OpeningsOnly, site, new Wall(true, x0 + t, z0, z1), z0, z1, lobbyY, fittedTop,
                 Vector3.right, plan, WindowGrid.Wall.West, fitted, 0.0f, 0.0f, false);
             AddWindowedWall(concrete, Glazing.OpeningsOnly, site, new Wall(true, x1 - t, z0, z1), z0, z1, lobbyY, fittedTop,
@@ -457,12 +474,13 @@ namespace CityX.View
             // is the only thing holding anybody up. Solid, unless there is a
             // basement, in which case it is opened for the flight down.
             Rect basementHole = stairs.Basement != null ? Shift(stairs.Basement.Hole, centreX, centreZ) : Rect.zero;
+            concrete.Look = inside.Floor;
             AddSlabFace(concrete, x0, x1, z0, z1, basementHole, lobbyY, Vector3.up);
 
             if (site.Params.HasBasement && stairs.Basement != null)
             {
                 BuildBasement(concrete, x0, x1, z0, z1, lobbyY, storey, centreX, centreZ, stairs.Basement, basementHole,
-                    doorTop - lobbyY);
+                    doorTop - lobbyY, inside);
             }
 
             for (int floor = 0; floor < floors; floor++)
@@ -482,9 +500,10 @@ namespace CityX.View
                 {
                     structures.Look = looks.Roof;
                 }
-                AddSlab(concrete, x0, x1, z0, z1, hole, lobbyY + top, isRoof ? structures : null);
+                AddSlab(concrete, x0, x1, z0, z1, hole, lobbyY + top, isRoof ? structures : null, inside);
 
                 StairPlan arriving = floor > 0 ? stairs.Floors[floor - 1] : stairs.Basement;
+                concrete.Look = inside.Wall;
                 AddRoomPartition(concrete, BuildingStairs.RoomFor(floor, halfX, halfZ, flight, arriving),
                     centreX, centreZ, lobbyY + bottom, lobbyY + top, doorTop - lobbyY);
 
@@ -497,7 +516,7 @@ namespace CityX.View
                 if (flight != null)
                 {
                     AddStairs(concrete, flight, lobbyY + bottom, lobbyY + top - BuildingInterior.SlabThickness, centreX, centreZ,
-                        doorTop - lobbyY);
+                        doorTop - lobbyY, inside);
                 }
             }
 
@@ -505,10 +524,11 @@ namespace CityX.View
             {
                 // The roof of a tall building, over the sealed space above its last fitted-out floor.
                 structures.Look = looks.Roof;
-                AddSlab(concrete, x0, x1, z0, z1, Rect.zero, roofY, structures);
+                AddSlab(concrete, x0, x1, z0, z1, Rect.zero, roofY, structures, inside);
                 AddRoof(structures, site, x0, x1, z0, z1, roofY, looks, Rect.zero);
                 structures.Look = SurfaceLook.Default;
             }
+            concrete.Look = SurfaceLook.Default;   // the next building's entrance steps are outside
         }
 
         private static Rect Shift(Rect r, float x, float z) => new Rect(r.x + x, r.y + z, r.width, r.height);
@@ -524,8 +544,13 @@ namespace CityX.View
         /// flight is a sloped slab with a stepped underside and another stair can stand over its opening), and for a stair core, the four
         /// walls round it with a doorway.
         /// </summary>
-        private static void AddStairs(MeshBuffer concrete, StairPlan plan, float floorY, float ceilingBottomY, float cx, float cz, float doorHeight)
+        private static void AddStairs(MeshBuffer concrete, StairPlan plan, float floorY, float ceilingBottomY, float cx, float cz, float doorHeight,
+            InteriorLooks? inside = null)
         {
+            if (inside.HasValue)
+            {
+                concrete.Look = inside.Value.Stair;
+            }
             for (int i = 0; i < plan.Treads.Length; i++)
             {
                 Rect r = plan.Treads[i];
@@ -540,6 +565,10 @@ namespace CityX.View
             }
 
             // The shaft: walls just outside the stair's own bounds, a doorway in the side the entry cell is on.
+            if (inside.HasValue)
+            {
+                concrete.Look = inside.Value.Wall;
+            }
             float t = BuildingStairs.CoreWall;
             Rect b = plan.Bounds;
             float xa = b.xMin + cx, xb = b.xMax + cx, za = b.yMin + cz, zb = b.yMax + cz;
@@ -1025,10 +1054,10 @@ namespace CityX.View
             buffer.Look = looks.Trim;
             float c0 = roofY + h;
             float c1 = c0 + CopingHeight;
-            buffer.AddBox(new Vector3(x0 - o, c0, z0 - o), new Vector3(x1 + o, c1, z0 + t + o));
-            buffer.AddBox(new Vector3(x0 - o, c0, z1 - t - o), new Vector3(x1 + o, c1, z1 + o));
-            buffer.AddBox(new Vector3(x0 - o, c0, z0 + t + o), new Vector3(x0 + t + o, c1, z1 - t - o));
-            buffer.AddBox(new Vector3(x1 - t - o, c0, z0 + t + o), new Vector3(x1 + o, c1, z1 - t - o));
+            buffer.AddBox(new Vector3(x0 - o, c0, z0 - o), new Vector3(x1 + o, c1, z0 + t + o), true);
+            buffer.AddBox(new Vector3(x0 - o, c0, z1 - t - o), new Vector3(x1 + o, c1, z1 + o), true);
+            buffer.AddBox(new Vector3(x0 - o, c0, z0 + t + o), new Vector3(x0 + t + o, c1, z1 - t - o), true);
+            buffer.AddBox(new Vector3(x1 - t - o, c0, z0 + t + o), new Vector3(x1 + o, c1, z1 - t - o), true);
 
             AddRoofPlant(buffer, site, x0, x1, z0, z1, roofY, looks, hatch);
             buffer.Look = saved;
@@ -1259,9 +1288,10 @@ namespace CityX.View
         /// </summary>
         private static void BuildBasement(MeshBuffer concrete,
             float x0, float x1, float z0, float z1, float lobbyY, float storey,
-            float centreX, float centreZ, StairPlan plan, Rect hole, float doorHeight)
+            float centreX, float centreZ, StairPlan plan, Rect hole, float doorHeight, InteriorLooks inside)
         {
             float floorY = lobbyY - storey;
+            concrete.Look = inside.Stair;   // a basement is bare concrete, but it is still indoors
 
             var west = new Wall(true, x0, z0, z1);
             var east = new Wall(true, x1, z0, z1);
@@ -1281,7 +1311,7 @@ namespace CityX.View
             AddHoleCollar(concrete, hole, lobbyY - BuildingInterior.SlabThickness, lobbyY);
 
             // The same flight the player walks DOWN to get here.
-            AddStairs(concrete, plan, floorY, lobbyY - BuildingInterior.SlabThickness, centreX, centreZ, doorHeight);
+            AddStairs(concrete, plan, floorY, lobbyY - BuildingInterior.SlabThickness, centreX, centreZ, doorHeight, inside);
         }
 
         /// <summary>
@@ -1788,7 +1818,9 @@ namespace CityX.View
             int count = storefront && rng.NextDouble() < 0.30 ? 2 : 1;
             Vector3 along = (wall.At(u0 + 1.0f, 0.0f) - wall.At(u0, 0.0f)).normalized;
             Color32 saved = wallBuffer.Look;
-            Color32 savedGlass = glazing.Lit.Look;
+            // Lit only on a building with power (World.PowerGrid): a dead building's sign is dark glass, like its windows.
+            MeshBuffer panels = PowerGrid.IsOn(site) || glazing.Dark == null ? glazing.Lit : glazing.Dark;
+            Color32 savedGlass = panels.Look;
 
             for (int i = 0; i < count; i++)
             {
@@ -1813,14 +1845,14 @@ namespace CityX.View
                 wallBuffer.Look = looks.Frame;
                 Vector3 a0 = wall.At(u - 0.06f, bottom + height * 0.5f - 0.05f);
                 Vector3 a1 = wall.At(u + 0.06f, bottom + height * 0.5f + 0.05f) + outward * 0.5f;
-                wallBuffer.AddBox(Vector3.Min(a0, a1), Vector3.Max(a0, a1));
+                wallBuffer.AddBox(Vector3.Min(a0, a1), Vector3.Max(a0, a1), true);
                 Vector3 f0 = wall.At(u - 0.14f, bottom) + outward * 0.4f;
                 Vector3 f1 = wall.At(u + 0.14f, bottom + height) + outward * reach;
                 wallBuffer.AddBox(Vector3.Min(f0, f1), Vector3.Max(f0, f1), true);
 
                 // The two lit faces, one colour: a neon that is not the colour of the window next to it.
                 int light = 2 + rng.Below(5);
-                glazing.Lit.Look = SurfaceLook.PackGlass(0, light, 0.0f);
+                panels.Look = SurfaceLook.PackGlass(0, light, 0.0f);
                 float panelWidth = reach - 0.4f - 0.2f;
                 float panelHeight = height - 0.4f;
                 foreach (float side in new[] { 1.0f, -1.0f })
@@ -1830,12 +1862,12 @@ namespace CityX.View
                     Vector3 c10 = wall.At(x, bottom + 0.2f) + outward * (reach - 0.1f);
                     Vector3 c11 = wall.At(x, bottom + 0.2f + panelHeight) + outward * (reach - 0.1f);
                     Vector3 c01 = wall.At(x, bottom + 0.2f + panelHeight) + outward * 0.5f;
-                    glazing.Lit.AddQuad(c00, c10, c11, c01, along * side,
+                    panels.AddQuad(c00, c10, c11, c01, along * side,
                         new Vector2(0.0f, 0.0f), new Vector2(panelWidth, 0.0f), new Vector2(panelWidth, panelHeight), new Vector2(0.0f, panelHeight));
                 }
             }
             wallBuffer.Look = saved;
-            glazing.Lit.Look = savedGlass;
+            panels.Look = savedGlass;
         }
 
         /// <summary>A flat canopy over an ordinary entrance: a slab on the wall above the door.</summary>
@@ -1846,7 +1878,7 @@ namespace CityX.View
             buffer.Look = looks.Trim;
             Vector3 c0 = wall.At(doorU0 - 0.55f, doorTop + 0.12f);
             Vector3 c1 = wall.At(doorU1 + 0.55f, doorTop + 0.28f) + outward * 1.15f;
-            buffer.AddBox(Vector3.Min(c0, c1), Vector3.Max(c0, c1));
+            buffer.AddBox(Vector3.Min(c0, c1), Vector3.Max(c0, c1), true);   // with its underside: it is seen from below, walking in
             buffer.Look = saved;
         }
 
@@ -1925,7 +1957,7 @@ namespace CityX.View
                 buffer.Look = looks.Value.Trim;
                 Vector3 p0 = wall.At(u0 - SillSideExtra, y0 - SillThickness);
                 Vector3 p1 = wall.At(u1 + SillSideExtra, y0) + outward * SillOverhang;
-                buffer.AddBox(Vector3.Min(p0, p1), Vector3.Max(p0, p1));
+                buffer.AddBox(Vector3.Min(p0, p1), Vector3.Max(p0, p1), true);
                 buffer.Look = saved;
             }
         }
@@ -1977,7 +2009,7 @@ namespace CityX.View
         /// One window's glass look: the building's tint, a kind of light of its own, and a blind drawn part-way down it. From the window's
         /// place in the building, so it is the same every time the chunk is built and no two neighbours match.
         /// </summary>
-        private static Color32 GlassLookFor(BuildingSite site, WindowGrid.Wall which, int column, int row, int tint)
+        private static Color32 GlassLookFor(BuildingSite site, WindowGrid.Wall which, int column, int row, int tint, bool clear = false)
         {
             uint h = unchecked((uint)(site.Id * 73856093) ^ (uint)((int)which * 19349663) ^ (uint)(column * 83492791) ^ (uint)(row * 2654435761u));
             h ^= h >> 15;
@@ -1990,7 +2022,7 @@ namespace CityX.View
                 light = (int)((h >> 4) % 2u);
             }
             float blind = ((h >> 16) % 100u) < 55u ? ((h >> 24) % 100u) / 100.0f * 0.75f : 0.0f;
-            return SurfaceLook.PackGlass(tint, light, blind);
+            return SurfaceLook.PackGlass(tint, light, blind, clear);
         }
 
         /// <summary>A number 0 .. 1 from a window's place in its building: whether it has an air conditioner under it.</summary>
@@ -2015,7 +2047,7 @@ namespace CityX.View
             buffer.Look = looks.Appliance;
             Vector3 a = wall.At(centre - width * 0.5f, bottom);
             Vector3 b = wall.At(centre + width * 0.5f, bottom + height) + outward * depth;
-            buffer.AddBox(Vector3.Min(a, b), Vector3.Max(a, b));
+            buffer.AddBox(Vector3.Min(a, b), Vector3.Max(a, b), true);
             // The dark grille on its face.
             buffer.Look = looks.Frame;
             Vector3 g0 = wall.At(centre - width * 0.40f, bottom + height * 0.18f) + outward * (depth + 0.004f);
@@ -2106,7 +2138,8 @@ namespace CityX.View
                 Color32 savedLook = glass.Look;
                 if (looks.HasValue && state != PaneState.Cracked)
                 {
-                    glass.Look = GlassLookFor(site, which, column, row, looks.Value.GlassTint);
+                    // Clear where a fitted-out room is behind it (Glazing.ClearBelow): the room shows through, lit or not.
+                    glass.Look = GlassLookFor(site, which, column, row, looks.Value.GlassTint, (y0 + y1) * 0.5f < glazing.ClearBelow);
                 }
                 float w = u1 - u0;
                 float h = y1 - y0;
@@ -2320,10 +2353,18 @@ namespace CityX.View
         /// top and a collar closes the gap around the opening.
         /// </summary>
         private static void AddSlab(MeshBuffer buffer, float x0, float x1, float z0, float z1,
-            Rect hole, float topY, MeshBuffer topBuffer = null)
+            Rect hole, float topY, MeshBuffer topBuffer = null, InteriorLooks? inside = null)
         {
             float bottomY = topY - BuildingInterior.SlabThickness;
+            if (inside.HasValue && topBuffer == null)
+            {
+                buffer.Look = inside.Value.Floor;   // the floor of the storey above
+            }
             AddSlabFace(topBuffer ?? buffer, x0, x1, z0, z1, hole, topY, Vector3.up);
+            if (inside.HasValue)
+            {
+                buffer.Look = inside.Value.Ceiling;
+            }
             AddSlabFace(buffer, x0, x1, z0, z1, hole, bottomY, Vector3.down);
             AddHoleCollar(buffer, hole, bottomY, topY);
         }

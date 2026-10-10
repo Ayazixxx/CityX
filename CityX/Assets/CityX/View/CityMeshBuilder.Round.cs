@@ -43,6 +43,10 @@ namespace CityX.View
             var fitted = new CellLayout(fittedRows, rows.Size);
             float detailTop = detailRows < rows.Count ? lobbyY + detailRows * rows.Size : roofY;
             float fittedTop = fittedRows < rows.Count ? lobbyY + fittedRows * rows.Size : roofY;
+            if (!outsideOnly)
+            {
+                glazing = glazing.WithClearBelow(fittedTop);   // a real room behind every window up to here: clear glass
+            }
             float baseTop = outsideOnly ? Mathf.Min(roofY, lobbyY + BuildingInterior.RowHeight(height)) : lobbyY;
             float doorTop = lobbyY + BuildingInterior.DoorHeight(height);
 
@@ -55,6 +59,7 @@ namespace CityX.View
                 }
             }
 
+            InteriorLooks inside = InteriorLooks.For(site);   // the inside, pale and marked indoors (CityMeshBuilder.Interior.cs)
             var outer = new Wall(false, 0.0f, -half, half);
             var inner = new Wall(false, -wallT, -half, half);
             for (int side = 0; side < fp.Sides; side++)
@@ -72,6 +77,7 @@ namespace CityX.View
                 {
                     AddWindowedWall(structures, glazing, site, outer, -half, half, lobbyY, detailTop, Vector3.forward, plan, which, detailed,
                         doorU0, doorU1, door, looks);
+                    concrete.Look = inside.Wall;
                     AddWindowedWall(concrete, Glazing.OpeningsOnly, site, inner, -half, half, lobbyY, fittedTop, Vector3.back, plan, which, fitted,
                         doorU0, doorU1, door);
                 }
@@ -133,6 +139,7 @@ namespace CityX.View
             }
 
             // The floors: the lobby, then each storey's ceiling, the last of which is the roof unless the top is sealed.
+            concrete.Look = inside.Floor;
             AddRoundSlabFace(concrete, fp, Rect.zero, lobbyY, Vector3.up);
             Rect hatch = Rect.zero;
             for (int floor = 0; floor < floors; floor++)
@@ -147,20 +154,21 @@ namespace CityX.View
                     structures.Look = looks.Roof;
                     hatch = hole;
                 }
-                AddRoundSlab(concrete, fp, hole, lobbyY + top, isRoof ? structures : null);
+                AddRoundSlab(concrete, fp, hole, lobbyY + top, isRoof ? structures : null, inside);
                 if (flight != null)
                 {
-                    AddStairs(concrete, flight, lobbyY + bottom, lobbyY + top - BuildingInterior.SlabThickness, 0.0f, 0.0f, doorTop - lobbyY);
+                    AddStairs(concrete, flight, lobbyY + bottom, lobbyY + top - BuildingInterior.SlabThickness, 0.0f, 0.0f, doorTop - lobbyY, inside);
                 }
             }
             if (stairs.SealedTop)
             {
                 structures.Look = looks.Roof;
-                AddRoundSlab(concrete, fp, Rect.zero, roofY, structures);
+                AddRoundSlab(concrete, fp, Rect.zero, roofY, structures, inside);
             }
             structures.Look = looks.Roof;
             AddRoofPlant(structures, site, -innerHalf, innerHalf, -innerHalf, innerHalf, roofY, looks, hatch);
             structures.Look = SurfaceLook.Default;
+            concrete.Look = SurfaceLook.Default;   // the next building's entrance steps are outside
         }
 
         /// <summary>
@@ -193,10 +201,19 @@ namespace CityX.View
         }
 
         /// <summary>A floor or ceiling slab the shape of the outline: its top face, its underside a slab's thickness down, and the collar round any opening.</summary>
-        private static void AddRoundSlab(MeshBuffer buffer, RoundFootprint fp, Rect hole, float topY, MeshBuffer topBuffer = null)
+        private static void AddRoundSlab(MeshBuffer buffer, RoundFootprint fp, Rect hole, float topY, MeshBuffer topBuffer = null,
+            InteriorLooks? inside = null)
         {
             float bottomY = topY - BuildingInterior.SlabThickness;
+            if (inside.HasValue && topBuffer == null)
+            {
+                buffer.Look = inside.Value.Floor;
+            }
             AddRoundSlabFace(topBuffer ?? buffer, fp, hole, topY, Vector3.up);
+            if (inside.HasValue)
+            {
+                buffer.Look = inside.Value.Ceiling;
+            }
             AddRoundSlabFace(buffer, fp, hole, bottomY, Vector3.down);
             if (hole.width > 0.0f && hole.height > 0.0f)
             {

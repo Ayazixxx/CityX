@@ -377,7 +377,10 @@ namespace CityX.View
             {
                 if (Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame && IsLookedAt(_player))
                 {
-                    Interact(_player);
+                    // Not straight away: the light switch beside the door may be what the player is looking at (InteractionFocus picks one).
+                    Transform opener = _player;
+                    InteractionFocus.Offer(InteractionFocus.DegreesOff(DoorCentre(), opener.position + Vector3.up * 1.5f, opener.forward),
+                        () => Interact(opener));
                 }
                 else
                 {

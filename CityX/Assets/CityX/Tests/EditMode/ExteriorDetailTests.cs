@@ -40,6 +40,33 @@ namespace CityX.Tests
         }
 
         [Test]
+        public void ADoorsCanopyHasAnUnderside()
+        {
+            // It is walked under and looked up at: built without its bottom face it was see-through from below (owner, 2026-10-09).
+            int canopies = 0;
+            foreach (BuildingSite site in Sample(40, s => !s.Shell && !s.OnRoof && s.Sides < 3 && !WindowPlan.For(World, s).Storefront))
+            {
+                var structures = new MeshBuffer();
+                Build(site, false, structures, new MeshBuffer(), new MeshBuffer(), new MeshBuffer(), out Vector3 origin);
+                float underside = site.BaseHeight + BuildingInterior.DoorHeight(site.Params.Height) + 0.12f;
+                bool found = false;
+                for (int i = 0; i < structures.Vertices.Count && !found; i++)
+                {
+                    Vector3 v = structures.Vertices[i] + origin;
+                    if (structures.Normals[i].y > -0.99f || Mathf.Abs(v.y - underside) > 0.02f)
+                    {
+                        continue;
+                    }
+                    site.WorldToLocal(v.x, v.z, out double lx, out double lz);
+                    found = lz > site.Params.Depth * 0.5 + 0.5 && System.Math.Abs(lx) < BuildingInterior.DoorWidth;
+                }
+                Assert.IsTrue(found, $"building {site.Id}: the canopy over its door has no underside");
+                canopies++;
+            }
+            Assert.Greater(canopies, 10, "need a real sample");
+        }
+
+        [Test]
         public void EveryRoofEndsInAParapet()
         {
             int checkedRoofs = 0;

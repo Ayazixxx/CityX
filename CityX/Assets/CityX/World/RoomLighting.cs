@@ -66,7 +66,7 @@ namespace CityX.World
         public bool HasCord => CordMax.y > CordMin.y;
     }
 
-    /// <summary>Everything about one room's lighting: its fittings, where the real (point) lights go, what colour, and where its switch is.</summary>
+    /// <summary>Everything about one room's lighting: its fittings, where the real lights go, what colour, and where its switch is.</summary>
     public sealed class RoomLightPlan
     {
         public RoomKey Key;
@@ -77,10 +77,21 @@ namespace CityX.World
         public Color Colour;
         public readonly List<Fixture> Fixtures = new List<Fixture>();
 
-        /// <summary>Where the room's real lights stand (few: the fittings glow, these light the room), in the building's frame.</summary>
+        /// <summary>
+        /// Where the room's lamps are (few: the fittings glow, these light the room), in the building's frame: each a spot just under its fittings,
+        /// shining straight down (RoomLighting.LampOuterAngle).
+        /// </summary>
         public readonly List<Vector3> LightPoints = new List<Vector3>();
         public float LightRange;
         public float LightIntensity;
+
+        /// <summary>
+        /// The light the floor throws back up, under each lamp: a spot a little below the floor shining straight up (RoomLighting.BounceOuterAngle),
+        /// which is what lights the ceiling and the tops of the walls. One per lamp, in the building's frame.
+        /// </summary>
+        public readonly List<Vector3> BouncePoints = new List<Vector3>();
+        public float BounceRange;
+        public float BounceIntensity;
 
         /// <summary>The switch plate's centre, on the wall, and the way it faces (into the room), in the building's frame.</summary>
         public Vector3 Switch;
@@ -111,8 +122,44 @@ namespace CityX.World
         /// <summary>No room has more fittings than this (a 40 m office floor gets wider spacing, not hundreds of panels).</summary>
         public const int MaxFixtures = 16;
 
-        /// <summary>No room has more real lights than this.</summary>
-        public const int MaxLightPoints = 6;
+        /// <summary>No room has more lamps than this (and as many bounces).</summary>
+        public const int MaxLightPoints = 9;   // a lamp for every cell of a 3x3 split (it was 6: the last third of a big hall had none and stood dark)
+
+        // ---- The real lights (2026-10-09 research: ceiling lights in games are DOWNWARD SPOTS -- they pool light on the floor and leave the
+        // ---- ceiling to the light bounced off it -- not point lights, which burn a hot spot into the ceiling an arm's length above them and
+        // ---- shine through the slab into the storey above; and a fake bounce stands in for the global illumination a game cannot afford.)
+
+        /// <summary>A lamp's cone, degrees across: wide, so the pools of neighbouring lamps meet on the floor; full strength inside the inner cone.</summary>
+        public const float LampOuterAngle = 140.0f;
+        public const float LampInnerAngle = 80.0f;
+
+        /// <summary>How far under its fitting's glowing face a lamp is, metres.</summary>
+        public const float LampBelowFitting = 0.08f;
+
+        /// <summary>How bright the floor straight under a lamp is (URP's light units: intensity over distance squared). A lamp is as bright as its height needs.</summary>
+        public const float FloorLight = 0.9f;
+
+        /// <summary>A lamp reaches this many times its height above the floor (far enough for its cone's edge to land on the floor).</summary>
+        public const float LampReachPerHeight = 2.2f;
+
+        /// <summary>The bounce's cone: nearly the whole half-space above it, so it lights the ceiling and the walls but never the floor it stands under.</summary>
+        public const float BounceOuterAngle = 170.0f;
+        public const float BounceInnerAngle = 110.0f;
+
+        /// <summary>
+        /// How far below the floor's surface the bounce stands: inside the slab, under half its thickness. Below the surface, so the floor faces away
+        /// from it (it does not light the floor the lamp already lights); inside the slab, so it is above the ceiling of the room below and its upward
+        /// cone misses it. (It was 0.8 m, deeper than the 0.2 m slab: every lit room's bounces stood half a metre under the ceiling of the room
+        /// below and burnt bright ovals into it.)
+        /// </summary>
+        public const float BounceBelowFloor = 0.08f;
+
+        /// <summary>How bright the ceiling straight over a bounce is, the same units as <see cref="FloorLight"/>: about a third of the floor's, which is
+        /// roughly what a pale floor gives back.</summary>
+        public const float CeilingLight = 0.24f;
+
+        /// <summary>The bounce reaches this many times the height from it to the ceiling.</summary>
+        public const float BounceReachPerHeight = 1.6f;
 
         /// <summary>Nothing hangs lower than this above the floor (a 2.6 m player, with room to jump a little).</summary>
         public const float HeadroomMetres = 3.2f;
@@ -127,8 +174,8 @@ namespace CityX.World
         {
             switch (pattern)
             {
-                case LightPattern.PanelGrid: return new Color(0.90f, 0.95f, 1.00f);
-                case LightPattern.FluorescentRows: return new Color(0.84f, 0.95f, 0.98f);
+                case LightPattern.PanelGrid: return new Color(0.97f, 0.96f, 0.95f);   // neutral LED panel (was bluer: offices read cold at night)
+                case LightPattern.FluorescentRows: return new Color(0.88f, 0.96f, 0.96f);
                 case LightPattern.Pendants: return new Color(1.00f, 0.74f, 0.45f);
                 case LightPattern.CentreFitting: return new Color(1.00f, 0.86f, 0.66f);
                 default: return new Color(1.00f, 0.94f, 0.84f);
@@ -209,7 +256,7 @@ namespace CityX.World
 
             int cols = Mathf.Max(1, Mathf.FloorToInt(inner.width / spacing) + 1);
             int rows = Mathf.Max(1, Mathf.FloorToInt(inner.height / spacing) + 1);
-            if (plan.Pattern == LightPattern.CentreFitting)
+            if (plan.Pattern == LightPattern.CentreFitting && Mathf.Max(area.width, area.height) < 14.0f)   // a big hall gets a grid of them, or most of it is dark
             {
                 cols = Mathf.Clamp(cols, 1, 2);
                 rows = Mathf.Clamp(rows, 1, 2);
@@ -273,8 +320,9 @@ namespace CityX.World
                 }
             }
 
-            // The real lights: one per cell of a 1x1, 2x2 or 3x3 split of the room (by its size) that has fittings in it (at most
-            // MaxLightPoints), at the middle of those fittings, a little under them. A big open-plan floor needs more than four to read as lit.
+            // The lamps: one per cell of a 1x1, 2x2 or 3x3 split of the room (by its size) that has fittings in it (at most MaxLightPoints),
+            // under the middle of those fittings, shining down; and under each, below the floor, its bounce shining up. A big open-plan floor
+            // needs more than four to read as lit.
             float span = Mathf.Max(area.width, area.height);
             int split = span > 24.0f ? 3 : (span > 10.0f ? 2 : 1);
             for (int qz = 0; qz < split; qz++)
@@ -298,13 +346,24 @@ namespace CityX.World
                     }
                     if (n > 0 && plan.LightPoints.Count < MaxLightPoints)
                     {
-                        plan.LightPoints.Add(sum / n + Vector3.down * 0.4f);
+                        Vector3 middle = sum / n;
+                        plan.LightPoints.Add(new Vector3(middle.x, underside - LampBelowFitting, middle.z));
+                        plan.BouncePoints.Add(new Vector3(middle.x, floorY - BounceBelowFloor, middle.z));
                     }
                 }
             }
-            float reach = Mathf.Max(area.width, area.height) / split;
-            plan.LightRange = Mathf.Clamp(reach * 1.3f + (underside - floorY), 7.0f, 28.0f);
-            plan.LightIntensity = plan.Pattern == LightPattern.Pendants || plan.Pattern == LightPattern.CentreFitting ? 4.0f : 5.5f;
+
+            // A lamp is as bright as its height needs to light the floor the same, whatever the ceiling (a homely room's warm lamps a little less).
+            float lampHeight = Mathf.Max(1.0f, underside - LampBelowFitting - floorY);
+            bool homely = plan.Pattern == LightPattern.Pendants || plan.Pattern == LightPattern.CentreFitting;
+            // Far enough for the cone to land on the floor, never as far as the floor of the storey below, nor the bounce as far as the ceiling of
+            // the storey above (the slab between casts no shadow). A storey, not this room: a top floor can be taller than the floors under it.
+            float storeyClear = BuildingInterior.StoreyHeight(site.Params.Height) - BuildingInterior.SlabThickness;
+            plan.LightRange = Mathf.Min(Mathf.Clamp(lampHeight * LampReachPerHeight, 6.0f, 16.0f), lampHeight + storeyClear * 0.9f);
+            plan.LightIntensity = FloorLight * lampHeight * lampHeight * (homely ? 0.85f : 1.0f);
+            float bounceHeight = ceilingY - floorY + BounceBelowFloor;
+            plan.BounceRange = Mathf.Min(Mathf.Clamp(bounceHeight * BounceReachPerHeight, 6.0f, 18.0f), bounceHeight + storeyClear * 0.9f);
+            plan.BounceIntensity = CeilingLight * bounceHeight * bounceHeight;
             return plan;
         }
 
@@ -375,6 +434,60 @@ namespace CityX.World
                 }
             }
             return false;
+        }
+    }
+
+    /// <summary>
+    /// The lamp over a powered building's front door (2026-10-09 lighting pass). From research on night cities in games: pools of warm light at
+    /// doorways with the street dark between them are what make a night street read as a place, and warm light against the cool moonlit dark is
+    /// the contrast a night scene is made of. In a city where nine buildings in ten have no power, a lit doorway is also how you find the ones that
+    /// do. It is not switched: it comes on at dusk and goes off at dawn. A pure function of the building, like everything else about it.
+    /// </summary>
+    public static class EntranceLighting
+    {
+        /// <summary>Warm, a little more orange than a room's tungsten: an outdoor lamp.</summary>
+        public static readonly Color Colour = new Color(1.0f, 0.76f, 0.50f);
+
+        /// <summary>How bright the ground straight under it is (RoomLighting.FloorLight's units): brighter than a room, a pool in the dark.</summary>
+        public const float GroundLight = 0.9f;
+
+        public const float OuterAngle = 130.0f;
+        public const float InnerAngle = 70.0f;
+
+        /// <summary>How far out from the wall the lamp hangs (under the canopy, which reaches 1.15 m out), and how far under the door's head.</summary>
+        public const float OutFromWall = 0.55f;
+        public const float BelowDoorHead = 0.02f;
+
+        /// <summary>How far from straight down it leans out over the steps and the pavement.</summary>
+        public const float LeanOut = 0.3f;
+
+        /// <summary>The lamp's glowing box: across, deep and tall, metres.</summary>
+        public static readonly Vector3 LampSize = new Vector3(0.42f, 0.10f, 0.26f);
+
+        /// <summary>Whether a building has a lamp over its door: it has power, a door, and it is a building of its own (not a volume on a roof).</summary>
+        public static bool Has(BuildingSite site)
+        {
+            return site.Exists && !site.Shell && !site.OnRoof && PowerGrid.IsOn(site);
+        }
+
+        /// <summary>Where the lamp is, which way it shines, and how bright and far it reaches, in the world.</summary>
+        public static void Place(BuildingSite site, out Vector3 at, out Vector3 shining, out float intensity, out float range)
+        {
+            float doorTop = site.BaseHeight + BuildingInterior.DoorHeight(site.Params.Height);
+            site.LocalToWorld(0.0, site.FrontHalfDepth + OutFromWall, out double x, out double z);
+            at = new Vector3((float)x, doorTop - BelowDoorHead, (float)z);
+            var outward = new Vector3((float)-site.AxisZ, 0.0f, (float)site.AxisX);
+            shining = (Vector3.down + outward * LeanOut).normalized;
+            // As bright as it needs to be to light the street the same, whether the door is up a flight of steps or not.
+            float drop = Mathf.Max(2.0f, at.y - site.DoorGroundHeight);
+            intensity = GroundLight * drop * drop;
+            range = Mathf.Clamp(drop * 2.6f, 6.0f, 16.0f);
+        }
+
+        /// <summary>Whether it is lit, by how much daylight there is (0 night .. 1 day): from dusk to dawn.</summary>
+        public static bool IsLitAt(float daylight)
+        {
+            return daylight < 0.35f;
         }
     }
 

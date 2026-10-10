@@ -200,3 +200,15 @@ result a green test suite cannot judge on its own.
 Owner: "make the windows just shatter if a 5th bullet hits them". `GlassDamage.MaxBulletHoles` is 4 (was 12, with the pane never falling); the next
 bullet (`ShatteringBullet`, 5) shatters it like a knock does -- shards, the break sound. Tests: `BulletHoleDamageTests.TheFifthBulletShattersTheWindow`,
 `BulletHolesInRealWindowsPlayTests`.
+
+## Update: E works the thing you look at; clear glass on real rooms (2026-10-09)
+
+- Owner: "I keep accidentally opening and closing the door when I'm only trying to do the light switch, make it so it only interacts with the
+  one you are looking at." A door (`BuildingDoor`) and the switches (`LightSwitchInteractor`) no longer act on E themselves: each OFFERS itself
+  to `View/InteractionFocus` with how far off the crosshair it is, and after every Update has run only the nearest acts
+  (`InteractionFocusRunner`, made on demand). Of several switches in reach, the one nearest the crosshair is the one offered. Tests:
+  `InteractionFocusTests`.
+- A window with a fitted-out room behind it is CLEAR glass (`SurfaceLook.PackGlass(clear)`, the glass shader's `_ClearAlpha` 0.4): the room
+  shows through it, lit or dark. Glass with nothing behind it (a distant building's strips, a tower's sealed top) stays the old dark 0.72.
+  See ROOM_LIGHTS.md (the lighting pass).
+- Entrance canopies, sills, AC units, sign arms and parapet copings are closed boxes now (they had no underside and were see-through from below).

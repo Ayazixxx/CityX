@@ -141,6 +141,13 @@ namespace CityX.Tests
             var rain = Object.FindFirstObjectByType<RainEffect>();
             RenderSettings.fogStartDistance = rain != null ? rain.ClearFogStart : 150.0f;
             RenderSettings.fogEndDistance = rain != null ? rain.ClearFogEnd : 380.0f;
+            // And its sky: the render settings are the test scene's, whose skybox is Unity's default daytime one -- every "night" capture showed a
+            // pale blue sky and no stars, and reflected it. The city's own dome is what the game draws.
+            var cycle = Object.FindFirstObjectByType<DayNightCycle>();
+            if (cycle != null && cycle.SkyDome != null)
+            {
+                RenderSettings.skybox = cycle.SkyDome;
+            }
         }
 
         /// <summary>

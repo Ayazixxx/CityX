@@ -40,6 +40,11 @@ Shader "CityX/ProceduralSky"
 
         _SunAngleMax("Glow Radius", Float) = 30.0
         _SunCurve("Glow Curve", Range(0.001, 1)) = 0.08
+
+        // The stars: how bright (0 by day; DayNightCycle raises it as night falls and a cloud lid hides it) and how many cells of sky
+        // across a radian. With nine buildings in ten dark, the night over this city is a starry one (2026-10-09 lighting pass).
+        _StarEnergy("Star Energy", Float) = 0.0
+        _StarDensity("Star Density", Float) = 200.0
     }
 
     SubShader
@@ -86,6 +91,9 @@ Shader "CityX/ProceduralSky"
 
             float _SunAngleMax;
             float _SunCurve;
+
+            float _StarEnergy;
+            float _StarDensity;
 
             struct Attributes
             {
@@ -137,6 +145,43 @@ Shader "CityX/ProceduralSky"
                 return float3(0.0, 0.0, 0.0);
             }
 
+            float StarHash(float3 p)
+            {
+                p = frac(p * float3(0.1031, 0.1030, 0.0973));
+                p += dot(p, p.yxz + 33.33);
+                return frac((p.x + p.y) * p.z);
+            }
+
+            /// The stars: the sky cut into cells (a 3D grid the unit sphere passes through), a few cells holding one star each at a place of
+            /// its own, of a brightness and tint of its own, twinkling a little. Soft-edged and never under about a pixel and a half, so they
+            /// do not shimmer as the camera turns. Faded out towards the horizon, where the haze is.
+            float3 Stars(float3 eye)
+            {
+                if (_StarEnergy <= 0.0 || eye.y <= 0.0)
+                {
+                    return float3(0.0, 0.0, 0.0);
+                }
+                float3 p = eye * _StarDensity;
+                float3 cell = floor(p);
+                float3 total = float3(0.0, 0.0, 0.0);
+                // The cell and its neighbours along the axis the sphere crosses most steeply would be exact; the cell itself is enough at
+                // this density, the odd star cut at a cell edge is too small to see.
+                float exists = StarHash(cell);
+                if (exists < 0.025)
+                {
+                    float3 centre = cell + 0.25 + 0.5 * float3(StarHash(cell + 11.7), StarHash(cell + 23.1), StarHash(cell + 37.9));
+                    float d = length(p - centre);
+                    float magnitude = pow(StarHash(cell + 51.3), 6.0);       // most stars faint, a few bright
+                    float size = lerp(0.16, 0.34, magnitude);
+                    float core = saturate(1.0 - d / size);
+                    float twinkle = 0.8 + 0.2 * sin(_Time.y * (1.5 + 3.0 * StarHash(cell + 71.9)) + exists * 600.0);
+                    float tint = StarHash(cell + 91.3);
+                    float3 colour = tint < 0.2 ? float3(0.75, 0.85, 1.0) : (tint > 0.85 ? float3(1.0, 0.86, 0.68) : float3(1.0, 1.0, 1.0));
+                    total = colour * core * core * lerp(0.25, 2.6, magnitude) * twinkle;
+                }
+                return total * _StarEnergy * smoothstep(0.02, 0.35, eye.y);
+            }
+
             half4 Fragment(Varyings input) : SV_Target
             {
                 float3 eye = normalize(input.direction);
@@ -154,6 +199,7 @@ Shader "CityX/ProceduralSky"
                     _SunEnergy, _SunAngularRadius);
                 sky += Body(eye, normalize(_MoonDirection.xyz), _MoonColour.rgb,
                     _MoonEnergy, _MoonAngularRadius);
+                sky += Stars(eye);
 
                 float below = (verticalAngle - CITYX_PI * 0.5) / (CITYX_PI * 0.5);
                 float groundBlend = saturate(1.0 - pow(max(1.0 - below, 0.0), 1.0 / _GroundCurve));

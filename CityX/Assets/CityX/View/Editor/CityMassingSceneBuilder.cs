@@ -92,8 +92,8 @@ namespace CityX.ViewEditor
                 new Color(0.72f, 0.68f, 0.55f));
 
             // city_chunk.gd's own LINE_COLOR_YELLOW / LINE_COLOR_WHITE.
-            Material roadLine = EnsureFlatMaterial("RoadLine", new Color(0.95f, 0.75f, 0.10f));
-            Material crosswalk = EnsureFlatMaterial("Crosswalk", new Color(0.92f, 0.92f, 0.90f));
+            Material roadLine = EnsureMarkingMaterial("RoadLine", new Color(0.95f, 0.75f, 0.10f));
+            Material crosswalk = EnsureMarkingMaterial("Crosswalk", new Color(0.92f, 0.92f, 0.90f));
 
             // A cool dark steel, deliberately distinct from both the door
             // handle's warm brass and the pavement's own light concrete --
@@ -486,6 +486,16 @@ namespace CityX.ViewEditor
             volume.priority = 0.0f;
             volume.sharedProfile = grade;
 
+            // The night grade over it, weighted by the dark (DayNightCycle.NightGrade).
+            var nightGradeObject = new GameObject("NightGrade");
+            var nightVolume = nightGradeObject.AddComponent<Volume>();
+            nightVolume.isGlobal = true;
+            nightVolume.priority = 1.0f;
+            nightVolume.weight = 0.0f;
+            nightVolume.sharedProfile = EnsureNightGradeProfile();
+            cycle.NightGrade = nightVolume;
+            cycle.Apply(SkyCycle.At(SkyCycle.StartSeconds));
+
             // Distance fog -- pushed back out again, an explicit ask to move
             // AWAY from city.tscn's own hazy/overcast reference look this
             // time ("increase the render distance, get rid of the fog...
@@ -710,6 +720,7 @@ namespace CityX.ViewEditor
             streamer.CrackedGlassMaterial = crackedGlass;
             streamer.CrackDecalMaterial = crackDecal;
             streamer.RoomGlowMaterial = EnsureRoomGlowMaterial();
+            streamer.WindowLightMaterial = EnsureWindowLightMaterial();
             // Every room's light switch (E at the switch), and keeping everyone's switches the same in a session.
             streamerObject.AddComponent<LightSwitchInteractor>();
             streamerObject.AddComponent<CityX.Character.RoomLightsNetwork>();
@@ -982,6 +993,54 @@ namespace CityX.ViewEditor
 
         /// <summary>Split toning's tint for the light: a little warm.</summary>
         public static readonly Color GradeHighlightTone = new Color(0.535f, 0.51f, 0.475f);
+
+        /// <summary>
+        /// The night grade, blended over the day grade by DayNightCycle as the light goes (2026-10-09 lighting pass). From research on night in
+        /// games: night should FEEL dark without BEING dark. Eyes adapt -- so a little more exposure than the day grade's; they lose colour in the
+        /// dark -- so less saturation; and what light there is in the shadows is the sky's -- so the shadows go a little bluer. The lamps and lit
+        /// windows keep their warmth against that, which is the contrast a night city is made of.
+        /// </summary>
+        private static VolumeProfile EnsureNightGradeProfile()
+        {
+            string path = $"{MaterialDirectory}/CityNightGrade.asset";
+            var profile = AssetDatabase.LoadAssetAtPath<VolumeProfile>(path);
+            if (profile == null)
+            {
+                profile = ScriptableObject.CreateInstance<VolumeProfile>();
+                AssetDatabase.CreateAsset(profile, path);
+            }
+            if (!profile.TryGet(out ColorAdjustments adjustments))
+            {
+                adjustments = profile.Add<ColorAdjustments>();
+                AssetDatabase.AddObjectToAsset(adjustments, profile);   // see EnsureGradeProfile: Add alone never saves it
+            }
+            adjustments.active = true;
+            adjustments.postExposure.overrideState = true;
+            adjustments.postExposure.value = GradeExposure + NightExposureLift;
+            adjustments.contrast.overrideState = true;
+            adjustments.contrast.value = 12.0f;
+            adjustments.saturation.overrideState = true;
+            adjustments.saturation.value = -12.0f;
+
+            if (!profile.TryGet(out SplitToning splitToning))
+            {
+                splitToning = profile.Add<SplitToning>();
+                AssetDatabase.AddObjectToAsset(splitToning, profile);
+            }
+            splitToning.active = true;
+            splitToning.shadows.overrideState = true;
+            splitToning.shadows.value = new Color(0.43f, 0.47f, 0.55f);   // a little blue in the dark only: a lit room stays warm
+            splitToning.highlights.overrideState = true;
+            splitToning.highlights.value = new Color(0.60f, 0.54f, 0.46f);
+            splitToning.balance.overrideState = true;
+            splitToning.balance.value = 25.0f;
+
+            EditorUtility.SetDirty(profile);
+            return profile;
+        }
+
+        /// <summary>How much more exposure the night grade has than the day grade, stops.</summary>
+        private const float NightExposureLift = 0.7f;
 
         private static VolumeProfile EnsureGradeProfile()
         {
@@ -1481,6 +1540,55 @@ namespace CityX.ViewEditor
             return material;
         }
 
+        /// <summary>A lit room's window veil (Shaders/CityXWindowLight.shader; CityStreamer sets each room's colour on it).</summary>
+        private static Material EnsureWindowLightMaterial()
+        {
+            string path = $"{MaterialDirectory}/WindowLight.mat";
+            Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            Shader shader = Shader.Find("CityX/WindowLight");
+            if (shader == null)
+            {
+                Debug.LogError("CityX: CityX/WindowLight shader missing -- lit rooms will have no window light.");
+                return null;
+            }
+            if (material == null)
+            {
+                material = new Material(shader);
+                AssetDatabase.CreateAsset(material, path);
+            }
+            material.shader = shader;
+            material.SetColor("_BaseColor", Color.white);
+            material.enableInstancing = false;
+            EditorUtility.SetDirty(material);
+            return material;
+        }
+
+        /// <summary>
+        /// Road paint: LIT, like the road under it. It was unlit (a flat colour at full strength whatever the light), so at night every crossing
+        /// glowed white in a dark street (2026-10-09 lighting pass). A material that existed as unlit is switched over.
+        /// </summary>
+        private static Material EnsureMarkingMaterial(string name, Color colour)
+        {
+            string path = $"{MaterialDirectory}/{name}.mat";
+            Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            Shader shader = Shader.Find("Universal Render Pipeline/Lit");
+            if (material == null)
+            {
+                material = new Material(shader);
+                AssetDatabase.CreateAsset(material, path);
+            }
+            if (material.shader != shader)
+            {
+                material.shader = shader;
+            }
+            material.SetColor("_BaseColor", colour);
+            material.color = colour;
+            material.SetFloat("_Smoothness", 0.3f);
+            material.SetFloat("_Metallic", 0.0f);
+            EditorUtility.SetDirty(material);
+            return material;
+        }
+
         /// <summary>A plain lit colour, for a prop with no texture of its own.</summary>
         private static Material EnsureLitMaterial(string name, Color colour)
         {
@@ -1503,29 +1611,6 @@ namespace CityX.ViewEditor
             material.SetColor("_BaseColor", colour);
             material.SetFloat("_Smoothness", 0.25f);
             material.SetFloat("_Metallic", 0.0f);
-            EditorUtility.SetDirty(material);
-            return material;
-        }
-
-        private static Material EnsureFlatMaterial(string name, Color colour)
-        {
-            string path = $"{MaterialDirectory}/{name}.mat";
-            Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
-            if (material == null)
-            {
-                Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
-                if (shader == null)
-                {
-                    Debug.LogError("CityX: URP Unlit shader not found -- is the Universal Render " +
-                                   "Pipeline asset assigned in Graphics settings?");
-                    shader = Shader.Find("Unlit/Color");
-                }
-                material = new Material(shader);
-                AssetDatabase.CreateAsset(material, path);
-            }
-
-            material.SetColor("_BaseColor", colour);
-            material.color = colour;
             EditorUtility.SetDirty(material);
             return material;
         }
