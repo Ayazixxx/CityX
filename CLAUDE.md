@@ -19,6 +19,7 @@ Unity port of a Godot game: a procedurally generated multiplayer megacity with t
 ## Commands (PowerShell; the Unity editor must be closed)
 - `powershell -ExecutionPolicy Bypass -File tools/unity_tests.ps1 -Platform EditMode|PlayMode [-Graphics] [-Filter CityX.Tests.SomeTests]`
 - Rebuild the generated scene and prefabs: `"C:/Program Files/Unity/Hub/Editor/6000.3.21f1/Editor/Unity.exe" -batchmode -quit -projectPath CityX -executeMethod CityX.ViewEditor.CityMassingSceneBuilder.Build -logFile Logs/x.log`
+- A body mesh change (`FusedBodyBuilder`) also needs `CityX.CharacterEditor.CharacterRebuild.RebuildAll` (civilians) and `CityX.UIEditor.TitleScreenBuilder.Build` (the character creator): each saves its own bone list, and a stale one scatters the body's parts (`SharedBodyBindingTests` guards it).
 - `CityMassing.unity`, `Player.prefab` and `NetworkedPlayer.prefab` are **generated** by the builders (`CityMassingSceneBuilder`, `PlayerRigBuilder`, `NetworkedPlayerBuilder`). Change the builder, rebuild, never hand-edit the output. New serialized fields or components need a rebuild.
 
 ## Architecture conventions
