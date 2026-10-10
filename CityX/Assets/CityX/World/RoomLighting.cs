@@ -71,6 +71,9 @@ namespace CityX.World
     {
         public RoomKey Key;
         public LightPattern Pattern;
+
+        /// <summary>The room's floor plan in the building's frame.</summary>
+        public Rect Area;
         public Color Colour;
         public readonly List<Fixture> Fixtures = new List<Fixture>();
 
@@ -170,6 +173,7 @@ namespace CityX.World
             var plan = new RoomLightPlan
             {
                 Key = new RoomKey(site.Id, floor, room),
+                Area = area,
                 Pattern = PatternFor(site, floor, room),
                 Switch = switchAt,
                 SwitchFacing = switchFacing,

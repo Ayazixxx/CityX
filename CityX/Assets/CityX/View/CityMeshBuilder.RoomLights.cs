@@ -11,15 +11,98 @@ namespace CityX.View
     /// </summary>
     public static partial class CityMeshBuilder
     {
-        /// <summary>One powered room's lights in a chunk: the glow under its fittings (chunk-local) and where its real lights go.</summary>
+        /// <summary>One powered room's lights in a chunk: the glow under its fittings and on its windows (chunk-local), and where its real lights go.</summary>
         public sealed class RoomGlow
         {
             public RoomKey Key;
             public readonly MeshBuffer Glow = new MeshBuffer();
+
+            /// <summary>The room's windows, lit from inside: what a switched-on room looks like from the street.</summary>
+            public readonly MeshBuffer Windows = new MeshBuffer();
             public Vector3[] Lights;
             public float Range;
             public float Intensity;
             public Color Colour;
+        }
+
+        /// <summary>
+        /// A powered building's rooms while it is being built: each window pane the builder hangs adds a glowing face just behind its glass to the
+        /// room it lights (by the floor it is on, and whether it is in that floor's corner room), and the fittings follow (AddRoomLighting). The only
+        /// lit windows in the city are these, and they are lit only while their room's switch is on (owner, 2026-10-09).
+        /// </summary>
+        private sealed class RoomWindowGlow
+        {
+            /// <summary>How far behind the glass the glow sits.</summary>
+            public const float BehindGlass = 0.05f;
+
+            public readonly List<RoomLightPlan> Plans;
+            public readonly Dictionary<RoomKey, RoomGlow> Glows = new Dictionary<RoomKey, RoomGlow>();
+            private readonly BuildingSite _site;
+            private readonly float _storey;
+            private readonly int _floors;
+            private readonly float _top;
+            private readonly Dictionary<int, Rect> _cornerRooms = new Dictionary<int, Rect>();
+
+            private RoomWindowGlow(BuildingSite site, List<RoomLightPlan> plans, Vector3 offset)
+            {
+                _site = site;
+                Plans = plans;
+                float height = site.Params.Height;
+                _storey = BuildingInterior.StoreyHeight(height);
+                _floors = BuildingInterior.FloorCountFor(height);
+                _top = site.BaseHeight + BuildingInterior.FloorTop(_floors - 1, _floors, height, _storey);
+                foreach (RoomLightPlan plan in plans)
+                {
+                    var glow = new RoomGlow { Key = plan.Key, Range = plan.LightRange, Intensity = plan.LightIntensity, Colour = plan.Colour };
+                    glow.Glow.SetFrame(offset, site.AxisX, site.AxisZ);
+                    glow.Windows.SetFrame(offset, site.AxisX, site.AxisZ);
+                    Glows[plan.Key] = glow;
+                    if (plan.Key.Room == 1)
+                    {
+                        _cornerRooms[plan.Key.Floor] = plan.Area;
+                    }
+                }
+            }
+
+            /// <summary>The rooms of a building with power, ready to collect its window glow; null for one without (its windows never light).</summary>
+            public static RoomWindowGlow For(BuildingSite site, Vector3 offset)
+            {
+                if (!PowerGrid.IsOn(site))
+                {
+                    return null;
+                }
+                List<RoomLightPlan> plans = RoomLighting.PlansFor(site);
+                return plans.Count == 0 ? null : new RoomWindowGlow(site, plans, offset);
+            }
+
+            /// <summary>A window pane (in the builder's frame) lit by the room behind it.</summary>
+            public void AddPane(in Wall wall, float u0, float u1, float y0, float y1, Vector3 normal)
+            {
+                Vector3 centre = (wall.At(u0, y0) + wall.At(u1, y1)) * 0.5f;
+                if (centre.y < _site.BaseHeight || centre.y > _top)
+                {
+                    return;   // the podium below the floors, or a sealed top with no rooms in it
+                }
+                int floor = Mathf.Clamp(Mathf.FloorToInt((centre.y - _site.BaseHeight) / _storey), 0, _floors - 1);
+                int room = 0;
+                if (_cornerRooms.TryGetValue(floor, out Rect corner))
+                {
+                    // The pane is in the outer wall, just outside the room's own rectangle.
+                    float reach = BuildingInterior.WallThickness + 0.3f;
+                    Rect near = Rect.MinMaxRect(corner.xMin - reach, corner.yMin - reach, corner.xMax + reach, corner.yMax + reach);
+                    if (near.Contains(new Vector2(centre.x, centre.z)))
+                    {
+                        room = 1;
+                    }
+                }
+                if (!Glows.TryGetValue(new RoomKey(_site.Id, floor, room), out RoomGlow glow))
+                {
+                    return;
+                }
+                float w = u1 - u0, h = y1 - y0;
+                glow.Windows.AddQuad(wall.At(u0, y0), wall.At(u1, y0), wall.At(u1, y1), wall.At(u0, y1), normal,
+                    new Vector2(0, 0), new Vector2(w, 0), new Vector2(w, h), new Vector2(0, h));
+            }
         }
 
         private static readonly Color32 FittingLook = SurfaceLook.Pack(new Color(0.86f, 0.87f, 0.89f), (int)WallMaterial.Metal, 0.12f);
@@ -27,17 +110,18 @@ namespace CityX.View
         private static readonly Color32 ToggleLook = SurfaceLook.Pack(new Color(0.70f, 0.70f, 0.68f), (int)WallMaterial.Metal, 0.1f);
 
         /// <summary>
-        /// A building's fittings and switches into <paramref name="interior"/> (already framed to the building), and its glow into
-        /// <paramref name="glows"/> when it has power. <paramref name="framed"/> is any buffer carrying the building's frame, to place the lights.
+        /// A building's fittings and switches into <paramref name="interior"/> (already framed to the building); for a powered one
+        /// (<paramref name="windowGlow"/>, whose window glow is already collected) its rooms' glow into <paramref name="glows"/>.
+        /// <paramref name="framed"/> is any buffer carrying the building's frame, to place the lights.
         /// </summary>
-        private static void AddRoomLighting(BuildingSite site, MeshBuffer interior, MeshBuffer framed, Vector3 offset, List<RoomGlow> glows)
+        private static void AddRoomLighting(BuildingSite site, MeshBuffer interior, MeshBuffer framed, Vector3 offset, List<RoomGlow> glows,
+            RoomWindowGlow windowGlow)
         {
-            List<RoomLightPlan> plans = RoomLighting.PlansFor(site);
+            List<RoomLightPlan> plans = windowGlow != null ? windowGlow.Plans : RoomLighting.PlansFor(site);
             if (plans.Count == 0)
             {
                 return;
             }
-            bool powered = glows != null && PowerGrid.IsOn(site);
             Color32 saved = interior.Look;
             foreach (RoomLightPlan plan in plans)
             {
@@ -52,21 +136,14 @@ namespace CityX.View
                 }
                 AddSwitchPlate(interior, plan.Switch, plan.SwitchFacing);
 
-                if (powered && plan.Fixtures.Count > 0)
+                if (windowGlow != null && glows != null && plan.Fixtures.Count > 0 && windowGlow.Glows.TryGetValue(plan.Key, out RoomGlow glow))
                 {
-                    var glow = new RoomGlow
-                    {
-                        Key = plan.Key,
-                        Range = plan.LightRange,
-                        Intensity = plan.LightIntensity,
-                        Colour = plan.Colour,
-                    };
-                    glow.Glow.SetFrame(offset, site.AxisX, site.AxisZ);
                     foreach (Fixture f in plan.Fixtures)
                     {
                         glow.Glow.AddBox(f.GlowMin, new Vector3(f.GlowMax.x, f.GlowMin.y + 0.004f, f.GlowMax.z), true);
                     }
                     glow.Glow.ClearFrame();
+                    glow.Windows.ClearFrame();
                     glow.Lights = new Vector3[plan.LightPoints.Count];
                     for (int i = 0; i < glow.Lights.Length; i++)
                     {

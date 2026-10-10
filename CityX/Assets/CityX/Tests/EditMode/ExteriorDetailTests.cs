@@ -109,56 +109,26 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void SomeTallTowersWearALitCrownAndSomeDowntownOnesALitPanel()
+        public void NoWindowLightsUpThatNobodySwitchedOn()
         {
-            int tall = 0, crowns = 0, panels = 0, downtown = 0;
-            for (int id = 0; id < World.BuildingCount; id++)
+            // Owner, 2026-10-09: "random windows turn yellow ... no need for random lights appearing on that weren't switched on". The lit glass
+            // (which glows at night) holds nothing but the shop signs at street level: no lit window, no lit crown, near or far.
+            int checkedBuildings = 0;
+            foreach (BuildingSite site in Sample(80, s => s.Params.Height > 12.0f && !s.OnRoof))
             {
-                BuildingSite site = World.Building(id);
-                if (site.Params.Height < 70.0f)
+                foreach (bool far in new[] { false, true })
                 {
-                    continue;
+                    var lit = new MeshBuffer();
+                    Build(site, far, new MeshBuffer(), new MeshBuffer(), lit, new MeshBuffer(), out _);
+                    foreach (Vector3 v in lit.Vertices)
+                    {
+                        Assert.Less(v.y, site.BaseHeight + 12.0f,
+                            $"building {site.Id} ({(far ? "far" : "near")}): something lit {v.y - site.BaseHeight:0.0} m up that no switch turned on");
+                    }
                 }
-                CityMeshBuilder.SkylineLightsOf(site, out bool crown, out bool panel);
-                bool isTall = site.Params.Mass == BuildingMass.Tower || site.Params.Mass == BuildingMass.Supertall || site.Params.Height >= 110.0f;
-                tall += isTall ? 1 : 0;
-                crowns += crown ? 1 : 0;
-                if (site.Zone == ZoneKind.Core || site.Zone == ZoneKind.Urban)
-                {
-                    downtown++;
-                    panels += panel ? 1 : 0;
-                }
+                checkedBuildings++;
             }
-            Assert.Greater(tall, 50, "need towers");
-            Assert.Greater(crowns, tall * 0.2, "a fair few crowns");
-            Assert.Less(crowns, tall * 0.65, "but not all");
-            Assert.Greater(panels, 0, "some panels");
-            Assert.Less(panels, downtown * 0.3, "but few");
-        }
-
-        [Test]
-        public void ALitCrownIsInTheLitGlassSoItComesOnAtDusk()
-        {
-            BuildingSite withCrown = default;
-            for (int id = 0; id < World.BuildingCount && !withCrown.Exists; id++)
-            {
-                BuildingSite site = World.Building(id);
-                CityMeshBuilder.SkylineLightsOf(site, out bool crown, out _);
-                if (crown)
-                {
-                    withCrown = site;
-                }
-            }
-            Assert.IsTrue(withCrown.Exists, "a tower with a crown");
-            var lit = new MeshBuffer();
-            Build(withCrown, true, new MeshBuffer(), new MeshBuffer(), lit, new MeshBuffer(), out _);
-            float roofY = withCrown.BaseHeight + withCrown.Params.Height;
-            int near = 0;
-            foreach (Vector3 v in lit.Vertices)
-            {
-                near += v.y > roofY - 4.2f && v.y < roofY - 1.9f ? 1 : 0;
-            }
-            Assert.Greater(near, 16, "four walls of crown quads at the top of the tower, in the lit glass");
+            Assert.Greater(checkedBuildings, 30, "need a real sample");
         }
     }
 }

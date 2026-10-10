@@ -242,6 +242,10 @@ namespace CityX.World
         /// </summary>
         public bool IsLit(WindowGrid.Wall wall, int column, int row, double litShare)
         {
+            if (litShare <= 0.0)
+            {
+                return false;   // nothing is lit at all (the city since 2026-10-09: only switched-on rooms light their windows)
+            }
             if (Style != FacadeStyle.Curtain && Style != FacadeStyle.Ribbon)
             {
                 return WindowGrid.IsLit(Seed, wall, column, row, litShare);

@@ -97,7 +97,9 @@ namespace CityX.View
 
             // The generator works in an unturned frame centred on the building, with real heights.
             var builderOrigin = new Vector3((float)site.CentreX, 0.0f, (float)site.CentreZ);
-            double litShare = WindowGrid.LitShareFor(site.Zone);
+            // No window is lit on its own (owner, 2026-10-09: "random windows turn yellow ... no need for random lights appearing on that weren't
+            // switched on"). A window glows only when the room behind it has its light switched on (RoomWindowGlow, below).
+            const double litShare = 0.0;
 
             // What the building is made of: one look for its walls, one for its ground floor, one for its roof and trim.
             SiteLooks looks = SiteLooks.For(site, WindowPlan.For(world, site).Style);
@@ -120,20 +122,16 @@ namespace CityX.View
             }
             else
             {
+                // A powered building's rooms get their glow set up first, so each window can add its own glow to the room behind it as it is built.
+                RoomWindowGlow windowGlow = roomGlows != null ? RoomWindowGlow.For(site, offset) : null;
                 BuildBuilding(world, site, builderOrigin, structures, concrete,
-                    new Glazing(litGlass, darkGlass, crackedGlass, damage, crackedOpenings, crackDecals, litShare), looks);
+                    new Glazing(litGlass, darkGlass, crackedGlass, damage, crackedOpenings, crackDecals, litShare, windowGlow), looks);
                 AddBalconies(world, site, builderOrigin, structures, looks);
                 AddRibs(world, site, builderOrigin, structures, looks);
                 // Every room's ceiling lights and the switch by its door; a powered building's glow (CityMeshBuilder.RoomLights.cs).
-                AddRoomLighting(site, concrete, structures, offset, roomGlows);
+                AddRoomLighting(site, concrete, structures, offset, roomGlows, windowGlow);
             }
-            if (site.Sides < 3)
-            {
-                // The skyline lights, on near and far alike: they are what the building is from a long way off.
-                float rx0 = (float)(site.MinX - builderOrigin.x), rx1 = (float)(site.MaxX - builderOrigin.x);
-                float rz0 = (float)(site.MinZ - builderOrigin.z), rz1 = (float)(site.MaxZ - builderOrigin.z);
-                AddSkylineLights(site, litGlass, rx0, rx1, rz0, rz1, site.BaseHeight, site.BaseHeight + site.Params.Height);
-            }
+            // (The lit crowns and panels of tall towers -- AddSkylineLights -- went with the random lit windows, 2026-10-09.)
             structures.Look = SurfaceLook.Default;
             structures.UvOffset = Vector2.zero;
             if (litGlass != null)
@@ -248,10 +246,14 @@ namespace CityX.View
             /// <summary>Fraction of glazed cells with a light on -- the building's zone decides it (WindowGrid.LitShareFor).</summary>
             public readonly double LitShare;
 
+            /// <summary>A powered building's per-room window glow (lit while that room's switch is on), or null.</summary>
+            public readonly RoomWindowGlow WindowGlow;
+
             public Glazing(MeshBuffer lit, MeshBuffer dark, MeshBuffer cracked, GlassDamage damage,
                 List<CrackedOpening> openings, MeshBuffer decals = null,
-                double litShare = WindowGrid.LitShare)
+                double litShare = WindowGrid.LitShare, RoomWindowGlow windowGlow = null)
             {
+                WindowGlow = windowGlow;
                 Lit = lit;
                 Dark = dark;
                 Cracked = cracked;
@@ -2114,6 +2116,9 @@ namespace CityX.View
                     new Vector2(0, 0), new Vector2(w, 0), new Vector2(w, h), new Vector2(0, h));
                 glass.Look = savedLook;
             }
+
+            // The light of the room behind it, seen from outside: a glowing face just inside the glass, lit only while that room's switch is on.
+            glazing.WindowGlow?.AddPane(Inward(wall, normal, RoomWindowGlow.BehindGlass), u0, u1, y0, y1, normal);
 
             if (state == PaneState.Cracked && glazing.Openings != null)
             {

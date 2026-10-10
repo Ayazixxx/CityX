@@ -37,3 +37,15 @@ the electricity back on later."
 - The switch's rocker does not move when flipped (it is part of the chunk mesh).
 - Tests: `RoomLightingTests`, `RoomLightsPlayTests`, `NetworkedRoomLightsPlayTests` (real sockets, server + 2 clients + a late joiner);
   `RoomLightsCapture` (Explicit, -Graphics) renders lit rooms to `Logs/CityShots/roomlights-*.png`.
+
+## Update: no random lit windows; a switched-on room glows from the street (2026-10-09)
+
+Owner: "when you do /time night random windows turn yellow stop that from happening just make the lighting look good if you have a light turned on
+and you're looking from outside". Every window used to be lit at night by chance (`WindowGrid.LitShareFor` per zone; glass offices floor by floor
+plus 4% "desk lamps"), and tall towers wore lit crowns and panels (`AddSkylineLights`). All of that is off: the builder's lit share is 0
+(`WindowPlan.IsLit` is false at 0), and the crowns are no longer built. Shop blade signs still glow at night (they are signs, not windows).
+
+Instead, a powered building's rooms collect their windows while the panes are built (`CityMeshBuilder.RoomWindowGlow`: each pane goes to the room
+behind it, by floor and by whether it is in that floor's corner room), as a glowing face 5 cm behind the glass in the room's light colour
+(`CityStreamer.RoomWindowBrightness`), switched with the room's fittings and lights. From the street a lit room shows as its own windows lit, warm
+for pendants, cooler for offices. Tests: `ExteriorDetailTests.NoWindowLightsUpThatNobodySwitchedOn`, `RoomLightingTests.ALitRoomsWindowsGlowAndOnlyItsOwn`.

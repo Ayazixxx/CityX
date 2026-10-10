@@ -181,6 +181,34 @@ namespace CityX.Tests
         }
 
         [Test]
+        public void ALitRoomsWindowsGlowAndOnlyItsOwn()
+        {
+            // From the street, a switched-on room shows as its windows lit: each room carries the panes in front of it, on its own floor.
+            BuildingSite powered = default;
+            foreach (BuildingSite site in Interiors(400))
+            {
+                if (PowerGrid.IsOn(site) && site.Params.Height > 12.0f) { powered = site; break; }
+            }
+            Assert.IsTrue(powered.Exists, "need a powered building");
+            List<CityMeshBuilder.RoomGlow> glows = Glows(powered);
+            int withWindows = 0;
+            float storey = BuildingInterior.StoreyHeight(powered.Params.Height);
+            var origin = new Vector3(powered.OwnerChunkX * CityLayout.ChunkSize, 0, powered.OwnerChunkY * CityLayout.ChunkSize);
+            foreach (CityMeshBuilder.RoomGlow glow in glows)
+            {
+                if (glow.Windows.IsEmpty) continue;
+                withWindows++;
+                float floorY = powered.BaseHeight + glow.Key.Floor * storey;
+                foreach (Vector3 v in glow.Windows.Vertices)
+                {
+                    float y = v.y + origin.y;
+                    Assert.That(y, Is.InRange(floorY - 0.1f, floorY + storey + 0.6f), $"{glow.Key}: a window of another floor lights with this room");
+                }
+            }
+            Assert.Greater(withWindows, 0, "no room of a powered building lights its windows");
+        }
+
+        [Test]
         public void TheSwitchByTheDoorIsTheOneYouFlip()
         {
             BuildingSite site = default;

@@ -1206,6 +1206,9 @@ namespace CityX.View
         /// <summary>How bright a lit fitting's face is, above white (it should bloom a little, like a lamp).</summary>
         public const float RoomGlowBrightness = 3.0f;
 
+        /// <summary>How bright a lit room's windows are from outside (around white: the room behind the glass, not a lamp).</summary>
+        public const float RoomWindowBrightness = 0.85f;
+
         private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
 
         /// <summary>
@@ -1236,6 +1239,26 @@ namespace CityX.View
                     renderer.SetPropertyBlock(block);
                 }
 
+                // The room's windows, glowing from inside: dimmer than the fittings (the glass is lit by them, it is not a lamp).
+                Renderer windows = null;
+                if (!glow.Windows.IsEmpty)
+                {
+                    var windowObject = new GameObject("Windows");
+                    windowObject.transform.SetParent(go.transform, false);
+                    var mesh = new Mesh { name = "room-windows" };
+                    mesh.SetVertices(glow.Windows.Vertices);
+                    mesh.SetNormals(glow.Windows.Normals);
+                    mesh.SetTriangles(glow.Windows.Triangles, 0);
+                    mesh.RecalculateBounds();
+                    windowObject.AddComponent<MeshFilter>().sharedMesh = mesh;
+                    windows = windowObject.AddComponent<MeshRenderer>();
+                    windows.sharedMaterial = RoomGlowMaterial;
+                    windows.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                    var block = new MaterialPropertyBlock();
+                    block.SetColor(BaseColorId, glow.Colour * RoomWindowBrightness);
+                    windows.SetPropertyBlock(block);
+                }
+
                 var lights = new Light[glow.Lights.Length];
                 for (int i = 0; i < lights.Length; i++)
                 {
@@ -1252,7 +1275,7 @@ namespace CityX.View
                     lights[i] = light;
                 }
 
-                go.AddComponent<RoomLightGroup>().Bind(glow.Key, renderer, lights);
+                go.AddComponent<RoomLightGroup>().Bind(glow.Key, new[] { renderer, windows }, lights);
             }
         }
 
