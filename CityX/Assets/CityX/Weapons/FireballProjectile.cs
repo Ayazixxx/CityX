@@ -72,9 +72,27 @@ namespace CityX.Weapons
             return fireball;
         }
 
+        /// <summary>
+        /// The fireball's own light, so it glows in the dark and lights the street and walls it flies past (owner, 2026-10-10: "make the
+        /// fireball have a light effect so it glows in the dark"). Warm fire orange, no shadow (a moving point light's shadow is six renders a
+        /// frame), flickering a little like a flame. On the prefab, so every player's copy of a fireball glows.
+        /// </summary>
+        public static readonly Color GlowColour = new Color(1.0f, 0.55f, 0.18f);
+        public const float GlowIntensity = 6.0f;
+        public const float GlowRange = 10.0f;
+
+        /// <summary>How far the flicker takes the glow either side of its brightness, and how fast.</summary>
+        public const float GlowFlicker = 0.25f;
+        public const float GlowFlickerSpeed = 14.0f;
+
+        private Light _glow;
+        private float _flickerSeed;
+
         private void Awake()
         {
             _rigidbody = GetComponent<Rigidbody>();
+            _glow = GetComponentInChildren<Light>();
+            _flickerSeed = Random.value * 100.0f;
         }
 
         /// <summary>
@@ -92,6 +110,12 @@ namespace CityX.Weapons
         /// </summary>
         private void Update()
         {
+            if (_glow != null)
+            {
+                float noise = Mathf.PerlinNoise(Time.time * GlowFlickerSpeed, _flickerSeed) * 2.0f - 1.0f;
+                _glow.intensity = GlowIntensity * (1.0f + GlowFlicker * noise);
+            }
+
             Vector3 velocity = _rigidbody.linearVelocity;
             if (velocity.sqrMagnitude > 0.0001f)
             {

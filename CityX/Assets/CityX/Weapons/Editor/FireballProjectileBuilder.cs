@@ -61,6 +61,16 @@ namespace CityX.WeaponsEditor
 
                 BuildTrail(root.transform);
 
+                // Its glow: a real light, so it lights what it flies past at night (FireballProjectile.GlowColour; flickered at run time).
+                var glowObject = new GameObject("Glow");
+                glowObject.transform.SetParent(root.transform, false);
+                Light glow = glowObject.AddComponent<Light>();
+                glow.type = LightType.Point;
+                glow.color = FireballProjectile.GlowColour;
+                glow.intensity = FireballProjectile.GlowIntensity;
+                glow.range = FireballProjectile.GlowRange;
+                glow.shadows = LightShadows.None;
+
                 var collider = root.AddComponent<SphereCollider>();
                 collider.radius = Radius;
 

@@ -113,5 +113,20 @@ namespace CityX.Tests
             Assert.IsFalse(_fireball.CanCast);
             Assert.IsFalse(_fireball.TryCast(Vector3.zero, Vector3.forward, null));
         }
+
+        [Test]
+        public void AFireballGlowsInTheDark()
+        {
+            // Owner, 2026-10-10: "make the fireball have a light effect so it glows in the dark". The light is on the prefab every machine spawns.
+            var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/FireballProjectile.prefab");
+            Assert.IsNotNull(prefab);
+            Light glow = prefab.GetComponentInChildren<Light>(true);
+            Assert.IsNotNull(glow, "a fireball with no light of its own");
+            Assert.AreEqual(LightType.Point, glow.type);
+            Assert.IsTrue(glow.enabled);
+            Assert.AreEqual(LightShadows.None, glow.shadows, "a moving point light's shadow costs six renders a frame");
+            Assert.GreaterOrEqual(glow.range, 8.0f, "too small a glow to light the street it flies over");
+            Assert.Greater(glow.color.r, glow.color.b * 2.0f, "fire is warm");
+        }
     }
 }
