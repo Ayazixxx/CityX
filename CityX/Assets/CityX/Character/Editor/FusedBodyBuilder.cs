@@ -59,49 +59,16 @@ namespace CityX.CharacterEditor
         {
             skinnedBones = new List<Transform>();
 
-            // TWO DIFFERENT CAPSULE LISTS, DELIBERATELY. segments is split
-            // per BONE (an elbow, a wrist, a knee, the spine) -- right for
-            // deciding which bone owns a vertex, wrong for deciding where
-            // the surface sits: unioning per-bone pieces back together with
-            // a second round of SmoothMin bulges every internal seam
-            // outward (see FusedBodyShape.LimbCapsules' own comment for the
-            // exact reason). limbCapsules is one capsule per limb -- what
-            // the surface is actually extracted and shaded from. Only
-            // Unwrap() and WeightsAt() below use segments; everything
-            // touching the actual shape uses limbCapsules.
+            // SEPARATE TUBES, ONE PER BONE (owner, 2026-10-10: "the model is clearly stretched around the torso ... make it so each limb is a
+            // separate", "I just want the torso and arms to be tubes not stretched like that"; separate limbs are also what dismemberment will need).
+            // The body used to be ONE surface fused across every joint and skinned with weights blended between bones, so turning a joint (a
+            // T-pose's 77 degree shoulder above all) dragged the skin of the torso along with the arm. Now every per-bone capsule -- pelvis,
+            // torso, neck, upper arm, forearm, hand, thigh, shin -- is its own closed rounded tube, extracted on its own and bound 100% to its
+            // own bone: a joint turns a tube as a whole and nothing stretches. The rounded ends overlap at every joint, so no gap opens as it
+            // bends. Same capsules, same radii, same proportions as before (FusedBodyShape.Segments); only the joins are no longer blended.
             List<FusedBodyShape.Segment> segments = BodyRigBuilder.Segments();
-            List<FusedBodyShape.Segment> limbCapsules = BodyRigBuilder.LimbCapsules();
             float cellSize = FusedBodyShape.CellSize;
-            Bounds bounds = FusedBodyShape.BoundsOf(segments);
-            // PHASE-ALIGNED TO GODOT'S OWN GRID -- see PhaseAlignedOrigin's
-            // own doc comment. Only the MIN corner moves (down/outward
-            // only, via Mathf.Floor), so this can only ever grow the
-            // sampled region slightly, never clip the T-pose bounds this
-            // dynamically-computed box exists to fit.
-            bounds.SetMinMax(FusedBodyShape.PhaseAlignedOrigin(bounds.min, cellSize), bounds.max);
 
-            FusedBodyMesh.Extract(limbCapsules, bounds, cellSize,
-                out List<Vector3> welded, out List<int> weldedTriangles);
-
-            if (welded.Count == 0 || weldedTriangles.Count == 0)
-            {
-                Debug.LogError("CityX: the body extracted to nothing -- check the bounds.");
-                return null;
-            }
-
-            // UNWELDED, WITH PAINT UVs. The character is paintable, and the
-            // seam unwrap that makes the unwrap usable is only safe on triangle
-            // soup -- see FusedBodyMesh.Unwrap. It costs three times the
-            // vertices for a mesh built once at import time. Uses the
-            // per-bone segments -- unwrap needs to know which BONE a vertex
-            // belongs to, regardless of which capsule list its position
-            // came from.
-            FusedBodyMesh.Unwrap(segments, welded, weldedTriangles,
-                out List<Vector3> vertices, out List<int> triangles, out List<Vector2> uvs);
-
-            Vector3[] normals = FusedBodyMesh.Normals(limbCapsules, vertices, cellSize * 0.5f);
-
-            // --- skinning, blended across up to four bones per vertex.
             var skinBones = new List<Transform>();
             var boneIndex = new Dictionary<HumanBodyBones, int>();
             foreach (FusedBodyShape.Segment segment in segments)
@@ -112,55 +79,60 @@ namespace CityX.CharacterEditor
                 }
                 if (!bones.TryGetValue(segment.Bone, out Transform bone) || bone == null)
                 {
-                    Debug.LogWarning($"CityX: the rig has no {segment.Bone} -- the geometry for " +
-                                     "it will be welded to the hips instead.");
+                    Debug.LogWarning($"CityX: the rig has no {segment.Bone} -- its tube will hang off the hips instead.");
                     continue;
                 }
                 boneIndex[segment.Bone] = skinBones.Count;
                 skinBones.Add(bone);
             }
 
-            var weights = new BoneWeight[vertices.Count];
-            var influenceBones = new HumanBodyBones[4];
-            var influenceWeights = new float[4];
-
-            for (int i = 0; i < vertices.Count; i++)
+            var vertices = new List<Vector3>();
+            var triangles = new List<int>();
+            var uvs = new List<Vector2>();
+            var normalList = new List<Vector3>();
+            var weightList = new List<BoneWeight>();
+            var one = new List<FusedBodyShape.Segment>(1);
+            foreach (FusedBodyShape.Segment segment in segments)
             {
-                int used = FusedBodyShape.WeightsAt(
-                    segments, vertices[i], influenceBones, influenceWeights);
-
-                // Sorted heaviest first, because Unity treats slot 0 as the
-                // dominant bone and some quality settings drop the later ones.
-                for (int a = 0; a < used - 1; a++)
+                one.Clear();
+                one.Add(segment);
+                Bounds bounds = FusedBodyShape.BoundsOf(one);
+                bounds.SetMinMax(FusedBodyShape.PhaseAlignedOrigin(bounds.min, cellSize), bounds.max);
+                FusedBodyMesh.Extract(one, bounds, cellSize, out List<Vector3> welded, out List<int> weldedTriangles);
+                if (welded.Count == 0 || weldedTriangles.Count == 0)
                 {
-                    for (int b = a + 1; b < used; b++)
-                    {
-                        if (influenceWeights[b] > influenceWeights[a])
-                        {
-                            (influenceWeights[a], influenceWeights[b]) =
-                                (influenceWeights[b], influenceWeights[a]);
-                            (influenceBones[a], influenceBones[b]) =
-                                (influenceBones[b], influenceBones[a]);
-                        }
-                    }
+                    Debug.LogError($"CityX: the {segment.Bone} tube extracted to nothing.");
+                    continue;
                 }
+                // Unwelded with paint UVs (FusedBodyMesh.Unwrap), the tube's own bone deciding its island.
+                FusedBodyMesh.Unwrap(one, welded, weldedTriangles,
+                    out List<Vector3> partVertices, out List<int> partTriangles, out List<Vector2> partUvs);
+                Vector3[] partNormals = FusedBodyMesh.Normals(one, partVertices, cellSize * 0.5f);
 
-                var weight = new BoneWeight();
-                for (int slot = 0; slot < used; slot++)
+                int first = vertices.Count;
+                int index = boneIndex.TryGetValue(segment.Bone, out int found) ? found : 0;
+                var rigid = new BoneWeight { boneIndex0 = index, weight0 = 1.0f };
+                vertices.AddRange(partVertices);
+                uvs.AddRange(partUvs);
+                normalList.AddRange(partNormals);
+                foreach (int t in partTriangles)
                 {
-                    int index = boneIndex.TryGetValue(influenceBones[slot], out int found)
-                        ? found
-                        : 0;
-                    switch (slot)
-                    {
-                        case 0: weight.boneIndex0 = index; weight.weight0 = influenceWeights[0]; break;
-                        case 1: weight.boneIndex1 = index; weight.weight1 = influenceWeights[1]; break;
-                        case 2: weight.boneIndex2 = index; weight.weight2 = influenceWeights[2]; break;
-                        case 3: weight.boneIndex3 = index; weight.weight3 = influenceWeights[3]; break;
-                    }
+                    triangles.Add(first + t);
                 }
-                weights[i] = weight;
+                for (int i = 0; i < partVertices.Count; i++)
+                {
+                    weightList.Add(rigid);
+                }
             }
+
+            if (vertices.Count == 0)
+            {
+                Debug.LogError("CityX: the body extracted to nothing -- check the bounds.");
+                return null;
+            }
+            Vector3[] normals = normalList.ToArray();
+            BoneWeight[] weights = weightList.ToArray();
+            List<FusedBodyShape.Segment> limbCapsules = BodyRigBuilder.LimbCapsules();
 
             // BOUND ARMS-DOWN, NOT WHERE THE TRANSFORMS HAPPEN TO START. The
             // mesh is modelled in fused_body.gd's own rest (arms hanging), and

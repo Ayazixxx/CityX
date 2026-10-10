@@ -694,5 +694,23 @@ namespace CityX.Tests
             Assert.IsFalse(FusedBodyShape.AreConnected(
                 HumanBodyBones.LeftUpperLeg, HumanBodyBones.RightUpperLeg), "hip to hip");
         }
+
+        [Test]
+        public void EveryPartOfTheBodyIsATubeOnOneBone()
+        {
+            // Owner, 2026-10-10: "make it so each limb is a separate", "I just want the torso and arms to be tubes not stretched like that".
+            // Every vertex wholly on one bone: a joint turns a whole tube and stretches nothing (and a limb can later come off whole).
+            var mesh = UnityEditor.AssetDatabase.LoadAssetAtPath<Mesh>("Assets/CityX/Character/FusedBody.asset");
+            Assert.IsNotNull(mesh);
+            BoneWeight[] weights = mesh.boneWeights;
+            Assert.Greater(weights.Length, 1000);
+            var bonesUsed = new HashSet<int>();
+            foreach (BoneWeight w in weights)
+            {
+                Assert.AreEqual(1.0f, w.weight0, 1e-4f, "a vertex shared between bones stretches when a joint turns");
+                bonesUsed.Add(w.boneIndex0);
+            }
+            Assert.GreaterOrEqual(bonesUsed.Count, 12, "pelvis, torso, neck, three per arm and two per leg");
+        }
     }
 }

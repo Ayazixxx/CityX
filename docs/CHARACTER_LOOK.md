@@ -33,3 +33,14 @@ A Godot track is one bone's rotation in its parent's frame from a rest where eve
 - The head turns about its own centre rather than the neck's top (the Godot head bone pivots at `NECK_Y` with the sphere offset above it), about 4 to 6 cm of forward travel in idle.
 - Skin colour is the player's chosen one; Godot's default renders white.
 - Hand-held items were tuned against the old hand, which ended at the wrist; the hands now reach the fingertips, so check grips after this change.
+
+## Update: the body is separate tubes (2026-10-10)
+
+Owner, on the character creator's T-pose: "the model is clearly stretched around the torso ... make it so each limb is a separate" (separate limbs
+are also what the planned dismemberment needs), "I just want the torso and arms to be tubes not stretched like that". The body was one surface
+fused across every joint and skinned with weights blended between bones, so a joint that turned far (a T-pose's 77 degree shoulders, a punch)
+dragged the torso's skin with it. `FusedBodyBuilder.Build` now extracts every per-bone capsule of `FusedBodyShape.Segments` (pelvis, torso, neck,
+upper arm, forearm, hand, thigh, shin: 13) as its own closed tube and binds it 100% to its bone. Same capsules, radii and proportions; the joins
+are no longer blended, so it reads as a jointed mannequin (rounded ends overlap at each joint, so nothing opens as it bends). The skin weights
+helper (`FusedBodyShape.WeightsAt`) is no longer used for the body. Test: `FusedBodyTests.EveryPartOfTheBodyIsATubeOnOneBone`; render:
+`TPoseCapture` (Logs/CityShots/tpose-*.png). Garments are still skinned their own way.
