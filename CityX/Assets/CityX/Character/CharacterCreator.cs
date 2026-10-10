@@ -50,6 +50,7 @@ namespace CityX.Character
 
         public bool Mirroring;
 
+        [Tooltip("The brush size, 1..15: each step is BodyPaint.BrushStepMetres more radius ON THE BODY (the old name is kept for saved scenes).")]
         [Range(1, 15)]
         public int BrushRadiusPixels = DefaultBrushRadius;
 
@@ -129,9 +130,29 @@ namespace CityX.Character
                       * HeadRenderer.transform.localToWorldMatrix
                     : Matrix4x4.identity;
 
-                _paint.Bind(BodyRenderer.sharedMesh, head, headToBody);
+                // THE BODY AS IT STANDS, NOT ITS MESH AT REST. The mesh is modelled arms-down (BodyRig.RestBindMatrix) and the creator shows it in
+                // a T-pose, so a collider and a brush on the rest mesh put the arms where they are not: a click on an outstretched arm missed it,
+                // and one beside the hips painted an arm nobody could see. Baked once -- the body holds still here (Disarm).
+                Mesh posed = PosedBody();
+                _paint.Bind(posed, head, headToBody);
+                if (BodyCollider != null)
+                {
+                    BodyCollider.sharedMesh = posed;
+                }
+                if (Application.isPlaying)
+                {
+                    _paint.PrepareBrush();
+                }
                 ApplyToRenderer();
             }
+        }
+
+        private Mesh PosedBody()
+        {
+            var posed = new Mesh { name = "CreatorPosedBody", hideFlags = HideFlags.DontSave };
+            BodyRenderer.BakeMesh(posed);
+            posed.RecalculateBounds();
+            return posed.vertexCount == BodyRenderer.sharedMesh.vertexCount ? posed : BodyRenderer.sharedMesh;
         }
 
         /// <summary>Points the body's material at the paint texture.</summary>
@@ -191,6 +212,22 @@ namespace CityX.Character
             }
 
             Vector2 position = mouse.position.ReadValue();
+
+            // [ and ] step the brush size, as in most paint programs, without reaching for the slider.
+            Keyboard keyboard = Keyboard.current;
+            if (keyboard != null)
+            {
+                if (keyboard.leftBracketKey.wasPressedThisFrame)
+                {
+                    SetBrushSize(BrushRadiusPixels - 1);
+                }
+                else if (keyboard.rightBracketKey.wasPressedThisFrame)
+                {
+                    SetBrushSize(BrushRadiusPixels + 1);
+                }
+            }
+
+            ShowBrushRing(position);
 
             if (mouse.leftButton.wasPressedThisFrame)
             {
@@ -373,43 +410,178 @@ namespace CityX.Character
         }
 
         /// <summary>
-        /// Stamps at even steps along the screen path since the last event,
-        /// rather than only where the mouse now is.
+        /// Follows the screen path since the last event in small steps, finding the body under each, and lays stamps along the body between
+        /// them at the brush's own spacing (BodyPaint.StrokeSpacingMetres): a smooth line at every size, not a stamp per mouse event.
         /// </summary>
         private void PaintAlong(Vector2 screenPosition)
         {
             float distance = Vector2.Distance(_lastPaintScreenPosition, screenPosition);
             int steps = Mathf.Max(1, Mathf.FloorToInt(distance / PaintStepPixels));
+            float spacing = BodyPaint.StrokeSpacingMetres(BrushRadiusPixels);
 
             for (int i = 1; i <= steps; i++)
             {
                 Vector2 at = Vector2.Lerp(_lastPaintScreenPosition, screenPosition, i / (float)steps);
-                if (Raycast(at, out Vector3 local, out int triangle))
+                if (!Raycast(at, out Vector3 local, out int triangle))
+                {
+                    _hasLastStamp = false;
+                    continue;
+                }
+                if (!_hasLastStamp)
                 {
                     Stamp(local, triangle);
+                    continue;
                 }
+                float apart = Vector3.Distance(_lastStampLocal, local);
+                if (apart < spacing)
+                {
+                    continue;
+                }
+                if (apart > spacing + MaximumBridgeMetres)
+                {
+                    // Off one part and onto another behind it: a bridge would cut through the air between them.
+                    Stamp(local, triangle);
+                    continue;
+                }
+                Bridge(local, triangle);
             }
 
             _lastPaintScreenPosition = screenPosition;
             _paint.Apply();
         }
 
+        /// <summary>The furthest two stamps of one stroke are joined across: past this, the cursor jumped from one part of the body to another.</summary>
+        public const float MaximumBridgeMetres = 0.05f;
+
+        private Vector3 _lastStampLocal;
+        private int _lastStampTriangle;
+        private bool _hasLastStamp;
+
         private Color ActiveColour => Erasing ? EraseColour : Colour;
 
         private void Stamp(Vector3 local, int triangle)
         {
             _paint.PaintAt(local, triangle, ActiveColour, BrushRadiusPixels);
-            if (!Mirroring)
+            if (Mirroring)
+            {
+                _paint.PaintMirroredAt(local, triangle, ActiveColour, BrushRadiusPixels);
+            }
+            Remember(local, triangle);
+        }
+
+        private void Bridge(Vector3 local, int triangle)
+        {
+            _paint.PaintStroke(_lastStampLocal, _lastStampTriangle, local, triangle, ActiveColour, BrushRadiusPixels);
+            if (Mirroring)
+            {
+                _paint.PaintStroke(BodyPaint.Mirror(_lastStampLocal), BodyPaint.Mirror(NormalOf(_lastStampTriangle)),
+                    BodyPaint.Mirror(local), BodyPaint.Mirror(NormalOf(triangle)), ActiveColour, BrushRadiusPixels);
+            }
+            Remember(local, triangle);
+        }
+
+        private Vector3 NormalOf(int triangle)
+        {
+            return _paint.TryNormalOf(triangle, out Vector3 normal) ? normal : Vector3.forward;
+        }
+
+        private void Remember(Vector3 local, int triangle)
+        {
+            _lastStampLocal = local;
+            _lastStampTriangle = triangle;
+            _hasLastStamp = true;
+        }
+
+        public const int MinimumBrushSize = 1;
+        public const int MaximumBrushSize = 15;
+
+        public void SetBrushSize(int size)
+        {
+            BrushRadiusPixels = Mathf.Clamp(size, MinimumBrushSize, MaximumBrushSize);
+        }
+
+        // --- the brush ring: how big the brush is, drawn on the body under the cursor ---
+
+        /// <summary>
+        /// A ring on the body under the cursor, exactly the brush's size, so the size is seen before it is painted (every 3D paint tool has one;
+        /// Meccha Chameleon's paint mode among them). Dark on light paint and light on dark, so it shows over any colour.
+        /// </summary>
+        public const int BrushRingSegments = 48;
+        public const float BrushRingWidthMetres = 0.004f;
+        public const float BrushRingLiftMetres = 0.004f;
+
+        private LineRenderer _ring;
+
+        public bool BrushRingVisible => _ring != null && _ring.enabled;
+
+        /// <summary>Public so a test can place the ring without a mouse.</summary>
+        public void ShowBrushRing(Vector2 screenPosition)
+        {
+            Vector3 at = Vector3.zero;
+            int face = -1;
+            Vector3 up = Vector3.up;
+            bool show = Current == Tool.Brush && !_rotating && !InputBlocked && _paint != null && !OverInterface()
+                        && Raycast(screenPosition, out at, out face)
+                        && _paint.TryNormalOf(face, out up);
+            if (!show)
+            {
+                if (_ring != null)
+                {
+                    _ring.enabled = false;
+                }
+                return;
+            }
+            LineRenderer ring = Ring();
+            if (ring == null)
             {
                 return;
             }
 
-            Vector3 mirrored = BodyPaint.Mirror(local);
-            int face = _paint.FindTriangle(mirrored);
-            if (face >= 0)
+            Transform body = BodyCollider.transform;
+            Vector3 centre = body.TransformPoint(at);
+            Vector3 worldUp = body.TransformDirection(up).normalized;
+            float radius = BodyPaint.BrushRadiusMetres(BrushRadiusPixels) * body.lossyScale.x;
+            Vector3 across = Vector3.Cross(worldUp, Mathf.Abs(worldUp.y) < 0.9f ? Vector3.up : Vector3.right).normalized;
+            Vector3 along = Vector3.Cross(worldUp, across);
+            Vector3 lifted = centre + worldUp * BrushRingLiftMetres;
+            for (int i = 0; i < BrushRingSegments; i++)
             {
-                _paint.PaintAt(mirrored, face, ActiveColour, BrushRadiusPixels);
+                float angle = i * Mathf.PI * 2.0f / BrushRingSegments;
+                ring.SetPosition(i, lifted + (across * Mathf.Cos(angle) + along * Mathf.Sin(angle)) * radius);
             }
+
+            Color under = _paint.SampleAt(at, face);
+            Color line = under.grayscale > 0.5f ? new Color(0.08f, 0.08f, 0.1f) : new Color(0.95f, 0.95f, 0.95f);
+            ring.startColor = line;
+            ring.endColor = line;
+            ring.widthMultiplier = BrushRingWidthMetres * body.lossyScale.x;
+            ring.enabled = true;
+        }
+
+        private LineRenderer Ring()
+        {
+            if (_ring != null)
+            {
+                return _ring;
+            }
+            Shader shader = Shader.Find("Sprites/Default");
+            if (shader == null)
+            {
+                return null;
+            }
+            var holder = new GameObject("BrushRing");
+            holder.transform.SetParent(transform, false);
+            // On the body's own layer: the creator's camera sees nothing else (TitleScreenWiringTests.TheCreatorSeesNothingButItself).
+            holder.layer = BodyCollider != null ? BodyCollider.gameObject.layer : gameObject.layer;
+            _ring = holder.AddComponent<LineRenderer>();
+            _ring.loop = true;
+            _ring.useWorldSpace = true;
+            _ring.positionCount = BrushRingSegments;
+            _ring.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            _ring.receiveShadows = false;
+            _ring.sharedMaterial = new Material(shader) { name = "BrushRing", hideFlags = HideFlags.DontSave };
+            _ring.enabled = false;
+            return _ring;
         }
 
         private void Fill(Vector3 local, int triangle)

@@ -14,38 +14,50 @@ namespace CityX.Character
 
         private Vector3[] _positions = new Vector3[0];
         private Vector2[] _uvs = new Vector2[0];
-        private Color[] _pixels;
+        private Color32[] _pixels;
 
         /// <summary>
-        /// World distance covered by one atlas pixel across the TORSO, which
-        /// every other region is sized against. character.gd's own reference.
+        /// THE BRUSH IS MEASURED ON THE BODY, IN METRES (owner, 2026-10-10: "the brush sizes dont scale up naturally the first one feels very
+        /// choppy ... appears as a line or ovel instead of a pixel or circle and then the 2nd brush size is way bigger"). The atlas is stretched
+        /// unevenly over the body -- on an arm one texel is about 1.5 mm around and 8 mm along -- so any brush sized in atlas pixels is a sliver
+        /// at size 1, and correcting that per triangle (what this was) blew size 2 up by the stretch ratio. As 3D paint tools do, every texel
+        /// knows where it sits on the body (<see cref="EnsureTexelMap"/>) and a stamp paints every texel within the brush's radius of the hit:
+        /// round on any part, straight across the seams between parts, and each size this much wider than the last.
         /// </summary>
-        private readonly float _referenceTangent;
+        public const float BrushStepMetres = 0.007f;
 
-        private readonly float _referenceBitangent;
+        /// <summary>The brush's radius on the body for a slider size (1..15): size 1 is a dot about 1.4 cm across on the 2.6 m body.</summary>
+        public static float BrushRadiusMetres(int size)
+        {
+            return BrushStepMetres * Mathf.Max(1, size);
+        }
+
+        /// <summary>How far apart the stamps of a stroke are: a fraction of the brush, so a line is smooth at every size.</summary>
+        public static float StrokeSpacingMetres(int size)
+        {
+            return Mathf.Max(0.002f, BrushRadiusMetres(size) * StrokeSpacingOfRadius);
+        }
+
+        public const float StrokeSpacingOfRadius = 0.3f;
 
         /// <summary>
-        /// ONE shared calibration for both axes, the geometric mean.
-        ///
-        /// Comparing each axis against its own reference was the first attempt
-        /// and is wrong: at an ordinary point local and reference match on both
-        /// axes, giving an isotropic pixel-space stamp -- and an isotropic
-        /// pixel stamp is exactly what reads as an OVAL on the body, because u
-        /// and v do not cover equal world distance per pixel to begin with.
-        /// One shared reference makes the two radii come out different, which
-        /// is what cancels the atlas's baked-in anisotropy.
+        /// A texel facing away from the brush by more than this (the dot of the two normals) is left alone, so a big brush on the front of an
+        /// arm does not come out on its back. Slightly below zero so the brush still wraps a little round a curve.
         /// </summary>
-        private readonly float _referenceBrush;
+        public const float FacingCutoff = -0.2f;
+
+        /// <summary>When the brush is smaller than the texels where it lands, the nearest texel within this much of its edge is painted anyway.</summary>
+        public const float NearestTexelSlackMetres = 0.02f;
+
+        private const float GridCellMetres = 0.04f;
+
+        /// <summary>Texels just outside every triangle borrow their neighbour's place, so filtering at a part's edge never blends in unpainted colour.</summary>
+        private const int DilationPasses = 2;
+
+        private Dictionary<Vector3Int, List<int>> _texelGrid;
 
         public BodyPaint(Color fill)
         {
-            float rowSpan = 1.0f / PaintAtlas.PartCount - 2.0f * PaintAtlas.RowMargin;
-            _referenceTangent =
-                (Mathf.PI * 2.0f * FusedBodyShape.TorsoRadius) / PaintAtlas.Width;
-            _referenceBitangent =
-                (BodyRig.ShoulderY - BodyRig.HipY) / (rowSpan * PaintAtlas.Height);
-            _referenceBrush = Mathf.Sqrt(_referenceTangent * _referenceBitangent);
-
             Atlas = new Texture2D(PaintAtlas.Width, PaintAtlas.Height, TextureFormat.RGBA32, false)
             {
                 // LINEAR, not point: the atlas is low-res and point sampling
@@ -54,7 +66,7 @@ namespace CityX.Character
                 wrapMode = TextureWrapMode.Repeat,
             };
 
-            _pixels = new Color[PaintAtlas.Width * PaintAtlas.Height];
+            _pixels = new Color32[PaintAtlas.Width * PaintAtlas.Height];
             Clear(fill);
         }
 
@@ -86,21 +98,22 @@ namespace CityX.Character
         /// </summary>
         public bool Adopt(Color32[] texels)
         {
-            if (texels == null || texels.Length != _pixels.Length)
+            if (texels == null)
             {
                 return false;
             }
-
-            int width = PaintAtlas.Width;
-            int height = PaintAtlas.Height;
-            for (int y = 0; y < height; y++)
+            if (texels.Length == _pixels.Length)
             {
-                int srcRowStart = y * width;
-                int dstRowStart = (height - 1 - y) * width;
-                for (int x = 0; x < width; x++)
-                {
-                    _pixels[dstRowStart + x] = texels[srcRowStart + x];
-                }
+                Take(texels, PaintAtlas.Width, PaintAtlas.Height, flip: true);
+            }
+            else if (texels.Length == PaintAtlas.LegacyWidth * PaintAtlas.LegacyHeight)
+            {
+                // Every Godot design is Godot's size: scaled up to this one.
+                Take(texels, PaintAtlas.LegacyWidth, PaintAtlas.LegacyHeight, flip: true);
+            }
+            else
+            {
+                return false;
             }
             Apply();
             return true;
@@ -108,16 +121,17 @@ namespace CityX.Character
 
         public void Clear(Color fill)
         {
+            Color32 texel = fill;
             for (int i = 0; i < _pixels.Length; i++)
             {
-                _pixels[i] = fill;
+                _pixels[i] = texel;
             }
             Apply();
         }
 
         public void Apply()
         {
-            Atlas.SetPixels(_pixels);
+            Atlas.SetPixels32(_pixels);
             Atlas.Apply(updateMipmaps: false);
         }
 
@@ -130,6 +144,7 @@ namespace CityX.Character
             _positions = mesh.vertices;
             _uvs = mesh.uv;
             _bodyTriangles = _positions.Length / 3;
+            _texelGrid = null;
         }
 
         /// <summary>
@@ -169,6 +184,7 @@ namespace CityX.Character
 
             _positions = positions;
             _uvs = uvs;
+            _texelGrid = null;
         }
 
         /// <summary>
@@ -198,191 +214,269 @@ namespace CityX.Character
         }
 
         /// <summary>
-        /// Stamps the brush where a ray hit the body.
-        ///
-        /// <paramref name="brushRadiusPixels"/> is the slider's own 1..15.
+        /// Stamps the brush where a ray hit the body: every texel within the brush's radius on the body (see <see cref="BrushStepMetres"/>).
+        /// <paramref name="brushSize"/> is the slider's own 1..15.
         /// </summary>
-        public void PaintAt(Vector3 localPoint, int triangle, Color colour, int brushRadiusPixels)
+        public void PaintAt(Vector3 localPoint, int triangle, Color colour, int brushSize)
         {
-            if (!Corners(triangle, out Vector3 a, out Vector3 b, out Vector3 c,
-                out Vector2 ua, out Vector2 ub, out Vector2 uc))
+            if (TryNormalOf(triangle, out Vector3 normal))
             {
-                return;
+                StampSphere(localPoint, normal, BrushRadiusMetres(brushSize), colour);
             }
-
-            Vector2 uv = Barycentric(localPoint, a, b, c, ua, ub, uc);
-            // A triangle straddling the wrap stores u past [0,1) on purpose, so
-            // interpolation stays continuous. Wrap it back before turning it
-            // into a pixel column, or u=1.02 computes a column past the right
-            // edge and simply fails to paint.
-            uv.x = Mathf.Repeat(uv.x, 1.0f);
-
-            // EXPLICIT ASK: "make paint size 1 just 1 pixel." No radius, no
-            // anisotropic correction, no legibility floor -- literally the
-            // single atlas texel the tap landed on, full stop. Every
-            // brush-size-2-and-up stamp below still gets the real
-            // anisotropic ellipse (a genuinely round shape needs several
-            // pixels of radius to read as round at all once rasterised),
-            // but "1 pixel" has no such requirement: a single texel is
-            // already the smallest possible mark, on any surface, by
-            // definition -- there is nothing left to make rounder.
-            if (brushRadiusPixels <= 1)
-            {
-                int row = RowOfV(uv.y);
-                int y0 = row * PaintAtlas.Cell;
-                int y1 = (row + 1) * PaintAtlas.Cell - 1;
-                int px = ((Mathf.FloorToInt(uv.x * PaintAtlas.Width) % PaintAtlas.Width) + PaintAtlas.Width)
-                    % PaintAtlas.Width;
-                int py = Mathf.Clamp(Mathf.FloorToInt(uv.y * PaintAtlas.Height), y0, y1);
-                _pixels[PixelIndex(px, py)] = colour;
-                return;
-            }
-
-            float baseR = brushRadiusPixels - 1.0f;
-
-            TangentLengths(a, b, c, ua, ub, uc, out float tangent, out float bitangent);
-            float rawU = baseR * _referenceBrush / tangent;
-            float rawV = baseR * _referenceBrush / bitangent;
-
-            // NO RATIO CAP HERE ANYMORE -- EXPLICIT BUG REPORT, with a
-            // screenshot: "using brush size 1 doing single taps... it shows
-            // up as lines or ovels instead of a dot... its also too large
-            // for size 1." A previous fix here capped how far rawU and rawV
-            // could diverge (down to 1.5:1), reasoning that "tightening
-            // toward 1:1 is what actually makes it round." That reasoning
-            // was backwards, and this screenshot is the proof: rawU/rawV
-            // are not an arbitrary shape choice, they are the ONLY thing
-            // that cancels the surface's own real UV anisotropy (see
-            // _referenceBrush's own doc comment above) -- painting rawU
-            // atlas pixels along U and rawV along V is precisely what makes
-            // BOTH axes cover the SAME real-world distance once mapped
-            // through this triangle's own tangent/bitangent. Capping that
-            // ratio down to 1.5:1 does not make the ON-BODY shape rounder;
-            // it makes it WORSE, because it throws away most of the
-            // compensation the true ratio (12.6:1 on a real arm, worse on
-            // some seams) was providing -- confirmed directly: rendering a
-            // capped stamp on this file's own most-anisotropic test surface
-            // still came out a thin sliver, because the cap discarded the
-            // very asymmetry that would have cancelled the surface's own
-            // stretch. The actual sliver bug that motivated the 1.5:1 cap
-            // in the first place was never really about the RATIO -- it was
-            // that baseR was so small at brush size 1 that even the
-            // correctly-compensated smaller axis fell under a pixel. That
-            // is what the floor just below fixes directly, without needing
-            // to sacrifice the ratio at all.
-            float rU = rawU;
-            float rV = rawV;
-
-            // A round shape needs a handful of pixels of radius before it
-            // reads as round AT ALL, rasterised or not. SCALED TOGETHER,
-            // NOT CLAMPED INDEPENDENTLY: growing both axes by the same
-            // factor to bring the smaller one up to a legible floor
-            // preserves the true compensation ratio computed above exactly
-            // (multiplying both by the same number never changes their
-            // ratio), instead of the old code's independent per-axis clamp,
-            // which -- confirmed directly -- silently collapsed both axes
-            // back to nearly the SAME value at small brush sizes and
-            // reintroduced the exact oval this whole mechanism exists to
-            // prevent.
-            const float minRoundRadius = 2.75f;
-            float smallerAxis = Mathf.Min(rU, rV);
-            if (smallerAxis < minRoundRadius)
-            {
-                float growth = minRoundRadius / Mathf.Max(smallerAxis, 0.0001f);
-                rU *= growth;
-                rV *= growth;
-            }
-
-            // A SANITY CEILING ONLY, not a shape control -- guards against a
-            // truly pathological seam triangle rather than expressing any
-            // opinion about what a normal stamp should look like. Real body
-            // anisotropy tops out around 12.6:1 (an arm) and TangentLengths
-            // already falls back to the torso reference on a genuinely
-            // degenerate triangle, so this should never engage on anything
-            // this project's own geometry actually produces; it exists so a
-            // future UV bug fails loud (a stamp that stops appearing near
-            // brush-size big) rather than silently painting across half the
-            // atlas.
-            const float maxRadius = 80.0f;
-            float largerAxis = Mathf.Max(rU, rV);
-            if (largerAxis > maxRadius)
-            {
-                float shrink = maxRadius / largerAxis;
-                rU *= shrink;
-                rV *= shrink;
-            }
-
-            Stamp(uv, colour, rU, rV, RowOfV(uv.y));
         }
 
-        /// <summary>
-        /// Stamps one ellipse, clamped to its own atlas row.
-        ///
-        /// CLAMPED, because a brush near the top or bottom of a row would
-        /// otherwise bleed into the neighbouring part -- paint the top of a
-        /// thigh and find it on the torso.
-        /// </summary>
-        private void Stamp(Vector2 uv, Color colour, float radiusU, float radiusV, int row)
+        /// <summary>The same stamp on the other side of the body (the rig is symmetric about x = 0), for the mirror tool.</summary>
+        public void PaintMirroredAt(Vector3 localPoint, int triangle, Color colour, int brushSize)
         {
-            float centreX = uv.x * PaintAtlas.Width;
-            float centreY = uv.y * PaintAtlas.Height;
-
-            int y0 = row * PaintAtlas.Cell;
-            int y1 = (row + 1) * PaintAtlas.Cell - 1;
-
-            int fromX = Mathf.FloorToInt(centreX - radiusU);
-            int toX = Mathf.CeilToInt(centreX + radiusU);
-            int fromY = Mathf.Max(y0, Mathf.FloorToInt(centreY - radiusV));
-            int toY = Mathf.Min(y1, Mathf.CeilToInt(centreY + radiusV));
-
-            for (int y = fromY; y <= toY; y++)
+            if (TryNormalOf(triangle, out Vector3 normal))
             {
-                for (int x = fromX; x <= toX; x++)
-                {
-                    float dx = (x + 0.5f - centreX) / Mathf.Max(radiusU, 0.0001f);
-                    float dy = (y + 0.5f - centreY) / Mathf.Max(radiusV, 0.0001f);
-                    if (dx * dx + dy * dy > 1.0f)
-                    {
-                        continue;
-                    }
-
-                    // WRAPPED IN X, not clamped. A limb's row is a cylinder cut
-                    // open: a brush over the seam has to continue round the
-                    // other side, not pile up against the edge.
-                    int wrapped = ((x % PaintAtlas.Width) + PaintAtlas.Width) % PaintAtlas.Width;
-                    _pixels[PixelIndex(wrapped, y)] = colour;
-                }
+                StampSphere(Mirror(localPoint), Mirror(normal), BrushRadiusMetres(brushSize), colour);
             }
         }
 
         /// <summary>
-        /// Draws a stroke between two hits rather than two separate dots.
-        ///
-        /// Without this a fast drag lands as a dotted line, because the mouse
-        /// only reports a handful of positions per second and each one is a
-        /// single stamp.
+        /// Draws a stroke between two hits rather than two separate dots: stamps every <see cref="StrokeSpacingMetres"/> along the way, so the
+        /// line is equally smooth at every brush size.
         /// </summary>
         public void PaintStroke(Vector3 fromLocal, int fromTriangle, Vector3 toLocal,
-            int toTriangle, Color colour, int brushRadiusPixels)
+            int toTriangle, Color colour, int brushSize)
         {
-            PaintAt(toLocal, toTriangle, colour, brushRadiusPixels);
+            if (!TryNormalOf(toTriangle, out Vector3 toNormal))
+            {
+                return;
+            }
+            Vector3 fromNormal = TryNormalOf(fromTriangle, out Vector3 n) ? n : toNormal;
+            PaintStroke(fromLocal, fromNormal, toLocal, toNormal, colour, brushSize);
+        }
 
-            float distance = Vector3.Distance(fromLocal, toLocal);
-            // One step per third of the brush's world size, so the bridge is
-            // solid without stamping hundreds of times for a long drag.
-            int steps = Mathf.Clamp(
-                Mathf.CeilToInt(distance / Mathf.Max(_referenceBrush * brushRadiusPixels * 8.0f,
-                    0.002f)), 1, 64);
-
-            for (int i = 1; i < steps; i++)
+        /// <summary>The same stroke between two points whose facing is already known (the mirror tool's, which have no ray behind them).</summary>
+        public void PaintStroke(Vector3 fromLocal, Vector3 fromNormal, Vector3 toLocal, Vector3 toNormal, Color colour, int brushSize)
+        {
+            float radius = BrushRadiusMetres(brushSize);
+            int steps = Mathf.Clamp(Mathf.CeilToInt(Vector3.Distance(fromLocal, toLocal) / StrokeSpacingMetres(brushSize)), 1, 256);
+            for (int i = 1; i <= steps; i++)
             {
                 float t = i / (float)steps;
-                // Stepped along the LATER triangle: the two hits are usually on
-                // the same one, and when they are not, the destination is the
-                // one the stroke is arriving at.
-                PaintAt(Vector3.Lerp(fromLocal, toLocal, t), toTriangle, colour,
-                    brushRadiusPixels);
+                StampSphere(Vector3.Lerp(fromLocal, toLocal, t), Vector3.Slerp(fromNormal, toNormal, t), radius, colour);
             }
+        }
+
+        /// <summary>The outward direction of a triangle of the bound surface, in its own space.</summary>
+        public bool TryNormalOf(int triangle, out Vector3 normal)
+        {
+            normal = Vector3.up;
+            if (!Corners(triangle, out Vector3 a, out Vector3 b, out Vector3 c, out _, out _, out _))
+            {
+                return false;
+            }
+            Vector3 cross = Vector3.Cross(b - a, c - a);
+            if (cross.sqrMagnitude < 1e-14f)
+            {
+                return false;
+            }
+            normal = cross.normalized;
+            return true;
+        }
+
+        /// <summary>
+        /// Paints every texel within <paramref name="radius"/> of <paramref name="centre"/> on the body that faces the brush. When none is that
+        /// close (a brush smaller than the texels it lands on), the nearest one is painted, so a tap always leaves a mark.
+        /// </summary>
+        public void StampSphere(Vector3 centre, Vector3 normal, float radius, Color colour)
+        {
+            EnsureTexelMap();
+            float radiusSquared = radius * radius;
+            float search = radius + NearestTexelSlackMetres;
+            Vector3Int low = GridCellOf(centre - Vector3.one * search);
+            Vector3Int high = GridCellOf(centre + Vector3.one * search);
+
+            int nearest = -1;
+            float nearestSquared = search * search;
+            bool painted = false;
+            Color32 texel = colour;
+            for (int x = low.x; x <= high.x; x++)
+            {
+                for (int y = low.y; y <= high.y; y++)
+                {
+                    for (int z = low.z; z <= high.z; z++)
+                    {
+                        if (!_texelGrid.TryGetValue(new Vector3Int(x, y, z), out List<int> points))
+                        {
+                            continue;
+                        }
+                        foreach (int p in points)
+                        {
+                            TexelPoint point = _texelPoints[p];
+                            if (Vector3.Dot(point.Normal, normal) < FacingCutoff)
+                            {
+                                continue;
+                            }
+                            float distanceSquared = (point.Position - centre).sqrMagnitude;
+                            if (distanceSquared <= radiusSquared)
+                            {
+                                _pixels[point.Texel] = texel;
+                                painted = true;
+                            }
+                            else if (distanceSquared < nearestSquared)
+                            {
+                                nearestSquared = distanceSquared;
+                                nearest = point.Texel;
+                            }
+                        }
+                    }
+                }
+            }
+            if (!painted && nearest >= 0)
+            {
+                _pixels[nearest] = texel;
+            }
+        }
+
+        /// <summary>Builds the texel map ahead of the first stroke, so the first click does not stall on it.</summary>
+        public void PrepareBrush()
+        {
+            EnsureTexelMap();
+        }
+
+        /// <summary>One place on the surface that a texel of the atlas is drawn at.</summary>
+        private struct TexelPoint
+        {
+            public int Texel;
+            public Vector3 Position;
+            public Vector3 Normal;
+        }
+
+        private TexelPoint[] _texelPoints;
+
+        /// <summary>
+        /// Where every texel of the atlas is drawn on the bound surface, and which way it faces there: each triangle is rasterised into the
+        /// atlas through its own UVs (wrapping round in u, as a limb's row does), each covered texel taking the point of the triangle under its
+        /// centre. Then a couple of passes let the texels just outside the triangles borrow their neighbours' places. Built once per Bind.
+        ///
+        /// A TEXEL CAN BE IN SEVERAL PLACES, and keeps all of them. The body is separate tubes whose rounded ends tuck inside each other at the
+        /// joints, and a part's row maps by position along its limb, so the hidden end of the upper arm uses the same texels as the visible
+        /// forearm just past the elbow. Keeping only the last triangle's point left some of the visible ones at the hidden point, out of the
+        /// brush's reach: a stroke down the arm broke off at the elbow.
+        /// </summary>
+        private void EnsureTexelMap()
+        {
+            if (_texelGrid != null)
+            {
+                return;
+            }
+            int width = PaintAtlas.Width;
+            int height = PaintAtlas.Height;
+            var points = new List<TexelPoint>(width * height);
+            var first = new int[width * height];
+            for (int i = 0; i < first.Length; i++)
+            {
+                first[i] = -1;
+            }
+            var atlas = new Vector2(width, height);
+
+            for (int t = 0; t + 2 < _positions.Length && t + 2 < _uvs.Length; t += 3)
+            {
+                Vector3 a = _positions[t];
+                Vector3 b = _positions[t + 1];
+                Vector3 c = _positions[t + 2];
+                Vector3 cross = Vector3.Cross(b - a, c - a);
+                if (cross.sqrMagnitude < 1e-14f)
+                {
+                    continue;
+                }
+                Vector3 normal = cross.normalized;
+                Vector2 pa = Vector2.Scale(_uvs[t], atlas);
+                Vector2 pb = Vector2.Scale(_uvs[t + 1], atlas);
+                Vector2 pc = Vector2.Scale(_uvs[t + 2], atlas);
+                float area = Cross(pb - pa, pc - pa);
+                if (Mathf.Abs(area) < 1e-9f)
+                {
+                    continue;
+                }
+                int fromX = Mathf.FloorToInt(Mathf.Min(pa.x, Mathf.Min(pb.x, pc.x)));
+                int toX = Mathf.CeilToInt(Mathf.Max(pa.x, Mathf.Max(pb.x, pc.x)));
+                int fromY = Mathf.Max(0, Mathf.FloorToInt(Mathf.Min(pa.y, Mathf.Min(pb.y, pc.y))));
+                int toY = Mathf.Min(height - 1, Mathf.CeilToInt(Mathf.Max(pa.y, Mathf.Max(pb.y, pc.y))));
+                for (int y = fromY; y <= toY; y++)
+                {
+                    for (int x = fromX; x <= toX; x++)
+                    {
+                        var p = new Vector2(x + 0.5f, y + 0.5f);
+                        float wa = Cross(pb - p, pc - p) / area;
+                        float wb = Cross(pc - p, pa - p) / area;
+                        float wc = 1.0f - wa - wb;
+                        if (wa < -1e-4f || wb < -1e-4f || wc < -1e-4f)
+                        {
+                            continue;
+                        }
+                        int index = PixelIndex(((x % width) + width) % width, y);
+                        if (first[index] < 0)
+                        {
+                            first[index] = points.Count;
+                        }
+                        points.Add(new TexelPoint { Texel = index, Position = a * wa + b * wb + c * wc, Normal = normal });
+                    }
+                }
+            }
+
+            for (int pass = 0; pass < DilationPasses; pass++)
+            {
+                var before = (int[])first.Clone();
+                for (int y = 0; y < height; y++)
+                {
+                    int row = y / PaintAtlas.RowHeight;
+                    for (int x = 0; x < width; x++)
+                    {
+                        int index = PixelIndex(x, y);
+                        if (before[index] >= 0)
+                        {
+                            continue;
+                        }
+                        for (int k = 0; k < 8 && first[index] < 0; k++)
+                        {
+                            int ny = y + NeighbourY[k];
+                            if (ny < 0 || ny >= height || ny / PaintAtlas.RowHeight != row)
+                            {
+                                continue;   // never borrow from another part's row
+                            }
+                            int from = before[PixelIndex(((x + NeighbourX[k]) % width + width) % width, ny)];
+                            if (from >= 0)
+                            {
+                                first[index] = points.Count;
+                                points.Add(new TexelPoint { Texel = index, Position = points[from].Position, Normal = points[from].Normal });
+                            }
+                        }
+                    }
+                }
+            }
+
+            var grid = new Dictionary<Vector3Int, List<int>>();
+            for (int i = 0; i < points.Count; i++)
+            {
+                Vector3Int cell = GridCellOf(points[i].Position);
+                if (!grid.TryGetValue(cell, out List<int> list))
+                {
+                    list = new List<int>();
+                    grid[cell] = list;
+                }
+                list.Add(i);
+            }
+            _texelPoints = points.ToArray();
+            _texelGrid = grid;
+        }
+
+        private static readonly int[] NeighbourX = { 1, -1, 0, 0, 1, 1, -1, -1 };
+        private static readonly int[] NeighbourY = { 0, 0, 1, -1, 1, -1, 1, -1 };
+
+        private static Vector3Int GridCellOf(Vector3 p)
+        {
+            return new Vector3Int(Mathf.FloorToInt(p.x / GridCellMetres), Mathf.FloorToInt(p.y / GridCellMetres),
+                Mathf.FloorToInt(p.z / GridCellMetres));
+        }
+
+        private static float Cross(Vector2 a, Vector2 b)
+        {
+            return a.x * b.y - a.y * b.x;
         }
 
         /// <summary>
@@ -406,8 +500,8 @@ namespace CityX.Character
                 Mathf.FloorToInt(uv.y * PaintAtlas.Height), 0, PaintAtlas.Height - 1);
 
             int row = RowOfV(uv.y);
-            int y0 = row * PaintAtlas.Cell;
-            int y1 = (row + 1) * PaintAtlas.Cell - 1;
+            int y0 = row * PaintAtlas.RowHeight;
+            int y1 = (row + 1) * PaintAtlas.RowHeight - 1;
 
             Color target = _pixels[PixelIndex(startX, startY)];
             if (Same(target, colour))
@@ -450,15 +544,15 @@ namespace CityX.Character
 
         // --- undo, mirroring and relocating a point on the mesh ---
 
-        private readonly List<Color[]> _undo = new List<Color[]>();
-        private readonly List<Color[]> _redo = new List<Color[]>();
+        private readonly List<Color32[]> _undo = new List<Color32[]>();
+        private readonly List<Color32[]> _redo = new List<Color32[]>();
 
         /// <summary>
         /// How many strokes back you can go. Each snapshot is the whole atlas,
-        /// which at 384x448 is under 700KB, so a deep history is affordable and
-        /// a shallow one is the thing people actually complain about.
+        /// which at the finer atlas (PaintAtlas.Width by Height) is about 5.5 MB --
+        /// 24 of them is affordable, and a shallow history is what people complain about.
         /// </summary>
-        public const int UndoDepth = 32;
+        public const int UndoDepth = 24;
 
         public bool CanUndo => _undo.Count > 0;
 
@@ -472,7 +566,7 @@ namespace CityX.Character
         /// </summary>
         public void PushUndoSnapshot()
         {
-            _undo.Add((Color[])_pixels.Clone());
+            _undo.Add((Color32[])_pixels.Clone());
             if (_undo.Count > UndoDepth)
             {
                 _undo.RemoveAt(0);
@@ -488,7 +582,7 @@ namespace CityX.Character
             {
                 return;
             }
-            _redo.Add((Color[])_pixels.Clone());
+            _redo.Add((Color32[])_pixels.Clone());
             _pixels = _undo[_undo.Count - 1];
             _undo.RemoveAt(_undo.Count - 1);
             Apply();
@@ -500,7 +594,7 @@ namespace CityX.Character
             {
                 return;
             }
-            _undo.Add((Color[])_pixels.Clone());
+            _undo.Add((Color32[])_pixels.Clone());
             _pixels = _redo[_redo.Count - 1];
             _redo.RemoveAt(_redo.Count - 1);
             Apply();
@@ -546,22 +640,14 @@ namespace CityX.Character
         /// Unity's ImageConversion module, which is not referenced here and
         /// can be stripped from a build entirely -- a save format that stops
         /// working depending on build settings is a bad trade for a smaller
-        /// file. Raw RGBA is 688KB, and a paint texture is mostly flat colour,
+        /// file. Raw RGBA is about 5.5 MB, and a paint texture is mostly flat colour,
         /// so gzip takes it to a few KB.
         /// </summary>
         public byte[] Encode()
         {
-            // STRAIGHT OFF THE TEXTURE, not converted again from the float
-            // pixels behind it. Both are the same picture, but only one of
-            // them is the picture that was on screen, and rounding a float
-            // channel to a byte a second time does not reliably land on the
-            // same byte the texture chose: a channel at 0.7 is 178.4999... in
-            // single precision, sitting on the knife edge between 178 and 179,
-            // and every plausible way of writing that conversion by hand
-            // picked the other side of it. So every saved character came back
-            // a step darker in every channel.
-            Apply();
-            Color32[] texels = Atlas.GetPixels32();
+            // The bytes the texture shows, exactly: the pixels are kept as bytes (they were floats, and rounding a float channel to a byte a
+            // second time on the way out -- 0.7 is 178.4999... -- brought every saved character back a step darker).
+            Color32[] texels = _pixels;
 
             var raw = new byte[texels.Length * 4];
             for (int i = 0; i < texels.Length; i++)
@@ -615,18 +701,81 @@ namespace CityX.Character
                 return false;
             }
 
-            if (raw.Length != _pixels.Length * 4)
+            int width;
+            int height;
+            if (raw.Length == _pixels.Length * 4)
+            {
+                width = PaintAtlas.Width;
+                height = PaintAtlas.Height;
+            }
+            else if (raw.Length == PaintAtlas.LegacyWidth * PaintAtlas.LegacyHeight * 4)
+            {
+                // Saved before the atlas got finer: scaled up, texel for block.
+                width = PaintAtlas.LegacyWidth;
+                height = PaintAtlas.LegacyHeight;
+            }
+            else
             {
                 return false;
             }
 
-            for (int i = 0; i < _pixels.Length; i++)
+            var texels = new Color32[width * height];
+            for (int i = 0; i < texels.Length; i++)
             {
-                _pixels[i] = new Color32(
-                    raw[i * 4], raw[i * 4 + 1], raw[i * 4 + 2], raw[i * 4 + 3]);
+                texels[i] = new Color32(raw[i * 4], raw[i * 4 + 1], raw[i * 4 + 2], raw[i * 4 + 3]);
             }
+            Take(texels, width, height, flip: false);
             Apply();
             return true;
+        }
+
+        /// <summary>
+        /// Copies a whole atlas in, of this size or of Godot's (<see cref="PaintAtlas.LegacyWidth"/>), scaling the latter up -- each old texel
+        /// becomes a block -- and, for a picture read from a PNG, turning it the right way up.
+        /// </summary>
+        private void Take(Color32[] texels, int width, int height, bool flip)
+        {
+            int toWidth = PaintAtlas.Width;
+            int toHeight = PaintAtlas.Height;
+            for (int y = 0; y < toHeight; y++)
+            {
+                int fromY = y * height / toHeight;
+                if (flip)
+                {
+                    fromY = height - 1 - fromY;
+                }
+                int fromRow = fromY * width;
+                int toRow = y * toWidth;
+                for (int x = 0; x < toWidth; x++)
+                {
+                    _pixels[toRow + x] = texels[fromRow + x * width / toWidth];
+                }
+            }
+        }
+
+        /// <summary>A Godot-sized atlas read from a PNG, turned the right way up (see <see cref="Adopt"/>), at its own size.</summary>
+        public static Color32[] FlippedRows(Color32[] texels, int width, int height)
+        {
+            var flipped = new Color32[texels.Length];
+            for (int y = 0; y < height; y++)
+            {
+                System.Array.Copy(texels, y * width, flipped, (height - 1 - y) * width, width);
+            }
+            return flipped;
+        }
+
+        /// <summary>
+        /// For a body that is only worn, never painted (another player's, a character on the select screen): compresses the atlas on the
+        /// graphics card to a quarter of its size and lets go of the copy in memory. Nothing can be painted on it afterwards.
+        /// </summary>
+        public void ShrinkForWearing()
+        {
+            Apply();
+            Atlas.Compress(highQuality: false);
+            Atlas.Apply(updateMipmaps: false, makeNoLongerReadable: true);
+            _pixels = new Color32[0];
+            _undo.Clear();
+            _redo.Clear();
         }
 
         private static bool Same(Color a, Color b)
@@ -635,37 +784,6 @@ namespace CityX.Character
                    && Mathf.Abs(a.g - b.g) < 0.004f
                    && Mathf.Abs(a.b - b.b) < 0.004f
                    && Mathf.Abs(a.a - b.a) < 0.004f;
-        }
-
-        /// <summary>
-        /// World distance per atlas pixel of u and of v, for this triangle --
-        /// the standard tangent/bitangent derivation. Falls back to the torso
-        /// reference on a degenerate triangle rather than dividing by nothing.
-        /// </summary>
-        private void TangentLengths(Vector3 a, Vector3 b, Vector3 c,
-            Vector2 ua, Vector2 ub, Vector2 uc, out float tangent, out float bitangent)
-        {
-            Vector3 edge1 = b - a;
-            Vector3 edge2 = c - a;
-            var atlas = new Vector2(PaintAtlas.Width, PaintAtlas.Height);
-            Vector2 uvEdge1 = Vector2.Scale(ub - ua, atlas);
-            Vector2 uvEdge2 = Vector2.Scale(uc - ua, atlas);
-
-            float determinant = uvEdge1.x * uvEdge2.y - uvEdge2.x * uvEdge1.y;
-            if (Mathf.Abs(determinant) < 1e-6f)
-            {
-                tangent = _referenceTangent;
-                bitangent = _referenceBitangent;
-                return;
-            }
-
-            Vector3 t = (edge1 * uvEdge2.y - edge2 * uvEdge1.y) / determinant;
-            Vector3 b2 = (edge2 * uvEdge1.x - edge1 * uvEdge2.x) / determinant;
-
-            tangent = t.magnitude;
-            bitangent = b2.magnitude;
-            if (tangent < 1e-6f) tangent = _referenceTangent;
-            if (bitangent < 1e-6f) bitangent = _referenceBitangent;
         }
 
         private static Vector2 Barycentric(Vector3 p, Vector3 a, Vector3 b, Vector3 c,

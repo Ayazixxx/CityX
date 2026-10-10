@@ -44,9 +44,9 @@ namespace CityX.Tests
 
         private static byte[] PaintedAtlasPng(out Color32 mark)
         {
-            var image = new Texture2D(PaintAtlas.Width, PaintAtlas.Height,
+            var image = new Texture2D(PaintAtlas.LegacyWidth, PaintAtlas.LegacyHeight,
                 TextureFormat.RGBA32, false);
-            var pixels = new Color32[PaintAtlas.Width * PaintAtlas.Height];
+            var pixels = new Color32[PaintAtlas.LegacyWidth * PaintAtlas.LegacyHeight];
             for (int i = 0; i < pixels.Length; i++)
             {
                 pixels[i] = new Color32(255, 255, 255, 255);
@@ -63,7 +63,7 @@ namespace CityX.Tests
             // of the encoded PNG -- the last atlas row, not the head at
             // all -- and only ever passed because Adopt had no flip yet
             // either, so the two wrongs cancelled out.
-            int lastRowStart = (PaintAtlas.Height - 1) * PaintAtlas.Width;
+            int lastRowStart = (PaintAtlas.LegacyHeight - 1) * PaintAtlas.LegacyWidth;
             mark = new Color32(200, 40, 60, 255);
             pixels[lastRowStart] = mark;
 

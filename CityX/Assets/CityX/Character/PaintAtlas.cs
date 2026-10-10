@@ -45,9 +45,28 @@ namespace CityX.Character
 
         public static int PartCount => Parts.Length;
 
-        public static int Width => Cell * FaceCount;
+        /// <summary>
+        /// THE ATLAS IS FINER THAN GODOT'S: twice the texels around, four times along (owner, 2026-10-10, the creator's brush "feels very
+        /// choppy"). At Godot's 64 per row a torso texel was about 4 mm around and 16 mm up the body, so any slanting line came out as stairs
+        /// whatever the brush did; now it is about 2 by 4 mm, and the face about 5 by 3. The UVs are fractions of the atlas and do not change;
+        /// only the texel count does. Paint saved at Godot's size (<see cref="LegacyWidth"/> by <see cref="LegacyHeight"/>) still loads,
+        /// scaled up (BodyPaint.Decode, BodyPaint.Adopt).
+        /// </summary>
+        public const int ColumnDetail = 2;
 
-        public static int Height => Cell * PartCount;
+        public const int RowDetail = 4;
+
+        public static int Width => Cell * FaceCount * ColumnDetail;
+
+        /// <summary>How many texels tall one part's row is.</summary>
+        public static int RowHeight => Cell * RowDetail;
+
+        public static int Height => RowHeight * PartCount;
+
+        /// <summary>Godot's atlas, the size of every design made there and every save made before 2026-10-10.</summary>
+        public static int LegacyWidth => Cell * FaceCount;
+
+        public static int LegacyHeight => Cell * PartCount;
 
         /// <summary>
         /// fused_body.gd PAINT_BONE_FOR. A bone that is a colinear sub-split of
@@ -235,7 +254,7 @@ namespace CityX.Character
         /// that knife-edge can push a vertex into its neighbour's row. That is
         /// what made paint on the bottom of the head come out at the crotch.
         /// </summary>
-        public static float RowMargin => 2.0f / (Cell * PartCount);
+        public static float RowMargin => 2.0f / LegacyHeight;   // two of Godot's texels: a fraction of the atlas, so the UVs are unchanged
 
         /// <summary>
         /// The UV for one point on the skin, given the limb it belongs to.

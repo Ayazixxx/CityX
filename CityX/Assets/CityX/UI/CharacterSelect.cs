@@ -538,6 +538,7 @@ namespace CityX.UI
                 var paint = new BodyPaint(character.Skin);
                 if (paint.Decode(painted))
                 {
+                    paint.ShrinkForWearing();
                     atlas = paint.Atlas;
                 }
             }

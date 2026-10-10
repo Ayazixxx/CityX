@@ -182,6 +182,152 @@ namespace CityX.Tests
         }
 
         /// <summary>
+        /// The creator shows the body in a T-pose but its mesh is modelled arms-down. The click target and the brush were the mesh at rest, so a
+        /// click on an outstretched arm went through it (and one beside the hips painted an arm nobody could see). Now both are the body as shown.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator AClickOnAnOutstretchedArmPaintsThatArm()
+        {
+            _creator.Colour = Color.red;
+            _creator.BrushRadiusPixels = 1;
+            Animator animator = _creator.BodyRenderer.GetComponentInParent<Animator>(true);
+            Assert.IsNotNull(animator, "the creator's body has no animator to find its bones by");
+            Transform forearm = animator.GetBoneTransform(HumanBodyBones.LeftLowerArm);
+            Transform hand = animator.GetBoneTransform(HumanBodyBones.LeftHand);
+            Assert.IsNotNull(forearm);
+            Assert.IsNotNull(hand);
+            Vector3 onForearm = Vector3.Lerp(forearm.position, hand.position, 0.4f);
+
+            Color32[] before = _creator.Paint.Atlas.GetPixels32();
+            _creator.PressAt(_camera.WorldToScreenPoint(onForearm));
+            yield return null;
+            Color32[] after = _creator.Paint.Atlas.GetPixels32();
+
+            int armRow = PaintAtlas.RowOf(PaintAtlas.PaintBoneFor(HumanBodyBones.LeftLowerArm));
+            int onArm = 0;
+            int elsewhere = 0;
+            for (int i = 0; i < before.Length; i++)
+            {
+                if (before[i].r == after[i].r && before[i].g == after[i].g && before[i].b == after[i].b)
+                {
+                    continue;
+                }
+                if (i / PaintAtlas.Width / PaintAtlas.RowHeight == armRow) onArm++;
+                else elsewhere++;
+            }
+            Assert.Greater(onArm, 0, "clicking the outstretched forearm painted nothing on the arm -- the click went through it");
+            Assert.AreEqual(0, elsewhere, "clicking the forearm painted somewhere other than the arm");
+        }
+
+        /// <summary>
+        /// Saves Logs/CityShots/brush-sizes.png: taps of sizes 1 to 8 across the chest, a wavy size-1 and size-3 line, a stroke down the
+        /// outstretched arm, and the brush ring. Run with a graphics device and look at it.
+        /// </summary>
+        [UnityTest, Explicit]
+        public IEnumerator BrushCapture()
+        {
+            _creator.Colour = new Color(0.1f, 0.1f, 0.12f);
+            // As close as the creator lets the camera come, as a player painting detail would be.
+            for (int i = 0; i < 30; i++)
+            {
+                _creator.Zoom(-CharacterCreator.ZoomStep);
+            }
+            yield return null;
+            Vector2 chest = ChestOnScreen();
+            float scale = Screen.height / 1000.0f;
+            for (int size = 1; size <= 8; size++)
+            {
+                _creator.BrushRadiusPixels = size;
+                _creator.PressAt(chest + new Vector2((size - 4.5f) * 30.0f * scale, 90.0f * scale));
+                yield return null;
+            }
+            foreach (int size in new[] { 1, 3 })
+            {
+                _creator.BrushRadiusPixels = size;
+                float y = size == 1 ? 20.0f : -50.0f;
+                Vector2 start = chest + new Vector2(-110.0f, y) * scale;
+                _creator.PressAt(start);
+                for (int i = 1; i <= 60; i++)
+                {
+                    Vector2 at = chest + new Vector2(-110.0f + i * 3.6f, y + Mathf.Sin(i * 0.25f) * 18.0f) * scale;
+                    _creator.Drag(at, Vector2.zero);
+                }
+                // A release, so the next press starts a stroke of its own.
+                yield return null;
+            }
+
+            Animator animator = _creator.BodyRenderer.GetComponentInParent<Animator>(true);
+            Vector3 shoulder = animator.GetBoneTransform(HumanBodyBones.LeftUpperArm).position;
+            Vector3 hand = animator.GetBoneTransform(HumanBodyBones.LeftHand).position;
+            _creator.BrushRadiusPixels = 2;
+            _creator.Colour = new Color(0.8f, 0.15f, 0.1f);
+            _creator.PressAt(_camera.WorldToScreenPoint(shoulder));
+            for (int i = 1; i <= 40; i++)
+            {
+                _creator.Drag(_camera.WorldToScreenPoint(Vector3.Lerp(shoulder, hand, i / 40.0f)), Vector2.zero);
+            }
+            _creator.Paint.Apply();
+
+            _creator.BrushRadiusPixels = 6;
+            _creator.ShowBrushRing(chest + new Vector2(0.0f, -150.0f) * scale);
+            yield return null;
+            _creator.ShowBrushRing(chest + new Vector2(0.0f, -150.0f) * scale);
+
+            if (SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null)
+            {
+                yield break;
+            }
+            int w = Screen.width, h = Screen.height;
+            var rt = RenderTexture.GetTemporary(w, h, 24);
+            RenderTexture previous = _camera.targetTexture;
+            _camera.targetTexture = rt;
+            _camera.Render();
+            RenderTexture.active = rt;
+            var image = new Texture2D(w, h, TextureFormat.RGB24, false);
+            image.ReadPixels(new Rect(0, 0, w, h), 0, 0);
+            image.Apply();
+            _camera.targetTexture = previous;
+            RenderTexture.active = null;
+            RenderTexture.ReleaseTemporary(rt);
+            string directory = System.IO.Path.Combine(System.IO.Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
+            System.IO.Directory.CreateDirectory(directory);
+            var conv = System.Type.GetType("UnityEngine.ImageConversion, UnityEngine.ImageConversionModule");
+            var encode = conv.GetMethod("EncodeToPNG", new[] { typeof(Texture2D) });
+            System.IO.File.WriteAllBytes(System.IO.Path.Combine(directory, "brush-sizes.png"), (byte[])encode.Invoke(null, new object[] { image }));
+            Object.Destroy(image);
+        }
+
+        [UnityTest]
+        public IEnumerator TheBrushRingSitsOnTheBodyAtTheBrushsSize()
+        {
+            _creator.Current = CharacterCreator.Tool.Brush;
+            _creator.BrushRadiusPixels = 10;
+            _creator.ShowBrushRing(ChestOnScreen());
+            yield return null;
+            _creator.ShowBrushRing(ChestOnScreen());
+
+            Assert.IsTrue(_creator.BrushRingVisible, "no brush ring over the chest");
+            LineRenderer ring = _creator.GetComponentsInChildren<LineRenderer>(true).First(r => r.name == "BrushRing");
+            Assert.AreNotEqual(0, _camera.cullingMask & (1 << ring.gameObject.layer), "the creator's camera does not draw the ring's layer");
+            var points = new Vector3[ring.positionCount];
+            ring.GetPositions(points);
+            Vector3 centre = points.Aggregate(Vector3.zero, (sum, p) => sum + p) / points.Length;
+            float expected = BodyPaint.BrushRadiusMetres(10) * _creator.BodyCollider.transform.lossyScale.x;
+            foreach (Vector3 p in points)
+            {
+                Assert.AreEqual(expected, Vector3.Distance(centre, p), expected * 0.02f, "the ring is not the brush's size");
+            }
+            Ray ray = _camera.ScreenPointToRay(ChestOnScreen());
+            Assert.IsTrue(_creator.BodyCollider.Raycast(ray, out RaycastHit hit, 50.0f));
+            Assert.Less(Vector3.Distance(hit.point, centre), 0.02f, "the ring is not where the cursor meets the body");
+
+            _creator.SetBrushSize(99);
+            Assert.AreEqual(CharacterCreator.MaximumBrushSize, _creator.BrushRadiusPixels, "the size keys go past the biggest brush");
+            _creator.SetBrushSize(0);
+            Assert.AreEqual(CharacterCreator.MinimumBrushSize, _creator.BrushRadiusPixels, "the size keys go below the smallest brush");
+        }
+
+        /// <summary>
         /// Clicking past the silhouette must not paint. If it did, the
         /// backdrop would be dragging colour onto whatever part of the atlas a
         /// stray ray happened to resolve to.
@@ -222,8 +368,8 @@ namespace CityX.Tests
             Color32[] after = atlas.GetPixels32();
 
             int headRow = PaintAtlas.RowOf(HumanBodyBones.Head);
-            int fromY = headRow * PaintAtlas.Cell;
-            int toY = (headRow + 1) * PaintAtlas.Cell;
+            int fromY = headRow * PaintAtlas.RowHeight;
+            int toY = (headRow + 1) * PaintAtlas.RowHeight;
 
             int onHead = 0;
             int elsewhere = 0;

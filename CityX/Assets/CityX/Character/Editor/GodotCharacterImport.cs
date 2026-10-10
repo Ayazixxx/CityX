@@ -165,10 +165,10 @@ namespace CityX.CharacterEditor
                     return false;
                 }
 
-                if (image.width != PaintAtlas.Width || image.height != PaintAtlas.Height)
+                if (image.width != PaintAtlas.LegacyWidth || image.height != PaintAtlas.LegacyHeight)
                 {
                     notes.Add($"{name}'s atlas is {image.width}x{image.height}, not " +
-                              $"{PaintAtlas.Width}x{PaintAtlas.Height} -- imported plain rather " +
+                              $"{PaintAtlas.LegacyWidth}x{PaintAtlas.LegacyHeight} -- imported plain rather " +
                               "than stretched onto the wrong rows.");
                     return false;
                 }

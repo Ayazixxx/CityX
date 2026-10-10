@@ -93,6 +93,7 @@ namespace CityX.Character
                 var paint = new BodyPaint(character.Skin);
                 if (paint.Decode(painted))
                 {
+                    paint.ShrinkForWearing();
                     ApplyPaint(paint.Atlas);
                     LookApplied?.Invoke(this);
                     return;

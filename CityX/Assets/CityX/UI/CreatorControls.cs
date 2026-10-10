@@ -136,6 +136,15 @@ namespace CityX.UI
                     ToolButtons[i].color = (int)Creator.Current == i ? Active : Idle;
                 }
             }
+            // The [ and ] keys change the size on the creator itself (CharacterCreator.SetBrushSize); the slider follows.
+            if (BrushSize != null && Mathf.RoundToInt(BrushSize.value) != Creator.BrushRadiusPixels)
+            {
+                BrushSize.SetValueWithoutNotify(Creator.BrushRadiusPixels);
+                if (BrushLabel != null)
+                {
+                    BrushLabel.text = "BRUSH  " + Creator.BrushRadiusPixels;
+                }
+            }
             if (MirrorButton != null)
             {
                 MirrorButton.color = Creator.Mirroring ? Active : Idle;

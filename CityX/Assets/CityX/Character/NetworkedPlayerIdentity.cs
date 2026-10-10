@@ -188,6 +188,7 @@ namespace CityX.Character
                 var bodyPaint = new BodyPaint(skin);
                 if (bodyPaint.Decode(paint))
                 {
+                    bodyPaint.ShrinkForWearing();
                     _identity.ApplyPaint(bodyPaint.Atlas);
                     return;
                 }

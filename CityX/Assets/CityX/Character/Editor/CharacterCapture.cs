@@ -154,7 +154,7 @@ namespace CityX.CharacterEditor
             {
                 // Each atlas ROW gets its own hue, so a limb painting into the
                 // wrong row is obvious rather than merely wrong-looking.
-                int rowIndex = y / PaintAtlas.Cell;
+                int rowIndex = y / PaintAtlas.RowHeight;
                 Color tint = Color.HSVToRGB(rowIndex / (float)PaintAtlas.PartCount, 0.55f, 1.0f);
 
                 for (int x = 0; x < PaintAtlas.Width; x++)

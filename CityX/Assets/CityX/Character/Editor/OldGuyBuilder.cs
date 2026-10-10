@@ -107,23 +107,24 @@ namespace CityX.CharacterEditor
                                       "-- falling back to the flat colour.");
                     return CharacterSkin.Ensure("OldGuySkin", SkinColour);
                 }
-                if (image.width != PaintAtlas.Width || image.height != PaintAtlas.Height)
+                if (image.width != PaintAtlas.LegacyWidth || image.height != PaintAtlas.LegacyHeight)
                 {
                     Debug.LogWarning($"CityX: old_guy.tres's atlas is {image.width}x{image.height}, " +
-                                      $"not {PaintAtlas.Width}x{PaintAtlas.Height} -- falling back " +
+                                      $"not {PaintAtlas.LegacyWidth}x{PaintAtlas.LegacyHeight} -- falling back " +
                                       "to the flat colour rather than stretching it onto the wrong rows.");
                     return CharacterSkin.Ensure("OldGuySkin", SkinColour);
                 }
 
-                var paint = new BodyPaint(Color.white);
-                if (!paint.Adopt(image.GetPixels32()))
+                // KEPT AT GODOT'S SIZE, not scaled up to the creator's finer atlas: he is only worn, never painted, the UVs are fractions of
+                // the atlas so any size fits, and a scaled-up copy would only make the saved asset eight times bigger for nothing.
+                var atlas = new Texture2D(PaintAtlas.LegacyWidth, PaintAtlas.LegacyHeight, TextureFormat.RGBA32, false)
                 {
-                    Debug.LogWarning("CityX: old_guy.tres's atlas would not adopt -- falling back " +
-                                      "to the flat colour.");
-                    return CharacterSkin.Ensure("OldGuySkin", SkinColour);
-                }
-
-                return CharacterSkin.EnsurePainted("OldGuySkin", paint.Atlas);
+                    filterMode = FilterMode.Bilinear,
+                    wrapMode = TextureWrapMode.Repeat,
+                };
+                atlas.SetPixels32(BodyPaint.FlippedRows(image.GetPixels32(), image.width, image.height));
+                atlas.Apply(updateMipmaps: false);
+                return CharacterSkin.EnsurePainted("OldGuySkin", atlas);
             }
             finally
             {
