@@ -66,11 +66,11 @@ namespace CityX.View
         /// <summary>
         /// Real moonlight is about a millionth of sunlight, which is far too
         /// dim to see by. This is a legibility number, not a physical one.
-        /// (0.13 until 2026-10-09: research on night lighting in games is that night should FEEL dark without BEING dark -- the moon is the
-        /// key light that gives the city its shape and its shadows, against a dim cool fill -- and at 0.13 it shaped nothing; the night read
-        /// as one flat navy.)
+        /// (2026-10-09: raised to 0.3 on the research line that night should "feel dark without being dark", and rejected by the owner the same
+        /// day -- a moonlit grey-blue city: "at nighttime it needs to be darker", "it should be almost pitch black at night like minecraft". Now
+        /// only the faintest outline; the light at night is the lit rooms and the lamps over powered doors.)
         /// </summary>
-        public const float MoonIntensityPeak = 0.3f;
+        public const float MoonIntensityPeak = 0.06f;
 
         /// <summary>
         /// Keeps the golden hour actually lit. A straight sin() falls off so
@@ -111,7 +111,12 @@ namespace CityX.View
         public const float AmbientDayEnergy = 0.3f;
 
         public static readonly Color AmbientNightColour = new Color(0.12f, 0.15f, 0.28f);
-        public const float AmbientNightEnergy = 0.09f;
+
+        /// <summary>
+        /// Almost nothing (0.09 until 2026-10-09). Owner: night "should be almost pitch black at night like minecraft" -- away from a real light
+        /// (a lit room, a lamp over a door) the city is near black, and the 0.09 fill read as a grey-blue wash over everything.
+        /// </summary>
+        public const float AmbientNightEnergy = 0.65f;   // a gamma colour: what the city gets is about its square, a faint glow
 
         public static readonly Color SunsetTint = new Color(1.0f, 0.4f, 0.16f);
 
@@ -152,7 +157,12 @@ namespace CityX.View
         /// </summary>
         public const float SkyEnergyDay = 1.0f;
 
-        public const float SkyEnergyNight = 0.15f;
+        /// <summary>
+        /// The night dome's brightness (0.15 until 2026-10-09). Low enough that the sky is near black and, since the haze takes its colour from
+        /// the sky, that the far city does not fade into a grey veil at night ("the greyish hue that appears when you distance yourself from
+        /// light"). The stars and the moon's disc have their own brightness and still show.
+        /// </summary>
+        public const float SkyEnergyNight = 0.05f;
 
         /// <summary>The ground half of the dome is dimmer than the sky half.</summary>
         public const float GroundEnergyRatio = 0.6f;

@@ -62,3 +62,30 @@ the background back. What changed:
 - **Lamps over powered doors**, **clear glass on real rooms**, **lit rooms that cannot shine through walls**: see ROOM_LIGHTS.md.
 - Not done: no street lamps (removed 2026-09-04 on request: "they look bad and are clipping into the ground"); lit rooms beyond the full-detail
   radius (8 chunks) show nothing (far chunks have no rooms) -- a far lit window could be added to the far shell if it is missed.
+
+## Update: night is Minecraft-dark (2026-10-09, same day)
+
+Owner, on the moonlit night above: "at nighttime it needs to be darker ... get rid of this greyish hue that appears when you distance yourself
+from light", "it should be almost pitch black at night like minecraft", then "I don't want it any darker than minecraft". So:
+- **The grey glow was mostly reflections.** The sky's reflection map is captured once (in daylight), so every window and wet street reflected a
+  daytime sky at midnight. `RenderSettings.reflectionIntensity` now follows the daylight down to `DayNightCycle.NightReflection` (0.03).
+- Moon 0.3 -> 0.06 (its disc kept bright with `MoonDiscGain` 20), night sky energy 0.15 -> 0.05 (the haze takes its colour, so the far city no
+  longer fades to grey), dark rooms 0.92 indoor shade, night grade without the exposure lift, desaturation, contrast or toning.
+- **Ambient colours are gamma**: Unity squares them on the way into the lighting (a 0.04 colour lights at 0.003). `AmbientNightEnergy` 0.65 is
+  what leaves a faint navy glow on every wall, so streets and buildings stay just readable, as in Minecraft.
+- Character skin and hair are matte (`CharacterSkin.MakeMatte`: gloss 0, no specular highlights): their sheen caught every lamp at night.
+- Tests: `NightLightingTests.AwayFromItsLampsTheNightIsAlmostPitchBlack`, `TheCharacterAndItsHairHaveNoShine`.
+
+## Ray tracing: why not, and what instead (researched 2026-10-09)
+
+- Unity's built-in ray tracing (RT shadows, reflections, GI, path tracing) exists only in **HDRP**. This game is on **URP**, which has none.
+  The low-level ray tracing API (RayTracingShader on DX12) could be driven from a URP renderer feature, but every effect would be ours to
+  write, denoise and keep fast, and players without an RTX-class GPU would need a fallback anyway.
+- **HDRP is not the way**: Unity's [Render Pipelines strategy for 2026](https://unity.com/topics/render-pipelines-strategy-for-2026) puts HDRP
+  in maintenance (no new features) and names URP as where the investment goes, including "new beautiful 3D lighting runtime capabilities for
+  dynamic and procedural worlds". Porting would also mean rewriting every custom shader (facade, glass, haze, sky, window light) and retuning
+  the look, for a heavier renderer.
+- **Alternatives that work in URP today**: screen-space global illumination (open source
+  [UnitySSGIURP](https://discussions.unity.com/t/open-source-screen-space-global-illumination-for-urp/952599), Unity 6; commercial Radiant GI),
+  screen-space reflections from the same author, and what this pass already does by hand (bounce lights, per-surface sky occlusion). Screen-space
+  GI only bounces light from what is on screen, so it suits lit rooms and lamp pools; it cannot see round corners. A candidate for the next pass.

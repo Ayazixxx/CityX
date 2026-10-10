@@ -995,10 +995,10 @@ namespace CityX.ViewEditor
         public static readonly Color GradeHighlightTone = new Color(0.535f, 0.51f, 0.475f);
 
         /// <summary>
-        /// The night grade, blended over the day grade by DayNightCycle as the light goes (2026-10-09 lighting pass). From research on night in
-        /// games: night should FEEL dark without BEING dark. Eyes adapt -- so a little more exposure than the day grade's; they lose colour in the
-        /// dark -- so less saturation; and what light there is in the shadows is the sky's -- so the shadows go a little bluer. The lamps and lit
-        /// windows keep their warmth against that, which is the contrast a night city is made of.
+        /// The night grade, blended over the day grade by DayNightCycle as the light goes. First built (2026-10-09) on the research line that night
+        /// should FEEL dark without BEING dark: +0.7 stops, less saturation, blue shadows -- and the owner rejected the result the same day as a
+        /// grey wash ("at nighttime it needs to be darker ... get rid of this greyish hue", "almost pitch black at night like minecraft"). Now it
+        /// lifts nothing and greys nothing: the day grade's exposure, a little more contrast so the dark stays dark, full colour, no toning.
         /// </summary>
         private static VolumeProfile EnsureNightGradeProfile()
         {
@@ -1018,16 +1018,16 @@ namespace CityX.ViewEditor
             adjustments.postExposure.overrideState = true;
             adjustments.postExposure.value = GradeExposure + NightExposureLift;
             adjustments.contrast.overrideState = true;
-            adjustments.contrast.value = 12.0f;
+            adjustments.contrast.value = 0.0f;   // contrast on a near-black night only crushed it to black
             adjustments.saturation.overrideState = true;
-            adjustments.saturation.value = -12.0f;
+            adjustments.saturation.value = 0.0f;
 
             if (!profile.TryGet(out SplitToning splitToning))
             {
                 splitToning = profile.Add<SplitToning>();
                 AssetDatabase.AddObjectToAsset(splitToning, profile);
             }
-            splitToning.active = true;
+            splitToning.active = false;   // no tint: the blue toning was half the grey-blue wash
             splitToning.shadows.overrideState = true;
             splitToning.shadows.value = new Color(0.43f, 0.47f, 0.55f);   // a little blue in the dark only: a lit room stays warm
             splitToning.highlights.overrideState = true;
@@ -1040,7 +1040,7 @@ namespace CityX.ViewEditor
         }
 
         /// <summary>How much more exposure the night grade has than the day grade, stops.</summary>
-        private const float NightExposureLift = 0.7f;
+        private const float NightExposureLift = 0.0f;   // 0.7 lifted the whole night into a grey wash
 
         private static VolumeProfile EnsureGradeProfile()
         {

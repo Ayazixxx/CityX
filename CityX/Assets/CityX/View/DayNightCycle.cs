@@ -36,10 +36,13 @@ namespace CityX.View
         /// and a room is what its own lamps make it (2026-10-09 lighting pass).
         /// </summary>
         public const float IndoorShadeDay = 0.65f;
-        public const float IndoorShadeNight = 0.5f;
+        public const float IndoorShadeNight = 0.92f;   // 0.5 until the owner asked for pitch-black nights: a dark room is dark
 
         /// <summary>How bright the stars are on a clear night (CityXProceduralSky's _StarEnergy).</summary>
-        public const float StarBrightness = 1.0f;
+        public const float StarBrightness = 1.5f;
+
+        /// <summary>How much of the sky's reflection is left at night (glass, wet streets): almost none.</summary>
+        public const float NightReflection = 0.03f;
 
         /// <summary>How much daylight there is now (0 night .. 1 day), as last applied: what the lamps over powered doors go by (EntranceLamp). 1 when
         /// nothing has applied a sky, so a scene without a day/night cycle has them off. Settable for tests.</summary>
@@ -69,7 +72,7 @@ namespace CityX.View
         /// intensity is a legibility number for lighting a street by, and a
         /// disc drawn at that value is an almost invisible smudge.
         /// </summary>
-        public const float MoonDiscGain = 6.0f;
+        public const float MoonDiscGain = 20.0f;   // 6 until the moon's light went down to almost nothing: the disc stays a bright moon
 
         /// <summary>How much of the sun's and moon's disc a full overcast hides (1 would hide it completely).</summary>
         public const float OvercastDiscHiding = 0.95f;
@@ -196,7 +199,9 @@ namespace CityX.View
 
             // Reflections come from the real sky dome, captured by DynamicGI.UpdateEnvironment (see Update).
             RenderSettings.defaultReflectionMode = UnityEngine.Rendering.DefaultReflectionMode.Skybox;
-            RenderSettings.reflectionIntensity = 1.0f;
+            // Faded with the daylight: the reflection map is the sky as it was captured, and a daytime sky in every window and wet street
+            // at midnight was the pale grey glow the owner saw ("get rid of this greyish hue"; night should be "almost pitch black").
+            RenderSettings.reflectionIntensity = Mathf.Lerp(NightReflection, 1.0f, state.Daylight);
 
             // Weather goes through the sky, the fog and the camera background
             // ALL TOGETHER, from the same colour: the horizon end of the dome

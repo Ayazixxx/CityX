@@ -304,6 +304,48 @@ namespace CityX.Tests
         // ---- the night ----
 
         [Test]
+        public void AwayFromItsLampsTheNightIsAlmostPitchBlack()
+        {
+            // Owner, 2026-10-09: "at nighttime it needs to be darker ... get rid of this greyish hue that appears when you distance yourself from
+            // light", "it should be almost pitch black at night like minecraft". A pale wall in the open at midnight, lit by the moon at its
+            // highest and the night sky's fill, against the pavement under a powered door's lamp.
+            SkyCycle.State midnight = SkyCycle.At(SkyCycle.DaySeconds + SkyCycle.NightSeconds * 0.5f);
+            const float paleAlbedo = 0.6f;
+            float openWall = paleAlbedo * (midnight.MoonIntensity + midnight.AmbientColour.linear.maxColorComponent);   // ambient colours are gamma
+            Assert.Less(openWall, 0.13f, "the dark between the lights is a grey wash, not night");
+            float underTheLamp = paleAlbedo * EntranceLighting.GroundLight;
+            Assert.Greater(underTheLamp / openWall, 4.0f, "a lamp at night has to stand out of the dark");
+            Assert.Less(midnight.SkyEnergy * Mathf.Max(SkyCycle.SkyHorizonNight.r, SkyCycle.SkyHorizonNight.g, SkyCycle.SkyHorizonNight.b), 0.01f,
+                "the night sky (and the haze, which takes its colour) is near black");
+            Assert.GreaterOrEqual(DayNightCycle.IndoorShadeNight, 0.9f, "a dark room at night is dark");
+        }
+
+        [Test]
+        public void TheCharacterAndItsHairHaveNoShine()
+        {
+            // Owner, 2026-10-09: "get rid of the shinyness that is appearing on the character and the hair".
+            var material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            try
+            {
+                material.SetFloat("_Smoothness", 0.5f);
+                CityX.CharacterEditor.CharacterSkin.MakeMatte(material);
+                Assert.AreEqual(0.0f, material.GetFloat("_Smoothness"), 1e-4f);
+                Assert.IsTrue(material.IsKeywordEnabled("_SPECULARHIGHLIGHTS_OFF"));
+            }
+            finally
+            {
+                Object.DestroyImmediate(material);
+            }
+            foreach (string path in new[] { "Assets/CityX/Character/Materials/PlayerSkin.mat", "Assets/CityX/Character/Materials/Hair.mat" })
+            {
+                var asset = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>(path);
+                Assert.IsNotNull(asset, path);
+                Assert.AreEqual(0.0f, asset.GetFloat("_Smoothness"), 1e-4f, $"{path} is glossy");
+                Assert.IsTrue(asset.IsKeywordEnabled("_SPECULARHIGHLIGHTS_OFF"), $"{path} catches every lamp in a highlight");
+            }
+        }
+
+        [Test]
         public void TheNightHasStarsAStrongerMoonADimmerInsideAndItsOwnGrade()
         {
             var go = new GameObject("Cycle");
@@ -311,6 +353,7 @@ namespace CityX.Tests
             var dome = new Material(Shader.Find("CityX/ProceduralSky"));
             Color oldFog = RenderSettings.fogColor;
             Color oldAmbient = RenderSettings.ambientLight;
+            float oldReflection = RenderSettings.reflectionIntensity;
             var oldAmbientMode = RenderSettings.ambientMode;
             try
             {
@@ -323,6 +366,7 @@ namespace CityX.Tests
                 Assert.AreEqual(0.0f, cycle.NightGrade.weight, 1e-3f, "the night grade by day");
                 Assert.AreEqual(DayNightCycle.IndoorShadeDay, Shader.GetGlobalFloat("_CityXIndoorShade"), 1e-4f);
                 Assert.AreEqual(1.0f, DayNightCycle.Daylight, 1e-3f);
+                Assert.AreEqual(1.0f, RenderSettings.reflectionIntensity, 1e-3f, "the sky's reflection by day");
 
                 SkyCycle.State midnight = SkyCycle.At(SkyCycle.DaySeconds + SkyCycle.NightSeconds * 0.5f);
                 cycle.Apply(midnight);
@@ -330,7 +374,8 @@ namespace CityX.Tests
                 Assert.AreEqual(1.0f, cycle.NightGrade.weight, 1e-3f);
                 Assert.AreEqual(DayNightCycle.IndoorShadeNight, Shader.GetGlobalFloat("_CityXIndoorShade"), 1e-4f);
                 Assert.Less(DayNightCycle.Daylight, 0.01f);
-                Assert.Greater(midnight.MoonIntensity, 0.2f, "the moon is the night's key light: too dim to shape anything");
+                Assert.Less(RenderSettings.reflectionIntensity, 0.1f, "a daytime sky reflected in every window at midnight");
+                Assert.Less(midnight.MoonIntensity, 0.1f, "night is almost pitch black (owner): the moon only outlines things");
 
                 cycle.Overcast = 1.0f;
                 cycle.Apply(midnight);
@@ -345,6 +390,7 @@ namespace CityX.Tests
                 Object.DestroyImmediate(gradeObject);
                 Object.DestroyImmediate(dome);
                 Shader.SetGlobalFloat("_CityXIndoorShade", 0.0f);
+                RenderSettings.reflectionIntensity = oldReflection;
             }
         }
     }
