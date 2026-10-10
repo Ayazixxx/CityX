@@ -187,7 +187,7 @@ namespace CityX.Tests
                 {
                     Rect area = plan.Area;
                     float span = Mathf.Max(area.width, area.height);
-                    int split = span > 24.0f ? 3 : (span > 10.0f ? 2 : 1);
+                    int split = RoomLighting.SplitFor(span);
                     var cells = new HashSet<int>();
                     foreach (Fixture f in plan.Fixtures)
                     {
@@ -197,7 +197,7 @@ namespace CityX.Tests
                         cells.Add(cz * split + cx);
                     }
                     Assert.AreEqual(cells.Count, plan.LightPoints.Count, $"{plan.Key}: part of the room has fittings and no lamp");
-                    if (split == 3) bigRooms++;
+                    if (split >= 3) bigRooms++;
                 }
             }
             Assert.Greater(bigRooms, 5, "need some big halls");

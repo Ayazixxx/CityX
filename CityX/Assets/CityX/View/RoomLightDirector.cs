@@ -19,7 +19,7 @@ namespace CityX.View
         public const float LightReachMetres = 110.0f;
 
         /// <summary>The most room lights (lamps and bounces) on at once.</summary>
-        public const int MaxRoomLights = 160;
+        public const int MaxRoomLights = 220;
 
         /// <summary>Lamps further than this from the camera never cast shadows.</summary>
         public const float ShadowReachMetres = 30.0f;

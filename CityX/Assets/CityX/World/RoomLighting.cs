@@ -123,7 +123,7 @@ namespace CityX.World
         public const int MaxFixtures = 16;
 
         /// <summary>No room has more lamps than this (and as many bounces).</summary>
-        public const int MaxLightPoints = 9;   // a lamp for every cell of a 3x3 split (it was 6: the last third of a big hall had none and stood dark)
+        public const int MaxLightPoints = 16;   // a lamp for every cell of a 4x4 split (6, then 9, left the far parts of big halls dark)
 
         // ---- The real lights (2026-10-09 research: ceiling lights in games are DOWNWARD SPOTS -- they pool light on the floor and leave the
         // ---- ceiling to the light bounced off it -- not point lights, which burn a hot spot into the ceiling an arm's length above them and
@@ -131,16 +131,16 @@ namespace CityX.World
 
         /// <summary>A lamp's cone, degrees across: wide, so the pools of neighbouring lamps meet on the floor; full strength inside the inner cone.</summary>
         public const float LampOuterAngle = 140.0f;
-        public const float LampInnerAngle = 80.0f;
+        public const float LampInnerAngle = 100.0f;
 
         /// <summary>How far under its fitting's glowing face a lamp is, metres.</summary>
         public const float LampBelowFitting = 0.08f;
 
         /// <summary>How bright the floor straight under a lamp is (URP's light units: intensity over distance squared). A lamp is as bright as its height needs.</summary>
-        public const float FloorLight = 0.9f;
+        public const float FloorLight = 1.3f;   // 0.9 left big rooms dim (owner, 2026-10-10: "some rooms arent getting lit up enough")
 
         /// <summary>A lamp reaches this many times its height above the floor (far enough for its cone's edge to land on the floor).</summary>
-        public const float LampReachPerHeight = 2.2f;
+        public const float LampReachPerHeight = 2.6f;
 
         /// <summary>The bounce's cone: nearly the whole half-space above it, so it lights the ceiling and the walls but never the floor it stands under.</summary>
         public const float BounceOuterAngle = 170.0f;
@@ -156,7 +156,7 @@ namespace CityX.World
 
         /// <summary>How bright the ceiling straight over a bounce is, the same units as <see cref="FloorLight"/>: about a third of the floor's, which is
         /// roughly what a pale floor gives back.</summary>
-        public const float CeilingLight = 0.24f;
+        public const float CeilingLight = 0.32f;
 
         /// <summary>The bounce reaches this many times the height from it to the ceiling.</summary>
         public const float BounceReachPerHeight = 1.6f;
@@ -324,7 +324,7 @@ namespace CityX.World
             // under the middle of those fittings, shining down; and under each, below the floor, its bounce shining up. A big open-plan floor
             // needs more than four to read as lit.
             float span = Mathf.Max(area.width, area.height);
-            int split = span > 24.0f ? 3 : (span > 10.0f ? 2 : 1);
+            int split = SplitFor(span);
             for (int qz = 0; qz < split; qz++)
             {
                 for (int qx = 0; qx < split; qx++)
@@ -401,6 +401,7 @@ namespace CityX.World
                 if (room.Exists) avoid.Add(room.Plan);
                 if (flight != null) avoid.Add(flight.Hole);
                 if (arriving != null) avoid.Add(arriving.Hole);
+                if (flight != null && flight.Enclosed) avoid.Add(Rect.MinMaxRect(flight.Bounds.xMin - BuildingStairs.CoreWall, flight.Bounds.yMin - BuildingStairs.CoreWall, flight.Bounds.xMax + BuildingStairs.CoreWall, flight.Bounds.yMax + BuildingStairs.CoreWall));   // the stairwell lights itself
                 var hall = Rect.MinMaxRect(-halfX + wall, -halfZ + wall, halfX - wall, halfZ - wall);
                 var hallSwitch = new Vector3(BuildingInterior.DoorWidth * 0.5f + SwitchBesideDoor, floorY + SwitchHeight, halfZ - wall - SwitchDepth * 0.5f);
                 plans.Add(Plan(site, floor, 0, hall, avoid, floorY, ceilingY, hallSwitch, Vector3.back));
@@ -416,8 +417,89 @@ namespace CityX.World
                     if (arriving != null) avoid.Add(arriving.Hole);
                     plans.Add(Plan(site, floor, 1, room.Plan, avoid, floorY, ceilingY, roomSwitch, roomIsWest ? Vector3.left : Vector3.right));
                 }
+
+                // An enclosed stairwell is a room of its own, with its own light and a switch inside beside its doorway (owner, 2026-10-10: "the
+                // rooms with the stairwells should have lights and switches in there"). Its light keeps off the hole the flight climbs through.
+                if (flight != null && flight.Enclosed)
+                {
+                    RoomLightPlan stairwell = StairwellPlan(site, floor, flight, floorY, ceilingY);
+                    if (stairwell != null)
+                    {
+                        plans.Add(stairwell);
+                    }
+                }
             }
             return plans;
+        }
+
+        /// <summary>The room number of a floor's enclosed stairwell (0 is the hall, 1 the corner room).</summary>
+        public const int StairwellRoom = 2;
+
+        /// <summary>The lighting of a floor's enclosed stairwell, or null if no fitting finds room on its ceiling.</summary>
+        private static RoomLightPlan StairwellPlan(BuildingSite site, int floor, StairPlan flight, float floorY, float ceilingY)
+        {
+            Rect b = flight.Bounds;
+            float d = SwitchDepth * 0.5f + 0.01f;
+            float midX = b.center.x, midZ = b.center.y;
+            float beside = BuildingStairs.CoreDoor * 0.5f + SwitchBesideDoor;
+            Vector3 at;
+            Vector3 facing;
+            switch (flight.DoorSide)
+            {
+                case 0: at = new Vector3(b.xMin + d, 0.0f, Mathf.Min(midZ + beside, b.yMax - 0.3f)); facing = Vector3.right; break;
+                case 1: at = new Vector3(b.xMax - d, 0.0f, Mathf.Min(midZ + beside, b.yMax - 0.3f)); facing = Vector3.left; break;
+                case 2: at = new Vector3(Mathf.Min(midX + beside, b.xMax - 0.3f), 0.0f, b.yMin + d); facing = Vector3.forward; break;
+                default: at = new Vector3(Mathf.Min(midX + beside, b.xMax - 0.3f), 0.0f, b.yMax - d); facing = Vector3.back; break;
+            }
+            at.y = floorY + SwitchHeight;
+            var avoid = new List<Rect> { flight.Hole };
+            RoomLightPlan plan = Plan(site, floor, StairwellRoom, b, avoid, floorY, ceilingY, at, facing);
+            if (plan.Fixtures.Count > 0)
+            {
+                return plan;
+            }
+
+            // Nearly all of a stairwell's ceiling is the opening its flight climbs through, so its light is a WALL light, over the doorway on the
+            // inside, as real stairwells are lit: a fitting on the wall, its lamp in front of it shining down, the bounce under it.
+            float lampBottom = Mathf.Min(floorY + BuildingInterior.DoorHeight(site.Params.Height) + 0.25f, ceilingY - 0.35f);
+            if (lampBottom < floorY + HeadroomMetres)
+            {
+                return null;
+            }
+            Vector3 wallMid;
+            switch (flight.DoorSide)
+            {
+                case 0: wallMid = new Vector3(b.xMin, 0.0f, midZ); break;
+                case 1: wallMid = new Vector3(b.xMax, 0.0f, midZ); break;
+                case 2: wallMid = new Vector3(midX, 0.0f, b.yMin); break;
+                default: wallMid = new Vector3(midX, 0.0f, b.yMax); break;
+            }
+            Vector3 along = new Vector3(Mathf.Abs(facing.z), 0.0f, Mathf.Abs(facing.x)) * (WallLightLength * 0.5f);
+            Vector3 outFrom = facing * WallLightDepth;
+            Vector3 c0 = wallMid - along, c1 = wallMid + along + outFrom;
+            var min = new Vector3(Mathf.Min(c0.x, c1.x), lampBottom, Mathf.Min(c0.z, c1.z));
+            var max = new Vector3(Mathf.Max(c0.x, c1.x), lampBottom + 0.12f, Mathf.Max(c0.z, c1.z));
+            plan.Fixtures.Add(new Fixture(min, max, Vector3.zero, Vector3.zero));
+            Vector3 lamp = wallMid + facing * 0.45f;
+            plan.LightPoints.Clear();
+            plan.BouncePoints.Clear();
+            plan.LightPoints.Add(new Vector3(lamp.x, lampBottom - LampBelowFitting, lamp.z));
+            plan.BouncePoints.Add(new Vector3(lamp.x, floorY - BounceBelowFloor, lamp.z));
+            float height = lampBottom - LampBelowFitting - floorY;
+            plan.LightIntensity = FloorLight * height * height;
+            float storeyClear = BuildingInterior.StoreyHeight(site.Params.Height) - BuildingInterior.SlabThickness;
+            plan.LightRange = Mathf.Min(Mathf.Clamp(height * LampReachPerHeight, 6.0f, 16.0f), height + storeyClear * 0.9f);
+            return plan;
+        }
+
+        /// <summary>A stairwell's wall light: how long along the wall and how far it stands out from it.</summary>
+        public const float WallLightLength = 0.6f;
+        public const float WallLightDepth = 0.18f;
+
+        /// <summary>How many lamps a room gets across (and down): one per 8 m or so of its longer side, up to 4.</summary>
+        public static int SplitFor(float span)
+        {
+            return span > 30.0f ? 4 : (span > 20.0f ? 3 : (span > 10.0f ? 2 : 1));
         }
 
         private static bool Blocked(Rect foot, IList<Rect> avoid)

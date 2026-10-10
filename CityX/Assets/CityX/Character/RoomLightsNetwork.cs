@@ -194,7 +194,7 @@ namespace CityX.Character
             int buildings = world != null ? world.BuildingCount : int.MaxValue;
             return message.Building >= 0 && message.Building < buildings
                 && message.Floor >= -1 && message.Floor <= MaxFloor
-                && (message.Room == 0 || message.Room == 1);
+                && message.Room >= 0 && message.Room <= RoomLighting.StairwellRoom;   // hall, corner room, stairwell
         }
 
         private bool WithinRate(int clientId, float now)

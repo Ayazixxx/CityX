@@ -97,6 +97,15 @@ namespace CityX.Tests
                     Vector3 facing = Quaternion.Euler(0.0f, CityMeshBuilder.YawDegreesOf(site), 0.0f) * hall.SwitchFacing;
                     Shot(camera, directory, $"roomlights-{pick.Key}-switch-{when}", sw + facing * 1.6f + Vector3.up * 0.4f + Vector3.Cross(Vector3.up, facing) * 0.6f, sw);
 
+                    // A stairwell, if the building has an enclosed one: from just inside its doorway, looking up the flight.
+                    RoomLightPlan stairwell = plans.Find(p => p.Key.Room == RoomLighting.StairwellRoom);
+                    if (stairwell != null)
+                    {
+                        Vector3 ss = World(site, stairwell.Switch.x, stairwell.Switch.y, stairwell.Switch.z);
+                        Vector3 sf = Quaternion.Euler(0.0f, CityMeshBuilder.YawDegreesOf(site), 0.0f) * stairwell.SwitchFacing;
+                        Shot(camera, directory, $"roomlights-{pick.Key}-stairwell-{when}", ss + sf * 0.4f + Vector3.up * 0.7f, ss + sf * 3.0f + Vector3.up * 2.0f);
+                    }
+
                     // The corner room, if there is one.
                     if (plans.Count > 1 && plans[1].Key.Room == 1)
                     {

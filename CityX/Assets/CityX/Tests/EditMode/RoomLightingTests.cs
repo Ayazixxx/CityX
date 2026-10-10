@@ -158,10 +158,41 @@ namespace CityX.Tests
         }
 
         [Test]
+        public void AnEnclosedStairwellHasItsOwnLightAndASwitchInside()
+        {
+            // Owner, 2026-10-10: "the rooms with the stairwells should have lights and switches in there".
+            int stairwells = 0, lit = 0;
+            foreach (BuildingSite site in Interiors(200))
+            {
+                BuildingStairs.Layout stairs = BuildingStairs.PlanFor(site);
+                List<RoomLightPlan> plans = RoomLighting.PlansFor(site);
+                for (int floor = 0; floor < stairs.Floors.Length; floor++)
+                {
+                    StairPlan flight = stairs.Floors[floor];
+                    if (flight == null || !flight.Enclosed) continue;
+                    stairwells++;
+                    RoomLightPlan plan = plans.Find(p => p.Key.Floor == floor && p.Key.Room == RoomLighting.StairwellRoom);
+                    if (plan == null) continue;
+                    lit++;
+                    Rect b = flight.Bounds;
+                    Assert.IsTrue(b.Contains(new Vector2(plan.Switch.x, plan.Switch.z)), $"{plan.Key}: its switch is outside the stairwell");
+                    foreach (Fixture f in plan.Fixtures)
+                    {
+                        var foot = Rect.MinMaxRect(f.HousingMin.x, f.HousingMin.z, f.HousingMax.x, f.HousingMax.z);
+                        Assert.IsTrue(b.Overlaps(foot), $"{plan.Key}: its light is not in the stairwell");
+                    }
+                }
+            }
+            Assert.Greater(stairwells, 10, "need some enclosed stairwells");
+            Assert.Greater(lit, stairwells * 0.7f, $"only {lit} of {stairwells} stairwells have a light");
+        }
+
+        [Test]
         public void TheServerRefusesARoomThatCannotExist()
         {
             Assert.IsTrue(RoomLightsNetwork.Acceptable(new LightSwitchMessage { Building = 0, Floor = 2, Room = 1, On = true }));
             Assert.IsFalse(RoomLightsNetwork.Acceptable(new LightSwitchMessage { Building = -1, Floor = 0, Room = 0 }));
+            Assert.IsTrue(RoomLightsNetwork.Acceptable(new LightSwitchMessage { Building = 0, Floor = 1, Room = RoomLighting.StairwellRoom, On = true }), "a stairwell's switch");
             Assert.IsFalse(RoomLightsNetwork.Acceptable(new LightSwitchMessage { Building = 0, Floor = 0, Room = 7 }));
             Assert.IsFalse(RoomLightsNetwork.Acceptable(new LightSwitchMessage { Building = 0, Floor = 100000, Room = 0 }));
         }

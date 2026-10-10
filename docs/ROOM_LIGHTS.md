@@ -96,3 +96,12 @@ well as city lighting at night time and implement what you learn". What the rese
 
 Tests: `NightLightingTests` (indoor flag, pale rooms, lamps and bounces per storey, layers, clear glass, dark signs, door lamps, the night's
 stars/grade/indoor shade), `RoomLightsPlayTests` (spots, layers, the director's shadows and reach, the door lamp at night), `InteractionFocusTests`.
+
+## Update: brighter rooms, lit stairwells (2026-10-10)
+
+Owner: "some rooms aren't getting lit up enough by the lights. also the rooms with the stairwells should have lights and switches in there".
+- Brighter and denser: `FloorLight` 0.9 -> 1.3, `CeilingLight` 0.24 -> 0.32, wider full-strength cone (inner 100), reach 2.6 x height; a room is
+  split for lamps by `RoomLighting.SplitFor` (one per ~8 m, up to 4x4 = 16 lamps). `RoomLightDirector.MaxRoomLights` 220.
+- Every enclosed stairwell is room 2 of its floor (`RoomLighting.StairwellRoom`): a switch inside beside its doorway and a WALL light over the
+  doorway (the shaft's ceiling is nearly all the opening the flight climbs through). The hall's fittings keep out of the shaft. The server accepts
+  rooms 0..2 (`RoomLightsNetwork.Acceptable`). Test: `RoomLightingTests.AnEnclosedStairwellHasItsOwnLightAndASwitchInside`.
