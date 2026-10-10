@@ -91,11 +91,9 @@ namespace CityX.CharacterEditor
             var uvs = new List<Vector2>();
             var normalList = new List<Vector3>();
             var weightList = new List<BoneWeight>();
-            var one = new List<FusedBodyShape.Segment>(1);
-            foreach (FusedBodyShape.Segment segment in segments)
+            foreach (List<FusedBodyShape.Segment> one in Pieces(segments))
             {
-                one.Clear();
-                one.Add(segment);
+                FusedBodyShape.Segment segment = one[0];
                 Bounds bounds = FusedBodyShape.BoundsOf(one);
                 bounds.SetMinMax(FusedBodyShape.PhaseAlignedOrigin(bounds.min, cellSize), bounds.max);
                 FusedBodyMesh.Extract(one, bounds, cellSize, out List<Vector3> welded, out List<int> weldedTriangles);
@@ -119,9 +117,11 @@ namespace CityX.CharacterEditor
                 {
                     triangles.Add(first + t);
                 }
+                int spineIndex = -1;
+                bool shoulders = one.Count > 1 && boneIndex.TryGetValue(HumanBodyBones.Spine, out spineIndex);
                 for (int i = 0; i < partVertices.Count; i++)
                 {
-                    weightList.Add(rigid);
+                    weightList.Add(shoulders ? ChestWeight(partVertices[i], one[1], index, spineIndex) : rigid);
                 }
             }
 
@@ -206,6 +206,44 @@ namespace CityX.CharacterEditor
         /// "the top half of the torso moves while the bottom stays frozen ... make the whole thing move as a unit"). Then on the spine, and its bottom swung out
         /// behind the legs ("the butt is sticking out too much", legs not attached). On the hips it stays on the legs; the spine no longer leans in a walk (PlayerLocomotion.LocomotionSpineLeans).
         /// </summary>
+        /// <summary>The chest follows the spine from this far below the shoulders (none of it) to <see cref="ChestFollowsSpineFullyBelowShoulders"/> (all of it), metres.</summary>
+        private const float ChestFollowsSpineFromBelowShoulders = 0.6f;
+        private const float ChestFollowsSpineFullyBelowShoulders = 0.15f;
+
+        /// <summary>
+        /// The tubes extracted as one surface each. Every tube is on its own except the torso and the shoulder bar (OneTorso puts the torso first
+        /// and the bar last): they are extracted TOGETHER, so the field's smooth union (FusedBodyShape.BlendRadius) rounds the corner where the
+        /// shoulders leave the torso into one continuous volume, a shoulder rather than a bar laid on a tube.
+        /// </summary>
+        private static List<List<FusedBodyShape.Segment>> Pieces(List<FusedBodyShape.Segment> segments)
+        {
+            var pieces = new List<List<FusedBodyShape.Segment>>(segments.Count);
+            bool fused = segments.Count > 1 && segments[segments.Count - 1].Bone == HumanBodyBones.Spine && segments[0].Bone == HumanBodyBones.Hips;
+            int last = fused ? segments.Count - 1 : segments.Count;
+            for (int i = 0; i < last; i++)
+            {
+                pieces.Add(new List<FusedBodyShape.Segment> { segments[i] });
+            }
+            if (fused)
+            {
+                pieces[0].Add(segments[last]);
+            }
+            return pieces;
+        }
+
+        /// <summary>
+        /// The torso-and-shoulders surface is on the hips at the waist and blends onto the spine up the chest, so when the spine turns (a punch's
+        /// twist, the aim) the shoulders go with the arms, which hang from the spine, and the chest twists smoothly between -- the arms never
+        /// come off the shoulders. A walk does not turn the spine (PlayerLocomotion.LocomotionSpineLeans), so the torso still moves as one there.
+        /// </summary>
+        private static BoneWeight ChestWeight(Vector3 vertex, FusedBodyShape.Segment shoulderBar, int hipsIndex, int spineIndex)
+        {
+            float shoulderY = shoulderBar.A.y;
+            float onSpine = Mathf.SmoothStep(0.0f, 1.0f, Mathf.InverseLerp(
+                shoulderY - ChestFollowsSpineFromBelowShoulders, shoulderY - ChestFollowsSpineFullyBelowShoulders, vertex.y));
+            return new BoneWeight { boneIndex0 = hipsIndex, weight0 = 1.0f - onSpine, boneIndex1 = spineIndex, weight1 = onSpine };
+        }
+
         private static List<FusedBodyShape.Segment> OneTorso(List<FusedBodyShape.Segment> segments)
         {
             int hips = segments.FindIndex(s => s.Bone == HumanBodyBones.Hips);
@@ -215,13 +253,26 @@ namespace CityX.CharacterEditor
                 return segments;
             }
             var torso = new FusedBodyShape.Segment(segments[hips].A, segments[spine].B, segments[spine].Radius, HumanBodyBones.Hips);
-            var result = new List<FusedBodyShape.Segment>(segments.Count - 1) { torso };
+            var result = new List<FusedBodyShape.Segment>(segments.Count) { torso };
             for (int i = 0; i < segments.Count; i++)
             {
                 if (i != hips && i != spine)
                 {
                     result.Add(segments[i]);
                 }
+            }
+
+            // THE SHOULDERS ARE FUSED TO THE TORSO (owner, 2026-10-10: "the arms are not connected to the torso there is a visible gap",
+            // then "can you not just fuse the shoulders to the body? i dont like the spheres at the shoulders"). The shoulder joint sits an arm's
+            // radius outside the torso, so an arm tube capped there only touched it. A bar across the top of the torso, exactly as thick as an
+            // arm, runs from one shoulder joint to the other on the spine (the arms' own parent): its rounded end is the same size and in the same
+            // place as the arm's own top cap, so whichever way the arm turns the two stay flush. No bulge (a bigger ball there was rejected), no
+            // gap, and no strut when an arm is raised (an arm tube carried into the torso swung out with it).
+            int leftArm = segments.FindIndex(s => s.Bone == HumanBodyBones.LeftUpperArm);
+            int rightArm = segments.FindIndex(s => s.Bone == HumanBodyBones.RightUpperArm);
+            if (leftArm >= 0 && rightArm >= 0)
+            {
+                result.Add(new FusedBodyShape.Segment(segments[leftArm].A, segments[rightArm].A, segments[leftArm].Radius, HumanBodyBones.Spine));
             }
             return result;
         }

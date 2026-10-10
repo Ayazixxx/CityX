@@ -704,13 +704,24 @@ namespace CityX.Tests
             Assert.IsNotNull(mesh);
             BoneWeight[] weights = mesh.boneWeights;
             Assert.Greater(weights.Length, 1000);
+            // The one exception: the chest blends from the hips onto the spine (FusedBodyBuilder.ChestWeight), so the shoulders turn with the arms.
+            // That is a twist inside the torso, never a stretch across a limb joint.
             var bonesUsed = new HashSet<int>();
+            var blendedPairs = new HashSet<(int, int)>();
+            int blended = 0;
             foreach (BoneWeight w in weights)
             {
-                Assert.AreEqual(1.0f, w.weight0, 1e-4f, "a vertex shared between bones stretches when a joint turns");
                 bonesUsed.Add(w.boneIndex0);
+                if (w.weight0 < 1.0f - 1e-4f)
+                {
+                    Assert.AreEqual(1.0f, w.weight0 + w.weight1, 1e-4f);
+                    blendedPairs.Add((w.boneIndex0, w.boneIndex1));
+                    blended++;
+                }
             }
             Assert.GreaterOrEqual(bonesUsed.Count, 12, "torso, neck, three per arm and two per leg");
+            Assert.LessOrEqual(blendedPairs.Count, 1, "only the chest (hips onto spine) may share a vertex between bones");
+            Assert.Less(blended, weights.Length / 4, "the chest blend spread past the chest");
         }
     }
 }

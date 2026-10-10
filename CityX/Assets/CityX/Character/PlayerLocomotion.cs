@@ -1274,6 +1274,8 @@ namespace CityX.Character
                 }
             }
 
+            ApplyBodyLean(animatorLive);
+
             if (_animator == null || !_animator.enabled)
             {
                 return;
@@ -2604,6 +2606,61 @@ namespace CityX.Character
         }
 
         private const float MaxGroundClampCorrection = 2.0f;
+
+        private readonly BodyLean _lean = new BodyLean();
+        private Vector3 _leanLastPosition;
+        private bool _leanHasPosition;
+        private Quaternion _rootRestRotation = Quaternion.identity;
+        private bool _hasRootRest;
+
+        /// <summary>The body's lean now (BodyLean), degrees; for tests.</summary>
+        public float LeanDegrees => _lean.Degrees;
+        public Vector3 LeanTilt => _lean.Tilt;
+
+        /// <summary>
+        /// Tilts the whole visible body about its feet by BodyLean: into acceleration, braking and turns, a little into speed. From the body's own
+        /// measured motion (so a copy of another player's body, moved by the network, leans the same), on the ground in the plain walk/run blend
+        /// only (the synced Grounded parameter), upright again anywhere else. The visual root is reset first every frame, so nothing compounds.
+        /// </summary>
+        private void ApplyBodyLean(bool animatorLive)
+        {
+            if (_animator == null)
+            {
+                return;
+            }
+            float deltaTime = Time.deltaTime;
+            Vector3 position = transform.position;
+            Vector3 velocity = Vector3.zero;
+            if (_leanHasPosition && deltaTime > 0.0f)
+            {
+                Vector3 moved = position - _leanLastPosition;
+                if (moved.sqrMagnitude > TeleportMetres * TeleportMetres)
+                {
+                    _lean.Reset();   // a teleport or respawn is not a sprint
+                }
+                else
+                {
+                    velocity = moved / deltaTime;
+                }
+            }
+            _leanLastPosition = position;
+            _leanHasPosition = true;
+
+            bool leaning = animatorLive && !IsSitting && !InCarSeat
+                && _animator.GetBool(GroundedParameter) && LocomotionClipsOwnTheSpine;
+            _lean.Step(velocity, leaning, deltaTime);
+            Quaternion world = _lean.Rotation();
+            Transform root = _animator.transform;
+            if (!_hasRootRest)
+            {
+                _rootRestRotation = root.localRotation;
+                _hasRootRest = true;
+            }
+            root.localRotation = Quaternion.Inverse(transform.rotation) * world * transform.rotation * _rootRestRotation;
+        }
+
+        /// <summary>A body that moves further than this in one frame was put there, not run there.</summary>
+        private const float TeleportMetres = 3.0f;
 
         /// <summary>
         /// Resizes the capsule and the visible body together.

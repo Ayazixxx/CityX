@@ -46,3 +46,17 @@ helper (`FusedBodyShape.WeightsAt`) is no longer used for the body. Test: `Fused
 `TPoseCapture` (Logs/CityShots/tpose-*.png). Garments are still skinned their own way.
 - Same day: the torso is ONE tube on the spine (`FusedBodyBuilder.OneTorso`). As two (pelvis on the held-still hips, chest on the leaning
   spine) the top half moved while the bottom stayed frozen in every walk and strafe. 12 tubes now.
+- Same day, after "the legs aren't attached ... the butt is sticking out" and "the arms are not connected to the torso there is a visible gap":
+  the torso tube is on the HIPS and the spine no longer leans in walks (`PlayerLocomotion.LocomotionSpineLeans` false); the shoulders are fused
+  to it: a shoulder volume as thick as an arm runs from one shoulder joint to the other and is extracted together with the torso, so the smooth union fillets it into one continuous surface; its end lines up with the arm's own top cap in every pose (a bigger ball there was rejected, a tube tucked into the torso struts out when raised). The chest blends from the hips onto the spine (`FusedBodyBuilder.ChestWeight`) so a punch twist turns the shoulders with the arms.
+
+## Whole-body lean (2026-10-10)
+
+"Research the best dynamic movement animations for roblox like characters ... ours can be improved upon." Research (physics-driven lean,
+Roblox DevForum tilt threads, a game developer's tips the owner shared, procedural animation toolkits): lean INTO acceleration (forward setting
+off, back braking, into the inside of a turn, which is sideways acceleration) and a little into speed; scale physical angles down for a cartoon
+body; smooth; nothing in the air. `Character/BodyLean.cs` (pure: 0.9 deg per m/s, 1.1 deg per m/s^2, cap 13, smoothing 0.12/0.1 s) and
+`PlayerLocomotion.ApplyBodyLean` tilt the WHOLE visual root at the feet (not the spine: rigid tubes come apart if the spine bends), from the
+body's measured motion, so other players' copies lean too. Ground + plain walk/run blend only. Tests: `BodyLeanTests`, `BodyLeanPlayTests`
+(renders lean-*.png). Not done from the research: head-stable lean (rotating from the head), landing squash, foot locking -- see the deferred
+foot IK / movement-tips memory.
