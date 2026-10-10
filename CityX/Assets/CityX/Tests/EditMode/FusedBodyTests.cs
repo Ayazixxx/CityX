@@ -710,7 +710,7 @@ namespace CityX.Tests
                 Assert.AreEqual(1.0f, w.weight0, 1e-4f, "a vertex shared between bones stretches when a joint turns");
                 bonesUsed.Add(w.boneIndex0);
             }
-            Assert.GreaterOrEqual(bonesUsed.Count, 12, "pelvis, torso, neck, three per arm and two per leg");
+            Assert.GreaterOrEqual(bonesUsed.Count, 12, "torso, neck, three per arm and two per leg");
         }
     }
 }

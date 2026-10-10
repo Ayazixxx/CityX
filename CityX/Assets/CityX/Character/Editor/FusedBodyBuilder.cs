@@ -66,7 +66,7 @@ namespace CityX.CharacterEditor
             // torso, neck, upper arm, forearm, hand, thigh, shin -- is its own closed rounded tube, extracted on its own and bound 100% to its
             // own bone: a joint turns a tube as a whole and nothing stretches. The rounded ends overlap at every joint, so no gap opens as it
             // bends. Same capsules, same radii, same proportions as before (FusedBodyShape.Segments); only the joins are no longer blended.
-            List<FusedBodyShape.Segment> segments = BodyRigBuilder.Segments();
+            List<FusedBodyShape.Segment> segments = OneTorso(BodyRigBuilder.Segments());
             float cellSize = FusedBodyShape.CellSize;
 
             var skinBones = new List<Transform>();
@@ -198,6 +198,32 @@ namespace CityX.CharacterEditor
 
             BuildStub(mesh, limbCapsules);
             return mesh;
+        }
+
+        /// <summary>
+        /// The torso as ONE tube, on the spine. It was two (the pelvis on the hips, which PlayerLocomotion holds still, and the chest on the
+        /// spine, which leans with the walk), and walking or strafing moved the top half while the bottom stayed frozen (owner, 2026-10-10:
+        /// "the top half of the torso moves while the bottom stays frozen ... make the whole thing move as a unit"). On the spine the whole
+        /// torso leans and sways together; the legs' tops overlap its bottom.
+        /// </summary>
+        private static List<FusedBodyShape.Segment> OneTorso(List<FusedBodyShape.Segment> segments)
+        {
+            int hips = segments.FindIndex(s => s.Bone == HumanBodyBones.Hips);
+            int spine = segments.FindIndex(s => s.Bone == HumanBodyBones.Spine);
+            if (hips < 0 || spine < 0)
+            {
+                return segments;
+            }
+            var torso = new FusedBodyShape.Segment(segments[hips].A, segments[spine].B, segments[spine].Radius, HumanBodyBones.Spine);
+            var result = new List<FusedBodyShape.Segment>(segments.Count - 1) { torso };
+            for (int i = 0; i < segments.Count; i++)
+            {
+                if (i != hips && i != spine)
+                {
+                    result.Add(segments[i]);
+                }
+            }
+            return result;
         }
 
         /// <summary>

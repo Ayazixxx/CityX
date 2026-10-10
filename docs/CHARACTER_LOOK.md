@@ -44,3 +44,5 @@ upper arm, forearm, hand, thigh, shin: 13) as its own closed tube and binds it 1
 are no longer blended, so it reads as a jointed mannequin (rounded ends overlap at each joint, so nothing opens as it bends). The skin weights
 helper (`FusedBodyShape.WeightsAt`) is no longer used for the body. Test: `FusedBodyTests.EveryPartOfTheBodyIsATubeOnOneBone`; render:
 `TPoseCapture` (Logs/CityShots/tpose-*.png). Garments are still skinned their own way.
+- Same day: the torso is ONE tube on the spine (`FusedBodyBuilder.OneTorso`). As two (pelvis on the held-still hips, chest on the leaning
+  spine) the top half moved while the bottom stayed frozen in every walk and strafe. 12 tubes now.
