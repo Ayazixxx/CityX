@@ -5,8 +5,8 @@ using UnityEngine;
 namespace CityX.WeaponsEditor
 {
     /// <summary>
-    /// The Acid Rain storm prefab: a ceiling of big, slow-churning sick-green cloud (the poison gas's own soft puff flipbook, tinted), green rain
-    /// streaks falling out of it that die on the first thing they hit (a roof stops them, as it stops the burn), a wide green glow, and the city's
+    /// The Acid Rain storm prefab: a high ceiling of big, slow-churning storm-grey cloud (the poison gas's own soft puff flipbook, tinted), green rain
+    /// streaks falling out of it that die on the first thing they hit (a roof stops them, as it stops the burn), a faint sickly glow, and the city's
     /// own rain sound, lower and heavier. Sized from AcidRain's constants, so the look and the damage cover the same circle.
     /// </summary>
     public static class AcidRainBuilder
@@ -17,12 +17,19 @@ namespace CityX.WeaponsEditor
         private const string PuffMaterialPath = "Assets/CityX/Weapons/PoisonGas.mat";
         private const string RainSoundPath = "Assets/CityX/UI/Audio/rain_noises.mp3";
 
-        private static readonly Color CloudDark = new Color(0.10f, 0.20f, 0.05f);
-        private static readonly Color CloudSick = new Color(0.30f, 0.45f, 0.08f);
+        private static readonly Color CloudDark = new Color(0.16f, 0.17f, 0.19f);
+        private static readonly Color CloudSick = new Color(0.34f, 0.35f, 0.37f);
+        private static readonly Color CloudPale = new Color(0.50f, 0.51f, 0.52f);
         private static readonly Color Acid = new Color(0.55f, 1.0f, 0.15f);
 
         /// <summary>How fast the drops fall, metres per second, and how long they may live (cloud to the deepest street).</summary>
         private const float DropSpeed = 30.0f;
+
+        /// <summary>
+        /// Where the drops start: well under the 70 m clouds, at about the height of a ten-storey roof. From the street it reads the same as
+        /// rain from the clouds, and over a 60 m radius it keeps the number of drops alive (and colliding with the world) affordable.
+        /// </summary>
+        private const float RainFromHeight = 36.0f;
 
         [MenuItem("CityX/Rebuild Acid Rain")]
         public static GameObject Build()
@@ -38,9 +45,9 @@ namespace CityX.WeaponsEditor
             var root = new GameObject("AcidRainStorm");
             try
             {
-                AddClouds(root.transform, "Clouds", puffs, rate: 70.0f, size: new Vector2(24.0f, 40.0f), alpha: 0.85f, low: CloudDark, high: CloudSick,
+                AddClouds(root.transform, "Clouds", puffs, rate: 150.0f, size: new Vector2(34.0f, 56.0f), alpha: 0.85f, low: CloudDark, high: CloudSick,
                     height: AcidRain.CloudHeight);
-                AddClouds(root.transform, "Underbelly", puffs, rate: 35.0f, size: new Vector2(12.0f, 22.0f), alpha: 0.5f, low: CloudSick, high: Acid * 0.7f,
+                AddClouds(root.transform, "Underbelly", puffs, rate: 80.0f, size: new Vector2(18.0f, 32.0f), alpha: 0.55f, low: CloudSick, high: CloudPale,
                     height: AcidRain.CloudHeight - 4.0f);
                 AddRain(root.transform, streak);
 
@@ -49,9 +56,9 @@ namespace CityX.WeaponsEditor
                 glowObject.transform.localPosition = Vector3.up * (AcidRain.CloudHeight * 0.5f);
                 Light glow = glowObject.AddComponent<Light>();
                 glow.type = LightType.Point;
-                glow.color = new Color(0.45f, 1.0f, 0.2f);
+                glow.color = new Color(0.62f, 0.85f, 0.45f);   // only a faint sickly cast now the clouds are grey: the acid is the rain
                 glow.range = AcidRain.Radius * 1.8f;
-                glow.intensity = 1.6f;
+                glow.intensity = 0.9f;
                 glow.shadows = LightShadows.None;
 
                 var soundObject = new GameObject("Sound");
@@ -98,7 +105,7 @@ namespace CityX.WeaponsEditor
             main.startRotation = new ParticleSystem.MinMaxCurve(0.0f, Mathf.PI * 2.0f);
             main.startColor = new ParticleSystem.MinMaxGradient(new Color(low.r, low.g, low.b, alpha), new Color(high.r, high.g, high.b, alpha));
             main.simulationSpace = ParticleSystemSimulationSpace.World;
-            main.maxParticles = 900;
+            main.maxParticles = 2200;
             // Already a full sky the moment it is cast: the warning is the clouds darkening in, not the sky slowly filling.
             main.prewarm = false;
 
@@ -154,7 +161,7 @@ namespace CityX.WeaponsEditor
         {
             var go = new GameObject("Rain");
             go.transform.SetParent(parent, false);
-            go.transform.localPosition = Vector3.up * (AcidRain.CloudHeight - 2.0f);
+            go.transform.localPosition = Vector3.up * RainFromHeight;
             ParticleSystem particles = go.AddComponent<ParticleSystem>();
             particles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
 
@@ -162,7 +169,7 @@ namespace CityX.WeaponsEditor
             main.duration = 2.0f;
             main.loop = true;
             main.playOnAwake = false;
-            main.startLifetime = (AcidRain.CloudHeight + AcidRain.Depth) / DropSpeed;
+            main.startLifetime = (RainFromHeight + AcidRain.Depth) / DropSpeed;
             main.startSpeed = 0.0f;
             main.startSize3D = true;
             main.startSizeX = new ParticleSystem.MinMaxCurve(0.05f, 0.08f);
@@ -170,10 +177,10 @@ namespace CityX.WeaponsEditor
             main.startSizeZ = 1.0f;
             main.startColor = new ParticleSystem.MinMaxGradient(new Color(Acid.r, Acid.g, Acid.b, 0.55f), new Color(0.8f, 1.0f, 0.4f, 0.75f));
             main.simulationSpace = ParticleSystemSimulationSpace.World;
-            main.maxParticles = 5000;
+            main.maxParticles = 9000;
 
             ParticleSystem.EmissionModule emission = particles.emission;
-            emission.rateOverTime = 1800.0f;
+            emission.rateOverTime = 3000.0f;
 
             ParticleSystem.ShapeModule shape = particles.shape;
             shape.enabled = true;

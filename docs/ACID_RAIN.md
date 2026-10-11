@@ -8,18 +8,18 @@ Owner's request: "make the acid rain ... in a large area but not the entire worl
 
 - **Casting.** Press 5 and the storm is called down where the crosshair meets the world, at most 50 m away (`AcidRainCaster.Reach`). The 50 m cap keeps the cast inside the 60 m the network allows between a caster and their ability's origin. Aimed at the sky, the storm comes down on the ground at 50 m. The cooldown is 60 s.
 - **The storm** (`AcidRain` holds every number):
-  - It is 40 m across in radius and lasts 20 s.
+  - It is 60 m across in radius (it was 40 m; the owner asked for a larger area on 2026-10-11) and lasts 20 s.
   - A 2 s warning comes first, while the clouds darken in.
   - Then everyone out in the open under it burns at 6 health a second, checked every half second. That takes a 100-health body down in about 17 s if it never takes cover.
   - The burn scales with the caster's Strength, like all damage.
-  - It reaches 40 m below the centre (streets running downhill) and up to the clouds, 32 m above it. Anything higher than the clouds is above the rain.
+  - It reaches 40 m below the centre (streets running downhill) and up to the clouds, 70 m above it. Anything higher than the clouds is above the rain.
 - **Shelter.** A roof is full shelter. A ray goes up from the top of each body to the clouds, and any solid thing in the way shelters it: a roof, a deck or a balcony. Another body does not count. The rain drops visibly stop on roofs too, because the particles collide with the world and die.
 - **The caster** is never burned. A burn is quiet: a player takes it as poison (`IPoisonable`), with no flinch and no block.
 - **The look** (`AcidRainBuilder`):
-  - a disc of huge, slow-churning sick-green clouds (the poison gas's puff flipbook, tinted);
+  - a disc of huge, slow-churning storm-grey clouds 70 m up (the poison gas's puff flipbook, tinted; grey, not green, on request);
   - a lighter underbelly;
-  - green rain streaks falling at 30 m/s;
-  - a wide green glow;
+  - green rain streaks falling at 30 m/s, starting about 36 m up (under the clouds, which keeps the number of drops affordable over a 60 m radius);
+  - a faint sickly glow;
   - the city's rain sound, lower and heavier.
   - Everything fades out over 3 s after the burning stops.
 
@@ -51,4 +51,4 @@ The Explicit `AcidRainCapture` renders `Logs/CityShots/acid-rain-*.png`.
 - **Roofs melting.** Needs building damage: the server keeps a damage list per building, applied on top of the seed's building.
 - **Armour corrosion.** Needs an armour system.
 - **The skill-tree and god-tier systems.** Until then it is a test key.
-- **Tall rooftops.** In a city of towers, rooftops higher than 32 m are above the storm.
+- **Tall rooftops.** Rooftops higher than the 70 m clouds are above the storm.

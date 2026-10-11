@@ -8,13 +8,13 @@ namespace CityX.Weapons
     /// The numbers of Acid Rain and the rules that use them, with no scene, so they can be tested on their own.
     ///
     /// SIZED FOR A BIG FIGHT, not the whole world (owner, 2026-10-10: "a large area but not the entire world ... reasonable for a large fight"):
-    /// a 40 m radius covers a street junction and the buildings round it, and lasts 20 s. 6 health a second burns a 100-health body down in
+    /// a 60 m radius covers a couple of blocks and the streets between them (owner, 2026-10-11: "cover a larger area"), and lasts 20 s. 6 health a second burns a 100-health body down in
     /// about 17 s if it never takes cover: it is a storm you must get out of, not one that kills on contact. Damage starts after a 2 s warning, as
-    /// the clouds gather. A roof is full shelter for now (owner: "make it so roofs are a full shelter"); melting roofs waits for building damage.
+    /// the clouds gather; the clouds hang 70 m up, storm grey ("higher up in the sky", "grey instead of green"). A roof is full shelter for now (owner: "make it so roofs are a full shelter"); melting roofs waits for building damage.
     /// </summary>
     public static class AcidRain
     {
-        public const float Radius = 40.0f;
+        public const float Radius = 60.0f;
 
         public const float Seconds = 20.0f;
 
@@ -27,7 +27,7 @@ namespace CityX.Weapons
         public const float CheckSeconds = 0.5f;
 
         /// <summary>How high above the centre the cloud ceiling sits. Anything higher than the clouds is above the rain.</summary>
-        public const float CloudHeight = 32.0f;
+        public const float CloudHeight = 70.0f;
 
         /// <summary>How far below the centre the storm still reaches (a street running downhill from where it was cast).</summary>
         public const float Depth = 40.0f;
