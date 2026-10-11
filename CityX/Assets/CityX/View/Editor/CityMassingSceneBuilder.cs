@@ -455,6 +455,7 @@ namespace CityX.ViewEditor
                 CityX.WeaponsEditor.IceShardBuilder.Build();
                 CityX.WeaponsEditor.PoisonGasBuilder.Build();
                 CityX.WeaponsEditor.SwordWaveBuilder.Build();
+                CityX.WeaponsEditor.AcidRainBuilder.Build();
                 CityX.CharacterEditor.PlayerAbilityWiring.AddAbilities(player);
             }
             else

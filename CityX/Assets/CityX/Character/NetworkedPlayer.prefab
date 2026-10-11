@@ -112,7 +112,10 @@ PrefabInstance:
       addedObject: {fileID: 8687249435336123883}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 5091739268361234699}
+      addedObject: {fileID: 6959202697050664699}
+    - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 410401777363011870}
   m_SourcePrefab: {fileID: 100100000, guid: c573dea59fa2558478b70344c659896a, type: 3}
 --- !u!1 &5771231832799346164 stripped
 GameObject:
@@ -548,7 +551,21 @@ MonoBehaviour:
   CooldownSeconds: 1.2
   ReleaseDelaySeconds: 0.18
   WavePrefab: {fileID: 8260423564122488192, guid: 9f4c373cbfecf834dbdffc0389b2fa3a, type: 3}
---- !u!114 &5091739268361234699
+--- !u!114 &6959202697050664699
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5771231832799346164}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c7f4c20f17306a44f9b4decb1949abfd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.AcidRainCaster
+  CooldownSeconds: 60
+  StormPrefab: {fileID: 2857790056486242833, guid: b985e9c6a2f677148806291aea8d0bdf, type: 3}
+--- !u!114 &410401777363011870
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

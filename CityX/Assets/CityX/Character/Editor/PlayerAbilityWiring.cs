@@ -26,6 +26,7 @@ namespace CityX.CharacterEditor
         private const string IceShardPrefabPath = "Assets/CityX/Weapons/IceShard.prefab";
         private const string PoisonGasPrefabPath = "Assets/CityX/Weapons/PoisonGasCloud.prefab";
         private const string SwordWavePrefabPath = "Assets/CityX/Weapons/SwordWave.prefab";
+        private const string AcidRainPrefabPath = "Assets/CityX/Weapons/AcidRainStorm.prefab";
 
         /// <summary>Puts every innate ability on <paramref name="player"/> and gives each its prefabs.</summary>
         public static void AddAbilities(GameObject player)
@@ -53,6 +54,10 @@ namespace CityX.CharacterEditor
             // --- the sword's crescent wave (key 7, with the sword in hand).
             var swordWave = GetOrAdd<SwordWaveCaster>(player);
             swordWave.WavePrefab = Load(SwordWavePrefabPath) ?? swordWave.WavePrefab;
+
+            // --- acid rain (key 5): the acid tree's god-tier storm, a test ability on a spare key for now.
+            var acidRain = GetOrAdd<AcidRainCaster>(player);
+            acidRain.StormPrefab = Load(AcidRainPrefabPath) ?? acidRain.StormPrefab;
 
             // Bloodrage (key 8) and the sword spin (key 2) are components of Player.prefab itself (PlayerRigBuilder), so every body has them.
         }

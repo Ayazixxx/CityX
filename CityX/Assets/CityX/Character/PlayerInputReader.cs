@@ -162,6 +162,17 @@ namespace CityX.Character
         private IIceShardCaster _iceShards;
         private IPoisonBreathCaster _poisonBreath;
         private ISwordWaveCaster _swordWave;
+        private IAcidRainCaster _acidRain;
+
+        /// <summary>5: ACID RAIN, a green storm called down where the crosshair points (no further than its reach), burning everyone out in the open.</summary>
+        private void CastAcidRain(Transform aimSource)
+        {
+            if (_acidRain == null || aimSource == null)
+            {
+                return;
+            }
+            _acidRain.TryCast(aimSource.position, aimSource.forward, GetComponentsInChildren<Collider>());
+        }
 
         /// <summary>The raised-hand pose strength of whichever spell is being cast (fireball, ice shards or poison gas).</summary>
         private float SpellCastFraction =>
@@ -355,6 +366,7 @@ namespace CityX.Character
             _iceShards = GetComponent<IIceShardCaster>();
             _poisonBreath = GetComponent<IPoisonBreathCaster>();
             _swordWave = GetComponent<ISwordWaveCaster>();
+            _acidRain = GetComponent<IAcidRainCaster>();
 
             // The player gets wet in the rain and dries under cover. Added here
             // rather than baked into the prefab: only the real, local player has
@@ -754,6 +766,10 @@ namespace CityX.Character
                 {
                     CastPoisonBreath(swingYawSource);
                 }
+                if (keyboard.digit5Key.wasPressedThisFrame)
+                {
+                    CastAcidRain(swingYawSource);
+                }
                 AimIceShards(swingYawSource);
                 AimPoisonBreath(swingYawSource);
 
@@ -976,6 +992,11 @@ namespace CityX.Character
             if (keyboard.digit4Key.wasPressedThisFrame)
             {
                 CastPoisonBreath(yawSource);
+            }
+            // 5: ACID RAIN (a god-tier test spell): a storm of acid over a wide area where the crosshair points; roofs shelter.
+            if (keyboard.digit5Key.wasPressedThisFrame)
+            {
+                CastAcidRain(yawSource);
             }
             AimIceShards(yawSource);
             AimPoisonBreath(yawSource);
