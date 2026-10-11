@@ -1182,6 +1182,57 @@ namespace CityX.Character
         /// <param name="scale">Multiplier on the sword's damage for this blow (SwordSpinMove's table, with the charge folded in).</param>
         /// <param name="final">The aerial spin's last blow: launches whatever can be launched.</param>
         /// <param name="oncePerTarget">The ground spin hits each target only once (the first frame it connects is what sets the damage).</param>
+        /// <summary>A sword is in hand: what the sword's own abilities (the spin, Octaslash) need.</summary>
+        public bool HoldsSword => EquippedWeapon != null && EquippedWeapon.MovesetId == ComboChain.Sword;
+
+        /// <summary>The sword in hand, for a pose that lays the blade (null when it is not one).</summary>
+        public ISwordBlade SwordBlade => EquippedWeapon as ISwordBlade;
+
+        /// <summary>
+        /// One cut of a sword ability that is not a swing (Octaslash): everything within <paramref name="reach"/> all round the body takes
+        /// <paramref name="scale"/> times the sword's damage (Strength and Bloodrage included, as every sword blow), and, if
+        /// <paramref name="launch"/> is not zero, whatever can be launched is sent that way. Returns how many it hit. Nothing without a sword.
+        /// </summary>
+        public int LandSwordCut(float scale, float reach, Vector3 launch)
+        {
+            if (!HoldsSword || scale <= 0.0f)
+            {
+                return 0;
+            }
+            int strength = _vitals != null ? _vitals.Strength : 0;
+            float damage = CombatTuning.DamageFor(EquippedWeapon.GetMeleeDamage() * scale, strength) * BloodrageFactor;
+            Vector3 origin = SwingOrigin();
+            int hits = 0;
+            foreach (Contact contact in ContactsInReach(fullCircle: true, reach: reach))
+            {
+                HitResponse response = contact.Target.ApplyHit(damage, transform.position, CombatTuning.HitstunSeconds);
+                if (response == HitResponse.Ignored)
+                {
+                    continue;
+                }
+                hits++;
+                Landed?.Invoke(contact.Target, damage);
+                if (launch.sqrMagnitude > 0.0f && contact.Target.IsAlive && contact.Target is ILaunchable launchable)
+                {
+                    launchable.Launch(launch);
+                }
+                if (!contact.Target.IsAlive && contact.Target is IXpReward xpSource)
+                {
+                    _vitals?.AddXp(xpSource.XpReward);
+                }
+                if (response != HitResponse.Blocked)
+                {
+                    BloodSplatter.Spawn(BloodPrefab, contact.Point, origin - contact.Point);
+                }
+            }
+            if (hits > 0)
+            {
+                PlayImpact();
+                EquippedWeapon?.RegisterLandedMeleeHit();
+            }
+            return hits;
+        }
+
         private void LandSpinBlow(float scale, bool final, bool oncePerTarget)
         {
             // BELT AND BRACES: TrySpinAttack already refuses without a

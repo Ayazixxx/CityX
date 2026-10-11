@@ -38,6 +38,7 @@ ability.Fired(event) ───────► SendAbilityToServer ────�
 | Ice shards (3) | `ice-shards` | once **per shard** (N = which of the four; B = how long the hand stays up) | each shard flying, sticking in the wall / character on that machine and ageing 30 s / 10 s, "shing", raised hand with the first |
 | Sword wave (7) | `sword-wave` | once, when the crescent leaves the blade | the crescent (stopped by the world, hurts nothing). The sword swing itself rides the sword-animation sync |
 | Bloodrage (8) | `bloodrage` | once at the start (A = duration) | the red aura and the Bloodrage walk/run/jump for the same time |
+| Octaslash (6, sword) | `octaslash` | wind-up begun, dash begun (direction), ended | the coiled pose, the lunge and the eight slashes on the same timeline; hurts nothing -- see docs/OCTASLASH.md |
 | Acid rain (5) | `acid-rain` | once per cast: the storm's centre | the same storm, cosmetic (clouds, rain, glow, sound; burns nothing) -- see docs/ACID_RAIN.md |
 | Sword spin (2) | `sword-spin` | charging begun, turn begun (A = 1 for air, B = charge), ended | the sword arm out, the free arm balancing, the swoosh, on the same timeline |
 

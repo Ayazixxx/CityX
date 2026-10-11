@@ -1081,6 +1081,26 @@ namespace CityX.Character
         /// </summary>
         public bool KeepsAirMomentum { get; set; }
 
+        /// <summary>While true the keys ask for no movement (a rooted wind-up, Octaslash's charge); gravity and the rest still apply.</summary>
+        public bool MovementRooted { get; set; }
+
+        /// <summary>While true the body moves at exactly <see cref="ForcedVelocity"/>, gravity off and the keys ignored (Octaslash's dash).</summary>
+        public bool HasForcedVelocity { get; private set; }
+
+        public Vector3 ForcedVelocity { get; private set; }
+
+        public void ForceVelocity(Vector3 velocity)
+        {
+            ForcedVelocity = velocity;
+            HasForcedVelocity = true;
+        }
+
+        public void ReleaseForcedVelocity()
+        {
+            HasForcedVelocity = false;
+            ForcedVelocity = Vector3.zero;
+        }
+
         /// <summary>How hard the keys can push a body that is keeping its momentum, in metres per second squared (a full stop from a sprint takes about half a second).</summary>
         public const float AirMomentumSteerAcceleration = 14.0f;
 
@@ -2819,7 +2839,7 @@ namespace CityX.Character
                     speed *= _bloodrage.SpeedFactor;
                 }
             }
-            Vector3 targetHorizontal = direction * speed;
+            Vector3 targetHorizontal = MovementRooted ? Vector3.zero : direction * speed;
             Vector3 horizontal;
 
             // THE DASH OVERRIDES WASD ENTIRELY for its burst, along the
@@ -2949,6 +2969,16 @@ namespace CityX.Character
             // same way a real body's own inertia would layer under
             // whatever new push it is given rather than being overridden
             // by it.
+            // A FORCED VELOCITY (Octaslash's dash) is the whole of the motion: no keys, no gravity, no carried momentum. The body's own
+            // velocities are set to it, so the step after it ends carries on from where the dash really was.
+            if (HasForcedVelocity)
+            {
+                horizontal = new Vector3(ForcedVelocity.x, 0.0f, ForcedVelocity.z);
+                _horizontalVelocity = horizontal;
+                _verticalVelocity = ForcedVelocity.y;
+                _residualVelocity = Vector3.zero;
+                CurrentSpeed = horizontal.magnitude;
+            }
             Vector3 motion = horizontal + _residualVelocity;
             motion.y = _verticalVelocity;
             Velocity = motion;

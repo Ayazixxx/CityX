@@ -163,6 +163,7 @@ namespace CityX.Character
         private IPoisonBreathCaster _poisonBreath;
         private ISwordWaveCaster _swordWave;
         private IAcidRainCaster _acidRain;
+        private OctaslashAbility _octaslash;
 
         /// <summary>5: ACID RAIN, a green storm called down where the crosshair points (no further than its reach), burning everyone out in the open.</summary>
         private void CastAcidRain(Transform aimSource)
@@ -1713,15 +1714,45 @@ namespace CityX.Character
             // while it plays the souls swing stands aside rather than stacking.
             bool spinning = _melee != null && _melee.IsSwinging;
 
+            // 6: OCTASLASH (Sephiroth's held up special), only here, with the sword in hand: a 3 s wind-up, then an eight-cut dash where the
+            // camera looks. A left click during the wind-up sends it at once -- and is not also a swing.
+            if (_octaslash == null)
+            {
+                _octaslash = GetComponent<OctaslashAbility>();
+            }
+            bool octaslashCharging = _octaslash != null && _octaslash.IsCharging;
+            if (_octaslash != null && source != null)
+            {
+                float chest = (_locomotion != null ? _locomotion.StandingHeight : 1.8f) * 0.55f;
+                Vector3 look = ConvergedDirection(transform.position + Vector3.up * chest, source);
+                _octaslash.Aim(look);
+                if (keyboard != null && keyboard.digit6Key.wasPressedThisFrame && !spinning && !souls.IsCommitted)
+                {
+                    _octaslash.TryStart(look);
+                }
+            }
+            bool octaslashBusy = _octaslash != null && _octaslash.IsActive;
+            spinning |= octaslashBusy;
+
             // NO KEY IS BOUND TO THE HEAVY YET -- explicit ask: "F shouldnt do
             // anything yet." SoulsSwordCombat.RequestHeavy and the Heavy attack
             // itself are still there, tested, and waiting for a binding.
-            if (!spinning && mouse.leftButton.wasPressedThisFrame)
+            if (mouse.leftButton.wasPressedThisFrame)
             {
-                souls.RequestLight(yaw);
+                if (octaslashCharging)
+                {
+                    _octaslash.Release();
+                }
+                else if (!spinning)
+                {
+                    souls.RequestLight(yaw);
+                }
             }
 
-            TickSpinKey(keyboard, canStart: !souls.IsCommitted);
+            if (!octaslashBusy)
+            {
+                TickSpinKey(keyboard, canStart: !souls.IsCommitted);
+            }
 
             // 7: THE SWORD'S WAVE (a Getsuga Tensho style crescent). The sword swings (a light attack) and a crescent of light leaves the
             // blade down the crosshair, exactly where the fireball would go. Only with the sword in hand, and not mid-swing.
