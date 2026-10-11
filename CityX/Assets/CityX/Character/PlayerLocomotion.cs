@@ -2656,8 +2656,22 @@ namespace CityX.Character
                 _rootRestRotation = root.localRotation;
                 _hasRootRest = true;
             }
-            root.localRotation = Quaternion.Inverse(transform.rotation) * world * transform.rotation * _rootRestRotation;
+            // ON TOP OF WHATEVER ELSE TILTED THE BODY THIS FRAME, not instead of it. The jetpack leans this same transform in its Update, and
+            // writing rest-plus-lean here every LateUpdate stood a flying body bolt upright (owner, 2026-10-10: "the jetpack lean is broken the
+            // character stays upright"). So last frame's lean is taken back off first -- leaving the jetpack's tilt if it set one this frame, or
+            // what was under the lean if nothing did -- and this frame's goes on. Within a hair of rest counts as rest, so float error never
+            // builds up in a body that only ever leans.
+            Quaternion under = Quaternion.Inverse(_leanApplied) * root.localRotation;
+            if (Quaternion.Angle(under, _rootRestRotation) < 0.05f)
+            {
+                under = _rootRestRotation;
+            }
+            _leanApplied = Quaternion.Inverse(transform.rotation) * world * transform.rotation;
+            root.localRotation = _leanApplied * under;
         }
+
+        /// <summary>The lean put on the visual root last frame, in its parent's space, to be taken off again before the next.</summary>
+        private Quaternion _leanApplied = Quaternion.identity;
 
         /// <summary>A body that moves further than this in one frame was put there, not run there.</summary>
         private const float TeleportMetres = 3.0f;

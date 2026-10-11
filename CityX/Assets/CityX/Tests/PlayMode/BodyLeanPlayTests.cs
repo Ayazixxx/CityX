@@ -67,6 +67,85 @@ namespace CityX.Tests
 #endif
         }
 
+        /// <summary>Tilts the visual body in Update every frame, as Jetpack.TickTilt does.</summary>
+        private sealed class TiltsInUpdate : MonoBehaviour
+        {
+            public Transform Body;
+            public Quaternion Tilt;
+
+            private void Update()
+            {
+                Body.localRotation = Tilt;
+            }
+        }
+
+        /// <summary>Reads the body's tilt after every LateUpdate, the lean's included: what the frame actually draws.</summary>
+        [DefaultExecutionOrder(10000)]
+        private sealed class ReadsTheDrawnTilt : MonoBehaviour
+        {
+            public Transform Body;
+            public Quaternion Expected;
+            public float WorstDegrees;
+            public int Frames;
+
+            private void LateUpdate()
+            {
+                WorstDegrees = Mathf.Max(WorstDegrees, Quaternion.Angle(Expected, Body.localRotation));
+                Frames++;
+            }
+        }
+
+        /// <summary>
+        /// The jetpack leans the same transform the body lean drives. The lean once overwrote it every LateUpdate and a flying body stood bolt
+        /// upright (owner, 2026-10-10: "the jetpack lean is broken the character stays upright").
+        /// </summary>
+        [UnityTest]
+        public IEnumerator AJetpacksTiltIsNotUndoneByTheLean()
+        {
+#if UNITY_EDITOR
+            _ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            _ground.transform.position = new Vector3(0, -0.5f, 0);
+            _ground.transform.localScale = new Vector3(400, 1, 400);
+            Physics.SyncTransforms();
+            var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab");
+            _player = Object.Instantiate(prefab, new Vector3(0, 0.05f, 0), Quaternion.identity);
+            yield return null;
+
+            Transform body = _player.GetComponentInChildren<Animator>().transform;
+            Quaternion upright = body.localRotation;
+            var tilter = _player.AddComponent<TiltsInUpdate>();
+            tilter.Body = body;
+            tilter.Tilt = Quaternion.Euler(35.0f, 0.0f, 10.0f);
+            // A frame for the tilter's first Update: added from here, after this frame's Updates have run.
+            yield return null;
+            var reader = _player.AddComponent<ReadsTheDrawnTilt>();
+            reader.Body = body;
+            reader.Expected = tilter.Tilt;
+            for (int i = 0; i < 10; i++)
+            {
+                yield return null;
+            }
+            Assert.Greater(reader.Frames, 5);
+            Assert.Less(reader.WorstDegrees, 2.0f, $"the drawn body was up to {reader.WorstDegrees:0.0} degrees off the jetpack's tilt");
+
+            // The jetpack levels its own tilt when it lands (it writes the body upright); the lean must not hold the old tilt on.
+            Object.Destroy(reader);
+            tilter.Tilt = upright;
+            for (int i = 0; i < 5; i++)
+            {
+                yield return null;
+            }
+            Object.Destroy(tilter);
+            for (int i = 0; i < 5; i++)
+            {
+                yield return null;
+            }
+            Assert.Less(Quaternion.Angle(upright, body.localRotation), 2.0f, "once the jetpack levels it, the standing body is upright again");
+#else
+            yield break;
+#endif
+        }
+
         private void Shoot(string name)
         {
             var cameraObject = new GameObject("LeanCam");
