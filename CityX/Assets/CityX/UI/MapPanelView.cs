@@ -23,6 +23,9 @@ namespace CityX.UI
 
         public MapCanvas Canvas;
 
+        [Tooltip("The corner minimap: hidden while the full map is open.")]
+        public GameObject MiniMap;
+
         [Tooltip("Movement/combat input. Disabled while the map is open.")]
         public PlayerInputReader InputReader;
 
@@ -107,12 +110,14 @@ namespace CityX.UI
             Canvas?.ResetView();
 
             if (Root != null) Root.SetActive(true);
+            if (MiniMap != null) MiniMap.SetActive(false);
             Canvas?.SetVerticesDirty();
         }
 
         public void Close()
         {
             if (Root != null) Root.SetActive(false);
+            if (MiniMap != null) MiniMap.SetActive(true);
 
             if (InputReader != null) InputReader.enabled = true;
             if (OrbitCamera != null) OrbitCamera.enabled = true;
