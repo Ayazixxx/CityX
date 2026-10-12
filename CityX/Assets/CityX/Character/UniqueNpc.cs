@@ -224,6 +224,10 @@ namespace CityX.Character
 
         private void OnTriggerExit(Collider other)
         {
+            if (!CityX.Character.InteractionReach.IsBodyLeaving(other))
+            {
+                return;   // a limb's collider swinging out of the trigger is not the player walking away
+            }
             if (_nearbyPlayer != null && other.transform.IsChildOf(_nearbyPlayer.root))
             {
                 _nearbyPlayer = null;
@@ -257,7 +261,7 @@ namespace CityX.Character
             // leaves _nearbyPlayer permanently stale, and E would start a
             // conversation from anywhere in the world, forever after,
             // including from beyond the grave.
-            if (Vector3.Distance(_nearbyPlayer.position, transform.position) > InteractRange)
+            if (InteractionReach.IsBeyond(Vector3.Distance(_nearbyPlayer.position, transform.position), InteractRange))
             {
                 _nearbyPlayer = null;
                 return;

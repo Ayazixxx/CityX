@@ -22,7 +22,7 @@ namespace CityX.Tests
         [UnityTearDown]
         public IEnumerator TearDown()
         {
-            Time.captureFramerate = 0;
+            Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
             if (_scene.IsValid() && _scene.isLoaded)
             {
                 LogAssert.ignoreFailingMessages = true;

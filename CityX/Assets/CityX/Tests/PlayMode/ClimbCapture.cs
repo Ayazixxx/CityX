@@ -90,7 +90,7 @@ namespace CityX.Tests
                     Assert.IsTrue(climbing.TryStart(GrabIntent.AlreadyHeld(), true, 100.0f));
                 }
             }
-            Time.captureFramerate = 0;
+            Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
             Object.Destroy(cameraObject);
 #else
             yield break;

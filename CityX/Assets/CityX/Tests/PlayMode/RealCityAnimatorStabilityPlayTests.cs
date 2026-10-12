@@ -43,7 +43,7 @@ namespace CityX.Tests
         [UnityTearDown]
         public IEnumerator TearDown()
         {
-            Time.captureDeltaTime = 0.0f;
+            Time.captureDeltaTime = 1.0f / SteadyFrameTime.FramesPerSecond;   // back to the run's steady frame time, not off
             if (_scene.IsValid() && _scene.isLoaded)
             {
                 LogAssert.ignoreFailingMessages = true;

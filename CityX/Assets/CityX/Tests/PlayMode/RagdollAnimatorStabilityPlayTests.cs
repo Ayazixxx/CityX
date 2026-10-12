@@ -50,7 +50,7 @@ namespace CityX.Tests
         {
             // See LocomotionAnimatorStabilityPlayTests's own TearDown
             // comment for why this is set and why it must always be cleared.
-            Time.captureDeltaTime = 0.0f;
+            Time.captureDeltaTime = 1.0f / SteadyFrameTime.FramesPerSecond;   // back to the run's steady frame time, not off
             DestroyCurrentPlayer();
         }
 

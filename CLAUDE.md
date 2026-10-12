@@ -31,7 +31,7 @@ Unity port of a Godot game: a procedurally generated multiplayer megacity with t
 
 ## Hard rules
 - **Multiplayer-first**: anything a player does or has (ability, held item, movement) must be visible to other players in the same commit: `IReplicatedAbility` or `ICosmeticMountable`, wired in `PlayerAbilityWiring` / `NetworkedPlayerWiring`, with a test. Guard tests enforce it. Spec: `docs/MULTIPLAYER_STATE.md`.
-- Every change gets tests. Run EditMode and PlayMode before committing. **Known failures, not yours:** the two jetpack "ExistingLean" tests, and the flaky `PoseDistortionWatchdog` and `PistolKickRig`.
+- Every change gets tests. Run EditMode and PlayMode before committing. **Known failures, not yours:** `ClimbLimbsPlayTests.NoHandFootElbowOrKneeGoesThroughTheWallWhileClimbing` (an elbow 9-15 cm through the wall, only in full runs) and `WeaponHandsPlayTests.BothHandsStayOnTheSwordsGripStandingAndSwinging` (the left hand 10.5 cm off the grip mid-swing at a steady 60 fps, against a 10 cm limit).
 - **Verify visuals by rendering** (the Explicit `*Capture` tests with `-Graphics`) and looking at the images. Green tests do not mean it looks right.
 - Keep assets small: no embedded textures, bake and trim meshes.
 - **City-generation change = reroll the world seed.** It is hardcoded in several places (currently `61839025`): grep for the old number and change them all together.

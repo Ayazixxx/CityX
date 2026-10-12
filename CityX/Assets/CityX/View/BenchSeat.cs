@@ -158,6 +158,10 @@ namespace CityX.View
 
         private void OnTriggerExit(Collider other)
         {
+            if (!CityX.Character.InteractionReach.IsBodyLeaving(other))
+            {
+                return;   // a limb's collider swinging out of the trigger is not the player walking away
+            }
             if (_nearby != null && other.transform.IsChildOf(_nearby.transform))
             {
                 _nearby = null;
@@ -172,7 +176,7 @@ namespace CityX.View
             // CharacterController off mid-frame) while merely standing near
             // an unoccupied bench.
             if (_nearby != null && _seated == null &&
-                Vector3.Distance(_nearby.transform.position, transform.position) > InteractRange)
+                InteractionReach.IsBeyond(Vector3.Distance(_nearby.transform.position, transform.position), InteractRange))
             {
                 _nearby = null;
             }

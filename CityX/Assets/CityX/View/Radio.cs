@@ -85,6 +85,10 @@ namespace CityX.View
 
         private void OnTriggerExit(Collider other)
         {
+            if (!CityX.Character.InteractionReach.IsBodyLeaving(other))
+            {
+                return;   // a limb's collider swinging out of the trigger is not the player walking away
+            }
             if (_nearby != null && other.transform.IsChildOf(_nearby.root))
             {
                 _nearby = null;
@@ -98,7 +102,7 @@ namespace CityX.View
             // dies (Ragdoll.Activate() turns their CharacterController off
             // mid-frame), which would otherwise leave _nearby stale and this
             // radio toggleable by E from anywhere, forever after.
-            if (_nearby != null && Vector3.Distance(_nearby.position, transform.position) > InteractRange)
+            if (_nearby != null && CityX.Character.InteractionReach.IsBeyond(Vector3.Distance(_nearby.position, transform.position), InteractRange))
             {
                 _nearby = null;
             }

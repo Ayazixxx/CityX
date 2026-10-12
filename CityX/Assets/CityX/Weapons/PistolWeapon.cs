@@ -491,6 +491,10 @@ namespace CityX.Weapons
 
         private void OnTriggerExit(Collider other)
         {
+            if (!CityX.Character.InteractionReach.IsBodyLeaving(other))
+            {
+                return;   // a limb's collider swinging out of the trigger is not the player walking away
+            }
             if (other.transform == _nearbyPlayer || (other.GetComponentInParent<PlayerVitals>() != null))
             {
                 _nearbyPlayer = null;

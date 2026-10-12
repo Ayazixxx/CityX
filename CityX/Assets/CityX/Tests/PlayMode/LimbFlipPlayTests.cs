@@ -61,7 +61,7 @@ namespace CityX.Tests
                     previous[b] = now;
                 }
             }
-            Time.captureFramerate = (int)previousCaptureRate;
+            Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
             Object.Destroy(player);
             Object.Destroy(ground);
             Assert.Less(worst, MostASprintingLimbMayTurnInOneFrame,

@@ -40,7 +40,7 @@ namespace CityX.Tests
         [UnityTearDown]
         public IEnumerator TearDown()
         {
-            Time.captureFramerate = 0;
+            Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
             foreach (GameObject go in _made)
             {
                 if (go != null) Object.Destroy(go);
@@ -194,7 +194,7 @@ namespace CityX.Tests
             yield return null;
             _scene = SceneManager.GetSceneByPath(ScenePath);
             SceneManager.SetActiveScene(_scene);
-            Time.captureFramerate = 30;
+            Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
 
             var player = Object.FindFirstObjectByType<PlayerVitals>();
             for (int i = 0; i < 60; i++) yield return null;

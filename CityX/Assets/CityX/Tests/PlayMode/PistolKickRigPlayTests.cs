@@ -22,6 +22,26 @@ namespace CityX.Tests
         private PistolWeapon _pistol;
         private PlayerLocomotion _locomotion;
 
+        /// <summary>
+        /// Reads the gun at the very END of each frame, after the pistol's own LateUpdate has laid the kick on (PistolWeapon.ApplyKick runs
+        /// after the arms are solved, so the arms do not fight it). A test coroutine resumes after the NEXT frame's Update, by which time the
+        /// gun is back in its unkicked pose: this test, written before the kick moved to LateUpdate, measured that and never saw a kick at all.
+        /// </summary>
+        [DefaultExecutionOrder(32000)]
+        private sealed class EndOfFrameProbe : MonoBehaviour
+        {
+            public Transform Gun;
+            public Transform Muzzle;
+            public Vector3 GunPosition;
+            public Vector3 MuzzleForward;
+
+            private void LateUpdate()
+            {
+                GunPosition = Gun.position;
+                MuzzleForward = Muzzle.forward;
+            }
+        }
+
         [TearDown]
         public void TearDown()
         {
@@ -69,17 +89,21 @@ namespace CityX.Tests
             yield return Build();
 
             Transform muzzle = _pistol.MuzzleFlashObject.transform;
-            Vector3 baselineForward = muzzle.forward;
-            Vector3 baselinePosition = _pistol.transform.position;
+            var probe = _player.AddComponent<EndOfFrameProbe>();
+            probe.Gun = _pistol.transform;
+            probe.Muzzle = muzzle;
+            yield return null;   // one whole frame, so the probe has read the unkicked gun as drawn
+            Vector3 baselineForward = probe.MuzzleForward;
+            Vector3 baselinePosition = probe.GunPosition;
             float baselinePitch = Mathf.Asin(Mathf.Clamp(baselineForward.y, -1.0f, 1.0f)) * Mathf.Rad2Deg;
 
             Assert.IsTrue(_pistol.Fire(_player.transform.position + Vector3.up * 1.6f - Vector3.forward * 3.0f,
                 Vector3.forward, false, _player));
-            // The kick is applied by the pistol's own Update -- one frame on.
+            // The kick is laid on in the pistol's LateUpdate this frame; the probe reads it as drawn, at the end of the frame.
             yield return null;
 
-            float kickedPitch = Mathf.Asin(Mathf.Clamp(muzzle.forward.y, -1.0f, 1.0f)) * Mathf.Rad2Deg;
-            Vector3 shove = _pistol.transform.position - baselinePosition;
+            float kickedPitch = Mathf.Asin(Mathf.Clamp(probe.MuzzleForward.y, -1.0f, 1.0f)) * Mathf.Rad2Deg;
+            Vector3 shove = probe.GunPosition - baselinePosition;
             float alongBarrel = Vector3.Dot(shove, baselineForward);
 
             Assert.Greater(kickedPitch - baselinePitch, 2.0f,

@@ -563,6 +563,10 @@ namespace CityX.Vehicles
 
         private void OnTriggerExit(Collider other)
         {
+            if (!CityX.Character.InteractionReach.IsBodyLeaving(other))
+            {
+                return;   // a limb's collider swinging out of the trigger is not the player walking away
+            }
             var reader = other.GetComponentInParent<PlayerInputReader>();
             if (reader != null && reader == _nearbyPlayer)
             {

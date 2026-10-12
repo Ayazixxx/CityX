@@ -33,7 +33,7 @@ namespace CityX.Tests
         [TearDown]
         public void TearDown()
         {
-            Time.captureDeltaTime = 0.0f;
+            Time.captureDeltaTime = 1.0f / SteadyFrameTime.FramesPerSecond;   // back to the run's steady frame time, not off
             if (_player != null) Object.Destroy(_player);
         }
 

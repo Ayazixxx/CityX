@@ -21,7 +21,7 @@ namespace CityX.Tests
         [TearDown]
         public void TearDown()
         {
-            Time.captureFramerate = 0;
+            Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
             if (_player != null) Object.Destroy(_player);
             if (_ground != null) Object.Destroy(_ground);
             if (_wall != null) Object.Destroy(_wall);

@@ -200,7 +200,7 @@ namespace CityX.Character
                 float degreesPerSecond = WorstBoneSnapDegrees() / Mathf.Max(Time.deltaTime, MinDeltaTimeForSnapCheck);
                 if (degreesPerSecond > MaxBoneDegreesPerSecond)
                 {
-                    reason = $"a watched bone snapped {degreesPerSecond:F0} deg/s (limit {MaxBoneDegreesPerSecond})";
+                    reason = $"{WorstBoneName} snapped {degreesPerSecond:F0} deg/s (limit {MaxBoneDegreesPerSecond})";
                 }
             }
 
@@ -213,15 +213,28 @@ namespace CityX.Character
             }
         }
 
+        /// <summary>The name of the bone that moved most in the last check, for the report.</summary>
+        public string WorstBoneName { get; private set; } = "";
+
         private float WorstBoneSnapDegrees()
         {
             float worst = 0.0f;
-            worst = Mathf.Max(worst, BoneDelta(_head, _previousHead));
-            worst = Mathf.Max(worst, BoneDelta(_rightUpperArm, _previousRightUpperArm));
-            worst = Mathf.Max(worst, BoneDelta(_rightLowerArm, _previousRightLowerArm));
-            worst = Mathf.Max(worst, BoneDelta(_leftUpperArm, _previousLeftUpperArm));
-            worst = Mathf.Max(worst, BoneDelta(_leftLowerArm, _previousLeftLowerArm));
+            Consider(_head, _previousHead, ref worst);
+            Consider(_rightUpperArm, _previousRightUpperArm, ref worst);
+            Consider(_rightLowerArm, _previousRightLowerArm, ref worst);
+            Consider(_leftUpperArm, _previousLeftUpperArm, ref worst);
+            Consider(_leftLowerArm, _previousLeftLowerArm, ref worst);
             return worst;
+        }
+
+        private void Consider(Transform bone, Quaternion previous, ref float worst)
+        {
+            float delta = BoneDelta(bone, previous);
+            if (delta > worst)
+            {
+                worst = delta;
+                WorstBoneName = bone.name;
+            }
         }
 
         private static float BoneDelta(Transform bone, Quaternion previous)
@@ -252,9 +265,26 @@ namespace CityX.Character
             sb.AppendLine("==================================================");
             sb.AppendLine($"CityX pose distortion watchdog -- {System.DateTime.Now:yyyy-MM-dd HH:mm:ss}");
             sb.AppendLine($"Reason: {reason}");
+            sb.AppendLine($"Frame: {Time.frameCount}");
             sb.AppendLine($"Swing.IsActive: {(Swing != null ? Swing.IsActive.ToString() : "no GrappleSwing wired")}");
             sb.AppendLine($"Console.IsOpen: {(IsConsoleOpen != null ? IsConsoleOpen.Invoke().ToString() : "no console hook wired")}");
             sb.AppendLine($"Animator.enabled: {Animator.enabled}");
+            for (int layer = 0; layer < Animator.layerCount; layer++)
+            {
+                var playing = new System.Text.StringBuilder();
+                foreach (AnimatorClipInfo clip in Animator.GetCurrentAnimatorClipInfo(layer))
+                {
+                    if (clip.clip != null && clip.weight > 0.01f) playing.Append($"{clip.clip.name} {clip.weight:0.00}; ");
+                }
+                foreach (AnimatorClipInfo clip in Animator.GetNextAnimatorClipInfo(layer))
+                {
+                    if (clip.clip != null && clip.weight > 0.01f) playing.Append($"-> {clip.clip.name} {clip.weight:0.00}; ");
+                }
+                if (playing.Length > 0)
+                {
+                    sb.AppendLine($"Layer {layer} ({Animator.GetLayerWeight(layer):0.00}){(Animator.IsInTransition(layer) ? " in transition" : "")}: {playing}");
+                }
+            }
             sb.AppendLine($"Animator.transform.localPosition: {Animator.transform.localPosition:F3}");
             sb.AppendLine($"Animator.transform.localScale: {Animator.transform.localScale:F3}");
             sb.AppendLine($"Player position: {transform.position:F2}");

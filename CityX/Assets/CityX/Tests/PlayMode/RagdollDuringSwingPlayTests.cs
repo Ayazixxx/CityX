@@ -73,7 +73,7 @@ namespace CityX.Tests
             // entirely ordinary partial-to-further-along point along the
             // swing's own known Z-axis reach interpolation (see
             // RightUpperArmReachDegrees's own doc comment), not a glitch.
-            Time.captureDeltaTime = 0.0f;
+            Time.captureDeltaTime = 1.0f / SteadyFrameTime.FramesPerSecond;   // back to the run's steady frame time, not off
 
             if (_scene.IsValid() && _scene.isLoaded)
             {

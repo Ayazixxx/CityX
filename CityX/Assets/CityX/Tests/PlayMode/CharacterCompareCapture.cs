@@ -24,7 +24,7 @@ namespace CityX.Tests
         [TearDown]
         public void ClearTheStage()
         {
-            Time.captureFramerate = 0;
+            Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
             foreach (GameObject root in UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects())
             {
                 if (root.GetComponent<Camera>() != null || root.GetComponent<Light>() != null || root.GetComponent<CharacterController>() != null || root.name.StartsWith("Cube") || root.name == "Player(Clone)" || root.name.StartsWith("Player"))
@@ -168,7 +168,7 @@ namespace CityX.Tests
                 }
                 Debug.Log(text.ToString());
             }
-            Time.captureFramerate = 0;
+            Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
 #else
             yield break;
 #endif
@@ -197,7 +197,7 @@ namespace CityX.Tests
                 Object.Destroy(image);
             }
             Save(sheet, "unity-clip-strip.png");
-            Time.captureFramerate = 0;
+            Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
 #else
             yield break;
 #endif
@@ -233,7 +233,7 @@ namespace CityX.Tests
                 Object.Destroy(image);
             }
             Save(sheet, "unity-arms-closeup.png");
-            Time.captureFramerate = 0;
+            Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
 #else
             yield break;
 #endif
@@ -273,7 +273,7 @@ namespace CityX.Tests
                 Object.Destroy(image);
             }
             Save(sheet, "unity-jab-closeup.png");
-            Time.captureFramerate = 0;
+            Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
 #else
             yield break;
 #endif
@@ -354,7 +354,7 @@ namespace CityX.Tests
             }
             Debug.Log("SWELLCLIMB\n" + SwellReport(player.GetComponentInChildren<SkinnedMeshRenderer>(), new Mesh()));
             Save(sheet, "unity-climb-behind.png");
-            Time.captureFramerate = 0;
+            Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
 #else
             yield break;
 #endif
@@ -383,7 +383,7 @@ namespace CityX.Tests
                 Object.Destroy(image);
             }
             Save(sheet, "unity-idle-back.png");
-            Time.captureFramerate = 0;
+            Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
 #else
             yield break;
 #endif
@@ -424,7 +424,7 @@ namespace CityX.Tests
                 }
             }
             Save(sheet, "unity-stride-strip.png");
-            Time.captureFramerate = 0;
+            Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
 #else
             yield break;
 #endif
@@ -466,7 +466,7 @@ namespace CityX.Tests
                 }
             }
             Save(sheet, "unity-character-sheet.png");
-            Time.captureFramerate = 0;
+            Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
 #else
             yield break;
 #endif

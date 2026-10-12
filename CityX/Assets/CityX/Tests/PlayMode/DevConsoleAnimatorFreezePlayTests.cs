@@ -36,7 +36,7 @@ namespace CityX.Tests
         [TearDown]
         public void TearDown()
         {
-            Time.captureDeltaTime = 0.0f;
+            Time.captureDeltaTime = 1.0f / SteadyFrameTime.FramesPerSecond;   // back to the run's steady frame time, not off
             // Open() now pauses real time when no NetworkBootstrap is wired
             // (treated as Singleplayer -- see its own doc comment), and
             // every test below opens a bare console with none wired. Reset

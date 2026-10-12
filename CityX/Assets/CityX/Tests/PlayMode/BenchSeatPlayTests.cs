@@ -146,7 +146,7 @@ namespace CityX.Tests
             yield return null;
             Release(_keyboard.eKey);
 
-            Assert.IsTrue(_bench.IsOccupied, "pressing E next to the bench should sit down");
+            Assert.IsTrue(_bench.IsOccupied, $"pressing E next to the bench should sit down (bench still knows the player: {_bench.HasNearbyPlayer}, distance {Vector3.Distance(_player.transform.position, _benchObject.transform.position):0.00} m, player at {_player.transform.position})");
             Assert.IsTrue(_locomotion.IsSitting);
             Assert.IsFalse(_controller.enabled, "the CharacterController should be disabled while seated");
             Assert.AreEqual(_bench.SeatPoint.position, _player.transform.position,
