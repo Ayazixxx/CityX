@@ -60,3 +60,5 @@ body; smooth; nothing in the air. `Character/BodyLean.cs` (pure: 0.9 deg per m/s
 body's measured motion, so other players' copies lean too. Ground + plain walk/run blend only. Tests: `BodyLeanTests`, `BodyLeanPlayTests`
 (renders lean-*.png). Not done from the research: head-stable lean (rotating from the head), landing squash, foot locking -- see the deferred
 foot IK / movement-tips memory.
+
+- 2026-10-11, "W+A ... appears in like slow motion": the locomotion blend (and the sword one) gave a diagonal walk 23% of the idle, whose long clip stretched one step cycle from 1.03 s to 3.05 s at the same ground speed. It is now Freeform Directional with the four diagonals as samples of their own (a 1-D mix of the straight walk and the side-step), so a diagonal steps in 1.03 s like any straight walk (`PlayerRigBuilder.AddDiagonals`, `DiagonalWalkCadencePlayTests`).

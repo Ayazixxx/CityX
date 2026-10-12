@@ -204,7 +204,12 @@ namespace CityX.CharacterEditor
             // going forward (see PlayerLocomotion), so no sideways sample can
             // ever be asked for above walking pace.
             controller.CreateBlendTreeInController("Locomotion", out BlendTree locomotion, 0);
-            locomotion.blendType = BlendTreeType.FreeformCartesian2D;
+            // FREEFORM DIRECTIONAL, not Cartesian (owner, 2026-10-11: W+A / W+D walked "in like slow motion"). Cartesian weighted the clips by
+            // plain distance, so a diagonal walk at walking speed sat as near the idle at the centre as the walk and strafe on its sides and
+            // took 23% idle -- whose long clip stretched one step cycle from 1.03 s to 3.05 s at the same ground speed. Directional blends by
+            // ANGLE between the clips round the centre and only uses the centre for low speeds, so a diagonal is half walk, half strafe, no idle,
+            // and steps at their own 1.03 s (DiagonalWalkCadencePlayTests).
+            locomotion.blendType = BlendTreeType.FreeformDirectional2D;
             locomotion.blendParameter = "MoveX";
             locomotion.blendParameterY = "MoveZ";
             locomotion.AddChild(idle, Vector2.zero);
@@ -222,6 +227,7 @@ namespace CityX.CharacterEditor
             {
                 locomotion.AddChild(right, new Vector2(WalkSpeed, 0.0f));
             }
+            AddDiagonals(locomotion, walk, back, left, right);
 
             AnimatorStateMachine root = controller.layers[0].stateMachine;
 
@@ -1209,7 +1215,7 @@ namespace CityX.CharacterEditor
             controller.AddParameter("SwordEquipped", AnimatorControllerParameterType.Bool);
 
             controller.CreateBlendTreeInController("SwordLocomotion", out BlendTree swordLocomotion, 0);
-            swordLocomotion.blendType = BlendTreeType.FreeformCartesian2D;
+            swordLocomotion.blendType = BlendTreeType.FreeformDirectional2D;   // directional for the same reason as Locomotion: no idle in a diagonal
             swordLocomotion.blendParameter = "MoveX";
             swordLocomotion.blendParameterY = "MoveZ";
             swordLocomotion.AddChild(idle, Vector2.zero);
@@ -1218,6 +1224,7 @@ namespace CityX.CharacterEditor
             if (back != null) swordLocomotion.AddChild(back, new Vector2(0.0f, -WalkSpeed));
             if (left != null) swordLocomotion.AddChild(left, new Vector2(-WalkSpeed, 0.0f));
             if (right != null) swordLocomotion.AddChild(right, new Vector2(WalkSpeed, 0.0f));
+            AddDiagonals(swordLocomotion, walk, back, left, right);
 
             AnimatorState swordLocomotionState = FindState(root, "SwordLocomotion");
 
@@ -1686,6 +1693,47 @@ namespace CityX.CharacterEditor
             finally
             {
                 Object.DestroyImmediate(root);
+            }
+        }
+
+        /// <summary>
+        /// THE FOUR DIAGONALS AS SAMPLES OF THEIR OWN (owner, 2026-10-11: W+A and W+D walked "in like slow motion"). With only the four straight
+        /// walks round the idle, a diagonal at walking speed fell between them and took a share of the idle -- 23% in the Cartesian blend, 12%
+        /// still in the directional one -- and the idle's long clip stretched one step cycle from 1.03 s to 3 s and 2 s at the same ground speed.
+        /// Each diagonal is now its own sample at walking speed: a small 1-D blend of the straight walk and the side-step by MoveX, so a diagonal
+        /// lands on a walking mix with no idle in it. The walk and strafe clips both cycle in 1.03 s, so the diagonal steps at that pace too
+        /// (DiagonalWalkCadencePlayTests).
+        /// </summary>
+        private static void AddDiagonals(BlendTree tree, Motion forward, Motion back, Motion left, Motion right)
+        {
+            float d = WalkSpeed * Mathf.Sqrt(0.5f);
+            AddDiagonal(tree, "ForwardLeft", forward, left, -1.0f, new Vector2(-d, d));
+            AddDiagonal(tree, "ForwardRight", forward, right, 1.0f, new Vector2(d, d));
+            AddDiagonal(tree, "BackLeft", back, left, -1.0f, new Vector2(-d, -d));
+            AddDiagonal(tree, "BackRight", back, right, 1.0f, new Vector2(d, -d));
+        }
+
+        private static void AddDiagonal(BlendTree tree, string name, Motion straight, Motion side, float sideSign, Vector2 position)
+        {
+            if (straight == null || side == null)
+            {
+                return;
+            }
+            BlendTree mix = tree.CreateBlendTreeChild(position);
+            mix.name = name;
+            mix.blendType = BlendTreeType.Simple1D;
+            mix.blendParameter = "MoveX";
+            mix.useAutomaticThresholds = false;
+            // A 1-D blend's thresholds go up: the side-step first when it is to the left.
+            if (sideSign < 0.0f)
+            {
+                mix.AddChild(side, -WalkSpeed);
+                mix.AddChild(straight, 0.0f);
+            }
+            else
+            {
+                mix.AddChild(straight, 0.0f);
+                mix.AddChild(side, WalkSpeed);
             }
         }
 
