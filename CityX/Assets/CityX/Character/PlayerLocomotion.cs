@@ -405,8 +405,9 @@ namespace CityX.Character
         {
             float deltaTime = Mathf.Max(_lastTickDeltaTime, 0.0f);
             _supportBlend = Mathf.MoveTowards(_supportBlend, _supportAnchor != null ? 1.0f : 0.0f, SupportHandBlendPerSecond * deltaTime);
-            // The sword spin lets go of the handle: the sword arm goes out alone and the free arm balances it (ApplySwordSpinPose).
-            float weight = _supportBlend * (_supportOnlyWhenAiming ? EasedGunAimBlend : 1.0f) * (1.0f - _spinPoseBlend);
+            // The sword spin lets go of the handle: the sword arm goes out alone and the free arm balances it (ApplySwordSpinPose). So does a baked
+            // move, which places the free arm itself (ApplyBakedPose).
+            float weight = _supportBlend * (_supportOnlyWhenAiming ? EasedGunAimBlend : 1.0f) * (1.0f - _spinPoseBlend) * (1.0f - _bakedPoseWeight);
             if (weight <= 0.0f || _supportAnchor == null || _leftUpperArm == null || _leftLowerArm == null || _handL == null)
             {
                 return;
@@ -791,6 +792,81 @@ namespace CityX.Character
                 TwoBoneIK.Solve(_leftUpperArm, _leftLowerArm, _handL, _leftUpperArm.position + balance * leftLength * SpinArmReach,
                     -transform.up - transform.forward * 0.3f, weight);
             }
+        }
+
+        // ---- a baked pose: a move animated in Blender (BakedMotion) ----------------------------------------------------------------------------
+        // Played after the Animator like every pose here, and over all of them but the wrists: each bone set to the frame's own local rotation, the
+        // hips moved, the whole pose turned about a pivot if asked. The caller samples the motion and eases the weight in and out (OctaslashAbility).
+
+        private BakedPose _bakedPose;
+        private float _bakedPoseWeight;
+        private Transform[] _bakedBones;
+        private System.Collections.Generic.IReadOnlyList<string> _bakedBonesFor;
+
+        /// <summary>How much of the body a baked pose holds, 0 to 1.</summary>
+        public float BakedPoseWeight => _bakedPoseWeight;
+
+        /// <summary>
+        /// Puts <paramref name="pose"/> on the body from this frame's LateUpdate on, at <paramref name="weight"/> (1: the pose exactly; between:
+        /// blended with whatever the Animator and the poses before it made). Set again every frame it changes; a null pose or a weight of 0 lets go.
+        /// </summary>
+        public void SetBakedPose(BakedPose pose, float weight)
+        {
+            _bakedPoseWeight = pose != null ? Mathf.Clamp01(weight) : 0.0f;
+            _bakedPose = _bakedPoseWeight > 0.0f ? pose : null;
+        }
+
+        private void ApplyBakedPose()
+        {
+            if (_bakedPose == null || _bakedPoseWeight <= 0.0f || _animator == null)
+            {
+                return;
+            }
+            if (!ReferenceEquals(_bakedBonesFor, _bakedPose.Bones))
+            {
+                _bakedBonesFor = _bakedPose.Bones;
+                _bakedBones = new Transform[_bakedPose.Bones.Count];
+                for (int i = 0; i < _bakedBones.Length; i++)
+                {
+                    _bakedBones[i] = FindBone(_animator.transform, _bakedPose.Bones[i]);
+                }
+            }
+
+            float weight = _bakedPoseWeight;
+            for (int i = 0; i < _bakedBones.Length; i++)
+            {
+                Transform bone = _bakedBones[i];
+                if (bone == null)
+                {
+                    continue;
+                }
+                Quaternion rotation = _bakedPose.Rotations[i];
+                if (_bakedPose.Bones[i] == BakedMotion.RootBone)
+                {
+                    // The whole pose's turn goes on the root, about the pivot: the rest of the skeleton hangs from it.
+                    rotation = _bakedPose.Turn * rotation;
+                    Vector3 position = _bakedPose.Pivot + _bakedPose.Turn * (_bakedPose.Hips - _bakedPose.Pivot);
+                    bone.localPosition = Vector3.Lerp(bone.localPosition, position, weight);
+                }
+                bone.localRotation = weight >= 1.0f ? rotation : Quaternion.Slerp(bone.localRotation, rotation, weight);
+            }
+        }
+
+        private static Transform FindBone(Transform root, string name)
+        {
+            if (root.name == name)
+            {
+                return root;
+            }
+            for (int i = 0; i < root.childCount; i++)
+            {
+                Transform found = FindBone(root.GetChild(i), name);
+                if (found != null)
+                {
+                    return found;
+                }
+            }
+            return null;
         }
 
         /// <summary>The most the barrel correction may turn the arm, so a wild clip pose cannot fling it.</summary>
@@ -1335,6 +1411,7 @@ namespace CityX.Character
             ApplyGunAimPose();
             ApplySupportHand();
             ApplySwordSpinPose();
+            ApplyBakedPose();
             ApplyFistPose();
             ApplyClimbLimbs();
             ApplyClimbWallLimbs();
@@ -1497,6 +1574,13 @@ namespace CityX.Character
                 _soulsSword = GetComponent<SoulsSwordCombat>();
             }
             if (_soulsSword != null && _soulsSword.IsCommitted)
+            {
+                return;
+            }
+
+            // A baked move (ApplyBakedPose) swings the arms faster than any clip on purpose -- Octaslash's whirl is 90 degrees a frame -- and sets
+            // every bone itself afterwards anyway.
+            if (_bakedPoseWeight > 0.0f)
             {
                 return;
             }
@@ -2666,8 +2750,9 @@ namespace CityX.Character
             _leanLastPosition = position;
             _leanHasPosition = true;
 
+            // A baked move carries its own lean (an Octaslash dash along the ground is 52 m/s, which would tip the running lean right over).
             bool leaning = animatorLive && !IsSitting && !InCarSeat
-                && _animator.GetBool(GroundedParameter) && LocomotionClipsOwnTheSpine;
+                && _animator.GetBool(GroundedParameter) && LocomotionClipsOwnTheSpine && _bakedPoseWeight <= 0.0f;
             _lean.Step(velocity, leaning, deltaTime);
             Quaternion world = _lean.Rotation();
             Transform root = _animator.transform;

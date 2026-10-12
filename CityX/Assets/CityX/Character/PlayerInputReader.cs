@@ -1714,7 +1714,7 @@ namespace CityX.Character
             // while it plays the souls swing stands aside rather than stacking.
             bool spinning = _melee != null && _melee.IsSwinging;
 
-            // 6: OCTASLASH (Sephiroth's held up special), only here, with the sword in hand: a 3 s wind-up, then an eight-cut dash where the
+            // 6: OCTASLASH (Sephiroth's held up special), only here, with the sword in hand: a 2.5 s wind-up, then an eight-cut dash where the
             // camera looks. A left click during the wind-up sends it at once -- and is not also a swing.
             if (_octaslash == null)
             {

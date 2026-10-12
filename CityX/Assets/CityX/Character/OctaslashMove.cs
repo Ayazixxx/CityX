@@ -8,7 +8,7 @@ namespace CityX.Character
     /// ones, then a final one three times as strong (2.3% x7, then 7%). Smash's percentages do not carry over (owner: "the percentage thing is
     /// just how smash bros does its damage"); the SHAPE does: seven light cuts two frames apart and a heavy last one.
     ///
-    /// Asked for (2026-10-11): a hotbar skill with the sword in hand; pressing it starts a 3 s wind-up, then the dash goes where the player is
+    /// Asked for (2026-10-11): a hotbar skill with the sword in hand; pressing it starts a 3 s wind-up (2.5 s since 2026-10-12, owner: "shorten charge time ... to 2.5 seconds"), then the dash goes where the player is
     /// looking; a click goes early.
     /// </summary>
     public static class OctaslashMove
@@ -16,7 +16,7 @@ namespace CityX.Character
         public const float FrameSeconds = 1.0f / 60.0f;
 
         /// <summary>The wind-up: the dash goes by itself when it runs out, or earlier on a click.</summary>
-        public const float ChargeSeconds = 3.0f;
+        public const float ChargeSeconds = 2.5f;
 
         /// <summary>Frame the dash starts on, in Smash's own count: two frames before the first cut.</summary>
         public const int DashStartFrame = 34;
@@ -77,14 +77,40 @@ namespace CityX.Character
             return due;
         }
 
+        // ---- THE ANIMATION (made in Blender: CityX/SourceArt/Octaslash, played by BakedMotion) ----
+
+        /// <summary>The exported animation, in Resources.</summary>
+        public const string MotionResource = "Octaslash/OctaslashMotion";
+
+        /// <summary>Its segments: the coil (once), the hold (looped while the wind-up lasts), the dash, the follow-through.</summary>
+        public const string CoilSegment = "coil_in";
+
+        public const string HoldSegment = "hold";
+
+        public const string DashSegment = "dash";
+
+        public const string RecoverSegment = "recover";
+
+        /// <summary>How long the animation takes to take the body from the sword's own stance, and to give it back after the follow-through.</summary>
+        public const float PoseBlendInSeconds = 0.12f;
+
+        public const float PoseBlendOutSeconds = 0.2f;
+
         /// <summary>
-        /// Which way the body leans while it dashes: its top tipped toward the level part of the dash, so a dash across the ground is a long
-        /// lunge, and one straight up or straight down stays upright (feet first down, not head first).
+        /// The middle of the lunging body, in its own frame: where the animation's level dash has its hips. The body is turned about this point to
+        /// the real dash's pitch.
         /// </summary>
-        public static Vector3 LeanUp(Vector3 dashDirection)
-        {
-            Vector3 d = dashDirection.sqrMagnitude > 1e-6f ? dashDirection.normalized : Vector3.zero;
-            return (Vector3.up + new Vector3(d.x, 0.0f, d.z) * 1.2f).normalized;
-        }
+        public static readonly Vector3 FlightPivot = new Vector3(0.0f, 1.1f, 0.0f);
+
+        /// <summary>How fast the body turns to face where the wind-up is aimed, and to face the dash when it goes (a snap).</summary>
+        public const float WindUpTurnDegreesPerSecond = 540.0f;
+
+        public const float SnapTurnDegreesPerSecond = 7200.0f;
+
+        /// <summary>
+        /// How long into the follow-through the blade still trails light: the last cut carries on down through the animation's first three
+        /// frames of it (octaslash_pose.py FINAL_CUT_FOLLOW_FRAMES), and one more.
+        /// </summary>
+        public const float TrailAfterDashSeconds = 4.0f * FrameSeconds;
     }
 }

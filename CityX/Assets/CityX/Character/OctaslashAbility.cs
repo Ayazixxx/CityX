@@ -3,18 +3,24 @@ using UnityEngine;
 namespace CityX.Character
 {
     /// <summary>
-    /// OCTASLASH (key 6, sword in hand): Sephiroth's held up special. Press 6 and the body winds up for up to 3 s, low, the blade drawn back;
-    /// then it dashes about 14 m wherever the camera is looking (up, down, anywhere), the long blade cutting all round it eight times on the way:
-    /// seven light cuts and a heavy last one that throws what it hits on along the dash. A left click during the wind-up goes at once. The timing
-    /// is OctaslashMove's.
+    /// OCTASLASH (key 6, sword in hand): Sephiroth's held up special. Press 6 and the body coils for up to 2.5 s, low, the blade drawn back to the
+    /// hip and aimed ahead; then it dashes about 14 m wherever the camera is looking (up, down, anywhere), facing along it in a flying lunge (one
+    /// knee driven forward, the other leg stretched back) while the long blade whips from side to side in front: a cut every two frames, seven
+    /// light ones, then the blade swung up overhead and a heavy last one down the middle that throws what it hits on along the dash. Each cut
+    /// leaves a slash of light trailing from the real blade (BladeTrail). A left click during the wind-up goes at once. The timing is
+    /// OctaslashMove's.
+    ///
+    /// THE BODY IS ANIMATED IN BLENDER (CityX/SourceArt/Octaslash, from the two Smash GIFs, frame by frame) and played bone by bone after the
+    /// Animator (BakedMotion, PlayerLocomotion.SetBakedPose): the coil, a hold that loops while the wind-up lasts, the 16-frame dash, the
+    /// follow-through. The dash is authored level; it is turned about the body's middle to the real dash's pitch, and the body faces the dash.
     ///
     /// The dash moves the body through PlayerLocomotion.ForceVelocity (keys and gravity off), and stops against a wall, the remaining cuts
     /// landing where it stopped (as Sephiroth's do at an edge). The wind-up roots the body, and in the air it hangs there. Every cut goes through
     /// MeleeAttacker.LandSwordCut, so Strength and Bloodrage count, and other players are hit through their copies like any sword blow.
     ///
     /// MULTIPLAYER (IReplicatedAbility, id "octaslash"): the owner's copy fires as the wind-up starts, as the dash leaves (with its direction)
-    /// and as it ends. Another player's copy of the body shows the pose, the lean and the slashes on the same timeline; its movement arrives
-    /// with the body's own transform. A copy hurts nothing.
+    /// and as it ends. Another player's copy of the body plays the same animation and slashes on the same timeline; its movement and facing
+    /// arrive with the body's own transform. A copy hurts nothing.
     /// </summary>
     public sealed class OctaslashAbility : MonoBehaviour, IReplicatedAbility
     {
@@ -28,7 +34,7 @@ namespace CityX.Character
 
         public event System.Action<AbilityEvent> Fired;
 
-        [Tooltip("The streak material the slashes are drawn with (the sword spin's own).")]
+        [Tooltip("The streak material the slashes trailing from the blade are drawn with (the sword spin's own).")]
         public Material SlashMaterial;
 
         public enum Phase
@@ -58,14 +64,23 @@ namespace CityX.Character
 
         public bool IsDashing => Current == Phase.Dashing;
 
+        /// <summary>The animation frame being shown (null while idle, or on a body that cannot show one).</summary>
+        public BakedPose ShownPose => _poseWeight > 0.0f ? _pose : null;
+
+        /// <summary>The slashes of light behind the blade (null until the first dash).</summary>
+        public BladeTrail Trail => _trail;
+
         private bool _remote;
         private bool _stopped;
         private float _cooldown;
         private Vector3 _aim = Vector3.forward;
+        private BladeTrail _trail;
         private MeleeAttacker _melee;
         private PlayerLocomotion _locomotion;
         private PlayerVitals _vitals;
-        private Transform _visualRoot;
+        private BakedMotion _motion;
+        private BakedPose _pose;
+        private float _poseWeight;
 
         private void Awake()
         {
@@ -77,8 +92,8 @@ namespace CityX.Character
             _melee = GetComponent<MeleeAttacker>();
             _locomotion = GetComponent<PlayerLocomotion>();
             _vitals = GetComponent<PlayerVitals>();
-            Animator animator = GetComponentInChildren<Animator>();
-            _visualRoot = animator != null ? animator.transform : null;
+            _motion = BakedMotion.Load(OctaslashMove.MotionResource);
+            _pose = _motion != null ? new BakedPose(_motion.Bones) : null;
         }
 
         public bool CanStart => Current == Phase.Idle && _cooldown <= 0.0f && _melee != null && _melee.HoldsSword && !_melee.IsSwinging
@@ -133,11 +148,25 @@ namespace CityX.Character
             Enter(Phase.Dashing);
             CutsDone = 0;
             _stopped = false;
+            if (_trail == null)
+            {
+                _trail = GetComponent<BladeTrail>();   // not ??: a missing component is a Unity "fake null" in the editor
+                if (_trail == null)
+                {
+                    _trail = gameObject.AddComponent<BladeTrail>();
+                }
+            }
+            _trail.Begin(HeldBlade(), SlashMaterial);
             if (!_remote && _locomotion != null)
             {
                 _locomotion.MovementRooted = false;
                 _locomotion.GravityScale = 1.0f;
                 _locomotion.ForceVelocity(DashDirection * OctaslashMove.DashSpeed);
+                // Face the dash for the whole move (the animation is authored facing it); straight up or down keeps the facing it had.
+                if (FlatYaw(DashDirection, out float yaw))
+                {
+                    _locomotion.SetFacingOverride(yaw, OctaslashMove.SnapTurnDegreesPerSecond, OctaslashMove.DashSeconds + OctaslashMove.RecoverySeconds);
+                }
                 PassThroughBodiesAhead();
             }
             if (!_remote)
@@ -178,9 +207,12 @@ namespace CityX.Character
             switch (Current)
             {
                 case Phase.Charging:
-                    // Sephiroth's coil: the blade drawn back and low behind, the body leaning forward over it toward where it will go.
-                    Pose(1.0f, WindUpBladeBackDegrees, WindUpBladeDownDegrees);
-                    Lean(Mathf.Clamp01(PhaseTime / 0.25f) * WindUpLean, _remote ? transform.forward : _aim);
+                    // The coil, then held (looping) until the dash goes, the body turning to face where it will go.
+                    if (!_remote && _locomotion != null && FlatYaw(_aim, out float yaw))
+                    {
+                        _locomotion.SetFacingOverride(yaw, OctaslashMove.WindUpTurnDegreesPerSecond, 0.1f);
+                    }
+                    ShowWindUp();
                     if (!_remote && PhaseTime >= OctaslashMove.ChargeSeconds)
                     {
                         BeginDash(_aim);
@@ -192,9 +224,8 @@ namespace CityX.Character
                     break;
 
                 case Phase.Dashing:
-                    Pose(1.0f, 0.0f);
-                    Lean(1.0f, DashDirection);
                     StopAtWalls();
+                    Show(OctaslashMove.DashSegment, PhaseTime, false, 1.0f, DashTurn(PhaseTime));
                     int due = OctaslashMove.CutsDueBy(PhaseTime);
                     while (CutsDone < due)
                     {
@@ -214,15 +245,70 @@ namespace CityX.Character
                     break;
 
                 case Phase.Recovering:
-                    float back = Mathf.Clamp01(PhaseTime / OctaslashMove.RecoverySeconds);
-                    Pose(1.0f - back, 0.0f);
-                    Lean(1.0f - back, DashDirection);
+                    // The last cut carries on into the follow-through's first frames; after that the blade's path is no longer a slash.
+                    if (PhaseTime >= OctaslashMove.TrailAfterDashSeconds && _trail != null)
+                    {
+                        _trail.Stop();
+                    }
+                    // The follow-through, let go of over its last fifth of a second (it ends close to the sword's own stance).
+                    float letGo = Mathf.InverseLerp(OctaslashMove.RecoverySeconds - OctaslashMove.PoseBlendOutSeconds, OctaslashMove.RecoverySeconds, PhaseTime);
+                    Show(OctaslashMove.RecoverSegment, PhaseTime, false, 1.0f - Mathf.SmoothStep(0.0f, 1.0f, letGo), Quaternion.identity);
                     if (PhaseTime >= OctaslashMove.RecoverySeconds)
                     {
                         End();
                     }
                     break;
             }
+        }
+
+        private void ShowWindUp()
+        {
+            float weight = Mathf.SmoothStep(0.0f, 1.0f, PhaseTime / OctaslashMove.PoseBlendInSeconds);
+            float coil = _motion != null && _motion.HasSegment(OctaslashMove.CoilSegment) ? _motion.SegmentSeconds(OctaslashMove.CoilSegment) : 0.0f;
+            if (PhaseTime < coil)
+            {
+                Show(OctaslashMove.CoilSegment, PhaseTime, false, weight, Quaternion.identity);
+            }
+            else
+            {
+                Show(OctaslashMove.HoldSegment, PhaseTime - coil, true, weight, Quaternion.identity);
+            }
+        }
+
+        /// <summary>Puts a frame of the animation on the body (nothing on a body that cannot show it).</summary>
+        private void Show(string segment, float seconds, bool loop, float weight, Quaternion turn)
+        {
+            if (_motion == null || _pose == null || !_motion.HasSegment(segment))
+            {
+                return;
+            }
+            _motion.Sample(segment, seconds, loop, _pose);
+            _pose.Turn = turn;
+            _pose.Pivot = OctaslashMove.FlightPivot;
+            _poseWeight = weight;
+            if (_locomotion != null)
+            {
+                _locomotion.SetBakedPose(_pose, weight);
+            }
+        }
+
+        /// <summary>
+        /// The animation's dash is level; the real one goes wherever the camera looked. The body is turned about its middle to point along it,
+        /// fully until the last cut, which swings it back upright (the animation's own follow-through is upright).
+        /// </summary>
+        private Quaternion DashTurn(float seconds)
+        {
+            Vector3 local = Quaternion.Inverse(transform.rotation) * DashDirection;
+            Quaternion full = Quaternion.FromToRotation(Vector3.forward, local);
+            float upright = Mathf.InverseLerp(OctaslashMove.CutTime(OctaslashMove.CutCount - 2), OctaslashMove.DashSeconds, seconds);
+            return Quaternion.Slerp(full, Quaternion.identity, Mathf.SmoothStep(0.0f, 1.0f, upright));
+        }
+
+        private static bool FlatYaw(Vector3 direction, out float yaw)
+        {
+            var flat = new Vector3(direction.x, 0.0f, direction.z);
+            yaw = flat.sqrMagnitude > 1e-4f ? Mathf.Atan2(flat.x, flat.z) * Mathf.Rad2Deg : 0.0f;
+            return flat.sqrMagnitude > 1e-4f;
         }
 
         /// <summary>Against a wall the dash stops where it is; the cuts it has left still land there.</summary>
@@ -252,8 +338,19 @@ namespace CityX.Character
                     : Vector3.zero;
                 TargetsHit += _melee.LandSwordCut(OctaslashMove.CutScale(index), OctaslashMove.CutReachMetres, launch);
             }
-            float height = _locomotion != null ? _locomotion.StandingHeight : 2.6f;
-            OctaslashSlash.Spawn(SlashMaterial, transform.position + Vector3.up * (height * 0.55f), DashDirection, index, final);
+            // What the cut looks like is the blade's own swing in the animation, and the light it trails (BladeTrail).
+        }
+
+        /// <summary>The sword in the right hand: the equipped one on the player's own body, the mounted model on another player's copy.</summary>
+        private ISwordBlade HeldBlade()
+        {
+            if (_melee != null && _melee.SwordBlade is Object held && held != null)
+            {
+                return _melee.SwordBlade;
+            }
+            Animator animator = GetComponentInChildren<Animator>();
+            Transform hand = animator != null ? animator.GetBoneTransform(HumanBodyBones.RightHand) : null;
+            return hand != null ? hand.GetComponentInChildren<ISwordBlade>() : null;
         }
 
         private readonly System.Collections.Generic.List<Collider> _passedThrough = new System.Collections.Generic.List<Collider>();
@@ -305,8 +402,15 @@ namespace CityX.Character
                 _locomotion.MovementRooted = false;
                 _locomotion.GravityScale = 1.0f;
             }
-            Pose(0.0f, 0.0f);
-            Lean(0.0f, DashDirection);
+            _poseWeight = 0.0f;
+            if (_locomotion != null)
+            {
+                _locomotion.SetBakedPose(null, 0.0f);
+            }
+            if (_trail != null)
+            {
+                _trail.Stop();
+            }
             Current = Phase.Idle;
             PhaseTime = 0.0f;
             if (!_remote)
@@ -319,39 +423,7 @@ namespace CityX.Character
             }
         }
 
-        /// <summary>How far round behind the blade is drawn in the wind-up (0 = straight out to the right), and how far below level.</summary>
-        public const float WindUpBladeBackDegrees = 110.0f;
-
-        public const float WindUpBladeDownDegrees = -35.0f;
-
-        /// <summary>How much of a dash's lunge the body already leans in the wind-up, toward where it is aimed.</summary>
-        public const float WindUpLean = 0.4f;
-
-        /// <summary>The one-handed sword pose the spin uses (PlayerLocomotion.ApplySwordSpinPose): arm out, the blade laid along it.</summary>
-        private void Pose(float weight, float bladeBackDegrees, float bladePitchDegrees = 0.0f)
-        {
-            if (_locomotion != null)
-            {
-                _locomotion.SetSwordSpinPose(weight, bladeBackDegrees, bladePitchDegrees, _melee != null ? _melee.SwordBlade : null);
-            }
-        }
-
-        /// <summary>
-        /// The whole body tipped toward <paramref name="direction"/> (OctaslashMove.LeanUp) by <paramref name="amount"/>, on the visual root: the
-        /// same transform the jetpack tilts and the running lean adds to.
-        /// </summary>
-        private void Lean(float amount, Vector3 direction)
-        {
-            if (_visualRoot == null)
-            {
-                return;
-            }
-            Quaternion tip = Quaternion.FromToRotation(Vector3.up, OctaslashMove.LeanUp(direction));
-            Quaternion world = Quaternion.Slerp(Quaternion.identity, tip, amount);
-            _visualRoot.localRotation = Quaternion.Inverse(transform.rotation) * world * transform.rotation;
-        }
-
-        /// <summary>Another player's Octaslash, shown on this copy of their body: pose, lean and slashes on the same timeline, hurting nothing.</summary>
+        /// <summary>Another player's Octaslash, shown on this copy of their body: the animation and slashes on the same timeline, hurting nothing.</summary>
         public void PlayRemote(AbilityEvent evt)
         {
             _remote = true;

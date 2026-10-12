@@ -1,5 +1,6 @@
 using System.Collections;
 using CityX.Character;
+using CityX.Items;
 using CityX.Weapons;
 using NUnit.Framework;
 using UnityEngine;
@@ -245,6 +246,58 @@ namespace CityX.Tests
             Assert.IsTrue(melee.IsShowingRemoteSpin, "charging should hold the pose");
             melee.TickRemoteSpin(5.0f);
             Assert.IsFalse(melee.IsShowingRemoteSpin, "a charge whose end packet never arrived must time out, not stay up for ever");
+#else
+            yield break;
+#endif
+        }
+
+        [UnityTest]
+        public IEnumerator AnotherPlayersOctaslashPlaysItsAnimationOnTheirBodyThenLetsGo()
+        {
+#if UNITY_EDITOR
+            GameObject body = RemoteBody();
+            var octaslash = body.AddComponent<OctaslashAbility>();
+            octaslash.SlashMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/CityX/Character/SwordSpinTrail.mat");
+            var locomotion = body.GetComponent<PlayerLocomotion>();
+            Transform hips = body.GetComponentInChildren<Animator>().GetBoneTransform(HumanBodyBones.Hips);
+            // The other player's sword, as their copy carries it: the model mounted in the right hand and nothing else (ICosmeticMountable).
+            GameObject sword = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/Sword.prefab"));
+            _made.Add(sword);
+            sword.GetComponent<ICosmeticMountable>().MountCosmetic(body);
+            Victim victim = VictimAt(body.transform.position + body.transform.forward * 2.0f + Vector3.up);
+            yield return null;
+            float standingHips = hips.localPosition.y;
+
+            octaslash.PlayRemote(new AbilityEvent(OctaslashAbility.EventCharging, body.transform.position, body.transform.forward));
+            for (float t = 0.0f; t < 0.8f; t += Time.deltaTime)
+            {
+                yield return null;
+            }
+            Assert.Greater(locomotion.BakedPoseWeight, 0.99f, "the wind-up's animation is not on the copy");
+            Assert.Less(hips.localPosition.y, standingHips - 0.15f, "the copy is not crouched in the coil");
+
+            octaslash.PlayRemote(new AbilityEvent(OctaslashAbility.EventDashing, body.transform.position, body.transform.forward));
+            for (int i = 0; i < 6; i++)
+            {
+                yield return null;
+            }
+            Assert.IsTrue(octaslash.IsDashing);
+            Assert.That(Vector3.Dot(hips.up, body.transform.forward), Is.InRange(0.4f, 0.95f), "the copy is not lunging along its dash");
+            Assert.IsNotNull(octaslash.Trail, "the copy's cuts have no trail");
+            Assert.IsTrue(octaslash.Trail.IsShowing && octaslash.Trail.SampleCount > 8, "no light trails from the copy's blade");
+            Bounds lit = octaslash.Trail.RibbonBounds;
+            Assert.Less(Vector3.Distance(lit.center, body.transform.position + Vector3.up * 1.3f), 3.5f, "the copy's slash light is not round its blade");
+
+            for (int i = 0; i < 120 && octaslash.IsActive; i++)
+            {
+                yield return null;
+            }
+            yield return null;
+            Assert.IsFalse(octaslash.IsActive, "the copy's move never ended");
+            Assert.AreEqual(0.0f, locomotion.BakedPoseWeight, "the copy was left holding the animation");
+            Assert.Greater(Vector3.Dot(hips.up, Vector3.up), 0.9f, "the copy did not stand back up");
+            Assert.IsFalse(octaslash.Trail.IsShowing, "the slash light never faded");
+            Assert.AreEqual(0, victim.Hits, "a copy's slashes hurt someone");
 #else
             yield break;
 #endif

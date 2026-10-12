@@ -49,6 +49,14 @@ CityX/sysinfo.txt
 CityX/crashlytics-build.properties
 CityX/Assets/AssetStoreTools*
 
+# Blender working files. The scripts next to them rebuild each one exactly (docs/OCTASLASH.md), and what the game plays is the exported JSON.
+CityX/SourceArt/**/*.blend
+CityX/SourceArt/**/*.blend1
+
+# The player model exported for fitting clothes in Blender (PlayerModelExporter writes it on demand), and headless build logs.
+/PlayerModel.obj
+/Logs/
+
 # Scratch comparison exports from debugging the mustang's mismatched wheel
 # sizes. Unreferenced by any scene or script; the fix itself is baked into
 # mustang.glb.

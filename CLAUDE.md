@@ -12,6 +12,7 @@ Unity port of a Godot game: a procedurally generated multiplayer megacity with t
 - Repo root = the **original Godot project** (`project.godot`, `main.gd`, `player/`, `city/`...). **Read-only reference** for porting: read the `.gd`, reuse its assets. Never edit it.
 - `CityX/` = the Unity project. Code is in `CityX/Assets/CityX/<Area>/`, one assembly each: `Core`, `Items`, `World` (pure city/plan logic), `Character`, `Weapons`, `Wearables`, `Vehicles`, `View` (mesh building, chunk streaming), `UI`, `Net`. `Spike/` is a networking sandbox: ignore it.
 - Editor-only builders live in `*/Editor/`. Tests: `Assets/CityX/Tests/EditMode` and `PlayMode`.
+- `CityX/SourceArt/<Move>/` = moves animated in Blender (driven through the Blender MCP, `.mcp.json`). Its scripts rebuild the rig, bake the poses and export JSON to `Resources`, which `BakedMotion` plays bone by bone after the Animator. The `.blend` is not committed. Example: `docs/OCTASLASH.md`.
 - `docs/*.md` hold the design notes per feature (CLIMBING, FIST_COMBAT, MULTIPLAYER_STATE, ...). Read the relevant one before changing a feature; update it after.
 - `docs/GAME_DESIGN.md` is the whole-game plan (progression, world layers, death, karma, factions, roadmap, open decisions). Read it before starting any new system; build in its roadmap order.
 - `tools/unity_tests.ps1` runs tests headless.
@@ -45,5 +46,6 @@ Unity port of a Godot game: a procedurally generated multiplayer megacity with t
 - `InputTestFixture`: one key event per frame, and a Mouse device is required. Runtime instance IDs are not ordered.
 - `StreamAround` never re-details a chunk loaded far; captures must `Rebuild()`.
 - **The body must look like Godot's** (`docs/CHARACTER_LOOK.md`): shaped and bound arms-down (`BodyRig.ShapePositionOf`/`RestBindMatrix`); walk/run/idle clips are **baked from the Godot clips** (`GodotMotionBaker`); the humanoid avatar's twist distribution stays **0**; ragdoll rigidbodies must have **interpolation off while kinematic**. Each of these, undone, tears or distorts limbs in sprints (`LimbFlipPlayTests` guards it).
+- A GIF pasted into chat reaches you as ONE still frame. To study a reference move, split the GIF file on disk into every frame (System.Drawing from PowerShell, `Image.SelectActiveFrame`) and read the frames.
 - Shell quirks (Windows, Git Bash): heredocs containing apostrophes fail, and multi-line `sed -i 'a\'` collapses onto one line; use the Write/Edit tools for multi-line code.
 - Persistent memory notes live outside the repo (the Claude memory folder), not here.
