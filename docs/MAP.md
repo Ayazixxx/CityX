@@ -19,11 +19,12 @@ Asked for (2026-10-11): "research video game map systems and implement what you 
 
 | | |
 |---|---|
-| **Full map (M)** | North up; explored chunks only; roads never thinner than 3.5 px; buildings shaded by height with a soft drop shadow (lit from the top left); **landmark towers** (150 m and over) marked as orange diamonds whether explored or not; the waypoint's route and pin; the player's arrow; a legend and the controls |
+| **M cycles** | nothing on screen by default; M: the full map; M again: the corner minimap; M again: nothing (owner, 2026-10-11) |
+| **Full map** | North up; explored chunks only; roads never thinner than 3.5 px; buildings shaded by height with a soft drop shadow (lit from the top left); **landmark towers** (150 m and over) marked as orange diamonds whether explored or not; the waypoint's route and pin; the player's arrow; a legend and the controls |
 | **Waypoint** | **Right-click** the map to set it; right-click the pin to clear it; it clears itself within 8 m (`MapWaypoint`) |
 | **GPS route** | `World/Plan/RouteFinder`: A* over the city plan's road graph (cost = road length, guess = straight distance), from the road junction nearest the player to the one nearest the pin, with the two real points at the ends. Re-routed whenever the player is 10 m from where it was last worked out |
 | **Beam in the world** | `WaypointBeacon`: a 160 m beam of soft purple light standing on the ground at the pin, fading out between 60 m and 12 m away so it does not blind you on arrival |
-| **Minimap** | `MiniMapView`, top right, 170 px, 85 m radius; **turned so the way the camera looks is up**; the route; the pin, held at the edge pointing the way when it is further away; landmarks; an N on the rim where north is; "WAYPOINT 230 m" under it; hidden while the full map is open |
+| **Minimap** | `MiniMapView`, top right, 170 px, 85 m radius; **turned so the way the camera looks is up**; the route; the pin, held at the edge pointing the way when it is further away; landmarks; an N on the rim where north is; "WAYPOINT 230 m" under it; shown only in the minimap step of the M cycle |
 
 **How it is drawn:** both maps draw through one painter (`UI/MapPainter`). A `MapFrame` turns world (x, z) into panel pixels (centred, scaled, optionally turned) and back again (`ToWorld`, for clicks). Each map is one UI mesh, rebuilt each frame it shows.
 

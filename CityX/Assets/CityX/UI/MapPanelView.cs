@@ -48,9 +48,52 @@ namespace CityX.UI
 
         public bool IsOpen => Root != null && Root.activeSelf;
 
+        /// <summary>
+        /// M CYCLES THREE WAYS (owner, 2026-10-11: "regularly there is no map on screen but if you press M it opens the full map and if you press M
+        /// again it turns into a minimap and if you press M again it goes away"): nothing, then the full map, then the corner minimap, then
+        /// nothing again.
+        /// </summary>
+        public enum Mode
+        {
+            Hidden,
+            Full,
+            Mini,
+        }
+
+        public Mode Current { get; private set; } = Mode.Hidden;
+
+        public bool MiniMapShowing => MiniMap != null && MiniMap.activeSelf;
+
         private void Awake()
         {
             Close();
+            ShowMiniMap(false);
+            Current = Mode.Hidden;
+        }
+
+        /// <summary>One press of M: nothing -> full map -> minimap -> nothing.</summary>
+        public void Cycle()
+        {
+            switch (Current)
+            {
+                case Mode.Hidden:
+                    Open();
+                    break;
+                case Mode.Full:
+                    Close();
+                    ShowMiniMap(true);
+                    Current = Mode.Mini;
+                    break;
+                default:
+                    ShowMiniMap(false);
+                    Current = Mode.Hidden;
+                    break;
+            }
+        }
+
+        private void ShowMiniMap(bool show)
+        {
+            if (MiniMap != null) MiniMap.SetActive(show);
         }
 
         private void Update()
@@ -69,14 +112,7 @@ namespace CityX.UI
 
             if (keyboard.mKey.wasPressedThisFrame)
             {
-                if (IsOpen)
-                {
-                    Close();
-                }
-                else
-                {
-                    Open();
-                }
+                Cycle();
                 return;
             }
 
@@ -110,14 +146,19 @@ namespace CityX.UI
             Canvas?.ResetView();
 
             if (Root != null) Root.SetActive(true);
-            if (MiniMap != null) MiniMap.SetActive(false);
+            ShowMiniMap(false);
+            Current = Mode.Full;
             Canvas?.SetVerticesDirty();
         }
 
+        /// <summary>Closes the full map and gives the controls back. Leaves nothing on screen (M's cycle shows the minimap itself).</summary>
         public void Close()
         {
             if (Root != null) Root.SetActive(false);
-            if (MiniMap != null) MiniMap.SetActive(true);
+            if (Current == Mode.Full)
+            {
+                Current = Mode.Hidden;
+            }
 
             if (InputReader != null) InputReader.enabled = true;
             if (OrbitCamera != null) OrbitCamera.enabled = true;

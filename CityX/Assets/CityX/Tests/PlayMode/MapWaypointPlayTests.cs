@@ -59,10 +59,14 @@ namespace CityX.Tests
             Assert.IsNotNull(waypoint, "the map has no waypoint");
             Assert.IsNotNull(beacon, "the waypoint has no beacon");
             Assert.IsNotNull(mini, "there is no minimap");
-            Assert.IsTrue(view.MiniMap.activeInHierarchy, "the minimap is not showing with the map closed");
+            Assert.AreEqual(MapPanelView.Mode.Hidden, view.Current, "there is a map on screen before M is pressed");
+            Assert.IsFalse(view.MiniMap.activeInHierarchy, "the minimap shows before M is pressed");
+            Assert.IsFalse(view.IsOpen);
 
-            view.Open();
+            view.Cycle();   // M: the full map
             yield return null;
+            Assert.AreEqual(MapPanelView.Mode.Full, view.Current);
+            Assert.IsTrue(view.IsOpen, "the first M did not open the full map");
             Assert.IsFalse(view.MiniMap.activeInHierarchy, "the minimap shows over the full map");
 
             Transform player = view.Canvas.Player;
@@ -78,10 +82,18 @@ namespace CityX.Tests
             Assert.IsTrue(beacon.Showing, "no beam in the world over the waypoint");
             Assert.AreEqual(target.x, beacon.BeamBase.x, 0.5f);
 
-            view.Close();
+            view.Cycle();   // M again: the minimap
             yield return null;
-            Assert.IsTrue(view.MiniMap.activeInHierarchy, "the minimap did not come back when the map closed");
+            Assert.AreEqual(MapPanelView.Mode.Mini, view.Current);
+            Assert.IsFalse(view.IsOpen, "the second M did not close the full map");
+            Assert.IsTrue(view.MiniMap.activeInHierarchy, "the second M did not turn it into the minimap");
             Assert.IsTrue(mini.WaypointLabel.enabled && mini.WaypointLabel.text.Contains("m"), "the minimap does not say how far the waypoint is");
+
+            view.Cycle();   // M a third time: nothing
+            yield return null;
+            Assert.AreEqual(MapPanelView.Mode.Hidden, view.Current);
+            Assert.IsFalse(view.IsOpen);
+            Assert.IsFalse(view.MiniMap.activeInHierarchy, "the third M did not take the map away");
 
             view.Open();
             yield return null;
@@ -133,11 +145,14 @@ namespace CityX.Tests
             canvas.worldCamera = camera;
             canvas.planeDistance = 1.0f;
 
-            Shoot(camera, "map-mini");
-            view.Open();
+            Shoot(camera, "map-none");
+            view.Cycle();   // the full map
             for (int i = 0; i < 3; i++) yield return null;
             Shoot(camera, "map-full");
-            view.Close();
+            view.Cycle();   // the minimap
+            for (int i = 0; i < 3; i++) yield return null;
+            Shoot(camera, "map-mini");
+            view.Cycle();
         }
 
         private static void Shoot(Camera camera, string name)
