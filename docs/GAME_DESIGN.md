@@ -10,6 +10,21 @@ An online megacity where you level forever and get absurdly powerful, and where 
 
 **The goal of the game is to be the most OP.** Tone (eerie, meta, TempleOS / "Poorly Planned") is the undertone, not the point.
 
+## Lore (owner, 2026-10-12)
+
+The owner's words, lightly tidied:
+
+- **The world.** Terraplex 9 is an artificial exoplanet built in the year 30,000, nine times the size of Jupiter.
+- **The rapture.** The Demiurge, the false god who knows of no god greater than itself, has awoken and begun the great rapture. The endless megacities are left mostly abandoned. Spirits, monsters and leftover AI and machinery now fight for control of this abandoned space station / artificial planet.
+- **The players.** They are fallen angels who fell from the Demiurge's domain in the wake of the rapture, and have forgotten their memories. They must regain their strength and powers, and decide whether to join the Demiurge or fight for something greater.
+- **The Organization.** A mysterious group of artificial superintelligences implanted into human-like artificial bodies.
+
+How it lines up with what is already planned (not yet discussed with the owner):
+
+- karma's angel/demon trees could read as siding with the Demiurge or against it;
+- Heaven, at the top of the world, may be the Demiurge's domain the players fell from;
+- "regaining your powers" fits starting weak and levelling forever.
+
 ## Servers
 
 - **Official servers only.** No player-hosted or player-created worlds (decided 2026-10-08).
