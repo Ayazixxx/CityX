@@ -17,6 +17,8 @@ namespace CityX.Character
     {
         private Animator _animator;
         private Transform _head;
+        private Transform _neck;
+        private Vector3 _headRestLocal;
         private Transform _thighL;
         private Transform _thighR;
         private Vector3 _thighLRest;
@@ -31,6 +33,8 @@ namespace CityX.Character
                 return;
             }
             _head = _animator.GetBoneTransform(HumanBodyBones.Head);
+            _neck = _animator.GetBoneTransform(HumanBodyBones.Neck);
+            if (_head != null) _headRestLocal = _head.localPosition;
             _thighL = _animator.GetBoneTransform(HumanBodyBones.LeftUpperLeg);
             _thighR = _animator.GetBoneTransform(HumanBodyBones.RightUpperLeg);
             if (_thighL != null) _thighLRest = _thighL.localPosition;
@@ -62,6 +66,14 @@ namespace CityX.Character
                 // The head bone's own axes are the body's (a T-pose rig, identity at rest): -x lifts the face, +y turns it right, -z tilts it
                 // toward the right shoulder. The hair is parented to the head bone, so it turns with it.
                 _head.localRotation *= Quaternion.Euler(-settings.HeadPitchUp, settings.HeadTurnRight, -settings.HeadTiltRight);
+            }
+            if (_head != null && _neck != null)
+            {
+                // THE HEAD'S PLACE, by hand (owner, 2026-10-13: "the head comes forward too much", then "let me just adjust the head
+                // positioning manually"): back and up along the BODY's own axes, from where the animation's neck puts it. The head bone's
+                // position is never written by the Animator, so it is set fresh each frame from its rest place on the neck.
+                Vector3 offset = (-transform.forward * settings.HeadBack + transform.up * settings.HeadUp) * transform.lossyScale.y;
+                _head.position = _neck.TransformPoint(_headRestLocal) + offset;
             }
             // Back is -z in the hips' space (the body faces +z). Set from rest each frame: the Animator never writes these.
             Vector3 back = Vector3.back * settings.LegsBack;

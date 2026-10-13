@@ -651,7 +651,7 @@ namespace CityX.UI
             var settings = CityX.Character.BodyPostureSettings.Current;
             if (string.IsNullOrEmpty(what) || what == "show")
             {
-                Log($"posture: head {settings.HeadPitchUp:0.#} up, {settings.HeadTurnRight:0.#} turned right, {settings.HeadTiltRight:0.#} tilted right (degrees), legs {settings.LegsBack:0.###} m back -- /posture head|turn|tilt <degrees> | /posture legs <metres>");
+                Log($"posture: head {settings.HeadPitchUp:0.#} up, {settings.HeadTurnRight:0.#} turned right, {settings.HeadTiltRight:0.#} tilted right (degrees), legs {settings.LegsBack:0.###} m back, head moved {settings.HeadBack:0.###} m back and {settings.HeadUp:0.###} m up -- /posture head|turn|tilt <degrees> | /posture legs|headback|headup <metres>");
                 return;
             }
             if (value == null || !float.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float number))
@@ -670,6 +670,12 @@ namespace CityX.UI
                 case "tilt":
                     settings.HeadTiltRight = Mathf.Clamp(number, -30.0f, 30.0f);
                     break;
+                case "headback":
+                    settings.HeadBack = Mathf.Clamp(number, -0.3f, 0.3f);
+                    break;
+                case "headup":
+                    settings.HeadUp = Mathf.Clamp(number, -0.3f, 0.3f);
+                    break;
                 case "legs":
                     settings.LegsBack = Mathf.Clamp(number, -0.15f, 0.15f);
                     break;
@@ -677,7 +683,7 @@ namespace CityX.UI
                     Log(DevCommands.UsageFor("posture"));
                     return;
             }
-            Log($"posture: head {settings.HeadPitchUp:0.#} up, {settings.HeadTurnRight:0.#} turned right, {settings.HeadTiltRight:0.#} tilted right, legs {settings.LegsBack:0.###} m back");
+            Log($"posture: head {settings.HeadPitchUp:0.#} up, {settings.HeadTurnRight:0.#} turned right, {settings.HeadTiltRight:0.#} tilted right, legs {settings.LegsBack:0.###} m back, head moved {settings.HeadBack:0.###} m back and {settings.HeadUp:0.###} m up");
         }
 
         private static bool TryFindNearestHighway(CityWorld world, Vector3 from, out Vector3 destination)

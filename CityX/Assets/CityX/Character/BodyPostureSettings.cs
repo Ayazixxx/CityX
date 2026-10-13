@@ -18,7 +18,15 @@ namespace CityX.Character
 
         [Range(-30.0f, 30.0f)]
         [Tooltip("Degrees the head is tipped UP from where the animation puts it (negative tips it further down).")]
-        public float HeadPitchUp = 10.0f;
+        public float HeadPitchUp = 30.0f;
+
+        [Range(-0.3f, 0.3f)]
+        [Tooltip("Metres the head (and its hair) is moved BACK from where the animation puts it (negative: forward).")]
+        public float HeadBack = 0.0f;
+
+        [Range(-0.3f, 0.3f)]
+        [Tooltip("Metres the head (and its hair) is moved UP (negative: down, into the torso).")]
+        public float HeadUp = 0.0f;
 
         [Range(-45.0f, 45.0f)]
         [Tooltip("Degrees the head is turned to its RIGHT (negative: to its left).")]

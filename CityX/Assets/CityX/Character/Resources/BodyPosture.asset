@@ -12,5 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7f14190ba2f08b647be269bbc24d8310, type: 3}
   m_Name: BodyPosture
   m_EditorClassIdentifier: CityX.Character::CityX.Character.BodyPostureSettings
-  HeadPitchUp: 10
+  HeadPitchUp: 30
+  HeadTurnRight: 0
+  HeadTiltRight: 0
   LegsBack: 0.05

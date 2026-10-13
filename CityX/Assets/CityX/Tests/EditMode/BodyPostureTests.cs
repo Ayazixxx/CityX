@@ -35,16 +35,22 @@ namespace CityX.Tests
                 var settings = ScriptableObject.CreateInstance<BodyPostureSettings>();
                 settings.HeadPitchUp = 20.0f;
                 settings.LegsBack = 0.1f;
+                settings.HeadBack = 0.08f;
+                settings.HeadUp = 0.03f;
                 BodyPostureSettings.Current = settings;
                 Animator animator = player.GetComponentInChildren<Animator>();
                 BodyPosture posture = player.GetComponentInChildren<BodyPosture>();
                 Transform head = animator.GetBoneTransform(HumanBodyBones.Head);
                 Transform thigh = animator.GetBoneTransform(HumanBodyBones.LeftUpperLeg);
                 Vector3 faceBefore = head.forward;
+                Vector3 headBefore = head.position;
                 Vector3 thighBefore = thigh.position;
                 typeof(BodyPosture).GetMethod("Awake", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).Invoke(posture, null);
                 typeof(BodyPosture).GetMethod("LateUpdate", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).Invoke(posture, null);
                 Assert.Greater(head.forward.y, faceBefore.y + 0.2f, "the face did not lift");
+                Vector3 headMoved = head.position - headBefore;
+                Assert.AreEqual(-0.08f, Vector3.Dot(headMoved, player.transform.forward), 0.005f, "the head did not move back");
+                Assert.AreEqual(0.03f, Vector3.Dot(headMoved, player.transform.up), 0.005f, "the head did not move up");
                 Vector3 moved = thigh.position - thighBefore;
                 Assert.AreEqual(-0.1f, Vector3.Dot(moved, player.transform.forward), 0.005f, "the legs did not move back");
                 // Applied again it does not pile up on the legs.
