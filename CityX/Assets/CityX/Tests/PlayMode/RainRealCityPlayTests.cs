@@ -137,7 +137,8 @@ namespace CityX.Tests
             double bestDistance = double.MaxValue;
             foreach (CityX.World.Plan.EdgeGeometry g in cityWorld.Plan.Geometry.Edges)
             {
-                if (g == null || !g.Edge.Bridge) continue;
+                // An ordinary bridge: an expressway's bridge has its elevated deck over it too (2026-10-12), sheltering the land round it.
+                if (g == null || !g.Edge.Bridge || g.Elevated) continue;
                 double dx = (g.A.X + g.B.X) * 0.5 - spawnX, dz = (g.A.Y + g.B.Y) * 0.5 - spawnZ;
                 if (dx * dx + dz * dz < bestDistance)
                 {
@@ -146,8 +147,17 @@ namespace CityX.Tests
                 }
             }
             Assert.IsNotNull(bridge, "no bridge in the real city to stand under");
-            float deckX = (float)((bridge.A.X + bridge.B.X) * 0.5);
-            float deckZ = (float)((bridge.A.Y + bridge.B.Y) * 0.5);
+            // The point of the deck over the river channel, the nearest to its middle (a long bridge's middle can be over the bank, or a building
+            // beside it: seed 38461927's is a 204 m arterial).
+            double overWater = 0.5;
+            for (double step = 0.0; step <= 0.5; step += 0.01)
+            {
+                double ta = 0.5 + step, tb = 0.5 - step;
+                if (cityWorld.Plan.Fields.IsWater(bridge.A.X + (bridge.B.X - bridge.A.X) * ta, bridge.A.Y + (bridge.B.Y - bridge.A.Y) * ta)) { overWater = ta; break; }
+                if (cityWorld.Plan.Fields.IsWater(bridge.A.X + (bridge.B.X - bridge.A.X) * tb, bridge.A.Y + (bridge.B.Y - bridge.A.Y) * tb)) { overWater = tb; break; }
+            }
+            float deckX = (float)(bridge.A.X + (bridge.B.X - bridge.A.X) * overWater);
+            float deckZ = (float)(bridge.A.Y + (bridge.B.Y - bridge.A.Y) * overWater);
             var along = new Vector3((float)bridge.Dir.Perp.X, 0.0f, (float)bridge.Dir.Perp.Y);   // along the trench, across the deck's width
 
             float x = deckX + along.x * 22.0f, z = deckZ + along.z * 22.0f;
@@ -167,8 +177,40 @@ namespace CityX.Tests
             Assert.AreEqual(0.0f, CurrentWeather.RainOn(underDeck), 0.1f, "rain fell on the ground under the deck");
 
             int under = rain.CountLiveDropsIn(new Bounds(new Vector3(deckX, deckGround + 4.0f, deckZ), new Vector3(4.0f, 6.0f, 4.0f)));
+
+            // The open beside it: a 14 m square of open sky inside the rain box round the player, well clear of this deck. Found, not assumed:
+            // an elevated expressway (2026-10-12) can run along the same river and shelter the spot a fixed offset would land on.
+            var acrossTrench = new Vector3((float)bridge.Dir.X, 0.0f, (float)bridge.Dir.Y);
+            // The most open of the candidate squares (least shelter over its middle and corners): the cover map shades open ground a little
+            // near tall buildings, so nothing reads as exactly zero.
+            Vector3 openCentre = Vector3.zero;
+            float bestShelter = float.MaxValue;
+            float[] offsets = { 12.0f, 8.0f, 4.0f, 0.0f, -4.0f, -6.0f };
+            float[] sideways = { 0.0f, 6.0f, -6.0f, 12.0f, -12.0f };
+            foreach (float oa in offsets)
+            {
+                foreach (float oc in sideways)
+                {
+                    Vector3 c = new Vector3(x, 0.0f, z) + along * oa + acrossTrench * oc;
+                    if ((new Vector3(c.x - deckX, 0.0f, c.z - deckZ)).magnitude < 15.0f || (new Vector3(c.x - x, 0.0f, c.z - z)).magnitude > 13.0f) continue;
+                    float total = 0.0f;
+                    for (int k = 0; k < 5; k++)
+                    {
+                        Vector3 p = c + (k == 0 ? Vector3.zero : new Vector3((k & 1) == 0 ? 6.0f : -6.0f, 0.0f, k < 3 ? 6.0f : -6.0f));
+                        p.y = GroundAt(p.x, p.z) + 1.0f;
+                        total += CurrentWeather.Shelter(p);
+                    }
+                    if (total < bestShelter)
+                    {
+                        bestShelter = total;
+                        openCentre = c;
+                    }
+                }
+            }
+            TestContext.WriteLine($"the open square's shelter, summed over 5 points: {bestShelter:0.00}");
+            Assert.Less(bestShelter, 2.5f, "no open sky anywhere beside the bridge to compare with");
             int open = rain.CountLiveDropsIn(new Bounds(
-                new Vector3(deckX + along.x * 34.0f, ground + 8.0f, deckZ + along.z * 34.0f), new Vector3(14.0f, 16.0f, 14.0f)));
+                new Vector3(openCentre.x, GroundAt(openCentre.x, openCentre.z) + 8.0f, openCentre.z), new Vector3(14.0f, 16.0f, 14.0f)));
             TestContext.WriteLine($"drops under the bridge: {under}; in the open beside it: {open}");
             Assert.AreEqual(0, under, "rain fell under the bridge deck");
             Assert.Greater(open, 10, "rain should fall in the open beside the deck");

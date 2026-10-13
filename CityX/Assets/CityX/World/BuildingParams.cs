@@ -100,6 +100,9 @@ namespace CityX.World
 
         /// <summary>A shopping mall: a concourse of stores, anchors, a food court.</summary>
         public const string Mall = "mall";
+
+        /// <summary>A mall's anchor department store: a wing of the mall (Amenities.MallLayout), opening into its concourse.</summary>
+        public const string MallAnchor = "mall_anchor";
     }
 
     /// <summary>

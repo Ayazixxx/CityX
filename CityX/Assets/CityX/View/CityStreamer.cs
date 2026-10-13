@@ -27,7 +27,7 @@ namespace CityX.View
         // real scenes always set this from that same constant at build
         // time. EXPLICIT ASK: "generate a new world every time you make a
         // change to the city generation."
-        public int WorldSeed = 74920318;
+        public int WorldSeed = 38461927;
 
         [Tooltip("Put the player (and the Old Guy, who is placed relative to them) at the spawn point of the world this streamer makes, when it wakes. The scene bakes a spawn point at build time, but the world depends on the city scale in force when the game runs.")]
         public bool PlaceAtSpawn = false;
@@ -1043,9 +1043,9 @@ namespace CityX.View
             for (int i = 0; i < owned.Count; i++)
             {
                 BuildingSite site = _world.Building(owned[i]);
-                if (site.Shell)
+                if (site.Shell || site.Params.IsSpecial)
                 {
-                    continue;   // sealed: no door
+                    continue;   // sealed: no door; a garage, a car park, a mall's corridors and anchors have open entrances of their own
                 }
                 int buildingId = site.Id;
 

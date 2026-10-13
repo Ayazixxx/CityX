@@ -17,7 +17,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class RealCityWallGrabPlayTests
     {
-        private const int Seed = 74920318;
+        private const int Seed = 38461927;
         private readonly List<GameObject> _made = new List<GameObject>();
 
         [TearDown]
@@ -40,7 +40,7 @@ namespace CityX.Tests
             foreach (BuildingSite candidate in TestSites.NearSpawn(world))
             {
                 // A door at street level: a raised one has its entrance stairs along this wall (EntranceStairs), which is not plain wall.
-                if (candidate.Params.Width > 10.0f && candidate.Params.Height > 8.0f && !candidate.OnRoof
+                if (candidate.Params.Width > 10.0f && candidate.Params.Height > 8.0f && !candidate.OnRoof && !candidate.Params.IsSpecial   // a garage or mall has open entrances, not a doorway
                     && !BuildingDecor.EntranceStyleFor(candidate.BaseHeight - candidate.DoorGroundHeight).NeedsStairs)
                 {
                     site = candidate;

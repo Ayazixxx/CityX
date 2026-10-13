@@ -77,6 +77,10 @@ namespace CityX.View
                 {
                     BuildPlazaFurniture(ctx, block, blockIndex, structures);
                 }
+                if (block.Mall && !far)
+                {
+                    BuildMallGrounds(ctx, block, blockIndex, structures, laneDividers);   // white paint (the buffer named for the lane dividers draws white, "markings" yellow)
+                }
             }
 
             foreach (int edgeId in plan.EdgesIn(chunkX, chunkY))
@@ -119,10 +123,10 @@ namespace CityX.View
             foreach (int rampIndex in plan.RampsIn(chunkX, chunkY))
             {
                 RampGeometry ramp = plan.Geometry.Ramps[rampIndex];
-                BuildRamp(ctx, ramp, ground, pavement, structures, far ? null : guardRail, markings, far);
+                BuildRamp(ctx, ramp, ground, pavement, structures, far ? null : guardRail, laneDividers, far);   // white edge lines
                 if (!far)
                 {
-                    BuildInterchangeLand(ctx, ramp, rampIndex, pavement, structures, markings);
+                    BuildInterchangeLand(ctx, ramp, rampIndex, pavement, structures, laneDividers);   // white stalls
                 }
             }
 
@@ -498,6 +502,11 @@ namespace CityX.View
                 float h = LatticeHash(blockIndex, 9, 23);
                 return SurfaceLook.Pack(new Color(0.84f + 0.06f * h, 0.80f + 0.05f * h, 0.74f), SurfaceLook.Setts, 0.35f);
             }
+            if (block.Mall)
+            {
+                // A mall's block is its car park, asphalt kerb to wall (BuildMallGrounds paints it).
+                return SurfaceLook.Pack(new Color(0.60f, 0.60f, 0.61f), SurfaceLook.Asphalt, 0.75f);
+            }
             return PavingLook(RoadClass.Street, blockIndex);
         }
 
@@ -871,7 +880,7 @@ namespace CityX.View
 
             if (!far)
             {
-                PaintLanes(ctx, g, laneDividers, markings, height, t0 + 1.0, t1 - 1.0, RoadClass.Highway, true);
+                PaintLanes(ctx, g, markings, laneDividers, height, t0 + 1.0, t1 - 1.0, RoadClass.Highway, true);   // yellow ("markings"), white ("laneDividers")
             }
         }
 
@@ -931,7 +940,7 @@ namespace CityX.View
         /// An interchange ramp: its two stretches, each a sloped slab -- a viaduct on small piers where it is up in the air, an embankment with
         /// its sides down to the ground where it is low -- with a parapet along both edges and white edge lines.
         /// </summary>
-        private static void BuildRamp(Context ctx, RampGeometry r, MeshBuffer ground, MeshBuffer pavement, MeshBuffer structures, MeshBuffer guardRail, MeshBuffer markings, bool far)
+        private static void BuildRamp(Context ctx, RampGeometry r, MeshBuffer ground, MeshBuffer pavement, MeshBuffer structures, MeshBuffer guardRail, MeshBuffer white, bool far)
         {
             double rh = r.HalfWidth;
             Color32 concrete = DeckConcrete;
@@ -986,10 +995,10 @@ namespace CityX.View
                         structures.AddBox(new Vector3(-0.5f, ctx.Ground(centre.X, centre.Y) - 0.5f, -0.5f), new Vector3(0.5f, top - RampSlab + 0.02f, 0.5f));
                         structures.ClearFrame();
                     }
-                    if (markings != null)
+                    if (white != null)
                     {
-                        StripeAlong(ctx, markings, ca + pa * (rh - 0.45), cb + pb * (rh - 0.45), (pa + pb) * 0.5, 0.08, height);
-                        StripeAlong(ctx, markings, ca - pa * (rh - 0.45), cb - pb * (rh - 0.45), (pa + pb) * 0.5, 0.08, height);
+                        StripeAlong(ctx, white, ca + pa * (rh - 0.45), cb + pb * (rh - 0.45), (pa + pb) * 0.5, 0.08, height);
+                        StripeAlong(ctx, white, ca - pa * (rh - 0.45), cb - pb * (rh - 0.45), (pa + pb) * 0.5, 0.08, height);
                     }
                 }
             }
@@ -999,7 +1008,7 @@ namespace CityX.View
         /// The land an interchange cuts off between a ramp, the expressway and the cross street, as every city uses it: a car park. Painted stalls
         /// in rows along the expressway, and the exit's gantry sign up on the deck where the ramp leaves it.
         /// </summary>
-        private static void BuildInterchangeLand(Context ctx, RampGeometry r, int rampIndex, MeshBuffer pavement, MeshBuffer structures, MeshBuffer markings)
+        private static void BuildInterchangeLand(Context ctx, RampGeometry r, int rampIndex, MeshBuffer pavement, MeshBuffer structures, MeshBuffer white)
         {
             Vec2[] sliver = r.Plan.Sliver;
             var poly = new List<Vec2>(sliver);
@@ -1043,9 +1052,9 @@ namespace CityX.View
                         {
                             Vec2 p0 = o + u * su + v * rv, p1 = o + u * su + v * (rv + depth);
                             if (!PlanMath.PointInPolygon(p0, lot) || !PlanMath.PointInPolygon(p1, lot)) continue;
-                            if (markings != null)
+                            if (white != null)
                             {
-                                StripeAlong(ctx, markings, p0, p1, u, 0.06, height);
+                                StripeAlong(ctx, white, p0, p1, u, 0.06, height);
                             }
                         }
                     }
@@ -1086,6 +1095,109 @@ namespace CityX.View
                     CityProps.AddBarrier(structures, at.x, at.z, ctx.LocalY(height(pos.X, pos.Y)), (float)perp.X, (float)perp.Y);
                 }
             }
+        }
+
+        // ---------------------------------------------------------------- mall car parks
+
+        /// <summary>Stalls are kept this far from the mall's buildings (a drive and a walk round them) and from the block's kerb (a drive along it).</summary>
+        public const double MallLotBuildingClearance = 9.0;
+        public const double MallLotKerbClearance = 4.0;
+
+        /// <summary>Every this-many stalls along a row, a planted island instead; every other island has a lamp post.</summary>
+        public const int MallLotIslandEvery = 12;
+
+        /// <summary>
+        /// A mall's car park, fitted to the land round the complex (owner, 2026-10-12, with a photo of one: "a large mall should have a large parking
+        /// lot", "generate a parking lot fitted to the available space around the mall"). The way real ones are laid out: DOUBLE ROWS of stalls,
+        /// nose to nose, with an aisle between each pair, the aisles running toward the mall's doors so people walk along them rather than across the
+        /// rows; a PLANTED ISLAND at intervals along each double row, LAMP POSTS on the islands; a drive kept round the buildings and along the kerb.
+        /// The grid is lined up with the mall's spine and anchored to the block, so every chunk paints its part of the same rows. Stalls are painted
+        /// only where both ends lie on the block clear of every building, so the rows stop where the space does.
+        /// </summary>
+        private static void BuildMallGrounds(Context ctx, PlanBlock block, int blockIndex, MeshBuffer structures, MeshBuffer white)
+        {
+            List<Vec2> ring = block.Inner;
+            if (ring == null || ring.Count < 3) return;
+            Bounds(ring, out double bx0, out double bz0, out double bx1, out double bz1);
+            if (!ctx.Rect.Overlaps(bx0, bz0, bx1, bz1)) return;
+            BuildingSite[] sites = ctx.Plan.MallSites(blockIndex);
+            if (sites.Length == 0) return;
+
+            // The grid: along the spine (the first corridor that is not a wing), its +x along the frontage and +v out of its front.
+            BuildingSite spine = sites[0];
+            foreach (BuildingSite site in sites)
+            {
+                if (site.IsMall && !site.Wing)
+                {
+                    spine = site;
+                    break;
+                }
+            }
+            var u = new Vec2(spine.AxisX, spine.AxisZ);
+            var v = new Vec2(-spine.AxisZ, spine.AxisX);
+            var o = new Vec2(spine.CentreX, spine.CentreZ);
+            double stall = CityMeshBuilder.StallWidth, depth = CityMeshBuilder.StallDepth, aisle = CityMeshBuilder.AisleWidth;
+            double module = 2.0 * depth + aisle;   // a double row and its aisle, across the u direction
+
+            // The chunk's square in grid coordinates, a module wide all round.
+            double umin = double.MaxValue, umax = double.MinValue, vmin = double.MaxValue, vmax = double.MinValue;
+            foreach (Vec2 corner in new[] { new Vec2(ctx.Rect.X0, ctx.Rect.Z0), new Vec2(ctx.Rect.X1, ctx.Rect.Z0), new Vec2(ctx.Rect.X1, ctx.Rect.Z1), new Vec2(ctx.Rect.X0, ctx.Rect.Z1) })
+            {
+                double cu = Vec2.Dot(corner - o, u), cv = Vec2.Dot(corner - o, v);
+                umin = Math.Min(umin, cu);
+                umax = Math.Max(umax, cu);
+                vmin = Math.Min(vmin, cv);
+                vmax = Math.Max(vmax, cv);
+            }
+            Func<double, double, double> height = (x, z) => ctx.Plan.GroundHeight(x, z) + RoadLift + KerbHeight;
+            Vec2 At(double gu, double gv) => o + u * gu + v * gv;
+
+            bool Clear(Vec2 p)
+            {
+                if (!PlanMath.PointInPolygon(p, ring)) return false;
+                for (int i = 0; i < ring.Count; i++)
+                {
+                    if (PlanMath.DistanceToSegment(p, ring[i], ring[(i + 1) % ring.Count], out _) < MallLotKerbClearance) return false;
+                }
+                foreach (BuildingSite site in sites)
+                {
+                    site.WorldToLocal(p.X, p.Y, out double lx, out double lz);
+                    if (Math.Abs(lx) < site.Params.Width * 0.5 + MallLotBuildingClearance && Math.Abs(lz) < site.Params.Depth * 0.5 + MallLotBuildingClearance) return false;
+                }
+                return true;
+            }
+
+            int m0 = (int)Math.Floor((umin - module) / module), m1 = (int)Math.Ceiling((umax + module) / module);
+            int s0 = (int)Math.Floor((vmin - stall) / stall), s1 = (int)Math.Ceiling((vmax + stall) / stall);
+            for (int m = m0; m <= m1; m++)
+            {
+                double ua = m * module;            // the double row: stalls from ua to ua + 2*depth, nose to nose at ua + depth; the aisle beyond
+                double ub = ua + 2.0 * depth;
+                for (int j = s0; j <= s1; j++)
+                {
+                    double va = j * stall;
+                    bool island = ((j % MallLotIslandEvery) + MallLotIslandEvery) % MallLotIslandEvery == 0;
+                    if (island)
+                    {
+                        // A planted island across the double row, a lamp post on every other one.
+                        Vec2 c = At((ua + ub) * 0.5, va + stall * 0.5);
+                        if (!ctx.Contains(c) || !Clear(At(ua + 0.5, va + stall * 0.5)) || !Clear(At(ub - 0.5, va + stall * 0.5))) continue;
+                        Vector3 at = ctx.Local(c.X, 0.0, c.Y);
+                        float y = ctx.LocalY(height(c.X, c.Y));
+                        CityProps.AddPlanter(structures, at.x, at.z, y, (float)(depth - 0.4), (float)(stall * 0.5 - 0.3), 0.25f, (float)u.X, (float)u.Y);
+                        if ((((j / MallLotIslandEvery) + m) & 1) == 0)
+                        {
+                            CityProps.AddLampPost(structures, at.x, at.z, y, 9.0f, (float)u.X, (float)u.Y);
+                        }
+                        continue;
+                    }
+                    // The line between this stall and the next, right across the double row (a stall either side of the nose line).
+                    Vec2 pa = At(ua, va), pb = At(ub, va);
+                    if (white == null || !Clear(pa) || !Clear(pb)) continue;
+                    StripeAlong(ctx, white, pa, pb, v, 0.06, height);
+                }
+            }
+            structures.Look = SurfaceLook.Default;
         }
 
         // ---------------------------------------------------------------- plazas

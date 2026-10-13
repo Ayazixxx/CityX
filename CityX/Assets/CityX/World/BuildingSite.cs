@@ -171,6 +171,9 @@ namespace CityX.World
         /// <summary>A shopping mall (SpecialTypes.Mall).</summary>
         public bool IsMall => Params.SpecialType == SpecialTypes.Mall;
 
+        /// <summary>A mall's anchor department store (SpecialTypes.MallAnchor), a wing of the mall.</summary>
+        public bool IsMallAnchor => Params.SpecialType == SpecialTypes.MallAnchor;
+
         /// <summary>Height of the roof above sea level.</summary>
         public float Top => BaseHeight + Params.Height;
 

@@ -28,6 +28,8 @@ namespace CityX.World.Plan
         private readonly Dictionary<long, List<int>> _edgesByChunk = new Dictionary<long, List<int>>();
         private readonly Dictionary<long, List<int>> _junctionsByChunk = new Dictionary<long, List<int>>();
         private readonly Dictionary<long, List<int>> _rampsByChunk = new Dictionary<long, List<int>>();
+        private readonly Dictionary<int, BuildingSite[]> _mallSites = new Dictionary<int, BuildingSite[]>();
+        private static readonly BuildingSite[] NoSites = new BuildingSite[0];
         private readonly Dictionary<long, List<int>> _blocksByCoarse = new Dictionary<long, List<int>>();
         private double[][] _blockBoxes;
         private static readonly List<int> NoneList = new List<int>(0);
@@ -104,6 +106,10 @@ namespace CityX.World.Plan
         /// <summary>Interchange ramps (indexes into Geometry.Ramps) whose strips or sliver of land touch this chunk.</summary>
         public List<int> RampsIn(int cx, int cy) =>
             _rampsByChunk.TryGetValue(Key(cx, cy), out List<int> l) ? l : NoneList;
+
+        /// <summary>The buildings of the mall complex on a mall block (its corridors, stores, garage and pads); empty for any other block.</summary>
+        public BuildingSite[] MallSites(int blockIndex) =>
+            _mallSites.TryGetValue(blockIndex, out BuildingSite[] sites) ? sites : NoSites;
 
         /// <summary>Blocks whose pavement ring touches this chunk.</summary>
         public List<int> BlocksIn(int cx, int cy)
@@ -274,6 +280,20 @@ namespace CityX.World.Plan
                 {
                     LandmarkChunks.Add((b.OwnerChunkX, b.OwnerChunkY));
                 }
+            }
+
+            // Every building of a mall complex (its corridors and stores, a garage, the pads), by the block it stands on: its car park is laid
+            // round them (CitySurfaceBuilder.BuildMallGrounds).
+            foreach (int blockIndex in Data.MallBlocks)
+            {
+                PlanBlock block = Data.Blocks[blockIndex];
+                if (block.Outer == null) continue;
+                var sites = new List<BuildingSite>();
+                foreach (BuildingSite b in Buildings)
+                {
+                    if (!b.OnRoof && PlanMath.PointInPolygon(new Vec2(b.CentreX, b.CentreZ), block.Outer)) sites.Add(b);
+                }
+                _mallSites[blockIndex] = sites.ToArray();
             }
 
             foreach (EdgeGeometry g in Geometry.Edges)
@@ -528,12 +548,10 @@ namespace CityX.World.Plan
                     switch (use)
                     {
                         case LotUse.Mall:
+                            // The whole block's rectangle: the mall complex stands at its back (Amenities.MallLayout), the rest is its car park.
                             special = SpecialTypes.Mall;
                             height = (levelsHash % 5U < 2U ? 2 : 3) * Amenities.MallLevelHeight;
                             mass = BuildingMass.Warehouse;
-                            // The building is only so big; a bigger block is its car park (the lot's land round the rectangle, which the mall's builder paves).
-                            width = Math.Min(width, Amenities.MallMaxWidth * Math.Sqrt(s));
-                            depth = Math.Min(depth, Amenities.MallMaxDepth * Math.Sqrt(s));
                             break;
                         case LotUse.ParkingGarage:
                             special = SpecialTypes.ParkingGarage;
@@ -579,7 +597,41 @@ namespace CityX.World.Plan
                 List<MassVolume> volumes;
                 bool hasPodium;
                 BuildingForm form;
-                if (use != LotUse.Building)
+                // A mall is a complex of boxes, each its own kind (the concourse, its anchors, a garage, the pads by the road), each with the floor
+                // the ground under it calls for -- not the highest ground of the whole block, which is mostly car park.
+                Amenities.MallPart[] mallParts = null;
+                double[] mallBase = null, mallLow = null;
+                if (use == LotUse.Mall)
+                {
+                    List<Amenities.MallPiece> pieces = Amenities.MallLayout.Compose(width, depth, s, height, PlanNoise.Mix(h, 0x6D6C6179U),   // "mlay"
+                        data.Blocks[lot.BlockIndex].MallParking);
+                    volumes = new List<MassVolume>(pieces.Count);
+                    mallParts = new Amenities.MallPart[pieces.Count];
+                    mallBase = new double[pieces.Count];
+                    mallLow = new double[pieces.Count];
+                    double groupHigh = double.MinValue;
+                    var pieceHigh = new double[pieces.Count];
+                    for (int p = 0; p < pieces.Count; p++)
+                    {
+                        volumes.Add(pieces[p].Volume);
+                        mallParts[p] = pieces[p].Part;
+                        GroundUnder(fields, centre, axisX, axisZ, pieces[p].Volume, out pieceHigh[p], out mallLow[p]);
+                        if (pieces[p].Part == Amenities.MallPart.Concourse || pieces[p].Part == Amenities.MallPart.Anchor)
+                        {
+                            groupHigh = Math.Max(groupHigh, pieceHigh[p]);
+                        }
+                    }
+                    for (int p = 0; p < pieces.Count; p++)
+                    {
+                        // The concourse and its anchors share one floor, so the anchors open level into it; a garage and a pad stand on their own.
+                        bool group = mallParts[p] == Amenities.MallPart.Concourse || mallParts[p] == Amenities.MallPart.Anchor;
+                        double high = group ? groupHigh : pieceHigh[p];
+                        mallBase[p] = Math.Ceiling((high + PavingRise + FloorClearance) * 10.0 - 1e-6) / 10.0;
+                    }
+                    hasPodium = false;
+                    form = BuildingForm.Box;
+                }
+                else if (use != LotUse.Building)
                 {
                     // A set piece is one plain box its own builder fills in.
                     volumes = new List<MassVolume> { new MassVolume(-width * 0.5, width * 0.5, -depth * 0.5, depth * 0.5, height) };
@@ -640,8 +692,31 @@ namespace CityX.World.Plan
                         volumeSeed = unchecked((int)PlanNoise.Mix(h, (uint)(0x776F6E00 + v)));   // "won."
                     }
 
+                    string volumeSpecial = special;
+                    if (mallParts != null)
+                    {
+                        switch (mallParts[v])
+                        {
+                            case Amenities.MallPart.Anchor:
+                                volumeSpecial = SpecialTypes.MallAnchor;
+                                break;
+                            case Amenities.MallPart.Garage:
+                                volumeSpecial = SpecialTypes.ParkingGarage;
+                                volumeMass = BuildingMass.MidRise;
+                                volumeSeed = unchecked((int)PlanNoise.Mix(h, 0x67617261U));   // "gara"
+                                break;
+                            case Amenities.MallPart.Pad:
+                                // A pad is an ordinary little building (a restaurant, a bank): its own look, a shop front, a parapet roof.
+                                volumeSpecial = "";
+                                volumeMass = BuildingMass.LowRise;
+                                volumeRoof = "parapet";
+                                volumeSeed = unchecked((int)PlanNoise.Mix(h, (uint)(0x70616400 + v)));   // "pad."
+                                break;
+                        }
+                    }
+
                     var volumeParameters = new BuildingParams(true, (float)vol.Width, (float)vol.Height, (float)vol.Depth,
-                        0.0f, 0.0f, volumeRoof, 0, special, v == 0 && basement, volumeMass);
+                        0.0f, 0.0f, volumeRoof, 0, volumeSpecial, v == 0 && basement, volumeMass);
 
                     double cx = centre.X + vol.CentreX * axisX - vol.CentreZ * axisZ;
                     double cz = centre.Y + vol.CentreX * axisZ + vol.CentreZ * axisX;
@@ -671,7 +746,7 @@ namespace CityX.World.Plan
 
                     // Every block at street level shares one floor, so the wings of a building meet the bar at the same level; the next volume up
                     // stands a hair above the roof under it so its floor and that roof's top face never fight for one plane.
-                    double vBase = ground ? baseHeight : bases[vol.Support] + volumes[vol.Support].Height + 0.05;
+                    double vBase = ground ? (mallBase != null ? mallBase[v] : baseHeight) : bases[vol.Support] + volumes[vol.Support].Height + 0.05;
                     bases[v] = vBase;
                     double podiumBase = vBase, doorGround = vBase;
                     if (ground)
@@ -686,7 +761,7 @@ namespace CityX.World.Plan
                                 podiumBase = Math.Min(podiumBase, gy);
                             }
                         }
-                        podiumBase = Math.Min(podiumBase, lo);
+                        podiumBase = Math.Min(podiumBase, mallLow != null ? mallLow[v] : lo);
                         // The paving two metres out from the front wall: a polygon's front side stands at its apothem, not its half-depth.
                         double out_ = (vol.Sides >= 3 ? vol.Width * 0.5 * BuildingSite.CosPiOver(vol.Sides) : vol.Depth * 0.5) + 2.0;
                         doorGround = fields.Height(cx - out_ * vAxisZ, cz + out_ * vAxisX) + PavingRise;
@@ -826,6 +901,28 @@ namespace CityX.World.Plan
         }
 
         /// <summary>Whether every block of a building, turned ones by their corners, stays inside its lot rectangle (a few centimetres of rounding allowed).</summary>
+        /// <summary>The highest and lowest ground under one volume of a lot (on a grid at most GroundSampleMetres apart, corners included).</summary>
+        private static void GroundUnder(PlanFields fields, Vec2 centre, double axisX, double axisZ, MassVolume vol, out double high, out double low)
+        {
+            high = double.MinValue;
+            low = double.MaxValue;
+            // The volume's extent in the lot frame (a quarter-turned one lies across it).
+            Box(vol, out double bx0, out double bx1, out double bz0, out double bz1);
+            double sizeX = bx1 - bx0, sizeZ = bz1 - bz0;
+            int stepsX = Math.Max(2, (int)Math.Ceiling(sizeX / GroundSampleMetres)), stepsZ = Math.Max(2, (int)Math.Ceiling(sizeZ / GroundSampleMetres));
+            for (int iz = 0; iz <= stepsZ; iz++)
+            {
+                for (int ix = 0; ix <= stepsX; ix++)
+                {
+                    double lx = vol.CentreX + (ix / (double)stepsX - 0.5) * sizeX;
+                    double lz = vol.CentreZ + (iz / (double)stepsZ - 0.5) * sizeZ;
+                    double gy = fields.Height(centre.X + lx * axisX - lz * axisZ, centre.Y + lx * axisZ + lz * axisX);
+                    if (gy > high) high = gy;
+                    if (gy < low) low = gy;
+                }
+            }
+        }
+
         public static bool InsideLot(List<MassVolume> volumes, double width, double depth)
         {
             const double slack = 0.02;

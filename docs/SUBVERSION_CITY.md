@@ -71,7 +71,7 @@ The old grid world lives in `World/LegacyGrid~/` (CityBlocks, CityChunkGenerator
 ## Not done / next
 - Skybridges and the books of the old city are not in the new one (they were lattice features). Elevated highways with exits and a ring road
   came 2026-10-12 (`docs/HIGHWAYS.md`); pedestrian plazas with benches, parking and malls the same day (`docs/CITY_LIFE.md`). Seed rerolled
-  to 74920318 with them.
+  to 74920318 with them, and to 38461927 for the mall complexes.
 - Crosswalks, more street furniture, a smarter yard/courtyard fill, rounded kerb corners, a second row of buildings in deep lots.
 - Endless world: the land fields are seamless noise already; only the roads need region borders (portals at hashed positions). Today the city is one
   5 km region.

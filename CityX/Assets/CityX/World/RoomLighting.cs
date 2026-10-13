@@ -549,7 +549,8 @@ namespace CityX.World
         /// <summary>Whether a building has a lamp over its door: it has power, a door, and it is a building of its own (not a volume on a roof).</summary>
         public static bool Has(BuildingSite site)
         {
-            return site.Exists && !site.Shell && !site.OnRoof && PowerGrid.IsOn(site);
+            // A garage, a car park, a mall's corridors and anchors have open entrances, no hinged door to light (CityStreamer.AddDoors).
+            return site.Exists && !site.Shell && !site.OnRoof && !site.Params.IsSpecial && PowerGrid.IsOn(site);
         }
 
         /// <summary>Where the lamp is, which way it shines, and how bright and far it reaches, in the world.</summary>

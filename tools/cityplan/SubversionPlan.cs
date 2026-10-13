@@ -277,7 +277,12 @@ public static class SubversionPlan
             groundSites++;
             if (b.IsParkingGarage) garages++;
             else if (b.IsOpenGround) lots++;
-            else if (b.IsMall) { malls++; mallCentres.Add(new Vec2(b.CentreX, b.CentreZ)); }
+        }
+        // A mall is a complex of corridors and stores on one block: count the blocks.
+        foreach (int bi in plan.MallBlocks)
+        {
+            malls++;
+            mallCentres.Add(PlanMath.Centroid(plan.Blocks[bi].Outer));
         }
         double nearestMalls = double.MaxValue;
         for (int i = 0; i < mallCentres.Count; i++)
@@ -285,6 +290,48 @@ public static class SubversionPlan
                 nearestMalls = Math.Min(nearestMalls, (mallCentres[i] - mallCentres[j]).Length);
         Console.WriteLine($"  parking: {garages} garages, {lots} open lots = {100.0 * (garages + lots) / Math.Max(1, groundSites):F1}% of {groundSites} street-level sites");
         Console.WriteLine($"  malls: {malls}" + (mallCentres.Count > 1 ? $", nearest two {nearestMalls / 1000.0:F1} km apart" : ""));
+        // Each mall complex: its pieces (corridors, anchors, pads, a garage) inside its block.
+        foreach (int bi in plan.MallBlocks)
+        {
+            PlanBlock block = plan.Blocks[bi];
+            int corridors = 0, anchors = 0, pads = 0, mallGarages = 0;
+            Vec2 at = PlanMath.Centroid(block.Outer);
+            foreach (var b in world.Buildings)
+            {
+                if (b.OnRoof || !PlanMath.PointInPolygon(new Vec2(b.CentreX, b.CentreZ), block.Outer)) continue;
+                if (b.IsMall) corridors++;
+                else if (b.IsMallAnchor) anchors++;
+                else if (b.IsParkingGarage) mallGarages++;
+                else pads++;
+            }
+            Console.WriteLine($"    mall at ({at.X:F0}, {at.Y:F0}), {block.Area / 10000.0:F1} ha, {block.MallParking}: {corridors} corridors, {anchors} anchors, {pads} pads, {mallGarages} garage");
+            if (corridors == 0)
+            {
+                // Why a chosen mall block has no mall: its lot, the rectangle fitted in it, the layout, the checks Resolve makes.
+                PlanLot lot = null;
+                foreach (PlanLot l in plan.Lots) if (l.BlockIndex == bi && l.Use == LotUse.Mall) lot = l;
+                if (lot == null) { Console.WriteLine("      no mall lot (block.Mall " + block.Mall + ")"); continue; }
+                bool fit = PlanBuildings.FitRectangle(lot.Footprint, lot.FrontEdge, out Vec2 c, out Vec2 ex, out double w, out double d, lot.Scale, PlanBuildings.FitMargin);
+                Console.WriteLine($"      lot {lot.Id}: fit {fit} {w:F0} x {d:F0}, scale {lot.Scale:F2}");
+                if (!fit) continue;
+                var pieces = Amenities.MallLayout.Compose(w, d, lot.Scale, 13.0, 12345U, block.MallParking);
+                var vols = new List<MassVolume>();
+                foreach (var p in pieces) vols.Add(p.Volume);
+                int wet = 0;
+                var xs = new double[4];
+                var zs = new double[4];
+                foreach (var v in vols)
+                {
+                    v.Corners(xs, zs);
+                    for (int k = 0; k < 4; k++)
+                    {
+                        double wx = c.X + xs[k] * ex.X - zs[k] * ex.Y, wz = c.Y + xs[k] * ex.Y + zs[k] * ex.X;
+                        if (world.Fields.IsWater(new Vec2(wx, wz))) wet++;
+                    }
+                }
+                Console.WriteLine($"      {pieces.Count} pieces, inside {PlanBuildings.InsideLot(vols, w, d)}, wet corners {wet}");
+            }
+        }
         var plazas = new List<Vec2>();
         foreach (int i in plan.PlazaBlocks) plazas.Add(PlanMath.Centroid(plan.Blocks[i].Outer));
         double meanNearest = 0.0;

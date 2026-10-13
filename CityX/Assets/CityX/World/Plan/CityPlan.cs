@@ -41,6 +41,9 @@ namespace CityX.World.Plan
 
         /// <summary>A shopping mall takes the whole block as one lot (Amenities.ChooseMalls).</summary>
         public bool Mall;
+
+        /// <summary>A mall's parking: always the open-air lot round it, now and then a garage beside it as well (MallParking).</summary>
+        public MallParking MallParking;
     }
 
     /// <summary>

@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using CityX.View;
 using CityX.World;
@@ -121,11 +122,65 @@ namespace CityX.Tests
             {
                 yield return ShootBuilding(streamer, camera, directory, "city-carpark", open, 0.6f);
             }
-            if (TryNearest(plan, spawn, b => b.IsMall, out BuildingSite mall))
+            // ---- the biggest mall complex: whole from the air, its car park at eye height, its main corridor and an anchor inside ----
+            int mallBlock = -1;
+            foreach (int bi in plan.Data.MallBlocks)
             {
-                yield return ShootBuilding(streamer, camera, directory, "city-mall", mall, 0.9f);
-                // Inside: down the concourse from one end, at a walker's eye height, and from an upper gallery.
+                if (mallBlock < 0 || plan.MallSites(bi).Length > plan.MallSites(mallBlock).Length) mallBlock = bi;
+            }
+            BuildingSite mall = default;
+            bool hasMall = false;
+            if (mallBlock >= 0)
+            {
+                foreach (BuildingSite b in plan.MallSites(mallBlock))
+                {
+                    if (b.IsMall && !b.Wing) { mall = b; hasMall = true; break; }
+                }
+                PlanBlock block = plan.Data.Blocks[mallBlock];
+                Vec2 c = PlanMath.Centroid(block.Inner);
+                float size = Mathf.Sqrt((float)block.Area);
+                var centre = new Vector3((float)c.X, (float)plan.GroundHeight(c.X, c.Y), (float)c.Y);
+                yield return Stream(streamer, centre);
+                Shoot(camera, directory, "city-mall-complex", centre + new Vector3(size * 0.55f, size * 0.6f + 40.0f, -size * 0.55f), centre);
+                Shoot(camera, directory, "city-mall-complex2", centre + new Vector3(-size * 0.5f, size * 0.45f + 30.0f, size * 0.6f), centre);
+                Debug.Log($"CityX city capture: mall complex on block {mallBlock}, {plan.MallSites(mallBlock).Length} buildings, {block.MallParking}");
+            }
+            if (hasMall)
+            {
+                // The car park at a walker's eye height, looking at the mall: the first open spot out from the main corridor (front, then the
+                // sides, then the back) that is on the block and clear of every building of the complex.
                 float floor = mall.BaseHeight;
+                BuildingSite[] complex = plan.MallSites(mallBlock);
+                List<Vec2> lotRing = plan.Data.Blocks[mallBlock].Inner;
+                Vector3 lotEye = Vector3.zero;
+                bool foundEye = false;
+                foreach ((double fx, double fz) in new[] { (0.0, 1.0), (0.6, 0.8), (-0.6, 0.8), (1.0, 0.0), (-1.0, 0.0), (0.0, -1.0) })
+                {
+                    for (double d = 30.0; d <= 160.0 && !foundEye; d += 10.0)
+                    {
+                        Vector3 p = TestSites.At(mall, mall.CentreX + fx * (mall.Params.Width * 0.5 + d), floor + 1.9, mall.CentreZ + fz * (mall.Params.Depth * 0.5 + d));
+                        var flat = new Vec2(p.x, p.z);
+                        if (!PlanMath.PointInPolygon(flat, lotRing)) break;
+                        bool clear = true;
+                        foreach (BuildingSite b in complex)
+                        {
+                            b.WorldToLocal(p.x, p.z, out double lx, out double lz);
+                            if (System.Math.Abs(lx) < b.Params.Width * 0.5 + 22.0 && System.Math.Abs(lz) < b.Params.Depth * 0.5 + 22.0) clear = false;
+                        }
+                        if (clear)
+                        {
+                            lotEye = new Vector3(p.x, (float)plan.GroundHeight(p.x, p.z) + 6.0f, p.z);   // as if from a lamp post, to see along the rows
+                            foundEye = true;
+                        }
+                    }
+                    if (foundEye) break;
+                }
+                Vector3 frontDoor = TestSites.At(mall, mall.CentreX, floor + 4.0, mall.CentreZ);
+                if (foundEye) yield return Stream(streamer, lotEye);
+                if (foundEye) Shoot(camera, directory, "city-mall-carpark", lotEye, frontDoor);
+                Vector3 nearMall = TestSites.At(mall, mall.CentreX, floor, mall.CentreZ);
+                yield return Stream(streamer, nearMall);
+                // Inside: down the concourse from one end, at a walker's eye height, and from an upper gallery.
                 Vector3 eye = TestSites.At(mall, mall.CentreX - mall.Params.Width * 0.28, floor + 2.3, mall.CentreZ);
                 Vector3 farEnd = TestSites.At(mall, mall.CentreX + mall.Params.Width * 0.3, floor + 2.0, mall.CentreZ);
                 Shoot(camera, directory, "city-mall-concourse", eye, farEnd);
@@ -137,6 +192,20 @@ namespace CityX.Tests
                 Vector3 foodLook = TestSites.At(mall, mall.CentreX - 14.0, floor + 1.2, mall.CentreZ - 4.0);
                 Shoot(camera, directory, "city-mall-foodcourt", food, foodLook);
                 Debug.Log($"CityX city capture: mall #{mall.Id} {mall.Params.Width:F0}x{mall.Params.Depth:F0}x{mall.Params.Height:F0} at {mall.CentreX:F0},{mall.CentreZ:F0}");
+
+                // An anchor's hall, from a corner across its shelving.
+                foreach (BuildingSite anchor in plan.MallSites(mallBlock))
+                {
+                    if (!anchor.IsMallAnchor) continue;
+                    Vector3 hallEye = TestSites.At(anchor, anchor.CentreX - anchor.Params.Width * 0.35, anchor.BaseHeight + 2.4, anchor.CentreZ - anchor.Params.Depth * 0.3);
+                    Vector3 hallLook = TestSites.At(anchor, anchor.CentreX + anchor.Params.Width * 0.3, anchor.BaseHeight + 1.2, anchor.CentreZ + anchor.Params.Depth * 0.3);
+                    yield return Stream(streamer, hallEye);
+                    Shoot(camera, directory, "city-mall-anchor", hallEye, hallLook);
+                    Vector3 outside = TestSites.At(anchor, anchor.CentreX, anchor.BaseHeight, anchor.CentreZ);
+                    Vector3 front = CityMeshBuilder.WallNormal(anchor, WindowGrid.Wall.North);
+                    Shoot(camera, directory, "city-mall-anchor-air", outside + front * 70.0f + Vector3.up * 45.0f, outside + Vector3.up * 6.0f);
+                    break;
+                }
             }
 
             // ---- a plaza: the nearest to the spawn ----

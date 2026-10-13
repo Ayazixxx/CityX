@@ -3,12 +3,26 @@ using System.Collections.Generic;
 
 namespace CityX.World.Plan
 {
+    /// <summary>
+    /// How a mall's cars were parked. Owner, 2026-10-12: "generate a parking lot fitted to the available space around the mall, and then figure
+    /// out what are the chances the mall has a parking garage attached, i think those will be far less common". Every mall has the open-air lot;
+    /// a garage beside it is the exception (Amenities.MallGarageChanceAt).
+    /// </summary>
+    public enum MallParking
+    {
+        /// <summary>An open-air lot all round the mall: painted rows, planted islands, lamp posts.</summary>
+        OpenLot = 0,
+
+        /// <summary>The open-air lot, and a multi-storey garage standing beside the mall as well.</summary>
+        GarageAndLot = 1,
+    }
+
     /// <summary>What a lot is for. Everything but a building is rare, and spaced out on purpose (see Amenities).</summary>
     public enum LotUse
     {
         Building = 0,
 
-        /// <summary>An open car park: paved, painted bays, a low wall, the odd abandoned car.</summary>
+        /// <summary>An open car park: paved, painted bays, a low wall.</summary>
         ParkingLot = 1,
 
         /// <summary>A multi-storey car park: open-sided decks on a frame, ramps between them.</summary>
@@ -32,7 +46,7 @@ namespace CityX.World.Plan
     ///    a dense Asian megacity is nearer New York. The owner asked for parking "not too often": about 3% of lots become a garage (downtown) or
     ///    a surface lot (elsewhere), never two in one block, and the land inside interchanges is parking too (as it is in real cities).
     /// </summary>
-    public static class Amenities
+    public static partial class Amenities
     {
         // ---- plazas ----
         public const double PlazaMinPopulation = 0.40;
@@ -51,12 +65,31 @@ namespace CityX.World.Plan
         public const double MallSeparation = 6000.0;
         public const int MaxMalls = 4;
 
-        /// <summary>The mall building itself, classic metres times the square root of the scale: at least this, and no more than the maximum (the rest of its block is its car park).</summary>
-        public const double MallMinWidth = 110.0;
-        public const double MallMinDepth = 70.0;
-        public const double MallMaxWidth = 280.0;
-        public const double MallMaxDepth = 170.0;
+        /// <summary>
+        /// The rectangle a mall's block must hold, classic metres times the square root of the scale: room for the concourse and its anchors at
+        /// the back and a car park in front and round them (MallLayout).
+        /// </summary>
+        public const double MallMinWidth = 150.0;
+        public const double MallMinDepth = 115.0;
         public const double MallLevelHeight = 6.5;
+
+        /// <summary>
+        /// The chance a mall has a parking garage beside its open-air lot, at the edge of town and at the densest a mall stands in (population
+        /// MallMinPopulation .. MallMaxPopulation), about one in five on average. No national count of malls with garages was found (research,
+        /// 2026-10-12); planning documents describe the conventional regional mall as anchors, a food court and in-line shops surrounded by surface
+        /// parking, with surface lots supplying 80-90% of US parking, and structured parking the mark of urban and mixed-use centres -- so rarer at the
+        /// edge, commoner toward the core.
+        /// </summary>
+        public const double MallGarageChanceEdge = 0.12;
+        public const double MallGarageChanceDense = 0.30;
+
+        /// <summary>The chance of a garage for a mall at a population (see MallGarageChanceEdge).</summary>
+        public static double MallGarageChanceAt(double population)
+        {
+            double t = (population - MallMinPopulation) / (MallMaxPopulation - MallMinPopulation);
+            t = t < 0.0 ? 0.0 : (t > 1.0 ? 1.0 : t);
+            return MallGarageChanceEdge + (MallGarageChanceDense - MallGarageChanceEdge) * t;
+        }
 
         // ---- parking ----
         public const double GarageChance = 0.35;
@@ -110,6 +143,28 @@ namespace CityX.World.Plan
             }
         }
 
+        /// <summary>Whether any point of a polygon, sampled on a grid <paramref name="step"/> apart, is water (a river or lake channel).</summary>
+        private static bool HasWaterInside(PlanFields fields, IList<Vec2> poly, double step)
+        {
+            double x0 = double.MaxValue, y0 = double.MaxValue, x1 = double.MinValue, y1 = double.MinValue;
+            foreach (Vec2 p in poly)
+            {
+                x0 = Math.Min(x0, p.X);
+                x1 = Math.Max(x1, p.X);
+                y0 = Math.Min(y0, p.Y);
+                y1 = Math.Max(y1, p.Y);
+            }
+            for (double y = y0 + step * 0.5; y < y1; y += step)
+            {
+                for (double x = x0 + step * 0.5; x < x1; x += step)
+                {
+                    var p = new Vec2(x, y);
+                    if (PlanMath.PointInPolygon(p, poly) && fields.IsWater(p)) return true;
+                }
+            }
+            return false;
+        }
+
         /// <summary>Marks the blocks that become malls (PlanBlock.Mall): each is cut as ONE lot (LotSubdivider).</summary>
         public static void ChooseMalls(CityPlanData data, uint seed)
         {
@@ -125,6 +180,7 @@ namespace CityX.World.Plan
                 if (pop < MallMinPopulation || pop > MallMaxPopulation) continue;
                 if (block.Area < MallMinArea * s || block.Area > MallMaxArea * s) continue;
                 if (TouchesARamp(data, block.Outer)) continue;
+                if (HasWaterInside(fields, block.Outer, 10.0 * Math.Sqrt(s))) continue;   // a river channel through it: the complex would not stand
                 int front = MallFront(block);
                 if (!PlanBuildings.FitRectangle(block.Outer.ToArray(), front, out _, out _, out double width, out double depth, s, PlanBuildings.FitMargin)) continue;
                 double side = Math.Sqrt(s);
@@ -143,6 +199,8 @@ namespace CityX.World.Plan
                 Vec2 c = PlanMath.Centroid(data.Blocks[i].Outer);
                 if (!Far(placed, c, MallSeparation)) continue;
                 data.Blocks[i].Mall = true;
+                double roll = Hash01(seed, 0x6D706B67, i);   // "mpkg"
+                data.Blocks[i].MallParking = roll < MallGarageChanceAt(fields.Population(c)) ? MallParking.GarageAndLot : MallParking.OpenLot;
                 placed.Add(c);
                 data.MallBlocks.Add(i);
             }

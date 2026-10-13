@@ -118,7 +118,7 @@ PrefabInstance:
       addedObject: {fileID: 2453790078144645714}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 5599908295218384092}
+      addedObject: {fileID: 5656639517500165532}
   m_SourcePrefab: {fileID: 100100000, guid: c573dea59fa2558478b70344c659896a, type: 3}
 --- !u!1 &5771231832799346164 stripped
 GameObject:
@@ -581,7 +581,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: CityX.Character::CityX.Character.OctaslashAbility
   SlashMaterial: {fileID: 2100000, guid: 2b060d6e4d0b57746a498c94c7b4830b, type: 2}
---- !u!114 &5599908295218384092
+--- !u!114 &5656639517500165532
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

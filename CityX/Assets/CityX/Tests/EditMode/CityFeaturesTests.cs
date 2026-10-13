@@ -197,26 +197,162 @@ namespace CityX.Tests
         [Test]
         public void MallsAreVeryRareAndAsFarApartAsRealOnes()
         {
-            var malls = new List<BuildingSite>();
-            foreach (BuildingSite b in Plan.Buildings)
+            List<int> blocks = Plan.Data.MallBlocks;
+            Assert.That(blocks.Count, Is.InRange(1, Amenities.MaxMalls), $"{blocks.Count} malls");
+            for (int i = 0; i < blocks.Count; i++)
             {
-                if (b.IsMall) malls.Add(b);
-            }
-            Assert.That(malls.Count, Is.InRange(1, Amenities.MaxMalls), $"{malls.Count} malls");
-            Assert.AreEqual(malls.Count, Plan.Data.MallBlocks.Count);
-            for (int i = 0; i < malls.Count; i++)
-            {
-                BuildingSite m = malls[i];
-                Assert.GreaterOrEqual(m.Params.Height, 2.0 * Amenities.MallLevelHeight - 0.01, "a mall of one level");
-                Assert.GreaterOrEqual(m.Params.Width, Amenities.MallMinWidth * 0.9, $"mall #{m.Id} is only {m.Params.Width:F0} m wide");
-                Assert.GreaterOrEqual(m.Params.Depth, Amenities.MallMinDepth * 0.9, $"mall #{m.Id} is only {m.Params.Depth:F0} m deep");
-                Assert.IsFalse(m.OnRoof || m.Wing || m.Shell);
-                for (int j = i + 1; j < malls.Count; j++)
+                BuildingSite[] complex = Plan.MallSites(blocks[i]);
+                int spines = 0;
+                foreach (BuildingSite m in complex)
                 {
-                    double dx = m.CentreX - malls[j].CentreX, dz = m.CentreZ - malls[j].CentreZ;
-                    double d = Math.Sqrt(dx * dx + dz * dz);
-                    Assert.GreaterOrEqual(d, Amenities.MallSeparation * 0.95, $"malls #{m.Id} and #{malls[j].Id} are {d / 1000.0:F1} km apart");
+                    Assert.IsFalse(m.OnRoof || m.Shell, $"mall piece #{m.Id} is stacked");
+                    if (m.IsMall)
+                    {
+                        Assert.GreaterOrEqual(m.Params.Height, 2.0 * Amenities.MallLevelHeight - 0.01, "a mall corridor of one level");
+                        Assert.GreaterOrEqual(m.Params.Depth, 40.0, $"corridor #{m.Id} is only {m.Params.Depth:F0} m across");
+                        if (!m.Wing) spines++;
+                    }
                 }
+                Assert.AreEqual(1, spines, $"mall block {blocks[i]} has {spines} main corridors");
+                Vec2 a = PlanMath.Centroid(Plan.Data.Blocks[blocks[i]].Outer);
+                for (int j = i + 1; j < blocks.Count; j++)
+                {
+                    double d = (a - PlanMath.Centroid(Plan.Data.Blocks[blocks[j]].Outer)).Length;
+                    Assert.GreaterOrEqual(d, Amenities.MallSeparation * 0.95, $"malls on blocks {blocks[i]} and {blocks[j]} are {d / 1000.0:F1} km apart");
+                }
+            }
+        }
+
+        [Test]
+        public void EveryPieceOfAMallOpensIntoTheRest()
+        {
+            // A corridor or an anchor that is a wing of the mall touches another piece (a WallContact, where the builder opens a passage).
+            int pieces = 0;
+            foreach (int block in Plan.Data.MallBlocks)
+            {
+                foreach (BuildingSite m in Plan.MallSites(block))
+                {
+                    if (!(m.IsMall || m.IsMallAnchor) || !m.Wing) continue;
+                    pieces++;
+                    Assert.IsNotNull(m.Contacts, $"mall piece #{m.Id} stands on its own, joined to nothing");
+                    Assert.Greater(m.Contacts.Length, 0, $"mall piece #{m.Id} joins nothing");
+                }
+            }
+            Assert.Greater(pieces, 0, "no mall has more than one piece");
+        }
+
+        [Test]
+        public void MallsComeInManyShapesWithFewBigStoresAndManySmall()
+        {
+            // The layout over many seeds on a good-sized block: branches and anchors vary, nothing overlaps, everything stays in its lot.
+            int withBranch = 0, multiAnchor = 0, runs = 300;
+            var shapes = new HashSet<string>();
+            for (uint h = 1; h <= runs; h++)
+            {
+                const double width = 300.0, depth = 230.0;
+                List<Amenities.MallPiece> pieces = Amenities.MallLayout.Compose(width, depth, 1.0, 13.0, PlanNoise.Mix(h, 0xBEEFU), MallParking.OpenLot);
+                var volumes = new List<MassVolume>();
+                int corridors = 0, anchors = 0;
+                foreach (Amenities.MallPiece p in pieces)
+                {
+                    volumes.Add(p.Volume);
+                    if (p.Part == Amenities.MallPart.Concourse) corridors++;
+                    if (p.Part == Amenities.MallPart.Anchor) anchors++;
+                    Assert.AreNotEqual(Amenities.MallPart.Garage, p.Part, "a garage on an open-lot mall");
+                }
+                Assert.AreEqual(Amenities.MallPart.Concourse, pieces[0].Part, "the first piece is not the main corridor");
+                Assert.IsTrue(PlanBuildings.InsideLot(volumes, width, depth), $"seed {h}: a piece outside its lot");
+                for (int i = 0; i < volumes.Count; i++)
+                {
+                    for (int j = i + 1; j < volumes.Count; j++)
+                    {
+                        Assert.IsFalse(Overlaps(volumes[i], volumes[j]), $"seed {h}: pieces {i} and {j} overlap");
+                    }
+                }
+                if (corridors > 1) withBranch++;
+                if (anchors > 1) multiAnchor++;
+                shapes.Add($"{corridors}/{anchors}");
+            }
+            Assert.Greater(withBranch, runs / 4, "too few malls with side corridors");
+            Assert.Greater(multiAnchor, runs / 2, "too few malls with more than one anchor");
+            Assert.GreaterOrEqual(shapes.Count, 6, $"only {shapes.Count} kinds of mall");
+        }
+
+        [Test]
+        public void AParkingGarageIsTheRareExtra()
+        {
+            Assert.That(Amenities.MallGarageChanceAt(Amenities.MallMinPopulation), Is.EqualTo(Amenities.MallGarageChanceEdge).Within(1e-9));
+            Assert.That(Amenities.MallGarageChanceAt(Amenities.MallMaxPopulation), Is.EqualTo(Amenities.MallGarageChanceDense).Within(1e-9));
+            Assert.Less(Amenities.MallGarageChanceDense, 0.5, "a garage at most malls");
+            int garages = 0;
+            for (uint h = 1; h <= 100; h++)
+            {
+                foreach (Amenities.MallPiece p in Amenities.MallLayout.Compose(300.0, 230.0, 1.0, 13.0, PlanNoise.Mix(h, 0xCAFEU), MallParking.GarageAndLot))
+                {
+                    if (p.Part == Amenities.MallPart.Garage) garages++;
+                }
+            }
+            Assert.Greater(garages, 80, "a mall that has a garage mostly gets it placed");
+        }
+
+        [Test]
+        public void TheMallsCarParkIsPaintedRoundTheMallAndClearOfIt()
+        {
+            int block = Plan.Data.MallBlocks[0];
+            BuildingSite[] complex = Plan.MallSites(block);
+            List<Vec2> ring = Plan.Data.Blocks[block].Inner;
+            Bounds(ring, out double x0, out double z0, out double x1, out double z1);
+            int stripes = 0, lamps = 0;
+            for (int cx = PlanWorld.ChunkOf(x0); cx <= PlanWorld.ChunkOf(x1); cx += 2)
+            {
+                for (int cy = PlanWorld.ChunkOf(z0); cy <= PlanWorld.ChunkOf(z1); cy += 2)
+                {
+                    MeshBuffer[] near = Surface(cx, cy, false);
+                    foreach (Vector3 v in near[4].Vertices)   // the white paint (the lane-divider buffer draws white)
+                    {
+                        // Every bit of paint in the block stands clear of the mall's buildings.
+                        if (!PlanMath.PointInPolygon(new Vec2(v.x, v.z), ring)) continue;
+                        stripes++;
+                        foreach (BuildingSite m in complex)
+                        {
+                            m.WorldToLocal(v.x, v.z, out double lx, out double lz);
+                            Assert.IsFalse(Math.Abs(lx) < m.Params.Width * 0.5 + 2.0 && Math.Abs(lz) < m.Params.Depth * 0.5 + 2.0,
+                                $"a parking stripe at ({v.x:F0}, {v.z:F0}) runs into mall piece #{m.Id}");
+                        }
+                    }
+                    if (HasLook(near[2], CityProps.DarkMetal)) lamps++;
+                }
+            }
+            Assert.Greater(stripes, 400, "the mall's block has hardly any parking painted on it");
+            Assert.Greater(lamps, 0, "no lamp posts in the mall's car park");
+        }
+
+        private static bool Overlaps(MassVolume a, MassVolume b)
+        {
+            var ax = new double[4];
+            var az = new double[4];
+            var bx = new double[4];
+            var bz = new double[4];
+            a.Corners(ax, az);
+            b.Corners(bx, bz);
+            double a0 = Math.Min(Math.Min(ax[0], ax[1]), Math.Min(ax[2], ax[3])), a1 = Math.Max(Math.Max(ax[0], ax[1]), Math.Max(ax[2], ax[3]));
+            double c0 = Math.Min(Math.Min(az[0], az[1]), Math.Min(az[2], az[3])), c1 = Math.Max(Math.Max(az[0], az[1]), Math.Max(az[2], az[3]));
+            double b0 = Math.Min(Math.Min(bx[0], bx[1]), Math.Min(bx[2], bx[3])), b1 = Math.Max(Math.Max(bx[0], bx[1]), Math.Max(bx[2], bx[3]));
+            double d0 = Math.Min(Math.Min(bz[0], bz[1]), Math.Min(bz[2], bz[3])), d1 = Math.Max(Math.Max(bz[0], bz[1]), Math.Max(bz[2], bz[3]));
+            const double eps = 0.01;
+            return a0 < b1 - eps && a1 > b0 + eps && c0 < d1 - eps && c1 > d0 + eps;
+        }
+
+        private static void Bounds(List<Vec2> ring, out double x0, out double z0, out double x1, out double z1)
+        {
+            x0 = z0 = double.MaxValue;
+            x1 = z1 = double.MinValue;
+            foreach (Vec2 p in ring)
+            {
+                x0 = Math.Min(x0, p.X);
+                x1 = Math.Max(x1, p.X);
+                z0 = Math.Min(z0, p.Y);
+                z1 = Math.Max(z1, p.Y);
             }
         }
 
@@ -281,6 +417,20 @@ namespace CityX.Tests
         }
 
         [Test]
+        public void SetPiecesHaveOpenEntrancesNotADoorWithALamp()
+        {
+            // A garage, a car park, a mall's corridors and anchors: no hinged door hangs in their openings, so no door lamp either.
+            int checkedSites = 0;
+            foreach (BuildingSite b in Plan.Buildings)
+            {
+                if (!b.Params.IsSpecial) continue;
+                checkedSites++;
+                Assert.IsFalse(EntranceLighting.Has(b), $"set piece #{b.Id} ({b.Params.SpecialType}) has a door lamp");
+            }
+            Assert.Greater(checkedSites, 10);
+        }
+
+        [Test]
         public void ThereAreNoCars()
         {
             // The owner took the abandoned cars out (2026-10-12): nothing on the decks, the streets or the car parks. A car was the only prop
@@ -342,18 +492,20 @@ namespace CityX.Tests
         [Test]
         public void AGarageACarParkAndAMallBuildNearAndFar()
         {
-            BuildingSite garage = default, open = default, mall = default;
-            bool hasGarage = false, hasOpen = false, hasMall = false;
+            BuildingSite garage = default, open = default, mall = default, anchor = default;
+            bool hasGarage = false, hasOpen = false, hasMall = false, hasAnchor = false;
             foreach (BuildingSite b in Plan.Buildings)
             {
                 if (!hasGarage && b.IsParkingGarage) { garage = b; hasGarage = true; }
                 if (!hasOpen && b.IsOpenGround) { open = b; hasOpen = true; }
-                if (!hasMall && b.IsMall) { mall = b; hasMall = true; }
+                if (!hasMall && b.IsMall && !b.Wing) { mall = b; hasMall = true; }
+                if (!hasAnchor && b.IsMallAnchor) { anchor = b; hasAnchor = true; }
             }
             Assert.IsTrue(hasGarage, "no parking garage");
             Assert.IsTrue(hasOpen, "no car park");
             Assert.IsTrue(hasMall, "no mall");
-            foreach ((string name, BuildingSite site) in new[] { ("garage", garage), ("car park", open), ("mall", mall) })
+            Assert.IsTrue(hasAnchor, "no mall anchor store");
+            foreach ((string name, BuildingSite site) in new[] { ("garage", garage), ("car park", open), ("mall", mall), ("anchor", anchor) })
             {
                 MeshBuffer[] near = Site(site, false);
                 MeshBuffer[] far = Site(site, true);

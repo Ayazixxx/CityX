@@ -166,6 +166,7 @@ namespace CityX.World
                     case "bank": style = FacadeStyle.Punched; forceStorefront = true; break;
                     // Built by their own builders (no windows of this kind at all); the style only picks their materials.
                     case SpecialTypes.Mall: style = FacadeStyle.Blank; forceStorefront = true; break;
+                    case SpecialTypes.MallAnchor: style = FacadeStyle.Blank; break;
                     case SpecialTypes.ParkingGarage: style = FacadeStyle.Blank; break;
                     case SpecialTypes.ParkingLot: style = FacadeStyle.Blank; break;
                     default: style = FacadeStyle.Punched; break;

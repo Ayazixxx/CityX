@@ -117,6 +117,10 @@ namespace CityX.View
             {
                 BuildMall(site, builderOrigin, structures, concrete, darkGlass, looks, far);   // CityMeshBuilder.Mall.cs
             }
+            else if (site.IsMallAnchor)
+            {
+                BuildMallAnchor(site, builderOrigin, structures, concrete, darkGlass, looks, far);
+            }
             else if (site.Sides >= 3)
             {
                 // Round and many-sided: every side a short flat wall (CityMeshBuilder.Round.cs).

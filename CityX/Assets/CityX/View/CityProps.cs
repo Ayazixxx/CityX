@@ -210,6 +210,26 @@ namespace CityX.View
             b.Look = saved;
         }
 
+        /// <summary>
+        /// A car-park lamp post <paramref name="height"/> tall on a concrete footing: a pole, an arm each way along (<paramref name="cos"/>,
+        /// <paramref name="sin"/>), a lamp head on each. Dark now, like every light in the city that has no power.
+        /// </summary>
+        public static void AddLampPost(MeshBuffer b, float cx, float cz, float y, float height, float cos, float sin)
+        {
+            Color32 saved = b.Look;
+            b.Look = Concrete;
+            AddTurnedBox(b, cx, cz, 0.35f, 0.35f, cos, sin, y - 0.1f, y + 0.6f);
+            b.Look = DarkMetal;
+            AddTurnedBox(b, cx, cz, 0.1f, 0.1f, cos, sin, y + 0.6f, y + height);
+            AddTurnedBox(b, cx, cz, 1.4f, 0.06f, cos, sin, y + height - 0.15f, y + height);
+            for (int side = -1; side <= 1; side += 2)
+            {
+                float hx = side * 1.3f;
+                AddTurnedBox(b, cx + hx * cos, cz + hx * sin, 0.35f, 0.2f, cos, sin, y + height - 0.35f, y + height - 0.05f, true);
+            }
+            b.Look = saved;
+        }
+
         /// <summary>A blue "P" sign panel, lettered in white boxes, hung flat against +z of its frame.</summary>
         public static void AddParkingSign(MeshBuffer b, float cx, float cz, float y, float cos, float sin, float size)
         {

@@ -11,7 +11,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class PlanWorldTests
     {
-        private const int Seed = 74920318;
+        private const int Seed = 38461927;
 
         /// <summary>A smaller city than the game's, so the whole fixture runs in about a second.</summary>
         private static PlanConfig SmallCity()
@@ -256,13 +256,15 @@ namespace CityX.Tests
             }
             Assert.Less(worst, 1.5, "the ground has a cliff");
 
-            // The trench: wherever there is water the ground is lower than at its banks.
+            // The trench: wherever a river runs the ground is lower than at its banks. (Only rivers are carved: a lake is flat ground the city
+            // leaves empty, at whatever height its hills put it -- seed 38461927 has one at 27 m inside this square.)
             int checkedWet = 0;
+            double band = World.Data.Config.RiverBand;
             for (double x = -1100; x <= 1100 && checkedWet < 20; x += 13.7)
             {
                 for (double z = -1100; z <= 1100 && checkedWet < 20; z += 17.3)
                 {
-                    if (World.Fields.IsWater(x, z))
+                    if (Math.Abs(World.Fields.RiverNoise(x, z)) < band)
                     {
                         Assert.Less(World.GroundHeight(x, z), 4.0, "the river bed is not below the city");
                         checkedWet++;

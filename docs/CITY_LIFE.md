@@ -40,10 +40,23 @@ Manhattan, Watch Dogs' Chicago riverwalk, Yakuza's Kamurocho with its Millennium
   share lands at ~2-3% of the lots (the "not too often" the owner asked for; a US downtown would be 20-30%). Garages are 4-7 levels of
   `GarageFloorHeight` 4.0 m; an open lot is `ParkingLotHeight` 0.4 m (a wall round it).
 - **Malls** (`Amenities.ChooseMalls`): a whole block of `MallMinArea`..`MallMaxArea` (24,000-110,000 m2 x scale) in population 0.30-0.78 (the
-  edge of downtown, where real ones stand), whose largest fitting rectangle is at least `MallMinWidth` 110 x `MallMinDepth` 70 m, no two within
-  `MallSeparation` **6 km**, at most `MaxMalls` 4 in the region, not touching a ramp. The block becomes one lot (`LotSubdivider.EmitMallLot`): the
-  building is capped at `MallMaxWidth` 280 x `MallMaxDepth` 170 m x sqrt(scale) and 2-3 levels of `MallLevelHeight` 6.5 m, the rest of the block is
-  its car park (the block paving). `MallFront` picks its longest road edge.
+  edge of downtown, where real ones stand), whose largest fitting rectangle is at least `MallMinWidth` 150 x `MallMinDepth` 115 m (room for the
+  complex and a car park round it), with no river channel through it, no two within `MallSeparation` **6 km**, at most `MaxMalls` 4 in the region,
+  not touching a ramp. The block becomes one lot (`LotSubdivider.EmitMallLot`), and its parking is rolled (`PlanBlock.MallParking`): every mall has
+  the open-air lot; a garage beside it as well with `MallGarageChanceAt` 12% at the edge of town rising to 30% near the core, about one in five
+  (no national count was found; planning documents describe the regional mall as surrounded by surface parking, structured parking as the mark of
+  urban and mixed-use centres).
+- **Mall shapes** (`World/Plan/MallLayout.cs`, owner 2026-10-12 with photos and a real mall's floor plan: "L shaped or some type of trapazoid",
+  "wacky with a few large stores and a ton of smaller ones"): a mall is a NETWORK of boxes in its lot. A **spine** corridor (`SegmentDepth` 56 m
+  across: 14 m concourse, 20 m shops each side; `MinSpine`..`MaxSpine` 90-220 m long x the district's scale) across the back of the lot, sometimes
+  set forward to leave room behind it; **anchors** (`AnchorWidth` 50 m) at its ends (80% each), pushed out front or back; then 1-3 **branches** off
+  its sides, front or back: an anchor straight on its flank, a side corridor ending in an anchor or an entrance, or a side corridor that turns into a
+  **wing** leading to a big box (taller, a cinema in spirit), the way the real plan's east wing runs off to the AMC. Pieces that join share a wall;
+  the rest stand `Clearance` 12 m apart. Then the **garage** (when rolled) beside a piece of the mall across a drive, sides and back first; and 1-3
+  **pads** (22 x 16 m single-storey restaurants and banks, ordinary buildings) out by the road. Cross-sections stay human-sized in every district;
+  only lengths and the front car park grow with its scale. Pieces are `MassVolume`s (side corridors quarter-turned) resolved like any building's:
+  the corridors and anchors are one building (`Wing`), sharing one floor; the garage and pads stand on their own floors. `PlanWorld.MallSites`
+  lists a mall's buildings by block. `tools/cityplan -- mallshapes` tallies the shapes over 400 seeds.
 - **Plazas** (`Amenities.ChoosePlazas`): small blocks (`PlazaMinArea` 700 - `PlazaMaxArea` 9,000 m2 x scale^2) in dense country (population >=
   `PlazaMinPopulation` 0.40), `PlazaShare` 40% of the candidates by seed hash, no two within `PlazaSpacing` 260 m (x scale). `PlanBlock.Plaza`: no
   lot is cut; `CityPlanData.PlazaBlocks/MallBlocks` list them.
@@ -57,32 +70,47 @@ Manhattan, Watch Dogs' Chicago riverwalk, Yakuza's Kamurocho with its Millennium
 - **Car park** (`BuildParkingLot`): asphalt over the lot that follows the ground like the block paving round it (sampled on `LotCell` 4 m cells;
   the first version stood on a building's podium and read as a raised platform on any slope), a 0.6 m wall stepping down the slope with the gap at
   the front, a booth with its barrier arm and `P` sign, stall rows, a barrier and some rubble. (No cars: owner, 2026-10-12.)
-- **Mall** (`CityMeshBuilder.Mall.cs`, `BuildMall`): outside -- blank walls with a base band, a glazed entrance under a canopy in the middle of the
-  front and of each end, two anchor signs and the mall's own sign over the entrance, a parapet, skylights over the concourse, roof plant. Inside
-  (near chunks only) -- the `MallConcourseWidth` 14 m concourse along x; anchors `~20%` of the length at each end, open to the concourse on every
-  level, shelving rows inside; store units 10-14 m wide and `MallStoreDepth` 20 m deep both sides on every level, party walls, a lettered sign
-  band, `MallShutteredShare` 55% with the shutter down, the rest with a stall riser, double-sided shopfront glass, a doorway, a counter and shelving
-  (30% knocked over); upper levels as `MallGalleryWidth` 3.5 m galleries with a balustrade round the void; dead escalators (30-degree slabs with
-  balustrades and landings) between the levels, alternating direction; the **food court** on the ground floor in the middle (counters with hoods
-  along both sides, tables and stools in the open, some over-turned, some dragged away); a dry fountain, planters with benches back to back,
-  rubble. The far version is the outside with a dark backing behind each entrance.
+- **Mall** (`CityMeshBuilder.Mall.cs`): every piece is built with the passages to the pieces it touches -- at the middle of each shared stretch
+  (`WallContact`), the same point seen from both sides, `MallPassageWidth` 12 x `MallPassageHeight` 5.6 m -- and where a side corridor or an anchor
+  meets a corridor's flank, the shops there make way for it on the ground floor. **Corridors** (`BuildMall`): blank light walls with a base band on
+  the solid stretches, a door under a canopy at each open end and on the front (or back) where nothing stands against it; the spine carries the
+  mall's name; a corridor 130 m or longer keeps an anchor of its own at an open end. Inside (near chunks only) -- the `MallConcourseWidth` 14 m
+  concourse; store units 10-14 m wide and `MallStoreDepth` 20 m deep both sides on every level, party walls, a lettered sign band,
+  `MallShutteredShare` 55% shuttered, the rest with a stall riser, double-sided shopfront glass, a doorway, a counter and shelving (30% knocked
+  over); `MallGalleryWidth` 3.5 m galleries with a balustrade round the void; dead escalators (two on the spine either side of its food court, one
+  or two on another corridor, never in front of a passage); the spine's **food court** (counters with hoods, tables and stools, some over-turned)
+  and dry fountain; planters with benches; rubble. **Anchors** (`BuildMallAnchor`): one big hall with a passage into every piece it touches, its own
+  door on the first free wall (north, west, east, south) under a canopy and a big brand sign, long shelving rows clear of the aisles from every
+  opening (18% pushed over), counters by the door, a mezzanine over the half away from the door, rubble. Far: the outsides with a dark backing
+  behind each door.
+- **Mall car park** (`CitySurfaceBuilder.BuildMallGrounds`, owner: "generate a parking lot fitted to the available space around the mall"): the
+  block is asphalt kerb to wall; **double rows** of stalls nose to nose, an aisle between each pair running toward the mall's doors (the grid lined
+  up with the spine, anchored to it, so every chunk paints its part of the same rows); a **planted island** every `MallLotIslandEvery` 12 stalls,
+  a 9 m **lamp post** on every other one (`CityProps.AddLampPost`); stalls only where both ends are on the block, `MallLotKerbClearance` 4 m from the
+  kerb and `MallLotBuildingClearance` 9 m from every building, so the rows stop where the space does and a drive runs round everything.
 - **Plaza** (`CitySurfaceBuilder.BuildPlazaFurniture`, `BlockPavingLook`): the block paved in **setts** in a warm tint, and Whyte's furniture --
   benches every 7.5 m along every edge facing in, bollards along the kerb every 3 m, planters at the corners, in the middle a dry fountain (with or
   without its needle) or a big planter with four benches facing it, a shuttered kiosk on the longest side, two heaps of rubble.
 - `CityStreamer.AddInteriorVolume` skips open car parks (nothing to walk inside).
 
-### Numbers (seed 74920318, the game's varied 10 km): parking 226 garages + 116 open lots = 2.0% of the street-level sites, 3 malls (the nearest
-two 6.1 km apart), 84 plazas (mean 570 m to the nearest other). At the classic 5 km scale the tests pin: 1.5%, 1 mall, 64 plazas.
+### Numbers (seed 74920318, the game's varied 10 km, first pass): parking 226 garages + 116 open lots = 2.0% of the street-level sites, 3 malls
+(the nearest two 6.1 km apart), 84 plazas (mean 570 m to the nearest other). Mall complexes (seed 38461927, rerolled for them): three malls 6.4 km
+or more apart -- a 21.9 ha one with 3 corridors, 3 anchors, a pad and a garage, two smaller ones with 2 corridors and an anchor each.
 
 ## Tests
 `CityFeaturesTests` (EditMode): parking is 0.5-8% of the lots and never twice in a block, garages are 4-7 levels and car parks flat; malls are
-1-4, far apart, big and two or more levels; plazas (>= 10) have no lots and no building inside them; a plaza chunk is paved in setts with a
-bench; a garage, a car park and a mall build near and far, wound and finite, the mall with hundreds of vertices inside it and the garage with
-decks at several heights. `CityFeaturesCapture` (PlayMode, Explicit, `-Graphics`) renders them to `Logs/CityShots/city-*.png`.
+1-4 and far apart, each with one main corridor of two or more levels; every corridor and anchor that is a wing joins another piece; over 300 seeds
+the layout makes at least six kinds of mall, side corridors in a quarter of them and more than one anchor in half, nothing overlapping or outside
+its lot; a garage is the rare extra (the chance holds at 12-30%) and is placed when rolled; the mall's block has hundreds of parking stripes and a
+lamp post, none within 2 m of a building; plazas (>= 10) have no lots and no building inside them; a plaza chunk is paved in setts with a bench; a
+garage, a car park, a mall corridor and an anchor build near and far, wound and finite. `CityFeaturesCapture` (PlayMode, Explicit, `-Graphics`)
+renders them to `Logs/CityShots/city-*.png`.
 
 ## Not done / next
 - Store **names** (there is no font in the city: signs are lettered in white bars) and a real loot/shop system in the mall units.
+- Angled wings (the real plan's Von Maur and AMC sit at an angle): pieces meet square here, since an angled box would leave a wedge of gap or overlap.
+- Upper-floor passages between corridors (they join on the ground floor only), and a bridge from a mall's garage into the mall.
 - Interior lighting and room volumes for the mall and the garage (`CityStreamer` interior volumes, `RoomLights`), and the garage's ramp as a
   thing the player can walk up (it is geometry; the collider is the chunk's).
 - Plaza trees (there is no vegetation yet: the planters hold dry earth, as the lore has it).
-- A kerb cut and a dropped kerb at a car park's entrance; the car parks of malls as painted stalls on the block paving.
+- A kerb cut and a dropped kerb at a car park's entrance; crossings painted from the mall's doors across the car park.
