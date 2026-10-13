@@ -96,36 +96,16 @@ namespace CityX.Tests
             {
                 HumanBodyBones part = PaintAtlas.Parts[row];
 
-                // THE NECK'S ROW IS EMPTY, AND THAT IS THE GEOMETRY, not a
-                // bug in the unwrap. The neck capsule runs from the shoulder
-                // line up to the head bone with a radius of 0.10; the head
-                // sphere is centred on that same head bone with a radius of
-                // 0.35, so it reaches all the way back down to the shoulder
-                // line and swallows the neck whole. No point on the surface is
-                // ever nearest the neck, so nothing is ever skinned to it and
-                // its row never receives a vertex. The visible throat is
-                // painted as part of the head above and the torso below, which
-                // means paint runs across it continuously instead of seaming.
-                //
-                // Godot's neck WAS exposed -- its head was a separate box
-                // floating above a shorter neck rather than a sphere fused
-                // into it. Asserted rather than skipped so that if the body's
-                // proportions ever change, this says so instead of a row
-                // quietly filling up with an unwrap nobody checked.
-                if (part == HumanBodyBones.Neck)
-                {
-                    Assert.AreEqual(0, counted[row],
-                        "the neck is exposed now -- it needs its unwrap checking like the rest");
-                    continue;
-                }
-
                 Assert.Greater(counted[row], 0,
                     $"nothing at all is mapped into {part}'s row");
 
                 // Half the row, allowing for the cap slices reserved at each
                 // end. A part using less than that is being crushed.
+                // THE NECK IS A SHORT BAND. Since 2026-10-13 it is a real column (FusedBodyShape.NeckRadius) running from the shoulders up
+                // into the head sphere, and only the few centimetres between the collar and the chin are ever on the surface -- its row is
+                // laid along that band (PaintAtlas.AxisOf), so it still spreads, just not as far as a limb does.
                 float used = (highest[row] - lowest[row]) / rowHeight;
-                Assert.Greater(used, 0.5f,
+                Assert.Greater(used, part == HumanBodyBones.Neck ? 0.05f : 0.5f,
                     $"{part} uses only {used:P1} of the height of its row -- "
                     + "a brush stroke on it will smear across the whole part");
 

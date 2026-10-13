@@ -50,6 +50,46 @@ helper (`FusedBodyShape.WeightsAt`) is no longer used for the body. Test: `Fused
   the torso tube is on the HIPS and the spine no longer leans in walks (`PlayerLocomotion.LocomotionSpineLeans` false); the shoulders are fused
   to it: a shoulder volume as thick as an arm runs from one shoulder joint to the other and is extracted together with the torso, so the smooth union fillets it into one continuous surface; its end lines up with the arm's own top cap in every pose (a bigger ball there was rejected, a tube tucked into the torso struts out when raised). The chest blends from the hips onto the spine (`FusedBodyBuilder.ChestWeight`) so a punch twist turns the shoulders with the arms.
 
+## One smooth body with hands, feet and a neck (2026-10-13)
+
+Owner: "turn the bottom hand rounded off parts into actual hands with fingers" (a cartoon hand drawn: broad palm, four fingers, a thumb),
+"a basic foot with no toes" (drawn as a sock), "dont make the player any taller", "I also dont like how the head just clips into the torso",
+then "a smooth body all throughout ... transitions between limbs smoother, there shouldnt be visible lines or lumps at the hips" (Meccha
+Chameleon's figure as the reference), "the fingers needs to be a bit fatter", and of a first attempt with trapezius-sloped shoulders: "i dont
+like how the shoulder are like angled upward like that it used to be straight across ... make the bumps less prominent".
+
+- **One surface again.** The twelve separate tubes (2026-10-10) showed a line at every elbow, wrist and knee and the thigh caps bulging out
+  of the hips. `FusedBodyBuilder.Build` extracts the whole field (`FusedBodyShape.LimbCapsules`) as one watertight surface and weights the
+  skin across each joint with fused_body.gd's softmin (`WeightsAt`): Godot's narrow band where a limb meets the torso and at a wrist or
+  ankle, 2.5x wider across an elbow or knee, and only between bones that are joined (`AreConnected`: a hanging hand no longer takes a share of
+  the hip). A limb's root ball is wholly the limb's (`RootHandover`): a ball turns about its joint, so only the fillet round it needs sharing.
+- **The shape** (`FusedBodyShape`): a torso capsule from the hips to 0.26 below the shoulder line (its dome tops out AT the shoulder line, under
+  the head); a pelvis bar between the thigh tops (`PelvisRadius`, ends inside the hip joints) so the legs grow out of one surface; a LEVEL
+  shoulder bar as thick as an arm from one arm root to the other (`ShoulderBar`, on the spine), the arms' roots `ArmRootBelowShoulder` (6 cm)
+  under their joints so the bar's top meets the head's underside instead of standing 9 cm up into it (the "head clips into the torso"); a neck
+  column (`NeckRadius` 0.115) from inside the chest up into the head sphere, with its own wider blend; arms and legs as single round cones
+  (shoulder/hip radius to a thinner wrist/ankle: `WristRadius`, `AnkleRadius`), no elbow or knee seam; a rounded-box FOOT under each ankle,
+  sole on the ground, round toe, no toes (`Foot*`); a HAND of a rounded-box palm, four two-piece fingers curled 20/50 degrees toward the palm
+  and a two-piece thumb (`Palm*`, `Finger*`, `Thumb*`), the palm facing the thigh, fingers 5 cm thick on an 8.4 cm palm parted by grooves.
+  The head is unchanged in size and place, so the player is still 2.60 m.
+- **The hands are extracted finer and stitched on** (`FusedBodyMesh.ExtractBody`): the body on a 3 cm grid, each hand (with a stretch of
+  forearm) on a 9 mm grid from the same field; both cut on one plane across the forearm (`ClipByPlane`, only within `WristCutRadius` of the
+  forearm's line) and the cut edges zipped (`Zip`). Both trace the same field, so there is no seam. 85k triangles, 43k vertices (`Unwrap`'s
+  triangle soup is welded back wherever position and paint UV agree, `Weld`). Crossing vertices keep off the grid corners (`EdgeVertex`
+  clamps t to 0.2%) and the grid is shifted a hair off Godot's phase (`GridShift`) so no corner sits exactly on the surface.
+- **The mesh has 15 bones now** (feet included): every prefab and scene binding `FusedBody.asset` was rebuilt (`SharedBodyBindingTests`).
+- **Tooling:** `tools/bodyshape` renders the shape by ray marching with no Unity (`dotnet run -c Release --project tools/bodyshape -- render
+  out.png [view ...]`, `profile`, `probe x y z`, `mesh`), against a stub of the UnityEngine types the shape code touches: a tweak shows in
+  seconds. `BodyShapeCapture` (PlayMode, Explicit, `-Graphics`) renders the real body in the T-pose, idle, run, arms up and arms forward
+  from four sides plus close-ups (`Logs/CityShots/body-*.png`). `CityX/Export Player Body Reference (OBJ)` now writes the saved mesh (hands
+  included) to `Logs/PlayerBodyReference.obj`.
+- **Tests:** `FusedBodyTests` (fingers separate, fingertips reach the old hand's end, feet flat with no toes, head on a neck, no hip crease or
+  lump, hands stiff and wholly the hand's, the saved body closed with hands and bending at the joints), `BodyRestPoseTests`, `PaintAtlasTests`
+  (the neck's row is filled now). Known: the neck's paint row is a short band (`PaintAtlas.AxisOf`).
+- **Not done:** held-item grips were tuned against the capsule hand (check the sword and pistol in the hand); garments were fitted to the old
+  arm radius at the wrist (0.09, now 0.07 at the wrist); the T-pose shows a 6 cm step where a raised arm's tube stands above the lower
+  shoulder bar (the price of a head that does not sink); no finger animation.
+
 ## Whole-body lean (2026-10-10)
 
 "Research the best dynamic movement animations for roblox like characters ... ours can be improved upon." Research (physics-driven lean,

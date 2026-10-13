@@ -8,10 +8,10 @@ namespace CityX.CharacterEditor
     /// <summary>
     /// Builds the CITY X body mesh and binds it to the CITY X skeleton.
     ///
-    /// This is what replaces the imported mannequin: blended capsules and a
-    /// sphere head, exactly the shape the Godot build drew. The Mixamo files
-    /// survive only as animation clips, retargeted through a humanoid avatar,
-    /// which do not care what shape hangs off the bones.
+    /// This is what replaces the imported mannequin: blended capsules, hands,
+    /// feet, a neck and a sphere head, the shape the Godot build drew and more.
+    /// The Mixamo files survive only as animation clips, retargeted through a
+    /// humanoid avatar, which do not care what shape hangs off the bones.
     ///
     /// THE PROPORTIONS COME FROM <see cref="BodyRig"/>, AND THE SKELETON IS
     /// BUILT TO MATCH THEM. The first attempt did it the other way round --
@@ -37,6 +37,9 @@ namespace CityX.CharacterEditor
         /// <summary>The child of the head bone that carries the skull.</summary>
         public const string HeadObjectName = "Head";
 
+        /// <summary>The step of the central difference the normals come from: smaller than a finger's radius, or a finger shades as a blob.</summary>
+        private const float NormalStep = 0.004f;
+
         [MenuItem("CityX/Rebuild Body Mesh")]
         public static void BuildMenu()
         {
@@ -48,27 +51,46 @@ namespace CityX.CharacterEditor
         /// <summary>
         /// Builds the body against a rig laid out to <see cref="BodyRig"/>.
         ///
-        /// THE POSITIONS COME FROM BodyRig, NOT FROM THE TRANSFORMS. That is
-        /// the whole point of this rewrite: the body's proportions are the
-        /// original's, stated once in one place, and the skeleton is built to
-        /// match them rather than the body being fitted to somebody else's
-        /// skeleton. The transforms are needed only to bind the skin to.
+        /// ONE SMOOTH SURFACE (owner, 2026-10-13: "a smooth body all throughout ... transitions between limbs smoother, there shouldnt be
+        /// visible lines or lumps at the hips"). The whole field -- torso, pelvis, neck, arms, legs, feet, hands -- is extracted as one
+        /// watertight surface, so every joint is a fillet of the smooth union rather than two tubes overlapping (which was the body from
+        /// 2026-10-10: a line at every elbow, wrist and knee, and the thigh caps standing out of the hips). The skin is then weighted across each
+        /// joint by fused_body.gd's own rule (FusedBodyShape.WeightsAt), narrow where a limb meets the torso and wide across an elbow or knee.
+        ///
+        /// THE HANDS ARE EXTRACTED FINER AND STITCHED ON. A finger is 4 cm across; on the body's 3 cm grid it would be a lump. Each hand (with
+        /// a stretch of forearm) is extracted from the same field on a grid a third the size, both meshes are cut on one plane across the
+        /// forearm, and the two cut edges are zipped together (FusedBodyMesh.ClipByPlane, Zip): no seam, since both trace the same field.
+        ///
+        /// THE POSITIONS COME FROM BodyRig, NOT FROM THE TRANSFORMS. The transforms are needed only to bind the skin to.
         /// </summary>
         public static Mesh Build(Transform root, Dictionary<HumanBodyBones, Transform> bones,
             out List<Transform> skinnedBones)
         {
             skinnedBones = new List<Transform>();
 
-            // SEPARATE TUBES, ONE PER BONE (owner, 2026-10-10: "the model is clearly stretched around the torso ... make it so each limb is a
-            // separate", "I just want the torso and arms to be tubes not stretched like that"; separate limbs are also what dismemberment will need).
-            // The body used to be ONE surface fused across every joint and skinned with weights blended between bones, so turning a joint (a
-            // T-pose's 77 degree shoulder above all) dragged the skin of the torso along with the arm. Now every per-bone capsule -- pelvis,
-            // torso, neck, upper arm, forearm, hand, thigh, shin -- is its own closed rounded tube, extracted on its own and bound 100% to its
-            // own bone: a joint turns a tube as a whole and nothing stretches. The rounded ends overlap at every joint, so no gap opens as it
-            // bends. Same capsules, same radii, same proportions as before (FusedBodyShape.Segments); only the joins are no longer blended.
-            List<FusedBodyShape.Segment> segments = OneTorso(BodyRigBuilder.Segments());
+            // TWO DIFFERENT PIECE LISTS, DELIBERATELY. segments is split per BONE (an elbow, a wrist, a knee, the spine) -- right for deciding
+            // which bone owns a vertex, wrong for deciding where the surface sits: unioning per-bone pieces back together bulges every internal
+            // seam outward (FusedBodyShape.LimbCapsules' own comment). shape is one unbroken piece per limb -- what the surface is extracted
+            // and shaded from. Only Unwrap() and WeightsAt() use segments; everything touching the actual shape uses shape.
+            List<FusedBodyShape.Segment> segments = BodyRigBuilder.Segments();
+            List<FusedBodyShape.Segment> shape = BodyRigBuilder.LimbCapsules();
             float cellSize = FusedBodyShape.CellSize;
 
+            FusedBodyMesh.ExtractBody(shape, BodyRig.ShapePositionOf, cellSize, FusedBodyShape.HandCellSize,
+                out List<Vector3> welded, out List<int> weldedTriangles, Debug.LogWarning);
+            if (welded.Count == 0 || weldedTriangles.Count == 0)
+            {
+                Debug.LogError("CityX: the body extracted to nothing -- check the bounds.");
+                return null;
+            }
+
+            // Unwelded with paint UVs (FusedBodyMesh.Unwrap, which needs triangle soup for its seam fix), then welded back wherever position and
+            // UV agree, which is everywhere but the seams.
+            FusedBodyMesh.Unwrap(segments, welded, weldedTriangles, out List<Vector3> soupVertices, out List<int> soupTriangles, out List<Vector2> soupUvs);
+            FusedBodyMesh.Weld(soupVertices, soupTriangles, soupUvs, out List<Vector3> vertices, out List<int> triangles, out List<Vector2> uvs);
+            Vector3[] normals = FusedBodyMesh.Normals(shape, vertices, NormalStep);
+
+            // --- skinning, blended across up to four bones per vertex.
             var skinBones = new List<Transform>();
             var boneIndex = new Dictionary<HumanBodyBones, int>();
             foreach (FusedBodyShape.Segment segment in segments)
@@ -79,68 +101,58 @@ namespace CityX.CharacterEditor
                 }
                 if (!bones.TryGetValue(segment.Bone, out Transform bone) || bone == null)
                 {
-                    Debug.LogWarning($"CityX: the rig has no {segment.Bone} -- its tube will hang off the hips instead.");
+                    Debug.LogWarning($"CityX: the rig has no {segment.Bone} -- the geometry for it will be welded to the hips instead.");
                     continue;
                 }
                 boneIndex[segment.Bone] = skinBones.Count;
                 skinBones.Add(bone);
             }
 
-            var vertices = new List<Vector3>();
-            var triangles = new List<int>();
-            var uvs = new List<Vector2>();
-            var normalList = new List<Vector3>();
-            var weightList = new List<BoneWeight>();
-            foreach (List<FusedBodyShape.Segment> one in Pieces(segments))
+            var weights = new BoneWeight[vertices.Count];
+            var influenceBones = new HumanBodyBones[4];
+            var influenceWeights = new float[4];
+            for (int i = 0; i < vertices.Count; i++)
             {
-                FusedBodyShape.Segment segment = one[0];
-                Bounds bounds = FusedBodyShape.BoundsOf(one);
-                bounds.SetMinMax(FusedBodyShape.PhaseAlignedOrigin(bounds.min, cellSize), bounds.max);
-                FusedBodyMesh.Extract(one, bounds, cellSize, out List<Vector3> welded, out List<int> weldedTriangles);
-                if (welded.Count == 0 || weldedTriangles.Count == 0)
+                int used = FusedBodyShape.WeightsAt(segments, vertices[i], influenceBones, influenceWeights);
+                // Sorted heaviest first: Unity treats slot 0 as the dominant bone and some quality settings drop the later ones.
+                for (int a = 0; a < used - 1; a++)
                 {
-                    Debug.LogError($"CityX: the {segment.Bone} tube extracted to nothing.");
-                    continue;
+                    for (int b = a + 1; b < used; b++)
+                    {
+                        if (influenceWeights[b] > influenceWeights[a])
+                        {
+                            (influenceWeights[a], influenceWeights[b]) = (influenceWeights[b], influenceWeights[a]);
+                            (influenceBones[a], influenceBones[b]) = (influenceBones[b], influenceBones[a]);
+                        }
+                    }
                 }
-                // Unwelded with paint UVs (FusedBodyMesh.Unwrap), the tube's own bone deciding its island.
-                FusedBodyMesh.Unwrap(one, welded, weldedTriangles,
-                    out List<Vector3> partVertices, out List<int> partTriangles, out List<Vector2> partUvs);
-                Vector3[] partNormals = FusedBodyMesh.Normals(one, partVertices, cellSize * 0.5f);
-
-                int first = vertices.Count;
-                int index = boneIndex.TryGetValue(segment.Bone, out int found) ? found : 0;
-                var rigid = new BoneWeight { boneIndex0 = index, weight0 = 1.0f };
-                vertices.AddRange(partVertices);
-                uvs.AddRange(partUvs);
-                normalList.AddRange(partNormals);
-                foreach (int t in partTriangles)
+                var w = new BoneWeight();
+                float total = 0.0f;
+                for (int slot = 0; slot < used; slot++)
                 {
-                    triangles.Add(first + t);
+                    if (!boneIndex.TryGetValue(influenceBones[slot], out int index))
+                    {
+                        index = 0;
+                    }
+                    switch (slot)
+                    {
+                        case 0: w.boneIndex0 = index; w.weight0 = influenceWeights[slot]; break;
+                        case 1: w.boneIndex1 = index; w.weight1 = influenceWeights[slot]; break;
+                        case 2: w.boneIndex2 = index; w.weight2 = influenceWeights[slot]; break;
+                        default: w.boneIndex3 = index; w.weight3 = influenceWeights[slot]; break;
+                    }
+                    total += influenceWeights[slot];
                 }
-                int spineIndex = -1;
-                bool shoulders = one.Count > 1 && boneIndex.TryGetValue(HumanBodyBones.Spine, out spineIndex);
-                for (int i = 0; i < partVertices.Count; i++)
+                if (total > 0.0f && Mathf.Abs(total - 1.0f) > 1e-5f)
                 {
-                    weightList.Add(shoulders ? ChestWeight(partVertices[i], one[1], index, spineIndex) : rigid);
+                    w.weight0 /= total; w.weight1 /= total; w.weight2 /= total; w.weight3 /= total;
                 }
+                weights[i] = w;
             }
 
-            if (vertices.Count == 0)
-            {
-                Debug.LogError("CityX: the body extracted to nothing -- check the bounds.");
-                return null;
-            }
-            Vector3[] normals = normalList.ToArray();
-            BoneWeight[] weights = weightList.ToArray();
-            List<FusedBodyShape.Segment> limbCapsules = BodyRigBuilder.LimbCapsules();
-
-            // BOUND ARMS-DOWN, NOT WHERE THE TRANSFORMS HAPPEN TO START. The
-            // mesh is modelled in fused_body.gd's own rest (arms hanging), and
-            // the bind pose maps that into each bone's space, so a clip that
-            // hangs the arms about as far as that bends the skin by almost
-            // nothing -- see BodyRig.RestBindMatrix. Reading the live T-pose
-            // skeleton here (what this did) bound a hanging mesh to bones
-            // lying out sideways.
+            // BOUND ARMS-DOWN, NOT WHERE THE TRANSFORMS HAPPEN TO START. The mesh is modelled in fused_body.gd's own rest (arms hanging), and
+            // the bind pose maps that into each bone's space, so a clip that hangs the arms about as far as that bends the skin by almost
+            // nothing -- see BodyRig.RestBindMatrix.
             var boundHuman = new HumanBodyBones[skinBones.Count];
             foreach (KeyValuePair<HumanBodyBones, int> entry in boneIndex)
             {
@@ -196,85 +208,8 @@ namespace CityX.CharacterEditor
                       $"{triangles.Count / 3} triangles, {skinBones.Count} bones, " +
                       $"standing {BodyRig.StandingHeight:0.00}m");
 
-            BuildStub(mesh, limbCapsules);
+            BuildStub(mesh, shape);
             return mesh;
-        }
-
-        /// <summary>
-        /// The torso as ONE tube, on the HIPS, where the legs hang from. It was two (the pelvis on the hips, which PlayerLocomotion holds still, and the chest on the
-        /// spine, which leans with the walk), and walking or strafing moved the top half while the bottom stayed frozen (owner, 2026-10-10:
-        /// "the top half of the torso moves while the bottom stays frozen ... make the whole thing move as a unit"). Then on the spine, and its bottom swung out
-        /// behind the legs ("the butt is sticking out too much", legs not attached). On the hips it stays on the legs; the spine no longer leans in a walk (PlayerLocomotion.LocomotionSpineLeans).
-        /// </summary>
-        /// <summary>The chest follows the spine from this far below the shoulders (none of it) to <see cref="ChestFollowsSpineFullyBelowShoulders"/> (all of it), metres.</summary>
-        private const float ChestFollowsSpineFromBelowShoulders = 0.6f;
-        private const float ChestFollowsSpineFullyBelowShoulders = 0.15f;
-
-        /// <summary>
-        /// The tubes extracted as one surface each. Every tube is on its own except the torso and the shoulder bar (OneTorso puts the torso first
-        /// and the bar last): they are extracted TOGETHER, so the field's smooth union (FusedBodyShape.BlendRadius) rounds the corner where the
-        /// shoulders leave the torso into one continuous volume, a shoulder rather than a bar laid on a tube.
-        /// </summary>
-        private static List<List<FusedBodyShape.Segment>> Pieces(List<FusedBodyShape.Segment> segments)
-        {
-            var pieces = new List<List<FusedBodyShape.Segment>>(segments.Count);
-            bool fused = segments.Count > 1 && segments[segments.Count - 1].Bone == HumanBodyBones.Spine && segments[0].Bone == HumanBodyBones.Hips;
-            int last = fused ? segments.Count - 1 : segments.Count;
-            for (int i = 0; i < last; i++)
-            {
-                pieces.Add(new List<FusedBodyShape.Segment> { segments[i] });
-            }
-            if (fused)
-            {
-                pieces[0].Add(segments[last]);
-            }
-            return pieces;
-        }
-
-        /// <summary>
-        /// The torso-and-shoulders surface is on the hips at the waist and blends onto the spine up the chest, so when the spine turns (a punch's
-        /// twist, the aim) the shoulders go with the arms, which hang from the spine, and the chest twists smoothly between -- the arms never
-        /// come off the shoulders. A walk does not turn the spine (PlayerLocomotion.LocomotionSpineLeans), so the torso still moves as one there.
-        /// </summary>
-        private static BoneWeight ChestWeight(Vector3 vertex, FusedBodyShape.Segment shoulderBar, int hipsIndex, int spineIndex)
-        {
-            float shoulderY = shoulderBar.A.y;
-            float onSpine = Mathf.SmoothStep(0.0f, 1.0f, Mathf.InverseLerp(
-                shoulderY - ChestFollowsSpineFromBelowShoulders, shoulderY - ChestFollowsSpineFullyBelowShoulders, vertex.y));
-            return new BoneWeight { boneIndex0 = hipsIndex, weight0 = 1.0f - onSpine, boneIndex1 = spineIndex, weight1 = onSpine };
-        }
-
-        private static List<FusedBodyShape.Segment> OneTorso(List<FusedBodyShape.Segment> segments)
-        {
-            int hips = segments.FindIndex(s => s.Bone == HumanBodyBones.Hips);
-            int spine = segments.FindIndex(s => s.Bone == HumanBodyBones.Spine);
-            if (hips < 0 || spine < 0)
-            {
-                return segments;
-            }
-            var torso = new FusedBodyShape.Segment(segments[hips].A, segments[spine].B, segments[spine].Radius, HumanBodyBones.Hips);
-            var result = new List<FusedBodyShape.Segment>(segments.Count) { torso };
-            for (int i = 0; i < segments.Count; i++)
-            {
-                if (i != hips && i != spine)
-                {
-                    result.Add(segments[i]);
-                }
-            }
-
-            // THE SHOULDERS ARE FUSED TO THE TORSO (owner, 2026-10-10: "the arms are not connected to the torso there is a visible gap",
-            // then "can you not just fuse the shoulders to the body? i dont like the spheres at the shoulders"). The shoulder joint sits an arm's
-            // radius outside the torso, so an arm tube capped there only touched it. A bar across the top of the torso, exactly as thick as an
-            // arm, runs from one shoulder joint to the other on the spine (the arms' own parent): its rounded end is the same size and in the same
-            // place as the arm's own top cap, so whichever way the arm turns the two stay flush. No bulge (a bigger ball there was rejected), no
-            // gap, and no strut when an arm is raised (an arm tube carried into the torso swung out with it).
-            int leftArm = segments.FindIndex(s => s.Bone == HumanBodyBones.LeftUpperArm);
-            int rightArm = segments.FindIndex(s => s.Bone == HumanBodyBones.RightUpperArm);
-            if (leftArm >= 0 && rightArm >= 0)
-            {
-                result.Add(new FusedBodyShape.Segment(segments[leftArm].A, segments[rightArm].A, segments[leftArm].Radius, HumanBodyBones.Spine));
-            }
-            return result;
         }
 
         /// <summary>
@@ -423,10 +358,9 @@ namespace CityX.CharacterEditor
         /// A PLAIN MESH ON THE BONE, NOT SKINNED INTO THE BODY, which is what
         /// character.gd does: a BoneAttachment3D following the head bone with a
         /// MeshInstance3D under it. It follows any animation for free, it can
-        /// turn without dragging a shared skin around with it, and -- the part
-        /// this port got wrong -- it leaves the body's own shape field with a
-        /// torso, two arms, two legs and a neck in it, exactly as
-        /// fused_body.gd's limb_defs() has always had.
+        /// turn without dragging a shared skin around with it, and it leaves the
+        /// body's own shape field with no head in it, exactly as fused_body.gd's
+        /// limb_defs() has always had. The neck column now runs up into it.
         /// </summary>
         public static void AttachHead(Transform headBone, Material material)
         {

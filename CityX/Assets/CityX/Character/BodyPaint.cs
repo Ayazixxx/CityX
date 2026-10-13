@@ -141,10 +141,28 @@ namespace CityX.Character
         /// </summary>
         public void Bind(Mesh mesh)
         {
-            _positions = mesh.vertices;
-            _uvs = mesh.uv;
+            Soup(mesh, out _positions, out _uvs);
             _bodyTriangles = _positions.Length / 3;
             _texelGrid = null;
+        }
+
+        /// <summary>
+        /// A mesh as triangle soup, corner by corner in triangle order, whether or not it shares vertices: since 2026-10-13 the body mesh is
+        /// welded wherever position and UV agree (FusedBodyMesh.Weld), and reading its vertex array as soup made every triangle after the
+        /// first few a scramble of unrelated corners -- a click painted nothing.
+        /// </summary>
+        private static void Soup(Mesh mesh, out Vector3[] positions, out Vector2[] uvs)
+        {
+            int[] triangles = mesh.triangles;
+            Vector3[] vertices = mesh.vertices;
+            Vector2[] uv = mesh.uv;
+            positions = new Vector3[triangles.Length];
+            uvs = new Vector2[triangles.Length];
+            for (int i = 0; i < triangles.Length; i++)
+            {
+                positions[i] = vertices[triangles[i]];
+                uvs[i] = uv.Length > 0 ? uv[triangles[i]] : Vector2.zero;
+            }
         }
 
         /// <summary>
@@ -168,8 +186,7 @@ namespace CityX.Character
                 return;
             }
 
-            Vector3[] headPositions = head.vertices;
-            Vector2[] headUvs = head.uv;
+            Soup(head, out Vector3[] headPositions, out Vector2[] headUvs);
 
             var positions = new Vector3[_positions.Length + headPositions.Length];
             var uvs = new Vector2[_uvs.Length + headUvs.Length];

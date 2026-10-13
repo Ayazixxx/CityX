@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Renders the player body's shape (Character/FusedBodyShape, the signed distance field the body mesh is extracted from) to a PNG by
+    ray marching, and prints its outline and skin weights, with no Unity involved: a tweak to the shape shows in seconds instead of a
+    five-minute character rebuild. Links the very same files the game uses, against a stub of the few UnityEngine types they touch.
+    Usage (see Program.cs): dotnet run -c Release [project tools/bodyshape] render out.png | profile | probe x y z | mesh
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <NoWarn>CS8632;CS0169;CS0649;CS0660;CS0661</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="System.Drawing.Common" Version="9.0.0" />
+    <Compile Include="..\..\CityX\Assets\CityX\Character\BodyRig.cs" />
+    <Compile Include="..\..\CityX\Assets\CityX\Character\FusedBodyShape.cs" />
+    <Compile Include="..\..\CityX\Assets\CityX\Character\FusedBodyMesh.cs" />
+    <Compile Include="..\..\CityX\Assets\CityX\Character\PaintAtlas.cs" />
+  </ItemGroup>
+</Project>

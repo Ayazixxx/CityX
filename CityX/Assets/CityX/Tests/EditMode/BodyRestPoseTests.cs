@@ -14,16 +14,29 @@ namespace CityX.Tests
     public sealed class BodyRestPoseTests
     {
         [Test]
-        public void EachArmCapsuleRunsFromTheShoulderToTheFullHandTarget()
+        public void EachArmRunsFromTheShoulderToTheWristAndItsHandOnToTheFullHandTarget()
         {
             List<FusedBodyShape.Segment> limbs = BodyRigBuilder.LimbCapsules();
-            FusedBodyShape.Segment left = limbs.Find(s => s.Bone == HumanBodyBones.LeftUpperArm);
-            FusedBodyShape.Segment right = limbs.Find(s => s.Bone == HumanBodyBones.RightUpperArm);
-
-            Assert.Less(Vector3.Distance(left.A, new Vector3(-BodyRig.ShoulderX, BodyRig.ShoulderY, 0.0f)), 1e-4f);
-            Assert.Less(Vector3.Distance(left.B, new Vector3(-BodyRig.HandX, BodyRig.HandY, 0.0f)), 1e-4f, "the left arm stops short of fused_body.gd's HAND_X, HAND_Y");
-            Assert.Less(Vector3.Distance(right.B, new Vector3(BodyRig.HandX, BodyRig.HandY, 0.0f)), 1e-4f, "the right arm stops short of fused_body.gd's HAND_X, HAND_Y");
-            Assert.AreEqual(BodyRig.ArmLength, Vector3.Distance(left.A, left.B), 1e-4f, "the arm is not the original's length");
+            foreach (float side in new[] { -1.0f, 1.0f })
+            {
+                HumanBodyBones upper = side < 0.0f ? HumanBodyBones.LeftUpperArm : HumanBodyBones.RightUpperArm;
+                HumanBodyBones handBone = side < 0.0f ? HumanBodyBones.LeftHand : HumanBodyBones.RightHand;
+                FusedBodyShape.Segment arm = limbs.Find(s => s.Bone == upper);
+                var shoulder = new Vector3(side * BodyRig.ShoulderX, BodyRig.ShoulderY, 0.0f);
+                var hand = new Vector3(side * BodyRig.HandX, BodyRig.HandY, 0.0f);
+                // The arm's tube roots a little under the joint (FusedBodyShape.ArmRootBelowShoulder), level with the shoulder bar.
+                Assert.Less(Vector3.Distance(arm.A, shoulder - Vector3.up * FusedBodyShape.ArmRootBelowShoulder), 1e-4f);
+                // The arm's own cone ends at the wrist (WristT along fused_body.gd's shoulder-to-hand line); the hand's pieces carry on past
+                // HAND_X, HAND_Y, so the reach is the original's.
+                Assert.Less(Vector3.Distance(arm.B, Vector3.Lerp(shoulder, hand, BodyRig.WristT)), 1e-4f, "the arm's cone does not end at the wrist");
+                Vector3 along = (hand - shoulder).normalized;
+                float reach = 0.0f;
+                foreach (FusedBodyShape.Segment piece in FusedBodyShape.HandPieces(limbs, handBone))
+                {
+                    reach = Mathf.Max(reach, Vector3.Dot(piece.B - shoulder, along) + piece.Radius);
+                }
+                Assert.GreaterOrEqual(reach, BodyRig.ArmLength + FusedBodyShape.ArmRadius - 0.01f, "the hand stops short of fused_body.gd's HAND_X, HAND_Y");
+            }
         }
 
         [Test]
@@ -106,8 +119,9 @@ namespace CityX.Tests
             var mesh = UnityEditor.AssetDatabase.LoadAssetAtPath<Mesh>("Assets/CityX/Character/FusedBody.asset");
             Assert.IsNotNull(mesh, "the body mesh asset is missing");
             Bounds bounds = mesh.bounds;
-            // The hand end is at HAND_X (0.58) with the capsule's radius and a blend's worth of skin beyond it.
-            Assert.Greater(bounds.max.x, BodyRig.HandX + FusedBodyShape.ArmRadius - 0.03f, "the hands do not reach where the original's do");
+            // The hand reaches HAND_X (0.58): the fingers curl a little in toward the thigh, so the widest point is the palm's edge, not a
+            // capsule's cap a radius beyond it as it once was.
+            Assert.Greater(bounds.max.x, BodyRig.HandX, "the hands do not reach where the original's do");
             Assert.Less(bounds.max.x, BodyRig.HandX + FusedBodyShape.ArmRadius + 0.1f, "the body is wider than the original's arms: T-pose?");
             Assert.Less(bounds.size.x, 1.4f, "the baked body is laid out sideways");
         }

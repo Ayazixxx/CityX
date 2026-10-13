@@ -92,27 +92,20 @@ namespace CityX.CharacterEditor
             // are already the numbers the body was drawn with, so the scale
             // factor has to come out at exactly one or the thicknesses get
             // rescaled.
-            List<FusedBodyShape.Segment> limbCapsules =
-                FusedBodyShape.LimbCapsules(BonePosition, FusedBodyShape.ReferenceHeight);
-
-            Bounds bounds = FusedBodyShape.BoundsOf(limbCapsules);
-            // Same Godot-grid phase alignment FusedBodyBuilder.Build applies
-            // to the real shipped body -- see PhaseAlignedOrigin's own doc
-            // comment. Kept in sync here so this reference export stays a
-            // faithful stand-in for the real body, not a second, differently
-            // -phased approximation of it.
-            bounds.SetMinMax(FusedBodyShape.PhaseAlignedOrigin(bounds.min, FusedBodyShape.CellSize), bounds.max);
-            FusedBodyMesh.Extract(limbCapsules, bounds, FusedBodyShape.CellSize,
-                out List<Vector3> bodyVertices, out List<int> bodyTriangles);
-            if (bodyVertices.Count == 0 || bodyTriangles.Count == 0)
+            // THE SAVED BODY ITSELF, not a fresh extraction: since 2026-10-13 the shipped mesh has its hands extracted on a finer grid
+            // and stitched on (FusedBodyMesh.ExtractBody), so re-extracting here would give a reference with mitten hands. The asset's
+            // vertices are in the arms-down rest pose already (that is what the bind pose maps from).
+            var saved = AssetDatabase.LoadAssetAtPath<Mesh>("Assets/CityX/Character/FusedBody.asset");
+            if (saved == null)
             {
-                Debug.LogError("CityX: the body extracted to nothing -- check the bounds.");
+                Debug.LogError("CityX: no FusedBody.asset -- rebuild the player rig first.");
                 return;
             }
-            Vector3[] bodyNormals =
-                FusedBodyMesh.Normals(limbCapsules, bodyVertices, FusedBodyShape.CellSize * 0.5f);
+            var bodyVertices = new List<Vector3>(saved.vertices);
+            var bodyTriangles = new List<int>(saved.triangles);
+            Vector3[] bodyNormals = saved.normals;
 
-            var body = new Mesh { name = "PlayerBodyReferenceBody" };
+            var body = new Mesh { name = "PlayerBodyReferenceBody", indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
             body.SetVertices(bodyVertices);
             body.SetTriangles(bodyTriangles, 0);
             body.SetNormals(bodyNormals);

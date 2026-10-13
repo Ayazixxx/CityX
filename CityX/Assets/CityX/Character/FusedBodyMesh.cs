@@ -246,7 +246,9 @@ namespace CityX.Character
             float va = values[cornerA];
             float vb = values[cornerB];
             float t = Mathf.Approximately(va, vb) ? 0.5f : va / (va - vb);
-            t = Mathf.Clamp01(t);
+            // Kept off the corners: a crossing within a hair of a corner makes a sliver triangle microns across, which a check welding
+            // vertices by position merges into a hole that is not there. The surface moves by under 0.2% of a cell.
+            t = Mathf.Clamp(t, 0.002f, 0.998f);
 
             vertices.Add(Vector3.Lerp(points[cornerA], points[cornerB], t));
             index[edgeKey] = vertices.Count - 1;
@@ -265,6 +267,7 @@ namespace CityX.Character
                 return;   // degenerate: the surface passed exactly through a corner
             }
 
+            // A sliver (two corners a hair apart) is kept: dropping it unpairs its neighbours' edges, a hole that is not there.
             Vector3 face = Vector3.Cross(vertices[b] - vertices[a], vertices[c] - vertices[a]);
             if (Vector3.Dot(face, outward) < 0.0f)
             {
@@ -343,6 +346,406 @@ namespace CityX.Character
                 triangles.Add(vertices.Count);
                 vertices.Add(c);
                 uvs.Add(uc);
+            }
+        }
+
+        /// <summary>The hand's fine grid is cut and zipped onto the body this far before the wrist joint, along the forearm, where the field is purely the forearm's.</summary>
+        public const float WristCutBack = 0.045f;
+
+        /// <summary>The grids are shifted by this off any round number, so no grid corner lands exactly on the surface (see ExtractBody).</summary>
+        public const float GridShift = 0.000137f;
+
+        /// <summary>Only what lies within this of the forearm's line is cut (the plane is infinite and would take the feet off too): the thumb reaches 0.21 off the line, the nearest other part below the cut (the hip) is 0.30 off it. Nothing may straddle it, or the cut edge frays.</summary>
+        public const float WristCutRadius = 0.25f;
+
+        /// <summary>
+        /// The whole body as one closed surface with the hands extracted finer and stitched on. One grid cannot be both: fingers need a cell
+        /// a third the size of the body's, and a body on that grid is a third of a million triangles. So the body is extracted on
+        /// <paramref name="cellSize"/>, each hand (with a stretch of forearm) on <paramref name="handCellSize"/> from the same field, both are
+        /// cut on one plane across the forearm (<see cref="ClipByPlane"/>) and the two cut edges are zipped (<see cref="Zip"/>): both trace the
+        /// same cross-section of the same field, so the seam is a hair wide and the field's own normals shade straight across it. Welded.
+        /// </summary>
+        public static void ExtractBody(IReadOnlyList<FusedBodyShape.Segment> shape, System.Func<HumanBodyBones, Vector3> bonePosition,
+            float cellSize, float handCellSize, out List<Vector3> vertices, out List<int> triangles, System.Action<string> warn)
+        {
+            Bounds bounds = FusedBodyShape.BoundsOf(shape);
+            // Phase-aligned to Godot's own grid -- see PhaseAlignedOrigin. Only the MIN corner moves, downward, so the region only ever grows.
+            // Then shifted by a hair: on Godot's exact grid the torso's radius lands on grid corners (0.26 at x = 0.24, z = 0.10), and a
+            // corner exactly on the surface makes slivers of triangles microns across, which read as holes to anything welding by position.
+            bounds.SetMinMax(FusedBodyShape.PhaseAlignedOrigin(bounds.min, cellSize) + Vector3.one * GridShift, bounds.max);
+            Extract(shape, bounds, cellSize, out vertices, out triangles);
+            if (vertices.Count == 0)
+            {
+                return;
+            }
+            foreach (HumanBodyBones hand in new[] { HumanBodyBones.LeftHand, HumanBodyBones.RightHand })
+            {
+                StitchHand(shape, bonePosition, hand, handCellSize, ref vertices, ref triangles, warn);
+            }
+        }
+
+        /// <summary>
+        /// Replaces one hand of the body's coarse surface with the same hand extracted on the fine grid: both are cut on a plane across the
+        /// forearm <see cref="WristCutBack"/> before the wrist, the body keeping the shoulder side and the fine piece the hand side, and the
+        /// two cut edges are zipped. The fine field is just this arm and this hand; nothing else comes within its grid.
+        /// </summary>
+        private static void StitchHand(IReadOnlyList<FusedBodyShape.Segment> shape, System.Func<HumanBodyBones, Vector3> bonePosition, HumanBodyBones hand,
+            float handCellSize, ref List<Vector3> vertices, ref List<int> triangles, System.Action<string> warn)
+        {
+            HumanBodyBones upper = hand == HumanBodyBones.LeftHand ? HumanBodyBones.LeftUpperArm : HumanBodyBones.RightUpperArm;
+            Vector3 shoulder = bonePosition(upper);
+            Vector3 handTarget = bonePosition(hand);
+            Vector3 wrist = Vector3.Lerp(shoulder, handTarget, BodyRig.WristT);
+            Vector3 along = (handTarget - shoulder).normalized;
+            Vector3 cut = wrist - along * WristCutBack;
+
+            var local = new List<FusedBodyShape.Segment>();
+            foreach (FusedBodyShape.Segment s in shape)
+            {
+                if (s.Bone == upper || s.Bone == hand)
+                {
+                    local.Add(s);
+                }
+            }
+            List<FusedBodyShape.Segment> pieces = FusedBodyShape.HandPieces(shape, hand);
+            if (pieces.Count == 0 || local.Count == pieces.Count)
+            {
+                warn?.Invoke($"CityX: no {hand} or its arm in the shape -- the body keeps its coarse hand.");
+                return;
+            }
+            Bounds bounds = FusedBodyShape.BoundsOf(pieces);
+            bounds.Encapsulate(new Bounds(wrist, Vector3.one * 0.24f));
+            bounds.Encapsulate(new Bounds(cut - along * 0.03f, Vector3.one * 0.24f));
+            bounds.Expand(0.02f);
+            bounds.SetMinMax(bounds.min + Vector3.one * GridShift, bounds.max);
+            Extract(local, bounds, handCellSize, out List<Vector3> fineVertices, out List<int> fineTriangles);
+            if (fineVertices.Count == 0)
+            {
+                warn?.Invoke($"CityX: the {hand} extracted to nothing on the fine grid.");
+                return;
+            }
+
+            ClipByPlane(fineVertices, fineTriangles, cut, along, true, float.MaxValue,
+                out List<Vector3> handVertices, out List<int> handTriangles, out List<List<int>> handLoops);
+            ClipByPlane(vertices, triangles, cut, along, false, WristCutRadius,
+                out List<Vector3> bodyVertices, out List<int> bodyTriangles, out List<List<int>> bodyLoops);
+            if (handLoops.Count != 1 || bodyLoops.Count != 1)
+            {
+                var where = new System.Text.StringBuilder();
+                foreach (List<int> loop in bodyLoops) where.Append($" body {loop.Count} at {Centre(bodyVertices, loop)}");
+                foreach (List<int> loop in handLoops) where.Append($" hand {loop.Count} at {Centre(handVertices, loop)}");
+                warn?.Invoke($"CityX: the {hand} cut left {bodyLoops.Count} edge(s) on the body and {handLoops.Count} on the hand -- zipping the nearest pairs ({where}).");
+            }
+
+            int offset = bodyVertices.Count;
+            bodyVertices.AddRange(handVertices);
+            foreach (int t in handTriangles)
+            {
+                bodyTriangles.Add(offset + t);
+            }
+            var unpaired = new List<List<int>>();
+            foreach (List<int> loop in handLoops)
+            {
+                var shifted = new List<int>(loop.Count);
+                foreach (int i in loop)
+                {
+                    shifted.Add(offset + i);
+                }
+                unpaired.Add(shifted);
+            }
+            foreach (List<int> bodyLoop in bodyLoops)
+            {
+                Vector3 centre = Centre(bodyVertices, bodyLoop);
+                int nearest = -1;
+                float best = float.MaxValue;
+                for (int i = 0; i < unpaired.Count; i++)
+                {
+                    float d = (Centre(bodyVertices, unpaired[i]) - centre).sqrMagnitude;
+                    if (d < best)
+                    {
+                        best = d;
+                        nearest = i;
+                    }
+                }
+                if (nearest < 0)
+                {
+                    warn?.Invoke($"CityX: the {hand}'s cut on the body has no edge on the hand to zip to -- a hole at the wrist.");
+                    continue;
+                }
+                Zip(bodyVertices, bodyLoop, unpaired[nearest], along, bodyTriangles);
+                unpaired.RemoveAt(nearest);
+            }
+            vertices = bodyVertices;
+            triangles = bodyTriangles;
+        }
+
+        private static Vector3 Centre(IReadOnlyList<Vector3> vertices, List<int> loop)
+        {
+            Vector3 sum = Vector3.zero;
+            foreach (int i in loop)
+            {
+                sum += vertices[i];
+            }
+            return sum / Mathf.Max(1, loop.Count);
+        }
+
+        /// <summary>
+        /// Shares every vertex that two triangles can share: the same position AND the same paint UV. Unwrap's triangle soup is only
+        /// needed where it does something -- at the theta seam of a limb's row, and where one row meets another -- and everywhere else it
+        /// tripled the vertex count for nothing. A vertex on a seam keeps its own copy; its neighbours across the seam keep theirs.
+        /// </summary>
+        public static void Weld(List<Vector3> vertices, List<int> triangles, List<Vector2> uvs,
+            out List<Vector3> outVertices, out List<int> outTriangles, out List<Vector2> outUvs)
+        {
+            outVertices = new List<Vector3>(vertices.Count / 3);
+            outTriangles = new List<int>(triangles.Count);
+            outUvs = new List<Vector2>(vertices.Count / 3);
+            var index = new Dictionary<(Vector3Int, Vector2Int), int>();
+            var remap = new int[vertices.Count];
+            for (int i = 0; i < vertices.Count; i++)
+            {
+                Vector3 p = vertices[i];
+                Vector2 uv = uvs[i];
+                var key = (new Vector3Int(Mathf.RoundToInt(p.x * 10000.0f), Mathf.RoundToInt(p.y * 10000.0f), Mathf.RoundToInt(p.z * 10000.0f)),
+                    new Vector2Int(Mathf.RoundToInt(uv.x * 100000.0f), Mathf.RoundToInt(uv.y * 100000.0f)));
+                if (!index.TryGetValue(key, out int shared))
+                {
+                    shared = outVertices.Count;
+                    index[key] = shared;
+                    outVertices.Add(p);
+                    outUvs.Add(uv);
+                }
+                remap[i] = shared;
+            }
+            for (int i = 0; i < triangles.Count; i += 3)
+            {
+                int a = remap[triangles[i]], b = remap[triangles[i + 1]], c = remap[triangles[i + 2]];
+                if (a == b || b == c || a == c)
+                {
+                    continue;
+                }
+                outTriangles.Add(a);
+                outTriangles.Add(b);
+                outTriangles.Add(c);
+            }
+        }
+
+        /// <summary>
+        /// Cuts a welded, closed mesh on a plane through <paramref name="point"/> with normal <paramref name="normal"/>, keeping the side the
+        /// normal points to (or the other, when <paramref name="keepPositive"/> is false), but only within <paramref name="radius"/> of the
+        /// line through the point along the normal: the plane is infinite and a wrist's cut would otherwise take the feet off too, while
+        /// everything of the forearm and hand lies along that line. Returns the kept mesh, still welded, and the loops of new vertices along
+        /// the cut, each in the winding of the kept triangles.
+        ///
+        /// THIS IS WHAT LETS THE HANDS BE FINER THAN THE BODY. One grid cannot be both: fingers need a cell a third the size of the body's, and
+        /// a body on that grid is a third of a million triangles. So the body and each hand are extracted from the same field on their own grids,
+        /// both are cut on a plane across the forearm, and the two cut edges are zipped together (<see cref="Zip"/>). Both edges trace the same
+        /// cross-section of the same field, so the seam between them is a hair wide and the field's own normals shade straight across it.
+        /// </summary>
+        public static void ClipByPlane(IReadOnlyList<Vector3> vertices, IReadOnlyList<int> triangles, Vector3 point, Vector3 normal,
+            bool keepPositive, float radius, out List<Vector3> outVertices, out List<int> outTriangles, out List<List<int>> loops)
+        {
+            // Nudged off every grid vertex: a vertex exactly on the plane is neither side, and an edge to it a zero-length sliver.
+            point += normal * 0.00037f;
+            float sign = keepPositive ? 1.0f : -1.0f;
+            float radius2 = radius * radius;
+            var side = new float[vertices.Count];   // positive: kept
+            for (int i = 0; i < vertices.Count; i++)
+            {
+                Vector3 offset = vertices[i] - point;
+                float alongLine = Vector3.Dot(offset, normal);
+                float s = sign * alongLine;
+                if (s < 0.0f && (offset - normal * alongLine).sqrMagnitude > radius2)
+                {
+                    s = 1.0f;   // the wrong side of the plane but nowhere near the line of the cut: kept whole
+                }
+                side[i] = s;
+            }
+
+            // Local lists, since a local function may not touch an out parameter.
+            var kept = new List<Vector3>(vertices.Count);
+            var keptTriangles = new List<int>(triangles.Count);
+            var remap = new int[vertices.Count];
+            for (int i = 0; i < remap.Length; i++)
+            {
+                remap[i] = -1;
+            }
+            var onPlane = new Dictionary<(int, int), int>();
+            var next = new Dictionary<int, int>();   // boundary edges: from -> to, in the kept winding
+
+            int Keep(int i)
+            {
+                if (remap[i] < 0)
+                {
+                    remap[i] = kept.Count;
+                    kept.Add(vertices[i]);
+                }
+                return remap[i];
+            }
+
+            int Cross(int keptEnd, int cutEnd)
+            {
+                (int lo, int hi) = keptEnd < cutEnd ? (keptEnd, cutEnd) : (cutEnd, keptEnd);
+                if (onPlane.TryGetValue((lo, hi), out int existing))
+                {
+                    return existing;
+                }
+                float t = side[keptEnd] / (side[keptEnd] - side[cutEnd]);
+                int created = kept.Count;
+                kept.Add(Vector3.Lerp(vertices[keptEnd], vertices[cutEnd], t));
+                onPlane[(lo, hi)] = created;
+                return created;
+            }
+
+            for (int i = 0; i < triangles.Count; i += 3)
+            {
+                int a = triangles[i], b = triangles[i + 1], c = triangles[i + 2];
+                bool ka = side[a] >= 0.0f, kb = side[b] >= 0.0f, kc = side[c] >= 0.0f;
+                int keptCount = (ka ? 1 : 0) + (kb ? 1 : 0) + (kc ? 1 : 0);
+                if (keptCount == 3)
+                {
+                    keptTriangles.Add(Keep(a));
+                    keptTriangles.Add(Keep(b));
+                    keptTriangles.Add(Keep(c));
+                    continue;
+                }
+                if (keptCount == 0)
+                {
+                    continue;
+                }
+                // Rotate so the odd one out is first: one kept (a kept, b and c cut) or one cut (a cut, b and c kept).
+                for (int r = 0; r < 3; r++)
+                {
+                    bool aOdd = keptCount == 1 ? ka : !ka;
+                    if (aOdd)
+                    {
+                        break;
+                    }
+                    (a, b, c) = (b, c, a);
+                    (ka, kb, kc) = (kb, kc, ka);
+                }
+                if (keptCount == 1)
+                {
+                    int ab = Cross(a, b), ac = Cross(a, c);
+                    keptTriangles.Add(Keep(a));
+                    keptTriangles.Add(ab);
+                    keptTriangles.Add(ac);
+                    next[ab] = ac;
+                }
+                else
+                {
+                    // a cut, b and c kept: the quad b, c, ca, ba.
+                    int ba = Cross(b, a), ca = Cross(c, a);
+                    int kb2 = Keep(b), kc2 = Keep(c);
+                    keptTriangles.Add(kb2);
+                    keptTriangles.Add(kc2);
+                    keptTriangles.Add(ca);
+                    keptTriangles.Add(kb2);
+                    keptTriangles.Add(ca);
+                    keptTriangles.Add(ba);
+                    next[ca] = ba;
+                }
+            }
+
+            outVertices = kept;
+            outTriangles = keptTriangles;
+            loops = new List<List<int>>();
+            var visited = new HashSet<int>();
+            foreach (int start in next.Keys)
+            {
+                if (visited.Contains(start))
+                {
+                    continue;
+                }
+                var loop = new List<int>();
+                int walk = start;
+                while (!visited.Contains(walk) && next.TryGetValue(walk, out int to))
+                {
+                    visited.Add(walk);
+                    loop.Add(walk);
+                    walk = to;
+                }
+                if (loop.Count >= 3)
+                {
+                    loops.Add(loop);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Triangulates the band between two closed loops of vertices lying in one plane (see <see cref="ClipByPlane"/>): walks both round
+        /// together, always taking the shorter bridge. Both loops are first turned to run the same way round <paramref name="normal"/>. Every
+        /// band triangle is emitted twice, facing each way: the band is a ring of slivers a hair wide lying flat in the cut plane, so neither
+        /// side is its "outside", and a culled sliver would be a crack.
+        /// </summary>
+        public static void Zip(IReadOnlyList<Vector3> vertices, List<int> loopA, List<int> loopB, Vector3 normal, List<int> triangles)
+        {
+            if (loopA.Count < 3 || loopB.Count < 3)
+            {
+                return;
+            }
+            Orient(vertices, loopA, normal);
+            Orient(vertices, loopB, normal);
+
+            int n = loopA.Count, m = loopB.Count;
+            int j0 = 0;
+            float best = float.MaxValue;
+            for (int j = 0; j < m; j++)
+            {
+                float d = (vertices[loopB[j]] - vertices[loopA[0]]).sqrMagnitude;
+                if (d < best)
+                {
+                    best = d;
+                    j0 = j;
+                }
+            }
+
+            int ai = 0, bj = 0;
+            while (ai < n || bj < m)
+            {
+                int a = loopA[ai % n], aNext = loopA[(ai + 1) % n];
+                int b = loopB[(j0 + bj) % m], bNext = loopB[(j0 + bj + 1) % m];
+                bool advanceA;
+                if (ai >= n)
+                {
+                    advanceA = false;
+                }
+                else if (bj >= m)
+                {
+                    advanceA = true;
+                }
+                else
+                {
+                    advanceA = (vertices[aNext] - vertices[b]).sqrMagnitude <= (vertices[a] - vertices[bNext]).sqrMagnitude;
+                }
+                int p = a, q = advanceA ? aNext : bNext, r = b;
+                if (p != q && q != r && p != r)
+                {
+                    triangles.Add(p); triangles.Add(q); triangles.Add(r);
+                    triangles.Add(p); triangles.Add(r); triangles.Add(q);
+                }
+                if (advanceA) ai++; else bj++;
+            }
+        }
+
+        /// <summary>Reverses a loop if it runs clockwise seen along <paramref name="normal"/>.</summary>
+        private static void Orient(IReadOnlyList<Vector3> vertices, List<int> loop, Vector3 normal)
+        {
+            Vector3 centre = Vector3.zero;
+            foreach (int i in loop)
+            {
+                centre += vertices[i];
+            }
+            centre /= loop.Count;
+            float turn = 0.0f;
+            for (int i = 0; i < loop.Count; i++)
+            {
+                Vector3 a = vertices[loop[i]] - centre, b = vertices[loop[(i + 1) % loop.Count]] - centre;
+                turn += Vector3.Dot(Vector3.Cross(a, b), normal);
+            }
+            if (turn < 0.0f)
+            {
+                loop.Reverse();
             }
         }
 

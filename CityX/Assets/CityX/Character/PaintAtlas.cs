@@ -157,8 +157,10 @@ namespace CityX.Character
                     return;
 
                 case HumanBodyBones.Neck:
-                    a = BodyRig.PositionOf(HumanBodyBones.Neck);
-                    b = BodyRig.PositionOf(HumanBodyBones.Head);
+                    // The exposed neck is the short band between the collar and the chin (the column runs on up inside the head sphere), so
+                    // the row is laid along just that band rather than all the way up to the head's centre, where it would use a sliver.
+                    a = BodyRig.PositionOf(HumanBodyBones.Neck) - Vector3.up * FusedBodyShape.NeckColumnBelowShoulders;
+                    b = BodyRig.PositionOf(HumanBodyBones.Neck) + Vector3.up * 0.05f;
                     return;
 
                 case HumanBodyBones.LeftUpperArm:
