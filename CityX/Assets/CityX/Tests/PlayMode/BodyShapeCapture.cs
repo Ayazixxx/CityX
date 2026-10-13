@@ -69,6 +69,11 @@ namespace CityX.Tests
                         armR.localRotation = Quaternion.Euler(0, -90, 0);
                         break;
                 }
+                // The shared posture over the sampled pose, as the game lays it over the Animator's (the scripts are off here).
+                if (pose == "idle" || pose == "run")
+                {
+                    player.GetComponentInChildren<CityX.Character.BodyPosture>(true)?.Apply();
+                }
                 yield return null;
                 Vector3 centre = origin + Vector3.up * 1.35f;
                 camera.fieldOfView = 32;

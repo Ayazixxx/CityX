@@ -445,6 +445,10 @@ namespace CityX.UI
                     FlightCommand(line.Argument(0), line.Argument(1));
                     return;
 
+                case "posture":
+                    PostureCommand(line.Argument(0), line.Argument(1));
+                    return;
+
                 default:
                     Log("unknown command: " + line.Verb + "   (try /help)");
                     return;
@@ -641,6 +645,41 @@ namespace CityX.UI
         }
 
         /// <summary>The nearest point of an expressway's main deck, in the middle of its nearer carriageway, a couple of metres up.</summary>
+        /// <summary>/posture: the shared posture every body stands in (BodyPostureSettings), shown or set live.</summary>
+        private void PostureCommand(string what, string value)
+        {
+            var settings = CityX.Character.BodyPostureSettings.Current;
+            if (string.IsNullOrEmpty(what) || what == "show")
+            {
+                Log($"posture: head {settings.HeadPitchUp:0.#} up, {settings.HeadTurnRight:0.#} turned right, {settings.HeadTiltRight:0.#} tilted right (degrees), legs {settings.LegsBack:0.###} m back -- /posture head|turn|tilt <degrees> | /posture legs <metres>");
+                return;
+            }
+            if (value == null || !float.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float number))
+            {
+                Log(DevCommands.UsageFor("posture"));
+                return;
+            }
+            switch (what)
+            {
+                case "head":
+                    settings.HeadPitchUp = Mathf.Clamp(number, -30.0f, 30.0f);
+                    break;
+                case "turn":
+                    settings.HeadTurnRight = Mathf.Clamp(number, -45.0f, 45.0f);
+                    break;
+                case "tilt":
+                    settings.HeadTiltRight = Mathf.Clamp(number, -30.0f, 30.0f);
+                    break;
+                case "legs":
+                    settings.LegsBack = Mathf.Clamp(number, -0.15f, 0.15f);
+                    break;
+                default:
+                    Log(DevCommands.UsageFor("posture"));
+                    return;
+            }
+            Log($"posture: head {settings.HeadPitchUp:0.#} up, {settings.HeadTurnRight:0.#} turned right, {settings.HeadTiltRight:0.#} tilted right, legs {settings.LegsBack:0.###} m back");
+        }
+
         private static bool TryFindNearestHighway(CityWorld world, Vector3 from, out Vector3 destination)
         {
             destination = Vector3.zero;

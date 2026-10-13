@@ -314,6 +314,9 @@ namespace CityX.CharacterEditor
             animator.avatar = BodyRigBuilder.BuildAvatar(root, named);
             animator.runtimeAnimatorController = controller;
             animator.applyRootMotion = false;
+            // The shared posture laid over every animation (head up, legs back): BodyPostureSettings, tunable live.
+            root.AddComponent<BodyPosture>();
+            EnsurePostureAsset();
 
             var bones = new Dictionary<HumanBodyBones, Transform>();
             foreach (BodyRig.Bone bone in BodyRig.Bones())
@@ -350,6 +353,18 @@ namespace CityX.CharacterEditor
 
             AttachHead(named["head"], material);
             return root;
+        }
+
+        /// <summary>Makes the posture asset if there is none, so there is always something to drag the sliders of.</summary>
+        private static void EnsurePostureAsset()
+        {
+            if (AssetDatabase.LoadAssetAtPath<BodyPostureSettings>(BodyPostureSettings.AssetPath) != null)
+            {
+                return;
+            }
+            System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(BodyPostureSettings.AssetPath));
+            AssetDatabase.CreateAsset(ScriptableObject.CreateInstance<BodyPostureSettings>(), BodyPostureSettings.AssetPath);
+            AssetDatabase.SaveAssets();
         }
 
         /// <summary>

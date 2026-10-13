@@ -142,6 +142,7 @@ namespace CityX.UI
             "sword",
             "gun",
             "flight",
+            "posture",
         };
 
         public static string UsageFor(string verb)
@@ -180,6 +181,7 @@ namespace CityX.UI
                     "kick / kickangle (the pistol's own snap-back), recover (camera settle rate), " +
                     "sens (mouse scale while aiming), aimspeed (walk-speed scale while aiming). " +
                     "/gun shoulder swaps the camera shoulder (Q). Needs a pistol equipped";
+                case "posture": return "/posture -- shows the head tilt and leg position every body stands in; /posture head <degrees up>, /posture turn <degrees right>, /posture tilt <degrees right>, /posture legs <metres back>";
                 case "flight": return "/flight -- lists the flying-feel numbers; /flight <name> <value> sets one: " +
                     "fov (degrees the view widens at full speed), kick (extra degrees on a boost), " +
                     "kickseconds, pullback (metres the camera falls back), kickpullback, " +
