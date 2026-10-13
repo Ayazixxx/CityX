@@ -56,6 +56,11 @@ namespace CityX.Weapons
         /// </summary>
         public const float BladeLocalLength = 2.1f;
 
+        /// <summary>Which inventory item this sword is (the original greatsword, or a model the owner brought in, e.g. the spike sword).</summary>
+        [SerializeField] private string _itemId = ItemRegistry.Sword;
+
+        public string ItemId { get => _itemId; set => _itemId = value; }
+
         /// <summary>Where the blade meets the grip, in world space.</summary>
         public Vector3 BladeBaseWorld => transform.position;
 
@@ -216,7 +221,7 @@ namespace CityX.Weapons
             {
                 return false;
             }
-            if (inventory.AddItem(ItemRegistry.Sword, 1))
+            if (inventory.AddItem(_itemId, 1))
             {
                 Destroy(gameObject);
                 return true;

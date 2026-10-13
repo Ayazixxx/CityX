@@ -1498,6 +1498,8 @@ namespace CityX.UI
                 case "grapple": return ItemRegistry.GrapplingHook;
                 case "pistol": return ItemRegistry.Pistol;
                 case "sword": return ItemRegistry.Sword;
+                case "spikesword":
+                case "spike_sword": return ItemRegistry.SpikeSword;
                 case "flamethrower": return ItemRegistry.Flamethrower;
                 case "top_hat":
                 case "tophat": return ItemRegistry.TopHat;

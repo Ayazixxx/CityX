@@ -244,6 +244,7 @@ namespace CityX.ViewEditor
             GameObject jetpackPrefab = CityX.WeaponsEditor.JetpackBuilder.Build();
             GameObject parachutePrefab = CityX.WeaponsEditor.ParachuteBuilder.Build();
             GameObject swordPrefab = CityX.WeaponsEditor.SwordBuilder.Build();
+            GameObject spikeSwordPrefab = CityX.WeaponsEditor.SpikeSwordBuilder.Build();
             GameObject flamethrowerPrefab = CityX.WeaponsEditor.FlamethrowerBuilder.Build();
             GameObject topHatPrefab = CityX.WearablesEditor.TopHatBuilder.Build();
             GameObject mustangPrefab = CityX.VehiclesEditor.CarBuilder.Build();
@@ -426,6 +427,8 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.Parachute, Prefab = parachutePrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.Sword, Prefab = swordPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.SpikeSword, Prefab = spikeSwordPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.TopHat, Prefab = topHatPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry

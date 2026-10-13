@@ -20,7 +20,7 @@ namespace CityX.CharacterEditor
     public static class SoulsSwordCapture
     {
         private const string PlayerPrefabPath = "Assets/CityX/Character/Player.prefab";
-        private const string SwordPrefabPath = "Assets/CityX/Weapons/Sword.prefab";
+        private static string SwordPrefabPath = "Assets/CityX/Weapons/Sword.prefab";
         private const float Step = 1.0f / 60.0f;
         private const int Cell = 300;
 
@@ -154,6 +154,14 @@ namespace CityX.CharacterEditor
         /// with the bone positions logged -- the idle must BREATHE, not freeze
         /// on its last frame (2hsw_idle used to import with loop off).
         /// </summary>
+        /// <summary>The idle sheet holding the spike sword (SpikeSwordBuilder's prefab) instead of the greatsword.</summary>
+        [MenuItem("CityX/Capture Spike Sword Idle")]
+        public static void CaptureSpikeSwordIdle()
+        {
+            SwordPrefabPath = "Assets/CityX/Weapons/SpikeSword.prefab";
+            CaptureIdle();
+        }
+
         [MenuItem("CityX/Capture Sword Idle")]
         public static void CaptureIdle()
         {
