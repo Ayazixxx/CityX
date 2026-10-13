@@ -22,7 +22,7 @@ namespace CityX.Character
 
         [Range(-0.3f, 0.3f)]
         [Tooltip("Metres the head (and its hair) is moved BACK from where the animation puts it (negative: forward).")]
-        public float HeadBack = 0.0f;
+        public float HeadBack = 0.07f;
 
         [Range(-0.3f, 0.3f)]
         [Tooltip("Metres the head (and its hair) is moved UP (negative: down, into the torso).")]

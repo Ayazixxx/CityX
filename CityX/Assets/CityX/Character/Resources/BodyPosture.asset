@@ -13,6 +13,8 @@ MonoBehaviour:
   m_Name: BodyPosture
   m_EditorClassIdentifier: CityX.Character::CityX.Character.BodyPostureSettings
   HeadPitchUp: 30
+  HeadBack: 0.07
+  HeadUp: 0
   HeadTurnRight: 0
   HeadTiltRight: 0
   LegsBack: 0.05
