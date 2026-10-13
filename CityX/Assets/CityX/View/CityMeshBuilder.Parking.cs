@@ -8,7 +8,7 @@ namespace CityX.View
     /// (here 4 m, the game's 1.3x), parked-on ramps at 5-6%, double-loaded bays 54-60 ft wide, structural bays 45-48 ft, open sides with
     /// 42 in spandrels, two stairs; a surface lot is rows of 2.6 x 5 m stalls either side of a 6-7 m aisle.
     ///
-    /// Abandoned: a share of the bays still hold the cars that were left in them (CityProps.AddCar), some of them burnt.
+    /// Abandoned: rubble, a barrier dragged aside, the bays empty.
     /// </summary>
     public static partial class CityMeshBuilder
     {
@@ -25,8 +25,6 @@ namespace CityX.View
         public const float StallDepth = 6.2f;
         public const float AisleWidth = 8.0f;
 
-        /// <summary>What share of the stalls still have a car in them.</summary>
-        public const float StallOccupancy = 0.28f;
 
         private static readonly Color32 GarageFloorLook = SurfaceLook.Pack(new Color(0.62f, 0.62f, 0.63f), SurfaceLook.Asphalt, 0.7f);
         private static readonly Color32 LotLook = SurfaceLook.Pack(new Color(0.70f, 0.70f, 0.70f), SurfaceLook.Asphalt, 0.75f);
@@ -35,7 +33,7 @@ namespace CityX.View
         /// <summary>
         /// A multi-storey car park in the builder's frame (x along the frontage, +z the front, y absolute): decks on a column grid, each
         /// with a spandrel round it and open air above the spandrel, a parked-on ramp along the back wall zigzagging up to the roof, two
-        /// entrance openings on the front, bays painted on every deck, and the cars left in them. The distant version is the outside only.
+        /// entrance openings on the front, and bays painted on every deck. The distant version is the outside only.
         /// </summary>
         private static void BuildGarage(BuildingSite site, Vector3 origin, MeshBuffer structures, MeshBuffer concrete, SiteLooks looks, bool far)
         {
@@ -152,23 +150,23 @@ namespace CityX.View
                     AddGarageRamp(concrete, lowX, highX, rampZ0, rampZ1, slabTop, slabTop + floorH, frame, GarageFloorLook);
                 }
 
-                // Bays along the front half of the deck (the back strip is the ramp), and the cars left in them.
+                // Bays along the front half of the deck (the back strip is the ramp).
                 float rowZ0 = rampZ1 + AisleWidth, rowZ1 = rowZ0 + StallDepth;
                 float rowZ2 = z1 - 0.5f - StallDepth, rowZ3 = z1 - 0.5f;
                 if (rowZ2 > rowZ1 + AisleWidth * 0.5f)
                 {
-                    PaintStallRow(concrete, structures, x0 + 1.0f, x1 - 1.0f, rowZ0, rowZ1, slabTop + 0.02f, site.Seed + k * 101, false, k == 0 ? cx : float.NaN);
-                    PaintStallRow(concrete, structures, x0 + 1.0f, x1 - 1.0f, rowZ2, rowZ3, slabTop + 0.02f, site.Seed + k * 103, true, k == 0 ? cx : float.NaN);
+                    PaintStallRow(concrete, x0 + 1.0f, x1 - 1.0f, rowZ0, rowZ1, slabTop + 0.02f);
+                    PaintStallRow(concrete, x0 + 1.0f, x1 - 1.0f, rowZ2, rowZ3, slabTop + 0.02f);
                 }
             }
 
-            // The roof's own bays and cars.
+            // The roof's own bays.
             if (!far)
             {
                 float rowZ0 = rampZ1 + AisleWidth, rowZ1 = rowZ0 + StallDepth;
                 if (z1 - 0.5f - StallDepth > rowZ1)
                 {
-                    PaintStallRow(concrete, structures, x0 + 1.0f, x1 - 1.0f, rowZ0, rowZ1, roofY + 0.02f, site.Seed + 7919, false, float.NaN);
+                    PaintStallRow(concrete, x0 + 1.0f, x1 - 1.0f, rowZ0, rowZ1, roofY + 0.02f);
                 }
                 // A few things left on the ground deck: a barrier knocked over at the entrance, rubble.
                 CityProps.AddRubble(structures, x0 + 4.0f, z0 + 10.0f, floorY, 1.6f, site.Seed + 55);
@@ -265,11 +263,8 @@ namespace CityX.View
             _ = kerbSign;
         }
 
-        /// <summary>
-        /// A row of stalls between two z lines, divided by painted lines every StallWidth along x, with the cars left in them (nosed in along z).
-        /// <paramref name="keepClearX"/> leaves a gap for an entrance's run-in.
-        /// </summary>
-        private static void PaintStallRow(MeshBuffer paint, MeshBuffer props, float x0, float x1, float rz0, float rz1, float y, int seed, bool noseToBack, float keepClearX)
+        /// <summary>A row of stalls between two z lines, divided by painted lines every StallWidth along x.</summary>
+        private static void PaintStallRow(MeshBuffer paint, float x0, float x1, float rz0, float rz1, float y)
         {
             int stalls = Mathf.FloorToInt((x1 - x0) / StallWidth);
             if (stalls < 1) return;
@@ -281,22 +276,11 @@ namespace CityX.View
                 paint.AddQuad(new Vector3(lx - 0.06f, y, rz0), new Vector3(lx - 0.06f, y, rz1), new Vector3(lx + 0.06f, y, rz1), new Vector3(lx + 0.06f, y, rz0), Vector3.up,
                     new Vector2(0, 0), new Vector2(0, 1), new Vector2(1, 1), new Vector2(1, 0));
             }
-            for (int i = 0; i < stalls; i++)
-            {
-                float cx = start + (i + 0.5f) * StallWidth;
-                if (!float.IsNaN(keepClearX) && Mathf.Abs(cx - keepClearX) < GarageEntranceWidth + 2.0f) continue;
-                if (CityProps.Unit(seed, i, 41) > StallOccupancy) continue;
-                float cz = (rz0 + rz1) * 0.5f;
-                float jitter = (CityProps.Unit(seed, i, 43) - 0.5f) * 0.12f;
-                float cos = -jitter, sin = noseToBack ? 1.0f : -1.0f;   // facing along z, a little askew
-                float norm = Mathf.Sqrt(cos * cos + sin * sin);
-                CityProps.AddCar(props, cx, cz, y, cos / norm, sin / norm, seed * 31 + i);
-            }
         }
 
         /// <summary>
         /// An open car park in the builder's frame: the lot paved, a low wall round it with the entrance on the front, stalls either side of an
-        /// aisle, a ticket booth and barrier at the entrance, the cars that were left. The distant version is just the paving and the wall.
+        /// aisle, a ticket booth and barrier at the entrance. The distant version is just the paving and the wall.
         /// </summary>
         private static void BuildParkingLot(CityWorld world, BuildingSite site, Vector3 origin, MeshBuffer structures, MeshBuffer concrete, bool far)
         {
@@ -366,11 +350,11 @@ namespace CityX.View
             int row = 0;
             while (rowZ + StallDepth <= z1 - 5.0f)
             {
-                PaintStallRowOnGround(concrete, structures, x0 + 1.0f, x1 - 1.0f, rowZ, rowZ + StallDepth, Top, site.Seed + row * 211, true);
+                PaintStallRowOnGround(concrete, x0 + 1.0f, x1 - 1.0f, rowZ, rowZ + StallDepth, Top);
                 float second = rowZ + StallDepth + AisleWidth;
                 if (second + StallDepth <= z1 - 5.0f)
                 {
-                    PaintStallRowOnGround(concrete, structures, x0 + 1.0f, x1 - 1.0f, second, second + StallDepth, Top, site.Seed + row * 223, false);
+                    PaintStallRowOnGround(concrete, x0 + 1.0f, x1 - 1.0f, second, second + StallDepth, Top);
                 }
                 rowZ += rowDepth;
                 row++;
@@ -426,8 +410,8 @@ namespace CityX.View
             }
         }
 
-        /// <summary>PaintStallRow on sloping ground: each line in two pieces that follow the surface, each car at the ground under it.</summary>
-        private static void PaintStallRowOnGround(MeshBuffer paint, MeshBuffer props, float x0, float x1, float rz0, float rz1, System.Func<float, float, float> top, int seed, bool noseToBack)
+        /// <summary>PaintStallRow on sloping ground: each line in two pieces that follow the surface.</summary>
+        private static void PaintStallRowOnGround(MeshBuffer paint, float x0, float x1, float rz0, float rz1, System.Func<float, float, float> top)
         {
             int stalls = Mathf.FloorToInt((x1 - x0) / StallWidth);
             if (stalls < 1) return;
@@ -443,15 +427,6 @@ namespace CityX.View
                     paint.AddQuad(new Vector3(lx - 0.06f, ya, za), new Vector3(lx - 0.06f, yb, zb), new Vector3(lx + 0.06f, yb, zb), new Vector3(lx + 0.06f, ya, za), Vector3.up,
                         new Vector2(0, 0), new Vector2(0, 1), new Vector2(1, 1), new Vector2(1, 0));
                 }
-            }
-            for (int i = 0; i < stalls; i++)
-            {
-                float cx = start + (i + 0.5f) * StallWidth;
-                if (CityProps.Unit(seed, i, 41) > StallOccupancy) continue;
-                float jitter = (CityProps.Unit(seed, i, 43) - 0.5f) * 0.12f;
-                float cos = -jitter, sin = noseToBack ? 1.0f : -1.0f;   // facing along z, a little askew
-                float norm = Mathf.Sqrt(cos * cos + sin * sin);
-                CityProps.AddCar(props, cx, rzm, top(cx, rzm), cos / norm, sin / norm, seed * 31 + i);
             }
         }
     }

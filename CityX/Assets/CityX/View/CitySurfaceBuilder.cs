@@ -98,7 +98,7 @@ namespace CityX.View
                 }
                 else if (!far)
                 {
-                    AddStreetWrecks(ctx, g, structures);
+                    AddStreetBarricades(ctx, g, structures);
                 }
             }
 
@@ -815,7 +815,7 @@ namespace CityX.View
         /// <summary>
         /// THE EXPRESSWAY DECK over its service road: the carriageway on top, the slab's sides and underside, a parapet along each edge, a
         /// hammerhead pier every PierSpacing (a column on the centreline between the service road's two halves, a cross-head carrying the full
-        /// width), its lane paint, and the cars of the rapture's last traffic jam.
+        /// width), and its lane paint.
         /// </summary>
         private static void BuildDeck(Context ctx, EdgeGeometry g, MeshBuffer ground, MeshBuffer pavement, MeshBuffer structures,
             MeshBuffer markings, MeshBuffer laneDividers, MeshBuffer guardRail, bool far)
@@ -872,7 +872,6 @@ namespace CityX.View
             if (!far)
             {
                 PaintLanes(ctx, g, laneDividers, markings, height, t0 + 1.0, t1 - 1.0, RoadClass.Highway, true);
-                AddDeckWrecks(ctx, g, structures, height, t0, t1);
             }
         }
 
@@ -930,7 +929,7 @@ namespace CityX.View
 
         /// <summary>
         /// An interchange ramp: its two stretches, each a sloped slab -- a viaduct on small piers where it is up in the air, an embankment with
-        /// its sides down to the ground where it is low -- with a parapet along both edges, white edge lines, and a car or two abandoned on it.
+        /// its sides down to the ground where it is low -- with a parapet along both edges and white edge lines.
         /// </summary>
         private static void BuildRamp(Context ctx, RampGeometry r, MeshBuffer ground, MeshBuffer pavement, MeshBuffer structures, MeshBuffer guardRail, MeshBuffer markings, bool far)
         {
@@ -992,21 +991,13 @@ namespace CityX.View
                         StripeAlong(ctx, markings, ca + pa * (rh - 0.45), cb + pb * (rh - 0.45), (pa + pb) * 0.5, 0.08, height);
                         StripeAlong(ctx, markings, ca - pa * (rh - 0.45), cb - pb * (rh - 0.45), (pa + pb) * 0.5, 0.08, height);
                     }
-                    if (!far && ctx.Contains(centre) && LatticeHash(r.Plan.ExitNode * 8 + stretch, i, 101) < 0.11f)
-                    {
-                        Vec2 travel = r.Plan.Leaving ? dir : -dir;
-                        float yaw = (LatticeHash(r.Plan.ExitNode, i, 103) - 0.5f) * 0.12f;
-                        Vec2 facing = (travel + travel.Perp * yaw).Normalized;
-                        Vector3 at = ctx.Local(centre.X, 0.0, centre.Y);
-                        CityProps.AddCar(structures, at.x, at.z, ctx.LocalY(top), (float)facing.X, (float)facing.Y, r.Plan.ExitNode * 131 + stretch * 17 + i);
-                    }
                 }
             }
         }
 
         /// <summary>
         /// The land an interchange cuts off between a ramp, the expressway and the cross street, as every city uses it: a car park. Painted stalls
-        /// in rows along the expressway, the cars left in some of them, and the exit's gantry sign up on the deck where the ramp leaves it.
+        /// in rows along the expressway, and the exit's gantry sign up on the deck where the ramp leaves it.
         /// </summary>
         private static void BuildInterchangeLand(Context ctx, RampGeometry r, int rampIndex, MeshBuffer pavement, MeshBuffer structures, MeshBuffer markings)
         {
@@ -1056,11 +1047,6 @@ namespace CityX.View
                             {
                                 StripeAlong(ctx, markings, p0, p1, u, 0.06, height);
                             }
-                            Vec2 c = o + u * (su + stall * 0.5) + v * (rv + depth * 0.5);
-                            if (!ctx.Contains(c) || !PlanMath.PointInPolygon(c, lot) || LatticeHash(rampIndex * 97 + row, stallIndex, 107) > 0.3f) continue;
-                            Vec2 facing = v * (row % 2 == 0 ? 1.0 : -1.0);
-                            Vector3 at = ctx.Local(c.X, 0.0, c.Y);
-                            CityProps.AddCar(structures, at.x, at.z, ctx.LocalY(height(c.X, c.Y)), (float)facing.X, (float)facing.Y, rampIndex * 1009 + row * 31 + stallIndex);
                         }
                     }
                 }
@@ -1079,68 +1065,14 @@ namespace CityX.View
             }
         }
 
-        /// <summary>
-        /// The rapture's traffic jam: cars left on the deck in all four lanes, thick where the jam stood and sparse between, facing their
-        /// lanes' way (right-hand traffic), a few skewed across the lanes where they hit each other, some burnt.
-        /// </summary>
-        private static void AddDeckWrecks(Context ctx, EdgeGeometry g, MeshBuffer structures, Func<double, double, double> height, double t0, double t1)
-        {
-            double hw = g.HalfWidth;
-            double[] lanes = { -0.75, -0.25, 0.25, 0.75 };
-            Vec2 perp = g.Dir.Perp;
-            for (double t = t0 + 6.0; t < t1 - 6.0; t += 8.0)
-            {
-                int slot = (int)(t / 8.0);
-                Vec2 c = g.A + g.Dir * t;
-                float jam = PatchNoise(c.X, c.Y, 170.0, 83);
-                float chance = jam > 0.58f ? 0.6f : 0.05f;
-                for (int lane = 0; lane < lanes.Length; lane++)
-                {
-                    if (LatticeHash(g.Edge.Id * 4 + lane, slot, 89) > chance) continue;
-                    double offset = lanes[lane] * hw;
-                    Vec2 pos = c + perp * offset;
-                    if (!ctx.Contains(pos)) continue;
-                    // The lane on the right of +Dir (its right is -Dir.Perp, which is the -perp side) travels along +Dir.
-                    Vec2 travel = offset < 0.0 ? g.Dir : -g.Dir;
-                    float u = LatticeHash(g.Edge.Id * 4 + lane, slot, 91);
-                    float yaw = u < 0.08f ? (u * 10.0f - 0.4f) * 1.2f : (LatticeHash(g.Edge.Id, slot + lane, 93) - 0.5f) * 0.1f;
-                    Vec2 facing = (travel + travel.Perp * yaw).Normalized;
-                    Vector3 at = ctx.Local(pos.X, 0.0, pos.Y);
-                    CityProps.AddCar(structures, at.x, at.z, ctx.LocalY(height(pos.X, pos.Y)), (float)facing.X, (float)facing.Y, g.Edge.Id * 977 + slot * 4 + lane);
-                }
-            }
-        }
-
-        /// <summary>
-        /// On the streets: the odd car left at the kerb or skewed across the road, and now and then a row of barricades across a street --
-        /// the evacuation's last cordons.
-        /// </summary>
-        private static void AddStreetWrecks(Context ctx, EdgeGeometry g, MeshBuffer structures)
+        /// <summary>Now and then a row of barricades across a street: the evacuation's last cordons.</summary>
+        private static void AddStreetBarricades(Context ctx, EdgeGeometry g, MeshBuffer structures)
         {
             if (g.Edge.Bridge) return;
-            double t0 = g.TrimA + 6.0, t1 = g.Length - g.TrimB - 6.0;
-            if (t1 - t0 < 10.0) return;
+            if (g.Length - g.TrimA - g.TrimB < 22.0) return;
             Func<double, double, double> height = RoadHeight(ctx, g);
             Vec2 perp = g.Dir.Perp;
             double hw = g.HalfWidth;
-            int slots = (int)((t1 - t0) / 10.0);
-            for (int k = 0; k < slots; k++)
-            {
-                float u = LatticeHash(g.Edge.Id, k, 61);
-                if (u > 0.055f) continue;
-                double t = t0 + (k + 0.5) * 10.0;
-                Vec2 c = g.A + g.Dir * t;
-                bool crashed = u > 0.045f;
-                double side = LatticeHash(g.Edge.Id, k, 67) < 0.5f ? 1.0 : -1.0;
-                double offset = crashed ? side * (hw - 2.0) * LatticeHash(g.Edge.Id, k, 71) : side * (hw - 1.6);
-                Vec2 pos = c + perp * offset;
-                if (!ctx.Contains(pos)) continue;
-                Vec2 travel = side < 0.0 ? g.Dir : -g.Dir;
-                float yaw = crashed ? 0.7f + 0.7f * LatticeHash(g.Edge.Id, k, 73) : (LatticeHash(g.Edge.Id, k, 73) - 0.5f) * 0.08f;
-                Vec2 facing = (travel + travel.Perp * yaw).Normalized;
-                Vector3 at = ctx.Local(pos.X, 0.0, pos.Y);
-                CityProps.AddCar(structures, at.x, at.z, ctx.LocalY(height(pos.X, pos.Y)), (float)facing.X, (float)facing.Y, g.Edge.Id * 311 + k);
-            }
             if (g.Length > 40.0 && LatticeHash(g.Edge.Id, 7, 79) < 0.035f)
             {
                 double t = g.Length * 0.5;

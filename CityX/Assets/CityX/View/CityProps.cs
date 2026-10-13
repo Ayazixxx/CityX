@@ -4,15 +4,13 @@ using UnityEngine;
 namespace CityX.View
 {
     /// <summary>
-    /// The small things the city is strewn with, built as boxes straight into a chunk's own buffers (no prefabs, no extra draws): the abandoned
-    /// cars of the rapture, barricades, rubble, the benches and planters of a plaza, the gantry signs of the expressways.
+    /// The small things the city is strewn with, built as boxes straight into a chunk's own buffers (no prefabs, no extra draws): barricades,
+    /// rubble, the benches and planters of a plaza, kiosks, the gantry signs of the expressways.
     ///
-    /// Everything is sized for the 2.6 m player (about 1.3x real: a car is 6 m long). Every piece is a TURNED BOX about the vertical
-    /// (<see cref="AddTurnedBox"/>), so it can stand at any angle inside a frame a building has already set on the buffer.
+    /// Everything is sized for the 2.6 m player (about 1.3x real). Every piece is a TURNED BOX about the vertical (<see cref="AddTurnedBox"/>),
+    /// so it can stand at any angle inside a frame a building has already set on the buffer.
     ///
-    /// THE LORE (docs/GAME_DESIGN.md): the rapture emptied Terraplex 9 all at once. Cars were left where they stood -- jammed on the expressways,
-    /// nosed into kerbs, parked in rows nobody came back for -- and some burned. That is what makes an empty street read as abandoned rather than
-    /// unfinished.
+    /// No cars (owner, 2026-10-12: "get rid of the cars"): abandoned cars were built on the decks, streets and car parks, then taken out.
     /// </summary>
     public static class CityProps
     {
@@ -20,20 +18,13 @@ namespace CityX.View
         public static readonly Color32 DarkConcrete = SurfaceLook.Pack(new Color32(150, 148, 144, 255), (int)WallMaterial.Concrete, 0.7f);
         public static readonly Color32 Stone = SurfaceLook.Pack(new Color32(190, 186, 178, 255), (int)WallMaterial.Stone, 0.45f);
         public static readonly Color32 DarkMetal = SurfaceLook.Pack(new Color(0.13f, 0.13f, 0.14f), (int)WallMaterial.Metal, 0.5f);
-        public static readonly Color32 Rubber = SurfaceLook.Pack(new Color(0.07f, 0.07f, 0.07f), (int)WallMaterial.Metal, 0.75f);
         public static readonly Color32 White = SurfaceLook.Pack(new Color(0.97f, 0.97f, 0.95f), (int)WallMaterial.Plaster, 0.1f);
         public static readonly Color32 SignGreen = SurfaceLook.Pack(new Color(0.05f, 0.40f, 0.20f), (int)WallMaterial.Metal, 0.35f);
         public static readonly Color32 SignBlue = SurfaceLook.Pack(new Color(0.08f, 0.22f, 0.65f), (int)WallMaterial.Metal, 0.35f);
         public static readonly Color32 Wood = SurfaceLook.Pack(new Color(0.42f, 0.30f, 0.19f), (int)WallMaterial.Metal, 0.6f);
         public static readonly Color32 Earth = SurfaceLook.Pack(new Color(0.55f, 0.50f, 0.44f), SurfaceLook.Earth, 0.6f);
 
-        /// <summary>A car is this long and wide: a real 4.6 x 1.8 m at the game's 1.3x.</summary>
-        public const float CarLength = 6.0f;
-        public const float CarWidth = 2.3f;
-
-        /// <summary>What share of the abandoned cars burned.</summary>
-        public const float BurntShare = 0.09f;
-
+        /// <summary>Painted-metal colours for the kiosks.</summary>
         private static readonly Color[] Palette =
         {
             new Color(0.82f, 0.82f, 0.80f), new Color(0.72f, 0.72f, 0.74f), new Color(0.20f, 0.20f, 0.22f), new Color(0.35f, 0.36f, 0.40f),
@@ -81,50 +72,6 @@ namespace CityX.View
                 b.AddQuad(P(-hx, -hz, y0), P(hx, -hz, y0), P(hx, hz, y0), P(-hx, hz, y0), Vector3.down,
                     new Vector2(0, 0), new Vector2(w, 0), new Vector2(w, d), new Vector2(0, d));
             }
-        }
-
-        /// <summary>
-        /// An abandoned car: a body, a cabin, four wheels, in a colour and shape from <paramref name="seed"/> (a few are vans, about one in eleven is
-        /// burnt out), facing (<paramref name="cos"/>, <paramref name="sin"/>), standing at height <paramref name="y"/>.
-        /// </summary>
-        public static void AddCar(MeshBuffer b, float cx, float cz, float y, float cos, float sin, int seed)
-        {
-            uint h = Hash(seed, 0, 97);
-            int kind = (int)(h % 10u);
-            bool van = kind >= 8;
-            bool burnt = ((h >> 4) % 100u) < (uint)(BurntShare * 100.0f);
-            Color body = Palette[(int)((h >> 12) % (uint)Palette.Length)];
-            float wear = 0.55f + 0.3f * (((h >> 20) & 15u) / 15.0f);
-            if (burnt)
-            {
-                body = new Color(0.09f, 0.08f, 0.08f);
-                wear = 1.0f;
-            }
-            Color32 saved = b.Look;
-            b.Look = Rubber;
-            for (int i = 0; i < 4; i++)
-            {
-                float wx = (i < 2 ? 1.0f : -1.0f) * 2.0f, wz = (i % 2 == 0 ? 1.0f : -1.0f) * 1.02f;
-                AddTurnedBox(b, cx + wx * cos - wz * sin, cz + wx * sin + wz * cos, 0.42f, 0.16f, cos, sin, y + 0.02f, y + 0.84f);
-            }
-            b.Look = SurfaceLook.Pack(body, (int)WallMaterial.Metal, wear);
-            AddTurnedBox(b, cx, cz, CarLength * 0.5f, CarWidth * 0.5f, cos, sin, y + 0.45f, y + 1.25f);
-            float cabinBack = van ? -0.45f : -0.35f;
-            float ccx = cx + cabinBack * cos, ccz = cz + cabinBack * sin;
-            b.Look = burnt ? Rubber : DarkMetal;
-            if (van)
-            {
-                AddTurnedBox(b, ccx, ccz, 2.3f, 1.1f, cos, sin, y + 1.25f, y + 2.2f);
-                b.Look = SurfaceLook.Pack(body, (int)WallMaterial.Metal, wear);
-                AddTurnedBox(b, ccx, ccz, 2.3f, 1.1f, cos, sin, y + 2.2f, y + 2.3f);
-            }
-            else
-            {
-                AddTurnedBox(b, ccx, ccz, 1.55f, 1.05f, cos, sin, y + 1.25f, y + 1.9f);
-                b.Look = SurfaceLook.Pack(body, (int)WallMaterial.Metal, wear);
-                AddTurnedBox(b, ccx, ccz, 1.45f, 1.0f, cos, sin, y + 1.9f, y + 1.98f);
-            }
-            b.Look = saved;
         }
 
         /// <summary>A concrete jersey barrier, 3 m long, lying across (<paramref name="cos"/>, <paramref name="sin"/>).</summary>

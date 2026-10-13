@@ -281,23 +281,11 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void TheRaptureLeftCarsOnTheExpressway()
+        public void ThereAreNoCars()
         {
-            // Along the expressways there are jams: somewhere in the first dozen high spans a chunk has a car (its tyres carry the rubber look).
-            int spans = 0;
-            foreach (EdgeGeometry g in Plan.Geometry.Edges)
-            {
-                if (g == null || g.Edge.Class != RoadClass.Highway || !g.Elevated || g.Length < 40.0) continue;
-                if (Math.Min(g.DeckA, g.DeckB) - g.MaxGround < 5.0) continue;
-                if (spans++ > 40) break;
-                for (double t = 12.0; t < g.Length - 12.0; t += 24.0)
-                {
-                    Vec2 p = g.A + g.Dir * t;
-                    MeshBuffer[] near = Surface(PlanWorld.ChunkOf(p.X), PlanWorld.ChunkOf(p.Y), false);
-                    if (HasLook(near[2], CityProps.Rubber)) return;
-                }
-            }
-            Assert.Fail("no abandoned car on any of the first expressway spans");
+            // The owner took the abandoned cars out (2026-10-12): nothing on the decks, the streets or the car parks. A car was the only prop
+            // standing on wheels 0.84 m tall at the road's height; the structures of a deck chunk now hold only piers, signs and barricades.
+            Assert.IsNull(typeof(CityProps).GetMethod("AddCar"), "the car is back in the prop library");
         }
 
         [Test]

@@ -31,9 +31,10 @@ its centreline so both halves stay open.
 L, Cyberpunk's Night City stacks expressways over the street grid, Marvel's Spider-Man runs the FDR along the East River. All of them use
 the elevated freeway as a *landmark and a route*: a way to see the city from above at speed, and a thing to run under.
 
-**The lore.** Terraplex 9 was emptied in an instant by the rapture (`docs/GAME_DESIGN.md`, Lore). The expressways are where that shows most:
-the last traffic jam is still on the decks, cars nose to tail where it stood and sparse between, a few skewed across the lanes or burnt out;
-the ring road and the through-routes lead out of the district into the rest of the endless city.
+**The lore.** Terraplex 9 was emptied in an instant by the rapture (`docs/GAME_DESIGN.md`, Lore): the decks are empty, a few streets still
+carry the evacuation's barricades, and the ring road and the through-routes lead out of the district into the rest of the endless city.
+(Abandoned cars -- a frozen traffic jam on the decks, cars at kerbs and in the car parks -- were built and then taken out at the owner's
+request, 2026-10-12: "get rid of the cars".)
 
 ## What was built
 
@@ -64,19 +65,17 @@ the ring road and the through-routes lead out of the district into the rest of t
 - `BuildDeck`: the carriageway (clean asphalt, `AsphaltLook(Highway)`) at `DeckHeight` (the straight run, never under the service road), the
   slab's underside and side faces, a parapet along each edge (`DeckParapet` 1.1 m, into the guard-rail collider buffer, near chunks only), a
   hammerhead pier every `PierSpacing` 32 m (built by the chunk containing its centre, skipped where the deck is down on the ground), lane paint
-  with edge lines (`PaintLanes(..., edgeLines: true)`), and the jam (`AddDeckWrecks`: a `PatchNoise` field 170 m across decides where the jam
-  stood -- 60% of lane slots there, 5% elsewhere -- cars face their lane's way, 8% skewed, `CityProps.BurntShare` 9% burnt).
+  with edge lines (`PaintLanes(..., edgeLines: true)`).
 - The service road under a deck is drawn and painted as an arterial (worn asphalt); the deck's own clean asphalt is above it.
 - `BuildDeckPlate`: where expressways meet, the plate at the deck's height with its underside and edges.
 - `BuildRamp`: two stretches (mitred at Mid), a sloped slab `RampSlab` 0.9 m deep; a **viaduct** on small piers every 15 m where it is more than
-  `RampEmbankmentClearance` 1 m up, an **embankment** (sides straight down to the ground) where it is low; parapets, white edge lines, a car on
-  about one piece in nine. `BuildInterchangeLand`: the sliver inset 1.5 m, laid in asphalt above the paving, stalls painted in rows along its
-  longest side with an aisle between pairs, cars in 30% of them; the **exit gantry sign** (`CityProps.AddGantrySign`) over the deck where an off-ramp
-  leaves it: two posts, a beam, a green panel lettered in white bars over the ramp's side.
-- `AddStreetWrecks`: on ordinary streets the odd car at the kerb (5.5% of 10 m slots, one in ten of those crashed across the lanes) and now
-  and then a row of jersey barriers across a street (3.5% of streets over 40 m): the evacuation's last cordons.
-- `CityProps` (`View/CityProps.cs`): the shared prop library -- cars (sedan/hatch/van, 12-colour palette, burnt), barriers, rubble, benches,
-  planters, bollards, dry fountains, kiosks, gantry and parking signs -- all boxes turned about the vertical (`AddTurnedBox`), chunk-local.
+  `RampEmbankmentClearance` 1 m up, an **embankment** (sides straight down to the ground) where it is low; parapets and white edge lines.
+  `BuildInterchangeLand`: the sliver inset 1.5 m, laid in asphalt above the paving, stalls painted in rows along its longest side with an aisle
+  between pairs; the **exit gantry sign** (`CityProps.AddGantrySign`) over the deck where an off-ramp leaves it: two posts, a beam, a green panel
+  lettered in white bars over the ramp's side.
+- `AddStreetBarricades`: now and then a row of jersey barriers across a street (3.5% of streets over 40 m): the evacuation's last cordons.
+- `CityProps` (`View/CityProps.cs`): the shared prop library -- barriers, rubble, benches, planters, bollards, dry fountains, kiosks, gantry
+  and parking signs -- all boxes turned about the vertical (`AddTurnedBox`), chunk-local. No cars (`CityFeaturesTests.ThereAreNoCars`).
 
 ### Numbers (seed 74920318, the game's varied 10 km): 69 km of expressway, 28 interchanges (46 ramps, one per 2.5 km), 7 ends, 16 junctions
 of expressways, the ring road at 2.2 km with 82 spans; steepest ramp 7.3%, least drop 4.0 m. At the classic 5 km scale the tests pin: 42 km,
@@ -91,7 +90,7 @@ clearance, and the taper is lengthened for the real drop) with a `MinDrop` of 3 
 `CityFeaturesTests` (EditMode): decks never dip under their service road and mostly clear the ground by the full clearance; an expressway end is
 on the ground; the ring road has spans in all four quadrants; exits are spaced and ramps climb at <= 7.8% from the deck's height to the ground;
 no lot touches a ramp; the spawn is off the expressway; the deck chunk's road surface reaches the deck's height with parapets, an underside and
-a lighter far version; there are cars on the deck; an exit has its sign and its slope; `PlanGeometry.RoadLift == CitySurfaceBuilder.RoadLift`.
+a lighter far version; there are no cars; an exit has its sign and its slope; `PlanGeometry.RoadLift == CitySurfaceBuilder.RoadLift`.
 `CityFeaturesCapture` (PlayMode, Explicit, `-Graphics`) renders the deck, the exit and the ring road to `Logs/CityShots/city-*.png`.
 
 ## Not done / next

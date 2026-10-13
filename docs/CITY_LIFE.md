@@ -52,11 +52,11 @@ Manhattan, Watch Dogs' Chicago riverwalk, Yakuza's Kamurocho with its Millennium
 - **Garage** (`CityMeshBuilder.Parking.cs`, `BuildGarage`): the podium, decks on a column grid (`GarageColumnBayX` 8 x `GarageColumnBayZ` 16 m,
   `GarageColumnSize` 0.6), each with a `GarageSpandrelHeight` 1.4 m spandrel and open air above it, two entrance openings on the front with lintels
   and a `P` sign, a zig-zag parked-on ramp along the back wall rising deck to deck with the arrival cut out of the slab above, a parapet round the
-  roof, stalls painted in rows (`StallWidth` 3.2 x `StallDepth` 6.2, `AisleWidth` 8), `StallOccupancy` 28% of them with a car, rubble. Far: the
+  roof, stalls painted in rows (`StallWidth` 3.2 x `StallDepth` 6.2, `AisleWidth` 8), rubble. Far: the
   outside only, the openings as dark bands.
 - **Car park** (`BuildParkingLot`): asphalt over the lot that follows the ground like the block paving round it (sampled on `LotCell` 4 m cells;
   the first version stood on a building's podium and read as a raised platform on any slope), a 0.6 m wall stepping down the slope with the gap at
-  the front, a booth with its barrier arm and `P` sign, stall rows with cars, a barrier and some rubble.
+  the front, a booth with its barrier arm and `P` sign, stall rows, a barrier and some rubble. (No cars: owner, 2026-10-12.)
 - **Mall** (`CityMeshBuilder.Mall.cs`, `BuildMall`): outside -- blank walls with a base band, a glazed entrance under a canopy in the middle of the
   front and of each end, two anchor signs and the mall's own sign over the entrance, a parapet, skylights over the concourse, roof plant. Inside
   (near chunks only) -- the `MallConcourseWidth` 14 m concourse along x; anchors `~20%` of the length at each end, open to the concourse on every
