@@ -246,19 +246,22 @@ namespace CityX.Tests
 
         // ---- the model hairstyles themselves ----
 
-        /// <summary>The baked mesh of each hairstyle that comes from a model file.</summary>
+        /// <summary>
+        /// The baked mesh of a hairstyle that comes from a model file -- THAT style's (this once loaded Hair1Mesh.asset whatever
+        /// the style, so a second case would have tested the bob cut twice). Baked from the model if no builder has yet.
+        /// </summary>
         private static Mesh BakedMesh(string style)
         {
-            string path = "Assets/CityX/Character/Hair/Hair1Mesh.asset";
-            Mesh mesh = AssetDatabase.LoadAssetAtPath<Mesh>(path);
+            Mesh mesh = UIEditor.HairAssets.MeshFor(style);
             if (mesh == null)
             {
-                Assert.Ignore($"{path} is made by the scene builders; not built yet in this checkout.");
+                Assert.Ignore($"{style}'s model is not in this checkout.");
             }
             return mesh;
         }
 
         [TestCase(CharacterHair.Hair1)]
+        [TestCase(CharacterHair.Hyde)]
         public void AModelHairMeshIsBakedAtTheSizeAndHeightOfAHead(string style)
         {
             Mesh mesh = BakedMesh(style);
@@ -272,6 +275,7 @@ namespace CityX.Tests
         }
 
         [TestCase(CharacterHair.Hair1)]
+        [TestCase(CharacterHair.Hyde)]
         public void ARealModelHairLandsOnTheTopOfTheHeadNotHalfwayDownIt(string style)
         {
             Mesh mesh = BakedMesh(style);

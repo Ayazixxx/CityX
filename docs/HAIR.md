@@ -154,3 +154,20 @@ ANI/CHAD/OLD/SPIKE/SWIPE. All on the AUTOMATIC fit (nothing hand-tuned yet) -- p
 `IdkNeedsWork.glb` (the user's `idkneedswork.glb`) is style `idkneedswork`, button IDK. The user's `chadhair.glb` of this date is NOT byte-identical
 to the `ChadHair.glb` added on 2026-10-01 (same name, different file), so it went in as its own style `chadhair2`, button CHAD2, and the old CHAD is untouched.
 Both are on the automatic fit; tune by hand with the Inspector + Save. Both scenes (CityMassing, Title) were rebuilt. With 10 styles the creator row wraps to three rows.
+
+## Added 2026-10-12: hyde
+
+`Hyde.glb` (the owner's `HYDE.glb`) is style `hyde`, button HYD (a label must differ from the style name, `EveryStyleAfterNoneHasALabelAndAModel`). One mesh under one node (scale 1.45, lift 1.3 m),
+2,706 vertices, no UVs or textures, 98 KB, so the usual `BakedFromModel` bake fits it with no special handling
+(`HydeMesh.asset`). On the automatic fit; the owner places it by hand with the Inspector gizmos + Save, as before.
+`TitleScreenCapture.RebuildAndCaptureHyde` shoots front / side / back close-ups (`Logs/CityShots/hair-hyde-*.png`).
+
+- **The title rebuild keeps its backdrop now.** `TitleScreenBuilder` used to re-bake the row of buildings behind the logo on
+  every rebuild, and every city-generation change rerolls the world seed, so adding a hair button would have changed the title
+  picture (the owner asked for the title screen to be left as it is). It now reuses `UI/Title/TitleSkyline.asset` when it exists;
+  the menu item **CityX/Rebake Title Skyline** throws it away and bakes a new one on purpose.
+- With 11 styles the creator's hair buttons still fit in three rows of four.
+- Tests: `CharacterHairFitTests` checks HYDE's baked size and that it lands on the crown (its mesh lookup used to load the bob cut
+  whatever style it was asked for -- fixed); `TitleScreenWiringTests` checks every style has a creator button and a mesh, and that
+  the backdrop is the kept one; `EquipmentReplicationGuardTests` checks the networked body has a mesh for every style, so other
+  players never see a newer style as bald.

@@ -113,10 +113,9 @@ namespace CityX.UIEditor
 
             // The framing decides how wide the row has to be, so it is worked out first.
             Framing frame = Frame();
-            TitleSkylineBaker.Baked row = TitleSkylineBaker.Bake(frame.HalfWidthToCover);
-            Debug.Log($"CityX: title row -- {row.BuildingCount} buildings across {frame.HalfWidthToCover * 2.0f:0}m");
+            Mesh skylineMesh = SkylineMesh(frame);
 
-            BuildScene(row, frame, ground, pavement, structure, darkGlass, litGlass);
+            BuildScene(skylineMesh, frame, ground, pavement, structure, darkGlass, litGlass);
 
 
             NetworkBootstrap bootstrap = BuildNetworkRoot();
@@ -126,6 +125,42 @@ namespace CityX.UIEditor
             EnsureBuildScenes();
             AssetDatabase.SaveAssets();
             Debug.Log($"CityX: title screen written to {ScenePath}");
+        }
+
+        /// <summary>Where the backdrop's baked buildings are kept.</summary>
+        public const string SkylinePath = TitleAssets + "/TitleSkyline.asset";
+
+        /// <summary>
+        /// Throws the kept backdrop away and rebuilds the title with a new one, baked from the city as it generates now
+        /// (TitleSkylineBaker.Seed). The only way the row behind the logo changes.
+        /// </summary>
+        [MenuItem("CityX/Rebake Title Skyline")]
+        public static void RebakeSkyline()
+        {
+            AssetDatabase.DeleteAsset(SkylinePath);
+            Build();
+        }
+
+        /// <summary>
+        /// The row of buildings behind the logo: the one already baked, KEPT as it is. Most title rebuilds are for the
+        /// interface (a new hairstyle's button, a body change) and must not reshuffle the city behind the logo -- every
+        /// city-generation change rerolls the world seed and reshapes buildings, so baking afresh each time made the title
+        /// picture change whenever anything was rebuilt (owner, 2026-10-12: leave the title screen as it is). A missing
+        /// row is baked; <see cref="RebakeSkyline"/> makes a new one on purpose.
+        /// </summary>
+        private static Mesh SkylineMesh(Framing frame)
+        {
+            var kept = AssetDatabase.LoadAssetAtPath<Mesh>(SkylinePath);
+            if (kept != null)
+            {
+                Debug.Log($"CityX: title row kept as baked ({kept.vertexCount} vertices) -- CityX/Rebake Title Skyline makes a new one");
+                return kept;
+            }
+
+            TitleSkylineBaker.Baked row = TitleSkylineBaker.Bake(frame.HalfWidthToCover);
+            AssetDatabase.CreateAsset(row.Mesh, SkylinePath);
+            Debug.Log($"CityX: title row baked -- {row.BuildingCount} buildings across {frame.HalfWidthToCover * 2.0f:0}m");
+            return row.Mesh;
         }
 
         private static Material LoadMaterial(string name)
@@ -171,7 +206,7 @@ namespace CityX.UIEditor
             return f;
         }
 
-        private static void BuildScene(TitleSkylineBaker.Baked row, Framing frame, Material ground, Material pavement,
+        private static void BuildScene(Mesh skylineMesh, Framing frame, Material ground, Material pavement,
             Material structure, Material darkGlass, Material litGlass)
         {
             var sunObject = new GameObject("Sun");
@@ -193,12 +228,8 @@ namespace CityX.UIEditor
             sun.renderingLayerMask = (int)(DefaultRenderingLayer | CityRenderingLayer);
             moon.renderingLayerMask = (int)(DefaultRenderingLayer | CityRenderingLayer);
 
-            string meshPath = $"{TitleAssets}/TitleSkyline.asset";
-            AssetDatabase.DeleteAsset(meshPath);
-            AssetDatabase.CreateAsset(row.Mesh, meshPath);
-
             var skyline = new GameObject("Skyline");
-            skyline.AddComponent<MeshFilter>().sharedMesh = row.Mesh;
+            skyline.AddComponent<MeshFilter>().sharedMesh = skylineMesh;
             MeshRenderer renderer = skyline.AddComponent<MeshRenderer>();
             renderer.sharedMaterials = new[] { ground, pavement, structure, darkGlass, litGlass };
             renderer.renderingLayerMask = CityRenderingLayer;

@@ -118,7 +118,7 @@ PrefabInstance:
       addedObject: {fileID: 2453790078144645714}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 608001652114031112}
+      addedObject: {fileID: 781085330358302869}
   m_SourcePrefab: {fileID: 100100000, guid: c573dea59fa2558478b70344c659896a, type: 3}
 --- !u!1 &5771231832799346164 stripped
 GameObject:
@@ -581,7 +581,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: CityX.Character::CityX.Character.OctaslashAbility
   SlashMaterial: {fileID: 2100000, guid: 2b060d6e4d0b57746a498c94c7b4830b, type: 2}
---- !u!114 &608001652114031112
+--- !u!114 &781085330358302869
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -604,6 +604,7 @@ MonoBehaviour:
   - {fileID: 4300000, guid: 194c8ab756031594aabddac3b97b5862, type: 2}
   - {fileID: 4300000, guid: a5f06069bb7ca79439e85ece7c82fc7f, type: 2}
   - {fileID: 4300000, guid: c1f1395e2cd7ce14cb9a7ae065ba9dce, type: 2}
+  - {fileID: 4300000, guid: cfa0b23418c666c42bf793747015c2c4, type: 2}
   HairMaterial: {fileID: 2100000, guid: 0b008e783feb73b44af6844a251bcfcf, type: 2}
   _style: none
   _colour: {r: 0.75, g: 0.55, b: 0.15, a: 1}

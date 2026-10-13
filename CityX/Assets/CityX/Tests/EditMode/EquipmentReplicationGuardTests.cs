@@ -58,6 +58,25 @@ namespace CityX.Tests
         }
 
 #if UNITY_EDITOR
+        /// <summary>
+        /// A joining player's body can wear every hairstyle there is: the appearance RPCs send the style's NAME, and a body built
+        /// before a style was added has no mesh for it, so other players would see that player bald (HYDE, 2026-10-12).
+        /// </summary>
+        [Test]
+        public void TheNetworkedBodyCanWearEveryHairstyle()
+        {
+            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(NetworkedPlayerPath);
+            Assert.IsNotNull(prefab, "no NetworkedPlayer.prefab");
+            var hair = prefab.GetComponentInChildren<CharacterHair>(true);
+            Assert.IsNotNull(hair, "the networked body has no hair, so no hairstyle can show on it");
+            Assert.AreEqual(CharacterHair.ValidStyles.Length - 1, hair.StyleMeshes.Length,
+                "the networked body was built with a different list of hairstyles -- rebuild the scene (CityMassingSceneBuilder)");
+            for (int i = 0; i < hair.StyleMeshes.Length; i++)
+            {
+                Assert.IsNotNull(hair.StyleMeshes[i], $"other players would see \"{CharacterHair.ValidStyles[i + 1]}\" as bald");
+            }
+        }
+
         [Test]
         public void TheNetworkedBodyCarriesTheSharedState()
         {

@@ -108,6 +108,20 @@ namespace CityX.UIEditor
             CaptureAnimeHair();
         }
 
+        /// <summary>Close-ups of the head wearing HYDE (the owner's HYDE.glb, 2026-10-12) on its automatic fit: front, side and back.</summary>
+        [MenuItem("CityX/Capture Hyde Hair")]
+        public static void CaptureHyde()
+        {
+            ShootHairViews("hair-hyde-", Character.CharacterHair.Hyde);
+        }
+
+        /// <summary>Rebuilds the title scene, then photographs HYDE -- one editor start for change, rebuild, look.</summary>
+        public static void RebuildAndCaptureHyde()
+        {
+            TitleScreenBuilder.Build();
+            CaptureHyde();
+        }
+
         /// <summary>Front and side close-ups of every style after Danny (the user-supplied 2026-09-27..10-01 batch).</summary>
         public static void CaptureBatchStyles()
         {

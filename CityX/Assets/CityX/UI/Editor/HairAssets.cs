@@ -32,6 +32,8 @@ namespace CityX.UIEditor
         public const string IdkNeedsWorkBaked = Folder + "/IdkNeedsWorkMesh.asset";
         public const string ChadHair2Source = Folder + "/ChadHair2.glb";
         public const string ChadHair2Baked = Folder + "/ChadHair2Mesh.asset";
+        public const string HydeSource = Folder + "/Hyde.glb";
+        public const string HydeBaked = Folder + "/HydeMesh.asset";
 
         /// <summary>Where the saved hand-tuned fits live: a Resources folder, so every head reads them with nothing wired.</summary>
         public const string FitSettingsPath = HairFitSettings.AssetPath;
@@ -119,6 +121,7 @@ namespace CityX.UIEditor
                 case CharacterHair.SwipeCut: return BakedFromModel(SwipeCutSource, SwipeCutBaked, "SwipeCutMesh");
                 case CharacterHair.IdkNeedsWork: return BakedFromModel(IdkNeedsWorkSource, IdkNeedsWorkBaked, "IdkNeedsWorkMesh");
                 case CharacterHair.ChadHair2: return BakedFromModel(ChadHair2Source, ChadHair2Baked, "ChadHair2Mesh");
+                case CharacterHair.Hyde: return BakedFromModel(HydeSource, HydeBaked, "HydeMesh");
                 default:
                     Debug.LogWarning($"CityX: no model is wired for the hairstyle \"{style}\" -- add it to HairAssets.MeshFor.");
                     return null;

@@ -404,6 +404,42 @@ namespace CityX.Tests
             }
         }
 
+        /// <summary>
+        /// The row of buildings behind the logo is the KEPT one (UI/Title/TitleSkyline.asset), not a fresh bake: a title rebuild
+        /// for its interface -- a new hairstyle's button -- must leave the picture as it is (owner, 2026-10-12). Only
+        /// CityX/Rebake Title Skyline changes it.
+        /// </summary>
+        [Test]
+        public void TheBackdropIsTheKeptRowOfBuildings()
+        {
+            GameObject skyline = Everything().FirstOrDefault(go => go.name == "Skyline" && go.GetComponent<MeshFilter>() != null);
+            Assert.IsNotNull(skyline, "there is no Skyline in the title scene");
+            Mesh mesh = skyline.GetComponent<MeshFilter>().sharedMesh;
+            Assert.IsNotNull(mesh, "the title's row of buildings has no mesh");
+            Assert.AreEqual(UIEditor.TitleScreenBuilder.SkylinePath, AssetDatabase.GetAssetPath(mesh),
+                "the title's row of buildings is not the kept, baked one");
+        }
+
+        /// <summary>Every hairstyle, HYDE included, has its button in the title's creator.</summary>
+        [Test]
+        public void EveryHairstyleHasAButtonInTheCreator()
+        {
+            var creator = Find<CharacterCreator>();
+            Assert.IsNotNull(creator, "there is no CharacterCreator in the title scene");
+            CharacterHair hair = creator.Hair;
+            Assert.IsNotNull(hair, "the creator's body wears no CharacterHair");
+            Assert.AreEqual(CharacterHair.ValidStyles.Length - 1, hair.StyleMeshes.Length,
+                "the creator's head was built with a different list of styles -- rebuild the title screen");
+            for (int i = 0; i < hair.StyleMeshes.Length; i++)
+            {
+                Assert.IsNotNull(hair.StyleMeshes[i], $"the creator's head has no mesh for \"{CharacterHair.ValidStyles[i + 1]}\"");
+            }
+            foreach (string style in CharacterHair.ValidStyles)
+            {
+                Assert.IsTrue(Everything().Any(go => go.name == $"Hair{style}Button"), $"the creator has no button for \"{style}\"");
+            }
+        }
+
         private static string Path(GameObject go)
         {
             string path = go.name;
