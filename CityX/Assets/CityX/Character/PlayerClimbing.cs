@@ -135,7 +135,7 @@ namespace CityX.Character
             }
 
             float standingHeight = _locomotion != null ? _locomotion.StandingHeight : BodyRig.StandingHeight;
-            if (!WallProbe.TryFind(transform.position, transform.forward, standingHeight, out WallProbe.Result wall))
+            if (!WallProbe.TryFind(transform.position, transform.forward, standingHeight, out WallProbe.Result wall, transform))
             {
                 return false;
             }
@@ -249,7 +249,7 @@ namespace CityX.Character
             }
             float standingHeight = _locomotion != null ? _locomotion.StandingHeight : BodyRig.StandingHeight;
             Vector3 run = direction.sqrMagnitude > 0.0001f ? direction : transform.forward;   // the way the player is trying to go, not the way the body happens to face
-            if (!WallProbe.TryFind(transform.position, run, standingHeight, out WallProbe.Result wall))
+            if (!WallProbe.TryFind(transform.position, run, standingHeight, out WallProbe.Result wall, transform))
             {
                 _autoPress = 0.0f;
                 return false;

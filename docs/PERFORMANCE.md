@@ -72,3 +72,22 @@ background while the old chunk stays on screen, a burst of hits on one chunk coa
 The streamer reached 24 chunks (576 m) but the clear-weather fog ended at 380 m, hiding a third of it. Now `CityMassingSceneBuilder.ViewRadiusChunks`
 = 30 (720 m) with the fog at 460-690 m: you see about 690 m instead of 380. More far-detail chunks are loaded (61x61 instead of 49x49); watch the
 frame time on big views.
+
+## Update: buildings popping in up close (2026-10-12)
+
+Reported: "I keep witnessing buildings loading in in real time up close." Measured first (`StreamingPopInBench`, PlayMode, Explicit: the real
+scene, the game's own varied city, a viewer moved at the player's real speeds with the main thread held to 60 fps; writes
+`Logs/streaming-bench.txt`): holes within ~100 m of the viewer in every frame even standing still, and in every frame of a boosted jetpack
+flight, as close as 1 m. `ChunkCostBench` (EditMode, Explicit) found why: the median chunk built in 0.8 ms, but five round the spawn took
+**23-55 seconds** -- each holding a big building whose **stairs** took 11-27 s to plan (`BuildingStairs.PlanFor`), asked for four or five
+times per build (the builder, the room lights, the roof hatch, the interior volume). The walking check (`BuildingStairs.WalkPath`) laid a grid
+over the whole floor with at most 40,000 cells, so a 120 x 39 m storey got 34 cm cells -- wider than the 30 cm a doorway leaves a 0.45 m-radius
+body -- every door read as shut, nearly every stair placement "failed", and the planner tried them all.
+
+Fixed: `WalkPath` keeps a fixed 25 cm grid but only over the box round the two ends and the solids (2 m out, clipped to the floor), and stamps
+the solids onto it instead of testing every cell against every solid; `PlanFor` remembers its plans (a pure function of its inputs; bounded
+cache). Chunk build: mean 400 ms -> 3.3 ms full, 199 -> 0.4 ms far; worst 55 s -> 0.12 s. Streaming bench after: no holes within 100 m while
+sprinting, jetpacking or flying at 45 m/s; standing after a world rebuild, filled in 0.37 s. The streamer now uses as many worker threads as
+the machine can spare (`GeneratorThreads` -1 = half the logical cores less one, 3 to 6; at least two chunks in flight per thread) for the
+detailed versions round a very fast flyer. Guarded by `StreamingCostTests` (a doorway is passable on a big floor; a 120 x 39 x 171 m building
+plans its stairs in well under a second; no chunk round the spawn takes a second in the game's own city).

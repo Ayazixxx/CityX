@@ -474,7 +474,7 @@ namespace CityX.World.Plan
                 {
                     // This block's own size: its district, pushed a little either way so neighbours are not all alike.
                     double jitter = (PlanNoise.Mix(seed, (uint)(blockIndex * 3 + 5)) / 4294967296.0 - 0.5) * 0.4;
-                    double t = PlanMath.Clamp01(fields.DistrictAt(c.X, c.Y) + jitter);
+                    double t = PlanFields.BuildingSizeCurve(PlanMath.Clamp01(fields.DistrictAt(c.X, c.Y) + jitter));
                     _s = PlanFields.Lerp(cfg.MinScale, cfg.Scale, t);
                     _h = PlanFields.Lerp(cfg.MinHeightScale, cfg.HeightScale, t);
                 }

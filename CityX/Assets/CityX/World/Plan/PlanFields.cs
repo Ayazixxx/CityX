@@ -189,6 +189,19 @@ namespace CityX.World.Plan
             return Lerp(_cfg.MinHeightScale, _cfg.HeightScale, DistrictAt(x, y));
         }
 
+        /// <summary>
+        /// How a block's district value (0 the classic city's size, 1 the biggest) becomes the size of the buildings on it: bent down in the middle,
+        /// the ends where they were (owner, 2026-10-12: "the buildings are too big on average ... they should be able to be as big as the biggest they
+        /// go now but on average should be a bit smaller ... maybe 10% smaller on average ... the top 25% ... a slightly rarer chance"). The streets
+        /// keep the unbent value (ScaleAt): the blocks are where they were, cut into more and smaller lots. A power by square roots only (no pow:
+        /// the plan must come out the same on every machine).
+        /// </summary>
+        public static double BuildingSizeCurve(double t)
+        {
+            t = PlanMath.Clamp01(t);
+            return t * Math.Sqrt(t);   // t^1.5
+        }
+
         /// <summary>The two ends of a range, blended linearly (no pow: the plan must come out the same on every machine).</summary>
         public static double Lerp(double low, double high, double t)
         {

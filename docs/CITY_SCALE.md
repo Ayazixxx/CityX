@@ -64,3 +64,13 @@ Measured (`CityScaleTests`, seed 61839025), long side of a building: 5th percent
 A building's size is much more like its nearest neighbour's than a random building's (mean log-size difference 0.22 against 0.61, ratio 0.35), and not identical (a test pins
 the ratio between 0.12 and 0.7).
 Player build, 2560x1600: 176 fps standing, 170 sprinting, worst frame 93 ms (the uniform huge city: 199 / 195 / 78).
+
+## Update: buildings 10% smaller on average, the biggest rarer (2026-10-12)
+
+Owner: "the buildings are too big on average ... as big as the biggest they go now but on average should be a bit smaller ... maybe 10%
+smaller on average ... the top 25% percentile, a slightly rarer chance". A block's district value (0 the classic size, 1 the biggest) now goes
+through `PlanFields.BuildingSizeCurve` (t^1.5, square roots only) before it sizes the block's lots and heights: the middle bends down, both ends
+stay. The streets keep the unbent value, so the blocks are where they were, cut into more and smaller lots (about 20% more buildings). Measured
+with `tools/cityplan -- sizes <seed> 50.7 102.2` against the old lines, seeds 38461927 and 52748193: footprint side mean 40.5 -> 36.3 m (-10%),
+height mean 86.7 -> 80.2 m (-8%); at or above the old top-quarter line: footprint 25% -> 18%, height 25% -> 21%; the tallest still ~780 m.
+Seed rerolled to 61470385.

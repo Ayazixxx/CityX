@@ -180,3 +180,10 @@ it showed every real-city facade climb letting go a metre up: the body rose into
 - A deep cornice or a balcony partway up is a ledge like any other: the climb may pull up and stand on it.
 - Tests: `ClimbJutTests`, `ClimbPastJutPlayTests` (a 0.24 m course climbed past with the body back on the wall after, a 0.85 m cornice climbed past or stood on, a
   1.4 m balcony not leaned round and never passed through), and `RealCityClimbTopOutPlayTests` again tops out on all six spots of a real ornamented facade.
+
+## 2026-10-12: the probe looks past the player's own body
+
+`WallProbe.TryFind` takes the probing body (`self`) and skips its colliders. Running, the swung-forward leg sat in front of the
+knee-height ray; its ragdoll collider was read as "a person, not a wall", so Shift+W into a wall failed or worked depending on the
+stride (`RealInputClimbingPlayTests` failed only in full runs). All three callers (grab, run-up climb, wall stick) pass their body.
+`WallGrabIntentTests.ThePlayersOwnLegInFrontOfTheRayIsLookedPast` guards it.

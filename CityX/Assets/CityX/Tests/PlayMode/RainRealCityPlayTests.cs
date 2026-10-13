@@ -148,7 +148,7 @@ namespace CityX.Tests
             }
             Assert.IsNotNull(bridge, "no bridge in the real city to stand under");
             // The point of the deck over the river channel, the nearest to its middle (a long bridge's middle can be over the bank, or a building
-            // beside it: seed 38461927's is a 204 m arterial).
+            // beside it: seed 38461927's was a 204 m arterial).
             double overWater = 0.5;
             for (double step = 0.0; step <= 0.5; step += 0.01)
             {

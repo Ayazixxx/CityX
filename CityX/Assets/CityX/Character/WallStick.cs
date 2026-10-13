@@ -106,7 +106,7 @@ namespace CityX.Character
             // ladder climb uses: leaping past a window frame or brushing a door jamb while sprinting must not
             // stick you to it.
             float standingHeight = _locomotion != null ? _locomotion.StandingHeight : BodyRig.StandingHeight;
-            if (!WallProbe.TryFind(transform.position, transform.forward, standingHeight, out WallProbe.Result wall))
+            if (!WallProbe.TryFind(transform.position, transform.forward, standingHeight, out WallProbe.Result wall, transform))
             {
                 return false;
             }

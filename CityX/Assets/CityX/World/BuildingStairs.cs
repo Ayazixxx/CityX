@@ -170,6 +170,61 @@ namespace CityX.World
             }
         }
 
+        /// <summary>
+        /// Plans already made, by everything a plan depends on. A building's stairs are asked for by its builder, its room lights, its roof hatch,
+        /// its interior volume and more -- each used to plan them again from nothing (2026-10-12: a big building planned its stairs four or five
+        /// times per chunk build). A plan is a pure function of its inputs, so one made once serves every later ask, on any thread. Callers only
+        /// read a layout. Bounded: cleared whole when it grows past <see cref="CacheLimit"/> (a city's worth of streamed buildings, a few MB).
+        /// </summary>
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<PlanKey, Layout> Cache =
+            new System.Collections.Concurrent.ConcurrentDictionary<PlanKey, Layout>();
+
+        public const int CacheLimit = 8192;
+
+        private readonly struct PlanKey : System.IEquatable<PlanKey>
+        {
+            private readonly float _width, _depth, _height;
+            private readonly bool _basement, _roofCovered;
+            private readonly BuildingMass _mass;
+            private readonly ZoneKind _zone;
+            private readonly int _seed;
+            private readonly Rect _roofObstacle;
+
+            public PlanKey(float width, float depth, float height, bool basement, BuildingMass mass, ZoneKind zone, int seed, Rect roofObstacle, bool roofCovered)
+            {
+                _width = width;
+                _depth = depth;
+                _height = height;
+                _basement = basement;
+                _mass = mass;
+                _zone = zone;
+                _seed = seed;
+                _roofObstacle = roofObstacle;
+                _roofCovered = roofCovered;
+            }
+
+            public bool Equals(PlanKey o) => _width == o._width && _depth == o._depth && _height == o._height && _basement == o._basement
+                && _mass == o._mass && _zone == o._zone && _seed == o._seed && _roofObstacle == o._roofObstacle && _roofCovered == o._roofCovered;
+
+            public override bool Equals(object obj) => obj is PlanKey k && Equals(k);
+
+            public override int GetHashCode()
+            {
+                unchecked
+                {
+                    int h = _seed;
+                    h = h * 397 ^ _width.GetHashCode();
+                    h = h * 397 ^ _depth.GetHashCode();
+                    h = h * 397 ^ _height.GetHashCode();
+                    h = h * 397 ^ (int)_mass;
+                    h = h * 397 ^ (int)_zone;
+                    h = h * 397 ^ (_basement ? 1 : 0) ^ (_roofCovered ? 2 : 0);
+                    h = h * 397 ^ _roofObstacle.GetHashCode();
+                    return h;
+                }
+            }
+        }
+
         public static Layout PlanFor(BuildingSite site)
         {
             float width = site.Params.Width, depth = site.Params.Depth;
@@ -188,6 +243,23 @@ namespace CityX.World
 
         public static Layout PlanFor(float width, float depth, float height, bool basement, BuildingMass mass, ZoneKind zone, int seed, Rect roofObstacle,
             bool roofCovered = false)
+        {
+            var key = new PlanKey(width, depth, height, basement, mass, zone, seed, roofObstacle, roofCovered);
+            if (Cache.TryGetValue(key, out Layout known))
+            {
+                return known;
+            }
+            Layout planned = Plan(width, depth, height, basement, mass, zone, seed, roofObstacle, roofCovered);
+            if (Cache.Count >= CacheLimit)
+            {
+                Cache.Clear();
+            }
+            Cache[key] = planned;
+            return planned;
+        }
+
+        private static Layout Plan(float width, float depth, float height, bool basement, BuildingMass mass, ZoneKind zone, int seed, Rect roofObstacle,
+            bool roofCovered)
         {
             float storey = BuildingInterior.StoreyHeight(height);
             int floors = BuildingInterior.FloorCountFor(height);
@@ -740,24 +812,62 @@ namespace CityX.World
         public static List<Vector2> WalkPath(List<Rect> solids, float hx, float hz, Vector2 from, Vector2 to)
         {
             const float radius = 0.45f;
-            float cell = Mathf.Max(0.25f, Mathf.Sqrt(4.0f * hx * hz / 40000.0f));
-            int nx = Mathf.Max(1, Mathf.CeilToInt(2.0f * hx / cell)), nz = Mathf.Max(1, Mathf.CeilToInt(2.0f * hz / cell));
+
+            // A FIXED 25 cm GRID, OVER THE PART OF THE FLOOR THAT MATTERS. The grid used to cover the whole floor with its cells growing on a big floor
+            // (at most 40,000 of them): on a 120 x 39 m storey a cell was 34 cm, wider than the 30 cm a doorway leaves a body once its radius is
+            // allowed for, so every door read as shut, nearly every stair placement "failed", and the planner tried them all -- 27 seconds for one
+            // building, a hole in the city while it ran (2026-10-12, StreamingPopInBench / ChunkCostBench). Now the grid covers only the box round
+            // the two ends and the solids, 2 m out (a way round any solid stays inside it), clipped to the floor, and the solids are stamped on it
+            // one each instead of every cell testing every solid. The answer is the old one's wherever the old grid was fine.
+            const float cell = 0.25f;
+            float bx0 = Mathf.Min(from.x, to.x), bx1 = Mathf.Max(from.x, to.x), bz0 = Mathf.Min(from.y, to.y), bz1 = Mathf.Max(from.y, to.y);
+            for (int s = 0; s < solids.Count; s++)
+            {
+                Rect r = solids[s];
+                bx0 = Mathf.Min(bx0, r.xMin);
+                bx1 = Mathf.Max(bx1, r.xMax);
+                bz0 = Mathf.Min(bz0, r.yMin);
+                bz1 = Mathf.Max(bz1, r.yMax);
+            }
+            const float margin = 2.0f;
+            float gx0 = Mathf.Max(-hx, bx0 - margin), gx1 = Mathf.Min(hx, bx1 + margin);
+            float gz0 = Mathf.Max(-hz, bz0 - margin), gz1 = Mathf.Min(hz, bz1 + margin);
+            // Snap the box to the whole-floor lattice, so a cell's centre is where it always was.
+            int ix0 = Mathf.Max(0, Mathf.FloorToInt((gx0 + hx) / cell)), iz0 = Mathf.Max(0, Mathf.FloorToInt((gz0 + hz) / cell));
+            int ix1 = Mathf.Min(Mathf.Max(1, Mathf.CeilToInt(2.0f * hx / cell)), Mathf.CeilToInt((gx1 + hx) / cell));
+            int iz1 = Mathf.Min(Mathf.Max(1, Mathf.CeilToInt(2.0f * hz / cell)), Mathf.CeilToInt((gz1 + hz) / cell));
+            int nx = Mathf.Max(1, ix1 - ix0), nz = Mathf.Max(1, iz1 - iz0);
+            float ox = -hx + ix0 * cell, oz = -hz + iz0 * cell;   // the grid's corner
             var free = new bool[nx * nz];
             for (int iz = 0; iz < nz; iz++)
             {
+                float z = oz + (iz + 0.5f) * cell;
+                bool zOk = z > -hz + radius && z < hz - radius;
                 for (int ix = 0; ix < nx; ix++)
                 {
-                    float x = -hx + (ix + 0.5f) * cell, z = -hz + (iz + 0.5f) * cell;
-                    bool ok = x > -hx + radius && x < hx - radius && z > -hz + radius && z < hz - radius;
-                    for (int s = 0; s < solids.Count && ok; s++)
-                    {
-                        Rect r = solids[s];
-                        ok = !(x > r.xMin - radius && x < r.xMax + radius && z > r.yMin - radius && z < r.yMax + radius);
-                    }
-                    free[iz * nx + ix] = ok;
+                    float x = ox + (ix + 0.5f) * cell;
+                    free[iz * nx + ix] = zOk && x > -hx + radius && x < hx - radius;
                 }
             }
-            int Index(Vector2 p) => Mathf.Clamp(Mathf.FloorToInt((p.y + hz) / cell), 0, nz - 1) * nx + Mathf.Clamp(Mathf.FloorToInt((p.x + hx) / cell), 0, nx - 1);
+            for (int s = 0; s < solids.Count; s++)
+            {
+                // The cells whose centre is strictly inside the solid grown by the body's radius (the same test the old loop made per cell).
+                Rect r = solids[s];
+                float sx0 = r.xMin - radius, sx1 = r.xMax + radius, sz0 = r.yMin - radius, sz1 = r.yMax + radius;
+                int cx0 = Mathf.Max(0, Mathf.FloorToInt((sx0 - ox) / cell - 0.5f)), cx1 = Mathf.Min(nx - 1, Mathf.CeilToInt((sx1 - ox) / cell - 0.5f));
+                int cz0 = Mathf.Max(0, Mathf.FloorToInt((sz0 - oz) / cell - 0.5f)), cz1 = Mathf.Min(nz - 1, Mathf.CeilToInt((sz1 - oz) / cell - 0.5f));
+                for (int iz = cz0; iz <= cz1; iz++)
+                {
+                    float z = oz + (iz + 0.5f) * cell;
+                    if (!(z > sz0 && z < sz1)) continue;
+                    for (int ix = cx0; ix <= cx1; ix++)
+                    {
+                        float x = ox + (ix + 0.5f) * cell;
+                        if (x > sx0 && x < sx1) free[iz * nx + ix] = false;
+                    }
+                }
+            }
+            int Index(Vector2 p) => Mathf.Clamp(Mathf.FloorToInt((p.y - oz) / cell), 0, nz - 1) * nx + Mathf.Clamp(Mathf.FloorToInt((p.x - ox) / cell), 0, nx - 1);
             int start = Index(from), goal = Index(to);
             if (!free[start] || !free[goal])
             {
@@ -804,7 +914,7 @@ namespace CityX.World
             {
                 if (step % Mathf.Max(1, Mathf.RoundToInt(1.5f / cell)) == 0 || c == start)
                 {
-                    path.Add(new Vector2(-hx + ((c % nx) + 0.5f) * cell, -hz + ((c / nx) + 0.5f) * cell));
+                    path.Add(new Vector2(ox + ((c % nx) + 0.5f) * cell, oz + ((c / nx) + 0.5f) * cell));
                 }
             }
             path.Reverse();

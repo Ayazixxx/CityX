@@ -13,7 +13,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class RoomLightingTests
     {
-        private const int Seed = 38461927;
+        private const int Seed = 61470385;
 
         private static CityWorld _world;
         private static CityWorld World => _world ?? (_world = new CityWorld(Seed));
@@ -102,9 +102,14 @@ namespace CityX.Tests
         [Test]
         public void TheCityHasManyKindsOfLighting()
         {
+            // Across the whole city, not round the spawn: a district has its own few kinds (a downtown spawn sees only an office's three).
             var seen = new HashSet<LightPattern>();
-            foreach (BuildingSite site in Interiors(120))
+            int stride = Mathf.Max(1, World.BuildingCount / 300), sampled = 0;
+            for (int id = 0; id < World.BuildingCount && sampled < 300; id += stride)
             {
+                BuildingSite site = World.Building(id);
+                if (site.Shell || site.Sides >= 3 || site.Params.IsSpecial) continue;
+                sampled++;
                 foreach (RoomLightPlan plan in RoomLighting.PlansFor(site))
                 {
                     seen.Add(plan.Pattern);

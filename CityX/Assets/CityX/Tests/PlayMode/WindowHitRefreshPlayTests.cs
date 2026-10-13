@@ -15,7 +15,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class WindowHitRefreshPlayTests
     {
-        private const int Seed = 38461927;
+        private const int Seed = 61470385;
         private readonly List<GameObject> _made = new List<GameObject>();
 
         [TearDown]

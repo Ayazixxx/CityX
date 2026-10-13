@@ -54,7 +54,9 @@ namespace CityX.Character
 
         /// <param name="feet">The player's position (at their feet).</param>
         /// <param name="forward">The way they are facing.</param>
-        public static bool TryFind(Vector3 feet, Vector3 forward, float standingHeight, out Result result)
+        /// <param name="self">The probing body: its own colliders (the ragdoll's limb colliders) are looked past. Running, the leg swung forward
+        /// was hit by the knee-height ray, read as "a person, not a wall", and a run-up climb failed now and then depending on the stride (2026-10-12).</param>
+        public static bool TryFind(Vector3 feet, Vector3 forward, float standingHeight, out Result result, Transform self = null)
         {
             result = default;
             Vector3 flat = new Vector3(forward.x, 0.0f, forward.z);
@@ -77,7 +79,7 @@ namespace CityX.Character
                 for (int side = -1; side <= 1; side++)
                 {
                     Vector3 origin = feet + Vector3.up * (standingHeight * fraction) + right * (side * HalfWidth);
-                    if (!Physics.Raycast(origin, flat, out RaycastHit hit, Reach, ~0, QueryTriggerInteraction.Ignore))
+                    if (!FirstHitPast(self, origin, flat, out RaycastHit hit))
                     {
                         return false;   // a gap in the grid: a doorway, a window, the end of the wall
                     }
@@ -117,6 +119,34 @@ namespace CityX.Character
 
             result = new Result(pointSum / hits, normal, (nearest + farthest) * 0.5f);
             return true;
+        }
+
+        private static readonly RaycastHit[] Hits = new RaycastHit[16];
+
+        /// <summary>The nearest hit along a ray that is not part of <paramref name="self"/> (a plain raycast when there is no self).</summary>
+        private static bool FirstHitPast(Transform self, Vector3 origin, Vector3 direction, out RaycastHit nearest)
+        {
+            if (self == null)
+            {
+                return Physics.Raycast(origin, direction, out nearest, Reach, ~0, QueryTriggerInteraction.Ignore);
+            }
+            nearest = default;
+            bool found = false;
+            int count = Physics.RaycastNonAlloc(origin, direction, Hits, Reach, ~0, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < count; i++)
+            {
+                Collider c = Hits[i].collider;
+                if (c == null || c.transform.IsChildOf(self))
+                {
+                    continue;
+                }
+                if (!found || Hits[i].distance < nearest.distance)
+                {
+                    nearest = Hits[i];
+                    found = true;
+                }
+            }
+            return found;
         }
 
         /// <summary>Whether a ray hit is a wall: solid world, near-vertical -- not a body, a door or debris.</summary>

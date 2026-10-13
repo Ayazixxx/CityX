@@ -138,6 +138,26 @@ namespace CityX.Tests
             Assert.IsTrue(Probe());
         }
 
+        /// <summary>
+        /// Running, the leg swung forward sits right in front of the knee-height ray. The player's own limb colliders were taken for "a person,
+        /// not a wall", and a run-up climb failed or worked depending on the stride (full PlayMode runs, 2026-10-12). The probe looks past its own body.
+        /// </summary>
+        [Test]
+        public void ThePlayersOwnLegInFrontOfTheRayIsLookedPast()
+        {
+            Wall(0.5f, 12.0f, 20.0f);
+            var shin = new GameObject("shin_r");
+            shin.transform.SetParent(_player.transform, false);
+            shin.transform.localPosition = new Vector3(0.0f, BodyRig.StandingHeight * 0.2f, 0.2f);
+            shin.AddComponent<BoxCollider>().size = new Vector3(0.2f, 0.4f, 0.12f);
+            Physics.SyncTransforms();
+
+            Assert.IsFalse(WallProbe.TryFind(_player.transform.position, Vector3.forward, BodyRig.StandingHeight, out _),
+                "setup: without knowing whose body it is, the shin should block the knee ray");
+            Assert.IsTrue(WallProbe.TryFind(_player.transform.position, Vector3.forward, BodyRig.StandingHeight, out _, _player.transform),
+                "the player's own leg in front of the knee ray hid the wall");
+        }
+
         [Test]
         public void ADoorwayDoesNot()
         {

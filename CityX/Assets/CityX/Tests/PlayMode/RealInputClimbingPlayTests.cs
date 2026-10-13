@@ -68,7 +68,24 @@ namespace CityX.Tests
             yield return null;
             _scene = SceneManager.GetSceneByPath(ScenePath);
 
-            var input = Object.FindFirstObjectByType<PlayerInputReader>();
+            // This scene's own player and camera. A full PlayMode run can leave another body alive from an earlier test (something kept across
+            // scene loads: its log reads "There are 2 event systems in the scene"), and a type-only lookup then drove that one while the wall went
+            // in front of this one -- the run-at-a-wall test failed in full runs only (2026-10-12).
+            PlayerInputReader input = null;
+            Camera camera = null;
+            foreach (GameObject root in _scene.GetRootGameObjects())
+            {
+                if (input == null) input = root.GetComponentInChildren<PlayerInputReader>(true);
+                if (camera == null)
+                {
+                    foreach (Camera c in root.GetComponentsInChildren<Camera>(true))
+                    {
+                        if (c.CompareTag("MainCamera")) { camera = c; break; }
+                    }
+                }
+            }
+            Assert.IsNotNull(input, "no player in the real scene");
+            if (camera == null) camera = Camera.main;
             var locomotion = input.GetComponent<PlayerLocomotion>();
             for (int i = 0; i < 600 && !locomotion.IsGrounded; i++)
             {
@@ -78,7 +95,7 @@ namespace CityX.Tests
             yield return Wait(0.3f);
 
             // The wall goes where the player will run: along the camera's facing, so W walks straight at it.
-            Vector3 ahead = Camera.main.transform.forward;
+            Vector3 ahead = camera.transform.forward;
             ahead.y = 0.0f;
             ahead.Normalize();
             Vector3 player = locomotion.transform.position;
@@ -100,6 +117,40 @@ namespace CityX.Tests
 #endif
         }
 
+        /// <summary>How many doors are within <paramref name="radius"/> of a point, found the way PlayerClimbing finds them (their trigger volumes count).</summary>
+        private static int DoorsNear(Vector3 point, float radius)
+        {
+            int doors = 0;
+            foreach (Collider c in Physics.OverlapSphere(point + Vector3.up, radius, ~0, QueryTriggerInteraction.Collide))
+            {
+                if (c != null && c.GetComponentInParent<CityX.World.IOpenableDoor>() != null) doors++;
+            }
+            return doors;
+        }
+
+        /// <summary>What each of WallProbe's rays hits, for a failure only a full run shows.</summary>
+        private static string ProbeRays(Vector3 feet, Vector3 forward, float height)
+        {
+            var text = new System.Text.StringBuilder();
+            Vector3 right = Vector3.Cross(Vector3.up, forward);
+            foreach (float fraction in new[] { 0.2f, 0.5f, 0.8f })
+            {
+                for (int side = -1; side <= 1; side++)
+                {
+                    Vector3 origin = feet + Vector3.up * (height * fraction) + right * (side * WallProbe.HalfWidth);
+                    if (Physics.Raycast(origin, forward, out RaycastHit hit, WallProbe.Reach, ~0, QueryTriggerInteraction.Ignore))
+                    {
+                        text.Append($"[{fraction:0.0},{side}] {hit.collider.name} ({LayerMask.LayerToName(hit.collider.gameObject.layer)}) d {hit.distance:0.00} n {hit.normal} ");
+                    }
+                    else
+                    {
+                        text.Append($"[{fraction:0.0},{side}] miss ");
+                    }
+                }
+            }
+            return text.ToString();
+        }
+
         private sealed class FakeDoor : MonoBehaviour, CityX.World.IOpenableDoor
         {
             public Vector3 Position => transform.position;
@@ -114,19 +165,37 @@ namespace CityX.Tests
             yield return Stage(r => rig = r);
             Assert.IsNotNull(rig.Climbing, "the player has no climbing component");
             float startY = rig.Locomotion.transform.position.y;
+            Vector3 startAt = rig.Locomotion.transform.position;
 
             Press(_keyboard.leftShiftKey);
             Press(_keyboard.wKey);
             bool climbed = false;
+            float closest = float.MaxValue;
             for (float elapsed = 0.0f; elapsed < 2.5f; elapsed += Time.deltaTime)
             {
                 climbed |= rig.Climbing.IsClimbing;
+                closest = Mathf.Min(closest, Vector3.Distance(_wall.GetComponent<Collider>().ClosestPoint(rig.Locomotion.transform.position), rig.Locomotion.transform.position));
                 yield return null;
             }
             float endY = rig.Locomotion.transform.position.y;
             Release(_keyboard.wKey);
             Release(_keyboard.leftShiftKey);
 
+            if (!climbed)
+            {
+                // What happened, for a failure that only shows in a full run.
+                Vector3 endAt = rig.Locomotion.transform.position;
+                TestContext.WriteLine($"no climb: player from {startAt} to {endAt} (moved {Vector3.Distance(startAt, endAt):0.00} m), wall at {_wall.transform.position}, " +
+                                      $"closest approach {closest:0.00} m, grounded {rig.Locomotion.IsGrounded}, doors within 3 m {DoorsNear(rig.Locomotion.transform.position, PlayerClimbing.DoorRadiusMetres)}, readers {Object.FindObjectsByType<PlayerInputReader>(FindObjectsSortMode.None).Length}, " +
+                                      $"scenes {SceneManager.sceneCount}, time scale {Time.timeScale}, capture {Time.captureFramerate}, " +
+                                      $"main camera {(Camera.main != null ? Camera.main.name + " in " + Camera.main.gameObject.scene.name + " yaw " + Camera.main.transform.eulerAngles.y.ToString("0") : "none")}, " +
+                                      $"run yaw {Quaternion.LookRotation(_wall.transform.forward).eulerAngles.y:0}, cameras {Camera.allCamerasCount}, " +
+                                      $"stairs {rig.Climbing.RecentlyOnStairs}, stamina {(rig.Locomotion.GetComponent<PlayerVitals>() != null ? rig.Locomotion.GetComponent<PlayerVitals>().Stamina.ToString("0") : "-")}, " +
+                                      $"jetpack {rig.Input.EquippedJetpack != null}, parachute {rig.Input.EquippedParachute != null}, " +
+                                      $"wall probe {WallProbe.TryFind(rig.Locomotion.transform.position, _wall.transform.forward, rig.Locomotion.StandingHeight, out _)}, " +
+                                      $"rays: {ProbeRays(rig.Locomotion.transform.position, _wall.transform.forward, rig.Locomotion.StandingHeight)}, " +
+                                      $"backfaces {Physics.queriesHitBackfaces}, triggers {Physics.queriesHitTriggers}");
+            }
             Assert.IsTrue(climbed, "running (Shift+W) into a tall wall did not start a climb");
             Assert.Greater(endY, startY + 1.0f, "it grabbed but did not climb");
 #else

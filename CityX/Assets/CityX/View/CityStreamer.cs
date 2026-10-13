@@ -27,7 +27,7 @@ namespace CityX.View
         // real scenes always set this from that same constant at build
         // time. EXPLICIT ASK: "generate a new world every time you make a
         // change to the city generation."
-        public int WorldSeed = 38461927;
+        public int WorldSeed = 61470385;
 
         [Tooltip("Put the player (and the Old Guy, who is placed relative to them) at the spawn point of the world this streamer makes, when it wakes. The scene bakes a spawn point at build time, but the world depends on the city scale in force when the game runs.")]
         public bool PlaceAtSpawn = false;
@@ -63,15 +63,23 @@ namespace CityX.View
 
         [Header("Background generation")]
         [Tooltip("Worker threads that generate chunk geometry while the game runs. The main thread then only makes the " +
-                 "objects. 0 goes back to building every chunk on the main thread (the old, hitchy way).")]
-        public int GeneratorThreads = 3;
+                 "objects. -1: as many as the machine can spare (half its logical cores less one, 3 to 6). " +
+                 "0 goes back to building every chunk on the main thread (the old, hitchy way).")]
+        public int GeneratorThreads = -1;
 
         [Tooltip("Most milliseconds per frame the main thread spends turning generated chunks into scene objects " +
                  "(at least one chunk a frame is always finished).")]
         public float AssembleTimeBudgetMs = 2.0f;
 
-        [Tooltip("Most chunks being generated at once; more just queues work that may be stale by the time it lands.")]
+        [Tooltip("Most chunks being generated at once (at least twice the worker threads); more just queues work that may be stale by the time it lands.")]
         public int MaxChunksInFlight = 6;
+
+        /// <summary>
+        /// The worker threads actually used: <see cref="GeneratorThreads"/>, or for -1 what the machine can spare. Fixed at three until
+        /// 2026-10-12; the streaming bench (StreamingPopInBench) showed the detailed version of the chunks round a 45 m/s flyer arriving late on
+        /// three, and a Ryzen 7 5800H has sixteen.
+        /// </summary>
+        public int WorkerThreads => GeneratorThreads >= 0 ? GeneratorThreads : Mathf.Clamp(SystemInfo.processorCount / 2 - 1, 3, 6);
 
         /// <summary>
         /// How many chunks around the real player get force-built
@@ -173,6 +181,9 @@ namespace CityX.View
 
         /// <summary>Whether a chunk is loaded as the far version. For tests and captures.</summary>
         public bool IsChunkFar(Vector2Int key) => _far.Contains(key);
+
+        /// <summary>Whether a chunk is on screen at all (either version). For tests and the streaming bench.</summary>
+        public bool IsChunkLoaded(Vector2Int key) => _loaded.ContainsKey(key);
 
         /// <summary>A chunk to build (or rebuild at another detail): where, and whether it is the far version.</summary>
         private readonly struct ChunkRequest
@@ -407,7 +418,7 @@ namespace CityX.View
             bool glassOnly = _paneSeen.TryGetValue(key, out PaneState before) && before == state && state == PaneState.Cracked;
             _paneSeen[key] = state;
 
-            if (_loaded.TryGetValue(chunk, out GameObject loadedNow) && GeneratorThreads > 0)
+            if (_loaded.TryGetValue(chunk, out GameObject loadedNow) && WorkerThreads > 0)
             {
                 // In the background: the chunk on screen stays until its replacement is ready, and a burst of hits on one chunk is one rebuild.
                 _refreshing[chunk] = _refreshing.TryGetValue(chunk, out bool wasGlassOnly) ? wasGlassOnly && glassOnly : glassOnly;
@@ -452,7 +463,7 @@ namespace CityX.View
             {
                 return;
             }
-            if (GeneratorThreads > 0)
+            if (WorkerThreads > 0)
             {
                 StreamAroundInBackground(viewer.position);
             }
@@ -478,7 +489,7 @@ namespace CityX.View
             }
             if (_workers == null)
             {
-                _workers = new SemaphoreSlim(Mathf.Max(1, GeneratorThreads));
+                _workers = new SemaphoreSlim(Mathf.Max(1, WorkerThreads));
             }
 
             int centreX = Mathf.FloorToInt(position.x / CityLayout.ChunkSize);
@@ -546,7 +557,7 @@ namespace CityX.View
             }
 
             // Start generating the nearest chunks that are neither built (at the right detail) nor already being built.
-            int maxInFlight = Mathf.Max(1, MaxChunksInFlight);
+            int maxInFlight = Mathf.Max(Mathf.Max(1, MaxChunksInFlight), 2 * WorkerThreads);
             bool grewInFlight = false;
             for (int i = 0; i < _requests.Count && _inFlight.Count < maxInFlight; i++)
             {
