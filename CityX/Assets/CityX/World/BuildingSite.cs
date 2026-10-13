@@ -162,6 +162,15 @@ namespace CityX.World
 
         public bool Exists => Params.HasBuilding;
 
+        /// <summary>An open car park (SpecialTypes.ParkingLot): a lot with no building on it, so nothing treats it as one (no interior, no "inside a building").</summary>
+        public bool IsOpenGround => Params.SpecialType == SpecialTypes.ParkingLot;
+
+        /// <summary>A multi-storey car park (SpecialTypes.ParkingGarage).</summary>
+        public bool IsParkingGarage => Params.SpecialType == SpecialTypes.ParkingGarage;
+
+        /// <summary>A shopping mall (SpecialTypes.Mall).</summary>
+        public bool IsMall => Params.SpecialType == SpecialTypes.Mall;
+
         /// <summary>Height of the roof above sea level.</summary>
         public float Top => BaseHeight + Params.Height;
 

@@ -11,7 +11,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class PlanWorldTests
     {
-        private const int Seed = 61839025;
+        private const int Seed = 74920318;
 
         /// <summary>A smaller city than the game's, so the whole fixture runs in about a second.</summary>
         private static PlanConfig SmallCity()
@@ -113,6 +113,7 @@ namespace CityX.Tests
             int[] sx = { -1, 1, 1, -1 }, sz = { -1, -1, 1, 1 };
             foreach (BuildingSite b in World.Buildings)
             {
+                if (b.IsOpenGround) continue;   // a surface car park is open ground: BuildingAtHeight looks through it on purpose
                 for (int c = 0; c < 4; c++)
                 {
                     b.LocalToWorld(sx[c] * b.Params.Width * 0.5 * 0.98, sz[c] * b.Params.Depth * 0.5 * 0.98, out double x, out double z);

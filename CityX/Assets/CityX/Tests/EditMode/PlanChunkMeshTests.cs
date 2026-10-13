@@ -14,7 +14,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class PlanChunkMeshTests
     {
-        private const int Seed = 61839025;
+        private const int Seed = 74920318;
 
         private static CityWorld _world;
         private static CityWorld World => _world ?? (_world = new CityWorld(Seed));
@@ -93,14 +93,21 @@ namespace CityX.Tests
 
             foreach ((int dx, int dy) in new[] { (1, 0), (0, 1) })
             {
-                var a = Chunk(cx, cy);
-                var b = Chunk(cx + dx, cy + dy);
+                // The surface alone (terrain, roads, decks, pavement): a building stands whole in the chunk that owns its centre and is not
+                // clipped to it, so a building corner that happens to fall within a millimetre of the border is not a seam.
+                var a = Surface(cx, cy);
+                var b = Surface(cx + dx, cy + dy);
                 HashSet<(int, int)> edgeA = BoundaryPoints(a, cx, cy, dx, dy, true);
                 HashSet<(int, int)> edgeB = BoundaryPoints(b, cx + dx, cy + dy, dx, dy, false);
                 Assert.Greater(edgeA.Count, 5, "chunk has no surface on its shared edge");
+                var onlyA = new List<(int, int)>(edgeA);
+                onlyA.RemoveAll(edgeB.Contains);
+                var onlyB = new List<(int, int)>(edgeB);
+                onlyB.RemoveAll(edgeA.Contains);
                 Assert.IsTrue(edgeA.SetEquals(edgeB),
                     $"chunks ({cx},{cy}) and ({cx + dx},{cy + dy}) do not meet exactly on their shared edge: " +
-                    $"{edgeA.Count} points vs {edgeB.Count}");
+                    $"{edgeA.Count} points vs {edgeB.Count}; only in the first (along cm, height cm): {string.Join(" ", onlyA)} {Describe(a, onlyA, dx)}; " +
+                    $"only in the second: {string.Join(" ", onlyB)} {Describe(b, onlyB, dx)}");
             }
         }
 
@@ -208,6 +215,16 @@ namespace CityX.Tests
             return buffers;
         }
 
+        /// <summary>One chunk's surface only (CitySurfaceBuilder, no buildings): ground, pavement, then its props, paint and rails.</summary>
+        private static MeshBuffer[] Surface(int cx, int cy)
+        {
+            var buffers = new MeshBuffer[6];
+            for (int i = 0; i < buffers.Length; i++) buffers[i] = new MeshBuffer();
+            var origin = new Vector3(cx * CityLayout.ChunkSize, 0.0f, cy * CityLayout.ChunkSize);
+            CitySurfaceBuilder.Build(World, cx, cy, origin, buffers[0], buffers[1], buffers[2], buffers[3], buffers[4], buffers[5], false);
+            return buffers;
+        }
+
         /// <summary>The surface vertices (ground and pavement) on one edge of a chunk, as rounded (along, height) pairs.</summary>
         private static HashSet<(int, int)> BoundaryPoints(MeshBuffer[] chunk, int cx, int cy, int dx, int dy, bool leavingSide)
         {
@@ -225,6 +242,30 @@ namespace CityX.Tests
                 }
             }
             return points;
+        }
+
+        /// <summary>For a failure message: the triangles (buffer, three chunk-local corners, normal) that use each of the given boundary points.</summary>
+        private static string Describe(MeshBuffer[] chunk, List<(int, int)> points, int dx)
+        {
+            var text = new System.Text.StringBuilder();
+            string[] names = { "ground", "pavement" };
+            for (int b = 0; b < 2; b++)
+            {
+                MeshBuffer buffer = chunk[b];
+                for (int i = 0; i + 2 < buffer.Triangles.Count; i += 3)
+                {
+                    for (int k = 0; k < 3; k++)
+                    {
+                        Vector3 v = buffer.Vertices[buffer.Triangles[i + k]];
+                        float along = dx != 0 ? v.z : v.x;
+                        var key = ((int)Math.Round(along * 100.0f), (int)Math.Round(v.y * 100.0f));
+                        if (!points.Contains(key)) continue;
+                        text.Append($"[{names[b]} tri {i / 3}: {buffer.Vertices[buffer.Triangles[i]]} {buffer.Vertices[buffer.Triangles[i + 1]]} {buffer.Vertices[buffer.Triangles[i + 2]]} n {buffer.Normals[buffer.Triangles[i]]}] ");
+                        break;
+                    }
+                }
+            }
+            return text.ToString();
         }
 
         private static void AssertWound(MeshBuffer buffer, string what)

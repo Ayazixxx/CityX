@@ -105,7 +105,19 @@ namespace CityX.View
             SiteLooks looks = SiteLooks.For(site, WindowPlan.For(world, site).Style);
             structures.UvOffset = looks.UvOffset;
 
-            if (site.Sides >= 3)
+            if (site.IsParkingGarage)
+            {
+                BuildGarage(site, builderOrigin, structures, concrete, looks, far);   // CityMeshBuilder.Parking.cs
+            }
+            else if (site.IsOpenGround)
+            {
+                BuildParkingLot(world, site, builderOrigin, structures, concrete, far);
+            }
+            else if (site.IsMall)
+            {
+                BuildMall(site, builderOrigin, structures, concrete, darkGlass, looks, far);   // CityMeshBuilder.Mall.cs
+            }
+            else if (site.Sides >= 3)
             {
                 // Round and many-sided: every side a short flat wall (CityMeshBuilder.Round.cs).
                 BuildRound(world, site, builderOrigin, offset, structures, concrete,

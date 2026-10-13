@@ -12,7 +12,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class ExteriorDetailTests
     {
-        private const int Seed = 61839025;
+        private const int Seed = 74920318;
 
         private static CityWorld _world;
         private static CityWorld World => _world ?? (_world = new CityWorld(Seed));
@@ -22,7 +22,7 @@ namespace CityX.Tests
             int n = 0;
             foreach (BuildingSite s in TestSites.NearSpawn(World, 14))
             {
-                if (keep(s))
+                if (keep(s) && !s.Params.IsSpecial)   // the set pieces (garages, car parks, malls) have their own tests
                 {
                     yield return s;
                     if (++n >= count)

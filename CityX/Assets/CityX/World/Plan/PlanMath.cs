@@ -269,6 +269,33 @@ namespace CityX.World.Plan
                 && Vec2.Cross(a - c, p - c) * sign >= 0.0;
         }
 
+        /// <summary>Whether two polygons overlap: a corner of either inside the other, or an edge of one crossing an edge of the other.</summary>
+        public static bool PolygonsIntersect(IList<Vec2> a, IList<Vec2> b)
+        {
+            for (int i = 0; i < a.Count; i++)
+            {
+                if (PointInPolygon(a[i], b)) return true;
+            }
+            for (int i = 0; i < b.Count; i++)
+            {
+                if (PointInPolygon(b[i], a)) return true;
+            }
+            int na = a.Count, nb = b.Count;
+            for (int i = 0; i < na; i++)
+            {
+                Vec2 p = a[i], q = a[(i + 1) % na];
+                for (int j = 0; j < nb; j++)
+                {
+                    if (SegmentIntersect(p, q, b[j], b[(j + 1) % nb], out double t, out double u)
+                        && t > 1e-9 && t < 1.0 - 1e-9 && u > 1e-9 && u < 1.0 - 1e-9)
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
         /// <summary>True if any two non-adjacent edges of the polygon cross.</summary>
         public static bool SelfIntersects(IList<Vec2> poly)
         {

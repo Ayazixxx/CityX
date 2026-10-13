@@ -35,6 +35,12 @@ namespace CityX.World.Plan
         /// block keeps its pavement and is left open ground. Seen with seed 87650022 (CityScale classic): one plot 432 m long over an island's houses.
         /// </summary>
         public bool Encloses;
+
+        /// <summary>A pedestrian plaza: no lots, the whole block paved and furnished (Amenities.ChoosePlazas, CitySurfaceBuilder).</summary>
+        public bool Plaza;
+
+        /// <summary>A shopping mall takes the whole block as one lot (Amenities.ChooseMalls).</summary>
+        public bool Mall;
     }
 
     /// <summary>
@@ -63,6 +69,9 @@ namespace CityX.World.Plan
         /// is lined by one continuous wall of buildings with party walls between them, instead of a row of detached blocks with gaps.
         /// </summary>
         public bool StreetWall;
+
+        /// <summary>What stands on the lot. A mall is decided here (its block is one lot); parking is decided as the buildings are resolved (Amenities.ParkingPlanner).</summary>
+        public LotUse Use;
     }
 
     /// <summary>The whole generated plan for one region.</summary>
@@ -75,6 +84,13 @@ namespace CityX.World.Plan
         public List<RoadEdge> Edges;
         public List<PlanBlock> Blocks = new List<PlanBlock>();
         public List<PlanLot> Lots = new List<PlanLot>();
+
+        /// <summary>The expressways' interchange ramps (Interchanges), and the crossing nodes they serve.</summary>
+        public List<RampPlan> Ramps = new List<RampPlan>();
+        public List<int> ExitNodes = new List<int>();
+
+        public List<int> PlazaBlocks = new List<int>();
+        public List<int> MallBlocks = new List<int>();
     }
 
     public static class CityPlan
@@ -103,6 +119,9 @@ namespace CityX.World.Plan
                 Nodes = net.Nodes,
                 Edges = net.Edges,
             };
+
+            // The interchanges go on the finished network, before the blocks are found: a ramp is geometry over the land, not a road of the graph.
+            Interchanges.Place(net, fields, cfg, PlanNoise.Mix(unchecked((uint)worldSeed), 0x65786974U), data);   // "exit"
 
             data.Blocks = BlockExtractor.Extract(net, cfg);
             MarkEnclosing(data.Blocks);
@@ -395,9 +414,9 @@ namespace CityX.World.Plan
             _s = cfg.Scale;
             _h = cfg.HeightScale;
 
+            // First every block's two outlines (the kerb and the lot line), so the set pieces can be chosen from the whole city before any lot is cut.
             foreach (PlanBlock block in data.Blocks)
             {
-                blockIndex++;
                 int n = block.Poly.Count;
                 var distances = new double[n];
                 for (int i = 0; i < n; i++)
@@ -429,9 +448,22 @@ namespace CityX.World.Plan
                         block.InnerTriangles = PlanMath.Triangulate(kerb);
                     }
                 }
-                if (block.Encloses)
+            }
+
+            Amenities.ChooseMalls(data, PlanNoise.Mix(seed, 0x6D616C6CU));    // "mall"
+            Amenities.ChoosePlazas(data, PlanNoise.Mix(seed, 0x706C617AU));   // "plaz"
+
+            foreach (PlanBlock block in data.Blocks)
+            {
+                blockIndex++;
+                if (block.Outer == null || block.Inner == null)
                 {
-                    continue;   // its pavement, but no lots: they would be laid over the island inside it
+                    continue;
+                }
+                List<Vec2> inset = block.Outer;
+                if (block.Encloses || block.Plaza)
+                {
+                    continue;   // its pavement, but no lots: they would be laid over the island inside it, or over the plaza
                 }
 
                 Vec2 c = PlanMath.Centroid(inset);
@@ -444,6 +476,11 @@ namespace CityX.World.Plan
                     _h = PlanFields.Lerp(cfg.MinHeightScale, cfg.HeightScale, t);
                 }
                 double pop = fields.Population(c);
+                if (block.Mall)
+                {
+                    EmitMallLot(data, block, blockIndex - 1, inset, pop);
+                    continue;
+                }
                 double baseArea = (380.0 + (1.0 - pop) * 1500.0) * _s * _s;
                 double blockRand = PlanNoise.Mix(seed, (uint)blockIndex) / 4294967296.0;
                 double targetArea = baseArea * (0.7 + 0.7 * blockRand);
@@ -485,6 +522,42 @@ namespace CityX.World.Plan
                     EmitLot(data, lot, seed, blockIndex - 1);
                 }
             }
+        }
+
+        /// <summary>
+        /// A mall's block as ONE lot: the whole lot line, with a shallow setback all round, facing the block's biggest road. The mall itself is
+        /// the rectangle PlanBuildings fits in it; what is left of the lot round the rectangle is its car park.
+        /// </summary>
+        private static void EmitMallLot(CityPlanData data, PlanBlock block, int blockIndex, List<Vec2> inset, double pop)
+        {
+            int n = inset.Count;
+            var distances = new double[n];
+            for (int i = 0; i < n; i++)
+            {
+                distances[i] = FrontSetback * Math.Sqrt(_s);
+            }
+            var footprint = new List<Vec2>();
+            if (!PlanMath.InsetPolygon(inset, distances, footprint, out _))
+            {
+                block.Mall = false;
+                return;
+            }
+            data.Lots.Add(new PlanLot
+            {
+                Id = data.Lots.Count,
+                BlockIndex = blockIndex,
+                Lot = inset.ToArray(),
+                Footprint = footprint.ToArray(),
+                FrontEdge = Amenities.MallFront(block),
+                Area = PlanMath.SignedArea(footprint),
+                Population = pop,
+                Height = Amenities.MallLevelHeight * 2.0,
+                Scale = _s,
+                HeightScale = _h,
+                FrontClass = block.EdgeClass[Amenities.MallFront(block)],
+                StreetWall = false,
+                Use = LotUse.Mall,
+            });
         }
 
         private static bool HasFront(Piece p)
@@ -687,6 +760,14 @@ namespace CityX.World.Plan
             for (int i = 0; i < footprint.Count; i++)
             {
                 if (fields.IsWater(footprint[i]))
+                {
+                    return;
+                }
+            }
+            // Nothing is built where an interchange's ramp comes down, nor on the sliver of land it cuts off against the expressway.
+            foreach (RampPlan ramp in data.Ramps)
+            {
+                if (Interchanges.Touches(ramp, lot.V))
                 {
                     return;
                 }

@@ -7,6 +7,11 @@ namespace CityX.World.Plan
     {
         Street = 0,
         Arterial = 1,
+
+        /// <summary>
+        /// An expressway: a wide service road on the ground, with the EXPRESSWAY DECK on piers above it (PlanGeometry.DeckTop, CitySurfaceBuilder). Streets
+        /// cross it on the ground, under the deck; the deck is reached by the ramps of its interchanges (Interchanges).
+        /// </summary>
         Highway = 2,
     }
 
@@ -76,6 +81,12 @@ namespace CityX.World.Plan
             public RoadNode From;
             public Vec2 Dir;
             public RoadClass Class;
+
+            /// <summary>An orbital's segment: a highway that keeps to a circle round a centre instead of chasing the population (see Grow).</summary>
+            public bool Ring;
+            public Vec2 RingCentre;
+            public double RingRadius;
+            public int RingTurn;
         }
 
         private readonly List<Item> _heap = new List<Item>();
@@ -90,7 +101,14 @@ namespace CityX.World.Plan
 
         // ------------------------------------------------------------------ public
 
-        /// <summary>Grows the whole network from the given centres.</summary>
+        /// <summary>
+        /// Grows the whole network from the given centres: RADIAL expressways out of every centre, and an ORBITAL round the strongest one.
+        ///
+        /// Real expressway networks are rings and radials (Beijing's plan: radial routes and ring roads; Moscow; London's M25; Paris's
+        /// Périphérique; Tokyo's C1 loop round the centre): the radials come in through the city, the ring carries traffic round it. The
+        /// radials here already run through downtown (they snap to a grid in the core) and out into the country until the population runs
+        /// out, where each one ends (PlanGeometry brings the deck down to the ground there, as a freeway ends at its last surface junction).
+        /// </summary>
         public void Grow(IList<Vec2> centres, double regionHalf)
         {
             foreach (Vec2 centre in centres)
@@ -105,11 +123,80 @@ namespace CityX.World.Plan
                 Push(0.05, node, -axis.Perp, RoadClass.Highway);
             }
 
+            if (_cfg.OrbitalRadius > 0.0)
+            {
+                // Round the origin: the downtown the player spawns in (PlanFields.Population always makes one there), whichever centre is strongest.
+                SeedOrbital(new Vec2(0.0, 0.0), _cfg.OrbitalRadius);
+            }
+
             while (_heap.Count > 0 && Nodes.Count < _cfg.MaxNodes)
             {
                 Item item = PopMin();
                 TryPlace(item);
             }
+        }
+
+        /// <summary>
+        /// The orbital: from a dry point on its circle, one arm grown each way round. Each arm keeps to the circle (RingDirection) until it
+        /// meets the other (its end snaps onto a node and it stops) or runs out of land, so a river or the region's edge leaves a part ring --
+        /// which is what most real orbitals are too (Rome's A90 is a partial ring).
+        /// </summary>
+        private void SeedOrbital(Vec2 centre, double radius)
+        {
+            Vec2 start = default;
+            bool found = false;
+            for (int k = 0; k < 24 && !found; k++)
+            {
+                Vec2 p = centre + PlanMath.RotateSteps(new Vec2(radius, 0.0), k * 3);
+                if (InRegion(p) && !_fields.IsWater(p) && _fields.Population(p) > 0.05)
+                {
+                    start = p;
+                    found = true;
+                }
+            }
+            if (!found)
+            {
+                return;
+            }
+            RoadNode node = NewNode(start);
+            Vec2 radial = (start - centre).Normalized;
+            PushRing(0.02, node, radial.Perp, centre, radius, 1);
+            PushRing(0.02, node, -radial.Perp, centre, radius, -1);
+        }
+
+        private void PushRing(double t, RoadNode from, Vec2 dir, Vec2 centre, double radius, int turn)
+        {
+            Push(t, from, dir, RoadClass.Highway);
+            Item item = _heap[_heap.Count - 1];
+            // The item just pushed may have sifted up; find it by its sequence number.
+            for (int i = 0; i < _heap.Count; i++)
+            {
+                if (_heap[i].Seq == _seq - 1)
+                {
+                    item = _heap[i];
+                    item.Ring = true;
+                    item.RingCentre = centre;
+                    item.RingRadius = radius;
+                    item.RingTurn = turn;
+                    _heap[i] = item;
+                    break;
+                }
+            }
+        }
+
+        /// <summary>Where an orbital's next segment heads: along the circle, steered back onto it if the last one drifted.</summary>
+        private static Vec2 RingDirection(in Item item, Vec2 a)
+        {
+            Vec2 radial = a - item.RingCentre;
+            double r = radial.Length;
+            if (r < 1e-6)
+            {
+                return item.Dir;
+            }
+            Vec2 outward = radial / r;
+            Vec2 tangent = outward.Perp * item.RingTurn;
+            double drift = (item.RingRadius - r) / item.RingRadius;   // positive: inside the circle, head out
+            return (tangent + outward * (drift * 1.5)).Normalized;
         }
 
         // ------------------------------------------------------------------ growth
@@ -286,7 +373,11 @@ namespace CityX.World.Plan
             RoadClass cls = item.Class;
 
             Vec2 dir = item.Dir.Normalized;
-            if (cls == RoadClass.Highway)
+            if (item.Ring)
+            {
+                dir = RingDirection(item, a);
+            }
+            else if (cls == RoadClass.Highway)
             {
                 dir = ChooseHighwayDir(a, dir, from.Id);
             }
@@ -475,7 +566,11 @@ namespace CityX.World.Plan
             {
                 case RoadClass.Highway:
                 {
-                    if (pop > 0.07 || bridge)
+                    if (item.Ring)
+                    {
+                        PushRing(t + 0.4, node, d, item.RingCentre, item.RingRadius, item.RingTurn);   // round it goes, whatever the population
+                    }
+                    else if (pop > 0.07 || bridge)
                     {
                         Push(t + 0.4, node, d, RoadClass.Highway);
                     }
@@ -521,6 +616,49 @@ namespace CityX.World.Plan
         }
 
         // ------------------------------------------------------------------ graph editing
+
+        /// <summary>
+        /// Whether the segment a-b crosses any live road strictly between both segments' ends (an end touching a road is not a crossing),
+        /// other than the two roads given. For things laid over the finished network (an interchange's ramps) that must not cut across a street.
+        /// </summary>
+        public bool CrossesAnyRoad(Vec2 a, Vec2 b, RoadEdge ignore1 = null, RoadEdge ignore2 = null)
+        {
+            int x0 = CellOf(Math.Min(a.X, b.X));
+            int x1 = CellOf(Math.Max(a.X, b.X));
+            int y0 = CellOf(Math.Min(a.Y, b.Y));
+            int y1 = CellOf(Math.Max(a.Y, b.Y));
+            for (int cy = y0; cy <= y1; cy++)
+            {
+                for (int cx = x0; cx <= x1; cx++)
+                {
+                    if (!_edgeCells.TryGetValue(CellKey(cx, cy), out List<RoadEdge> list))
+                    {
+                        continue;
+                    }
+                    for (int i = 0; i < list.Count; i++)
+                    {
+                        RoadEdge e = list[i];
+                        if (!e.Alive || e == ignore1 || e == ignore2)
+                        {
+                            continue;
+                        }
+                        if (PlanMath.SegmentIntersect(a, b, e.A.P, e.B.P, out double t, out double u)
+                            && t > 1e-4 && t < 1.0 - 1e-4 && u > 1e-4 && u < 1.0 - 1e-4)
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        /// <summary>Whether any node lies within <paramref name="radius"/> of a point (other than the ones given): a junction a ramp must not land on.</summary>
+        public bool AnyNodeNear(Vec2 p, double radius, RoadNode ignore1 = null, RoadNode ignore2 = null)
+        {
+            RoadNode n = NearestNode(p, radius, ignore1);
+            return n != null && n != ignore2;
+        }
 
         private RoadNode NewNode(Vec2 p)
         {

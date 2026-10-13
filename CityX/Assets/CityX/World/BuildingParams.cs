@@ -87,6 +87,22 @@ namespace CityX.World
     }
 
     /// <summary>
+    /// The special kinds of building the plan hands out (BuildingParams.SpecialType), built by their own builders rather than the ordinary
+    /// walls-windows-rooms generator (CityMeshBuilder.Parking.cs, CityMeshBuilder.Mall.cs).
+    /// </summary>
+    public static class SpecialTypes
+    {
+        /// <summary>A multi-storey car park: open decks, ramps, bays, abandoned cars.</summary>
+        public const string ParkingGarage = "parking_garage";
+
+        /// <summary>An open car park: no building at all, a paved lot with painted bays and a low wall.</summary>
+        public const string ParkingLot = "parking_lot";
+
+        /// <summary>A shopping mall: a concourse of stores, anchors, a food court.</summary>
+        public const string Mall = "mall";
+    }
+
+    /// <summary>
     /// A rare landmark building type. Chances are each checked against an
     /// independent roll and deliberately do NOT sum to 1 -- whatever is left
     /// over is an ordinary generic building.

@@ -27,6 +27,7 @@ namespace CityX.World.Plan
         private readonly Dictionary<long, List<int>> _buildingsByChunk = new Dictionary<long, List<int>>();
         private readonly Dictionary<long, List<int>> _edgesByChunk = new Dictionary<long, List<int>>();
         private readonly Dictionary<long, List<int>> _junctionsByChunk = new Dictionary<long, List<int>>();
+        private readonly Dictionary<long, List<int>> _rampsByChunk = new Dictionary<long, List<int>>();
         private readonly Dictionary<long, List<int>> _blocksByCoarse = new Dictionary<long, List<int>>();
         private double[][] _blockBoxes;
         private static readonly List<int> NoneList = new List<int>(0);
@@ -100,6 +101,10 @@ namespace CityX.World.Plan
         public List<int> JunctionsIn(int cx, int cy) =>
             _junctionsByChunk.TryGetValue(Key(cx, cy), out List<int> l) ? l : NoneList;
 
+        /// <summary>Interchange ramps (indexes into Geometry.Ramps) whose strips or sliver of land touch this chunk.</summary>
+        public List<int> RampsIn(int cx, int cy) =>
+            _rampsByChunk.TryGetValue(Key(cx, cy), out List<int> l) ? l : NoneList;
+
         /// <summary>Blocks whose pavement ring touches this chunk.</summary>
         public List<int> BlocksIn(int cx, int cy)
         {
@@ -150,6 +155,10 @@ namespace CityX.World.Plan
                     for (int i = 0; i < list.Count; i++)
                     {
                         BuildingSite b = Buildings[list[i]];
+                        if (b.IsOpenGround)
+                        {
+                            continue;   // an open car park is a lot, not a building
+                        }
                         if (!double.IsNaN(y) && (y < b.PodiumBase - 1.0 || y > b.BaseHeight + b.Params.Height + 1.0))
                         {
                             continue;
@@ -184,9 +193,13 @@ namespace CityX.World.Plan
                 int reach = (int)Math.Ceiling(60.0 * scale / ChunkSize) + 1;
                 double d = n.P.Length;
                 if (d > 900.0 * scale) continue;
-                bool bridge = false;
-                foreach (RoadEdge e in n.Edges) bridge |= e.Bridge;
-                if (bridge) continue;
+                bool bridge = false, expressway = false;
+                foreach (RoadEdge e in n.Edges)
+                {
+                    bridge |= e.Bridge;
+                    expressway |= e.Class == RoadClass.Highway;   // not under a deck, and never up on one
+                }
+                if (bridge || expressway) continue;
 
                 // Not beside the trench: no water within 90 m in eight directions.
                 int wet = 0;
@@ -271,8 +284,25 @@ namespace CityX.World.Plan
 
             foreach (JunctionGeometry j in Geometry.Junctions)
             {
-                if (j == null || j.Plate == null) continue;
-                AddPoly(_junctionsByChunk, j.Plate, j.Node.Id);
+                if (j == null) continue;
+                if (j.Plate != null)
+                {
+                    AddPoly(_junctionsByChunk, j.Plate, j.Node.Id);
+                }
+                else if (j.DeckPlate != null)
+                {
+                    AddPoly(_junctionsByChunk, j.DeckPlate, j.Node.Id);
+                }
+            }
+
+            for (int i = 0; i < Geometry.Ramps.Length; i++)
+            {
+                RampGeometry r = Geometry.Ramps[i];
+                double reach = r.HalfWidth + 6.0;   // the strip, its walls and piers, and the gantry sign at its start
+                AddSegment(_rampsByChunk, r.Plan.S, r.Start, reach, i);   // the gantry stands on the deck's centreline at S
+                AddSegment(_rampsByChunk, r.Start, r.Mid, reach, i);
+                AddSegment(_rampsByChunk, r.Mid, r.Foot, reach, i);
+                AddPoly(_rampsByChunk, r.Plan.Sliver, i);
             }
 
             _blockBoxes = new double[Data.Blocks.Count][];
@@ -457,6 +487,7 @@ namespace CityX.World.Plan
             var blockOf = new List<int>(data.Lots.Count);
             var lotOf = new List<int>(data.Lots.Count);
             uint characterSeed = PlanNoise.Mix(seed, 0x7A6F6E65U);   // "zone"
+            var parking = new Amenities.ParkingPlanner();
 
             foreach (PlanLot lot in data.Lots)
             {
@@ -487,6 +518,39 @@ namespace CityX.World.Plan
                 string roof = RoofsByZone[(int)zone][rng.Below(8)];
                 bool basement = rng.NextDouble() < 0.12 && height > 10.0;
 
+                // The set pieces: a mall (its block was cut as one lot for it), a car park (handed out here, rarely and spaced out). Their own
+                // dice, so the dice above keep meaning what they always did for every other building.
+                LotUse use = parking.Decide(zone, lot, centre, width, depth, PlanNoise.Mix(h, 0x7061726BU) / 4294967296.0);   // "park"
+                string special = "";
+                if (use != LotUse.Building)
+                {
+                    uint levelsHash = PlanNoise.Mix(h, 0x6C76656CU);   // "lvel"
+                    switch (use)
+                    {
+                        case LotUse.Mall:
+                            special = SpecialTypes.Mall;
+                            height = (levelsHash % 5U < 2U ? 2 : 3) * Amenities.MallLevelHeight;
+                            mass = BuildingMass.Warehouse;
+                            // The building is only so big; a bigger block is its car park (the lot's land round the rectangle, which the mall's builder paves).
+                            width = Math.Min(width, Amenities.MallMaxWidth * Math.Sqrt(s));
+                            depth = Math.Min(depth, Amenities.MallMaxDepth * Math.Sqrt(s));
+                            break;
+                        case LotUse.ParkingGarage:
+                            special = SpecialTypes.ParkingGarage;
+                            height = (Amenities.MinGarageLevels + (int)(levelsHash % (uint)(Amenities.MaxGarageLevels - Amenities.MinGarageLevels + 1)))
+                                * Amenities.GarageFloorHeight;
+                            mass = BuildingMass.MidRise;
+                            break;
+                        default:
+                            special = SpecialTypes.ParkingLot;
+                            height = Amenities.ParkingLotHeight;
+                            mass = BuildingMass.LowRise;
+                            break;
+                    }
+                    roof = "";
+                    basement = false;
+                }
+
                 // The ground under the footprint, sampled on a grid at most GroundSampleMetres apart (corners included): the floor stands above
                 // the highest of it, and a sparse sample missed a bulge the paving then came up through.
                 // (Local +Z is the front, so the door is at (0, +depth/2).)
@@ -512,7 +576,20 @@ namespace CityX.World.Plan
 
                 // The shape: one box, a stack of them (a tower on a podium, a crown that steps in), a bar with wings (L, T, U, a staggered pair) or a
                 // sculpted tower (twisted, wonky, cantilevered). Drawn last, so the roof and basement rolled above are what they would have been anyway.
-                List<MassVolume> volumes = Massing.Compose(zone, mass, width, depth, height, rng, out bool hasPodium, out BuildingForm form, s, hs);
+                List<MassVolume> volumes;
+                bool hasPodium;
+                BuildingForm form;
+                if (use != LotUse.Building)
+                {
+                    // A set piece is one plain box its own builder fills in.
+                    volumes = new List<MassVolume> { new MassVolume(-width * 0.5, width * 0.5, -depth * 0.5, depth * 0.5, height) };
+                    hasPodium = false;
+                    form = BuildingForm.Box;
+                }
+                else
+                {
+                    volumes = Massing.Compose(zone, mass, width, depth, height, rng, out hasPodium, out form, s, hs);
+                }
                 if (!InsideLot(volumes, width, depth))
                 {
                     // A shape whose minimum sizes outgrew a narrow lot: downtown the neighbour stands right at the lot line (PlanLot.StreetWall), so
@@ -564,7 +641,7 @@ namespace CityX.World.Plan
                     }
 
                     var volumeParameters = new BuildingParams(true, (float)vol.Width, (float)vol.Height, (float)vol.Depth,
-                        0.0f, 0.0f, volumeRoof, 0, "", v == 0 && basement, volumeMass);
+                        0.0f, 0.0f, volumeRoof, 0, special, v == 0 && basement, volumeMass);
 
                     double cx = centre.X + vol.CentreX * axisX - vol.CentreZ * axisZ;
                     double cz = centre.Y + vol.CentreX * axisZ + vol.CentreZ * axisX;
@@ -642,7 +719,7 @@ namespace CityX.World.Plan
             for (int i = 0; i < sites.Length; i++)
             {
                 BuildingSite s = sites[i];
-                if (s.OnRoof || s.Sides >= 3)
+                if (s.OnRoof || s.Sides >= 3 || s.IsOpenGround)
                 {
                     continue;
                 }
