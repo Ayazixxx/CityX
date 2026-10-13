@@ -494,27 +494,12 @@ namespace CityX.UIEditor
             controls.UndoButton = t.Find("UndoButton").GetComponent<Button>();
             controls.RedoButton = t.Find("RedoButton").GetComponent<Button>();
 
-            MakeLabel(t, "HairLabel", "HAIR", 13, Paper, At(-458.0f), 18.0f);
-            // One button per style, in CharacterHair.ValidStyles order (the value IS the
-            // index), in a single row that narrows to fit -- see HairButtonRow.
-            int styleCount = CharacterHair.ValidStyles.Length;
-            for (int style = 0; style < styleCount; style++)
-            {
-                MakeButton(t, "Hair" + CharacterHair.ValidStyles[style] + "Button",
-                    CharacterHair.LabelFor(CharacterHair.ValidStyles[style]), Paper,
-                    new Vector2(HairButtonRow.CentreX(style, styleCount), -484.0f + HairButtonRow.RowOffsetY(style)),
-                    new Vector2(HairButtonRow.ButtonWidth(styleCount), HairButtonRow.Height),
-                    ButtonAction.Kind.CreatorHair, creator, value: style,
-                    fontSize: HairButtonRow.FontSize(styleCount));
-            }
+            // The hairstyle buttons are on the hair colour card, on the right (HairColourPanel): here, the third row hid under the bar.
 
-            // character_creator.gd's own HintLabel. Nothing about "drag the
-            // body to paint, drag the space to spin it" is discoverable, and
-            // that one sentence is the whole control scheme.
             MakeLabel(t, "HintLabel",
                 "Drag the body to paint it.\nDrag anywhere else to turn it.\nScroll to zoom.",
                 10, new Color(0.62f, 0.64f, 0.70f),
-                At(-524.0f - (HairButtonRow.Rows(styleCount) - 1) * HairButtonRow.RowPitch), 40.0f);
+                At(-480.0f), 40.0f);
 
             // Pinned to the bottom rather than following the stack, so it stays
             // put as tools are added above it -- ON ITS OWN OPAQUE BAR, because

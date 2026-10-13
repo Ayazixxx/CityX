@@ -45,12 +45,14 @@ namespace CityX.UI
         /// <summary>Builds the card under <paramref name="parent"/> and returns its controls.</summary>
         public static HairColourControls Build(Transform parent, CharacterCreator creator)
         {
+            float styleCardHeight = BuildStyleCard(parent, creator);
+
             var card = new GameObject("HairColourCard", typeof(RectTransform));
             var cardRect = (RectTransform)card.transform;
             cardRect.SetParent(parent, false);
             cardRect.anchorMin = cardRect.anchorMax = new Vector2(1.0f, 1.0f);
             cardRect.pivot = new Vector2(1.0f, 1.0f);
-            cardRect.anchoredPosition = new Vector2(-14.0f, -14.0f);
+            cardRect.anchoredPosition = new Vector2(-14.0f, -14.0f - styleCardHeight - CardGap);
             cardRect.sizeDelta = new Vector2(Width, 298.0f);
 
             card.AddComponent<Image>().color = new Color(0.05f, 0.06f, 0.08f, 0.92f);
@@ -79,6 +81,84 @@ namespace CityX.UI
             }
 
             return controls;
+        }
+
+        /// <summary>
+        /// THE HAIRSTYLES HAVE THEIR OWN CARD, top right, over the colour card (owner, 2026-10-13: "i dont see the hyde hairstyle in the
+        /// character creator"). They were a row at the foot of the paint column on the left, and once there were eleven styles their third row
+        /// -- HYD among them -- sat under that column's opaque ENTER THE CITY / BACK bar. Not on the colour card itself: that card hides while
+        /// the character is bald, and the styles are how a bald character gets hair. Returns the card's height.
+        /// </summary>
+        private static float BuildStyleCard(Transform parent, CharacterCreator creator)
+        {
+            int styleCount = CharacterHair.ValidStyles.Length;
+            float height = -StylesTopY + (HairButtonRow.Rows(styleCount) - 1) * HairButtonRow.RowPitch + HairButtonRow.Height * 0.5f + StylesBottomPadding;
+            var card = new GameObject("HairStyleCard", typeof(RectTransform));
+            var cardRect = (RectTransform)card.transform;
+            cardRect.SetParent(parent, false);
+            cardRect.anchorMin = cardRect.anchorMax = new Vector2(1.0f, 1.0f);
+            cardRect.pivot = new Vector2(1.0f, 1.0f);
+            cardRect.anchoredPosition = new Vector2(-14.0f, -14.0f);
+            cardRect.sizeDelta = new Vector2(Width, height);
+            card.AddComponent<Image>().color = new Color(0.05f, 0.06f, 0.08f, 0.92f);
+
+            MakeLabel(card.transform, "HairLabel", "HAIRSTYLE", 13, Paper, new Vector2(0.0f, StylesLabelY), 18.0f);
+            for (int style = 0; style < styleCount; style++)
+            {
+                MakeStyleButton(card.transform, style, styleCount, creator);
+            }
+            return height;
+        }
+
+        /// <summary>Where the hairstyle label and the first row of style buttons sit, from the style card's top.</summary>
+        public const float StylesLabelY = -20.0f;
+        public const float StylesTopY = -46.0f;
+        private const float StylesBottomPadding = 10.0f;
+        private const float CardGap = 8.0f;
+
+        private static readonly Color Idle = new Color(0.10f, 0.11f, 0.14f, 1.0f);
+
+        /// <summary>One hairstyle button: named Hair{style}Button, its value the style's index in ValidStyles.</summary>
+        private static void MakeStyleButton(Transform parent, int style, int styleCount, CharacterCreator creator)
+        {
+            string name = CharacterHair.ValidStyles[style];
+            var go = new GameObject("Hair" + name + "Button", typeof(RectTransform));
+            var rect = (RectTransform)go.transform;
+            rect.SetParent(parent, false);
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 1.0f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = new Vector2(HairButtonRow.CentreX(style, styleCount), StylesTopY + HairButtonRow.RowOffsetY(style));
+            rect.sizeDelta = new Vector2(HairButtonRow.ButtonWidth(styleCount), HairButtonRow.Height);
+
+            Image background = go.AddComponent<Image>();
+            background.color = Idle;
+            Button button = go.AddComponent<Button>();
+            button.targetGraphic = background;
+            ColorBlock colours = button.colors;
+            colours.highlightedColor = new Color(0.22f, 0.20f, 0.12f, 1.0f);
+            colours.pressedColor = Paper;
+            button.colors = colours;
+
+            var wiring = go.AddComponent<ButtonAction>();
+            wiring.Action = ButtonAction.Kind.CreatorHair;
+            wiring.Creator = creator;
+            wiring.Value = style;
+
+            var label = new GameObject("Label", typeof(RectTransform));
+            var labelRect = (RectTransform)label.transform;
+            labelRect.SetParent(go.transform, false);
+            labelRect.anchorMin = Vector2.zero;
+            labelRect.anchorMax = Vector2.one;
+            labelRect.offsetMin = Vector2.zero;
+            labelRect.offsetMax = Vector2.zero;
+            Text text = label.AddComponent<Text>();
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.fontSize = HairButtonRow.FontSize(styleCount);
+            text.color = Paper;
+            text.alignment = TextAnchor.MiddleCenter;
+            text.horizontalOverflow = HorizontalWrapMode.Overflow;
+            text.raycastTarget = false;
+            text.text = CharacterHair.LabelFor(name);
         }
 
         private static RawImage MakeSquare(Transform parent, Vector2 position, float size)

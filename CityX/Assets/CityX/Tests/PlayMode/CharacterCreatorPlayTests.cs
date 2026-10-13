@@ -605,6 +605,46 @@ namespace CityX.Tests
             }
         }
 
+        /// <summary>
+        /// Every hair button can be SEEN AND CLICKED, bald or not (owner, 2026-10-13: "i dont see the hyde hairstyle in the character creator"
+        /// -- its row sat under the left column's opaque bottom bar). A UI raycast at the button's centre must land on that very button.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator EveryHairButtonIsOnScreenAndNothingCoversIt()
+        {
+            _creator.SetHairStyle(CharacterHair.None);
+            yield return null;
+            yield return null;
+            var eventSystem = UnityEngine.EventSystems.EventSystem.current;
+            Assert.IsNotNull(eventSystem, "no event system to click with");
+            foreach (string style in CharacterHair.ValidStyles)
+            {
+                UnityEngine.UI.Button button = null;
+                foreach (UnityEngine.UI.Button candidate in Resources.FindObjectsOfTypeAll<UnityEngine.UI.Button>())
+                {
+                    if (candidate.gameObject.name == "Hair" + style + "Button" && candidate.gameObject.scene.IsValid() && candidate.gameObject.activeInHierarchy)
+                    {
+                        button = candidate;
+                        break;
+                    }
+                }
+                Assert.IsNotNull(button, $"there is no visible hair button for \"{style}\"");
+                var corners = new Vector3[4];
+                ((RectTransform)button.transform).GetWorldCorners(corners);
+                Canvas canvas = button.GetComponentInParent<Canvas>().rootCanvas;
+                Camera uiCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
+                Vector2 centre = RectTransformUtility.WorldToScreenPoint(uiCamera, (corners[0] + corners[2]) * 0.5f);
+                Assert.IsTrue(centre.x > 0 && centre.x < Screen.width && centre.y > 0 && centre.y < Screen.height,
+                    $"the \"{style}\" button is off screen at {centre}");
+                var data = new UnityEngine.EventSystems.PointerEventData(eventSystem) { position = centre };
+                var hits = new System.Collections.Generic.List<UnityEngine.EventSystems.RaycastResult>();
+                eventSystem.RaycastAll(data, hits);
+                Assert.IsNotEmpty(hits, $"nothing at all under the \"{style}\" button");
+                Assert.IsTrue(hits[0].gameObject.transform.IsChildOf(button.transform),
+                    $"the \"{style}\" button is covered by {hits[0].gameObject.name}");
+            }
+        }
+
         private static Color WornColour(CharacterHair hair)
         {
             var block = new MaterialPropertyBlock();
