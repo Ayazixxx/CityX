@@ -5,7 +5,7 @@
         // dotnet run -c Release --project tools/cityplan -- [seed] [halfMetres] [pixels] [out.png] [centreX centreZ viewHalf]
         if (args.Length > 0 && args[0] == "site")
         {
-            var w = CityX.World.Plan.PlanWorld.For(args.Length > 2 ? int.Parse(args[2]) : 61470385);
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 2 ? int.Parse(args[2]) : 72604913);
             var s = w.Buildings[int.Parse(args[1])];
             System.Console.WriteLine($"#{s.Id} {s.Params.Width:F1}x{s.Params.Depth:F1}x{s.Params.Height:F1} mass={s.Params.Mass} sides={s.Sides} shell={s.Shell} wing={s.Wing} roof={s.OnRoof} sealed={s.RoofSealed} contacts={(s.Contacts?.Length ?? 0)} obstacle={s.HasRoofObstacle} basement={s.Params.HasBasement}");
             System.Console.WriteLine($"  centre ({s.CentreX:F1},{s.CentreZ:F1}) axis ({s.AxisX:F3},{s.AxisZ:F3}) base {s.BaseHeight:F2}");
@@ -18,12 +18,45 @@
             }
             return 0;
         }
-        if (args.Length > 0 && args[0] == "nearspawn") { PlanDiagnose.NearSpawn(args.Length > 1 ? int.Parse(args[1]) : 61470385, args.Length > 2 ? int.Parse(args[2]) : 12); return 0; }
-        if (args.Length > 0 && args[0] == "overlaps") { PlanDiagnose.Overlaps(args.Length > 1 ? int.Parse(args[1]) : 61470385); return 0; }
+        if (args.Length > 0 && args[0] == "dubins")
+        {
+            // dubins x0 y0 heading0Deg x1 y1 heading1Deg radius: every word's pieces, length and total turn.
+            var from = new CityX.World.Plan.Pose(new CityX.World.Plan.Vec2(double.Parse(args[1]), double.Parse(args[2])), CityX.World.Plan.DMath.Dir(double.Parse(args[3]) * System.Math.PI / 180.0));
+            var to = new CityX.World.Plan.Pose(new CityX.World.Plan.Vec2(double.Parse(args[4]), double.Parse(args[5])), CityX.World.Plan.DMath.Dir(double.Parse(args[6]) * System.Math.PI / 180.0));
+            double radius = double.Parse(args[7]);
+            foreach (CityX.World.Plan.DubinsPath.Word word in System.Enum.GetValues(typeof(CityX.World.Plan.DubinsPath.Word)))
+            {
+                var p = CityX.World.Plan.DubinsPath.Solve(from, to, radius, word);
+                if (p == null) { System.Console.WriteLine($"{word}: none"); continue; }
+                var end = p.At(p.Length);
+                System.Console.WriteLine($"{word}: t {p.T:F3} p {p.P:F3} q {p.Q:F3} length {p.Length:F1} turn {p.TotalTurn / System.Math.PI:F2} pi, ends at ({end.P.X:F1},{end.P.Y:F1}) heading {System.Math.Atan2(end.Dir.Y, end.Dir.X) * 180 / System.Math.PI:F1}");
+            }
+            return 0;
+        }
+        if (args.Length > 0 && args[0] == "interchanges")
+        {
+            // interchanges [seed]: the game's own plan (PlanWorld.For), its spawn, every interchange and the ramps' ends, to compare with a capture's log.
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 72604913);
+            var xw = w.Data.Expressways;
+            w.TryFindSpawn(out double sx, out double sz);
+            System.Console.WriteLine($"spawn ({sx:F0},{sz:F0}); {w.Data.Nodes.Count} nodes, {w.Data.Lots.Count} lots");
+            foreach (var ic in xw.Interchanges)
+            {
+                System.Console.WriteLine($"{(ic.System ? "system" : "exit")} {ic.Id} at ({ic.At.X:F0},{ic.At.Y:F0}), {ic.Paths.Count} paths");
+                foreach (int id in ic.Paths)
+                {
+                    var p = xw.Paths[id];
+                    System.Console.WriteLine($"   {p.Kind} {p.Id} {p.Shape} {(p.Leaving ? "off" : "on")}: ({p.P[0].X:F0},{p.P[0].Y:F0}) {p.Top[0]:F1} -> ({p.P[p.Count - 1].X:F0},{p.P[p.Count - 1].Y:F0}) {p.Top[p.Count - 1]:F1}, {p.Length:F0} m");
+                }
+            }
+            return 0;
+        }
+        if (args.Length > 0 && args[0] == "nearspawn") { PlanDiagnose.NearSpawn(args.Length > 1 ? int.Parse(args[1]) : 72604913, args.Length > 2 ? int.Parse(args[2]) : 12); return 0; }
+        if (args.Length > 0 && args[0] == "overlaps") { PlanDiagnose.Overlaps(args.Length > 1 ? int.Parse(args[1]) : 72604913); return 0; }
         if (args.Length > 0 && args[0] == "profile-line")
         {
             // The ground and what stands on it along a line: profile-line x0 z0 x1 z1 [seed]
-            var w = CityX.World.Plan.PlanWorld.For(args.Length > 5 ? int.Parse(args[5]) : 61470385);
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 5 ? int.Parse(args[5]) : 72604913);
             double x0 = double.Parse(args[1]), z0 = double.Parse(args[2]), x1 = double.Parse(args[3]), z1 = double.Parse(args[4]);
             for (int i = 0; i <= 20; i++)
             {
@@ -36,7 +69,7 @@
         if (args.Length > 0 && args[0] == "partywalls")
         {
             // How much of the city stands shoulder to shoulder: ground-level boxes with a blank stretch of wall, and how much wall that is.
-            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 61470385);
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 72604913);
             int ground = 0, touching = 0, contacts = 0;
             double metres = 0.0;
             foreach (var s in w.Buildings)
@@ -54,7 +87,7 @@
         if (args.Length > 0 && args[0] == "fitcheck")
         {
             // Every lot's fitted rectangle must lie inside the lot's footprint.
-            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 61470385);
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 72604913);
             int bad = 0, total = 0;
             foreach (var lot in w.Data.Lots)
             {
@@ -81,7 +114,7 @@
         {
             // How big the city's buildings are: footprint side (square root of the area), height, and the share above fixed thresholds
             // (pass the thresholds from an earlier run as args 2-3 to compare a change against the same lines).
-            var w = CityX.World.Plan.PlanWorld.Create(args.Length > 1 ? int.Parse(args[1]) : 61470385, CityX.World.Plan.PlanWorld.DefaultConfig());
+            var w = CityX.World.Plan.PlanWorld.Create(args.Length > 1 ? int.Parse(args[1]) : 72604913, CityX.World.Plan.PlanWorld.DefaultConfig());
             var sides = new System.Collections.Generic.List<double>();
             var heights = new System.Collections.Generic.List<double>();
             foreach (var b in w.Buildings)
@@ -118,13 +151,13 @@
         if (args.Length > 0 && args[0] == "nearbridge")
         {
             // The bridge nearest the spawn (what RainRealCityPlayTests stands beside), and what is round it.
-            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 61470385);
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 72604913);
             w.TryFindSpawn(out double sx, out double sz);
             CityX.World.Plan.EdgeGeometry best = null;
             double bestD = double.MaxValue;
             foreach (var g in w.Geometry.Edges)
             {
-                if (g == null || !g.Edge.Bridge || g.Elevated) continue;
+                if (g == null || !g.Edge.Bridge) continue;
                 double dx = (g.A.X + g.B.X) * 0.5 - sx, dz = (g.A.Y + g.B.Y) * 0.5 - sz;
                 if (dx * dx + dz * dz < bestD) { bestD = dx * dx + dz * dz; best = g; }
             }
@@ -141,7 +174,7 @@
             {
                 if (g == null || g == best) continue;
                 double d = CityX.World.Plan.PlanMath.DistanceToSegment(mid, g.A, g.B, out _);
-                if (d < 60.0) System.Console.WriteLine($"  road {g.Edge.Id} {g.Edge.Class}{(g.Edge.Bridge ? " bridge" : "")}{(g.Elevated ? " elevated" : "")} {d:F0} m away");
+                if (d < 60.0) System.Console.WriteLine($"  road {g.Edge.Id} {g.Edge.Class}{(g.Edge.Bridge ? " bridge" : "")} {d:F0} m away");
             }
             return 0;
         }
@@ -173,7 +206,7 @@
             }
             return 0;
         }
-        if (args.Length > 0 && args[0] == "profile") { PlanProfile.Run(args.Length > 1 ? int.Parse(args[1]) : 61470385); return 0; }
+        if (args.Length > 0 && args[0] == "profile") { PlanProfile.Run(args.Length > 1 ? int.Parse(args[1]) : 72604913); return 0; }
         return SubversionPlan.Run(args);
     }
 

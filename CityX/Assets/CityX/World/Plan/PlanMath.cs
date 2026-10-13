@@ -269,6 +269,36 @@ namespace CityX.World.Plan
                 && Vec2.Cross(a - c, p - c) * sign >= 0.0;
         }
 
+        /// <summary>Andrew's monotone chain: the convex hull of a few points, counter-clockwise. Arithmetic only.</summary>
+        public static Vec2[] ConvexHull(List<Vec2> points)
+        {
+            points.Sort((a, b) =>
+            {
+                int c = a.X.CompareTo(b.X);
+                return c != 0 ? c : a.Y.CompareTo(b.Y);
+            });
+            int n = points.Count;
+            if (n < 3)
+            {
+                return points.ToArray();
+            }
+            var hull = new Vec2[2 * n];
+            int k = 0;
+            for (int i = 0; i < n; i++)
+            {
+                while (k >= 2 && Vec2.Cross(hull[k - 1] - hull[k - 2], points[i] - hull[k - 2]) <= 0.0) k--;
+                hull[k++] = points[i];
+            }
+            for (int i = n - 2, t = k + 1; i >= 0; i--)
+            {
+                while (k >= t && Vec2.Cross(hull[k - 1] - hull[k - 2], points[i] - hull[k - 2]) <= 0.0) k--;
+                hull[k++] = points[i];
+            }
+            var result = new Vec2[k - 1];
+            System.Array.Copy(hull, result, k - 1);
+            return result;
+        }
+
         /// <summary>Whether two polygons overlap: a corner of either inside the other, or an edge of one crossing an edge of the other.</summary>
         public static bool PolygonsIntersect(IList<Vec2> a, IList<Vec2> b)
         {

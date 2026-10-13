@@ -24,7 +24,7 @@ namespace CityX.ViewEditor
         private const int Height = 720;
 
         // Must match CityMassingSceneBuilder.WorldSeed.
-        private const int WorldSeed = 61470385;
+        private const int WorldSeed = 72604913;
 
         // The time of day the rig is lit for, and what the shots are called: the same cameras at night give the lit windows, the signs
         // and the streets under lamplight their own picture.
@@ -360,12 +360,12 @@ namespace CityX.ViewEditor
                         blockEye, Quaternion.LookRotation(blockAt - blockEye, Vector3.up).eulerAngles, 8);
                 }
 
-                // Down the longest highway within reach of the spawn, standing in the road: the long, bending boulevard.
+                // Down the longest boulevard within reach of the spawn, standing in the road: the long, bending main street.
                 EdgeGeometry highway = null;
                 double bestLength = 0.0;
                 foreach (EdgeGeometry g in world.Plan.Geometry.Edges)
                 {
-                    if (g == null || g.Edge.Bridge || g.Edge.Class != RoadClass.Highway) continue;
+                    if (g == null || g.Edge.Bridge || g.Edge.Class != RoadClass.Boulevard) continue;
                     double mx2 = (g.A.X + g.B.X) * 0.5 - sx, mz2 = (g.A.Y + g.B.Y) * 0.5 - sz;
                     if (mx2 * mx2 + mz2 * mz2 > 600.0 * 600.0) continue;
                     if (g.Length > bestLength) { bestLength = g.Length; highway = g; }
@@ -377,7 +377,7 @@ namespace CityX.ViewEditor
                     float hy = (float)world.Terrain.ContinuousHeightAt(hx, hz);
                     var hDir = new Vector3((float)highway.Dir.X, 0.0f, (float)highway.Dir.Y);
                     var hEye = new Vector3((float)hx, hy + 2.2f, (float)hz);
-                    Shoot(streamer, camera, directory, "plan-highway",
+                    Shoot(streamer, camera, directory, "plan-boulevard",
                         hEye, Quaternion.LookRotation(hDir + Vector3.down * 0.02f, Vector3.up).eulerAngles, 20);
                 }
 

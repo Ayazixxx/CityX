@@ -47,7 +47,7 @@ namespace CityX.ViewEditor
         /// screen's backdrop and the massing scene's own city stop
         /// matching.
         /// </summary>
-        private const int WorldSeed = 61470385;
+        private const int WorldSeed = 72604913;
 
         /// <summary>How glossy the city's three shared surfaces are when DRY. The rain restores to exactly these.</summary>
         private const float GroundDrySmoothness = 0.10f;

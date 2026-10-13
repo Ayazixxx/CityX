@@ -120,9 +120,7 @@ namespace CityX.World.Plan
                 double pop = fields.Population(c);
                 double s = fields.ScaleAt(c.X, c.Y);
                 if (pop < PlazaMinPopulation || block.Area < PlazaMinArea * s * s || block.Area > PlazaMaxArea * s * s) continue;
-                bool underExpressway = false;
-                foreach (RoadClass cls in block.EdgeClass) underExpressway |= cls == RoadClass.Highway;
-                if (underExpressway || TouchesARamp(data, block.Outer)) continue;
+                if (TouchesAnExpressway(data, block.Outer)) continue;
                 if (Hash01(seed, 0x706C617A, i) < PlazaShare) candidates.Add(i);
             }
             candidates.Sort((a, b) =>
@@ -179,7 +177,7 @@ namespace CityX.World.Plan
                 double s = fields.ScaleAt(c.X, c.Y);
                 if (pop < MallMinPopulation || pop > MallMaxPopulation) continue;
                 if (block.Area < MallMinArea * s || block.Area > MallMaxArea * s) continue;
-                if (TouchesARamp(data, block.Outer)) continue;
+                if (TouchesAnExpressway(data, block.Outer)) continue;
                 if (HasWaterInside(fields, block.Outer, 10.0 * Math.Sqrt(s))) continue;   // a river channel through it: the complex would not stand
                 int front = MallFront(block);
                 if (!PlanBuildings.FitRectangle(block.Outer.ToArray(), front, out _, out _, out double width, out double depth, s, PlanBuildings.FitMargin)) continue;
@@ -226,14 +224,8 @@ namespace CityX.World.Plan
             return best;
         }
 
-        public static bool TouchesARamp(CityPlanData data, IList<Vec2> poly)
-        {
-            foreach (RampPlan ramp in data.Ramps)
-            {
-                if (Interchanges.Touches(ramp, poly)) return true;
-            }
-            return false;
-        }
+        /// <summary>Whether a block or lot reaches under an expressway's deck or ramps, or onto the land an interchange cuts off.</summary>
+        public static bool TouchesAnExpressway(CityPlanData data, IList<Vec2> poly) => data.Expressways.Touches(poly);
 
         private static bool Far(List<Vec2> from, Vec2 p, double distance)
         {

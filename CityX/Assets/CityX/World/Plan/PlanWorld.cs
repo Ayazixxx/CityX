@@ -27,7 +27,14 @@ namespace CityX.World.Plan
         private readonly Dictionary<long, List<int>> _buildingsByChunk = new Dictionary<long, List<int>>();
         private readonly Dictionary<long, List<int>> _edgesByChunk = new Dictionary<long, List<int>>();
         private readonly Dictionary<long, List<int>> _junctionsByChunk = new Dictionary<long, List<int>>();
-        private readonly Dictionary<long, List<int>> _rampsByChunk = new Dictionary<long, List<int>>();
+        private readonly Dictionary<long, List<int>> _viaductsByChunk = new Dictionary<long, List<int>>();
+        private readonly Dictionary<long, List<int>> _piersByChunk = new Dictionary<long, List<int>>();
+        private readonly Dictionary<long, List<int>> _signsByChunk = new Dictionary<long, List<int>>();
+        private readonly Dictionary<long, List<int>> _barriersByChunk = new Dictionary<long, List<int>>();
+        private readonly Dictionary<long, List<int>> _kerbCutsByChunk = new Dictionary<long, List<int>>();
+
+        /// <summary>Every expressway deck segment, as (path, segment): what <see cref="ViaductSegmentsIn"/> indexes into.</summary>
+        public readonly List<(int Path, int Seg)> ViaductSegments = new List<(int Path, int Seg)>();
         private readonly Dictionary<int, BuildingSite[]> _mallSites = new Dictionary<int, BuildingSite[]>();
         private static readonly BuildingSite[] NoSites = new BuildingSite[0];
         private readonly Dictionary<long, List<int>> _blocksByCoarse = new Dictionary<long, List<int>>();
@@ -103,9 +110,25 @@ namespace CityX.World.Plan
         public List<int> JunctionsIn(int cx, int cy) =>
             _junctionsByChunk.TryGetValue(Key(cx, cy), out List<int> l) ? l : NoneList;
 
-        /// <summary>Interchange ramps (indexes into Geometry.Ramps) whose strips or sliver of land touch this chunk.</summary>
-        public List<int> RampsIn(int cx, int cy) =>
-            _rampsByChunk.TryGetValue(Key(cx, cy), out List<int> l) ? l : NoneList;
+        /// <summary>The expressway deck segments (indexes into <see cref="ViaductSegments"/>) whose footprint touches this chunk: each builds its part.</summary>
+        public List<int> ViaductSegmentsIn(int cx, int cy) =>
+            _viaductsByChunk.TryGetValue(Key(cx, cy), out List<int> l) ? l : NoneList;
+
+        /// <summary>The expressway piers (indexes into Data.Expressways.Piers) standing in this chunk: it builds each whole.</summary>
+        public List<int> PiersIn(int cx, int cy) =>
+            _piersByChunk.TryGetValue(Key(cx, cy), out List<int> l) ? l : NoneList;
+
+        /// <summary>The exit signs over the expressways (indexes into Data.Expressways.Signs) standing in this chunk.</summary>
+        public List<int> SignsIn(int cx, int cy) =>
+            _signsByChunk.TryGetValue(Key(cx, cy), out List<int> l) ? l : NoneList;
+
+        /// <summary>The rows of barriers closing an expressway at the region's edge (indexes into Data.Expressways.Barriers) in this chunk.</summary>
+        public List<int> BarriersIn(int cx, int cy) =>
+            _barriersByChunk.TryGetValue(Key(cx, cy), out List<int> l) ? l : NoneList;
+
+        /// <summary>Where ramps meet streets (indexes into Data.Expressways.KerbCuts): the pavement in this chunk is cut away under them.</summary>
+        public List<int> KerbCutsIn(int cx, int cy) =>
+            _kerbCutsByChunk.TryGetValue(Key(cx, cy), out List<int> l) ? l : NoneList;
 
         /// <summary>The buildings of the mall complex on a mall block (its corridors, stores, garage and pads); empty for any other block.</summary>
         public BuildingSite[] MallSites(int blockIndex) =>
@@ -199,13 +222,14 @@ namespace CityX.World.Plan
                 int reach = (int)Math.Ceiling(60.0 * scale / ChunkSize) + 1;
                 double d = n.P.Length;
                 if (d > 900.0 * scale) continue;
-                bool bridge = false, expressway = false;
+                bool bridge = false;
                 foreach (RoadEdge e in n.Edges)
                 {
                     bridge |= e.Bridge;
-                    expressway |= e.Class == RoadClass.Highway;   // not under a deck, and never up on one
                 }
-                if (bridge || expressway) continue;
+                if (bridge) continue;
+                // Not under an expressway or beside its ramps: the player starts on an open street, not in the shadow of a pier.
+                if (Data.Expressways.Covers(n.P, 30.0 * scale)) continue;
 
                 // Not beside the trench: no water within 90 m in eight directions.
                 int wet = 0;
@@ -309,21 +333,23 @@ namespace CityX.World.Plan
                 {
                     AddPoly(_junctionsByChunk, j.Plate, j.Node.Id);
                 }
-                else if (j.DeckPlate != null)
-                {
-                    AddPoly(_junctionsByChunk, j.DeckPlate, j.Node.Id);
-                }
             }
 
-            for (int i = 0; i < Geometry.Ramps.Length; i++)
+            // The expressways: each deck segment in every chunk its footprint (and its parapets and side faces) touches; a pier, a sign or a row
+            // of barriers in the one chunk it stands in; a kerb cut in every chunk whose pavement it cuts.
+            ExpresswayNetwork xw = Data.Expressways;
+            foreach (ViaductPath path in xw.Paths)
             {
-                RampGeometry r = Geometry.Ramps[i];
-                double reach = r.HalfWidth + 6.0;   // the strip, its walls and piers, and the gantry sign at its start
-                AddSegment(_rampsByChunk, r.Plan.S, r.Start, reach, i);   // the gantry stands on the deck's centreline at S
-                AddSegment(_rampsByChunk, r.Start, r.Mid, reach, i);
-                AddSegment(_rampsByChunk, r.Mid, r.Foot, reach, i);
-                AddPoly(_rampsByChunk, r.Plan.Sliver, i);
+                for (int s = 0; s < path.Segments; s++)
+                {
+                    AddPoly(_viaductsByChunk, path.Footprint(s, 1.2), ViaductSegments.Count);
+                    ViaductSegments.Add((path.Id, s));
+                }
             }
+            for (int i = 0; i < xw.Piers.Count; i++) Add(_piersByChunk, ChunkOf(xw.Piers[i].P.X), ChunkOf(xw.Piers[i].P.Y), i);
+            for (int i = 0; i < xw.Signs.Count; i++) Add(_signsByChunk, ChunkOf(xw.Signs[i].P.X), ChunkOf(xw.Signs[i].P.Y), i);
+            for (int i = 0; i < xw.Barriers.Count; i++) Add(_barriersByChunk, ChunkOf(xw.Barriers[i].P.X), ChunkOf(xw.Barriers[i].P.Y), i);
+            for (int i = 0; i < xw.KerbCuts.Count; i++) AddPoly(_kerbCutsByChunk, xw.KerbCuts[i].Poly, i);
 
             _blockBoxes = new double[Data.Blocks.Count][];
             for (int i = 0; i < Data.Blocks.Count; i++)

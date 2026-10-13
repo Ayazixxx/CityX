@@ -15,10 +15,13 @@ searching the street map; blocks are meant to be divided into allotments, one bu
 ## The plan generator -- `CityX/Assets/CityX/World/Plan/` (pure C#, deterministic, links into `tools/cityplan`)
 - `PlanMath.cs` -- `Vec2` (double), segment/polygon maths, mitre inset, pseudo-angle, rotation tables.
 - `PlanFields.cs` -- `PlanConfig` (every tunable), `PlanFields` (smooth hills, river/lake "water", population, centres), `PlanNoise`.
-- `RoadNetwork.cs` -- priority-queue growth: highways from centres toward population / off slopes / square near the core; streets branching
+- `RoadNetwork.cs` -- priority-queue growth: the spines (`RoadClass.Boulevard`, once called highways) from centres toward population / off
+  slopes / square near the core; streets branching
   at right angles; intersection, junction-snap, T-snap, sliver rejection; bridges over water.
 - `CityPlan.cs` -- `CityPlan.Generate`; `BlockExtractor` (faces of the planar graph, spur pruning); `LotSubdivider` (recursive cuts, back-to-back
   deep blocks, courtyards dropped); each block keeps its kerb (`Inner`) and pavement-edge (`Outer`) outlines.
+- `ExpresswayPlanner.cs` (+ `.Ramps`, `.Furniture`), `Expressways.cs`, `Dubins.cs`, `DMath.cs` -- the expressways, a layer of their own over the
+  finished streets: corridors, cloverleafs, exits (`docs/HIGHWAYS.md`).
 - `PlanGeometry.cs` -- each road's ribbon (trimmed back at both ends) and a plate at every junction, from the exact corner where one road's kerb
   meets the next. The pavement ring (between `Inner` and `Outer`) shares those corners, so road and pavement meet with no gap or overlap.
 - `PlanWorld.cs` -- the city as the game asks about it: the plan, its geometry, every building (`PlanBuildings`: the largest rectangle that fits a
@@ -70,8 +73,9 @@ The old grid world lives in `World/LegacyGrid~/` (CityBlocks, CityChunkGenerator
 
 ## Not done / next
 - Skybridges and the books of the old city are not in the new one (they were lattice features). Elevated highways with exits and a ring road
-  came 2026-10-12 (`docs/HIGHWAYS.md`); pedestrian plazas with benches, parking and malls the same day (`docs/CITY_LIFE.md`). Seed rerolled
-  to 74920318 with them, and to 38461927 for the mall complexes.
+  came 2026-10-12 and were rebuilt as their own layer 2026-10-13 (`docs/HIGHWAYS.md`); pedestrian plazas with benches, parking and malls
+  came 2026-10-12 (`docs/CITY_LIFE.md`). Seed rerolled to 74920318 with them, to 38461927 for the mall complexes, to 61470385 for the
+  building sizes, and to 72604913 for the expressway rebuild.
 - Crosswalks, more street furniture, a smarter yard/courtyard fill, rounded kerb corners, a second row of buildings in deep lots.
 - Endless world: the land fields are seamless noise already; only the roads need region borders (portals at hashed positions). Today the city is one
   5 km region.

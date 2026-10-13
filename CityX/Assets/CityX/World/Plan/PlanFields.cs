@@ -44,27 +44,33 @@ namespace CityX.World.Plan
         public double OriginRadius = 650.0;
 
         // ---- road widths (carriageway half width) and the pavement either side ----
-        public double HighwayHalfWidth = 10.0;
+        public double BoulevardHalfWidth = 10.0;
         public double ArterialHalfWidth = 7.5;
         public double StreetHalfWidth = 5.5;
         public double SidewalkWidth = 3.0;
 
-        /// <summary>Half width of an interchange ramp: one lane, for the 1.3x-scale cars (a real lane is 3.5-3.75 m).</summary>
+        // ---- the expressways (ExpresswayPlanner) ----
+
+        /// <summary>
+        /// Half the width of an expressway's main deck: three lanes each way at the game's 1.3x (4.7 m lanes), shoulders and a median barrier
+        /// -- the 30-35 m of a real six-lane urban freeway's structure, scaled.
+        /// </summary>
+        public double ExpresswayHalfWidth = 12.0;
+
+        /// <summary>Half width of a ramp or connector: one lane and its shoulders, for the 1.3x-scale cars (a real lane is 3.5-3.75 m).</summary>
         public double RampHalfWidth = 3.4;
 
-        // ---- the expressway deck (see PlanGeometry.DeckTop) ----
+        /// <summary>
+        /// The radius of the expressway RING round the downtown (0 for none). Real rings sit a few kilometres out (Beijing's 2nd ring ~3 km,
+        /// the Périphérique ~4 km); here about three downtown radii, the same share of the region at every scale.
+        /// </summary>
+        public double RingRadius = 1100.0;
 
-        /// <summary>How far the underside of the deck clears the highest ground under its span (a statutory 5-5.5 m, at the game's 1.3x).</summary>
-        public double DeckClearance = 7.0;
-
-        /// <summary>The depth of the deck slab, parapet not included.</summary>
-        public double DeckThickness = 1.2;
+        /// <summary>How many expressways run right across the region, edge to edge, crossing the ring and each other (GTA V's Los Santos has four).</summary>
+        public int ThroughRoutes = 2;
 
         // ---- growth ----
         public int MaxNodes = 9000;
-
-        /// <summary>The radius of the orbital expressway round the strongest centre (RoadNetwork.Grow); 0 for none. About 1.7 downtown radii.</summary>
-        public double OrbitalRadius = 1100.0;
 
         /// <summary>Segments shorter than this are never placed.</summary>
         public double MinSegment = 28.0;
@@ -109,18 +115,19 @@ namespace CityX.World.Plan
             var cfg = new PlanConfig { Scale = s, MinScale = scale.MinFootprint, HeightScale = scale.Height, MinHeightScale = scale.MinHeight };
             cfg.MaxNodes = scale.IsVaried ? 16000 : cfg.MaxNodes;
             cfg.Half = 2500.0 * r * r;   // r squared is the footprint for a uniform scale, and the geometric middle of the range for a varied one
-            cfg.OrbitalRadius = 1100.0 * r * r;   // the same share of the region at every scale
+            cfg.RingRadius = 1100.0 * r * r;   // the same share of the region at every scale
             cfg.HillAmplitude = 30.0 * r;
             cfg.HillWavelength *= s;
             cfg.RiverWavelength *= s;
             cfg.PopulationWavelength *= s;
             cfg.OriginRadius *= s;
-            cfg.HighwayHalfWidth *= r;
+            cfg.BoulevardHalfWidth *= r;
+            cfg.ExpresswayHalfWidth *= r;
             cfg.ArterialHalfWidth *= r;
             cfg.StreetHalfWidth *= r;
             cfg.SidewalkWidth *= r;
             cfg.RampHalfWidth *= r;
-            // The deck's clearance and depth are not scaled: a car is the same size in every district.
+            // The expressways' clearances are not scaled: a car is the same size in every district.
             // MinSegment, SnapNode, SnapEdge and MaxBridge stay as they were: the road network multiplies them by the scale where it is growing.
             return cfg;
         }

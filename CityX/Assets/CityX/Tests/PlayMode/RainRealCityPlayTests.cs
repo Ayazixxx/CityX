@@ -138,7 +138,7 @@ namespace CityX.Tests
             foreach (CityX.World.Plan.EdgeGeometry g in cityWorld.Plan.Geometry.Edges)
             {
                 // An ordinary bridge: an expressway's bridge has its elevated deck over it too (2026-10-12), sheltering the land round it.
-                if (g == null || !g.Edge.Bridge || g.Elevated) continue;
+                if (g == null || !g.Edge.Bridge) continue;
                 double dx = (g.A.X + g.B.X) * 0.5 - spawnX, dz = (g.A.Y + g.B.Y) * 0.5 - spawnZ;
                 if (dx * dx + dz * dz < bestDistance)
                 {

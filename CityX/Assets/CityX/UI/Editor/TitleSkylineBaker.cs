@@ -18,7 +18,7 @@ namespace CityX.UIEditor
     /// </summary>
     public static class TitleSkylineBaker
     {
-        public const int Seed = 61470385;
+        public const int Seed = 72604913;
 
         /// <summary>Height of the one tallest tower, in the middle. Everything else is lower.</summary>
         public const float TallestHeight = 110.0f;

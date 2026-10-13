@@ -556,7 +556,7 @@ namespace CityX.UI
                 Log("no city streamer in this scene");
                 return;
             }
-            if (what != "slope" && what != "district")
+            if (what != "slope" && what != "highway" && what != "district")   // "district": the highway's old name here, kept
             {
                 Log(DevCommands.UsageFor("goto"));
                 return;
@@ -640,33 +640,25 @@ namespace CityX.UI
             return true;
         }
 
-        /// <summary>The middle of the nearest highway, a couple of metres up.</summary>
+        /// <summary>The nearest point of an expressway's main deck, in the middle of its nearer carriageway, a couple of metres up.</summary>
         private static bool TryFindNearestHighway(CityWorld world, Vector3 from, out Vector3 destination)
         {
             destination = Vector3.zero;
             double best = double.MaxValue;
-            CityX.World.Plan.EdgeGeometry pick = null;
-            foreach (CityX.World.Plan.EdgeGeometry g in world.Plan.Geometry.Edges)
+            foreach (CityX.World.Plan.ViaductPath path in world.Plan.Data.Expressways.Paths)
             {
-                if (g == null || g.Edge.Bridge || g.Edge.Class != CityX.World.Plan.RoadClass.Highway)
+                if (path.Kind != CityX.World.Plan.ViaductKind.Mainline) continue;
+                for (int i = 0; i < path.Count; i++)
                 {
-                    continue;
-                }
-                double mx = (g.A.X + g.B.X) * 0.5 - from.x, mz = (g.A.Y + g.B.Y) * 0.5 - from.z;
-                double d = mx * mx + mz * mz;
-                if (d < best)
-                {
+                    double dx = path.P[i].X - from.x, dz = path.P[i].Y - from.z;
+                    double d = dx * dx + dz * dz;
+                    if (d >= best) continue;
                     best = d;
-                    pick = g;
+                    CityX.World.Plan.Vec2 lane = path.P[i] + path.N[i] * (path.HalfLeft[i] * 0.5);
+                    destination = new Vector3((float)lane.X, (float)path.Top[i] + 2.0f, (float)lane.Y);
                 }
             }
-            if (pick == null)
-            {
-                return false;
-            }
-            double x = (pick.A.X + pick.B.X) * 0.5, z = (pick.A.Y + pick.B.Y) * 0.5;
-            destination = new Vector3((float)x, (float)world.Terrain.ContinuousHeightAt(x, z) + 2.0f, (float)z);
-            return true;
+            return best < double.MaxValue;
         }
 
         private void Experience(string amount)

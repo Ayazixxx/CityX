@@ -267,6 +267,37 @@ namespace CityX.Tests
             Assert.Greater(bestGrade, 0.01, "the road /goto slope found is flat");
         }
 
+        /// <summary>/goto highway lands the player on an expressway's main deck, a couple of metres over its running surface.</summary>
+        [Test]
+        public void GotoHighwayLandsOnAnExpresswaysDeck()
+        {
+            _bodyObject = new GameObject("Body");
+            PlayerVitals vitals = _bodyObject.AddComponent<PlayerVitals>();
+            vitals.Revive();
+            _bodyObject.AddComponent<CharacterController>();
+
+            _streamerObject = new GameObject("Streamer");
+            CityStreamer streamer = _streamerObject.AddComponent<CityStreamer>();
+            streamer.WorldSeed = 20260810;
+            streamer.RadiusChunks = 0;
+
+            _consoleObject = new GameObject("DevConsole");
+            var view = _consoleObject.AddComponent<DevConsoleView>();
+            view.Vitals = vitals;
+            view.Streamer = streamer;
+            view.Bind();
+
+            view.Submit("/goto highway");
+
+            Vector3 at = vitals.transform.position;
+            var world = new CityWorld(streamer.WorldSeed);
+            CityX.World.Plan.ExpresswayNetwork xw = world.Plan.Data.Expressways;
+            double top = xw.DeckOver(new CityX.World.Plan.Vec2(at.x, at.z), 0.0, out int path);
+            Assert.IsFalse(double.IsNaN(top), $"/goto highway landed at ({at.x:0.0},{at.z:0.0}), off every deck");
+            Assert.AreEqual(CityX.World.Plan.ViaductKind.Mainline, xw.Paths[path].Kind, "not on a main line");
+            Assert.AreEqual(top + 2.0, at.y, 0.5, "not just over the deck's surface");
+        }
+
         [Test]
         public void GotoWithNoArgumentPrintsUsageRatherThanThrowing()
         {

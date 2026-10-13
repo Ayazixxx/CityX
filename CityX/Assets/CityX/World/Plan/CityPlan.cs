@@ -88,9 +88,8 @@ namespace CityX.World.Plan
         public List<PlanBlock> Blocks = new List<PlanBlock>();
         public List<PlanLot> Lots = new List<PlanLot>();
 
-        /// <summary>The expressways' interchange ramps (Interchanges), and the crossing nodes they serve.</summary>
-        public List<RampPlan> Ramps = new List<RampPlan>();
-        public List<int> ExitNodes = new List<int>();
+        /// <summary>The expressways: their routes, decks, interchanges, piers and the land kept clear under them (ExpresswayPlanner).</summary>
+        public ExpresswayNetwork Expressways = new ExpresswayNetwork();
 
         public List<int> PlazaBlocks = new List<int>();
         public List<int> MallBlocks = new List<int>();
@@ -123,8 +122,9 @@ namespace CityX.World.Plan
                 Edges = net.Edges,
             };
 
-            // The interchanges go on the finished network, before the blocks are found: a ramp is geometry over the land, not a road of the graph.
-            Interchanges.Place(net, fields, cfg, PlanNoise.Mix(unchecked((uint)worldSeed), 0x65786974U), data);   // "exit"
+            // The expressways go over the finished network, before the blocks are cut into lots: decks and ramps are geometry over the land, not
+            // roads of the graph, and no lot is cut under them.
+            data.Expressways = ExpresswayPlanner.Plan(net, fields, cfg, PlanNoise.Mix(unchecked((uint)worldSeed), 0x78776179U));   // "xway"
 
             data.Blocks = BlockExtractor.Extract(net, cfg);
             MarkEnclosing(data.Blocks);
@@ -199,7 +199,7 @@ namespace CityX.World.Plan
         {
             switch (c)
             {
-                case RoadClass.Highway: return cfg.HighwayHalfWidth;
+                case RoadClass.Boulevard: return cfg.BoulevardHalfWidth;
                 case RoadClass.Arterial: return cfg.ArterialHalfWidth;
                 default: return cfg.StreetHalfWidth;
             }
@@ -715,6 +715,13 @@ namespace CityX.World.Plan
 
         private static void EmitLot(CityPlanData data, Piece lot, uint seed, int blockIndex)
         {
+            // An expressway beside the lot cuts it back to a margin from its decks and ramps (the lot keeps its own side); the land an interchange
+            // encloses takes it whole. Nothing is built under a deck.
+            if (!data.Expressways.CutBack(lot.V, lot.Front, out List<Vec2> cutV, out List<bool> cutFront))
+            {
+                return;
+            }
+            lot = new Piece { V = cutV, Front = cutFront };
             int n = lot.V.Count;
             double area = PlanMath.SignedArea(lot.V);
             if (area < 110.0 * _s * _s)
@@ -767,15 +774,6 @@ namespace CityX.World.Plan
                     return;
                 }
             }
-            // Nothing is built where an interchange's ramp comes down, nor on the sliver of land it cuts off against the expressway.
-            foreach (RampPlan ramp in data.Ramps)
-            {
-                if (Interchanges.Touches(ramp, lot.V))
-                {
-                    return;
-                }
-            }
-
             double pop = fields.Population(c);
             int id = data.Lots.Count;
             double r1 = PlanNoise.Mix(seed, unchecked((uint)(id * 2 + 1))) / 4294967296.0;

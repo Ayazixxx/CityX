@@ -17,7 +17,7 @@ namespace CityX.View
     /// SURFACES, in the buffers the streamer already has: the road and its junctions go to ground (the asphalt material); bare
     /// terrain, the pavement and the kerbs go to pavement (the flat concrete material -- the trench a river leaves is concrete too).
     /// </summary>
-    public static class CitySurfaceBuilder
+    public static partial class CitySurfaceBuilder
     {
         /// <summary>A road floats this far above the terrain under it, so the two never z-fight.</summary>
         public const float RoadLift = 0.07f;
@@ -47,15 +47,6 @@ namespace CityX.View
         public const double DashLength = 3.0;
         public const double DashGap = 4.5;
 
-        /// <summary>The expressway deck's parapet, and its piers' spacing (real viaduct spans are 20-55 m).</summary>
-        public const float DeckParapet = 1.1f;
-        public const double PierSpacing = 32.0;
-
-        /// <summary>An interchange ramp: the depth of its slab, how often it is held up, and how close to the ground it stops being a viaduct and becomes an embankment.</summary>
-        public const float RampSlab = 0.9f;
-        public const double RampPierSpacing = 15.0;
-        public const float RampEmbankmentClearance = 1.0f;
-
         public static void Build(CityWorld world, int chunkX, int chunkY, Vector3 origin,
             MeshBuffer ground, MeshBuffer pavement, MeshBuffer structures, MeshBuffer markings,
             MeshBuffer laneDividers, MeshBuffer guardRail, bool far)
@@ -67,12 +58,13 @@ namespace CityX.View
 
             float step = far ? FarTerrainStep : TerrainStep;
             BuildTerrain(ctx, pavement, step, plan.BlocksIn(chunkX, chunkY));
+            List<Vec2[]> cuts = KerbCuts(ctx, chunkX, chunkY);
 
             foreach (int blockIndex in plan.BlocksIn(chunkX, chunkY))
             {
                 PlanBlock block = plan.Data.Blocks[blockIndex];
-                BuildPavement(ctx, block, blockIndex, pavement, far);
-                BuildBlockPaving(ctx, block, blockIndex, pavement, step);
+                BuildPavement(ctx, block, blockIndex, pavement, far, cuts);
+                BuildBlockPaving(ctx, block, blockIndex, pavement, step, cuts);
                 if (block.Plaza && !far)
                 {
                     BuildPlazaFurniture(ctx, block, blockIndex, structures);
@@ -95,13 +87,6 @@ namespace CityX.View
                 if (!far)
                 {
                     BuildPaint(ctx, g, markings, laneDividers);
-                }
-                if (g.Elevated)
-                {
-                    BuildDeck(ctx, g, ground, pavement, structures, markings, laneDividers, far ? null : guardRail, far);
-                }
-                else if (!far)
-                {
                     AddStreetBarricades(ctx, g, structures);
                 }
             }
@@ -114,21 +99,10 @@ namespace CityX.View
                 {
                     BuildPlate(ctx, j, ground);
                 }
-                if (j.DeckPlate != null && j.Elevated)
-                {
-                    BuildDeckPlate(ctx, j, ground, pavement);
-                }
             }
 
-            foreach (int rampIndex in plan.RampsIn(chunkX, chunkY))
-            {
-                RampGeometry ramp = plan.Geometry.Ramps[rampIndex];
-                BuildRamp(ctx, ramp, ground, pavement, structures, far ? null : guardRail, laneDividers, far);   // white edge lines
-                if (!far)
-                {
-                    BuildInterchangeLand(ctx, ramp, rampIndex, pavement, structures, laneDividers);   // white stalls
-                }
-            }
+            // The expressways over it all: decks, ramps and connectors, piers, signs (yellow paint is the "markings" buffer, white the dividers).
+            BuildExpressways(ctx, chunkX, chunkY, ground, pavement, structures, markings, laneDividers, guardRail, far);
 
             // The buildings that follow stamp their own looks; none of the ground's is left on a buffer for them to inherit.
             ground.Look = SurfaceLook.Default;
@@ -385,7 +359,7 @@ namespace CityX.View
         {
             float h = LatticeHash(id, 17, 7);
             float tone = 0.80f + 0.20f * h;
-            float wear = roadClass == RoadClass.Highway ? 0.15f + 0.25f * h : (roadClass == RoadClass.Arterial ? 0.30f + 0.30f * h : 0.40f + 0.45f * h);
+            float wear = roadClass == RoadClass.Boulevard ? 0.22f + 0.25f * h : (roadClass == RoadClass.Arterial ? 0.30f + 0.30f * h : 0.40f + 0.45f * h);
             return SurfaceLook.Pack(new Color(tone, tone, tone), SurfaceLook.Asphalt, wear);
         }
 
@@ -458,8 +432,7 @@ namespace CityX.View
             Vec2 perp = g.Dir.Perp * g.HalfWidth;
             Func<double, double, double> height = RoadHeight(ctx, g);
 
-            // The ground under an expressway is its service road: an ordinary worn road, the clean asphalt is up on the deck.
-            buffer.Look = AsphaltLook(g.Elevated ? RoadClass.Arterial : g.Edge.Class, g.Edge.Id);
+            buffer.Look = AsphaltLook(g.Edge.Class, g.Edge.Id);
             int pieces = Math.Max(1, (int)Math.Ceiling((t1 - t0) / PieceLength));
             for (int i = 0; i < pieces; i++)
             {
@@ -515,7 +488,7 @@ namespace CityX.View
         /// follows the ground. Replaces the old patchwork of 4 m ground squares (tarmac, setts, earth) with staircase edges between pavement and buildings.
         /// The floors stand on it (PlanBuildings.PavingRise), so under a building it is hidden.
         /// </summary>
-        private static void BuildBlockPaving(Context ctx, PlanBlock block, int blockIndex, MeshBuffer buffer, float step)
+        private static void BuildBlockPaving(Context ctx, PlanBlock block, int blockIndex, MeshBuffer buffer, float step, List<Vec2[]> cuts)
         {
             if (!block.Paved) return;
             Bounds(block.Inner, out double bx0, out double bz0, out double bx1, out double bz1);
@@ -543,7 +516,12 @@ namespace CityX.View
                         List<Vec2> piece = Clip(tri, cell);
                         if (piece.Count >= 3 && PlanMath.SignedArea(piece) > SliverArea)
                         {
-                            Fan(ctx, buffer, piece, height);   // a sliver where a triangle only grazes a cell is left out on both sides of a seam alike
+                            // A sliver where a triangle only grazes a cell is left out on both sides of a seam alike; where a ramp comes down
+                            // onto the street the paving is cut away under it.
+                            foreach (List<Vec2> part in Subtract(piece, cuts))
+                            {
+                                Fan(ctx, buffer, part, height);
+                            }
                         }
                     }
                 }
@@ -553,7 +531,7 @@ namespace CityX.View
         /// <summary>A clipped piece of paving smaller than this (square metres) is a sliver of float noise, not ground: not drawn.</summary>
         private const double SliverArea = 1e-4;
 
-        private static void BuildPavement(Context ctx, PlanBlock block, int blockIndex, MeshBuffer buffer, bool far)
+        private static void BuildPavement(Context ctx, PlanBlock block, int blockIndex, MeshBuffer buffer, bool far, List<Vec2[]> cuts)
         {
             if (block.Inner == null || block.Outer == null) return;
             Bounds(block.Poly, out double bx0, out double bz0, out double bx1, out double bz1);
@@ -581,13 +559,18 @@ namespace CityX.View
                     {
                         // A paved block's pavement is part of its one paving (BuildBlockPaving); only an unpaved block keeps the ring.
                         buffer.Look = PavingLook(block.EdgeClass[e], e);
-                        Fan(ctx, buffer, Clip(quad, ctx.Rect), (x, z) => ctx.Plan.GroundHeight(x, z) + RoadLift + KerbHeight);
+                        foreach (List<Vec2> part in Subtract(Clip(quad, ctx.Rect), cuts))
+                        {
+                            Fan(ctx, buffer, part, (x, z) => ctx.Plan.GroundHeight(x, z) + RoadLift + KerbHeight);
+                        }
                     }
                     buffer.Look = SurfaceLook.Pack(new Color32(214, 212, 206, 255), (int)WallMaterial.Concrete, 0.45f);
 
-                    // The kerb: a vertical face along the inner edge, from the road up to the pavement, facing the road.
-                    if (ClipSegment(ia, ib, ctx.Rect, out Vec2 ka, out Vec2 kb) && (kb - ka).Length > 0.02)
+                    // The kerb: a vertical face along the inner edge, from the road up to the pavement, facing the road -- not where a ramp crosses it.
+                    if (ClipSegment(ia, ib, ctx.Rect, out Vec2 ca, out Vec2 cb) && (cb - ca).Length > 0.02)
+                    foreach ((Vec2 ka, Vec2 kb) in OutsideCuts(ca, cb, cuts))
                     {
+                        if ((kb - ka).Length < 0.02) continue;
                         Vec2 d = (ib - ia).Normalized;
                         var normal = new Vector3((float)d.Y, 0.0f, (float)-d.X);   // to the right of the edge: toward the road
                         double ya = ctx.Plan.GroundHeight(ka.X, ka.Y) + RoadLift;
@@ -603,7 +586,7 @@ namespace CityX.View
                 }
                 if (!far)
                 {
-                    AddSidewalkProps(ctx, block, e, buffer);
+                    AddSidewalkProps(ctx, block, e, buffer, cuts);
                 }
             }
         }
@@ -616,7 +599,7 @@ namespace CityX.View
         /// </summary>
         private static void Crossings(Context ctx, EdgeGeometry g, MeshBuffer white, Func<double, double, double> height)
         {
-            if (white == null || g.Edge.Class == RoadClass.Highway)
+            if (white == null)
             {
                 return;
             }
@@ -649,7 +632,7 @@ namespace CityX.View
         /// The odd hydrant, bin and utility cabinet along a pavement: one candidate about every 36 m, clear of the corners, and not
         /// every candidate used. Sized for the 2.6 m player (everything here is about 1.3x). NO LAMP POSTS: they were tried and removed.
         /// </summary>
-        private static void AddSidewalkProps(Context ctx, PlanBlock block, int e, MeshBuffer buffer)
+        private static void AddSidewalkProps(Context ctx, PlanBlock block, int e, MeshBuffer buffer, List<Vec2[]> cuts)
         {
             int n = block.Poly.Count;
             int f = (e + 1) % n;
@@ -679,7 +662,7 @@ namespace CityX.View
                 Vec2 kerb = i0 + (i1 - i0) * s;
                 Vec2 outer = o0 + (o1 - o0) * s;
                 Vec2 at = kerb + (outer - kerb) * 0.30;
-                if (at.X < ctx.Rect.X0 || at.X >= ctx.Rect.X1 || at.Y < ctx.Rect.Z0 || at.Y >= ctx.Rect.Z1)
+                if (at.X < ctx.Rect.X0 || at.X >= ctx.Rect.X1 || at.Y < ctx.Rect.Z0 || at.Y >= ctx.Rect.Z1 || InCut(at, cuts))
                 {
                     continue;
                 }
@@ -721,8 +704,7 @@ namespace CityX.View
         {
             Func<double, double, double> height = RoadHeight(ctx, g);
             Crossings(ctx, g, white, height);
-            // The service road under a deck is painted as an arterial; the expressway's own paint is on the deck (BuildDeck).
-            PaintLanes(ctx, g, yellow, white, height, g.TrimA + 1.5, g.Length - g.TrimB - 1.5, g.Elevated ? RoadClass.Arterial : g.Edge.Class, false);
+            PaintLanes(ctx, g, yellow, white, height, g.TrimA + 1.5, g.Length - g.TrimB - 1.5, g.Edge.Class, false);
         }
 
         /// <summary>The lane paint of one road class between two distances along the road, at the heights a surface gives; an expressway's deck gets edge lines too.</summary>
@@ -739,7 +721,7 @@ namespace CityX.View
                     }
                     break;
                 case RoadClass.Arterial:
-                case RoadClass.Highway:
+                case RoadClass.Boulevard:
                     if (yellow != null)
                     {
                         Line(ctx, g, yellow, height, 0.13, t0, t1);
@@ -802,88 +784,6 @@ namespace CityX.View
             Fan(ctx, buffer, Clip(quad, ctx.Rect), (x, z) => height(x, z) + PaintLift);
         }
 
-        // ---------------------------------------------------------------- the expressways
-
-        /// <summary>
-        /// The deck's top along an expressway: the straight run between the heights at its two ends (PlanGeometry.DeckTop), but never under the
-        /// road on the ground -- where an expressway comes down to its end, the deck lies on the service road.
-        /// </summary>
-        private static Func<double, double, double> DeckHeight(Context ctx, EdgeGeometry g)
-        {
-            return (x, z) =>
-            {
-                double t = ((x - g.A.X) * g.Dir.X + (z - g.A.Y) * g.Dir.Y) / g.Length;
-                t = t < 0.0 ? 0.0 : (t > 1.0 ? 1.0 : t);
-                double top = g.DeckA + (g.DeckB - g.DeckA) * t;
-                return Math.Max(top, ctx.Plan.GroundHeight(x, z) + RoadLift + 0.012);
-            };
-        }
-
-        private static Color32 DeckConcrete => SurfaceLook.Pack(new Color32(198, 196, 190, 255), (int)WallMaterial.Concrete, 0.6f);
-
-        /// <summary>
-        /// THE EXPRESSWAY DECK over its service road: the carriageway on top, the slab's sides and underside, a parapet along each edge, a
-        /// hammerhead pier every PierSpacing (a column on the centreline between the service road's two halves, a cross-head carrying the full
-        /// width), and its lane paint.
-        /// </summary>
-        private static void BuildDeck(Context ctx, EdgeGeometry g, MeshBuffer ground, MeshBuffer pavement, MeshBuffer structures,
-            MeshBuffer markings, MeshBuffer laneDividers, MeshBuffer guardRail, bool far)
-        {
-            double t0 = g.DeckTrimA;
-            double t1 = g.Length - g.DeckTrimB;
-            if (t1 - t0 < 0.1) return;
-            float thick = (float)ctx.Plan.Data.Config.DeckThickness;
-            Func<double, double, double> height = DeckHeight(ctx, g);
-            Vec2 perp = g.Dir.Perp;
-            double hw = g.HalfWidth;
-            Color32 concrete = DeckConcrete;
-
-            int pieces = Math.Max(1, (int)Math.Ceiling((t1 - t0) / PieceLength));
-            for (int i = 0; i < pieces; i++)
-            {
-                double ta = t0 + (t1 - t0) * i / pieces;
-                double tb = t0 + (t1 - t0) * (i + 1) / pieces;
-                Vec2 ca = g.A + g.Dir * ta;
-                Vec2 cb = g.A + g.Dir * tb;
-                var quad = new List<Vec2> { ca + perp * hw, cb + perp * hw, cb - perp * hw, ca - perp * hw };
-                Bounds(quad, out double mx, out double mz, out double Mx, out double Mz);
-                if (!ctx.Rect.Overlaps(mx, mz, Mx, Mz)) continue;
-                List<Vec2> clipped = Clip(quad, ctx.Rect);
-                ground.Look = AsphaltLook(RoadClass.Highway, g.Edge.Id);
-                Fan(ctx, ground, clipped, height);
-                pavement.Look = concrete;
-                Fan(ctx, pavement, clipped, (x, z) => height(x, z) - thick, up: false);
-                for (int side = -1; side <= 1; side += 2)
-                {
-                    AddSlabEdge(ctx, pavement, guardRail, ca + perp * (hw * side), cb + perp * (hw * side), new Vector3((float)(perp.X * side), 0.0f, (float)(perp.Y * side)),
-                        height, thick, DeckParapet, 0.3f, false);
-                }
-            }
-
-            // Piers.
-            structures.Look = concrete;
-            for (double t = PierSpacing * 0.5; t < g.Length; t += PierSpacing)
-            {
-                if (t < t0 + 3.0 || t > t1 - 3.0) continue;
-                Vec2 c = g.A + g.Dir * t;
-                if (!ctx.Contains(c)) continue;
-                float top = (float)height(c.X, c.Y);
-                float groundY = ctx.Ground(c.X, c.Y);
-                float underside = top - thick;
-                if (underside - groundY < 1.5f) continue;   // the deck is down on the ground here: nothing to hold up
-                structures.SetFrame(ctx.Local(c.X, 0.0, c.Y), g.Dir.X, g.Dir.Y);
-                float beamBottom = underside - 1.3f;
-                structures.AddBox(new Vector3(-0.9f, groundY - 0.6f, -0.9f), new Vector3(0.9f, beamBottom, 0.9f));
-                structures.AddBox(new Vector3(-0.9f, beamBottom, -(float)hw + 0.4f), new Vector3(0.9f, underside + 0.02f, (float)hw - 0.4f), includeBottom: true);
-                structures.ClearFrame();
-            }
-
-            if (!far)
-            {
-                PaintLanes(ctx, g, markings, laneDividers, height, t0 + 1.0, t1 - 1.0, RoadClass.Highway, true);   // yellow ("markings"), white ("laneDividers")
-            }
-        }
-
         /// <summary>
         /// One edge of a deck or ramp slab from <paramref name="a"/> to <paramref name="b"/>: the slab's side face (down <paramref name="thick"/>
         /// from the surface, or right down to the ground for an embankment), and a parapet standing on it when there is a guard-rail buffer.
@@ -909,169 +809,6 @@ namespace CityX.View
                 new Vector2(0, 0), new Vector2(len, 0), new Vector2(len, parapet), new Vector2(0, parapet));
             guardRail.AddQuad(ctx.Local(ka.X, ya + parapet, ka.Y), ctx.Local(kb.X, yb + parapet, kb.Y), ctx.Local(ib.X, yb + parapet, ib.Y), ctx.Local(ia.X, ya + parapet, ia.Y), Vector3.up,
                 new Vector2(0, 0), new Vector2(len, 0), new Vector2(len, 1), new Vector2(0, 1));
-        }
-
-        /// <summary>Where two expressway decks meet: the plate between their trimmed ends, up at the deck's height, with its underside and edges.</summary>
-        private static void BuildDeckPlate(Context ctx, JunctionGeometry j, MeshBuffer ground, MeshBuffer pavement)
-        {
-            Vec2[] plate = j.DeckPlate;
-            Bounds(plate, out double mx, out double mz, out double Mx, out double Mz);
-            if (!ctx.Rect.Overlaps(mx - 1.0, mz - 1.0, Mx + 1.0, Mz + 1.0)) return;
-            float thick = (float)ctx.Plan.Data.Config.DeckThickness;
-            double top = j.DeckTop;
-            Func<double, double, double> height = (x, z) => Math.Max(top, ctx.Plan.GroundHeight(x, z) + RoadLift + 0.012);
-            Vec2 centre = j.Node.P;
-            ground.Look = AsphaltLook(RoadClass.Highway, j.Node.Id);
-            pavement.Look = DeckConcrete;
-            for (int i = 0; i < plate.Length; i++)
-            {
-                var tri = new List<Vec2> { centre, plate[i], plate[(i + 1) % plate.Length] };
-                List<Vec2> clipped = Clip(tri, ctx.Rect);
-                Fan(ctx, ground, clipped, height);
-                Fan(ctx, pavement, clipped, (x, z) => height(x, z) - thick, up: false);
-                Vec2 d = plate[(i + 1) % plate.Length] - plate[i];
-                if (d.Length < 0.05) continue;
-                d = d.Normalized;
-                AddSlabEdge(ctx, pavement, null, plate[i], plate[(i + 1) % plate.Length], new Vector3((float)d.Y, 0.0f, (float)-d.X), height, thick, 0.0f, 0.0f, false);
-            }
-        }
-
-        /// <summary>
-        /// An interchange ramp: its two stretches, each a sloped slab -- a viaduct on small piers where it is up in the air, an embankment with
-        /// its sides down to the ground where it is low -- with a parapet along both edges and white edge lines.
-        /// </summary>
-        private static void BuildRamp(Context ctx, RampGeometry r, MeshBuffer ground, MeshBuffer pavement, MeshBuffer structures, MeshBuffer guardRail, MeshBuffer white, bool far)
-        {
-            double rh = r.HalfWidth;
-            Color32 concrete = DeckConcrete;
-            for (int stretch = 0; stretch < 2; stretch++)
-            {
-                Vec2 a = stretch == 0 ? r.Start : r.Mid;
-                Vec2 b = stretch == 0 ? r.Mid : r.Foot;
-                Vec2 dir = stretch == 0 ? r.DirA : r.DirB;
-                Vec2 perpA = stretch == 0 ? r.PerpStart : r.PerpMid;
-                Vec2 perpB = stretch == 0 ? r.PerpMid : r.PerpFoot;
-                double len = (b - a).Length;
-                if (len < 0.1) continue;
-                double along0 = stretch == 0 ? 0.0 : r.LengthA;
-                Func<double, double, double> height = (x, z) =>
-                {
-                    double t = ((x - a.X) * dir.X + (z - a.Y) * dir.Y) / len;
-                    t = t < 0.0 ? 0.0 : (t > 1.0 ? 1.0 : t);
-                    return Math.Max(r.TopAt(along0 + t * len), ctx.Plan.GroundHeight(x, z) + RoadLift + 0.012);
-                };
-                int pieces = Math.Max(1, (int)Math.Ceiling(len / PieceLength));
-                for (int i = 0; i < pieces; i++)
-                {
-                    double ta = len * i / pieces, tb = len * (i + 1) / pieces;
-                    Vec2 ca = a + dir * ta, cb = a + dir * tb;
-                    Vec2 pa = perpA * (1.0 - ta / len) + perpB * (ta / len);
-                    Vec2 pb = perpA * (1.0 - tb / len) + perpB * (tb / len);
-                    var quad = new List<Vec2> { ca + pa * rh, cb + pb * rh, cb - pb * rh, ca - pa * rh };
-                    Bounds(quad, out double mx, out double mz, out double Mx, out double Mz);
-                    if (!ctx.Rect.Overlaps(mx, mz, Mx, Mz)) continue;
-                    Vec2 centre = (ca + cb) * 0.5;
-                    float top = (float)height(centre.X, centre.Y);
-                    bool viaduct = top - RampSlab - ctx.Ground(centre.X, centre.Y) > RampEmbankmentClearance;
-                    List<Vec2> clipped = Clip(quad, ctx.Rect);
-                    ground.Look = AsphaltLook(RoadClass.Arterial, r.Plan.ExitNode * 4 + stretch);
-                    Fan(ctx, ground, clipped, height);
-                    pavement.Look = concrete;
-                    if (viaduct)
-                    {
-                        Fan(ctx, pavement, clipped, (x, z) => height(x, z) - RampSlab, up: false);
-                    }
-                    for (int side = -1; side <= 1; side += 2)
-                    {
-                        Vec2 ea = ca + pa * (rh * side), eb = cb + pb * (rh * side);
-                        Vec2 n = (pa + pb) * (0.5 * side);
-                        AddSlabEdge(ctx, pavement, guardRail, ea, eb, new Vector3((float)n.X, 0.0f, (float)n.Y).normalized, height, RampSlab, 1.0f, 0.25f, !viaduct);
-                    }
-                    // A small pier under a viaduct piece now and then.
-                    if (viaduct && (int)(ta / RampPierSpacing) != (int)(tb / RampPierSpacing) && ctx.Contains(centre))
-                    {
-                        structures.Look = concrete;
-                        structures.SetFrame(ctx.Local(centre.X, 0.0, centre.Y), dir.X, dir.Y);
-                        structures.AddBox(new Vector3(-0.5f, ctx.Ground(centre.X, centre.Y) - 0.5f, -0.5f), new Vector3(0.5f, top - RampSlab + 0.02f, 0.5f));
-                        structures.ClearFrame();
-                    }
-                    if (white != null)
-                    {
-                        StripeAlong(ctx, white, ca + pa * (rh - 0.45), cb + pb * (rh - 0.45), (pa + pb) * 0.5, 0.08, height);
-                        StripeAlong(ctx, white, ca - pa * (rh - 0.45), cb - pb * (rh - 0.45), (pa + pb) * 0.5, 0.08, height);
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// The land an interchange cuts off between a ramp, the expressway and the cross street, as every city uses it: a car park. Painted stalls
-        /// in rows along the expressway, and the exit's gantry sign up on the deck where the ramp leaves it.
-        /// </summary>
-        private static void BuildInterchangeLand(Context ctx, RampGeometry r, int rampIndex, MeshBuffer pavement, MeshBuffer structures, MeshBuffer white)
-        {
-            Vec2[] sliver = r.Plan.Sliver;
-            var poly = new List<Vec2>(sliver);
-            if (PlanMath.SignedArea(poly) < 0.0) poly.Reverse();
-            var distances = new double[poly.Count];
-            for (int i = 0; i < distances.Length; i++) distances[i] = 1.5;
-            var lot = new List<Vec2>();
-            if (PlanMath.InsetPolygon(poly, distances, lot, out _) && lot.Count >= 3)
-            {
-                Bounds(lot, out double mx, out double mz, out double Mx, out double Mz);
-                if (ctx.Rect.Overlaps(mx, mz, Mx, Mz))
-                {
-                    Func<double, double, double> height = (x, z) => ctx.Plan.GroundHeight(x, z) + RoadLift + KerbHeight + 0.02;
-                    pavement.Look = SurfaceLook.Pack(new Color(0.66f, 0.66f, 0.66f), SurfaceLook.Asphalt, 0.8f);
-                    Fan(ctx, pavement, Clip(lot, ctx.Rect), height);
-
-                    // Stalls: rows along the lot's longest side, an aisle between every two rows.
-                    int longest = 0;
-                    double longestLen = 0.0;
-                    for (int i = 0; i < lot.Count; i++)
-                    {
-                        double l = (lot[(i + 1) % lot.Count] - lot[i]).Length;
-                        if (l > longestLen) { longestLen = l; longest = i; }
-                    }
-                    Vec2 u = (lot[(longest + 1) % lot.Count] - lot[longest]).Normalized;
-                    Vec2 v = u.Perp;
-                    Vec2 o = lot[longest];
-                    double umin = double.MaxValue, umax = double.MinValue, vmin = double.MaxValue, vmax = double.MinValue;
-                    foreach (Vec2 p in lot)
-                    {
-                        double pu = Vec2.Dot(p - o, u), pv = Vec2.Dot(p - o, v);
-                        umin = Math.Min(umin, pu); umax = Math.Max(umax, pu);
-                        vmin = Math.Min(vmin, pv); vmax = Math.Max(vmax, pv);
-                    }
-                    double stall = CityMeshBuilder.StallWidth, depth = CityMeshBuilder.StallDepth, aisle = CityMeshBuilder.AisleWidth;
-                    int row = 0;
-                    for (double rv = vmin + 1.0; rv + depth <= vmax - 1.0; rv += (row % 2 == 1 ? depth + aisle : depth), row++)
-                    {
-                        int stallIndex = 0;
-                        for (double su = umin + 1.0; su + stall <= umax - 1.0; su += stall, stallIndex++)
-                        {
-                            Vec2 p0 = o + u * su + v * rv, p1 = o + u * su + v * (rv + depth);
-                            if (!PlanMath.PointInPolygon(p0, lot) || !PlanMath.PointInPolygon(p1, lot)) continue;
-                            if (white != null)
-                            {
-                                StripeAlong(ctx, white, p0, p1, u, 0.06, height);
-                            }
-                        }
-                    }
-                }
-            }
-
-            // The exit's gantry sign over the deck where the off-ramp leaves it.
-            Vec2 s = r.Plan.S;
-            if (r.Plan.Leaving && ctx.Contains(s))
-            {
-                Vec2 across = r.DirA.Perp;   // across the deck
-                EdgeGeometry highway = ctx.Plan.Geometry.Edges[r.Plan.HighwayEdge];
-                double hw = highway != null ? highway.HalfWidth : ctx.Plan.Data.Config.HighwayHalfWidth;
-                double toward = Vec2.Dot(r.Start - s, across) > 0.0 ? 1.0 : -1.0;   // the ramp's side
-                Vector3 at = ctx.Local(s.X, 0.0, s.Y);
-                CityProps.AddGantrySign(structures, at.x, at.z, ctx.LocalY(r.TopStart), (float)across.X, (float)across.Y, (float)hw, (float)(toward * hw * 0.5), r.Plan.ExitNode * 7 + rampIndex);
-            }
         }
 
         /// <summary>Now and then a row of barricades across a street: the evacuation's last cordons.</summary>

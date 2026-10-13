@@ -12,9 +12,9 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// Not a test: renders the city's life to Logs/CityShots/city-*.png -- an expressway deck from the air and from a car's height, an exit with
-    /// its ramp and sign, the ring road, a parking garage and a surface car park, a mall outside and in its concourse, and a plaza. Explicit;
-    /// needs -Graphics. Look at the pictures: green tests do not mean it looks right.
+    /// Not a test: renders the city's life to Logs/CityShots/city-*.png -- a parking garage and a surface car park, a mall outside and in its
+    /// concourse, and a plaza (the expressways have their own, ExpresswayCapture). Explicit; needs -Graphics. Look at the pictures: green tests
+    /// do not mean it looks right.
     /// </summary>
     [Explicit("renders screenshots; needs a graphics device")]
     public sealed class CityFeaturesCapture
@@ -59,59 +59,6 @@ namespace CityX.Tests
 
             plan.TryFindSpawn(out double sx, out double sz);
             var spawn = new Vec2(sx, sz);
-
-            // ---- the expressway: the highest span nearest the spawn ----
-            EdgeGeometry span = null;
-            double spanScore = double.MaxValue;
-            foreach (EdgeGeometry g in plan.Geometry.Edges)
-            {
-                if (g == null || g.Edge.Class != RoadClass.Highway || !g.Elevated || g.Length < 80.0) continue;
-                Vec2 mid = (g.A + g.B) * 0.5;
-                double rise = System.Math.Min(g.DeckA, g.DeckB) - g.MaxGround;
-                if (rise < 6.0) continue;
-                double score = (mid - spawn).Length;
-                if (score < spanScore) { spanScore = score; span = g; }
-            }
-            if (span != null)
-            {
-                Vec2 mid = (span.A + span.B) * 0.5;
-                float top = (float)span.DeckTopAt(span.Length * 0.5);
-                var centre = new Vector3((float)mid.X, top, (float)mid.Y);
-                var along = new Vector3((float)span.Dir.X, 0.0f, (float)span.Dir.Y);
-                var across = new Vector3(-along.z, 0.0f, along.x);
-                yield return Stream(streamer, centre);
-                Shoot(camera, directory, "city-deck-air", centre + across * 70.0f + Vector3.up * 45.0f - along * 30.0f, centre);
-                Shoot(camera, directory, "city-deck-drive", centre - along * 30.0f + Vector3.up * 2.4f + across * 3.0f, centre + along * 60.0f + Vector3.up * 1.0f);
-                Shoot(camera, directory, "city-deck-under", centre - across * 22.0f + Vector3.up * (-top + (float)plan.GroundHeight(mid.X, mid.Y) + 1.9f) + along * 10.0f, centre - Vector3.up * 3.0f + along * 25.0f);
-                Debug.Log($"CityX city capture: deck edge {span.Edge.Id} at {mid.X:F0},{mid.Y:F0}, {top - plan.GroundHeight(mid.X, mid.Y):F1} m up");
-            }
-
-            // ---- an exit: the off-ramp nearest the spawn ----
-            RampGeometry ramp = null;
-            double rampScore = double.MaxValue;
-            foreach (RampGeometry r in plan.Geometry.Ramps)
-            {
-                if (!r.Plan.Leaving) continue;
-                double score = (r.Start - spawn).Length;
-                if (score < rampScore) { rampScore = score; ramp = r; }
-            }
-            if (ramp != null)
-            {
-                var start = new Vector3((float)ramp.Start.X, (float)ramp.TopStart, (float)ramp.Start.Y);
-                var foot = new Vector3((float)ramp.Foot.X, (float)ramp.TopFoot, (float)ramp.Foot.Y);
-                var midPoint = new Vector3((float)ramp.Mid.X, (float)ramp.TopMid, (float)ramp.Mid.Y);
-                var dirA = new Vector3((float)ramp.DirA.X, 0.0f, (float)ramp.DirA.Y);
-                Vector3 look = (foot - start).normalized;
-                Vector3 side = Vector3.Cross(Vector3.up, look);
-                // From the deck, approaching the exit: the gantry sign stands over the deck where the ramp leaves it.
-                yield return Stream(streamer, start);
-                Shoot(camera, directory, "city-exit-drive", start - dirA * 40.0f + Vector3.up * 2.4f, midPoint + Vector3.up * 1.0f);
-                Shoot(camera, directory, "city-exit-sign", start - dirA * 18.0f + Vector3.up * 3.0f, start + dirA * 20.0f + Vector3.up * 5.0f);
-                yield return Stream(streamer, midPoint);
-                Shoot(camera, directory, "city-exit-air", midPoint + side * 90.0f + Vector3.up * 60.0f - look * 20.0f, midPoint);
-                Shoot(camera, directory, "city-exit-street", foot + look * 25.0f + Vector3.up * 1.9f + side * 8.0f, midPoint + Vector3.up * 2.0f);
-                Debug.Log($"CityX city capture: exit {ramp.Plan.ExitNode} ramp from {ramp.Start.X:F0},{ramp.Start.Y:F0} ({ramp.TopStart:F1}) to {ramp.Foot.X:F0},{ramp.Foot.Y:F0} ({ramp.TopFoot:F1}), {ramp.Length:F0} m");
-            }
 
             // ---- parking: the garage and the car park nearest the spawn ----
             if (TryNearest(plan, spawn, b => b.IsParkingGarage, out BuildingSite garage))
@@ -231,16 +178,6 @@ namespace CityX.Tests
                 Vec2 inward = (c - edge).Normalized;
                 Shoot(camera, directory, "city-plaza-eye", new Vector3((float)(edge.X + inward.X * 3.0), ground + 1.9f, (float)(edge.Y + inward.Y * 3.0)), centre + Vector3.up * 1.0f);
                 Debug.Log($"CityX city capture: plaza block {plazaIndex} at {c.X:F0},{c.Y:F0}, {block.Area:F0} m2");
-            }
-
-            // ---- the ring road: from high above the centre ----
-            double radius = plan.Data.Config.OrbitalRadius;
-            if (radius > 0.0)
-            {
-                var over = new Vector3((float)radius, 0.0f, 0.0f);
-                float ground = (float)plan.GroundHeight(radius, 0.0);
-                yield return Stream(streamer, new Vector3(over.x, ground, over.z));
-                Shoot(camera, directory, "city-ring-air", new Vector3(over.x + 120.0f, ground + 160.0f, over.z - 200.0f), new Vector3(over.x, ground, over.z + 150.0f));
             }
 
             Object.Destroy(cameraObject);

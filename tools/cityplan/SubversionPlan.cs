@@ -12,8 +12,9 @@ using CityX.World.Plan;
 /// Usage: dotnet run -c Release --project tools/cityplan -- [seed] [halfMetres] [pixels] [out.png] [centreX centreZ viewHalf]
 /// With a centre and view half-size it renders just that window (a close look).
 ///
-/// Colours: expressways pale grey with a yellow centre (the deck), their interchange ramps orange and the land they cut off dark grey;
-/// cyan rings at the exits, red squares where an expressway ends. Plazas light green, malls magenta, garages blue, open car parks grey with a P.
+/// Colours: expressway main decks pale (brighter the higher), connectors violet, ramps orange, piers white dots, kerb cuts red, the land an
+/// interchange keeps clear dark; cyan rings at the exits, magenta at the system interchanges. Plazas light green, malls magenta, garages blue,
+/// open car parks grey with a P.
 /// </summary>
 public static class SubversionPlan
 {
@@ -28,7 +29,8 @@ public static class SubversionPlan
         double view = args.Length > 6 ? double.Parse(args[6]) : half;
 
         var cfg = PlanWorld.DefaultConfig();
-        cfg.Half = half;
+        if (half > 0.0) cfg.Half = half;   // 0: the game's own region, exactly
+        else half = cfg.Half;
         var sw = Stopwatch.StartNew();
         PlanWorld world = PlanWorld.Create(seed, cfg);
         sw.Stop();
@@ -97,7 +99,7 @@ public static class SubversionPlan
                 if (eg == null) continue;
                 Vec2 a = eg.A + eg.Dir * eg.TrimA, b = eg.B - eg.Dir * eg.TrimB;
                 Vec2 n = eg.Dir.Perp * eg.HalfWidth;
-                Color col = eg.Edge.Bridge ? Color.FromArgb(255, 235, 150) : (eg.Edge.Class == RoadClass.Highway ? Color.FromArgb(120, 120, 128) : eg.Edge.Class == RoadClass.Arterial ? Color.FromArgb(60, 60, 68) : Color.FromArgb(52, 52, 60));
+                Color col = eg.Edge.Bridge ? Color.FromArgb(255, 235, 150) : (eg.Edge.Class == RoadClass.Boulevard ? Color.FromArgb(90, 90, 100) : eg.Edge.Class == RoadClass.Arterial ? Color.FromArgb(60, 60, 68) : Color.FromArgb(52, 52, 60));
                 using (var brush = new SolidBrush(col))
                     g.FillPolygon(brush, new[] { P(a + n), P(b + n), P(b - n), P(a - n) });
             }
@@ -110,62 +112,6 @@ public static class SubversionPlan
                     var pts = new PointF[j.Plate.Length];
                     for (int i = 0; i < pts.Length; i++) pts[i] = P(j.Plate[i]);
                     g.FillPolygon(brush, pts);
-                }
-            }
-            // The expressway decks: a yellow line down the middle of each (dashed where it descends to the ground), and the plates where decks meet.
-            using (var deckPen = new Pen(Color.FromArgb(230, 200, 60), Math.Max(1f, (float)(1.5 * scale))))
-            using (var endPen = new Pen(Color.FromArgb(230, 90, 60), Math.Max(1f, (float)(1.5 * scale))) { DashStyle = DashStyle.Dash })
-            using (var deckBrush = new SolidBrush(Color.FromArgb(135, 135, 145)))
-            {
-                foreach (var j in world.Geometry.Junctions)
-                {
-                    if (j == null || j.DeckPlate == null) continue;
-                    var pts = new PointF[j.DeckPlate.Length];
-                    for (int i = 0; i < pts.Length; i++) pts[i] = P(j.DeckPlate[i]);
-                    g.FillPolygon(deckBrush, pts);
-                }
-                foreach (var eg in world.Geometry.Edges)
-                {
-                    if (eg == null || !eg.Elevated) continue;
-                    double groundA = plan.Fields.Height(eg.A.X, eg.A.Y), groundB = plan.Fields.Height(eg.B.X, eg.B.Y);
-                    bool low = eg.DeckA - groundA < cfg.DeckClearance || eg.DeckB - groundB < cfg.DeckClearance;
-                    g.DrawLine(low ? endPen : deckPen, P(eg.A), P(eg.B));
-                }
-            }
-            // Interchanges: the land each ramp cuts off, then the ramp itself.
-            using (var sliver = new SolidBrush(Color.FromArgb(90, 88, 92)))
-            using (var ramp = new SolidBrush(Color.FromArgb(235, 150, 60)))
-            using (var exit = new Pen(Color.Cyan, 2f))
-            {
-                foreach (var r in world.Geometry.Ramps)
-                {
-                    var pts = new PointF[r.Plan.Sliver.Length];
-                    for (int i = 0; i < pts.Length; i++) pts[i] = P(r.Plan.Sliver[i]);
-                    g.FillPolygon(sliver, pts);
-                }
-                foreach (var r in world.Geometry.Ramps)
-                {
-                    Vec2 pa = r.PerpStart * r.HalfWidth, pm = r.PerpMid * r.HalfWidth, pf = r.PerpFoot * r.HalfWidth;
-                    g.FillPolygon(ramp, new[] { P(r.Start + pa), P(r.Mid + pm), P(r.Mid - pm), P(r.Start - pa) });
-                    g.FillPolygon(ramp, new[] { P(r.Mid + pm), P(r.Foot + pf), P(r.Foot - pf), P(r.Mid - pm) });
-                }
-                foreach (int id in plan.ExitNodes)
-                {
-                    var p = P(plan.Nodes[id].P);
-                    float rad = Math.Max(5f, (float)(40.0 * scale));
-                    g.DrawEllipse(exit, p.X - rad, p.Y - rad, 2 * rad, 2 * rad);
-                }
-            }
-            // Where expressways end.
-            using (var endBrush = new SolidBrush(Color.FromArgb(230, 60, 60)))
-            {
-                foreach (var node in plan.Nodes)
-                {
-                    int highways = 0;
-                    foreach (var e in node.Edges) if (e.Alive && e.Class == RoadClass.Highway) highways++;
-                    if (highways != 1) continue;
-                    var p = P(node.P);
-                    g.FillRectangle(endBrush, p.X - 5, p.Y - 5, 10, 10);
                 }
             }
             // Lots (thin outline) and the buildings fitted in them.
@@ -209,6 +155,7 @@ public static class SubversionPlan
                 b.LocalToWorld(1.0, hd, out double dx1, out double dz1);
                 g.DrawLine(Pens.Gold, P(new Vec2(dx0, dz0)), P(new Vec2(dx1, dz1)));
             }
+            DrawExpressways(g, world, P, scale);
             foreach (var c in plan.Centres) { var p = P(c); g.DrawEllipse(Pens.Red, p.X - 6, p.Y - 6, 12, 12); }
             bmp.Save(outPath, ImageFormat.Png);
         }
@@ -220,54 +167,7 @@ public static class SubversionPlan
     private static void Stats(PlanWorld world)
     {
         CityPlanData plan = world.Data;
-        double highwayKm = 0.0;
-        int ends = 0, deckJunctions = 0;
-        foreach (var eg in world.Geometry.Edges) if (eg != null && eg.Elevated) highwayKm += eg.Length / 1000.0;
-        foreach (var node in plan.Nodes)
-        {
-            int highways = 0;
-            foreach (var e in node.Edges) if (e.Alive && e.Class == RoadClass.Highway) highways++;
-            if (highways == 1) ends++;
-            if (highways >= 3) deckJunctions++;
-        }
-        Console.WriteLine($"  expressways: {highwayKm:F1} km, {plan.ExitNodes.Count} interchanges ({plan.Ramps.Count} ramps, one per {(plan.ExitNodes.Count > 0 ? highwayKm / plan.ExitNodes.Count : 0):F2} km), {ends} ends, {deckJunctions} junctions of expressways");
-        {
-            Vec2 c0 = new Vec2(0.0, 0.0);
-            double radius = plan.Config.OrbitalRadius;
-            int ringEdges = 0;
-            foreach (var eg in world.Geometry.Edges)
-            {
-                if (eg == null || !eg.Elevated) continue;
-                double da = (eg.A - c0).Length, db = (eg.B - c0).Length;
-                if (Math.Abs(da - radius) < 0.25 * radius && Math.Abs(db - radius) < 0.25 * radius) ringEdges++;
-            }
-            Console.WriteLine($"  orbital: radius {radius:F0} m round ({c0.X:F0}, {c0.Y:F0}): {ringEdges} expressway edges near that circle");
-        }
-        double worstGrade = 0.0, leastDrop = double.MaxValue;
-        foreach (var r in world.Geometry.Ramps)
-        {
-            double grade = (r.TopStart - r.TopFoot) / Math.Max(1.0, r.Length);
-            worstGrade = Math.Max(worstGrade, grade);
-            leastDrop = Math.Min(leastDrop, r.TopStart - r.TopFoot);
-            if (r.TopStart - r.TopFoot < Interchanges.MinDrop)
-            {
-                var eg = world.Geometry.Edges[r.Plan.HighwayEdge];
-                double rise = world.Data.Config.DeckClearance + world.Data.Config.DeckThickness;
-                Console.WriteLine($"  LOW RAMP at exit {r.Plan.ExitNode} S=({r.Plan.S.X:F0},{r.Plan.S.Y:F0}): top {r.TopStart:F2} foot {r.TopFoot:F2}; edge {eg.Edge.Id} deck A {eg.DeckA:F2} B {eg.DeckB:F2}, maxGround+rise {eg.MaxGround + rise:F2}, ground at S {world.GroundHeight(r.Plan.S.X, r.Plan.S.Y):F2}, SAlong {r.Plan.SAlong:F0} of {eg.Length:F0}");
-            }
-        }
-        Console.WriteLine($"  ramps: steepest grade {100.0 * worstGrade:F1}%, least drop {leastDrop:F1} m");
-        int[] rej = Interchanges.Rejections;
-        if (rej != null)
-        {
-            Console.WriteLine($"  exit candidates {rej[0]}: too close {rej[1]}; ramps lost: no room along {rej[2]}, no cross street {rej[3]}, street short {rej[4]}, crossed {rej[5]}, foot on junction {rej[6]}, wet/outside {rej[7]}, near an end {rej[8]}");
-        }
-        int shown = 0;
-        foreach (int id in plan.ExitNodes)
-        {
-            if (shown++ >= 4) break;
-            Console.WriteLine($"  exit at ({plan.Nodes[id].P.X:F0}, {plan.Nodes[id].P.Y:F0})");
-        }
+        ExpresswayStats(world);
 
         int garages = 0, lots = 0, malls = 0, groundSites = 0;
         var mallCentres = new List<Vec2>();
@@ -342,6 +242,135 @@ public static class SubversionPlan
             if (nearest < double.MaxValue) meanNearest += nearest;
         }
         Console.WriteLine($"  plazas: {plazas.Count}" + (plazas.Count > 1 ? $", mean distance to the nearest other {meanNearest / plazas.Count:F0} m" : ""));
+    }
+
+    private static void DrawExpressways(Graphics g, PlanWorld world, Func<Vec2, PointF> P, double scale)
+    {
+        ExpresswayNetwork xw = world.Data.Expressways;
+        using (var infield = new SolidBrush(Color.FromArgb(70, 30, 30, 40)))
+            foreach (var poly in xw.Infields)
+            {
+                var pts = new PointF[poly.Length];
+                for (int i = 0; i < pts.Length; i++) pts[i] = P(poly[i]);
+                g.FillPolygon(infield, pts);
+            }
+        // Lowest first, so a deck passing over another is drawn on top of it.
+        var order = new List<(double top, ViaductPath path, int seg)>();
+        foreach (ViaductPath path in xw.Paths)
+            for (int i = 0; i < path.Segments; i++) order.Add(((path.Top[i] + path.Top[i + 1]) * 0.5, path, i));
+        order.Sort((a, b) => a.top.CompareTo(b.top));
+        foreach (var (top, path, i) in order)
+        {
+            double ground = world.GroundHeight(path.P[i].X, path.P[i].Y);
+            double up = Math.Max(0.0, Math.Min(1.0, (top - ground) / 25.0));
+            Color c = path.Kind == ViaductKind.Mainline ? Color.FromArgb(255, (int)(150 + 100 * up), (int)(150 + 100 * up), (int)(160 + 90 * up))
+                : path.Kind == ViaductKind.Connector ? Color.FromArgb(255, (int)(120 + 80 * up), 80, (int)(170 + 80 * up))
+                : Color.FromArgb(255, 230, (int)(110 + 90 * up), 40);
+            Vec2[] f = path.Footprint(i, 0.0);
+            using (var brush = new SolidBrush(c))
+                g.FillPolygon(brush, new[] { P(f[0]), P(f[1]), P(f[2]), P(f[3]) });
+        }
+        using (var pen = new Pen(Color.FromArgb(200, 60, 60, 70), 1f))
+            foreach (ViaductPath path in xw.Paths)
+                for (int i = 0; i < path.Segments; i++)
+                    if (path.Kind == ViaductKind.Mainline && (i / 4) % 2 == 0) g.DrawLine(pen, P(path.P[i]), P(path.P[i + 1]));
+        float dot = Math.Max(1.5f, (float)(1.2 * scale));
+        foreach (var pier in xw.Piers)
+        {
+            var p = P(pier.P);
+            g.FillEllipse(Brushes.White, p.X - dot, p.Y - dot, 2 * dot, 2 * dot);
+        }
+        using (var cut = new SolidBrush(Color.FromArgb(230, 230, 40, 40)))
+            foreach (var k in xw.KerbCuts)
+            {
+                var pts = new PointF[k.Poly.Length];
+                for (int i = 0; i < pts.Length; i++) pts[i] = P(k.Poly[i]);
+                g.FillPolygon(cut, pts);
+            }
+        using (var exit = new Pen(Color.Cyan, 2f))
+        using (var system = new Pen(Color.Magenta, 3f))
+            foreach (var ic in xw.Interchanges)
+            {
+                var p = P(ic.At);
+                float rad = Math.Max(6f, (float)((ic.System ? 120.0 : 50.0) * scale));
+                g.DrawEllipse(ic.System ? system : exit, p.X - rad, p.Y - rad, 2 * rad, 2 * rad);
+            }
+        using (var bar = new SolidBrush(Color.Red))
+            foreach (var b in xw.Barriers)
+            {
+                var p = P(b.P);
+                g.FillRectangle(bar, p.X - 4, p.Y - 4, 8, 8);
+            }
+    }
+
+    /// <summary>The expressways by the numbers: routes, interchanges, ramp shapes, grades, clearances; what the planner turned down and why.</summary>
+    private static void ExpresswayStats(PlanWorld world)
+    {
+        ExpresswayNetwork xw = world.Data.Expressways;
+        var cfg = world.Data.Config;
+        double mainKm = 0.0, alongKm = 0.0, embankKm = 0.0, overRoadKm = 0.0, lowOverRoad = 0.0;
+        double steepMain = 0.0;
+        foreach (ExpresswayRoute route in xw.Routes)
+        {
+            ViaductPath m = xw.Paths[route.Path];
+            Console.WriteLine($"  route {route.Id}: {(route.Ring ? "ring" : "through")}, {m.Length / 1000.0:F1} km, {m.Count} samples");
+            for (int i = 0; i < m.Segments; i++)
+            {
+                double len = m.S[i + 1] - m.S[i];
+                mainKm += len / 1000.0;
+                double ground = world.GroundHeight(m.P[i].X, m.P[i].Y);
+                double under = m.Top[i] - m.Slab - ground;
+                if (under < 2.0) embankKm += len / 1000.0;
+                steepMain = Math.Max(steepMain, Math.Abs(m.Top[i + 1] - m.Top[i]) / Math.Max(0.01, len));
+                foreach (var eg in world.Geometry.Edges)
+                {
+                    if (eg == null) continue;
+                    if (Math.Abs(eg.A.X - m.P[i].X) > 400 && Math.Abs(eg.B.X - m.P[i].X) > 400) continue;
+                    double d = PlanMath.DistanceToSegment(m.P[i], eg.A, eg.B, out _);
+                    if (d > eg.HalfWidth + cfg.SidewalkWidth + m.HalfLeft[i]) continue;
+                    overRoadKm += len / 1000.0;
+                    if (Math.Abs(Vec2.Dot(eg.Dir, m.SegmentDir(i))) > 0.9 && d < eg.HalfWidth + m.HalfLeft[i] * 0.5) alongKm += len / 1000.0;
+                    if (under < ExpresswayPlanner.StreetClearance - 0.3) lowOverRoad += len;
+                    break;
+                }
+            }
+        }
+        Console.WriteLine($"  expressways: {mainKm:F1} km of main line ({100 * embankKm / Math.Max(0.01, mainKm):F0}% on embankment), {100 * overRoadKm / Math.Max(0.01, mainKm):F0}% over a road, {100 * alongKm / Math.Max(0.01, mainKm):F1}% ALONG one; steepest {100 * steepMain:F1}%; low over a road {lowOverRoad:F0} m");
+        int systems = 0, exits = 0;
+        foreach (var ic in xw.Interchanges) { if (ic.System) systems++; else exits++; }
+        var shapes = new Dictionary<string, int>();
+        double steepRamp = 0.0;
+        int curved = 0, straight = 0, viaductRamps = 0, embankRamps = 0;
+        foreach (ViaductPath p in xw.Paths)
+        {
+            if (p.Kind == ViaductKind.Mainline) continue;
+            shapes.TryGetValue(p.Shape, out int c); shapes[p.Shape] = c + 1;
+            double turn = 0.0;
+            for (int i = 1; i < p.Segments; i++) turn += Math.Abs(DMath.Turn(p.SegmentDir(i - 1), p.SegmentDir(i)));
+            if (turn > 0.6) curved++; else straight++;
+            bool high = false, low = false;
+            for (int i = 0; i < p.Count; i++)
+            {
+                double under = p.Top[i] - p.Slab - world.GroundHeight(p.P[i].X, p.P[i].Y);
+                if (under > 4.0) high = true; else if (under < 1.5 && under > -0.5) low = true;
+            }
+            if (high) viaductRamps++;
+            if (low) embankRamps++;
+            for (int i = 0, j = 0; i < p.Count; i++)
+            {
+                while (j < p.Count - 1 && p.S[j] - p.S[i] < 12.0) j++;
+                if (p.S[j] - p.S[i] >= 12.0) steepRamp = Math.Max(steepRamp, Math.Abs(p.Top[j] - p.Top[i]) / (p.S[j] - p.S[i]));
+            }
+        }
+        var sb = new System.Text.StringBuilder();
+        foreach (var kv in shapes) sb.Append($" {kv.Key} {kv.Value};");
+        Console.WriteLine($"  interchanges: {systems} system, {exits} exits; decks:{sb}  curved {curved}, straight {straight}; with a viaduct {viaductRamps}, with an embankment {embankRamps}; steepest ramp {100 * steepRamp:F1}%; {xw.Piers.Count} piers, {xw.Signs.Count} signs, {xw.KerbCuts.Count} kerb cuts");
+        if (ExpresswayPlanner.Tally != null)
+        {
+            var t = new System.Text.StringBuilder();
+            foreach (var kv in ExpresswayPlanner.Tally) t.Append($" {kv.Key}: {kv.Value};");
+            Console.WriteLine("  planner:" + t);
+        }
     }
 
     private static void Check(PlanWorld world)

@@ -163,7 +163,7 @@ namespace CityX.UI
                 case "equip": return "/equip <bottle|jeans|cloak|coat|jacket|grapple|pistol|sword|flamethrower|" +
                     "jetpack|parachute|top_hat|farmer_hat>";
                 case "unequip": return "/unequip <hand_r (primary)|hand_l (secondary)|legs|top|back|helmet>";
-                case "goto": return "/goto <slope|district> -- teleports to the nearest one";
+                case "goto": return "/goto <slope|highway> -- teleports to the nearest one (onto an expressway's deck for highway)";
                 case "jacket": return "/jacket <scale|offset> <value>, or /jacket pose -- " +
                     "live-tunes the equipped top's own size/vertical position (wear only one top while tuning)";
                 case "pistol": return "/pistol <pos|rot> <x> <y> <z>, /pistol scale <value>, or /pistol pose -- " +
