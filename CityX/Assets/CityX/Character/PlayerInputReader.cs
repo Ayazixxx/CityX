@@ -821,7 +821,7 @@ namespace CityX.Character
             {
                 _climbing.Tick(keyboard.spaceKey.wasPressedThisFrame,
                     keyboard.wKey.isPressed, keyboard.sKey.isPressed, _vitals, deltaTime,
-                    dropPressed: keyboard.leftCtrlKey.wasPressedThisFrame);
+                    dropPressed: keyboard.leftCtrlKey.wasPressedThisFrame, leftHeld: keyboard.aKey.isPressed, rightHeld: keyboard.dKey.isPressed);
                 _audio?.SilenceFootsteps();
                 return;
             }
@@ -844,7 +844,7 @@ namespace CityX.Character
                 {
                     _climbing.Tick(keyboard.spaceKey.wasPressedThisFrame,
                         keyboard.wKey.isPressed, keyboard.sKey.isPressed, _vitals, deltaTime,
-                    dropPressed: keyboard.leftCtrlKey.wasPressedThisFrame);
+                    dropPressed: keyboard.leftCtrlKey.wasPressedThisFrame, leftHeld: keyboard.aKey.isPressed, rightHeld: keyboard.dKey.isPressed);
                     _audio?.SilenceFootsteps();
                     return;
                 }
@@ -882,7 +882,7 @@ namespace CityX.Character
                 {
                     _climbing.Tick(keyboard.spaceKey.wasPressedThisFrame,
                         keyboard.wKey.isPressed, keyboard.sKey.isPressed, _vitals, deltaTime,
-                        dropPressed: keyboard.leftCtrlKey.wasPressedThisFrame);
+                        dropPressed: keyboard.leftCtrlKey.wasPressedThisFrame, leftHeld: keyboard.aKey.isPressed, rightHeld: keyboard.dKey.isPressed);
                     _audio?.SilenceFootsteps();
                     return;
                 }

@@ -108,7 +108,9 @@ namespace CityX.Character
         /// GrappleSwing.ArmPoseDegreesPerSecond); this is meant to catch an
         /// instantaneous jump, not flag ordinary fast movement.
         /// </summary>
-        public const float MaxBoneDegreesPerSecond = 1500.0f;
+        // 1500 until 2026-10-13: the locomotion clips are paced to the body now (ClipCadence, up to 4x), and a sprint's arm pump at 1.7x passed it.
+        // The corruption this exists to catch was 10627 deg/s. Kept equal to PlayerLocomotion.MaxPlausibleArmDegreesPerSecond.
+        public const float MaxBoneDegreesPerSecond = 4500.0f;
 
         /// <summary>
         /// A FLOOR ON THE DIVISOR, not a real frame rate -- confirmed

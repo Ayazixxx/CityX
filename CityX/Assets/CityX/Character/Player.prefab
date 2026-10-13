@@ -1872,6 +1872,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: eda34cc5d6c5f454e95ec92677c605df, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Character::CityX.Character.PlayerLocomotion
+  FootIkEnabled: 1
   WalkSpeed: 4
   SprintSpeed: 7.5
   JetpackDiveSpeedMultiplier: 2

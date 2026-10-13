@@ -39,7 +39,7 @@ namespace CityX.Character
     // class to run first guarantees the watchdog only ever sees this
     // class's own already-corrected result.
     [DefaultExecutionOrder(-100)]
-    public sealed class PlayerLocomotion : MonoBehaviour
+    public sealed partial class PlayerLocomotion : MonoBehaviour
     {
         [Header("Movement (ported from player.gd)")]
         [Tooltip("player.gd SPEED")]
@@ -488,7 +488,7 @@ namespace CityX.Character
             float offset = Vector3.Dot(point - _climbWallPoint, normal);
             if (LedgeProbe.SolidHit(point + normal * 0.5f, -normal, 1.0f, transform, out RaycastHit hit) && Mathf.Abs(hit.normal.y) < 0.5f)
             {
-                return hit.point + normal * Mathf.Clamp(offset, 0.0f, 0.12f);
+                return hit.point + normal * Mathf.Clamp(offset, 0.0f, 0.17f);   // room for an ankle with its sole flat on the wall (ClimbLimbStepper.FootOffWall)
             }
             return point;
         }
@@ -523,6 +523,8 @@ namespace CityX.Character
             {
                 _lastClimbDirection = direction;
             }
+            // Where the body is going on the wall: what the climb (or, on a copy, the network) said; failing that, the Animator's up or down.
+            Vector2 travel = _climbTravel.sqrMagnitude > 1e-4f ? _climbTravel : new Vector2(0.0f, direction);
             Vector3 n = _climbWallNormal;
             var body = new ClimbLimbStepper.Body
             {
@@ -533,16 +535,24 @@ namespace CityX.Character
                 ArmLength = 0.5f * (LimbLength(_leftUpperArm, _leftLowerArm, _handL) + LimbLength(_rightUpperArm, _rightLowerArm, _handR)),
                 LegLength = 0.5f * (LimbLength(_leftUpperLeg, _leftLowerLeg, _leftFoot) + LimbLength(_rightUpperLeg, _rightLowerLeg, _rightFoot)),
             };
-            _climbStepper.Tick(deltaTime, body, _climbWallPoint, n, _lastClimbDirection, SnapToClimbWall);
+            _climbStepper.Tick(deltaTime, body, _climbWallPoint, n, travel, SnapToClimbWall);
 
             float weight = Mathf.SmoothStep(0.0f, 1.0f, _climbIkBlend) * Mathf.Clamp01(_climbWallWeight);
+            Vector3 across = ClimbLimbStepper.Across(n);   // the body's right when it faces the wall
 
-            // The chest leans in to the wall, and turns a little toward whichever hand reaches.
-            Vector3 across = Vector3.Cross(Vector3.up, -n).normalized;   // the body's right when it faces the wall
+            // The chest leans in to the wall, turns a little toward whichever hand reaches, and tips toward the way it is shuffling.
             if (_spine != null)
             {
                 float reach = (_climbStepper.IsStepping(ClimbLimbStepper.Limb.RightHand) ? 1.0f : 0.0f) - (_climbStepper.IsStepping(ClimbLimbStepper.Limb.LeftHand) ? 1.0f : 0.0f);
-                _spine.rotation = Quaternion.AngleAxis(-reach * 7.0f * weight, Vector3.up) * Quaternion.AngleAxis(9.0f * weight, across) * _spine.rotation;
+                _spine.rotation = Quaternion.AngleAxis(-reach * 7.0f * weight, Vector3.up) * Quaternion.AngleAxis(ClimbChestLeanDegrees * weight, across)
+                    * Quaternion.AngleAxis(-travel.x * ClimbChestSideTiltDegrees * weight, -n) * _spine.rotation;
+            }
+            // The head looks where the climb is going: up the wall, down at the feet, along the wall when shuffling.
+            if (_head != null)
+            {
+                float pitch = (ClimbHeadLookUpDegrees * Mathf.Clamp01(travel.y) - ClimbHeadLookDownDegrees * Mathf.Clamp01(-travel.y)) * weight;
+                float yaw = travel.x * ClimbHeadLookAlongDegrees * weight;
+                _head.rotation = Quaternion.AngleAxis(yaw, Vector3.up) * Quaternion.AngleAxis(-pitch, across) * _head.rotation;
             }
 
             Vector3 elbowLeft = -Vector3.up * 0.5f - across * 0.9f + n * 0.3f;
@@ -553,7 +563,26 @@ namespace CityX.Character
             TwoBoneIK.Solve(_rightUpperArm, _rightLowerArm, _handR, _climbStepper.Target(ClimbLimbStepper.Limb.RightHand, n), elbowRight, weight);
             TwoBoneIK.Solve(_leftUpperLeg, _leftLowerLeg, _leftFoot, _climbStepper.Target(ClimbLimbStepper.Limb.LeftFoot, n), kneeLeft, weight);
             TwoBoneIK.Solve(_rightUpperLeg, _rightLowerLeg, _rightFoot, _climbStepper.Target(ClimbLimbStepper.Limb.RightFoot, n), kneeRight, weight);
+
+            // THE SOLES PRESS FLAT ON THE WALL, toes down, as a climber's do: the ankle is held a foot's height off the face (ClimbLimbStepper.FootOffWall), so
+            // turning the foot sole-to-wall puts the sole on it. (The foot bone's own axes are the body's: +z toes, +y the top of the foot.)
+            Quaternion soleOnWall = Quaternion.LookRotation(Vector3.down, n);
+            _leftFoot.rotation = Quaternion.Slerp(_leftFoot.rotation, soleOnWall, weight);
+            _rightFoot.rotation = Quaternion.Slerp(_rightFoot.rotation, soleOnWall, weight);
         }
+
+        /// <summary>How far the chest leans in toward the wall while climbing, degrees.</summary>
+        public const float ClimbChestLeanDegrees = 9.0f;
+
+        /// <summary>How far the chest tips toward the leading side while shuffling sideways, degrees.</summary>
+        public const float ClimbChestSideTiltDegrees = 6.0f;
+
+        /// <summary>The head looks up the wall climbing up, down at the feet climbing down, along the wall shuffling sideways: degrees at full travel.</summary>
+        public const float ClimbHeadLookUpDegrees = 14.0f;
+
+        public const float ClimbHeadLookDownDegrees = 10.0f;
+
+        public const float ClimbHeadLookAlongDegrees = 25.0f;
 
         // ---- UNARMED STRIKES: the fists and torso (see FistStrikes / FistPoseDriver) ------------------------------------------------------------
 
@@ -647,6 +676,16 @@ namespace CityX.Character
         public Vector3 ClimbWallPoint => _climbWallPoint;
 
         public Vector3 ClimbWallNormal => _climbWallNormal;
+
+        private Vector2 _climbTravel;
+
+        /// <summary>Which way the body is going on the wall: x along it (its right positive), y up; zero holding. Drives the limb steps (ClimbLimbStepper); read back for a network copy.</summary>
+        public Vector2 ClimbTravel => _climbTravel;
+
+        public void SetClimbTravel(Vector2 travel)
+        {
+            _climbTravel = Vector2.ClampMagnitude(travel, 1.0f);
+        }
 
         /// <summary>Where the hands are being put on a ledge (read back so a network copy can be told it).</summary>
         public Vector3 LedgeLip => _ledgeLip;
@@ -1406,6 +1445,9 @@ namespace CityX.Character
             {
                 ClampFeetAboveGround();
             }
+            // The feet on the real ground (hip drop, locks, sole tilt): right after the clamp, which it builds on, and before every pose that
+            // only touches the upper body. See PlayerLocomotion.FootIK.cs.
+            ApplyFootIK();
             ApplyDrivingWheelPose();
             ApplyCastingPose();
             ApplyGunAimPose();
@@ -1452,7 +1494,10 @@ namespace CityX.Character
         /// at 240 deg/s; this is meant to catch an instantaneous jump, not
         /// flag ordinary fast movement).
         /// </summary>
-        private const float MaxPlausibleArmDegreesPerSecond = 1500.0f;
+        // 1500 until 2026-10-13. The locomotion clips are now paced to the body (ClipCadence: the run plays 1.7x, the walk 2.8x, a backward walk
+        // 4x), and a sprint's arm pump at 1.7x passed 1500 on its own; the hold-then-accept then doubled the next frame's step and the watchdog
+        // (same bound) cried wolf on an ordinary run. The glitch this catches was 10627 deg/s, so there is room.
+        private const float MaxPlausibleArmDegreesPerSecond = 4500.0f;
 
         private Quaternion _previousHeadRotation = Quaternion.identity;
         private Quaternion _previousRightUpperArmRotation = Quaternion.identity;
@@ -2753,7 +2798,18 @@ namespace CityX.Character
             // A baked move carries its own lean (an Octaslash dash along the ground is 52 m/s, which would tip the running lean right over).
             bool leaning = animatorLive && !IsSitting && !InCarSeat
                 && _animator.GetBool(GroundedParameter) && LocomotionClipsOwnTheSpine && _bakedPoseWeight <= 0.0f;
-            _lean.Step(velocity, leaning, deltaTime);
+            // THE SLOPE UNDER THE FEET (from the foot placement's ground rays): walking uphill leans into the hill, downhill a little back.
+            Vector3 slopeLean = Vector3.zero;
+            var flatVelocity = new Vector3(velocity.x, 0.0f, velocity.z);
+            if (leaning && flatVelocity.sqrMagnitude > 0.25f && _groundNormal.y > 0.5f)
+            {
+                Vector3 direction = flatVelocity.normalized;
+                float rise = -(_groundNormal.x * direction.x + _groundNormal.z * direction.z) / _groundNormal.y;   // the slope's tangent along the travel, uphill positive
+                float slopeDegrees = Mathf.Atan(rise) * Mathf.Rad2Deg;
+                float degrees = slopeDegrees > 0.0f ? slopeDegrees * BodyLean.UphillLeanFraction : slopeDegrees * BodyLean.DownhillLeanFraction;
+                slopeLean = direction * degrees;
+            }
+            _lean.Step(velocity, leaning, deltaTime, slopeLean);
             Quaternion world = _lean.Rotation();
             Transform root = _animator.transform;
             if (!_hasRootRest)

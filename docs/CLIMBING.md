@@ -187,3 +187,65 @@ it showed every real-city facade climb letting go a metre up: the body rose into
 knee-height ray; its ragdoll collider was read as "a person, not a wall", so Shift+W into a wall failed or worked depending on the
 stride (`RealInputClimbingPlayTests` failed only in full runs). All three callers (grab, run-up climb, wall stick) pass their body.
 `WallGrabIntentTests.ThePlayersOwnLegInFrontOfTheRayIsLookedPast` guards it.
+
+## Update: the climb that looks like a climber, and sideways (2026-10-13)
+
+Owner: "the climbing i want to keep like breath of the wild but update that animation because it looks awful, also allow sideways climbing with A & D
+and make an animation that looks good for that." A render of the old climb (`ClimbCapture`) showed why: the hands were held 0.62 arm lengths over the
+shoulders, which on this rig is a straight arm over the head, the feet hung half a leg straight down with the toes pointing at the ground, and the
+body barely changed from frame to frame: a mannequin hung on a hook.
+
+What Breath of the Wild does (New Frame Plus's breakdown of Link's climb, a developer's rebuild of it in Unreal): about eight directional loops (up,
+down, left, right, the diagonals) blended by the way the stick points, IK keeping the hands and feet on the surface, a quick settle into an idle when
+the stick is let go, the body following the wall's slope. The limbs here are already procedural, so the "loops" are the stepper's hold geometry:
+
+- **Holds a climber could use** (`ClimbLimbStepper`): each limb has a REST hold (a hand 0.22 arm lengths above its shoulder, about chin height, and
+  0.26 out; a foot 0.42 leg lengths below its hip and 0.30 out) plus a REACH along the direction of travel (a hand 0.42 arm lengths going up, 0.32
+  sideways, 0.18 going down; a foot 0.26 going up or sideways, 0.34 going down). Going up, the hands reach for holds the arm can only get to bent and the feet step up beside the
+  hips, a frog's push; going down the feet lead and the hands follow at shoulder height; sideways the leading hand and foot reach out along the wall and
+  the trailing ones follow, and the hands never cross.
+- **Steps along the travel**: a limb steps when its hold has fallen 0.36 (hands) / 0.34 (feet) limb lengths behind its ideal ALONG THE DIRECTION OF
+  TRAVEL, whichever direction that is, so a change of direction re-plants the holds one diagonal pair at a time. Hanging still, nothing steps (BotW's
+  idle).
+- **Soles flat on the wall**, toes down: the ankle's hold is a foot's height (0.145 m) off the face and the foot bone is turned sole-to-wall after the
+  leg solve (`PlayerLocomotion.ApplyClimbLimbs`).
+- **The head looks where the climb is going** (up 14 degrees, down 10, along the wall 25 when shuffling), the chest leans into the wall as before and tips
+  6 degrees toward the way it is shuffling.
+- **Sideways** (`PlayerClimbing.Tick`, A and D): the hang point shuffles along the wall face at 1.8 m/s (climbing is 2.5) as long as the SAME face is
+  found at chest and knee height 0.45 m past the body's edge on that side; at the wall's end or a corner the shuffle stops and the grip holds. Blocked
+  (a pipe, another climber), the hang point comes back to where the body really is, so letting go of the key never leaves the body lurching. Diagonals
+  (W + D) work. The clip is always told up or down and is frozen through `ClimbSpeedScale` when holding still (as character.gd's hold_climb did), played
+  while shuffling.
+- **Other players** see it: the travel (along, up) goes in the climbing motion message (`NetworkedAnimatorSync`) and the copy's stepper walks the same way.
+
+Tests: `ClimbLimbStepperTests` (shuffling sideways every limb keeps stepping and nothing crosses; diagonals; the arms stay bent and the feet push from
+beside the hips; climbing down the feet lead; a change of direction re-plants one pair at a time), `SidewaysClimbPlayTests` (real rig: D moves the body
+1.2 m+ along the wall in a second at the same height, A brings it back; the shuffle stops at a 4 m wall's end; the limbs keep stepping and stay on the
+wall), `ClimbCapture` now also renders `climb-sheet-sideways.png`.
+
+Not done: a dedicated hang/idle sway; the hands' palms are not turned flat on the wall (the wrists stay straight, fingers along the forearm up the wall);
+no clip is used for the limbs at all.
+
+## Update: vaulting into a broken window (2026-10-13)
+
+Owner: "right now you cant vault into a window which you should be able to if its been shattered or broken completely." The city's ground-floor windows
+come in two kinds: the door wall's panes start 16 cm up (a step: a shattered one is simply walked into) and the others' sills are at 0.4 to 1.1 m
+(Ribbon 0.38, Punched 0.9, HighBand 1.12 on a 3.2 m row). The sill is a fine vault, but `VaultProbe` asked for 0.9 of a standing body's worth of air over
+the far edge, and a window's lintel is 1.4 to 1.9 m over its sill, so every window was refused.
+
+- `VaultProbe` now measures the free height over the TOP (a body-wide sphere swept up from the middle of the top) as `Vault.Headroom`: the whole body
+  over a fence, the opening up to the lintel over a sill. Anything under 0.9 m is refused; past the far edge it asks only for as much room as that.
+- `PlayerVaulting` DIVES through a low opening: the flatter the lower it is (`DiveFor`): at 1.4 m of headroom or less the body is laid out at 82
+  degrees, head first, its hips through the middle of the opening and its legs trailing, and stands up again on the far side; over 2.9 m of headroom it
+  is the ordinary 35 degree vault; in between it blends. A 1.86 m punched window gets a 67 degree dive whose head just clears the lintel.
+- A CRACKED pane in the way is knocked out as the vault starts (`CrackedPane.Knock`): its trigger only answers to a moving collider and the vaulting
+  body's collider is off.
+- Tests: `VaultProbeTests` (a shattered punched window is vaulted and the dive fits under its lintel; the whole pane is not; a 0.7 m letterbox is not;
+  a fence is no dive), `RealCityWindowVaultPlayTests` (the real facades near spawn: a sill-high ground-floor window is refused whole and vaulted once
+  shattered; a step-high one is walked into once shattered and not before), `VaultCapture` renders `vault-window-*.png`.
+- The vault band now starts just over the controller's 0.4 m step (`VaultProbe.BandLowFraction` 0.16, was 0.22): a 0.4 to 0.57 m sill could be neither stepped nor vaulted.
+- Not done: an upper-floor window reached by climbing is still not entered from the wall (`LedgeProbe` wants an open path a whole body tall over the
+  lip); a tucked legs clip for the dive; vaulting a window when only walking at it (the vault is still run + forward).
+- Walking in over a LOW sill (the door wall's 16 cm panes, a ribbon's 38 cm) on a real facade: the shattered pane no longer stops the body and it
+  steps onto the sill, but on some buildings the lobby floor inside stands higher than the sill than the controller can step (`RealCityWindowVaultPlayTests`
+  logs the difference). That is the interior's floor height, not the window; left as is.

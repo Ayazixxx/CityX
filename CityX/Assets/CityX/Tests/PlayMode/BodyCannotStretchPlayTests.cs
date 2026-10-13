@@ -32,6 +32,8 @@ namespace CityX.Tests
         {
             public Transform Bone, Parent;
             public float Distance;
+            /// <summary>The head: BodyPosture places it by hand each frame (back along the BODY, not the neck), so its distance to the neck is not a stretch.</summary>
+            public bool Placed;
         }
 
         private List<Rest> Measure(Animator animator)
@@ -43,7 +45,7 @@ namespace CityX.Tests
                 if (id == HumanBodyBones.LastBone) continue;
                 Transform bone = animator.GetBoneTransform(id);
                 if (bone == null || bone.parent == null || bone.parent == animator.transform) continue;
-                list.Add(new Rest { Bone = bone, Parent = bone.parent, Distance = bone.localPosition.magnitude * bone.parent.lossyScale.x });
+                list.Add(new Rest { Bone = bone, Parent = bone.parent, Distance = bone.localPosition.magnitude * bone.parent.lossyScale.x, Placed = id == HumanBodyBones.Head });
             }
             return list;
         }
@@ -55,7 +57,7 @@ namespace CityX.Tests
             foreach (Rest r in rest)
             {
                 float d = Vector3.Distance(r.Bone.position, r.Parent.position);
-                float ratio = r.Distance > 1e-4f ? d / r.Distance : 1.0f;
+                float ratio = r.Distance > 1e-4f && !r.Placed ? d / r.Distance : 1.0f;
                 float scale = r.Bone.lossyScale.x;
                 float worst = Mathf.Max(Mathf.Abs(ratio - 1.0f), Mathf.Abs(scale - 1.0f));
                 if (worst > Mathf.Abs(worstRatio - 1.0f))

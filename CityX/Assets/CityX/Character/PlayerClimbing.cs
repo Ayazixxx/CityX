@@ -49,6 +49,34 @@ namespace CityX.Character
         // --- player.gd's own CLIMB_* constants, unchanged. ---
 
         public const float ClimbSpeed = 2.5f;
+
+        /// <summary>How fast the body shuffles along the wall with A or D, metres per second (Breath of the Wild shuffles slower than it climbs).</summary>
+        public const float SideClimbSpeed = 1.8f;
+
+        /// <summary>How far beside the body (past the capsule's edge) the wall is checked before shuffling that way, metres.</summary>
+        public const float SideLookAhead = 0.45f;
+
+        private int _animatedClimbDirection = 1;
+        private static readonly int ClimbSpeedScaleParameter = Animator.StringToHash("ClimbSpeedScale");
+
+        /// <summary>True when the wall face the climb holds carries on <paramref name="step"/> beside the body: the same face at chest and knee height.</summary>
+        private bool WallContinues(Vector3 step, float standingHeight, float radius)
+        {
+            Vector3 beside = transform.position + step * (radius + SideLookAhead);
+            float reach = GrabCheckDistance + _lean + 0.3f;
+            return SameFace(beside + Vector3.up * (standingHeight * 0.55f), reach) && SameFace(beside + Vector3.up * (standingHeight * 0.2f), reach);
+        }
+
+        /// <summary>A ray into the wall from <paramref name="origin"/> hits the face the climb holds (not this body, not a person, not a face turned away).</summary>
+        private bool SameFace(Vector3 origin, float reach)
+        {
+            if (!LedgeProbe.SolidHit(origin, -_wallNormal, reach, transform, out RaycastHit hit) || Mathf.Abs(hit.normal.y) > WallMaxSlopeDot)
+            {
+                return false;
+            }
+            var flat = new Vector3(hit.normal.x, 0.0f, hit.normal.z);
+            return flat.sqrMagnitude > 1e-6f && Vector3.Dot(flat.normalized, _wallNormal) > 0.9f;
+        }
         public const float GrabCheckDistance = 1.0f;
         public const float WallMaxSlopeDot = 0.3f;
         public const float TopCheckHeight = 1.8f;
@@ -293,7 +321,8 @@ namespace CityX.Character
         /// player.gd's own _process_climbing exactly, including its order
         /// of checks.
         /// </summary>
-        public void Tick(bool jumpPressed, bool climbUpHeld, bool climbDownHeld, PlayerVitals vitals, float deltaTime, bool dropPressed = false)
+        public void Tick(bool jumpPressed, bool climbUpHeld, bool climbDownHeld, PlayerVitals vitals, float deltaTime, bool dropPressed = false,
+            bool leftHeld = false, bool rightHeld = false)
         {
             if (!IsClimbing)
             {
@@ -359,7 +388,16 @@ namespace CityX.Character
                 direction = -1;
             }
 
-            bool moving = direction != 0 || slip > 0.0f;
+            // SIDEWAYS (A and D: owner, 2026-10-13, "allow sideways climbing with A & D"): along the wall face, as long as the wall goes on that way (the
+            // same face at chest and knee height beside the body); at the wall's end, or a corner, the shuffle stops and the grip holds.
+            int sideways = (rightHeld ? 1 : 0) - (leftHeld ? 1 : 0);
+            Vector3 across = ClimbLimbStepper.Across(_wallNormal);
+            if (sideways != 0 && !WallContinues(across * sideways, standingHeight, radius))
+            {
+                sideways = 0;
+            }
+
+            bool moving = direction != 0 || sideways != 0 || slip > 0.0f;
             if (moving && vitals != null && !vitals.TickStamina(true, deltaTime * Weather.WallStaminaDrain(wet)))
             {
                 EndClimb(false, deltaTime);
@@ -376,13 +414,31 @@ namespace CityX.Character
 
             // Drawn onto the wall face and turned to look at it, rather than snapped or left where the grab
             // happened. Both are eased: a grab is a reach, not a teleport.
+            // The hang point shuffles along the wall; the body is drawn to it below.
+            if (sideways != 0)
+            {
+                _anchorX += across.x * (sideways * SideClimbSpeed * deltaTime);
+                _anchorZ += across.z * (sideways * SideClimbSpeed * deltaTime);
+            }
             Vector2 toAnchor = Vector2.ClampMagnitude(
                 new Vector2(_anchorX + _wallNormal.x * _lean - transform.position.x, _anchorZ + _wallNormal.z * _lean - transform.position.z),
                 SnapToWallSpeed * deltaTime);
             Vector3 move = new Vector3(toAnchor.x, direction * ClimbSpeed * deltaTime - slip * deltaTime, toAnchor.y);
             float yBefore = transform.position.y;
             _controller.Move(move);
+            // Blocked sideways (a pipe, a sign, another climber): the hang point comes back to where the body really is, so letting go of the key
+            // never leaves the body lurching after a point it could not reach.
+            if (sideways != 0)
+            {
+                float slipped = Vector3.Dot(new Vector3(transform.position.x - _anchorX, 0.0f, transform.position.z - _anchorZ), across);
+                if (Mathf.Abs(slipped) > 0.05f)
+                {
+                    _anchorX += across.x * slipped;
+                    _anchorZ += across.z * slipped;
+                }
+            }
             UpdateWallPlane();
+            _locomotion?.SetClimbTravel(new Vector2(sideways, direction));
 
             // STUCK GUARD: asked to climb but not rising (jammed on a lip or geometry): let go rather than hang there for ever.
             if (direction > 0 && deltaTime > 0.0f)
@@ -413,7 +469,11 @@ namespace CityX.Character
             if (_animator != null)
             {
                 _animator.SetBool(ClimbingParameter, true);
-                _animator.SetInteger(ClimbDirectionParameter, direction);
+                // The clip is always told up or down (a 0 would leave the Animator in whatever state it was in on the first frame); holding still
+                // freezes it through its speed instead, as character.gd's own hold_climb did with speed_scale, and a sideways shuffle plays it.
+                if (direction != 0) _animatedClimbDirection = direction;
+                _animator.SetInteger(ClimbDirectionParameter, _animatedClimbDirection);
+                _animator.SetFloat(ClimbSpeedScaleParameter, moving ? 1.0f : 0.0f);
             }
 
             // Climbed all the way back down to solid ground -- release
@@ -480,6 +540,7 @@ namespace CityX.Character
             _handsWeight = 0.0f;
             _locomotion?.SetLedgeHands(0.0f, Vector3.zero, Vector3.zero);
             _locomotion?.SetClimbWall(Vector3.zero, Vector3.forward, 0.0f);
+            _locomotion?.SetClimbTravel(Vector2.zero);
             _intent?.BeginCooldown();   // a hop-off is not undone by the next frame's grab
             _autoNeedsRelease = true;   // and the run keys must be let go before an automatic climb can start again
             if (_animator != null)

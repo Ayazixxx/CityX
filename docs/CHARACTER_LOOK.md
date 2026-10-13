@@ -102,3 +102,12 @@ body's measured motion, so other players' copies lean too. Ground + plain walk/r
 foot IK / movement-tips memory.
 
 - 2026-10-11, "W+A ... appears in like slow motion": the locomotion blend (and the sword one) gave a diagonal walk 23% of the idle, whose long clip stretched one step cycle from 1.03 s to 3.05 s at the same ground speed. It is now Freeform Directional with the four diagonals as samples of their own (a 1-D mix of the straight walk and the side-step), so a diagonal steps in 1.03 s like any straight walk (`PlayerRigBuilder.AddDiagonals`, `DiagonalWalkCadencePlayTests`).
+
+## The feet, second pass (2026-10-13)
+
+Owner: "make the feet a tiny bit longer and make them more rounded off at the end, right now they kind of have a square shape with soft edges, i just
+want them rounded off. I also want them to be flat at the bottom" (for the foot IK, FOOT_IK.md). The foot is now its own piece kind (`FusedBodyShape.
+SegmentKind.Foot`, `Segment.Foot`): a STADIUM in plan (a semicircular toe and heel of the foot's half width, 0.10, straight sides) extruded straight up
+from a flat sole, only the top edge rounded (5 cm), the sole's edge sharp. Heel 9 cm behind the ankle, toe 22.5 cm in front (was 20), 15 cm tall. The
+distance is Inigo Quilez's uneven 2-D capsule, extruded, rounded, then cut at the sole plane. `tools/bodyshape` renders it (`render out.png feet`);
+`FusedBodyTests.TheToeIsRoundTheSoleIsFlatToItsEdgeAndTheFootIsALittleLonger` guards it.

@@ -274,34 +274,37 @@ namespace CityX.Character
                 return;
             }
             _motionWasActive = active;
-            SendMotionToServer(climbing, _animator.GetInteger(ClimbDirectionParameter), _animator.GetFloat(ClimbSpeedScaleParameter),
+            SendMotionToServer(climbing, _animator.GetInteger(ClimbDirectionParameter), _locomotion.ClimbTravel, _animator.GetFloat(ClimbSpeedScaleParameter),
                 wall, _locomotion.ClimbWallPoint, _locomotion.ClimbWallNormal,
                 hands, _locomotion.LedgeLip, _locomotion.LedgeNormal);
         }
 
         [ServerRpc(RequireOwnership = true)]
-        private void SendMotionToServer(bool climbing, int direction, float speedScale, float wallWeight, Vector3 wallPoint, Vector3 wallNormal,
+        private void SendMotionToServer(bool climbing, int direction, Vector2 travel, float speedScale, float wallWeight, Vector3 wallPoint, Vector3 wallNormal,
             float handsWeight, Vector3 lip, Vector3 ledgeNormal)
         {
             // A garbled packet must not poison a copy's IK.
             if (!Finite(wallPoint) || !Finite(wallNormal) || !Finite(lip) || !Finite(ledgeNormal)
-                || float.IsNaN(wallWeight) || float.IsNaN(handsWeight) || float.IsNaN(speedScale))
+                || float.IsNaN(wallWeight) || float.IsNaN(handsWeight) || float.IsNaN(speedScale) || float.IsNaN(travel.x) || float.IsNaN(travel.y))
             {
                 return;
             }
-            BroadcastMotion(climbing, Mathf.Clamp(direction, -1, 1), Mathf.Clamp(speedScale, 0.0f, 4.0f),
+            BroadcastMotion(climbing, Mathf.Clamp(direction, -1, 1), Vector2.ClampMagnitude(travel, 1.0f), Mathf.Clamp(speedScale, 0.0f, 4.0f),
                 Mathf.Clamp01(wallWeight), wallPoint, wallNormal, Mathf.Clamp01(handsWeight), lip, ledgeNormal);
         }
 
         [ObserversRpc(ExcludeOwner = true)]
-        private void BroadcastMotion(bool climbing, int direction, float speedScale, float wallWeight, Vector3 wallPoint, Vector3 wallNormal,
+        private void BroadcastMotion(bool climbing, int direction, Vector2 travel, float speedScale, float wallWeight, Vector3 wallPoint, Vector3 wallNormal,
             float handsWeight, Vector3 lip, Vector3 ledgeNormal)
         {
-            ApplyRemoteMotion(climbing, direction, speedScale, wallWeight, wallPoint, wallNormal, handsWeight, lip, ledgeNormal);
+            ApplyRemoteMotion(climbing, direction, travel, speedScale, wallWeight, wallPoint, wallNormal, handsWeight, lip, ledgeNormal);
         }
 
-        /// <summary>Puts the owner's climbing pose on THIS copy. Public so a test can drive it without a network.</summary>
-        public void ApplyRemoteMotion(bool climbing, int direction, float speedScale, float wallWeight, Vector3 wallPoint, Vector3 wallNormal,
+        /// <summary>
+        /// Puts the owner's climbing pose on THIS copy. <paramref name="travel"/> is which way the owner is going on the wall (along it, up), so the copy's
+        /// limbs step the same way, sideways included. Public so a test can drive it without a network.
+        /// </summary>
+        public void ApplyRemoteMotion(bool climbing, int direction, Vector2 travel, float speedScale, float wallWeight, Vector3 wallPoint, Vector3 wallNormal,
             float handsWeight, Vector3 lip, Vector3 ledgeNormal)
         {
             if (_animator != null)
@@ -313,6 +316,7 @@ namespace CityX.Character
             if (_locomotion != null)
             {
                 _locomotion.SetClimbWall(wallPoint, wallNormal, wallWeight);
+                _locomotion.SetClimbTravel(climbing ? travel : Vector2.zero);
                 _locomotion.SetLedgeHands(handsWeight, lip, ledgeNormal);
             }
         }

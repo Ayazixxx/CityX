@@ -30,10 +30,23 @@ namespace CityX.Character
 
             /// <summary>The obstacle face's outward normal (toward the player), flattened level.</summary>
             public Vector3 Normal;
+
+            /// <summary>
+            /// The free height over the top, metres: a whole standing body's worth over a fence; over a WINDOW SILL, the opening up to the lintel
+            /// (a shattered window is vaulted through with a dive when it is lower than the body: PlayerVaulting).
+            /// </summary>
+            public float Headroom;
         }
 
-        /// <summary>The top must be between these fractions of standing height above the feet: lower is a step, higher is a climb.</summary>
-        public const float BandLowFraction = 0.22f;
+        /// <summary>The least free height over the top that can be gone through, metres: a body diving flat is about this thick with room to spare.</summary>
+        public const float MinHeadroomMetres = 0.9f;
+
+        /// <summary>
+        /// The top must be between these fractions of standing height above the feet: lower is a step, higher is a climb. The low end is just over
+        /// the controller's 0.4 m step (was 0.22, 0.57 m, which left a 0.4 to 0.57 m band -- a plinth-high window sill -- that could be neither
+        /// stepped over nor vaulted).
+        /// </summary>
+        public const float BandLowFraction = 0.16f;
 
         public const float BandHighFraction = 0.8f;
 
@@ -211,20 +224,80 @@ namespace CityX.Character
             {
                 return false;
             }
-            // Over the top and past the far edge must be open too (no rail or sign just beyond).
-            if (!LedgeProbe.HasRoom(farEdge + into * 0.15f + Vector3.up * 0.05f, standingHeight * 0.9f, radius * 0.8f, self))
+            // OVER THE TOP must be open enough to pass (owner, 2026-10-13: "you cant vault into a window which you should be able to if its been
+            // shattered"): a window's sill is a fine vault except that the lintel is over it, and asking for a whole standing body's worth of air
+            // refused every window below 2.5 m. The free height over the top is measured and handed on; a body dives flat through a low one.
+            var nearEdge = new Vector3(origin2.x, height, origin2.z);
+            Vector3 topMiddle = Vector3.Lerp(nearEdge, farEdge, 0.5f);
+            // First, the opening itself must be CLEAR: a whole pane of glass stands in the wall's thickness, exactly where a sweep would start (and a
+            // sweep that starts inside something ignores it), so a box the depth of the top and the least passable height is checked for anything solid.
+            if (!OpeningIsClear(topMiddle, into, across, Mathf.Max(lastTopDepth, 0.1f), self))
+            {
+                return false;
+            }
+            float headroom = FreeHeightAbove(topMiddle, standingHeight, radius * 0.8f, self);
+            if (headroom < MinHeadroomMetres)
+            {
+                return false;
+            }
+            // And past the far edge too (no rail or sign just beyond), as tall as the body can be there.
+            if (!LedgeProbe.HasRoom(farEdge + into * 0.15f + Vector3.up * 0.05f, Mathf.Min(standingHeight * 0.9f, headroom - 0.05f), radius * 0.8f, self))
             {
                 return false;
             }
 
             vault = new Vault
             {
-                NearEdge = new Vector3(origin2.x, height, origin2.z),
+                NearEdge = nearEdge,
                 FarEdge = farEdge,
                 Land = land,
                 Height = height,
                 Normal = faceNormal,
+                Headroom = headroom,
             };
+            return true;
+        }
+
+        /// <summary>Nothing hit this far over the top counts as open sky: more than any body's worth, so a fence is never mistaken for a low opening.</summary>
+        public const float OpenSkyExtraMetres = 0.5f;
+
+        /// <summary>
+        /// How much open air there is straight up from <paramref name="point"/>: a sphere the width of a body, swept upward. Open sky reads as
+        /// <paramref name="standingHeight"/> plus <see cref="OpenSkyExtraMetres"/>.
+        /// </summary>
+        private static float FreeHeightAbove(Vector3 point, float standingHeight, float sphereRadius, Transform self)
+        {
+            Vector3 origin = point + Vector3.up * (sphereRadius + 0.05f);
+            float sweep = standingHeight + OpenSkyExtraMetres;
+            if (SolidSphereHit(origin, sphereRadius, Vector3.up, sweep, self, out RaycastHit hit))
+            {
+                // The sphere's top touches whatever is over the point: that far above the point is the ceiling.
+                return Mathf.Max(0.0f, 0.05f + sphereRadius * 2.0f + hit.distance);
+            }
+            return sweep;
+        }
+
+        private static readonly Collider[] OpeningOverlaps = new Collider[8];
+
+        /// <summary>
+        /// True when the air over the top, from a hand's width above it up to the least passable height, across the top's depth and a body's width, holds
+        /// nothing solid (this body and people aside): a whole pane of glass, a bar, a sign across the opening all fail it.
+        /// </summary>
+        private static bool OpeningIsClear(Vector3 topMiddle, Vector3 into, Vector3 across, float depth, Transform self)
+        {
+            Vector3 centre = topMiddle + Vector3.up * (0.08f + (MinHeadroomMetres - 0.16f) * 0.5f);
+            var half = new Vector3(0.25f, (MinHeadroomMetres - 0.16f) * 0.5f, Mathf.Max(depth * 0.5f - 0.03f, 0.03f));
+            Quaternion frame = Quaternion.LookRotation(into, Vector3.up);
+            int count = Physics.OverlapBoxNonAlloc(centre, half, OpeningOverlaps, frame, ~0, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < count; i++)
+            {
+                Collider c = OpeningOverlaps[i];
+                if (c == null || (self != null && c.transform.IsChildOf(self)) || c.GetComponentInParent<IDamageable>() != null)
+                {
+                    continue;
+                }
+                return false;
+            }
             return true;
         }
     }

@@ -49,8 +49,9 @@ namespace CityX.Tests
                 mostForward = Mathf.Max(mostForward, Vector3.Dot(locomotion.LeanTilt, _player.transform.forward));
                 if (graphics && (i == 20 || i == 110)) Shoot(i == 20 ? "lean-setting-off" : "lean-sprinting");
             }
-            Assert.Greater(Vector3.Dot(locomotion.LeanTilt, _player.transform.forward), 2.0f, "a sprint does not lean forward");
-            Assert.Greater(mostForward, 4.0f, "setting off does not lean into the push");
+            // Toned down 2026-10-13 (the owner found the old lean too apparent): a sprint tips a couple of degrees, the push-off a few more.
+            Assert.Greater(Vector3.Dot(locomotion.LeanTilt, _player.transform.forward), 1.0f, "a sprint does not lean forward");
+            Assert.Greater(mostForward, 3.0f, "setting off does not lean into the push");
 
             float mostBack = 0.0f;
             for (int i = 0; i < 40; i++)

@@ -29,9 +29,9 @@ namespace CityX.CharacterEditor
         /// moonwalk -- feet sliding because the clip's stride does not match the
         /// distance actually travelled.
         /// </summary>
-        private const float WalkSpeed = 4.0f;
+        public const float WalkSpeed = 4.0f;
 
-        private const float SprintSpeed = 7.5f;
+        public const float SprintSpeed = 7.5f;
 
         [MenuItem("CityX/Rebuild Player Rig")]
         public static GameObject Build()
@@ -107,6 +107,11 @@ namespace CityX.CharacterEditor
 
             // The Bloodrage run's head is brought to where the ordinary sprint carries it (see BloodrageHeadFit).
             BloodrageHeadFit.Apply(prefab, bloodRun, sprint);
+
+            // EVERY WALK AND RUN KEEPS UP WITH THE BODY (owner, 2026-10-13: "without sliding feet"): the clips are Mixamo-paced, far slower than
+            // the 4 and 7.5 m/s they are played under, so each blend child is sped up to its measured ground speed (ClipCadence).
+            int matched = ClipCadence.MatchController(controller, prefab);
+            Debug.Log($"CityX: {matched} locomotion clips paced to the body's speed.");
 
             AssetDatabase.SaveAssets();
             Debug.Log($"CityX: player rig written to {PrefabPath}");

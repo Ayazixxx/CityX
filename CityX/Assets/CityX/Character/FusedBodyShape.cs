@@ -147,21 +147,29 @@ namespace CityX.Character
         public const float PalmBlend = 0.04f;
 
         // --- the feet (owner, 2026-10-13: "a basic foot with no toes", drawn as a sock: the shin turning a corner into a flat-soled, round-toed
-        // --- foot). A rounded box under the ankle, its sole on the ground, fused into the shin. The player is no taller: the foot sits in the
-        // --- space the shin's rounded bottom used to take, with the ankle joint where the foot bone already was.
+        // --- foot; later the same day: "a tiny bit longer ... rounded off at the end, right now they kind of have a square shape with soft
+        // --- edges ... flat at the bottom", for the foot IK that stands the sole on real ground). A STADIUM in plan (a semicircular toe and heel,
+        // --- straight sides), extruded straight up from a FLAT sole with only its top edge rounded over, under the ankle, fused into the shin. The
+        // --- player is no taller: the foot sits in the space the shin's rounded bottom used to take, with the ankle joint where the foot bone already was.
 
-        public const float FootHalfWidth = 0.10f;
-        public const float FootHalfHeight = 0.075f;
-        public const float FootHalfLength = 0.14f;
-        public const float FootCentreForward = 0.06f;
-        /// <summary>Nearly the foot's half height: the toe and heel are round, the sole flat, nothing reads as a brick.</summary>
-        public const float FootRounding = 0.068f;
+        /// <summary>Half the foot's width: the radius of the toe's and heel's semicircles (as wide as the shin's ankle, so no bulb sits above a narrower heel).</summary>
+        public const float FootToeRadius = 0.10f;
+        public const float FootHeelRadius = 0.10f;
+        /// <summary>Where the toe's and heel's arcs are centred, forward of the ankle: the heel reaches 9 cm back, the toe 22.5 cm forward (was 20).</summary>
+        public const float FootToeCentreForward = 0.125f;
+        public const float FootHeelCentreForward = 0.01f;
+        /// <summary>The foot's height, sole to top: the ankle joint sits a little under the top, inside it.</summary>
+        public const float FootHeight = 0.15f;
+        /// <summary>Only the TOP edge is rounded, by this much; the sole's edge is sharp, so the whole sole is flat on the ground.</summary>
+        public const float FootTopRounding = 0.05f;
         public const float FootBlend = 0.045f;
 
         public enum SegmentKind
         {
             Capsule = 0,
             RoundBox = 1,
+            /// <summary>A foot: a stadium in plan, flat-soled, round-topped (see <see cref="Segment.Foot"/>).</summary>
+            Foot = 2,
         }
 
         /// <summary>
@@ -224,10 +232,39 @@ namespace CityX.Character
                 return new Segment(centre, frame, half, rounding, bone, blend);
             }
 
+            /// <summary>
+            /// A FOOT: in plan (the frame's x and z) a stadium from the heel's arc centre <paramref name="heel"/> (radius <paramref name="heelRadius"/>) to
+            /// the toe's arc centre <paramref name="toe"/> (radius <paramref name="toeRadius"/>), both given AT SOLE LEVEL; extruded straight up the frame's y
+            /// to <paramref name="height"/>, its top edge rounded by <paramref name="topRounding"/> and its sole left FLAT with a sharp edge, so the whole
+            /// sole lies on the ground. The toe's end is a true semicircle, not a softened corner.
+            /// </summary>
+            public static Segment Foot(Vector3 heel, Vector3 toe, float heelRadius, float toeRadius, float height, float topRounding, Quaternion frame,
+                HumanBodyBones bone, float blend)
+            {
+                return new Segment(heel, toe, heelRadius, toeRadius, height, topRounding, frame, bone, blend);
+            }
+
+            private Segment(Vector3 heel, Vector3 toe, float heelRadius, float toeRadius, float height, float topRounding, Quaternion frame,
+                HumanBodyBones bone, float blend)
+            {
+                A = heel;
+                B = toe;
+                Radius = heelRadius;
+                RadiusB = toeRadius;
+                Bone = bone;
+                Kind = SegmentKind.Foot;
+                Half = new Vector3(topRounding, height, 0.0f);
+                Frame = frame;
+                FrameInverse = Quaternion.Inverse(frame);
+                Blend = blend;
+            }
+
             public bool IsBox => Kind == SegmentKind.RoundBox;
 
+            public bool IsFoot => Kind == SegmentKind.Foot;
+
             /// <summary>How far from A and B the piece can reach: for a bounding box round it.</summary>
-            public float Extent => IsBox ? Half.magnitude : Mathf.Max(Radius, RadiusB);
+            public float Extent => IsBox ? Half.magnitude : IsFoot ? (B - A).magnitude + Mathf.Max(Radius, RadiusB) + Half.y : Mathf.Max(Radius, RadiusB);
 
             /// <summary>Distance from a point to this piece's surface: negative inside.</summary>
             public float Distance(Vector3 p)
@@ -238,6 +275,10 @@ namespace CityX.Character
                     q = new Vector3(Mathf.Abs(q.x), Mathf.Abs(q.y), Mathf.Abs(q.z)) - (Half - Vector3.one * Radius);
                     Vector3 outside = Vector3.Max(q, Vector3.zero);
                     return outside.magnitude + Mathf.Min(Mathf.Max(q.x, Mathf.Max(q.y, q.z)), 0.0f) - Radius;
+                }
+                if (Kind == SegmentKind.Foot)
+                {
+                    return FootDistance(p);
                 }
 
                 Vector3 pa = p - A;
@@ -278,6 +319,60 @@ namespace CityX.Character
 
             /// <summary>A capsule's radius at a fraction along it.</summary>
             public float RadiusAt(float t) => Mathf.Lerp(Radius, RadiusB, Mathf.Clamp01(t));
+
+            /// <summary>
+            /// The foot's distance: the plan stadium (an uneven 2-D capsule, Inigo Quilez's exact distance) shrunk by the top rounding, extruded from far
+            /// below the sole up to the top less the rounding, rounded back out by it, then CUT OFF at the sole plane -- so the top edge is round and the
+            /// sole is a flat plane with a sharp edge. Exact outside and above the sole; inside, the cut makes it the distance to the nearest of the two.
+            /// </summary>
+            private float FootDistance(Vector3 p)
+            {
+                float rounding = Half.x;
+                Vector3 q = FrameInverse * (p - A);
+                Vector3 axis = FrameInverse * (B - A);
+                float px = q.x, pz = q.z;             // the point in plan, from the heel's arc centre
+                float dx = axis.x, dz = axis.z;       // heel to toe in plan
+                float h = Mathf.Sqrt(dx * dx + dz * dz);
+                float r1 = Radius - rounding;
+                float r2 = RadiusB - rounding;
+                float plan;
+                if (h < 1e-5f)
+                {
+                    plan = Mathf.Sqrt(px * px + pz * pz) - Mathf.Max(r1, r2);
+                }
+                else
+                {
+                    float ux = dx / h, uz = dz / h;
+                    float along = px * ux + pz * uz;
+                    float perp = Mathf.Abs(px * uz - pz * ux);
+                    float b = (r1 - r2) / h;
+                    float a = Mathf.Sqrt(Mathf.Max(1.0f - b * b, 0.0f));
+                    float k = -b * perp + a * along;
+                    if (k < 0.0f)
+                    {
+                        plan = Mathf.Sqrt(perp * perp + along * along) - r1;
+                    }
+                    else if (k > a * h)
+                    {
+                        plan = Mathf.Sqrt(perp * perp + (along - h) * (along - h)) - r2;
+                    }
+                    else
+                    {
+                        plan = a * perp + b * along - r1;
+                    }
+                }
+                // Extrude between far below the sole and the top (less the rounding), round, cut at the sole.
+                float innerTop = Half.y - rounding;
+                const float innerBottom = -1.0f;
+                float cy = 0.5f * (innerTop + innerBottom);
+                float hy = 0.5f * (innerTop - innerBottom);
+                float wx = plan;
+                float wy = Mathf.Abs(q.y - cy) - hy;
+                float ox = Mathf.Max(wx, 0.0f);
+                float oy = Mathf.Max(wy, 0.0f);
+                float extruded = Mathf.Min(Mathf.Max(wx, wy), 0.0f) + Mathf.Sqrt(ox * ox + oy * oy);
+                return Mathf.Max(extruded - rounding, -q.y);
+            }
         }
 
         /// <summary>
@@ -488,12 +583,17 @@ namespace CityX.Character
             AddFoot(into, ankle, scale, foot);
         }
 
-        /// <summary>A foot: a rounded box under the ankle, its sole on the ground (the ankle is one foot's height up), reaching forward from a short heel.</summary>
+        /// <summary>
+        /// A foot under the ankle: a flat-soled, round-toed stadium (<see cref="Segment.Foot"/>) with its sole on the ground (the ankle is
+        /// <see cref="BodyRig.FootY"/> up), reaching forward from a short heel.
+        /// </summary>
         private static void AddFoot(List<Segment> into, Vector3 ankle, float scale, HumanBodyBones foot)
         {
-            Vector3 centre = new Vector3(ankle.x, ankle.y - (BodyRig.FootY - FootHalfHeight) * scale, ankle.z + FootCentreForward * scale);
-            into.Add(Segment.Box(centre, Quaternion.identity,
-                new Vector3(FootHalfWidth, FootHalfHeight, FootHalfLength) * scale, FootRounding * scale, foot, FootBlend * scale));
+            Vector3 sole = new Vector3(ankle.x, ankle.y - BodyRig.FootY * scale, ankle.z);
+            Vector3 heel = sole + Vector3.forward * (FootHeelCentreForward * scale);
+            Vector3 toe = sole + Vector3.forward * (FootToeCentreForward * scale);
+            into.Add(Segment.Foot(heel, toe, FootHeelRadius * scale, FootToeRadius * scale, FootHeight * scale, FootTopRounding * scale,
+                Quaternion.identity, foot, FootBlend * scale));
         }
 
         // --- fused_body.gd's own stub-body constants (is_stub_point/stub_mesh) ---

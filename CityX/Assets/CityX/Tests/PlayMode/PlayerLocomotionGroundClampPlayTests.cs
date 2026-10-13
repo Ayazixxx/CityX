@@ -82,7 +82,12 @@ namespace CityX.Tests
                 // bug this guards against was over a metre, not centimetres.
                 Assert.Greater(lowestFootY, _player.transform.position.y - 0.05f,
                     $"a foot bone sank to {lowestFootY:0.000} at step {step}, well below ground contact " +
-                    $"at {_player.transform.position.y:0.000} -- the reported floor-clipping is still there");
+                    $"at {_player.transform.position.y:0.000} -- the reported floor-clipping is still there " +
+                    $"(foot placement: hip drop {_locomotion.FootPlanting.HipDrop:0.000}, landing dip {_locomotion.FootPlanting.LandingDip:0.000}, " +
+                    $"weights {_locomotion.FootPlanting.Of(0).Weight:0.00}/{_locomotion.FootPlanting.Of(1).Weight:0.00}, " +
+                    $"lifts {_locomotion.FootPlanting.LastLift(0):0.000}/{_locomotion.FootPlanting.LastLift(1):0.000}, " +
+                    $"targets y {_locomotion.FootPlanting.Of(0).Target.y:0.000}/{_locomotion.FootPlanting.Of(1).Target.y:0.000}, " +
+                    $"drawn root y {_animator.transform.localPosition.y:0.000}, active {_locomotion.FootIkActive})");
             }
 #else
             Assert.Ignore("Player.prefab can only be loaded by path inside the editor.");

@@ -90,6 +90,46 @@ namespace CityX.Tests
                     Assert.IsTrue(climbing.TryStart(GrabIntent.AlreadyHeld(), true, 100.0f));
                 }
             }
+            // SIDEWAYS: back on the ground, grab again, a little up, then shuffle right and left, seen from in front of the wall (three-quarter).
+            {
+                for (int i = 0; i < 700 && climbing.IsClimbing; i++)
+                {
+                    climbing.Tick(false, false, true, vitals, dt);
+                    yield return null;
+                }
+                var cc = player.GetComponent<CharacterController>();
+                cc.enabled = false; player.transform.position = new Vector3(0, 0.05f, 0.3f); player.transform.rotation = Quaternion.identity; cc.enabled = true;
+                Physics.SyncTransforms();
+                yield return null;
+                Assert.IsTrue(climbing.TryStart(GrabIntent.AlreadyHeld(), true, 100.0f));
+                var sheet = new Texture2D(Cell * Columns, Cell * 2, TextureFormat.RGB24, false);
+                int col = 0;
+                float sinceShot = 0.0f;
+                for (int i = 0; i < 400 && col < Columns * 2; i++)
+                {
+                    bool up = i < 50;
+                    bool right = i >= 50 && i < 230;
+                    bool left = i >= 230;
+                    climbing.Tick(false, up, false, vitals, dt, leftHeld: left, rightHeld: right);
+                    sinceShot += dt;
+                    yield return null;
+                    if (i > 50 && sinceShot >= 0.15f)
+                    {
+                        sinceShot = 0.0f;
+                        Vector3 p = player.transform.position;
+                        Texture2D cell = Render(camera, p + new Vector3(3.0f, 1.6f, -4.5f), p + Vector3.up * 1.3f);
+                        int row = col / Columns, c = col % Columns;
+                        sheet.SetPixels(c * Cell, (1 - row) * Cell, Cell, Cell, cell.GetPixels());
+                        Object.Destroy(cell);
+                        col++;
+                    }
+                }
+                sheet.Apply();
+                var conv = System.Type.GetType("UnityEngine.ImageConversion, UnityEngine.ImageConversionModule");
+                var enc = conv.GetMethod("EncodeToPNG", new[] { typeof(Texture2D) });
+                File.WriteAllBytes(Path.Combine(directory, "climb-sheet-sideways.png"), (byte[])enc.Invoke(null, new object[] { sheet }));
+                Object.Destroy(sheet);
+            }
             Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
             Object.Destroy(cameraObject);
 #else

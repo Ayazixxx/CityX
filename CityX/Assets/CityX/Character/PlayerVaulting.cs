@@ -25,6 +25,19 @@ namespace CityX.Character
         /// <summary>How far the body leans forward at the middle of the vault, in degrees.</summary>
         public const float LeanDegrees = 35.0f;
 
+        /// <summary>
+        /// THE DIVE (owner, 2026-10-13: "you cant vault into a window which you should be able to if its been shattered or broken completely"): under a
+        /// lintel there is no room to go over the sill standing up, so the lower the opening the flatter the body goes -- at <see cref="DiveHeadroomMetres"/>
+        /// of free height or less it is laid out nearly flat, head first, its middle through the middle of the opening, and stands up again on the far
+        /// side. Over anything with <see cref="FullHeadroomExtraMetres"/> more than a standing body's worth of air it is the ordinary vault.
+        /// </summary>
+        public const float DiveLeanDegrees = 82.0f;
+
+        /// <summary>At this much free height or less the body goes fully flat: the head is a 0.35 m ball on a 1.3 m torso, so a 1.9 m punched window needs it.</summary>
+        public const float DiveHeadroomMetres = 2.0f;
+
+        public const float FullHeadroomExtraMetres = 0.3f;
+
         private CharacterController _controller;
         private PlayerLocomotion _locomotion;
         private VaultProbe.Vault _vault;
@@ -32,13 +45,37 @@ namespace CityX.Character
         private float _elapsed;
         private float _cooldown;
         private Quaternion _yaw;
+        private float _leanDegrees = LeanDegrees;
+        private float _apexAboveTop = ClearanceMetres;
 
         public bool IsVaulting { get; private set; }
 
         /// <summary>Where the vault is, 0 (start) to 1 (landed). Meaningless outside a vault.</summary>
         public float Progress => Mathf.Clamp01(_elapsed / _seconds);
 
+        /// <summary>How much of a dive this vault is: 0 an ordinary vault, 1 flat through a low window.</summary>
+        public float Dive { get; private set; }
+
+        /// <summary>The lean at the middle of this vault, degrees (<see cref="LeanDegrees"/> to <see cref="DiveLeanDegrees"/>).</summary>
+        public float VaultLeanDegrees => _leanDegrees;
+
         private float _seconds = VaultSeconds;
+
+        private static readonly Collider[] PaneOverlaps = new Collider[16];
+
+        /// <summary>
+        /// How flat a body has to go to fit under <paramref name="headroom"/> of air over the top, 0 (upright vault) to 1 (a dive), and where the feet's path
+        /// peaks relative to the top: a little over it for a vault; for a dive, far enough BELOW it that the hips (half a body up the path) pass
+        /// through the middle of the opening, the flat body and its trailing legs with them.
+        /// </summary>
+        public static float DiveFor(float headroom, float standingHeight, out float apexAboveTop)
+        {
+            float full = standingHeight + FullHeadroomExtraMetres;
+            float dive = Mathf.Clamp01((full - headroom) / Mathf.Max(0.01f, full - DiveHeadroomMetres));
+            float hip = standingHeight * 0.5f;
+            apexAboveTop = Mathf.Lerp(ClearanceMetres, headroom * 0.5f - hip, dive);
+            return dive;
+        }
 
         private void Awake()
         {
@@ -83,10 +120,39 @@ namespace CityX.Character
             _yaw = transform.rotation;
             _elapsed = 0.0f;
             _seconds = VaultSeconds + 0.3f * Mathf.Clamp01((vault.Height - _start.y - 1.2f) / 1.0f);   // a taller obstacle takes a little longer
+            float standingHeight = _locomotion != null ? _locomotion.StandingHeight : BodyRig.StandingHeight;
+            float headroom = vault.Headroom > 0.0f ? vault.Headroom : standingHeight + FullHeadroomExtraMetres;
+            Dive = DiveFor(headroom, standingHeight, out _apexAboveTop);
+            _leanDegrees = Mathf.Lerp(LeanDegrees, DiveLeanDegrees, Dive);
+            _seconds += 0.15f * Dive;   // a dive is a little slower than a hop
             _locomotion?.SetVerticalVelocity(0.0f);
             if (_controller != null)
             {
                 _controller.enabled = false;   // the path is driven directly; the validated landing spot keeps it out of the geometry
+            }
+            KnockCrackedPanes(vault, standingHeight);
+        }
+
+        /// <summary>
+        /// A CRACKED pane in the way is knocked out as the vault starts: its trigger box only answers to a moving body's collider, and this body's
+        /// collider is switched off for the vault, so without this the glass would stay hanging there with the body gone through it. A cracked pane
+        /// is the one breakable surface that is a TRIGGER (CityX.View.CrackedPane, found through its World-level interface: whole glass is solid and
+        /// sits in the chunk's collider, which the probe already refused to go through).
+        /// </summary>
+        private void KnockCrackedPanes(in VaultProbe.Vault vault, float standingHeight)
+        {
+            Vector3 centre = Vector3.Lerp(vault.NearEdge, vault.FarEdge, 0.5f) + Vector3.up * (standingHeight * 0.5f);
+            var half = new Vector3(0.9f, standingHeight * 0.5f, 0.9f);
+            int count = Physics.OverlapBoxNonAlloc(centre, half, PaneOverlaps, Quaternion.identity, ~0, QueryTriggerInteraction.Collide);
+            for (int i = 0; i < count; i++)
+            {
+                Collider c = PaneOverlaps[i];
+                if (c == null || !c.isTrigger)
+                {
+                    continue;
+                }
+                var pane = c.GetComponent<CityX.World.IBreakableSurface>();
+                pane?.TakeBlow(c.bounds.center, -vault.Normal, CityX.World.BlowStrength.Heavy);
             }
         }
 
@@ -94,10 +160,13 @@ namespace CityX.Character
         /// The body's position along the vault at <paramref name="u"/> (0 to 1): up first, over the top, down onto the far side. The horizontal
         /// travel starts after the rise has begun, so the feet are above the top for the whole time they are above the obstacle.
         /// </summary>
-        public static Vector3 Path(Vector3 start, VaultProbe.Vault vault, float u)
+        public static Vector3 Path(Vector3 start, VaultProbe.Vault vault, float u) => Path(start, vault, u, ClearanceMetres);
+
+        /// <summary>The same with the path's peak <paramref name="apexAboveTop"/> metres over the top (below it for a dive, see <see cref="DiveFor"/>).</summary>
+        public static Vector3 Path(Vector3 start, VaultProbe.Vault vault, float u, float apexAboveTop)
         {
             u = Mathf.Clamp01(u);
-            float apex = vault.Height + ClearanceMetres;
+            float apex = vault.Height + apexAboveTop;
             float up = Mathf.SmoothStep(0.0f, 1.0f, Mathf.Clamp01(u / 0.3f));
             float down = Mathf.SmoothStep(0.0f, 1.0f, Mathf.Clamp01((u - 0.72f) / 0.28f));
             float y = Mathf.Lerp(Mathf.Lerp(start.y, apex, up), vault.Land.y, down);
@@ -120,12 +189,13 @@ namespace CityX.Character
                 _yaw = Quaternion.RotateTowards(_yaw, Quaternion.LookRotation(face, Vector3.up), 720.0f * deltaTime);
             }
             // The body leans into the vault (hips stay on the path, head and chest go forward, legs trail), easing in and out; flat again before the landing.
-            float lean = Mathf.Sin(Mathf.PI * Mathf.Clamp01((u - 0.1f) / 0.6f)) * LeanDegrees;
+            // A dive leans nearly flat and its path runs lower, so the whole body passes through the middle of the opening.
+            float lean = Mathf.Sin(Mathf.PI * Mathf.Clamp01((u - 0.1f) / 0.6f)) * _leanDegrees;
             Quaternion rotation = Quaternion.AngleAxis(lean, Vector3.Cross(Vector3.up, face)) * _yaw;
             float height = _locomotion != null ? _locomotion.StandingHeight : BodyRig.StandingHeight;
             Vector3 hip = Vector3.up * (height * 0.5f);
             transform.rotation = rotation;
-            transform.position = Path(_start, _vault, u) + hip - rotation * hip;
+            transform.position = Path(_start, _vault, u, _apexAboveTop) + hip - rotation * hip;
             // Hands reach for the top as the body rises, push off it while passing over, and let go on the way down.
             float hands = u < 0.2f ? u / 0.2f : (u < 0.55f ? 1.0f : Mathf.Clamp01(1.0f - (u - 0.55f) / 0.2f));
             _locomotion?.SetLedgeHands(hands, Vector3.Lerp(_vault.NearEdge, _vault.FarEdge, 0.4f), _vault.Normal);

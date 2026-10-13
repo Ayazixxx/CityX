@@ -576,6 +576,33 @@ namespace CityX.Tests
         }
 
         /// <summary>
+        /// The foot's second pass (owner, 2026-10-13: "a tiny bit longer and make them more rounded off at the end, right now they kind of have a
+        /// square shape with soft edges ... flat at the bottom"): the toe is a semicircle (its corners are air), the whole sole is flat right out to
+        /// its side edge (no rounding under the foot, so it stands on the ground), and the toe reaches a little further than it did.
+        /// </summary>
+        [Test]
+        public void TheToeIsRoundTheSoleIsFlatToItsEdgeAndTheFootIsALittleLonger()
+        {
+            List<FusedBodyShape.Segment> shape = MakeShape();
+            foreach (HumanBodyBones foot in new[] { HumanBodyBones.LeftFoot, HumanBodyBones.RightFoot })
+            {
+                Vector3 ankle = Bone(foot);
+                Vector3 sole = new Vector3(ankle.x, 0.0f, ankle.z);
+                // Longer: the old foot ended 20 cm in front of the ankle; this one reaches past 21.5.
+                Assert.Less(FusedBodyShape.Distance(shape, sole + new Vector3(0.0f, 0.05f, 0.215f)), 0.0f, $"{foot} is no longer than it was");
+                // Round toe: a semicircle of the foot's half width, so the box's old corners are air while the centre line is still solid.
+                float halfWidth = FusedBodyShape.FootToeRadius;
+                Assert.Greater(FusedBodyShape.Distance(shape, sole + new Vector3(halfWidth * 0.85f, 0.05f, 0.19f)), 0.0f, $"{foot}'s toe still has corners");
+                Assert.Less(FusedBodyShape.Distance(shape, sole + new Vector3(0.0f, 0.05f, 0.19f)), 0.0f, $"{foot}'s toe is missing");
+                // Flat sole with a sharp edge: a centimetre above the ground at the very side of the foot is still foot (the old rounding hollowed this out).
+                Assert.Less(FusedBodyShape.Distance(shape, sole + new Vector3(halfWidth * 0.95f, 0.01f, 0.12f)), 0.0f, $"{foot}'s sole is rounded under at the side");
+                Assert.AreEqual(0.0f, FusedBodyShape.Distance(shape, sole + new Vector3(halfWidth * 0.9f, 0.0f, 0.12f)), 0.006f, $"{foot}'s sole does not reach the ground at its edge");
+                // The top edge is still round: a little in from the side at the top is air.
+                Assert.Greater(FusedBodyShape.Distance(shape, sole + new Vector3(halfWidth * 0.97f, FusedBodyShape.FootHeight - 0.005f, 0.12f)), 0.0f, $"{foot}'s top edge is a brick's");
+            }
+        }
+
+        /// <summary>
         /// The head is not buried in the torso: above the shoulder line the body narrows to the neck, and the torso's top no longer rises
         /// into the skull. The head itself stays where it was.
         /// </summary>

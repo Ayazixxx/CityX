@@ -13,17 +13,29 @@ namespace CityX.Character
     /// THE WHOLE BODY TILTS AS ONE, about the feet, not the spine: the body is separate rigid tubes, and bending the spine pulls the torso off
     /// the legs and the arms off the torso (2026-10-10, "the butt is sticking out ... the legs aren't attached"). Pure; PlayerLocomotion applies it
     /// to the visual root, from the body's measured motion, so a copy of another player's body leans the same way.
+    ///
+    /// TONED RIGHT DOWN (owner, 2026-10-13: "a very apparent lean when moving around in third person that doesnt really look good ... tone it down
+    /// or remove it completely but make it work with the foot ground detection"): a third of the angles and under half the cap, so a sprint tips
+    /// the head a couple of degrees and a hard stop or turn about six, never more. The foot placement (PlayerLocomotion.FootIK.cs) runs after it and
+    /// takes the lean back off the planted feet, so the soles stay flat on the ground while the body tips. It also hands in the SLOPE under the feet:
+    /// walking uphill leans into the hill, downhill a little back (research: slope posture is one of the cheapest big wins in procedural movement).
     /// </summary>
     public sealed class BodyLean
     {
-        /// <summary>Degrees of forward lean per metre per second of speed (a 7.5 m/s sprint: about 7).</summary>
-        public const float SpeedLeanDegreesPerMetrePerSecond = 0.9f;
+        /// <summary>Degrees of forward lean per metre per second of speed (a 7.5 m/s sprint: about 2).</summary>
+        public const float SpeedLeanDegreesPerMetrePerSecond = 0.3f;
 
         /// <summary>Degrees of lean per metre per second squared of acceleration (setting off, braking, turning).</summary>
-        public const float AccelerationLeanDegreesPerMetrePerSecondSquared = 1.1f;
+        public const float AccelerationLeanDegreesPerMetrePerSecondSquared = 0.5f;
 
-        /// <summary>The most the body ever leans, degrees.</summary>
-        public const float MaxLeanDegrees = 13.0f;
+        /// <summary>The most the body ever leans from its own motion, degrees.</summary>
+        public const float MaxLeanDegrees = 6.0f;
+
+        /// <summary>How much of an uphill slope's angle the body leans into it (a 20 degree hill: 7 degrees forward).</summary>
+        public const float UphillLeanFraction = 0.35f;
+
+        /// <summary>How much of a downhill slope's angle the body leans back from it.</summary>
+        public const float DownhillLeanFraction = 0.2f;
 
         /// <summary>How long the measured acceleration is averaged over (one frame of it is noise), and how fast the lean follows, seconds.</summary>
         public const float AccelerationSmoothingSeconds = 0.12f;
@@ -41,9 +53,10 @@ namespace CityX.Character
 
         /// <summary>
         /// One step. <paramref name="velocity"/> is the body's velocity in the world (only its horizontal part is used); <paramref name="leaning"/>
-        /// is false in the air and in any state that should stand upright, and the lean eases back to nothing.
+        /// is false in the air and in any state that should stand upright, and the lean eases back to nothing. <paramref name="slopeLean"/> is an
+        /// extra tilt from the ground's slope, degrees, in the direction the top of the body should go (see <see cref="UphillLeanFraction"/>).
         /// </summary>
-        public void Step(Vector3 velocity, bool leaning, float deltaTime)
+        public void Step(Vector3 velocity, bool leaning, float deltaTime, Vector3 slopeLean = default)
         {
             if (deltaTime <= 0.0f)
             {
@@ -64,6 +77,8 @@ namespace CityX.Character
             {
                 target = flat * SpeedLeanDegreesPerMetrePerSecond + _acceleration * AccelerationLeanDegreesPerMetrePerSecondSquared;
                 target = Vector3.ClampMagnitude(target, MaxLeanDegrees);
+                var slope = new Vector3(slopeLean.x, 0.0f, slopeLean.z);
+                target = Vector3.ClampMagnitude(target + slope, MaxLeanDegrees * 2.0f);   // a steep hill may tip the body past the motion cap, never past twice it
             }
             _tilt = Vector3.Lerp(_tilt, target, Ease(deltaTime, LeanSmoothingSeconds));
         }

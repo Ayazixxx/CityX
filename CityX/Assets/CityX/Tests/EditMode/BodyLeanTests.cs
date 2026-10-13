@@ -25,9 +25,33 @@ namespace CityX.Tests
             float settingOff = Vector3.Dot(lean.Tilt, Vector3.forward);
             Run(lean, i => Vector3.forward * 7.5f, 120);                     // a steady sprint
             float steady = Vector3.Dot(lean.Tilt, Vector3.forward);
-            Assert.Greater(steady, 3.0f, "a sprint should lean forward a little");
+            // Toned down 2026-10-13: a sprint leans a couple of degrees, never anything like the thirteen it used to.
+            Assert.Greater(steady, 1.5f, "a sprint should lean forward a little");
+            Assert.Less(steady, 4.0f, "a sprint leans too far (the owner found the old lean too apparent)");
             Assert.Greater(settingOff, steady, "the push off leans further than the steady run");
             Assert.LessOrEqual(lean.Degrees, BodyLean.MaxLeanDegrees + 1e-3f);
+        }
+
+        [Test]
+        public void AHillLeansTheBodyIntoItAndTheCapStillHolds()
+        {
+            var lean = new BodyLean();
+            // Walking up a 20 degree hill at 3 m/s: the slope asks for 7 degrees forward on top of the speed lean.
+            Vector3 slope = Vector3.forward * (20.0f * BodyLean.UphillLeanFraction);
+            for (int i = 0; i < 120; i++)
+            {
+                lean.Step(Vector3.forward * 3.0f, true, Dt, slope);
+            }
+            float forward = Vector3.Dot(lean.Tilt, Vector3.forward);
+            Assert.Greater(forward, 3.0f * BodyLean.SpeedLeanDegreesPerMetrePerSecond + 5.0f, "the hill did not lean the body into it");
+            Assert.LessOrEqual(lean.Degrees, BodyLean.MaxLeanDegrees * 2.0f + 1e-3f);
+            // Downhill: a little back.
+            var down = new BodyLean();
+            for (int i = 0; i < 120; i++)
+            {
+                down.Step(Vector3.forward * 3.0f, true, Dt, Vector3.forward * (-20.0f * BodyLean.DownhillLeanFraction));
+            }
+            Assert.Less(Vector3.Dot(down.Tilt, Vector3.forward), 3.0f * BodyLean.SpeedLeanDegreesPerMetrePerSecond, "going downhill should lean back from the speed lean");
         }
 
         [Test]

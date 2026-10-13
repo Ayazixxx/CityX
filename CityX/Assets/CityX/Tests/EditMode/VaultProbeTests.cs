@@ -49,6 +49,55 @@ namespace CityX.Tests
             return VaultProbe.TryFind(Vector3.zero, forward, Height, Radius, null, out vault);
         }
 
+        /// <summary>A wall 0.4 m thick (near face z = 0.5) with a window in it: solid up to the sill and from the lintel up; the room's floor behind it at ground level.</summary>
+        private void WindowWall(float sill, float lintel)
+        {
+            Box(new Vector3(0.0f, sill * 0.5f, 0.7f), new Vector3(10.0f, sill, 0.4f));
+            Box(new Vector3(0.0f, lintel + 3.0f, 0.7f), new Vector3(10.0f, 6.0f, 0.4f));
+        }
+
+        [Test]
+        public void AShatteredWindowIsVaultedThroughEvenUnderItsLintel()
+        {
+            // A punched window as the city builds them: the sill 0.9 m up, the opening 1.86 m tall. There is no room to stand on the sill, but there is room to dive.
+            WindowWall(0.9f, 2.76f);
+            Assert.IsTrue(Find(Vector3.forward, out VaultProbe.Vault vault), "a shattered window was not vaultable (the owner: 'you cant vault into a window')");
+            Assert.AreEqual(0.9f, vault.Height, 0.05f, "the sill is the top");
+            Assert.AreEqual(1.86f, vault.Headroom, 0.12f, "the free height under the lintel was not measured");
+            Assert.Greater(vault.Land.z, 0.9f, "the landing is inside the room, past the wall");
+            Assert.AreEqual(0.0f, vault.Land.y, 0.05f);
+            float dive = PlayerVaulting.DiveFor(vault.Headroom, Height, out float apexAboveTop);
+            Assert.Greater(dive, 0.5f, "a window lower than the body should be mostly a dive");
+            // The hips (half a body up the path) and the head over them fit under the lintel.
+            float hips = vault.Height + apexAboveTop + Height * 0.5f;
+            float lean = Mathf.Lerp(PlayerVaulting.LeanDegrees, PlayerVaulting.DiveLeanDegrees, dive);
+            float headTop = hips + Height * 0.5f * Mathf.Cos(lean * Mathf.Deg2Rad) + FusedBodyShape.HeadRadius;
+            Assert.Less(headTop, vault.Height + vault.Headroom + 0.02f, "the head would go through the lintel");
+            Assert.Greater(hips - 0.35f, vault.Height, "the body would drag through the sill");
+        }
+
+        [Test]
+        public void AnIntactWindowIsNotVaultedAndNeitherIsOneTooLowToDiveThrough()
+        {
+            WindowWall(0.9f, 2.76f);
+            Box(new Vector3(0.0f, 1.83f, 0.7f), new Vector3(10.0f, 1.86f, 0.05f));   // the glass, still whole
+            Assert.IsFalse(Find(Vector3.forward, out _), "a whole pane of glass was vaulted through");
+            TearDown();
+            SetUp();
+            WindowWall(0.9f, 1.6f);   // a letterbox: 0.7 m of air over the sill
+            Assert.IsFalse(Find(Vector3.forward, out _), "an opening too low to dive through was accepted");
+        }
+
+        [Test]
+        public void AFenceHasAWholeBodysWorthOfAirOverItAndIsNoDive()
+        {
+            Obstacle(1.4f, 0.4f);
+            Assert.IsTrue(Find(Vector3.forward, out VaultProbe.Vault vault));
+            Assert.GreaterOrEqual(vault.Headroom, Height - 0.01f, "open sky over a fence should read as a whole body's worth of air");
+            Assert.AreEqual(0.0f, PlayerVaulting.DiveFor(vault.Headroom, Height, out float apexAboveTop), 1e-4f, "a fence became a dive");
+            Assert.AreEqual(PlayerVaulting.ClearanceMetres, apexAboveTop, 1e-4f);
+        }
+
         [Test]
         public void AWaistHighThinWallIsAVaultWithLandingBeyondIt()
         {

@@ -6,13 +6,14 @@ namespace CityX.Character
     /// Lays <see cref="BodyPostureSettings"/> over the animation on one body: the head tipped up, the legs moved back under the torso.
     ///
     /// AFTER THE ANIMATOR, BEFORE EVERYTHING ELSE that poses the body in LateUpdate (PlayerLocomotion's aim, climbing and foot IK), so those
-    /// work from the adjusted pose. Only while the Animator is live: it rewrites the head every frame, so a turn added here never piles up;
-    /// a frozen body (the creator's T-pose, a ragdoll) is left alone.
+    /// work from the adjusted pose: the foot IK solves the legs from where the thighs are put here, and a gun aim turns the head from here (so
+    /// aiming looks down the sights, not thirty degrees over them). PlayerLocomotion runs at -100; this runs earlier. Only while the Animator
+    /// is live: it rewrites the head every frame, so a turn added here never piles up; a frozen body (the creator's T-pose, a ragdoll) is left alone.
     ///
     /// The legs move by their thigh joints' positions, which the humanoid Animator never writes (no translation DoF), so the offset is set
     /// from the rest position each frame rather than added.
     /// </summary>
-    [DefaultExecutionOrder(-100)]
+    [DefaultExecutionOrder(-150)]
     public sealed class BodyPosture : MonoBehaviour
     {
         private Animator _animator;
