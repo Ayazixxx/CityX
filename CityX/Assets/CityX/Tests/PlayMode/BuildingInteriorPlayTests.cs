@@ -192,9 +192,10 @@ namespace CityX.Tests
             var seen = new HashSet<string>();
             foreach (BuildingSite site in TestSites.NearSpawn(world, 16))
             {
-                if (site.Params.Width < 14.0f || site.Params.Depth < 14.0f || BuildingInterior.FloorCountFor(site.Params.Height) < 4 || site.Shell)
+                if (site.Params.Width < 14.0f || site.Params.Depth < 14.0f || BuildingInterior.FloorCountFor(site.Params.Height) < 4 || site.Shell
+                    || site.IsParkingGarage || site.IsOpenGround || site.IsMall || site.IsMallAnchor)
                 {
-                    continue;   // a sealed block is built with no stairs at all
+                    continue;   // a sealed block is built with no stairs at all; a car park or a mall is a set piece of its own (BuildGarage's ramp)
                 }
                 BuildingStairs.Layout layout = BuildingStairs.PlanFor(site);
                 StairPlan first = layout.Floors[0];

@@ -69,10 +69,31 @@ namespace CityX.Tests
                 yield return null;
             }
 
+            Vector3 at = flyer.transform.position;
+            string below = Physics.Raycast(at, Vector3.down, out RaycastHit under, 1000.0f, ~0, QueryTriggerInteraction.Ignore)
+                ? $"{under.collider.name} at y {under.point.y:F1}" : "nothing";
             Assert.Greater(flyer.transform.position.y, startY - 5.0f,
                 "the flying npc lost significant altitude instead of staying airborne -- it may have fallen out of the sky");
-            Assert.Less(flyer.HeightAboveSurface, FlyingNpcSteering.CruiseAltitudeAboveSurface * 3.0f,
-                "the flying npc climbed to an unreasonable altitude -- it may be stuck fleeing something it can never actually clear");
+            // Not over the street right under it but over the city round it: a flier that has just climbed past a tower beside it (it
+            // climbs while anything stands within its lookahead) is far over the street yet barely over the tower, and that is right. One
+            // fleeing something it can never clear would climb on over nothing at all.
+            float skyline = float.NegativeInfinity;
+            for (int gx = -4; gx <= 4; gx++)
+            {
+                for (int gz = -4; gz <= 4; gz++)
+                {
+                    var from = new Vector3(at.x + gx * 10.0f, at.y + 500.0f, at.z + gz * 10.0f);
+                    foreach (RaycastHit h in Physics.RaycastAll(from, Vector3.down, 2000.0f, ~0, QueryTriggerInteraction.Ignore))
+                    {
+                        if (h.collider.transform.IsChildOf(flyer.transform)) continue;
+                        skyline = Mathf.Max(skyline, h.point.y);
+                    }
+                }
+            }
+            Debug.Log($"CityX flyer: started at y {startY:F1}, now ({at.x:F0},{at.y:F1},{at.z:F0}), {flyer.HeightAboveSurface:F1} m over {below}, " +
+                $"{at.y - skyline:F1} m over the highest thing within 40 m");
+            Assert.Less(at.y - skyline, FlyingNpcSteering.CruiseAltitudeAboveSurface * 3.0f,
+                "the flying npc climbed to an unreasonable altitude over everything round it -- it may be stuck fleeing something it can never actually clear");
 #else
             yield break;
 #endif

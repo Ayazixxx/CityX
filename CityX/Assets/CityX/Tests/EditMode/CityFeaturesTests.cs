@@ -181,13 +181,13 @@ namespace CityX.Tests
                 double fromCentre = PlanMath.DistanceToSegment(foot, street.A.P, street.B.P, out _);
                 Assert.AreEqual(CityPlan.HalfWidth(cfg, street.Class), fromCentre, 0.5, $"ramp {r.Id} stops {fromCentre:F1} m from its street's centre, not at the kerb");
                 Assert.AreEqual(Plan.GroundHeight(foot.X, foot.Y) + PlanGeometry.RoadLift, r.Top[low], 0.1, $"ramp {r.Id} does not come down to the street");
-                // The high end: alongside its main line, at its height, running the same way.
+                // The high end: its inner edge on its main line's edge, at its height, running the same way.
                 ViaductPath main = Xw.Paths[Xw.Routes[r.Route].Path];
                 double best = double.MaxValue, bestTop = 0.0;
                 Vec2 bestDir = default;
                 for (int i = 0; i < main.Segments; i++)
                 {
-                    double d = PlanMath.DistanceToSegment(r.P[high], main.P[i], main.P[i + 1], out double t);
+                    double d = PlanMath.DistanceToSegment(r.Left(high), main.P[i], main.P[i + 1], out double t);
                     if (d < best)
                     {
                         best = d;
@@ -195,12 +195,57 @@ namespace CityX.Tests
                         bestDir = main.SegmentDir(i);
                     }
                 }
-                Assert.AreEqual(main.HalfLeft[0] + cfg.RampHalfWidth, best, 0.6, $"ramp {r.Id} does not start right beside its main line");
+                Assert.AreEqual(main.HalfLeft[0], best, 0.3, $"ramp {r.Id} does not start right on its main line's edge");
                 Assert.AreEqual(bestTop, r.Top[high], 0.08, $"ramp {r.Id} is not level with its main line where it joins it");
-                Vec2 rampDir = high == 0 ? r.SegmentDir(0) : r.SegmentDir(r.Segments - 1);
-                Assert.Greater(Math.Abs(Vec2.Dot(rampDir, bestDir)), 0.995, $"ramp {r.Id} does not run alongside its main line where it joins it");
+                // Its inner edge runs along the main line's (the taper widens outward from it).
+                Vec2 edgeDir = high == 0 ? (r.Left(1) - r.Left(0)).Normalized : (r.Left(r.Count - 1) - r.Left(r.Count - 2)).Normalized;
+                Assert.Greater(Math.Abs(Vec2.Dot(edgeDir, bestDir)), 0.995, $"ramp {r.Id} does not run alongside its main line where it joins it");
             }
             Assert.GreaterOrEqual(ramps, 6, "too few ramps");
+        }
+
+        /// <summary>
+        /// Owner (2026-10-13): ramps were "clearly cut off instead of transitioning into the major freeway" -- each started or ended at its full
+        /// width, a square end standing against the main line. A ramp's lane now grows out of its main line's edge from a tip, as a real taper
+        /// does: next to nothing wide where it meets the main line, widening smoothly to a full lane.
+        /// </summary>
+        [Test]
+        public void EveryRampAndConnectorGrowsOutOfItsMainLineFromATaperTip()
+        {
+            PlanConfig cfg = Plan.Data.Config;
+            double full = 2.0 * cfg.RampHalfWidth;
+            int ends = 0;
+            foreach (ViaductPath r in Xw.Paths)
+            {
+                if (r.Kind == ViaductKind.Mainline) continue;
+                var tips = new List<int>();
+                if (r.Kind == ViaductKind.Connector) { tips.Add(0); tips.Add(r.Count - 1); }
+                else tips.Add(r.StreetAtEnd ? 0 : r.Count - 1);
+                foreach (int tip in tips)
+                {
+                    ends++;
+                    int step = tip == 0 ? 1 : -1;
+                    double width = r.HalfLeft[tip] + r.HalfRight[tip];
+                    Assert.Less(width, 0.6, $"{r.Shape} {r.Id} meets its main line {width:F1} m wide: a square end, not a taper");
+                    // Widening without a jump, to the whole lane within the taper's length.
+                    double last = width, walked = 0.0;
+                    bool whole = false;
+                    for (int i = tip + step; i >= 0 && i < r.Count; i += step)
+                    {
+                        walked += (r.P[i] - r.P[i - step]).Length;
+                        double w = 2.0 * r.HalfRight[i];
+                        Assert.Less(w - last, 2.5, $"{r.Shape} {r.Id} widens by {w - last:F1} m in one step at sample {i}");
+                        last = w;
+                        if (w > full - 0.05)
+                        {
+                            whole = true;
+                            break;
+                        }
+                    }
+                    Assert.IsTrue(whole && walked < ExpresswayPlanner.Taper + 8.0, $"{r.Shape} {r.Id} takes {walked:F0} m to become a whole lane");
+                }
+            }
+            Assert.Greater(ends, 20);
         }
 
         [Test]
@@ -323,9 +368,37 @@ namespace CityX.Tests
                     Vec2 onMain = r.StreetAtEnd ? r.P[0] : r.P[r.Count - 1];
                     foreach (ExpresswayInterchange s in systems)
                     {
-                        Assert.GreaterOrEqual((onMain - s.At).Length, 0.7 * ExpresswayPlanner.SystemSpacing * scale - 1.0, $"ramp {r.Id} joins its main line inside a cloverleaf");
+                        Assert.GreaterOrEqual((onMain - s.At).Length, 0.35 * ExpresswayPlanner.SystemSpacing * scale - 1.0, $"ramp {r.Id} joins its main line inside a cloverleaf");
                     }
                 }
+            }
+        }
+
+        /// <summary>
+        /// Owner (2026-10-13): "it seems like the highway entrances/exits only connect to other highways. you should mostly be entering the
+        /// highway from a street and exiting onto one as well". In the game's own city (the varied districts; the other tests here pin the classic
+        /// one) the ramps to and from streets far outnumber the connectors between expressways.
+        /// </summary>
+        [Test]
+        public void InTheGamesOwnCityMostRampsComeFromAndLeadToStreets()
+        {
+            CityScale before = CityScale.Active;
+            try
+            {
+                CityScale.Active = CityScale.Default;
+                ExpresswayNetwork xw = PlanWorld.For(Seed).Data.Expressways;
+                int streetRamps = 0, connectors = 0;
+                foreach (ViaductPath p in xw.Paths)
+                {
+                    if (p.Kind == ViaductKind.Ramp) streetRamps++;
+                    else if (p.Kind == ViaductKind.Connector) connectors++;
+                }
+                Assert.Greater(connectors, 0, "no cloverleaf at all");
+                Assert.GreaterOrEqual(streetRamps, 1.6 * connectors, $"{streetRamps} ramps to streets against {connectors} connectors between expressways");
+            }
+            finally
+            {
+                CityScale.Active = before;
             }
         }
 

@@ -135,6 +135,7 @@ namespace CityX.Tests
                 Vector3 inward = Along(r, lowIndex) * (r.StreetAtEnd ? 1.0f : -1.0f);   // across the kerb into the street
                 Vector3 streetEye = low + inward * 22.0f + Vector3.Cross(Vector3.up, inward) * 10.0f + Vector3.up * 1.8f;
                 Shoot(camera, directory, $"xw-ramp-{key}-street", streetEye, low - inward * 25.0f + Vector3.up * 2.5f);
+                ShootTip(camera, directory, $"xw-ramp-{key}-tip", r, highIndex, r.StreetAtEnd ? 1.0f : -1.0f);
                 Debug.Log($"CityX expressway capture: {key} ramp {r.Id} from {high.x:F0},{high.z:F0} ({high.y:F1}) to {low.x:F0},{low.z:F0} ({low.y:F1}), {r.Length:F0} m");
                 if (shown.Count >= 6) break;
             }
@@ -154,6 +155,15 @@ namespace CityX.Tests
                 Shoot(camera, directory, "xw-cloverleaf-high", centre + new Vector3(-40.0f, 620.0f, -60.0f), centre);
                 Shoot(camera, directory, "xw-cloverleaf-eye", centre + new Vector3(70.0f, 1.8f, -95.0f), centre + Vector3.up * 14.0f);
                 Debug.Log($"CityX expressway capture: cloverleaf {clover.Id} at {centre.x:F0},{centre.z:F0}, {clover.Paths.Count} connectors");
+                // Where one of its connectors leaves its main line, and where one joins the other.
+                if (clover.Paths.Count > 0)
+                {
+                    ViaductPath c = xw.Paths[clover.Paths[0]];
+                    yield return Stream(streamer, Point(c, 0, 0.0));
+                    ShootTip(camera, directory, "xw-connector-leaves", c, 0, 1.0f);
+                    yield return Stream(streamer, Point(c, c.Count - 1, 0.0));
+                    ShootTip(camera, directory, "xw-connector-joins", c, c.Count - 1, -1.0f);
+                }
             }
 
             // ---- the ring, a stretch of it from high up ----
@@ -233,6 +243,18 @@ namespace CityX.Tests
         private static void Shoot(Camera camera, string directory, string name, Vector3 position, Vector3 lookAt)
         {
             BuildingShapeCapture.Shoot(camera, directory, name, position, lookAt);
+        }
+
+        /// <summary>
+        /// Where a ramp or connector meets its main line, from above the main line as a player stands there: the tip of its taper at sample
+        /// <paramref name="tip"/>, looking along the taper the way it widens (<paramref name="intoRamp"/>: +1 along the samples, -1 against them).
+        /// </summary>
+        private static void ShootTip(Camera camera, string directory, string name, ViaductPath path, int tip, float intoRamp)
+        {
+            Vector3 at = Point(path, tip, 0.0);
+            Vector3 along = Along(path, tip) * intoRamp;
+            var towardMain = new Vector3((float)path.N[tip].X, 0.0f, (float)path.N[tip].Y);   // a ramp's main line is on its left
+            Shoot(camera, directory, name, at - along * 22.0f + towardMain * 6.0f + Vector3.up * 9.0f, at + along * 25.0f);
         }
     }
 }

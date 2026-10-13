@@ -7,13 +7,20 @@ namespace CityX.World.Plan
     {
         // ================================================================== shared pieces
 
-        /// <summary>A sample of a ramp or connector being laid: where, which way, how high (NaN until worked out).</summary>
+        /// <summary>
+        /// A sample of a ramp or connector being laid: where, which way, how high (NaN until worked out), and how much narrower than a full lane
+        /// it is (0: full width; toward 1 at the tip of a taper, where the ramp's lane begins or ends against its main line's edge).
+        /// </summary>
         private struct Sample
         {
             public Vec2 P;
             public Vec2 Dir;
             public double Top;
+            public double Narrow;
         }
+
+        /// <summary>The narrowest a taper's tip is, as a share of the full lane: next to nothing, but never a zero-width deck.</summary>
+        private const double TipNarrow = 0.97;
 
         /// <summary>A distance along a main line, wrapped round a ring.</summary>
         private static double Wrap(ViaductPath m, double s)
@@ -64,15 +71,23 @@ namespace CityX.World.Plan
 
         /// <summary>
         /// The stretch where a ramp runs alongside a main line's edge, its inner edge on the main line's (the deceleration or acceleration lane):
-        /// samples from <paramref name="s0"/> for <paramref name="length"/> in the direction of travel, with the main line's own top.
+        /// samples from <paramref name="s0"/> for <paramref name="length"/> in the direction of travel, with the main line's own top. It is a
+        /// TAPER, as a real one is: the lane grows out of the main line's edge from nothing at its tip -- the first sample when
+        /// <paramref name="tip"/> is +1 (a ramp leaving), the last when -1 (a ramp joining) -- to its full width where it curves away, so the
+        /// carriageway widens and narrows instead of a ramp's square end standing against the main line (owner, 2026-10-13: "clearly cut off
+        /// instead of transitioning into the major freeway").
         /// </summary>
-        private void TaperSamples(ViaductPath m, double s0, int sigma, double length, List<Sample> into)
+        private void TaperSamples(ViaductPath m, double s0, int sigma, double length, List<Sample> into, int tip)
         {
             int k = Math.Max(2, (int)Math.Ceiling(length / SampleStep));
             for (int i = 0; i <= k; i++)
             {
                 MainPose(m, s0 + sigma * length * i / k, sigma, out Vec2 p, out Vec2 d, out Vec2 right, out double top);
-                into.Add(new Sample { P = p + right * (m.HalfLeft[0] + _wr), Dir = d, Top = top });
+                double fromTip = tip == 0 ? 1.0 : (tip > 0 ? i / (double)k : (k - i) / (double)k);   // 0 at the tip, 1 where the lane is whole
+                double widened = fromTip * (2.0 - fromTip);   // eased: the outer edge comes in parallel where the lane is whole
+                double narrow = TipNarrow * (1.0 - widened);
+                double half = _wr * (1.0 - narrow);
+                into.Add(new Sample { P = p + right * (m.HalfLeft[0] + half), Dir = d, Top = top, Narrow = narrow });
             }
         }
 
@@ -266,6 +281,7 @@ namespace CityX.World.Plan
             var pts = new List<Vec2>(samples.Count);
             var dirs = new List<Vec2>(samples.Count);
             var tops = new List<double>(samples.Count);
+            var halves = new List<double>(samples.Count);
             foreach (Sample s in samples)
             {
                 if (double.IsNaN(s.Top)) return null;
@@ -273,6 +289,7 @@ namespace CityX.World.Plan
                 pts.Add(s.P);
                 dirs.Add(s.Dir);
                 tops.Add(s.Top);
+                halves.Add(_wr * (1.0 - s.Narrow));
             }
             if (pts.Count < 3) return null;
             ViaductPath path = MakePath(kind, pts, dirs, _wr, _wr, RampSlab, false);
@@ -281,6 +298,7 @@ namespace CityX.World.Plan
             {
                 // The terrain never pokes through: a ramp over a rise is lifted onto it (an embankment), never sunk into it.
                 path.Top[i] = Math.Max(tops[i], Ground(pts[i]) + RoadLift + 0.05);
+                path.HalfLeft[i] = path.HalfRight[i] = halves[i];   // a taper's lane narrows to its tip
             }
             Gore(path, fromLine, fromHint);
             Gore(path, toLine, toHint);
@@ -293,21 +311,27 @@ namespace CityX.World.Plan
             for (int i = 0; i < path.Count; i++)
             {
                 NearestLocal(line, path.P[i], hint, Window, out double s, out double distance);
-                double gap = distance - line.HalfLeft[0] - _wr;
+                double lane = path.HalfRight[i];   // the lane's own half width (only the inner side is ever widened)
+                double gap = distance - line.HalfLeft[0] - lane;
                 if (gap >= GoreWidth) continue;
                 line.At(Wrap(line, s), out _, out _, out double lineTop);
                 if (Math.Abs(path.Top[i] - lineTop) > 0.5) continue;
-                path.HalfLeft[i] = Math.Max(path.HalfLeft[i], _wr + Math.Max(0.0, gap));
+                path.HalfLeft[i] = Math.Max(path.HalfLeft[i], lane + Math.Max(0.0, gap));
                 if (i < path.Segments) path.ParapetLeft[i] = false;
                 if (i > 0) path.ParapetLeft[i - 1] = false;
             }
         }
 
-        /// <summary>Turns off a main line's parapet along the stretch where an accepted ramp or connector runs beside it, its paved inner edge on the main line's edge.</summary>
+        /// <summary>
+        /// Turns off a main line's parapet along the stretch where an accepted ramp or connector runs beside it, its paved inner edge on the main
+        /// line's edge -- but not at a taper's very tip, where the lane is still too narrow to drive: the main line's parapet runs on until the
+        /// ramp's own outer parapet has peeled away from it.
+        /// </summary>
         private void OpenParapet(ViaductPath line, ViaductPath ramp, double hint)
         {
             for (int i = 0; i < ramp.Count; i++)
             {
+                if (ramp.HalfRight[i] < 0.6) continue;
                 NearestLocal(line, ramp.P[i], hint, Window, out double s, out double distance);
                 if (distance - line.HalfLeft[0] - ramp.HalfLeft[i] > 0.6) continue;
                 int k = line.IndexAt(Wrap(line, s));
@@ -642,10 +666,10 @@ namespace CityX.World.Plan
                 return null;
             }
             var samples = new List<Sample>();
-            TaperSamples(from, sFrom, sigmaFrom, Taper, samples);
+            TaperSamples(from, sFrom, sigmaFrom, Taper, samples, +1);
             int taperEnd = samples.Count - 1;
             var merge = new List<Sample>();
-            TaperSamples(to, sTo - sigmaTo * Taper, sigmaTo, Taper, merge);
+            TaperSamples(to, sTo - sigmaTo * Taper, sigmaTo, Taper, merge, -1);
             var start = new Pose(samples[taperEnd].P, samples[taperEnd].Dir);
             var end = new Pose(merge[0].P, merge[0].Dir);
             if (via.HasValue)
@@ -1104,7 +1128,7 @@ namespace CityX.World.Plan
             foreach (ExpresswayInterchange ic in _out.Interchanges)
             {
                 if (!ic.System) continue;
-                double keep = 0.7 * SystemSpacing * _r;
+                double keep = 0.35 * SystemSpacing * _r;
                 if ((ic.At - taperFrom).Length < keep || (ic.At - taperTo).Length < keep)
                 {
                     Count("ramp: in a system interchange");
@@ -1112,7 +1136,7 @@ namespace CityX.World.Plan
                 }
             }
             var taper = new List<Sample>();
-            TaperSamples(m, s0, sigma, Taper, taper);
+            TaperSamples(m, s0, sigma, Taper, taper, leaving ? +1 : -1);
             double maxTurn = loop ? 1.85 * DMath.Pi : 1.05 * DMath.Pi;
             DubinsPath.Word[] words = loop ? new[] { DubinsPath.Word.RSR } : null;
             Pose high = leaving ? new Pose(taper[taper.Count - 1].P, taper[taper.Count - 1].Dir) : new Pose(taper[0].P, taper[0].Dir);

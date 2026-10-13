@@ -164,10 +164,18 @@ namespace CityX.View
             }
             else
             {
-                // A ramp's one lane: a white line along each edge of the lane (not of the paved gore beside it).
-                double lane = Math.Min(path.HalfRight[i], path.HalfRight[i + 1]) - 0.5;
-                StripeOnPath(ctx, white, path, i, lane, 0.08, top, false);
-                StripeOnPath(ctx, white, path, i, -lane, 0.08, top, false);
+                // A ramp's one lane: a white line along its outer edge, following a taper in to its tip; and along its inner edge where it has
+                // left its main line (a parapet there) or a gore lies between them -- not where the lane is still part of the main carriageway.
+                double outer0 = path.HalfRight[i] - 0.5, outer1 = path.HalfRight[i + 1] - 0.5;
+                if (outer0 > 0.3 && outer1 > 0.3)
+                {
+                    StripeOnPath(ctx, white, path, i, -outer0, -outer1, 0.08, top, false);
+                }
+                bool gore = path.HalfLeft[i] > path.HalfRight[i] + 0.3 || path.HalfLeft[i + 1] > path.HalfRight[i + 1] + 0.3;
+                if ((path.ParapetLeft[i] || gore) && outer0 > 0.3 && outer1 > 0.3)
+                {
+                    StripeOnPath(ctx, white, path, i, outer0, outer1, 0.08, top, false);
+                }
             }
         }
 
@@ -190,8 +198,14 @@ namespace CityX.View
         /// </summary>
         private static void StripeOnPath(Context ctx, MeshBuffer buffer, ViaductPath path, int i, double offset, double halfWidth, Func<Vec2, double> top, bool dashed)
         {
+            StripeOnPath(ctx, buffer, path, i, offset, offset, halfWidth, top, dashed);
+        }
+
+        /// <summary>...with the offset changing along the segment, from <paramref name="offset0"/> at its start to <paramref name="offset1"/> at its end (a taper's edge).</summary>
+        private static void StripeOnPath(Context ctx, MeshBuffer buffer, ViaductPath path, int i, double offset0, double offset1, double halfWidth, Func<Vec2, double> top, bool dashed)
+        {
             if (buffer == null) return;
-            Vec2 a = path.P[i] + path.N[i] * offset, b = path.P[i + 1] + path.N[i + 1] * offset;
+            Vec2 a = path.P[i] + path.N[i] * offset0, b = path.P[i + 1] + path.N[i + 1] * offset1;
             double s0 = path.S[i], s1 = path.S[i + 1];
             if (s1 - s0 < 1e-6) return;
             Vec2 perp = (path.N[i] + path.N[i + 1]).Normalized;

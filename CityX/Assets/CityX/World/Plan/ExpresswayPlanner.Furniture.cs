@@ -62,6 +62,7 @@ namespace CityX.World.Plan
                     path.At(at, out Vec2 p, out Vec2 t, out double top);
                     double underside = top - path.Slab;
                     int i = path.IndexAt(at);
+                    if (!main && path.HalfRight[i] < 1.5) continue;   // a taper's narrow tip, held by its main line's own piers beside it
                     bool twin = main && path.HalfLeft[i] > TwinColumnsAbove;
                     Vec2 n = t.Perp;
                     Vec2[] columns = twin

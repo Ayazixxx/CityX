@@ -10,6 +10,10 @@ to curve and slope into the highway fully, the ones i came across were cut off";
 lead to a street"; "research the highways on the saints row and gta maps"; "research how highways are efficiently placed throughout cities in
 real life too"; "research highway exits and entrances too. they are sometimes elevated sometimes not sometimes curved sometimes straight".
 
+And of the rebuild (2026-10-13, with screenshots): "the highway entrances/exits are not connecting to the highways properly. there is an
+edge where it is clearly cut off instead of transitioning into the major freeway"; "it seems like the highway entrances/exits only connect
+to other highways. you should mostly be entering the highway from a street and exiting onto one as well".
+
 The first version laid a deck over the boulevard each district centre grew along, so every expressway hung right over a street of its own,
 two met on one flat plate (the "four way intersection"), an end came down onto the road under it, and the ramps were two straight pieces.
 Everything below replaced it.
@@ -65,19 +69,25 @@ arithmetic, the same on every machine) and every curve is a `DubinsPath` (`Dubin
    out. Each connector: a taper beside its main line, the curve, a taper beside the other; level with each line to its gore nose, sloping
    between. The land inside is the interchange's (`Infields`, a hull): no lots.
 4. **Exits** (`Exits`, `BuildExit`): where a street passes under a route at 50 degrees or more in built-up country; best streets first; no two
-   within `ExitSpacing` (950 m x road scale) on a route, none within `SystemSpacing` (650) of a cloverleaf, and their ramps' tapers clear of the
-   cloverleafs too. For each direction an off-ramp and an on-ramp, in a hashed order of shapes, each falling back to the next:
+   within `ExitSpacing` (450 m x road scale: a downtown freeway's ramps every few blocks) on a route, none within `SystemSpacing` (400) of a
+   cloverleaf, and their ramps' tapers clear of the cloverleaf's loops (0.35 of that). So most ramps a player meets come from and lead to a
+   street: in the game's city street ramps outnumber the connectors about two to one. For each direction an off-ramp and an on-ramp, in a
+   hashed order of shapes, each falling back to the next:
    - **diamond**: the off-ramp leaves before the street, curves down and meets the street square at its kerb (`Landing` 14 m straight across
      the pavement); the on-ramp the mirror image after it. Split: if the exit's own street has no room, the next street along (within
      `SplitReach` 450 m).
    - **loop**: the off-ramp leaves after the street and turns right about 250 degrees round the corner beyond it to run back along the street
      toward the expressway, merging at 20 degrees; the on-ramp peels off the lanes heading away and loops up into the main line before the street.
    - **slip**: onto a street running alongside the expressway at 20 degrees, where there is one.
-   Every ramp: a 45 m taper (its inner edge on the main line's edge, the gore paved until 3 m wide, the main line's parapet opened beside it),
-   a Dubins curve, the landing; level with the main line to the nose, then a smooth slope (no grade at either end, at most `RampGrade` 7%).
+   Every ramp: a 45 m TAPER that grows out of the main line's edge from a tip -- next to nothing wide where it meets the main line, widening
+   (eased) to a whole lane where it curves away, its inner edge on the main line's edge throughout (`TaperSamples`; the first version stood
+   a full-width square end against the main line) -- then the gore paved until 3 m wide, the main line's parapet opened where the lane is
+   wide enough to drive; a Dubins curve; the landing. Level with the main line to the nose, then a smooth slope (no grade at either end, at
+   most `RampGrade` 8%, Caltrans's limit).
    Where that even slope would pass low over another street, or through a deck laid before it at about its height, the ramp stays up over
-   it and drops after it (`LiftOverRoads`: cones at 6.3% round the clearance needed, rounded; a flyover where connectors cross). `Clear` then turns down anything that leaves the region, runs low over a road, comes down in
-   a river, passes within `RampClearance` 5.8 m of another deck, or is too steep over any 12 m. Kerb cuts where ramps land.
+   it and drops after it (`LiftOverRoads`: cones at 90% of the ramp grade round the clearance needed, rounded; a flyover where connectors
+   cross). `Clear` then turns down anything that leaves the region, runs low over a road, comes down in a river, passes within
+   `RampClearance` 5.3 m of another deck (US 16.5 ft is 5.0 m), or is too steep over any 12 m. Kerb cuts where ramps land.
 5. **Land.** A lot beside a deck is cut back to `LotMargin` (5 m) from its edge rather than lost (`ExpresswayNetwork.CutBack`: a cut along each
    segment that reaches in, the lot keeping its own side; the cut edge is not a street front; a lot left with no street front is dropped); a lot
    reaching into an interchange's land is cut along that land's nearest side. So the city lines the motorway, as it does along Shanghai's and
@@ -88,30 +98,34 @@ arithmetic, the same on every machine) and every curve is a `DubinsPath` (`Dubin
 ### The mesh (`View/CitySurfaceBuilder.Expressways.cs`)
 Every deck kind is drawn by the same code: per segment two planar triangles (`PlaneThrough`, so a curve's pieces share their edges), the
 slab's underside and sides (straight down to the ground where it is low: an embankment), parapets (`DeckParapet` 1.1 m, off where a ramp
-abuts), a median barrier on main lines, lane paint (dashes by distance along), piers built by the chunk holding their centre, gantry signs and
-barriers. Kerb cuts subtract from the pavement and kerb faces.
+abuts), a median barrier on main lines, lane paint (dashes by distance along; a ramp's outer edge line follows its taper in to the tip, its
+inner line only where it has left the main line), piers built by the chunk holding their centre (none under a taper's narrow tip), gantry
+signs and barriers. Kerb cuts subtract from the pavement and kerb faces.
 
-### Numbers (seed 72604913, the game's varied 10 km)
-37 km of main line (ring 14 km, routes 12 and 11 km), 38% of it over a road, 0.9% along one; 5 cloverleafs (20 loops, 16 of 20 outer
-connectors); 12 exits with 36 ramps (22 diamond, 14 loop); steepest ramp 7.0%; 2159 piers. The tests' classic city (seed 61839025): 5
-cloverleafs, 6 exits (12 diamond, 3 loop, 1 slip). The world seed was rerolled to 72604913 for this pass.
+### Numbers (seed 58316274, the game's varied 10 km)
+34 km of main line (ring 14 km, routes 10 and 10 km), 35% of it over a road, 0.8% along one; 5 cloverleafs (all 20 loops and all 20 outer
+connectors); 25 exits with 80 ramps to and from streets (38 diamond, 35 loop, 7 slip) against those 40 connectors; steepest ramp 7.8%;
+2770 piers. The tests' classic city (seed 61839025), five cloverleafs crowded inside a small ring: 13 exits. The world seed was rerolled to
+72604913 for the rebuild and to 58316274 for the tapers and the denser exits.
 
 ## Tests and pictures
 `CityFeaturesTests` (EditMode, classic seed 61839025): a ring and routes across; no flat crossing and every crossing a cloverleaf; main decks
 clear every road (higher over one they run along) and climb gently; every ramp meets a street at its kerb and its main line beside it, level;
-ramps curve and slope smoothly, come in at least two shapes, loops turn most of the way round; no deck runs low over a street or through
-another; exits spaced and clear of the cloverleafs; no lot under a deck or in an interchange's land, and many cut back beside one; no pier in a
+ramps curve and slope smoothly, come in at least two shapes, loops turn most of the way round; every ramp and connector grows out of its
+main line from a taper tip; no deck runs low over a street or through another; exits spaced and clear of the cloverleafs; in the game's own
+city street ramps outnumber connectors 1.6 to 1 or more; no lot under a deck or in an interchange's land, and many cut back beside one; no pier in a
 road; the spawn in the open; mesh checks for the deck chunk, a pier and an exit. `ExpresswayGeometryTests`: DMath, Dubins words, splines,
 profiles, and `CutBack` on a straight deck and an infield.
 `ExpresswayCapture` (PlayMode, Explicit, `-Graphics`) renders `Logs/CityShots/xw-*.png` in the game's own varied city: on the deck, under
-it, every ramp shape from the air, the deck and the street, a cloverleaf, the ring and a closed end. Map views: `dotnet run -c Release
+it, every ramp shape from the air, the deck, the street and close to its taper tip, a cloverleaf and where its connectors leave and join, the
+ring and a closed end. Map views: `dotnet run -c Release
 --project tools/cityplan -- <seed> 0 <px> out.png <x> <z> <half>` (0 = the game's region), `interchanges <seed>` lists them,
 `CITYX_XW_DEBUG=1` prints why connectors were lost.
 
 ## Not done / next
 - Cars and traffic (there are none: the rapture).
-- Stacks and direct connectors where two expressways cross at a tight angle: the cloverleaf nearest the spawn (a 35-degree crossing) gets
-  its four loops but only one of its outer connectors, the others finding no way past the long loops. Collector-distributor lanes.
+- Stacks and direct connectors where two expressways cross at a tight angle (a 35-degree crossing gets its four loops but few of its outer
+  connectors, the others finding no way past the long loops). Collector-distributor lanes.
 - The land inside interchanges is the city's plain paving; grass or wasteland would read better.
 - Sound: wind on the deck, the hum under it.
 

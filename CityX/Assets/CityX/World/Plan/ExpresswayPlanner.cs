@@ -28,9 +28,10 @@ namespace CityX.World.Plan
     ///    <see cref="MainlineGrade"/>, to pass over the next road.
     ///  * INTERCHANGES. "All connections to freeways are by traffic interchanges" (Caltrans HDM 501.2): two expressways never meet on the flat.
     ///    The later route passes <see cref="LevelGap"/> over the earlier; connectors (outer curves for the right turns, 270-degree loops for the
-    ///    left: a cloverleaf) join them. Exits are at least <see cref="ExitSpacing"/> apart (Caltrans: one mile urban) and clear of the system
-    ///    interchanges (two miles there), each with an off- and an on-ramp for each direction, all onto ONE cross street, meeting it at right angles
-    ///    (HDM 502.2: "ramp termini should be perpendicular to the local road"); ramp grades at most <see cref="RampGrade"/> (HDM: 8%).
+    ///    left: a cloverleaf) join them. Exits come every <see cref="ExitSpacing"/> or so, as on a downtown freeway (owner: "you should mostly be
+    ///    entering the highway from a street and exiting onto one as well"), clear of the cloverleafs, each with an off- and an on-ramp for each
+    ///    direction onto a cross street, meeting it at right angles (HDM 502.2: "ramp termini should be perpendicular to the local road") or
+    ///    merging along it (a loop); ramp grades at most <see cref="RampGrade"/> (HDM: 8%).
     ///
     /// Pure and deterministic like the rest of the plan: trig only from DMath, choices from hashes of the seed.
     /// </summary>
@@ -45,7 +46,7 @@ namespace CityX.World.Plan
         public const double MainlineGrade = 0.04;
 
         /// <summary>The steepest a ramp climbs (Caltrans HDM 504.2(5): not over 8%; TxDOT 5-7% by ramp speed).</summary>
-        public const double RampGrade = 0.07;
+        public const double RampGrade = 0.08;
 
         /// <summary>The main deck's slab, and a ramp's.</summary>
         public const double MainlineSlab = 1.4;
@@ -60,8 +61,8 @@ namespace CityX.World.Plan
         /// <summary>One deck's underside over another deck's top where two expressways cross (16.5 ft = 5 m real, plus room for the connectors' piers).</summary>
         public const double LevelGap = 9.0;
 
-        /// <summary>A ramp or connector's underside over a road it passes over.</summary>
-        public const double RampClearance = 5.8;
+        /// <summary>A ramp or connector's underside over a road it passes over (16.5 ft = 5.0 m is the US standard; the player is 2.6 m tall).</summary>
+        public const double RampClearance = 5.3;
 
         /// <summary>In open country the carriageway sits this far above the ground: an embankment.</summary>
         public const double EmbankmentRise = 0.9;
@@ -69,11 +70,14 @@ namespace CityX.World.Plan
         /// <summary>From this population up, the main line stays up on its viaduct the whole way: a city viaduct, not a roller coaster.</summary>
         public const double UrbanPopulation = 0.22;
 
-        /// <summary>Exits this far apart along a route, classic metres times the road scale (Caltrans: one mile urban, compressed as every game city is).</summary>
-        public const double ExitSpacing = 950.0;
+        /// <summary>
+        /// Exits this far apart along a route, classic metres times the road scale: a downtown freeway's spacing (ramps every few blocks, as on
+        /// GTA V's freeways through Los Santos), well inside Caltrans's suburban mile -- so most ramps a player meets come from and lead to a street.
+        /// </summary>
+        public const double ExitSpacing = 450.0;
 
-        /// <summary>An exit keeps this far from a freeway-to-freeway interchange (Caltrans: two miles).</summary>
-        public const double SystemSpacing = 650.0;
+        /// <summary>An exit keeps this far from a freeway-to-freeway interchange, and its ramps' tapers keep clear of the cloverleaf's own.</summary>
+        public const double SystemSpacing = 400.0;
 
         /// <summary>Only built-up country gets exits.</summary>
         public const double ExitPopulation = 0.14;
