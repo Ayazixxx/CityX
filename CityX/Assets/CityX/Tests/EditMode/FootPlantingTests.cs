@@ -202,6 +202,16 @@ namespace CityX.Tests
             float reach = 1.165f * FootPlanting.ReachShare;
             float expected = Mathf.Min(1.3f - (0.135f + FootPlanting.SoleLift) - Mathf.Sqrt(reach * reach - 0.6f * 0.6f), FootPlanting.MaxReachDip);
             Assert.AreEqual(expected, feet.HipDrop, 0.01f, "the hips did not dip for the long stride");
+            // And the foot is pulled in along the ground to where the leg reaches with that dip, rather than left in the air.
+            if (!feet.IsLocked(0))
+            {
+                Vector3 target = feet.Of(0).Target;
+                Assert.AreEqual(0.135f + FootPlanting.SoleLift, target.y, 0.005f, "the out-of-reach foot left the ground");
+                float h = 1.3f - feet.HipDrop - target.y;
+                float horizontal = new Vector2(target.x + 0.12f, target.z).magnitude;
+                Assert.LessOrEqual(horizontal * horizontal + h * h, reach * reach + 0.01f, "the foot was left where the leg cannot reach it");
+                Assert.Less(target.z, 0.6f, "the out-of-reach foot was not pulled in");
+            }
             // A foot right under the hip needs none.
             var easy = new FootPlanting();
             Run(easy, 60, i => Reaching(0.0f), i => Reaching(0.1f));

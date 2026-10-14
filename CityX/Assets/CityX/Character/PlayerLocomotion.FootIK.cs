@@ -191,6 +191,53 @@ namespace CityX.Character
             SolveLeg(1, _rightUpperLeg, _rightLowerLeg, _rightFoot, transform.right, lean, side > 0.25f ? LeadYaw(_rightFoot, heading, side) : 0.0f);
         }
 
+        private float _headForwardBlend;
+
+        /// <summary>How quickly the steady head fades in and out, per second.</summary>
+        public const float HeadForwardBlendPerSecond = 6.0f;
+
+        /// <summary>
+        /// THE HEAD LOOKS STRAIGHT AHEAD while walking and running (owner, 2026-10-13: "I don't like how the head looks side to side when running, it should
+        /// just look forward"). The clips swing the head with each stride and the lean tips it into turns; here its turn and roll are taken out against the
+        /// body's own facing and the world's up, keeping only its up-down angle (the clip's, the lean's and the posture's), then the posture's own turn and
+        /// tilt go back on. Hair is on the head bone and follows. Only in the walk/run blends, on the ground; an aim (ApplyGunAimPose, run after) still
+        /// turns the head to the sights.
+        /// </summary>
+        private void ApplyHeadForward()
+        {
+            if (_head == null || _animator == null)
+            {
+                return;
+            }
+            bool locomotion = false;
+            if (_animator.runtimeAnimatorController != null)
+            {
+                AnimatorStateInfo info = _animator.GetCurrentAnimatorStateInfo(0);
+                foreach (string tree in GaitTrees)
+                {
+                    locomotion |= info.IsName(tree);
+                }
+            }
+            bool wanted = locomotion && !IsSitting && !InCarSeat && _climbWallWeight <= 0.01f && _ledgeHandsWeight <= 0.01f && _bakedPoseWeight <= 0.0f;
+            _headForwardBlend = Mathf.MoveTowards(_headForwardBlend, wanted ? 1.0f : 0.0f, HeadForwardBlendPerSecond * Time.deltaTime);
+            if (_headForwardBlend <= 0.0f)
+            {
+                return;
+            }
+            Quaternion body = Quaternion.Euler(0.0f, transform.eulerAngles.y, 0.0f);
+            Vector3 face = Quaternion.Inverse(body) * _head.forward;
+            float level = Mathf.Sqrt(face.x * face.x + face.z * face.z);
+            if (level < 1e-4f)
+            {
+                return;
+            }
+            Vector3 ahead = new Vector3(0.0f, face.y, level);   // the same up-down angle, pointed straight ahead
+            BodyPostureSettings posture = BodyPostureSettings.Current;
+            Quaternion target = body * Quaternion.Euler(0.0f, posture.HeadTurnRight, 0.0f) * Quaternion.LookRotation(ahead, Vector3.up)
+                * Quaternion.Euler(0.0f, 0.0f, -posture.HeadTiltRight);
+            _head.rotation = Quaternion.Slerp(_head.rotation, target, Mathf.SmoothStep(0.0f, 1.0f, _headForwardBlend));
+        }
+
         /// <summary>How far the leading foot turns toward the travel: a share of the angle between its toes and the heading, scaled by how sideways the travel is.</summary>
         private static float LeadYaw(Transform foot, Vector3 heading, float side)
         {

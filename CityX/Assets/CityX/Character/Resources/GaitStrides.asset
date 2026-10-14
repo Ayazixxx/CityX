@@ -15,7 +15,7 @@ MonoBehaviour:
   Entries:
   - Tree: Locomotion
     Move: {x: 0, y: 4}
-    Stride: 1
+    Stride: 1.12
   - Tree: Locomotion
     Move: {x: 0, y: 7.5}
     Stride: 1.12
@@ -30,19 +30,16 @@ MonoBehaviour:
     Stride: 1.12
   - Tree: Locomotion
     Move: {x: -2.828427, y: 2.828427}
-    Stride: 1.06
+    Stride: 1.12
   - Tree: Locomotion
     Move: {x: 2.828427, y: 2.828427}
-    Stride: 1.06
+    Stride: 1.12
   - Tree: Locomotion
     Move: {x: -2.828427, y: -2.828427}
-    Stride: 1.06
+    Stride: 1.12
   - Tree: Locomotion
     Move: {x: 2.828427, y: -2.828427}
-    Stride: 1.06
-  - Tree: Locomotion
-    Move: {x: 0, y: 1.4133122}
-    Stride: 1
+    Stride: 1.12
   - Tree: Crouched
     Move: {x: 0, y: 1}
     Stride: 1.12

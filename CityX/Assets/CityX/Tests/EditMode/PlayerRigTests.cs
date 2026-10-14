@@ -376,14 +376,12 @@ namespace CityX.Tests
             }
 
             Assert.AreEqual(Vector2.zero, At("idle"), "idle should sit at a standstill");
-            // THE GAITS (ClipCadence, 2026-10-13): 4 m/s is a jog on this body, so the run clip plays there as well as at the sprint; the walk clip keeps
-            // one sample at its own slow pace (about 1.4 m/s) for a slow push on a stick.
-            Vector2 walkAt = At("walking");
-            Assert.AreEqual(0.0f, walkAt.x, 1e-4f, "the walk clip is not straight ahead");
-            Assert.Greater(walkAt.y, 0.5f, "the walk clip has no forward speed");
-            Assert.Less(walkAt.y, locomotion.WalkSpeed, "the walk clip should sit below walking speed, at its own pace (the jog takes walking speed)");
-            Assert.Contains(new Vector2(0.0f, locomotion.WalkSpeed), AllAt("sprint"), "the run clip is not placed at PlayerLocomotion.WalkSpeed as the jog");
-            Assert.Contains(new Vector2(0.0f, locomotion.SprintSpeed), AllAt("sprint"), "the run clip is not placed at PlayerLocomotion.SprintSpeed");
+            // The walk clip at walking speed and the run at sprinting speed (the jog at walking speed was tried and refused, 2026-10-13: "he shouldn't
+            // be pumping his arms like that when he is just walking"; ClipCadence.GaitSwapTree).
+            Assert.AreEqual(new Vector2(0.0f, locomotion.WalkSpeed), At("walking"),
+                "the walk clip is not placed at PlayerLocomotion.WalkSpeed");
+            Assert.AreEqual(new Vector2(0.0f, locomotion.SprintSpeed), At("sprint"),
+                "the sprint clip is not placed at PlayerLocomotion.SprintSpeed");
 
             // The three that were unreachable while facing followed velocity.
             Assert.AreEqual(new Vector2(0.0f, -locomotion.WalkSpeed), At("walk_backward"));

@@ -223,8 +223,14 @@ namespace CityX.CharacterEditor
         /// <summary>
         /// Only the plain locomotion tree swaps gaits: its run clip is a jog. A sword or gun tree's "sprint" is a sprint with the weapon held for
         /// sprinting, and playing it for an ordinary move changed how the weapon is carried; those keep their own clips, re-paced within the limits.
+        ///
+        /// SWITCHED OFF (owner, 2026-10-13, after trying the jog: "the walking animation is the same as the running animation now just slower. he
+        /// shouldn't be pumping his arms like that when he is just walking"). Every tree keeps its own clips, re-paced within the limits; the walk at
+        /// 4 m/s is the walk clip at 1.2x with 12% longer strides, and its feet are placed on the ground but not held (its pace is too far from the
+        /// body's to hold them without dragging: FootPlanting.LocksViable). A walk clip with longer strides would remove the remaining glide.
+        /// Set this to "Locomotion" to bring the jog back.
         /// </summary>
-        public const string GaitSwapTree = "Locomotion";
+        public const string GaitSwapTree = "";
 
         private static int MatchTree(BlendTree tree, string treeName, Dictionary<AnimationClip, float> cache, GameObject rig, GaitStrides gaits)
         {

@@ -110,3 +110,17 @@ it's often better to allow foot sliding"); let foot IK take the rest; large libr
 
 Sources: Epic, "Adapt the animations in the Lyra sample project into your game" (unrealengine.com tech blog); Naughty Dog, "Motion Matching in The
 Last of Us Part II" (GDC 2021); MoCap Online, locomotion system design and walk/run/sprint blend guides.
+
+## Update: the walk is the walk again, and the head looks ahead (2026-10-13)
+
+Owner, after trying the jog: "the walking animation is the same as the running animation now just slower. he shouldn't be pumping his arms like that
+when he is just walking", and "I don't like how the head looks side to side when running, it should just look forward".
+
+- The gait swap is OFF (`ClipCadence.GaitSwapTree` is empty; set it to "Locomotion" to bring the jog back): 4 m/s plays the walk clip again, sped up
+  20% with 12% longer strides (the research limits). Its feet are pressed onto the ground but not held (the walk clip's feet still move at about half
+  the body's speed, too far apart to hold them without dragging). The sprint is unchanged. Removing the last of the walk's glide needs a walk clip
+  with longer strides, or a slower walking speed.
+- THE HEAD LOOKS STRAIGHT AHEAD in the walk/run/sword/gun/crouch blends (`PlayerLocomotion.ApplyHeadForward`, after the foot placement): the clip's
+  side-to-side swing and the lean's roll in turns are taken out against the body's facing and the world's up; the up-down angle (clip, lean, posture)
+  is kept, and the posture's own turn and tilt go back on. An aim still turns the head to the sights. Test: `HeadForwardPlayTests` (within 3 degrees of
+  the body's facing, level within 3 degrees, walking and sprinting).

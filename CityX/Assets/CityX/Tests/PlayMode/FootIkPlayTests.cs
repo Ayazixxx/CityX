@@ -160,29 +160,36 @@ namespace CityX.Tests
                 {
                     lowestLift = Mathf.Min(lowestLift, locomotion.FootPlanting.LastLift(i));
                     highestLift = Mathf.Max(highestLift, locomotion.FootPlanting.LastLift(i));
-                    if (!locomotion.FootPlanting.IsLocked(i))
+                    Vector3 ankle = feet[i].position;
+                    // A foot that is HELD must not slide (the walk clip is too slow for the body to be held all the time: see LocksViable).
+                    if (locomotion.FootPlanting.IsLocked(i))
+                    {
+                        if (lastLocked[i].HasValue && dropSettled)
+                        {
+                            Vector3 slid = ankle - lastLocked[i].Value;
+                            slid.y = 0.0f;
+                            worstSlide = Mathf.Max(worstSlide, slid.magnitude);
+                        }
+                        lastLocked[i] = ankle;
+                    }
+                    else
                     {
                         lastLocked[i] = null;
+                    }
+                    if (!locomotion.FootPlanting.IsOnFloor(i))
+                    {
                         continue;
                     }
-                    lockedFrames++;
-                    Vector3 ankle = feet[i].position;
-                    if (lastLocked[i].HasValue && dropSettled)
-                    {
-                        Vector3 slid = ankle - lastLocked[i].Value;
-                        slid.y = 0.0f;
-                        worstSlide = Mathf.Max(worstSlide, slid.magnitude);
-                    }
-                    lastLocked[i] = ankle;
+                    lockedFrames++;   // on its tread
                     // The tread under the ANKLE (a ray from the toe can start inside the next riser); the height is the sole's lowest point over it.
-                    if (dropSettled && locomotion.FootPlanting.IsOnFloor(i) && GroundUnder(ankle, _player.transform, out RaycastHit tread))
+                    if (dropSettled && GroundUnder(ankle, _player.transform, out RaycastHit tread))
                     {
                         worstOffGround = Mathf.Max(worstOffGround, Mathf.Abs(LowestFootPoint(feet[i]).y - tread.point.y));
                     }
                 }
             }
             Assert.Greater(_player.transform.position.z, 2.5f, "the body did not climb the stairs");
-            Assert.Greater(lockedFrames, 30, $"the feet were hardly ever planted on the stairs (clip lift {lowestLift:0.000} to {highestLift:0.000} m, the placement off for {inactiveFrames} frames; " +
+            Assert.Greater(lockedFrames, 30, $"the feet were hardly ever on the treads (clip lift {lowestLift:0.000} to {highestLift:0.000} m, the placement off for {inactiveFrames} frames; " +
                 $"releases: {locomotion.FootPlanting.ReleasedBySwing} swing, {locomotion.FootPlanting.ReleasedByStretch} stretch, {locomotion.FootPlanting.ReleasedByLift} lift)");
             Assert.Less(worstSlide, 0.015f, $"a planted foot slid {worstSlide * 100:0.0} cm in one frame");
             Assert.Less(worstOffGround, 0.06f, $"a planted foot sat {worstOffGround * 100:0.0} cm off its tread (floating over the step below, or buried)");
@@ -233,7 +240,7 @@ namespace CityX.Tests
                         speedSamples[gait]++;
                     }
                     lastAnimated[i] = animated;
-                    if (locomotion.FootPlanting.IsLocked(i) && planted)
+                    if (planted)   // on the clip's floor, held or not: the sole must be on the ground (the "floating" the owner saw)
                     {
                         float above = SoleAboveGround(feet[i], _player.transform);
                         if (float.IsNaN(above)) continue;
@@ -249,8 +256,17 @@ namespace CityX.Tests
                 float bodySpeed = bodySpeedSum[gait] / speedSamples[gait];
                 Debug.Log($"CityX foot placement ({(gait == 0 ? "walk" : "sprint")}): planted feet move back through the body at {clipSpeed:0.00} m/s while the body goes {bodySpeed:0.00} m/s " +
                           $"(releases so far: {locomotion.FootPlanting.ReleasedBySwing} swing, {locomotion.FootPlanting.ReleasedByStretch} stretch, {locomotion.FootPlanting.ReleasedByLift} lift)");
-                Assert.AreEqual(bodySpeed, clipSpeed, bodySpeed * 0.25f,
-                    $"{(gait == 0 ? "walking" : "sprinting")}, the clip moves the planted feet at {clipSpeed:0.00} m/s under a body going {bodySpeed:0.00} m/s: the feet slide");
+                // The sprint (the run clip within the 20% limits plus the stride) keeps up; the walk clip cannot at 4 m/s (owner's choice: the walk's
+                // own look over a jog), but is paced up within the limit, so its feet move faster than the clip alone (1.4 m/s).
+                if (gait == 1)
+                {
+                    Assert.AreEqual(bodySpeed, clipSpeed, bodySpeed * 0.25f,
+                        $"sprinting, the clip moves the planted feet at {clipSpeed:0.00} m/s under a body going {bodySpeed:0.00} m/s: the feet slide");
+                }
+                else
+                {
+                    Assert.Greater(clipSpeed, 1.6f, $"walking, the walk clip is not paced up (its feet move at {clipSpeed:0.00} m/s)");
+                }
             }
             // The controller's capsule rests a skin width (up to 3 cm) above the floor; the placement brings the feet down that much, plus at most the
             // small dip a long stride is allowed at heel strike (FootPlanting.MaxReachDip), and no more.

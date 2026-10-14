@@ -419,6 +419,21 @@ namespace CityX.Character
                             need = Mathf.Max(need, Mathf.Min(height - highest, MaxReachDip));
                         }
                     }
+                    // STILL OUT OF REACH with the hips as low as they will go for this foot (a walk's warped stride on a long leg): a free foot is pulled
+                    // in toward the hip along the ground, so it lands short rather than hanging in the air (the "floating" the owner saw).
+                    if (!_locked[i])
+                    {
+                        float h = sample.Hip.y - Mathf.Clamp(need, 0.0f, MaxHipDrop) - target.y;
+                        Vector3 flat = new Vector3(target.x - sample.Hip.x, 0.0f, target.z - sample.Hip.z);
+                        float hz = flat.magnitude;
+                        float r = reach * 0.99f;
+                        if (h > 0.0f && h < r && hz > 1e-4f && hz * hz + h * h > r * r)
+                        {
+                            float most = Mathf.Sqrt(r * r - h * h);
+                            target.x = sample.Hip.x + flat.x * (most / hz);
+                            target.z = sample.Hip.z + flat.z * (most / hz);
+                        }
+                    }
                 }
                 normal = sample.Normal.sqrMagnitude > 0.5f ? sample.Normal.normalized : Vector3.up;
             }

@@ -1448,6 +1448,7 @@ namespace CityX.Character
             // The feet on the real ground (hip drop, locks, sole tilt): right after the clamp, which it builds on, and before every pose that
             // only touches the upper body. See PlayerLocomotion.FootIK.cs.
             ApplyFootIK();
+            ApplyHeadForward();
             ApplyDrivingWheelPose();
             ApplyCastingPose();
             ApplyGunAimPose();

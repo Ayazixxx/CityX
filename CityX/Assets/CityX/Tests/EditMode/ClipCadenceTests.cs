@@ -8,9 +8,8 @@ using UnityEngine;
 namespace CityX.Tests
 {
     /// <summary>
-    /// The gaits (ClipCadence, owner 2026-10-13): the built animator plays the run clip as a jog at walking speed (within 20% of its own pace), the walk
-    /// clip at its own slow pace, the sprint no more than 20% sped up with the rest taken by the stride (GaitStrides) and the foot locks; the idle is
-    /// untouched and a held crouch stays held.
+    /// The gaits (ClipCadence, owner 2026-10-13): the built animator walks with the WALK clip and sprints with the run clip (the jog at walking speed was
+    /// refused), each sped up no more than 20% with up to 12% longer strides (GaitStrides); the idle is untouched and a held crouch stays held.
     /// </summary>
     public sealed class ClipCadenceTests
     {
@@ -40,7 +39,7 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void TheBuiltAnimatorJogsAtWalkingSpeedAndKeepsTheWalkForASlowPush()
+        public void TheBuiltAnimatorWalksWithTheWalkClipAndSprintsWithTheRunClipWithinTheLimits()
         {
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath);
             var controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(ControllerPath);
@@ -52,8 +51,8 @@ namespace CityX.Tests
             GameObject rig = Object.Instantiate(prefab);
             try
             {
-                bool sawJog = false, sawSprint = false, sawIdle = false, sawSlowWalk = false;
-                AnimationClip jogClip = null, sprintClip = null;
+                bool sawWalk = false, sawSprint = false, sawIdle = false;
+                AnimationClip walkClip = null, sprintClip = null;
                 foreach (ChildMotion child in locomotion.children)
                 {
                     if (!(child.motion is AnimationClip clip)) continue;
@@ -72,10 +71,9 @@ namespace CityX.Tests
                     Assert.GreaterOrEqual(child.timeScale, 1.0f / maxRate - 1e-3f, $"{clip.name} at {bodySpeed:0.0} m/s is slowed past the limit");
                     if (straight && Mathf.Approximately(child.position.y, PlayerRigBuilder.WalkSpeed))
                     {
-                        sawJog = true;
-                        jogClip = clip;
-                        Assert.AreEqual(4.0f / clipSpeed, child.timeScale, 0.03f, "the jog's pace is not matched to walking speed");
-                        Assert.Less(child.timeScale, 1.0f, "4 m/s should play the run clip slowed a little, not a walk sped up");
+                        sawWalk = true;
+                        walkClip = clip;
+                        Assert.AreEqual(ClipCadence.MaxRateChange, child.timeScale, 1e-3f, "the walk clip should take the whole rate allowance (it is far slower than the body)");
                     }
                     if (straight && Mathf.Approximately(child.position.y, PlayerRigBuilder.SprintSpeed))
                     {
@@ -83,23 +81,17 @@ namespace CityX.Tests
                         sprintClip = clip;
                         Assert.AreEqual(ClipCadence.MaxRateChange, child.timeScale, 1e-3f, "the sprint should take the whole rate allowance");
                     }
-                    if (straight && bodySpeed < PlayerRigBuilder.WalkSpeed - 0.5f)
-                    {
-                        sawSlowWalk = true;
-                        Assert.AreEqual(1.0f, child.timeScale, 1e-3f, "the walk at its own pace should play at its own pace");
-                        Assert.AreEqual(clipSpeed, bodySpeed, 0.05f, "the walk's sample should sit at the walk's own ground speed");
-                    }
                 }
                 Assert.IsTrue(sawIdle, "the idle is gone");
-                Assert.IsTrue(sawJog, "no clip at walking speed");
+                Assert.IsTrue(sawWalk, "no clip at walking speed");
                 Assert.IsTrue(sawSprint, "no clip at sprinting speed");
-                Assert.IsTrue(sawSlowWalk, "the walk clip lost its slow sample");
-                Assert.AreSame(jogClip, sprintClip, "the jog and the sprint should be the same run clip at two paces");
+                Assert.AreNotSame(walkClip, sprintClip, "walking plays the run clip: the owner refused the jog (\"he shouldn't be pumping his arms\")");
+                Assert.Less(ClipCadence.GroundSpeed(walkClip, rig), ClipCadence.GroundSpeed(sprintClip, rig), "the walk clip at walking speed is not the slower clip");
 
                 GaitStrides gaits = AssetDatabase.LoadAssetAtPath<GaitStrides>(GaitStrides.AssetPath);
                 Assert.IsNotNull(gaits, "no gait strides asset was written");
                 Assert.AreEqual(ClipCadence.MaxStrideChange, gaits.StrideFor("Locomotion", new Vector2(0.0f, PlayerRigBuilder.SprintSpeed)), 1e-3f, "the sprint should stride longer");
-                Assert.AreEqual(1.0f, gaits.StrideFor("Locomotion", new Vector2(0.0f, PlayerRigBuilder.WalkSpeed)), 0.02f, "the jog needs no longer stride");
+                Assert.AreEqual(ClipCadence.MaxStrideChange, gaits.StrideFor("Locomotion", new Vector2(0.0f, PlayerRigBuilder.WalkSpeed)), 1e-3f, "the walk should stride longer");
                 Assert.AreEqual(1.0f, gaits.StrideFor("Locomotion", Vector2.zero), 1e-3f, "standing still has no stride");
 
                 BlendTree crouched = Tree(controller, "Crouched");
