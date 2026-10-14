@@ -215,7 +215,7 @@ namespace CityX.View
 
         /// <summary>
         /// Everything generated for ONE chunk, before any scene object exists: each mesh buffer, the openings, and
-        /// the main mesh already combined into flat arrays. Made on a worker thread and read on the main thread,
+        /// the main mesh already laid out the way the Mesh keeps it. Made on a worker thread and read on the main thread,
         /// so it owns its buffers (nothing here is shared between chunks) and touches no Unity object.
         /// </summary>
         private sealed class ChunkPayload
@@ -241,15 +241,11 @@ namespace CityX.View
             /// <summary>The powered rooms' lights (CityMeshBuilder.RoomGlow), built near only.</summary>
             public readonly List<CityMeshBuilder.RoomGlow> RoomGlows = new List<CityMeshBuilder.RoomGlow>();
 
-            // The main mesh's five submeshes, combined off the main thread.
-            public Vector3[] Vertices;
-            public Vector3[] Normals;
-            public Vector2[] Uvs;
-            public Color32[] Colors;
-            public int[][] SubmeshTriangles;
-
-            /// <summary>The main mesh's tangents, worked out on the worker too (MeshTangents): Mesh.RecalculateTangents cost ~5 ms on the main thread.</summary>
-            public Vector4[] Tangents;
+            /// <summary>
+            /// The main mesh, laid out off the main thread with its tangents (MeshTangents: Mesh.RecalculateTangents cost ~5 ms on the main
+            /// thread) and its bounds, so that making it there is a few block copies (ChunkMeshData). Null when generating the chunk failed.
+            /// </summary>
+            public ChunkMeshData Main;
         }
 
         // The chunk being turned into scene objects right now (main thread only). The Add* methods below read
@@ -643,7 +639,7 @@ namespace CityX.View
                 {
                     // A chunk that fails to generate must not silently leave a hole in the city forever.
                     Debug.LogException(exception);
-                    _finished.Enqueue(new ChunkPayload { Key = key, Generation = generation, Far = far, Vertices = null });
+                    _finished.Enqueue(new ChunkPayload { Key = key, Generation = generation, Far = far, Main = null });
                 }
                 finally
                 {
@@ -680,7 +676,7 @@ namespace CityX.View
 
                 // A refresh after a window was hit (OnPaneChanged): swap in the new glass, or the whole chunk, and go again if it was hit again meanwhile.
                 if (_refreshing.TryGetValue(payload.Key, out bool glassOnly) && _loaded.TryGetValue(payload.Key, out GameObject onScreen)
-                    && payload.Vertices != null && _far.Contains(payload.Key) == payload.Far)
+                    && payload.Main != null && _far.Contains(payload.Key) == payload.Far)
                 {
                     _refreshing.Remove(payload.Key);
                     if (glassOnly)
@@ -716,9 +712,9 @@ namespace CityX.View
                 // A window in it changed while this was being generated (a block being upgraded from its distant version when it was shot):
                 // put this version in now and have the change follow in the background. It used to be generated again here, on the main
                 // thread -- a 20-30 ms stall (seen 2026-10-14 when an AK sprayed a block still streaming in).
-                bool changedMeanwhile = payload.Vertices != null && _changedInFlight.Remove(payload.Key);
+                bool changedMeanwhile = payload.Main != null && _changedInFlight.Remove(payload.Key);
                 _pendingRefresh.Remove(payload.Key);
-                if (payload.Vertices == null)
+                if (payload.Main == null)
                 {
                     payload = GenerateChunk(payload.Key, GrassMaterial != null && BarkMaterial != null && !payload.Far, payload.Far);   // the worker failed
                 }
@@ -867,50 +863,16 @@ namespace CityX.View
                 far ? null : payload.LaneDividers, far ? null : payload.CrackDecals,
                 includeSurface: true, far: far, roomGlows: far ? null : payload.RoomGlows);
 
-            // Road, pavement and concrete want different materials, so they go
-            // into one mesh as submeshes rather than separate objects. Same
-            // vertex buffer, same transform, one cull -- and each submesh's
-            // triangle indices have to be shifted by however many vertices came
-            // before it, which is the only fiddly part.
-            MeshBuffer[] buffers = { payload.Ground, payload.Pavement, payload.Structures, payload.DarkGlass, payload.LitGlass };
-            int vertexCount = 0;
-            foreach (MeshBuffer buffer in buffers)
+            // Road, pavement, concrete and glass go into one mesh as submeshes rather than separate objects: same vertex buffer, same
+            // transform, one cull. The ground, the pavement and the walls are one material now (the facade shader reads what each surface is
+            // off its vertices), so they are ONE submesh: a draw call each used to be spent on up to three of them in every chunk. Laid out
+            // here, the way the Mesh keeps it, tangents and bounds included: the main thread only copies it in (AssembleChunk).
+            payload.Main = ChunkMeshData.Combine(new[]
             {
-                vertexCount += buffer.Vertices.Count;
-            }
-            payload.Vertices = new Vector3[vertexCount];
-            payload.Normals = new Vector3[vertexCount];
-            payload.Uvs = new Vector2[vertexCount];
-            payload.Colors = new Color32[vertexCount];
-            payload.SubmeshTriangles = new int[buffers.Length][];
-            int written = 0;
-            for (int b = 0; b < buffers.Length; b++)
-            {
-                MeshBuffer buffer = buffers[b];
-                buffer.Vertices.CopyTo(payload.Vertices, written);
-                buffer.Normals.CopyTo(payload.Normals, written);
-                buffer.Uvs.CopyTo(payload.Uvs, written);
-                buffer.Colors.CopyTo(payload.Colors, written);
-
-                var shifted = new int[buffer.Triangles.Count];
-                for (int i = 0; i < shifted.Length; i++)
-                {
-                    shifted[i] = buffer.Triangles[i] + written;
-                }
-                payload.SubmeshTriangles[b] = shifted;
-                written += buffer.Vertices.Count;
-            }
-
-            // The ground, the pavement and the walls are one material now (the facade shader reads what each surface is off its vertices),
-            // so they are ONE submesh: a draw call each used to be spent on up to three of them in every chunk.
-            var everything = new int[payload.SubmeshTriangles[0].Length + payload.SubmeshTriangles[1].Length + payload.SubmeshTriangles[2].Length];
-            payload.SubmeshTriangles[0].CopyTo(everything, 0);
-            payload.SubmeshTriangles[1].CopyTo(everything, payload.SubmeshTriangles[0].Length);
-            payload.SubmeshTriangles[2].CopyTo(everything, payload.SubmeshTriangles[0].Length + payload.SubmeshTriangles[1].Length);
-            payload.SubmeshTriangles[0] = everything;
-            payload.SubmeshTriangles[1] = new int[0];
-            payload.SubmeshTriangles[2] = new int[0];
-            payload.Tangents = MeshTangents.Compute(payload.Vertices, payload.Normals, payload.Uvs, payload.SubmeshTriangles);
+                new[] { payload.Ground, payload.Pavement, payload.Structures },   // drawn with AssembleChunk's materialFor, in this order
+                new[] { payload.DarkGlass },
+                new[] { payload.LitGlass },
+            });
             return payload;
         }
 
@@ -934,49 +896,22 @@ namespace CityX.View
             go.transform.SetParent(transform, false);
             go.transform.localPosition = origin;
 
+            // Laid out by the worker (ChunkMeshData): here it is the layout, one block copy per vertex stream and one for the indices, with
+            // nothing checked or recalculated, 2-3 ms for a block of towers. Built here with the classic Mesh API (SetVertices, SetNormals,
+            // SetUVs, SetColors, SetTriangles, SetTangents, RecalculateBounds), which repacks the whole vertex buffer for each attribute it
+            // adds, the same block cost 20-46 ms of one frame: the worst hitch left streaming in (2026-10-14).
             Mesh mesh = new Mesh { name = $"chunk-{key.x}-{key.y}" };
-            mesh.indexFormat = payload.Vertices.Length > 65000
-                ? UnityEngine.Rendering.IndexFormat.UInt32
-                : UnityEngine.Rendering.IndexFormat.UInt16;
-            mesh.SetVertices(payload.Vertices);
-            mesh.SetNormals(payload.Normals);
-            mesh.SetUVs(0, payload.Uvs);
-            mesh.SetColors(payload.Colors);
+            ChunkMeshData main = payload.Main;
+            main.ApplyTo(mesh);
             // Only the submeshes that have something in them, each with its material. A street chunk has no walls
             // or glass, and a draw call per empty submesh is exactly the per-draw cost that frame time followed.
-            Material[] materialFor = { StructureMaterial, PavementMaterial, StructureMaterial, DarkGlassMaterial, LitGlassMaterial };
-            int used = 0;
-            for (int i = 0; i < payload.SubmeshTriangles.Length; i++)
-            {
-                if (payload.SubmeshTriangles[i].Length > 0)
-                {
-                    used++;
-                }
-            }
-            var usedMaterials = new Material[Mathf.Max(1, used)];
+            Material[] materialFor = { StructureMaterial, DarkGlassMaterial, LitGlassMaterial };   // GenerateChunk's groups, in order
+            var usedMaterials = new Material[main.SubMeshes.Length];
             usedMaterials[0] = GroundMaterial;   // a chunk with nothing at all still has one (empty) submesh
-            mesh.subMeshCount = usedMaterials.Length;
-            int slot = 0;
-            for (int i = 0; i < payload.SubmeshTriangles.Length; i++)
+            for (int slot = 0; slot < main.SubMeshGroups.Length; slot++)
             {
-                if (payload.SubmeshTriangles[i].Length == 0)
-                {
-                    continue;
-                }
-                mesh.SetTriangles(payload.SubmeshTriangles[i], slot);
-                usedMaterials[slot] = materialFor[i];
-                slot++;
+                usedMaterials[slot] = materialFor[main.SubMeshGroups[slot]];
             }
-            // The tangents come worked out by the worker (MeshTangents); recalculating them here cost ~5 ms a chunk on the main thread.
-            if (payload.Tangents != null && payload.Tangents.Length == payload.Vertices.Length)
-            {
-                mesh.SetTangents(payload.Tangents);
-            }
-            else
-            {
-                mesh.RecalculateTangents();
-            }
-            mesh.RecalculateBounds();
 
             MeshFilter filter = go.AddComponent<MeshFilter>();
             filter.sharedMesh = mesh;

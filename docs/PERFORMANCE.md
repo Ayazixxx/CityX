@@ -120,12 +120,38 @@ flight the ring is whole, one object per chunk, every one switched on and solid;
 or a switch-off while chunks cook, leave nothing behind and leak no mesh (the last two fail with the old code).
 
 Still on the main thread (measured, not done):
-- **Building a big chunk's mesh** (`AssembleChunk`): 10-20 ms for 250-300k vertices, most of it `SetVertices`/`SetNormals`/`SetUVs`/
-  `SetColors` and `SetTangents`/`RecalculateBounds` -- the classic Mesh API repacks the vertex buffer for each attribute it adds.
-  `SetVertexBufferParams` + `SetVertexBufferData` with the layout given once, and the bounds from the worker, should take most of it off.
+- **Building a big chunk's mesh** (`AssembleChunk`): DONE the same day, 20-46 ms -> 2-3 ms for a block of towers (next section).
 - **Room lights**: a powered block's lit rooms cost 0.5-0.8 ms each to build (10-16 ms for 20-30 rooms). Done the same day: 0.06-0.2 ms a
   block now (below).
+- **A powered block's entrance lamps** (`AddEntranceLamps`, `EntranceLamp.Build`): 3.0 ms for the one block of 20 lit rooms in the bench
+  (all its small parts together 3.1-3.3 ms, 12 ms once); every other chunk's small parts under 0.3 ms. Not looked into.
 - **Garbage collection**: a big chunk's buffers are tens of MB of garbage; collections of 30-270 ms were seen in the editor bench runs.
+
+## Update: a streamed chunk's mesh is copied in, not built, on the main thread (2026-10-14)
+
+Next after the colliders: making a chunk's main mesh in the frame it lands. Measured first (`CityStreamerFramePlayTests`, the same flight,
+temporary timers inside `AssembleChunk`, two runs): a block of towers (250-300k vertices) took **20-46 ms** of one frame with the classic
+Mesh API -- `SetVertices`/`SetNormals`/`SetUVs`/`SetColors` 10-25 ms and `SetTangents` + `RecalculateBounds` 9-19 ms (each attribute
+added repacks the whole vertex buffer; the bounds read every vertex again), `SetTriangles` 1-3 ms. Those were the worst streaming frames:
+37-47 ms, 99th percentile 21-24 ms, 203-214 ms of main-thread time in the six seconds.
+
+Now the worker lays the mesh out the way a Mesh keeps it (`ChunkMeshData`): positions, normals and tangents in a stream each, colour and
+UV sharing the fourth (a mesh has at most four), every submesh's indices in one array (16-bit up to 65,000 vertices, 32-bit above, as
+before), and the submeshes' vertex ranges and the bounds worked out. The main thread gives the layout once (`SetVertexBufferParams`),
+copies each stream in one block (`SetVertexBufferData`) and the indices in one (`SetIndexBufferData`), and sets the submeshes and the
+bounds as they are, with nothing checked or recalculated (`MeshUpdateFlags`). It is the same mesh: `ChunkMeshDataTests` builds real
+chunks both ways (a block of towers, its far version, a street) and compares every vertex, index, submesh and bound; `ChunkMeshPlayTests`
+checks each submesh's material and that every chunk is solid, made at once and streamed in.
+
+After (same bench, five runs, the last three with the same day's room-lights rework in): the same blocks of towers take **2.0-2.8 ms**
+(copying the vertex streams 1.7-2.2 ms, everything else under 0.5 ms); on their own (`ChunkMeshDataTests`) 2.0 ms against 14-19 ms the
+classic way for 243k vertices. Worst streaming frame **8.3-8.8 ms** (one run also had a 15.6 ms frame, a garbage collection), 99th
+percentile 2.9-3.3 ms, one or two frames over 4 ms, **56-72 ms** of main-thread time in the six seconds. The worst frame left is the block
+of 20 lit rooms landing: its entrance lamps 3.0 ms and its room lights 4.4 ms (the room-lights rework measured 0.16 ms for it in its
+own runs; the block of 30 rooms stays under 1 ms here; not looked into), its mesh 0.5 ms. Not in these numbers: the mesh's upload to the
+graphics card when it is first drawn, which only the real player does (the bench runs without graphics). The look is unchanged: the
+fourteen views of `CityFeaturesCapture` and the eight of `LightingCapture` (morning to night) render the same as before, pixel for pixel
+but for a few on the player standing in two of them.
 
 ## Update: render distance (2026-10-09)
 

@@ -254,8 +254,9 @@ namespace CityX.Tests
             // THE POINT: no collider is cooked on the main thread any more. Before, every chunk that streamed in had its collider cooked there in
             // the frame it landed: ~10 ms for an ordinary chunk, 80-110 ms for a block of towers (2026-10-14: frames of 90-150 ms while flying).
             // Now a chunk waits switched off until a worker has cooked it, and switching it on takes the cooked data as it is (under 1.5 ms for
-            // the frame's swaps when measured). The frame's whole streaming time is reported, not judged: making the biggest chunks' meshes is
-            // still ~20 ms of one frame (Mesh.SetVertices and the rest, PERFORMANCE.md), a separate cost.
+            // the frame's swaps when measured). The frame's whole streaming time is reported, not judged: it carries a powered block's room
+            // lights and small parts and the garbage collections (PERFORMANCE.md). Making a block of towers' mesh, 20-46 ms of it until the
+            // mesh came laid out from the worker, is 2-3 ms now (ChunkMeshData; ChunkMeshDataTests judges that).
             Assert.Greater(mostWaiting, 0, "no chunk ever waited for its collider: they are still cooked on the main thread");
             Assert.Less(worstSwapIn, 5.0, $"switching cooked chunks on took {worstSwapIn:0.0} ms of one frame (frame {worstSwapInFrame}): a collider is still cooked on the main thread");
         }
