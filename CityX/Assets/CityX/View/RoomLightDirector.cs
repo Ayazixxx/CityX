@@ -33,6 +33,7 @@ namespace CityX.View
         private static RoomLightDirector _instance;
         private static readonly List<RoomLightGroup> Order = new List<RoomLightGroup>();
         private static readonly List<KeyValuePair<float, Light>> Shadowable = new List<KeyValuePair<float, Light>>();
+        private static readonly System.Predicate<RoomLightGroup> IsGone = group => group == null;
         private float _wait;
 
         /// <summary>Makes the director if there is none (in Play mode only).</summary>
@@ -65,10 +66,13 @@ namespace CityX.View
         /// </summary>
         public static void Direct(Vector3? eye)
         {
+            // A streamed chunk is built switched off and goes on screen when its collider is cooked (CityStreamer.BeginSwap): its lit rooms
+            // wait off the screen meanwhile, and a chunk thrown away before it was ever switched on never takes its rooms off the list.
+            RoomLightGroup.Lit.RemoveAll(IsGone);
             Order.Clear();
             foreach (RoomLightGroup group in RoomLightGroup.Lit)
             {
-                if (group != null)
+                if (group.isActiveAndEnabled)
                 {
                     Order.Add(group);
                 }

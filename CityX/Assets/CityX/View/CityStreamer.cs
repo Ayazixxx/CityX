@@ -1,7 +1,6 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
-using Unity.Jobs;
 using CityX.Character;
 using CityX.World;
 using UnityEngine;
@@ -16,9 +15,10 @@ namespace CityX.View
     /// a measured profile of the running game (13ms a frame while the ring filled). A chunk is a pure function of
     /// its coordinates (CityWorld, CityLayout and CityMeshBuilder read only their inputs, and the one cache is
     /// [ThreadStatic]), so the GEOMETRY is now generated on worker threads and the main thread only turns
-    /// finished chunks into scene objects, within a small time budget per frame. See GeneratorThreads. The
+    /// finished chunks into scene objects, within a small time budget per frame. See GeneratorThreads. Their
+    /// colliders are cooked on workers too, the chunk going on screen when that is done (BeginSwap). The
     /// synchronous path (StreamAround, BuildChunkObject) is unchanged in behaviour for the spawn pre-stream, for
-    /// rebuilding a chunk when a window breaks, and for tests and captures.
+    /// rebuilding a chunk when a window breaks with no workers, and for tests and captures: solid at once.
     /// </summary>
     public sealed class CityStreamer : MonoBehaviour
     {
@@ -338,7 +338,7 @@ namespace CityX.View
             // Anything a worker is still generating belongs to the old world: bumping the generation makes
             // its result be thrown away when it lands.
             _generation++;
-            CompleteSwaps(wait: true, abandon: true);   // before anything is destroyed: a worker may still be cooking a rebuilt chunk's collider
+            AbandonSwaps();   // before anything is destroyed: a worker may still be cooking a chunk's collider
             _inFlight.Clear();
             _changedInFlight.Clear();
             _refreshing.Clear();
@@ -398,7 +398,7 @@ namespace CityX.View
         private void OnDisable()
         {
             Damage.Changed -= OnPaneChanged;
-            CompleteSwaps(wait: true, abandon: true);
+            AbandonSwaps();
         }
 
         /// <summary>
@@ -474,6 +474,15 @@ namespace CityX.View
         /// <summary>How long this frame's streaming took on the main thread, milliseconds (putting chunks on screen, swapping rebuilt ones in).</summary>
         public double LastUpdateMs { get; private set; }
 
+        /// <summary>How many chunks the background streaming has put on screen so far (new ones and detail swaps). For the frame benches.</summary>
+        public int ChunksStreamedIn { get; private set; }
+
+        /// <summary>
+        /// Of this frame's streaming, the milliseconds spent switching on chunks whose collider was cooked on a worker (CompleteSwaps): what
+        /// is left on the main thread of cooking, which took 10-110 ms a chunk there. For the frame benches.
+        /// </summary>
+        public double LastSwapInMs { get; private set; }
+
         private readonly System.Diagnostics.Stopwatch _updateClock = new System.Diagnostics.Stopwatch();
 
         private void Update()
@@ -485,6 +494,7 @@ namespace CityX.View
                 return;
             }
             _updateClock.Restart();
+            LastSwapInMs = 0.0;
             if (WorkerThreads > 0)
             {
                 StreamAroundInBackground(viewer.position);
@@ -607,6 +617,13 @@ namespace CityX.View
             return _loaded.ContainsKey(request.Key) && _far.Contains(request.Key) == request.Far;
         }
 
+        /// <summary>Whether a chunk arriving now is too far from the viewer (round <paramref name="centre"/>) to go on screen: it would only be dropped.</summary>
+        private bool IsOutOfRange(Vector2Int key, Vector2Int centre)
+        {
+            return (Mathf.Abs(key.x - centre.x) > RadiusChunks + 1 || Mathf.Abs(key.y - centre.y) > RadiusChunks + 1)
+                && !IsLandmarkInRange(key, centre.x, centre.y);
+        }
+
         private void QueueGeneration(Vector2Int key, bool far)
         {
             // Read here, on the main thread: a UnityEngine.Object is not something to touch from a worker.
@@ -638,11 +655,12 @@ namespace CityX.View
         /// <summary>
         /// Turns generated chunks into scene objects until the frame's budget is spent (always at least one, so
         /// streaming cannot stall), throwing away any that no longer matter -- the viewer moved on, the world was
-        /// rebuilt, or it was built some other way in the meantime.
+        /// rebuilt, or it was built some other way in the meantime. Each is made switched off and goes on screen
+        /// once its collider has been cooked on a worker (BeginSwap, CompleteSwaps).
         /// </summary>
         private void AssembleFinished(Vector2Int centre)
         {
-            CompleteSwaps(wait: false, abandon: false);   // rebuilt chunks whose collider a worker has finished cooking go on screen
+            CompleteSwaps(centre);   // chunks whose collider has been cooked go on screen
             if (_finished.IsEmpty)
             {
                 return;
@@ -658,8 +676,7 @@ namespace CityX.View
                 _inFlight.Remove(payload.Key);
                 _wantedStale = true;
 
-                bool outOfRange = (Mathf.Abs(payload.Key.x - centre.x) > RadiusChunks + 1 || Mathf.Abs(payload.Key.y - centre.y) > RadiusChunks + 1)
-                    && !IsLandmarkInRange(payload.Key, centre.x, centre.y);
+                bool outOfRange = IsOutOfRange(payload.Key, centre);
 
                 // A refresh after a window was hit (OnPaneChanged): swap in the new glass, or the whole chunk, and go again if it was hit again meanwhile.
                 if (_refreshing.TryGetValue(payload.Key, out bool glassOnly) && _loaded.TryGetValue(payload.Key, out GameObject onScreen)
@@ -706,24 +723,11 @@ namespace CityX.View
                     payload = GenerateChunk(payload.Key, GrassMaterial != null && BarkMaterial != null && !payload.Far, payload.Far);   // the worker failed
                 }
 
-                // The same chunk at another detail replaces the one on screen.
-                if (_loaded.TryGetValue(payload.Key, out GameObject replaced))
-                {
-                    DestroyChunk(replaced);
-                }
-                _loaded[payload.Key] = AssembleChunk(payload);
-                if (payload.Far)
-                {
-                    _far.Add(payload.Key);
-                }
-                else
-                {
-                    _far.Remove(payload.Key);
-                }
-                if (changedMeanwhile)
-                {
-                    RefreshAgain(payload.Key, false);
-                }
+                // Made here but switched off, its collider cooked on a worker, and put on screen when that is done (CompleteSwaps), in place
+                // of the same chunk at another detail if that is on screen now -- which stays meanwhile, drawn and solid. Cooking it here took
+                // ~10 ms for an ordinary chunk and 80-110 ms for a block of towers, in the frame it landed: the hitches walking or flying.
+                _loaded.TryGetValue(payload.Key, out GameObject replaced);
+                BeginSwap(payload, replaced, streamed: true, changedMeanwhile);
 
                 if (clock.Elapsed.TotalMilliseconds >= AssembleTimeBudgetMs)
                 {
@@ -911,8 +915,9 @@ namespace CityX.View
         }
 
         /// <summary>
-        /// Turns a generated chunk into scene objects. Main thread only. With <paramref name="deferCollider"/> the chunk is made INACTIVE and
-        /// its big collider is left without its mesh: the caller cooks it on a worker (BeginSwap) and switches the chunk on when that is done.
+        /// Turns a generated chunk into scene objects. Main thread only. With <paramref name="deferCollider"/> (everything the background
+        /// streaming makes) the chunk is made INACTIVE and its big collider is left without its mesh: the caller has it cooked on a worker
+        /// (BeginSwap) and switches the chunk on when that is done. Without it (the synchronous path) the collider is cooked here, at once.
         /// </summary>
         private GameObject AssembleChunk(ChunkPayload payload, bool deferCollider = false)
         {
@@ -981,7 +986,8 @@ namespace CityX.View
 
             // The glass is in the collider along with everything else, which is
             // what makes an unbroken window something you walk into rather than
-            // through. Cooking it is the other ~10 ms of a chunk on the main thread; a rebuilt chunk has it cooked on a worker (BeginSwap).
+            // through. Cooking it is most of what a chunk costs: ~10 ms, 80-110 ms for a block of towers. Only the
+            // synchronous path (the spawn pre-stream, captures, tests: solid at once) still does it here; see BeginSwap.
             MeshCollider collider = go.AddComponent<MeshCollider>();
             if (!deferCollider)
             {
@@ -1414,41 +1420,145 @@ namespace CityX.View
             return glassOnly;
         }
 
-        // ---- a rebuilt chunk's collider, cooked off the main thread (2026-10-14) ----------------------------------------------------------
-        // Cooking a chunk's collider took ~10 ms on the main thread, and a window cracking or shattering rebuilds its chunk: an AK sprayed at a
-        // facade did that several times a second. Physics.BakeMesh may run on a worker (the job system); a MeshCollider then given the mesh
-        // with the same cooking options takes the cooked data as it is. Until then the chunk on screen stays, solid and drawn, and the new one
-        // waits switched off -- so nothing falls through and nothing blinks.
+        // ---- a chunk's collider, cooked off the main thread (2026-10-14) ------------------------------------------------------------------
+        // Cooking a chunk's collider is most of what putting it on screen costs: ~10 ms for an ordinary chunk, 80-110 ms for a block of towers
+        // in the game's own districts (CityStreamerFramePlayTests). It was done on the main thread in the frame the chunk landed, so every
+        // chunk streaming in was a hitch, and every window hit (which rebuilds its chunk) a stall. Physics.BakeMesh is thread-safe and works on
+        // the thread that calls it; a MeshCollider then given the mesh with the same cooking options takes the cooked data as it is. So a chunk
+        // is made switched off, its collider cooked on a worker, and it is switched on when that is done (a frame or two; a few for a block of
+        // towers). Until then the version on screen, if there is one, stays, drawn and solid: nothing falls through, nothing blinks.
+        //
+        // ON THE STREAMER'S OWN THREADS, NOT IN UNITY'S JOB SYSTEM (where window rebuilds cooked first): a job is never interrupted, so a 100 ms
+        // cook holds one of the engine's own workers all that time, and a main thread waiting on some other job may pick a waiting cook up and
+        // run it itself -- the stall moved, not gone.
 
-        private struct BakeColliderJob : IJob
+        /// <summary>One chunk's collider being cooked: shared by the main thread, which made the mesh, and the worker cooking it.</summary>
+        private sealed class ColliderCook
         {
+            private const int Waiting = 0, Cooking = 1, Done = 2, Abandoned = 3;
+            private int _state;
+
             public int MeshId;
             public MeshColliderCookingOptions Options;
 
-            public void Execute()
+            public bool IsDone => Volatile.Read(ref _state) == Done;
+
+            /// <summary>On a worker: cooks it, unless it was abandoned first.</summary>
+            public void Run()
             {
-                Physics.BakeMesh(MeshId, false, Options);
+                if (Interlocked.CompareExchange(ref _state, Cooking, Waiting) != Waiting)
+                {
+                    return;
+                }
+                try
+                {
+                    Physics.BakeMesh(MeshId, false, Options);
+                }
+                catch (System.Exception exception)
+                {
+                    Debug.LogException(exception);   // the collider then cooks it itself when it is given the mesh, on the main thread
+                }
+                finally
+                {
+                    Volatile.Write(ref _state, Done);
+                }
+            }
+
+            /// <summary>Main thread: once this returns no worker is cooking it, or ever will, so its mesh may be destroyed.</summary>
+            public void Abandon()
+            {
+                if (Interlocked.CompareExchange(ref _state, Abandoned, Waiting) == Waiting)
+                {
+                    return;
+                }
+                var spin = new SpinWait();
+                while (Volatile.Read(ref _state) == Cooking)
+                {
+                    spin.SpinOnce();
+                }
             }
         }
 
+        private readonly ConcurrentQueue<ColliderCook> _cooks = new ConcurrentQueue<ColliderCook>();
+        private int _cookingThreads;   // workers taking cooks off _cooks (Interlocked)
+
+        /// <summary>
+        /// How many colliders are cooked at once: half the generator threads, at least one. The cooking threads are the thread pool's, taken
+        /// only while there is something to cook, and never left waiting.
+        /// </summary>
+        private int CookingThreads => Mathf.Max(1, WorkerThreads / 2);
+
+        /// <summary>Has a collider cooked on a worker, starting another cooking thread if fewer than <see cref="CookingThreads"/> are at it.</summary>
+        private void Cook(ColliderCook cook)
+        {
+            _cooks.Enqueue(cook);
+            int limit = CookingThreads;
+            if (TakeCookingThread(limit))
+            {
+                ThreadPool.QueueUserWorkItem(_ => CookWhatIsWaiting(limit));
+            }
+        }
+
+        private bool TakeCookingThread(int limit)
+        {
+            while (true)
+            {
+                int running = Volatile.Read(ref _cookingThreads);
+                if (running >= limit)
+                {
+                    return false;
+                }
+                if (Interlocked.CompareExchange(ref _cookingThreads, running + 1, running) == running)
+                {
+                    return true;
+                }
+            }
+        }
+
+        /// <summary>On a worker: cooks until nothing is waiting, then goes -- unless a cook came in just as it was going, which it then takes on.</summary>
+        private void CookWhatIsWaiting(int limit)
+        {
+            do
+            {
+                while (_cooks.TryDequeue(out ColliderCook cook))
+                {
+                    cook.Run();
+                }
+                Interlocked.Decrement(ref _cookingThreads);
+            }
+            while (!_cooks.IsEmpty && TakeCookingThread(limit));
+        }
+
+        /// <summary>A chunk made and waiting, switched off, for its collider to be cooked before it goes on screen.</summary>
         private sealed class PendingSwap
         {
             public Vector2Int Key;
             public GameObject Fresh;
+
+            /// <summary>The version on screen when this one was made (null: none), which it replaces.</summary>
             public GameObject Replaces;
+
             public MeshCollider Collider;
             public Mesh Mesh;
-            public JobHandle Handle;
+            public ColliderCook Cook;
+
+            /// <summary>Streaming in (a new chunk, or the other detail); false: rebuilt after a window in it was hit.</summary>
+            public bool Streamed;
+
+            public bool Far;
+
+            /// <summary>A window in it changed while it was being generated: a rebuild follows it on screen.</summary>
+            public bool ChangedMeanwhile;
         }
 
         private readonly List<PendingSwap> _pendingSwaps = new List<PendingSwap>();
         private readonly Dictionary<Vector2Int, bool> _pendingRefresh = new Dictionary<Vector2Int, bool>();
 
-        /// <summary>How many rebuilt chunks are waiting for their collider (for tests).</summary>
+        /// <summary>How many chunks (streaming in, or rebuilt after a window was hit) are made and waiting for their collider. For tests.</summary>
         public int PendingSwapCount => _pendingSwaps.Count;
 
         /// <summary>True while a window's change is still on its way to the screen: a refresh generating, a swap cooking, or more hits waiting.</summary>
-        public bool WindowRefreshPending => _pendingSwaps.Count > 0 || _refreshing.Count > 0 || _changedInFlight.Count > 0;
+        public bool WindowRefreshPending => _refreshing.Count > 0 || _changedInFlight.Count > 0 || SwapCarriesAWindowChange();
 
         /// <summary>True while any chunk is still being generated or waiting to be put on screen (for tests that need the city settled).</summary>
         public bool IsStreaming => _inFlight.Count > 0 || !_finished.IsEmpty;
@@ -1465,46 +1575,71 @@ namespace CityX.View
             return false;
         }
 
-        private void BeginSwap(ChunkPayload payload, GameObject onScreen)
+        private bool SwapCarriesAWindowChange()
+        {
+            foreach (PendingSwap swap in _pendingSwaps)
+            {
+                if (!swap.Streamed || swap.ChangedMeanwhile)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Makes a chunk switched off and has its collider cooked on a worker; CompleteSwaps puts it on screen in place of
+        /// <paramref name="replaces"/> (the version on screen now, or null) once that is done. <paramref name="streamed"/>: streaming in, not a
+        /// rebuild after a window was hit. <paramref name="changedMeanwhile"/>: a window in it changed while it was being generated.
+        /// </summary>
+        private void BeginSwap(ChunkPayload payload, GameObject replaces, bool streamed = false, bool changedMeanwhile = false)
         {
             GameObject fresh = AssembleChunk(payload, deferCollider: true);
             var collider = fresh.GetComponent<MeshCollider>();
             Mesh mesh = fresh.GetComponent<MeshFilter>().sharedMesh;
-            var job = new BakeColliderJob { MeshId = mesh.GetInstanceID(), Options = collider.cookingOptions };
+            var cook = new ColliderCook { MeshId = mesh.GetInstanceID(), Options = collider.cookingOptions };
             _pendingSwaps.Add(new PendingSwap
             {
-                Key = payload.Key, Fresh = fresh, Replaces = onScreen, Collider = collider, Mesh = mesh, Handle = job.Schedule(),
+                Key = payload.Key, Fresh = fresh, Replaces = replaces, Collider = collider, Mesh = mesh, Cook = cook,
+                Streamed = streamed, Far = payload.Far, ChangedMeanwhile = changedMeanwhile,
             });
-            JobHandle.ScheduleBatchedJobs();
-            _inFlight.Add(payload.Key);   // still on its way: more hits on it wait for this one
+            Cook(cook);
+            _inFlight.Add(payload.Key);   // still on its way: nothing else is started for it, and more hits on it wait for this one
         }
 
         /// <summary>
-        /// Puts on screen every rebuilt chunk whose collider is cooked (all of them, waiting, with <paramref name="wait"/>); with
-        /// <paramref name="abandon"/> they are thrown away instead (the world is being rebuilt, or the streamer switched off).
+        /// Puts on screen, oldest first, every chunk whose collider has been cooked, in place of the version it was made to replace. One is
+        /// thrown away instead if what it was to replace is no longer what is there (dropped, or built some other way), or, streaming in, if the
+        /// viewer (round <paramref name="centre"/>) has left it behind meanwhile.
         /// </summary>
-        private void CompleteSwaps(bool wait, bool abandon)
+        private void CompleteSwaps(Vector2Int centre)
         {
-            for (int i = _pendingSwaps.Count - 1; i >= 0; i--)
+            _swapInClock.Restart();
+            for (int i = 0; i < _pendingSwaps.Count;)
             {
                 PendingSwap swap = _pendingSwaps[i];
-                if (!wait && !swap.Handle.IsCompleted)
+                if (!swap.Cook.IsDone)
                 {
+                    i++;
                     continue;
                 }
-                swap.Handle.Complete();
                 _pendingSwaps.RemoveAt(i);
                 _inFlight.Remove(swap.Key);
-                bool stillWanted = !abandon && swap.Replaces != null
-                    && _loaded.TryGetValue(swap.Key, out GameObject current) && current == swap.Replaces;
-                if (!stillWanted)
+                _wantedStale = true;   // what is on screen changes, or a chunk thrown away is wanted again
+
+                // Windows that changed while it was on its way decide what follows it (read, and forgotten, either way).
+                bool changed = _changedInFlight.Remove(swap.Key);
+                changed |= swap.ChangedMeanwhile;
+                bool glassOnly = TakePendingRefresh(swap.Key) && !swap.ChangedMeanwhile;
+
+                // By reference: a version dropped since is destroyed, and a destroyed object equals null to Unity.
+                bool onScreen = _loaded.TryGetValue(swap.Key, out GameObject current);
+                if (!ReferenceEquals(current, swap.Replaces) || (swap.Streamed && IsOutOfRange(swap.Key, centre)))
                 {
-                    // Abandoned, or the chunk left the screen (or was replaced) while its collider cooked.
                     DestroyChunk(swap.Fresh);
-                    if (abandon)
+                    if (changed && onScreen)
                     {
-                        _changedInFlight.Remove(swap.Key);
-                        _pendingRefresh.Remove(swap.Key);
+                        RefreshAgain(swap.Key, false);   // the version still there predates the change
                     }
                     continue;
                 }
@@ -1512,11 +1647,48 @@ namespace CityX.View
                 swap.Fresh.SetActive(true);
                 DestroyChunk(swap.Replaces);
                 _loaded[swap.Key] = swap.Fresh;
-                if (_changedInFlight.Remove(swap.Key))
+                if (swap.Streamed)
                 {
-                    RefreshAgain(swap.Key, TakePendingRefresh(swap.Key));
+                    ChunksStreamedIn++;
+                    if (swap.Far)
+                    {
+                        _far.Add(swap.Key);
+                    }
+                    else
+                    {
+                        _far.Remove(swap.Key);
+                    }
+                }
+                if (changed)
+                {
+                    RefreshAgain(swap.Key, glassOnly);
                 }
             }
+            LastSwapInMs = _swapInClock.Elapsed.TotalMilliseconds;
+        }
+
+        private readonly System.Diagnostics.Stopwatch _swapInClock = new System.Diagnostics.Stopwatch();
+
+        /// <summary>
+        /// Throws away every chunk still waiting for its collider (the world is being rebuilt, or the streamer switched off), each once no
+        /// worker is cooking it: a mesh must never be destroyed under a cook. The version on screen, if any, stays.
+        /// </summary>
+        private void AbandonSwaps()
+        {
+            if (_pendingSwaps.Count == 0)
+            {
+                return;
+            }
+            foreach (PendingSwap swap in _pendingSwaps)
+            {
+                swap.Cook.Abandon();
+                _inFlight.Remove(swap.Key);
+                _changedInFlight.Remove(swap.Key);
+                _pendingRefresh.Remove(swap.Key);
+                DestroyChunk(swap.Fresh);
+            }
+            _pendingSwaps.Clear();
+            _wantedStale = true;   // wanted again
         }
 
         /// <summary>

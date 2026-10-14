@@ -88,8 +88,43 @@ thread for **15-20 ms** (95th-percentile frame 17.5 ms): ~5 ms `Mesh.Recalculate
 Also preloaded at start: the glass sounds and the shard burst's twelve convex colliders (the first window to shatter cost ~10 ms once), and the
 gun's tracer material and effects when it is drawn. After: 95th-percentile frame **2.4 ms**, worst **~4-5 ms** across the spray.
 
-Still on the main thread: a chunk that STREAMS IN still cooks its collider there (~10 ms; the tangents half is gone). The same deferred swap
-would take that off too; not done yet, as streaming has its own tests and timing.
+A chunk that STREAMED IN still cooked its collider on the main thread; since the same day it does not either (next section).
+
+## Update: chunks streaming in no longer cook their collider on the main thread (2026-10-14)
+
+Reported: hitches walking, sprinting and flying the jetpack. Measured first (`CityStreamerFramePlayTests`, PlayMode: a real streamer with its
+worker threads, in the game's own districts -- the tests otherwise pin the classic city, whose small buildings cook in a few ms and hid the
+problem -- the far version out to 8 chunks and the full one within 4, flown through at 22 m/s for six seconds with the main thread held to
+60 fps). Every chunk had its collider cooked on the main thread in the frame it landed: ~10 ms for an ordinary chunk, **77-107 ms** for a
+block of towers (250-300k vertices), on top of 36-53 ms building its mesh. Worst streaming frame **150 ms**, 99th percentile 91 ms, 11-13
+frames over 8 ms, 755-857 ms of main-thread time in the six seconds.
+
+Now everything the background streaming makes (new chunks, far/full detail swaps, window rebuilds) is built switched off, its collider
+cooked on a worker (`CityStreamer.BeginSwap`, `Physics.BakeMesh`, which is thread-safe and runs on the calling thread), and switched on
+when that is done (`CompleteSwaps`; a MeshCollider given the mesh with the same cooking options takes the cooked data as it is). The
+version on screen, if any, stays drawn and solid meanwhile: nothing falls through, nothing blinks. A chunk waiting for its cook stays
+"in flight" (nothing else starts for it; window hits on it follow once it is on screen); one the viewer has left behind meanwhile, or
+whose version on screen has been dropped, is thrown away. `Rebuild()` and switching the streamer off wait for a cook under way (a mesh
+must never be destroyed under one) and cancel the rest. The synchronous path (spawn pre-stream, captures, tests) still cooks at once.
+
+**On the streamer's own threads, not Unity's job system** (where window rebuilds cooked at first): a job is never interrupted, so a
+100 ms cook holds one of the engine's own workers all that time, and a main thread waiting on some other job may run a waiting cook
+itself. Up to half as many cooking threads as generator threads, taken from the thread pool only while there is something to cook. A
+probe (`MeshCookContentionProbe`, Explicit) shows a cook on another thread does not hold up the main thread's own collider work: during
+a 131 ms cook, switching colliders on and off, a raycast and a small cook all stayed under 0.3 ms.
+
+After, same bench (three runs): worst streaming frame **25-35 ms**, 99th percentile 11-16 ms, 5-7 frames over 8 ms, **145-155 ms** of
+main-thread time in the six seconds; switching cooked chunks on costs at most ~1.4 ms in a frame. Tests (`CityStreamerFramePlayTests`): chunks do wait
+for their collider, and switching them on stays under 5 ms a frame (frames with a garbage collection are reported, not judged); after the
+flight the ring is whole, one object per chunk, every one switched on and solid; a chunk that leaves range while it cooks, and a rebuild
+or a switch-off while chunks cook, leave nothing behind and leak no mesh (the last two fail with the old code).
+
+Still on the main thread (measured, not done):
+- **Building a big chunk's mesh** (`AssembleChunk`): 10-20 ms for 250-300k vertices, most of it `SetVertices`/`SetNormals`/`SetUVs`/
+  `SetColors` and `SetTangents`/`RecalculateBounds` -- the classic Mesh API repacks the vertex buffer for each attribute it adds.
+  `SetVertexBufferParams` + `SetVertexBufferData` with the layout given once, and the bounds from the worker, should take most of it off.
+- **Room lights**: a powered block's lit rooms cost 0.5-0.8 ms each to build (10-16 ms for 20-30 rooms).
+- **Garbage collection**: a big chunk's buffers are tens of MB of garbage; collections of 30-270 ms were seen in the editor bench runs.
 
 ## Update: render distance (2026-10-09)
 
