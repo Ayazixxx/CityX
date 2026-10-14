@@ -1227,8 +1227,10 @@ namespace CityX.Character
                 Aiming = _isAimingGun,
                 AimCameraPosition = _orbitCamera != null ? _orbitCamera.transform.position : Vector3.zero,
                 AimCameraForward = _orbitCamera != null ? _orbitCamera.transform.forward : Vector3.forward,
+                // The two-handed carry (the 2hsw clips). A one-handed sword is carried by the ordinary walk's own arm, its attacks posed on top.
                 SwordEquipped = _melee != null && _melee.EquippedWeapon != null &&
-                                _melee.EquippedWeapon.MovesetId == ComboChain.Sword,
+                                _melee.EquippedWeapon.MovesetId == ComboChain.Sword &&
+                                !(_melee.EquippedWeapon is ISwordBlade oneHandedBlade && oneHandedBlade.IsOneHanded),
                 GunEquipped = EquippedGun != null,
                 // Where the gun's shot would end -- the arm aims at it (see
                 // LocomotionInput.GunAimPoint).
@@ -1734,9 +1736,12 @@ namespace CityX.Character
             bool octaslashBusy = _octaslash != null && _octaslash.IsActive;
             spinning |= octaslashBusy;
 
-            // NO KEY IS BOUND TO THE HEAVY YET -- explicit ask: "F shouldnt do
-            // anything yet." SoulsSwordCombat.RequestHeavy and the Heavy attack
-            // itself are still there, tested, and waiting for a binding.
+            // THE HEAVY IS THE MIDDLE MOUSE BUTTON (the wheel's click): the overhead with a one-handed sword, the slam with a two-handed one.
+            // F stays unbound -- explicit ask: "F shouldnt do anything yet."
+            if (mouse.middleButton.wasPressedThisFrame && !octaslashCharging && !spinning)
+            {
+                souls.RequestHeavy(yaw);
+            }
             if (mouse.leftButton.wasPressedThisFrame)
             {
                 if (octaslashCharging)

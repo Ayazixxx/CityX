@@ -18,4 +18,4 @@ MonoBehaviour:
   SwordLeftHand: {x: 0, y: 0, z: 0}
   PistolTuned: 0
   PistolLeftHand: {x: 0, y: 0, z: 0}
-  TorsoFollowStrength: 0.65
+  TorsoFollowStrength: 1

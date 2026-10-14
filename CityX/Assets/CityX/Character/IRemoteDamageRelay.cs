@@ -9,8 +9,11 @@ namespace CityX.Character
     /// </summary>
     public interface IRemoteDamageRelay
     {
-        /// <summary>True (and the hit was sent on) when this body is another player's copy; false when the hit should be applied here as usual.</summary>
-        bool TryRelayHit(float amount, Vector3 fromPosition, float hitstunSeconds);
+        /// <summary>
+        /// True (and the hit was sent on) when this body is another player's copy; false when the hit should be applied here as usual.
+        /// <paramref name="poiseDamage"/> is the blow's poise damage, or -1 when the blow has none to speak of (it staggers as any blow did).
+        /// </summary>
+        bool TryRelayHit(float amount, Vector3 fromPosition, float hitstunSeconds, float poiseDamage);
 
         bool TryRelayPoison(float amount);
     }

@@ -146,6 +146,74 @@ namespace CityX.Character
         public const float FingerBlend = 0.008f;
         public const float PalmBlend = 0.04f;
 
+        /// <summary>
+        /// One digit of a hand: its name, its two bones on each hand (root to knuckle, knuckle to tip) and its joints in the HAND'S OWN FRAME --
+        /// x down the arm to the fingertips from the wrist, y the back of the hand, z the thumb's side -- in metres at the reference height. The
+        /// same table builds the shape's finger pieces (<see cref="AddHand"/>) and places the finger bones (BodyRig.Bones), so the skin's joints
+        /// and the bones' joints cannot disagree.
+        /// </summary>
+        public readonly struct Digit
+        {
+            public readonly string Name;
+            public readonly HumanBodyBones LeftProximal;
+            public readonly HumanBodyBones LeftIntermediate;
+            public readonly HumanBodyBones RightProximal;
+            public readonly HumanBodyBones RightIntermediate;
+            public readonly Vector3 Root;
+            public readonly Vector3 Knuckle;
+            public readonly Vector3 Tip;
+            public readonly float Radius;
+
+            public Digit(string name, HumanBodyBones leftProximal, HumanBodyBones rightProximal, Vector3 root, Vector3 knuckle, Vector3 tip, float radius)
+            {
+                Name = name;
+                LeftProximal = leftProximal;
+                LeftIntermediate = leftProximal + 1;
+                RightProximal = rightProximal;
+                RightIntermediate = rightProximal + 1;
+                Root = root;
+                Knuckle = knuckle;
+                Tip = tip;
+                Radius = radius;
+            }
+        }
+
+        /// <summary>Index, middle, ring, little, then the thumb (the order the shape's hand pieces come in after the palm).</summary>
+        public static readonly Digit[] Digits = BuildDigits();
+
+        private static Digit[] BuildDigits()
+        {
+            var digits = new Digit[5];
+            // The fingers from the knuckle line, each bent a little toward the palm (-y) at the knuckle and more at the tip; the index nearest the
+            // thumb's side (+z), the little finger at the back.
+            var curl1 = new Vector3(Mathf.Cos(FingerCurlDegrees * Mathf.Deg2Rad), -Mathf.Sin(FingerCurlDegrees * Mathf.Deg2Rad), 0.0f);
+            var curl2 = new Vector3(Mathf.Cos(FingerTipCurlDegrees * Mathf.Deg2Rad), -Mathf.Sin(FingerTipCurlDegrees * Mathf.Deg2Rad), 0.0f);
+            string[] names = { "index", "middle", "ring", "little" };
+            HumanBodyBones[] left = { HumanBodyBones.LeftIndexProximal, HumanBodyBones.LeftMiddleProximal, HumanBodyBones.LeftRingProximal, HumanBodyBones.LeftLittleProximal };
+            HumanBodyBones[] right = { HumanBodyBones.RightIndexProximal, HumanBodyBones.RightMiddleProximal, HumanBodyBones.RightRingProximal, HumanBodyBones.RightLittleProximal };
+            for (int i = 0; i < 4; i++)
+            {
+                var root = new Vector3(PalmLength - 0.01f, 0.0f, (1.5f - i) * FingerSpacing);
+                Vector3 knuckle = root + curl1 * (FingerLengths[i] * FingerKnuckleShare);
+                Vector3 tip = knuckle + curl2 * (FingerLengths[i] * (1.0f - FingerKnuckleShare));
+                digits[i] = new Digit(names[i], left[i], right[i], root, knuckle, tip, FingerRadius);
+            }
+            // The thumb from the side of the palm near the wrist, out past the index finger and folding across.
+            var thumbRoot = new Vector3(0.045f, 0.0f, PalmHalfWidth - 0.01f);
+            Vector3 thumbDir1 = new Vector3(0.45f, -0.25f, 0.8f).normalized;
+            Vector3 thumbDir2 = new Vector3(0.6f, -0.6f, 0.45f).normalized;
+            Vector3 thumbKnuckle = thumbRoot + thumbDir1 * ThumbLength;
+            Vector3 thumbTip = thumbKnuckle + thumbDir2 * ThumbTipLength;
+            digits[4] = new Digit("thumb", HumanBodyBones.LeftThumbProximal, HumanBodyBones.RightThumbProximal, thumbRoot, thumbKnuckle, thumbTip, ThumbRadius);
+            return digits;
+        }
+
+        /// <summary>True for the hand bone itself and for any finger bone of that hand: the pieces that make up the hand.</summary>
+        public static bool BelongsToHand(HumanBodyBones bone, HumanBodyBones hand)
+        {
+            return bone == hand || (BodyRig.IsFinger(bone) && BodyRig.HandOf(bone) == hand);
+        }
+
         // --- the feet (owner, 2026-10-13: "a basic foot with no toes", drawn as a sock: the shin turning a corner into a flat-soled, round-toed
         // --- foot; later the same day: "a tiny bit longer ... rounded off at the end, right now they kind of have a square shape with soft
         // --- edges ... flat at the bottom", for the foot IK that stands the sole on real ground). A STADIUM in plan (a semicircular toe and heel,
@@ -449,13 +517,13 @@ namespace CityX.Character
             return limbs;
         }
 
-        /// <summary>The pieces of one hand alone (plus nothing of the arm): what the fine hand grid is sized round. Empty if that bone has none.</summary>
+        /// <summary>The pieces of one hand alone (the palm and its fingers, nothing of the arm): what the fine hand grid is sized round. Empty if that bone has none.</summary>
         public static List<Segment> HandPieces(IReadOnlyList<Segment> shape, HumanBodyBones hand)
         {
             var pieces = new List<Segment>();
             foreach (Segment s in shape)
             {
-                if (s.Bone == hand)
+                if (BelongsToHand(s.Bone, hand))
                 {
                     pieces.Add(s);
                 }
@@ -535,30 +603,19 @@ namespace CityX.Character
             into.Add(Segment.Box(palmCentre, frame,
                 new Vector3(PalmHalfThickness, PalmLength * 0.5f, PalmHalfWidth) * scale, PalmRounding * scale, hand, PalmBlend * scale));
 
-            Vector3 knuckleLine = wrist + along * ((PalmLength - 0.01f) * scale);
-            Vector3 curl1 = (along * Mathf.Cos(FingerCurlDegrees * Mathf.Deg2Rad) + palmNormal * Mathf.Sin(FingerCurlDegrees * Mathf.Deg2Rad)).normalized;
-            Vector3 curl2 = (along * Mathf.Cos(FingerTipCurlDegrees * Mathf.Deg2Rad) + palmNormal * Mathf.Sin(FingerTipCurlDegrees * Mathf.Deg2Rad)).normalized;
-            for (int i = 0; i < FingerLengths.Length; i++)
+            // The digits from the shared table (Digits), each piece on its OWN bone so the fingers can fold (HandGrip): the hand's frame is x
+            // along the arm, y the back of the hand (away from the palm), z the thumb's side.
+            Vector3 outward = -palmNormal;
+            bool right = hand == HumanBodyBones.RightHand;
+            foreach (Digit digit in Digits)
             {
-                // Index nearest the thumb (forward), little finger at the back.
-                float across = (1.5f - i) * FingerSpacing * scale;
-                Vector3 root = knuckleLine + forward * across;
-                float length = FingerLengths[i] * scale;
-                Vector3 knuckle = root + curl1 * (length * FingerKnuckleShare);
-                Vector3 tip = knuckle + curl2 * (length * (1.0f - FingerKnuckleShare));
-                float r = FingerRadius * scale;
-                into.Add(new Segment(root, knuckle, r, r, hand, FingerBlend * scale));
-                into.Add(new Segment(knuckle, tip, r, r, hand, FingerBlend * scale));
+                Vector3 root = wrist + along * (digit.Root.x * scale) + outward * (digit.Root.y * scale) + forward * (digit.Root.z * scale);
+                Vector3 knuckle = wrist + along * (digit.Knuckle.x * scale) + outward * (digit.Knuckle.y * scale) + forward * (digit.Knuckle.z * scale);
+                Vector3 tip = wrist + along * (digit.Tip.x * scale) + outward * (digit.Tip.y * scale) + forward * (digit.Tip.z * scale);
+                float r = digit.Radius * scale;
+                into.Add(new Segment(root, knuckle, r, r, right ? digit.RightProximal : digit.LeftProximal, FingerBlend * scale));
+                into.Add(new Segment(knuckle, tip, r, r, right ? digit.RightIntermediate : digit.LeftIntermediate, FingerBlend * scale));
             }
-
-            Vector3 thumbRoot = wrist + along * (0.045f * scale) + forward * ((PalmHalfWidth - 0.01f) * scale);
-            Vector3 thumbDir1 = (forward * 0.8f + along * 0.45f + palmNormal * 0.25f).normalized;
-            Vector3 thumbDir2 = (forward * 0.45f + along * 0.6f + palmNormal * 0.6f).normalized;
-            Vector3 thumbKnuckle = thumbRoot + thumbDir1 * (ThumbLength * scale);
-            Vector3 thumbTip = thumbKnuckle + thumbDir2 * (ThumbTipLength * scale);
-            float rt = ThumbRadius * scale;
-            into.Add(new Segment(thumbRoot, thumbKnuckle, rt, rt, hand, FingerBlend * scale));
-            into.Add(new Segment(thumbKnuckle, thumbTip, rt, rt, hand, FingerBlend * scale));
         }
 
         /// <summary>A leg: a round cone from the hip to the ankle (one piece, or split at the knee for the weights), and the foot under it.</summary>
@@ -739,6 +796,12 @@ namespace CityX.Character
         public const float RootHandover = 0.02f;
 
         /// <summary>
+        /// A knuckle hands over this narrowly: a finger's pieces are only 4 cm long, so the ordinary band would smear a fold across the whole finger
+        /// (every fingertip was 13% its neighbour's). A crease at each knuckle is right for a cartoon hand closing round a grip.
+        /// </summary>
+        public const float FingerHandover = 0.01f;
+
+        /// <summary>
         /// Whether two bones meet at an elbow or a knee: the one handover that is widened. A wrist or an ankle is NOT: a hand with fingers and a
         /// foot are stiff pieces that turn as a whole at a narrow joint, so they take Godot's own narrow band (<see cref="BlendRadius"/>).
         /// </summary>
@@ -790,7 +853,8 @@ namespace CityX.Character
                     continue;
                 }
                 float k = AcrossAnElbowOrKnee(nearestBone, segments[i].Bone) ? BlendRadius * LimbHandoverWidening
-                    : (nearestBone == segments[i].Bone ? BlendRadius : RootHandover);
+                    : (nearestBone == segments[i].Bone ? BlendRadius
+                    : (BodyRig.IsFinger(nearestBone) || BodyRig.IsFinger(segments[i].Bone)) ? FingerHandover : RootHandover);
                 float share = Mathf.Exp(-(distances[i] - nearest) / k);
                 int found = boneShare.FindIndex(entry => entry.bone == segments[i].Bone);
                 if (found >= 0)
@@ -916,6 +980,10 @@ namespace CityX.Character
         /// </summary>
         private static HumanBodyBones SkinParent(HumanBodyBones bone)
         {
+            if (BodyRig.IsFinger(bone))
+            {
+                return BodyRig.FingerParent(bone);   // a finger's root hangs off the hand, its tip off the root
+            }
             switch (bone)
             {
                 case HumanBodyBones.Spine: return HumanBodyBones.Hips;

@@ -1526,6 +1526,9 @@ namespace CityX.UI
                 case "sword": return ItemRegistry.Sword;
                 case "spikesword":
                 case "spike_sword": return ItemRegistry.SpikeSword;
+                case "combatsword":
+                case "combat_sword":
+                case "1h": return ItemRegistry.CombatSword;
                 case "flamethrower": return ItemRegistry.Flamethrower;
                 case "top_hat":
                 case "tophat": return ItemRegistry.TopHat;

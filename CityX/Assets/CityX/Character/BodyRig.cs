@@ -111,7 +111,7 @@ namespace CityX.Character
 
             float kneeY = HipY - LegLength * KneeT;
 
-            return new[]
+            var bones = new List<Bone>
             {
                 new Bone("hips", null, new Vector3(0.0f, HipY, 0.0f), HumanBodyBones.Hips),
                 new Bone("spine", "hips",
@@ -154,6 +154,65 @@ namespace CityX.Character
                 new Bone("foot_r", "shin_r", new Vector3(HipX, FootY, 0.0f),
                     HumanBodyBones.RightFoot),
             };
+
+            // THE FINGERS (owner, 2026-10-13: "can you make the fingers on the model grip the swords as well"): two bones per digit, root to
+            // knuckle and knuckle to tip, at the hand shape's own joints (FusedBodyShape.Digits), children of the hand. NOT in the humanoid avatar
+            // (BodyRigBuilder skips them): no clip animates them; HandGrip folds them round whatever the hand holds.
+            AddFingers(bones, "_r", true, new Vector3(wristX, ShoulderY, 0.0f));
+            AddFingers(bones, "_l", false, new Vector3(-wristX, ShoulderY, 0.0f));
+            return bones;
+        }
+
+        // ---- the fingers ----
+
+        /// <summary>The first and last humanoid finger bones: everything between is a finger.</summary>
+        public static bool IsFinger(HumanBodyBones human)
+        {
+            return human >= HumanBodyBones.LeftThumbProximal && human <= HumanBodyBones.RightLittleDistal;
+        }
+
+        /// <summary>Which hand a finger bone belongs to.</summary>
+        public static HumanBodyBones HandOf(HumanBodyBones finger)
+        {
+            return finger < HumanBodyBones.RightThumbProximal ? HumanBodyBones.LeftHand : HumanBodyBones.RightHand;
+        }
+
+        /// <summary>A finger bone's parent: the hand for a root bone, the bone before it along the finger otherwise.</summary>
+        public static HumanBodyBones FingerParent(HumanBodyBones finger)
+        {
+            int first = (int)(HandOf(finger) == HumanBodyBones.LeftHand ? HumanBodyBones.LeftThumbProximal : HumanBodyBones.RightThumbProximal);
+            int phalanx = ((int)finger - first) % 3;
+            return phalanx == 0 ? HandOf(finger) : finger - 1;
+        }
+
+        /// <summary>
+        /// A point in the hand shape's own frame (x to the fingertips, y the back of the hand, z the thumb's side) in the hand BONE's local axes: the
+        /// left hand bone's +X runs the other way along its arm (both hands are laid out with identity rotations in the T-pose).
+        /// </summary>
+        public static Vector3 FingerLocal(Vector3 inHand, bool right)
+        {
+            return new Vector3(right ? inHand.x : -inHand.x, inHand.y, inHand.z);
+        }
+
+        /// <summary>The finger bone's joint in the hand shape's frame (the digit's root for a root bone, its knuckle for the tip bone).</summary>
+        public static Vector3 FingerJoint(HumanBodyBones finger)
+        {
+            foreach (FusedBodyShape.Digit digit in FusedBodyShape.Digits)
+            {
+                if (finger == digit.LeftProximal || finger == digit.RightProximal) return digit.Root;
+                if (finger == digit.LeftIntermediate || finger == digit.RightIntermediate) return digit.Knuckle;
+            }
+            return Vector3.zero;
+        }
+
+        private static void AddFingers(List<Bone> into, string suffix, bool right, Vector3 wrist)
+        {
+            foreach (FusedBodyShape.Digit digit in FusedBodyShape.Digits)
+            {
+                string root = digit.Name + "1" + suffix;
+                into.Add(new Bone(root, "hand" + suffix, wrist + FingerLocal(digit.Root, right), right ? digit.RightProximal : digit.LeftProximal));
+                into.Add(new Bone(digit.Name + "2" + suffix, root, wrist + FingerLocal(digit.Knuckle, right), right ? digit.RightIntermediate : digit.LeftIntermediate));
+            }
         }
 
         /// <summary>
@@ -284,6 +343,22 @@ namespace CityX.Character
         /// </summary>
         public static Matrix4x4 RestBindMatrix(HumanBodyBones human)
         {
+            if (IsFinger(human))
+            {
+                // A finger turns with its hand: the hand's rest rotation, at the digit's joint in the hand's frame off the resting wrist.
+                bool right = HandOf(human) == HumanBodyBones.RightHand;
+                Quaternion handRotation = Quaternion.Euler(0.0f, 0.0f, right ? -ArmDownDegrees : ArmDownDegrees);
+                Vector3 restWrist = Vector3.zero;
+                foreach (Bone bone in RestBones())
+                {
+                    if (bone.Human == HandOf(human))
+                    {
+                        restWrist = bone.Position;
+                    }
+                }
+                return Matrix4x4.TRS(restWrist + handRotation * FingerLocal(FingerJoint(human), right), handRotation, Vector3.one);
+            }
+
             Vector3 position = Vector3.zero;
             bool found = false;
             foreach (Bone bone in RestBones())

@@ -7,15 +7,17 @@ namespace CityX.Character
     /// <summary>
     /// Damage between players. Every hit (a punch, a swing, a bullet, a fireball, a flame, a poison cloud) is worked out on the ATTACKER'S machine
     /// against whatever bodies exist there; another player's body there is only a COPY, and a copy's health is meaningless. So when the thing hit is
-    /// a copy, the hit is forwarded: attacker -> server -> the body's owner, whose real <see cref="PlayerVitals"/> takes it (block, stun, health,
-    /// hit reaction and all, exactly as a hit on their own body does). The owner also tells everyone their health a few times a second, so a copy
-    /// that has died stops being a target and anything reading a copy's health sees the real number.
+    /// a copy, the hit is forwarded: attacker -> server -> the body's owner, whose real <see cref="PlayerVitals"/> takes it (block, parry, poise,
+    /// stun, health, hit reaction and all, exactly as a hit on their own body does). The owner also tells everyone their health a few times a
+    /// second, so a copy that has died stops being a target and anything reading a copy's health sees the real number.
     ///
     /// THE SERVER DOES NOT TRUST THE RELAY. It checks the hit is a sane number, that the sender is not the victim, that the sender's own body is near
     /// the victim (a projectile can come from far: <see cref="MaxRelayMetres"/>), and that the sender is not firing hits faster than any weapon could.
     ///
-    /// WHAT IS NOT CARRIED BACK: the attacker is told "landed" at once; whether the victim blocked it is only known on the victim's machine, so a
-    /// timed block does not punish a remote attacker yet.
+    /// THE VERDICT COMES BACK (2026-10-13, for PvP feel): the attacker is told "landed" at once (a hit-stop must not wait for a round trip), and when
+    /// the victim's own vitals decide otherwise -- parried, soaked by a held guard, rolled through -- that answer is sent back to the attacker's
+    /// machine (<see cref="Verdict"/>), where the attacker's combat takes it: a parried swing leaves the attacker staggered just as it does offline.
+    /// The DEFENDER decides what happened to them (the research's rule: favour the defender's view of a dodge or a parry).
     /// </summary>
     [RequireComponent(typeof(NetworkObject))]
     public sealed class NetworkedDamage : NetworkBehaviour, IRemoteDamageRelay
@@ -32,13 +34,26 @@ namespace CityX.Character
         /// <summary>How often the owner shares their health, in seconds.</summary>
         public const float HealthIntervalSeconds = 0.25f;
 
+        /// <summary>The most poise damage a forwarded hit may claim.</summary>
+        public const float MaxPoiseDamage = 200.0f;
+
         private PlayerVitals _vitals;
         private float _sinceHealth;
         private float _lastSentHealth = -1.0f;
+        private int _nextHitId;
 
         // Server-side rate limit, per sender.
         private readonly System.Collections.Generic.Dictionary<int, (float windowStart, int count)> _rate =
             new System.Collections.Generic.Dictionary<int, (float, int)>();
+
+        /// <summary>Raised on the ATTACKER's machine (on this, the victim's copy) with a hit's id and what the victim's own body did with it, when that was not simply "landed".</summary>
+        public event System.Action<int, HitResponse> Verdict;
+
+        /// <summary>The id the last forwarded hit was sent with, so the attacker can match a verdict to its swing.</summary>
+        public int LastRelayedHitId { get; private set; }
+
+        /// <summary>True when the last <see cref="TryRelayHit"/> actually sent a hit on (false on the owner's own body, or when nothing was sent).</summary>
+        public bool LastRelayWasSent { get; private set; }
 
         private void Awake()
         {
@@ -52,8 +67,9 @@ namespace CityX.Character
         /// <summary>True when this body is another player's copy on this machine.</summary>
         private bool IsCopy => NetworkObject != null && IsSpawned && !IsOwner;
 
-        public bool TryRelayHit(float amount, Vector3 fromPosition, float hitstunSeconds)
+        public bool TryRelayHit(float amount, Vector3 fromPosition, float hitstunSeconds, float poiseDamage)
         {
+            LastRelayWasSent = false;
             if (!IsCopy)
             {
                 return false;
@@ -62,7 +78,9 @@ namespace CityX.Character
             {
                 return true;   // a corpse is not hit again, and nothing is sent
             }
-            SendHitToServer(amount, fromPosition, hitstunSeconds);
+            LastRelayedHitId = ++_nextHitId;
+            LastRelayWasSent = true;
+            SendHitToServer(amount, fromPosition, hitstunSeconds, poiseDamage, LastRelayedHitId);
             return true;
         }
 
@@ -81,15 +99,16 @@ namespace CityX.Character
         }
 
         [ServerRpc(RequireOwnership = false)]
-        private void SendHitToServer(float amount, Vector3 fromPosition, float hitstunSeconds, NetworkConnection sender = null)
+        private void SendHitToServer(float amount, Vector3 fromPosition, float hitstunSeconds, float poiseDamage, int hitId, NetworkConnection sender = null)
         {
-            if (!Allowed(sender, amount) || !Finite(fromPosition) || float.IsNaN(hitstunSeconds))
+            if (!Allowed(sender, amount) || !Finite(fromPosition) || float.IsNaN(hitstunSeconds) || float.IsNaN(poiseDamage))
             {
                 return;
             }
             if (Owner.IsValid)
             {
-                ApplyHitOnOwner(Owner, Mathf.Min(amount, MaxHitDamage), fromPosition, Mathf.Clamp(hitstunSeconds, 0.0f, 3.0f));
+                ApplyHitOnOwner(Owner, Mathf.Min(amount, MaxHitDamage), fromPosition, Mathf.Clamp(hitstunSeconds, 0.0f, 3.0f),
+                    Mathf.Clamp(poiseDamage, -1.0f, MaxPoiseDamage), hitId, sender.ClientId);
             }
         }
 
@@ -107,9 +126,13 @@ namespace CityX.Character
         }
 
         [TargetRpc]
-        private void ApplyHitOnOwner(NetworkConnection target, float amount, Vector3 fromPosition, float hitstunSeconds)
+        private void ApplyHitOnOwner(NetworkConnection target, float amount, Vector3 fromPosition, float hitstunSeconds, float poiseDamage, int hitId, int attackerClientId)
         {
-            ApplyHitHere(amount, fromPosition, hitstunSeconds);
+            HitResponse response = ApplyHitHere(amount, fromPosition, hitstunSeconds, poiseDamage);
+            if (response != HitResponse.Landed)
+            {
+                SendVerdictToServer(attackerClientId, hitId, (int)response);   // the attacker assumed "landed"; only a different answer needs carrying back
+            }
         }
 
         [TargetRpc]
@@ -122,9 +145,44 @@ namespace CityX.Character
         }
 
         /// <summary>Applies a forwarded hit to THIS body as if it had been struck here. Public so a test can drive it without a network.</summary>
-        public HitResponse ApplyHitHere(float amount, Vector3 fromPosition, float hitstunSeconds)
+        public HitResponse ApplyHitHere(float amount, Vector3 fromPosition, float hitstunSeconds, float poiseDamage = -1.0f)
         {
-            return _vitals != null ? ((IDamageable)_vitals).ApplyHit(amount, fromPosition, hitstunSeconds) : HitResponse.Ignored;
+            if (_vitals == null)
+            {
+                return HitResponse.Ignored;
+            }
+            if (poiseDamage >= 0.0f)
+            {
+                _vitals.TakePoise(poiseDamage);
+            }
+            return ((IDamageable)_vitals).ApplyHit(amount, fromPosition, hitstunSeconds);
+        }
+
+        // ---- the verdict back to the attacker ----
+
+        [ServerRpc(RequireOwnership = true)]
+        private void SendVerdictToServer(int attackerClientId, int hitId, int response)
+        {
+            if (ServerManager != null && ServerManager.Clients.TryGetValue(attackerClientId, out NetworkConnection attacker) && attacker != null && attacker.IsValid)
+            {
+                DeliverVerdict(attacker, hitId, response);
+            }
+        }
+
+        [TargetRpc]
+        private void DeliverVerdict(NetworkConnection target, int hitId, int response)
+        {
+            ReceiveVerdict(hitId, response);
+        }
+
+        /// <summary>A verdict as it arrives on the attacker's machine. Public so a test can deliver one without a network.</summary>
+        public void ReceiveVerdict(int hitId, int response)
+        {
+            if (response < (int)HitResponse.Ignored || response > (int)HitResponse.Guarded)
+            {
+                return;
+            }
+            Verdict?.Invoke(hitId, (HitResponse)response);
         }
 
         /// <summary>The server's checks on a forwarded hit. Public static pieces are tested directly.</summary>

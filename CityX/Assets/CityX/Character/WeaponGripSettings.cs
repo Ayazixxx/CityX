@@ -33,6 +33,16 @@ namespace CityX.Character
         [Tooltip("Where the left palm holds, in the SWORD's own space (the blade runs along +Y from the guard).")]
         public Vector3 SwordLeftHand;
 
+        [Header("One-handed sword")]
+        [Tooltip("False until a hold is saved: a one-handed sword then uses the hold derived from the hand's shape (the handle across the palm).")]
+        public bool OneHandTuned;
+
+        [Tooltip("Where a one-handed sword sits, in the RIGHT HAND bone's space.")]
+        public Vector3 OneHandPosition;
+
+        [Tooltip("How a one-handed sword is turned, in the right hand's space (degrees). Its blade runs along its own +Y.")]
+        public Vector3 OneHandEuler;
+
         [Header("Pistol")]
         [Tooltip("False until saved: the free hand then uses the derived point.")]
         public bool PistolTuned;
@@ -42,8 +52,9 @@ namespace CityX.Character
 
         [Header("Sword swings")]
         [Range(0.0f, 1.0f)]
-        [Tooltip("How much of the animation's spine and hips motion a swing or guard keeps. 0 stays upright, 1 is the full lean and twist.")]
-        public float TorsoFollowStrength = 0.65f;
+        [Tooltip("How much of a sword attack's torso twist and lean the body does (SwordStrikes' authored amounts at 1; 0 keeps the torso upright). " +
+                 "Also what a clip-played swing or guard keeps of its own spine motion.")]
+        public float TorsoFollowStrength = 1.0f;
 
         private static WeaponGripSettings _current;
 
@@ -79,6 +90,16 @@ namespace CityX.Character
 
         /// <summary>Forgets the saved sword hold; the next equip uses the derived one again.</summary>
         public void ResetSword() => SwordTuned = false;
+
+        /// <summary>Keeps a one-handed sword's hold: where it is on the hand and how it is turned.</summary>
+        public void SaveOneHand(Transform sword)
+        {
+            OneHandTuned = true;
+            OneHandPosition = sword.localPosition;
+            OneHandEuler = Wrapped(sword.localEulerAngles);
+        }
+
+        public void ResetOneHand() => OneHandTuned = false;
 
         /// <summary>Keeps where the pistol's free palm holds.</summary>
         public void SavePistol(Transform leftHand)

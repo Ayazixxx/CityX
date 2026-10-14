@@ -99,7 +99,7 @@ namespace CityX.Tests
         }
 
         [UnityTest]
-        public IEnumerator ALightSwingPlaysItsClipAtTheFittedSpeedAndHitsATargetInFront()
+        public IEnumerator ALightSwingIsPosedByTheStrikeDriverAnnouncedByNameAndHitsATargetInFront()
         {
 #if UNITY_EDITOR
             Build();
@@ -122,20 +122,22 @@ namespace CityX.Tests
             _combat.RequestLight(0.0f);
             yield return Frame(0.05f);
 
-            Assert.AreEqual(light.Animation, playedState, "the announced state is not the swing's clip");
-            Assert.AreEqual(light.AnimatorSpeed, playedSpeed, 0.001f, "the announced speed is not the fitted one");
-            Assert.AreEqual(light.StartSeconds, playedStart, 0.001f, "the announced clip offset is not the slice start");
-            // The swing plays on the UPPER-BODY layer with its own speed multiplier, so
-            // the legs (Animator.speed) keep their own pace under it.
-            Assert.AreEqual(light.AnimatorSpeed, _animator.GetFloat("UpperSpeed"), 0.001f, "the swing is not playing at the fitted speed");
+            Assert.AreEqual(light.Animation, playedState, "the announced state is not the swing's strike");
+            Assert.AreEqual(1.0f, playedSpeed, 0.001f, "a posed strike is announced at its own pace");
+            Assert.AreEqual(0.0f, playedStart, 0.001f, "a posed strike is announced from its start");
+            // The swing is POSED (SwordStrikes) over the walk cycle, so the legs (Animator.speed) keep their own pace under it.
+            Assert.IsTrue(SwordStrikes.TryGet(light.Animation, out SwordStrikeKind kind));
+            Assert.IsTrue(_driver.SwordPoser.IsStriking && _driver.SwordPoser.Kind == kind, "the pose driver is not playing the strike");
+            Assert.IsTrue(_locomotion.SwordPoseActive, "the locomotion is not applying the sword pose");
             Assert.AreEqual(1.0f, _animator.speed, 0.001f, "the swing sped up the WHOLE Animator, legs included");
-            Assert.IsTrue(_driver.IsPlaying(light.Animation), "the Animator never entered the swing state");
-            Assert.Greater(_driver.LayerFor(light.Animation), 0, "the swing is on the base layer -- it would freeze the legs");
+            Assert.IsTrue(_driver.IsPlaying(light.Animation), "the driver does not report the strike as playing");
 
             yield return Frame(light.Total + 0.3f);
 
             Assert.AreEqual(1, _dummy.TimesHit, "a swing at a target standing in front never connected");
             Assert.AreEqual(SoulsPhase.Idle, _combat.Phase);
+            Assert.IsFalse(_driver.SwordPoser.IsStriking, "the strike outlived the swing");
+            Assert.IsTrue(_locomotion.SwordPoseActive, "the ready stance should linger after the swing");
             Assert.AreEqual(1.0f, _animator.speed, 0.001f, "the swing left the Animator running at a fitted speed");
             Assert.IsTrue(_driver.IsPlaying(SoulsSwordCombat.IdleStateName),
                 "the arms were not handed back to the walk cycle");
@@ -179,7 +181,7 @@ namespace CityX.Tests
         }
 
         [UnityTest]
-        public IEnumerator TheHeavyIsPlayedFasterThanItsOwnClipAndHandedBackAtNormalSpeed()
+        public IEnumerator TheHeavyPosesTheSlamWithTheLegsAtTheirOwnPaceAndHitsOnce()
         {
 #if UNITY_EDITOR
             Build();
@@ -188,7 +190,7 @@ namespace CityX.Tests
 
             _combat.RequestHeavy(0.0f);
             yield return Frame(0.05f);
-            Assert.Greater(_animator.GetFloat("UpperSpeed"), 1.2f, "the 4.8s heavy clip is not being sped up to fit its timing");
+            Assert.IsTrue(_driver.SwordPoser.IsStriking && _driver.SwordPoser.Kind == SwordStrikeKind.Slam2H, "the heavy is not the posed slam");
             Assert.AreEqual(1.0f, _animator.speed, 0.001f, "the heavy sped up the legs as well");
 
             yield return Frame(_combat.Heavy.Total + 0.4f);
@@ -221,7 +223,7 @@ namespace CityX.Tests
                 _vitals.TickHitstun(dt);
                 _locomotion.Tick(idle, dt);
                 frames++;
-                if (_driver.IsPlaying(SoulsSwordCombat.BlockStateName))
+                if (_driver.IsPlaying(_combat.BlockStateName))
                 {
                     framesInGuard++;
                 }
@@ -389,7 +391,7 @@ namespace CityX.Tests
             var guarding = new Travel();
             yield return MeasureWalking(1.0f, dt => _combat.SetBlockHeld(true), guarding);
 
-            Assert.IsTrue(_driver.IsPlaying(SoulsSwordCombat.BlockStateName), "setup: the guard never came up");
+            Assert.IsTrue(_driver.IsPlaying(_combat.BlockStateName), "setup: the guard never came up");
             Assert.Greater(guarding.Feet, plain.Feet * 0.6f,
                 $"the legs froze under the raised guard: the feet travelled {guarding.Feet:0.00} against {plain.Feet:0.00}");
 #else

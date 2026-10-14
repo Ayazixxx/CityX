@@ -27,6 +27,7 @@ namespace CityX.CharacterEditor
             (ItemRegistry.Parachute, "Assets/CityX/Weapons/Parachute.prefab"),
             (ItemRegistry.Sword, "Assets/CityX/Weapons/Sword.prefab"),
             (ItemRegistry.SpikeSword, "Assets/CityX/Weapons/SpikeSword.prefab"),
+            (ItemRegistry.CombatSword, "Assets/CityX/Weapons/CombatSword.prefab"),
             (ItemRegistry.Flamethrower, "Assets/CityX/Weapons/Flamethrower.prefab"),
         };
 

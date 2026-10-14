@@ -402,7 +402,7 @@ namespace CityX.Character
             var local = new List<FusedBodyShape.Segment>();
             foreach (FusedBodyShape.Segment s in shape)
             {
-                if (s.Bone == upper || s.Bone == hand)
+                if (s.Bone == upper || FusedBodyShape.BelongsToHand(s.Bone, hand))
                 {
                     local.Add(s);
                 }

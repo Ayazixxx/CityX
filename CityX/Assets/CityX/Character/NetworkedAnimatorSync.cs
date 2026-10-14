@@ -87,10 +87,37 @@ namespace CityX.Character
             {
                 _animationDriver.StatePlayed += OnStatePlayed;
                 _animationDriver.TimedStatePlayed += OnTimedStatePlayed;
+                _animationDriver.StateSpeedChanged += OnStateSpeedChanged;
             }
             if (_climbing != null)
             {
                 _climbing.MantleStarted += OnMantleStarted;
+            }
+        }
+
+        // A HIT-STOP ON EVERY SCREEN: the owner's swing freezes for a few frames when it lands (SoulsSwordCombat), which is most of what makes
+        // the hit feel like one -- so the freeze (a speed of 0, then the speed back) is sent as its own event and the copy's swing freezes too.
+        private void OnStateSpeedChanged(string stateName, float speed)
+        {
+            if (!IsLiveOwner)
+            {
+                return;
+            }
+            SendStateSpeedToServer(stateName, speed);
+        }
+
+        [ServerRpc(RequireOwnership = true)]
+        private void SendStateSpeedToServer(string stateName, float speed)
+        {
+            BroadcastStateSpeed(stateName, speed);
+        }
+
+        [ObserversRpc(ExcludeOwner = true)]
+        private void BroadcastStateSpeed(string stateName, float speed)
+        {
+            if (_animationDriver != null)
+            {
+                _animationDriver.SetRemoteStateSpeed(stateName, speed);
             }
         }
 
@@ -104,6 +131,7 @@ namespace CityX.Character
             {
                 _animationDriver.StatePlayed -= OnStatePlayed;
                 _animationDriver.TimedStatePlayed -= OnTimedStatePlayed;
+                _animationDriver.StateSpeedChanged -= OnStateSpeedChanged;
             }
             if (_climbing != null)
             {

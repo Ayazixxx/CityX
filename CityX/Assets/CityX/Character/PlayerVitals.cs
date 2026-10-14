@@ -155,6 +155,47 @@ namespace CityX.Character
 
         public bool IsStunned => HitstunRemaining > 0.0f;
 
+        // ---- POISE (2026-10-13, from the soulslike research: Dark Souls 3 turns poise on only inside attacks with hyper-armour) ----
+
+        /// <summary>The poise pool: an attack with hyper-armour keeps going under blows until their poise damage has emptied it.</summary>
+        public const float MaxPoise = 60.0f;
+
+        /// <summary>The pool refills at this rate once <see cref="PoiseRegenDelaySeconds"/> have passed since the last blow.</summary>
+        public const float PoiseRegenPerSecond = 20.0f;
+
+        public const float PoiseRegenDelaySeconds = 1.5f;
+
+        public float Poise { get; private set; } = MaxPoise;
+
+        /// <summary>Set by the combat while an attack with hyper-armour is in its wind-up or active frames: blows then only stagger once the poise is spent.</summary>
+        [NonSerialized]
+        public bool HyperArmour;
+
+        private float _poiseRegenDelay;
+        private float _pendingPoise = -1.0f;
+
+        /// <summary>The poise damage of the NEXT blow to land (an attack says it just before the hit). A blow that never says has none: it staggers as any blow did.</summary>
+        public void TakePoise(float damage)
+        {
+            _pendingPoise = Mathf.Max(0.0f, damage);
+        }
+
+        /// <summary>Raised when a blow empties the poise pool mid-attack: the attack is broken.</summary>
+        public event Action PoiseBroken;
+
+        // ---- THE PARRY: a held guard that catches a blow in its first instant ----
+
+        /// <summary>Seconds left of the guard's perfect window (set when the guard comes up, SoulsSwordCombat.PerfectGuardSeconds).</summary>
+        public float PerfectGuardRemaining { get; private set; }
+
+        public void BeginPerfectGuard(float seconds)
+        {
+            PerfectGuardRemaining = Mathf.Max(PerfectGuardRemaining, seconds);
+        }
+
+        /// <summary>Raised with the blow's origin when the guard parries it: no damage, no stamina, and the attacker is the one left open.</summary>
+        public event Action<Vector3> Parried;
+
         public bool IsAlive => !IsDead;
 
         public event Action Died;
@@ -300,8 +341,11 @@ namespace CityX.Character
 
         HitResponse IDamageable.ApplyHit(float amount, Vector3 fromPosition, float hitstunSeconds)
         {
-            // Another player's copy: the hit is sent to the real body's owner, who decides what it does (block, stun, health).
-            if (Relay != null && Relay.TryRelayHit(amount, fromPosition, hitstunSeconds))
+            float poiseDamage = _pendingPoise;
+            _pendingPoise = -1.0f;
+
+            // Another player's copy: the hit is sent to the real body's owner, who decides what it does (block, parry, poise, stun, health).
+            if (Relay != null && Relay.TryRelayHit(amount, fromPosition, hitstunSeconds, poiseDamage))
             {
                 return HitResponse.Landed;
             }
@@ -312,6 +356,16 @@ namespace CityX.Character
             }
 
             bool blocked = IsBlocking;
+
+            // THE PARRY: a soulslike guard that caught the blow in its first instant stops it dead -- no damage, no stamina -- and answers
+            // Blocked, which leaves the ATTACKER staggered (SoulsSwordCombat.BlockedRecoilSeconds). The window closes on the first blow.
+            if (blocked && BlockDrainsStamina && PerfectGuardRemaining > 0.0f)
+            {
+                PerfectGuardRemaining = 0.0f;
+                Parried?.Invoke(fromPosition);
+                return HitResponse.Blocked;
+            }
+
             TakeDamage(amount, blocked);
 
             // SOULS GUARD: a held block pays for what it stops in stamina, and
@@ -336,11 +390,29 @@ namespace CityX.Character
                 DelayStaminaRegen(0.5f);
             }
 
+            // POISE: the blow's poise damage drains the pool. Inside an attack with hyper-armour the body only staggers once the pool is
+            // spent (and the pool refills for the next time); outside one, every blow staggers, as it always did -- Dark Souls 3's rule.
+            bool staggers = true;
+            if (poiseDamage >= 0.0f)
+            {
+                Poise = Mathf.Max(0.0f, Poise - poiseDamage);
+                _poiseRegenDelay = PoiseRegenDelaySeconds;
+                if (HyperArmour)
+                {
+                    staggers = Poise <= 0.0f;
+                    if (staggers)
+                    {
+                        Poise = MaxPoise;
+                        PoiseBroken?.Invoke();
+                    }
+                }
+            }
+
             // A BLOCKED HIT DOES NOT STUN THE DEFENDER. Eating the hitstun as
             // well as a quarter of the damage would make blocking a worse dodge
             // rather than a punish -- and the punish is the whole point of
             // timing one.
-            if (!blocked)
+            if (!blocked && staggers)
             {
                 // Longest wins rather than newest. A weak jab landing during a
                 // heavy stun should not cut it short.
@@ -369,6 +441,22 @@ namespace CityX.Character
             if (BlockRemaining > 0.0f)
             {
                 BlockRemaining = Mathf.Max(0.0f, BlockRemaining - deltaTime);
+            }
+            if (PerfectGuardRemaining > 0.0f)
+            {
+                PerfectGuardRemaining = Mathf.Max(0.0f, PerfectGuardRemaining - deltaTime);
+            }
+            // The pool refills once the delay has run out, counting whatever of this frame is left after it.
+            float poiseTime = deltaTime;
+            if (_poiseRegenDelay > 0.0f)
+            {
+                float waited = Mathf.Min(_poiseRegenDelay, poiseTime);
+                _poiseRegenDelay -= waited;
+                poiseTime -= waited;
+            }
+            if (_poiseRegenDelay <= 0.0f && poiseTime > 0.0f && Poise < MaxPoise)
+            {
+                Poise = Mathf.Min(MaxPoise, Poise + PoiseRegenPerSecond * poiseTime);
             }
             if (_finisherRagdollRemaining > 0.0f)
             {
@@ -406,6 +494,10 @@ namespace CityX.Character
             _exhausted = false;
             _wasAirborne = false;
             HitstunRemaining = 0.0f;
+            Poise = MaxPoise;
+            HyperArmour = false;
+            PerfectGuardRemaining = 0.0f;
+            _pendingPoise = -1.0f;
             Revived?.Invoke();
         }
 

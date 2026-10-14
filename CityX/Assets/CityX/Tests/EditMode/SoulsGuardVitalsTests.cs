@@ -151,5 +151,108 @@ namespace CityX.Tests
 
             Assert.IsFalse(_vitals.IsBlocking);
         }
+
+        // --- the parry: the guard's first instant -----------------------------------------------------------------------------------------
+
+        [Test]
+        public void ABlowCaughtInTheGuardsFirstInstantIsParriedCostsNothingAndPunishesTheAttacker()
+        {
+            _vitals.BlockDrainsStamina = true;
+            _vitals.StartBlock();
+            _vitals.BeginPerfectGuard(0.2f);
+            float stamina = _vitals.Stamina;
+            float health = _vitals.Health;
+            int parries = 0;
+            _vitals.Parried += _ => parries++;
+
+            _vitals.TickHitstun(0.1f);
+            HitResponse response = _target.ApplyHit(40.0f, Vector3.forward, 0.5f);
+
+            Assert.AreEqual(HitResponse.Blocked, response, "a parried blow answers Blocked, which staggers the attacker");
+            Assert.AreEqual(stamina, _vitals.Stamina, 0.001f, "a parry costs no stamina");
+            Assert.AreEqual(health, _vitals.Health, 0.001f, "a parry takes no damage");
+            Assert.IsFalse(_vitals.IsStunned);
+            Assert.AreEqual(1, parries);
+            Assert.AreEqual(0.0f, _vitals.PerfectGuardRemaining, 0.001f, "the window closes on the blow it caught");
+        }
+
+        [Test]
+        public void AfterTheFirstInstantTheGuardOnlyBlocks()
+        {
+            _vitals.BlockDrainsStamina = true;
+            _vitals.StartBlock();
+            _vitals.BeginPerfectGuard(0.2f);
+            _vitals.TickHitstun(0.25f);
+            float stamina = _vitals.Stamina;
+
+            HitResponse response = _target.ApplyHit(30.0f, Vector3.forward, 0.5f);
+
+            Assert.AreEqual(HitResponse.Guarded, response, "past its first instant the guard soaks, it does not parry");
+            Assert.Less(_vitals.Stamina, stamina, "a soaked blow costs stamina");
+        }
+
+        // --- poise ----------------------------------------------------------------------------------------------------------------------
+
+        [Test]
+        public void OutsideHyperArmourEveryBlowStaggers()
+        {
+            _vitals.TakePoise(5.0f);
+            _target.ApplyHit(10.0f, Vector3.forward, 0.4f);
+            Assert.IsTrue(_vitals.IsStunned, "with no hyper-armour a blow staggers however little poise it takes");
+            Assert.AreEqual(PlayerVitals.MaxPoise - 5.0f, _vitals.Poise, 0.001f, "the blow still drains the pool");
+        }
+
+        [Test]
+        public void InsideHyperArmourBlowsOnlyStaggerOnceThePoiseIsSpentAndThePoolRefills()
+        {
+            _vitals.HyperArmour = true;
+            int breaks = 0;
+            _vitals.PoiseBroken += () => breaks++;
+
+            _vitals.TakePoise(25.0f);
+            _target.ApplyHit(10.0f, Vector3.forward, 0.4f);
+            Assert.IsFalse(_vitals.IsStunned, "the first light should bounce off the hyper-armour");
+            _vitals.TakePoise(25.0f);
+            _target.ApplyHit(10.0f, Vector3.forward, 0.4f);
+            Assert.IsFalse(_vitals.IsStunned, "the second light should bounce off too (50 of 60 spent)");
+            Assert.AreEqual(0, breaks);
+
+            _vitals.TakePoise(25.0f);
+            _target.ApplyHit(10.0f, Vector3.forward, 0.4f);
+            Assert.IsTrue(_vitals.IsStunned, "the third light empties the pool and staggers");
+            Assert.AreEqual(1, breaks);
+            Assert.AreEqual(PlayerVitals.MaxPoise, _vitals.Poise, 0.001f, "the pool refills once it breaks");
+            Assert.AreEqual(_vitals.MaxHealth - 30.0f, _vitals.Health, 0.001f, "every blow still did its damage");
+        }
+
+        [Test]
+        public void AHeavyBreaksAFullPoolOutright()
+        {
+            _vitals.HyperArmour = true;
+            _vitals.TakePoise(60.0f);
+            _target.ApplyHit(20.0f, Vector3.forward, 0.9f);
+            Assert.IsTrue(_vitals.IsStunned);
+        }
+
+        [Test]
+        public void ABlowWithNoPoiseDamageStaggersEvenThroughHyperArmour()
+        {
+            // A punch, a bullet, a claw: nothing says any poise damage, so it staggers as every blow always did.
+            _vitals.HyperArmour = true;
+            _target.ApplyHit(10.0f, Vector3.forward, 0.4f);
+            Assert.IsTrue(_vitals.IsStunned);
+        }
+
+        [Test]
+        public void PoiseRefillsAfterADelay()
+        {
+            _vitals.TakePoise(30.0f);
+            _target.ApplyHit(10.0f, Vector3.forward, 0.4f);
+            float spent = _vitals.Poise;
+            _vitals.TickHitstun(PlayerVitals.PoiseRegenDelaySeconds * 0.5f);
+            Assert.AreEqual(spent, _vitals.Poise, 0.001f, "refilled during the delay");
+            _vitals.TickHitstun(PlayerVitals.PoiseRegenDelaySeconds * 0.5f + 1.0f);
+            Assert.AreEqual(spent + PlayerVitals.PoiseRegenPerSecond, _vitals.Poise, 0.5f, "did not refill after the delay");
+        }
     }
 }

@@ -71,6 +71,12 @@ namespace CityX.CharacterEditor
                 {
                     continue;   // a leaf that exists only to give its parent a direction
                 }
+                if (BodyRig.IsFinger(bone.Human))
+                {
+                    // The fingers are NOT humanoid-mapped: no clip here animates fingers (the Godot clips have none, the Mixamo ones would wave
+                    // them about), and HandGrip poses them after the Animator. Left out of the avatar's human bones, they stay where they are put.
+                    continue;
+                }
 
                 humanBones.Add(new HumanBone
                 {

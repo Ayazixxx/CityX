@@ -4,44 +4,100 @@ The sword is fought the way Dark Souls fights it. Fists, the bottle and every
 other weapon keep the old `MeleeAttacker` combat; equipping a sword adds
 `SoulsSwordCombat` to the body (`SwordWeapon.OnEquip`), and unequipping drops it.
 
+Two kinds of sword since 2026-10-13: the **two-handed** greatsword and spike sword
+(`/equip sword`, `/equip spikesword`), and the **one-handed** combat sword
+(`/equip combatsword`, the owner's COMBATSWORDX.glb, `SwordWeapon.OneHanded`), each
+with its own four attacks and guard. The one-handed sword's first attack is a
+horizontal slash (the owner's choice).
+
 ## Controls
 
 | Input | What it does |
 |---|---|
 | Left-click | Light attack. Chains light 1 -> 2 -> 3 -> back to 1. |
-| *(no key yet)* | Heavy attack exists (slow wind-up, big damage, long stagger) but has no binding. F does nothing. |
-| Right-click (hold) | Guard. Slows you to half speed (legs keep walking). Costs stamina per hit absorbed. |
-| Double-tap Shift | Roll (dodge). Legal out of idle or the tail of a swing, never out of a wind-up. |
+| Middle-click | Heavy attack: slow wind-up, big damage, long stagger, hyper-armour. (F stays unbound: explicit ask.) |
+| Right-click (hold) | Guard. Its **first 0.2 s parries** (tap to parry, hold to block). Slows you to half speed (legs keep walking). Costs stamina per hit absorbed. |
+| Double-tap Shift | Roll (dodge). Legal out of idle or the tail of a swing, never out of a wind-up. 0.42 s of i-frames. |
 | 2 | The old spin attack (unchanged). |
 | **Tab** | Lock on (works with or without a sword). Keep pressing to rotate through the surrounding enemies; the press after the last one releases. |
 
 Every swing faces the camera the instant you click -- and while locked on the
 camera is steering at the enemy, so the swing goes at the enemy.
 
+## The attacks are posed, not played from clips (2026-10-13)
+
+The Mixamo two-handed chops were stiff, kept the blade close to the chest, and
+were the same arc for a light and a heavy; there were none for one hand at all.
+Each attack is now a handful of **keyframes of the sword** in `SwordStrikes`
+(pure data): where the sword hand is (shoulder-relative, body axes, arm lengths),
+which way the **blade** points and which way its **edge** faces, how the torso
+twists, leans and tilts, how far the hips drop. They are joined the way a good
+sword animation is built:
+
+* a wind-up (smoothstep: anticipation is never faster than the action) into a
+  short **hold** at the top;
+* a **strike** that accelerates all the way into the contact (fastest at the
+  moment it lands) along an arc (a Bezier through a control point) with the blade
+  swept through a `Via` direction so a flat cut stays flat instead of flipping
+  through the vertical;
+* a **follow-through** past the target that decelerates, then a slower recovery
+  to the ready stance;
+* the torso winds up against the cut and unwinds through it; the heavies sink the
+  hips (`HipDrop`, handed to the foot IK so the feet stay planted);
+* the **edge leads** the motion (never the flat of the blade).
+
+| Attack | 1H (combat sword) | 2H (greatsword) |
+|---|---|---|
+| Light 1 | `sword1h_slash`: horizontal, right to left, chest height, 0.75 s | `sword2h_cut`: diagonal from over the right shoulder down to the left, 0.9 s |
+| Light 2 | `sword1h_cut`: backhand from over the left shoulder down to the right, 0.8 s | `sword2h_reverse`: rising backhand from low left to upper right, 0.9 s |
+| Light 3 | `sword1h_thrust`: hilt to the hip, driven straight out with a step, 0.7 s | `sword2h_sweep`: flat sweep right to left at waist height, 1.0 s |
+| Heavy | `sword1h_overhead`: from behind the head down the middle, hips sinking, 1.1 s | `sword2h_slam`: overhead with the longest hold, everything into the floor, 1.5 s |
+| Guard | `sword1h_guard`: blade across the body, free hand raised | `sword2h_guard`: blade up in front, both hands on the grip |
+
+How it reaches the rig: `SwordPoseDriver` (added at runtime like `FistPoseDriver`)
+runs the attack's clock -- a **hit-stop freezes it** (`SetSpeed 0`) -- and hands
+each frame to `PlayerLocomotion.SwordPose.cs`, which after the Animator turns the
+spine, solves the sword arm with the project's two-bone IK, turns the hand so the
+blade points the way the frame says (`LookRotation(blade, edge) *
+Inverse(LookRotation(bladeInHand, edgeInHand))`, from the mounted sword's own
+hold), moves the roll into the **forearm** rather than the wrist
+(`WristTwist.ShareWithForearm`, up to 100 degrees), keeps the **tip above the
+ground** (`KeepTipAboveGround`), places the free hand (one-handed) or lets the
+support hand follow the grip (two-handed). A new attack or a guard **takes over
+from the pose the body is actually in** (the last swing's recovery) across a third
+of its length, so a chain never snaps. The ready stance lingers 3 s after the last
+swing, then the arms go back to the walk cycle.
+
+`SoulsAttack.FromStrike` derives each attack's Startup/Active/Recovery from the
+strike's own `ActiveStart`/`ActiveEnd`, so the blade is live from just before the
+contact into the follow-through. Pinned by
+`SoulsSwordCombatPlayTests.TheActiveWindowSitsOnTheStrikesContact` and
+`SwordStrikesTests` (fastest inside the live window, edge perpendicular, tip never
+through the ground, two-handed poses within the left arm's reach, the slash flat and
+right-to-left).
+
+**Look at it:** `tools/unity_tests.ps1 -Platform PlayMode -Graphics -Filter
+CityX.Tests.SwordStrikeCapture` writes `CityX/Logs/CityShots/strike-<1h|2h>-<attack>.png`
+(nine frames across each attack from the side, the front and behind) and
+`grip-<1h|2h>.png` (the hands on the grips). The old clip-based menus
+(`CityX > Capture Souls Sword`, `Measure Sword Clips`) still exist for the clips.
+
+## The hands close round the grip
+
+Every digit has two bones of its own now (`BodyRig`, `FusedBodyShape.Digits`,
+not humanoid-mapped) and `HandGrip` folds them round whatever is mounted on the
+hand: the sword hand always, the support hand once it is on the weapon. See
+`docs/CHARACTER_LOOK.md` ("Finger bones and grips").
+
 ## The legs keep walking under the sword
 
-The Mixamo swing and guard clips are full-body; played on the base Animator
-layer they overwrote the legs with a planted lunge, so the legs froze for the
-whole swing. They now play on a masked **UpperBody layer** (spine, head, arms,
-hands -- not hips or legs) over the top of the walk cycle, exactly as the pistol
-got its own gun-walk. So:
-
-* You can walk while swinging, at `CommittedMoveSpeedFraction` (0.4) of walking
-  speed (`/sword CommittedMoveSpeedFraction 0` restores the old full root), and
-  walk at half speed while guarding. The feet keep stepping.
-* A swing's stretched playback speed is the layer's own `UpperSpeed` multiplier,
-  **not** `Animator.speed`, so the legs are never sped up under a swing.
-* Ending a swing or a guard fades to the layer's empty `UpperEmpty` state (0.15s),
-  which hands the arms back to the walk cycle -- it no longer re-plays
-  `SwordLocomotion`, which used to restart the leg cycle mid-stride.
-* Other players' copies get the same behaviour: the driver routes any state that
-  exists on the upper-body layer there, so the existing swing RPCs are unchanged.
-
-Verified by `SoulsSwordRigPlayTests.TheLegsKeepWalkingWhileTheSwordSwings` /
-`...WhileTheGuardIsUp`, which measure foot travel while swinging against plain
-walking -- with a control test (`TheSameSwingOnTheBaseLayerFreezesTheLegsBy...`)
-proving the same measurement DOES catch frozen legs on the old base-layer path.
-`CityX > Capture Sword Walking Swing` renders it.
+The attacks are posed over the **base layer's walk cycle**, so you can walk while
+swinging, at `CommittedMoveSpeedFraction` (0.4) of walking speed, and at half speed
+while guarding; the feet keep stepping (and the foot IK keeps them on the ground).
+The two-handed carry is the 2hsw locomotion tree (`LocomotionInput.SwordEquipped`);
+a one-handed sword is carried by the ordinary walk's own arm. The masked
+`UpperBody` Animator layer is still there for anything that plays a clip; the
+posed attacks do not use it. Verified by `SoulsSwordRigPlayTests.TheLegsKeepWalking...`.
 
 ## Lock-on
 
@@ -55,57 +111,55 @@ proving the same measurement DOES catch frozen legs on the old base-layer path.
   sight for more than 0.75s, or you die.
 * **Pedestrians and story NPCs are not lockable** -- the ask was enemies. Anything
   else you can hit (crimson claws, dummies, other players) is.
-* History: this existed in the Unity port on **C**, and was removed 2026-08-17 only
-  because it raced the player menu's own C binding. It was restored on Tab, and
-  Tab is read in `PlayerInputReader` (behind its menu/console gating), not in the
-  camera. Code: `LockOn.cs` (pure rules), `ThirdPersonCamera.PressLockOn/TrackLock`,
-  `LocomotionInput.LockedOn`.
+* Code: `LockOn.cs` (pure rules), `ThirdPersonCamera.PressLockOn/TrackLock`,
+  `LocomotionInput.LockedOn`; Tab is read in `PlayerInputReader`.
 
 ## The rules, and where they come from
 
-Researched from how Dark Souls 3 actually behaves (frame data pages, the
-community's stamina/poise/i-frame tables). Numbers are DS3's where DS3 has one
-and are scaled to this game's 130-point stamina bar.
+Researched from how Dark Souls 3, Elden Ring and Sekiro actually behave (frame
+data pages, the stamina/poise/i-frame tables, the animation guides on anticipation
+and follow-through, and the PvP netcode write-ups). Numbers are theirs where they
+have one, scaled to this game's 130-point stamina bar.
 
 * **Commitment.** Every attack is `Startup -> Active -> Recovery`. You cannot walk
-  out of it. The only exits are being hit (stagger) or rolling during Recovery.
+  out of it. The only exits are being staggered or rolling during Recovery.
 * **Active frames only.** The blade hurts only during the Active window. Each
   target is hit at most once per swing.
 * **Stamina.** Swings, rolls and blocked hits spend the one bar. Recovery pauses
   0.6s after spending, then refills at 45/s (DS3). You may act with any stamina
   left even if the cost is more than remains -- the bar bottoms out and you are
   exhausted until it recovers past 20%.
-* **Input buffer.** An attack pressed early is remembered for 0.7s and fires the
-  instant the chain window opens, instead of being dropped.
-* **Heavy vs light.** The heavy has ~5x the wind-up, ~1.7x the recovery, 2x the
-  damage and a 0.9s stagger. It is a decision, not an upgrade.
-* **Roll i-frames.** 0.35s of invincibility (DS3: 12 frames = 0.4s), 20 stamina.
-* **Held guard.** Costs stamina equal to the damage absorbed. A hit you cannot
-  afford **breaks the guard**: 1s stagger, stamina to zero. A held guard does NOT
-  punish the attacker (`HitResponse.Guarded`) -- only the old timed block does
-  (`HitResponse.Blocked`), which is where a future parry belongs.
-* **No poise.** Being hit mid-swing staggers you and cancels the swing.
-
-## How the swings line up with the animation
-
-The Mixamo clips are long and slow (1.27s, 1.83s and **4.8s** for the heavy) with
-the actual strike buried in the middle. Each attack therefore plays only a
-`ClipStart..ClipEnd` slice, stretched to `Startup+Active+Recovery`, and the
-Active window sits on the strike. The strike positions were **measured**, not
-guessed: `CityX > Measure Sword Clips` (`SoulsSwordCapture.MeasureClips`) logs the
-blade tip's speed and position against clip time.
-
-| Attack | Clip | Clip length | Strike (fraction of clip) | Slice played |
-|---|---|---|---|---|
-| Light 1, 3 | `sword_attack` | 1.27s | 52-62% | 36-85% |
-| Light 2 | `sword_attack2` | 1.83s | 40-58% (double sweep) | 30-85% |
-| Heavy | `sword_charged_attack` | 4.80s | 43-51% (overhead slam) | 10-66% |
-
-`SoulsSwordCombatPlayTests.TheActiveWindowSitsOnTheClipsMeasuredStrike` pins that
-alignment so a retune cannot slide the damage window off the visible swing.
-
-`CityX > Capture Souls Sword` renders contact sheets of each swing and the guard
-(`CityX/Logs/CityShots/souls-*.png`).
+* **Input buffer.** A press is remembered for 0.45s -- or, pressed **during a
+  swing**, until that swing's chain window has opened: a click in the wind-up is
+  how a chain is asked for (`SecondsUntilChainWindow`). A press with nothing to
+  chain to (mid-roll) expires after the 0.45s.
+* **Heavy vs light.** The heavy has 2-3x the wind-up, more recovery, 2x the damage,
+  a 0.9s stagger and hyper-armour. It is a decision, not an upgrade.
+* **Roll i-frames.** 0.42s of invincibility (Elden Ring's medium roll: 13 frames
+  at 30), 20 stamina.
+* **Hit-stop, both sides.** A landed hit freezes the attacker's swing (its clock
+  and its pose) for 0.07s (1.8x for a heavy), and the victim's recoil holds for the
+  same instant. The freeze is sent to other players too (`StateSpeedChanged`), so a
+  copy's swing freezes on contact.
+* **Hit reactions.** Being hit shows now: `HitReactions` throws the torso and head
+  away from the blow (four directions by name: `hit_front`...; a `stagger_*` when the
+  blow took the controls away), played by `FlinchPoseDriver` and replicated like a
+  swing. Nothing on the body reacted before.
+* **Poise** (DS3's rule: it is only on inside attacks with hyper-armour). Every
+  body has a 60-point pool that refills 20/s after 1.5s. A heavy's wind-up and
+  active frames have **hyper-armour**: blows then only stagger once their poise
+  damage has emptied the pool (lights take 25, a heavy 60 -- so a heavy breaks a
+  heavy outright and it takes three lights to stop one). Outside hyper-armour every
+  blow staggers, and a blow that carries no poise damage (a punch, a bullet, a claw)
+  staggers through anything. `PlayerVitals.Poise/HyperArmour/TakePoise`.
+* **The parry.** The guard's **first 0.2s** (`PerfectGuardSeconds`) is a perfect
+  window: a blow caught then does no damage, costs no stamina, snaps the guard
+  forward (`sword_parry`, replicated) and leaves the **attacker staggered for 0.9s**
+  (`BlockedRecoilSeconds`: `HitResponse.Blocked`). The window closes on the blow it
+  catches, and a tap of the button is all it takes.
+* **Held guard.** Past its first instant the guard soaks: it costs stamina equal
+  to the damage absorbed. A hit you cannot afford **breaks the guard**: 1s stagger,
+  stamina to zero. A soaked hit does NOT punish the attacker (`HitResponse.Guarded`).
 
 ## Hit detection
 
@@ -114,19 +168,26 @@ Two volumes, both live only during Active:
 1. **The blade**: a capsule swept along the real sword between last frame's pose
    and this frame's (no tunnelling through a fast swing).
 2. **A reach box** in front of the wielder (`ReachMetres` 2.2, `ReachHalfWidth`
-   0.8). The measured light-attack tip rarely gets more than ~1m in front of the
-   body -- the mocap keeps the sword close -- so the blade alone would miss a
-   target at arm's length. `/sword ReachMetres 0` turns it off (blade only).
+   0.8), kept from the clip days so a target at arm's length is never missed.
+   `/sword ReachMetres 0` turns it off (blade only).
 
-## Multiplayer
+## Multiplayer (PvP)
 
-A swing is announced with its state **and** the speed and clip offset it was
-fitted to (`PlayerAnimationDriver.TimedStatePlayed` ->
-`NetworkedAnimatorSync.SendTimedSwingToServer/BroadcastTimedSwing`), so other
-players see the same paced swing rather than the raw 4.8s clip. Ending a swing
-announces the sword idle at speed 1, which also restores their animator speed.
-The remote copy clamps the speed to 0.1-4 and ignores unknown states.
-Damage is still decided on the owner's machine, as with every other attack today.
+* A swing, a guard, a parry and a hit reaction are each announced **by name**
+  (`PlayerAnimationDriver.TimedStatePlayed` -> `NetworkedAnimatorSync`), so other
+  players' copies run the same keyframes on their own rig. A hit-stop's freeze goes
+  the same way (`StateSpeedChanged`).
+* Damage is decided on the **attacker's** machine against the victim's copy and
+  forwarded to the victim's owner (`NetworkedDamage`), with the blow's poise damage.
+  **The verdict comes back**: the attacker hears "landed" at once (the hit-stop must
+  not wait for a round trip), and when the victim's own body decided otherwise --
+  parried, soaked, rolled through -- that answer is sent back with the hit's id and
+  the attacker's `SoulsSwordCombat` takes it (`ApplyRemoteVerdict`): a parry
+  staggers a remote attacker exactly as it does offline. The defender decides what
+  happened to them (the research's rule for a dodge or a parry to feel fair).
+* Still one-sided: the victim's flinch arrives with the network's delay, and a
+  blow that reached a copy's hitbox on the attacker's screen is the blow that
+  counts (favouring the attacker's view of contact, the usual choice).
 
 ## Tuning it live
 
@@ -135,34 +196,33 @@ Damage is still decided on the owner's machine, as with every other attack today
 ```
 /sword BufferSeconds 0.4
 /sword Heavy.Startup 0.8
-/sword Light1.Recovery 0.35
+/sword OneHandLight1.PoiseDamage 30
+/sword PerfectGuardSeconds 0.25
 /sword ReachMetres 0
 ```
 
 Fields per attack: `Startup Active Recovery ChainAt StaminaCost DamageScale
-HitstunSeconds LungeMetres ClipSeconds ClipStart ClipEnd`. Changes last until the
-sword is unequipped; bake the winners into the defaults in `SoulsSwordCombat.cs`.
+HitstunSeconds LungeMetres PoiseDamage` (and `HyperArmour`, `ClipSeconds ClipStart
+ClipEnd` for a clip-backed one). Changes last until the sword is unequipped; bake
+the winners into the defaults in `SoulsSwordCombat.cs`. The shape of an attack
+itself is in `SwordStrikes.BuildKeys`: change a key, run the capture, look.
 
-**Hit-stop:** a landed hit freezes the swing's clock and its clip for `HitStopSeconds`
-(0.07; `HeavyHitStopMultiplier` 1.8x for a heavy) so contact has weight. Several targets
-in one frame do not add up. `/sword HitStopSeconds 0` turns it off. Where the hands sit
-on the hilt: the Inspector on the held sword (CityX > Weapon Grips, see MIXAMO_WEAPONS.md).
+Where the hands sit on the hilt: the Inspector on the held sword (CityX > Weapon
+Grips; a one-handed sword saves its own hold, `WeaponGripSettings.OneHand*`).
 
 ## Not built (deliberately)
 
-* **Parry / riposte / backstab.** The `Guarded` vs `Blocked` split is the hook.
-* **Player poise / hyper-armour.**
+* **Riposte / backstab** after a parry: the stagger is the opening for now.
 * **Two-handing toggle, weapon arts, weapon weight -> roll speed.**
+* **Hit-stop on the whole world** (the legs keep walking under a frozen swing).
 
 ## Known limitations
 
-* The animation is the Mixamo clips, now with both hands held on the hilt (the free
-  hand is reached onto the handle by IK), the mount rebuilt from the clip, the torso
-  following the clip through a swing, and a hit-stop on contact -- see
-  [MIXAMO_WEAPONS.md](MIXAMO_WEAPONS.md). The hunched *idle* is gone (the torso is held
-  upright standing and walking); the light attacks still keep the blade close to the body.
-* The guard clip is only 0.5s; a held guard loops its held stretch
-  (`BlockHoldFrom/BlockHoldTo`), verified for continuity in state but the pose
-  is only as steady as that stretch of the clip.
-* Windows were fitted from measured clip data, but *feel* (how long the wind-up
-  should be, how big the heavy's stagger is) can only be judged by playing it.
+* The attacks are keyframed by hand from the research, not from reference
+  animations: the owner may yet bring reference moves to recreate (the offer
+  stands), and any attack is a few numbers to retune.
+* The two-handed sweep still takes the support hand a little off the grip at the
+  very end of its follow-through (`SwordStrikeCapture` logs the worst distance).
+* Windows and numbers are from the research; *feel* (how long the wind-up should
+  be, how big the heavy's stagger is, whether 0.2s is the right parry window for
+  this game's ping) can only be judged by playing it, against another player.

@@ -225,39 +225,65 @@ namespace CityX.Tests
             Assert.Greater(_combat.Heavy.StaminaCost, _combat.Light1.StaminaCost, "heavy is not more expensive");
         }
 
-        /// <summary>
-        /// The measured strike of each clip (blade tip at its fastest, from
-        /// SoulsSwordCapture.MeasureClips), as fractions of the clip. Pinned
-        /// here so a retune of Startup/Active/ClipStart/ClipEnd cannot quietly
-        /// slide the damage window off the visible swing again.
-        /// </summary>
-        [TestCase("Light1", 0.52f, 0.62f)]
-        [TestCase("Light3", 0.52f, 0.62f)]
-        [TestCase("Light2", 0.40f, 0.58f)]
-        [TestCase("Heavy", 0.43f, 0.51f)]
-        public void TheActiveWindowSitsOnTheClipsMeasuredStrike(string attackName, float strikeStart, float strikeEnd)
+        private SoulsAttack AttackNamed(string attackName)
         {
-            SoulsAttack attack = attackName == "Light1" ? _combat.Light1
-                : attackName == "Light2" ? _combat.Light2
-                : attackName == "Light3" ? _combat.Light3
-                : _combat.Heavy;
+            switch (attackName)
+            {
+                case "Light1": return _combat.Light1;
+                case "Light2": return _combat.Light2;
+                case "Light3": return _combat.Light3;
+                case "Heavy": return _combat.Heavy;
+                case "OneHandLight1": return _combat.OneHandLight1;
+                case "OneHandLight2": return _combat.OneHandLight2;
+                case "OneHandLight3": return _combat.OneHandLight3;
+                default: return _combat.OneHandHeavy;
+            }
+        }
 
-            float slice = attack.ClipEnd - attack.ClipStart;
-            float strikeCentre = (strikeStart + strikeEnd) * 0.5f;
-            float atSeconds = (strikeCentre - attack.ClipStart) / slice * attack.Total;
+        /// <summary>
+        /// Every attack is posed by SwordStrikes, and its live window sits on the strike's contact (the fastest moment of the blade's path):
+        /// the blade goes live just before it and stops in the follow-through. Pinned so a retune cannot quietly slide the damage window
+        /// off the visible cut.
+        /// </summary>
+        [TestCase("Light1")]
+        [TestCase("Light2")]
+        [TestCase("Light3")]
+        [TestCase("Heavy")]
+        [TestCase("OneHandLight1")]
+        [TestCase("OneHandLight2")]
+        [TestCase("OneHandLight3")]
+        [TestCase("OneHandHeavy")]
+        public void TheActiveWindowSitsOnTheStrikesContact(string attackName)
+        {
+            SoulsAttack attack = AttackNamed(attackName);
+            Assert.IsTrue(SwordStrikes.TryGet(attack.Animation, out SwordStrikeKind kind), $"{attackName} ('{attack.Animation}') is not a posed strike");
+            Assert.IsTrue(attack.IsProcedural);
+            Assert.AreEqual(SwordStrikes.Seconds(kind), attack.Total, 0.001f, $"{attackName}: the phases do not add up to the strike's length");
 
-            Assert.GreaterOrEqual(atSeconds, attack.Startup - 0.02f,
-                $"{attackName}: the visible strike lands at {atSeconds:0.00}s, before the blade goes live at {attack.Startup:0.00}s");
-            Assert.LessOrEqual(atSeconds, attack.Startup + attack.Active + 0.02f,
-                $"{attackName}: the visible strike lands at {atSeconds:0.00}s, after the blade stops at {attack.Startup + attack.Active:0.00}s");
+            float contact = SwordStrikes.ContactFraction(kind) * SwordStrikes.Seconds(kind);
+            Assert.GreaterOrEqual(contact, attack.Startup - 0.001f,
+                $"{attackName}: the blade lands at {contact:0.00}s, before it goes live at {attack.Startup:0.00}s");
+            Assert.LessOrEqual(contact, attack.Startup + attack.Active + 0.001f,
+                $"{attackName}: the blade lands at {contact:0.00}s, after it stops at {attack.Startup + attack.Active:0.00}s");
+            Assert.AreEqual(1.0f, attack.AnimatorSpeed, 0.0001f, "a posed strike runs at its own pace");
+            Assert.AreEqual(0.0f, attack.StartSeconds, 0.0001f);
+        }
+
+        [Test]
+        public void TheOneHandedFirstAttackIsTheHorizontalSlash()
+        {
+            // Owner, 2026-10-13: "make the first attack with a one handed sword a horizontal slash".
+            Assert.AreEqual(SwordStrikes.Slash1HName, _combat.OneHandLight1.Animation);
         }
 
         [Test]
         public void TheClipSliceIsFittedIntoTheAttacksTotalTime()
         {
-            SoulsAttack a = _combat.Heavy;
+            // A clip-backed attack (none is in the moveset now, but the fitting is still how one would play).
+            var a = new SoulsAttack("sword_charged_attack", 0.98f, 0.24f, 0.48f, 0.60f, 40.0f, 2.00f, 0.90f, 0.50f, 4.8f, 0.10f, 0.66f);
             float sliceSeconds = a.ClipSeconds * (a.ClipEnd - a.ClipStart);
 
+            Assert.IsFalse(a.IsProcedural);
             Assert.AreEqual(sliceSeconds / a.Total, a.AnimatorSpeed, 0.0001f);
             Assert.AreEqual(a.ClipSeconds * a.ClipStart, a.StartSeconds, 0.0001f);
         }
@@ -371,18 +397,34 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void ABufferedPressExpires()
+        public void ABufferedPressExpiresWhenThereIsNothingToChainTo()
         {
-            // The press is only good for BufferSeconds; this swing outlasts it
-            // by far, so the chain must NOT auto-continue.
+            // Pressed while the body cannot act (mid-roll) with no swing in progress: the press is only good for BufferSeconds.
+            _combat.BufferSeconds = 0.1f;
+            _combat.Locked = true;
+            _combat.RequestLight(0.0f);
+            Step(0.3f);
+            _combat.Locked = false;
+            Step(0.05f);
+
+            Assert.AreEqual(SoulsPhase.Idle, _combat.Phase, "an expired press still swung");
+        }
+
+        [Test]
+        public void APressDuringASwingIsRememberedUntilItsChainWindowHoweverLongTheSwing()
+        {
+            // A press during the wind-up is how a chain is asked for (the research's "buffered inputs fire at the earliest legal moment"), so it
+            // is kept until this swing's window opens even when the swing outlasts the plain buffer by far.
             _combat.BufferSeconds = 0.1f;
             _combat.RequestLight(0.0f);
             Step(0.05f);
-            _combat.RequestLight(0.0f);   // buffered, good for 0.1s
+            _combat.RequestLight(0.0f);
+            Assert.Greater(_combat.SecondsUntilChainWindow(), 0.3f, "setup: the first swing's window should be well past the buffer");
 
-            Step(_combat.Light1.Total + 0.5f);
+            Step(_combat.Light1.Startup + _combat.Light1.Active + _combat.Light1.Recovery * _combat.Light1.ChainAt + 0.03f);
 
-            Assert.AreEqual(SoulsPhase.Idle, _combat.Phase, "an expired buffered press still chained");
+            Assert.AreEqual(1, _combat.ChainIndex, "the press made during the swing was dropped before its window");
+            Assert.AreEqual(SoulsPhase.Startup, _combat.Phase);
         }
 
         [Test]
@@ -547,6 +589,84 @@ namespace CityX.Tests
         }
 
         // --- console tuning ---------------------------------------------------------
+
+        // --- poise, hyper-armour and the parry (2026-10-13) --------------------
+
+        private void BlowOnSelf(float poiseDamage)
+        {
+            _vitals.TakePoise(poiseDamage);
+            ((IDamageable)_vitals).ApplyHit(5.0f, _player.transform.position + Vector3.forward, 0.4f);
+        }
+
+        [Test]
+        public void AHeavyKeepsSwingingThroughLightBlowsUntilItsPoiseBreaks()
+        {
+            _vitals.InfiniteStamina = true;
+            _combat.RequestHeavy(0.0f);
+            Step(0.1f);
+            Assert.AreEqual(SoulsPhase.Startup, _combat.Phase);
+            Assert.IsTrue(_vitals.HyperArmour, "a heavy's wind-up should carry hyper-armour");
+
+            BlowOnSelf(25.0f);
+            Step(1.0f / 60.0f);
+            Assert.AreEqual(SoulsPhase.Startup, _combat.Phase, "one light blow should not stop a heavy");
+            BlowOnSelf(25.0f);
+            Step(1.0f / 60.0f);
+            Assert.AreEqual(SoulsPhase.Startup, _combat.Phase, "two light blows should not stop a heavy");
+
+            BlowOnSelf(25.0f);
+            Step(1.0f / 60.0f);
+            Assert.AreEqual(SoulsPhase.Idle, _combat.Phase, "the third blow empties the poise: the heavy is broken");
+            Assert.IsTrue(_vitals.IsStunned);
+            Assert.IsFalse(_vitals.HyperArmour, "hyper-armour is gone with the swing");
+        }
+
+        [Test]
+        public void ALightIsBrokenByAnyBlow()
+        {
+            _combat.RequestLight(0.0f);
+            Step(0.1f);
+            Assert.IsFalse(_vitals.HyperArmour, "a light has no hyper-armour");
+
+            BlowOnSelf(20.0f);
+            Step(1.0f / 60.0f);
+            Assert.AreEqual(SoulsPhase.Idle, _combat.Phase, "a blow during a light should break it");
+            Assert.IsTrue(_vitals.IsStunned);
+        }
+
+        [Test]
+        public void TheGuardsFirstInstantParriesAndLaterOnlyBlocks()
+        {
+            _combat.SetBlockHeld(true);
+            Assert.Greater(_vitals.PerfectGuardRemaining, 0.0f, "raising the guard should open the parry window");
+            float stamina = _vitals.Stamina;
+
+            HitResponse early = ((IDamageable)_vitals).ApplyHit(30.0f, Vector3.forward * 2.0f, 0.4f);
+            Assert.AreEqual(HitResponse.Blocked, early, "a blow in the guard's first instant is parried");
+            Assert.AreEqual(stamina, _vitals.Stamina, 0.001f);
+
+            for (int i = 0; i < 30; i++)
+            {
+                _combat.SetBlockHeld(true);
+                _combat.Tick(1.0f / 60.0f);
+                _vitals.TickHitstun(1.0f / 60.0f);
+            }
+            HitResponse late = ((IDamageable)_vitals).ApplyHit(30.0f, Vector3.forward * 2.0f, 0.4f);
+            Assert.AreEqual(HitResponse.Guarded, late, "half a second in, the guard only soaks");
+        }
+
+        [Test]
+        public void AnotherPlayersVerdictOfParriedStaggersThisAttacker()
+        {
+            Assert.IsFalse(_vitals.IsStunned);
+            _combat.ApplyRemoteVerdict(HitResponse.Guarded);
+            Assert.IsFalse(_vitals.IsStunned, "a soaked blow does not punish the attacker");
+            _combat.ApplyRemoteVerdict(HitResponse.Ignored);
+            Assert.IsFalse(_vitals.IsStunned, "a rolled-through blow does not punish the attacker");
+            _combat.ApplyRemoteVerdict(HitResponse.Blocked);
+            Assert.IsTrue(_vitals.IsStunned, "a parry on the other player's machine must stagger this attacker");
+            Assert.AreEqual(_combat.BlockedRecoilSeconds, _vitals.HitstunRemaining, 0.001f);
+        }
 
         [Test]
         public void SwordConsoleTuningChangesTheLiveNumbers()

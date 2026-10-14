@@ -21,6 +21,7 @@ namespace CityX.Items
         public const string Parachute = "parachute";
         public const string Sword = "sword";
         public const string SpikeSword = "spike_sword";
+        public const string CombatSword = "combat_sword";
         public const string Flamethrower = "flamethrower";
         public const string TopHat = "top_hat";
         public const string FarmerHat = "farmer_hat";
@@ -52,6 +53,8 @@ namespace CityX.Items
             [Parachute] = new ItemDefinition(Parachute, "Parachute", "tool", "back", 1),
             [Sword] = new ItemDefinition(Sword, "Sword", "weapon", "hand_r", 1),
             [SpikeSword] = new ItemDefinition(SpikeSword, "Spike Sword", "weapon", "hand_r", 1),
+            // The owner's COMBATSWORDX.glb (2026-10-13): the first ONE-HANDED sword, with its own attacks and guard.
+            [CombatSword] = new ItemDefinition(CombatSword, "Combat Sword", "weapon", "hand_r", 1),
             [Flamethrower] = new ItemDefinition(Flamethrower, "Flamethrower", "weapon", "hand_r", 1),
             // "helmet" -- LoadoutPanelView's own slot list already has one,
             // unused until now. Godot's hat and mask occupy separate slots

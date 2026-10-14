@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using CityX.Character;
+using CityX.CharacterEditor;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -74,7 +75,7 @@ namespace CityX.Tests
         private static List<FusedBodyShape.Segment> MakeShapeWithoutHands()
         {
             List<FusedBodyShape.Segment> shape = MakeShape();
-            shape.RemoveAll(s => s.Bone == HumanBodyBones.LeftHand || s.Bone == HumanBodyBones.RightHand);
+            shape.RemoveAll(s => FusedBodyShape.BelongsToHand(s.Bone, HumanBodyBones.LeftHand) || FusedBodyShape.BelongsToHand(s.Bone, HumanBodyBones.RightHand));
             return shape;
         }
 
@@ -82,7 +83,7 @@ namespace CityX.Tests
         private static List<FusedBodyShape.Segment> MakeLeftArmAndHand()
         {
             List<FusedBodyShape.Segment> shape = MakeShape();
-            shape.RemoveAll(s => s.Bone != HumanBodyBones.LeftHand && s.Bone != HumanBodyBones.LeftUpperArm);
+            shape.RemoveAll(s => !FusedBodyShape.BelongsToHand(s.Bone, HumanBodyBones.LeftHand) && s.Bone != HumanBodyBones.LeftUpperArm);
             return shape;
         }
 
@@ -124,9 +125,21 @@ namespace CityX.Tests
             // Feet now: a rounded box under each ankle (owner, 2026-10-13: "a basic foot with no toes").
             Assert.AreEqual(1, CountOf(segments, HumanBodyBones.RightFoot), "the right foot is not one piece");
             Assert.AreEqual(1, CountOf(segments, HumanBodyBones.LeftFoot), "the left foot is not one piece");
-            // A hand: a palm, four fingers of two pieces each, a thumb of two.
-            Assert.AreEqual(1 + 4 * 2 + 2, CountOf(segments, HumanBodyBones.LeftHand), "the left hand is not a palm, four fingers and a thumb");
-            Assert.AreEqual(1 + 4 * 2 + 2, CountOf(segments, HumanBodyBones.RightHand));
+            // A hand: a palm on the hand bone, and four fingers and a thumb of two pieces each, every piece on its own finger bone (so the
+            // fingers can fold round a grip: HandGrip).
+            Assert.AreEqual(1, CountOf(segments, HumanBodyBones.LeftHand), "the left hand bone should own the palm alone");
+            Assert.AreEqual(1, CountOf(segments, HumanBodyBones.RightHand));
+            int fingerBones = 0;
+            foreach (HumanBodyBones bone in bones)
+            {
+                if (BodyRig.IsFinger(bone))
+                {
+                    fingerBones++;
+                    Assert.AreEqual(1, CountOf(segments, bone), $"{bone} should own exactly one piece of a finger");
+                }
+            }
+            Assert.AreEqual(2 * 5 * 2, fingerBones, "two bones for each of five digits on each hand");
+            Assert.AreEqual(11, FusedBodyShape.HandPieces(segments, HumanBodyBones.LeftHand).Count, "the left hand is not a palm, four fingers and a thumb");
         }
 
         /// <summary>
@@ -785,28 +798,74 @@ namespace CityX.Tests
                 "the blend has smeared the forearm across too many bones");
         }
 
-        /// <summary>A hand with fingers is a stiff piece: everything past the wrist is the hand bone's, so the fingers never bend with the forearm.</summary>
+        /// <summary>
+        /// Each fingertip is its own finger's tip bone (so the fingers fold round a grip and nothing else moves them), the palm is the hand's, and
+        /// no part of a hand bends with the forearm.
+        /// </summary>
         [Test]
-        public void TheHandIsStiffAndWhollyTheHandBones()
+        public void TheFingertipsBelongToTheirFingerBonesAndThePalmToTheHand()
         {
             List<FusedBodyShape.Segment> segments = MakeSegments();
             List<FusedBodyShape.Segment> shape = MakeShape();
             var bones = new HumanBodyBones[4];
             var weights = new float[4];
             List<FusedBodyShape.Segment> pieces = FusedBodyShape.HandPieces(shape, HumanBodyBones.RightHand);
-            // The tip piece of each finger (the pairs after the palm), then the thumb's, which starts nearer the wrist.
-            foreach ((int index, float least) in new[] { (2, 0.95f), (4, 0.95f), (6, 0.95f), (8, 0.95f), (10, 0.85f) })
+            // The tip piece of each finger (the pairs after the palm), then the thumb's.
+            foreach (int index in new[] { 2, 4, 6, 8, 10 })
             {
                 FusedBodyShape.Segment piece = pieces[index];
                 Vector3 p = piece.B + (piece.B - piece.A).normalized * piece.Radius;   // on the very tip
                 int used = FusedBodyShape.WeightsAt(segments, p, bones, weights);
+                float own = 0.0f;
                 for (int i = 0; i < used; i++)
                 {
-                    if (bones[i] == HumanBodyBones.RightHand)
+                    Assert.IsTrue(FusedBodyShape.BelongsToHand(bones[i], HumanBodyBones.RightHand), $"a fingertip is weighted to {bones[i]}");
+                    if (bones[i] == piece.Bone)
                     {
-                        Assert.Greater(weights[i], least, $"a fingertip is only {weights[i]:P0} the hand's");
+                        own = weights[i];
                     }
                 }
+                Assert.IsTrue(BodyRig.IsFinger(piece.Bone), $"piece {index} of the hand is on {piece.Bone}, not a finger bone");
+                Assert.Greater(own, 0.9f, $"a fingertip is only {own:P0} its own bone's ({piece.Bone})");
+            }
+
+            // The palm's centre: the hand's.
+            FusedBodyShape.Segment palm = pieces[0];
+            int usedPalm = FusedBodyShape.WeightsAt(segments, palm.A, bones, weights);
+            float handShare = 0.0f;
+            for (int i = 0; i < usedPalm; i++)
+            {
+                if (bones[i] == HumanBodyBones.RightHand) handShare = weights[i];
+            }
+            Assert.Greater(handShare, 0.9f, $"the palm is only {handShare:P0} the hand's");
+        }
+
+        /// <summary>The finger bones sit exactly on the shape's finger joints when the arms hang at rest: the skin's joints and the bones' joints are one table (FusedBodyShape.Digits).</summary>
+        [Test]
+        public void TheFingerBonesSitOnTheShapesFingerJointsAtRest()
+        {
+            List<FusedBodyShape.Segment> shape = MakeShape();
+            GameObject root = BodyRigBuilder.BuildSkeleton("Test", out Dictionary<string, Transform> bones);
+            try
+            {
+                bones["arm_r"].localRotation = Quaternion.Euler(0.0f, 0.0f, -BodyRig.ArmDownDegrees);
+                bones["arm_l"].localRotation = Quaternion.Euler(0.0f, 0.0f, BodyRig.ArmDownDegrees);
+                int checkedBones = 0;
+                foreach (BodyRig.Bone bone in BodyRig.Bones())
+                {
+                    if (!BodyRig.IsFinger(bone.Human)) continue;
+                    FusedBodyShape.Segment piece = shape.Find(s => s.Bone == bone.Human);
+                    Assert.Less(Vector3.Distance(bones[bone.Name].position, piece.A), 0.002f,
+                        $"{bone.Name} sits {Vector3.Distance(bones[bone.Name].position, piece.A) * 1000:0} mm off its finger piece's joint");
+                    Assert.Less(Vector3.Distance(BodyRig.RestBindMatrix(bone.Human).GetPosition(), piece.A), 0.002f,
+                        $"{bone.Name}'s rest bind is not at its joint");
+                    checkedBones++;
+                }
+                Assert.AreEqual(20, checkedBones);
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
             }
         }
 
@@ -891,6 +950,13 @@ namespace CityX.Tests
                 HumanBodyBones.LeftUpperArm, HumanBodyBones.RightUpperArm), "shoulder to shoulder");
             Assert.IsFalse(FusedBodyShape.AreConnected(
                 HumanBodyBones.LeftUpperLeg, HumanBodyBones.RightUpperLeg), "hip to hip");
+            // The fingers: a finger's root shares with the hand, its tip with the root and the hand, nothing of a finger with the forearm.
+            Assert.IsTrue(FusedBodyShape.AreConnected(HumanBodyBones.RightHand, HumanBodyBones.RightIndexProximal), "a knuckle");
+            Assert.IsTrue(FusedBodyShape.AreConnected(HumanBodyBones.RightHand, HumanBodyBones.RightIndexIntermediate), "a fingertip to the palm");
+            Assert.IsTrue(FusedBodyShape.AreConnected(HumanBodyBones.RightIndexProximal, HumanBodyBones.RightIndexIntermediate), "a finger's joint");
+            Assert.IsFalse(FusedBodyShape.AreConnected(HumanBodyBones.RightLowerArm, HumanBodyBones.RightIndexIntermediate), "a fingertip to the forearm");
+            Assert.IsFalse(FusedBodyShape.AreConnected(HumanBodyBones.RightIndexProximal, HumanBodyBones.RightMiddleProximal), "finger to finger");
+            Assert.IsFalse(FusedBodyShape.AreConnected(HumanBodyBones.LeftIndexProximal, HumanBodyBones.RightHand), "a finger to the other hand");
         }
 
         // ---- the built mesh asset ----
@@ -957,9 +1023,10 @@ namespace CityX.Tests
             {
                 if (w.weight0 < 0.9f) shared++;
             }
-            // The elbows and knees hand over 2.5x wider than the other joints, so about half the vertices carry a real second share.
+            // The elbows and knees hand over 2.5x wider than the other joints, so about half the body's vertices carry a real second share --
+            // and the hands, on a grid three times finer with twenty knuckle joints between them (2026-10-13), add a quarter more.
             Assert.Greater(shared, weights.Length / 50, "almost nothing is shared between two bones: the joints are rigid again");
-            Assert.Less(shared, weights.Length * 6 / 10, "most of the skin is shared between bones: it will drag");
+            Assert.Less(shared, weights.Length * 8 / 10, "most of the skin is shared between bones: it will drag");
         }
     }
 }

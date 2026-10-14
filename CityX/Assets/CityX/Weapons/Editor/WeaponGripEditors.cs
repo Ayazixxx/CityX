@@ -124,6 +124,12 @@ namespace CityX.WeaponsEditor
             EditorGUILayout.Space(10.0f);
             EditorGUILayout.LabelField("Sword hold", EditorStyles.boldLabel);
 
+            if (sword.OneHanded)
+            {
+                DrawOneHandedSword(sword);
+                return;
+            }
+
             if (!Application.isPlaying || sword.LeftHandGrip == null)
             {
                 EditorGUILayout.HelpBox(
@@ -168,6 +174,43 @@ namespace CityX.WeaponsEditor
                 "Move slides the sword along the hand; Rotate turns the blade (its edge is the gold-trimmed side). " +
                 "The left hand follows the orange marker wherever the swing takes the sword. Save keeps it after you stop the game.",
                 MessageType.None);
+        }
+
+        /// <summary>A one-handed sword has no left-hand marker: only the sword itself is moved and turned on the right hand.</summary>
+        private static void DrawOneHandedSword(SwordWeapon sword)
+        {
+            if (!Application.isPlaying || sword.transform.parent == null)
+            {
+                EditorGUILayout.HelpBox(
+                    "Press Play and equip the sword (press ` in the game and type /equip combatsword). While it is held, select it and " +
+                    "drag or rotate it in the Scene view: it is held in the right hand alone.", MessageType.Info);
+                return;
+            }
+
+            WeaponGripSettings settings = EnsureAsset();
+            EditorGUILayout.LabelField("Saved hold", settings.OneHandTuned ? "yes -- hand tuned" : "no -- derived from the hand's shape");
+
+            if (GUILayout.Button("Select the sword (Move / Rotate it: the hand's hold, and which way the edge faces)"))
+            {
+                Selection.activeGameObject = sword.gameObject;
+                SceneView.FrameLastActiveSceneView();
+            }
+            if (GUILayout.Button("Save this hold"))
+            {
+                settings.SaveOneHand(sword.transform);
+                Persist(settings);
+                Debug.Log($"CityX: saved the one-handed sword hold -- sword at {settings.OneHandPosition} rotated {settings.OneHandEuler} on the right hand");
+            }
+            using (new EditorGUI.DisabledScope(!settings.OneHandTuned))
+            {
+                if (GUILayout.Button("Go back to the derived hold"))
+                {
+                    settings.ResetOneHand();
+                    Persist(settings);
+                    sword.ApplyGrip();
+                }
+            }
+            DrawTorso(settings);
         }
 
         internal static void DrawPistol(PistolWeapon pistol)

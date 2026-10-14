@@ -1449,9 +1449,13 @@ namespace CityX.Character
             // only touches the upper body. See PlayerLocomotion.FootIK.cs.
             ApplyFootIK();
             ApplyHeadForward();
+            // Thrown by a blow (HitReactions): the spine and head, before the arm poses are solved from the thrown shoulders.
+            ApplyFlinchPose();
             ApplyDrivingWheelPose();
             ApplyCastingPose();
             ApplyGunAimPose();
+            // The sword attacks (SwordStrikes): the sword arm, blade and torso; before the support hand, which follows the grip they move.
+            ApplySwordPose();
             ApplySupportHand();
             ApplySwordSpinPose();
             ApplyBakedPose();
@@ -1460,6 +1464,8 @@ namespace CityX.Character
             ApplyClimbWallLimbs();
             ApplyLedgeHands();
             ApplyStraightWrists();
+            // The fingers close round whatever each hand holds (HandGrip), last: they hang off the posed hands.
+            ApplyFingerGrips();
             if (IsSitting)
             {
                 ApplySittingPose();
@@ -1474,15 +1480,14 @@ namespace CityX.Character
         /// </summary>
         private void ApplyStraightWrists()
         {
-            StraightenWrist(_handL);
-            StraightenWrist(_handR);
-        }
-
-        private static void StraightenWrist(Transform hand)
-        {
-            if (hand != null && hand.childCount <= 1)
+            // "Empty" means nothing MOUNTED on the hand: the finger bones and the fingertip leaf are the rig's own (PlayerLocomotion.Fingers.cs).
+            if (_handL != null && !LeftHandHolds)
             {
-                hand.localRotation = Quaternion.identity;
+                _handL.localRotation = Quaternion.identity;
+            }
+            if (_handR != null && !RightHandHolds)
+            {
+                _handR.localRotation = Quaternion.identity;
             }
         }
 

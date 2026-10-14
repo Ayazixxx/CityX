@@ -77,6 +77,10 @@ namespace CityX.Character
         /// </summary>
         public static HumanBodyBones PaintBoneFor(HumanBodyBones bone)
         {
+            if (BodyRig.IsFinger(bone))
+            {
+                return BodyRig.HandOf(bone) == HumanBodyBones.LeftHand ? HumanBodyBones.LeftUpperArm : HumanBodyBones.RightUpperArm;
+            }
             switch (bone)
             {
                 case HumanBodyBones.Spine: return HumanBodyBones.Hips;

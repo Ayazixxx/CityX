@@ -90,6 +90,34 @@ like how the shoulder are like angled upward like that it used to be straight ac
   arm radius at the wrist (0.09, now 0.07 at the wrist); the T-pose shows a 6 cm step where a raised arm's tube stands above the lower
   shoulder bar (the price of a head that does not sink); no finger animation.
 
+## Finger bones and grips (2026-10-13)
+
+Owner: "can you make the fingers on the model grip the swords as well". The hand was one stiff piece on the hand bone; now **every digit has two
+bones of its own** and the hands close round what they hold.
+
+- **The rig** (`BodyRig.Bones`): `index1_r`/`index2_r`, `middle*`, `ring*`, `little*`, `thumb*` (and `_l`), root bone under the hand, tip bone
+  under the root, at the shape's own finger joints. One table places both the skin's finger pieces and the bones -- `FusedBodyShape.Digits`,
+  joints in the hand's frame (x down the arm, y the back of the hand, z the thumb's side) -- so they cannot disagree
+  (`FusedBodyTests.TheFingerBonesSitOnTheShapesFingerJointsAtRest`). The left hand bone's x runs the other way along its arm
+  (`BodyRig.FingerLocal`); the rest bind of a finger is its hand's hang rotation at its joint (`RestBindMatrix`).
+- **Not in the humanoid avatar** (`BodyRigBuilder.BuildAvatar` skips `BodyRig.IsFinger`): no clip here animates fingers (the baked Godot clips
+  have none, and the Mixamo ones would wave them about), so the Animator leaves them where `HandGrip` puts them.
+- **The skin:** each finger piece is weighted to its own bone (`FusedBodyShape.AddHand`), a finger's root shares with the hand and its tip with
+  the root (`SkinParent`/`AreConnected`), nothing of a finger with the forearm; paint rows unchanged (a finger paints with its arm,
+  `PaintAtlas.PaintBoneFor`). The fine hand grid and the stitch gather the finger pieces by hand (`BelongsToHand`). The mesh now has
+  **35 bones**; every prefab and scene binding `FusedBody.asset` was rebuilt (`CharacterRebuild.RebuildAll`, `CityMassingSceneBuilder.Build`,
+  `TitleScreenBuilder.Build`; `SharedBodyBindingTests`).
+- **The grip** (`HandGrip`, pure; `PlayerLocomotion.ApplyFingerGrips`, last in LateUpdate): the four fingers fold 55/50 degrees more toward the
+  palm (about the hand's z, the sign by which way that hand's fingers run), the thumb 35/25 across (about x), blended in over an eighth of a
+  second. The right hand closes whenever an item is mounted on it (a sword, the pistol, a bottle: a child with components of its own, which the
+  bare finger bones are not); the left when it is reached onto a weapon as the support hand (the two-handed sword always, the pistol once
+  aimed). A network copy does the same from the cosmetic model mounted on it, so other players see the grip. `FingerGripPlayTests` covers the
+  one-handed sword (free hand open), the greatsword (both closed), putting it away (open) and a copy's mount.
+- The wrist rule ("one bend only": an empty hand is straightened along its forearm) now asks the same "is something mounted" question instead
+  of counting children, since the finger bones are children too.
+- **Look at it:** `tools/unity_tests.ps1 -Platform PlayMode -Graphics -Filter CityX.Tests.SwordStrikeCapture` writes `Logs/CityShots/grip-1h.png`
+  and `grip-2h.png` (the hand from the thumb's side, from above, and the whole hold).
+
 ## Whole-body lean (2026-10-10)
 
 "Research the best dynamic movement animations for roblox like characters ... ours can be improved upon." Research (physics-driven lean,

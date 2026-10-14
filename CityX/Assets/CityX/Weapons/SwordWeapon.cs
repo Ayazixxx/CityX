@@ -61,11 +61,27 @@ namespace CityX.Weapons
 
         public string ItemId { get => _itemId; set => _itemId = value; }
 
+        /// <summary>
+        /// A ONE-HANDED sword (the owner's combat sword, 2026-10-13): held across the palm the way a hand grips a handle, the other hand free,
+        /// and fought with the one-handed attacks and guard (SwordStrikes). False is the two-handed greatsword hold with the left hand on the grip.
+        /// </summary>
+        [SerializeField] private bool _oneHanded;
+
+        /// <summary>The blade's length from the guard to the tip in the sword root's own space: what a swing sweeps. The greatsword's by default.</summary>
+        [SerializeField] private float _bladeLength = BladeLocalLength;
+
+        public bool OneHanded { get => _oneHanded; set => _oneHanded = value; }
+
+        /// <summary>ISwordBlade: the combat picks its moveset by this.</summary>
+        public bool IsOneHanded => _oneHanded;
+
+        public float BladeLength { get => _bladeLength; set => _bladeLength = Mathf.Max(0.1f, value); }
+
         /// <summary>Where the blade meets the grip, in world space.</summary>
         public Vector3 BladeBaseWorld => transform.position;
 
         /// <summary>The blade's tip, in world space -- what a swing actually sweeps.</summary>
-        public Vector3 BladeTipWorld => transform.TransformPoint(new Vector3(0.0f, BladeLocalLength, 0.0f));
+        public Vector3 BladeTipWorld => transform.TransformPoint(new Vector3(0.0f, _bladeLength, 0.0f));
 
         /// <summary>
         /// The cutting edge faces local -X: SwordBuilder's blade profile puts the sharp slice (no thickness) at edge_x - half the width, the
@@ -121,6 +137,40 @@ namespace CityX.Weapons
         public static Vector3 SupportPoint =>
             WeaponGripSettings.Current.SwordTuned ? WeaponGripSettings.Current.SwordLeftHand : DefaultSupportPoint;
 
+        // ---- THE ONE-HANDED HOLD ----
+        //
+        // DERIVED FROM THE HAND'S OWN SHAPE (FusedBodyShape.AddHand), not from a clip: in the right-hand bone's frame +X runs down the arm to the
+        // fingertips, -Y is the palm's side (toward the body with the arm hanging) and +Z is the thumb's. A gripped handle lies across the palm,
+        // so the blade runs out past the thumb (+Z) tilted a little toward the fingers, with the edge in line with the knuckles (+X), and the
+        // guard sits just beyond the palm's surface. Tuned by hand the same way as the two-handed hold (WeaponGripSettings.OneHand*).
+
+        /// <summary>The blade's direction (hilt to tip) in the right-hand bone's frame for a one-handed hold: out past the thumb, 15 degrees toward the fingers.</summary>
+        public static readonly Vector3 OneHandBladeAxisInHand = new Vector3(0.26f, 0.0f, 0.966f).normalized;
+
+        /// <summary>How far past the palm's surface the handle's axis lies: half the palm's thickness and the handle's own radius.</summary>
+        public const float OneHandHandleBelowPalm = FusedBodyShape.PalmHalfThickness + 0.03f;
+
+        /// <summary>How far the guard sits from the palm's centre along the blade: the hand just below the guard.</summary>
+        public const float OneHandGripDown = 0.09f;
+
+        /// <summary>The sword's rotation in the right hand for a one-handed hold: its +Y along <see cref="OneHandBladeAxisInHand"/>, its edge (-X) toward the knuckles.</summary>
+        public static Quaternion DefaultOneHandGripRotation => Quaternion.LookRotation(Vector3.up, OneHandBladeAxisInHand);
+
+        /// <summary>The sword root's position in the right-hand bone's frame for a one-handed hold.</summary>
+        public static Vector3 DefaultOneHandGripPosition =>
+            new Vector3(PlayerLocomotion.PalmOffsetMetres, -OneHandHandleBelowPalm, 0.0f) + OneHandBladeAxisInHand * OneHandGripDown;
+
+        public static Vector3 OneHandGripPosition =>
+            WeaponGripSettings.Current.OneHandTuned ? WeaponGripSettings.Current.OneHandPosition : DefaultOneHandGripPosition;
+
+        public static Quaternion OneHandGripRotation =>
+            WeaponGripSettings.Current.OneHandTuned ? Quaternion.Euler(WeaponGripSettings.Current.OneHandEuler) : DefaultOneHandGripRotation;
+
+        /// <summary>This sword's position in the right hand: the hold for its kind (saved or derived).</summary>
+        public Vector3 HoldPosition => _oneHanded ? OneHandGripPosition : GripPosition;
+
+        public Quaternion HoldRotation => _oneHanded ? OneHandGripRotation : GripRotation;
+
         /// <summary>
         /// The marker the left hand reaches for, a child of the sword. Select it while the game runs and
         /// drag it in the Scene view: the left hand follows. Null while the sword is not held.
@@ -132,8 +182,8 @@ namespace CityX.Weapons
         /// <summary>Puts the sword and the left-hand marker where the current hold (saved or derived) says.</summary>
         public void ApplyGrip()
         {
-            transform.localPosition = GripPosition;
-            transform.localRotation = GripRotation;
+            transform.localPosition = HoldPosition;
+            transform.localRotation = HoldRotation;
             if (_leftHandGrip != null)
             {
                 _leftHandGrip.localPosition = SupportPoint;
@@ -261,15 +311,15 @@ namespace CityX.Weapons
             }
 
             // The left hand reaches for a marker on the sword, so the marker can be dragged in the editor
-            // while the game runs and the hand follows (see WeaponGripSettings).
-            if (_leftHandGrip == null)
+            // while the game runs and the hand follows (see WeaponGripSettings). A one-handed sword leaves it free.
+            if (_leftHandGrip == null && !_oneHanded)
             {
                 _leftHandGrip = GripMarker.Create(transform, "LeftHandGrip", "left hand", new Color(1.0f, 0.55f, 0.1f));
             }
             ApplyGrip();
 
             var locomotion = player.GetComponent<PlayerLocomotion>();
-            if (locomotion != null)
+            if (locomotion != null && !_oneHanded)
             {
                 // The left hand holds the handle too, wherever the swing takes the sword.
                 locomotion.SetSupportHand(_leftHandGrip, Vector3.zero);
@@ -328,12 +378,15 @@ namespace CityX.Weapons
             {
                 transform.SetParent(hand, false);
             }
-            if (_leftHandGrip == null)
+            if (_leftHandGrip == null && !_oneHanded)
             {
                 _leftHandGrip = GripMarker.Create(transform, "LeftHandGrip", "left hand", new Color(1.0f, 0.55f, 0.1f));
             }
             ApplyGrip();
-            body.GetComponent<PlayerLocomotion>()?.SetSupportHand(_leftHandGrip, Vector3.zero);
+            if (!_oneHanded)
+            {
+                body.GetComponent<PlayerLocomotion>()?.SetSupportHand(_leftHandGrip, Vector3.zero);
+            }
         }
 
         public void UnmountCosmetic(GameObject body)

@@ -41,6 +41,12 @@ namespace CityX.Character
         [Tooltip("Metres the body steps forward across startup+active -- the small lunge every soulslike swing has.")]
         public float LungeMetres;
 
+        [Tooltip("Poise this blow takes off a target inside an attack with hyper-armour (PlayerVitals.MaxPoise is 60): they stagger once the pool is spent.")]
+        public float PoiseDamage = 25.0f;
+
+        [Tooltip("Hyper-armour: during this attack's wind-up and active frames, blows only stagger once the poise is spent (the heavies have it, the lights do not).")]
+        public bool HyperArmour;
+
         [Tooltip("Length in seconds of the Mixamo clip at its own pace (measured -- see SoulsSwordCapture.MeasureClips).")]
         public float ClipSeconds;
 
@@ -68,6 +74,26 @@ namespace CityX.Character
 
         /// <summary>Seconds into the clip to start playing from.</summary>
         public float StartSeconds => ClipSeconds * ClipStart;
+
+        /// <summary>
+        /// An attack posed by <see cref="SwordStrikes"/>: its windows come from the strike's own timing. The blade is live from just before the
+        /// contact (the fastest moment of the path) into the follow-through, and the recovery is the rest of the swing.
+        /// </summary>
+        public static SoulsAttack FromStrike(SwordStrikeKind kind, float chainAt, float staminaCost, float damageScale, float hitstunSeconds, float lungeMetres,
+            float poiseDamage, bool hyperArmour)
+        {
+            float seconds = SwordStrikes.Seconds(kind);
+            float start = SwordStrikes.ActiveStart(kind);
+            float end = SwordStrikes.ActiveEnd(kind);
+            var attack = new SoulsAttack(SwordStrikes.NameOf(kind), seconds * start, seconds * (end - start), seconds * (1.0f - end),
+                chainAt, staminaCost, damageScale, hitstunSeconds, lungeMetres, 0.0f, 0.0f, 0.0f);
+            attack.PoiseDamage = poiseDamage;
+            attack.HyperArmour = hyperArmour;
+            return attack;
+        }
+
+        /// <summary>True when the attack is posed by SwordStrikes rather than played from a clip.</summary>
+        public bool IsProcedural => SwordStrikes.Has(Animation);
 
         public SoulsAttack(string animation, float startup, float active, float recovery, float chainAt,
             float staminaCost, float damageScale, float hitstunSeconds, float lungeMetres,
@@ -106,6 +132,9 @@ namespace CityX.Character
         /// spin rolls the hand to lead with it.
         /// </summary>
         Vector3 EdgeDirectionWorld => Vector3.zero;
+
+        /// <summary>True for a sword held in one hand (the other is free): the one-handed attacks and guard are used.</summary>
+        bool IsOneHanded => false;
 
         float GetMeleeDamage();
     }
@@ -150,26 +179,33 @@ namespace CityX.Character
     {
         // --- the moveset ---------------------------------------------------
 
-        // THE ACTIVE WINDOWS ARE ALIGNED TO WHERE EACH CLIP ACTUALLY STRIKES,
-        // measured with SoulsSwordCapture.MeasureClips (the blade tip's speed
-        // against clip time), not guessed. The Mixamo clips are long
-        // (1.3s / 1.8s / 4.8s) with the real strike buried inside, so each
-        // attack plays only a ClipStart..ClipEnd slice of its clip, stretched
-        // to Startup+Active+Recovery:
-        //   sword_attack   1.27s  strike at 52-62% (tip 26 m/s)   slice 36-85%
-        //   sword_attack2  1.83s  double sweep at 40-58% (25-31)  slice 30-85%
-        //   sword_charged  4.80s  overhead slam at 43-51% (19-25) slice 10-66%
-        [Header("Light chain (left click)")]
-        public SoulsAttack Light1 = new SoulsAttack("sword_attack", 0.20f, 0.12f, 0.28f, 0.55f, 22.0f, 1.00f, 0.40f, 0.25f, 1.267f, 0.36f, 0.85f);
-        public SoulsAttack Light2 = new SoulsAttack("sword_attack2", 0.16f, 0.28f, 0.41f, 0.55f, 22.0f, 1.05f, 0.40f, 0.25f, 1.833f, 0.30f, 0.85f);
-        public SoulsAttack Light3 = new SoulsAttack("sword_attack", 0.27f, 0.16f, 0.37f, 0.60f, 26.0f, 1.30f, 0.55f, 0.35f, 1.267f, 0.36f, 0.85f);
+        // THE ATTACKS ARE POSED, NOT PLAYED FROM CLIPS (SwordStrikes, since 2026-10-13: the Mixamo chops were stiff, close to the chest and the
+        // same for every swing, and there were none for one hand). Each attack's live window comes from its own strike: the blade goes live
+        // just before the contact -- the fastest moment of the path -- and stops in the follow-through; the rest of the swing is the recovery.
+        // Two sets, picked by the sword in hand (ISwordBlade.IsOneHanded): the greatsword's big cuts, and the combat sword's quicker ones,
+        // whose first attack is a horizontal slash (the owner's choice).
+        // Poise: a light takes 25 (20 one-handed) off a target's 60, a heavy 60 (50) -- so a heavy breaks an opponent's heavy outright and it
+        // takes three lights to stop one; only the heavies have hyper-armour themselves (the research: poise is for committed attacks).
+        [Header("Two-handed light chain (left click)")]
+        public SoulsAttack Light1 = SoulsAttack.FromStrike(SwordStrikeKind.Cut2H, 0.55f, 22.0f, 1.00f, 0.40f, 0.25f, 25.0f, false);
+        public SoulsAttack Light2 = SoulsAttack.FromStrike(SwordStrikeKind.Reverse2H, 0.55f, 22.0f, 1.05f, 0.40f, 0.25f, 25.0f, false);
+        public SoulsAttack Light3 = SoulsAttack.FromStrike(SwordStrikeKind.Sweep2H, 0.60f, 26.0f, 1.30f, 0.55f, 0.35f, 30.0f, false);
 
-        [Header("Heavy (no key bound yet)")]
-        public SoulsAttack Heavy = new SoulsAttack("sword_charged_attack", 0.98f, 0.24f, 0.48f, 0.60f, 40.0f, 2.00f, 0.90f, 0.50f, 4.8f, 0.10f, 0.66f);
+        [Header("Two-handed heavy (middle mouse)")]
+        public SoulsAttack Heavy = SoulsAttack.FromStrike(SwordStrikeKind.Slam2H, 0.60f, 40.0f, 2.00f, 0.90f, 0.50f, 60.0f, true);
+
+        [Header("One-handed light chain (left click)")]
+        public SoulsAttack OneHandLight1 = SoulsAttack.FromStrike(SwordStrikeKind.Slash1H, 0.50f, 16.0f, 0.80f, 0.35f, 0.20f, 20.0f, false);
+        public SoulsAttack OneHandLight2 = SoulsAttack.FromStrike(SwordStrikeKind.Cut1H, 0.50f, 16.0f, 0.85f, 0.35f, 0.20f, 20.0f, false);
+        public SoulsAttack OneHandLight3 = SoulsAttack.FromStrike(SwordStrikeKind.Thrust1H, 0.55f, 18.0f, 1.00f, 0.45f, 0.50f, 25.0f, false);
+
+        [Header("One-handed heavy (middle mouse)")]
+        public SoulsAttack OneHandHeavy = SoulsAttack.FromStrike(SwordStrikeKind.Overhead1H, 0.60f, 30.0f, 1.60f, 0.80f, 0.35f, 50.0f, true);
 
         [Header("Feel")]
-        [Tooltip("How long an early attack press is remembered. Long enough that a click at the start of a light swing still chains at its window.")]
-        public float BufferSeconds = 0.7f;
+        [Tooltip("How long an early attack press is remembered. Long enough that a click during a light swing still chains at its window, " +
+                 "short enough that a click you have forgotten does not throw a swing a moment later.")]
+        public float BufferSeconds = 0.45f;
 
         [Tooltip("Seconds stamina recovery pauses after spending it on a swing.")]
         public float RegenDelaySeconds = 0.6f;
@@ -204,8 +240,8 @@ namespace CityX.Character
         [Tooltip("Stamina a roll costs.")]
         public float RollStaminaCost = 20.0f;
 
-        [Tooltip("Seconds of invincibility on a roll. Dark Souls 3: 12 frames = 0.4s.")]
-        public float RollInvulnerabilitySeconds = 0.35f;
+        [Tooltip("Seconds of invincibility on a roll. Elden Ring's medium roll: 13 frames at 30 = 0.43s.")]
+        public float RollInvulnerabilitySeconds = 0.42f;
 
         [Tooltip("Seconds stamina recovery pauses after a roll.")]
         public float RollRegenDelaySeconds = 0.6f;
@@ -217,8 +253,14 @@ namespace CityX.Character
         [Tooltip("Seconds you are staggered when a hit breaks your guard.")]
         public float GuardBreakStunSeconds = 1.0f;
 
-        [Tooltip("Seconds YOU are staggered when your swing is blocked -- the blade bouncing off.")]
-        public float BlockedRecoilSeconds = 0.35f;
+        [Tooltip("Seconds YOU are staggered when your swing is PARRIED (caught in the first instant of a guard): the blade thrown back, you wide open. Sekiro-long.")]
+        public float BlockedRecoilSeconds = 0.9f;
+
+        [Tooltip("Seconds from the guard coming up during which a blow is parried outright: no damage, no stamina, the attacker staggered. Tap to parry, hold to block.")]
+        public float PerfectGuardSeconds = 0.2f;
+
+        [Tooltip("Seconds a hit on another player's copy waits for the owner's verdict (parried, rolled) before it is taken as landed for good.")]
+        public float VerdictTimeoutSeconds = 2.0f;
 
         public LayerMask TargetLayers = ~0;
 
@@ -231,7 +273,8 @@ namespace CityX.Character
         [System.NonSerialized]
         public bool Locked;
 
-        public const string BlockStateName = "SwordBlock";
+        /// <summary>The guard pose's state for the sword in hand (a SwordStrikes guard, posed rather than a clip), announced so other players' copies raise it too.</summary>
+        public string BlockStateName => SwordStrikes.GuardName(_oneHanded);
 
         /// <summary>
         /// What a swing or a guard blends BACK to when it ends: the upper-body
@@ -246,20 +289,13 @@ namespace CityX.Character
             "so the legs keep walking under them; 0 roots the body for the whole swing, 1 is no penalty.")]
         public float CommittedMoveSpeedFraction = 0.4f;
 
-        // The 2hsw_blocking clip is a 0.5s raise-the-guard-and-lower-it. A
-        // held guard replays just its held stretch, so the pose stays up for
-        // as long as the button does instead of pulsing back to idle.
-        [Header("Guard pose")]
-        public float BlockClipSeconds = 0.5f;
-        public float BlockHoldFrom = 0.5f;
-        public float BlockHoldTo = 0.8f;
-
         // --- state ---------------------------------------------------------
 
         private enum Buffered { None, Light, Heavy }
 
         private ISwordBlade _sword;
         private bool _equipped;
+        private bool _oneHanded;
         private PlayerVitals _vitals;
         private MeleeAttacker _melee;
         private PlayerAnimationDriver _driver;
@@ -294,6 +330,23 @@ namespace CityX.Character
         public bool IsInHitStop => _hitStopRemaining > 0.0f;
 
         public bool IsEquipped => _equipped;
+
+        /// <summary>True with a one-handed sword in hand: the one-handed attacks and guard are in use.</summary>
+        public bool IsOneHanded => _oneHanded;
+
+        /// <summary>The light chain for the sword in hand (0-2).</summary>
+        public SoulsAttack LightAttack(int index)
+        {
+            if (_oneHanded)
+            {
+                return index == 0 ? OneHandLight1 : (index == 1 ? OneHandLight2 : OneHandLight3);
+            }
+            return index == 0 ? Light1 : (index == 1 ? Light2 : Light3);
+        }
+
+        /// <summary>The heavy for the sword in hand.</summary>
+        public SoulsAttack HeavyAttack => _oneHanded ? OneHandHeavy : Heavy;
+
         public SoulsPhase Phase => _phase;
 
         /// <summary>True from the first frame of a swing until its recovery ends -- the body is rooted.</summary>
@@ -334,12 +387,15 @@ namespace CityX.Character
         {
             Bind();
             _sword = sword;
+            _oneHanded = sword != null && sword.IsOneHanded;
             _equipped = true;
             if (_vitals != null)
             {
                 _vitals.StaminaRegenPerSecondOverride = StaminaRegenPerSecond;
                 _vitals.GuardBreakStunSeconds = GuardBreakStunSeconds;
                 _vitals.BlockStaminaPerDamage = BlockStaminaPerDamage;
+                _vitals.Parried -= OnParried;
+                _vitals.Parried += OnParried;
             }
         }
 
@@ -353,10 +409,19 @@ namespace CityX.Character
             SetBlockHeld(false);
             _equipped = false;
             _sword = null;
+            ForgetVerdicts();
             if (_vitals != null)
             {
                 _vitals.StaminaRegenPerSecondOverride = 0.0f;
+                _vitals.HyperArmour = false;
+                _vitals.Parried -= OnParried;
             }
+        }
+
+        /// <summary>The guard caught a blow in its first instant: the flourish, announced so other players see the parry.</summary>
+        private void OnParried(Vector3 fromPosition)
+        {
+            _driver?.PlayLocalState(SwordStrikes.ParryName);
         }
 
         // --- requests (input) ---------------------------------------------
@@ -381,7 +446,9 @@ namespace CityX.Character
             }
             _buffered = what;
             _bufferedYaw = yawDegrees;
-            _bufferRemaining = BufferSeconds;
+            // Remembered for BufferSeconds -- or, pressed during a swing, until that swing's chain window has opened (plus half a buffer): a
+            // press during the wind-up or the blade's own frames is how a chain is asked for, however long the swing is.
+            _bufferRemaining = Mathf.Max(BufferSeconds, SecondsUntilChainWindow() + BufferSeconds * 0.5f);
 
             // Free to act right now: go this frame instead of waiting for the
             // next Tick, so a click starts the swing on the frame it happened.
@@ -389,6 +456,24 @@ namespace CityX.Character
             {
                 TryStartBuffered(chained: false);
             }
+        }
+
+        /// <summary>Seconds until the swing in progress lets a chained attack start (0 when nothing is in progress), hit-stop included.</summary>
+        public float SecondsUntilChainWindow()
+        {
+            if (_phase == SoulsPhase.Idle || _current == null)
+            {
+                return 0.0f;
+            }
+            float window = _current.Recovery * _current.ChainAt;
+            float until = _hitStopRemaining;
+            switch (_phase)
+            {
+                case SoulsPhase.Startup: until += _current.Startup - _phaseTime + _current.Active + window; break;
+                case SoulsPhase.Active: until += _current.Active - _phaseTime + window; break;
+                default: until += window - _phaseTime; break;
+            }
+            return Mathf.Max(0.0f, until);
         }
 
         /// <summary>
@@ -428,6 +513,8 @@ namespace CityX.Character
                     _vitals.BlockDrainsStamina = true;
                     _vitals.BlockStaminaPerDamage = BlockStaminaPerDamage;
                     _vitals.GuardBreakStunSeconds = GuardBreakStunSeconds;
+                    // The guard's first instant parries: a blow caught now costs nothing and leaves the attacker open.
+                    _vitals.BeginPerfectGuard(PerfectGuardSeconds);
                     PlayBlockPose();
                 }
                 // Re-raised every frame, so the block lasts exactly as long as
@@ -459,32 +546,12 @@ namespace CityX.Character
             }
         }
 
-        /// <summary>
-        /// Keeps the guard up: if the block state has run to the end of its
-        /// held stretch, replays that stretch; if something knocked the body
-        /// out of the state entirely, raises the guard again.
-        /// </summary>
+        /// <summary>Keeps the guard up: the posed guard holds itself for as long as it is told to, so this only raises it again if something knocked the body out of it.</summary>
         private void HoldBlockPose()
         {
-            if (_animator == null || _driver == null)
-            {
-                return;
-            }
-            if (!InState(BlockStateName))
+            if (_driver != null && !InState(BlockStateName))
             {
                 PlayBlockPose();
-                return;
-            }
-            // The guard lives on the upper-body layer (see PlayerAnimationDriver.LayerFor).
-            int layer = _driver.LayerFor(BlockStateName);
-            if (_animator.IsInTransition(layer))
-            {
-                return;
-            }
-            AnimatorStateInfo info = _animator.GetCurrentAnimatorStateInfo(layer);
-            if (info.IsName(BlockStateName) && info.normalizedTime >= BlockHoldTo)
-            {
-                _driver.PlayLocalState(BlockStateName, 1.0f, BlockHoldFrom * BlockClipSeconds);
             }
         }
 
@@ -496,6 +563,13 @@ namespace CityX.Character
             if (!_equipped)
             {
                 return;
+            }
+            TickVerdicts(deltaTime);
+
+            // HYPER-ARMOUR: through a heavy's wind-up and active frames, blows only stagger this body once its poise is spent (PlayerVitals).
+            if (_vitals != null)
+            {
+                _vitals.HyperArmour = _current != null && _current.HyperArmour && (_phase == SoulsPhase.Startup || _phase == SoulsPhase.Active);
             }
 
             // A disabled CharacterController is how a ragdoll (or a car seat)
@@ -602,13 +676,13 @@ namespace CityX.Character
             bool light;
             if (what == Buffered.Heavy)
             {
-                next = Heavy;
+                next = HeavyAttack;
                 light = false;
             }
             else
             {
                 int index = chained && _currentIsLight ? (_chainIndex + 1) % 3 : 0;
-                next = index == 0 ? Light1 : (index == 1 ? Light2 : Light3);
+                next = LightAttack(index);
                 _pendingChainIndex = index;
                 light = true;
             }
@@ -644,9 +718,9 @@ namespace CityX.Character
             // from the crosshair whenever you stopped turning a moment ago.
             transform.rotation = Quaternion.Euler(0.0f, yawDegrees, 0.0f);
 
-            // The clip's strike stretch, stretched to fit this attack's own
-            // Startup+Active+Recovery -- announced to the network with the same
-            // speed and offset so other players see the same paced swing.
+            // The attack, by name: a SwordStrikes attack is posed by the driver's SwordPoseDriver (speed 1, from its start); a clip, if one
+            // is ever used again, is played as the slice described -- announced to the network the same way either way, so other players
+            // see the same swing.
             if (_driver != null)
             {
                 _driver.PlayLocalState(attack.Animation, attack.AnimatorSpeed, attack.StartSeconds);
@@ -679,6 +753,10 @@ namespace CityX.Character
             _phaseTime = 0.0f;
             _chainIndex = -1;
             _currentIsLight = false;
+            if (_vitals != null)
+            {
+                _vitals.HyperArmour = false;
+            }
 
             // The swing's clip is cut off at ClipEnd, well before the clip's
             // own exit, so blend out by hand -- and put the animator speed
@@ -821,6 +899,10 @@ namespace CityX.Character
             float baseDamage = _sword != null ? _sword.GetMeleeDamage() : CombatTuning.PunchDamage;
             float damage = CombatTuning.DamageFor(baseDamage * _current.DamageScale, strength) * (_melee != null ? _melee.BloodrageFactor : 1.0f);
 
+            // The blow's poise damage, told to the target just before it lands (a copy of another player forwards it with the hit).
+            var victim = target as PlayerVitals;
+            victim?.TakePoise(_current.PoiseDamage);
+
             HitResponse response = _melee != null
                 ? _melee.RegisterExternalHit(target, point, damage, _current.HitstunSeconds)
                 : target.ApplyHit(damage, transform.position, _current.HitstunSeconds);
@@ -835,11 +917,84 @@ namespace CityX.Character
 
             if (response == HitResponse.Blocked && _vitals != null)
             {
-                // A TIMED block (the classic one): the blade bounces off and
-                // you are the one left open. A merely held guard (Guarded)
+                // PARRIED (or the classic timed block): the blade thrown back and you are the one left open. A merely held guard (Guarded)
                 // costs the defender stamina instead and does not do this.
                 _vitals.Stun(BlockedRecoilSeconds);
             }
+            else if (response == HitResponse.Landed && victim != null && victim.Relay is NetworkedDamage relay && relay.LastRelayWasSent)
+            {
+                // Another player's copy: "landed" is only what THIS machine saw. Their own body decides (a parry, a roll), and says so.
+                WatchVerdict(relay, relay.LastRelayedHitId);
+            }
+        }
+
+        // ---- verdicts from other players' bodies (PvP) ---------------------------------------------------------------------------------------
+
+        private readonly List<(NetworkedDamage relay, int hitId, float expires)> _pendingVerdicts = new List<(NetworkedDamage, int, float)>();
+        private readonly HashSet<NetworkedDamage> _watchedRelays = new HashSet<NetworkedDamage>();
+        private float _verdictClock;
+
+        /// <summary>Hits on other players' copies still waiting for the owner's word (for tests).</summary>
+        public int PendingVerdicts => _pendingVerdicts.Count;
+
+        private void WatchVerdict(NetworkedDamage relay, int hitId)
+        {
+            if (_watchedRelays.Add(relay))
+            {
+                relay.Verdict += OnRelayVerdict;
+            }
+            _pendingVerdicts.Add((relay, hitId, _verdictClock + VerdictTimeoutSeconds));
+        }
+
+        private void OnRelayVerdict(int hitId, HitResponse response)
+        {
+            for (int i = 0; i < _pendingVerdicts.Count; i++)
+            {
+                if (_pendingVerdicts[i].hitId == hitId)
+                {
+                    _pendingVerdicts.RemoveAt(i);
+                    ApplyRemoteVerdict(response);
+                    return;
+                }
+            }
+        }
+
+        /// <summary>
+        /// What the other player's own body did with a swing this machine saw land: PARRIED (Blocked) leaves this attacker staggered exactly as
+        /// a local parry does; soaked by a held guard, or rolled through (Ignored), changes nothing here -- the hit-stop already played, and the
+        /// damage was never this machine's to decide. Public so a test can hand one in without a network.
+        /// </summary>
+        public void ApplyRemoteVerdict(HitResponse response)
+        {
+            if (response == HitResponse.Blocked && _vitals != null)
+            {
+                _vitals.Stun(BlockedRecoilSeconds);
+            }
+        }
+
+        private void TickVerdicts(float deltaTime)
+        {
+            _verdictClock += deltaTime;
+            for (int i = _pendingVerdicts.Count - 1; i >= 0; i--)
+            {
+                if (_pendingVerdicts[i].expires <= _verdictClock || _pendingVerdicts[i].relay == null)
+                {
+                    _pendingVerdicts.RemoveAt(i);
+                }
+            }
+        }
+
+        private void ForgetVerdicts()
+        {
+            foreach (NetworkedDamage relay in _watchedRelays)
+            {
+                if (relay != null)
+                {
+                    relay.Verdict -= OnRelayVerdict;
+                }
+            }
+            _watchedRelays.Clear();
+            _pendingVerdicts.Clear();
         }
 
         private void BeginHitStop()
@@ -887,6 +1042,11 @@ namespace CityX.Character
         {
             Interrupt();
             SetBlockHeld(false);
+            ForgetVerdicts();
+            if (_vitals != null)
+            {
+                _vitals.HyperArmour = false;
+            }
         }
 
         // --- live tuning (/sword) -------------------------------------------
@@ -906,7 +1066,7 @@ namespace CityX.Character
                     var attack = (SoulsAttack)field.GetValue(this);
                     lines.Add($"{field.Name}: startup {attack.Startup} active {attack.Active} recovery {attack.Recovery} " +
                               $"chainAt {attack.ChainAt} cost {attack.StaminaCost} damage {attack.DamageScale} " +
-                              $"hitstun {attack.HitstunSeconds} lunge {attack.LungeMetres}");
+                              $"hitstun {attack.HitstunSeconds} lunge {attack.LungeMetres} poise {attack.PoiseDamage}{(attack.HyperArmour ? " hyper-armour" : "")}");
                 }
             }
             return string.Join("\n", lines);

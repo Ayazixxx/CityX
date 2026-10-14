@@ -179,6 +179,10 @@ namespace CityX.Character
             _groundNormal = Vector3.Slerp(_groundNormal, normal.normalized, 1.0f - Mathf.Exp(-deltaTime / 0.15f));
 
             float drop = _feet.TotalDrop;
+            if (active)
+            {
+                drop += PoseHipDrop;   // a sword attack sinking into its cut: the legs bend, the feet stay planted
+            }
             if (drop > 0.0f)
             {
                 root.localPosition += Vector3.down * drop;

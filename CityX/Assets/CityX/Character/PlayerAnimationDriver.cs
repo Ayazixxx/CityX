@@ -43,6 +43,9 @@ namespace CityX.Character
         private int _torsoLayer = -1;
         private int _armsLayer = -1;
         private FistPoseDriver _fist;
+        private SwordPoseDriver _sword;
+        private FlinchPoseDriver _flinch;
+        private PlayerVitals _vitals;
 
         /// <summary>The masked layers the poison breath's scream plays on: torso and head, and the arms (separate, so a sword swing can keep them).</summary>
         public const string TorsoLayerName = "ScreamTorso";
@@ -85,16 +88,32 @@ namespace CityX.Character
             return 0;
         }
 
-        /// <summary>True when this body's Animator has a state of that name (on whichever layer owns it).</summary>
+        /// <summary>True when this body's Animator has a state of that name (on whichever layer owns it), or it is a procedural one (a punch, a sword attack or guard).</summary>
         public bool HasState(string stateName)
         {
+            if (FistStrikes.Has(stateName) || SwordStrikes.Has(stateName) || HitReactions.Has(stateName))
+            {
+                return true;
+            }
             return _animator != null && !string.IsNullOrEmpty(stateName)
                 && _animator.HasState(LayerFor(stateName), Animator.StringToHash(stateName));
         }
 
-        /// <summary>True while the named state is playing (or being blended into) on whichever layer owns it.</summary>
+        /// <summary>True while the named state is playing (or being blended into) on whichever layer owns it; for a sword attack or guard, while the pose driver plays it.</summary>
         public bool IsPlaying(string stateName)
         {
+            if (SwordStrikes.TryGet(stateName, out SwordStrikeKind swordKind))
+            {
+                return _sword != null && _sword.IsStriking && _sword.Kind == swordKind;
+            }
+            if (SwordStrikes.TryGetGuard(stateName, out bool guardOneHanded))
+            {
+                return _sword != null && _sword.IsGuarding && _sword.OneHanded == guardOneHanded;
+            }
+            if (HitReactions.TryGet(stateName, out HitDirection hitDirection, out bool stagger))
+            {
+                return _flinch != null && _flinch.IsPlaying && _flinch.Direction == hitDirection && _flinch.IsStagger == stagger;
+            }
             if (_animator == null)
             {
                 return false;
@@ -122,6 +141,52 @@ namespace CityX.Character
             {
                 _fist = gameObject.AddComponent<FistPoseDriver>();
             }
+            // So are the sword attacks and guards (SwordStrikes), on every body the same way.
+            _sword = GetComponent<SwordPoseDriver>();
+            if (_sword == null)
+            {
+                _sword = gameObject.AddComponent<SwordPoseDriver>();
+            }
+            // And the recoil from a blow (HitReactions), played here when this body is hit, replayed on its copies.
+            _flinch = GetComponent<FlinchPoseDriver>();
+            if (_flinch == null)
+            {
+                _flinch = gameObject.AddComponent<FlinchPoseDriver>();
+            }
+            _vitals = GetComponent<PlayerVitals>();
+        }
+
+        /// <summary>The procedural sword poser on this body (an attack's progress, a guard held), for tests and captures.</summary>
+        public SwordPoseDriver SwordPoser => _sword;
+
+        /// <summary>The hit-reaction poser on this body.</summary>
+        public FlinchPoseDriver Flincher => _flinch;
+
+        /// <summary>
+        /// This body was hit (its own vitals say so): the recoil away from the blow, a stagger when the blow took the controls away, a flinch
+        /// otherwise -- announced like any other state so other players see it.
+        /// </summary>
+        private void OnHit(Vector3 fromPosition)
+        {
+            if (_vitals == null || _vitals.IsDead)
+            {
+                return;
+            }
+            Vector3 local = transform.InverseTransformPoint(fromPosition);
+            PlayLocalState(HitReactions.NameFor(HitReactions.DirectionOf(local), _vitals.IsStunned));
+        }
+
+        /// <summary>Raised when THIS body changes a playing state's speed (a hit-stop freezing a swing and letting it go), so other players' copies freeze too.</summary>
+        public event System.Action<string, float> StateSpeedChanged;
+
+        /// <summary>A speed change replayed from the network: clamped like a remote play, never re-announced.</summary>
+        public void SetRemoteStateSpeed(string stateName, float speed)
+        {
+            if (string.IsNullOrEmpty(stateName) || float.IsNaN(speed))
+            {
+                return;
+            }
+            ApplyStateSpeed(stateName, Mathf.Clamp(speed, 0.0f, MaxRemoteSpeed));
         }
 
         private void OnEnable()
@@ -131,6 +196,10 @@ namespace CityX.Character
                 _melee.SwingStarted += OnSwingStarted;
                 _melee.BlockThrown += OnBlockThrown;
             }
+            if (_vitals != null)
+            {
+                _vitals.Hit += OnHit;
+            }
         }
 
         private void OnDisable()
@@ -139,6 +208,10 @@ namespace CityX.Character
             {
                 _melee.SwingStarted -= OnSwingStarted;
                 _melee.BlockThrown -= OnBlockThrown;
+            }
+            if (_vitals != null)
+            {
+                _vitals.Hit -= OnHit;
             }
         }
 
@@ -212,7 +285,22 @@ namespace CityX.Character
         /// </summary>
         public void SetStateSpeed(string stateName, float speed)
         {
-            if (_animator == null || string.IsNullOrEmpty(stateName))
+            if (string.IsNullOrEmpty(stateName))
+            {
+                return;
+            }
+            ApplyStateSpeed(stateName, speed);
+            StateSpeedChanged?.Invoke(stateName, speed);
+        }
+
+        private void ApplyStateSpeed(string stateName, float speed)
+        {
+            if (SwordStrikes.Has(stateName))
+            {
+                _sword?.SetSpeed(speed);   // a procedural attack has its own clock; the legs go on walking under a hit-stop
+                return;
+            }
+            if (_animator == null)
             {
                 return;
             }
@@ -263,9 +351,9 @@ namespace CityX.Character
             {
                 return;
             }
-            if (FistStrikes.Has(stateName))
+            if (FistStrikes.Has(stateName) || SwordStrikes.Has(stateName) || HitReactions.Has(stateName))
             {
-                PlayState(stateName);   // a copy of someone else's body throws the same procedural strike
+                PlayState(stateName);   // a copy of someone else's body throws the same procedural strike (or raises the same guard, or flinches)
                 return;
             }
             if (!_animator.HasState(LayerFor(stateName), Animator.StringToHash(stateName)))
@@ -282,14 +370,48 @@ namespace CityX.Character
 
         private void PlayState(string stateName, float startSeconds = 0.0f)
         {
+            // A blow's recoil lies over whatever the body is doing: it cancels nothing (a swing that kept its poise goes on under it).
+            if (HitReactions.TryGet(stateName, out HitDirection hitDirection, out bool stagger))
+            {
+                _flinch?.Begin(hitDirection, stagger);
+                return;
+            }
+            if (stateName == SwordStrikes.ParryName)
+            {
+                _sword?.Parry();
+                return;
+            }
             // An unarmed strike has no clip: the fists and torso are posed by FistPoseDriver (and the legs go on walking).
             if (FistStrikes.TryGet(stateName, out FistKind fistKind))
             {
+                _sword?.Cancel();
                 _fist?.Begin(fistKind);
                 return;
             }
-            // Anything else (a block, a sword swing) takes the arms back from the guard.
+            // Nor has a sword attack or guard: SwordPoseDriver poses the sword arm, the blade and the torso.
+            if (SwordStrikes.TryGet(stateName, out SwordStrikeKind swordKind))
+            {
+                _fist?.Cancel();
+                _sword?.Begin(swordKind);
+                return;
+            }
+            if (SwordStrikes.TryGetGuard(stateName, out bool guardOneHanded))
+            {
+                _fist?.Cancel();
+                _sword?.BeginGuard(guardOneHanded);
+                return;
+            }
+            // Anything else takes the arms back from the guard. The upper body's empty state is how a sword attack or guard is ended (the
+            // ready stance lingers after it); any other state (a clip) drops the sword pose at once.
             _fist?.Cancel();
+            if (stateName == UpperEmptyStateName)
+            {
+                _sword?.Release();
+            }
+            else
+            {
+                _sword?.Cancel();
+            }
 
             int layer = LayerFor(stateName);
             if (!_animator.HasState(layer, Animator.StringToHash(stateName)))

@@ -698,6 +698,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.SwordWeapon
   _itemId: sword
+  _oneHanded: 0
+  _bladeLength: 2.1
 --- !u!1 &9175637570974189688
 GameObject:
   m_ObjectHideFlags: 0

@@ -88,10 +88,16 @@ namespace CityX.Tests
 
         private IEnumerator Frames(float seconds, bool swordEquipped = true)
         {
+            // The sword combat is ticked too: a swing only ENDS through its Tick (its recovery is longer than a measurement window now), and
+            // an unfinished swing keeps the torso following the clip into whatever is measured next.
+            var combat = _player != null ? _player.GetComponent<SoulsSwordCombat>() : null;
+            var vitals = _player != null ? _player.GetComponent<PlayerVitals>() : null;
             float elapsed = 0.0f;
             while (elapsed < seconds)
             {
                 float dt = Time.deltaTime;
+                combat?.Tick(dt);
+                vitals?.TickStamina(false, dt);
                 _locomotion.Tick(new LocomotionInput { SwordEquipped = swordEquipped }, dt);
                 yield return null;
                 elapsed += dt;

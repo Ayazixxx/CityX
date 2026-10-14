@@ -64,6 +64,10 @@ namespace CityX.Tests
             var names = new System.Collections.Generic.List<string>();
             foreach (BodyRig.Bone bone in BodyRig.Bones())
             {
+                if (BodyRig.IsFinger(bone.Human))
+                {
+                    continue;   // the fingers are posed by HandGrip, never by a baked move (the Blender rig has none)
+                }
                 names.Add(bone.Name);
             }
             CollectionAssert.AreEquivalent(names, motion.Bones, "the animation's bones are not BodyRig's");
