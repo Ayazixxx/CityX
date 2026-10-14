@@ -123,7 +123,8 @@ Still on the main thread (measured, not done):
 - **Building a big chunk's mesh** (`AssembleChunk`): 10-20 ms for 250-300k vertices, most of it `SetVertices`/`SetNormals`/`SetUVs`/
   `SetColors` and `SetTangents`/`RecalculateBounds` -- the classic Mesh API repacks the vertex buffer for each attribute it adds.
   `SetVertexBufferParams` + `SetVertexBufferData` with the layout given once, and the bounds from the worker, should take most of it off.
-- **Room lights**: a powered block's lit rooms cost 0.5-0.8 ms each to build (10-16 ms for 20-30 rooms).
+- **Room lights**: a powered block's lit rooms cost 0.5-0.8 ms each to build (10-16 ms for 20-30 rooms). Done the same day: 0.06-0.2 ms a
+  block now (below).
 - **Garbage collection**: a big chunk's buffers are tens of MB of garbage; collections of 30-270 ms were seen in the editor bench runs.
 
 ## Update: render distance (2026-10-09)
@@ -150,3 +151,16 @@ sprinting, jetpacking or flying at 45 m/s; standing after a world rebuild, fille
 the machine can spare (`GeneratorThreads` -1 = half the logical cores less one, 3 to 6; at least two chunks in flight per thread) for the
 detailed versions round a very fast flyer. Guarded by `StreamingCostTests` (a doorway is passable on a big floor; a 120 x 39 x 171 m building
 plans its stairs in well under a second; no chunk round the spawn takes a second in the game's own city).
+
+## Update: a powered block's room lights cost nothing until a switch is flipped (2026-10-14)
+
+The room lights were the next main-thread cost of a chunk streaming in. Measured with a temporary timer in `CityStreamer.AddRoomLights` (the
+streamer flown through the game's own districts, as in `CityStreamerFramePlayTests`): a block of 20 powered rooms took **24.4 ms** of one frame
+(294 spot lights and 40 meshes made, all switched off), one of 30 rooms **14.1 ms**. A spot light alone costs 25-40 us to make. Nearly all of it
+was for nothing: a room lights only when somebody flips its switch.
+
+Now a powered room is a plain object on its chunk (`RoomLightGroup`, one `ChunkRoomLights` component per chunk), its glow and windows are drawn
+only once it is lit (one mesh per light colour per chunk), and its real lights are lent by `RoomLightDirector` from a pool (at most 220, made at
+most 32 a frame) while it is lit and in reach. Same blocks after: **0.16 ms** and **0.06 ms** (the first powered block of a session 4.5-6 ms
+once in the editor: its code running for the first time); twenty rooms of a block switched on at once cost 1.25 ms. The look is the same to the
+pixel (old and new code rendered). Details and tests: ROOM_LIGHTS.md, "nothing is made for a dark room".

@@ -23,8 +23,10 @@ the electricity back on later."
 - `RoomLights`: which switches are on (shared state + `Changed` event). A switch flips in every building; only a powered one lights up, so
   restoring power later lights the rooms whose switches were left on.
 - Drawing: `CityMeshBuilder.RoomLights.cs` puts every fitting and switch plate into the chunk mesh (all buildings, near detail only). For powered
-  buildings it also hands out a `RoomGlow` per room (the glowing faces and light points), which `CityStreamer.AddRoomLights` turns into a
-  `RoomLightGroup`: a glow mesh (`RoomGlow.mat`, URP Unlit, colour x3 so it blooms) and point lights without shadows, shown only while the switch is on.
+  buildings it also hands out a `RoomGlow` per room (the glowing faces and light points), which `CityStreamer.AddRoomLights` gives to the chunk's
+  `ChunkRoomLights` as a `RoomLightGroup` per room (a plain object). Only while a room's switch is on is anything drawn or lit for it: its glow
+  (`RoomGlow.mat`, URP Unlit, colour x3 so it blooms) joins its chunk's mesh of lit rooms of its colour, and `RoomLightDirector` lends it spot
+  lights without shadows (since 2026-10-14, see the last update; before, every room's meshes and lights were made when its chunk streamed in).
 - Interacting: `View/LightSwitchInteractor` (on the CityStreamer, one for the scene): E or the gamepad's west button flips the switch nearest the
   player that is within 2.4 m, on their floor and in front of where they look -- found from the plan only when the key is pressed, so there is no
   component per switch. A procedural click plays either way.
@@ -105,3 +107,41 @@ Owner: "some rooms aren't getting lit up enough by the lights. also the rooms wi
 - Every enclosed stairwell is room 2 of its floor (`RoomLighting.StairwellRoom`): a switch inside beside its doorway and a WALL light over the
   doorway (the shaft's ceiling is nearly all the opening the flight climbs through). The hall's fittings keep out of the shaft. The server accepts
   rooms 0..2 (`RoomLightsNetwork.Acceptable`). Test: `RoomLightingTests.AnEnclosedStairwellHasItsOwnLightAndASwitchInside`.
+
+## Update: nothing is made for a dark room (2026-10-14)
+
+The room lights were the next main-thread cost of the city streaming in (PERFORMANCE.md). Measured first, with a temporary timer in
+`CityStreamer.AddRoomLights` while the streamer flew through the game's own districts: every powered room was a GameObject with its glow mesh,
+its window mesh and one spot light per lamp and per bounce (up to 32), all made in the frame its chunk landed: **24.4 ms** for a block of 20
+rooms (294 lights: 12 ms of meshes, 10 ms of lights), **14.1 ms** for one of 30 (292 lights). Making one light costs 25-40 us (100 us the
+first time in a session). And nearly all of it stayed dark: a room lights only when somebody flips its switch.
+
+Now nothing is made for a room until its switch is on:
+- **A room is a plain object** (`View/RoomLightGroup`, no longer a MonoBehaviour): where its lamps and bounces go, their colour and brightness,
+  and the faces it shows (`CityMeshBuilder.RoomGlow`, kept from the worker that built them). A chunk with powered rooms gets one component,
+  `View/ChunkRoomLights`, which follows the switches (`RoomLights.Changed`: one listener per chunk; there was one per room).
+- **The lit rooms' glow and windows are one mesh per light colour per chunk** (five colours in all, `RoomLighting.ColourOf`), drawn with the same
+  materials and colours as before (`RoomGlow.mat` x`RoomGlowBrightness`, the window veil x`RoomWindowBrightness`), rebuilt when a switch in the
+  chunk changes, at most once a frame and before the frame is drawn (`RoomLightDirector`'s LateUpdate). A dark room draws nothing; a chunk whose
+  rooms are all dark has no object for them at all.
+- **The real lights are lent from a pool** (`RoomLightDirector`): a lit room in reach takes spot lights from it, put in place, coloured and
+  switched on, and gives them back switched off when it goes dark, out of reach, or off screen with its chunk. No more than `MaxRoomLights`
+  (220) ever exist; the pool makes at most `MaxLightsMadePerFrame` (32, the biggest room's worth) in one frame, so a player joining a session
+  with many rooms lit round them gets them over a few frames, nearest first. They hang under the hidden director, never under a chunk. Which
+  lit rooms get lights and which lamps cast shadows is decided as before (`LightReachMetres`, `MaxRoomLights`, `MaxShadowedLamps`), now in the
+  frame a switch flips or a chunk with lit rooms comes or goes (a flipped room used to switch all its lights on at once and be trimmed within
+  0.2 s).
+
+After, same flight: the 20-room block **0.16 ms**, the 30-room one **0.06 ms**; a 29-room block attaches in 0.2 ms with every room dark, and
+switching 20 of its rooms on at once (their glow drawn, 220 lights lent from the pool) takes 1.25 ms. The first powered chunk of a session pays
+4.5-6 ms once in the editor (its code running for the first time, the director made).
+
+The look is unchanged, checked by rendering: `RoomLightsCapture` (-Graphics; 62 shots of halls, corner rooms, stairwells, switches, the street,
+the facade and the door, day and night, the five kinds of lighting and a dead building) was rendered with the old code and with the new, and
+the images are the same to the pixel (mean difference 0.000 of 255, at most 2 on a handful of pixels). Multiplayer is unchanged too: the
+switches are world state (`RoomLights`, `RoomLightsNetwork`) and every machine draws its rooms from it.
+
+Tests (`RoomLightsPlayTests`): the flip test as before (its lights now found through the room: a dark room has none); nothing is made for a
+dark room (no light but the door lamps, nothing drawn); a lit room glows in its own colour and rooms of one colour share a mesh; the pool never
+outgrows the budget and is reused; a chunk that goes gives its lights back, and a room left on comes back lit; what a powered block costs
+(every room dark: under 2 ms, measured 0.1-0.2; twenty rooms switched on: under 8 ms, measured 1.25).

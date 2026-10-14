@@ -1295,100 +1295,19 @@ namespace CityX.View
         /// </summary>
         public const float RoomWindowBrightness = 0.15f;
 
-        private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
-
         /// <summary>
-        /// A powered room's lights (RoomLightGroup): the glow under its fittings and its few real lights, off until its switch is on. Only the one
-        /// building in ten with power has any (World.PowerGrid); the rest have fittings and switches drawn into the chunk and nothing to light.
+        /// A powered room's lights (ChunkRoomLights): the glow under its fittings and on its windows and its few real lights, off until its switch
+        /// is on. Only the one building in ten with power has any (World.PowerGrid); the rest have fittings and switches drawn into the chunk and
+        /// nothing to light. NOTHING IS MADE HERE FOR A ROOM: its glow is drawn and its lights are lent (RoomLightDirector) when its switch is on.
+        /// Making every powered room's meshes and spot lights up front cost 0.5-0.8 ms a room in the frame its chunk landed, 14-24 ms for a
+        /// block of 20-30 rooms (2026-10-14), nearly all of it for rooms nobody ever lights; now such a block costs 0.1-0.2 ms.
         /// </summary>
         private void AddRoomLights(GameObject chunk, ChunkPayload payload)
         {
-            foreach (CityMeshBuilder.RoomGlow glow in payload.RoomGlows)
+            if (payload.RoomGlows.Count > 0)
             {
-                var go = new GameObject($"RoomLight {glow.Key.Building}/{glow.Key.Floor}/{glow.Key.Room}");
-                go.transform.SetParent(chunk.transform, false);
-
-                Renderer renderer = null;
-                if (!glow.Glow.IsEmpty)
-                {
-                    var mesh = new Mesh { name = "room-glow" };
-                    mesh.SetVertices(glow.Glow.Vertices);
-                    mesh.SetNormals(glow.Glow.Normals);
-                    mesh.SetTriangles(glow.Glow.Triangles, 0);
-                    mesh.RecalculateBounds();
-                    go.AddComponent<MeshFilter>().sharedMesh = mesh;
-                    renderer = go.AddComponent<MeshRenderer>();
-                    renderer.sharedMaterial = RoomGlowMaterial;
-                    renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-                    var block = new MaterialPropertyBlock();
-                    block.SetColor(BaseColorId, glow.Colour * RoomGlowBrightness);
-                    renderer.SetPropertyBlock(block);
-                }
-
-                // The room's windows from outside: a soft veil of its light just behind the glass, over the real lit room that shows through it.
-                Renderer windows = null;
-                Material windowLight = WindowLightMaterialOrDefault();
-                if (!glow.Windows.IsEmpty && windowLight != null)
-                {
-                    var windowObject = new GameObject("Windows");
-                    windowObject.transform.SetParent(go.transform, false);
-                    var mesh = new Mesh { name = "room-windows" };
-                    mesh.SetVertices(glow.Windows.Vertices);
-                    mesh.SetNormals(glow.Windows.Normals);
-                    mesh.SetUVs(0, glow.Windows.Uvs);
-                    mesh.SetTriangles(glow.Windows.Triangles, 0);
-                    mesh.RecalculateBounds();
-                    windowObject.AddComponent<MeshFilter>().sharedMesh = mesh;
-                    windows = windowObject.AddComponent<MeshRenderer>();
-                    windows.sharedMaterial = windowLight;
-                    windows.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-                    windows.receiveShadows = false;
-                    var block = new MaterialPropertyBlock();
-                    block.SetColor(BaseColorId, glow.Colour * RoomWindowBrightness);
-                    windows.SetPropertyBlock(block);
-                }
-
-                // The lamps, spots shining down from just under the fittings, and under each the light the floor throws back up at the ceiling
-                // (World.RoomLighting). All marked as inside (CityLightLayers): they light the room and whoever is in it, never the street.
-                var lamps = new Light[glow.Lights.Length];
-                for (int i = 0; i < lamps.Length; i++)
-                {
-                    lamps[i] = AddRoomSpot(go.transform, "Lamp", glow.Lights[i], Vector3.down, glow.Colour, glow.Range, glow.Intensity,
-                        RoomLighting.LampOuterAngle, RoomLighting.LampInnerAngle);
-                }
-                Vector3[] bouncePoints = glow.Bounces ?? System.Array.Empty<Vector3>();
-                var bounces = new Light[bouncePoints.Length];
-                // The bounce is the room's light after a pale floor has had it: the same colour, a little greyed.
-                Color bounced = Color.Lerp(glow.Colour, new Color(0.85f, 0.85f, 0.85f), 0.3f);
-                for (int i = 0; i < bounces.Length; i++)
-                {
-                    bounces[i] = AddRoomSpot(go.transform, "Bounce", bouncePoints[i], Vector3.up, bounced, glow.BounceRange, glow.BounceIntensity,
-                        RoomLighting.BounceOuterAngle, RoomLighting.BounceInnerAngle);
-                }
-
-                go.AddComponent<RoomLightGroup>().Bind(glow.Key, new[] { renderer, windows }, lamps, bounces);
+                ChunkRoomLights.Attach(chunk, payload.RoomGlows, RoomGlowMaterial, WindowLightMaterialOrDefault());
             }
-        }
-
-        /// <summary>One of a room's spot lights. No shadow unless RoomLightDirector gives it one (it is near the camera).</summary>
-        private static Light AddRoomSpot(Transform parent, string name, Vector3 localPosition, Vector3 shining, Color colour, float range,
-            float intensity, float outerAngle, float innerAngle)
-        {
-            var lightObject = new GameObject(name);
-            lightObject.transform.SetParent(parent, false);
-            lightObject.transform.localPosition = localPosition;
-            lightObject.transform.rotation = Quaternion.LookRotation(shining, Mathf.Abs(shining.y) > 0.9f ? Vector3.forward : Vector3.up);
-            Light light = lightObject.AddComponent<Light>();
-            light.type = LightType.Spot;
-            light.color = colour;
-            light.range = range;
-            light.intensity = intensity;
-            light.spotAngle = outerAngle;
-            light.innerSpotAngle = innerAngle;
-            light.shadows = LightShadows.None;
-            light.shadowStrength = 0.85f;
-            CityLightLayers.MarkInside(light);
-            return light;
         }
 
         private Material WindowLightMaterialOrDefault()
