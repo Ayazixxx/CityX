@@ -85,5 +85,93 @@ namespace CityX.Tests
             yield break;
 #endif
         }
+
+        /// <summary>
+        /// A window too high to vault from the street (sill 3 m up, a room behind it with its floor 2.1 m up) in a 0.3 m wall, near face z = 1.0, with
+        /// jambs either side of a 1.2 m opening; with <paramref name="glass"/>, the pane whole.
+        /// </summary>
+        private void HighWindow(bool glass)
+        {
+            Box(new Vector3(0.0f, -0.5f, 0.0f), new Vector3(100.0f, 1.0f, 100.0f));
+            Box(new Vector3(0.0f, 1.5f, 1.15f), new Vector3(12.0f, 3.0f, 0.3f));                // under the sill
+            Box(new Vector3(0.0f, 4.86f + 5.0f, 1.15f), new Vector3(12.0f, 10.0f, 0.3f));       // over the lintel
+            Box(new Vector3(-3.3f, 3.93f, 1.15f), new Vector3(5.4f, 1.86f, 0.3f));              // the jambs
+            Box(new Vector3(3.3f, 3.93f, 1.15f), new Vector3(5.4f, 1.86f, 0.3f));
+            Box(new Vector3(0.0f, 1.05f, 6.3f), new Vector3(12.0f, 2.1f, 10.0f));               // the room's floor, 2.1 m up
+            if (glass)
+            {
+                Box(new Vector3(0.0f, 3.93f, 1.14f), new Vector3(1.2f, 1.86f, 0.02f));
+            }
+            Physics.SyncTransforms();
+        }
+
+        /// <summary>Climbs (W held) for up to <paramref name="seconds"/>, the way the input reader does: a vault owns the frame once it starts.</summary>
+        private static IEnumerator ClimbUp(PlayerClimbing climbing, PlayerVaulting vaulting, PlayerVitals vitals, float seconds, System.Action each = null)
+        {
+            const float dt = 1.0f / 60.0f;
+            for (float t = 0.0f; t < seconds; t += dt)
+            {
+                if (vaulting.IsVaulting) vaulting.Tick(dt);
+                else if (climbing.IsClimbing) climbing.Tick(false, true, false, vitals, dt);
+                else if (climbing.IsToppingOut) climbing.TickMantle(dt);
+                else break;
+                each?.Invoke();
+                yield return null;
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator ClimbingUpToABrokenWindowTooHighToVaultDivesInThroughIt()
+        {
+#if UNITY_EDITOR
+            // Owner, 2026-10-14: "the vaulting through window function isnt working on most windows". A window this high is climbed to, then dived through.
+            HighWindow(glass: false);
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab");
+            GameObject player = Object.Instantiate(prefab, new Vector3(0.2f, 0.05f, 0.3f), Quaternion.identity);
+            _made.Add(player);
+            var climbing = player.GetComponent<PlayerClimbing>();
+            var vaulting = player.GetComponent<PlayerVaulting>();
+            var vitals = player.GetComponent<PlayerVitals>();
+            Assert.IsFalse(VaultProbe.TryFind(player.transform.position, Vector3.forward, BodyRig.StandingHeight, 0.3f, player.transform, out _),
+                "setup: the window should be out of a vault's reach from the street");
+            yield return null;
+            yield return null;
+            Assert.IsTrue(climbing.TryStart(GrabIntent.AlreadyHeld(), true, 100.0f), "setup: could not grab the wall");
+            bool dived = false;
+            yield return ClimbUp(climbing, vaulting, vitals, 12.0f, () => dived |= vaulting.IsVaulting);
+            Assert.IsTrue(dived, "climbing up to a broken window never dived through it");
+            Assert.IsFalse(vaulting.IsVaulting || climbing.IsClimbing, "it never finished");
+            Vector3 p = player.transform.position;
+            Assert.Greater(p.z, 1.6f, "the body did not end up inside the room");
+            Assert.AreEqual(2.1f, p.y, 0.15f, "not standing on the room's floor");
+            Assert.IsTrue(player.GetComponent<CharacterController>().enabled, "the controller was left off");
+            Assert.IsTrue(LedgeProbe.HasRoom(p, BodyRig.StandingHeight, 0.3f, player.transform), "the body ended up inside geometry");
+#else
+            yield break;
+#endif
+        }
+
+        [UnityTest]
+        public IEnumerator ClimbingPastAWholeWindowNeverDivesThroughTheGlass()
+        {
+#if UNITY_EDITOR
+            HighWindow(glass: true);
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab");
+            GameObject player = Object.Instantiate(prefab, new Vector3(0.2f, 0.05f, 0.3f), Quaternion.identity);
+            _made.Add(player);
+            var climbing = player.GetComponent<PlayerClimbing>();
+            var vaulting = player.GetComponent<PlayerVaulting>();
+            var vitals = player.GetComponent<PlayerVitals>();
+            yield return null;
+            yield return null;
+            Assert.IsTrue(climbing.TryStart(GrabIntent.AlreadyHeld(), true, 100.0f), "setup: could not grab the wall");
+            bool dived = false;
+            yield return ClimbUp(climbing, vaulting, vitals, 8.0f, () => dived |= vaulting.IsVaulting);
+            Assert.IsFalse(dived, "dived through a WHOLE pane of glass");
+            Assert.Less(player.transform.position.z, 1.0f, "the body went through the wall");
+#else
+            yield break;
+#endif
+        }
     }
 }

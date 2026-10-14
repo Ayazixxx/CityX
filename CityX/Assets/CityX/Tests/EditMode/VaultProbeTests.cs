@@ -64,6 +64,7 @@ namespace CityX.Tests
             Assert.IsTrue(Find(Vector3.forward, out VaultProbe.Vault vault), "a shattered window was not vaultable (the owner: 'you cant vault into a window')");
             Assert.AreEqual(0.9f, vault.Height, 0.05f, "the sill is the top");
             Assert.AreEqual(1.86f, vault.Headroom, 0.12f, "the free height under the lintel was not measured");
+            Assert.IsTrue(VaultProbe.IsThroughAnOpening(vault, Height), "a window under its lintel is an opening");
             Assert.Greater(vault.Land.z, 0.9f, "the landing is inside the room, past the wall");
             Assert.AreEqual(0.0f, vault.Land.y, 0.05f);
             float dive = PlayerVaulting.DiveFor(vault.Headroom, Height, out float apexAboveTop);
@@ -94,6 +95,7 @@ namespace CityX.Tests
             Obstacle(1.4f, 0.4f);
             Assert.IsTrue(Find(Vector3.forward, out VaultProbe.Vault vault));
             Assert.GreaterOrEqual(vault.Headroom, Height - 0.01f, "open sky over a fence should read as a whole body's worth of air");
+            Assert.IsFalse(VaultProbe.IsThroughAnOpening(vault, Height), "a fence under open sky is not an opening");
             Assert.AreEqual(0.0f, PlayerVaulting.DiveFor(vault.Headroom, Height, out float apexAboveTop), 1e-4f, "a fence became a dive");
             Assert.AreEqual(PlayerVaulting.ClearanceMetres, apexAboveTop, 1e-4f);
         }
@@ -217,6 +219,134 @@ namespace CityX.Tests
             }
             Assert.AreEqual(vault.Land.z, PlayerVaulting.Path(Vector3.zero, vault, 1.0f).z, 0.001f);
             Assert.AreEqual(vault.Land.y, PlayerVaulting.Path(Vector3.zero, vault, 1.0f).y, 0.001f);
+        }
+
+        /// <summary>
+        /// A window as the city builds them (CityMeshBuilder.AddWindowReveals): a wall 0.3 m thick, near face at z = 0.5; the sill across its
+        /// thickness with a stone ledge under it standing 8 cm proud of the wall (a sweep catches the ledge before the wall under it); jambs either
+        /// side of a <paramref name="width"/> opening; the lintel <paramref name="opening"/> over the sill; the room's floor <paramref name="floor"/>
+        /// over the street; with <paramref name="glass"/>, the pane 14 cm in from the face, whole.
+        /// </summary>
+        private void CityWindow(float sill, float opening, float width, float floor, bool glass = false)
+        {
+            const float wall = 0.3f;
+            const float span = 12.0f;
+            float lintel = sill + opening;
+            float z = 0.5f + wall * 0.5f;
+            Box(new Vector3(0.0f, sill * 0.5f, z), new Vector3(span, sill, wall));
+            Box(new Vector3(0.0f, lintel + 3.0f, z), new Vector3(span, 6.0f, wall));
+            float pier = (span - width) * 0.5f;
+            Box(new Vector3(-(width + pier) * 0.5f, sill + opening * 0.5f, z), new Vector3(pier, opening, wall));
+            Box(new Vector3((width + pier) * 0.5f, sill + opening * 0.5f, z), new Vector3(pier, opening, wall));
+            Box(new Vector3(0.0f, sill - 0.035f, 0.46f), new Vector3(width + 0.1f, 0.07f, 0.08f));
+            if (floor > 0.0f)
+            {
+                Box(new Vector3(0.0f, floor * 0.5f, 0.8f + 5.0f), new Vector3(span, floor, 10.0f));
+            }
+            if (glass)
+            {
+                Box(new Vector3(0.0f, sill + opening * 0.5f, 0.64f), new Vector3(width, opening, 0.02f));
+            }
+        }
+
+        private static bool Find(Vector3 feet, Vector3 forward, out VaultProbe.Vault vault, out VaultProbe.Refusal why)
+        {
+            return VaultProbe.TryFind(feet, forward, Height, Radius, null, out vault, out why);
+        }
+
+        [Test]
+        public void AWindowIntoARoomStandingHigherThanTheStreetIsVaulted()
+        {
+            // Many of the city's buildings stand higher than the street beside them, so past the sill the room's floor is inside the vault band too: it
+            // read as the top stepping down part-way and the window was refused (owner, 2026-10-14: "isnt working on most windows").
+            CityWindow(sill: 1.5f, opening: 1.86f, width: 1.15f, floor: 0.6f);
+            Assert.IsTrue(Find(Vector3.zero, Vector3.forward, out VaultProbe.Vault vault, out VaultProbe.Refusal why), $"refused: {why}");
+            Assert.AreEqual(1.5f, vault.Height, 0.05f, "the sill is the top");
+            Assert.AreEqual(0.6f, vault.Land.y, 0.05f, "the feet land on the room's floor");
+            Assert.Greater(vault.Land.z, 0.8f, "the landing is inside the room");
+        }
+
+        [Test]
+        public void AWindowIsGoneThroughItsMiddleWhereverAlongItTheWallIsRunAt()
+        {
+            // The way through used to be checked wherever the body met the wall, a hand's width from a jamb as often as not.
+            CityWindow(sill: 1.0f, opening: 1.86f, width: 1.15f, floor: 0.0f);
+            float limit = 1.15f * 0.5f - VaultProbe.JambClearanceMetres + 0.01f;
+            foreach (float x in new[] { -0.35f, -0.2f, 0.0f, 0.2f, 0.35f })
+            foreach (float degrees in new[] { -25.0f, 0.0f, 25.0f })
+            foreach (float back in new[] { 0.0f, -0.35f })
+            {
+                Vector3 run = Quaternion.Euler(0.0f, degrees, 0.0f) * Vector3.forward;
+                Assert.IsTrue(Find(new Vector3(x, 0.0f, back), run, out VaultProbe.Vault vault, out VaultProbe.Refusal why),
+                    $"running at the window {x:+0.00;-0.00} m off its middle, {degrees} degrees off square, from {0.5f - back:0.00} m out: {why}");
+                Assert.LessOrEqual(Mathf.Abs(vault.NearEdge.x), limit, $"the way over at {vault.NearEdge.x:0.00} is not clear of the jambs");
+                Assert.LessOrEqual(Mathf.Abs(vault.Land.x), limit, "the landing is not in line with the middle of the window");
+            }
+        }
+
+        [Test]
+        public void TheStoneLedgeUnderASillDoesNotHideTheWallUnderIt()
+        {
+            // The ledge sticks out over the wall: the sweep at knee height met its underside (an edge, its normal half down) before the wall, and threw the sighting away.
+            CityWindow(sill: 0.9f, opening: 1.86f, width: 1.15f, floor: 0.0f);
+            Assert.IsTrue(Find(Vector3.zero, Vector3.forward, out VaultProbe.Vault vault, out VaultProbe.Refusal why), $"refused: {why}");
+            Assert.AreEqual(0.9f, vault.Height, 0.05f);
+            Assert.Less(vault.Headroom, Height, "the lintel over the window was not seen");
+        }
+
+        [Test]
+        public void ALowSillUnderATallOpeningIsVaulted()
+        {
+            // A ribbon window: the sill only half a metre up, so the lowest sweep used to pass over it into the room and find nothing to vault.
+            CityWindow(sill: 0.5f, opening: 2.9f, width: 2.3f, floor: 0.0f);
+            Assert.IsTrue(Find(Vector3.zero, Vector3.forward, out VaultProbe.Vault vault, out VaultProbe.Refusal why), $"refused: {why}");
+            Assert.AreEqual(0.5f, vault.Height, 0.05f);
+        }
+
+        [Test]
+        public void APlinthAlongTheFootOfTheWallDoesNotHideTheWindowAboveIt()
+        {
+            // The nearest face is the plinth, a step with the sill rising behind it: not a vault. The wall under the sill, further on, is.
+            CityWindow(sill: 1.0f, opening: 1.86f, width: 1.15f, floor: 0.0f);
+            Box(new Vector3(0.0f, 0.15f, 0.35f), new Vector3(12.0f, 0.3f, 0.3f));
+            Assert.IsTrue(Find(Vector3.zero, Vector3.forward, out VaultProbe.Vault vault, out VaultProbe.Refusal why), $"refused: {why}");
+            Assert.AreEqual(1.0f, vault.Height, 0.05f, "the sill is the top, not the plinth");
+        }
+
+        [Test]
+        public void AWholeCityWindowIsNotVaultedFromAnyApproach()
+        {
+            foreach (float floor in new[] { 0.0f, 0.6f })
+            {
+                TearDown();
+                SetUp();
+                CityWindow(sill: 1.0f + floor, opening: 1.86f, width: 1.15f, floor: floor, glass: true);
+                foreach (float x in new[] { -0.35f, 0.0f, 0.35f })
+                foreach (float degrees in new[] { -25.0f, 0.0f, 25.0f })
+                foreach (float back in new[] { 0.0f, -0.35f })
+                {
+                    Vector3 run = Quaternion.Euler(0.0f, degrees, 0.0f) * Vector3.forward;
+                    Assert.IsFalse(Find(new Vector3(x, 0.0f, back), run, out _, out VaultProbe.Refusal why),
+                        $"a WHOLE pane was vaulted through (floor {floor} m up, {x:+0.00;-0.00} m off its middle, {degrees} degrees off square)");
+                    Assert.AreEqual(VaultProbe.Refusal.OpeningBlocked, why, "the pane is what should refuse it");
+                }
+            }
+        }
+
+        [Test]
+        public void ARefusalSaysWhichStageTurnedItDown()
+        {
+            Assert.IsFalse(Find(Vector3.zero, Vector3.forward, out _, out VaultProbe.Refusal why));
+            Assert.AreEqual(VaultProbe.Refusal.NoFace, why, "open ground");
+            Obstacle(2.4f, 0.4f);
+            Assert.IsFalse(Find(Vector3.zero, Vector3.forward, out _, out why));
+            Assert.AreEqual(VaultProbe.Refusal.NoTop, why, "a wall too high to vault");
+            TearDown();
+            SetUp();
+            Obstacle(1.4f, 0.4f);
+            Box(new Vector3(0.0f, 5.0f, 1.5f), new Vector3(10.0f, 10.0f, 0.4f));
+            Assert.IsFalse(Find(Vector3.zero, Vector3.forward, out _, out why));
+            Assert.AreEqual(VaultProbe.Refusal.NoRoomToLand, why, "a fence with a wall right behind it");
         }
     }
 }

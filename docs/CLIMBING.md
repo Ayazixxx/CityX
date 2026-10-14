@@ -244,8 +244,48 @@ the far edge, and a window's lintel is 1.4 to 1.9 m over its sill, so every wind
   a fence is no dive), `RealCityWindowVaultPlayTests` (the real facades near spawn: a sill-high ground-floor window is refused whole and vaulted once
   shattered; a step-high one is walked into once shattered and not before), `VaultCapture` renders `vault-window-*.png`.
 - The vault band now starts just over the controller's 0.4 m step (`VaultProbe.BandLowFraction` 0.16, was 0.22): a 0.4 to 0.57 m sill could be neither stepped nor vaulted.
-- Not done: an upper-floor window reached by climbing is still not entered from the wall (`LedgeProbe` wants an open path a whole body tall over the
+- Not done (an upper-floor window reached by climbing is entered since 2026-10-14, see below; `LedgeProbe` still wants an open path a whole body tall over the
   lip); a tucked legs clip for the dive; vaulting a window when only walking at it (the vault is still run + forward).
 - Walking in over a LOW sill (the door wall's 16 cm panes, a ribbon's 38 cm) on a real facade: the shattered pane no longer stops the body and it
   steps onto the sill, but on some buildings the lobby floor inside stands higher than the sill than the controller can step (`RealCityWindowVaultPlayTests`
   logs the difference). That is the interior's floor height, not the window; left as is.
+
+## Update: most windows vault now, not one in seven (2026-10-14)
+
+Owner: "the vaulting through window function isnt working on most windows". A survey of the real city near spawn
+(`RealCityWindowVaultPlayTests.MostShatteredSillHighWindowsOnRealFacadesAreVaulted`: every ground-floor window on 30 buildings with its sill at
+vault height over the street, shattered, run at from 18 approaches: the middle and a quarter of its width either side, a stride out and pressed
+against the wall, straight on and 25 degrees off) found only 46 of 315 vaulted straight on, and 391 of 5670 approaches. `VaultProbe.TryFind` now
+says which stage refused (`VaultProbe.Refusal`), and the survey logged it:
+
+- **The room behind stands higher than the street** (most of them: NoTop). Past the sill the probe looks down for where the top ends; a room floor
+  more than 20 cm over the street is inside the vault band, so it read as the top stepping DOWN part-way and the window was refused. Every window
+  with its sill 1.2 m or more over the street failed, and nearly every tall ribbon window. A surface lower than the top now ends the top (it is past
+  the far edge, and the landing check judges the drop); only a top that steps UP part-way is refused.
+- **Off its middle, the way through was checked beside a jamb** (OpeningBlocked). The clear-opening box was centred wherever the body met the wall.
+  Now rays along the sill find the jambs and the way through is slid to keep `JambClearanceMetres` (0.33 m) from each, or put midway in a narrow
+  window; the landing follows. A fence or a box has no jambs and nothing moves.
+- **The sill's stone ledge hid the wall under it** (NoFace). The ledge stands 8 cm proud of the wall, so the knee-height sweep met its underside
+  first; an edge's normal points half down, and the sighting was thrown away. A sweep that catches an edge now looks for the face just under it
+  with a ray. A sweep at 0.17 of the height was added for sills under 0.6 m (the lowest one passed over them into the room).
+- **Every face found is tried, nearest first** (a plinth or a kerb in front of a window was the nearest face, a step with the sill rising behind
+  it). The furthest stage any face reached is the refusal reported.
+- A whole pane is still never vaulted: the clear-opening box now starts 6 cm in front of the near edge, so a pane in the very plane of the face
+  found (when the face found IS the glass) is inside it. The survey asserts no whole window vaults from any approach.
+- **A window too high to vault is climbed to and dived through.** 57 of the 532 ground-floor windows near spawn stand more than 2 m over the
+  street (and every upper-floor window is out of a vault's reach). A climber under one was held there: a window is no ledge (`LedgeProbe` wants a
+  whole body's worth of room over the lip) and there is no wall at head height to climb on. `PlayerClimbing.Tick` now asks `VaultProbe` while
+  climbing up with no ledge ahead, as if the feet stood higher (`WindowReachLiftFraction`: a sill up to 1.2 body heights over the feet, the
+  mantle's reach; from the feet the band ends below the head, where the climb stops at a window); a broken window in reach ends the climb and
+  starts the same dive (`PlayerVaulting.Begin`). Only through an OPENING (`VaultProbe.IsThroughAnOpening`: something over the top, a
+  lintel): a roof parapet under open sky is still mantled, as before (it was vaulted the first time round, `RealCityClimbTopOutPlayTests`). A
+  whole pane refuses it and the climb goes on over the glass. It travels to other players like any vault (the path and lean with the transform).
+- Result on the real city (the survey, open car parks and round towers now left out of it): 313 of 323 shattered sill-high windows vault
+  straight on (was 46 of 315) and 5577 of 5814 approaches (was 391 of 5670); 64 of 73 windows too high to vault are dived into from a climb;
+  no whole window either way. The rest are rooms with something right behind the window (no room to land) and one hillside building standing
+  up to 11 m over the street.
+- Tests: `VaultProbeTests` (a city-shaped window: hollow 0.3 m wall, ledge, jambs: into a raised room; from anywhere along it; under the ledge; a
+  0.5 m ribbon sill; behind a plinth; whole from any approach; the refusal named), the survey (at least 90% straight on and 80% of approaches;
+  80% of the windows too high to vault dived into from a climb; no whole pane either way), `VaultPlayTests` (climbing up to a broken window 3 m
+  up dives in and stands on the room floor; a whole one is never dived through), `RealWindowVaultCapture` (Explicit, -Graphics) renders
+  `vault-real-*.png`.

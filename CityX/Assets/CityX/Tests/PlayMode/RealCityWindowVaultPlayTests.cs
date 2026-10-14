@@ -35,7 +35,7 @@ namespace CityX.Tests
         }
 
 #if UNITY_EDITOR
-        private sealed class Candidate
+        internal sealed class Candidate
         {
             public BuildingSite Site;
             public WindowGrid.Wall Wall;
@@ -45,6 +45,8 @@ namespace CityX.Tests
             public Vector3 Inward;
             public float SillAboveGround;
             public float Opening;
+            public float Width;          // the pane, metres
+            public float SillOverGround; // the sill over the real ground outside, metres
         }
 
         private CityStreamer _streamer;
@@ -63,7 +65,7 @@ namespace CityX.Tests
             return _streamer;
         }
 
-        private static bool GroundAt(Vector3 near, out float y)
+        internal static bool GroundAt(Vector3 near, out float y)
         {
             y = 0.0f;
             RaycastHit[] hits = Physics.RaycastAll(near + Vector3.up * 6.0f, Vector3.down, 30.0f, ~0, QueryTriggerInteraction.Ignore);
@@ -77,7 +79,7 @@ namespace CityX.Tests
         }
 
         /// <summary>The ground-floor panes of one wall of one building: where they are and how big, in the world.</summary>
-        private static IEnumerable<Candidate> PanesOf(CityWorld world, BuildingSite site, WindowGrid.Wall wall)
+        internal static IEnumerable<Candidate> PanesOf(CityWorld world, BuildingSite site, WindowGrid.Wall wall)
         {
             WindowPlan plan = WindowPlan.For(world, site);
             if (plan.IsBlankWall(wall)) yield break;
@@ -109,7 +111,7 @@ namespace CityX.Tests
                 yield return new Candidate
                 {
                     Site = site, Wall = wall, Column = column, Key = new PaneKey(site.Id, wall, column, 0),
-                    Outside = onWall + outward * 0.7f, Inward = -outward, SillAboveGround = paneY0 - floorY, Opening = paneY1 - paneY0,
+                    Outside = onWall + outward * 0.7f, Inward = -outward, SillAboveGround = paneY0 - floorY, Opening = paneY1 - paneY0, Width = columns.PaneSize,
                 };
             }
         }
@@ -137,7 +139,7 @@ namespace CityX.Tests
         }
 
         /// <summary>True when a body can walk from 1.3 m outside the pane to right in front of it without hitting anything (the glass is further in).</summary>
-        private static bool ApproachClear(Candidate c)
+        internal static bool ApproachClear(Candidate c)
         {
             Vector3 start = c.Outside - c.Inward * 0.6f;
             Vector3 bottom = start + Vector3.up * 0.45f;
@@ -318,6 +320,173 @@ namespace CityX.Tests
             Assert.Greater(inside, -0.12f, $"the shattered window still stops the body (building {low.Site.Id} {low.Wall} column {low.Column}, sill {low.SillAboveGround:0.00} m): " +
                 $"it is {inside:0.00} m past the wall face, at y {player.transform.position.y:0.00} (ground {low.Outside.y:0.00}); ahead of it: {Blockers(player.transform.position, low.Inward)}; " +
                 $"from outside at chest height after shattering: {afterShatter}");
+#else
+            yield break;
+#endif
+        }
+
+#if UNITY_EDITOR
+        /// <summary>Waits, by the clock (a batch-mode frame is under a millisecond), until the city has streamed in and every window change has landed.</summary>
+        private IEnumerator Settle()
+        {
+            float until = Time.realtimeSinceStartup + 20.0f;
+            int quiet = 0;
+            while (Time.realtimeSinceStartup < until && quiet < 10)
+            {
+                quiet = _streamer.IsStreaming || _streamer.WindowRefreshPending ? 0 : quiet + 1;
+                yield return null;
+            }
+            Physics.SyncTransforms();
+        }
+
+        /// <summary>Where a player runs at a window from: off its middle by these fractions of its width ...</summary>
+        private static readonly float[] ApproachSides = { 0.0f, -0.25f, 0.25f };
+
+        /// <summary>... this far out from the wall's face, metres (a stride out, and pressed against it) ...</summary>
+        private static readonly float[] ApproachDistances = { 0.7f, 0.35f };
+
+        /// <summary>... and this many degrees off square.</summary>
+        private static readonly float[] ApproachTurns = { 0.0f, -25.0f, 25.0f };
+
+        /// <summary>
+        /// The vault probe from every approach to one window: how many of them vault, whether the straight-on one from the middle does, and (when asked)
+        /// each refusal and a note of it.
+        /// </summary>
+        private static int VaultsFrom(Candidate c, out int tried, out bool headOn, Dictionary<VaultProbe.Refusal, int> refusals, List<string> notes)
+        {
+            Vector3 across = Vector3.Cross(Vector3.up, c.Inward).normalized;
+            tried = 0;
+            headOn = false;
+            int passed = 0;
+            foreach (float side in ApproachSides)
+            foreach (float outFromWall in ApproachDistances)
+            foreach (float turn in ApproachTurns)
+            {
+                Vector3 feet = c.Outside + c.Inward * (0.7f - outFromWall) + across * (side * c.Width);
+                if (!GroundAt(feet, out float y)) continue;
+                feet.y = y;
+                Vector3 run = Quaternion.AngleAxis(turn, Vector3.up) * c.Inward;
+                tried++;
+                if (VaultProbe.TryFind(feet, run, BodyRig.StandingHeight, 0.3f, null, out _, out VaultProbe.Refusal refusal))
+                {
+                    passed++;
+                    headOn |= side == 0.0f && turn == 0.0f && outFromWall > 0.5f;
+                    continue;
+                }
+                if (refusals != null)
+                {
+                    refusals.TryGetValue(refusal, out int n);
+                    refusals[refusal] = n + 1;
+                }
+                notes?.Add($"{side:+0.00;-0.00;0}w {outFromWall:0.00}m {turn:+0;-0;0}deg {refusal}");
+            }
+            return passed;
+        }
+
+        /// <summary>
+        /// The dive a climber makes into a window too high to vault from the street (PlayerClimbing): hanging on the wall under it, 0.35 m out, as the
+        /// sill comes into the hands' reach, the vault looked for as PlayerClimbing looks for it (lifted to that reach).
+        /// </summary>
+        private static bool ClimbsIn(Candidate c, out VaultProbe.Refusal why)
+        {
+            float sillY = c.Site.BaseHeight + c.SillAboveGround;
+            Vector3 feet = c.Outside + c.Inward * 0.35f;
+            feet.y = sillY - BodyRig.StandingHeight * PlayerClimbing.MantleReachFraction + 0.1f;
+            return VaultProbe.TryFind(feet + Vector3.up * (BodyRig.StandingHeight * PlayerClimbing.WindowReachLiftFraction), c.Inward,
+                BodyRig.StandingHeight, 0.3f, null, out VaultProbe.Vault vault, out why) && VaultProbe.IsThroughAnOpening(vault, BodyRig.StandingHeight);
+        }
+#endif
+
+        /// <summary>
+        /// MOST WINDOWS, NOT ONE (owner, 2026-10-14: "the vaulting through window function isnt working on most windows"; it vaulted 46 of 315).
+        /// Every ground-floor window near spawn whose sill is at vault height over the street is run at the way a player does: at its middle and a
+        /// quarter of its width to either side, from a stride out and pressed against the wall, straight on and 25 degrees off. While whole, none
+        /// may be vaulted from anywhere; shattered, nearly all must be from straight on and most from everywhere. Each refusal is logged with the
+        /// stage of VaultProbe that refused it. The windows too high over the street to vault are climbed to instead: shattered, most must be dived
+        /// into from the climb (PlayerClimbing), and none while whole.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator MostShatteredSillHighWindowsOnRealFacadesAreVaulted()
+        {
+#if UNITY_EDITOR
+            var world = new CityWorld(Seed);
+            Streamer();
+            var refusals = new Dictionary<VaultProbe.Refusal, int>();
+            var log = new System.Text.StringBuilder();
+            var highLog = new System.Text.StringBuilder();
+            var wholeVaulted = new List<string>();
+            int windows = 0, windowsVaulted = 0, attempts = 0, attemptsVaulted = 0, buildingsTried = 0, stepHigh = 0, highWindows = 0, highClimbedIn = 0;
+            foreach (BuildingSite site in TestSites.NearSpawn(world))
+            {
+                if (site.OnRoof || site.Params.IsSpecial || site.IsOpenGround || site.Sides >= 3) continue;   // an open car park has no windows; a round tower is not four walls
+                if (buildingsTried++ >= 30) break;
+                foreach (WindowGrid.Wall wall in new[] { WindowGrid.Wall.East, WindowGrid.Wall.West, WindowGrid.Wall.South, WindowGrid.Wall.North })
+                {
+                    var panes = new List<Candidate>(PanesOf(world, site, wall));
+                    if (panes.Count == 0) continue;
+                    yield return Stream(panes[0].Outside);
+                    yield return Settle();
+                    var sillHigh = new List<Candidate>();
+                    var high = new List<Candidate>();
+                    foreach (Candidate c in panes)
+                    {
+                        if (!GroundAt(c.Outside, out float ground)) continue;
+                        c.SillOverGround = c.SillAboveGround + c.Site.BaseHeight - ground;
+                        if (c.Opening < VaultProbe.MinHeadroomMetres + 0.1f) continue;
+                        if (c.SillOverGround > BodyRig.StandingHeight * VaultProbe.BandHighFraction - 0.05f) { high.Add(c); continue; }
+                        if (c.SillOverGround < BodyRig.StandingHeight * VaultProbe.BandLowFraction + 0.05f) { stepHigh++; continue; }
+                        c.Outside.y = ground;
+                        sillHigh.Add(c);
+                    }
+                    if (sillHigh.Count == 0 && high.Count == 0) continue;
+                    foreach (Candidate c in sillHigh)
+                    {
+                        int whole = VaultsFrom(c, out int wholeTried, out _, null, null);
+                        if (whole > 0) wholeVaulted.Add($"building {c.Site.Id} {c.Wall} column {c.Column} ({whole}/{wholeTried})");
+                    }
+                    foreach (Candidate c in high)
+                    {
+                        if (ClimbsIn(c, out _)) wholeVaulted.Add($"building {c.Site.Id} {c.Wall} column {c.Column} (from a climb)");
+                    }
+                    foreach (Candidate c in sillHigh) _streamer.Damage.Hit(c.Key, shatterOutright: true);
+                    foreach (Candidate c in high) _streamer.Damage.Hit(c.Key, shatterOutright: true);
+                    yield return Settle();
+                    yield return Stream(panes[0].Outside);
+                    yield return Settle();
+                    foreach (Candidate c in sillHigh)
+                    {
+                        windows++;
+                        var notes = new List<string>();
+                        int passed = VaultsFrom(c, out int tried, out bool headOn, refusals, notes);
+                        attempts += tried;
+                        attemptsVaulted += passed;
+                        if (headOn) windowsVaulted++;
+                        log.AppendLine($"  building {c.Site.Id} {c.Wall} column {c.Column}: sill {c.SillOverGround:0.00} m over the street, opening {c.Opening:0.00} m, pane {c.Width:0.00} m wide, " +
+                            $"{passed}/{tried} vaulted" + (notes.Count > 0 ? ": " + string.Join(", ", notes) : ""));
+                    }
+                    foreach (Candidate c in high)
+                    {
+                        highWindows++;
+                        if (ClimbsIn(c, out VaultProbe.Refusal why))
+                        {
+                            highClimbedIn++;
+                            continue;
+                        }
+                        highLog.AppendLine($"  building {c.Site.Id} {c.Wall} column {c.Column}: sill {c.SillOverGround:0.00} m over the street, opening {c.Opening:0.00} m, not dived into from a climb: {why}");
+                    }
+                }
+            }
+            var summary = new System.Text.StringBuilder();
+            foreach (KeyValuePair<VaultProbe.Refusal, int> pair in refusals) summary.Append($" {pair.Key} {pair.Value}");
+            Debug.Log($"CityX window vault survey: {buildingsTried} buildings; ground-floor windows: {windows} sill-high, {stepHigh} a step up, {highWindows} too high to vault; " +
+                $"shattered, {windowsVaulted} vaulted straight on, {attemptsVaulted}/{attempts} approaches vaulted, {highClimbedIn}/{highWindows} high ones dived into from a climb; " +
+                $"refusals:{summary}; whole ones gone through: {wholeVaulted.Count}\n{log}{highLog}");
+            Assert.IsEmpty(wholeVaulted, "a WHOLE window was gone through: " + string.Join("; ", wholeVaulted));
+            Assert.Greater(windows, 20, "too few sill-high ground-floor windows near spawn to judge");
+            Assert.GreaterOrEqual(windowsVaulted, windows * 0.9f, $"only {windowsVaulted} of {windows} shattered sill-high windows vault straight on; refusals:{summary}");
+            Assert.GreaterOrEqual(attemptsVaulted, attempts * 0.8f, $"only {attemptsVaulted} of {attempts} approaches to shattered windows vault; refusals:{summary}");
+            Assert.Greater(highWindows, 5, "too few windows too high to vault near spawn to judge the climb-in");
+            Assert.GreaterOrEqual(highClimbedIn, highWindows * 0.8f, $"only {highClimbedIn} of {highWindows} shattered windows too high to vault are dived into from a climb");
 #else
             yield break;
 #endif

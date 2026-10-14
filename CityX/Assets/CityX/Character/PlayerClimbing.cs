@@ -100,6 +100,7 @@ namespace CityX.Character
         private CharacterController _controller;
         private PlayerLocomotion _locomotion;
         private Animator _animator;
+        private PlayerVaulting _vaulting;
 
         private Vector3 _wallNormal;
         private float _anchorX;
@@ -132,6 +133,7 @@ namespace CityX.Character
             _controller = GetComponent<CharacterController>();
             _animator = GetComponentInChildren<Animator>();
             _locomotion = GetComponent<PlayerLocomotion>();
+            _vaulting = GetComponent<PlayerVaulting>();
         }
 
         /// <summary>How far in front of the wall face the body hangs, on top of the capsule's own radius.</summary>
@@ -371,6 +373,19 @@ namespace CityX.Character
                     BeginMantle(ledge);
                     return;
                 }
+                // A BROKEN WINDOW IN REACH IS DIVED THROUGH (owner, 2026-10-14: "the vaulting through window function isnt working on most windows").
+                // Many ground-floor windows stand higher over the street than a vault reaches, and a window is no ledge (LedgeProbe wants a whole
+                // body's worth of room over the lip), so a climber under one was held there with nowhere to go. It is the same validated dive as
+                // from the street (VaultProbe: a sill in reach, a clear opening, a room to land in); a whole pane refuses it and the climb goes on. Only
+                // THROUGH an opening (something over the top: a lintel): a wall top under open sky, a roof parapet, is still mantled (LedgeProbe).
+                if (!ledgeAhead && _vaulting != null
+                    && VaultProbe.TryFind(transform.position + Vector3.up * (standingHeight * WindowReachLiftFraction), -_wallNormal, standingHeight, radius, transform,
+                        out VaultProbe.Vault window) && VaultProbe.IsThroughAnOpening(window, standingHeight))
+                {
+                    EndClimb(false, deltaTime);
+                    _vaulting.Begin(window);
+                    return;
+                }
                 // Neither a ledge nor wall left at head height: there is nothing to climb into. Hold the grip rather than climb up into thin air.
                 // (Looked for as far beyond the usual reach as the body is leaning out round a jut.)
                 if (!ledgeAhead && !WallInDirection(transform.position + Vector3.up * (standingHeight * 0.85f), -_wallNormal, out _,
@@ -594,6 +609,14 @@ namespace CityX.Character
 
         /// <summary>How far above the feet the ledge may be for the mantle to start, as a fraction of standing height (the hands' reach).</summary>
         public const float MantleReachFraction = 1.2f;
+
+        /// <summary>
+        /// A broken window is dived through from a climb once its sill is in the hands' reach, as a ledge is mantled (<see cref="MantleReachFraction"/>):
+        /// the vault is looked for as if the feet stood this much higher (a fraction of standing height), which lifts the vault band (how high a sill
+        /// may be over the feet) to end where the mantle's reach does. From the feet, the band would end below the head, where the climb stops at
+        /// a window (no wall left to hold), and the dive was never reached.
+        /// </summary>
+        public const float WindowReachLiftFraction = MantleReachFraction - VaultProbe.BandHighFraction;
 
         /// <summary>The whole mantle takes this long, in seconds.</summary>
         public const float MantleSeconds = 1.2f;
