@@ -174,6 +174,7 @@ namespace CityX.Tests
             int busyFrames = 0;
             int collectedFrames = 0;
             int streamedBefore = streamer.ChunksStreamedIn;
+            long arraysMadeBefore = ChunkArrayPool.MadeBytes;
             var clock = System.Diagnostics.Stopwatch.StartNew();
             const int Frames = 360;
             for (int frame = 0; frame < Frames; frame++)
@@ -223,6 +224,7 @@ namespace CityX.Tests
                 }
             }
             int streamedIn = streamer.ChunksStreamedIn - streamedBefore;
+            double arraysMadeMb = (ChunkArrayPool.MadeBytes - arraysMadeBefore) / (1024.0 * 1024.0);
 
             var sorted = new List<double>(frames);
             sorted.Sort();
@@ -241,15 +243,17 @@ namespace CityX.Tests
                             $"streamer per frame: median {median:0.00} ms, 95th percentile {p95:0.00} ms, 99th {p99:0.00} ms, " +
                             $"worst after the first two {worst:0.0} ms (frame {worstFrame}); frames over 4 ms {over4}, over 8 ms {over8}; " +
                             $"main thread spent streaming {total:0} ms in all; switching cooked chunks on: worst {worstSwapIn:0.00} ms (frame {worstSwapInFrame}); " +
-                            $"most chunks waiting for a collider at once {mostWaiting}; frames with a garbage collection {collectedFrames}\n{lines}";
+                            $"most chunks waiting for a collider at once {mostWaiting}; frames with a garbage collection {collectedFrames}; " +
+                            $"chunk mesh arrays made new {arraysMadeMb:0} MB (the rest used again), held for reuse {ChunkArrayPool.PooledBytes / (1024.0 * 1024.0):0} MB\n{lines}";
             Debug.Log(report);
             TestContext.WriteLine(report);
             Assert.Greater(streamedIn, 40, "the flight hardly streamed anything in: this measured nothing");
 
-            // Everything it flew past is there, whole and solid.
+            // Everything it flew past is there, whole and solid; and every chunk's storage (payload, buffers, arrays) is back for the next ones.
             yield return Streamed(streamer);
             yield return null;
             AssertWhole(streamer, viewer.position, Radius);
+            Assert.AreEqual(0, streamer.PayloadsOut, "a chunk's payload was never given back after the flight: its arrays are lost to the chunks after it");
 
             // THE POINT: no collider is cooked on the main thread any more. Before, every chunk that streamed in had its collider cooked there in
             // the frame it landed: ~10 ms for an ordinary chunk, 80-110 ms for a block of towers (2026-10-14: frames of 90-150 ms while flying).

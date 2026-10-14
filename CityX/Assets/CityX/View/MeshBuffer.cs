@@ -112,6 +112,19 @@ namespace CityX.View
         }
 
         /// <summary>
+        /// Back to exactly what a new buffer is -- empty, the default look, no UV offset, no frame -- but its lists keep the room they grew
+        /// to: the streamer builds chunk after chunk in the same buffers (2026-10-14), and growing a block of towers' lists from nothing
+        /// every time was most of the garbage streaming made.
+        /// </summary>
+        public void Reset()
+        {
+            Clear();
+            Look = SurfaceLook.Default;
+            UvOffset = Vector2.zero;
+            ClearFrame();
+        }
+
+        /// <summary>
         /// One quad, wound so its front face points along <paramref name="normal"/>.
         /// Corners must be given in order around the perimeter, but EITHER WAY
         /// ROUND -- the winding is corrected here rather than trusted.

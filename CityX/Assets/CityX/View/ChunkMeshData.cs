@@ -51,7 +51,9 @@ namespace CityX.View
         public readonly int VertexCount;
         public readonly int IndexCount;
 
-        // The four vertex streams.
+        // The four vertex streams. They and the indices are arrays from ChunkArrayPool, used again chunk after chunk (2026-10-14: fresh ones
+        // for every chunk were tens of MB of garbage for a block of towers, and a collection stops every thread): longer than what is in
+        // them, so VertexCount and IndexCount say how much is, and given back by Release once the Mesh is made.
         public readonly Vector3[] Positions;
         public readonly Vector3[] Normals;
         public readonly Vector4[] Tangents;
@@ -107,11 +109,10 @@ namespace CityX.View
                 }
             }
 
-            var positions = new Vector3[vertexCount];
-            var normals = new Vector3[vertexCount];
-            var uvs = new Vector2[vertexCount];   // for the tangents
-            var colorsAndUvs = new ColorAndUv[vertexCount];
-            var indices = new int[indexCount];
+            Vector3[] positions = ChunkArrayPool<Vector3>.Rent(vertexCount);
+            Vector3[] normals = ChunkArrayPool<Vector3>.Rent(vertexCount);
+            ColorAndUv[] colorsAndUvs = ChunkArrayPool<ColorAndUv>.Rent(vertexCount);
+            int[] indices = ChunkArrayPool<int>.Rent(indexCount);
             var subMeshes = new SubMeshDescriptor[Mathf.Max(1, used)];
             var subMeshGroups = new int[used];
             subMeshes[0] = new SubMeshDescriptor(0, 0);   // a mesh with nothing at all still has one (empty) submesh
@@ -128,11 +129,11 @@ namespace CityX.View
                     int count = buffer.Vertices.Count;
                     buffer.Vertices.CopyTo(positions, vertex);
                     buffer.Normals.CopyTo(normals, vertex);
-                    buffer.Uvs.CopyTo(uvs, vertex);
                     List<Color32> colors = buffer.Colors;
+                    List<Vector2> uvs = buffer.Uvs;
                     for (int i = 0; i < count; i++)
                     {
-                        colorsAndUvs[vertex + i] = new ColorAndUv { Color = colors[i], Uv = uvs[vertex + i] };
+                        colorsAndUvs[vertex + i] = new ColorAndUv { Color = colors[i], Uv = uvs[i] };
                     }
                     // Each buffer's indices count from its own first vertex: shifted by the vertices that came before it.
                     List<int> triangles = buffer.Triangles;
@@ -176,16 +177,18 @@ namespace CityX.View
                 anyBounds = true;
             }
 
-            Vector4[] tangents = MeshTangents.Compute(positions, normals, uvs, new[] { indices });
+            Vector4[] tangents = ChunkArrayPool<Vector4>.Rent(vertexCount);
+            MeshTangents.Compute(positions, normals, colorsAndUvs, vertexCount, indices, indexCount, tangents);
             ushort[] indices16 = null;
             int[] indices32 = indices;
             if (vertexCount <= MaxVerticesFor16BitIndices)
             {
-                indices16 = new ushort[indexCount];
+                indices16 = ChunkArrayPool<ushort>.Rent(indexCount);
                 for (int i = 0; i < indexCount; i++)
                 {
                     indices16[i] = (ushort)indices[i];
                 }
+                ChunkArrayPool<int>.Return(indices);
                 indices32 = null;
             }
             return new ChunkMeshData(vertexCount, indexCount, positions, normals, tangents, colorsAndUvs, indices16, indices32,
@@ -204,6 +207,10 @@ namespace CityX.View
         /// </summary>
         public void ApplyTo(Mesh mesh)
         {
+            if (_released)
+            {
+                throw new System.InvalidOperationException("ChunkMeshData used after Release: its arrays may already hold another chunk");
+            }
             mesh.SetVertexBufferParams(VertexCount, Layout);
             if (VertexCount > 0)
             {
@@ -224,6 +231,27 @@ namespace CityX.View
             }
             mesh.SetSubMeshes(SubMeshes, 0, SubMeshes.Length, Trusted);
             mesh.bounds = Bounds;
+        }
+
+        private bool _released;
+
+        /// <summary>
+        /// Gives its arrays back to ChunkArrayPool for the next chunk (the Mesh made from it keeps its own copy). Nothing may read it after
+        /// this; a second call does nothing. Any thread.
+        /// </summary>
+        public void Release()
+        {
+            if (_released)
+            {
+                return;
+            }
+            _released = true;
+            ChunkArrayPool<Vector3>.Return(Positions);
+            ChunkArrayPool<Vector3>.Return(Normals);
+            ChunkArrayPool<Vector4>.Return(Tangents);
+            ChunkArrayPool<ColorAndUv>.Return(ColorsAndUvs);
+            ChunkArrayPool<ushort>.Return(Indices16);
+            ChunkArrayPool<int>.Return(Indices32);
         }
     }
 }

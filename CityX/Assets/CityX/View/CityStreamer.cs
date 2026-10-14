@@ -224,19 +224,12 @@ namespace CityX.View
             public int Generation;
             /// <summary>The distant version of the chunk (see CityMeshBuilder.BuildChunk's far parameter).</summary>
             public bool Far;
-            public readonly MeshBuffer Ground = new MeshBuffer();
-            public readonly MeshBuffer Pavement = new MeshBuffer();
-            public readonly MeshBuffer Structures = new MeshBuffer();
-            public readonly MeshBuffer LitGlass = new MeshBuffer();
-            public readonly MeshBuffer DarkGlass = new MeshBuffer();
             public readonly MeshBuffer CrackedGlass = new MeshBuffer();
             public readonly MeshBuffer CrackDecals = new MeshBuffer();
             public readonly List<CityMeshBuilder.CrackedOpening> CrackedOpenings = new List<CityMeshBuilder.CrackedOpening>();
             public readonly MeshBuffer Markings = new MeshBuffer();
             public readonly MeshBuffer LaneDividers = new MeshBuffer();
             public readonly MeshBuffer GuardRail = new MeshBuffer();
-            public readonly MeshBuffer Greenery = new MeshBuffer();
-            public readonly MeshBuffer Bark = new MeshBuffer();
 
             /// <summary>The powered rooms' lights (CityMeshBuilder.RoomGlow), built near only.</summary>
             public readonly List<CityMeshBuilder.RoomGlow> RoomGlows = new List<CityMeshBuilder.RoomGlow>();
@@ -246,24 +239,172 @@ namespace CityX.View
             /// thread) and its bounds, so that making it there is a few block copies (ChunkMeshData). Null when generating the chunk failed.
             /// </summary>
             public ChunkMeshData Main;
+
+            /// <summary>Given back (Recycle) and waiting to be used for another chunk: nothing may read it.</summary>
+            public bool Recycled;
+        }
+
+        // ---- storage used again, chunk after chunk (2026-10-14) ----------------------------------------------------------------------------
+        // Every chunk was generated into fresh buffers whose lists grew from nothing, then copied into fresh arrays, all of it thrown away once
+        // its mesh was made: ~60 MB a second while flying over the city, a garbage collection every tenth of a second in the built game, each
+        // stopping every thread (the main one too) for 2-12 ms -- the game stood still ~2 s of a 30 s flight (PlayerFrameBenchmark, FLYING).
+        // Now the buffers a main mesh is built in are used again (ChunkScratch), its arrays come from ChunkArrayPool and go back once the Mesh
+        // is made, and the payloads themselves are used again (Recycle). What a chunk is does not change: a payload, a scratch and an array
+        // are emptied or fully written before they are used, so a chunk is still a pure function of its coordinates (ChunkStorageReuseTests).
+
+        /// <summary>
+        /// The five buffers a chunk's main mesh is built in -- ground, pavement, walls, dark glass, lit glass -- in the groups ChunkMeshData
+        /// combines them into (a submesh, and its material, each). Only the worker generating a chunk uses them, until they are combined into
+        /// the payload's arrays; then the next chunk does, its lists already the size they grew to. One per chunk generated at once (a worker
+        /// each, and the main thread's synchronous path), handed out and back here.
+        /// </summary>
+        private sealed class ChunkScratch
+        {
+            public readonly MeshBuffer Ground = new MeshBuffer();
+            public readonly MeshBuffer Pavement = new MeshBuffer();
+            public readonly MeshBuffer Structures = new MeshBuffer();
+            public readonly MeshBuffer DarkGlass = new MeshBuffer();
+            public readonly MeshBuffer LitGlass = new MeshBuffer();
+
+            /// <summary>The submeshes in order, drawn with AssembleChunk's materialFor: the opaque surfaces (one material), dark glass, lit glass.</summary>
+            public readonly MeshBuffer[][] Groups;
+
+            private static readonly Stack<ChunkScratch> Free = new Stack<ChunkScratch>();
+
+            private ChunkScratch()
+            {
+                Groups = new[] { new[] { Ground, Pavement, Structures }, new[] { DarkGlass }, new[] { LitGlass } };
+            }
+
+            public static ChunkScratch Take()
+            {
+                lock (Free)
+                {
+                    if (Free.Count > 0)
+                    {
+                        return Free.Pop();
+                    }
+                }
+                return new ChunkScratch();
+            }
+
+            /// <summary>Emptied (MeshBuffer.Reset: exactly what a new buffer is, but with its room) and handed back for the next chunk.</summary>
+            public void GiveBack()
+            {
+                foreach (MeshBuffer[] group in Groups)
+                {
+                    foreach (MeshBuffer buffer in group)
+                    {
+                        buffer.Reset();
+                    }
+                }
+                lock (Free)
+                {
+                    Free.Push(this);
+                }
+            }
+
+            /// <summary>The room the waiting scratches' lists have grown to, bytes, and how many there are (for the benchmark).</summary>
+            public static (long bytes, int count) Held()
+            {
+                long bytes = 0;
+                lock (Free)
+                {
+                    foreach (ChunkScratch scratch in Free)
+                    {
+                        foreach (MeshBuffer[] group in scratch.Groups)
+                        {
+                            foreach (MeshBuffer buffer in group)
+                            {
+                                bytes += buffer.Vertices.Capacity * 12L + buffer.Normals.Capacity * 12L + buffer.Uvs.Capacity * 8L
+                                         + buffer.Colors.Capacity * 4L + buffer.Triangles.Capacity * 4L;
+                            }
+                        }
+                    }
+                    return (bytes, Free.Count);
+                }
+            }
+        }
+
+        /// <summary>What the buffers chunks are built in (ChunkScratch) hold between chunks, bytes, and how many sets of them there are. For the benchmark.</summary>
+        public static (long bytes, int sets) ScratchHeld => ChunkScratch.Held();
+
+        /// <summary>Payloads given back (Recycle), for the next chunks. Workers take from it, the main thread gives back.</summary>
+        private readonly Stack<ChunkPayload> _freePayloads = new Stack<ChunkPayload>();
+
+        /// <summary>How many payloads to keep for reuse: more than ever wait at once (the chunks in flight).</summary>
+        private const int MaxFreePayloads = 64;
+
+        private int _payloadsOut;
+
+        /// <summary>Payloads handed out and not given back yet: the chunks being generated or waiting to be made. 0 once streaming is settled, or one leaked. For tests.</summary>
+        public int PayloadsOut => Volatile.Read(ref _payloadsOut);
+
+        /// <summary>A payload for one chunk, empty (any thread).</summary>
+        private ChunkPayload TakePayload(Vector2Int key, bool far)
+        {
+            ChunkPayload payload = null;
+            lock (_freePayloads)
+            {
+                if (_freePayloads.Count > 0)
+                {
+                    payload = _freePayloads.Pop();
+                }
+            }
+            payload ??= new ChunkPayload();
+            payload.Recycled = false;
+            payload.Key = key;
+            payload.Far = far;
+            payload.Generation = _generation;
+            Interlocked.Increment(ref _payloadsOut);
+            return payload;
+        }
+
+        /// <summary>
+        /// Gives a payload back once nothing needs it any more (any thread; nothing may read it after this): its main mesh's arrays to
+        /// ChunkArrayPool, its buffers emptied, itself to the next chunk. Whatever was made from it keeps its own copy: a Mesh copies what it
+        /// is given, and the powered rooms (ChunkRoomLights) keep the rooms, not the list they came in.
+        /// </summary>
+        private void Recycle(ChunkPayload payload)
+        {
+            if (payload == null)
+            {
+                return;
+            }
+            if (payload.Recycled)
+            {
+                Debug.LogError($"CityStreamer: chunk {payload.Key}'s payload was given back twice; its arrays could have ended up in two chunks");
+                return;
+            }
+            payload.Recycled = true;
+            Interlocked.Decrement(ref _payloadsOut);
+            payload.Main?.Release();
+            payload.Main = null;
+            payload.CrackedGlass.Reset();
+            payload.CrackDecals.Reset();
+            payload.CrackedOpenings.Clear();
+            payload.Markings.Reset();
+            payload.LaneDividers.Reset();
+            payload.GuardRail.Reset();
+            payload.RoomGlows.Clear();
+            lock (_freePayloads)
+            {
+                if (_freePayloads.Count < MaxFreePayloads)
+                {
+                    _freePayloads.Push(payload);
+                }
+            }
         }
 
         // The chunk being turned into scene objects right now (main thread only). The Add* methods below read
         // their buffers through these, so they did not have to change when the buffers moved into a payload.
         private ChunkPayload _current;
-        private MeshBuffer _ground => _current.Ground;
-        private MeshBuffer _pavement => _current.Pavement;
-        private MeshBuffer _structures => _current.Structures;
-        private MeshBuffer _litGlass => _current.LitGlass;
-        private MeshBuffer _darkGlass => _current.DarkGlass;
         private MeshBuffer _crackedGlass => _current.CrackedGlass;
         private MeshBuffer _crackDecals => _current.CrackDecals;
         private List<CityMeshBuilder.CrackedOpening> _crackedOpenings => _current.CrackedOpenings;
         private MeshBuffer _markings => _current.Markings;
         private MeshBuffer _laneDividers => _current.LaneDividers;
         private MeshBuffer _guardRail => _current.GuardRail;
-        private MeshBuffer _greenery => _current.Greenery;
-        private MeshBuffer _bark => _current.Bark;
 
         // Background generation state (main thread, except the queue and the semaphore).
         private readonly ConcurrentQueue<ChunkPayload> _finished = new ConcurrentQueue<ChunkPayload>();
@@ -340,8 +481,9 @@ namespace CityX.View
             _refreshing.Clear();
             _pendingRefresh.Clear();
             _paneSeen.Clear();
-            while (_finished.TryDequeue(out _))
+            while (_finished.TryDequeue(out ChunkPayload stale))
             {
+                Recycle(stale);
             }
             _wantedStale = true;
 
@@ -444,7 +586,9 @@ namespace CityX.View
             }
             if (loadedNow != null && glassOnly && !_inFlight.Contains(chunk))
             {
-                ReplaceGlass(loadedNow, GenerateChunk(chunk, false, _far.Contains(chunk)));
+                ChunkPayload glass = GenerateChunk(chunk, false, _far.Contains(chunk));
+                ReplaceGlass(loadedNow, glass);
+                Recycle(glass);
                 return;
             }
 
@@ -472,6 +616,11 @@ namespace CityX.View
 
         /// <summary>How many chunks the background streaming has put on screen so far (new ones and detail swaps). For the frame benches.</summary>
         public int ChunksStreamedIn { get; private set; }
+
+        private int _chunksGenerated;
+
+        /// <summary>How many chunks have been generated, on any thread (for the frame benches): more than went on screen is work thrown away.</summary>
+        public int ChunksGenerated => Volatile.Read(ref _chunksGenerated);
 
         /// <summary>
         /// Of this frame's streaming, the milliseconds spent switching on chunks whose collider was cooked on a worker (CompleteSwaps): what
@@ -639,7 +788,9 @@ namespace CityX.View
                 {
                     // A chunk that fails to generate must not silently leave a hole in the city forever.
                     Debug.LogException(exception);
-                    _finished.Enqueue(new ChunkPayload { Key = key, Generation = generation, Far = far, Main = null });
+                    ChunkPayload failed = TakePayload(key, far);   // no main mesh: generated again on the main thread when it lands
+                    failed.Generation = generation;
+                    _finished.Enqueue(failed);
                 }
                 finally
                 {
@@ -667,7 +818,8 @@ namespace CityX.View
             {
                 if (payload.Generation != _generation)
                 {
-                    continue;   // from a world that has since been rebuilt
+                    Recycle(payload);   // from a world that has since been rebuilt
+                    continue;
                 }
                 _inFlight.Remove(payload.Key);
                 _wantedStale = true;
@@ -686,6 +838,7 @@ namespace CityX.View
                         {
                             RefreshAgain(payload.Key, TakePendingRefresh(payload.Key));
                         }
+                        Recycle(payload);   // last: once given back, a worker may take it for another chunk
                     }
                     else
                     {
@@ -705,6 +858,7 @@ namespace CityX.View
                 if (outOfRange || alreadyThere)
                 {
                     _changedInFlight.Remove(payload.Key);
+                    Recycle(payload);
                     continue;
                 }
 
@@ -716,7 +870,9 @@ namespace CityX.View
                 _pendingRefresh.Remove(payload.Key);
                 if (payload.Main == null)
                 {
-                    payload = GenerateChunk(payload.Key, GrassMaterial != null && BarkMaterial != null && !payload.Far, payload.Far);   // the worker failed
+                    ChunkPayload failed = payload;   // the worker failed
+                    payload = GenerateChunk(failed.Key, GrassMaterial != null && BarkMaterial != null && !failed.Far, failed.Far);
+                    Recycle(failed);
                 }
 
                 // Made here but switched off, its collider cooked on a worker, and put on screen when that is done (CompleteSwaps), in place
@@ -827,7 +983,9 @@ namespace CityX.View
         /// <summary>The whole chunk, generated and made, on this thread (the spawn pre-stream, a window breaking, tests, captures).</summary>
         private GameObject BuildChunkObject(Vector2Int key, bool far = false)
         {
-            GameObject go = AssembleChunk(GenerateChunk(key, GrassMaterial != null && BarkMaterial != null && !far, far));
+            ChunkPayload payload = GenerateChunk(key, GrassMaterial != null && BarkMaterial != null && !far, far);
+            GameObject go = AssembleChunk(payload);
+            Recycle(payload);
             if (far)
             {
                 _far.Add(key);
@@ -845,35 +1003,43 @@ namespace CityX.View
         /// </summary>
         private ChunkPayload GenerateChunk(Vector2Int key, bool withGreenery, bool far = false)
         {
-            var payload = new ChunkPayload { Key = key, Generation = _generation, Far = far };
-
-            // Chunks are built relative to their own corner and then placed, so
-            // vertex coordinates stay small. Building in absolute world space
-            // would lose float precision a long way from the origin -- which is
-            // exactly where an infinite world spends most of its time.
-            Vector3 origin = new Vector3(
-                key.x * CityLayout.ChunkSize, 0.0f, key.y * CityLayout.ChunkSize);
-
-            // The far version has no cracked glass, no decals and no markings; its guard-rail buffer is still handed
-            // in (elevated decks are only built when there is one) and simply never turned into an object.
-            CityMeshBuilder.BuildChunk(_world, key.x, key.y, origin,
-                payload.Ground, payload.Pavement, payload.Structures, payload.LitGlass, payload.DarkGlass,
-                far ? null : payload.CrackedGlass, Damage,
-                far ? null : payload.CrackedOpenings, far ? null : payload.Markings, payload.GuardRail,
-                far ? null : payload.LaneDividers, far ? null : payload.CrackDecals,
-                includeSurface: true, far: far, roomGlows: far ? null : payload.RoomGlows);
-
-            // Road, pavement, concrete and glass go into one mesh as submeshes rather than separate objects: same vertex buffer, same
-            // transform, one cull. The ground, the pavement and the walls are one material now (the facade shader reads what each surface is
-            // off its vertices), so they are ONE submesh: a draw call each used to be spent on up to three of them in every chunk. Laid out
-            // here, the way the Mesh keeps it, tangents and bounds included: the main thread only copies it in (AssembleChunk).
-            payload.Main = ChunkMeshData.Combine(new[]
+            ChunkPayload payload = TakePayload(key, far);
+            ChunkScratch scratch = ChunkScratch.Take();
+            try
             {
-                new[] { payload.Ground, payload.Pavement, payload.Structures },   // drawn with AssembleChunk's materialFor, in this order
-                new[] { payload.DarkGlass },
-                new[] { payload.LitGlass },
-            });
-            return payload;
+                // Chunks are built relative to their own corner and then placed, so
+                // vertex coordinates stay small. Building in absolute world space
+                // would lose float precision a long way from the origin -- which is
+                // exactly where an infinite world spends most of its time.
+                Vector3 origin = new Vector3(
+                    key.x * CityLayout.ChunkSize, 0.0f, key.y * CityLayout.ChunkSize);
+
+                // The far version has no cracked glass, no decals and no markings; its guard-rail buffer is still handed
+                // in (elevated decks are only built when there is one) and simply never turned into an object.
+                CityMeshBuilder.BuildChunk(_world, key.x, key.y, origin,
+                    scratch.Ground, scratch.Pavement, scratch.Structures, scratch.LitGlass, scratch.DarkGlass,
+                    far ? null : payload.CrackedGlass, Damage,
+                    far ? null : payload.CrackedOpenings, far ? null : payload.Markings, payload.GuardRail,
+                    far ? null : payload.LaneDividers, far ? null : payload.CrackDecals,
+                    includeSurface: true, far: far, roomGlows: far ? null : payload.RoomGlows);
+
+                // Road, pavement, concrete and glass go into one mesh as submeshes rather than separate objects: same vertex buffer, same
+                // transform, one cull. The ground, the pavement and the walls are one material now (the facade shader reads what each surface is
+                // off its vertices), so they are ONE submesh: a draw call each used to be spent on up to three of them in every chunk. Laid out
+                // here, the way the Mesh keeps it, tangents and bounds included: the main thread only copies it in (AssembleChunk).
+                payload.Main = ChunkMeshData.Combine(scratch.Groups);
+                Interlocked.Increment(ref _chunksGenerated);
+                return payload;
+            }
+            catch
+            {
+                Recycle(payload);
+                throw;
+            }
+            finally
+            {
+                scratch.GiveBack();   // combined into the payload's own arrays: the next chunk can have it
+            }
         }
 
         /// <summary>
@@ -1459,6 +1625,7 @@ namespace CityX.View
             });
             Cook(cook);
             _inFlight.Add(payload.Key);   // still on its way: nothing else is started for it, and more hits on it wait for this one
+            Recycle(payload);   // made (the Mesh has its own copy): the payload goes to the next chunk
         }
 
         /// <summary>
@@ -1628,6 +1795,10 @@ namespace CityX.View
                 DestroyChunk(pair.Value);
             }
             _loaded.Clear();
+            while (_finished.TryDequeue(out ChunkPayload left))
+            {
+                Recycle(left);   // its arrays back to ChunkArrayPool, for whatever streams next
+            }
 
             // Stops publishing once this streamer is gone -- otherwise a
             // scene-load test that unloads CityMassing.unity leaves

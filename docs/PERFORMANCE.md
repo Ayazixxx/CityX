@@ -49,8 +49,14 @@ CityX/Builds/Bench/CityX.exe -cityxbench -screen-width 2560 -screen-height 1600 
 
 Flags: `-force-d3d11`, `-bench-msaa N`, `-bench-shadow M`, `-bench-shadowres P`, `-bench-cascades N`,
 `-bench-scale S`, `-bench-radius CHUNKS`, `-bench-fullradius CHUNKS` (0 = no far version), `-bench-threads N`,
-`-bench-standing S`, `-bench-running S`. Results go to `bench-result.txt`; the census (renderers, draws,
-triangles, in-frustum) is in it.
+`-bench-standing S`, `-bench-running S`, `-bench-flying S`, `-bench-flyspeed M/S` (default 22, a boosted jetpack),
+`-bench-exact S` (0 = off), `-bench-gcslice MS`. Results go to `bench-result.txt`; the census (renderers, draws,
+triangles, in-frustum) is in it. Three phases: standing, sprinting, and flying 40 m over the ground (the body carried along a
+straight line). Each reports its garbage collections, the managed heap, how much was allocated, the chunk mesh arrays made new and
+held (`ChunkArrayPool`), and how long the game stood still: a watchdog thread does nothing but read the clock, and a collection
+suspends every thread, so a gap in its readings is a stop (matched against the frames a collection finished in). After each phase
+the same motion goes on for `-bench-exact` seconds with the collector switched off, which gives what was allocated exactly. The
+city scene runs alone in this build, with no network manager: the animator sync and the room-light switches' relay are switched off.
 
 ## Still on the table
 
@@ -127,6 +133,7 @@ Still on the main thread (measured, not done):
   4.4 ms, code running for the first time (12 ms for the lamp once). The next powered block costs under 1 ms in all, and every other
   chunk's small parts under 0.3 ms. A one-time cost; not looked into.
 - **Garbage collection**: a big chunk's buffers are tens of MB of garbage; collections of 30-270 ms were seen in the editor bench runs.
+  Measured in the player and done the same day: 343-348 collections in a 30 s flight -> 56 (below).
 
 ## Update: a streamed chunk's mesh is copied in, not built, on the main thread (2026-10-14)
 
@@ -153,6 +160,57 @@ time (the next powered block, 30 rooms, costs under 1 ms in all), its mesh 0.5 m
 graphics card when it is first drawn, which only the real player does (the bench runs without graphics). The look is unchanged: the
 fourteen views of `CityFeaturesCapture` and the eight of `LightingCapture` (morning to night) render the same as before, pixel for pixel
 but for a few on the player standing in two of them.
+
+## Update: streaming no longer throws its buffers away, garbage collections 6x rarer (2026-10-14)
+
+The last item of the list above. Measured first in the real built player, not the editor (whose heap is many times the game's, so its
+30-270 ms collections said nothing about the game), with the benchmark's new flying phase (Measuring, above): 30 s at a boosted jetpack's
+22 m/s, 40 m over the ground, ~3,200 chunks put on screen.
+
+Before (two runs; another session's Unity editor was running alongside, so the frame times are noisy, the collections are not):
+incremental collection is on (3 ms slices) and the managed heap is small -- 50-160 MB used, ~300 MB reserved -- so there were no long
+pauses; but the collector never stopped. **343-348 collections in the 30 s flight**, one every 0.09 s, ~**60 MB of garbage a second**;
+each stopped every thread -- the main one, the generator workers, the collider cooks -- for 2-3 ms, mostly twice, up to 5-12 ms. The game
+stood still **1.7-2.0 s of the 30** (6%). Sprinting: 44-45 collections, 8-10 MB/s. Why so often with so small a heap: the collector
+(Boehm, under Mono) starts a cycle every time a few percent of its heap has been allocated -- about every 5 MB here -- and chunk
+streaming threw away ~170 bytes a vertex: every chunk was generated into fresh buffers whose lists grew from empty (each growth throws the
+last list away), then copied into fresh arrays, tangents worked out in more: tens of MB for a block of towers (250-380k vertices).
+
+Now that storage is used again, chunk after chunk:
+- **The five buffers a chunk's main mesh is built in** (`CityStreamer.ChunkScratch`: ground, pavement, walls, dark and lit glass): one set
+  per chunk generated at once (a worker each), emptied (`MeshBuffer.Reset`: exactly what a new buffer is, but with the room its lists grew
+  to) and handed to the next chunk.
+- **The main mesh's arrays** (`ChunkMeshData`) come from `ChunkArrayPool` and go back (`Release`) once the main thread has copied them into
+  the Mesh. Lengths come in half-octave steps (at most 41% longer than needed; the counts say how much is used). At most 192 MB is held:
+  when more is given back, the sizes rented least lately go first (`ChunkArrayPool.Hold`), so what the chunks streaming now need stays.
+  The tangents (`MeshTangents`) sum each corner's U direction in the tangent array itself and read the UVs from the colour-and-UV stream:
+  one working array left of three.
+- **The payload** that carries a chunk to the main thread, with its small buffers (markings, guard rail, cracked glass), is given back
+  (`Recycle`) on every path -- made, thrown away (out of range, a rebuilt world, already there), a window refresh, a failure -- and
+  `PayloadsOut` counts what is out.
+A chunk is still a pure function of its coordinates: everything is emptied or overwritten before it is used. `ChunkStorageReuseTests`
+builds a block of towers, a street and others in storage that has held dozens of chunks and compares them bit for bit with fresh
+storage, and checks that streaming the block in again leaves little garbage; `ChunkStorageReusePlayTests` streams, shoots a window
+(whole and glass-only rebuilds, some while one is on its way), moves on and rebuilds the world, then checks every payload came back (it
+fails if one path forgets); the flight test checks it too; `ChunkArrayPoolTests` the pool (limit, least-lately-used first, threads).
+
+After (same player benchmark, quiet runs, which also have the same day's mesh and room-light changes): **56 collections in the 30 s
+flight** (one every 0.5 s), the game standing still **0.33 s in all**, longest stop 5.9 ms; worst frame **18.5 ms**, 99th percentile
+13.9 ms, no frame over 33 ms (18-37 before). Sprinting: 9 collections in 30 s, 5 MB/s. Only 12 MB of new mesh arrays were made in the
+flight. A block of towers (311k vertices) streamed in again leaves **0.03 MB** of garbage (its mesh's arrays alone are 17 MB, and its
+buffers grew through tens of MB more, every time, before); a chunk on average ~0.24 MB in the editor (`ChunkGarbageBench`), of which
+generating it is ~57 KB and making its objects on the main thread 0.2 KB.
+
+The price is memory: the managed heap holds ~190 MB of pooled arrays and ~120 MB of build buffers (six sets, each grown to the biggest
+chunk its worker made), ~360-400 MB used and 460 MB reserved against ~300 MB reserved before. A tighter pool costs collections:
+without a tight limit it held 350 MB and gave 44-48 collections; with fewer arrays held the heap is smaller and the collector, which
+starts a cycle every few percent of the heap, runs a little more often.
+
+Still allocating (measured, not done): with the collector switched off for 3 s of flight, **~36 MB/s, ~0.38 MB a chunk**. Not the mesh
+storage (12 MB of new arrays in the whole flight), and little of it a chunk's own generation where the city round it has been worked
+out already (57 KB). Ground seen for the first time costs more: in the editor a chunk's first build leaves ~0.16 MB more than its second
+(the city plan worked out for it, `World/Plan`: garbage and caches). The rest is not broken down yet; the next place to look, with a
+profile of where the flight allocates. Standing still with the city loaded allocates nothing (1 MB in 3 s).
 
 ## Update: render distance (2026-10-09)
 
