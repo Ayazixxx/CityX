@@ -175,6 +175,12 @@ namespace CityX.Weapons
         /// irrelevant here, a LineRenderer needs no texture at all to
         /// render as a solid streak).
         /// </summary>
+        /// <summary>Makes the shared material now (a gun being drawn), so the first shot does not pay for it.</summary>
+        public static void Warm()
+        {
+            EnsureMaterial();
+        }
+
         private static Material EnsureMaterial()
         {
             if (_material != null)

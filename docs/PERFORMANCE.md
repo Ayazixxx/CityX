@@ -67,6 +67,30 @@ pane swaps only the chunk's `CrackedGlass` and `CrackDecals` children (`ReplaceG
 background while the old chunk stays on screen, a burst of hits on one chunk coalescing into one rebuild (`_refreshing`). Test:
 `WindowHitRefreshPlayTests`.
 
+## Update: spraying an AK-47 at windows (2026-10-14)
+
+Reported: "serious frame drops when rapid firing the ak at windows". Measured (`WindowSprayFramePlayTests`: the real AK, real windows, background
+streaming, 29 shots across a row of panes): a bullet itself costs ~0.3 ms, but every few frames a whole rebuilt chunk was swapped in on the main
+thread for **15-20 ms** (95th-percentile frame 17.5 ms): ~5 ms `Mesh.RecalculateTangents`, ~9-10 ms cooking the chunk's MeshCollider. Three causes:
+
+- **A bookkeeping bug**: a hit landing while a refresh was on its way was folded into THAT refresh's kind and the follow-up reused it, so once a
+  pane cracked (a whole-chunk refresh), every further hole -- glass only -- became a whole-chunk refresh too, for as long as the shooting went
+  on. Now the changes that arrive during a refresh decide the next one's kind on their own (`_pendingRefresh`). Test:
+  `MoreHolesInACrackedWindowReplaceOnlyItsGlassNotTheWholeBlock` (fails with the old logic: the block swapped twice for one crack).
+- **Tangents** are worked out on the worker with the rest of the chunk (`MeshTangents`, the classic per-triangle method; within 1 degree of
+  Unity's own on flat faces, same handedness: `MeshTangentsTests`). This takes ~5 ms off EVERY chunk that streams in, not only rebuilt ones.
+- **A window hit while its chunk was still streaming in** (a block being upgraded from its distant version) made the chunk be generated
+  AGAIN on the main thread when it landed (20-30 ms; seen when the spray started before the city had settled). Now that version goes in
+  as it is and the change follows as a background refresh.
+- **The collider of a rebuilt chunk is cooked on a worker** (`Physics.BakeMesh` in a job, `BeginSwap`/`CompleteSwaps`): the new chunk waits
+  switched off, the old one stays drawn and solid, and the swap happens when the cooking is done (a frame or two later), costing ~1 ms.
+
+Also preloaded at start: the glass sounds and the shard burst's twelve convex colliders (the first window to shatter cost ~10 ms once), and the
+gun's tracer material and effects when it is drawn. After: 95th-percentile frame **2.4 ms**, worst **~4-5 ms** across the spray.
+
+Still on the main thread: a chunk that STREAMS IN still cooks its collider there (~10 ms; the tangents half is gone). The same deferred swap
+would take that off too; not done yet, as streaming has its own tests and timing.
+
 ## Update: render distance (2026-10-09)
 
 The streamer reached 24 chunks (576 m) but the clear-weather fog ended at 380 m, hiding a third of it. Now `CityMassingSceneBuilder.ViewRadiusChunks`

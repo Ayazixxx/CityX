@@ -183,3 +183,17 @@ crosshair, pointing at it; a test checks it is on screen and that the line from 
 - [Over the Shoulder -- Giant Bomb](https://giantbomb.com/wiki/Concepts/Over_the_Shoulder), [Shoulder Swapping Aim -- Giant Bomb](https://giantbomb.com/wiki/Concepts/Shoulder_Swapping_Aim)
 - [Division 2: aim down sights -- Twinfinite](https://twinfinite.net/guides/division-2-aim-down-sights-how/)
 - [Weapon Animation Systems -- MoCap Online](https://mocaponline.com/blogs/mocap-news/weapon-animation-systems-guide) (support-hand IK, released in a reload)
+
+## Update 2026-10-14 (later): the AK's rate, its tracers, windows
+
+- **"make the ak47 fire rate the same as counter strike, right now it feels a bit too rapid."** Counter-Strike 2's AK-47 fires 600 rounds a
+  minute, one every 0.1 s (csdb.gg, Profilerr); ours was already exactly that (`FirearmProfile.AK47`, 10 a second), and because a shot waits for
+  a whole frame it comes out a touch SLOWER at 60 fps (about 8.6-10 a second). What made it look faster was drawing a tracer on every round, a
+  continuous streak. Counter-Strike draws them on only some rounds for most rifles (the M4A4 every third, and since a patch always on the
+  first): the AK now does the same (`FirearmProfile.TracerEvery` 3, `PistolWeapon.ShowsTracer`), on other players' copies too. The Glock keeps
+  one on every shot.
+- **"serious frame drops when rapid firing the ak at windows"**: fixed in the city streamer, see [PERFORMANCE.md](PERFORMANCE.md) (a refresh
+  bookkeeping bug, tangents and colliders moved off the main thread; worst frame of a 3 s spray 18-46 ms before, ~4-5 ms after).
+- Sources: [AK-47 vs SG 553 -- csdb.gg](https://csdb.gg/compare/ak-47-vs-sg-553/) and [How to use the AK in CS2 -- Profilerr](https://profilerr.net/how-to-use-the-ak-in-cs2-correctly-and-effectively/)
+  (600 RPM); [CS:GO weapons -- biligame wiki](https://wiki.biligame.com/csgo/Weapon) (tracer frequency differs by weapon: every shot on the
+  M249, every third on the M4A4); [CS:GO patch notes -- SteamDB](https://steamdb.info/patchnotes/2565539) (a tracer on the first bullet).

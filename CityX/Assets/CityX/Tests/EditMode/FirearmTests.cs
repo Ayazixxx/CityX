@@ -58,6 +58,32 @@ namespace CityX.Tests
         }
 
         [Test]
+        public void TheAKDrawsATracerOnEveryThirdRoundLikeCounterStrikesRiflesAndThePistolOnEvery()
+        {
+            var akObject = new GameObject("AK");
+            akObject.AddComponent<SphereCollider>();
+            var glockObject = new GameObject("Glock");
+            glockObject.AddComponent<SphereCollider>();
+            try
+            {
+                var ak = akObject.AddComponent<PistolWeapon>();
+                ak.Profile = FirearmProfile.AK47();
+                var glock = glockObject.AddComponent<PistolWeapon>();
+                for (int shot = 0; shot < 9; shot++)
+                {
+                    Assert.AreEqual(shot % 3 == 0, ak.ShowsTracer(shot), $"AK round {shot + 1}");
+                    Assert.IsTrue(glock.ShowsTracer(shot), $"Glock round {shot + 1}");
+                }
+                Assert.AreEqual(600.0f, FirearmProfile.AK47().FireRatePerSecond * 60.0f, 0.01f, "Counter-Strike 2's AK-47: 600 rounds a minute");
+            }
+            finally
+            {
+                Object.DestroyImmediate(akObject);
+                Object.DestroyImmediate(glockObject);
+            }
+        }
+
+        [Test]
         public void ThePistolGripHoldPutsTheBarrelDownTheFingersAndTheTopAtTheThumb()
         {
             Quaternion hold = FirearmProfile.Glock().HoldRotation;

@@ -30,7 +30,7 @@ namespace CityX.Tests
                 }
             }
             _spawned.Clear();
-            Time.captureFramerate = 0;
+            Time.captureFramerate = SteadyFrameTime.FramesPerSecond;   // back to the steady frames every test runs on (0 left later tests on real batch frames)
         }
 
 #if UNITY_EDITOR

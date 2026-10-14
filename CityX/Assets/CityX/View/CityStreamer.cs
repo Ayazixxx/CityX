@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
+using Unity.Jobs;
 using CityX.Character;
 using CityX.World;
 using UnityEngine;
@@ -246,6 +247,9 @@ namespace CityX.View
             public Vector2[] Uvs;
             public Color32[] Colors;
             public int[][] SubmeshTriangles;
+
+            /// <summary>The main mesh's tangents, worked out on the worker too (MeshTangents): Mesh.RecalculateTangents cost ~5 ms on the main thread.</summary>
+            public Vector4[] Tangents;
         }
 
         // The chunk being turned into scene objects right now (main thread only). The Add* methods below read
@@ -334,9 +338,11 @@ namespace CityX.View
             // Anything a worker is still generating belongs to the old world: bumping the generation makes
             // its result be thrown away when it lands.
             _generation++;
+            CompleteSwaps(wait: true, abandon: true);   // before anything is destroyed: a worker may still be cooking a rebuilt chunk's collider
             _inFlight.Clear();
             _changedInFlight.Clear();
             _refreshing.Clear();
+            _pendingRefresh.Clear();
             _paneSeen.Clear();
             while (_finished.TryDequeue(out _))
             {
@@ -392,6 +398,7 @@ namespace CityX.View
         private void OnDisable()
         {
             Damage.Changed -= OnPaneChanged;
+            CompleteSwaps(wait: true, abandon: true);
         }
 
         /// <summary>
@@ -421,12 +428,20 @@ namespace CityX.View
             if (_loaded.TryGetValue(chunk, out GameObject loadedNow) && WorkerThreads > 0)
             {
                 // In the background: the chunk on screen stays until its replacement is ready, and a burst of hits on one chunk is one rebuild.
-                _refreshing[chunk] = _refreshing.TryGetValue(chunk, out bool wasGlassOnly) ? wasGlassOnly && glassOnly : glassOnly;
                 if (_inFlight.Contains(chunk))
                 {
+                    // Something is already on its way for this chunk; this change goes in the NEXT one, and only that one's kind (glass or
+                    // whole) is decided by it. Folding it into the one in flight (as until 2026-10-14) turned every extra hole into a whole
+                    // rebuild for as long as an AK kept hitting the block: "frame drops when rapid firing the ak at windows".
+                    if (!_refreshing.ContainsKey(chunk) && !IsSwapPending(chunk))
+                    {
+                        _refreshing[chunk] = false;   // in flight for streaming: its result is swapped in whole, then this change follows
+                    }
+                    _pendingRefresh[chunk] = _pendingRefresh.TryGetValue(chunk, out bool wasGlassOnly) ? wasGlassOnly && glassOnly : glassOnly;
                     _changedInFlight.Add(chunk);
                     return;
                 }
+                _refreshing[chunk] = glassOnly;
                 _inFlight.Add(chunk);
                 QueueGeneration(chunk, _far.Contains(chunk));
                 return;
@@ -456,13 +471,20 @@ namespace CityX.View
             _loaded[chunk] = BuildChunkObject(chunk, _far.Contains(chunk));
         }
 
+        /// <summary>How long this frame's streaming took on the main thread, milliseconds (putting chunks on screen, swapping rebuilt ones in).</summary>
+        public double LastUpdateMs { get; private set; }
+
+        private readonly System.Diagnostics.Stopwatch _updateClock = new System.Diagnostics.Stopwatch();
+
         private void Update()
         {
             Transform viewer = Viewer != null ? Viewer : (Camera.main != null ? Camera.main.transform : null);
             if (viewer == null)
             {
+                LastUpdateMs = 0.0;
                 return;
             }
+            _updateClock.Restart();
             if (WorkerThreads > 0)
             {
                 StreamAroundInBackground(viewer.position);
@@ -471,6 +493,7 @@ namespace CityX.View
             {
                 StreamAround(viewer.position, Mathf.Max(1, ChunkBuildBudgetPerFrame), ChunkBuildTimeBudgetMs);
             }
+            LastUpdateMs = _updateClock.Elapsed.TotalMilliseconds;
         }
 
         /// <summary>
@@ -619,6 +642,7 @@ namespace CityX.View
         /// </summary>
         private void AssembleFinished(Vector2Int centre)
         {
+            CompleteSwaps(wait: false, abandon: false);   // rebuilt chunks whose collider a worker has finished cooking go on screen
             if (_finished.IsEmpty)
             {
                 return;
@@ -645,15 +669,16 @@ namespace CityX.View
                     if (glassOnly)
                     {
                         ReplaceGlass(onScreen, payload);
+                        if (_changedInFlight.Remove(payload.Key))
+                        {
+                            RefreshAgain(payload.Key, TakePendingRefresh(payload.Key));
+                        }
                     }
                     else
                     {
-                        DestroyChunk(onScreen);
-                        _loaded[payload.Key] = AssembleChunk(payload);
-                    }
-                    if (_changedInFlight.Remove(payload.Key))
-                    {
-                        RefreshAgain(payload.Key, glassOnly);
+                        // The whole chunk: built here, its collider cooked on a worker, swapped in when that is done (CompleteSwaps), which
+                        // then starts the next refresh if more hits came meanwhile.
+                        BeginSwap(payload, onScreen);
                     }
                     if (clock.Elapsed.TotalMilliseconds >= AssembleTimeBudgetMs)
                     {
@@ -671,10 +696,14 @@ namespace CityX.View
                 }
 
                 // A pane broke while this was being generated, or generation failed: do it again, here.
-                bool redo = payload.Vertices == null || _changedInFlight.Remove(payload.Key);
-                if (redo)
+                // A window in it changed while this was being generated (a block being upgraded from its distant version when it was shot):
+                // put this version in now and have the change follow in the background. It used to be generated again here, on the main
+                // thread -- a 20-30 ms stall (seen 2026-10-14 when an AK sprayed a block still streaming in).
+                bool changedMeanwhile = payload.Vertices != null && _changedInFlight.Remove(payload.Key);
+                _pendingRefresh.Remove(payload.Key);
+                if (payload.Vertices == null)
                 {
-                    payload = GenerateChunk(payload.Key, GrassMaterial != null && BarkMaterial != null && !payload.Far, payload.Far);
+                    payload = GenerateChunk(payload.Key, GrassMaterial != null && BarkMaterial != null && !payload.Far, payload.Far);   // the worker failed
                 }
 
                 // The same chunk at another detail replaces the one on screen.
@@ -690,6 +719,10 @@ namespace CityX.View
                 else
                 {
                     _far.Remove(payload.Key);
+                }
+                if (changedMeanwhile)
+                {
+                    RefreshAgain(payload.Key, false);
                 }
 
                 if (clock.Elapsed.TotalMilliseconds >= AssembleTimeBudgetMs)
@@ -873,11 +906,15 @@ namespace CityX.View
             payload.SubmeshTriangles[0] = everything;
             payload.SubmeshTriangles[1] = new int[0];
             payload.SubmeshTriangles[2] = new int[0];
+            payload.Tangents = MeshTangents.Compute(payload.Vertices, payload.Normals, payload.Uvs, payload.SubmeshTriangles);
             return payload;
         }
 
-        /// <summary>Turns a generated chunk into scene objects. Main thread only.</summary>
-        private GameObject AssembleChunk(ChunkPayload payload)
+        /// <summary>
+        /// Turns a generated chunk into scene objects. Main thread only. With <paramref name="deferCollider"/> the chunk is made INACTIVE and
+        /// its big collider is left without its mesh: the caller cooks it on a worker (BeginSwap) and switches the chunk on when that is done.
+        /// </summary>
+        private GameObject AssembleChunk(ChunkPayload payload, bool deferCollider = false)
         {
             _current = payload;
             Vector2Int key = payload.Key;
@@ -885,6 +922,10 @@ namespace CityX.View
                 key.x * CityLayout.ChunkSize, 0.0f, key.y * CityLayout.ChunkSize);
 
             GameObject go = new GameObject($"Chunk {key.x},{key.y}");
+            if (deferCollider)
+            {
+                go.SetActive(false);   // nothing in it shows, collides or wakes up until its collider is cooked
+            }
             go.transform.SetParent(transform, false);
             go.transform.localPosition = origin;
 
@@ -921,7 +962,15 @@ namespace CityX.View
                 usedMaterials[slot] = materialFor[i];
                 slot++;
             }
-            mesh.RecalculateTangents();
+            // The tangents come worked out by the worker (MeshTangents); recalculating them here cost ~5 ms a chunk on the main thread.
+            if (payload.Tangents != null && payload.Tangents.Length == payload.Vertices.Length)
+            {
+                mesh.SetTangents(payload.Tangents);
+            }
+            else
+            {
+                mesh.RecalculateTangents();
+            }
             mesh.RecalculateBounds();
 
             MeshFilter filter = go.AddComponent<MeshFilter>();
@@ -932,9 +981,12 @@ namespace CityX.View
 
             // The glass is in the collider along with everything else, which is
             // what makes an unbroken window something you walk into rather than
-            // through.
+            // through. Cooking it is the other ~10 ms of a chunk on the main thread; a rebuilt chunk has it cooked on a worker (BeginSwap).
             MeshCollider collider = go.AddComponent<MeshCollider>();
-            collider.sharedMesh = mesh;
+            if (!deferCollider)
+            {
+                collider.sharedMesh = mesh;
+            }
 
             if (payload.Far)
             {
@@ -1352,6 +1404,119 @@ namespace CityX.View
             _refreshing[chunk] = glassOnly;
             _inFlight.Add(chunk);
             QueueGeneration(chunk, _far.Contains(chunk));
+        }
+
+        /// <summary>The kind of the changes that came while a refresh was on its way (true: only cracked glass), forgotten once read.</summary>
+        private bool TakePendingRefresh(Vector2Int chunk)
+        {
+            bool glassOnly = _pendingRefresh.TryGetValue(chunk, out bool pending) && pending;
+            _pendingRefresh.Remove(chunk);
+            return glassOnly;
+        }
+
+        // ---- a rebuilt chunk's collider, cooked off the main thread (2026-10-14) ----------------------------------------------------------
+        // Cooking a chunk's collider took ~10 ms on the main thread, and a window cracking or shattering rebuilds its chunk: an AK sprayed at a
+        // facade did that several times a second. Physics.BakeMesh may run on a worker (the job system); a MeshCollider then given the mesh
+        // with the same cooking options takes the cooked data as it is. Until then the chunk on screen stays, solid and drawn, and the new one
+        // waits switched off -- so nothing falls through and nothing blinks.
+
+        private struct BakeColliderJob : IJob
+        {
+            public int MeshId;
+            public MeshColliderCookingOptions Options;
+
+            public void Execute()
+            {
+                Physics.BakeMesh(MeshId, false, Options);
+            }
+        }
+
+        private sealed class PendingSwap
+        {
+            public Vector2Int Key;
+            public GameObject Fresh;
+            public GameObject Replaces;
+            public MeshCollider Collider;
+            public Mesh Mesh;
+            public JobHandle Handle;
+        }
+
+        private readonly List<PendingSwap> _pendingSwaps = new List<PendingSwap>();
+        private readonly Dictionary<Vector2Int, bool> _pendingRefresh = new Dictionary<Vector2Int, bool>();
+
+        /// <summary>How many rebuilt chunks are waiting for their collider (for tests).</summary>
+        public int PendingSwapCount => _pendingSwaps.Count;
+
+        /// <summary>True while a window's change is still on its way to the screen: a refresh generating, a swap cooking, or more hits waiting.</summary>
+        public bool WindowRefreshPending => _pendingSwaps.Count > 0 || _refreshing.Count > 0 || _changedInFlight.Count > 0;
+
+        /// <summary>True while any chunk is still being generated or waiting to be put on screen (for tests that need the city settled).</summary>
+        public bool IsStreaming => _inFlight.Count > 0 || !_finished.IsEmpty;
+
+        private bool IsSwapPending(Vector2Int chunk)
+        {
+            foreach (PendingSwap swap in _pendingSwaps)
+            {
+                if (swap.Key == chunk)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private void BeginSwap(ChunkPayload payload, GameObject onScreen)
+        {
+            GameObject fresh = AssembleChunk(payload, deferCollider: true);
+            var collider = fresh.GetComponent<MeshCollider>();
+            Mesh mesh = fresh.GetComponent<MeshFilter>().sharedMesh;
+            var job = new BakeColliderJob { MeshId = mesh.GetInstanceID(), Options = collider.cookingOptions };
+            _pendingSwaps.Add(new PendingSwap
+            {
+                Key = payload.Key, Fresh = fresh, Replaces = onScreen, Collider = collider, Mesh = mesh, Handle = job.Schedule(),
+            });
+            JobHandle.ScheduleBatchedJobs();
+            _inFlight.Add(payload.Key);   // still on its way: more hits on it wait for this one
+        }
+
+        /// <summary>
+        /// Puts on screen every rebuilt chunk whose collider is cooked (all of them, waiting, with <paramref name="wait"/>); with
+        /// <paramref name="abandon"/> they are thrown away instead (the world is being rebuilt, or the streamer switched off).
+        /// </summary>
+        private void CompleteSwaps(bool wait, bool abandon)
+        {
+            for (int i = _pendingSwaps.Count - 1; i >= 0; i--)
+            {
+                PendingSwap swap = _pendingSwaps[i];
+                if (!wait && !swap.Handle.IsCompleted)
+                {
+                    continue;
+                }
+                swap.Handle.Complete();
+                _pendingSwaps.RemoveAt(i);
+                _inFlight.Remove(swap.Key);
+                bool stillWanted = !abandon && swap.Replaces != null
+                    && _loaded.TryGetValue(swap.Key, out GameObject current) && current == swap.Replaces;
+                if (!stillWanted)
+                {
+                    // Abandoned, or the chunk left the screen (or was replaced) while its collider cooked.
+                    DestroyChunk(swap.Fresh);
+                    if (abandon)
+                    {
+                        _changedInFlight.Remove(swap.Key);
+                        _pendingRefresh.Remove(swap.Key);
+                    }
+                    continue;
+                }
+                swap.Collider.sharedMesh = swap.Mesh;   // cooked already: no stall
+                swap.Fresh.SetActive(true);
+                DestroyChunk(swap.Replaces);
+                _loaded[swap.Key] = swap.Fresh;
+                if (_changedInFlight.Remove(swap.Key))
+                {
+                    RefreshAgain(swap.Key, TakePendingRefresh(swap.Key));
+                }
+            }
         }
 
         /// <summary>

@@ -739,6 +739,7 @@ MonoBehaviour:
     KickBackMetres: 0.035
     KickUpDegrees: 7
     KickRecoverPerSecond: 16
+    TracerEvery: 1
     ShotPitch: 1
     MotionResource: Glock/GlockReload
     ReloadSeconds: 1.4

@@ -151,7 +151,7 @@ namespace CityX.Tests
                 Object.Destroy(cameraObject);
                 Object.Destroy(sideObject);
                 Object.Destroy(scenery);
-                Time.captureFramerate = 0;
+                Time.captureFramerate = SteadyFrameTime.FramesPerSecond;   // back to the steady frames every test runs on
             }
         }
 

@@ -44,6 +44,39 @@ namespace CityX.View
         }
 
         /// <summary>
+        /// THE FIRST WINDOW TO BREAK cost a frame ~10 ms of loading (measured 2026-10-14, WindowSprayFramePlayTests): its sounds were read
+        /// off disk on first play, and the shard burst's twelve convex colliders were cooked the first time any shard existed. Both are done
+        /// here instead, while the city is still streaming in; the cooked shapes stay with the shard meshes for every burst after.
+        /// </summary>
+        private void Start()
+        {
+            foreach (AudioClip[] bank in new[] { CrackSounds, BreakSounds })
+            {
+                if (bank == null)
+                {
+                    continue;
+                }
+                foreach (AudioClip clip in bank)
+                {
+                    if (clip != null && clip.loadState == AudioDataLoadState.Unloaded)
+                    {
+                        clip.LoadAudioData();
+                    }
+                }
+            }
+            if (ShardPrefab != null)
+            {
+                foreach (MeshCollider shard in ShardPrefab.GetComponentsInChildren<MeshCollider>(true))
+                {
+                    if (shard.sharedMesh != null)
+                    {
+                        Physics.BakeMesh(shard.sharedMesh.GetInstanceID(), shard.convex, shard.cookingOptions);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         /// A blow at a world point. Finds the building it landed on, the window
         /// within it, and moves that window one step along.
         ///

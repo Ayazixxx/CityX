@@ -89,6 +89,20 @@ namespace CityX.Weapons
             }
         }
 
+        /// <summary>
+        /// Builds what the first shot and the first reload would otherwise build mid-fight (the effects object, the case mesh and its brass
+        /// material, the reload sounds): called when a gun is drawn.
+        /// </summary>
+        public static void Warm()
+        {
+            _ = Instance;
+            CasingMesh();
+            Brass();
+            _ = MagazineOut;
+            _ = MagazineIn;
+            _ = Rack;
+        }
+
         /// <summary>A spent case out of the port: <paramref name="direction"/> is the gun's ejection direction in the world.</summary>
         public static void EjectCasing(Vector3 port, Quaternion gunRotation, Vector3 direction, float length, float radius, GameObject wielder)
         {

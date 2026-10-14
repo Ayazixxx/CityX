@@ -535,6 +535,8 @@ namespace CityX.Weapons
                 }
             }
             HookReload(player, ref _reloader);
+            FirearmEffects.Warm();
+            BulletTracer.Warm();
         }
 
         /// <summary>Lends the body this gun's reload motion and parts, and listens for the motion's events (on an owner's body and a copy alike).</summary>
@@ -637,6 +639,11 @@ namespace CityX.Weapons
         // ---- a shot on another player's copy (GunReload.FireName, PlayerAnimationDriver.RemoteGunFired) ----
 
         private PlayerAnimationDriver _cosmeticDriver;
+        private int _remoteShotIndex;
+        private float _lastRemoteShot = -999.0f;
+
+        /// <summary>Whether the n-th round of a burst draws a tracer: the first always, then every TracerEvery-th (Counter-Strike's rifles: every third).</summary>
+        public bool ShowsTracer(int shotInBurst) => Profile.TracerEvery <= 1 || shotInBurst % Profile.TracerEvery == 0;
 
         /// <summary>
         /// The player this copy belongs to fired: the flash, the crack (in the world, so it is quieter far away), the tracer down the barrel
@@ -669,7 +676,12 @@ namespace CityX.Weapons
             {
                 end = hit.point;
             }
-            BulletTracer.Spawn(muzzle.position, end, muzzle);
+            _remoteShotIndex = Time.time - _lastRemoteShot <= Profile.RecoilResetSeconds ? _remoteShotIndex + 1 : 0;
+            _lastRemoteShot = Time.time;
+            if (ShowsTracer(_remoteShotIndex))
+            {
+                BulletTracer.Spawn(muzzle.position, end, muzzle);
+            }
             FirearmEffects.EjectCasing(transform.TransformPoint(Profile.EjectionPortLocal), transform.rotation,
                 transform.TransformDirection(Profile.EjectionDirectionLocal), Profile.CasingLength, Profile.CasingRadius, _cosmeticBody);
             RememberPartRests();
@@ -948,7 +960,10 @@ namespace CityX.Weapons
             // gun at the same point: PlayerLocomotion.NotifyGunFired and LocomotionInput.GunAimPoint).
             Vector3 muzzlePosition = MuzzleFlashObject != null ? MuzzleFlashObject.transform.position : origin;
             Vector3 tracerEnd = realHit ? hit.point : origin + spreadDirection * Profile.Range;
-            BulletTracer.Spawn(muzzlePosition, tracerEnd, MuzzleFlashObject != null ? MuzzleFlashObject.transform : null);
+            if (ShowsTracer(shotInBurst))
+            {
+                BulletTracer.Spawn(muzzlePosition, tracerEnd, MuzzleFlashObject != null ? MuzzleFlashObject.transform : null);
+            }
 
             // Other players' copies of this body see and hear the shot (the damage went its own way: NetworkedDamage).
             if (_animationDriver != null && _equipped)
