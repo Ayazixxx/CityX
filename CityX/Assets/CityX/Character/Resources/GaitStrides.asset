@@ -1,0 +1,90 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d652b4e6ff8014e4db12a91d84a0fd70, type: 3}
+  m_Name: GaitStrides
+  m_EditorClassIdentifier: CityX.Character::CityX.Character.GaitStrides
+  Entries:
+  - Tree: Locomotion
+    Move: {x: 0, y: 4}
+    Stride: 1
+  - Tree: Locomotion
+    Move: {x: 0, y: 7.5}
+    Stride: 1.12
+  - Tree: Locomotion
+    Move: {x: 0, y: -4}
+    Stride: 1.12
+  - Tree: Locomotion
+    Move: {x: -4, y: 0}
+    Stride: 1.12
+  - Tree: Locomotion
+    Move: {x: 4, y: 0}
+    Stride: 1.12
+  - Tree: Locomotion
+    Move: {x: -2.828427, y: 2.828427}
+    Stride: 1.06
+  - Tree: Locomotion
+    Move: {x: 2.828427, y: 2.828427}
+    Stride: 1.06
+  - Tree: Locomotion
+    Move: {x: -2.828427, y: -2.828427}
+    Stride: 1.06
+  - Tree: Locomotion
+    Move: {x: 2.828427, y: -2.828427}
+    Stride: 1.06
+  - Tree: Locomotion
+    Move: {x: 0, y: 1.4133122}
+    Stride: 1
+  - Tree: Crouched
+    Move: {x: 0, y: 1}
+    Stride: 1.12
+  - Tree: GunLocomotion
+    Move: {x: 0, y: 4}
+    Stride: 1.12
+  - Tree: GunLocomotion
+    Move: {x: 0, y: 7.5}
+    Stride: 1.12
+  - Tree: GunLocomotion
+    Move: {x: 0, y: -4}
+    Stride: 1.12
+  - Tree: GunLocomotion
+    Move: {x: -4, y: 0}
+    Stride: 1.12
+  - Tree: GunLocomotion
+    Move: {x: 4, y: 0}
+    Stride: 1.12
+  - Tree: SwordLocomotion
+    Move: {x: 0, y: 4}
+    Stride: 1.12
+  - Tree: SwordLocomotion
+    Move: {x: 0, y: 7.5}
+    Stride: 1.12
+  - Tree: SwordLocomotion
+    Move: {x: 0, y: -4}
+    Stride: 1.12
+  - Tree: SwordLocomotion
+    Move: {x: -4, y: 0}
+    Stride: 1.12
+  - Tree: SwordLocomotion
+    Move: {x: 4, y: 0}
+    Stride: 1.12
+  - Tree: SwordLocomotion
+    Move: {x: -2.828427, y: 2.828427}
+    Stride: 1.12
+  - Tree: SwordLocomotion
+    Move: {x: 2.828427, y: 2.828427}
+    Stride: 1.12
+  - Tree: SwordLocomotion
+    Move: {x: -2.828427, y: -2.828427}
+    Stride: 1.12
+  - Tree: SwordLocomotion
+    Move: {x: 2.828427, y: -2.828427}
+    Stride: 1.12

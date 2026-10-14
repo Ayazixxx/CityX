@@ -3,33 +3,42 @@ using UnityEngine;
 namespace CityX.Character
 {
     /// <summary>
-    /// How far the whole body tilts, at the feet, from how it is moving (owner, 2026-10-10: "research the best dynamic movement animations for
-    /// roblox like characters ... ours can be improved upon"). From that research (physics-driven lean, Roblox DevForum tilt threads, a game
-    /// developer's movement tips the owner shared): a body leans INTO its acceleration -- forward as it sets off, back as it brakes, and into the
-    /// inside of a turn, since turning is sideways acceleration -- and a little forward into its speed, held while running. Physically correct
-    /// angles look too extreme on a cartoon body, so each is scaled down by eye, capped, and smoothed so steps do not jitter it. On the ground
-    /// only: in the air it eases back upright.
+    /// How the whole body tilts from how it is moving. SECOND VERSION (2026-10-13, from the owner's forwarded movement advice: "make the lean rotate
+    /// FROM the head ... a delayed 'foot center' that accelerates towards its goal, within reason, where it can't quite catch up ... when running at a
+    /// constant speed the central foot point is behind the head ... you get an overshoot of the feet when you come to a fast stop ... sideways leaning
+    /// when turning tight corners for free, AND the head stays where it was").
     ///
-    /// THE WHOLE BODY TILTS AS ONE, about the feet, not the spine: the body is separate rigid tubes, and bending the spine pulls the torso off
-    /// the legs and the arms off the torso (2026-10-10, "the butt is sticking out ... the legs aren't attached"). Pure; PlayerLocomotion applies it
-    /// to the visual root, from the body's measured motion, so a copy of another player's body leans the same way.
+    /// The feet's centre TRAILS the head: it chases the body's velocity times <see cref="LagSeconds"/> through a damped spring that is deliberately
+    /// under-damped, so a steady run holds the feet behind the head (a lean into the run), setting off overshoots (a push), a hard stop swings the feet
+    /// out in front (a brace), and a tight turn leaves the feet trailing on the outside (a lean into the turn): all from one lag. The body is rotated
+    /// about the HEAD (PlayerLocomotion pins it: the drawn root is turned, then shifted so the head stays put) and the foot placement runs after and
+    /// takes the lean back off the planted feet, so the soles stay flat on the ground. The first version tilted about the feet from acceleration and
+    /// speed, which moved the head; the owner found it "very apparent" and asked for it toned down.
     ///
-    /// TONED RIGHT DOWN (owner, 2026-10-13: "a very apparent lean when moving around in third person that doesnt really look good ... tone it down
-    /// or remove it completely but make it work with the foot ground detection"): a third of the angles and under half the cap, so a sprint tips
-    /// the head a couple of degrees and a hard stop or turn about six, never more. The foot placement (PlayerLocomotion.FootIK.cs) runs after it and
-    /// takes the lean back off the planted feet, so the soles stay flat on the ground while the body tips. It also hands in the SLOPE under the feet:
-    /// walking uphill leans into the hill, downhill a little back (research: slope posture is one of the cheapest big wins in procedural movement).
+    /// Pure; PlayerLocomotion feeds it the body's measured motion, so a copy of another player's body leans the same way.
     /// </summary>
     public sealed class BodyLean
     {
-        /// <summary>Degrees of forward lean per metre per second of speed (a 7.5 m/s sprint: about 2).</summary>
-        public const float SpeedLeanDegreesPerMetrePerSecond = 0.3f;
+        /// <summary>The feet trail the head by this much of the body's velocity, metres per metre per second (a 7.5 m/s sprint: 34 cm).</summary>
+        public const float LagSeconds = 0.045f;
 
-        /// <summary>Degrees of lean per metre per second squared of acceleration (setting off, braking, turning).</summary>
-        public const float AccelerationLeanDegreesPerMetrePerSecondSquared = 0.5f;
+        /// <summary>The lean turns about this height: the head's centre.</summary>
+        public const float PivotHeight = BodyRig.HeadCentreY;
 
-        /// <summary>The most the body ever leans from its own motion, degrees.</summary>
-        public const float MaxLeanDegrees = 6.0f;
+        /// <summary>The lag's spring: how hard the feet are pulled toward where they should be, per metre, per second squared.</summary>
+        public const float Stiffness = 70.0f;
+
+        /// <summary>Under 1: the feet overshoot (a hard stop swings them out in front for a moment).</summary>
+        public const float DampingRatio = 0.55f;
+
+        /// <summary>
+        /// The lean also tips toward where the feet are STILL BEING PULLED (the spring's shortfall: a lagged acceleration), this many times over: a
+        /// push off, a brake and the inside of a turn. On its own the trailing foot centre cuts the inside of a turn, which leans the body OUT of it.
+        /// </summary>
+        public const float AccelerationShare = 2.5f;
+
+        /// <summary>The most the body leans from its own motion, degrees.</summary>
+        public const float MaxLeanDegrees = 10.0f;
 
         /// <summary>How much of an uphill slope's angle the body leans into it (a 20 degree hill: 7 degrees forward).</summary>
         public const float UphillLeanFraction = 0.35f;
@@ -37,19 +46,17 @@ namespace CityX.Character
         /// <summary>How much of a downhill slope's angle the body leans back from it.</summary>
         public const float DownhillLeanFraction = 0.2f;
 
-        /// <summary>How long the measured acceleration is averaged over (one frame of it is noise), and how fast the lean follows, seconds.</summary>
-        public const float AccelerationSmoothingSeconds = 0.12f;
-        public const float LeanSmoothingSeconds = 0.1f;
-
-        private Vector3 _lastVelocity;
-        private bool _hasVelocity;
-        private Vector3 _acceleration;
+        private Vector3 _lag;
+        private Vector3 _lagVelocity;
         private Vector3 _tilt;
 
         /// <summary>The lean now, as a horizontal vector: its direction is the way the top of the body tilts, its length the angle in degrees.</summary>
         public Vector3 Tilt => _tilt;
 
         public float Degrees => _tilt.magnitude;
+
+        /// <summary>How far the feet's centre trails the head, metres, horizontal (negative along the velocity is ahead of it).</summary>
+        public Vector3 FootLag => _lag;
 
         /// <summary>
         /// One step. <paramref name="velocity"/> is the body's velocity in the world (only its horizontal part is used); <paramref name="leaning"/>
@@ -62,28 +69,33 @@ namespace CityX.Character
             {
                 return;
             }
-            Vector3 flat = new Vector3(velocity.x, 0.0f, velocity.z);
-            if (!_hasVelocity)
+            var flat = new Vector3(velocity.x, 0.0f, velocity.z);
+            Vector3 target = leaning ? flat * LagSeconds : Vector3.zero;
+            // A damped spring, stepped semi-implicitly (stable at any frame rate this game runs at).
+            float damping = 2.0f * DampingRatio * Mathf.Sqrt(Stiffness);
+            _lagVelocity += (Stiffness * (target - _lag) - damping * _lagVelocity) * deltaTime;
+            _lag += _lagVelocity * deltaTime;
+            _lag.y = 0.0f;
+            if (!leaning && _lag.sqrMagnitude < 1e-6f && _lagVelocity.sqrMagnitude < 1e-6f)
             {
-                _lastVelocity = flat;
-                _hasVelocity = true;
+                _lag = Vector3.zero;
+                _lagVelocity = Vector3.zero;
             }
-            Vector3 rawAcceleration = (flat - _lastVelocity) / deltaTime;
-            _lastVelocity = flat;
-            _acceleration = Vector3.Lerp(_acceleration, rawAcceleration, Ease(deltaTime, AccelerationSmoothingSeconds));
 
-            Vector3 target = Vector3.zero;
+            // Where the head is over the feet: the lag, plus where the feet are still being pulled to (into a turn, a push, a brake).
+            Vector3 offset = _lag + (target - _lag) * AccelerationShare;
+            float metres = offset.magnitude;
+            Vector3 tilt = metres > 1e-5f ? offset / metres * (Mathf.Atan(metres / PivotHeight) * Mathf.Rad2Deg) : Vector3.zero;
+            tilt = Vector3.ClampMagnitude(tilt, MaxLeanDegrees);
             if (leaning)
             {
-                target = flat * SpeedLeanDegreesPerMetrePerSecond + _acceleration * AccelerationLeanDegreesPerMetrePerSecondSquared;
-                target = Vector3.ClampMagnitude(target, MaxLeanDegrees);
                 var slope = new Vector3(slopeLean.x, 0.0f, slopeLean.z);
-                target = Vector3.ClampMagnitude(target + slope, MaxLeanDegrees * 2.0f);   // a steep hill may tip the body past the motion cap, never past twice it
+                tilt = Vector3.ClampMagnitude(tilt + slope, MaxLeanDegrees * 2.0f);   // a steep hill may tip the body past the motion cap, never past twice it
             }
-            _tilt = Vector3.Lerp(_tilt, target, Ease(deltaTime, LeanSmoothingSeconds));
+            _tilt = tilt;
         }
 
-        /// <summary>The lean as a rotation in the world, about the feet.</summary>
+        /// <summary>The lean as a rotation in the world, about the pivot.</summary>
         public Quaternion Rotation()
         {
             float degrees = _tilt.magnitude;
@@ -95,17 +107,12 @@ namespace CityX.Character
             return Quaternion.AngleAxis(degrees, axis);
         }
 
-        /// <summary>Forgets the motion (a teleport, a respawn): no lean from the jump in position.</summary>
+        /// <summary>Forgets everything (a teleport, a respawn).</summary>
         public void Reset()
         {
-            _hasVelocity = false;
-            _acceleration = Vector3.zero;
+            _lag = Vector3.zero;
+            _lagVelocity = Vector3.zero;
             _tilt = Vector3.zero;
-        }
-
-        private static float Ease(float deltaTime, float seconds)
-        {
-            return seconds <= 0.0f ? 1.0f : 1.0f - Mathf.Exp(-deltaTime / seconds);
         }
     }
 }

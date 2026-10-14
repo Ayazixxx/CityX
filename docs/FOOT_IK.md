@@ -75,3 +75,38 @@ diagonal mix; the idle and a held pose are left alone; clamped to 0.5 to 4). Pla
 checks the built animator; `FootIkPlayTests.OnFlatGround...` checks that planted feet keep up with the body within 25% walking and sprinting.
 Side effect: the walk takes quick short steps at 4 m/s (its cycle is about 0.4 s rather than 1.03): the honest pace for a Mixamo walk asked to do a
 jog's speed. A walk clip authored for this speed would look better than a sped-up one.
+
+## Update, the same day: the gaits, the lean from the head, and what the owner said
+
+Owner, after trying it: the feet still "gliding / floating slightly off the ground", and "the walk and running animations feel too rapid and like
+short steps compared to the speed the character is moving", then "the speed and animations of the leg movements for walk and sprint that we had
+before was decent, I just wanted to add the IK foot connection to the ground", then "do what you think is best, research other games with dynamic
+movement like Last of Us". And a forwarded paragraph of movement advice (lean from the head with a delayed foot centre that cannot catch up, the
+lead foot angled when strafing, the feet returned to their relaxed rotation in swing, pelvis yaw following the feet).
+
+**What the research says** (Epic's guide to adapting Lyra's animation, Naughty Dog's Last of Us Part II motion matching, a mocap studio's
+locomotion design guides): pick the clip whose own pace is nearest the speed (walk, jog and run tiers; keyboard players mostly see the jog and run);
+change its play rate by at most 15-20% and its stride by at most as much again ("values beyond that result in significant visual quality drops, and
+it's often better to allow foot sliding"); let foot IK take the rest; large libraries so a clip exists for every speed.
+
+**What it does now** (`Character/Editor/ClipCadence.cs`, `GaitStrides`, `FootPlanting`, `PlayerLocomotion.FootIK.cs`):
+- At every straight-ahead speed the clip that needs the least re-pacing plays: **4 m/s is a jog** (the run clip slowed 11%), the sprint is the run sped
+  up 20% with 20% longer strides (`GaitStrides`: the foot placement puts the feet that much further along the travel, the hips dipping to reach) and
+  the foot locks holding the last 25% (stride limited to 12%: more dipped the hips at every heel strike). The walk clip keeps a sample at its own 1.4 m/s (a slow push on a stick). The sword, gun
+  and crouch trees keep their own clips (a sword sprint clip carries the sword differently) re-paced within the same limits. A strafe or backward walk may be re-paced up to 50% and still slides some: there is no faster clip for them.
+- A foot is **held** only while the clip's planted feet move through the body within 0.7 to 1.4 of the body's speed (`FootPlanting.LocksViable`),
+  measured as it plays; otherwise the feet are placed on the ground but not held (holding one would drag it to the stretch limit every few frames).
+- A planted foot is **pressed onto the ground** (no residual lift kept); a lifted one keeps the clip's lift over the clip's own floor. The foot's lowest
+  point comes from its rotation (toe, heel or sole), so a toe-first run plants its toes.
+- The grace over the controller's "not grounded" flicker holds only while ground is within 12 cm under a foot, up to half a second.
+- The **lean turns about the head** (`BodyLean`, second version): the feet's centre chases the body's velocity times 45 ms through an under-damped
+  spring, so a steady sprint holds the feet 34 cm behind the head (8.7 degrees), setting off overshoots, a hard stop swings the feet out in front, a
+  tight turn leans into itself, and the head does not move (the drawn root is turned, then shifted to keep the head put). Capped at 10 degrees.
+- Strafing, the **leading foot turns** toward the travel (60% of the way, up to 35 degrees).
+- `/footik` in the console shows it all live (on/off, placing or not, hip drop, each foot held/on the floor/lifted, the clip's pace against the body's,
+  the stride); `/footik off` switches it off to compare.
+- Not done from the advice: pelvis yaw following the feet and pelvic tilt (this torso is one tube on the hips; turning the hips turns the chest), the
+  feet relaxed in swing (the clips already turn them).
+
+Sources: Epic, "Adapt the animations in the Lyra sample project into your game" (unrealengine.com tech blog); Naughty Dog, "Motion Matching in The
+Last of Us Part II" (GDC 2021); MoCap Online, locomotion system design and walk/run/sprint blend guides.

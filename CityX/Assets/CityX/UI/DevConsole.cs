@@ -143,6 +143,7 @@ namespace CityX.UI
             "gun",
             "flight",
             "posture",
+            "footik",
         };
 
         public static string UsageFor(string verb)
@@ -182,6 +183,8 @@ namespace CityX.UI
                     "sens (mouse scale while aiming), aimspeed (walk-speed scale while aiming). " +
                     "/gun shoulder swaps the camera shoulder (Q). Needs a pistol equipped";
                 case "posture": return "/posture -- shows the head tilt and leg position every body stands in; /posture head <degrees up>, /posture turn <degrees right>, /posture tilt <degrees right>, /posture legs <metres back>, /posture headback <metres>, /posture headup <metres>";
+                case "footik": return "/footik -- the foot placement's state on the player: on or off, placing or not, the hip drop, each foot (held, on the floor, lifted), " +
+                    "the clip's pace against the body's and the stride; /footik on|off switches it";
                 case "flight": return "/flight -- lists the flying-feel numbers; /flight <name> <value> sets one: " +
                     "fov (degrees the view widens at full speed), kick (extra degrees on a boost), " +
                     "kickseconds, pullback (metres the camera falls back), kickpullback, " +

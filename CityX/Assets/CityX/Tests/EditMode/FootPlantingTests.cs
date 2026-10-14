@@ -155,6 +155,72 @@ namespace CityX.Tests
         }
 
         [Test]
+        public void FeetAreNotHeldWhenTheClipIsMuchSlowerThanTheBody()
+        {
+            // A Mixamo walk under a 4 m/s body: its planted feet move back through the body at 1.4 m/s. Holding one would drag it; the feet are placed, not held.
+            var feet = new FootPlanting();
+            Vector3 body = Vector3.forward * 4.0f;
+            float z = 0.0f;
+            for (int i = 0; i < 60; i++)
+            {
+                z += (4.0f - 1.4f) * Dt;   // in the world: the body carries the foot forward at 4 while the clip moves it back at 1.4 (it slides 2.6)
+                feet.Step(Dt, true, Foot(-0.12f, z, 0.0f, 0.0f), Foot(0.12f, z + 0.3f, 0.1f, 0.0f), Floor, Sole, false, body);
+            }
+            Assert.IsFalse(feet.LocksViable, "a clip 2.9x slower than the body was still thought holdable");
+            Assert.AreEqual(1.4f, feet.ClipGroundSpeed, 0.15f, "the clip's pace was not measured");
+            Assert.AreEqual(4.0f, feet.BodyGroundSpeed, 0.15f);
+            Assert.IsFalse(feet.IsLocked(0), "a foot was held under a clip that cannot keep up");
+            Assert.AreEqual(1.0f, feet.Of(0).Weight, 0.001f, "the foot is still placed on the ground");
+            // The same clip under a body it keeps up with (a jog at 4 m/s under the run clip): held.
+            var matched = new FootPlanting();
+            z = 0.0f;
+            for (int i = 0; i < 60; i++)
+            {
+                z += (4.0f - 3.9f) * Dt;
+                matched.Step(Dt, true, Foot(-0.12f, z, 0.0f, 0.0f), Foot(0.12f, z + 0.3f, 0.1f, 0.0f), Floor, Sole, false, body);
+            }
+            Assert.IsTrue(matched.LocksViable, "a clip at the body's pace should be holdable");
+            // Standing still, whatever the clip: held.
+            var still = new FootPlanting();
+            Run(still, 30, i => Foot(-0.12f, 0.0f, 0.0f, 0.0f), i => Foot(0.12f, 0.0f, 0.0f, 0.0f));
+            Assert.IsTrue(still.LocksViable && still.IsLocked(0) && still.IsLocked(1), "standing still the feet should be held");
+        }
+
+        [Test]
+        public void AStrideTooLongForTheLegDipsTheHips()
+        {
+            var feet = new FootPlanting();
+            FootPlanting.Sample Reaching(float z)
+            {
+                FootPlanting.Sample s = Foot(-0.12f, z, 0.0f, 0.0f);
+                s.Hip = new Vector3(-0.12f, 1.3f, 0.0f);
+                s.LegLength = 1.165f;
+                return s;
+            }
+            // A foot planted 0.6 m ahead of a hip 1.165 m up: the leg cannot reach without the hips dipping (17 cm by the geometry, capped to a small dip).
+            Run(feet, 60, i => Reaching(0.6f), i => Reaching(-0.1f));
+            float reach = 1.165f * FootPlanting.ReachShare;
+            float expected = Mathf.Min(1.3f - (0.135f + FootPlanting.SoleLift) - Mathf.Sqrt(reach * reach - 0.6f * 0.6f), FootPlanting.MaxReachDip);
+            Assert.AreEqual(expected, feet.HipDrop, 0.01f, "the hips did not dip for the long stride");
+            // A foot right under the hip needs none.
+            var easy = new FootPlanting();
+            Run(easy, 60, i => Reaching(0.0f), i => Reaching(0.1f));
+            Assert.Less(easy.HipDrop, 0.01f);
+        }
+
+        [Test]
+        public void APlantedFootIsPressedOntoTheGroundAndALiftedOneKeepsItsLift()
+        {
+            var feet = new FootPlanting();
+            // The clip holds its planted foot 2 cm over its floor (within PlantBelow): pressed down to the ground.
+            Run(feet, 30, i => Foot(-0.12f, 0.0f, 0.02f, 0.0f), i => Foot(0.12f, 0.0f, 0.02f, 0.0f));
+            Assert.AreEqual(Sole + FootPlanting.SoleLift, feet.Of(0).Target.y, 0.005f, "a planted foot was left hovering");
+            // Lifted 15 cm: 15 cm over the ground.
+            Run(feet, 30, i => Foot(-0.12f, 0.2f, 0.15f, 0.0f), i => Foot(0.12f, 0.0f, 0.0f, 0.0f));
+            Assert.AreEqual(Sole + 0.15f + FootPlanting.SoleLift, feet.Of(0).Target.y, 0.005f, "a lifted foot lost its lift");
+        }
+
+        [Test]
         public void InTheAirEverythingEasesToNothing()
         {
             var feet = new FootPlanting();

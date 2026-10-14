@@ -449,6 +449,10 @@ namespace CityX.UI
                     PostureCommand(line.Argument(0), line.Argument(1));
                     return;
 
+                case "footik":
+                    FootIkCommand(line.Argument(0));
+                    return;
+
                 default:
                     Log("unknown command: " + line.Verb + "   (try /help)");
                     return;
@@ -646,6 +650,28 @@ namespace CityX.UI
 
         /// <summary>The nearest point of an expressway's main deck, in the middle of its nearer carriageway, a couple of metres up.</summary>
         /// <summary>/posture: the shared posture every body stands in (BodyPostureSettings), shown or set live.</summary>
+        /// <summary>The foot placement's state on the player (FootPlanting), live; /footik on|off switches it.</summary>
+        private void FootIkCommand(string what)
+        {
+            if (_playerLocomotion == null)
+            {
+                Log("no player to look at");
+                return;
+            }
+            if (what == "on" || what == "off")
+            {
+                _playerLocomotion.FootIkEnabled = what == "on";
+                Log($"foot placement {what}");
+                return;
+            }
+            CityX.Character.FootPlanting feet = _playerLocomotion.FootPlanting;
+            string Foot(int i) => feet.IsLocked(i) ? "held" : feet.IsOnFloor(i) ? "on the floor" : "lifted";
+            Log($"foot placement: {(_playerLocomotion.FootIkEnabled ? "on" : "OFF")}, {(_playerLocomotion.FootIkActive ? "placing" : "not placing (in the air, on a wall, in a vault, a seat or a dance)")}; " +
+                $"hip drop {feet.HipDrop * 100:0.0} cm, landing dip {feet.LandingDip * 100:0.0} cm; left {Foot(0)} ({feet.Of(0).Weight:0.00}), right {Foot(1)} ({feet.Of(1).Weight:0.00}); " +
+                $"clip {feet.ClipGroundSpeed:0.0} m/s against body {feet.BodyGroundSpeed:0.0} m/s ({(feet.LocksViable ? "feet can be held" : "too far apart to hold the feet")}), " +
+                $"stride x{_playerLocomotion.StrideScale:0.00}, ground normal {_playerLocomotion.GroundNormal:F2}");
+        }
+
         private void PostureCommand(string what, string value)
         {
             var settings = CityX.Character.BodyPostureSettings.Current;

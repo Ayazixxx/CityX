@@ -331,7 +331,8 @@ namespace CityX.Tests
             // "<clip>.fbx" -- a different asset, but still the thing standing
             // in for that clip in the tree, so it should still answer to the
             // clip's own name here.
-            var positions = new Dictionary<string, Vector2>();
+            // A clip may sit at more than one sample (the run clip is both the jog at walking speed and the sprint: ClipCadence).
+            var positions = new Dictionary<string, List<Vector2>>();
             foreach (ChildMotion child in tree.children)
             {
                 Assert.IsNotNull(child.motion, "a blend child has no clip");
@@ -350,24 +351,39 @@ namespace CityX.Tests
                         if (name.StartsWith("godot_")) name = name.Substring("godot_".Length);
                         break;
                 }
-                positions[name] = child.position;
+                if (!positions.TryGetValue(name, out List<Vector2> list))
+                {
+                    positions[name] = list = new List<Vector2>();
+                }
+                list.Add(child.position);
             }
 
-            Vector2 At(string clip)
+            List<Vector2> AllAt(string clip)
             {
-                if (positions.TryGetValue(clip, out Vector2 found))
+                if (positions.TryGetValue(clip, out List<Vector2> found))
                 {
                     return found;
                 }
                 Assert.Fail($"no blend child from {clip}.fbx -- found {string.Join(", ", positions.Keys)}");
-                return Vector2.zero;
+                return new List<Vector2>();
+            }
+
+            Vector2 At(string clip)
+            {
+                List<Vector2> all = AllAt(clip);
+                Assert.AreEqual(1, all.Count, $"{clip} sits at more than one sample");
+                return all[0];
             }
 
             Assert.AreEqual(Vector2.zero, At("idle"), "idle should sit at a standstill");
-            Assert.AreEqual(new Vector2(0.0f, locomotion.WalkSpeed), At("walking"),
-                "the walk clip is not placed at PlayerLocomotion.WalkSpeed");
-            Assert.AreEqual(new Vector2(0.0f, locomotion.SprintSpeed), At("sprint"),
-                "the sprint clip is not placed at PlayerLocomotion.SprintSpeed");
+            // THE GAITS (ClipCadence, 2026-10-13): 4 m/s is a jog on this body, so the run clip plays there as well as at the sprint; the walk clip keeps
+            // one sample at its own slow pace (about 1.4 m/s) for a slow push on a stick.
+            Vector2 walkAt = At("walking");
+            Assert.AreEqual(0.0f, walkAt.x, 1e-4f, "the walk clip is not straight ahead");
+            Assert.Greater(walkAt.y, 0.5f, "the walk clip has no forward speed");
+            Assert.Less(walkAt.y, locomotion.WalkSpeed, "the walk clip should sit below walking speed, at its own pace (the jog takes walking speed)");
+            Assert.Contains(new Vector2(0.0f, locomotion.WalkSpeed), AllAt("sprint"), "the run clip is not placed at PlayerLocomotion.WalkSpeed as the jog");
+            Assert.Contains(new Vector2(0.0f, locomotion.SprintSpeed), AllAt("sprint"), "the run clip is not placed at PlayerLocomotion.SprintSpeed");
 
             // The three that were unreachable while facing followed velocity.
             Assert.AreEqual(new Vector2(0.0f, -locomotion.WalkSpeed), At("walk_backward"));
@@ -377,12 +393,15 @@ namespace CityX.Tests
             // NOTHING SIDEWAYS ABOVE WALKING PACE, which is what lets each
             // lateral axis carry one clip rather than two: PlayerLocomotion
             // refuses to sprint in any direction but forward.
-            foreach (KeyValuePair<string, Vector2> pair in positions)
+            foreach (KeyValuePair<string, List<Vector2>> pair in positions)
             {
-                if (Mathf.Abs(pair.Value.x) > 0.01f)
+                foreach (Vector2 at in pair.Value)
                 {
-                    Assert.LessOrEqual(Mathf.Abs(pair.Value.x), locomotion.WalkSpeed + 0.01f,
-                        $"{pair.Key} is placed at a sideways speed the controller never produces");
+                    if (Mathf.Abs(at.x) > 0.01f)
+                    {
+                        Assert.LessOrEqual(Mathf.Abs(at.x), locomotion.WalkSpeed + 0.01f,
+                            $"{pair.Key} is placed at a sideways speed the controller never produces");
+                    }
                 }
             }
         }

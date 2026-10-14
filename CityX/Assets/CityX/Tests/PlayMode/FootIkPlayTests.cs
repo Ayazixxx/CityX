@@ -252,8 +252,9 @@ namespace CityX.Tests
                 Assert.AreEqual(bodySpeed, clipSpeed, bodySpeed * 0.25f,
                     $"{(gait == 0 ? "walking" : "sprinting")}, the clip moves the planted feet at {clipSpeed:0.00} m/s under a body going {bodySpeed:0.00} m/s: the feet slide");
             }
-            // The controller's capsule rests a skin width (up to 3 cm) above the floor; the placement brings the feet down that much, and no more.
-            Assert.Less(worstDrop, 0.045f, $"the hips dropped {worstDrop * 100:0.0} cm on flat ground");
+            // The controller's capsule rests a skin width (up to 3 cm) above the floor; the placement brings the feet down that much, plus at most the
+            // small dip a long stride is allowed at heel strike (FootPlanting.MaxReachDip), and no more.
+            Assert.Less(worstDrop, 0.045f + FootPlanting.MaxReachDip, $"the hips dropped {worstDrop * 100:0.0} cm on flat ground");
             Assert.Greater(plantedFrames, 20, "the feet were hardly ever planted on flat ground");
             // A planted foot keeps the clip's own lift over its floor (up to PlantBelow) and the sole's hair of clearance: toe-off starts under the lock.
             Assert.Less(worstOffGround, FootPlanting.PlantBelow + 0.025f, $"a planted foot sat {worstOffGround * 100:0.0} cm off the flat floor");

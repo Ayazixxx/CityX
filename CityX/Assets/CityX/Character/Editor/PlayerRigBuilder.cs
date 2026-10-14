@@ -108,10 +108,11 @@ namespace CityX.CharacterEditor
             // The Bloodrage run's head is brought to where the ordinary sprint carries it (see BloodrageHeadFit).
             BloodrageHeadFit.Apply(prefab, bloodRun, sprint);
 
-            // EVERY WALK AND RUN KEEPS UP WITH THE BODY (owner, 2026-10-13: "without sliding feet"): the clips are Mixamo-paced, far slower than
-            // the 4 and 7.5 m/s they are played under, so each blend child is sped up to its measured ground speed (ClipCadence).
+            // THE GAITS (ClipCadence): at each speed the clip whose own pace is nearest plays (4 m/s is a jog on this body), re-paced by at most 20%,
+            // with up to 20% more stride from the foot placement (GaitStrides) and the foot locks absorbing the rest -- the research's answer to
+            // feet that slid 2.6 m/s under a Mixamo walk, without the mince of speeding the walk up 2.8x.
             int matched = ClipCadence.MatchController(controller, prefab);
-            Debug.Log($"CityX: {matched} locomotion clips paced to the body's speed.");
+            Debug.Log($"CityX: {matched} locomotion clips given their gait and pace.");
 
             AssetDatabase.SaveAssets();
             Debug.Log($"CityX: player rig written to {PrefabPath}");
