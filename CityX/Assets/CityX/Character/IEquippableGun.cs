@@ -54,5 +54,8 @@ namespace CityX.Character
         /// gun at the point, so barrel, bullet and tracer all point the same way.
         /// </summary>
         void AimTrace(Vector3 origin, Vector3 direction, GameObject wielder, out Vector3 point, out bool barrelBlocked);
+
+        /// <summary>True for a gun that fires while the trigger is held (an assault rifle); false: one shot per press.</summary>
+        bool IsAutomatic { get; }
     }
 }

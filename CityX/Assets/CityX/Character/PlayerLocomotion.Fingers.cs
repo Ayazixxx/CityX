@@ -7,6 +7,10 @@ namespace CityX.Character
     /// that hand is holding something: the right hand whenever an item is mounted on it (a sword, the pistol, a bottle), the left whenever it is
     /// reached onto a weapon as the support hand (the two-handed sword, the pistol when aimed). Runs on a network copy the same way, from the
     /// cosmetic model mounted there, so other players see the grip too.
+    ///
+    /// WHAT SHAPE THE GRIP TAKES is the item's say (<see cref="IHandGripStyle"/>): a gun keeps the trigger finger straight along its frame and
+    /// the thumb forward, and pulls the trigger finger when it fires; anything else is wrapped. A baked reload poses the fingers itself
+    /// (BakedMotion.HasFingers) and the grip keeps off them by its weight.
     /// </summary>
     public sealed partial class PlayerLocomotion
     {
@@ -22,6 +26,8 @@ namespace CityX.Character
         private int _leftHandChildren = -1;
         private bool _rightHandHolds;
         private bool _leftHandHolds;
+        private IHandGripStyle _gripStyle;
+        private int _gripStyleChildren = -1;
 
         /// <summary>How closed each hand is, 0 (open) to 1 (round a handle), for tests.</summary>
         public float RightGrip => _rightGrip;
@@ -82,6 +88,34 @@ namespace CityX.Character
 
         private bool LeftHandHolds => HandHoldsSomething(_handL, ref _leftHandChildren, ref _leftHandHolds);
 
+        /// <summary>The held item's own grip shape, if the item mounted on the right hand has one (re-read when the hand's children change).</summary>
+        private IHandGripStyle GripStyle
+        {
+            get
+            {
+                if (_handR == null)
+                {
+                    return null;
+                }
+                int children = _handR.childCount;
+                if (children != _gripStyleChildren)
+                {
+                    _gripStyleChildren = children;
+                    _gripStyle = null;
+                    for (int i = 0; i < children; i++)
+                    {
+                        IHandGripStyle style = _handR.GetChild(i).GetComponent<IHandGripStyle>();
+                        if (style != null)
+                        {
+                            _gripStyle = style;
+                            break;
+                        }
+                    }
+                }
+                return _gripStyle;
+            }
+        }
+
         private void ApplyFingerGrips()
         {
             if (!_digitsLooked)
@@ -100,8 +134,11 @@ namespace CityX.Character
             bool leftHolds = LeftHandHolds || (_supportAnchor != null && _supportBlend > 0.5f && (!_supportOnlyWhenAiming || EasedGunAimBlend > 0.5f));
             _rightGrip = Mathf.MoveTowards(_rightGrip, rightHolds ? 1.0f : 0.0f, GripBlendPerSecond * deltaTime);
             _leftGrip = Mathf.MoveTowards(_leftGrip, leftHolds ? 1.0f : 0.0f, GripBlendPerSecond * deltaTime);
-            HandGrip.Apply(_rightDigits, true, _rightGrip);
-            HandGrip.Apply(_leftDigits, false, _leftGrip);
+            IHandGripStyle style = GripStyle;
+            FingerAmounts right = style != null ? FingerAmounts.Lerp(FingerAmounts.Open, style.StrongHandGrip, _rightGrip) : FingerAmounts.Wrap(_rightGrip);
+            FingerAmounts left = style != null && !LeftHandHolds ? FingerAmounts.Lerp(FingerAmounts.Open, style.SupportHandGrip, _leftGrip) : FingerAmounts.Wrap(_leftGrip);
+            HandGrip.Apply(_rightDigits, true, right, _bakedFingerWeight);
+            HandGrip.Apply(_leftDigits, false, left, _bakedFingerWeight);
         }
     }
 }

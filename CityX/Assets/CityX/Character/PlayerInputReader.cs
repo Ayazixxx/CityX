@@ -1473,7 +1473,9 @@ namespace CityX.Character
                     ? YawSource
                     : (Camera.main != null ? Camera.main.transform : null);
 
-                if (Mouse.current.leftButton.wasPressedThisFrame && gunYawSource != null)
+                // An automatic (the AK-47) fires for as long as the button is held, at its own rate (the gun gates it); anything else once per press.
+                bool trigger = EquippedGun.IsAutomatic ? Mouse.current.leftButton.isPressed : Mouse.current.leftButton.wasPressedThisFrame;
+                if (trigger && gunYawSource != null)
                 {
                     EquippedGun.Fire(gunYawSource.position, gunYawSource.forward, aiming, gameObject);
                 }

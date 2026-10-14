@@ -45,6 +45,7 @@ namespace CityX.Character
         private FistPoseDriver _fist;
         private SwordPoseDriver _sword;
         private FlinchPoseDriver _flinch;
+        private GunReloadDriver _gunReload;
         private PlayerVitals _vitals;
 
         /// <summary>The masked layers the poison breath's scream plays on: torso and head, and the arms (separate, so a sword swing can keep them).</summary>
@@ -91,7 +92,7 @@ namespace CityX.Character
         /// <summary>True when this body's Animator has a state of that name (on whichever layer owns it), or it is a procedural one (a punch, a sword attack or guard).</summary>
         public bool HasState(string stateName)
         {
-            if (FistStrikes.Has(stateName) || SwordStrikes.Has(stateName) || HitReactions.Has(stateName))
+            if (FistStrikes.Has(stateName) || SwordStrikes.Has(stateName) || HitReactions.Has(stateName) || GunReload.Has(stateName))
             {
                 return true;
             }
@@ -113,6 +114,10 @@ namespace CityX.Character
             if (HitReactions.TryGet(stateName, out HitDirection hitDirection, out bool stagger))
             {
                 return _flinch != null && _flinch.IsPlaying && _flinch.Direction == hitDirection && _flinch.IsStagger == stagger;
+            }
+            if (GunReload.TryGet(stateName, out bool reloadEmpty))
+            {
+                return _gunReload != null && _gunReload.IsPlaying && _gunReload.IsEmptyReload == reloadEmpty;
             }
             if (_animator == null)
             {
@@ -153,11 +158,20 @@ namespace CityX.Character
             {
                 _flinch = gameObject.AddComponent<FlinchPoseDriver>();
             }
+            // And a gun's reload (GunReload): a baked motion the gun in hand lends, played on the owner's body and its copies alike.
+            _gunReload = GetComponent<GunReloadDriver>();
+            if (_gunReload == null)
+            {
+                _gunReload = gameObject.AddComponent<GunReloadDriver>();
+            }
             _vitals = GetComponent<PlayerVitals>();
         }
 
         /// <summary>The procedural sword poser on this body (an attack's progress, a guard held), for tests and captures.</summary>
         public SwordPoseDriver SwordPoser => _sword;
+
+        /// <summary>The reload poser on this body.</summary>
+        public GunReloadDriver GunReloader => _gunReload;
 
         /// <summary>The hit-reaction poser on this body.</summary>
         public FlinchPoseDriver Flincher => _flinch;
@@ -260,6 +274,18 @@ namespace CityX.Character
         /// </summary>
         public event System.Action<string, float, float> TimedStatePlayed;
 
+        /// <summary>A gun shot by the player this body is a copy of (GunReload.FireName, from the network): the mounted gun shows it.</summary>
+        public event System.Action RemoteGunFired;
+
+        /// <summary>Tells other players' copies of this body about something that already happened here (a gun shot), without playing anything.</summary>
+        public void AnnounceState(string stateName)
+        {
+            if (!string.IsNullOrEmpty(stateName))
+            {
+                TimedStatePlayed?.Invoke(stateName, 1.0f, 0.0f);
+            }
+        }
+
         /// <summary>
         /// Plays a state on THIS body and announces it (so other players'
         /// copies replay it) -- for a caller that decides its own animation
@@ -298,6 +324,11 @@ namespace CityX.Character
             if (SwordStrikes.Has(stateName))
             {
                 _sword?.SetSpeed(speed);   // a procedural attack has its own clock; the legs go on walking under a hit-stop
+                return;
+            }
+            if (GunReload.Has(stateName))
+            {
+                _gunReload?.SetSpeed(speed);
                 return;
             }
             if (_animator == null)
@@ -351,9 +382,14 @@ namespace CityX.Character
             {
                 return;
             }
-            if (FistStrikes.Has(stateName) || SwordStrikes.Has(stateName) || HitReactions.Has(stateName))
+            if (stateName == GunReload.FireName)
             {
-                PlayState(stateName);   // a copy of someone else's body throws the same procedural strike (or raises the same guard, or flinches)
+                RemoteGunFired?.Invoke();   // the copy's mounted gun flashes, cracks, throws brass
+                return;
+            }
+            if (FistStrikes.Has(stateName) || SwordStrikes.Has(stateName) || HitReactions.Has(stateName) || GunReload.Has(stateName))
+            {
+                PlayState(stateName);   // a copy of someone else's body throws the same procedural strike (or raises the same guard, or flinches, or reloads)
                 return;
             }
             if (!_animator.HasState(LayerFor(stateName), Animator.StringToHash(stateName)))
@@ -379,6 +415,14 @@ namespace CityX.Character
             if (stateName == SwordStrikes.ParryName)
             {
                 _sword?.Parry();
+                return;
+            }
+            // A gun's reload: a baked motion on the upper body (GunReloadDriver), the legs walking on under it.
+            if (GunReload.TryGet(stateName, out bool reloadEmpty))
+            {
+                _fist?.Cancel();
+                _sword?.Cancel();
+                _gunReload?.Begin(reloadEmpty);
                 return;
             }
             // An unarmed strike has no clip: the fists and torso are posed by FistPoseDriver (and the legs go on walking).

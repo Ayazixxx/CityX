@@ -33,6 +33,7 @@ namespace CityX.Tests
                 point = origin + direction * 10.0f;
                 barrelBlocked = Blocked;
             }
+            public bool IsAutomatic => false;
             public void Raise(GunShot shot) => ShotResolved?.Invoke(shot);
         }
 

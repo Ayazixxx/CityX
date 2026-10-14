@@ -840,10 +840,20 @@ namespace CityX.Character
         private BakedPose _bakedPose;
         private float _bakedPoseWeight;
         private Transform[] _bakedBones;
+        private bool[] _bakedLowerBody;
+        private bool _bakedHasFingers;
         private System.Collections.Generic.IReadOnlyList<string> _bakedBonesFor;
+        private readonly System.Collections.Generic.Dictionary<string, Transform> _bakedProps = new System.Collections.Generic.Dictionary<string, Transform>();
+        private float _bakedFingerWeight;
 
         /// <summary>How much of the body a baked pose holds, 0 to 1.</summary>
         public float BakedPoseWeight => _bakedPoseWeight;
+
+        /// <summary>How much the baked pose being applied holds the FINGERS this frame (0 when it has no finger bones): the hand grips keep off that much.</summary>
+        public float BakedFingerWeight => _bakedFingerWeight;
+
+        /// <summary>True while the baked pose leaves the hips and legs to the Animator (a gun reload): the foot IK and the lean stay on.</summary>
+        public bool BakedPoseIsUpperBodyOnly => _bakedPose != null && _bakedPose.UpperBodyOnly;
 
         /// <summary>
         /// Puts <paramref name="pose"/> on the body from this frame's LateUpdate on, at <paramref name="weight"/> (1: the pose exactly; between:
@@ -855,8 +865,43 @@ namespace CityX.Character
             _bakedPose = _bakedPoseWeight > 0.0f ? pose : null;
         }
 
+        /// <summary>
+        /// A held thing's moving part (a pistol's slide, its magazine) that a baked pose may drive by name (BakedMotion.Props): its local position,
+        /// rotation and visibility are set in the held thing's own frame. The gun registers its parts on equip and takes them back on unequip.
+        /// </summary>
+        public void RegisterBakedProp(string name, Transform part)
+        {
+            if (string.IsNullOrEmpty(name))
+            {
+                return;
+            }
+            if (part == null)
+            {
+                _bakedProps.Remove(name);
+            }
+            else
+            {
+                _bakedProps[name] = part;
+            }
+        }
+
+        public void UnregisterBakedProp(string name)
+        {
+            if (!string.IsNullOrEmpty(name))
+            {
+                _bakedProps.Remove(name);
+            }
+        }
+
+        /// <summary>The part registered under <paramref name="name"/>, or null (for tests).</summary>
+        public Transform BakedProp(string name)
+        {
+            return name != null && _bakedProps.TryGetValue(name, out Transform part) ? part : null;
+        }
+
         private void ApplyBakedPose()
         {
+            _bakedFingerWeight = 0.0f;
             if (_bakedPose == null || _bakedPoseWeight <= 0.0f || _animator == null)
             {
                 return;
@@ -865,19 +910,24 @@ namespace CityX.Character
             {
                 _bakedBonesFor = _bakedPose.Bones;
                 _bakedBones = new Transform[_bakedPose.Bones.Count];
+                _bakedLowerBody = new bool[_bakedBones.Length];
+                _bakedHasFingers = false;
                 for (int i = 0; i < _bakedBones.Length; i++)
                 {
                     _bakedBones[i] = FindBone(_animator.transform, _bakedPose.Bones[i]);
+                    _bakedLowerBody[i] = BakedMotion.IsLowerBody(_bakedPose.Bones[i]);
+                    _bakedHasFingers |= _bakedBones[i] != null && BakedMotion.IsFingerBone(_bakedPose.Bones[i]);
                 }
             }
 
             float weight = _bakedPoseWeight;
+            bool upperOnly = _bakedPose.UpperBodyOnly;
             for (int i = 0; i < _bakedBones.Length; i++)
             {
                 Transform bone = _bakedBones[i];
-                if (bone == null)
+                if (bone == null || (upperOnly && _bakedLowerBody[i]))
                 {
-                    continue;
+                    continue;   // a reload leaves the hips and legs to the Animator and the foot IK
                 }
                 Quaternion rotation = _bakedPose.Rotations[i];
                 if (_bakedPose.Bones[i] == BakedMotion.RootBone)
@@ -888,6 +938,23 @@ namespace CityX.Character
                     bone.localPosition = Vector3.Lerp(bone.localPosition, position, weight);
                 }
                 bone.localRotation = weight >= 1.0f ? rotation : Quaternion.Slerp(bone.localRotation, rotation, weight);
+            }
+            _bakedFingerWeight = _bakedHasFingers ? weight : 0.0f;
+
+            // The held thing's parts, in its own frame: the gun's slide, its magazine (which vanishes once it has dropped, and reappears in
+            // the free hand). Visibility switches once the pose has mostly taken hold, so a part never blinks during the blend in.
+            for (int p = 0; p < _bakedPose.Props.Count; p++)
+            {
+                if (!_bakedProps.TryGetValue(_bakedPose.Props[p], out Transform part) || part == null)
+                {
+                    continue;
+                }
+                part.localPosition = Vector3.Lerp(part.localPosition, _bakedPose.PropPositions[p], weight);
+                part.localRotation = Quaternion.Slerp(part.localRotation, _bakedPose.PropRotations[p], weight);
+                if (weight >= 0.5f && part.gameObject.activeSelf != _bakedPose.PropVisible[p])
+                {
+                    part.gameObject.SetActive(_bakedPose.PropVisible[p]);
+                }
             }
         }
 
@@ -1481,13 +1548,15 @@ namespace CityX.Character
         private void ApplyStraightWrists()
         {
             // "Empty" means nothing MOUNTED on the hand: the finger bones and the fingertip leaf are the rig's own (PlayerLocomotion.Fingers.cs).
+            // A baked pose that turns the wrists itself (a reload's free hand, cupping a magazine) keeps them, by its weight.
+            float keep = _bakedPoseWeight;
             if (_handL != null && !LeftHandHolds)
             {
-                _handL.localRotation = Quaternion.identity;
+                _handL.localRotation = keep > 0.0f ? Quaternion.Slerp(Quaternion.identity, _handL.localRotation, keep) : Quaternion.identity;
             }
             if (_handR != null && !RightHandHolds)
             {
-                _handR.localRotation = Quaternion.identity;
+                _handR.localRotation = keep > 0.0f ? Quaternion.Slerp(Quaternion.identity, _handR.localRotation, keep) : Quaternion.identity;
             }
         }
 
@@ -2426,6 +2495,14 @@ namespace CityX.Character
             _gunWalkHeadBlend = Mathf.MoveTowards(
                 _gunWalkHeadBlend, (_gunEquipped && !_isAimingGun && _gunFireHold <= 0.0f) ? 1.0f : 0.0f, GunAimBlendPerSecond * deltaTime);
 
+            // A RIFLE is held two-handed with its stock in the shoulder, always: its own pose places the gun and the arms follow it
+            // (PlayerLocomotion.RifleAim.cs). It shares the aim point (SmoothedGunAimPoint) and the fire hold, not the pistol's arm-bending.
+            if (_rifleGun != null)
+            {
+                ApplyRiflePose(deltaTime);
+                return;
+            }
+
             if (_gunAimBlend <= 0.0f || _rightUpperArm == null || _rightLowerArm == null)
             {
                 _aimDepthValid = false;   // the next time the gun comes up it starts from where the crosshair is then
@@ -2469,30 +2546,7 @@ namespace CityX.Character
                 // other directions". So the aim point stays ON the camera ray (the mouse still turns the arm
                 // with no lag at all) and only how far along it the arm looks is eased, in log space (a jump
                 // from 3m to 30m is the same size of step as 30m to 300m).
-                Vector3 cameraForward = _gunAimCameraForward.normalized;
-                Vector3 shoulder = _rightUpperArm.position;
-                float minDepth = Mathf.Max(0.5f, Vector3.Dot(shoulder - _gunAimCameraPosition, cameraForward)) + GunAimPointMinMetres;
-                float rawDepth = GunAimConvergenceDistance;
-                if (_hasGunAimPoint)
-                {
-                    rawDepth = Mathf.Max(minDepth, Vector3.Dot(_gunAimPoint - _gunAimCameraPosition, cameraForward));
-                }
-                float wantedLogDepth = Mathf.Log(Mathf.Max(minDepth, rawDepth));
-                if (!_aimDepthValid)
-                {
-                    _aimLogDepth = wantedLogDepth;   // starting to aim: nothing to be smooth with yet
-                    _aimDepthValid = true;
-                }
-                else
-                {
-                    float change = wantedLogDepth - _aimLogDepth;
-                    if (Mathf.Abs(change) > GunAimDepthDeadZone)
-                    {
-                        float seconds = change < 0.0f ? GunAimDepthCloserSmoothSeconds : GunAimDepthSmoothSeconds;
-                        _aimLogDepth = Mathf.Lerp(_aimLogDepth, wantedLogDepth, 1.0f - Mathf.Exp(-deltaTime / seconds));
-                    }
-                }
-                Vector3 aimPoint = _gunAimCameraPosition + cameraForward * Mathf.Exp(_aimLogDepth);
+                Vector3 aimPoint = SmoothedGunAimPoint(_rightUpperArm.position, deltaTime);
                 _aimedPoint = aimPoint;
                 _hasAimedPoint = true;
                 desiredDirection = (aimPoint - _rightUpperArm.position).normalized;

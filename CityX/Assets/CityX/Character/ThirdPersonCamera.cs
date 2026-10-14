@@ -81,35 +81,35 @@ namespace CityX.Character
         public float ShoulderOffset = 0.5f;
 
         /// <summary>
-        /// ORIGINALLY a workaround for the gun-vs-crosshair mismatch, no
-        /// longer load-bearing for that job -- EXPLICIT BUG REPORT (three
-        /// times now: "the pistol aimed in pose is like positioned to the
-        /// left slightly make it point forward," then "the pose he goes in
-        /// when you hold right click is aimed to the left slightly he isnt
-        /// even pointing the gun forward," then, with a screenshot showing
-        /// the crosshair landing almost exactly on the character's own
-        /// head/shoulder: "make it so the pov is to the right slightly like
-        /// fortnite." The first fix pulled this offset in closer to centred
-        /// so the gun's own fixed body-forward pose happened to line up
-        /// with wherever the crosshair landed -- an approximation, not a
-        /// real fix, which is why the same symptom came back.
-        /// PlayerLocomotion.ApplyGunAimPose now aims the arm directly AT
-        /// the point this camera's own ray converges on
-        /// (GunAimConvergenceDistance ahead of it), so the gun agrees with
-        /// the crosshair by construction regardless of what this offset is
-        /// set to -- freeing this up to move to Godot's own real value
-        /// rather than the barely-off-centre 0.25 it was stuck at, or the
-        /// guessed-not-measured 0.65 that replaced it. player.gd's own
-        /// ADS_SHOULDER_OFFSET_X is 1.415 -- a REAL, hand-measured number
-        /// ("measured via the /camera unlock + Remote tab + /camera pose
-        /// workflow ... not guessed", its own comment says), found only by
-        /// actually reading player.gd instead of re-guessing a Fortnite
-        /// number a fourth time. It is nearly TRIPLE what 0.65 was -- a much
-        /// more dramatic over-the-shoulder swing than any previous attempt
-        /// here used, which is likely why every previous guess still read
-        /// as "off" against the real Godot feel.
+        /// How far to the side of the pivot the camera sits while aiming, metres. HISTORY: 0.25, then 0.65, then 1.415 (player.gd's own
+        /// ADS_SHOULDER_OFFSET_X) -- but with the camera still 4 m back, 1.4 m to the side put the gun at the far edge of the frame or out of it:
+        /// "i cant even see this pistol when im aiming in with it which it doesnt do in any other third person shooter" (owner, 2026-10-14).
+        /// The research (docs/THIRD_PERSON_PISTOL.md): aiming in a third-person shooter brings the camera IN over the shoulder (Gears, The
+        /// Division, Fortnite, RE4's shoulder cam) so the character fills the left of the frame and the gun points into its middle. And this body's
+        /// head is 0.7 m across with the gun held under its middle (a two-handed stance): from behind, a camera less than about 0.9 m to the
+        /// side sees the head and not the gun (checked in FirearmCapture's renders at 0.6). Now 1.0 m
+        /// to the side and AimDistance (2.3 m) back, a little above the pivot: the gun sits left of and just below the crosshair, pointing at it.
+        /// The gun agrees with the crosshair whatever this is (PlayerLocomotion aims the barrel at the camera ray's point).
         /// </summary>
-        public float AimShoulderOffset = 1.415f;
+        public float AimShoulderOffset = DefaultAimShoulderOffset;
+
+        public const float DefaultAimShoulderOffset = 1.0f;
+
+        public const float DefaultAimDistance = 2.3f;
+
+        public const float DefaultAimPivotRaise = 0.2f;
+
+        [Tooltip("How far back from the shoulder pivot the camera sits while aiming, metres (Distance otherwise). Closer is what makes the gun read.")]
+        public float AimDistance = DefaultAimDistance;
+
+        [Tooltip("Per second: how fast the camera moves in to its aiming place (and back out). 4 = a quarter of a second.")]
+        public float AimCameraBlendPerSecond = 4.0f;
+
+        /// <summary>0 (the ordinary place) to 1 (in over the shoulder, aiming), as an S-curve.</summary>
+        public float AimCameraBlend => Mathf.SmoothStep(0.0f, 1.0f, _aimCameraBlend);
+
+        [Tooltip("How much higher the pivot sits while aiming, metres: the camera looks over the shoulder and down the gun, not along it.")]
+        public float AimPivotRaise = DefaultAimPivotRaise;
 
         [Tooltip("Metres per second ShoulderOffset eases toward AimShoulderOffset when the aim state changes -- mirrors AimZoomDegreesPerSecond's own shape for FOV.")]
         public float AimShoulderOffsetMetresPerSecond = 3.0f;
@@ -184,7 +184,13 @@ namespace CityX.Character
         public float ShakeDecayPerSecond = 14.0f;
 
         [Tooltip("The camera never kicks up further than this from a burst, however fast you fire.")]
-        public float MaxRecoilPitchDegrees = 6.0f;
+        public float MaxRecoilPitchDegrees = 14.0f;
+
+        [Tooltip("The camera never kicks further sideways than this, degrees.")]
+        public float MaxRecoilYawDegrees = 6.0f;
+
+        [Tooltip("Sideways kick settles this many times faster than the climb.")]
+        public float RecoilYawRecoverScale = 1.6f;
 
         [Tooltip("Per second, how fast the camera slides across when you swap shoulders.")]
         public float ShoulderSwapPerSecond = 6.0f;
@@ -204,6 +210,9 @@ namespace CityX.Character
         // exactly on the crosshair.
         private float _recoilPitch;
         private float _shakeRoll;
+        private float _recoilYaw;
+        private float _recoilHold;
+        private float _aimCameraBlend;
 
         // +1 = camera over the right shoulder, -1 = left. Slides between them.
         private float _shoulderSide = 1.0f;
@@ -221,23 +230,52 @@ namespace CityX.Character
         /// <summary>Current camera kick, degrees up (read by tests and the HUD).</summary>
         public float RecoilPitch => _recoilPitch;
 
+        /// <summary>Current sideways kick, degrees to the right (an automatic's spray wanders).</summary>
+        public float RecoilYaw => _recoilYaw;
+
         /// <summary>
         /// Kicks the view up and jolts it. Applied to the camera only, and it
         /// recovers on its own -- see the field comment above.
         /// </summary>
         public void AddRecoil(float pitchUpDegrees, float shakeRollDegrees)
         {
+            AddRecoil(pitchUpDegrees, shakeRollDegrees, 0.0f, 0.0f);
+        }
+
+        /// <summary>
+        /// The full kick: up, to the right (negative: left), the roll jolt, and how long it is held before it settles. An automatic holds its
+        /// kick through a burst (a shot every 0.1 s, a hold of 0.13 s), so a spray CLIMBS and wanders along the gun's pattern and must be pulled
+        /// back down -- CS:GO's AK, learnable because it is the same every time; a pistol's settles at once between shots.
+        /// </summary>
+        public void AddRecoil(float pitchUpDegrees, float shakeRollDegrees, float yawRightDegrees, float holdSeconds)
+        {
             _recoilPitch = Mathf.Min(MaxRecoilPitchDegrees, _recoilPitch + Mathf.Max(0.0f, pitchUpDegrees));
+            _recoilYaw = Mathf.Clamp(_recoilYaw + yawRightDegrees, -MaxRecoilYawDegrees, MaxRecoilYawDegrees);
             _shakeRoll += (Random.value < 0.5f ? -1.0f : 1.0f) * shakeRollDegrees;
+            _recoilHold = Mathf.Max(_recoilHold, holdSeconds);
         }
 
         private void DecayRecoil(float deltaTime)
         {
-            float recover = 1.0f - Mathf.Exp(-RecoilRecoverPerSecond * deltaTime);
-            _recoilPitch -= _recoilPitch * recover;
-            if (_recoilPitch < 0.0005f)
+            if (_recoilHold > 0.0f)
             {
-                _recoilPitch = 0.0f;
+                _recoilHold -= deltaTime;   // still inside a burst: the kick stays where the pattern put it
+            }
+            else
+            {
+                float recover = 1.0f - Mathf.Exp(-RecoilRecoverPerSecond * deltaTime);
+                _recoilPitch -= _recoilPitch * recover;
+                if (_recoilPitch < 0.0005f)
+                {
+                    _recoilPitch = 0.0f;
+                }
+                // Sideways settles faster than the climb (the research: horizontal recoil recovers quicker, so the climb is what you fight).
+                float recoverYaw = 1.0f - Mathf.Exp(-RecoilRecoverPerSecond * RecoilYawRecoverScale * deltaTime);
+                _recoilYaw -= _recoilYaw * recoverYaw;
+                if (Mathf.Abs(_recoilYaw) < 0.0005f)
+                {
+                    _recoilYaw = 0.0f;
+                }
             }
 
             float shake = 1.0f - Mathf.Exp(-ShakeDecayPerSecond * deltaTime);
@@ -517,6 +555,7 @@ namespace CityX.Character
             }
 
             bool followingRagdoll = Ragdoll != null && Ragdoll.IsLimp && Ragdoll.Torso != null;
+            _aimCameraBlend = Mathf.MoveTowards(_aimCameraBlend, IsAiming && !followingRagdoll ? 1.0f : 0.0f, AimCameraBlendPerSecond * Time.deltaTime);
 
             Vector3 pivot;
             if (followingRagdoll)
@@ -534,11 +573,13 @@ namespace CityX.Character
             {
                 float height = _player != null ? _player.StandingHeight : 1.8f;
                 pivot = Target.position + Vector3.up * (height * PivotHeightFraction);
+                // Aiming: a little higher, over the shoulder, and closer (below): eased over a quarter of a second, an S-curve.
+                pivot += Vector3.up * (AimPivotRaise * AimCameraBlend);
             }
 
             // The recoil kick and roll jolt ride on top of where you are
-            // aiming; a positive kick raises the view, i.e. LOWERS the pitch.
-            Quaternion rotation = Quaternion.Euler(_pitch - _recoilPitch, _yaw, _shakeRoll);
+            // aiming; a positive kick raises the view, i.e. LOWERS the pitch, and a spray's sideways wander turns it.
+            Quaternion rotation = Quaternion.Euler(_pitch - _recoilPitch, _yaw + _recoilYaw, _shakeRoll);
 
             // OFFSET THE DESTINATION, NOT THE COLLISION ORIGIN. The spherecast
             // below still starts from the centred chest pivot -- see its own
@@ -553,7 +594,8 @@ namespace CityX.Character
             _currentShoulderSide = Mathf.MoveTowards(
                 _currentShoulderSide, _shoulderSide, ShoulderSwapPerSecond * Time.deltaTime);
             Vector3 shoulderPivot = pivot + rotation * Vector3.right * (_currentShoulderOffset * _currentShoulderSide);
-            Vector3 wanted = shoulderPivot - rotation * Vector3.forward * (Distance + FlightDistanceBonus);
+            float distance = Mathf.Lerp(Distance + FlightDistanceBonus, AimDistance, AimCameraBlend);
+            Vector3 wanted = shoulderPivot - rotation * Vector3.forward * distance;
 
             // Pull in if a wall is in the way. The sphere radius keeps the near
             // plane out of the surface rather than flush against it, which is

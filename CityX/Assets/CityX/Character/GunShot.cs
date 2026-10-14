@@ -47,5 +47,11 @@ namespace CityX.Character
 
         /// <summary>Camera roll shake, degrees -- a few tenths, for the "that had weight" jolt.</summary>
         public float ShakeDegrees;
+
+        /// <summary>How far to kick the camera to the RIGHT, degrees (negative: left): an automatic's spray wanders (FirearmProfile.RecoilPattern).</summary>
+        public float RecoilYawDegrees;
+
+        /// <summary>How long the camera holds this kick before it starts to settle, seconds: an automatic holds through its burst, so a spray climbs.</summary>
+        public float RecoilHoldSeconds;
     }
 }

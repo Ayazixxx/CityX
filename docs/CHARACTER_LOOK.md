@@ -117,6 +117,11 @@ bones of its own** and the hands close round what they hold.
   of counting children, since the finger bones are children too.
 - **Look at it:** `tools/unity_tests.ps1 -Platform PlayMode -Graphics -Filter CityX.Tests.SwordStrikeCapture` writes `Logs/CityShots/grip-1h.png`
   and `grip-2h.png` (the hand from the thumb's side, from above, and the whole hold).
+- **On a gun (2026-10-14)** the grip is the gun's, not a wrap (`IHandGripStyle`, `FingerAmounts`): the trigger finger lies straight along
+  the frame while carried, rests on the trigger while aimed and is pulled for a moment on each shot; the thumb lies forward along the frame;
+  a pistol's support hand wraps over the shooting hand's fingers, a rifle's curls under the handguard. A gun's reload motion (made in Blender
+  with the finger bones: `CityX/SourceArt/Firearms`) poses the fingers itself and the grip keeps off them by its weight. See
+  [FIREARMS.md](FIREARMS.md).
 
 ## Whole-body lean (2026-10-10)
 

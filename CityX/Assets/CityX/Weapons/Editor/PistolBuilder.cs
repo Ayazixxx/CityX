@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using CityX.CharacterEditor;
 using CityX.Items;
 using CityX.Weapons;
@@ -7,231 +8,32 @@ using UnityEngine;
 namespace CityX.WeaponsEditor
 {
     /// <summary>
-    /// Builds the pistol prefab. Ported from weapons/pistol.tscn/pistol.gd.
-    ///
-    /// THE REAL Beretta_M9.obj MODEL, NOT A PROCEDURAL BUILD -- the one
-    /// weapon in this project that isn't (see BottleBuilder/
-    /// GrapplingHookBuilder's own reasoning for why every other weapon is).
-    /// Godot's own _build_visual() re-centers the imported mesh on its own
-    /// bounding-box middle and normalizes its scale so the largest dimension
-    /// matches TargetLengthMeters, rather than trusting the raw OBJ's units --
-    /// ported the same way here rather than assuming Unity's own OBJ importer
-    /// already got the scale right.
-    ///
-    /// THE IMPORTED MATERIAL IS OVERRIDDEN OUTRIGHT, matching pistol.gd's own
-    /// GUNMETAL_COLOR override -- confirmed there via a direct dump that the
-    /// source .mtl's real material is pure black (Kd 0 0 0, no texture maps
-    /// to fall back on), which reads as a solid black silhouette against this
-    /// game's own dark night lighting. No reason to assume Unity's importer
-    /// resolves that .mtl any better; overriding is the same fix either way.
+    /// Builds the pistol prefab: THE GLOCK (2026-10-14), made in Blender from scratch (CityX/SourceArt/Glock/glock_model.py) as separate
+    /// parts -- frame, slide, barrel, magazine, trigger -- so the slide cycles on a shot and is racked in an empty reload, the magazine
+    /// drops out and a fresh one goes in, and the trigger is pulled. It replaced the placeholder Beretta model (Models/Beretta_M9.obj, which
+    /// the owner made in Meshy and called temporary). The item is still "pistol" and the prefab still Pistol.prefab, so every inventory,
+    /// network list and test that names them keeps working. See FirearmBuilder for how a model becomes a prefab.
     /// </summary>
     public static class PistolBuilder
     {
         private const string PrefabPath = "Assets/CityX/Weapons/Pistol.prefab";
-        private const string ModelPath = "Assets/CityX/Weapons/Models/Beretta_M9.obj";
-        private const string ShotAudioPath = "Assets/CityX/Weapons/Audio/pistol_shot.mp3";
-        private const string ReloadAudioPath = "Assets/CityX/Weapons/Audio/beretta_reload.mp3";
-        private const string SparkMaterialPath = "Assets/CityX/Weapons/PistolSpark.mat";
+        private const string ModelPath = "Assets/CityX/Weapons/Glock.glb";
+        private const string MeshFolder = "Assets/CityX/Weapons/GlockMeshes";
 
-        // Real Beretta M9 overall length (~21.7cm).
-        private const float TargetLengthMeters = 0.22f;
-
-        /// <summary>
-        /// How many independent AudioSources take turns playing the gunshot
-        /// -- see PistolWeapon.ShotPlayerPool's own doc comment. Comfortably
-        /// more than one shot's worth of overlap at FireRatePerSecond
-        /// (~0.18s between shots) without allocating a source per shot ever
-        /// fired.
-        /// </summary>
-        private const int ShotVoiceCount = 6;
-
-        /// <summary>
-        /// How much bigger the pistol reads lying in the world than its
-        /// true-to-life NormalizeScale size -- reported too small to
-        /// notice on the ground. ONLY affects the world/pickup state: the
-        /// root's own scale gets overwritten outright by OnEquip's
-        /// GripHandPosition/GripHandRotationEuler/GripScale block the
-        /// instant it's picked up, so this never touches how it looks in
-        /// hand. The pickup trigger's radius is divided back down by the
-        /// same factor below so InteractRange still means what it says in
-        /// real metres, rather than silently doubling the pickup range too.
-        /// </summary>
-        private const float WorldPickupScale = 2.0f;
-
-        private static readonly Color GunmetalColour = new Color(0.16f, 0.16f, 0.17f);
-        private static readonly Color SparkColour = new Color(1.0f, 0.85f, 0.4f);
-        private static readonly Color MuzzleLightColour = new Color(1.0f, 0.75f, 0.35f);
+        /// <summary>The Blender materials' looks: black polymer, dark nitrided steel, a brighter barrel, the magazine, white sight dots.</summary>
+        public static readonly Dictionary<string, FirearmBuilder.Finish> Finishes = new Dictionary<string, FirearmBuilder.Finish>
+        {
+            ["GlockPolymer"] = new FirearmBuilder.Finish(new Color(0.07f, 0.07f, 0.075f), 0.0f, 0.3f),
+            ["GlockSteel"] = new FirearmBuilder.Finish(new Color(0.11f, 0.115f, 0.125f), 0.8f, 0.55f),
+            ["GlockBarrel"] = new FirearmBuilder.Finish(new Color(0.34f, 0.35f, 0.37f), 0.9f, 0.65f),
+            ["GlockMag"] = new FirearmBuilder.Finish(new Color(0.09f, 0.09f, 0.1f), 0.5f, 0.45f),
+            ["GlockSightDot"] = new FirearmBuilder.Finish(new Color(0.92f, 0.92f, 0.86f), 0.0f, 0.4f),
+        };
 
         [MenuItem("CityX/Rebuild Pistol")]
         public static GameObject Build()
         {
-            GameObject model = AssetDatabase.LoadAssetAtPath<GameObject>(ModelPath);
-            if (model == null)
-            {
-                Debug.LogError($"CityX: no model at {ModelPath} -- check the OBJ imported.");
-                return null;
-            }
-
-            var root = new GameObject("Pistol");
-            try
-            {
-                var visual = (GameObject)PrefabUtility.InstantiatePrefab(model);
-                visual.name = "Visual";
-                visual.transform.SetParent(root.transform, false);
-                NormalizeScale(visual);
-
-                Material gunmetal = CharacterSkin.Ensure("PistolGunmetal", GunmetalColour);
-                gunmetal.SetFloat("_Metallic", 0.75f);
-                gunmetal.SetFloat("_Smoothness", 0.65f);
-                foreach (MeshRenderer renderer in visual.GetComponentsInChildren<MeshRenderer>(true))
-                {
-                    renderer.sharedMaterial = gunmetal;
-                }
-
-                root.transform.localScale = Vector3.one * WorldPickupScale;
-
-                var pickupTrigger = root.AddComponent<SphereCollider>();
-                pickupTrigger.isTrigger = true;
-                pickupTrigger.radius = PistolWeapon.InteractRange / WorldPickupScale;
-
-                GameObject muzzleFlash = BuildMuzzleFlash(root.transform, out ParticleSystem sparks);
-
-                var shotPlayer = BuildAudioSource(root.transform, "ShotPlayer", ShotAudioPath);
-                var reloadPlayer = BuildAudioSource(root.transform, "ReloadPlayer", ReloadAudioPath);
-
-                // See PistolWeapon.ShotPlayerPool's own doc comment: extra
-                // voices so rapid fire never has to reassign .pitch on a
-                // source another still-overlapping shot is playing on. Named
-                // ShotPlayer2/3/... alongside the original ShotPlayer, which
-                // stays wired too (NextShotVoice's own fallback needs it, and
-                // it keeps this pool a strict addition rather than a rename).
-                var shotPool = new AudioSource[ShotVoiceCount];
-                shotPool[0] = shotPlayer;
-                for (int i = 1; i < ShotVoiceCount; i++)
-                {
-                    shotPool[i] = BuildAudioSource(root.transform, $"ShotPlayer{i + 1}", ShotAudioPath);
-                }
-
-                var pistol = root.AddComponent<PistolWeapon>();
-                pistol.VisualRoot = visual.transform;
-                pistol.MuzzleFlashObject = muzzleFlash;
-                pistol.MuzzleLight = muzzleFlash.GetComponent<Light>();
-                pistol.MuzzleSparks = sparks;
-                pistol.ShotPlayer = shotPlayer;
-                pistol.ShotPlayerPool = shotPool;
-                pistol.ReloadPlayer = reloadPlayer;
-                pistol.BloodPrefab = BloodSplatterBuilder.Build();
-
-                GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
-                AssetDatabase.SaveAssets();
-                Debug.Log($"CityX: pistol written to {PrefabPath}");
-                return saved;
-            }
-            finally
-            {
-                Object.DestroyImmediate(root);
-            }
-        }
-
-        /// <summary>
-        /// Re-centers on the mesh's own bounding-box middle and scales so
-        /// its largest dimension matches TargetLengthMeters -- matches
-        /// pistol.gd's own _build_visual exactly, for the same reason: the
-        /// raw imported mesh's actual units aren't something to assume.
-        /// </summary>
-        private static void NormalizeScale(GameObject visual)
-        {
-            Renderer[] renderers = visual.GetComponentsInChildren<Renderer>(true);
-            if (renderers.Length == 0)
-            {
-                return;
-            }
-            Bounds bounds = renderers[0].bounds;
-            for (int i = 1; i < renderers.Length; i++)
-            {
-                bounds.Encapsulate(renderers[i].bounds);
-            }
-
-            float largestDimension = Mathf.Max(bounds.size.x, Mathf.Max(bounds.size.y, bounds.size.z));
-            float normalizeScale = largestDimension > 0.0001f ? TargetLengthMeters / largestDimension : 1.0f;
-
-            Vector3 centreLocal = visual.transform.InverseTransformPoint(bounds.center);
-            visual.transform.localScale = Vector3.one * normalizeScale;
-            visual.transform.localPosition = -centreLocal * normalizeScale;
-        }
-
-        /// <summary>
-        /// An OmniLight3D-equivalent point light plus a short particle burst
-        /// of sparks -- pistol.tscn's own MuzzleFlash/MuzzleSparks numbers.
-        /// Starts inactive; PistolWeapon.Fire flips it on for one frame.
-        /// </summary>
-        private static GameObject BuildMuzzleFlash(Transform parent, out ParticleSystem sparks)
-        {
-            var flash = new GameObject("MuzzleFlash");
-            flash.transform.SetParent(parent, false);
-            flash.transform.localPosition = new Vector3(0.0f, 0.0f, TargetLengthMeters * 0.5f);
-
-            Light light = flash.AddComponent<Light>();
-            light.type = LightType.Point;
-            light.color = MuzzleLightColour;
-            light.intensity = 6.0f;
-            light.range = 1.5f;
-            light.shadows = LightShadows.None;
-
-            var sparksObject = new GameObject("MuzzleSparks");
-            sparksObject.transform.SetParent(flash.transform, false);
-            sparks = sparksObject.AddComponent<ParticleSystem>();
-
-            ParticleSystem.MainModule main = sparks.main;
-            main.duration = 0.12f;
-            main.loop = false;
-            main.startLifetime = 0.12f;
-            main.startSpeed = new ParticleSystem.MinMaxCurve(3.0f, 6.0f);
-            main.startSize = new ParticleSystem.MinMaxCurve(0.02f, 0.05f);
-            main.startColor = SparkColour;
-            main.simulationSpace = ParticleSystemSimulationSpace.World;
-
-            ParticleSystem.EmissionModule emission = sparks.emission;
-            emission.rateOverTime = 0.0f;
-            emission.SetBursts(new[] { new ParticleSystem.Burst(0.0f, 10) });
-
-            ParticleSystem.ShapeModule shape = sparks.shape;
-            shape.shapeType = ParticleSystemShapeType.Cone;
-            shape.angle = 12.0f;
-            shape.radius = 0.01f;
-
-            ParticleSystem.ForceOverLifetimeModule force = sparks.forceOverLifetime;
-            force.enabled = true;
-            force.y = -2.0f;
-
-            var renderer = sparksObject.GetComponent<ParticleSystemRenderer>();
-            renderer.renderMode = ParticleSystemRenderMode.Stretch;
-
-            // SAVED AS A REAL ASSET, NOT LEFT LOOSE -- a bare in-memory
-            // `new Material(...)` assigned straight to a renderer does not
-            // reliably survive PrefabUtility.SaveAsPrefabAsset; loading the
-            // saved Pistol.prefab back found sharedMaterial null (confirmed
-            // directly), which URP renders as the reported bright pink/
-            // purple "missing shader" fallback, same as CharacterSkin's own
-            // doc comment describes for the identical symptom on a body
-            // with no material at all. BloodSplatterBuilder/GlassShatter
-            // Builder/GlassShardsBuilder all give their own particle
-            // material real asset backing via AssetDatabase.CreateAsset
-            // for exactly this reason; this one just never had.
-            Material sparkMaterial = AssetDatabase.LoadAssetAtPath<Material>(SparkMaterialPath);
-            if (sparkMaterial == null)
-            {
-                sparkMaterial = new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit"))
-                {
-                    name = "PistolSpark",
-                };
-                AssetDatabase.CreateAsset(sparkMaterial, SparkMaterialPath);
-            }
-            sparkMaterial.SetColor("_BaseColor", SparkColour);
-            renderer.sharedMaterial = sparkMaterial;
-
-            sparks.Stop();
-            return flash;
+            return FirearmBuilder.Build(ModelPath, PrefabPath, MeshFolder, "Pistol", "Glock", FirearmProfile.Glock(), Finishes);
         }
 
         /// <summary>
@@ -517,35 +319,5 @@ namespace CityX.WeaponsEditor
             return null;
         }
 
-        private static AudioSource BuildAudioSource(Transform parent, string name, string clipPath)
-        {
-            var go = new GameObject(name);
-            go.transform.SetParent(parent, false);
-            var source = go.AddComponent<AudioSource>();
-            source.clip = AssetDatabase.LoadAssetAtPath<AudioClip>(clipPath);
-            source.playOnAwake = false;
-
-            // 2D, NOT 3D -- EXPLICIT BUG REPORT: "not sure if they sound
-            // quieter when i shoot at a farther target or what but they
-            // are not consistant... they should just play full volume
-            // coming from the weapon upon each click." This was
-            // spatialBlend = 1.0 (full 3D positional), which attenuates by
-            // distance from the AudioListener (the camera) to THIS source
-            // (the gun in the player's own hand) -- not by target
-            // distance at all, but that listener-to-gun distance itself
-            // varies for reasons that have nothing to do with the shot:
-            // ThirdPersonCamera's own aim shoulder offset changing,
-            // Distance's own 4.5m pull-back, and its wall-collision
-            // spring arm pulling the camera in much closer near any wall.
-            // The player's own weapon firing should sound the same
-            // regardless of any of that -- 0.0 (fully 2D) plays it at a
-            // flat, consistent volume no matter where the camera ends up.
-            source.spatialBlend = 0.0f;
-            if (source.clip == null)
-            {
-                Debug.LogWarning($"CityX: no audio clip at {clipPath} -- {name} will play silently.");
-            }
-            return source;
-        }
     }
 }

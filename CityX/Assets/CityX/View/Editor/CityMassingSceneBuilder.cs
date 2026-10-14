@@ -247,6 +247,7 @@ namespace CityX.ViewEditor
             GameObject spikeSwordPrefab = CityX.WeaponsEditor.SpikeSwordBuilder.Build();
             GameObject combatSwordPrefab = CityX.WeaponsEditor.CombatSwordBuilder.Build();
             GameObject flamethrowerPrefab = CityX.WeaponsEditor.FlamethrowerBuilder.Build();
+            GameObject ak47Prefab = CityX.WeaponsEditor.AK47Builder.Build();
             GameObject topHatPrefab = CityX.WearablesEditor.TopHatBuilder.Build();
             GameObject mustangPrefab = CityX.VehiclesEditor.CarBuilder.Build();
 
@@ -436,6 +437,8 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.TopHat, Prefab = topHatPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.Flamethrower, Prefab = flamethrowerPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.AK47, Prefab = ak47Prefab },
                 };
 
                 // --- the grapple swing. Aim (left-click while a grappling

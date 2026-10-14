@@ -153,7 +153,7 @@ namespace CityX.Character
                 _footIkFallSpeed = Mathf.Max(_footIkFallSpeed, -verticalSpeed);
             }
             bool active = FootIkEnabled && !inAir && !IsSitting && !InCarSeat
-                && _climbWallWeight <= 0.01f && _ledgeHandsWeight <= 0.01f && _bakedPoseWeight <= 0.0f
+                && _climbWallWeight <= 0.01f && _ledgeHandsWeight <= 0.01f && (_bakedPoseWeight <= 0.0f || BakedPoseIsUpperBodyOnly)
                 && (_controller == null || _controller.enabled)
                 && !_animator.GetBool(DancingParameter) && !_animator.GetBool(BreakdancingParameter);
             FootIkActive = active;
@@ -222,7 +222,7 @@ namespace CityX.Character
                     locomotion |= info.IsName(tree);
                 }
             }
-            bool wanted = locomotion && !IsSitting && !InCarSeat && _climbWallWeight <= 0.01f && _ledgeHandsWeight <= 0.01f && _bakedPoseWeight <= 0.0f;
+            bool wanted = locomotion && !IsSitting && !InCarSeat && _climbWallWeight <= 0.01f && _ledgeHandsWeight <= 0.01f && _bakedPoseWeight <= 0.0f;   // a reload looks at the gun (its own neck and head)
             _headForwardBlend = Mathf.MoveTowards(_headForwardBlend, wanted ? 1.0f : 0.0f, HeadForwardBlendPerSecond * Time.deltaTime);
             if (_headForwardBlend <= 0.0f)
             {

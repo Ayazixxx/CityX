@@ -224,7 +224,7 @@ namespace CityX.Tests
 
             Vector3 palmBefore;
             _locomotion.TryGetSupportPalm(out palmBefore);
-            pistol.LeftHandGrip.localPosition += new Vector3(0.0f, 0.02f, 0.0f);   // 5cm to the shooter's left
+            pistol.LeftHandGrip.localPosition += new Vector3(-0.05f, 0.0f, 0.0f);   // 5 cm to the shooter's left (the Glock's frame: x is the right)
             yield return aim(0.7f);
             Vector3 palmAfter;
             _locomotion.TryGetSupportPalm(out palmAfter);

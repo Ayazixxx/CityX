@@ -146,3 +146,13 @@ free while the gun is merely carried, and follows the reload dip and the kick. D
   wobble in the beam. It now follows only for the first 0.05 s (long enough to cover the raise for a hip-fired
   shot) and is then a fixed line in the world; it also reads the muzzle last in the frame (execution order 200,
   after the arms are solved and the kick is applied).
+
+## Update 2026-10-14: the Glock, the AK-47, real reloads, a camera you can see the gun from
+
+Everything here still holds; on top of it, see [FIREARMS.md](FIREARMS.md): the placeholder Beretta is replaced by a Glock made in
+Blender with a slide, magazine and trigger that move; reloads are keyframed motions (tactical and empty, the magazine dropped and
+seated, the slide racked) played on the body and by name on other players' copies; the fingers hold the gun like a gun (trigger
+finger along the frame until it fires); the aim camera comes in over the shoulder (1.0 m to the side, 2.3 m back) so the gun is on
+screen; the gun is one component with a profile, and the AK-47 is the second profile (full auto, a learnable climbing spray, a
+rock-in magazine and a charging handle). The old `ADS_SHOULDER_OFFSET_X` 1.415 at 4 m is gone, as is the reload's sine dip (kept only
+for a body without the motion).

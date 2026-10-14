@@ -7,101 +7,57 @@ using UnityEngine.InputSystem;
 namespace CityX.Weapons
 {
     /// <summary>
-    /// A pick-up-able semi-automatic pistol. Ported from weapons/pistol.gd.
+    /// EVERY FIREARM: a pick-up-able gun whose numbers, shape and moving parts are its <see cref="FirearmProfile"/>. The Glock and the AK-47 are
+    /// this component with different profiles on their prefabs (named PistolWeapon because it began as the only gun: pistol.gd's port).
     ///
-    /// NOT AN IEquippableWeapon -- that interface is the melee/throw contract
-    /// MeleeAttacker and the bottle/grapple hook share, and a gun has neither
-    /// a swing nor a throw. pistol.gd's own class comment makes the same call
-    /// for the same reason: hitscan + ammo/reload state is a different enough
-    /// shape that forcing it into the melee contract would mean stubbing out
-    /// half of it. PlayerInputReader checks EquippedGun directly instead,
-    /// the same way it already checks GrappleSwing.EquippedHook.
+    /// NOT AN IEquippableWeapon -- that interface is the melee/throw contract MeleeAttacker and the bottle/grapple hook share, and a gun has
+    /// neither a swing nor a throw. PlayerInputReader checks EquippedGun directly.
     ///
-    /// Copies Fortnite's classic pistol feel: semi-automatic (one shot per
-    /// click), hitscan (instant raycast, not a travelling projectile), a
-    /// magazine separate from a reserve pool, a timed reload, and hip-fire
-    /// spread that tightens while aiming down sights. No headshot multiplier
-    /// or damage falloff -- pistol.gd doesn't have either either.
+    /// THE SHOT is hitscan along the crosshair (every bullet lands exactly where the crosshair is: the owner's ask), resolved by Monday Night
+    /// Combat's three traces so a barrel behind a wall cannot shoot through it. THE FEEL (2026-10-14, the third-person-shooter research in
+    /// docs/THIRD_PERSON_PISTOL.md): a learnable camera kick per shot from the profile's pattern (an AK's spray climbs and wanders), the gun
+    /// shoved back and tipped up, the slide or bolt cycling, the trigger pulled by the trigger finger, a spent case flying out of the port.
+    /// THE RELOAD is a motion made in Blender (CityX/SourceArt/Glock, /AK47) and played by name on the body (GunReloadDriver), so other players
+    /// see it: the magazine drops (and lies on the floor), a fresh one is fetched and seated -- the ammo is in at the click -- and an empty gun
+    /// has its action racked. Firing once the ammo is in cuts the rest of the motion short, as in Call of Duty's reload cancel.
     /// </summary>
-    // AFTER PlayerLocomotion (order 0): the kick is put on the gun once the arms have been solved -- see LateUpdate.
+    // AFTER PlayerLocomotion (order 0): the kick and the moving parts are put on the gun once the arms have been solved -- see LateUpdate.
     [DefaultExecutionOrder(100)]
     [RequireComponent(typeof(SphereCollider))]
-    public sealed class PistolWeapon : MonoBehaviour, IEquippableItem, IEquippableGun, ICosmeticMountable
+    public sealed class PistolWeapon : MonoBehaviour, IEquippableItem, IEquippableGun, ICosmeticMountable, IHandGripStyle
     {
-        public string ItemId => ItemRegistry.Pistol;
+        [Tooltip("What this gun is: its numbers, its hold, its points and parts. The builders set the Glock's or the AK-47's.")]
+        public FirearmProfile Profile = FirearmProfile.Glock();
 
-        // Matches the real Beretta M9's actual 15-round magazine.
+        public string ItemId => Profile != null ? Profile.ItemId : ItemRegistry.Pistol;
+
+        // ---- the Glock's numbers, for the code and tests that predate the profile (FirearmProfile.Glock() has the same) ----
         public const int MagazineSize = 15;
         public const int StartingReserveAmmo = 45;
         public const float Damage = 20.0f;
         public const float Range = 60.0f;
-
-        /// <summary>Rounds per second, enforced as a cooldown rather than gated on click speed.</summary>
         public const float FireRatePerSecond = 5.5f;
         public const float FireCooldownSeconds = 1.0f / FireRatePerSecond;
+
+        /// <summary>The longest a reload is allowed when no motion times it (a bare test gun): the Glock's tactical one.</summary>
         public const float ReloadSeconds = 1.5f;
 
         /// <summary>
-        /// Half-angle of the hip-fire spread cone -- was 3.0, giving every
-        /// shot up to 3 degrees of random miss. EXPLICIT ASK: "i want you
-        /// to do bullets the same as csgo... make every shot hit exact
-        /// where you clicked in the middle of your screen." Zeroed rather
-        /// than just narrowed -- CS:GO's own accuracy model still has some
-        /// spread (movement, jumping, recoil), but "exact where you
-        /// clicked" is the literal, explicit ask here, not a request to
-        /// match CS:GO's specific accuracy curve.
+        /// No random spread, hip or aimed. EXPLICIT ASK: "i want you to do bullets the same as csgo... make every shot hit exact where you
+        /// clicked in the middle of your screen." The recoil moves the VIEW (the crosshair with it), never the bullet off the crosshair.
         /// </summary>
         public const float HipFireSpreadDegrees = 0.0f;
 
-        /// <summary>Same zeroing, same reason, as HipFireSpreadDegrees' own doc comment -- aiming down sights was already tighter, now exact too.</summary>
         public const float AdsSpreadDegrees = 0.0f;
 
         /// <summary>
-        /// How far each shot's own pitch is randomised, as a fraction either
-        /// side of 1.0 -- "still choppy if you spam shots", reported even
-        /// after PlayOneShot already stopped one shot's audio from cutting
-        /// another's off (see Fire's own comment on that fix). Overlapping
-        /// PLAYS OF THE IDENTICAL WAVEFORM, a few frames apart at this fire
-        /// rate, sum into audible comb-filtering -- a stutter baked into the
-        /// waveform itself, not a scheduling bug PlayOneShot could fix a
-        /// second time. A few percent of pitch jitter is enough to decorrelate
-        /// the overlapping copies without the variation itself being audible
-        /// as a pitch change.
+        /// How far each shot's own pitch is randomised, as a fraction either side of the profile's pitch: overlapping plays of the identical
+        /// waveform a few frames apart comb-filter into a stutter; a few percent decorrelates them without being heard as a pitch change.
         /// </summary>
         public const float ShotPitchJitter = 0.04f;
 
         public const float InteractRange = 2.5f;
         public const float LookDotThreshold = 0.82f; // cos(35 degrees)
-
-        // --- RECOIL, from the third-person-shooter research (see
-        // docs/THIRD_PERSON_PISTOL.md). A small, DETERMINISTIC vertical kick that
-        // recovers fast: learnable rather than random, and applied AFTER the
-        // shot has left, so the first shot is always exactly where the
-        // crosshair was (the explicit "exact where you clicked" ask). All
-        // instance fields so /gun can retune them live. ---
-
-        [Header("Recoil / feel (live-tunable with /gun)")]
-        [Tooltip("Camera kick per shot, degrees up. A pistol is small; the recovery below is quick.")]
-        public float RecoilPitchDegrees = 1.2f;
-
-        [Tooltip("Aiming down sights steadies the gun: the kick is scaled by this.")]
-        public float AdsRecoilMultiplier = 0.7f;
-
-        [Tooltip("Camera roll jolt per shot, degrees (random side).")]
-        public float ShakeDegrees = 0.25f;
-
-        [Tooltip("The pistol itself snaps back this far (metres) and tips its muzzle up this many degrees, then settles.")]
-        public float KickBackMetres = 0.035f;
-
-        public float KickUpDegrees = 7.0f;
-
-        [Tooltip("How fast the gun's own kick settles, per second (bigger = snappier).")]
-        public float KickRecoverPerSecond = 16.0f;
-
-        // --- THE THREE-TRACE SHOT (Monday Night Combat's method): camera trace
-        // for what the crosshair is on, a hand trace so the barrel is not inside
-        // a wall, and a barrel trace so scenery between the gun and the target
-        // takes the bullet. ---
 
         /// <summary>Below this the muzzle is effectively AT the target; no barrel trace (it would only find noise).</summary>
         public const float MinBarrelTraceMetres = 0.25f;
@@ -112,101 +68,42 @@ namespace CityX.Weapons
         /// <summary>A click on an empty gun with nothing to reload: how long before the next click registers.</summary>
         public const float DryClickCooldownSeconds = 0.25f;
 
+        /// <summary>How long the trigger finger stays pulled after a shot, seconds.</summary>
+        public const float TriggerPullSeconds = 0.07f;
+
+        /// <summary>
+        /// The OLD pistol's hold (the Beretta model, on its side and scaled 2.5x), kept because the grappling hook borrows it
+        /// (GrapplingHookItem.GripHandPosition). The guns themselves are held by their profile (FirearmProfile.HoldPosition/HoldRotation).
+        /// </summary>
         public static readonly Vector3 GripHandPosition = new Vector3(0.02f, -0.05f, 0.10f);
 
-        /// <summary>
-        /// Where the FREE hand's palm goes to steady the gun, in the pistol's own space. This model is
-        /// built on its side -- local +Z is the barrel, +Y is the shooter's LEFT and +X is UP (measured
-        /// against the body while aiming) -- and the whole thing is scaled ~2.5x, so 0.04 here is ~10cm:
-        /// the shooting palm sits at (-0.036, 0, 0.019); this is one palm's width to its left (+Y), a
-        /// touch lower and forward, which is where a two-handed grip wraps the fingers of the first.
-        /// Tuned against WeaponHandsPlayTests' pictures. Overridden by a saved hold (WeaponGripSettings), which
-        /// is set by dragging the LeftHandGrip marker in the editor while the game runs.
-        /// </summary>
-        public static readonly Vector3 DefaultSupportGripLocal = new Vector3(-0.042f, 0.040f, 0.025f);
-
-        /// <summary>Where the free palm holds, in the pistol's space: the saved point if there is one, else the derived one.</summary>
-        public static Vector3 SupportGripLocal =>
-            WeaponGripSettings.Current.PistolTuned ? WeaponGripSettings.Current.PistolLeftHand : DefaultSupportGripLocal;
-
-        /// <summary>The marker the free hand reaches for, a child of the pistol. Null while the pistol is not held.</summary>
-        public Transform LeftHandGrip => _leftHandGrip;
-
-        private Transform _leftHandGrip;
-
-        /// <summary>Puts the left-hand marker where the current hold (saved or derived) says.</summary>
-        public void ApplyGrip()
-        {
-            if (_leftHandGrip != null)
-            {
-                _leftHandGrip.localPosition = SupportGripLocal;
-            }
-        }
-
-        /// <summary>
-        /// Not a direct port of pistol.gd's own GRIP_HAND_ROTATION -- that
-        /// constant is in Godot's own radians/axis convention, and the
-        /// bottle's grip (see BottleWeapon.GripHandRotationEuler) shows past
-        /// sessions re-tuned rather than numerically converted these between
-        /// engines.
-        ///
-        /// THE Z=180 IS LOAD-BEARING, not cosmetic -- the starting guess
-        /// this shipped with (X=-5, Y=90, Z=0) rendered the gun genuinely
-        /// upside down (slide at the bottom, grip up near the wrist),
-        /// confirmed by PistolBuilder.CaptureAiming against the real
-        /// pistol_aim_in pose, not just the arms-down carry. Adding the
-        /// 180-degree roll fixed both poses at once with this one constant --
-        /// no clip or bone offset needed rework. Reconfirm with
-        /// CaptureGrip/CaptureAiming before changing this again; a wrong
-        /// value here is not obvious from source alone.
-        /// </summary>
         public static readonly Vector3 GripHandRotationEuler = new Vector3(-5.0f, 90.0f, 180.0f);
 
-        /// <summary>
-        /// pistol.gd's own GRIP_SCALE, ported directly (a plain uniform
-        /// multiplier survives an engine change fine, unlike a rotation).
-        /// The visual is normalized to the real Beretta M9's true 22cm
-        /// length in NormalizeScale, which reads as a tiny nub next to this
-        /// rig's own oversized hand -- this rig is taller than a real
-        /// person even before the game's own stylised proportions, and the
-        /// gun needs to read as a gun rather than true-to-life. Confirmed
-        /// by rendering it without this: barely visible at the wrist.
-        /// </summary>
-        public const float GripScale = 2.515f;
+        /// <summary>Where the Glock's free palm holds, in its own frame (the support hand's marker starts here).</summary>
+        public static readonly Vector3 DefaultSupportGripLocal = FirearmProfile.Glock().SupportHandLocal;
 
-        [Tooltip("Carries the imported Beretta_M9 mesh.")]
+        // ---- the built parts (PistolBuilder / AK47Builder) ----
+        [Tooltip("Carries the model's parts.")]
         public Transform VisualRoot;
+
+        [Tooltip("The slide or the bolt: slides back on every shot, is racked in an empty reload.")]
+        public Transform ActionPart;
+
+        public Transform MagazinePart;
+
+        public Transform TriggerPart;
 
         public GameObject MuzzleFlashObject;
         public Light MuzzleLight;
         public ParticleSystem MuzzleSparks;
         public AudioSource ShotPlayer;
+
+        [Tooltip("Plays the reload's own sounds: the magazine out, in, the action racked (FirearmEffects).")]
         public AudioSource ReloadPlayer;
 
         /// <summary>
-        /// Extra voices, all sharing ShotPlayer's own clip -- EXPLICIT BUG
-        /// REPORT, still open after both PlayOneShot and ShotPitchJitter
-        /// already shipped: "the gunshot noise is glitchy make it consistent
-        /// and not choppy." ROOT CAUSE: AudioSource.pitch belongs to the
-        /// SOURCE, not to an individual PlayOneShot call -- every shot's
-        /// `ShotPlayer.pitch = RandomShotPitch()` was retroactively
-        /// re-pitching every OTHER copy of the clip still overlapping from
-        /// recent shots on that same source, not just starting the new one
-        /// at its own pitch. At this fire rate (FireCooldownSeconds ~0.18s)
-        /// against a clip several times that long, several shots are
-        /// routinely overlapping at once, so this was firing on nearly
-        /// every shot -- confirmed as a well-documented Unity AudioSource
-        /// limitation (PlayOneShot's own pitch is inherited from the
-        /// source at call time and stays tied to it), not something
-        /// PlayOneShot's own overlap support was ever meant to fix.
-        ///
-        /// FIX: give overlapping shots their own independent AudioSource
-        /// each, cycled round-robin (_shotPoolIndex), so setting one's pitch
-        /// can never reach back and warp a shot already playing on another.
-        /// OPTIONAL, NOT REQUIRED -- Fire() falls back to ShotPlayer alone
-        /// (the original, single-source behaviour) whenever this is left
-        /// empty, so nothing that only wires ShotPlayer directly (existing
-        /// tests included) needs to change.
+        /// Extra voices, all sharing ShotPlayer's own clip, cycled round-robin: AudioSource.pitch belongs to the SOURCE, so re-pitching one
+        /// shared source for a new shot warped every shot still ringing on it (the reported "glitchy, choppy" gunshots).
         /// </summary>
         public AudioSource[] ShotPlayerPool;
 
@@ -217,19 +114,27 @@ namespace CityX.Weapons
 
         public LayerMask TargetLayers = ~0;
 
-        /// <summary>
-        /// Live-tunable grip transform, for DevConsoleView's own /pistol
-        /// pos/rot/scale/pose commands -- default to the same baked
-        /// constants above, same "read live, change with a console
-        /// command, bake the final numbers back in once confirmed" idiom
-        /// SkinnedGarmentCombiner.RendererTransform's own doc comment
-        /// establishes for the jacket. UpdateHeldPose/OnEquip apply these
-        /// instead of the constants directly, so nudging one in real time
-        /// needs no rebuild to see.
-        /// </summary>
-        private Vector3 _liveGripPosition = GripHandPosition;
-        private Vector3 _liveGripRotation = GripHandRotationEuler;
-        private float _liveGripScale = GripScale;
+        // ---- live-tunable feel (/gun), on the profile ----
+        private float _recoilScale = 1.0f;
+
+        /// <summary>The first shot's camera kick, degrees; setting it scales the whole pattern.</summary>
+        public float RecoilPitchDegrees
+        {
+            get => Profile.RecoilFor(0).y * _recoilScale;
+            set => _recoilScale = value / Mathf.Max(0.01f, Profile.RecoilFor(0).y);
+        }
+
+        public float AdsRecoilMultiplier { get => Profile.AdsRecoilMultiplier; set => Profile.AdsRecoilMultiplier = value; }
+        public float ShakeDegrees { get => Profile.ShakeDegrees; set => Profile.ShakeDegrees = value; }
+        public float KickBackMetres { get => Profile.KickBackMetres; set => Profile.KickBackMetres = value; }
+        public float KickUpDegrees { get => Profile.KickUpDegrees; set => Profile.KickUpDegrees = value; }
+        public float KickRecoverPerSecond { get => Profile.KickRecoverPerSecond; set => Profile.KickRecoverPerSecond = value; }
+
+        // ---- the hold, live-tunable with /pistol ----
+        private bool _gripInitialised;
+        private Vector3 _liveGripPosition;
+        private Vector3 _liveGripRotation;
+        private float _liveGripScale = 1.0f;
 
         public Vector3 LiveGripPosition => _liveGripPosition;
         public Vector3 LiveGripRotation => _liveGripRotation;
@@ -239,31 +144,50 @@ namespace CityX.Weapons
         public void SetLiveGripRotation(Vector3 value) => _liveGripRotation = value;
         public void SetLiveGripScale(float value) => _liveGripScale = value;
 
+        // ---- state ----
         public int MagazineAmmo { get; private set; } = MagazineSize;
         public int ReserveAmmo { get; private set; } = StartingReserveAmmo;
         public bool IsReloading { get; private set; }
 
-        /// <summary>Raised for every trigger pull -- see <see cref="GunShot"/>.</summary>
+        public bool IsAutomatic => Profile != null && Profile.Automatic;
+
+        /// <summary>The reload in progress is the empty-gun one (the action racked at the end).</summary>
+        public bool IsEmptyReload => _reloadEmpty;
+
+        /// <summary>The fresh magazine is in (the reload's "seat"): a shot now cuts the rest of the motion short.</summary>
+        public bool ReloadAmmoIn => _reloadAmmoIn;
+
         public event System.Action<GunShot> ShotResolved;
 
-        /// <summary>0..1: the pistol's own snap-back, decaying. Read by UpdateHeldPose.</summary>
         private float _kick;
-
-        /// <summary>
-        /// Whether OnTriggerEnter has actually seen a player, independent
-        /// of the look/range gate in TryPickup -- lets a test tell "the
-        /// trigger never fired at all" apart from "it fired but the look
-        /// check said no", which used to be indistinguishable from either
-        /// side of the pickup ever going quiet.
-        /// </summary>
-        public bool HasNearbyPlayer => _nearbyPlayer != null;
-
         private float _fireCooldownRemaining;
         private float _reloadTimeRemaining;
+        private float _reloadDuration;
+        private bool _reloadEmpty;
+        private bool _reloadAmmoIn;
+        private bool _reloadReadyToFire;
+        private bool _reloadByMotion;
         private float _muzzleFlashRemaining;
         private bool _equipped;
         private Transform _nearbyPlayer;
         private SphereCollider _pickupTrigger;
+        private int _burstIndex;
+        private float _sinceShot = 999.0f;
+
+        private GameObject _wielder;
+        private PlayerLocomotion _locomotion;
+        private PlayerAnimationDriver _animationDriver;
+        private GunReloadDriver _reloader;
+        private GameObject _cosmeticBody;
+        private GunReloadDriver _cosmeticReloader;
+
+        private Vector3 _actionRest;
+        private Quaternion _triggerRest = Quaternion.identity;
+        private Vector3 _magazineRest;
+        private Quaternion _magazineRestRotation = Quaternion.identity;
+        private bool _partsRestKnown;
+
+        public bool HasNearbyPlayer => _nearbyPlayer != null;
 
         private void Awake()
         {
@@ -272,24 +196,61 @@ namespace CityX.Weapons
             {
                 MuzzleFlashObject.SetActive(false);
             }
+            if (Profile == null)
+            {
+                Profile = FirearmProfile.Glock();
+            }
+            MagazineAmmo = Profile.MagazineSize;
+            ReserveAmmo = Profile.StartingReserveAmmo;
+            InitialiseGrip();
+            RememberPartRests();
+        }
+
+        private void InitialiseGrip()
+        {
+            if (_gripInitialised)
+            {
+                return;
+            }
+            _gripInitialised = true;
+            _liveGripPosition = Profile.HoldPosition;
+            _liveGripRotation = Profile.HoldRotation.eulerAngles;
+            _liveGripScale = Profile.HoldScale;
+        }
+
+        private void RememberPartRests()
+        {
+            if (_partsRestKnown)
+            {
+                return;
+            }
+            _partsRestKnown = true;
+            if (ActionPart != null) _actionRest = ActionPart.localPosition;
+            if (TriggerPart != null) _triggerRest = TriggerPart.localRotation;
+            if (MagazinePart != null)
+            {
+                _magazineRest = MagazinePart.localPosition;
+                _magazineRestRotation = MagazinePart.localRotation;
+            }
         }
 
         private void Update()
         {
             float deltaTime = Time.deltaTime;
             _fireCooldownRemaining = Mathf.Max(0.0f, _fireCooldownRemaining - deltaTime);
+            _sinceShot += deltaTime;
+            if (_sinceShot > Profile.RecoilResetSeconds)
+            {
+                _burstIndex = 0;
+            }
             if (_kick > 0.0f)
             {
-                _kick = Mathf.Max(0.0f, _kick - _kick * (1.0f - Mathf.Exp(-KickRecoverPerSecond * deltaTime)) - 0.0005f);
+                _kick = Mathf.Max(0.0f, _kick - _kick * (1.0f - Mathf.Exp(-Profile.KickRecoverPerSecond * deltaTime)) - 0.0005f);
             }
 
             if (IsReloading)
             {
-                _reloadTimeRemaining -= deltaTime;
-                if (_reloadTimeRemaining <= 0.0f)
-                {
-                    FinishReload();
-                }
+                TickReload(deltaTime);
             }
 
             if (_muzzleFlashRemaining > 0.0f)
@@ -309,73 +270,108 @@ namespace CityX.Weapons
             TickPickup();
         }
 
-        /// <summary>
-        /// The held grip pose, plus a procedural down-and-up dip while
-        /// reloading -- pistol.gd's own _update_held_pose, since no dedicated
-        /// reload mocap clip exists (unlike shoot/aim-in/locomotion, all real
-        /// retargeted Mixamo clips). A sine envelope across ReloadSeconds so
-        /// it reads as one continuous motion rather than a snap in and out.
-        /// </summary>
+        /// <summary>The held grip pose; while a reload has no motion to play (a bare rig), the old procedural dip stands in for it.</summary>
         private void UpdateHeldPose()
         {
             transform.localPosition = _liveGripPosition;
             transform.localEulerAngles = _liveGripRotation;
             transform.localScale = Vector3.one * _liveGripScale;
 
-            if (IsReloading)
+            if (IsReloading && !_reloadByMotion && _reloadDuration > 0.0f)
             {
-                float progress = Mathf.Clamp01(1.0f - _reloadTimeRemaining / ReloadSeconds);
+                float progress = Mathf.Clamp01(1.0f - _reloadTimeRemaining / _reloadDuration);
                 float dip = Mathf.Sin(progress * Mathf.PI);
                 transform.localPosition += new Vector3(0.0f, -0.06f, 0.02f) * dip;
                 transform.localEulerAngles += new Vector3(28.0f, 0.0f, 0.0f) * dip;
             }
-
-            // NOT the kick, though: that goes on in LateUpdate, after the arms are solved.
+            // NOT the kick: that goes on in LateUpdate, after the arms are solved.
         }
 
         /// <summary>
-        /// THE KICK IS APPLIED LAST. It used to be put on the gun here in Update's pose, BEFORE the animator and
-        /// PlayerLocomotion.LateUpdate solved the arms -- and the arm's barrel correction measures where the
-        /// muzzle points and turns the arm to point it at the target, so it saw the 7-degree kick as an error
-        /// and cancelled it by snapping the whole arm the other way in the very frame of the shot (measured:
-        /// 5-6.6 degrees in one frame on every shot, on both arms once the free hand followed the gun). That is
-        /// the reported "arms spazz out a bit when shooting". Now the arms are solved against the UNKICKED gun
-        /// and the kick is laid on top for rendering, so the recoil shows on the pistol and the arms stay steady.
-        /// (Runs after PlayerLocomotion.LateUpdate: see the execution order on this class.)
+        /// THE KICK AND THE MOVING PARTS ARE APPLIED LAST, after PlayerLocomotion has solved the arms against the UNKICKED gun: the arm's
+        /// barrel correction would otherwise see the kick as an aiming error and snap the arm to cancel it (the old "arms spazz out when
+        /// shooting"). The slide or bolt and the trigger are moved here too, unless a reload's motion is holding them.
         /// </summary>
         private void LateUpdate()
         {
             if (_equipped)
             {
                 ApplyKick();
+                ApplyMovingParts();
             }
         }
 
-        /// <summary>
-        /// The pistol's own snap-back when it fires: shoved back along its
-        /// own barrel and tipped muzzle-up, then settling. Worked out from the
-        /// muzzle's actual world facing rather than from hand-tuned local
-        /// axes -- this gun's grip carries a 180-degree roll and a rig-scaled
-        /// hand (see GripHandRotationEuler), so "local -Z" is not "back" in
-        /// any way that survives a re-tune of the grip.
-        /// </summary>
         private void ApplyKick()
         {
             if (_kick <= 0.0f || MuzzleFlashObject == null || transform.parent == null)
             {
                 return;
             }
-
             Vector3 barrel = MuzzleFlashObject.transform.forward;
-            Vector3 back = -barrel * (KickBackMetres * _kick);
+            Vector3 back = -barrel * (Profile.KickBackMetres * _kick);
             transform.localPosition += transform.parent.InverseTransformVector(back);
-
             Vector3 axis = Vector3.Cross(barrel, Vector3.up);
             if (axis.sqrMagnitude > 0.0001f)
             {
-                transform.rotation = Quaternion.AngleAxis(KickUpDegrees * _kick, axis.normalized) * transform.rotation;
+                transform.rotation = Quaternion.AngleAxis(Profile.KickUpDegrees * _kick, axis.normalized) * transform.rotation;
             }
         }
+
+        /// <summary>A reload's motion is holding the parts (and the hands): the shot's own cycling keeps off them.</summary>
+        private bool PartsHeldByMotion => _reloader != null && _reloader.Weight > 0.0f && ReferenceEquals(_reloader.Motion, Motion);
+
+        /// <summary>
+        /// The slide or bolt cycles on every shot -- back fast, home a little slower -- and the trigger is pulled for a moment. Real
+        /// pistols' slides run back about their whole travel in a few hundredths of a second: at 60 fps it reads as a blur and a snap.
+        /// </summary>
+        private void ApplyMovingParts()
+        {
+            if (PartsHeldByMotion)
+            {
+                return;
+            }
+            RememberPartRests();
+            float cycle = Profile.ActionCycleSeconds > 0.0f ? _sinceShot / Profile.ActionCycleSeconds : 1.0f;
+            float back = cycle < 0.35f ? cycle / 0.35f : (cycle < 1.0f ? 1.0f - (cycle - 0.35f) / 0.65f : 0.0f);
+            if (ActionPart != null)
+            {
+                ActionPart.localPosition = _actionRest + Vector3.back * (Profile.ActionTravel * back);
+            }
+            if (TriggerPart != null)
+            {
+                float pull = _sinceShot < TriggerPullSeconds ? 1.0f : 0.0f;
+                TriggerPart.localRotation = _triggerRest * Quaternion.AngleAxis(Profile.TriggerPullDegrees * pull, Vector3.right);
+            }
+            if (MagazinePart != null && !IsReloading)
+            {
+                MagazinePart.localPosition = _magazineRest;
+                MagazinePart.localRotation = _magazineRestRotation;
+                if (!MagazinePart.gameObject.activeSelf)
+                {
+                    MagazinePart.gameObject.SetActive(true);
+                }
+            }
+        }
+
+        // ---- the fingers (IHandGripStyle: PlayerLocomotion.ApplyFingerGrips asks) ----
+
+        /// <summary>
+        /// The trigger finger lies straight along the frame while the gun is carried, rests on the trigger while it is aimed, and is pulled
+        /// for a moment on each shot; the thumb lies forward along the frame (the thumbs-forward grip).
+        /// </summary>
+        public FingerAmounts StrongHandGrip
+        {
+            get
+            {
+                bool aiming = _locomotion != null && _locomotion.IsAimingGun;
+                float trigger = _sinceShot < TriggerPullSeconds ? 1.0f : (aiming || _sinceShot < 0.4f ? 0.45f : 0.0f);
+                return Profile.IsRifle ? FingerAmounts.RifleStrong(trigger) : FingerAmounts.PistolStrong(trigger);
+            }
+        }
+
+        public FingerAmounts SupportHandGrip => Profile.IsRifle ? FingerAmounts.RifleSupport : FingerAmounts.PistolSupport;
+
+        // ---- pickup ----
 
         private void TickPickup()
         {
@@ -388,40 +384,18 @@ namespace CityX.Weapons
             TryPickup(_nearbyPlayer, ePressed);
         }
 
-        /// <summary>
-        /// The actual pickup decision, factored out from TickPickup so a
-        /// test can drive it with an explicit "was E pressed" flag --
-        /// Keyboard.current is null outside a real Input System device
-        /// (nothing in this project's own tests exercises it), and this
-        /// gate had never actually been run end to end by anything before
-        /// this. Matches PlayerLocomotion.Tick's own split: the thing that
-        /// reads real input is a thin wrapper around the thing that
-        /// decides, so the decision is what gets tested.
-        /// </summary>
         public bool TryPickup(Transform player, bool ePressed)
         {
             if (!ePressed)
             {
                 return false;
             }
-
-            // RANGE FROM THE PLAYER'S OWN BODY, NOT THE CAMERA. LookSourceFor
-            // falls back to Camera.main, which under the real ThirdPersonCamera
-            // trails Distance (4.5m) behind the player's own pivot -- measuring
-            // range from there means this can read 6+ metres to a pistol lying
-            // right at the player's feet, permanently failing the InteractRange
-            // gate no matter how close the player actually stands. Confirmed
-            // directly from a real play session's own CityX-PICKUP-DIAG output.
-            // Direction still reads the camera below -- "is the camera pointed
-            // at it" and "is the player's body close enough" are different
-            // questions, and conflating them into one vector from the camera
-            // is exactly what broke the second one.
+            // RANGE FROM THE PLAYER'S OWN BODY, NOT THE CAMERA (the camera trails metres behind the body); the camera only says where they look.
             Vector3 toPlayer = transform.position - player.position;
             if (toPlayer.sqrMagnitude > InteractRange * InteractRange)
             {
                 return false;
             }
-
             Transform lookSource = LookSourceFor(player);
             Vector3 toSelf = transform.position - lookSource.position;
             if (toSelf.sqrMagnitude > 0.0001f &&
@@ -429,13 +403,12 @@ namespace CityX.Weapons
             {
                 return false;
             }
-
             var inventory = player.GetComponentInParent<Inventory>();
             if (inventory == null)
             {
                 return false;
             }
-            if (inventory.AddItem(ItemRegistry.Pistol, 1))
+            if (inventory.AddItem(ItemId, 1))
             {
                 Destroy(gameObject);
                 return true;
@@ -443,24 +416,7 @@ namespace CityX.Weapons
             return false;
         }
 
-        /// <summary>
-        /// THE CAMERA'S FACING, NOT THE BODY'S -- pistol.gd's own
-        /// _player_is_looking_at_me (and glass_bottle.gd's identical
-        /// _player_is_looking_at_me) reads the camera directly
-        /// (camera.global_transform.basis.z), not the body, and porting
-        /// that literally matters here: PlayerLocomotion only turns the
-        /// body to match the camera WHILE ACTUALLY MOVING (see its own
-        /// "the body faces the camera, not where it is going" comment),
-        /// so a player who walked up to a dropped pickup and stopped to
-        /// press E -- the natural way to pick up something stationary --
-        /// can be facing anywhere at all, and the old body-forward check
-        /// silently rejected the pickup no matter how many times E was
-        /// pressed. Same YawSource-or-Camera.main fallback chain
-        /// PlayerInputReader's own gunYawSource/swingYawSource already use,
-        /// so this asks the same question the same way everything else
-        /// that needs "where is the player actually looking" already does.
-        /// Shared with BottleWeapon.TickPickup, which had the identical bug.
-        /// </summary>
+        /// <summary>Where the player is looking from: the input's yaw source, else the main camera, else the body. Shared with BottleWeapon.</summary>
         internal static Transform LookSourceFor(Transform player)
         {
             var input = player.GetComponent<PlayerInputReader>();
@@ -473,15 +429,7 @@ namespace CityX.Weapons
 
         private void OnTriggerEnter(Collider other)
         {
-            // THE PlayerVitals TRANSFORM ITSELF, NOT other.transform. The
-            // player's ragdoll carries a real collider on every bone (see
-            // RagdollBuilder), so whichever one actually swept into this
-            // trigger first can just as easily be "head" as the root --
-            // confirmed live via CityX-PICKUP-DIAG showing nearbyPlayer=head.
-            // TryPickup measures range from this transform directly, and a
-            // bone a metre away from the body's own centre is a much smaller
-            // error than the one it used to make, but there is no reason to
-            // keep it when the actual root is one hop away right here.
+            // The PlayerVitals transform itself: the ragdoll has a collider on every bone, and any of them can sweep in first.
             PlayerVitals vitals = other.GetComponentInParent<PlayerVitals>();
             if (vitals != null)
             {
@@ -491,7 +439,7 @@ namespace CityX.Weapons
 
         private void OnTriggerExit(Collider other)
         {
-            if (!CityX.Character.InteractionReach.IsBodyLeaving(other))
+            if (!InteractionReach.IsBodyLeaving(other))
             {
                 return;   // a limb's collider swinging out of the trigger is not the player walking away
             }
@@ -501,8 +449,38 @@ namespace CityX.Weapons
             }
         }
 
+        // ---- equip ----
+
+        /// <summary>The marker the free hand reaches for, a child of the gun. Null while the gun is not held.</summary>
+        public Transform LeftHandGrip => _leftHandGrip;
+
+        private Transform _leftHandGrip;
+
+        /// <summary>Where the free palm holds, in the gun's frame: a saved pistol hold if there is one, else the profile's.</summary>
+        public Vector3 SupportGripLocal
+        {
+            get
+            {
+                WeaponGripSettings settings = WeaponGripSettings.Current;
+                return !Profile.IsRifle && settings.PistolTuned ? settings.PistolLeftHand : Profile.SupportHandLocal;
+            }
+        }
+
+        /// <summary>Puts the left-hand marker where the current hold (saved or derived) says.</summary>
+        public void ApplyGrip()
+        {
+            if (_leftHandGrip != null)
+            {
+                _leftHandGrip.localPosition = SupportGripLocal;
+            }
+        }
+
+        /// <summary>This gun's reload motion (loaded once, shared by every body), or null when there is none.</summary>
+        public BakedMotion Motion => string.IsNullOrEmpty(Profile.MotionResource) ? null : BakedMotion.Load(Profile.MotionResource);
+
         public void OnEquip(GameObject player, ItemInstanceData instanceData)
         {
+            InitialiseGrip();
             var animator = player.GetComponentInChildren<Animator>();
             Transform hand = animator != null ? animator.GetBoneTransform(HumanBodyBones.RightHand) : null;
             if (hand != null)
@@ -512,8 +490,10 @@ namespace CityX.Weapons
                 transform.localEulerAngles = _liveGripRotation;
                 transform.localScale = Vector3.one * _liveGripScale;
             }
+            RememberPartRests();
 
             _equipped = true;
+            _wielder = player;
             if (_pickupTrigger != null)
             {
                 _pickupTrigger.enabled = false;
@@ -525,9 +505,7 @@ namespace CityX.Weapons
                 input.EquippedGun = this;
             }
 
-            // Camera kick, hit-confirm tick, dry click and the reticle's
-            // blocked state all hang off this one component, driven by
-            // ShotResolved -- added at runtime so no prefab has to change.
+            // Camera kick, hit-confirm tick, dry click and the reticle's blocked state all hang off this one component, driven by ShotResolved.
             var feel = player.GetComponent<GunFeel>();
             if (feel == null)
             {
@@ -535,23 +513,69 @@ namespace CityX.Weapons
             }
             feel.Attach(this);
 
-            // The arm aims the BARREL, not just the upper arm -- see
-            // PlayerLocomotion.ApplyGunAimPose.
-            var locomotion = player.GetComponent<PlayerLocomotion>();
-            if (locomotion != null && MuzzleFlashObject != null)
+            _locomotion = player.GetComponent<PlayerLocomotion>();
+            _animationDriver = player.GetComponent<PlayerAnimationDriver>();
+            if (_locomotion != null && MuzzleFlashObject != null)
             {
-                locomotion.GunMuzzle = MuzzleFlashObject.transform;
+                _locomotion.GunMuzzle = MuzzleFlashObject.transform;   // the arm aims the BARREL, not just the upper arm
             }
-            if (locomotion != null)
+            if (_locomotion != null)
             {
-                // The free hand comes up to steady the gun as it is raised to aim, reaching for a marker on the
-                // pistol that can be dragged in the editor while the game runs (see WeaponGripSettings).
+                // The free hand reaches for a marker on the gun (draggable in the editor while the game runs: WeaponGripSettings): a pistol's
+                // only once it is raised to aim, a rifle's always.
                 if (_leftHandGrip == null)
                 {
                     _leftHandGrip = GripMarker.Create(transform, "LeftHandGrip", "left hand", new Color(1.0f, 0.55f, 0.1f));
                 }
                 ApplyGrip();
-                locomotion.SetSupportHand(_leftHandGrip, Vector3.zero, onlyWhenAiming: true);
+                _locomotion.SetSupportHand(_leftHandGrip, Vector3.zero, onlyWhenAiming: Profile.SupportHandOnlyWhenAiming);
+                if (Profile.IsRifle)
+                {
+                    _locomotion.SetRifle(transform, Profile.ButtLocal, Profile.MuzzleLocal, Profile.HoldPosition, Profile.HoldRotation);
+                }
+            }
+            HookReload(player, ref _reloader);
+        }
+
+        /// <summary>Lends the body this gun's reload motion and parts, and listens for the motion's events (on an owner's body and a copy alike).</summary>
+        private void HookReload(GameObject body, ref GunReloadDriver reloader)
+        {
+            var locomotion = body.GetComponent<PlayerLocomotion>();
+            var driver = body.GetComponent<PlayerAnimationDriver>();
+            reloader = driver != null ? driver.GunReloader : body.GetComponent<GunReloadDriver>();
+            if (locomotion != null)
+            {
+                locomotion.RegisterBakedProp(Profile.ActionPartName, ActionPart);
+                locomotion.RegisterBakedProp(Profile.MagazinePartName, MagazinePart);
+                locomotion.RegisterBakedProp(Profile.TriggerPartName, TriggerPart);
+            }
+            if (reloader != null)
+            {
+                reloader.SetMotion(Motion);
+                reloader.Marker -= OnReloadMarker;
+                reloader.Marker += OnReloadMarker;
+                reloader.Finished -= OnReloadFinished;
+                reloader.Finished += OnReloadFinished;
+            }
+        }
+
+        private void UnhookReload(GameObject body, GunReloadDriver reloader)
+        {
+            var locomotion = body != null ? body.GetComponent<PlayerLocomotion>() : null;
+            if (locomotion != null)
+            {
+                if (locomotion.BakedProp(Profile.ActionPartName) == ActionPart) locomotion.UnregisterBakedProp(Profile.ActionPartName);
+                if (locomotion.BakedProp(Profile.MagazinePartName) == MagazinePart) locomotion.UnregisterBakedProp(Profile.MagazinePartName);
+                if (locomotion.BakedProp(Profile.TriggerPartName) == TriggerPart) locomotion.UnregisterBakedProp(Profile.TriggerPartName);
+            }
+            if (reloader != null)
+            {
+                reloader.Marker -= OnReloadMarker;
+                reloader.Finished -= OnReloadFinished;
+                if (ReferenceEquals(reloader.Motion, Motion))
+                {
+                    reloader.SetMotion(null);
+                }
             }
         }
 
@@ -571,22 +595,102 @@ namespace CityX.Weapons
             if (locomotionOnUnequip != null)
             {
                 locomotionOnUnequip.ClearSupportHand(_leftHandGrip);
+                locomotionOnUnequip.ClearRifle(transform);
+                if (locomotionOnUnequip.GunMuzzle == (MuzzleFlashObject != null ? MuzzleFlashObject.transform : null))
+                {
+                    locomotionOnUnequip.GunMuzzle = null;
+                }
             }
-            if (locomotionOnUnequip != null && locomotionOnUnequip.GunMuzzle == (MuzzleFlashObject != null ? MuzzleFlashObject.transform : null))
-            {
-                locomotionOnUnequip.GunMuzzle = null;
-            }
+            UnhookReload(player, _reloader);
+            _reloader = null;
             Destroy(gameObject);
         }
 
-        // ---- on another player's copy: the model in the right hand, nothing else (its aim pose is the synced Aiming animation) ----
+        // ---- on another player's copy: the model in the right hand, its parts lent to the copy's reload, a rifle held two-handed ----
         public void MountCosmetic(GameObject body)
         {
+            InitialiseGrip();
             CosmeticMount.ToBone(transform, body, HumanBodyBones.RightHand, _liveGripPosition, _liveGripRotation, _liveGripScale);
+            RememberPartRests();
+            _cosmeticBody = body;
+            HookReload(body, ref _cosmeticReloader);
+            _cosmeticDriver = body.GetComponent<PlayerAnimationDriver>();
+            if (_cosmeticDriver != null)
+            {
+                _cosmeticDriver.RemoteGunFired -= OnRemoteShot;
+                _cosmeticDriver.RemoteGunFired += OnRemoteShot;
+            }
+            var locomotion = body.GetComponent<PlayerLocomotion>();
+            if (locomotion != null && Profile.IsRifle)
+            {
+                if (_leftHandGrip == null)
+                {
+                    _leftHandGrip = GripMarker.Create(transform, "LeftHandGrip", "left hand", new Color(1.0f, 0.55f, 0.1f));
+                }
+                ApplyGrip();
+                locomotion.SetSupportHand(_leftHandGrip, Vector3.zero, onlyWhenAiming: false);
+                locomotion.SetRifle(transform, Profile.ButtLocal, Profile.MuzzleLocal, Profile.HoldPosition, Profile.HoldRotation);
+            }
         }
 
+
+        // ---- a shot on another player's copy (GunReload.FireName, PlayerAnimationDriver.RemoteGunFired) ----
+
+        private PlayerAnimationDriver _cosmeticDriver;
+
+        /// <summary>
+        /// The player this copy belongs to fired: the flash, the crack (in the world, so it is quieter far away), the tracer down the barrel
+        /// to whatever it meets, the brass and the slide or bolt -- everything the shooter saw, but no damage (that went its own way).
+        /// </summary>
+        private void OnRemoteShot()
+        {
+            if (_cosmeticBody == null)
+            {
+                return;
+            }
+            if (_cosmeticReloader != null && _cosmeticReloader.IsPlaying)
+            {
+                _cosmeticReloader.Cancel();   // the shooter cut their reload short with this shot
+            }
+            Transform muzzle = MuzzleFlashObject != null ? MuzzleFlashObject.transform : transform;
+            FirearmEffects.Flash(MuzzleFlashObject, 0.05f);
+            if (MuzzleSparks != null)
+            {
+                MuzzleSparks.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+                MuzzleSparks.Play();
+            }
+            if (ShotPlayer != null && ShotPlayer.clip != null)
+            {
+                AudioSource.PlayClipAtPoint(ShotPlayer.clip, muzzle.position, 1.0f);
+            }
+            Vector3 end = muzzle.position + muzzle.forward * Profile.Range;
+            if (Physics.Raycast(muzzle.position, muzzle.forward, out RaycastHit hit, Profile.Range, TargetLayers, QueryTriggerInteraction.Ignore)
+                && !IsWieldersOwnCollider(hit.collider, _cosmeticBody))
+            {
+                end = hit.point;
+            }
+            BulletTracer.Spawn(muzzle.position, end, muzzle);
+            FirearmEffects.EjectCasing(transform.TransformPoint(Profile.EjectionPortLocal), transform.rotation,
+                transform.TransformDirection(Profile.EjectionDirectionLocal), Profile.CasingLength, Profile.CasingRadius, _cosmeticBody);
+            RememberPartRests();
+            FirearmEffects.Cycle(ActionPart, _actionRest, Profile.ActionTravel, Profile.ActionCycleSeconds);
+        }
         public void UnmountCosmetic(GameObject body)
         {
+            var locomotion = body != null ? body.GetComponent<PlayerLocomotion>() : null;
+            if (locomotion != null)
+            {
+                locomotion.ClearSupportHand(_leftHandGrip);
+                locomotion.ClearRifle(transform);
+            }
+            UnhookReload(body, _cosmeticReloader);
+            if (_cosmeticDriver != null)
+            {
+                _cosmeticDriver.RemoteGunFired -= OnRemoteShot;
+                _cosmeticDriver = null;
+            }
+            _cosmeticReloader = null;
+            _cosmeticBody = null;
         }
 
         public void SetCosmeticActive(bool active)
@@ -595,29 +699,167 @@ namespace CityX.Weapons
 
         public ItemInstanceData GetInstanceData() => ItemInstanceData.None;
 
+        // ---- the reload ----
+
         /// <summary>
-        /// Fires along <paramref name="direction"/> from <paramref name="origin"/>
-        /// -- both the camera's own current world position/facing, same
-        /// reasoning pistol.gd's own fire() callers use (the camera is
-        /// genuinely where the player is aiming; MeleeAttacker's punch
-        /// origin is the body instead, for a much shorter range where that
-        /// distinction actually matters).
-        ///
-        /// Returns false (a dry/empty click) without firing if on cooldown,
-        /// mid-reload, or the magazine is empty -- matches the "denied
-        /// action does nothing" convention every other gated input in this
-        /// project already follows.
+        /// Starts a reload: no-op if already reloading, the magazine is full, or there is no reserve. An empty gun gets the EMPTY reload (the
+        /// action racked at the end). Played as a motion by name on the body (so other players see it); a body without one (a bare test rig)
+        /// runs the old timer with a dip of the gun.
+        /// </summary>
+        public void TryReload()
+        {
+            if (IsReloading || MagazineAmmo >= Profile.MagazineSize || ReserveAmmo <= 0)
+            {
+                return;
+            }
+            _reloadEmpty = MagazineAmmo <= 0;
+            _reloadAmmoIn = false;
+            _reloadReadyToFire = false;
+            IsReloading = true;
+
+            string state = GunReload.NameFor(_reloadEmpty);
+            if (_reloader != null && _reloader.CanPlay(_reloadEmpty) && _animationDriver != null && _animationDriver.HasState(state))
+            {
+                _animationDriver.PlayLocalState(state);
+                if (_reloader.IsPlaying)
+                {
+                    _reloadByMotion = true;
+                    _reloadDuration = _reloader.Duration;
+                    return;
+                }
+            }
+            _reloadByMotion = false;
+            _reloadDuration = _reloadEmpty ? Profile.EmptyReloadSeconds : Profile.ReloadSeconds;
+            _reloadTimeRemaining = _reloadDuration;
+            if (ReloadPlayer != null && ReloadPlayer.clip != null)
+            {
+                ReloadPlayer.Play();
+            }
+        }
+
+        private void TickReload(float deltaTime)
+        {
+            if (_reloadByMotion)
+            {
+                // The motion was cut short by something taking the body (a ragdoll, a climb): the magazine is in only if it had seated.
+                if (_reloader == null || !_reloader.IsPlaying)
+                {
+                    EndReload();
+                }
+                return;
+            }
+            _reloadTimeRemaining -= deltaTime;
+            if (_reloadTimeRemaining <= 0.0f)
+            {
+                Refill();
+                EndReload();
+            }
+        }
+
+        /// <summary>The motion's events, raised by the body's GunReloadDriver as their frames pass (here and on other players' copies).</summary>
+        private void OnReloadMarker(string marker)
+        {
+            switch (GunReload.EventKind(marker))
+            {
+                case GunReload.DropEvent:
+                    FirearmEffects.DropMagazine(MagazinePart, transform.TransformDirection(Profile.MagazineOutLocal), _wielder != null ? _wielder : _cosmeticBody);
+                    PlayReloadSound(FirearmEffects.MagazineOut);
+                    break;
+                case GunReload.SeatEvent:
+                    PlayReloadSound(FirearmEffects.MagazineIn);
+                    if (_equipped && IsReloading)
+                    {
+                        Refill();
+                        _reloadAmmoIn = true;
+                        _reloadReadyToFire = !_reloadEmpty;
+                    }
+                    break;
+                case GunReload.RackEvent:
+                    PlayReloadSound(FirearmEffects.Rack);
+                    if (_equipped && IsReloading)
+                    {
+                        _reloadReadyToFire = _reloadAmmoIn;
+                    }
+                    break;
+            }
+        }
+
+        private void OnReloadFinished()
+        {
+            if (_equipped && IsReloading && _reloadByMotion)
+            {
+                if (!_reloadAmmoIn)
+                {
+                    Refill();   // a motion without a seat event still reloads
+                }
+                EndReload();
+            }
+        }
+
+        private void PlayReloadSound(AudioClip clip)
+        {
+            AudioSource source = ReloadPlayer != null ? ReloadPlayer : ShotPlayer;
+            if (source != null && clip != null && source.isActiveAndEnabled)
+            {
+                source.PlayOneShot(clip, 0.8f);
+            }
+        }
+
+        private void Refill()
+        {
+            int needed = Profile.MagazineSize - MagazineAmmo;
+            int drawn = Mathf.Min(needed, ReserveAmmo);
+            MagazineAmmo += drawn;
+            ReserveAmmo -= drawn;
+        }
+
+        /// <summary>Sets the rounds in the magazine and in reserve (clamped to what fits): ammo found, a test rig's setup.</summary>
+        public void SetAmmo(int magazine, int reserve)
+        {
+            MagazineAmmo = Mathf.Clamp(magazine, 0, Profile.MagazineSize);
+            ReserveAmmo = Mathf.Max(0, reserve);
+        }
+
+        private void EndReload()
+        {
+            IsReloading = false;
+            _reloadByMotion = false;
+            _reloadReadyToFire = false;
+        }
+
+        /// <summary>Read by the HUD's own ammo counter.</summary>
+        public string GetAmmoText()
+        {
+            return IsReloading && !_reloadAmmoIn ? "RELOADING..." : $"{MagazineAmmo} / {ReserveAmmo}";
+        }
+
+        // ---- the shot ----
+
+        /// <summary>
+        /// Fires along <paramref name="direction"/> from <paramref name="origin"/> (the camera's position and facing: the camera is where the
+        /// player aims). Returns false without firing on cooldown, mid-reload (until the fresh magazine is in), or on an empty magazine (a dry
+        /// click, which starts a reload when there is reserve: Gears, Fortnite and The Division all do).
         /// </summary>
         public bool Fire(Vector3 origin, Vector3 direction, bool aiming, GameObject wielder)
         {
-            if (IsReloading || _fireCooldownRemaining > 0.0f)
+            if (_fireCooldownRemaining > 0.0f)
             {
                 return false;
             }
+            if (IsReloading)
+            {
+                if (!_reloadReadyToFire)
+                {
+                    return false;
+                }
+                // The reload cancel: the ammo is in (and racked), so the rest of the motion gives way to the shot.
+                if (_reloader != null && _reloader.IsPlaying)
+                {
+                    _reloader.Cancel();
+                }
+                EndReload();
+            }
 
-            // AN EMPTY CLICK RELOADS FOR YOU (Gears, Fortnite, The Division
-            // all do) -- while there is reserve ammo to reload from. With none,
-            // it is just a dry click, throttled so mashing does not machine-gun it.
             if (MagazineAmmo <= 0)
             {
                 bool reloading = false;
@@ -636,8 +878,11 @@ namespace CityX.Weapons
                 return false;
             }
 
-            _fireCooldownRemaining = FireCooldownSeconds;
+            _fireCooldownRemaining = Profile.FireCooldownSeconds;
             MagazineAmmo--;
+            int shotInBurst = _sinceShot <= Profile.RecoilResetSeconds ? _burstIndex : 0;
+            _burstIndex = shotInBurst + 1;
+            _sinceShot = 0.0f;
 
             if (MuzzleFlashObject != null)
             {
@@ -646,54 +891,26 @@ namespace CityX.Weapons
             _muzzleFlashRemaining = 0.05f;
             if (MuzzleSparks != null)
             {
-                // Restart, not just Play() -- a burst still mid-flight from
-                // the previous shot (very possible at this fire rate) would
-                // otherwise keep playing uninterrupted and silently swallow
-                // this one, the same issue player.gd's own shoot animation
-                // hit (see pistol.gd's own comment on _muzzle_sparks.restart()).
+                // Restart, not just Play(): a burst still in flight from the last shot would swallow this one.
                 MuzzleSparks.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
                 MuzzleSparks.Play();
             }
-            // PlayOneShot, NOT Play() -- Play() restarts the SAME playback,
-            // so spamming shots faster than the clip's own length cut it off
-            // every time (confirmed reported: "the whole thing" never got a
-            // chance to play). PlayOneShot fires an independent, overlapping
-            // instance instead, the same fix MuzzleSparks already needed a
-            // different solution for (that one restarts on purpose, per its
-            // own comment -- a burst of sparks stacking indefinitely looks
-            // wrong where overlapping gunshot audio does not).
-            // See ShotPlayerPool's own doc comment: a shared source's pitch
-            // is retroactive across everything already overlapping on it,
-            // so a pooled, independent voice per shot is used when one is
-            // wired -- falling back to the single ShotPlayer (the original
-            // behaviour, pitch-jitter-and-all) when it isn't.
+            // PlayOneShot on a pooled voice: an independent, overlapping play per shot (see ShotPlayerPool).
             AudioSource voice = NextShotVoice();
             if (voice != null && voice.clip != null)
             {
-                // See ShotPitchJitter's own doc comment -- PlayOneShot alone
-                // fixed shots CUTTING each other off; it does not stop
-                // several overlapping copies of the identical waveform from
-                // phase-cancelling into an audible stutter at this fire
-                // rate, which is a separate problem needing this separate fix.
-                voice.pitch = RandomShotPitch();
+                voice.pitch = Profile.ShotPitch * RandomShotPitch();
                 voice.PlayOneShot(voice.clip);
             }
 
             float spreadDegrees = aiming ? AdsSpreadDegrees : HipFireSpreadDegrees;
             Vector3 spreadDirection = ApplySpread(direction, spreadDegrees);
 
-            // HITSCAN, ALREADY -- EXPLICIT ASK: "i want you to do bullets
-            // the same as csgo... zero travel time." This raycast resolves
-            // synchronously, right here, in the same call that started the
-            // shot -- there was never a travelling bullet object to remove.
-            // See BulletTracer's own doc comment: what CS:GO actually has
-            // that this didn't yet is the cosmetic half, a visible streak
-            // that plays no part in hit resolution.
-            // THE THREE-TRACE SHOT -- see ResolveTrace. In open ground it is the
-            // same single camera ray as ever; it only changes the outcome when
-            // scenery is between the GUN and the crosshair's target.
+            // HITSCAN (CS:GO's zero travel time), THE THREE-TRACE SHOT -- see ResolveTrace.
             ShotTrace trace = ResolveTrace(origin, spreadDirection, wielder);
-            RaycastHit hit = trace.HitInfo;
+            RaycastHit hit = trace.Hit
+                ? trace.HitInfo
+                : default;
             bool realHit = trace.Hit;
             bool hitDamageable = false;
             bool killed = false;
@@ -703,9 +920,7 @@ namespace CityX.Weapons
                 var breakable = hit.collider.GetComponentInParent<IBreakableSurface>();
                 if (breakable != null)
                 {
-                    // A BULLET, not a punch: it makes its own hole and the window stays up, so every shot
-                    // at a window leaves its own hole (the way the pane was cracked by the first, the second
-                    // used to shatter it -- or, once cracked, fly straight through it).
+                    // A BULLET, not a punch: it makes its own hole and the window stays up.
                     breakable.TakeBlow(hit.point, spreadDirection, BlowStrength.Bullet);
                 }
                 else
@@ -716,9 +931,8 @@ namespace CityX.Weapons
                         int strength = wielder != null
                             ? wielder.GetComponent<PlayerVitals>()?.Strength ?? 0
                             : 0;
-                        float actualDamage = CombatTuning.DamageFor(Damage, strength);
-                        // No hitstun -- pistol.gd's own take_damage() call never
-                        // passes one either; a bullet interrupts nothing here.
+                        float actualDamage = CombatTuning.DamageFor(Profile.Damage, strength);
+                        // No hitstun: a bullet interrupts nothing (pistol.gd's own take_damage passes none either).
                         damageable.ApplyHit(actualDamage, origin, 0.0f);
                         hitDamageable = true;
                         killed = !damageable.IsAlive;
@@ -730,38 +944,30 @@ namespace CityX.Weapons
                 }
             }
 
-            // BULLET-TRACER HISTORY (each entry an explicit report): "coming from
-            // all sorts of different directions" -> tracer drawn along the muzzle's
-            // own forward; "still coming from all over" -> hip fire never pointed
-            // the arm at the target, so muzzle-forward meant nothing, and the aimed
-            // path got a split; and now "not showing up at all, and when they do
-            // it is going in the wrong direction". Root causes: (1) the streak was
-            // 1.5cm wide for 0.05s, about one pixel for three frames -- see
-            // BulletTracer; (2) the arm aimed at a fixed point 15m down the camera
-            // ray, so at close range the barrel pointed well off the hit while the
-            // tracer followed the barrel and stopped short of the target, and hip
-            // fire never raised the arm at all. Fixed at the source: the arm now
-            // aims at the shot's real end point (LocomotionInput.GunAimPoint) and
-            // raises for half a second after every shot (NotifyGunFired), so the
-            // barrel, the bullet and the tracer are one line.
+            // THE TRACER IS THE BULLET'S PATH: straight from the muzzle to where the shot really ended, whatever the mode (the arm points the
+            // gun at the same point: PlayerLocomotion.NotifyGunFired and LocomotionInput.GunAimPoint).
             Vector3 muzzlePosition = MuzzleFlashObject != null ? MuzzleFlashObject.transform.position : origin;
-            // THE TRACER IS THE BULLET'S PATH: straight from the muzzle to where the
-            // shot really ended (the hit point, or a far point on the crosshair ray
-            // for a miss), whatever the mode. This is the very line the barrel trace
-            // validated, so the streak always ends on what was hit -- the earlier
-            // "follow the muzzle's own forward while aiming" version stopped short of
-            // near targets, because the arm aims at a point down the camera ray, not
-            // at the hit (a 1.4m shoulder offset is 20 degrees at 4m). The GUN now
-            // points at the hit point too (PlayerLocomotion.NotifyGunFired and
-            // LocomotionInput.GunAimPoint), so barrel, tracer and bullet agree.
-            Vector3 tracerEnd = realHit ? hit.point : origin + spreadDirection * Range;
+            Vector3 tracerEnd = realHit ? hit.point : origin + spreadDirection * Profile.Range;
             BulletTracer.Spawn(muzzlePosition, tracerEnd, MuzzleFlashObject != null ? MuzzleFlashObject.transform : null);
 
-            // THE KICK. Camera recoil is the camera's job (whoever listens to
-            // ShotResolved applies RecoilPitchDegrees); the pistol's own
-            // snap-back is ours. Applied AFTER the shot resolved, so the shot
-            // itself is always exactly on the crosshair.
+            // Other players' copies of this body see and hear the shot (the damage went its own way: NetworkedDamage).
+            if (_animationDriver != null && _equipped)
+            {
+                _animationDriver.AnnounceState(GunReload.FireName);
+            }
+
+            // The spent case out of the port.
+            if (_equipped)
+            {
+                Vector3 port = transform.TransformPoint(Profile.EjectionPortLocal);
+                FirearmEffects.EjectCasing(port, transform.rotation, transform.TransformDirection(Profile.EjectionDirectionLocal),
+                    Profile.CasingLength, Profile.CasingRadius, wielder);
+            }
+
+            // THE KICK. Camera recoil is the camera's job (whoever listens to ShotResolved applies it, from the profile's pattern); the gun's
+            // own snap-back is ours. Applied AFTER the shot resolved, so the shot itself is always exactly on the crosshair.
             _kick = 1.0f;
+            Vector2 recoil = Profile.RecoilFor(shotInBurst) * _recoilScale * (aiming ? Profile.AdsRecoilMultiplier : 1.0f);
             ShotResolved?.Invoke(new GunShot
             {
                 Fired = true,
@@ -769,14 +975,18 @@ namespace CityX.Weapons
                 HitDamageable = hitDamageable,
                 Killed = killed,
                 BarrelBlocked = trace.BarrelBlocked,
-                Point = realHit ? hit.point : origin + spreadDirection * Range,
+                Point = realHit ? hit.point : origin + spreadDirection * Profile.Range,
                 Aiming = aiming,
-                RecoilPitchDegrees = RecoilPitchDegrees * (aiming ? AdsRecoilMultiplier : 1.0f),
-                ShakeDegrees = ShakeDegrees * (aiming ? AdsRecoilMultiplier : 1.0f),
+                RecoilPitchDegrees = recoil.y,
+                RecoilYawDegrees = recoil.x,
+                RecoilHoldSeconds = Profile.RecoilHoldSeconds,
+                ShakeDegrees = Profile.ShakeDegrees * (aiming ? Profile.AdsRecoilMultiplier : 1.0f),
             });
-
             return true;
         }
+
+        /// <summary>How many shots of the current burst have been fired (0 once it has reset).</summary>
+        public int ShotsInBurst => _sinceShot <= Profile.RecoilResetSeconds ? _burstIndex : 0;
 
         private struct ShotTrace
         {
@@ -788,11 +998,8 @@ namespace CityX.Weapons
         private static readonly RaycastHit[] HitBuffer = new RaycastHit[32];
 
         /// <summary>
-        /// The nearest thing a ray hits that is not the wielder's own body --
-        /// a RaycastAll that skips the shooter instead of stopping at them.
-        /// (The old plain Raycast reported the shooter's own capsule as the
-        /// first hit and then discarded the shot, so a ray that began inside or
-        /// grazed the wielder hit NOTHING instead of what was behind them.)
+        /// The nearest thing a bullet stops on along a ray, skipping the shooter's own colliders (ragdoll bones included) and anything a shot
+        /// ignores; a cracked window's opening trigger counts (it is the only thing a bullet can hit there).
         /// </summary>
         private bool TraceIgnoringWielder(Vector3 origin, Vector3 direction, float distance,
             GameObject wielder, out RaycastHit best)
@@ -804,15 +1011,11 @@ namespace CityX.Weapons
             }
 
             RaycastHit[] hits = HitBuffer;
-            // Triggers are asked for too, and every one that is not a cracked window's opening is skipped below:
-            // a cracked pane has no solid collider, so its opening box is the only thing a bullet can hit there.
             int count = Physics.RaycastNonAlloc(origin, direction, hits, distance,
                 TargetLayers, QueryTriggerInteraction.Collide);
             if (count >= hits.Length)
             {
-                // A full buffer means the nearest hit may have been dropped --
-                // the unsorted non-alloc version keeps an arbitrary subset. A
-                // ray through this many colliders is rare; pay for the exact answer.
+                // A full buffer may have dropped the nearest hit: pay for the exact answer.
                 hits = Physics.RaycastAll(origin, direction, distance, TargetLayers, QueryTriggerInteraction.Collide);
                 count = hits.Length;
             }
@@ -841,24 +1044,15 @@ namespace CityX.Weapons
         }
 
         /// <summary>
-        /// MONDAY NIGHT COMBAT'S THREE-TRACE SHOT, from its developer's own
-        /// write-up of the third-person aiming problem: the camera sits away
-        /// from the gun, so a bullet that follows the crosshair can go THROUGH
-        /// a wall corner the barrel is actually behind (the player is safe and
-        /// shooting through geometry). The crosshair must still win in open
-        /// ground -- "exact where you clicked" -- so:
-        ///  1. CAMERA TRACE: what the crosshair is on. This is the shot.
-        ///  2. HAND TRACE: from the wielder's body to the muzzle. If scenery is
-        ///     in the way, the barrel is inside/behind a wall: the bullet hits it.
-        ///  3. BARREL TRACE: from the muzzle to the camera trace's hit point. If
-        ///     scenery (other than the target itself) is in the way, that takes
-        ///     the bullet instead.
-        /// With no wielder or no muzzle (a bare test gun) only step 1 runs.
+        /// MONDAY NIGHT COMBAT'S THREE-TRACE SHOT: (1) the CAMERA trace is the shot (the crosshair wins in open ground); (2) a HAND trace from
+        /// the body to the muzzle -- scenery there means the barrel is inside a wall, and it takes the bullet; (3) a BARREL trace from the muzzle
+        /// to the camera's hit point -- scenery other than the target takes the bullet. With no wielder or no muzzle only (1) runs.
         /// </summary>
         private ShotTrace ResolveTrace(Vector3 origin, Vector3 direction, GameObject wielder)
         {
             var result = new ShotTrace();
-            result.Hit = TraceIgnoringWielder(origin, direction, Range, wielder, out RaycastHit camera);
+            float range = Profile.Range;
+            result.Hit = TraceIgnoringWielder(origin, direction, range, wielder, out RaycastHit camera);
             result.HitInfo = camera;
 
             if (wielder == null || MuzzleFlashObject == null)
@@ -867,9 +1061,8 @@ namespace CityX.Weapons
             }
 
             Vector3 muzzle = MuzzleFlashObject.transform.position;
-            Vector3 aimPoint = result.Hit ? camera.point : origin + direction * Range;
+            Vector3 aimPoint = result.Hit ? camera.point : origin + direction * range;
 
-            // 2. Hand trace.
             var locomotion = wielder.GetComponent<PlayerLocomotion>();
             float bodyHeight = (locomotion != null ? locomotion.StandingHeight : 1.8f) * 0.6f;
             Vector3 body = wielder.transform.position + Vector3.up * bodyHeight;
@@ -884,7 +1077,6 @@ namespace CityX.Weapons
                 return result;
             }
 
-            // 3. Barrel trace.
             Vector3 toAim = aimPoint - muzzle;
             float aimDistance = toAim.magnitude;
             if (aimDistance > MinBarrelTraceMetres && Vector3.Dot(toAim, direction) > 0.0f
@@ -905,37 +1097,20 @@ namespace CityX.Weapons
         }
 
         /// <summary>
-        /// Where a shot fired now would END (the hit point, or a far point on the
-        /// crosshair ray on a miss) and whether scenery is taking it. The arm
-        /// aims the gun at this point, so the barrel points where the bullet and
-        /// its tracer go.
+        /// Where a shot fired now would END (the hit point, or a far point on the crosshair ray on a miss) and whether scenery is taking it.
+        /// The arm aims the gun at this point, so the barrel points where the bullet and its tracer go.
         /// </summary>
         public void AimTrace(Vector3 origin, Vector3 direction, GameObject wielder,
             out Vector3 point, out bool barrelBlocked)
         {
             ShotTrace trace = ResolveTrace(origin, direction, wielder);
-            point = trace.Hit ? trace.HitInfo.point : origin + direction * Range;
+            point = trace.Hit ? trace.HitInfo.point : origin + direction * Profile.Range;
             barrelBlocked = trace.BarrelBlocked;
         }
 
         /// <summary>
-        /// EXPLICIT BUG REPORT: "whenever i hold right click with the pistol
-        /// the crosshair is on me and just shoots me." The aim-down-sights
-        /// camera pulls in close to the character (ThirdPersonCamera's own
-        /// aiming behaviour), which can put the raycast's own origin at or
-        /// inside the player's own collider -- and Fire's raycast used
-        /// TargetLayers with no exclusion at all (the default is literally
-        /// "every layer"), so the very first thing a shot could hit was
-        /// whoever fired it. Checked by identity against the wielder's own
-        /// hierarchy rather than a layer mask: the player's ragdoll carries
-        /// a real collider on every bone (RagdollBuilder), potentially on
-        /// several different layers, so a layer-based exclusion would need
-        /// to enumerate all of them and silently miss one; walking up from
-        /// whatever was actually hit to see if it belongs to the wielder at
-        /// all covers every one of them at once, the same way PistolWeapon.
-        /// OnTriggerEnter and TryPickup already identify "is this the
-        /// player" by walking up to PlayerVitals rather than trusting a
-        /// layer.
+        /// "whenever i hold right click with the pistol the crosshair is on me and just shoots me": checked by identity against the wielder's
+        /// hierarchy (the ragdoll has colliders on every bone, on several layers), walking up to PlayerVitals.
         /// </summary>
         private static bool IsWieldersOwnCollider(Collider hitCollider, GameObject wielder)
         {
@@ -952,28 +1127,11 @@ namespace CityX.Weapons
             return wielderVitals != null && hitOwner == wielderVitals;
         }
 
-        /// <summary>
-        /// Perturbs direction within a cone of half-angle spreadDegrees --
-        /// two independent small-angle rotations around an arbitrary pair of
-        /// axes perpendicular to direction, matching pistol.gd's own
-        /// _apply_spread exactly.
-        /// </summary>
-        /// <summary>
-        /// See ShotPitchJitter's own doc comment. Pure and static so the
-        /// jitter itself is directly testable without needing to fight
-        /// Fire's own cooldown gate to get several calls through it.
-        /// </summary>
         public static float RandomShotPitch()
         {
             return 1.0f + Random.Range(-ShotPitchJitter, ShotPitchJitter);
         }
 
-        /// <summary>
-        /// The AudioSource this shot's own voice plays on -- round-robins
-        /// through ShotPlayerPool when one is wired (see its own doc
-        /// comment for why that's the actual fix), otherwise the single
-        /// ShotPlayer, unchanged from before the pool existed.
-        /// </summary>
         private AudioSource NextShotVoice()
         {
             if (ShotPlayerPool == null || ShotPlayerPool.Length == 0)
@@ -984,6 +1142,7 @@ namespace CityX.Weapons
             return ShotPlayerPool[_shotPoolIndex];
         }
 
+        /// <summary>Perturbs direction within a cone of half-angle spreadDegrees (pistol.gd's _apply_spread). Zero spread leaves it exact.</summary>
         private static Vector3 ApplySpread(Vector3 direction, float spreadDegrees)
         {
             if (spreadDegrees <= 0.0f)
@@ -998,41 +1157,6 @@ namespace CityX.Weapons
             Vector3 result = Quaternion.AngleAxis(yaw, up) * direction;
             result = Quaternion.AngleAxis(pitch, right) * result;
             return result.normalized;
-        }
-
-        /// <summary>
-        /// No-op if already reloading, the magazine's already full, or
-        /// there's no reserve ammo to reload from -- matches the plain
-        /// "nothing happens" convention this project uses for every other
-        /// denied action.
-        /// </summary>
-        public void TryReload()
-        {
-            if (IsReloading || MagazineAmmo >= MagazineSize || ReserveAmmo <= 0)
-            {
-                return;
-            }
-            IsReloading = true;
-            _reloadTimeRemaining = ReloadSeconds;
-            if (ReloadPlayer != null)
-            {
-                ReloadPlayer.Play();
-            }
-        }
-
-        private void FinishReload()
-        {
-            IsReloading = false;
-            int needed = MagazineSize - MagazineAmmo;
-            int drawn = Mathf.Min(needed, ReserveAmmo);
-            MagazineAmmo += drawn;
-            ReserveAmmo -= drawn;
-        }
-
-        /// <summary>Read by the HUD's own ammo counter.</summary>
-        public string GetAmmoText()
-        {
-            return IsReloading ? "RELOADING..." : $"{MagazineAmmo} / {ReserveAmmo}";
         }
     }
 }

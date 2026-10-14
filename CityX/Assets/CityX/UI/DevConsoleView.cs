@@ -1530,6 +1530,11 @@ namespace CityX.UI
                 case "combat_sword":
                 case "1h": return ItemRegistry.CombatSword;
                 case "flamethrower": return ItemRegistry.Flamethrower;
+                case "ak":
+                case "ak47":
+                case "ak-47":
+                case "rifle": return ItemRegistry.AK47;
+                case "glock": return ItemRegistry.Pistol;
                 case "top_hat":
                 case "tophat": return ItemRegistry.TopHat;
                 default: return null;

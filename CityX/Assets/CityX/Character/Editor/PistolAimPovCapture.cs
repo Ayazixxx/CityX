@@ -61,11 +61,11 @@ namespace CityX.CharacterEditor
                 // live ThirdPersonCamera field defaults/scene rather than
                 // re-guessed.
                 const float pivotHeightFraction = 0.73f;
-                const float aimShoulderOffset = 1.415f; // ThirdPersonCamera.AimShoulderOffset -- player.gd's own ADS_SHOULDER_OFFSET_X
-                const float distance = 4.0f; // ThirdPersonCamera.Distance -- player.gd's own spring_length
+                const float aimShoulderOffset = ThirdPersonCamera.DefaultAimShoulderOffset;
+                const float distance = ThirdPersonCamera.DefaultAimDistance;
 
                 float standingHeight = locomotion.StandingHeight;
-                Vector3 pivot = instance.transform.position + Vector3.up * (standingHeight * pivotHeightFraction);
+                Vector3 pivot = instance.transform.position + Vector3.up * (standingHeight * pivotHeightFraction + ThirdPersonCamera.DefaultAimPivotRaise);
                 Quaternion rotation = Quaternion.identity;
                 Vector3 shoulderPivot = pivot + rotation * Vector3.right * aimShoulderOffset;
                 Vector3 cameraPosition = shoulderPivot - rotation * Vector3.forward * distance;
@@ -162,12 +162,12 @@ namespace CityX.CharacterEditor
 
                 const float yawDegrees = 40.0f;
                 const float pivotHeightFraction = 0.73f;
-                const float aimShoulderOffset = 1.415f; // ThirdPersonCamera.AimShoulderOffset -- player.gd's own ADS_SHOULDER_OFFSET_X
-                const float distance = 4.0f; // ThirdPersonCamera.Distance -- player.gd's own spring_length
+                const float aimShoulderOffset = ThirdPersonCamera.DefaultAimShoulderOffset;
+                const float distance = ThirdPersonCamera.DefaultAimDistance;
 
                 float standingHeight = locomotion.StandingHeight;
                 Quaternion rotation = Quaternion.Euler(0.0f, yawDegrees, 0.0f);
-                Vector3 pivot = instance.transform.position + Vector3.up * (standingHeight * pivotHeightFraction);
+                Vector3 pivot = instance.transform.position + Vector3.up * (standingHeight * pivotHeightFraction + ThirdPersonCamera.DefaultAimPivotRaise);
                 Vector3 shoulderPivot = pivot + rotation * Vector3.right * aimShoulderOffset;
                 Vector3 cameraPosition = shoulderPivot - rotation * Vector3.forward * distance;
                 Vector3 cameraForward = rotation * Vector3.forward;

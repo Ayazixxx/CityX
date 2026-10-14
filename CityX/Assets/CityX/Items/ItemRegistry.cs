@@ -23,6 +23,7 @@ namespace CityX.Items
         public const string SpikeSword = "spike_sword";
         public const string CombatSword = "combat_sword";
         public const string Flamethrower = "flamethrower";
+        public const string AK47 = "ak47";
         public const string TopHat = "top_hat";
         public const string FarmerHat = "farmer_hat";
 
@@ -56,6 +57,8 @@ namespace CityX.Items
             // The owner's COMBATSWORDX.glb (2026-10-13): the first ONE-HANDED sword, with its own attacks and guard.
             [CombatSword] = new ItemDefinition(CombatSword, "Combat Sword", "weapon", "hand_r", 1),
             [Flamethrower] = new ItemDefinition(Flamethrower, "Flamethrower", "weapon", "hand_r", 1),
+            // The AK-47 (2026-10-14): the first automatic rifle -- one firearm component, its own profile (Weapons/FirearmProfile.AK47).
+            [AK47] = new ItemDefinition(AK47, "AK-47", "weapon", "hand_r", 1),
             // "helmet" -- LoadoutPanelView's own slot list already has one,
             // unused until now. Godot's hat and mask occupy separate slots
             // and can be worn together, but Unity only has this single

@@ -136,7 +136,7 @@ namespace CityX.Character
                 if (_camera != null && CameraRecoilScale > 0.0f)
                 {
                     _camera.AddRecoil(shot.RecoilPitchDegrees * CameraRecoilScale,
-                        shot.ShakeDegrees * CameraRecoilScale);
+                        shot.ShakeDegrees * CameraRecoilScale, shot.RecoilYawDegrees * CameraRecoilScale, shot.RecoilHoldSeconds);
                 }
 
                 if (shot.Killed)

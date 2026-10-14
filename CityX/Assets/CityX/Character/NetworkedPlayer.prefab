@@ -118,7 +118,7 @@ PrefabInstance:
       addedObject: {fileID: 2453790078144645714}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 7966860968733904100}
+      addedObject: {fileID: 287396592394772367}
   m_SourcePrefab: {fileID: 100100000, guid: c573dea59fa2558478b70344c659896a, type: 3}
 --- !u!1 &5771231832799346164 stripped
 GameObject:
@@ -376,6 +376,8 @@ MonoBehaviour:
     Prefab: {fileID: 5103039701722357346, guid: 6ab7683001589ae4ca309300ffef8afb, type: 3}
   - ItemId: flamethrower
     Prefab: {fileID: 8108801630605861456, guid: ec74bb0ff03d4944ba0469e6b93ad465, type: 3}
+  - ItemId: ak47
+    Prefab: {fileID: 3368552267168502446, guid: 39f322b1d45be904aac97d5896056930, type: 3}
 --- !u!114 &752554928827252169
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -585,7 +587,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: CityX.Character::CityX.Character.OctaslashAbility
   SlashMaterial: {fileID: 2100000, guid: 2b060d6e4d0b57746a498c94c7b4830b, type: 2}
---- !u!114 &7966860968733904100
+--- !u!114 &287396592394772367
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

@@ -15,6 +15,11 @@ namespace CityX.Character
     /// WHY NOT A HUMANOID CLIP. A humanoid clip stores muscle values, clamped to the avatar's ranges. The moves this is for go past them on
     /// purpose: Octaslash's body rolls four times in a quarter of a second, the sword arm whipping round with it. Played after the Animator
     /// (PlayerLocomotion.SetBakedPose), the bones land exactly where Blender put them.
+    ///
+    /// PROPS AND EVENTS (2026-10-14, the gun reloads): a motion may also carry named PROPS -- the position, rotation and visibility of a
+    /// held thing's parts (a slide, a magazine) in the held thing's own frame, every frame -- and named EVENTS on frames (the magazine
+    /// dropping, seating; the slide racked) that the game acts on. The finger bones ride along like any other bone (HasFingers), and a
+    /// motion played UPPER-BODY-ONLY (BakedPose.UpperBodyOnly) leaves the hips and legs to the Animator and the foot IK.
     /// </summary>
     public sealed class BakedMotion
     {
@@ -26,8 +31,10 @@ namespace CityX.Character
             public string[] bones;
             public SegmentData[] segments;
             public int[] cutFrames;
+            public EventData[] events;
             public float[] hips;
             public float[] rotations;
+            public PropData[] props;
         }
 
         [Serializable]
@@ -38,6 +45,22 @@ namespace CityX.Character
             public int end;
         }
 
+        [Serializable]
+        private sealed class EventData
+        {
+            public string name;
+            public int frame;
+        }
+
+        [Serializable]
+        private sealed class PropData
+        {
+            public string name;
+            public float[] positions;
+            public float[] rotations;
+            public int[] visible;
+        }
+
         /// <summary>The skeleton's root bone: the only one that moves as well as turns, and the one a whole-pose turn is applied to.</summary>
         public const string RootBone = "hips";
 
@@ -46,6 +69,12 @@ namespace CityX.Character
         private readonly Vector3[] _hips;
         private readonly int[] _cutFrames;
         private readonly Dictionary<string, Vector2Int> _segments = new Dictionary<string, Vector2Int>();
+        private readonly string[] _props;
+        private readonly Vector3[][] _propPositions;
+        private readonly Quaternion[][] _propRotations;
+        private readonly bool[][] _propVisible;
+        private readonly List<KeyValuePair<string, int>> _events = new List<KeyValuePair<string, int>>();
+        private readonly bool[] _lowerBody;
 
         public int FramesPerSecond { get; }
 
@@ -56,6 +85,12 @@ namespace CityX.Character
 
         /// <summary>The frames the move's hits land on, as the animator marked them in Blender.</summary>
         public IReadOnlyList<int> CutFrames => _cutFrames;
+
+        /// <summary>The held thing's parts this motion moves (none for a body-only move), in the order a pose lists them.</summary>
+        public IReadOnlyList<string> Props => _props;
+
+        /// <summary>True when the motion poses the finger bones too (the gun reloads do; Octaslash predates them).</summary>
+        public bool HasFingers { get; }
 
         private BakedMotion(Data data)
         {
@@ -79,6 +114,55 @@ namespace CityX.Character
             {
                 _segments[segment.name] = new Vector2Int(segment.start, segment.end);
             }
+            foreach (EventData e in data.events ?? new EventData[0])
+            {
+                _events.Add(new KeyValuePair<string, int>(e.name, e.frame));
+            }
+            PropData[] props = data.props ?? new PropData[0];
+            _props = new string[props.Length];
+            _propPositions = new Vector3[props.Length][];
+            _propRotations = new Quaternion[props.Length][];
+            _propVisible = new bool[props.Length][];
+            for (int p = 0; p < props.Length; p++)
+            {
+                _props[p] = props[p].name;
+                _propPositions[p] = new Vector3[FrameCount];
+                _propRotations[p] = new Quaternion[FrameCount];
+                _propVisible[p] = new bool[FrameCount];
+                for (int f = 0; f < FrameCount; f++)
+                {
+                    _propPositions[p][f] = new Vector3(props[p].positions[f * 3], props[p].positions[f * 3 + 1], props[p].positions[f * 3 + 2]);
+                    _propRotations[p][f] = Normalized(new Quaternion(props[p].rotations[f * 4], props[p].rotations[f * 4 + 1], props[p].rotations[f * 4 + 2], props[p].rotations[f * 4 + 3]));
+                    _propVisible[p][f] = props[p].visible == null || props[p].visible.Length <= f || props[p].visible[f] != 0;
+                }
+            }
+            _lowerBody = new bool[count];
+            bool fingers = false;
+            for (int i = 0; i < count; i++)
+            {
+                _lowerBody[i] = IsLowerBody(_bones[i]);
+                fingers |= IsFingerBone(_bones[i]);
+            }
+            HasFingers = fingers;
+        }
+
+        /// <summary>The hips and the legs: what an upper-body-only play leaves to the Animator.</summary>
+        public static bool IsLowerBody(string bone)
+        {
+            return bone == RootBone || bone.StartsWith("thigh_") || bone.StartsWith("shin_") || bone.StartsWith("foot_");
+        }
+
+        /// <summary>A finger bone (BodyRig.AddFingers: index1_r, thumb2_l, ...).</summary>
+        public static bool IsFingerBone(string bone)
+        {
+            foreach (FusedBodyShape.Digit digit in FusedBodyShape.Digits)
+            {
+                if (bone.StartsWith(digit.Name) && bone.Length == digit.Name.Length + 3)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>Reads an exported motion. Throws ArgumentException if the file does not hold a whole one.</summary>
@@ -102,6 +186,21 @@ namespace CityX.Character
                 if (segment.start < 0 || segment.end >= data.frames || segment.end < segment.start)
                 {
                     throw new ArgumentException($"segment '{segment.name}' runs outside the motion");
+                }
+            }
+            foreach (PropData prop in data.props ?? new PropData[0])
+            {
+                if (string.IsNullOrEmpty(prop.name) || prop.positions == null || prop.positions.Length != data.frames * 3
+                    || prop.rotations == null || prop.rotations.Length != data.frames * 4)
+                {
+                    throw new ArgumentException($"prop '{prop.name}' does not have every frame");
+                }
+            }
+            foreach (EventData e in data.events ?? new EventData[0])
+            {
+                if (string.IsNullOrEmpty(e.name) || e.frame < 0 || e.frame >= data.frames)
+                {
+                    throw new ArgumentException($"event '{e.name}' is outside the motion");
                 }
             }
             return new BakedMotion(data);
@@ -136,10 +235,64 @@ namespace CityX.Character
 
         public float SegmentSeconds(string name) => SegmentFrames(name) / (float)FramesPerSecond;
 
+        /// <summary>
+        /// When the named event falls inside the segment, seconds from the segment's start to it; -1 when the segment has no such event.
+        /// (Both of a gun's reloads have a "seat"; each is found within its own segment.)
+        /// </summary>
+        public float EventSeconds(string segment, string eventName)
+        {
+            if (!HasSegment(segment))
+            {
+                return -1.0f;
+            }
+            Vector2Int range = _segments[segment];
+            foreach (KeyValuePair<string, int> e in _events)
+            {
+                if (e.Key == eventName && e.Value >= range.x && e.Value <= range.y)
+                {
+                    return (e.Value - range.x) / (float)FramesPerSecond;
+                }
+            }
+            return -1.0f;
+        }
+
+        /// <summary>Every event inside the segment, as (name, seconds from its start), in frame order.</summary>
+        public List<KeyValuePair<string, float>> EventsIn(string segment)
+        {
+            var found = new List<KeyValuePair<string, float>>();
+            if (!HasSegment(segment))
+            {
+                return found;
+            }
+            Vector2Int range = _segments[segment];
+            foreach (KeyValuePair<string, int> e in _events)
+            {
+                if (e.Value >= range.x && e.Value <= range.y)
+                {
+                    found.Add(new KeyValuePair<string, float>(e.Key, (e.Value - range.x) / (float)FramesPerSecond));
+                }
+            }
+            found.Sort((a, b) => a.Value.CompareTo(b.Value));
+            return found;
+        }
+
         public Vector3 HipsAt(int frame) => _hips[Mathf.Clamp(frame, 0, FrameCount - 1)];
 
         /// <summary>Bone <paramref name="bone"/>'s local rotation on frame <paramref name="frame"/>.</summary>
         public Quaternion RotationAt(int frame, int bone) => _rotations[Mathf.Clamp(frame, 0, FrameCount - 1) * _bones.Length + bone];
+
+        /// <summary>Prop <paramref name="prop"/>'s local position (in the held thing's frame) on frame <paramref name="frame"/>.</summary>
+        public Vector3 PropPositionAt(int frame, int prop) => _propPositions[prop][Mathf.Clamp(frame, 0, FrameCount - 1)];
+
+        public Quaternion PropRotationAt(int frame, int prop) => _propRotations[prop][Mathf.Clamp(frame, 0, FrameCount - 1)];
+
+        public bool PropVisibleAt(int frame, int prop) => _propVisible[prop][Mathf.Clamp(frame, 0, FrameCount - 1)];
+
+        /// <summary>True for bones an upper-body-only play skips (the index is into <see cref="Bones"/>).</summary>
+        public bool IsLowerBodyBone(int bone) => _lowerBody[bone];
+
+        /// <summary>A pose sized for this motion's bones and props.</summary>
+        public BakedPose NewPose() => new BakedPose(_bones, _props);
 
         /// <summary>
         /// Fills <paramref name="pose"/> with segment <paramref name="name"/>, <paramref name="seconds"/> into it. A looping segment wraps from its
@@ -171,6 +324,12 @@ namespace CityX.Character
                 pose.Rotations[i] = Quaternion.Slerp(_rotations[a * count + i], _rotations[b * count + i], t);
             }
             pose.Hips = Vector3.Lerp(_hips[a], _hips[b], t);
+            for (int p = 0; p < _props.Length && p < pose.PropPositions.Length; p++)
+            {
+                pose.PropPositions[p] = Vector3.Lerp(_propPositions[p][a], _propPositions[p][b], t);
+                pose.PropRotations[p] = Quaternion.Slerp(_propRotations[p][a], _propRotations[p][b], t);
+                pose.PropVisible[p] = _propVisible[p][a];
+            }
         }
 
         private static Quaternion Normalized(Quaternion q)
@@ -182,7 +341,8 @@ namespace CityX.Character
 
     /// <summary>
     /// One frame of a <see cref="BakedMotion"/>, ready to be put on a body (PlayerLocomotion.SetBakedPose): each bone's local rotation, where the
-    /// hips are, and optionally a turn of the whole pose about a pivot (Octaslash pitching its level dash up or down the way it really goes).
+    /// hips are, optionally a turn of the whole pose about a pivot (Octaslash pitching its level dash up or down the way it really goes), and
+    /// the held thing's parts.
     /// </summary>
     public sealed class BakedPose
     {
@@ -198,13 +358,38 @@ namespace CityX.Character
 
         public Vector3 Pivot;
 
-        public BakedPose(IReadOnlyList<string> bones)
+        /// <summary>True to leave the hips and legs alone (a reload while walking): only the spine up, the arms and the fingers are posed.</summary>
+        public bool UpperBodyOnly;
+
+        /// <summary>The held thing's parts (BakedMotion.Props), each in the held thing's own frame.</summary>
+        public readonly IReadOnlyList<string> Props;
+
+        public readonly Vector3[] PropPositions;
+
+        public readonly Quaternion[] PropRotations;
+
+        public readonly bool[] PropVisible;
+
+        public BakedPose(IReadOnlyList<string> bones) : this(bones, new string[0])
+        {
+        }
+
+        public BakedPose(IReadOnlyList<string> bones, IReadOnlyList<string> props)
         {
             Bones = bones;
             Rotations = new Quaternion[bones.Count];
             for (int i = 0; i < Rotations.Length; i++)
             {
                 Rotations[i] = Quaternion.identity;
+            }
+            Props = props ?? new string[0];
+            PropPositions = new Vector3[Props.Count];
+            PropRotations = new Quaternion[Props.Count];
+            PropVisible = new bool[Props.Count];
+            for (int i = 0; i < Props.Count; i++)
+            {
+                PropRotations[i] = Quaternion.identity;
+                PropVisible[i] = true;
             }
         }
     }
