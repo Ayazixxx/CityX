@@ -144,3 +144,19 @@ SegmentKind.Foot`, `Segment.Foot`): a STADIUM in plan (a semicircular toe and he
 from a flat sole, only the top edge rounded (5 cm), the sole's edge sharp. Heel 9 cm behind the ankle, toe 22.5 cm in front (was 20), 15 cm tall. The
 distance is Inigo Quilez's uneven 2-D capsule, extruded, rounded, then cut at the sole plane. `tools/bodyshape` renders it (`render out.png feet`);
 `FusedBodyTests.TheToeIsRoundTheSoleIsFlatToItsEdgeAndTheFootIsALittleLonger` guards it.
+
+## The feet, third pass: half as tall, flat in the idle (2026-10-15)
+
+Owner, with a screenshot: "the feet are too tall they look like tall soled shoes. without effecting the characters overall height make the
+sole part of the foot half as tall and make the leg length make up for it", and "make the feet lay flat on the ground i always see the heels
+hovering, idk if thats apart of the idle animation".
+
+- **Half as tall** (`FusedBodyShape.FootHeight` 0.15 -> 0.075, its top rounding 0.05 -> 0.035). The ankle joint stays where it was, now
+  above the foot's top, and the shin's rounded end, unchanged, comes down into the slab: more of the leg shows, the body is exactly as tall
+  (2.60 m), and nothing about the skeleton or the animations changed. Rebuilt: the body mesh, the civilians, the scene, the title screen.
+  `FusedBodyTests.TheFootIsHalfAsTallTheLegShowsLowerAndTheBodyIsNoTaller`.
+- **The heels were the idle's**: it stands on its toes, and with foot placement putting the toe on the ground the heels floated up to
+  8.8 cm (measured, `FlatFeetPlayTests`). Standing still, foot IK now lays each sole flat on the ground and sets it down flat (the hips give
+  the few centimetres); walking and running keep the clips' heel-to-toe roll (fades in below 1 m/s). Now heel and toe both within 0.4 cm
+  of the ground. See FOOT_IK.md.
+- Pictures: `FlatFeetPlayTests.RenderTheFeet` (feet-*.png, with -Graphics).

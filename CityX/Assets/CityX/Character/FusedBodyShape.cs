@@ -226,10 +226,15 @@ namespace CityX.Character
         /// <summary>Where the toe's and heel's arcs are centred, forward of the ankle: the heel reaches 9 cm back, the toe 22.5 cm forward (was 20).</summary>
         public const float FootToeCentreForward = 0.125f;
         public const float FootHeelCentreForward = 0.01f;
-        /// <summary>The foot's height, sole to top: the ankle joint sits a little under the top, inside it.</summary>
-        public const float FootHeight = 0.15f;
-        /// <summary>Only the TOP edge is rounded, by this much; the sole's edge is sharp, so the whole sole is flat on the ground.</summary>
-        public const float FootTopRounding = 0.05f;
+        /// <summary>
+        /// The foot's height, sole to top: HALF what it was (owner, 2026-10-15, with a screenshot: "the feet are too tall they look like tall
+        /// soled shoes. without effecting the characters overall height make the sole part of the foot half as tall and make the leg length make
+        /// up for it"). The ankle joint stays where it was, now above the foot's top: the shin's rounded end, unchanged, comes down into the
+        /// slab, so more of the leg shows and the body is no taller. (It was 0.15, with the ankle a little under the top, inside it.)
+        /// </summary>
+        public const float FootHeight = 0.075f;
+        /// <summary>Only the TOP edge is rounded, by this much (less on the thinner foot); the sole's edge is sharp, so the whole sole is flat on the ground.</summary>
+        public const float FootTopRounding = 0.035f;
         public const float FootBlend = 0.045f;
 
         public enum SegmentKind

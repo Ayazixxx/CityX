@@ -616,6 +616,33 @@ namespace CityX.Tests
         }
 
         /// <summary>
+        /// THE FOOT IS HALF AS TALL (owner, 2026-10-15, with a screenshot: "the feet are too tall they look like tall soled shoes. without effecting
+        /// the characters overall height make the sole part of the foot half as tall and make the leg length make up for it"). The foot is a slab
+        /// half the old height under the ankle; the shin, unchanged, reaches down into it, so the leg shows lower; the body is no taller.
+        /// </summary>
+        [Test]
+        public void TheFootIsHalfAsTallTheLegShowsLowerAndTheBodyIsNoTaller()
+        {
+            Assert.AreEqual(0.075f, FusedBodyShape.FootHeight, 1e-4f, "the foot should be half its old 15 cm");
+            List<FusedBodyShape.Segment> shape = MakeShape();
+            foreach (HumanBodyBones foot in new[] { HumanBodyBones.LeftFoot, HumanBodyBones.RightFoot })
+            {
+                Vector3 ankle = Bone(foot);
+                Vector3 sole = new Vector3(ankle.x, 0.0f, ankle.z);
+                // Over the toe, above the new top, is air now (the old foot was solid up to 15 cm).
+                Assert.Greater(FusedBodyShape.Distance(shape, sole + new Vector3(0.0f, 0.10f, 0.17f)), 0.0f, $"{foot} is still a tall shoe at the toe");
+                // Under the toe, inside the new slab, is still foot.
+                Assert.Less(FusedBodyShape.Distance(shape, sole + new Vector3(0.0f, 0.035f, 0.17f)), 0.0f, $"{foot}'s toe has gone");
+                // Right under the ankle the leg itself comes down into the foot: solid all the way.
+                for (float y = 0.02f; y < 0.3f; y += 0.02f)
+                {
+                    Assert.Less(FusedBodyShape.Distance(shape, sole + new Vector3(0.0f, y, 0.0f)), 0.0f, $"{foot}'s leg does not reach the foot at {y:0.00} m");
+                }
+            }
+            Assert.AreEqual(2.601f, BodyRig.StandingHeight, 0.0015f, "the player's height changed");
+        }
+
+        /// <summary>
         /// The head is not buried in the torso: above the shoulder line the body narrows to the neck, and the torso's top no longer rises
         /// into the skull. The head itself stays where it was.
         /// </summary>

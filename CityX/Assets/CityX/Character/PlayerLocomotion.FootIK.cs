@@ -75,6 +75,9 @@ namespace CityX.Character
         /// <summary>The stride scale follows the gait's over this long.</summary>
         public const float StrideSmoothingSeconds = 0.2f;
 
+        /// <summary>Below this speed, metres a second, the soles are laid flat on the ground (fully when stood still); above it the clip rolls them.</summary>
+        public const float FlatFootBelowSpeed = 1.0f;
+
         private void ApplyFootIK()
         {
             if (_animator == null)
@@ -137,8 +140,10 @@ namespace CityX.Character
             // sank its lowest foot (the charged jump: a metre), and measuring the other foot's lift against that lifted root made it look planted
             // over a half-metre drop, which dropped the hips through the floor.
             float floorY = transform.position.y;
-            FootPlanting.Sample left = SampleFoot(0, _leftFoot, _leftUpperLeg, _leftLowerLeg, floorY, heading);
-            FootPlanting.Sample right = SampleFoot(1, _rightFoot, _rightUpperLeg, _rightLowerLeg, floorY, heading);
+            // Standing still the soles are laid flat (SolveLeg) and set down flat: measured as a flat sole, the foot is placed so its whole sole is on the ground.
+            float flatten = Mathf.Clamp01(1.0f - speed / FlatFootBelowSpeed);
+            FootPlanting.Sample left = SampleFoot(0, _leftFoot, _leftUpperLeg, _leftLowerLeg, floorY, heading, flatten);
+            FootPlanting.Sample right = SampleFoot(1, _rightFoot, _rightUpperLeg, _rightLowerLeg, floorY, heading, flatten);
 
             // In the air: the controller says so AND no ground is right there under a foot (a riser's edge, a slope's flicker), or for too long; a jump at once.
             bool grounded = _animator.GetBool(GroundedParameter);
@@ -192,8 +197,8 @@ namespace CityX.Character
             // Strafing, the leading foot turns toward the way the body goes (the owner's forwarded advice): it opens the legs and reads as a sidestep.
             float side = heading != Vector3.zero ? Vector3.Dot(heading, transform.right) : 0.0f;
             Quaternion lean = _lean.Rotation();
-            SolveLeg(0, _leftUpperLeg, _leftLowerLeg, _leftFoot, -transform.right, lean, side < -0.25f ? LeadYaw(_leftFoot, heading, -side) : 0.0f);
-            SolveLeg(1, _rightUpperLeg, _rightLowerLeg, _rightFoot, transform.right, lean, side > 0.25f ? LeadYaw(_rightFoot, heading, side) : 0.0f);
+            SolveLeg(0, _leftUpperLeg, _leftLowerLeg, _leftFoot, -transform.right, lean, side < -0.25f ? LeadYaw(_leftFoot, heading, -side) : 0.0f, flatten);
+            SolveLeg(1, _rightUpperLeg, _rightLowerLeg, _rightFoot, transform.right, lean, side > 0.25f ? LeadYaw(_rightFoot, heading, side) : 0.0f, flatten);
         }
 
         private float _headForwardBlend;
@@ -311,7 +316,7 @@ namespace CityX.Character
         /// a ray from above the highest step a foot could be on. The foot's lowest point this frame comes from its rotation (toe, heel or sole,
         /// whichever is lowest: a running foot strikes toe first).
         /// </summary>
-        private FootPlanting.Sample SampleFoot(int index, Transform foot, Transform upper, Transform lower, float floorY, Vector3 heading)
+        private FootPlanting.Sample SampleFoot(int index, Transform foot, Transform upper, Transform lower, float floorY, Vector3 heading, float flatten)
         {
             Vector3 animated = foot.position;
             // STRIDE WARPING: the foot's offset from the body's centre along its travel, scaled (the sprint's feet reach 20% further than the run clip's).
@@ -334,7 +339,8 @@ namespace CityX.Character
                 Vector3 corner = foot.position + foot.rotation * (new Vector3(0.0f, -BodyRig.FootY, along) * scale);
                 lowest = Mathf.Min(lowest, corner.y);
             }
-            sample.SoleBelowAnkle = Mathf.Max(0.01f, foot.position.y - lowest);
+            // (The clip's own sole depth, a tiptoe's deeper than a flat foot's; a foot laid flat (standing) is FootY deep.)
+            sample.SoleBelowAnkle = Mathf.Lerp(Mathf.Max(0.01f, foot.position.y - lowest), BodyRig.FootY * scale, flatten);
 
             Vector3 probe = _feet.ProbeAt(index, animated);
             float top = floorY + FootPlanting.MaxFootRaise + 0.1f;
@@ -378,7 +384,7 @@ namespace CityX.Character
         /// world rather than turned with the shin, the whole-body lean taken back off it (a sole stays flat on the ground while the body leans), the
         /// sole tilted onto the slope, and the leading foot of a strafe turned toward the travel by <paramref name="yawDegrees"/>.
         /// </summary>
-        private void SolveLeg(int index, Transform upper, Transform lower, Transform foot, Vector3 outward, Quaternion lean, float yawDegrees)
+        private void SolveLeg(int index, Transform upper, Transform lower, Transform foot, Vector3 outward, Quaternion lean, float yawDegrees, float flatten)
         {
             FootPlanting.Placement placement = _feet.Of(index);
             float weight = placement.Weight;
@@ -400,7 +406,18 @@ namespace CityX.Character
             Quaternion tilt = Quaternion.FromToRotation(Vector3.up, placement.Normal);
             tilt = Quaternion.RotateTowards(Quaternion.identity, tilt, MaxSoleTiltDegrees);
             Quaternion unlean = Quaternion.Inverse(lean);
-            Quaternion wanted = Quaternion.AngleAxis(yawDegrees, Vector3.up) * tilt * unlean * footBefore;
+            Quaternion asClipped = tilt * unlean * footBefore;
+            // STANDING, THE SOLE LIES FLAT (owner, 2026-10-15: "make the feet lay flat on the ground i always see the heels hovering, idk if thats
+            // apart of the idle animation"): it is the idle's -- the clip stands on its toes, heels up to 8.8 cm off the floor
+            // (FlatFeetPlayTests). Standing still, the foot is turned so its sole's own up is the ground's (its heading kept); walking, the clip's
+            // heel-to-toe roll is left alone.
+            if (flatten > 0.0f)
+            {
+                Vector3 groundUp = tilt * Vector3.up;
+                Quaternion flat = Quaternion.FromToRotation(asClipped * Vector3.up, groundUp) * asClipped;
+                asClipped = Quaternion.Slerp(asClipped, flat, flatten);
+            }
+            Quaternion wanted = Quaternion.AngleAxis(yawDegrees, Vector3.up) * asClipped;
             foot.rotation = Quaternion.Slerp(footBefore, wanted, weight);
         }
     }

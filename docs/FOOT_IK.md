@@ -124,3 +124,11 @@ when he is just walking", and "I don't like how the head looks side to side when
   side-to-side swing and the lean's roll in turns are taken out against the body's facing and the world's up; the up-down angle (clip, lean, posture)
   is kept, and the posture's own turn and tilt go back on. An aim still turns the head to the sights. Test: `HeadForwardPlayTests` (within 3 degrees of
   the body's facing, level within 3 degrees, walking and sprinting).
+
+## Update: standing, the soles lie flat (2026-10-15)
+
+Owner: "make the feet lay flat on the ground i always see the heels hovering". The idle clip stands on tiptoe; foot placement put the lowest
+point of each foot (the toe) on the ground, so the heels floated up to 8.8 cm. Below `FlatFootBelowSpeed` (1 m/s, fully when still) each
+foot is now measured as a flat sole (`SampleFoot`: its sole is `BodyRig.FootY` under the ankle, not the tiptoe's depth) so the ankle is set
+down until the whole sole is on the ground, and turned so the sole's up is the ground's normal (`SolveLeg`, the foot's heading kept). Walking
+and running are untouched. `FlatFeetPlayTests.StandingInTheIdleBothHeelsAndToesAreOnTheGround`: heel and toe now within 0.4 cm.
