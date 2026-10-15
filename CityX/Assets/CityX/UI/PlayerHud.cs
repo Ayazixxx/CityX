@@ -136,6 +136,12 @@ namespace CityX.UI
             {
                 gameObject.AddComponent<HotbarView>();
             }
+
+            // The portrait frame and the bar fade out while the C menu or one of its pages is open (MenuHudFade).
+            if (GetComponent<MenuHudFade>() == null)
+            {
+                gameObject.AddComponent<MenuHudFade>();
+            }
         }
 
         private void OnEnable()

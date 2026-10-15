@@ -56,6 +56,7 @@ namespace CityX.UI
         private float _nextChatSearch;
         private bool _dirty = true;
         private CanvasGroup _group;
+        private MenuHudFade _fade;
 
         private void Awake()
         {
@@ -214,7 +215,12 @@ namespace CityX.UI
             }
             if (_group != null)
             {
-                _group.alpha = _chat != null && _chat.IsOpen ? 0.0f : 1.0f;
+                // Gone while the chat line lies across this corner; faded with the portrait while the C menu is open (MenuHudFade).
+                if (_fade == null)
+                {
+                    _fade = GetComponent<MenuHudFade>();
+                }
+                _group.alpha = _chat != null && _chat.IsOpen ? 0.0f : (_fade != null ? _fade.Visibility : 1.0f);
             }
 
             Refresh();
