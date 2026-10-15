@@ -547,6 +547,7 @@ namespace CityX.Character
             if (_vitals != null)
             {
                 _vitals.TickHitstun(deltaTime);
+                _vitals.TickMana(deltaTime);
             }
             if (_melee != null)
             {

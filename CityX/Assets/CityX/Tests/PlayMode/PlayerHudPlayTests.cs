@@ -1,5 +1,6 @@
 using System.Collections;
 using CityX.Character;
+using CityX.Core;
 using CityX.UI;
 using NUnit.Framework;
 using UnityEngine;
@@ -273,6 +274,63 @@ namespace CityX.Tests
             yield return null;
 
             Assert.Pass("survived two frames with no body to read");
+        }
+
+        private Text MakeText(string name)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            go.transform.SetParent(_hudObject.transform, false);
+            return go.AddComponent<Text>();
+        }
+
+        /// <summary>
+        /// The mana bar (owner, 2026-10-14: "figure out a way to include a mana bar ... make it so the mana bar doesnt appear until you unlock a
+        /// spell. but i guess for now just have it on screen from the beginning"): it shows the body's mana and its percentage, and it is on
+        /// screen only while the body has mana at all.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheManaBarFollowsManaAndShowsOnlyWhileTheBodyHasMana()
+        {
+            PlayerHud hud = MakeHud(out PlayerVitals vitals);
+            hud.ManaFill = MakeChild("ManaFill", out _);
+            hud.ManaBar = hud.ManaFill.gameObject;
+            hud.ManaText = MakeText("ManaText");
+            yield return null;
+            Assert.IsTrue(hud.ManaBar.activeSelf, "for now the mana bar is on screen from the start");
+            Assert.AreEqual(1.0f, hud.ManaFill.anchorMax.x, 0.001f);
+            Assert.AreEqual("100%", hud.ManaText.text);
+
+            Assert.IsTrue(vitals.TrySpendMana(vitals.MaxMana * 0.5f));
+            yield return null;
+            Assert.AreEqual(0.5f, hud.ManaFill.anchorMax.x, 0.001f, "the mana bar does not show what is left");
+            Assert.AreEqual("50%", hud.ManaText.text);
+
+            vitals.ManaUnlocked = false;
+            yield return null;
+            Assert.IsFalse(hud.ManaBar.activeSelf, "the mana bar is on screen for a body with no mana yet");
+            vitals.ManaUnlocked = true;
+            yield return null;
+            Assert.IsTrue(hud.ManaBar.activeSelf, "the mana bar did not come back once the body had mana");
+        }
+
+        [UnityTest]
+        public IEnumerator TheHealthBarShowsItsPercentageAndTheFrameTheCharactersName()
+        {
+            PlayerHud hud = MakeHud(out PlayerVitals vitals);
+            hud.HealthText = MakeText("HealthText");
+            hud.NameLabel = MakeText("NameLabel");
+            yield return null;
+            Assert.AreEqual("100%", hud.HealthText.text);
+            Assert.AreEqual(PlayerHud.DefaultName, hud.NameLabel.text, "a body that never went through the creator shows the default name");
+
+            vitals.TakeDamage(vitals.MaxHealth * 0.25f, false);
+            yield return null;
+            Assert.AreEqual("75%", hud.HealthText.text);
+
+            var identity = _bodyObject.AddComponent<CharacterIdentity>();
+            identity.Apply(CharacterSave.Create("Flours", Color.white));
+            yield return null;
+            Assert.AreEqual("Flours", hud.NameLabel.text, "the frame does not show the character's own name");
         }
     }
 }

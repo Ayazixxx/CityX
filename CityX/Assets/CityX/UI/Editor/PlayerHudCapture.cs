@@ -166,6 +166,8 @@ namespace CityX.UIEditor
                 // which is what the PlayMode tests already cover.
                 SetFill(hud.HealthFill, healthFraction);
                 SetFill(hud.StaminaFill, staminaFraction);
+                if (hud.ManaFill != null) SetFill(hud.ManaFill, 0.65f);
+                HudArt.Paint(hud);   // the frame's art is drawn at run time (Awake), which nothing runs here
                 hud.HealthFillImage.color = PlayerHud.ColourForHealth(healthFraction);
                 hud.DeathScreen.SetActive(dead);
                 hud.Crosshair.SetActive(!dead);

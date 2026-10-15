@@ -1,0 +1,36 @@
+# The player HUD's unit frame
+
+## 2026-10-14: World of Warcraft style, a close portrait, and mana
+
+Owner, with two of World of Warcraft's unit frames to go by: "zoom in the player hud portrait in the top left so that it is just the head and a
+small glimpse of the shoulders visible ... make it look like the world of warcraft version ours looks like crap. also figure out a way to include
+a mana bar in the mix without it being too bunched up. make it so the mana bar doesnt appear until you unlock a spell. but i guess for now just
+have it on screen from the beginning."
+
+**The frame** (built by `PlayerHudBuilder.BuildStatusFrame`, art by `HudArt`, driven by `PlayerHud`):
+
+- A round portrait, 104 design pixels (the canvas is 1152 x 648), in a gold ring shaded like a metal tube lit from the top left, with a dark line
+  along both rims and a soft shadow inside it so the face sits in a hollow. The level is on a small dark badge in its own ring at the lower left.
+- To its right a dark plate with a gold edge, its left end tucked under the ring, holding a column: the character's name in WoW's yellow, the
+  health bar with its percentage, the mana bar with its percentage, and a thin stamina bar without text. The column sizes itself to its rows, so
+  with no mana the plate closes up instead of leaving a gap.
+- Bars are glossy (a grey gradient with a band of shine, tinted by each bar's colour) in a dark well. Health keeps its green, yellow under 75%
+  and red under 25% (`PlayerHud.ColourForHealth`); mana is blue; stamina is orange (blue is mana's, and yellow is health's warning).
+- Percentages read as WoW's do: 100 only when full and 0 only when empty (`PlayerHud.PercentFor`).
+- The art is drawn in code when the HUD first appears and shared, never stored: a 256-pixel texture saved as an asset is half a megabyte.
+
+**The portrait** (`PlayerHud.Frame`): from the top of the hair down to 1.3 head-radii under the head's centre (the chin and the tops of the
+shoulders; it was 2.3, the chest), with a little margin for the circle, from 24 degrees round to the character's right so the face turns toward
+the bars, lit from up and to the left of the camera. Near-black behind it (`PortraitBackgroundColour`).
+
+**Mana** (`PlayerVitals`): `Mana`, `MaxMana` (100), `ManaRegenPerSecond` (4, not while dead), `TrySpendMana`, refilled on respawn.
+`ManaUnlocked` shows or hides the bar; it is true for everyone for now, and is meant to turn on with the first spell unlocked (GAME_DESIGN.md:
+Mana appears with your first spell). Nothing spends mana yet: what each spell costs is to be decided by how strong it is (owner).
+
+**Tests**: `PlayerHudTests` (every piece wired, the percentages, the art painted on every piece), `PlayerHudPlayTests` (the mana bar follows mana
+and hides without it, the health percentage, the character's name), `PlayerHudPortraitPlayTests` (with -Graphics: the head fills the middle of
+the portrait, the shoulders only the bottom), `PlayerVitalsProgressionTests` (mana spent, refused, regained, not while dead, refilled on
+respawn). `PlayerHudLookCapture` (Explicit, -Graphics) renders `Logs/CityShots/hud-frame-*.png`, each with a close-up.
+
+**Not done**: a portrait of a target (WoW's target frame), buff and debuff icons under the frame, a rested or combat glow, numbers alongside the
+percentages on hover.

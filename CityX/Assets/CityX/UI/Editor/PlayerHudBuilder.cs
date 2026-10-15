@@ -44,25 +44,8 @@ namespace CityX.UIEditor
         // --- palette, from hud.tscn's StyleBoxFlats ---
 
         private static readonly Color Gold = new Color(0.75f, 0.6f, 0.2f, 1.0f);
-        private static readonly Color BarBackground = new Color(0.08f, 0.09f, 0.12f, 0.9f);
-        private static readonly Color StaminaBlue = new Color(0.3f, 0.65f, 0.95f, 1.0f);
-        private static readonly Color BadgeText = new Color(0.15f, 0.12f, 0.05f, 1.0f);
         private static readonly Color DeathDim = new Color(0.0f, 0.0f, 0.0f, 0.75f);
         private static readonly Color DeathRed = new Color(0.85f, 0.1f, 0.1f, 1.0f);
-
-        private const float HealthBorder = 5.0f;
-        private const float StaminaBorder = 4.0f;
-
-        /// <summary>
-        /// Reported directly: the portrait and health/stamina bars, carried
-        /// straight over from hud.tscn's own numbers, read as too big on
-        /// screen. Scaling the whole StatusFrame around its own top-left
-        /// pivot (see BuildStatusFrame's own TopLeft call) shrinks the
-        /// portrait and both bars together, in proportion, without having to
-        /// re-derive every individual offset and size hud.tscn's own layout
-        /// carried over.
-        /// </summary>
-        private const float StatusFrameScale = 0.85f;
 
         /// <summary>
         /// The Unity layer PortraitCamera's own cullingMask is restricted
@@ -264,64 +247,189 @@ namespace CityX.UIEditor
             return crosshair;
         }
 
+        // --- THE UNIT FRAME, World of Warcraft style (owner, 2026-10-14, with two of WoW's frames to go by: "make it look like the world of
+        // --- warcraft version ours looks like crap", and a mana bar "without it being too bunched up"). A round portrait in a gold ring with
+        // --- the level on a small badge at its lower left; to its right a dark plate, its end tucked under the ring, holding the name and the
+        // --- bars: health (with its percentage), mana (with its percentage, hidden until the player has mana), stamina (thin, no text). The
+        // --- plate is a column that sizes itself to its rows, so without mana it closes up instead of leaving a gap. HudArt paints the ring,
+        // --- the plate, the wells and the glossy fills at run time.
+
+        /// <summary>The portrait's diameter, ring included, in design pixels (the canvas is 1152 x 648).</summary>
+        private const float PortraitSize = 104.0f;
+
+        /// <summary>Where the portrait's top-left corner sits from the screen's.</summary>
+        private static readonly Vector2 PortraitCorner = new Vector2(16.0f, -14.0f);
+
+        /// <summary>The plate's left end tucks this far under the ring.</summary>
+        private const float PlateTuck = 22.0f;
+
+        private const float PlateWidth = 236.0f;
+
+        /// <summary>The plate's top is this far below the portrait's top.</summary>
+        private const float PlateDrop = 16.0f;
+
+        /// <summary>The rows' heights: the name, then the health, mana and stamina bars.</summary>
+        private const float NameHeight = 18.0f;
+
+        private const float HealthHeight = 17.0f;
+        private const float ManaHeight = 14.0f;
+        private const float StaminaHeight = 7.0f;
+
+        private const float LevelBadgeSize = 30.0f;
+
+        /// <summary>WoW's own yellow for a name.</summary>
+        private static readonly Color NameGold = new Color(1.0f, 0.82f, 0.0f, 1.0f);
+
+        private static readonly Color ManaBlue = new Color(0.12f, 0.38f, 1.0f, 1.0f);
+
+        /// <summary>Stamina is orange now: blue belongs to mana, and yellow is the health bar's own warning colour (PlayerHud.HealthYellow).</summary>
+        private static readonly Color StaminaOrange = new Color(1.0f, 0.55f, 0.1f, 1.0f);
+
+        private static readonly Color BadgeDark = new Color(0.06f, 0.05f, 0.04f, 0.96f);
+        private static readonly Color BarText = new Color(1.0f, 1.0f, 1.0f, 0.95f);
+        private static readonly Color TextOutline = new Color(0.0f, 0.0f, 0.0f, 0.9f);
+
         private static void BuildStatusFrame(Transform parent, PlayerHud hud)
         {
             var frame = new GameObject("StatusFrame", typeof(RectTransform));
             RectTransform rect = Attach(frame, parent);
-            TopLeft(rect, new Vector2(20.0f, -20.0f), new Vector2(500.0f, 130.0f));
-            rect.localScale = Vector3.one * StatusFrameScale;
+            TopLeft(rect, PortraitCorner, new Vector2(PortraitSize - PlateTuck + PlateWidth, PortraitSize));
 
-            // hud.tscn's own numbers: the bars indent 115px, which does NOT
-            // fully clear the 130px portrait -- it overlaps it by 15px, in
-            // Godot too. What hides that there is CHILD ORDER: hud.tscn adds
-            // HealthBar and StaminaBar to StatusFrame BEFORE PortraitClip, so
-            // the portrait's own circle draws on top of the sliver of bar
-            // beneath it. Building the portrait first, as this used to, put
-            // Unity's later-drawn siblings (the bars) OVER the portrait
-            // instead -- exactly backwards, and exactly what "the bars are
-            // covering the portrait" was. Same child order as hud.tscn fixes
-            // it without changing a single number.
-            hud.HealthFill = BuildBar(frame.transform, "HealthBar",
-                new Vector2(115.0f, -33.0f), new Vector2(300.0f, 38.0f),
-                HealthBorder, PlayerHud.HealthGreen, out Image healthFillImage);
-            hud.HealthFillImage = healthFillImage;
-
-            hud.StaminaFill = BuildBar(frame.transform, "StaminaBar",
-                new Vector2(115.0f, -77.0f), new Vector2(300.0f, 20.0f),
-                StaminaBorder, StaminaBlue, out _);
-
+            // The plate first, so the portrait's ring is drawn over its left end.
+            BuildPlate(frame.transform, hud);
             hud.LevelLabel = BuildPortrait(frame.transform, hud);
         }
 
+        private static void BuildPlate(Transform parent, PlayerHud hud)
+        {
+            var plate = new GameObject("Plate", typeof(RectTransform));
+            RectTransform rect = Attach(plate, parent);
+            TopLeft(rect, new Vector2(PortraitSize - PlateTuck, -PlateDrop), new Vector2(PlateWidth, 0.0f));
+            hud.Plate = plate.AddComponent<Image>();
+            hud.Plate.color = Color.white;
+            hud.Plate.raycastTarget = false;
+
+            var rows = plate.AddComponent<VerticalLayoutGroup>();
+            rows.padding = new RectOffset(Mathf.RoundToInt(PlateTuck + 9.0f), 10, 5, 8);
+            rows.spacing = 3.0f;
+            rows.childControlWidth = true;
+            rows.childControlHeight = true;
+            rows.childForceExpandWidth = true;
+            rows.childForceExpandHeight = false;
+            var fit = plate.AddComponent<ContentSizeFitter>();
+            fit.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            fit.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+
+            hud.NameLabel = BuildName(plate.transform);
+            var wells = new System.Collections.Generic.List<Image>();
+            var fills = new System.Collections.Generic.List<Image>();
+            BuildBar(plate.transform, "HealthBar", HealthHeight, PlayerHud.HealthGreen, 13, wells, fills,
+                out hud.HealthFill, out hud.HealthFillImage, out hud.HealthText);
+            hud.ManaBar = BuildBar(plate.transform, "ManaBar", ManaHeight, ManaBlue, 11, wells, fills,
+                out hud.ManaFill, out _, out hud.ManaText);
+            BuildBar(plate.transform, "StaminaBar", StaminaHeight, StaminaOrange, 0, wells, fills,
+                out hud.StaminaFill, out _, out _);
+            hud.BarWells = wells.ToArray();
+            hud.BarFills = fills.ToArray();
+        }
+
+        private static Text BuildName(Transform parent)
+        {
+            var name = new GameObject("NameLabel", typeof(RectTransform));
+            Attach(name, parent);
+            var layout = name.AddComponent<LayoutElement>();
+            layout.preferredHeight = NameHeight;
+            layout.minHeight = NameHeight;
+            Text text = name.AddComponent<Text>();
+            text.font = BuiltinFont();
+            text.fontSize = 15;
+            text.fontStyle = FontStyle.Bold;
+            text.color = NameGold;
+            text.alignment = TextAnchor.MiddleCenter;
+            // A long name shrinks to fit rather than spilling past the plate.
+            text.resizeTextForBestFit = true;
+            text.resizeTextMinSize = 9;
+            text.resizeTextMaxSize = 15;
+            text.text = PlayerHud.DefaultName;
+            text.raycastTarget = false;
+            Outline outline = name.AddComponent<Outline>();
+            outline.effectColor = TextOutline;
+            outline.effectDistance = new Vector2(1.0f, -1.0f);
+            return text;
+        }
+
         /// <summary>
-        /// The portrait: a gold ring (hud.tscn's own circular_mask.gdshader,
-        /// as a pre-baked CircleSprite ring here instead -- see that class's
-        /// own doc comment), a circular Mask clipping the camera's own
-        /// RenderTexture inside it, and the level badge hanging off its
-        /// bottom-left corner exactly where hud.tscn puts it.
+        /// One bar: its well (the bar's own image), the fill inside it a pixel in from the well's black edge (PlayerHud moves the fill's right
+        /// edge), and its percentage over both when <paramref name="fontSize"/> is above zero.
         /// </summary>
+        private static GameObject BuildBar(Transform parent, string name, float height, Color colour, int fontSize,
+            System.Collections.Generic.List<Image> wells, System.Collections.Generic.List<Image> fills,
+            out RectTransform fill, out Image fillImage, out Text label)
+        {
+            var bar = new GameObject(name, typeof(RectTransform));
+            Attach(bar, parent);
+            var layout = bar.AddComponent<LayoutElement>();
+            layout.preferredHeight = height;
+            layout.minHeight = height;
+            Image well = bar.AddComponent<Image>();
+            well.color = Color.white;
+            well.raycastTarget = false;
+            wells.Add(well);
+
+            var inner = new GameObject("Inner", typeof(RectTransform));
+            Stretch(Attach(inner, bar.transform), 1.0f);
+            var fillObject = new GameObject("Fill", typeof(RectTransform));
+            fill = Attach(fillObject, inner.transform);
+            Stretch(fill, 0.0f);
+            fillImage = fillObject.AddComponent<Image>();
+            fillImage.color = colour;
+            fillImage.raycastTarget = false;
+            fills.Add(fillImage);
+
+            label = null;
+            if (fontSize > 0)
+            {
+                var textObject = new GameObject("Text", typeof(RectTransform));
+                Stretch(Attach(textObject, bar.transform), 0.0f);
+                label = textObject.AddComponent<Text>();
+                label.font = BuiltinFont();
+                label.fontSize = fontSize;
+                label.fontStyle = FontStyle.Bold;
+                label.color = BarText;
+                label.alignment = TextAnchor.MiddleCenter;
+                label.horizontalOverflow = HorizontalWrapMode.Overflow;
+                label.verticalOverflow = VerticalWrapMode.Overflow;
+                label.text = "100%";
+                label.raycastTarget = false;
+                Outline outline = textObject.AddComponent<Outline>();
+                outline.effectColor = TextOutline;
+                outline.effectDistance = new Vector2(1.0f, -1.0f);
+            }
+            return bar;
+        }
+
         private static Text BuildPortrait(Transform parent, PlayerHud hud)
         {
             Sprite circle = CircleSprite.Ensure();
 
             var clip = new GameObject("PortraitClip", typeof(RectTransform));
             RectTransform clipRect = Attach(clip, parent);
-            TopLeft(clipRect, new Vector2(0.0f, 0.0f), new Vector2(130.0f, 130.0f));
+            TopLeft(clipRect, Vector2.zero, new Vector2(PortraitSize, PortraitSize));
 
-            var ring = new GameObject("Ring", typeof(RectTransform));
-            RectTransform ringRect = Attach(ring, clip.transform);
-            Stretch(ringRect, 0.0f);
-            Image ringImage = ring.AddComponent<Image>();
-            ringImage.sprite = circle;
-            ringImage.color = Gold;
-            ringImage.raycastTarget = false;
+            // The ring's width in pixels: the face is cut to a circle just inside it, a pixel under its inner edge.
+            float ringWidth = PortraitSize * 0.5f * HudArt.RingWidthFraction;
 
-            // Inset inside the ring so the gold shows all the way round as a
-            // border, matching circular_mask.gdshader's own border_thickness.
-            const float ringBorder = 8.0f;
+            // A dark disc behind the face, so the ring's soft inner edge blends onto dark, never onto the plate.
+            var backing = new GameObject("Backing", typeof(RectTransform));
+            Stretch(Attach(backing, clip.transform), ringWidth * 0.5f);
+            Image backingImage = backing.AddComponent<Image>();
+            backingImage.sprite = circle;
+            backingImage.color = BadgeDark;
+            backingImage.raycastTarget = false;
+
             var maskObject = new GameObject("PortraitMask", typeof(RectTransform));
             RectTransform maskRect = Attach(maskObject, clip.transform);
-            Stretch(maskRect, ringBorder);
+            Stretch(maskRect, ringWidth - 1.0f);
             Image maskImage = maskObject.AddComponent<Image>();
             maskImage.sprite = circle;
             maskImage.raycastTarget = false;
@@ -335,60 +443,53 @@ namespace CityX.UIEditor
             rawImage.raycastTarget = false;
             hud.PortraitImage = rawImage;
 
-            return BuildLevelBadge(clip.transform, new Vector2(-8.0f, -92.0f), circle);
+            // The hollow under the rim, over the face.
+            var shadow = new GameObject("RimShadow", typeof(RectTransform));
+            Stretch(Attach(shadow, maskObject.transform), 0.0f);
+            hud.PortraitRimShadow = shadow.AddComponent<Image>();
+            hud.PortraitRimShadow.color = Color.white;
+            hud.PortraitRimShadow.raycastTarget = false;
+
+            // The gold ring over the face's edge and the plate's end.
+            var ring = new GameObject("Ring", typeof(RectTransform));
+            Stretch(Attach(ring, clip.transform), 0.0f);
+            hud.PortraitRing = ring.AddComponent<Image>();
+            hud.PortraitRing.color = Color.white;
+            hud.PortraitRing.raycastTarget = false;
+
+            return BuildLevelBadge(clip.transform, hud, circle);
         }
 
-        /// <summary>
-        /// A bar is three nested rects: a gold border, a dark well inset inside
-        /// it, and the fill inside that. Godot drew the border with a StyleBox;
-        /// uGUI has no equivalent without a sprite, and nesting is both exact
-        /// and free.
-        /// </summary>
-        private static RectTransform BuildBar(Transform parent, string name, Vector2 position,
-            Vector2 size, float border, Color fillColour, out Image fillImage)
-        {
-            var borderObject = new GameObject(name, typeof(RectTransform));
-            RectTransform borderRect = Attach(borderObject, parent);
-            TopLeft(borderRect, position, size);
-            borderObject.AddComponent<Image>().color = Gold;
-
-            var well = new GameObject("Well", typeof(RectTransform));
-            RectTransform wellRect = Attach(well, borderObject.transform);
-            Stretch(wellRect, border);
-            well.AddComponent<Image>().color = BarBackground;
-
-            var fill = new GameObject("Fill", typeof(RectTransform));
-            RectTransform fillRect = Attach(fill, well.transform);
-            Stretch(fillRect, 0.0f);
-            fillImage = fill.AddComponent<Image>();
-            fillImage.color = fillColour;
-
-            return fillRect;
-        }
-
-        private static Text BuildLevelBadge(Transform parent, Vector2 position, Sprite circle)
+        /// <summary>The level on a small dark disc in its own gold ring, over the portrait's lower left, as WoW's frames have it.</summary>
+        private static Text BuildLevelBadge(Transform parent, PlayerHud hud, Sprite circle)
         {
             var badge = new GameObject("LevelBadge", typeof(RectTransform));
             RectTransform badgeRect = Attach(badge, parent);
-            TopLeft(badgeRect, position, new Vector2(44.0f, 44.0f));
-            // WITHOUT A SPRITE, Image fills its rect as a plain square --
-            // hud.tscn's own StyleBoxFlat_LevelBadge draws a rounded panel;
-            // the same circle sprite the portrait ring already uses gets
-            // the closest match for free rather than baking a second shape.
-            Image badgeImage = badge.AddComponent<Image>();
-            badgeImage.sprite = circle;
-            badgeImage.color = Gold;
+            TopLeft(badgeRect, new Vector2(-3.0f, -(PortraitSize - LevelBadgeSize + 3.0f)), new Vector2(LevelBadgeSize, LevelBadgeSize));
+            Image disc = badge.AddComponent<Image>();
+            disc.sprite = circle;
+            disc.color = BadgeDark;
+            disc.raycastTarget = false;
+
+            var ring = new GameObject("LevelRing", typeof(RectTransform));
+            Stretch(Attach(ring, badge.transform), 0.0f);
+            hud.LevelRing = ring.AddComponent<Image>();
+            hud.LevelRing.color = Color.white;
+            hud.LevelRing.raycastTarget = false;
 
             var label = new GameObject("LevelLabel", typeof(RectTransform));
-            RectTransform labelRect = Attach(label, badge.transform);
-            Stretch(labelRect, 0.0f);
-
+            Stretch(Attach(label, badge.transform), 0.0f);
             Text text = label.AddComponent<Text>();
             text.font = BuiltinFont();
-            text.fontSize = 20;
-            text.color = BadgeText;
+            text.fontSize = 13;
+            text.fontStyle = FontStyle.Bold;
+            text.color = NameGold;
             text.alignment = TextAnchor.MiddleCenter;
             text.text = "1";
+            text.raycastTarget = false;
+            Outline outline = label.AddComponent<Outline>();
+            outline.effectColor = TextOutline;
+            outline.effectDistance = new Vector2(1.0f, -1.0f);
             return text;
         }
 

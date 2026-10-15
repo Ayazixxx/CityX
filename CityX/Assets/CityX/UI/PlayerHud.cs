@@ -45,8 +45,8 @@ namespace CityX.UI
         // distance was carried over first and then pulled back once ("too tight a crop"), but a fixed
         // distance cannot follow a hairstyle or hat, and showed a bare head with no shoulders.
 
-        /// <summary>A flat, darker shade of the gold ring around the portrait -- hud.gd's own PORTRAIT_BG_COLOR.</summary>
-        public static readonly Color PortraitBackgroundColour = new Color(0.26f, 0.21f, 0.07f);
+        /// <summary>Near black behind the face, as WoW's portraits have it (was hud.gd's olive PORTRAIT_BG_COLOR, 0.26 0.21 0.07, until 2026-10-14).</summary>
+        public static readonly Color PortraitBackgroundColour = new Color(0.07f, 0.065f, 0.06f);
 
         [Tooltip("Whose vitals are shown. Found on the parent hierarchy if left empty.")]
         public PlayerVitals Target;
@@ -70,9 +70,42 @@ namespace CityX.UI
         [Tooltip("A scene camera, cullingMask-restricted to the player's own dedicated portrait layer (see PlayerHudBuilder.PortraitLayerName), that never renders anywhere else.")]
         public Camera PortraitCamera;
 
+        [Header("The World of Warcraft style frame (PlayerHudBuilder lays it out, HudArt paints it)")]
+        [Tooltip("The character's name, over the bars.")]
+        public Text NameLabel;
+
+        [Tooltip("The health bar's percentage.")]
+        public Text HealthText;
+
+        [Tooltip("The whole mana bar: hidden while the player has no mana yet (PlayerVitals.ManaUnlocked).")]
+        public GameObject ManaBar;
+
+        public RectTransform ManaFill;
+
+        [Tooltip("The mana bar's percentage.")]
+        public Text ManaText;
+
+        [Tooltip("The pieces HudArt paints at run time (their art is drawn in code, not stored).")]
+        public Image PortraitRing;
+
+        public Image PortraitRimShadow;
+
+        public Image Plate;
+
+        public Image LevelRing;
+
+        public Image[] BarWells;
+
+        public Image[] BarFills;
+
+        /// <summary>The name shown when the character has none (a body that never went through the creator).</summary>
+        public const string DefaultName = "Player";
+
         private PlayerVitals _bound;
         private Button _hookedButton;
         private int _shownLevel = -1;
+        private int _shownHealthPercent = -1;
+        private int _shownManaPercent = -1;
         private bool _wasCursorCaptured;
 
         private void Awake()
@@ -80,6 +113,13 @@ namespace CityX.UI
             if (Target == null)
             {
                 Target = GetComponentInParent<PlayerVitals>();
+            }
+
+            HudArt.Paint(this);
+            // The portrait's texture is the camera's own: never a white disc where the face should be.
+            if (PortraitImage != null && PortraitImage.texture == null && PortraitCamera != null && PortraitCamera.targetTexture != null)
+            {
+                PortraitImage.texture = PortraitCamera.targetTexture;
             }
 
             // The reticle's shooting reactions (hit marker, blocked state,
@@ -98,6 +138,7 @@ namespace CityX.UI
             ShowDead(_bound != null && _bound.IsDead);
             CharacterIdentity.LookApplied += OnLookApplied;
             StartCoroutine(CapturePortrait());
+            ShowName();
         }
 
         private void OnDisable()
@@ -116,6 +157,7 @@ namespace CityX.UI
             if (Target != null && identity != null && identity.GetComponent<PlayerVitals>() == Target)
             {
                 RefreshPortrait();
+                ShowName();
             }
         }
 
@@ -230,30 +272,47 @@ namespace CityX.UI
             return true;
         }
 
-        /// <summary>How many head-radii below the head's centre the picture reaches: the shoulders and the top of the chest.</summary>
-        public const float PortraitChestDropHeadRadii = 2.3f;
+        /// <summary>
+        /// How many head-radii below the head's centre the picture reaches: the chin and a glimpse of the shoulders (owner, 2026-10-14: "zoom in
+        /// ... so that it is just the head and a small glimpse of the shoulders visible ... i shouldnt see the whole players torso", with WoW's
+        /// portraits to go by). It was 2.3, the top of the chest.
+        /// </summary>
+        public const float PortraitShoulderDropHeadRadii = 1.3f;
 
         /// <summary>Extra room around the framed area, because the picture is shown in a circle and its corners are cut off.</summary>
-        public const float PortraitMargin = 1.25f;
+        public const float PortraitMargin = 1.1f;
+
+        /// <summary>The camera stands this far round to the character's right, so the face turns toward the bars: a three-quarter view, as WoW's portraits have, not a mugshot.</summary>
+        public const float PortraitTurnDegrees = 24.0f;
+
+        /// <summary>Where the portrait's light hangs from its camera (right, up, forward, metres): up and to the left, so the face has a lit and a shaded side.</summary>
+        public static readonly Vector3 PortraitLightOffset = new Vector3(-0.7f, 0.75f, 0.25f);
 
         /// <summary>
-        /// Puts the camera in front of the character, looking level, so the frame runs from the top of
-        /// the hair (<paramref name="top"/>) down to the chest, centred on that stretch.
+        /// Puts the camera in front of the character, a little round to its right, looking level, so the frame runs from the top of
+        /// the hair (<paramref name="top"/>) down to the chin and the tops of the shoulders, centred on that stretch.
         /// </summary>
         public static void Frame(Camera camera, Bounds head, float top, Vector3 facing)
         {
             float radius = Mathf.Max(head.extents.x, head.extents.y, head.extents.z);
-            float bottom = head.center.y - radius * PortraitChestDropHeadRadii;
+            float bottom = head.center.y - radius * PortraitShoulderDropHeadRadii;
             float centreY = (top + bottom) * 0.5f;
             float halfHeight = (top - bottom) * 0.5f * PortraitMargin;
             float distance = halfHeight / Mathf.Tan(camera.fieldOfView * 0.5f * Mathf.Deg2Rad);
 
             facing.y = 0.0f;
             facing = facing.sqrMagnitude > 1e-6f ? facing.normalized : Vector3.forward;
+            Vector3 view = Quaternion.AngleAxis(PortraitTurnDegrees, Vector3.up) * facing;
             var look = new Vector3(head.center.x, centreY, head.center.z);
-            camera.transform.position = look + facing * distance;
-            camera.transform.rotation = Quaternion.LookRotation(-facing, Vector3.up);
+            camera.transform.position = look + view * distance;
+            camera.transform.rotation = Quaternion.LookRotation(-view, Vector3.up);
             camera.farClipPlane = Mathf.Max(camera.farClipPlane, distance + radius * 4.0f);
+            Light key = camera.GetComponentInChildren<Light>(true);
+            if (key != null)
+            {
+                key.transform.localPosition = PortraitLightOffset;
+                key.range = Mathf.Max(key.range, distance + 1.5f);
+            }
         }
 
         /// <summary>The layer a culling mask names, when it names exactly one (-1 otherwise).</summary>
@@ -397,6 +456,20 @@ namespace CityX.UI
 
             SetFill(HealthFill, Fraction(_bound.Health, _bound.MaxHealth));
             SetFill(StaminaFill, Fraction(_bound.Stamina, _bound.MaxStamina));
+            SetPercent(HealthText, Fraction(_bound.Health, _bound.MaxHealth), ref _shownHealthPercent);
+            if (NameLabel != null && string.IsNullOrEmpty(NameLabel.text))
+            {
+                ShowName();   // a label wired after the HUD woke up
+            }
+            if (ManaBar != null && ManaBar.activeSelf != _bound.ManaUnlocked)
+            {
+                ManaBar.SetActive(_bound.ManaUnlocked);
+            }
+            if (_bound.ManaUnlocked)
+            {
+                SetFill(ManaFill, Fraction(_bound.Mana, _bound.MaxMana));
+                SetPercent(ManaText, Fraction(_bound.Mana, _bound.MaxMana), ref _shownManaPercent);
+            }
 
             if (HealthFillImage != null)
             {
@@ -427,6 +500,46 @@ namespace CityX.UI
         /// The colour the health bar takes at a given fraction of full. Static
         /// and pure so the thresholds can be checked without a canvas.
         /// </summary>
+        /// <summary>
+        /// A bar's percentage, as WoW's frames show it: 100 only when full and 0 only when empty (a scratch reads 99, a sliver 1). The text is
+        /// only rebuilt when the number changes.
+        /// </summary>
+        public static int PercentFor(float fraction)
+        {
+            if (fraction >= 1.0f)
+            {
+                return 100;
+            }
+            if (fraction <= 0.0f)
+            {
+                return 0;
+            }
+            return Mathf.Clamp(Mathf.FloorToInt(fraction * 100.0f), 1, 99);
+        }
+
+        private static void SetPercent(Text label, float fraction, ref int shown)
+        {
+            int percent = PercentFor(fraction);
+            if (label == null || percent == shown)
+            {
+                return;
+            }
+            shown = percent;
+            label.text = percent + "%";
+        }
+
+        /// <summary>The character's name over the bars (the creator's name for it; the default when it has none).</summary>
+        public void ShowName()
+        {
+            if (NameLabel == null)
+            {
+                return;
+            }
+            CharacterIdentity identity = Target != null ? Target.GetComponent<CharacterIdentity>() : null;
+            string name = identity != null && identity.Character != null ? identity.Character.Name : null;
+            NameLabel.text = string.IsNullOrEmpty(name) ? DefaultName : name;
+        }
+
         public static Color ColourForHealth(float fraction)
         {
             if (fraction <= HealthRedFraction)

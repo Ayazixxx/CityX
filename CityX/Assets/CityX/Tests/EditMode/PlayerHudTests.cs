@@ -44,6 +44,19 @@ namespace CityX.Tests
             Assert.IsNotNull(hud.RespawnButton, "no respawn button -- death would be unrecoverable");
             Assert.IsNotNull(hud.PortraitImage,
                 "no portrait image -- CapturePortrait would have nothing to display its RenderTexture on");
+            // The World of Warcraft style frame (2026-10-14): the name, the percentages, the mana bar and the pieces HudArt paints.
+            Assert.IsNotNull(hud.NameLabel, "no name over the bars");
+            Assert.IsNotNull(hud.HealthText, "no health percentage");
+            Assert.IsNotNull(hud.ManaBar, "no mana bar");
+            Assert.IsNotNull(hud.ManaFill, "no mana fill -- the mana bar would never move");
+            Assert.IsNotNull(hud.ManaText, "no mana percentage");
+            Assert.IsNotNull(hud.PortraitRing, "no ring round the portrait");
+            Assert.IsNotNull(hud.PortraitRimShadow, "no shadow under the portrait's rim");
+            Assert.IsNotNull(hud.Plate, "no plate behind the name and the bars");
+            Assert.IsNotNull(hud.LevelRing, "no ring round the level");
+            Assert.AreEqual(3, hud.BarWells.Length, "health, mana and stamina each have a well");
+            Assert.AreEqual(3, hud.BarFills.Length, "health, mana and stamina each have a fill");
+            Assert.IsTrue(hud.ManaBar.transform.IsChildOf(hud.Plate.transform), "the mana bar is not in the plate's column, so hiding it would leave a gap");
             // PortraitCamera itself is wired by PlayerHudBuilder.AddToScene,
             // not the prefab -- it needs a real player Transform to sit
             // under (see AddToScene's own BuildPortraitCamera), which the
@@ -125,6 +138,46 @@ namespace CityX.Tests
                 "exactly at the red threshold should be red");
             Assert.AreEqual(PlayerHud.HealthRed, PlayerHud.ColourForHealth(0.0f),
                 "dead should be red");
+        }
+
+        [Test]
+        public void TheBarPercentagesReadLikeWoWs()
+        {
+            // 100 only when full and 0 only when empty: a scratch reads 99 and a sliver 1, so neither looks like nothing happened or like death.
+            Assert.AreEqual(100, PlayerHud.PercentFor(1.0f));
+            Assert.AreEqual(99, PlayerHud.PercentFor(0.999f));
+            Assert.AreEqual(50, PlayerHud.PercentFor(0.5f));
+            Assert.AreEqual(1, PlayerHud.PercentFor(0.001f));
+            Assert.AreEqual(0, PlayerHud.PercentFor(0.0f));
+        }
+
+        [Test]
+        public void TheFrameArtIsPaintedOnEveryPiece()
+        {
+            PlayerHud prefabHud = LoadHud();
+            GameObject instance = Object.Instantiate(prefabHud.gameObject);
+            try
+            {
+                var hud = instance.GetComponent<PlayerHud>();
+                HudArt.Paint(hud);
+                Assert.IsNotNull(hud.PortraitRing.sprite, "the portrait's ring was not painted");
+                Assert.IsNotNull(hud.LevelRing.sprite, "the level's ring was not painted");
+                Assert.IsNotNull(hud.PortraitRimShadow.sprite);
+                Assert.AreEqual(Image.Type.Sliced, hud.Plate.type, "the plate must stretch by its edges, not squash its corners");
+                Assert.AreNotEqual(Vector4.zero, hud.Plate.sprite.border, "the plate's sprite has no slicing border");
+                foreach (Image well in hud.BarWells)
+                {
+                    Assert.IsNotNull(well.sprite, "a bar's well was not painted");
+                }
+                foreach (Image fill in hud.BarFills)
+                {
+                    Assert.AreSame(HudArt.BarFill, fill.sprite, "a bar's fill was not painted");
+                }
+            }
+            finally
+            {
+                Object.DestroyImmediate(instance);
+            }
         }
     }
 }

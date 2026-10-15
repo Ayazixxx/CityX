@@ -156,5 +156,36 @@ namespace CityX.Tests
 
             Assert.AreEqual(pointsAfterLevelUp - 1, _vitals.StatPoints);
         }
+
+        [Test]
+        public void ManaStartsFullIsSpentOnlyWhenThereIsEnoughAndComesBack()
+        {
+            // The mana pool the HUD shows (2026-10-14). Spells do not cost anything yet; this is what they will draw on.
+            Assert.AreEqual(_vitals.MaxMana, _vitals.Mana, 1e-4f, "a new body starts with full mana");
+            Assert.IsTrue(_vitals.ManaUnlocked, "for now everyone has mana from the start");
+            Assert.IsTrue(_vitals.TrySpendMana(60.0f));
+            Assert.AreEqual(_vitals.MaxMana - 60.0f, _vitals.Mana, 1e-4f);
+            Assert.IsFalse(_vitals.TrySpendMana(_vitals.Mana + 1.0f), "spent more mana than there was");
+            Assert.AreEqual(_vitals.MaxMana - 60.0f, _vitals.Mana, 1e-4f, "a refused spell must not spend anything");
+            Assert.IsFalse(_vitals.TrySpendMana(-5.0f), "a negative cost is not a way to gain mana");
+
+            _vitals.TickMana(1.0f);
+            Assert.AreEqual(_vitals.MaxMana - 60.0f + PlayerVitals.ManaRegenPerSecond, _vitals.Mana, 1e-3f, "mana did not come back over time");
+            _vitals.TickMana(1000.0f);
+            Assert.AreEqual(_vitals.MaxMana, _vitals.Mana, 1e-4f, "mana came back past its maximum");
+        }
+
+        [Test]
+        public void ManaDoesNotComeBackWhileDeadAndIsFullAgainOnRespawn()
+        {
+            _vitals.TrySpendMana(80.0f);
+            _vitals.TakeDamage(_vitals.MaxHealth * 2.0f, false);
+            Assert.IsTrue(_vitals.IsDead, "setup: the body should be dead");
+            float dead = _vitals.Mana;
+            _vitals.TickMana(5.0f);
+            Assert.AreEqual(dead, _vitals.Mana, 1e-4f, "a dead body's mana came back");
+            _vitals.Revive();
+            Assert.AreEqual(_vitals.MaxMana, _vitals.Mana, 1e-4f, "respawning did not refill mana");
+        }
     }
 }

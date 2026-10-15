@@ -189,7 +189,7 @@ namespace CityX.Tests
         }
 
         [UnityTest]
-        public IEnumerator ThePortraitShowsTheHairAndTheTorso()
+        public IEnumerator ThePortraitIsTheHeadWithItsHairAndAGlimpseOfTheShoulders()
         {
 #if UNITY_EDITOR
             Build("hair1");
@@ -210,10 +210,15 @@ namespace CityX.Tests
             bald = Read();
             Save("no-hair", bald);
 
-            // Torso: the bottom fifth of the picture is chest, so it must not be empty background.
-            float chest = Covered(haired, 0.0f, 0.2f);
-            Debug.Log($"CityX portrait: chest band {chest * 100:0}% covered; top band with hair {Covered(haired, 0.8f, 1.0f) * 100:0}%, bald {Covered(bald, 0.8f, 1.0f) * 100:0}%");
-            Assert.Greater(chest, 0.35f, "the bottom of the portrait is empty -- the torso is not in the picture");
+            // Close on the head (owner, 2026-10-14: "just the head and a small glimpse of the shoulders visible ... i shouldnt see the whole
+            // players torso"): the head fills most of the picture's width across its middle, and the bottom rows hold only the tops of the
+            // shoulders. The chest framing this replaced covered about 40% of the middle band.
+            float middle = Covered(haired, 0.42f, 0.6f);
+            float shoulders = Covered(haired, 0.0f, 0.08f);
+            Debug.Log($"CityX portrait: middle band {middle * 100:0}% covered, bottom band {shoulders * 100:0}%; top band with hair {Covered(haired, 0.8f, 1.0f) * 100:0}%, bald {Covered(bald, 0.8f, 1.0f) * 100:0}%");
+            Assert.Greater(middle, 0.55f, "the head does not fill the portrait -- it is framed too far out");
+            Assert.Greater(shoulders, 0.15f, "no shoulders at the bottom of the portrait at all");
+            Assert.AreEqual("Portrait", _hud.NameLabel.text, "the frame does not show the character's name");
 
             // Hair: the top of the picture differs between the haired and the bald head (brown over yellow).
             float hairShows = Differs(haired, bald, 0.55f, 1.0f);

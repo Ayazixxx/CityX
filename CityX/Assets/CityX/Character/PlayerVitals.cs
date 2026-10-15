@@ -43,6 +43,15 @@ namespace CityX.Character
         public const float StaminaRegenPerSecond = 15.6f;
 
         /// <summary>
+        /// MANA (owner, 2026-10-14: a mana bar on the HUD; "make it so the mana bar doesnt appear until you unlock a spell. but i guess for now
+        /// just have it on screen from the beginning"). The pool spells will draw on (GAME_DESIGN.md: a spell costs mana, and Mana appears with
+        /// your first spell). What each spell costs is still to be decided (owner: "we will figure out how much mana each spell costs later"),
+        /// so nothing spends it yet.
+        /// </summary>
+        public const float BaseMaxMana = 100.0f;
+        public const float ManaRegenPerSecond = 4.0f;
+
+        /// <summary>
         /// player.gd STAMINA_EXHAUSTED_RECOVER_FRACTION. Once stamina bottoms
         /// out you cannot sprint again until this much has come back -- without
         /// it, sprint stutters on and off one frame at a time at zero.
@@ -129,6 +138,12 @@ namespace CityX.Character
 
         [SerializeField] private float _stamina = BaseMaxStamina;
 
+        [SerializeField] private float _mana = BaseMaxMana;
+
+        [Tooltip("Whether this player has mana yet: the HUD shows the mana bar only when true. Mana is meant to appear with the first spell " +
+                 "unlocked (GAME_DESIGN.md); until spells are unlocked by the skill tree, everyone has it from the start.")]
+        public bool ManaUnlocked = true;
+
         private bool _exhausted;
         private float _highestAirborneY;
         private bool _wasAirborne;
@@ -138,6 +153,8 @@ namespace CityX.Character
 
         public float Health => _health;
         public float Stamina => _stamina;
+        public float MaxMana => BaseMaxMana;
+        public float Mana => _mana;
         public bool IsDead => _health <= 0.0f;
 
         /// <summary>
@@ -427,6 +444,26 @@ namespace CityX.Character
             return BlockDrainsStamina ? HitResponse.Guarded : HitResponse.Blocked;
         }
 
+        /// <summary>Spends mana on a spell: false, and nothing spent, when there is not enough.</summary>
+        public bool TrySpendMana(float amount)
+        {
+            if (amount < 0.0f || _mana < amount)
+            {
+                return false;
+            }
+            _mana -= amount;
+            return true;
+        }
+
+        /// <summary>Mana comes back over time, but not while dead. Call once per frame (PlayerInputReader does).</summary>
+        public void TickMana(float deltaTime)
+        {
+            if (!IsDead && _mana < MaxMana)
+            {
+                _mana = Mathf.Min(MaxMana, _mana + ManaRegenPerSecond * deltaTime);
+            }
+        }
+
         /// <summary>Counts hitstun and i-frames down. Call once per frame.</summary>
         public void TickHitstun(float deltaTime)
         {
@@ -483,6 +520,7 @@ namespace CityX.Character
         {
             _health = MaxHealth;
             _stamina = MaxStamina;
+            _mana = MaxMana;
             _ragdoll = GetComponent<Ragdoll>();
         }
 
@@ -491,6 +529,7 @@ namespace CityX.Character
         {
             _health = MaxHealth;
             _stamina = MaxStamina;
+            _mana = MaxMana;
             _exhausted = false;
             _wasAirborne = false;
             HitstunRemaining = 0.0f;
