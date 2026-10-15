@@ -20,7 +20,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class RealCityWindowVaultPlayTests
     {
-        private const int Seed = 61537940;
+        private const int Seed = 70485213;
         private readonly List<GameObject> _made = new List<GameObject>();
 
         [TearDown]
@@ -82,7 +82,9 @@ namespace CityX.Tests
         internal static IEnumerable<Candidate> PanesOf(CityWorld world, BuildingSite site, WindowGrid.Wall wall)
         {
             WindowPlan plan = WindowPlan.For(world, site);
-            if (plan.IsBlankWall(wall)) yield break;
+            // Not a round or many-sided building: its walls are not the four flat faces of its box the cells below are measured on (seed
+            // 70485213: a 16-sided tower's "East column 8" was air between its curve and its box's corner).
+            if (plan.IsBlankWall(wall) || site.Sides >= 3) yield break;
             CellLayout rows = WindowGrid.RowsFor(site.Params.Height);
             bool alongX = wall == WindowGrid.Wall.North || wall == WindowGrid.Wall.South;
             float u0 = (float)(alongX ? site.MinX : site.MinZ);
@@ -174,7 +176,7 @@ namespace CityX.Tests
             Candidate vaulted = null;
             foreach (BuildingSite site in TestSites.NearSpawn(world))
             {
-                if (site.Params.Width < 10.0f || site.Params.Height < 8.0f || site.OnRoof || site.Params.IsSpecial) continue;
+                if (site.Params.Width < 10.0f || site.Params.Height < 8.0f || site.OnRoof || site.Params.IsSpecial || site.Sides >= 3) continue;
                 if (buildingsTried++ > 24) break;
                 foreach (WindowGrid.Wall wall in new[] { WindowGrid.Wall.East, WindowGrid.Wall.West, WindowGrid.Wall.South, WindowGrid.Wall.North })
                 {
@@ -205,7 +207,7 @@ namespace CityX.Tests
                         {
                             vaulted = c;
                             // The probe sees the opening's own head: the headroom is never more than the window's opening (a curtain wall's pane, 2.88 m on seed
-                            // 61537940, is taller than a body, so the body's height is no bound).
+                            // 47360519, is taller than a body, so the body's height is no bound).
                             Assert.LessOrEqual(vault.Headroom, c.Opening + 0.05f, $"the lintel over a real window was not seen: building {c.Site.Id} ({c.Site.Params.Mass}, {WindowPlan.For(world, c.Site).Style}) {c.Wall} column {c.Column}, sill {c.SillAboveGround:0.00} m, opening {c.Opening:0.00} m, double door {BuildingInterior.HasDoubleEntrance(c.Site)}, apartment {ApartmentFront.For(c.Site, WindowPlan.For(world, c.Site)).Any}, roof {RoofShape.For(c.Site).Kind}");
                             Assert.Greater(vault.Headroom, VaultProbe.MinHeadroomMetres);
                             Debug.Log($"CityX window vault: building {c.Site.Id} {c.Wall} column {c.Column}: sill {vault.Height - c.Outside.y:0.00} m up, {vault.Headroom:0.00} m of opening, dive {PlayerVaulting.DiveFor(vault.Headroom, BodyRig.StandingHeight, out _):0.00}");
@@ -234,8 +236,8 @@ namespace CityX.Tests
             int buildingsTried = 0;
             foreach (BuildingSite site in TestSites.NearSpawn(world))
             {
-                if (site.Params.Width < 10.0f || site.Params.Height < 8.0f || site.OnRoof || site.Params.IsSpecial) continue;
-                if (buildingsTried++ > 24) break;
+                if (site.Params.Width < 10.0f || site.Params.Height < 8.0f || site.OnRoof || site.Params.IsSpecial || site.Sides >= 3) continue;
+                if (buildingsTried++ > 60) break;
                 // Not the door wall: its ground row is the entrance's own (AddDoorRow), not plain panes.
                 foreach (WindowGrid.Wall wall in new[] { WindowGrid.Wall.East, WindowGrid.Wall.West, WindowGrid.Wall.South })
                 {

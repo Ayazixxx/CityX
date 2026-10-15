@@ -529,7 +529,7 @@ namespace CityX.View
 
                 if (isRoof)
                 {
-                    AddRoof(structures, site, x0, x1, z0, z1, lobbyY + top, looks, hole);
+                    AddRoof(structures, site, x0, x1, z0, z1, lobbyY + top, looks, hole, false, PowerGrid.IsOn(site) ? glazing.Lit : null);
                     structures.Look = SurfaceLook.Default;
                 }
 
@@ -545,7 +545,7 @@ namespace CityX.View
                 // The roof of a tall building, over the sealed space above its last fitted-out floor.
                 structures.Look = looks.Roof;
                 AddSlab(concrete, x0, x1, z0, z1, Rect.zero, roofY, structures, inside);
-                AddRoof(structures, site, x0, x1, z0, z1, roofY, looks, Rect.zero);
+                AddRoof(structures, site, x0, x1, z0, z1, roofY, looks, Rect.zero, false, PowerGrid.IsOn(site) ? glazing.Lit : null);
                 structures.Look = SurfaceLook.Default;
             }
             concrete.Look = SurfaceLook.Default;   // the next building's entrance steps are outside
@@ -696,7 +696,8 @@ namespace CityX.View
                     StairPlan topStair = BuildingStairs.PlanFor(site).Floors[shellFloors - 1];
                     hatch = topStair != null ? Shift(topStair.Hole, shellCentreX, shellCentreZ) : Rect.zero;
                 }
-                AddRoof(structures, site, x0, x1, z0, z1, roofY, looks, hatch, true);
+                // A powered building's lit billboard shows from afar (its floodlit face is in the lit glass).
+                AddRoof(structures, site, x0, x1, z0, z1, roofY, looks, hatch, true, PowerGrid.IsOn(site) ? glazing.Lit : null);
             }
             if (site.Shell && site.OnRoof)
             {
@@ -1061,7 +1062,7 @@ namespace CityX.View
         /// accident; the climb still tops out over it (PlayerClimbing mantles forward onto whatever is past the wall).
         /// </summary>
         private static void AddRoof(MeshBuffer buffer, BuildingSite site, float x0, float x1, float z0, float z1, float roofY,
-            SiteLooks looks, Rect hatch, bool far = false)
+            SiteLooks looks, Rect hatch, bool far = false, MeshBuffer lit = null)
         {
             // A pitched roof stands where the parapet and the plant would (CityMeshBuilder.Roofs.cs, World/RoofShape).
             RoofShape pitched = RoofShape.For(site);
@@ -1091,7 +1092,20 @@ namespace CityX.View
             buffer.AddBox(new Vector3(x0 - o, c0, z0 + t + o), new Vector3(x0 + t + o, c1, z1 - t - o), true);
             buffer.AddBox(new Vector3(x1 - t - o, c0, z0 + t + o), new Vector3(x1 + o, c1, z1 - t - o), true);
 
-            AddRoofPlant(buffer, site, x0, x1, z0, z1, roofY, looks, hatch);
+            // A billboard over the street wall (World/RoofBillboards), unless it would stand on the stair's hatch; the plant keeps off its ground.
+            RoofBillboard board = RoofBillboards.For(site);
+            Rect boardGround = BillboardGround(board, x0, x1, z1);
+            if (board.Exists && hatch.width > 0.0f && Grown(hatch, 1.2f).Overlaps(boardGround))
+            {
+                board = default;
+                boardGround = Rect.zero;
+            }
+            if (board.Exists)
+            {
+                AddRoofBillboard(buffer, lit, board, x0, x1, z1, roofY, far);
+            }
+
+            AddRoofPlant(buffer, site, x0, x1, z0, z1, roofY, looks, hatch, boardGround);
             buffer.Look = saved;
         }
 
@@ -1111,7 +1125,7 @@ namespace CityX.View
         /// sixteen times the triangles to say the same thing), but at the scale of the real thing.
         /// </summary>
         private static void AddRoofPlant(MeshBuffer buffer, BuildingSite site, float x0, float x1, float z0, float z1, float roofY,
-            SiteLooks looks, Rect hatch)
+            SiteLooks looks, Rect hatch, Rect keepClear = default)
         {
             var rng = new DeterministicRandom(unchecked((ulong)(uint)site.Seed), RoofStream);
             float margin = ParapetWallThickness + 0.9f;
@@ -1121,11 +1135,15 @@ namespace CityX.View
                 return;
             }
 
-            // Ground that is taken: the hatch the stair comes out of, and whatever stands on this roof.
+            // Ground that is taken: the hatch the stair comes out of, a billboard's legs and catwalk, and whatever stands on this roof.
             var taken = new List<Rect>();
             if (hatch.width > 0.0f)
             {
                 taken.Add(Grown(hatch, 1.2f));
+            }
+            if (keepClear.width > 0.0f)
+            {
+                taken.Add(keepClear);
             }
             if (site.HasRoofObstacle)
             {

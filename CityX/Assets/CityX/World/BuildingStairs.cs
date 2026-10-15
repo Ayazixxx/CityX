@@ -1374,9 +1374,18 @@ namespace CityX.World
                 return true;
             }
             // Nor in front of a stair core's doorway (2026-10-15: a corner room's wall stood 47 cm in front of a core's door on four floors of a block,
-            // so whoever came up the core could not get out of it).
-            return arriving != null && (Overlap(r, arriving.Exit) || Overlap(r, arriving.Hole) || arriving.Enclosed && Overlap(r, Lobby(arriving)));
+            // so whoever came up the core could not get out of it), nor so near the opening the stair comes up through that a body cannot pass
+            // between its wall and the opening (seed 70485213: a room's wall 82 cm from a narrow house's wrap opening shut half of its top floor off
+            // from the stairs).
+            return arriving != null && (Overlap(r, arriving.Exit) || Overlap(Inflate(room.Plan, PassageBesideOpening), arriving.Hole)
+                || arriving.Enclosed && Overlap(r, Lobby(arriving)));
         }
+
+        /// <summary>
+        /// How far a carved room's walls (centred on its plan's edges) keep from the opening a stair comes up through: half the wall, a body
+        /// (WalkPath's 0.45 m radius) and a grid cell to spare.
+        /// </summary>
+        private const float PassageBesideOpening = 0.1f + 2.0f * 0.45f + 0.25f;
 
         /// <summary>The floor in front of a stair core's doorway (DoorSide) that must stay clear: as wide as the core's side, DoorLobby deep.</summary>
         private static Rect Lobby(StairPlan core)

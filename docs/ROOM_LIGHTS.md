@@ -92,7 +92,8 @@ well as city lighting at night time and implement what you learn". What the rese
   on the steps and pavement, lit from dusk to dawn (`DayNightCycle.Daylight`). Pools of warm light at doorways with the street dark between them
   are what a night street is made of -- and in a city where nine buildings in ten are dead, a lit doorway is how you find the ones with power.
   Street lamps were NOT brought back (removed 2026-09-04 on request).
-- **Shop blade signs glow only on powered buildings**; a dead building's sign is dark glass like its windows.
+- **Shop blade signs glow only on powered buildings**; a dead building's sign is dark glass like its windows. So do the lit shop signs and the
+  floodlit billboards on the roofs (2026-10-15, docs/WORLD_GACHA.md phase 4: the board's own paint lit by its lamps, `SurfaceLook.PackFloodlit`).
 - **E works the thing you look at** (`View/InteractionFocus`): the door and the switch beside it used to both answer one press. Now each offers
   itself with how far off the crosshair it is, and only the nearest acts; of several switches in reach, the one nearest the crosshair flips.
 

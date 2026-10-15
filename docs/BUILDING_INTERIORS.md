@@ -305,3 +305,9 @@ Found through the balcony doors (a door that opened onto a floor with no way to 
 `BuildingStairsTests.WhereTheStairsArriveYouCanWalkOffIntoTheFloor` floods from every arrival (its own flood, not the planner's): 0 of 7102
 floors shut in on seed 52817364 (0 of 8262 on 83920571), from 17 near the spawn before. The checks cost about 40 % more planning time (once per building, on the streaming
 threads); the streaming cost tests still pass.
+
+**And beside the opening (seed 70485213).** A narrow two-storey house's wrap cut its opening across most of the top floor, and the carved room's
+wall stood 82 cm from the opening's edge, too tight for a body: half the floor was out of reach of the stairs, every placement failed the
+half-the-floor rule and the planner fell back to the middle of the floor (47 % reached). A carved room's walls now keep a body's passage
+(1.25 m: half the wall, a 0.9 m body, a grid cell) from the opening a stair comes up through (`PassageBesideOpening` in `Clashes`), going to the
+other back corner or not being built. 0 of 9344 floors shut in.

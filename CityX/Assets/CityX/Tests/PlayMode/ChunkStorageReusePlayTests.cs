@@ -17,7 +17,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class ChunkStorageReusePlayTests
     {
-        private const int Seed = 61537940;
+        private const int Seed = 70485213;
         private readonly List<GameObject> _made = new List<GameObject>();
 
         [TearDown]

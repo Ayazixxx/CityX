@@ -8,6 +8,9 @@
 //                  b     glass tint (high nibble, an index into kGlassTints) and light colour (low nibble, kLightColours)
 //                  a     how far a blind is drawn down the window, 0 .. 200 (a 255 b 255 means "unstyled": plain dark glass, no blind)
 //
+//   A light nibble of 8 or more (SurfaceLook.PackFloodlit, b 0xF8) is not glass but a FLOODLIT face: r, g and a carry a paint colour, and
+//   all it does is add that paint's light at night over the opaque face just behind it (a lit billboard).
+//
 // What it adds to plain tinted glass: a tint per building (blue, green, bronze, grey), a lit window that is one of several kinds of
 // light rather than all the same, and blinds drawn part-way down lit windows, so a lit building at night reads as people's rooms.
 
@@ -45,6 +48,9 @@ static const float3 kLightColours[8] =
     float3(1.00, 0.72, 0.82),       // 6 pink
     float3(1.00, 0.95, 0.85)        // 7 bright white
 };
+
+// How bright a floodlit face is (SurfaceLook.PackFloodlit) right over a lamp, as a multiplier of its paint and the cycle's emission level.
+static const float kFloodlitBrightness = 0.75;
 
 CBUFFER_START(UnityPerMaterial)
 float4 _BaseColor;
@@ -208,6 +214,30 @@ void GlassPassFragment(
     int tintIndex = styled ? (int)floor(tintByte / 16.0) : 0;
     int lightIndex = styled ? (int)(tintByte - floor(tintByte / 16.0) * 16.0) : 0;
     float blind = styled ? saturate(blindByte / 255.0) : 0.0;
+
+    // A FLOODLIT FACE (SurfaceLook.PackFloodlit, 2026-10-15): no glass at all, only the light lamps throw on the opaque paint just behind it,
+    // added (alpha 0, premultiplied) at night in the paint's own colour, which comes in the r, g and a bytes: a billboard lit from the lamps
+    // along its foot, a pool of light over each (uv.x counts the lamps) that evens out and fades going up (uv.y, 0 at the foot, 1 at the top).
+    // By day the cycle's emission is zero and it adds nothing. Fog takes it to nothing, not to the fog's colour, as it would any added light.
+    if (styled && lightIndex >= 8)
+    {
+#ifdef LOD_FADE_CROSSFADE
+        LODFadeCrossFade(input.positionCS);
+#endif
+        float3 paint = SRGBToLinear(float3(input.look.r, input.look.g, input.look.a));
+        float level = dot(_EmissionColor.rgb, float3(0.2126, 0.7152, 0.0722));
+        float up = saturate(input.uv.y);
+        float off = frac(input.uv.x) - 0.5;
+        float pool = lerp(exp(-off * off * 12.0), 1.0, 0.4 + 0.5 * up);
+        float3 wash = paint * level * kFloodlitBrightness * pool * lerp(1.0, 0.5, up);
+        InputData washInput;
+        InitializeInputData(input, washInput);
+        outColor = half4(MixFogColor(wash, half3(0.0, 0.0, 0.0), washInput.fogCoord), 0.0);
+#ifdef _WRITE_RENDERING_LAYERS
+        outRenderingLayers = EncodeMeshRenderingLayer();
+#endif
+        return;
+    }
 
     float3 glassTint = SRGBToLinear(kGlassTints[min(tintIndex, 7)]);
     // Clear glass (the red byte, SurfaceLook.PackGlass) has a real room behind it, and lets it show through: lit, it reads as a room from the street.

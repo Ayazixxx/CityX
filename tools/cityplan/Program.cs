@@ -5,7 +5,7 @@
         // dotnet run -c Release --project tools/cityplan -- [seed] [halfMetres] [pixels] [out.png] [centreX centreZ viewHalf]
         if (args.Length > 0 && args[0] == "site")
         {
-            var w = CityX.World.Plan.PlanWorld.For(args.Length > 2 ? int.Parse(args[2]) : 61537940);
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 2 ? int.Parse(args[2]) : 70485213);
             var s = w.Buildings[int.Parse(args[1])];
             System.Console.WriteLine($"#{s.Id} {s.Params.Width:F1}x{s.Params.Depth:F1}x{s.Params.Height:F1} mass={s.Params.Mass} sides={s.Sides} shell={s.Shell} wing={s.Wing} roof={s.OnRoof} sealed={s.RoofSealed} contacts={(s.Contacts?.Length ?? 0)} obstacle={s.HasRoofObstacle} basement={s.Params.HasBasement}");
             System.Console.WriteLine($"  centre ({s.CentreX:F1},{s.CentreZ:F1}) axis ({s.AxisX:F3},{s.AxisZ:F3}) base {s.BaseHeight:F2}");
@@ -21,7 +21,7 @@
         // floorcheck [seed]: every ground floor whose footprint corner has the paving above it (BlockPavingTests), with what kind of volume it is.
         if (args.Length > 0 && args[0] == "floorcheck")
         {
-            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 61537940);
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 70485213);
             int bad = 0;
             foreach (var s in w.Buildings)
             {
@@ -57,7 +57,7 @@
         if (args.Length > 0 && args[0] == "interchanges")
         {
             // interchanges [seed]: the game's own plan (PlanWorld.For), its spawn, every interchange and the ramps' ends, to compare with a capture's log.
-            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 61537940);
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 70485213);
             var xw = w.Data.Expressways;
             w.TryFindSpawn(out double sx, out double sz);
             System.Console.WriteLine($"spawn ({sx:F0},{sz:F0}); {w.Data.Nodes.Count} nodes, {w.Data.Lots.Count} lots");
@@ -72,12 +72,12 @@
             }
             return 0;
         }
-        if (args.Length > 0 && args[0] == "nearspawn") { PlanDiagnose.NearSpawn(args.Length > 1 ? int.Parse(args[1]) : 61537940, args.Length > 2 ? int.Parse(args[2]) : 12); return 0; }
-        if (args.Length > 0 && args[0] == "overlaps") { PlanDiagnose.Overlaps(args.Length > 1 ? int.Parse(args[1]) : 61537940); return 0; }
+        if (args.Length > 0 && args[0] == "nearspawn") { PlanDiagnose.NearSpawn(args.Length > 1 ? int.Parse(args[1]) : 70485213, args.Length > 2 ? int.Parse(args[2]) : 12); return 0; }
+        if (args.Length > 0 && args[0] == "overlaps") { PlanDiagnose.Overlaps(args.Length > 1 ? int.Parse(args[1]) : 70485213); return 0; }
         if (args.Length > 0 && args[0] == "profile-line")
         {
             // The ground and what stands on it along a line: profile-line x0 z0 x1 z1 [seed]
-            var w = CityX.World.Plan.PlanWorld.For(args.Length > 5 ? int.Parse(args[5]) : 61537940);
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 5 ? int.Parse(args[5]) : 70485213);
             double x0 = double.Parse(args[1]), z0 = double.Parse(args[2]), x1 = double.Parse(args[3]), z1 = double.Parse(args[4]);
             for (int i = 0; i <= 20; i++)
             {
@@ -90,7 +90,7 @@
         if (args.Length > 0 && args[0] == "partywalls")
         {
             // How much of the city stands shoulder to shoulder: ground-level boxes with a blank stretch of wall, and how much wall that is.
-            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 61537940);
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 70485213);
             int ground = 0, touching = 0, contacts = 0;
             double metres = 0.0;
             foreach (var s in w.Buildings)
@@ -108,7 +108,7 @@
         if (args.Length > 0 && args[0] == "fitcheck")
         {
             // Every lot's fitted rectangle must lie inside the lot's footprint.
-            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 61537940);
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 70485213);
             int bad = 0, total = 0;
             foreach (var lot in w.Data.Lots)
             {
@@ -131,11 +131,50 @@
             System.Console.WriteLine($"{bad} of {total} rectangles poke out of their lot");
             return 0;
         }
+        if (args.Length > 0 && args[0] == "fitlot")
+        {
+            // fitlot <lot id> [seed]: one lot's footprint in its frontage's frame (x along it, z out of the front) and the rectangle fitted in it.
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 2 ? int.Parse(args[2]) : 70485213);
+            int id = int.Parse(args[1]);
+            foreach (var lot in w.Data.Lots)
+            {
+                if (lot.Id != id) continue;
+                var poly = lot.Footprint;
+                int n = poly.Length, f = lot.FrontEdge;
+                var d = (poly[(f + 1) % n] - poly[f]).Normalized;
+                var fz = new CityX.World.Plan.Vec2(d.Y, -d.X);
+                var fx = new CityX.World.Plan.Vec2(-d.X, -d.Y);
+                var o = (poly[f] + poly[(f + 1) % n]) * 0.5;
+                System.Console.WriteLine($"lot {id}: {n} corners, front edge {f}, street wall {lot.StreetWall}, scale {lot.Scale:F2}");
+                for (int i = 0; i < n; i++)
+                {
+                    var q = poly[i] - o;
+                    System.Console.WriteLine($"  corner {i}: x {CityX.World.Plan.Vec2.Dot(q, fx):F3} z {CityX.World.Plan.Vec2.Dot(q, fz):F3}");
+                }
+                double margin = lot.StreetWall ? CityX.World.Plan.PlanBuildings.StreetWallFitMargin : CityX.World.Plan.PlanBuildings.FitMargin;
+                if (!CityX.World.Plan.PlanBuildings.FitRectangle(poly, f, out var c, out var ex, out double width, out double depth, lot.Scale, margin))
+                {
+                    System.Console.WriteLine("  no rectangle");
+                    break;
+                }
+                var cq = c - o;
+                System.Console.WriteLine($"  rectangle {width:F3} x {depth:F3} at x {CityX.World.Plan.Vec2.Dot(cq, fx):F3} z {CityX.World.Plan.Vec2.Dot(cq, fz):F3}");
+                var ez = new CityX.World.Plan.Vec2(-ex.Y, ex.X);
+                for (int k = 0; k < 4; k++)
+                {
+                    var p = c + ex * (((k & 1) == 0 ? -0.5 : 0.5) * width) + ez * (((k & 2) == 0 ? -0.5 : 0.5) * depth);
+                    var pq = p - o;
+                    System.Console.WriteLine($"  rect corner {k}: x {CityX.World.Plan.Vec2.Dot(pq, fx):F3} z {CityX.World.Plan.Vec2.Dot(pq, fz):F3} outside by {Outside(poly, p):F3}");
+                }
+                break;
+            }
+            return 0;
+        }
         if (args.Length > 0 && args[0] == "scalecheck")
         {
             // scalecheck <seed>: CityScaleTests.AVariedCityRunsFromClassicSizedBuildingsToHugeOnes's numbers -- the long side's percentiles,
             // classic against varied.
-            int seed = args.Length > 1 ? int.Parse(args[1]) : 61537940;
+            int seed = args.Length > 1 ? int.Parse(args[1]) : 70485213;
             System.Collections.Generic.List<double> Long(CityX.World.Plan.CityScale scale)
             {
                 var w = CityX.World.Plan.PlanWorld.Create(seed, CityX.World.Plan.PlanConfig.For(scale));
@@ -155,7 +194,7 @@
         {
             // How big the city's buildings are: footprint side (square root of the area), height, and the share above fixed thresholds
             // (pass the thresholds from an earlier run as args 2-3 to compare a change against the same lines).
-            var w = CityX.World.Plan.PlanWorld.Create(args.Length > 1 ? int.Parse(args[1]) : 61537940, CityX.World.Plan.PlanWorld.DefaultConfig());
+            var w = CityX.World.Plan.PlanWorld.Create(args.Length > 1 ? int.Parse(args[1]) : 70485213, CityX.World.Plan.PlanWorld.DefaultConfig());
             var sides = new System.Collections.Generic.List<double>();
             var heights = new System.Collections.Generic.List<double>();
             foreach (var b in w.Buildings)
@@ -192,7 +231,7 @@
         if (args.Length > 0 && args[0] == "nearbridge")
         {
             // The bridge nearest the spawn (what RainRealCityPlayTests stands beside), and what is round it.
-            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 61537940);
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 70485213);
             w.TryFindSpawn(out double sx, out double sz);
             CityX.World.Plan.EdgeGeometry best = null;
             double bestD = double.MaxValue;
@@ -247,7 +286,7 @@
             }
             return 0;
         }
-        if (args.Length > 0 && args[0] == "profile") { PlanProfile.Run(args.Length > 1 ? int.Parse(args[1]) : 61537940); return 0; }
+        if (args.Length > 0 && args[0] == "profile") { PlanProfile.Run(args.Length > 1 ? int.Parse(args[1]) : 70485213); return 0; }
         return SubversionPlan.Run(args);
     }
 

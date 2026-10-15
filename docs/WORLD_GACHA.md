@@ -46,6 +46,8 @@ Their page says the towns use no outside data, only random numbers and formulas 
 
 Left out on purpose (the owner's call): trees and nature, vehicles.
 
+Not in their list, added alongside it (my suggestion, in the spirit of their Japanese streets): **rooftop billboards** (屋上看板), phase 4 (below).
+
 ## Phase 1: the apartment block (`World/ApartmentFront.cs`, `View/CityMeshBuilder.Apartment.cs`)
 
 - **Which buildings.** An ordinary building people live in: not a special one, a sealed or roof-top block, a wing or a round tower; not a
@@ -159,3 +161,28 @@ which is the most common balcony door in real life ... double doors ... along wi
 - **Awnings clear the body.** A shop's awning hung its front flap 0.46 m under the top of the street storey: on a short storey (about 3 m)
   that was at head height, and on seed 61537940 two runs at shop windows stopped against it. Its lowest edge now stays 2.8 m over the shop
   floor (`CityMeshBuilder.AwningClearance`): on a short storey it hangs less, or is left off.
+
+## Phase 4: billboards on the roofs (2026-10-15)
+
+- **Where (`World/RoofBillboards.cs`).** The big painted board on steel legs that a Japanese street's mid-rise buildings carry over their
+  street walls. On a flat roof of a building 9-70 m tall (not a pitched roof, a sealed block, a round or many-sided tower, or a roof another
+  block stands on), its face 1 m in from the street wall (behind the parapet), facing the street. 5-14 m wide and 1.5 m in from each end of
+  the roof, 3-5.2 m tall, its bottom 3.3 m over the roof: the catwalk under its front, 0.3 m lower, clears a 2.6 m body walking along the
+  roof. Of the buildings that could carry one: downtown 30 %, the busy streets 25 %, the old town 15 %, industrial 10 %, the homes 6 %,
+  elsewhere 5 % (measured round the spawn: 29 %, 23 %, 7 %, 5 %). Pure, from the building's seed: every machine has the same boards.
+- **Never on the stair's hatch.** Where it would stand within 1.2 m of the hatch the stair comes up through, it slides to one end of the
+  roof or the other, then a board 65 % as wide is tried, then there is none. The roof plant keeps off its ground (legs to catwalk).
+- **The ad (`View/CityMeshBuilder.Billboards.cs`).** A grey galvanised panel whose face is a skin of paint in one of nine strong colours, an
+  accent in another (a band across, a block at one end, or a border round a block) and lettering -- a headline and a line or two in white or
+  black, whichever stands out from what it is on -- laid round the accent. No textures: thin boxes a centimetre or two proud of the face.
+- **The steel.** Two or three legs behind it (three past 9 m wide) with struts to its back and two rails; a catwalk with a railing in front;
+  seven boards in ten have floodlights on the railing, turned on the board.
+- **Lit at night.** On a building with power (one in ten, `PowerGrid`) a floodlit board's face takes its lamps' light at night in its own
+  colours: a pool over each lamp, evening out and fading going up. It is a FLOODLIT face in the lit glass (`SurfaceLook.PackFloodlit`: a light
+  colour past the glass shader's eight real ones marks it, and the paint's colour rides in the bytes the glass would not use), so it costs no
+  draw call of its own: the glass shader adds the paint's light and nothing else (nothing by day), each colour's light just in front of its
+  paint and behind whatever stands prouder, which hides it. The far shells carry it too: a lit board is seen from across the city.
+- **Tests:** `RoofBillboardTests` (shares by district, on the roof, clear of the hatch, the catwalk over a body's head; drawn where it is
+  said to stand, facing the street; a floodlit face only on a powered building and only over its own board, near and from afar),
+  `RoofBillboardCapture` (Explicit, `-Graphics`: from the street by day, at dusk and at night, close by day and at night, from behind on the
+  roof). New world seed 70485213.

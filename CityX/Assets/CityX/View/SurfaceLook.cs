@@ -94,6 +94,28 @@ namespace CityX.View
             return new Color32(clear ? (byte)255 : (byte)0, 0, (byte)b, (byte)a);
         }
 
+        /// <summary>
+        /// The blue byte that marks a FLOODLIT face for CityX/Glass: a light colour past the eight real ones (PackGlass keeps its lights to 0..7).
+        /// </summary>
+        public const byte FloodlitMarker = 0xF8;
+
+        /// <summary>
+        /// The look of a FLOODLIT face (read by CityX/Glass, 2026-10-15): not glass but the light lamps throw on the opaque paint just behind it,
+        /// added at night in <paramref name="paint"/>'s own colour (carried in the red, green and alpha bytes) and nothing by day. A billboard
+        /// lit from the lamps along its foot: UV'd with x counting the lamps along it (a pool of light over each, at the middle of each whole
+        /// step) and y from 0 at its foot to 1 at its top (it fades going up).
+        /// </summary>
+        public static Color32 PackFloodlit(Color paint)
+        {
+            return new Color32(Byte(paint.r), Byte(paint.g), FloodlitMarker, Byte(paint.b));
+        }
+
+        /// <summary>Whether a packed glass look is a floodlit face (<see cref="PackFloodlit"/>).</summary>
+        public static bool IsFloodlit(Color32 look)
+        {
+            return look.b == FloodlitMarker;
+        }
+
         private static byte Byte(float v)
         {
             return (byte)Mathf.Clamp(Mathf.RoundToInt(v * 255.0f), 0, 255);

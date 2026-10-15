@@ -12,7 +12,7 @@ namespace CityX.Tests
     [Explicit("renders screenshots; needs a graphics device")]
     public sealed class BuildingLayerCapture
     {
-        private const int Seed = 61537940;
+        private const int Seed = 70485213;
 
         [UnityTest]
         public IEnumerator RenderAPodiumAndTower()

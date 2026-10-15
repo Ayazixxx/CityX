@@ -1198,6 +1198,23 @@ namespace CityX.World.Plan
                         if (b < xmax) xmax = b;
                     }
                 }
+                // ... and at every corner of the lot over that depth, and just either side of it: the lot's sides are straight between its
+                // corners, so the narrowest it gets over the depth is at one of them or at an end. The eight even steps alone let a corner
+                // between two of them poke into the rectangle (seed 70485213, lot 8103: a street wall's back corner 5 cm into the next lot).
+                for (int i = 0; i < n && ok; i++)
+                {
+                    for (int side = -1; side <= 1 && ok; side++)
+                    {
+                        double z = lz[i] + side * CornerProbe;
+                        if (z >= -0.15 || z <= -0.15 - dep) continue;
+                        ok = Chord(lx, lz, z, xs, out double a, out double b);
+                        if (ok)
+                        {
+                            if (a > xmin) xmin = a;
+                            if (b < xmax) xmax = b;
+                        }
+                    }
+                }
                 if (!ok || xmax - xmin < minSide) continue;
                 double w = xmax - xmin;
                 double dd = Math.Min(dep, 2.4 * w + 6.0 * scale);
@@ -1220,6 +1237,9 @@ namespace CityX.World.Plan
             centre = o + ex * cx + ez * cz;
             return true;
         }
+
+        /// <summary>How far either side of a lot's corner FitRectangle also measures the lot (a corner that is a peak has no width at its own depth).</summary>
+        private const double CornerProbe = 1e-3;
 
         /// <summary>The span of the polygon on the horizontal line at z that contains x = 0 (or lies closest to it).</summary>
         private static bool Chord(double[] lx, double[] lz, double z, List<double> xs, out double left, out double right)

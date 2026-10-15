@@ -12,7 +12,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class StreetDetailTests
     {
-        private const int Seed = 61537940;
+        private const int Seed = 70485213;
 
         private static CityWorld _world;
         private static CityWorld World => _world ?? (_world = new CityWorld(Seed));
@@ -119,6 +119,7 @@ namespace CityX.Tests
         [Test]
         public void ACanopyHoodsEachUpperWindowAndNotTheStreetStorey()
         {
+            Assert.Greater(FacadeOrnament.MinCanopyDepth, FacadeOrnament.BaseCourseDepth + 0.05f, "a canopy no deeper than the base course: the probe below cannot tell them apart");
             int checkedWindows = 0;
             foreach (BuildingSite site in TestSites.NearSpawn(World, 60))
             {
@@ -140,9 +141,10 @@ namespace CityX.Tests
                         float head = (row + 1) * rows.Size - rows.Size * insetTop;
                         float u = (column + 0.5f) * columns.Size;
                         Vector3 at = OnWall(site, wall, u, head, out Vector3 outward);
-                        // A vertical segment half the canopy's depth out from the wall, through where its canopy is (no higher: over the street
-                        // storey's windows the base course runs a few tens of centimetres up).
-                        Vector3 front = at + outward * (o.CanopyDepth * 0.5f);
+                        // A vertical segment through where its canopy is (no higher: over the street storey's windows the base course runs a few
+                        // tens of centimetres up), out from the wall past the base course but under the canopy (seed 70485213: a building whose
+                        // windows reach to 16 cm under the storey's top has its base course 6 cm over their heads, 24 cm proud).
+                        Vector3 front = at + outward * Mathf.Max(o.CanopyDepth * 0.5f, FacadeOrnament.BaseCourseDepth + 0.05f);
                         string crossed = Crossed(built.Structures, built.Origin, front + Vector3.down * 0.1f,
                             front + Vector3.up * (FacadeOrnament.CanopyGap + FacadeOrnament.CanopyThickness + 0.02f));
                         Assert.AreEqual(row >= 1, crossed != null, $"building {site.Id} {wall} column {column} row {row} (head {site.BaseHeight + head:F2}, " +

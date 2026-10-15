@@ -60,7 +60,9 @@ thousand edges, so a server can send it.
   and stops cornices wrapping round into the neighbour (`CityMeshBuilder.AgainstCorner`). About 60% of street-level buildings now share a wall.
   Measure with `dotnet run -c Release --project tools/cityplan -- partywalls` and `-- overlaps` / `-- fitcheck`.
 - **Fit fix found by the street walls**: `FitRectangle` sampled the lot's chords 0.15 m shallower than the rectangle it returned; the old 0.3 m margin hid
-  it. The chords now cover the whole depth (`fitcheck`: 0 rectangles outside their lot).
+  it. The chords now cover the whole depth (`fitcheck`: 0 rectangles outside their lot). They are also measured at each of the lot's corners
+  over that depth, and a millimetre either side (2026-10-15, seed 70485213: eight even steps let a corner between two of them poke a street
+  wall's back corner 5 cm into the next lot; `-- fitlot <id>` prints one lot and its rectangle).
 - **Shapes** (2026-10-08): a lot's rectangle is no longer always one box or a stack; `Massing.Compose` also makes L/T/U blocks, staggered pairs, twisted,
   wonky, cantilevered and round towers. See `docs/BUILDING_SHAPES.md`.
 
