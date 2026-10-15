@@ -272,6 +272,38 @@ namespace CityX.Tests
 #endif
         }
 
+        // --- /pushups ---
+
+        /// <summary>/pushups on one player's body are seen on the other's copy: down, then push-ups on repeat (the Animator's PushUpPhase, sent with the other parameters).</summary>
+        [UnityTest]
+        public IEnumerator PushUpsOnOnePlayersBodyShowOnAnothersCopy()
+        {
+#if UNITY_EDITOR
+            yield return StartTwoPlayers();
+            // The body is ticked here with the emote's phases, as PlayerInputReader ticks it (these tests have no keyboard for the reader).
+            _aOnA.GetComponent<PlayerInputReader>().enabled = false;
+            var owner = _aOnA.GetComponent<PlayerLocomotion>();
+            Animator copyAnimator = _aOnB.GetComponentInChildren<Animator>();
+            IEnumerator Hold(int phase, System.Func<bool> until, string what)
+            {
+                float deadline = Time.realtimeSinceStartup + TimeoutSeconds;
+                while (!until())
+                {
+                    Assert.Less(Time.realtimeSinceStartup, deadline, $"timed out waiting for {what}");
+                    owner.Tick(new LocomotionInput { YawDegrees = 0.0f, PushUpPhase = phase }, 1.0f / 60.0f);
+                    yield return null;
+                }
+            }
+            yield return Hold(0, () => owner.IsGrounded, "player A to stand on the ground");
+            yield return Hold(1, () => copyAnimator.GetCurrentAnimatorStateInfo(0).IsName("PushUpEnter"), "the copy to go down");
+            yield return Hold(2, () => copyAnimator.GetCurrentAnimatorStateInfo(0).IsName("PushUpLoop"), "the copy to do push-ups");
+            yield return Hold(3, () => copyAnimator.GetCurrentAnimatorStateInfo(0).IsName("PushUpExit"), "the copy to get up");
+#else
+            Assert.Ignore("needs the editor to load the networked player prefab.");
+            yield break;
+#endif
+        }
+
         // --- held items ---
 
         [UnityTest]

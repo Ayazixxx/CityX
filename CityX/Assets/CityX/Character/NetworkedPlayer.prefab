@@ -8,18 +8,6 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
-    - target: {fileID: 1527691548654838634, guid: c573dea59fa2558478b70344c659896a, type: 3}
-      propertyPath: m_Controller
-      value: 
-      objectReference: {fileID: 9100000, guid: c0808131d916ea540becd941709dc711, type: 2}
-    - target: {fileID: 6850277564297992118, guid: c573dea59fa2558478b70344c659896a, type: 3}
-      propertyPath: 'BloodrageClips.Array.data[0]'
-      value: 
-      objectReference: {fileID: 0}
-    - target: {fileID: 6850277564297992118, guid: c573dea59fa2558478b70344c659896a, type: 3}
-      propertyPath: 'BloodrageClips.Array.data[1]'
-      value: 
-      objectReference: {fileID: 0}
     - target: {fileID: 8175725407627863874, guid: c573dea59fa2558478b70344c659896a, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
@@ -118,7 +106,7 @@ PrefabInstance:
       addedObject: {fileID: 2453790078144645714}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 6016314637944798026}
+      addedObject: {fileID: 2526149277575700605}
   m_SourcePrefab: {fileID: 100100000, guid: c573dea59fa2558478b70344c659896a, type: 3}
 --- !u!1 &5771231832799346164 stripped
 GameObject:
@@ -591,7 +579,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: CityX.Character::CityX.Character.OctaslashAbility
   SlashMaterial: {fileID: 2100000, guid: 2b060d6e4d0b57746a498c94c7b4830b, type: 2}
---- !u!114 &6016314637944798026
+--- !u!114 &2526149277575700605
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

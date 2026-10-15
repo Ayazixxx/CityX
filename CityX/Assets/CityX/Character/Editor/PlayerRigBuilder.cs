@@ -269,6 +269,7 @@ namespace CityX.CharacterEditor
             AddGunLocomotion(controller, root);
             AddJetpackIdleState(controller, root, idle);
             AddDanceStates(controller, root);
+            AddPushUpStates(controller, root);
             AddClimbingStates(controller, root);
             AddCarSeatStates(controller, root);
             AddPunchStates(root);
@@ -681,6 +682,55 @@ namespace CityX.CharacterEditor
             outOfBreakdance.AddCondition(AnimatorConditionMode.IfNot, 0.0f, "Breakdancing");
             outOfBreakdance.duration = 0.15f;
             outOfBreakdance.hasExitTime = false;
+        }
+
+        /// <summary>
+        /// /pushups (owner, 2026-10-14): going down (pushup_enter), push-ups on repeat (pushup) and getting up (pushup_exit), driven by the
+        /// PushUpPhase number PlayerInputReader's PushUpEmote sets (0 standing, 1 going down, 2 pushing up, 3 getting up). A number, not a bool,
+        /// so Any State can start it without restarting it while it holds: only phase 1 enters PushUpEnter, and each later phase moves it on. The
+        /// emote keeps the phases to the clips' own lengths (written into the reader), so each state plays whole.
+        /// </summary>
+        private static void AddPushUpStates(AnimatorController controller, AnimatorStateMachine root)
+        {
+            AnimationClip enter = FindClip("pushup_enter");
+            AnimationClip rep = FindClip("pushup");
+            AnimationClip exit = FindClip("pushup_exit");
+            AnimatorState locomotion = FindState(root, "Locomotion");
+            if (enter == null || rep == null || exit == null || locomotion == null)
+            {
+                Debug.LogWarning("CityX: missing a push-up clip -- /pushups will show no animation.");
+                return;
+            }
+            MakeLooping(rep);
+            controller.AddParameter("PushUpPhase", AnimatorControllerParameterType.Int);
+
+            AnimatorState down = root.AddState("PushUpEnter");
+            down.motion = enter;
+            AnimatorState pushing = root.AddState("PushUpLoop");
+            pushing.motion = rep;
+            AnimatorState up = root.AddState("PushUpExit");
+            up.motion = exit;
+
+            AnimatorStateTransition intoDown = root.AddAnyStateTransition(down);
+            intoDown.AddCondition(AnimatorConditionMode.Equals, 1, "PushUpPhase");
+            intoDown.duration = 0.2f;
+            intoDown.hasExitTime = false;
+            intoDown.canTransitionToSelf = false;
+
+            AddPhaseTransition(down, pushing, 2, 0.05f);
+            AddPhaseTransition(down, up, 3, 0.1f);          // called off going down: it finishes going down, then gets straight up
+            AddPhaseTransition(pushing, up, 3, 0.15f);
+            AddPhaseTransition(up, locomotion, 0, 0.15f);
+            AddPhaseTransition(down, locomotion, 0, 0.15f);  // ended at once (a blow, a fall): straight back to standing
+            AddPhaseTransition(pushing, locomotion, 0, 0.15f);
+        }
+
+        private static void AddPhaseTransition(AnimatorState from, AnimatorState to, int phase, float duration)
+        {
+            AnimatorStateTransition transition = from.AddTransition(to);
+            transition.AddCondition(AnimatorConditionMode.Equals, phase, "PushUpPhase");
+            transition.duration = duration;
+            transition.hasExitTime = false;
         }
 
         /// <summary>
@@ -1668,7 +1718,13 @@ namespace CityX.CharacterEditor
                 RagdollBuilder.Build(root, animator);
 
                 // Added last: it looks for the others in Awake.
-                root.AddComponent<PlayerInputReader>();
+                PlayerInputReader reader = root.AddComponent<PlayerInputReader>();
+                // The push-ups keep time with their own clips (PushUpEmote).
+                AnimationClip pushUpEnter = FindClip("pushup_enter"), pushUpRep = FindClip("pushup"), pushUpExit = FindClip("pushup_exit");
+                if (pushUpEnter != null && pushUpRep != null && pushUpExit != null)
+                {
+                    reader.SetPushUpClipLengths(pushUpEnter.length, pushUpRep.length, pushUpExit.length);
+                }
 
                 // DELIBERATELY NOT NetworkObject/NetworkTransform/
                 // NetworkedPlayerIdentity/NetworkedAnimatorSync here. Tried

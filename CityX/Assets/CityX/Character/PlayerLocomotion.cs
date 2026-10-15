@@ -280,6 +280,28 @@ namespace CityX.Character
             }
         }
 
+        /// <summary>
+        /// /pushups (2026-10-15): the whole body follows the clips -- the hips pitch down to a plank and back up, which the lock that holds the
+        /// hips upright for walking would otherwise undo, leaving the body standing with only its arms pumping (seen in PushUpCapture). True
+        /// from going down until the body is back in Locomotion, on this body and on other players' copies (the phase is sent).
+        /// </summary>
+        public bool PushUpOwnsTheBody
+        {
+            get
+            {
+                if (_animator == null || !_animator.enabled || _animator.runtimeAnimatorController == null)
+                {
+                    return false;
+                }
+                if (_animator.GetInteger(PushUpPhaseParameter) != 0)
+                {
+                    return true;
+                }
+                AnimatorStateInfo now = _animator.GetCurrentAnimatorStateInfo(0);
+                return now.IsName("PushUpEnter") || now.IsName("PushUpLoop") || now.IsName("PushUpExit");
+            }
+        }
+
         private SoulsSwordCombat _souls;
         private float _torsoFollowBlend;
         private float _locomotionSpineBlend;
@@ -1058,6 +1080,7 @@ namespace CityX.Character
         private static readonly int JetpackThrustingParameter = Animator.StringToHash("JetpackThrusting");
         private static readonly int DancingParameter = Animator.StringToHash("Dancing");
         private static readonly int BreakdancingParameter = Animator.StringToHash("Breakdancing");
+        private static readonly int PushUpPhaseParameter = Animator.StringToHash("PushUpPhase");
 
         /// <summary>Horizontal speed after the last tick, in metres per second.</summary>
         public float CurrentSpeed { get; private set; }
@@ -1461,9 +1484,8 @@ namespace CityX.Character
         {
             // Only a live Animator has a torso pose worth following; a frozen or ragdolled one is held flat.
             bool animatorLive = _animator != null && _animator.enabled;
-            _torsoFollowBlend = Mathf.MoveTowards(
-                _torsoFollowBlend, (animatorLive && TorsoFollowsClip) ? Mathf.Clamp01(TorsoFollowStrength) : 0.0f,
-                TorsoFollowBlendPerSecond * Mathf.Max(_lastTickDeltaTime, 0.0f));
+            float torsoTarget = !animatorLive ? 0.0f : PushUpOwnsTheBody ? 1.0f : TorsoFollowsClip ? Mathf.Clamp01(TorsoFollowStrength) : 0.0f;
+            _torsoFollowBlend = Mathf.MoveTowards(_torsoFollowBlend, torsoTarget, TorsoFollowBlendPerSecond * Mathf.Max(_lastTickDeltaTime, 0.0f));
             _locomotionSpineBlend = Mathf.MoveTowards(
                 _locomotionSpineBlend, (animatorLive && LocomotionSpineLeans && LocomotionClipsOwnTheSpine) ? 1.0f : 0.0f,
                 TorsoFollowBlendPerSecond * Mathf.Max(_lastTickDeltaTime, 0.0f));
@@ -1515,6 +1537,8 @@ namespace CityX.Character
             {
                 ClampFeetAboveGround();
             }
+            // In a push-up, the body tipped up about the toes until the palms are on the floor (PlayerLocomotion.PushUps.cs).
+            ApplyPushUpGrounding();
             // The feet on the real ground (hip drop, locks, sole tilt): right after the clamp, which it builds on, and before every pose that
             // only touches the upper body. See PlayerLocomotion.FootIK.cs.
             ApplyFootIK();
@@ -3303,6 +3327,7 @@ namespace CityX.Character
                 _animator.SetBool(JetpackThrustingParameter, input.JetpackThrusting);
                 _animator.SetBool(DancingParameter, input.Dancing);
                 _animator.SetBool(BreakdancingParameter, input.Breakdancing);
+                _animator.SetInteger(PushUpPhaseParameter, input.PushUpPhase);
             }
         }
 

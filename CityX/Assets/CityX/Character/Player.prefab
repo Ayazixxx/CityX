@@ -2702,6 +2702,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: CityX.Character::CityX.Character.PlayerInputReader
   YawSource: {fileID: 0}
+  _pushUpEnterSeconds: 2.6000001
+  _pushUpRepSeconds: 1.5333334
+  _pushUpExitSeconds: 3.1000001
 --- !u!1 &8630496060583018129
 GameObject:
   m_ObjectHideFlags: 0

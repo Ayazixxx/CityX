@@ -50,6 +50,7 @@ namespace CityX.Character
         private static readonly int GunEquippedParameter = Animator.StringToHash("GunEquipped");
         private static readonly int JetpackThrustingParameter = Animator.StringToHash("JetpackThrusting");
         private static readonly int DancingParameter = Animator.StringToHash("Dancing");
+        private static readonly int PushUpPhaseParameter = Animator.StringToHash("PushUpPhase");
         private static readonly int BreakdancingParameter = Animator.StringToHash("Breakdancing");
 
         /// <summary>The Super Jump's crouch while Space charges it (a skill since 2026-10-14): other players see the crouch, then the jump.</summary>
@@ -422,17 +423,18 @@ namespace CityX.Character
                 _animator.GetBool(JetpackThrustingParameter),
                 _animator.GetBool(DancingParameter),
                 _animator.GetBool(BreakdancingParameter),
-                _animator.GetBool(ChargingJumpParameter));
+                _animator.GetBool(ChargingJumpParameter),
+                _animator.GetInteger(PushUpPhaseParameter));
             SendMotionIfNeeded();
         }
 
         [ServerRpc(RequireOwnership = true)]
         private void SendStateToServer(float speed, float moveX, float moveZ, bool grounded,
             bool crouching, bool aiming, bool swordEquipped, bool gunEquipped, bool jetpackThrusting,
-            bool dancing, bool breakdancing, bool chargingJump)
+            bool dancing, bool breakdancing, bool chargingJump, int pushUpPhase)
         {
             BroadcastState(speed, moveX, moveZ, grounded, crouching, aiming,
-                swordEquipped, gunEquipped, jetpackThrusting, dancing, breakdancing, chargingJump);
+                swordEquipped, gunEquipped, jetpackThrusting, dancing, breakdancing, chargingJump, pushUpPhase);
         }
 
         /// <summary>
@@ -443,7 +445,7 @@ namespace CityX.Character
         [ObserversRpc(ExcludeOwner = true)]
         private void BroadcastState(float speed, float moveX, float moveZ, bool grounded,
             bool crouching, bool aiming, bool swordEquipped, bool gunEquipped, bool jetpackThrusting,
-            bool dancing, bool breakdancing, bool chargingJump)
+            bool dancing, bool breakdancing, bool chargingJump, int pushUpPhase)
         {
             if (_animator == null)
             {
@@ -469,6 +471,7 @@ namespace CityX.Character
             _animator.SetBool(DancingParameter, dancing);
             _animator.SetBool(BreakdancingParameter, breakdancing);
             _animator.SetBool(ChargingJumpParameter, chargingJump);
+            _animator.SetInteger(PushUpPhaseParameter, pushUpPhase);
         }
     }
 }

@@ -174,6 +174,13 @@ namespace CityX.UI
         public static bool IsBreakdanceCommand(string text) =>
             text != null && text.Trim().ToLowerInvariant() == "/breakdance";
 
+        /// <summary>Same normalization rule as IsClaimCommand, for /pushups (and /pushup).</summary>
+        public static bool IsPushUpsCommand(string text)
+        {
+            string command = text?.Trim().ToLowerInvariant();
+            return command == "/pushups" || command == "/pushup";
+        }
+
         /// <summary>
         /// Same normalization rule as IsClaimCommand, for /sleep -- a diagnostic,
         /// not a real feature: EXPLICIT ASK, "make it so if you press enter and
@@ -201,6 +208,11 @@ namespace CityX.UI
             if (IsBreakdanceCommand(text))
             {
                 InputReader?.StartBreakdance();
+                return;
+            }
+            if (IsPushUpsCommand(text))
+            {
+                InputReader?.StartPushUps();
                 return;
             }
             if (IsSleepCommand(text))

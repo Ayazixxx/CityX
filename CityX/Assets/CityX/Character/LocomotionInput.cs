@@ -209,6 +209,9 @@ namespace CityX.Character
         /// <summary>Same as Dancing, for /breakdance.</summary>
         public bool Breakdancing;
 
+        /// <summary>The /pushups emote's phase (PushUpEmote.AnimatorPhase): 0 standing, 1 going down, 2 pushing up, 3 getting up.</summary>
+        public int PushUpPhase;
+
         /// <summary>The world-space direction the player wants to travel, flat and normalised.</summary>
         public Vector3 WorldDirection()
         {

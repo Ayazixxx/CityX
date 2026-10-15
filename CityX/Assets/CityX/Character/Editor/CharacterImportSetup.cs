@@ -174,8 +174,10 @@ namespace CityX.CharacterEditor
             // crouch clip), which is the same choice this file already
             // made for every clip that is not one of the three real
             // crouches.
+            // The push-ups (2026-10-15: pushup_enter, pushup, pushup_exit) lie the body down on the floor and stand it back up: the drop of the
+            // hips is the pose, measured from the feet, not a fall of the whole transform.
             bool lowers = name == "standing_to_crouch" || name == "crouch_to_idle" ||
-                          name == "crouch_walk";
+                          name == "crouch_walk" || name.StartsWith("pushup");
 
             // ALWAYS WRITTEN, NEVER JUST RETURNED PAST. A clip that used to
             // qualify (charged_jump, briefly, before that turned out to be

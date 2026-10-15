@@ -155,7 +155,8 @@ namespace CityX.Character
             bool active = FootIkEnabled && !inAir && !IsSitting && !InCarSeat
                 && _climbWallWeight <= 0.01f && _ledgeHandsWeight <= 0.01f && (_bakedPoseWeight <= 0.0f || BakedPoseIsUpperBodyOnly)
                 && (_controller == null || _controller.enabled)
-                && !_animator.GetBool(DancingParameter) && !_animator.GetBool(BreakdancingParameter);
+                && !_animator.GetBool(DancingParameter) && !_animator.GetBool(BreakdancingParameter)
+                && _animator.GetInteger(PushUpPhaseParameter) == 0;   // the push-up clips put the feet (and the hands) where they go
             FootIkActive = active;
 
             if (!inAir && _footIkWasInAir)
