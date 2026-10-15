@@ -192,5 +192,51 @@ namespace CityX.Tests
             Assert.IsTrue(inventory.HasItem(ItemRegistry.SkelliJeans),
                 "the jeans should be back in storage");
         }
+
+        /// <summary>Stands in for a real jetpack: equipping one needs only something that answers to being put on and taken off.</summary>
+        private sealed class WornStandIn : MonoBehaviour, IEquippableItem
+        {
+            public void OnEquip(GameObject player, ItemInstanceData instanceData) { }
+            public void OnUnequip(GameObject player) { Destroy(gameObject); }
+            public ItemInstanceData GetInstanceData() => ItemInstanceData.None;
+        }
+
+        [UnityTest]
+        public IEnumerator AJetpackOnTheBackShowsInTheBackSlotAndClickingItTakesItOff()
+        {
+            // The owner's ask (2026-10-15): shoes, gloves and back slots in the inventory. The back is the jetpack's and the parachute's, and
+            // the row used to have no slot for it: a jetpack worn showed nowhere.
+            InventoryPanelView panel = MakePanel(out _, out _, out Inventory inventory);
+            var jetpackPrefab = new GameObject("JetpackStandIn");
+            jetpackPrefab.AddComponent<WornStandIn>();
+            jetpackPrefab.SetActive(false);
+            inventory.ItemPrefabs = new[]
+            {
+                new Inventory.ItemPrefabEntry { ItemId = ItemRegistry.Jetpack, Prefab = jetpackPrefab },
+            };
+            Assert.IsTrue(inventory.EquipItemId(ItemRegistry.Jetpack, _playerObject), "setup: could not put the jetpack on");
+
+            int backIndex = System.Array.IndexOf(InventoryPanelView.EquipSlotKeys, EquipSlots.Back);
+            Assert.GreaterOrEqual(backIndex, 0, "the inventory has no back slot");
+            var buttons = new Button[InventoryPanelView.EquipSlotKeys.Length];
+            var labels = new Text[InventoryPanelView.EquipSlotKeys.Length];
+            buttons[backIndex] = MakeButton(_panelObject);
+            labels[backIndex] = new GameObject("BackLabel").AddComponent<Text>();
+            labels[backIndex].transform.SetParent(_panelObject.transform, false);
+            panel.EquipButtons = buttons;
+            panel.EquipLabels = labels;
+            ActivatePanel();
+            yield return null;
+
+            panel.Open();
+            Assert.AreEqual("Jetpack", labels[backIndex].text, "the jetpack on the back does not show in the back slot");
+
+            buttons[backIndex].onClick.Invoke();
+            yield return null;
+            Assert.AreEqual(string.Empty, inventory.EquippedItemId(EquipSlots.Back), "clicking the back slot did not take the jetpack off");
+            Assert.IsTrue(inventory.HasItem(ItemRegistry.Jetpack), "the jetpack should be back in storage");
+            Assert.AreEqual("--", labels[backIndex].text, "the back slot still shows the jetpack");
+            Object.DestroyImmediate(jetpackPrefab);
+        }
     }
 }

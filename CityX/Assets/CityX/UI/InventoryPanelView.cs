@@ -43,17 +43,21 @@ namespace CityX.UI
     public sealed class InventoryPanelView : MonoBehaviour
     {
         /// <summary>
-        /// player/inventory.gd's own equipment keys, in the fixed order the
-        /// row of equipment slots is drawn in. Only "top", "legs" and
-        /// "hand_r" have anything registered to fill them today (see
-        /// ItemRegistry) -- the rest sit empty and ready for later items,
-        /// the same forward-compatible reasoning the weapons/wearables plan
-        /// used for keeping the full slot set rather than only what is
-        /// currently reachable.
+        /// The equipment slots, head to foot, then the back and the two weapons: the order the row of equipped slots is drawn in. The keys are
+        /// the ones items are registered under (EquipSlots). They used to be Godot's own (hat, hands, feet), which nothing registers against, so
+        /// a hat or a jetpack worn never showed here; the owner asked for shoes, gloves and back slots (2026-10-15). Shoes and gloves have no
+        /// item yet, the mask neither; they sit empty and ready.
         /// </summary>
         public static readonly string[] EquipSlotKeys =
         {
-            "hat", "mask", "top", "hands", "legs", "feet", "hand_l", "hand_r",
+            EquipSlots.Helmet, EquipSlots.Mask, EquipSlots.Torso, EquipSlots.Gloves, EquipSlots.Legs, EquipSlots.Shoes, EquipSlots.Back,
+            EquipSlots.Primary, EquipSlots.Secondary,
+        };
+
+        /// <summary>The caption over each slot, in <see cref="EquipSlotKeys"/>' order.</summary>
+        public static readonly string[] SlotLabelText =
+        {
+            "HELMET", "MASK", "TORSO", "GLOVES", "LEGS", "SHOES", "BACK", "PRIMARY", "SECONDARY",
         };
 
         [Tooltip("The whole overlay, hidden until I is pressed.")]

@@ -49,10 +49,10 @@ namespace CityX.Character
         // ---- primary / secondary weapons ----
 
         /// <summary>The primary weapon slot. (The key is the old "right hand" one: saves, the registry and the tests all know it by that name.)</summary>
-        public const string PrimarySlot = "hand_r";
+        public const string PrimarySlot = EquipSlots.Primary;
 
         /// <summary>The secondary weapon slot (the old "left hand" key).</summary>
-        public const string SecondarySlot = "hand_l";
+        public const string SecondarySlot = EquipSlots.Secondary;
 
         /// <summary>Which of the two weapons is in hand. Only that one exists as an object; the other is holstered (see <see cref="CycleWeapon"/>).</summary>
         public string ActiveWeaponSlot { get; private set; } = PrimarySlot;

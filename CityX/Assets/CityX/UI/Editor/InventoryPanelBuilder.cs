@@ -118,7 +118,7 @@ namespace CityX.UIEditor
             storageLabelRect.anchorMin = new Vector2(0.0f, 1.0f);
             storageLabelRect.anchorMax = new Vector2(0.0f, 1.0f);
             storageLabelRect.pivot = new Vector2(0.0f, 1.0f);
-            storageLabelRect.anchoredPosition = new Vector2(24.0f, -168.0f);
+            storageLabelRect.anchoredPosition = new Vector2(24.0f, -150.0f);   // between the equipped row (to -144) and the grid (from -176)
             storageLabelRect.sizeDelta = new Vector2(300.0f, 20.0f);
             storageLabel.alignment = TextAnchor.UpperLeft;
 
@@ -136,11 +136,9 @@ namespace CityX.UIEditor
         }
 
         /// <summary>
-        /// One row of InventoryPanelView.EquipSlotKeys.Length slots, each
-        /// labelled with its own slot key -- HAT, MASK, TOP and so on --
-        /// since with only three items registered today most of them sit
-        /// permanently empty and a slot with no label would read as
-        /// decoration rather than as "nothing equipped here yet."
+        /// One row of InventoryPanelView.EquipSlotKeys.Length slots, each captioned with what it holds -- HELMET, TORSO, SHOES, BACK and so on
+        /// (InventoryPanelView.SlotLabelText) -- since some of them have no item yet and a slot with no caption would read as decoration rather
+        /// than as "nothing equipped here yet."
         /// </summary>
         private static void BuildEquipRow(Transform parent, InventoryPanelView view)
         {
@@ -168,7 +166,7 @@ namespace CityX.UIEditor
                 Button button = go.AddComponent<Button>();
                 button.targetGraphic = background;
 
-                Text keyCaption = MakeText(go.transform, "Key", keys[i] == "hand_r" ? "PRIMARY" : keys[i] == "hand_l" ? "SECONDARY" : keys[i].ToUpperInvariant(), 9, HintColour);
+                Text keyCaption = MakeText(go.transform, "Key", InventoryPanelView.SlotLabelText[i], 9, HintColour);
                 var keyRect = (RectTransform)keyCaption.transform;
                 keyRect.anchorMin = new Vector2(0.0f, 1.0f);
                 keyRect.anchorMax = new Vector2(1.0f, 1.0f);
@@ -223,7 +221,7 @@ namespace CityX.UIEditor
                 rect.anchorMax = new Vector2(0.0f, 1.0f);
                 rect.pivot = new Vector2(0.5f, 0.5f);
                 rect.anchoredPosition = new Vector2(
-                    startX + column * StoragePitch, -206.0f - row * StoragePitch);
+                    startX + column * StoragePitch, -214.0f - row * StoragePitch);
                 rect.sizeDelta = new Vector2(StorageSlotSize, StorageSlotSize);
 
                 Image background = go.AddComponent<Image>();

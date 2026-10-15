@@ -34,3 +34,11 @@ so the head hangs forward off the hunched back the way the sprint's does.
 **Sword wave hitbox (2026-10-04):** the WHOLE crescent is the hitbox for enemies (a trigger box round all of it, on the tilted visual; each target is hurt once and the wave passes through).
 Only a 0.3 m sphere at its CENTRE meets the world, swept along each fixed step and checked where it stands (`SwordWaveProjectile.WorldCheckRadius`), so the lower tip scraping the ground no longer
 ends it. `SwordWaveProjectilePlayTests` pins both (ground under the lower edge does not stop it; centre in the ground does; a wall does; middle, top tip and bottom tip all hurt).
+
+## Equipment slots (2026-10-15)
+
+One list of slot keys, `Items/EquipSlots` (helmet, mask, top, gloves, legs, shoes, back, hand_r, hand_l), which items register against (`ItemRegistry`) and both
+panels show: the inventory's equipped row (I) reads HELMET, MASK, TORSO, GLOVES, LEGS, SHOES, BACK, PRIMARY, SECONDARY, the loadout the same less the mask. The owner asked
+for shoes, gloves and back slots in the inventory; its row had kept Godot's own keys (hat, hands, feet), which nothing is registered under, so a hat or a jetpack
+worn showed nowhere in it. Shoes, gloves and the mask have no item yet. `EquipSlotTests` checks every wearable item has a slot on both panels;
+`InventoryPanelCapture` renders the panel.

@@ -27,8 +27,9 @@ namespace CityX.UI
     /// EquipSlotKeys already use, so items already registered against them
     /// (HoodedCloak -> top, SkelliJeans -> legs, GlassBottle/GrapplingHook
     /// -> hand_r) show up here unchanged, just under the friendlier label
-    /// "Torso"/"Primary Weapon". Only Helmet/Shoes/Gloves/Back/Secondary
-    /// Weapon are new keys with nothing registered against them yet.
+    /// "Torso"/"Primary Weapon". The keys are EquipSlots', the same ones the
+    /// inventory's own equipped row uses since 2026-10-15; of them only
+    /// Shoes and Gloves have nothing registered against them yet.
     ///
     /// NO DEDICATED HOTKEY -- reached only through PlayerSubmenuView's
     /// Loadout button, which has already closed the C-menu by the time
@@ -39,7 +40,8 @@ namespace CityX.UI
     {
         public static readonly string[] SlotKeys =
         {
-            "helmet", "top", "legs", "shoes", "gloves", "back", "hand_r", "hand_l",
+            EquipSlots.Helmet, EquipSlots.Torso, EquipSlots.Legs, EquipSlots.Shoes, EquipSlots.Gloves, EquipSlots.Back,
+            EquipSlots.Primary, EquipSlots.Secondary,
         };
 
         public static readonly string[] SlotLabelText =
