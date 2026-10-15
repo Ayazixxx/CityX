@@ -219,6 +219,59 @@ namespace CityX.Tests
 #endif
         }
 
+        // --- stepping up ---
+
+        /// <summary>
+        /// A STEP UP IS A STRIDE ON THE COPY TOO (PlayerLocomotion.StepUp.cs, 2026-10-15): one player's body steps onto a 0.55 m ledge; the other
+        /// player's copy of it rises onto the ledge (the transform), and its Animator is never told the body left the ground (Grounded, sent with the
+        /// other parameters): a copy would otherwise play a fall for the few frames of the rise.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator AStepUpOnOnePlayersBodyShowsOnTheCopyAsAStrideNotAFall()
+        {
+#if UNITY_EDITOR
+            yield return StartTwoPlayers();
+            GameObject ledge = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            ledge.name = "Ledge";
+            ledge.transform.position = new Vector3(0.0f, 0.275f, 7.0f);   // its face at z = 3, in front of player A
+            ledge.transform.localScale = new Vector3(1.6f, 0.55f, 8.0f);
+            Physics.SyncTransforms();
+            try
+            {
+                _aOnA.GetComponent<PlayerInputReader>().enabled = false;   // driven by the test, not the (empty) keyboard
+                var owner = _aOnA.GetComponent<PlayerLocomotion>();
+                Animator copyAnimator = _aOnB.GetComponentInChildren<Animator>();
+                for (int i = 0; i < 40; i++)
+                {
+                    owner.Tick(new LocomotionInput { YawDegrees = 0.0f }, 1.0f / 60.0f);
+                    yield return null;
+                }
+                yield return WaitUntil(() => copyAnimator.GetBool("Grounded"), "the copy to stand on the ground");
+
+                bool steppedUp = false, copyLeftTheGround = false, copyUp = false;
+                float deadline = Time.realtimeSinceStartup + TimeoutSeconds;
+                while (Time.realtimeSinceStartup < deadline && !copyUp)
+                {
+                    owner.Tick(new LocomotionInput { Move = Vector2.up, YawDegrees = 0.0f }, 1.0f / 60.0f);
+                    steppedUp |= owner.IsSteppingUp;
+                    copyLeftTheGround |= steppedUp && !copyAnimator.GetBool("Grounded");
+                    copyUp = steppedUp && _aOnB.transform.position.y > 0.5f;
+                    yield return null;
+                }
+                Assert.IsTrue(steppedUp, "the owner's body never stepped up onto the 0.55 m ledge");
+                Assert.IsTrue(copyUp, $"the copy never rose onto the ledge: it is at {_aOnB.transform.position}");
+                Assert.IsFalse(copyLeftTheGround, "the copy's Animator was told the body left the ground: other players would see a fall");
+            }
+            finally
+            {
+                Object.Destroy(ledge);
+            }
+#else
+            Assert.Ignore("needs the editor to load the networked player prefab.");
+            yield break;
+#endif
+        }
+
         // --- held items ---
 
         [UnityTest]

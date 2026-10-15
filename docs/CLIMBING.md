@@ -293,3 +293,41 @@ says which stage refused (`VaultProbe.Refusal`), and the survey logged it:
   80% of the windows too high to vault dived into from a climb; no whole pane either way), `VaultPlayTests` (climbing up to a broken window 3 m
   up dives in and stands on the room floor; a whole one is never dived through), `RealWindowVaultCapture` (Explicit, -Graphics) renders
   `vault-real-*.png`.
+
+## Update: small obstacles are stepped onto, not run into (2026-10-15)
+
+Owner (2026-10-14, a screenshot of the body held at the foot of a shattered shop window): "im getting stuck when running into small obstacles
+like this when i should just be running right over this".
+
+- **The gap.** The CharacterController steps 0.4 m on its own (in one frame); the vault starts at 0.42 m and only over something that ENDS (a
+  fence, a sill with a lower room behind it). A raised floor does neither: a 0.44 m step stopped the body dead, walking or running. In the city
+  the floor-length windows beside a front door have their sills 0.4 to 0.6 m over the pavement, and a survey of the real city near spawn ran
+  into them shattered and got into none.
+- **The step up** (`Character/StepUpProbe.cs`, `Character/PlayerLocomotion.StepUp.cs`). Anything in the way up to a quarter of the body's
+  height (0.65 m, the share Unreal's character steps by default) is stepped onto in the stride, walking or running. The probe validates in
+  stages like the vault's: a near-vertical face at shin height along the direction of travel (from the body's middle and either side of it); the
+  face stands on the body's own ground, so a staircase (whose second riser stands on the first tread) is never one step and stays the
+  controller's, a riser at a time; a flat top behind the face no higher than the limit; a whole standing body's worth of room on the top (a whole
+  pane over a sill, or a broken window lower than the body, refuses it: the vault's dive is the way through those).
+- **How it moves.** The body is lifted along a 45 degree line as it closes on the face (at its running speed, at least 3 m/s), so it is up as it
+  gets there; it is carried level until its middle is over the top, then set down. Meanwhile the controller's own step is held at 1 cm, or it
+  would pop the rest up in one frame. It counts as on the ground throughout: Space jumps, the footsteps go on, the animator's Grounded stays true
+  (other players are sent a stride, not a fall). It lets go when the keys do, when the body turns away, at a ceiling, or after 0.6 s, and then
+  waits 0.35 s before trying again (no bobbing at a step it cannot take).
+- **Under a low ceiling the controller's step is cut to the room over the head** (`FitStepUnderCeiling`). Before every sideways move the
+  CharacterController lifts the body by its whole step offset; with a ceiling closer than that over the head the lift met it and the body could
+  not move at all, even on flat ground. That is what still held the body on a shop window's sill once it had stepped up: the top of the opening
+  is 0.2 m over its head there. The step is now the free height over the head, measured where the body is and where the move takes it.
+- **Taller than the step up** is the vault (run at it) or a jump. A shop's storefront (glass from a 0.5 m stall riser up to 2.8 m: 0.65 to 1 m
+  over the pavement, and lower than the body) is still the vault's dive.
+- Result on the real city near spawn (`RealCityDoorwayPlayTests`): every front door without steps built in front of it is walked and run into
+  (20 of 20; the one left out stands 0.77 m over the pavement at its foot, a city bug, below), and every shattered floor-length window whose sill
+  a body steps is run straight into (8 of 8, sills 0.39 to 0.62 m over the pavement; none before).
+- Tests: `SmallObstaclePlayTests` (raised floors 0.3 to 0.64 m walked and run up, smoothly (under 0.14 m a frame) and on the body's feet
+  throughout; low bars stepped over; 0.8 m not; a whole pane over a sill and an opening lower than the body not stepped into; six risers taken one
+  at a time; ceilings 0.12 and 0.25 m over the head; the city's floor-length window), `RealCityDoorwayPlayTests` (the doors and the shop windows
+  of the real city), `NetworkedPlayerStateSyncPlayTests.AStepUpOnOnePlayersBodyShowsOnTheCopyAsAStrideNotAFall`. `StepUpCapture` (Explicit,
+  -Graphics) renders `step-up-side-*.png` and `step-up-behind-*.png`: a run into a shattered shop window with a 0.55 m sill, lifted over four
+  frames and set down on the shop floor.
+- **Measured from what the body stands on**, not the bottom of its capsule (`StandingOnY`): perched on a stair's nosing the rounded bottom dips
+  below the tread under it, and an ordinary 0.22 m riser read as a 0.3 m step (the stairs test failed in full runs only).

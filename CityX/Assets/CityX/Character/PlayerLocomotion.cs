@@ -1084,7 +1084,8 @@ namespace CityX.Character
         /// </summary>
         public Vector3 Velocity { get; private set; }
 
-        public bool IsGrounded => _controller != null && _controller.isGrounded;
+        /// <summary>On the ground, or being lifted onto a step (PlayerLocomotion.StepUp.cs): a stride, not a jump.</summary>
+        public bool IsGrounded => _controller != null && (_controller.isGrounded || (_steppingUp && _controller.enabled));
 
         /// <summary>
         /// CharacterController.Move's own return value from the most recent
@@ -2931,9 +2932,11 @@ namespace CityX.Character
                 FusedBodyShape.TorsoRadius * (StandingHeight / BodyRig.StandingHeight),
                 StandingHeight * 0.3f);
             _controller.center = new Vector3(0.0f, StandingHeight * 0.5f, 0.0f);
-            // Big enough to walk up a kerb without jumping, well under a
-            // terrace step so terraces still have to be gone round.
-            _controller.stepOffset = Mathf.Min(0.4f, StandingHeight * 0.25f);
+            // Big enough to walk up a kerb or a stair without jumping. Taller
+            // steps, up to a quarter of the body, are the step up's
+            // (PlayerLocomotion.StepUp.cs), which also cuts this to the room
+            // over the head under a low ceiling.
+            _controller.stepOffset = RestingStepOffset;
 
             // ZERO, NOT UNITY'S DEFAULT 0.001. That default silently DISCARDS
             // any Move shorter than a millimetre, and a per-frame step is
@@ -3109,6 +3112,10 @@ namespace CityX.Character
 
             bool grounded = _controller.isGrounded;
 
+            // A STEP UP (PlayerLocomotion.StepUp.cs) is a stride, not a hop: while the body is lifted onto a step it is still on its feet, so
+            // it can jump from it.
+            bool onFeet = grounded || _steppingUp;
+
             // Landing is what "spends" carried momentum -- the moment the
             // body actually touches back down, ordinary ground movement
             // takes back over cleanly rather than leaving a permanent
@@ -3139,7 +3146,7 @@ namespace CityX.Character
                 _verticalVelocity -= Gravity * GravityScale * deltaTime;
             }
 
-            if (grounded && input.Jump)
+            if (onFeet && input.Jump)
             {
                 _verticalVelocity = JumpVelocity;
                 FireTrigger(JumpParameter);
@@ -3167,7 +3174,7 @@ namespace CityX.Character
             // already falling.
             if (input.JumpReleased)
             {
-                if (grounded)
+                if (onFeet)
                 {
                     float heightMultiplier = Mathf.Lerp(
                         1.0f, ChargedJumpHeightMultiplier, Mathf.Clamp01(input.JumpChargeFraction));
@@ -3194,8 +3201,18 @@ namespace CityX.Character
             }
             Vector3 motion = horizontal + _residualVelocity;
             motion.y = _verticalVelocity;
+            if (HasForcedVelocity || input.Jump || input.JumpReleased)
+            {
+                EndStepUp();
+            }
+            else
+            {
+                motion.y = TickStepUp(motion, moving, grounded, MovementRooted, motion.y, deltaTime);
+            }
+            FitStepUnderCeiling(motion * deltaTime);
             Velocity = motion;
             LastMoveCollisionFlags = _controller.Move(motion * deltaTime);
+            AfterStepUpMove(deltaTime);
 
             // THE BODY FACES THE CAMERA, NOT WHERE IT IS GOING.
             //
@@ -3277,7 +3294,7 @@ namespace CityX.Character
                 _animator.SetFloat(SpeedParameter, CurrentSpeed);
                 _animator.SetFloat(MoveXParameter, LocalVelocity.x);
                 _animator.SetFloat(MoveZParameter, LocalVelocity.y);
-                _animator.SetBool(GroundedParameter, _controller.isGrounded);
+                _animator.SetBool(GroundedParameter, _controller.isGrounded || _steppingUp);
                 _animator.SetBool(CrouchingParameter, IsCrouching);
                 _animator.SetBool(ChargingJumpParameter, input.ChargingJump);
                 _animator.SetBool(AimingParameter, input.Aiming);
