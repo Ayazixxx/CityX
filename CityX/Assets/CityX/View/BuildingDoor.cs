@@ -120,6 +120,35 @@ namespace CityX.View
         }
 
         /// <summary>
+        /// The leaves that fill a building's entrance, in world space: one door (<see cref="PanelFor"/>), or for a pair
+        /// (BuildingInterior.HasDoubleEntrance, 2026-10-15) a left leaf hinged at the doorway's left edge and a right one hinged at its right edge.
+        /// The right leaf FACES INTO THE BUILDING, so that it hangs back toward the middle from its hinge (a leaf hangs to the +X side of its
+        /// hinge, and +X is to the right of where it faces); its hinge is a door's thickness further in, so both leaves stand in the same
+        /// plane. Each still swings away from whoever opens it (<see cref="SwingSignFor"/> works from its own facing).
+        /// </summary>
+        public static Panel[] PanelsFor(BuildingSite site)
+        {
+            if (!BuildingInterior.HasDoubleEntrance(site))
+            {
+                return new[] { PanelFor(site) };
+            }
+            float leaf = BuildingInterior.DoubleDoorWidth * 0.5f;
+            float height = BuildingInterior.DoorHeight(site.Params.Height);
+            var outward = new Vector3((float)-site.AxisZ, 0.0f, (float)site.AxisX);
+            double plane = site.FrontHalfDepth - BuildingInterior.DoorSetBack;
+            site.LocalToWorld(-leaf, plane, out double leftX, out double leftZ);
+            site.LocalToWorld(leaf, plane - Thickness, out double rightX, out double rightZ);
+            return new[]
+            {
+                new Panel(new Vector3((float)leftX, site.BaseHeight, (float)leftZ), leaf, height, outward),
+                new Panel(new Vector3((float)rightX, site.BaseHeight, (float)rightZ), leaf, height, -outward),
+            };
+        }
+
+        /// <summary>The other leaf of a pair of doors: opening or shutting one opens or shuts both, each away from whoever did it.</summary>
+        public BuildingDoor Partner { get; set; }
+
+        /// <summary>
         /// Which way a door opens for someone standing where <paramref name="opener"/> is: +1 swings it
         /// INWARD (from the street side, away from you) and -1 OUTWARD (from inside, away from you).
         /// Pure, so it can be tested without a scene. On the wall plane exactly it opens inward, as it always did.
@@ -159,7 +188,7 @@ namespace CityX.View
         /// why that has to be remembered somewhere other than here.
         /// </summary>
         public void Hang(in Panel panel, Material leafMaterial, Material handleMaterial,
-            bool startOpen)
+            bool startOpen, Vector3? openFrom = null)
         {
             transform.position = panel.Hinge;
             _hinge = panel.Hinge;
@@ -214,8 +243,9 @@ namespace CityX.View
             trigger.center = new Vector3(panel.Width * 0.5f, panel.Height * 0.5f, 0.0f);
 
             _open = startOpen;
-            _swingSign = 1;
-            _angle = startOpen ? OpenAngleDegrees : 0.0f;
+            // Restored open, it stands swung away from the street (openFrom, when given): a pair's right leaf faces in, so "away" is its other way.
+            _swingSign = openFrom.HasValue ? SwingSignFor(panel.Hinge, panel.Facing, openFrom.Value) : 1;
+            _angle = startOpen ? _swingSign * OpenAngleDegrees : 0.0f;
             _angleVelocity = 0.0f;
             _shutSoundPending = false;
             ApplyAngle();
@@ -292,7 +322,7 @@ namespace CityX.View
         {
             if (_open)
             {
-                if (SomethingInTheDoorway())
+                if (SomethingInTheDoorway() || (Partner != null && Partner.SomethingInTheDoorway()))
                 {
                     return false;   // never shut a door on someone
                 }
@@ -317,22 +347,33 @@ namespace CityX.View
             return true;
         }
 
-        private void BeginOpening(Transform opener, bool burst)
+        private void BeginOpening(Transform opener, bool burst, bool sound = true)
         {
             _swingSign = opener != null ? SwingSignFor(_hinge, _facing, opener.position) : _swingSign;
             _open = true;
             _burst = burst;
             _shutSoundPending = false;
-            PositionalSound.Play(DoorSounds.Open, DoorCentre(), burst ? 1.0f : 0.7f, burst ? 1.15f : 1.0f, 0.0f, 25.0f);
+            if (sound)
+            {
+                PositionalSound.Play(DoorSounds.Open, DoorCentre(), burst ? 1.0f : 0.7f, burst ? 1.15f : 1.0f, 0.0f, 25.0f);
+            }
             Toggled?.Invoke(true);
+            if (Partner != null && !Partner._open)
+            {
+                Partner.BeginOpening(opener, burst, false);   // the pair opens as one (one latch, one creak)
+            }
         }
 
-        private void BeginClosing()
+        private void BeginClosing(bool sound = true)
         {
             _open = false;
             _burst = false;
-            _shutSoundPending = true;
+            _shutSoundPending = sound;
             Toggled?.Invoke(false);
+            if (Partner != null && Partner._open)
+            {
+                Partner.BeginClosing(false);
+            }
         }
 
         private Vector3 DoorCentre()

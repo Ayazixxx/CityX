@@ -28,7 +28,7 @@ namespace CityX.View
         // real scenes always set this from that same constant at build
         // time. EXPLICIT ASK: "generate a new world every time you make a
         // change to the city generation."
-        public int WorldSeed = 61928374;
+        public int WorldSeed = 47360519;
 
         [Tooltip("Put the player (and the Old Guy, who is placed relative to them) at the spawn point of the world this streamer makes, when it wakes. The scene bakes a spawn point at build time, but the world depends on the city scale in force when the game runs.")]
         public bool PlaceAtSpawn = false;
@@ -1219,23 +1219,39 @@ namespace CityX.View
                 }
                 int buildingId = site.Id;
 
-                var go = new GameObject("Door");
-                go.transform.SetParent(chunk.transform, true);
-
-                BuildingDoor door = go.AddComponent<BuildingDoor>();
-                door.Toggled += open =>
+                // One door, or a pair (BuildingInterior.HasDoubleEntrance): two leaves that open and shut as one.
+                BuildingDoor.Panel[] panels = BuildingDoor.PanelsFor(site);
+                site.LocalToWorld(0.0, site.FrontHalfDepth + 2.0, out double streetX, out double streetZ);
+                var street = new Vector3((float)streetX, site.BaseHeight, (float)streetZ);   // in front of the door: a restored-open door stands swung in
+                BuildingDoor first = null;
+                for (int p = 0; p < panels.Length; p++)
                 {
-                    if (open)
+                    var go = new GameObject(panels.Length > 1 ? "DoorLeaf" : "Door");
+                    go.transform.SetParent(chunk.transform, true);
+
+                    BuildingDoor door = go.AddComponent<BuildingDoor>();
+                    door.Toggled += open =>
                     {
-                        _openDoors.Add(buildingId);
+                        if (open)
+                        {
+                            _openDoors.Add(buildingId);
+                        }
+                        else
+                        {
+                            _openDoors.Remove(buildingId);
+                        }
+                    };
+                    door.Hang(panels[p], site.OnRoof ? UpperDoorMaterial() : DoorMaterial, DoorHandleMaterial, _openDoors.Contains(buildingId), street);
+                    if (first == null)
+                    {
+                        first = door;
                     }
                     else
                     {
-                        _openDoors.Remove(buildingId);
+                        first.Partner = door;
+                        door.Partner = first;
                     }
-                };
-                door.Hang(BuildingDoor.PanelFor(site), site.OnRoof ? UpperDoorMaterial() : DoorMaterial, DoorHandleMaterial,
-                    _openDoors.Contains(buildingId));
+                }
             }
         }
 

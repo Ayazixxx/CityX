@@ -20,7 +20,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class RealCityWindowVaultPlayTests
     {
-        private const int Seed = 61928374;
+        private const int Seed = 47360519;
         private readonly List<GameObject> _made = new List<GameObject>();
 
         [TearDown]
@@ -203,7 +203,9 @@ namespace CityX.Tests
                         if (Vaultable(c, out VaultProbe.Vault vault))
                         {
                             vaulted = c;
-                            Assert.Less(vault.Headroom, BodyRig.StandingHeight, "the lintel over a real window was not seen");
+                            // The probe sees the opening's own head: the headroom is never more than the window's opening (a curtain wall's pane, 2.88 m on seed
+                            // 47360519, is taller than a body, so the body's height is no bound).
+                            Assert.LessOrEqual(vault.Headroom, c.Opening + 0.05f, $"the lintel over a real window was not seen: building {c.Site.Id} ({c.Site.Params.Mass}, {WindowPlan.For(world, c.Site).Style}) {c.Wall} column {c.Column}, sill {c.SillAboveGround:0.00} m, opening {c.Opening:0.00} m, double door {BuildingInterior.HasDoubleEntrance(c.Site)}, apartment {ApartmentFront.For(c.Site, WindowPlan.For(world, c.Site)).Any}, roof {RoofShape.For(c.Site).Kind}");
                             Assert.Greater(vault.Headroom, VaultProbe.MinHeadroomMetres);
                             Debug.Log($"CityX window vault: building {c.Site.Id} {c.Wall} column {c.Column}: sill {vault.Height - c.Outside.y:0.00} m up, {vault.Headroom:0.00} m of opening, dive {PlayerVaulting.DiveFor(vault.Headroom, BodyRig.StandingHeight, out _):0.00}");
                             break;

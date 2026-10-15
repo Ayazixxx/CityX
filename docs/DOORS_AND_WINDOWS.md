@@ -264,3 +264,15 @@ Sources: [Unigine: Fracture Body](https://developer.unigine.com/docs/latest/prin
 [unity-mesh-fracture (pre-baked Voronoi cache)](https://github.com/sinanata/unity-mesh-fracture),
 [How to fix destructible environment performance](https://bugnet.io/blog/how-to-fix-destructible-environment-performance),
 [The Art of Destruction in Rainbow Six: Siege (GDC)](https://gdcvault.com/play/1023003/The-Art-of-Destruction-in).
+
+## Update 2026-10-15: pairs of front doors
+
+Owner: "make it so 15% percent of buildings have double doors as their main front entrance as opposed to them all being single doors". About one
+ordinary building in seven (`BuildingInterior.HasDoubleEntrance`, 15%; not a sealed, roof-top, round or special one, nor one under 6.4 m wide) has a
+2.4 m doorway (`EntranceWidth`) with two 1.2 m leaves (`BuildingDoor.PanelsFor`): the left hinged at the left jamb facing out, the right hinged at
+the right jamb facing IN (a leaf hangs to the +X side of its hinge, so facing in it hangs back toward the middle), a thickness further in so both
+stand in one plane. They are `Partner`s: walking into either, or E on either, opens or shuts both, each swinging away from whoever did it, one
+latch sound for the pair; neither shuts on someone standing in the other's way. A pair restored open stands swung in (`Hang`'s `openFrom`).
+The wall cut, the windows the doorway passes through (`GlassDamage.IsDoorCell`), the canopy, the fins, the lobby's light switch and the
+entrance steps' landing all read the same width. Research: the Level Design Book (doors), Aliens vs. Predator 2's linked door pairs.
+Tests: `EntranceDoorTests`, `BuildingDoorPlayTests.APair...`; `EntranceDoorCapture` renders a pair shut and open.

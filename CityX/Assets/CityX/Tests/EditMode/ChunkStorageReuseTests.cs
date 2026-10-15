@@ -16,7 +16,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class ChunkStorageReuseTests
     {
-        private const int Seed = 61928374;
+        private const int Seed = 47360519;
 
         private CityScale _scaleBefore;
         private readonly List<Object> _made = new List<Object>();

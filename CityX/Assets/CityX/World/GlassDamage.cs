@@ -555,8 +555,8 @@ namespace CityX.World
             }
 
             float centreX = (float)site.CentreX;
-            float doorU0 = centreX - BuildingInterior.DoorWidth * 0.5f;
-            float doorU1 = centreX + BuildingInterior.DoorWidth * 0.5f;
+            float doorU0 = centreX - BuildingInterior.EntranceWidth(site) * 0.5f;
+            float doorU1 = centreX + BuildingInterior.EntranceWidth(site) * 0.5f;
             float cellU0 = (float)site.MinX + column * columns.Size;
             return cellU0 + columns.Size > doorU0 && cellU0 < doorU1;
         }

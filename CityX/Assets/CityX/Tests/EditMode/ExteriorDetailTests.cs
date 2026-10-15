@@ -12,7 +12,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class ExteriorDetailTests
     {
-        private const int Seed = 61928374;
+        private const int Seed = 47360519;
 
         private static CityWorld _world;
         private static CityWorld World => _world ?? (_world = new CityWorld(Seed));
@@ -60,7 +60,7 @@ namespace CityX.Tests
                         continue;
                     }
                     site.WorldToLocal(v.x, v.z, out double lx, out double lz);
-                    found = lz > site.Params.Depth * 0.5 + 0.5 && System.Math.Abs(lx) < BuildingInterior.DoorWidth;
+                    found = lz > site.Params.Depth * 0.5 + 0.5 && System.Math.Abs(lx) < BuildingInterior.EntranceWidth(site) * 0.5 + 0.8;   // a pair of doors has a wider canopy
                 }
                 Assert.IsTrue(found, $"building {site.Id}: the canopy over its door has no underside");
                 canopies++;

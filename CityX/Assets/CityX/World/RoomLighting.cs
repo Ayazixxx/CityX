@@ -403,7 +403,7 @@ namespace CityX.World
                 if (arriving != null) avoid.Add(arriving.Hole);
                 if (flight != null && flight.Enclosed) avoid.Add(Rect.MinMaxRect(flight.Bounds.xMin - BuildingStairs.CoreWall, flight.Bounds.yMin - BuildingStairs.CoreWall, flight.Bounds.xMax + BuildingStairs.CoreWall, flight.Bounds.yMax + BuildingStairs.CoreWall));   // the stairwell lights itself
                 var hall = Rect.MinMaxRect(-halfX + wall, -halfZ + wall, halfX - wall, halfZ - wall);
-                var hallSwitch = new Vector3(BuildingInterior.DoorWidth * 0.5f + SwitchBesideDoor, floorY + SwitchHeight, halfZ - wall - SwitchDepth * 0.5f);
+                var hallSwitch = new Vector3(BuildingInterior.EntranceWidth(site) * 0.5f + SwitchBesideDoor, floorY + SwitchHeight, halfZ - wall - SwitchDepth * 0.5f);
                 plans.Add(Plan(site, floor, 0, hall, avoid, floorY, ceilingY, hallSwitch, Vector3.back));
 
                 if (room.Exists)

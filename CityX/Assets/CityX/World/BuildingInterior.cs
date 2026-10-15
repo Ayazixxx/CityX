@@ -62,6 +62,34 @@ namespace CityX.World
         /// <summary>DOOR_WIDTH.</summary>
         public const float DoorWidth = 1.6f;
 
+        /// <summary>A pair of front doors: two 1.2 m leaves (a real pair of 0.9 m doors at the city's 1.3 times).</summary>
+        public const float DoubleDoorWidth = 2.4f;
+
+        /// <summary>The share of buildings whose front entrance is a pair of doors (owner, 2026-10-15: "15% percent of buildings have double doors").</summary>
+        public const double DoubleEntranceShare = 0.15;
+
+        private const ulong DoubleEntranceSalt = 0x44424C44UL;   // "DBLD"
+
+        /// <summary>
+        /// True when a building's front entrance is a pair of doors rather than one. Only an ordinary building with a street door of its own (not
+        /// a sealed or roof-top block, a round one or a special one with entrances of its own), with front enough either side of the pair.
+        /// Pure: the building's own seed, on a salt of its own.
+        /// </summary>
+        public static bool HasDoubleEntrance(BuildingSite site)
+        {
+            if (!site.Exists || site.Shell || site.OnRoof || site.Params.IsSpecial || site.Sides >= 3 || site.Params.Width < DoubleDoorWidth + 4.0f)
+            {
+                return false;
+            }
+            return WorldHash.Unit01(0, 0, DoubleEntranceSalt, unchecked((ulong)(uint)site.Seed)) < DoubleEntranceShare;
+        }
+
+        /// <summary>How wide a building's front doorway is: one door's, or a pair's.</summary>
+        public static float EntranceWidth(BuildingSite site)
+        {
+            return HasDoubleEntrance(site) ? DoubleDoorWidth : DoorWidth;
+        }
+
         /// <summary>
         /// Slab and wall thickness, city_chunk.gd's WALL_THICKNESS.
         ///

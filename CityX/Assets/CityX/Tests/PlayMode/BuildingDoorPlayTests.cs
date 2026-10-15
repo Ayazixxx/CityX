@@ -307,5 +307,68 @@ namespace CityX.Tests
             Assert.IsTrue(restored.IsOpen);
             Assert.AreEqual(BuildingDoor.OpenAngleDegrees, restored.Angle, 0.01f);
         }
+
+        // ---- a pair of doors (owner, 2026-10-15: double front doors) ----
+
+        /// <summary>
+        /// A pair across a 2.4 m doorway on the wall plane z = 0 facing +Z, 30 m from the single door: the left leaf hinged at its left edge facing
+        /// out, the right one hinged at its right edge facing in (as BuildingDoor.PanelsFor hangs them), linked. Returns both.
+        /// </summary>
+        private BuildingDoor[] Pair(bool startOpen = false)
+        {
+            const float leaf = 1.2f;
+            var origin = new Vector3(30.0f, 0.0f, 0.0f);
+            var left = new GameObject("PairLeft").AddComponent<BuildingDoor>();
+            var right = new GameObject("PairRight").AddComponent<BuildingDoor>();
+            _made.Add(left.gameObject);
+            _made.Add(right.gameObject);
+            Vector3 street = origin + new Vector3(0.0f, 0.0f, 2.0f);
+            left.Hang(new BuildingDoor.Panel(origin + new Vector3(-leaf, 0.0f, 0.0f), leaf, Height, Vector3.forward), null, null, startOpen, street);
+            right.Hang(new BuildingDoor.Panel(origin + new Vector3(leaf, 0.0f, -BuildingDoor.Thickness), leaf, Height, Vector3.back), null, null, startOpen, street);
+            left.Partner = right;
+            right.Partner = left;
+            return new[] { left, right };
+        }
+
+        /// <summary>A leaf's free edge, in world space.</summary>
+        private static Vector3 FreeEndOf(BuildingDoor door, float width) => door.transform.TransformPoint(new Vector3(width, 0.0f, 0.0f));
+
+        [UnityTest]
+        public IEnumerator APairOpensAsOneAwayFromWhoeverWalksIntoIt()
+        {
+            BuildingDoor[] pair = Pair();
+            Assert.Less(Vector3.Distance(FreeEndOf(pair[0], 1.2f), FreeEndOf(pair[1], 1.2f)), 0.1f, "shut, the two leaves meet in the middle");
+
+            // From the street: both swing in.
+            Transform walker = Person(new Vector3(29.6f, 0.0f, 0.6f));
+            Assert.IsTrue(pair[0].Bump(walker, 2.0f), "walking into the left leaf opens it");
+            Assert.IsTrue(pair[1].IsOpen, "and its partner with it");
+            yield return Seconds(1.2f);
+            Assert.Less(FreeEndOf(pair[0], 1.2f).z, -0.8f, "the left leaf swung in, away from the street");
+            Assert.Less(FreeEndOf(pair[1], 1.2f).z, -0.8f, "the right leaf swung in, away from the street");
+
+            // Shut together, then opened from inside: both swing out.
+            Object.Destroy(walker.gameObject);
+            yield return null;
+            Assert.IsTrue(pair[1].Interact(null), "E on the right leaf shuts the pair");
+            yield return Seconds(1.2f);
+            Assert.IsFalse(pair[0].IsOpen);
+            Assert.Less(Vector3.Distance(FreeEndOf(pair[0], 1.2f), FreeEndOf(pair[1], 1.2f)), 0.1f, "shut again, they meet in the middle");
+            Transform inside = Person(new Vector3(30.4f, 0.0f, -0.7f));
+            Assert.IsTrue(pair[1].Bump(inside, 2.0f));
+            yield return Seconds(1.2f);
+            Assert.Greater(FreeEndOf(pair[0], 1.2f).z, 0.8f, "from inside the left leaf swings out");
+            Assert.Greater(FreeEndOf(pair[1], 1.2f).z, 0.8f, "from inside the right leaf swings out");
+        }
+
+        [UnityTest]
+        public IEnumerator APairRestoredOpenStandsSwungIntoTheBuilding()
+        {
+            BuildingDoor[] pair = Pair(startOpen: true);
+            yield return null;
+            Assert.IsTrue(pair[0].IsOpen && pair[1].IsOpen);
+            Assert.Less(FreeEndOf(pair[0], 1.2f).z, -0.8f, "restored open, the left leaf stands swung in");
+            Assert.Less(FreeEndOf(pair[1], 1.2f).z, -0.8f, "restored open, the right leaf stands swung in, not out over the street");
+        }
     }
 }

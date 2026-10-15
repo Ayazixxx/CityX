@@ -370,8 +370,8 @@ namespace CityX.View
 
             // The doorway, centred on the wall at maximum Z -- city_chunk.gd's
             // own door wall -- and standing on the lobby floor.
-            float doorU0 = centreX - BuildingInterior.DoorWidth * 0.5f;
-            float doorU1 = centreX + BuildingInterior.DoorWidth * 0.5f;
+            float doorU0 = centreX - BuildingInterior.EntranceWidth(site) * 0.5f;
+            float doorU1 = centreX + BuildingInterior.EntranceWidth(site) * 0.5f;
             float doorTop = lobbyY + BuildingInterior.DoorHeight(height);
 
             // EXPLICIT ASK: "the windows/entrances should never be cut off
@@ -724,8 +724,8 @@ namespace CityX.View
             WindowPlan plan = WindowPlan.For(world, site);
             CellLayout rows = WindowGrid.RowsFor(height);
             float centreX = (x0 + x1) * 0.5f;
-            float doorU0 = centreX - BuildingInterior.DoorWidth * 0.5f;
-            float doorU1 = centreX + BuildingInterior.DoorWidth * 0.5f;
+            float doorU0 = centreX - BuildingInterior.EntranceWidth(site) * 0.5f;
+            float doorU1 = centreX + BuildingInterior.EntranceWidth(site) * 0.5f;
 
             // The distant glass wears the same tint as the near windows (no blind, one kind of light: a strip is many windows).
             Color32 shellGlass = SurfaceLook.PackGlass(looks.GlassTint, 0, 0.0f);
@@ -843,7 +843,8 @@ namespace CityX.View
         {
             float wallZ = doorThreshold.z;
             float lineZ = wallZ + EntranceStairs.Width * 0.5f;   // the flight's centre line, out from the wall
-            float halfLanding = EntranceStairs.LandingLength * 0.5f;
+            // The landing spans the doorway and a little either side: a pair of doors (BuildingInterior.HasDoubleEntrance) needs a longer one.
+            float halfLanding = Mathf.Max(EntranceStairs.LandingLength, BuildingInterior.EntranceWidth(site) + 0.4f) * 0.5f;
             float Paving(float x, float z)
             {
                 site.LocalToWorld(x, z, out double wx, out double wz);
@@ -991,7 +992,7 @@ namespace CityX.View
             BuildingDecor.RibbedFacade ribbed = BuildingDecor.Ribs(
                 site.Seed,
                 site.Params.Width, site.Params.Depth, site.Params.Height,
-                -BuildingInterior.DoorWidth * 0.5f, BuildingInterior.DoorWidth * 0.5f);
+                -BuildingInterior.EntranceWidth(site) * 0.5f, BuildingInterior.EntranceWidth(site) * 0.5f);
             if (ribbed.Fins.Count == 0)
             {
                 return;
