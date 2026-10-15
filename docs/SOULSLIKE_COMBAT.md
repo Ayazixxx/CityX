@@ -226,3 +226,14 @@ Grips; a one-handed sword saves its own hold, `WeaponGripSettings.OneHand*`).
 * Windows and numbers are from the research; *feel* (how long the wind-up should
   be, how big the heavy's stagger is, whether 0.2s is the right parry window for
   this game's ping) can only be judged by playing it, against another player.
+
+## Update 2026-10-14: the head over a greatsword
+
+Owner, with a screenshot of the greatsword held up and the face tipped to the sky: "why is he looking upward. make him looking straight like the
+idle position ... make sure the head isnt too far forward or backward once rotating it ... use the idle head positioning as a guide". The sword's
+standing clip (`2hsw_idle`, Mixamo) tipped the neck 23 degrees back (idle: 3 forward) and the face 56 degrees up (idle: 11, the rig's straight
+ahead), carrying the head 13 cm behind the hips (idle: 2 cm ahead). `PlayerLocomotion.ApplySwordHeadCarriage` (after `ApplyHeadForward`, in the
+sword gait) sets the neck and then the face to the idle's own carriage (`IdleNeckLeanDegrees`, `IdleFacePitchDegrees`), eased in and out; a cut
+still turns the torso and the head with it. Measured after: face 11.0, neck 3.0, head 1.7 cm ahead. `SwordIdleHeadPlayTests` holds it within 5
+degrees, 6 degrees and 6 cm of the idle (measured live, so a changed idle clip shows); `SwordIdleHeadCapture` (Explicit, -Graphics) renders both
+side by side.

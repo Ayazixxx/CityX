@@ -151,6 +151,7 @@ namespace CityX.Character
         private Transform _rightUpperArm;
         private Transform _leftUpperArm;
         private Transform _head;
+        private Transform _neck;
         private Transform _rightLowerArm;
         private Transform _leftLowerArm;
         private Transform _leftUpperLeg;
@@ -1369,6 +1370,7 @@ namespace CityX.Character
             _rightUpperArm = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.RightUpperArm) : null;
             _leftUpperArm = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.LeftUpperArm) : null;
             _head = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.Head) : null;
+            _neck = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.Neck) : null;
             _rightLowerArm = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.RightLowerArm) : null;
             _leftLowerArm = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.LeftLowerArm) : null;
             _leftUpperLeg = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.LeftUpperLeg) : null;
@@ -1516,6 +1518,7 @@ namespace CityX.Character
             // only touches the upper body. See PlayerLocomotion.FootIK.cs.
             ApplyFootIK();
             ApplyHeadForward();
+            ApplySwordHeadCarriage();
             // Thrown by a blow (HitReactions): the spine and head, before the arm poses are solved from the thrown shoulders.
             ApplyFlinchPose();
             ApplyDrivingWheelPose();

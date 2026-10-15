@@ -196,6 +196,19 @@ namespace CityX.Character
         }
 
         private float _headForwardBlend;
+        private float _swordHeadBlend;
+
+        /// <summary>
+        /// THE HEAD OVER A SWORD (owner, 2026-10-14, a screenshot of the greatsword held up and the face tipped to the sky: "why is he looking
+        /// upward. make him looking straight like the idle position ... make sure the head isnt too far forward or backward once rotating it
+        /// ... use the idle head positioning as a guide that one is fine"). The sword's standing clip (2hsw_idle, Mixamo) tips the neck back
+        /// about 27 degrees and the face up about 45 more than the idle does, which also carries the head 15 cm back over the hips. The idle's
+        /// own carriage, measured from it (SwordIdleHeadPlayTests): the neck this far forward of upright ...
+        /// </summary>
+        public const float IdleNeckLeanDegrees = 3.0f;
+
+        /// <summary>... and the head bone's forward this far above the level (the rig's face looks straight ahead with its bone tipped so).</summary>
+        public const float IdleFacePitchDegrees = 11.0f;
 
         /// <summary>How quickly the steady head fades in and out, per second.</summary>
         public const float HeadForwardBlendPerSecond = 6.0f;
@@ -243,6 +256,43 @@ namespace CityX.Character
         }
 
         /// <summary>How far the leading foot turns toward the travel: a share of the angle between its toes and the heading, scaled by how sideways the travel is.</summary>
+        /// <summary>
+        /// Standing or walking with a sword, the neck and the head are carried as at idle (<see cref="IdleNeckLeanDegrees"/>,
+        /// <see cref="IdleFacePitchDegrees"/>), in the body's own frame: the neck first, so the head sits over the shoulders where it does at idle,
+        /// then the face, keeping the heading ApplyHeadForward gave it. Eased in and out like it. A cut (ApplySwordPose, after this) still turns
+        /// the torso, and the head goes with it.
+        /// </summary>
+        private void ApplySwordHeadCarriage()
+        {
+            if (_head == null || _neck == null || _animator == null)
+            {
+                return;
+            }
+            bool swordGait = _animator.runtimeAnimatorController != null && _animator.GetCurrentAnimatorStateInfo(0).IsName("SwordLocomotion");
+            bool wanted = swordGait && !IsSitting && !InCarSeat && _climbWallWeight <= 0.01f && _ledgeHandsWeight <= 0.01f && _bakedPoseWeight <= 0.0f;
+            _swordHeadBlend = Mathf.MoveTowards(_swordHeadBlend, wanted ? 1.0f : 0.0f, HeadForwardBlendPerSecond * Time.deltaTime);
+            if (_swordHeadBlend <= 0.0f)
+            {
+                return;
+            }
+            float w = Mathf.SmoothStep(0.0f, 1.0f, _swordHeadBlend);
+            Quaternion body = Quaternion.Euler(0.0f, transform.eulerAngles.y, 0.0f);
+
+            // The neck: its line, from the neck joint to the head's centre, stood up to the idle's lean.
+            Vector3 line = _head.position - _neck.position;
+            if (line.sqrMagnitude > 1e-8f)
+            {
+                Vector3 upright = body * (Quaternion.AngleAxis(IdleNeckLeanDegrees, Vector3.right) * Vector3.up);
+                _neck.rotation = Quaternion.Slerp(Quaternion.identity, Quaternion.FromToRotation(line, upright), w) * _neck.rotation;
+            }
+
+            // The face: tipped to the idle's own angle, keeping its heading.
+            Vector3 face = Quaternion.Inverse(body) * _head.forward;
+            float heading = Mathf.Atan2(face.x, face.z) * Mathf.Rad2Deg;
+            Vector3 level = body * (Quaternion.Euler(-IdleFacePitchDegrees, heading, 0.0f) * Vector3.forward);
+            _head.rotation = Quaternion.Slerp(Quaternion.identity, Quaternion.FromToRotation(_head.forward, level), w) * _head.rotation;
+        }
+
         private static float LeadYaw(Transform foot, Vector3 heading, float side)
         {
             Vector3 toes = foot.forward;
