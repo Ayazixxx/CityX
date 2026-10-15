@@ -81,3 +81,16 @@ rebuilding.
 
 None of this has been flown by a person yet. The tests prove the numbers and
 the camera wiring; whether it FEELS right is what `/flight` is for.
+
+## Update 2026-10-15: subtler speed lines
+
+Owner: "make the lines that appear when flying through the sky ... a little more subtle. research how other games do it". What the research found:
+games keep speed lines at the screen's edges and the middle clear, at low opacity, and only when really fast (a kart game's radial shader
+fades them out toward the centre; Spider-Man sells speed mostly with things whipping past rather than streaks).
+
+- Fewer: 40 streaks a second at full speed (70 before), none below 40% of the speed range (25% before).
+- Kept to the edges: the ring they appear in starts 4.5 m off the line of sight (3.5 before).
+- Thinner (0.02 m, 0.03 before), shorter (velocity scale 0.04, 0.05 before) and fainter: alpha 0.25 at the ring's outer edge (0.5 before),
+  a third of that at its inner edge, so the ones nearest the middle are the faintest (`JetpackSpeedLines.AlphaAt`).
+- Still tunable live: `/flight streaks <n>`. Test: `FlightFeelTests.TheSpeedLinesAreFewFaintAndKeptToTheEdges`; `SpeedLinesCapture` (Explicit,
+  -Graphics) renders `speed-lines-full.png` and `speed-lines-three-quarters.png`.

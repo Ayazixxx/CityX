@@ -180,5 +180,22 @@ namespace CityX.Tests
             Assert.AreEqual(2.0f, _camera.FlightDistanceBonus);
             Assert.AreEqual(10.0f, _camera.FlightFovBonus);
         }
+
+        /// <summary>
+        /// THE SPEED LINES ARE SUBTLE (owner, 2026-10-15: "make the lines ... a little more subtle. research how other games to it"): few, only at
+        /// real speed, at the screen's edges with the middle clear, thin and faint -- faintest nearest the middle.
+        /// </summary>
+        [Test]
+        public void TheSpeedLinesAreFewFaintAndKeptToTheEdges()
+        {
+            Assert.LessOrEqual(FlightFeel.MaxStreaksPerSecond, 45.0f, "too many streaks at full speed");
+            Assert.AreEqual(0.0f, FlightFeel.StreakRate(0.4f), "streaks at an ordinary flying speed");
+            Assert.Less(FlightFeel.StreakRate(0.75f), FlightFeel.MaxStreaksPerSecond * 0.4f, "they should build up only near full speed");
+            Assert.GreaterOrEqual(CityX.Weapons.JetpackSpeedLines.MinRing, 4.5f, "the middle of the screen should stay clear");
+            Assert.LessOrEqual(CityX.Weapons.JetpackSpeedLines.MaxAlpha, 0.26f, "too bright");
+            Assert.LessOrEqual(CityX.Weapons.JetpackSpeedLines.StreakWidth, 0.021f, "too thick");
+            Assert.Less(CityX.Weapons.JetpackSpeedLines.AlphaAt(CityX.Weapons.JetpackSpeedLines.MinRing),
+                CityX.Weapons.JetpackSpeedLines.AlphaAt(CityX.Weapons.JetpackSpeedLines.MaxRing) * 0.5f, "the inner streaks should be the faintest");
+        }
     }
 }

@@ -21,11 +21,31 @@ namespace CityX.Weapons
         public const float MinAhead = 7.0f;
         public const float MaxAhead = 16.0f;
 
-        /// <summary>How far from the line of sight, metres: a ring, so the middle of the screen stays clear.</summary>
-        public const float MinRing = 3.5f;
-        public const float MaxRing = 9.0f;
+        /// <summary>
+        /// How far from the line of sight, metres: a ring, so the middle of the screen stays clear. Pushed out to the screen's edges and the streaks
+        /// thinner, shorter and fainter (owner, 2026-10-15: "make the lines ... a little more subtle"; other games keep them to the edges).
+        /// </summary>
+        public const float MinRing = 4.5f;
+        public const float MaxRing = 10.0f;
 
         public const float StreakSeconds = 0.4f;
+
+        /// <summary>A streak's width, metres (0.03 before 2026-10-15).</summary>
+        public const float StreakWidth = 0.02f;
+
+        /// <summary>The most a streak shows, at the outer edge of the ring (0.5 before 2026-10-15); nearer the middle of the screen it is fainter.</summary>
+        public const float MaxAlpha = 0.25f;
+
+        /// <summary>A streak's alpha at the inner edge of the ring, as a share of <see cref="MaxAlpha"/>.</summary>
+        public const float InnerAlphaShare = 0.35f;
+
+        public static readonly Color StreakColour = new Color(0.85f, 0.92f, 1.0f);
+
+        /// <summary>A streak's alpha <paramref name="ring"/> metres from the line of sight: fainter toward the middle of the screen.</summary>
+        public static float AlphaAt(float ring)
+        {
+            return MaxAlpha * Mathf.Lerp(InnerAlphaShare, 1.0f, Mathf.InverseLerp(MinRing, MaxRing, ring));
+        }
 
         private ParticleSystem _particles;
         private Material _material;
@@ -52,8 +72,8 @@ namespace CityX.Weapons
             main.maxParticles = 160;
             main.startLifetime = StreakSeconds;
             main.startSpeed = 0.0f;
-            main.startSize = 0.03f;
-            main.startColor = new Color(0.85f, 0.92f, 1.0f, 0.5f);
+            main.startSize = StreakWidth;
+            main.startColor = new Color(StreakColour.r, StreakColour.g, StreakColour.b, MaxAlpha);
             main.gravityModifier = 0.0f;
             main.simulationSpace = ParticleSystemSimulationSpace.World;
 
@@ -74,7 +94,7 @@ namespace CityX.Weapons
             var renderer = GetComponent<ParticleSystemRenderer>();
             renderer.renderMode = ParticleSystemRenderMode.Stretch;
             renderer.lengthScale = 1.0f;
-            renderer.velocityScale = 0.05f;
+            renderer.velocityScale = 0.04f;   // shorter streaks (0.05 before 2026-10-15)
             renderer.shadowCastingMode = ShadowCastingMode.Off;
             renderer.receiveShadows = false;
             _material = MakeMaterial();
@@ -131,6 +151,8 @@ namespace CityX.Weapons
                     position = position,
                     // Opposite to travel, so they rush back past the flyer.
                     velocity = -travel * (speed * 0.9f),
+                    // Fainter the nearer the middle of the screen.
+                    startColor = new Color(StreakColour.r, StreakColour.g, StreakColour.b, AlphaAt(ring)),
                 }, 1);
             }
         }

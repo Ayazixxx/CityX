@@ -51,8 +51,14 @@ namespace CityX.Weapons
         /// <summary>Seconds the camera takes to settle toward where the speed says it should be: the spring.</summary>
         public static float SmoothSeconds = 0.3f;
 
-        /// <summary>Streaks of rushing air, per second, at full speed. 0 turns them off.</summary>
-        public static float MaxStreaksPerSecond = 70.0f;
+        /// <summary>
+        /// Streaks of rushing air, per second, at full speed. 0 turns them off. 40, down from 70 (owner, 2026-10-15: "make the lines ... a little
+        /// more subtle"): other games keep speed lines to a few faint streaks at the screen's edges, the middle clear (docs/FLIGHT.md).
+        /// </summary>
+        public static float MaxStreaksPerSecond = 40.0f;
+
+        /// <summary>The share of the speed range below which there are no streaks at all (0.25 before 2026-10-15).</summary>
+        public const float StreakStartFraction = 0.4f;
 
         /// <summary>Speed as 0..1: nothing below StartSpeed, full at FullSpeed, eased between so it does not switch on.</summary>
         public static float SpeedFraction(float speed)
@@ -91,10 +97,10 @@ namespace CityX.Weapons
             return Mathf.Lerp(0.85f, 1.2f, speedFraction);
         }
 
-        /// <summary>Streaks per second: none until the speed is clearly high, then rising quickly.</summary>
+        /// <summary>Streaks per second: none below <see cref="StreakStartFraction"/> of the speed range (only really fast flight shows them), then rising.</summary>
         public static float StreakRate(float speedFraction)
         {
-            float t = Mathf.Clamp01((speedFraction - 0.25f) / 0.75f);
+            float t = Mathf.Clamp01((speedFraction - StreakStartFraction) / (1.0f - StreakStartFraction));
             return MaxStreaksPerSecond * t * t;
         }
     }
