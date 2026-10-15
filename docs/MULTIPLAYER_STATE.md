@@ -35,6 +35,7 @@ A joining player's body now has an `Inventory` with the item prefabs (it had non
 - **Ragdoll / knockdown / stand-up**: a throw (a combo finisher, Self Smite's burst) on another player's copy is sent to their own body (2026-10-15, `IRemoteDamageRelay.TryRelayKnockdown`), so the victim falls on their own machine, and the copy on the attacker's machine falls too; other players see the body's transform but not the limp pose.
 - **Parachute canopy open/closed**, **grapple rope**, **bottle throw projectile**, **vehicles**, **sitting on benches**, **doors**.
 - Death is shown as health 0 only.
+- **NPCs** (civilians, the flyer, the Crimson Claw, the Shoota): each exists only on the machine that spawned it. The Shoota only ever targets that machine's own player for that reason (docs/SHOOTA.md).
 
 ## Adding a new held item
 

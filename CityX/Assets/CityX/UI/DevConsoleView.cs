@@ -64,6 +64,9 @@ namespace CityX.UI
         [Tooltip("What /spawn crimsonclaw puts down -- a hostile hovering claw monster.")]
         public GameObject CrimsonClawPrefab;
 
+        [Tooltip("What /spawn shoota puts down -- a white player-model NPC with an AK-47 who shoots on sight and takes cover.")]
+        public GameObject ShootaPrefab;
+
         [Tooltip("What /spawn radio puts down.")]
         public GameObject RadioPrefab;
 
@@ -115,6 +118,9 @@ namespace CityX.UI
 
         /// <summary>How far in front of the player something spawns.</summary>
         public const float SpawnDistance = 3.0f;
+
+        /// <summary>How far ahead /spawn shoota puts him: far enough to see him turn and raise the rifle.</summary>
+        public const float ShootaSpawnDistance = 14.0f;
 
         private readonly List<string> _lines = new List<string>();
         private Shader _litShader;
@@ -856,6 +862,17 @@ namespace CityX.UI
                     // ground-relative height the moment it ticks.
                     Instantiate(CrimsonClawPrefab, where + Vector3.up * 3.0f, facing);
                     Log("spawned a crimson claw -- it will chase and attack you");
+                    return;
+
+                case "shoota":
+                    if (ShootaPrefab == null)
+                    {
+                        Log("no shoota prefab wired");
+                        return;
+                    }
+                    // Further off than the rest: he opens fire the moment he sees you, so you get a moment to react.
+                    Instantiate(ShootaPrefab, origin.position + origin.forward * ShootaSpawnDistance, facing);
+                    Log("spawned a Shoota -- he shoots on sight, takes cover when hurt or reloading");
                     return;
 
                 case "radio":

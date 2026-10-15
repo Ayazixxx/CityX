@@ -93,6 +93,11 @@ namespace CityX.Tests
         public IEnumerator RenderSelfSmite()
         {
 #if UNITY_EDITOR
+            // Rendering with no graphics device crashes Unity outright (a regex filter runs Explicit captures too): needs -Graphics.
+            if (SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null)
+            {
+                Assert.Ignore("needs a graphics device: run with -Graphics");
+            }
             LogAssert.ignoreFailingMessages = true;
             Time.captureFramerate = 60;
             _directory = Path.Combine(Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");

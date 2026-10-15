@@ -162,7 +162,7 @@ namespace CityX.UI
                 case "skills": return "/skills -- what is learnt, the points and the bar; /skills points <n> gives skill points; " +
                     "/skills reset forgets everything but vaulting and gives the points back; /skills all learns everything; " +
                     "/skills new is a brand new character's (vaulting and one point)";
-                case "spawn": return "/spawn <dummy|civilian|flyer|crimsonclaw|radio|bottle|jeans|cloak|coat|jacket|" +
+                case "spawn": return "/spawn <dummy|civilian|flyer|crimsonclaw|shoota|radio|bottle|jeans|cloak|coat|jacket|" +
                     "grapple|pistol|sword|flamethrower|jetpack|parachute|top_hat|farmer_hat|mustang|book>";
                 case "car": return "/car pose -- logs the nearest car's seat positions (drag them in the Editor to nudge)";
                 case "celshade": return "/celshade -- toggles toon shading on every character skin";

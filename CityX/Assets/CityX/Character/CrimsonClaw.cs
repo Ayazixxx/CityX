@@ -247,7 +247,18 @@ namespace CityX.Character
         /// </summary>
         private PlayerVitals FindNearestPlayer()
         {
-            PlayerVitals player = Object.FindFirstObjectByType<PlayerVitals>();
+            // The player's body is the one with a working input reader: since the Shoota (2026-10-15) wears the player's body too, the first
+            // PlayerVitals found could be him.
+            PlayerVitals player = null;
+            PlayerInputReader reader = Object.FindFirstObjectByType<PlayerInputReader>();
+            if (reader != null && reader.isActiveAndEnabled)
+            {
+                player = reader.GetComponent<PlayerVitals>();
+            }
+            if (player == null)
+            {
+                player = Object.FindFirstObjectByType<PlayerVitals>();
+            }
             if (player == null || !player.IsAlive)
             {
                 return null;

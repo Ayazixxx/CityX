@@ -269,6 +269,10 @@ namespace CityX.ViewEditor
             // --- like Civilian.prefab/FlyingNpc.prefab, only ever spawned
             // --- deliberately, via /spawn crimsonclaw.
             CityX.CharacterEditor.CrimsonClawBuilder.Build();
+
+            // --- the Shoota (2026-10-15): the player's own body, white, with the AK-47 and a mind of its own. After the player rig and the AK-47,
+            // --- which it is made of; spawned only by /spawn shoota.
+            CityX.WeaponsEditor.ShootaBuilder.Build();
             if (playerPrefab != null)
             {
                 GameObject player = (GameObject)PrefabUtility.InstantiatePrefab(playerPrefab);

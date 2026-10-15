@@ -8,18 +8,6 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
-    - target: {fileID: 1527691548654838634, guid: c573dea59fa2558478b70344c659896a, type: 3}
-      propertyPath: m_Controller
-      value: 
-      objectReference: {fileID: 9100000, guid: c0808131d916ea540becd941709dc711, type: 2}
-    - target: {fileID: 6850277564297992118, guid: c573dea59fa2558478b70344c659896a, type: 3}
-      propertyPath: 'BloodrageClips.Array.data[0]'
-      value: 
-      objectReference: {fileID: 0}
-    - target: {fileID: 6850277564297992118, guid: c573dea59fa2558478b70344c659896a, type: 3}
-      propertyPath: 'BloodrageClips.Array.data[1]'
-      value: 
-      objectReference: {fileID: 0}
     - target: {fileID: 8175725407627863874, guid: c573dea59fa2558478b70344c659896a, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
@@ -121,7 +109,7 @@ PrefabInstance:
       addedObject: {fileID: 8243129109476981106}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 1928953784081877395}
+      addedObject: {fileID: 6949309701567569672}
   m_SourcePrefab: {fileID: 100100000, guid: c573dea59fa2558478b70344c659896a, type: 3}
 --- !u!1 &5771231832799346164 stripped
 GameObject:
@@ -609,7 +597,7 @@ MonoBehaviour:
   StrikeSound: {fileID: 8300000, guid: f739da78e91ef5e48a93a3a2014bbb1a, type: 3}
   LightMaterial: {fileID: 2100000, guid: 1d309feaf5d69004cbc4800b421ca350, type: 2}
   CooldownSeconds: 5
---- !u!114 &1928953784081877395
+--- !u!114 &6949309701567569672
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
