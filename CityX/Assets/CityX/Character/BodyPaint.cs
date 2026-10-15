@@ -56,6 +56,34 @@ namespace CityX.Character
 
         private Dictionary<Vector3Int, List<int>> _texelGrid;
 
+        /// <summary>
+        /// A texel map (<see cref="EnsureTexelMap"/>) and its bucket index, for one surface. Read-only once built, so every brush on that surface
+        /// can share it.
+        /// </summary>
+        private sealed class TexelMap
+        {
+            public ulong Key;
+            public TexelPoint[] Points;
+            public Dictionary<Vector3Int, List<int>> Grid;
+            public int[] FirstPoint;
+            public int[] NextPoint;
+        }
+
+        /// <summary>
+        /// THE TEXEL MAP IS SHARED (2026-10-15). It is the biggest thing the game builds -- a point for every texel and then some, near 100 MB
+        /// on the way -- and it depends only on the surface bound, which is the same posed body in every character creator. The title screen
+        /// built it afresh on every visit, and a test run that loads the title screen dozens of times ran out of memory doing it. Held weakly:
+        /// while any brush still uses it, the next brush on the same surface takes it over; once none does, the collector may have it back.
+        /// </summary>
+        private static readonly object SharedLock = new object();
+
+        private static System.WeakReference<TexelMap> s_shared;
+
+        private TexelMap _map;
+
+        /// <summary>How many texel maps have been built (not taken over) since the game started. For the tests.</summary>
+        public static int TexelMapsBuilt { get; private set; }
+
         public BodyPaint(Color fill)
         {
             Atlas = new Texture2D(PaintAtlas.Width, PaintAtlas.Height, TextureFormat.RGBA32, false)
@@ -144,6 +172,7 @@ namespace CityX.Character
             Soup(mesh, out _positions, out _uvs);
             _bodyTriangles = _positions.Length / 3;
             _texelGrid = null;
+            _map = null;
         }
 
         /// <summary>
@@ -202,6 +231,7 @@ namespace CityX.Character
             _positions = positions;
             _uvs = uvs;
             _texelGrid = null;
+            _map = null;
         }
 
         /// <summary>
@@ -381,6 +411,19 @@ namespace CityX.Character
             {
                 return;
             }
+            ulong key = SurfaceKey(_positions, _uvs);
+            lock (SharedLock)
+            {
+                if (s_shared != null && s_shared.TryGetTarget(out TexelMap shared) && shared.Key == key)
+                {
+                    _map = shared;
+                    _texelPoints = shared.Points;
+                    _texelGrid = shared.Grid;
+                    _texelFirstPoint = shared.FirstPoint;
+                    _texelNextPoint = shared.NextPoint;
+                    return;
+                }
+            }
             _texelFirstPoint = null;   // the bucket's index of these points is rebuilt from them (EnsureTexelIndex)
             _texelNextPoint = null;
             int width = PaintAtlas.Width;
@@ -482,6 +525,33 @@ namespace CityX.Character
             }
             _texelPoints = points.ToArray();
             _texelGrid = grid;
+            _map = new TexelMap { Key = key, Points = _texelPoints, Grid = _texelGrid };
+            lock (SharedLock)
+            {
+                s_shared = new System.WeakReference<TexelMap>(_map);
+                TexelMapsBuilt++;
+            }
+        }
+
+        /// <summary>A fingerprint of a bound surface (every corner's position and UV), so a texel map is only ever shared by the same surface.</summary>
+        private static ulong SurfaceKey(Vector3[] positions, Vector2[] uvs)
+        {
+            const ulong prime = 1099511628211UL;
+            ulong h = 14695981039346656037UL;
+            h = (h ^ (ulong)positions.Length) * prime;
+            h = (h ^ (ulong)uvs.Length) * prime;
+            for (int i = 0; i < positions.Length; i++)
+            {
+                h = (h ^ (uint)System.BitConverter.SingleToInt32Bits(positions[i].x)) * prime;
+                h = (h ^ (uint)System.BitConverter.SingleToInt32Bits(positions[i].y)) * prime;
+                h = (h ^ (uint)System.BitConverter.SingleToInt32Bits(positions[i].z)) * prime;
+            }
+            for (int i = 0; i < uvs.Length; i++)
+            {
+                h = (h ^ (uint)System.BitConverter.SingleToInt32Bits(uvs[i].x)) * prime;
+                h = (h ^ (uint)System.BitConverter.SingleToInt32Bits(uvs[i].y)) * prime;
+            }
+            return h;
         }
 
         private static readonly int[] NeighbourX = { 1, -1, 0, 0, 1, 1, -1, -1 };
@@ -662,6 +732,13 @@ namespace CityX.Character
             {
                 return;
             }
+            if (_map != null && _map.FirstPoint != null && ReferenceEquals(_map.Points, _texelPoints))
+            {
+                // Another brush on this surface built it already.
+                _texelFirstPoint = _map.FirstPoint;
+                _texelNextPoint = _map.NextPoint;
+                return;
+            }
             _texelFirstPoint = new int[PaintAtlas.Width * PaintAtlas.Height];
             for (int i = 0; i < _texelFirstPoint.Length; i++)
             {
@@ -673,6 +750,12 @@ namespace CityX.Character
                 int texel = _texelPoints[p].Texel;
                 _texelNextPoint[p] = _texelFirstPoint[texel];
                 _texelFirstPoint[texel] = p;
+            }
+            if (_map != null && ReferenceEquals(_map.Points, _texelPoints))
+            {
+                // Shared with the map's other brushes, like the map itself.
+                _map.FirstPoint = _texelFirstPoint;
+                _map.NextPoint = _texelNextPoint;
             }
         }
 

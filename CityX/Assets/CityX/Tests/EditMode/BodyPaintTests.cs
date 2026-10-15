@@ -102,6 +102,43 @@ namespace CityX.Tests
         private static readonly Vector3 Middle = new Vector3(Side * 0.5f, Side * 0.5f, 0.0f);
 
         [Test]
+        public void TwoBrushesOnTheSameBodyShareOneTexelMapAndKeepTheirOwnPaint()
+        {
+            // The texel map is the biggest thing the game builds, and every character creator binds the same body: the title screen built a new
+            // one on every visit until a test run that loads it dozens of times ran out of memory (2026-10-15). The second brush on the same
+            // surface takes the first one's map over; each keeps its own paint.
+            BodyPaint first = BuildStretchedSquare();
+            first.PrepareBrush();
+            int built = BodyPaint.TexelMapsBuilt;
+            BodyPaint second = BuildStretchedSquare();
+            second.PrepareBrush();
+            Assert.AreEqual(built, BodyPaint.TexelMapsBuilt, "the second brush on the same surface built a map of its own");
+
+            second.PaintAt(Middle, 0, Color.black, 6);
+            PaintedSize(second, out float width, out _);
+            Assert.Greater(width, 0.0f, "the second brush does not paint with the map it took over");
+            first.Apply();
+            foreach (Color32 c in first.Atlas.GetPixels32())
+            {
+                Assert.IsTrue(c.r == 255 && c.g == 255 && c.b == 255, "painting with one brush painted the other's body too");
+            }
+
+            // The bucket's index is built by whichever brush fills first and shared with the other.
+            first.BucketFillAt(Middle, 0, Color.red);
+            second.BucketFillAt(Middle, 0, Color.blue);
+            first.Apply();
+            second.Apply();
+            Color32 a = first.Atlas.GetPixel(Mathf.RoundToInt(PaintAtlas.Width * 0.5f), Mathf.RoundToInt(PaintAtlas.Height * (UvLow.y + UvHigh.y) * 0.5f));
+            Color32 b = second.Atlas.GetPixel(Mathf.RoundToInt(PaintAtlas.Width * 0.5f), Mathf.RoundToInt(PaintAtlas.Height * (UvLow.y + UvHigh.y) * 0.5f));
+            Assert.AreEqual(255, a.r, "the first brush's fill did not take");
+            Assert.AreEqual(255, b.b, "the second brush's fill did not take");
+
+            BodyPaint other = BuildStretchedSquare(withBack: true);
+            other.PrepareBrush();
+            Assert.AreEqual(built + 1, BodyPaint.TexelMapsBuilt, "a different surface did not get a map of its own");
+        }
+
+        [Test]
         public void AStampIsRoundOnTheBodyHoweverStretchedTheAtlasIs()
         {
             BodyPaint paint = BuildStretchedSquare();
