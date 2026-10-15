@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using FishNet.Object;
 using UnityEngine;
 
 namespace CityX.Character
@@ -60,6 +61,7 @@ namespace CityX.Character
 
         private PlayerLocomotion _locomotion;
         private PlayerVitals _vitals;
+        private NetworkObject _networkObject;
         private MeleeAttacker _melee;
         private Ragdoll _ragdoll;
         private Animator _animator;
@@ -75,6 +77,7 @@ namespace CityX.Character
         {
             _locomotion = GetComponent<PlayerLocomotion>();
             _vitals = GetComponent<PlayerVitals>();
+            _networkObject = GetComponent<NetworkObject>();
             _melee = GetComponent<MeleeAttacker>();
             _ragdoll = GetComponent<Ragdoll>();
             _animator = GetComponentInChildren<Animator>();
@@ -307,11 +310,25 @@ namespace CityX.Character
                 return null;
             }
             IDamageable target = collider.GetComponentInParent<IDamageable>();
-            if (target == null || !target.IsAlive || ReferenceEquals(target, _vitals))
+            if (target == null || !target.IsAlive || ReferenceEquals(target, _vitals) || IsAnotherCopyOfTheCaster(target))
             {
                 return null;
             }
             return target;
+        }
+
+        /// <summary>
+        /// Another machine's copy of the caster's own body: never a target. Only ever in one scene in tests, where a server and its clients share
+        /// it -- and there, throwing that copy sent the throw through its relay to the caster's own body, which fell out of its own spell.
+        /// </summary>
+        private bool IsAnotherCopyOfTheCaster(IDamageable target)
+        {
+            if (_networkObject == null || !_networkObject.IsSpawned || !(target is Component component))
+            {
+                return false;
+            }
+            var other = component.GetComponent<NetworkObject>();
+            return other != null && other.IsSpawned && other.ObjectId == _networkObject.ObjectId;
         }
 
         private HitResponse Hurt(IDamageable target, float baseDamage, Vector3 from, float hitstun)

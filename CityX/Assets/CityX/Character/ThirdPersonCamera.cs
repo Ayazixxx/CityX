@@ -199,6 +199,10 @@ namespace CityX.Character
         private float _pitch = 12.0f;
         private PlayerLocomotion _player;
         private Camera _camera;
+        private float _restNearClip;
+
+        /// <summary>How many times its own size the followed body is (Grow and Shrink scale its transform); 1 for anything else.</summary>
+        private float BodyScale => Target != null ? Mathf.Clamp(Target.lossyScale.y, 0.01f, 100.0f) : 1.0f;
         private float _restFieldOfView;
         private float _currentShoulderOffset;
 
@@ -326,6 +330,7 @@ namespace CityX.Character
             if (_camera != null)
             {
                 _restFieldOfView = _camera.fieldOfView;
+                _restNearClip = _camera.nearClipPlane;
             }
             _currentShoulderOffset = ShoulderOffset;
             Cursor.lockState = CursorLockMode.Locked;
@@ -513,7 +518,7 @@ namespace CityX.Character
                 return;
             }
 
-            float height = _player != null ? _player.StandingHeight : 1.8f;
+            float height = (_player != null ? _player.StandingHeight : 1.8f) * BodyScale;
             Vector3 eye = Target.position + Vector3.up * (height * PivotHeightFraction);
             Vector3 aim = AimPoint(LockedTarget);
 
@@ -557,6 +562,18 @@ namespace CityX.Character
             bool followingRagdoll = Ragdoll != null && Ragdoll.IsLimp && Ragdoll.Torso != null;
             _aimCameraBlend = Mathf.MoveTowards(_aimCameraBlend, IsAiming && !followingRagdoll ? 1.0f : 0.0f, AimCameraBlendPerSecond * Time.deltaTime);
 
+            // GROW AND SHRINK (BodySizeAbility): every distance of the shot is the body's, so a giant is framed as anyone is, from ten times as
+            // far, and a tiny body from close in. Its near plane comes in with a tiny body, so a wall it walks along is not cut open.
+            float scale = BodyScale;
+            if (_camera != null && _restNearClip > 0.0f)
+            {
+                float near = _restNearClip * Mathf.Clamp(scale, 0.2f, 1.0f);
+                if (!Mathf.Approximately(_camera.nearClipPlane, near))
+                {
+                    _camera.nearClipPlane = near;
+                }
+            }
+
             Vector3 pivot;
             if (followingRagdoll)
             {
@@ -567,14 +584,14 @@ namespace CityX.Character
                 // .transform.position for the identical reason). A camera
                 // reacting to where the body visually is should never wait
                 // on a physics sync it has no other reason to depend on.
-                pivot = Ragdoll.Torso.transform.position + Vector3.up * RagdollPivotHeight;
+                pivot = Ragdoll.Torso.transform.position + Vector3.up * (RagdollPivotHeight * scale);
             }
             else
             {
-                float height = _player != null ? _player.StandingHeight : 1.8f;
+                float height = (_player != null ? _player.StandingHeight : 1.8f) * scale;
                 pivot = Target.position + Vector3.up * (height * PivotHeightFraction);
                 // Aiming: a little higher, over the shoulder, and closer (below): eased over a quarter of a second, an S-curve.
-                pivot += Vector3.up * (AimPivotRaise * AimCameraBlend);
+                pivot += Vector3.up * (AimPivotRaise * AimCameraBlend * scale);
             }
 
             // The recoil kick and roll jolt ride on top of where you are
@@ -593,8 +610,8 @@ namespace CityX.Character
                 AimShoulderOffsetMetresPerSecond * Time.deltaTime);
             _currentShoulderSide = Mathf.MoveTowards(
                 _currentShoulderSide, _shoulderSide, ShoulderSwapPerSecond * Time.deltaTime);
-            Vector3 shoulderPivot = pivot + rotation * Vector3.right * (_currentShoulderOffset * _currentShoulderSide);
-            float distance = Mathf.Lerp(Distance + FlightDistanceBonus, AimDistance, AimCameraBlend);
+            Vector3 shoulderPivot = pivot + rotation * Vector3.right * (_currentShoulderOffset * _currentShoulderSide * scale);
+            float distance = Mathf.Lerp(Distance + FlightDistanceBonus, AimDistance, AimCameraBlend) * scale;
             Vector3 wanted = shoulderPivot - rotation * Vector3.forward * distance;
 
             // Pull in if a wall is in the way. The sphere radius keeps the near
@@ -613,7 +630,7 @@ namespace CityX.Character
             float wantedDistance = Vector3.Distance(pivot, wanted);
             Vector3 direction = (wanted - pivot).normalized;
             RaycastHit[] hits = Physics.SphereCastAll(
-                pivot, 0.25f, direction, wantedDistance, CollisionLayers, QueryTriggerInteraction.Ignore);
+                pivot, 0.25f * scale, direction, wantedDistance, CollisionLayers, QueryTriggerInteraction.Ignore);
 
             float nearest = wantedDistance;
             foreach (RaycastHit hit in hits)
@@ -632,7 +649,7 @@ namespace CityX.Character
 
             if (nearest < wantedDistance)
             {
-                wanted = pivot + direction * Mathf.Max(MinDistance, nearest - 0.1f);
+                wanted = pivot + direction * Mathf.Max(MinDistance * scale, nearest - 0.1f * scale);
             }
 
             transform.position = wanted;

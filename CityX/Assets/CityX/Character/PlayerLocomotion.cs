@@ -131,6 +131,25 @@ namespace CityX.Character
         public float StandingHeight = StandingHeightDefault;
 
         /// <summary>
+        /// How many times its own size the body is (Grow and Shrink, BodySizeAbility: its transform's scale; 1 otherwise). The capsule and the
+        /// model scale with the transform by themselves; the numbers here that are metres or metres a second are scaled by it where they are used.
+        /// </summary>
+        public float BodyScale => Mathf.Max(0.01f, transform.lossyScale.y);
+
+        /// <summary>The body's height in the world: StandingHeight times BodyScale (a giant's chest is 10 times as high).</summary>
+        public float WorldHeight => StandingHeight * BodyScale;
+
+        /// <summary>
+        /// How much faster a resized body moves and jumps: the square root of its size (BodySize.SpeedFactor's reasoning: gravity is the same
+        /// for a giant, so its natural pace goes with the square root of its length). The walk and run cycles play that much slower
+        /// (BodySizeAbility's StrideRate), so the feet keep to the ground.
+        /// </summary>
+        public float SizeSpeedFactor => Mathf.Sqrt(BodyScale);
+
+        /// <summary>True while Grow or Shrink has the body at another size: climbing, vaulting and foot placement, tuned in metres, rest.</summary>
+        public bool IsResized => Mathf.Abs(BodyScale - 1.0f) > BodySize.NormalTolerance;
+
+        /// <summary>
         /// The body's height, from the floor to the crown of the head sphere.
         ///
         /// DERIVED FROM THE RIG rather than typed. It was 2.2 while the body
@@ -3099,6 +3118,8 @@ namespace CityX.Character
                 }
                 speed *= PlayerVitals.SpeedOf(_statsVitals, StatId.MovementSpeed);
             }
+            // GROW AND SHRINK: a giant covers ground 3.2 times as fast, a tiny body a third as fast (SizeSpeedFactor).
+            speed *= SizeSpeedFactor;
             Vector3 targetHorizontal = MovementRooted ? Vector3.zero : direction * speed;
             Vector3 horizontal;
 
@@ -3117,7 +3138,7 @@ namespace CityX.Character
             {
                 float used = Mathf.Min(_dashRemaining, deltaTime);
                 _dashRemaining -= used;
-                horizontal = _dashDirection * DashSpeed *
+                horizontal = _dashDirection * DashSpeed * SizeSpeedFactor *
                     (deltaTime > 0.0f ? used / deltaTime : 1.0f);
                 // Kept in sync with the dash's own instant speed, not left
                 // wherever it was before the dash started -- otherwise the
@@ -3137,7 +3158,7 @@ namespace CityX.Character
                 // opposing it, and cannot build it past what it already was (or a walk, if it was slower).
                 Vector3 carried = _horizontalVelocity;
                 Vector3 steered = carried + direction * (AirMomentumSteerAcceleration * deltaTime);
-                float cap = Mathf.Max(carried.magnitude, WalkSpeed);
+                float cap = Mathf.Max(carried.magnitude, WalkSpeed * SizeSpeedFactor);
                 if (steered.sqrMagnitude > cap * cap)
                 {
                     steered = steered.normalized * cap;
@@ -3190,9 +3211,11 @@ namespace CityX.Character
                 _verticalVelocity -= Gravity * GravityScale * deltaTime;
             }
 
+            // A resized body's jump is launched SizeSpeedFactor times as fast: under the same gravity it climbs BodyScale times as high,
+            // the same jump in proportion (a giant's takes 3.2 times as long: heavy).
             if (onFeet && input.Jump)
             {
-                _verticalVelocity = JumpVelocity;
+                _verticalVelocity = JumpVelocity * SizeSpeedFactor;
                 FireTrigger(JumpParameter);
             }
 
@@ -3222,7 +3245,7 @@ namespace CityX.Character
                 {
                     float heightMultiplier = Mathf.Lerp(
                         1.0f, ChargedJumpHeightMultiplier, Mathf.Clamp01(input.JumpChargeFraction));
-                    _verticalVelocity = JumpVelocity * Mathf.Sqrt(heightMultiplier);
+                    _verticalVelocity = JumpVelocity * SizeSpeedFactor * Mathf.Sqrt(heightMultiplier);
                 }
                 FireTrigger(JumpParameter);
             }
@@ -3335,9 +3358,11 @@ namespace CityX.Character
 
             if (_animator != null)
             {
-                _animator.SetFloat(SpeedParameter, CurrentSpeed);
-                _animator.SetFloat(MoveXParameter, LocalVelocity.x);
-                _animator.SetFloat(MoveZParameter, LocalVelocity.y);
+                // In the body's own terms: a giant's 12.6 m/s walk is a walk (its cycle slowed by BodySizeAbility's StrideRate).
+                float ownPace = 1.0f / SizeSpeedFactor;
+                _animator.SetFloat(SpeedParameter, CurrentSpeed * ownPace);
+                _animator.SetFloat(MoveXParameter, LocalVelocity.x * ownPace);
+                _animator.SetFloat(MoveZParameter, LocalVelocity.y * ownPace);
                 _animator.SetBool(GroundedParameter, _controller.isGrounded || _steppingUp);
                 _animator.SetBool(CrouchingParameter, IsCrouching);
                 _animator.SetBool(ChargingJumpParameter, input.ChargingJump);

@@ -996,6 +996,12 @@ namespace CityX.Character
         }
 
         /// <summary>
+        /// A giant's falls are measured in its own lengths (Grow, BodySizeAbility sets this to its size; 1 otherwise, and never below 1: a tiny
+        /// body falls as anyone does): 20 m is a hop for a 26 m giant.
+        /// </summary>
+        [System.NonSerialized] public float FallScale = 1.0f;
+
+        /// <summary>
         /// Watches height to work out fall damage, and applies it on landing.
         /// Returns the damage dealt, which is zero for a safe landing.
         ///
@@ -1005,6 +1011,7 @@ namespace CityX.Character
         /// </summary>
         public float TickFallDamage(bool grounded, float currentY)
         {
+            float fallScale = Mathf.Max(1.0f, FallScale);
             if (!grounded)
             {
                 if (!_wasAirborne)
@@ -1031,7 +1038,7 @@ namespace CityX.Character
                 top = Mathf.Min(top, _fallForgivenAboveY);
                 _fallForgiven = false;
             }
-            float fallen = top - currentY;
+            float fallen = (top - currentY) / fallScale;
             if (fallen <= SafeFallDistance)
             {
                 return 0.0f;

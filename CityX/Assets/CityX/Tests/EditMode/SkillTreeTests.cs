@@ -20,6 +20,7 @@ namespace CityX.Tests
             SkillCatalog.Vault, SkillCatalog.Dash, SkillCatalog.Climb, SkillCatalog.SuperJump, SkillCatalog.WallStick,
             SkillCatalog.Fireball, SkillCatalog.IceShards, SkillCatalog.PoisonBreath, SkillCatalog.AcidRain,
             SkillCatalog.SwordSpin, SkillCatalog.SwordWave, SkillCatalog.Octaslash, SkillCatalog.Bloodrage, SkillCatalog.SelfSmite,
+            SkillCatalog.Grow, SkillCatalog.Shrink,
         };
 
         [Test]
@@ -138,13 +139,13 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void TheDefaultBarIsTheOldNumberKeysThenSelfSmiteOnNineAndZeroEmpty()
+        public void TheDefaultBarIsTheOldNumberKeysThenSelfSmiteOnNineAndGrowOnZero()
         {
             Hotbar bar = Hotbar.WithDefaults();
             string[] expected =
             {
                 SkillCatalog.Fireball, SkillCatalog.SwordSpin, SkillCatalog.IceShards, SkillCatalog.PoisonBreath, SkillCatalog.AcidRain,
-                SkillCatalog.Octaslash, SkillCatalog.SwordWave, SkillCatalog.Bloodrage, SkillCatalog.SelfSmite, null,
+                SkillCatalog.Octaslash, SkillCatalog.SwordWave, SkillCatalog.Bloodrage, SkillCatalog.SelfSmite, SkillCatalog.Grow,
             };
             for (int slot = 0; slot < Hotbar.SlotCount; slot++)
             {

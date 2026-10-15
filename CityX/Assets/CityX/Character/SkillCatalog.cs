@@ -110,6 +110,8 @@ namespace CityX.Character
         public const string Octaslash = "octaslash";
         public const string Bloodrage = "bloodrage";
         public const string SelfSmite = "self-smite";
+        public const string Grow = "grow";
+        public const string Shrink = "shrink";
 
         /// <summary>Skill points a star costs. One each for now; what deeper stars cost is open.</summary>
         public const int LearnCost = 1;
@@ -124,10 +126,10 @@ namespace CityX.Character
 
         public const string NotDesignedYet = "Not designed yet.";
 
-        /// <summary>The bar a character had before the skill tree existed: what the number keys always did, then Self Smite on 9 (2026-10-15) and 0 empty.</summary>
+        /// <summary>The bar a character had before the skill tree existed: what the number keys always did, then Self Smite on 9 and Grow on 0 (2026-10-15).</summary>
         public static readonly string[] DefaultBar =
         {
-            Fireball, SwordSpin, IceShards, PoisonBreath, AcidRain, Octaslash, SwordWave, Bloodrage, SelfSmite, null,
+            Fireball, SwordSpin, IceShards, PoisonBreath, AcidRain, Octaslash, SwordWave, Bloodrage, SelfSmite, Grow,
         };
 
         private static readonly SkillTree[] TreeList =
@@ -141,6 +143,7 @@ namespace CityX.Character
             new SkillTree("cryomancer", "Cryomancer", true, TreeWidth),
             new SkillTree("plaguebringer", "Plaguebringer", true, TreeWidth),
             new SkillTree("electromancer", "Electromancer", true, TreeWidth),
+            new SkillTree("wizard", "Wizard", true, TreeWidth),
         };
 
         private static readonly List<SkillNode> NodeList = BuildNodes();
@@ -277,6 +280,17 @@ namespace CityX.Character
                 Empty("electromancer", 1, At(-0.8f, 1), SelfSmite),
                 Empty("electromancer", 2, At(0.8f, 1), SelfSmite),
                 Empty("electromancer", 3, At(0, 2), "electromancer-1", "electromancer-2"),
+
+                // --- Wizard (owner, 2026-10-15: "idek what skilltree that would fall under i was going to make one just called Wizard"): Grow
+                // and Shrink, side by side at the root. 30 s each.
+                new SkillNode(Grow, "Grow", "wizard", SkillKind.Spell, At(-0.5f, 0),
+                    "Grow to ten times your size for 30 seconds: a giant, striding over the street, slow and heavy. Cast it again to come back " +
+                    "down early. Under a roof you grow as far as there is room."),
+                new SkillNode(Shrink, "Shrink", "wizard", SkillKind.Spell, At(0.5f, 0),
+                    "Shrink to a tenth of your size for 30 seconds: small enough to run between people's feet. Cast it again to grow back early."),
+                Empty("wizard", 1, At(-0.8f, 1), Grow),
+                Empty("wizard", 2, At(0.8f, 1), Shrink),
+                Empty("wizard", 3, At(0, 2), "wizard-1", "wizard-2"),
             };
             return nodes;
         }

@@ -192,6 +192,7 @@ namespace CityX.Tests
                 Assert.IsNotNull(body.GetComponent<SwordWaveCaster>().WavePrefab, "the sword wave has no prefab");
                 Assert.IsNotNull(body.GetComponent<SelfSmiteAbility>(), "a joining player cannot cast Self Smite");
                 Assert.IsNotNull(body.GetComponent<SelfSmiteAbility>().StrikeSound, "Self Smite has no thunder");
+                Assert.IsNotNull(body.GetComponent<BodySizeAbility>(), "a joining player cannot Grow or Shrink");
             }
 #else
             Assert.Ignore("needs the editor to load the networked player prefab.");
@@ -310,9 +311,38 @@ namespace CityX.Tests
                 $"B's copy of A is not playing the animation ({remoteSmite.Seconds:0.00} s into the move: state {now.shortNameHash} at {now.normalizedTime:0.00}, Locomotion is " +
                 $"{Animator.StringToHash("Locomotion")}, SelfSmite {Animator.StringToHash(SelfSmiteMove.StateName)}; animator enabled " +
                 $"{remoteAnimator.isActiveAndEnabled}, speed {remoteAnimator.speed}, {_remoteBody.GetComponentsInChildren<Animator>(true).Length} animator(s), " +
-                $"has the state {remoteAnimator.HasState(0, Animator.StringToHash(SelfSmiteMove.StateName))}, limp {_remoteBody.GetComponent<Ragdoll>()?.IsLimp})");
+                $"has the state {remoteAnimator.HasState(0, Animator.StringToHash(SelfSmiteMove.StateName))}, limp {_remoteBody.GetComponent<Ragdoll>()?.IsLimp}; " +
+                $"copy health {_remoteBody.GetComponent<PlayerVitals>().Health:0} dead {_remoteBody.GetComponent<PlayerVitals>().IsDead}, owner health " +
+                $"{_ownerBody.GetComponent<PlayerVitals>().Health:0} limp {_ownerBody.GetComponent<Ragdoll>()?.IsLimp}, copy at {_remoteBody.transform.position} " +
+                $"scale {_remoteBody.transform.localScale.y:0.00}, owner at {_ownerBody.transform.position}; bodies in the scene " +
+                $"{Object.FindObjectsByType<NetworkedPlayerIdentity>(FindObjectsInactive.Include, FindObjectsSortMode.None).Length})");
             Assert.AreEqual(2, Object.FindObjectsByType<SelfSmiteBolt>(FindObjectsSortMode.None).Length,
                 "one bolt for A's own cast and one on B's copy: no more (A was shown its own cast back), no fewer");
+#else
+            Assert.Ignore("needs the editor to load the networked player prefab.");
+            yield break;
+#endif
+        }
+
+        [UnityTest]
+        public IEnumerator GrowOnOnePlayersBodyIsShownOnAnothersCopyAndSoIsTheWayBack()
+        {
+#if UNITY_EDITOR
+            yield return BringUpTwoPlayers();
+            var ownerSize = _ownerBody.GetComponent<BodySizeAbility>();
+            var remoteSize = _remoteBody.GetComponent<BodySizeAbility>();
+            Assert.IsNotNull(ownerSize, "the joining player's body cannot Grow");
+            Assert.IsTrue(ownerSize.TryGrow(), "A's Grow was refused");
+            yield return WaitUntil(() => remoteSize.SwirlsShown >= 1, "B to be shown A's cast");
+            yield return WaitUntil(() => _remoteBody.transform.localScale.y > 9.5f, "B's copy of A to grow ten times (the size comes with the transform)");
+            Assert.AreEqual(1, ownerSize.SwirlsShown, "A was shown its own cast back");
+            Assert.AreEqual(BodySize.Spell.None, remoteSize.Size.Active, "B's copy of A cast nothing itself: its size is the network's");
+
+            // A late joiner, or anyone, sees the giant come back down as it does.
+            yield return WaitUntil(() => ownerSize.CanCast, "A's cooldown");
+            Assert.IsTrue(ownerSize.TryGrow(), "Grow again should end it");
+            yield return WaitUntil(() => _remoteBody.transform.localScale.y < 1.05f, "B's copy of A to come back to its own size");
+            Assert.AreEqual(2, remoteSize.SwirlsShown, "B was not shown the way back");
 #else
             Assert.Ignore("needs the editor to load the networked player prefab.");
             yield break;

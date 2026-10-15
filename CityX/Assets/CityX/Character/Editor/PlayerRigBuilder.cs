@@ -287,6 +287,8 @@ namespace CityX.CharacterEditor
             AddScreamLayers(controller);
             AddSwordUpperBodyLayer(controller);
             AddCutsceneStates(root);
+            // AFTER every walking state exists.
+            AddStrideRate(controller, root);
 
             // FOOT IK ON THE BLENDED LOCOMOTION STATES was tried here as a
             // mitigation for a reported "the running animation feels
@@ -307,6 +309,35 @@ namespace CityX.CharacterEditor
 
             EditorUtility.SetDirty(controller);
             return controller;
+        }
+
+        /// <summary>The walking states whose cycles Grow and Shrink slow down or speed up (BodySizeAbility.StrideRateName).</summary>
+        public static readonly string[] StridingStates = { "Locomotion", "Crouched", "SwordLocomotion", "GunLocomotion" };
+
+        /// <summary>
+        /// GROW AND SHRINK'S STRIDE (BodySizeAbility): a float, 1 at the body's own size, that every walking state plays at. A giant's legs are
+        /// ten times as long and it walks 3.2 times as fast, so each step takes 3.2 times as long (the rate is 1/sqrt(size)); without it the
+        /// feet would skate. Defaults to 1, so a body without the spell (a civilian on this controller) walks as it always did.
+        /// </summary>
+        private static void AddStrideRate(AnimatorController controller, AnimatorStateMachine root)
+        {
+            controller.AddParameter(new AnimatorControllerParameter
+            {
+                name = BodySizeAbility.StrideRateName,
+                type = AnimatorControllerParameterType.Float,
+                defaultFloat = 1.0f,
+            });
+            foreach (string name in StridingStates)
+            {
+                AnimatorState state = FindState(root, name);
+                if (state == null)
+                {
+                    Debug.LogWarning($"CityX: no {name} state: Grow and Shrink will not pace its steps.");
+                    continue;
+                }
+                state.speedParameterActive = true;
+                state.speedParameter = BodySizeAbility.StrideRateName;
+            }
         }
 
         /// <summary>

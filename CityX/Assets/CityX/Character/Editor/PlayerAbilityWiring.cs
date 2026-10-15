@@ -74,6 +74,9 @@ namespace CityX.CharacterEditor
             selfSmite.StrikeSound = AssetDatabase.LoadAssetAtPath<AudioClip>(ThunderStrikeClipPath) ?? selfSmite.StrikeSound;
             selfSmite.LightMaterial = EnsureSelfSmiteLightMaterial() ?? selfSmite.LightMaterial;
 
+            // --- Grow and Shrink (Wizard; Grow on key 0 of the default bar): drawn and voiced in code, nothing to load.
+            GetOrAdd<BodySizeAbility>(player);
+
             // Bloodrage (key 8) and the sword spin (key 2) are components of Player.prefab itself (PlayerRigBuilder), so every body has them.
         }
 

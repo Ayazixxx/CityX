@@ -152,7 +152,7 @@ namespace CityX.Character
                 // The impact speed is the fastest the body fell: the frame it lands on is cut short by the ground.
                 _footIkFallSpeed = Mathf.Max(_footIkFallSpeed, -verticalSpeed);
             }
-            bool active = FootIkEnabled && !inAir && !IsSitting && !InCarSeat
+            bool active = FootIkEnabled && !inAir && !IsSitting && !InCarSeat && !IsResized   // its rays are metres for a 2.6 m body
                 && _climbWallWeight <= 0.01f && _ledgeHandsWeight <= 0.01f && (_bakedPoseWeight <= 0.0f || BakedPoseIsUpperBodyOnly)
                 && (_controller == null || _controller.enabled)
                 && !_animator.GetBool(DancingParameter) && !_animator.GetBool(BreakdancingParameter)

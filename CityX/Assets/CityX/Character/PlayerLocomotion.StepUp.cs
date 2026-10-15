@@ -75,7 +75,7 @@ namespace CityX.Character
                 // the tread it stands on, and an ordinary 0.22 m riser read as a 0.3 m step (SmallObstaclePlayTests' stairs, in full runs).
                 Vector3 feet = transform.position;
                 feet.y = Mathf.Max(feet.y, StandingOnY(feet));
-                if (!StepUpProbe.TryFind(feet, level, _controller.height, _controller.radius, thisFrame, transform, out StepUpProbe.Step step) ||
+                if (!StepUpProbe.TryFind(feet, level, _controller.height * BodyScale, _controller.radius * BodyScale, thisFrame, transform, out StepUpProbe.Step step) ||
                     step.Gap > step.Rise / StepUpRisePerMetre + thisFrame)
                 {
                     return verticalMotion;
@@ -154,9 +154,9 @@ namespace CityX.Character
         /// </summary>
         private float StandingOnY(Vector3 feet)
         {
-            float radius = _controller.radius;
-            Vector3 from = feet + Vector3.up * (radius + 0.02f);
-            int count = Physics.SphereCastNonAlloc(from, radius * 0.95f, Vector3.down, GroundHits, 0.3f, ~0, QueryTriggerInteraction.Ignore);
+            float radius = _controller.radius * BodyScale;
+            Vector3 from = feet + Vector3.up * (radius + 0.02f * BodyScale);
+            int count = Physics.SphereCastNonAlloc(from, radius * 0.95f, Vector3.down, GroundHits, 0.3f * BodyScale, ~0, QueryTriggerInteraction.Ignore);
             float nearest = float.MaxValue;
             float y = float.MinValue;
             for (int i = 0; i < count; i++)
@@ -172,8 +172,13 @@ namespace CityX.Character
             return y;
         }
 
-        /// <summary>The controller's own step on open ground, metres: a kerb, a stair's riser (set by ApplyHeight).</summary>
-        private float RestingStepOffset => Mathf.Min(0.4f, StandingHeight * 0.25f);
+        /// <summary>
+        /// The controller's own step on open ground, metres: a kerb, a stair's riser (set by ApplyHeight). World metres, so it goes with the
+        /// body's size (Grow and Shrink) -- but Unity refuses a step taller than the controller's own UNSCALED height whatever its scale, so a
+        /// giant's resting step stops there (2.3 m: a car) and the step up, scaled, takes anything taller.
+        /// </summary>
+        private float RestingStepOffset =>
+            Mathf.Min(Mathf.Min(0.4f, StandingHeight * 0.25f) * BodyScale, (_controller != null ? _controller.height : StandingHeight) * 0.9f);
 
         private static readonly RaycastHit[] CeilingHits = new RaycastHit[8];
 
@@ -195,8 +200,10 @@ namespace CityX.Character
             }
             float rest = RestingStepOffset;
             float skin = _controller.skinWidth;
-            float reach = _controller.radius + new Vector3(move.x, 0.0f, move.z).magnitude + skin + 0.05f;
-            Vector3 headTop = transform.position + Vector3.up * (_controller.center.y + _controller.height * 0.5f + skin);
+            // The controller's own sizes are the body's (they scale with it, BodyScale); its step and skin are world metres.
+            float scale = BodyScale;
+            float reach = _controller.radius * scale + new Vector3(move.x, 0.0f, move.z).magnitude + skin + 0.05f * scale;
+            Vector3 headTop = transform.position + Vector3.up * ((_controller.center.y + _controller.height * 0.5f) * scale + skin);
             float free = FreeOverPatch(headTop, reach, rest + 0.05f);
             _controller.stepOffset = Mathf.Clamp(free - 0.02f, 0.02f, rest);
         }

@@ -173,6 +173,7 @@ namespace CityX.Character
         private ISwordWaveCaster _swordWave;
         private IAcidRainCaster _acidRain;
         private SelfSmiteAbility _selfSmite;
+        private BodySizeAbility _bodySize;
         private OctaslashAbility _octaslash;
 
         /// <summary>5: ACID RAIN, a green storm called down where the crosshair points (no further than its reach), burning everyone out in the open.</summary>
@@ -189,7 +190,7 @@ namespace CityX.Character
         private float SpellCastFraction =>
             Mathf.Max(
                 Mathf.Max(_fireballCaster != null ? _fireballCaster.CastFraction : 0.0f, _iceShards != null ? _iceShards.CastFraction : 0.0f),
-                _poisonBreath != null ? _poisonBreath.CastFraction : 0.0f);
+                Mathf.Max(_poisonBreath != null ? _poisonBreath.CastFraction : 0.0f, _bodySize != null ? _bodySize.CastFraction : 0.0f));
 
         private bool IsCastingSpell =>
             (_fireballCaster != null && _fireballCaster.IsCasting) || (_iceShards != null && _iceShards.IsCasting)
@@ -212,7 +213,7 @@ namespace CityX.Character
             {
                 return;
             }
-            float height = (_locomotion != null ? _locomotion.StandingHeight : 1.8f) * 0.68f;
+            float height = (_locomotion != null ? _locomotion.WorldHeight : 1.8f) * 0.68f;
             Vector3 origin = transform.position + Vector3.up * height;
             _poisonBreath.TryCast(origin, ConvergedDirection(origin, aimSource), GetComponentsInChildren<Collider>());
         }
@@ -224,7 +225,7 @@ namespace CityX.Character
             {
                 return;
             }
-            float height = (_locomotion != null ? _locomotion.StandingHeight : 1.8f) * 0.68f;
+            float height = (_locomotion != null ? _locomotion.WorldHeight : 1.8f) * 0.68f;
             Vector3 origin = transform.position + Vector3.up * height;
             _iceShards.TryCast(origin, ConvergedDirection(origin, aimSource), GetComponentsInChildren<Collider>());
         }
@@ -236,7 +237,7 @@ namespace CityX.Character
             {
                 return;
             }
-            float height = (_locomotion != null ? _locomotion.StandingHeight : 1.8f) * 0.68f;
+            float height = (_locomotion != null ? _locomotion.WorldHeight : 1.8f) * 0.68f;
             Vector3 origin = transform.position + Vector3.up * height;
             _iceShards.Aim(origin, ConvergedDirection(origin, aimSource));
         }
@@ -410,6 +411,7 @@ namespace CityX.Character
             _swordWave = GetComponent<ISwordWaveCaster>();
             _acidRain = GetComponent<IAcidRainCaster>();
             _selfSmite = GetComponent<SelfSmiteAbility>();
+            _bodySize = GetComponent<BodySizeAbility>();
 
             // The player gets wet in the rain and dries under cover. Added here
             // rather than baked into the prefab: only the real, local player has
@@ -904,7 +906,7 @@ namespace CityX.Character
                 // ordinary ground cast below.
                 if (_fireballCaster != null && _skills.Pressed(SkillCatalog.Fireball, keyboard) && swingYawSource != null)
                 {
-                    float height = (_locomotion != null ? _locomotion.StandingHeight : 1.8f) * 0.68f;
+                    float height = (_locomotion != null ? _locomotion.WorldHeight : 1.8f) * 0.68f;
                     Vector3 origin = transform.position + Vector3.up * height;
                     _fireballCaster.TryCast(origin, ConvergedDirection(origin, swingYawSource), GetComponentsInChildren<Collider>());
                 }
@@ -958,7 +960,8 @@ namespace CityX.Character
             // key while hanging on is seen (a grab needs a fresh hold). Not with a jetpack or parachute on the
             // back: Space means thrust or canopy there.
             _grabIntent.Update(keyboard.spaceKey.isPressed, deltaTime);
-            bool wallGrabsAllowed = EquippedJetpack == null && EquippedParachute == null;
+            // Nor while Grow or Shrink has the body at another size: the grab and the ledge are measured for a 2.6 m body.
+            bool wallGrabsAllowed = EquippedJetpack == null && EquippedParachute == null && !_locomotion.IsResized;
 
             // ALREADY ATTACHED TO A WALL OWNS THE WHOLE FRAME TOO, matching
             // player.gd's own _is_climbing early-return into
@@ -1015,7 +1018,7 @@ namespace CityX.Character
             }
 
             // RUNNING AT A LOW OBSTACLE VAULTS IT (Shift + W; holding Space is still the way to ask for a climb, checked above).
-            if (_vaulting != null && !_locomotion.IsDashing && (_grabCarry == null || !_grabCarry.IsCarrying)
+            if (_vaulting != null && !_locomotion.IsDashing && !_locomotion.IsResized && (_grabCarry == null || !_grabCarry.IsCarrying)
                 && _vaulting.TryStart(keyboard.wKey.isPressed, keyboard.leftShiftKey.isPressed, _locomotion.IsGrounded, _locomotion.CurrentSpeed, deltaTime, wishDirection))
             {
                 _vaulting.Tick(deltaTime);
@@ -1130,7 +1133,7 @@ namespace CityX.Character
                 // MeleeAttacker.SwingOrigin/the weapon-throw origin below
                 // already use for "a sensible point on the body to launch
                 // something from."
-                float height = (_locomotion != null ? _locomotion.StandingHeight : 1.8f) * 0.68f;
+                float height = (_locomotion != null ? _locomotion.WorldHeight : 1.8f) * 0.68f;
                 Vector3 origin = transform.position + Vector3.up * height;
                 _fireballCaster.TryCast(origin, ConvergedDirection(origin, yawSource), GetComponentsInChildren<Collider>());
             }
@@ -1157,6 +1160,15 @@ namespace CityX.Character
             if (_skills.Pressed(SkillCatalog.SelfSmite, keyboard) && (_selfSmite != null || (_selfSmite = GetComponent<SelfSmiteAbility>()) != null))
             {
                 _selfSmite.TryCast();
+            }
+            // GROW AND SHRINK (Wizard): ten times as big, or a tenth, for 30 s (BodySizeAbility). The same key again ends it early.
+            if (_skills.Pressed(SkillCatalog.Grow, keyboard) && (_bodySize != null || (_bodySize = GetComponent<BodySizeAbility>()) != null))
+            {
+                _bodySize.TryGrow();
+            }
+            if (_skills.Pressed(SkillCatalog.Shrink, keyboard) && (_bodySize != null || (_bodySize = GetComponent<BodySizeAbility>()) != null))
+            {
+                _bodySize.TryShrink();
             }
             AimIceShards(yawSource);
             AimPoisonBreath(yawSource);
@@ -1785,7 +1797,7 @@ namespace CityX.Character
                     {
                         Vector3 direction = -yawSource.forward;
                         Vector3 origin = transform.position + Vector3.up * (_melee.OriginHeightFraction *
-                            (_locomotion != null ? _locomotion.StandingHeight : 1.8f)) + direction * 0.5f;
+                            (_locomotion != null ? _locomotion.WorldHeight : 1.8f)) + direction * 0.5f;
                         weapon.Throw(gameObject, origin, direction);
                     }
                 }
@@ -1908,7 +1920,7 @@ namespace CityX.Character
             bool octaslashCharging = _octaslash != null && _octaslash.IsCharging;
             if (_octaslash != null && source != null)
             {
-                float chest = (_locomotion != null ? _locomotion.StandingHeight : 1.8f) * 0.55f;
+                float chest = (_locomotion != null ? _locomotion.WorldHeight : 1.8f) * 0.55f;
                 Vector3 look = ConvergedDirection(transform.position + Vector3.up * chest, source);
                 _octaslash.Aim(look);
                 if (_skills.Pressed(SkillCatalog.Octaslash, keyboard) && !spinning && !souls.IsCommitted)
@@ -1947,7 +1959,7 @@ namespace CityX.Character
             if (_skills.Pressed(SkillCatalog.SwordWave, keyboard) && _swordWave != null && source != null
                 && !spinning && !souls.IsCommitted && _swordWave.CanCast)
             {
-                float height = (_locomotion != null ? _locomotion.StandingHeight : 1.8f) * 0.68f;
+                float height = (_locomotion != null ? _locomotion.WorldHeight : 1.8f) * 0.68f;
                 Vector3 origin = transform.position + Vector3.up * height;
                 if (_swordWave.TryCast(height, ConvergedDirection(origin, source), GetComponentsInChildren<Collider>()))
                 {
