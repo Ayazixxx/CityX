@@ -99,6 +99,51 @@ namespace CityX.Character
             return true;
         }
 
+        /// <summary>The fastest a forwarded knockdown may throw a body, metres per second.</summary>
+        public const float MaxKnockdownSpeed = 30.0f;
+
+        public bool TryRelayKnockdown(Vector3 velocity)
+        {
+            if (!IsCopy)
+            {
+                return false;
+            }
+            if (_vitals != null && _vitals.IsDead)
+            {
+                return true;
+            }
+            SendKnockdownToServer(velocity);
+            return true;
+        }
+
+        /// <summary>A knockdown's throw as the owner takes it: finite, and no faster than <see cref="MaxKnockdownSpeed"/>.</summary>
+        public static Vector3 SaneKnockdown(Vector3 velocity)
+        {
+            return Finite(velocity) ? Vector3.ClampMagnitude(velocity, MaxKnockdownSpeed) : Vector3.zero;
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        private void SendKnockdownToServer(Vector3 velocity, NetworkConnection sender = null)
+        {
+            if (!Allowed(sender, 1.0f) || !Finite(velocity))
+            {
+                return;
+            }
+            if (Owner.IsValid)
+            {
+                ApplyKnockdownOnOwner(Owner, SaneKnockdown(velocity));
+            }
+        }
+
+        [TargetRpc]
+        private void ApplyKnockdownOnOwner(NetworkConnection target, Vector3 velocity)
+        {
+            if (_vitals != null)
+            {
+                _vitals.KnockDown(SaneKnockdown(velocity));
+            }
+        }
+
         [ServerRpc(RequireOwnership = false)]
         private void SendHitToServer(float amount, Vector3 fromPosition, float hitstunSeconds, float poiseDamage, int hitId, int kind, float penetration,
             NetworkConnection sender = null)

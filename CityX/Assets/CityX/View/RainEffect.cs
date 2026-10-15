@@ -375,10 +375,30 @@ namespace CityX.View
             SetRain(0.0f);
         }
 
+        private void OnEnable()
+        {
+            CityX.Character.SelfSmiteBolt.Struck += OnSpellLightning;
+        }
+
         private void OnDisable()
         {
+            CityX.Character.SelfSmiteBolt.Struck -= OnSpellLightning;
             CurrentWeather.Clear();
             RestoreGroundMaterials();
+        }
+
+        /// <summary>
+        /// A spell's lightning (Self Smite) lights the sky the way a storm's strike does, as bright as its distance from the camera and the
+        /// spell's own <paramref name="strength"/> say, in any weather. The spell draws its own bolt and plays its own thunder.
+        /// </summary>
+        private void OnSpellLightning(Vector3 point, float strength)
+        {
+            Camera camera = Camera.main;
+            float distance = camera != null ? Vector3.Distance(camera.transform.position, point) : 0.0f;
+            float flash = Mathf.Clamp01(strength) * Weather.FlashStrength(distance);
+            bool alreadyFlashing = _lightningFlashRemaining > 0.0f;
+            _lightningFlashRemaining = LightningFlashSeconds + LightningDecaySeconds;
+            _flashStrength = alreadyFlashing ? Mathf.Max(_flashStrength, flash) : flash;
         }
 
         /// <summary>

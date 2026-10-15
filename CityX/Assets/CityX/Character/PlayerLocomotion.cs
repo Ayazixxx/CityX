@@ -302,6 +302,23 @@ namespace CityX.Character
             }
         }
 
+        /// <summary>
+        /// Self Smite (2026-10-15): its clip throws the arms up and slams them down into a crouch, a whole-body move, so the torso follows the
+        /// clip as it does a sword swing's (the same share, TorsoFollowStrength) while that state plays, on this body and on other players' copies.
+        /// </summary>
+        public bool SpellClipOwnsTheTorso
+        {
+            get
+            {
+                if (_animator == null || !_animator.enabled || _animator.runtimeAnimatorController == null)
+                {
+                    return false;
+                }
+                return _animator.GetCurrentAnimatorStateInfo(0).IsName(SelfSmiteMove.StateName)
+                       || (_animator.IsInTransition(0) && _animator.GetNextAnimatorStateInfo(0).IsName(SelfSmiteMove.StateName));
+            }
+        }
+
         private SoulsSwordCombat _souls;
         private float _torsoFollowBlend;
         private float _locomotionSpineBlend;
@@ -1484,7 +1501,10 @@ namespace CityX.Character
         {
             // Only a live Animator has a torso pose worth following; a frozen or ragdolled one is held flat.
             bool animatorLive = _animator != null && _animator.enabled;
-            float torsoTarget = !animatorLive ? 0.0f : PushUpOwnsTheBody ? 1.0f : TorsoFollowsClip ? Mathf.Clamp01(TorsoFollowStrength) : 0.0f;
+            float torsoTarget = !animatorLive ? 0.0f
+                : PushUpOwnsTheBody ? 1.0f
+                : TorsoFollowsClip || SpellClipOwnsTheTorso ? Mathf.Clamp01(TorsoFollowStrength)
+                : 0.0f;
             _torsoFollowBlend = Mathf.MoveTowards(_torsoFollowBlend, torsoTarget, TorsoFollowBlendPerSecond * Mathf.Max(_lastTickDeltaTime, 0.0f));
             _locomotionSpineBlend = Mathf.MoveTowards(
                 _locomotionSpineBlend, (animatorLive && LocomotionSpineLeans && LocomotionClipsOwnTheSpine) ? 1.0f : 0.0f,

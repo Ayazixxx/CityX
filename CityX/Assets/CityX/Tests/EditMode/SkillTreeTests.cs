@@ -19,7 +19,7 @@ namespace CityX.Tests
         {
             SkillCatalog.Vault, SkillCatalog.Dash, SkillCatalog.Climb, SkillCatalog.SuperJump, SkillCatalog.WallStick,
             SkillCatalog.Fireball, SkillCatalog.IceShards, SkillCatalog.PoisonBreath, SkillCatalog.AcidRain,
-            SkillCatalog.SwordSpin, SkillCatalog.SwordWave, SkillCatalog.Octaslash, SkillCatalog.Bloodrage,
+            SkillCatalog.SwordSpin, SkillCatalog.SwordWave, SkillCatalog.Octaslash, SkillCatalog.Bloodrage, SkillCatalog.SelfSmite,
         };
 
         [Test]
@@ -84,6 +84,7 @@ namespace CityX.Tests
             Assert.AreEqual(OctaslashAbility.Id, SkillCatalog.Octaslash);
             Assert.AreEqual(BloodrageAbility.Id, SkillCatalog.Bloodrage);
             Assert.AreEqual(MeleeAttacker.SpinAbilityId, SkillCatalog.SwordSpin);
+            Assert.AreEqual(SelfSmiteAbility.Id, SkillCatalog.SelfSmite);
         }
 
         [Test]
@@ -137,13 +138,13 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void TheDefaultBarIsTheOldNumberKeysWithNineAndZeroEmpty()
+        public void TheDefaultBarIsTheOldNumberKeysThenSelfSmiteOnNineAndZeroEmpty()
         {
             Hotbar bar = Hotbar.WithDefaults();
             string[] expected =
             {
                 SkillCatalog.Fireball, SkillCatalog.SwordSpin, SkillCatalog.IceShards, SkillCatalog.PoisonBreath, SkillCatalog.AcidRain,
-                SkillCatalog.Octaslash, SkillCatalog.SwordWave, SkillCatalog.Bloodrage, null, null,
+                SkillCatalog.Octaslash, SkillCatalog.SwordWave, SkillCatalog.Bloodrage, SkillCatalog.SelfSmite, null,
             };
             for (int slot = 0; slot < Hotbar.SlotCount; slot++)
             {

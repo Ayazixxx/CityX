@@ -394,14 +394,43 @@ namespace CityX.Character
         /// </summary>
         public void TriggerFinisherKnockdown(Vector3 awayDirection)
         {
-            if (_ragdoll == null || IsDead)
+            if (IsDead)
             {
                 return;
             }
             Vector3 flat = awayDirection;
             flat.y = 0.0f;
             Vector3 direction = flat.sqrMagnitude > 0.0001f ? flat.normalized : Vector3.back;
-            _ragdoll.Activate(direction * FinisherKnockbackSpeed + Vector3.up * FinisherKnockbackUpSpeed);
+            TriggerLaunchKnockdown(direction * FinisherKnockbackSpeed + Vector3.up * FinisherKnockbackUpSpeed);
+        }
+
+        /// <summary>
+        /// A blow that throws the body limp at <paramref name="velocity"/> (a combo finisher, Self Smite's burst), up again on its own after
+        /// <see cref="FinisherRagdollSeconds"/>. On another player's copy the throw is ALSO sent to the real body (2026-10-15: before, only the
+        /// attacker's copy was thrown, and the victim on their own machine never fell): the owner's machine throws it (NetworkedDamage), and
+        /// the copy here is thrown as it always was, so the attacker sees it fall.
+        /// </summary>
+        public void TriggerLaunchKnockdown(Vector3 velocity)
+        {
+            if (IsDead)
+            {
+                return;
+            }
+            if (Relay != null)
+            {
+                Relay.TryRelayKnockdown(velocity);
+            }
+            KnockDown(velocity);
+        }
+
+        /// <summary>Throws this body limp, here only (what a forwarded knockdown does on the owner's machine).</summary>
+        public void KnockDown(Vector3 velocity)
+        {
+            if (_ragdoll == null || IsDead)
+            {
+                return;
+            }
+            _ragdoll.Activate(velocity);
             _finisherRagdollRemaining = FinisherRagdollSeconds;
         }
 

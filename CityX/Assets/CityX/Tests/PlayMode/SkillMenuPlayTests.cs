@@ -270,6 +270,42 @@ namespace CityX.Tests
             Assert.IsNull(bar.Slots[0].SkillId);
         }
 
+        /// <summary>
+        /// A spell with no icon drawn yet (owner, 2026-10-15: "just set it to the letter the spell starts with") shows its first letter: on
+        /// the HUD's bar, on its star on the map, and on the ghost carried to the bar -- never a blank slot or a plain gold square.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ASpellWithNoIconYetShowsItsFirstLetter()
+        {
+            PlayerSkills skills = NewCharacter(1);
+            Assert.AreEqual(SkillBook.Refusal.None, skills.TryLearn(SkillCatalog.SelfSmite), "Self Smite is the Electromancer's root: one point");
+            PlayerSkills.Local = skills;
+            _hud = new GameObject("Hud", typeof(RectTransform), typeof(Canvas));
+            _hud.GetComponent<Canvas>().renderMode = RenderMode.ScreenSpaceOverlay;
+            var hud = _hud.AddComponent<PlayerHud>();
+            hud.Target = _body.GetComponent<PlayerVitals>();
+            yield return null;
+            yield return null;
+
+            HotbarView bar = _hud.GetComponent<HotbarView>();
+            HotbarView.SlotGraphics slot = bar.Slots.First(s => s.SkillId == SkillCatalog.SelfSmite);
+            Assert.IsFalse(slot.Icon.enabled, "no icon is drawn for Self Smite");
+            Assert.IsTrue(slot.Letter.enabled, "the slot should show the letter instead");
+            Assert.AreEqual("S", slot.Letter.text);
+            HotbarView.SlotGraphics emptySlot = bar.Slots.First(s => s.SkillId == null);
+            Assert.IsFalse(emptySlot.Letter.enabled, "an empty slot shows no letter");
+
+            SkillMenuView menu = SkillMenuView.Show(skills, null, null);
+            yield return null;
+            Assert.IsTrue(menu.transform.GetComponentsInChildren<Text>(true).Any(t => t.text == "S" && t.enabled),
+                "Self Smite's star should carry its letter");
+            Assert.IsTrue(menu.BeginCarry(SkillCatalog.SelfSmite, new Vector2(400.0f, 300.0f)));
+            Image ghost = menu.GetComponentsInChildren<Image>(true).First(i => i.name == "Carried");
+            Assert.IsFalse(ghost.enabled, "a ghost with no icon would be a plain gold square");
+            Assert.IsTrue(ghost.GetComponentsInChildren<Text>(true).Any(t => t.text == "S" && t.enabled), "the carried ghost is the letter");
+            menu.EndCarry(new Vector2(600.0f, 400.0f));
+        }
+
         private static GameObject UnityEditorLoad(string path)
         {
 #if UNITY_EDITOR

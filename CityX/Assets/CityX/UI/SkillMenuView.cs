@@ -136,6 +136,7 @@ namespace CityX.UI
         private float _resetArmedUntil = -1.0f;
         private HotbarView.SlotGraphics[] _barSlots;
         private Image _carryGhost;
+        private Text _carryLetter;
         private string _carrying;
         private PlayerInputReader _input;
         private ThirdPersonCamera _camera;
@@ -400,7 +401,13 @@ namespace CityX.UI
             }
             _carrying = id;
             Select(id);
-            _carryGhost.sprite = SkillIcons.For(id);
+            Sprite icon = SkillIcons.For(id);
+            _carryGhost.sprite = icon;
+            // A bare Image would draw a gold square: with no icon drawn yet, the ghost is the skill's letter instead.
+            _carryGhost.enabled = icon != null;
+            string letter = icon == null ? SkillIcons.LetterFor(id) : null;
+            _carryLetter.text = letter ?? string.Empty;
+            _carryLetter.enabled = letter != null;
             _carryGhost.gameObject.SetActive(true);
             MoveCarry(screenPosition);
             return true;
@@ -668,6 +675,11 @@ namespace CityX.UI
                     star.Rim.color = LockedRim;
                     break;
             }
+            // A real skill's letter (no icon drawn yet) is coloured as its icon would be; an empty star's "?" keeps its own.
+            if (star.Mark != null && !star.Node.IsPlaceholder)
+            {
+                star.Mark.color = star.Icon.color;
+            }
         }
 
         private void RefreshCard()
@@ -806,6 +818,8 @@ namespace CityX.UI
             _carryGhost.rectTransform.sizeDelta = new Vector2(34.0f, 34.0f);
             _carryGhost.color = Gold;
             _carryGhost.raycastTarget = false;
+            _carryLetter = HotbarView.MakeLetter(_carryGhost.rectTransform, 34.0f);
+            _carryLetter.color = Gold;
             _carryGhost.gameObject.SetActive(false);
         }
 
@@ -894,6 +908,15 @@ namespace CityX.UI
             }
             else
             {
+                // No icon drawn for it yet: its first letter instead (the owner is drawing the icons).
+                string letter = star.Icon.sprite == null ? SkillIcons.LetterFor(node.Id) : null;
+                if (letter != null)
+                {
+                    star.Mark = HotbarView.MakeLetter(star.Root, size * 0.56f);
+                    star.Mark.text = letter;
+                    star.Mark.color = LockedIcon;
+                    star.Mark.enabled = true;
+                }
                 star.Label = MakeText(star.Root, node.Name, 13, LabelInk, TextAnchor.UpperCenter);
                 RectTransform label = star.Label.rectTransform;
                 label.anchorMin = label.anchorMax = new Vector2(0.5f, 0.0f);

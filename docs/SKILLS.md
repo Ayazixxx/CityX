@@ -13,7 +13,7 @@ apart of climb"; movement does not go on the bar ("not the ones we included so f
 
 ### The trees (`Character/SkillCatalog.cs`)
 
-One row, left to right, wrapping round: **Freerunner, Sword, Berserker, Pyromancer, Steam, Hydromancer, Cryomancer, Plaguebringer**.
+One row, left to right, wrapping round: **Freerunner, Sword, Berserker, Pyromancer, Steam, Hydromancer, Cryomancer, Plaguebringer, Electromancer**.
 
 | Tree | Stars | Notes |
 |---|---|---|
@@ -25,6 +25,7 @@ One row, left to right, wrapping round: **Freerunner, Sword, Berserker, Pyromanc
 | Hydromancer | empty stars | not in the game yet: drawn faded |
 | Cryomancer | Ice Shards | |
 | Plaguebringer | Poison Breath -> Acid Rain | |
+| Electromancer | Self Smite | the owner's tree (2026-10-15); Self Smite is Pikachu's Thunder, see docs/SELF_SMITE.md |
 
 Every tree also has **empty stars** ("Not designed yet") where later skills go; they are never learnable. Every tree shape except Freerunner's is
 my layout, as are the trees' order and the two not in the game.

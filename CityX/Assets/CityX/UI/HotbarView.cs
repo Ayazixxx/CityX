@@ -45,6 +45,10 @@ namespace CityX.UI
             public Image Rim;
             public Image Face;
             public Image Icon;
+
+            /// <summary>The skill's first letter, shown in place of an icon nobody has drawn yet (SkillIcons.LetterFor).</summary>
+            public Text Letter;
+
             public Text Key;
             public string SkillId;
             public float Flash;
@@ -139,6 +143,7 @@ namespace CityX.UI
 
             slot.Face = MakeImage("Face", slot.Root, HudArt.Disc, FaceColour, size * FaceFraction);
             slot.Icon = MakeImage("Icon", slot.Root, null, IconColour, size * IconFraction);
+            slot.Letter = MakeLetter(slot.Root, size * IconFraction);
             slot.Rim = MakeImage("Rim", slot.Root, HudArt.Ring, Color.white, size);
 
             var keyObject = new GameObject("Key", typeof(RectTransform));
@@ -180,7 +185,32 @@ namespace CityX.UI
             return image;
         }
 
-        /// <summary>Shows a skill (or nothing) in a slot; greyed when it cannot be used now.</summary>
+        /// <summary>
+        /// A skill's first letter in place of its icon, <paramref name="size"/> design pixels square: bold, centred, hidden until a skill with no
+        /// drawn icon is shown. Shared with the skill menu.
+        /// </summary>
+        public static Text MakeLetter(RectTransform parent, float size)
+        {
+            var go = new GameObject("Letter", typeof(RectTransform));
+            var rect = (RectTransform)go.transform;
+            rect.SetParent(parent, false);
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.sizeDelta = new Vector2(size, size);
+            Text text = go.AddComponent<Text>();
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.fontSize = Mathf.Max(8, Mathf.RoundToInt(size * 0.8f));
+            text.fontStyle = FontStyle.Bold;
+            text.alignment = TextAnchor.MiddleCenter;
+            text.horizontalOverflow = HorizontalWrapMode.Overflow;
+            text.verticalOverflow = VerticalWrapMode.Overflow;
+            text.raycastTarget = false;
+            text.enabled = false;
+            return text;
+        }
+
+        /// <summary>Shows a skill (or nothing) in a slot; greyed when it cannot be used now. A skill with no drawn icon shows its first letter.</summary>
         public static void Show(SlotGraphics slot, string skillId, bool usable)
         {
             slot.SkillId = skillId;
@@ -188,6 +218,13 @@ namespace CityX.UI
             slot.Icon.sprite = icon;
             slot.Icon.enabled = icon != null;
             slot.Icon.color = usable ? IconColour : UnusableIconColour;
+            if (slot.Letter != null)
+            {
+                string letter = icon == null ? SkillIcons.LetterFor(skillId) : null;
+                slot.Letter.text = letter ?? string.Empty;
+                slot.Letter.enabled = letter != null;
+                slot.Letter.color = slot.Icon.color;
+            }
             slot.Rim.color = skillId != null ? Color.white : EmptyRimColour;
         }
 
@@ -260,6 +297,10 @@ namespace CityX.UI
                 slot.Flash = Mathf.Max(0.0f, slot.Flash - deltaTime);
                 float swell = 1.0f + 0.2f * (slot.Flash / FlashSeconds);
                 slot.Icon.rectTransform.localScale = new Vector3(swell, swell, 1.0f);
+                if (slot.Letter != null)
+                {
+                    slot.Letter.rectTransform.localScale = slot.Icon.rectTransform.localScale;
+                }
             }
         }
     }

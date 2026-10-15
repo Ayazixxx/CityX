@@ -270,6 +270,7 @@ namespace CityX.CharacterEditor
             AddJetpackIdleState(controller, root, idle);
             AddDanceStates(controller, root);
             AddPushUpStates(controller, root);
+            AddSelfSmiteState(root);
             AddClimbingStates(controller, root);
             AddCarSeatStates(controller, root);
             AddPunchStates(root);
@@ -723,6 +724,29 @@ namespace CityX.CharacterEditor
             AddPhaseTransition(up, locomotion, 0, 0.15f);
             AddPhaseTransition(down, locomotion, 0, 0.15f);  // ended at once (a blow, a fall): straight back to standing
             AddPhaseTransition(pushing, locomotion, 0, 0.15f);
+        }
+
+        /// <summary>
+        /// Self Smite (owner, 2026-10-15: "use this animation for the spell speed it up or slow it down as needed"): the owner's selfsmite.fbx,
+        /// played by the spell (SelfSmiteAbility cross-fades into it by name, on this body and on other players' copies) at
+        /// SelfSmiteMove.ClipSpeed, so the hands come down just as the bolt lands. Back to Locomotion when it ends.
+        /// </summary>
+        private static void AddSelfSmiteState(AnimatorStateMachine root)
+        {
+            AnimationClip clip = FindClip("selfsmite");
+            AnimatorState locomotion = FindState(root, "Locomotion");
+            if (clip == null || locomotion == null)
+            {
+                Debug.LogWarning("CityX: selfsmite.fbx is missing -- Self Smite will show no animation.");
+                return;
+            }
+            AnimatorState state = root.AddState(SelfSmiteMove.StateName);
+            state.motion = clip;
+            state.speed = SelfSmiteMove.ClipSpeed;
+            AnimatorStateTransition back = state.AddTransition(locomotion);
+            back.hasExitTime = true;
+            back.exitTime = 0.95f;
+            back.duration = 0.15f;
         }
 
         private static void AddPhaseTransition(AnimatorState from, AnimatorState to, int phase, float duration)

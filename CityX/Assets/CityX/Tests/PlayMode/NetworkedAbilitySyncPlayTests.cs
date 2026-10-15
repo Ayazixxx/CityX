@@ -190,6 +190,8 @@ namespace CityX.Tests
                 Assert.IsNotNull(body.GetComponent<FireballCaster>().FireballPrefab, "the fireball has no prefab");
                 Assert.IsNotNull(body.GetComponent<IceShardCaster>().ShardPrefab, "ice shards have no prefab");
                 Assert.IsNotNull(body.GetComponent<SwordWaveCaster>().WavePrefab, "the sword wave has no prefab");
+                Assert.IsNotNull(body.GetComponent<SelfSmiteAbility>(), "a joining player cannot cast Self Smite");
+                Assert.IsNotNull(body.GetComponent<SelfSmiteAbility>().StrikeSound, "Self Smite has no thunder");
             }
 #else
             Assert.Ignore("needs the editor to load the networked player prefab.");
@@ -272,6 +274,45 @@ namespace CityX.Tests
             Assert.IsTrue(ownerMelee.TrySpinAttack(), "A's spin was refused");
             yield return WaitUntil(() => remoteMelee.IsShowingRemoteSpin, "B to be shown A's sword spin");
             Assert.IsFalse(_ownerBody.GetComponent<MeleeAttacker>().IsShowingRemoteSpin, "A's own body was shown its own spin back");
+#else
+            Assert.Ignore("needs the editor to load the networked player prefab.");
+            yield break;
+#endif
+        }
+
+        /// <summary>
+        /// Self Smite (2026-10-15): player A casts it; player B's copy of A plays the same animation under the same bolt, and is not held or
+        /// hurt by it -- and A's own body is not shown its own cast a second time.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator SelfSmiteOnOnePlayersBodyIsShownOnAnothersCopy()
+        {
+#if UNITY_EDITOR
+            yield return BringUpTwoPlayers();
+            var ownerSmite = _ownerBody.GetComponent<SelfSmiteAbility>();
+            var remoteSmite = _remoteBody.GetComponent<SelfSmiteAbility>();
+            Assert.IsTrue(ownerSmite.TryCast(), "A's Self Smite was refused");
+            yield return WaitUntil(() => remoteSmite.IsActive, "B to be shown A's Self Smite");
+            Assert.IsFalse(remoteSmite.HoldsTheBody, "B's copy of A is moved by the network, not held by the spell");
+            Assert.IsNotNull(remoteSmite.Bolt, "no bolt over B's copy of A");
+            Animator remoteAnimator = _remoteBody.GetComponentInChildren<Animator>();
+            // Looked for every frame while the copy's move lasts: frames here are real time, slow with three machines in one process, and a
+            // fixed count of them can outlast the whole 1.3 s clip.
+            bool seen = false;
+            for (int i = 0; i < 60 && remoteSmite.IsActive && !seen; i++)
+            {
+                yield return null;
+                seen = remoteAnimator.GetCurrentAnimatorStateInfo(0).IsName(SelfSmiteMove.StateName)
+                       || remoteAnimator.GetNextAnimatorStateInfo(0).IsName(SelfSmiteMove.StateName);
+            }
+            AnimatorStateInfo now = remoteAnimator.GetCurrentAnimatorStateInfo(0);
+            Assert.IsTrue(seen,
+                $"B's copy of A is not playing the animation ({remoteSmite.Seconds:0.00} s into the move: state {now.shortNameHash} at {now.normalizedTime:0.00}, Locomotion is " +
+                $"{Animator.StringToHash("Locomotion")}, SelfSmite {Animator.StringToHash(SelfSmiteMove.StateName)}; animator enabled " +
+                $"{remoteAnimator.isActiveAndEnabled}, speed {remoteAnimator.speed}, {_remoteBody.GetComponentsInChildren<Animator>(true).Length} animator(s), " +
+                $"has the state {remoteAnimator.HasState(0, Animator.StringToHash(SelfSmiteMove.StateName))}, limp {_remoteBody.GetComponent<Ragdoll>()?.IsLimp})");
+            Assert.AreEqual(2, Object.FindObjectsByType<SelfSmiteBolt>(FindObjectsSortMode.None).Length,
+                "one bolt for A's own cast and one on B's copy: no more (A was shown its own cast back), no fewer");
 #else
             Assert.Ignore("needs the editor to load the networked player prefab.");
             yield break;

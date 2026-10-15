@@ -109,6 +109,7 @@ namespace CityX.Character
         public const string SwordWave = "sword-wave";
         public const string Octaslash = "octaslash";
         public const string Bloodrage = "bloodrage";
+        public const string SelfSmite = "self-smite";
 
         /// <summary>Skill points a star costs. One each for now; what deeper stars cost is open.</summary>
         public const int LearnCost = 1;
@@ -123,10 +124,10 @@ namespace CityX.Character
 
         public const string NotDesignedYet = "Not designed yet.";
 
-        /// <summary>The bar a character had before the skill tree existed: what the number keys always did (9 and 0 empty).</summary>
+        /// <summary>The bar a character had before the skill tree existed: what the number keys always did, then Self Smite on 9 (2026-10-15) and 0 empty.</summary>
         public static readonly string[] DefaultBar =
         {
-            Fireball, SwordSpin, IceShards, PoisonBreath, AcidRain, Octaslash, SwordWave, Bloodrage, null, null,
+            Fireball, SwordSpin, IceShards, PoisonBreath, AcidRain, Octaslash, SwordWave, Bloodrage, SelfSmite, null,
         };
 
         private static readonly SkillTree[] TreeList =
@@ -139,6 +140,7 @@ namespace CityX.Character
             new SkillTree("hydromancer", "Hydromancer", false, TreeWidth),
             new SkillTree("cryomancer", "Cryomancer", true, TreeWidth),
             new SkillTree("plaguebringer", "Plaguebringer", true, TreeWidth),
+            new SkillTree("electromancer", "Electromancer", true, TreeWidth),
         };
 
         private static readonly List<SkillNode> NodeList = BuildNodes();
@@ -267,6 +269,14 @@ namespace CityX.Character
                 Empty("plaguebringer", 1, At(-0.8f, 2), AcidRain),
                 Empty("plaguebringer", 2, At(0.8f, 2), AcidRain),
                 Empty("plaguebringer", 3, At(0, 3), "plaguebringer-1", "plaguebringer-2"),
+
+                // --- Electromancer (owner, 2026-10-15): Self Smite, Pikachu's Thunder, at the root.
+                new SkillNode(SelfSmite, "Self Smite", "electromancer", SkillKind.Spell, At(0, 0),
+                    "Call a giant bolt of lightning down onto yourself. It hurts whatever it passes on the way down, then bursts round you, " +
+                    "throwing everyone close by. You stand still while it comes, and nothing can hurt you as it lands."),
+                Empty("electromancer", 1, At(-0.8f, 1), SelfSmite),
+                Empty("electromancer", 2, At(0.8f, 1), SelfSmite),
+                Empty("electromancer", 3, At(0, 2), "electromancer-1", "electromancer-2"),
             };
             return nodes;
         }

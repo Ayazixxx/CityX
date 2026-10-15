@@ -16,5 +16,11 @@ namespace CityX.Character
         bool TryRelayHit(float amount, Vector3 fromPosition, float hitstunSeconds, float poiseDamage);
 
         bool TryRelayPoison(float amount);
+
+        /// <summary>
+        /// True (and the knockdown was sent on) when this body is another player's copy: the blow that throws it (a combo finisher, Self Smite's
+        /// burst) throws the real body, on its owner's machine, at <paramref name="velocity"/>.
+        /// </summary>
+        bool TryRelayKnockdown(Vector3 velocity);
     }
 }

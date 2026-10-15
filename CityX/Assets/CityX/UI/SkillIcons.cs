@@ -48,6 +48,21 @@ namespace CityX.UI
             return sprite;
         }
 
+        /// <summary>
+        /// The letter a skill with no drawn icon shows in its place (owner, 2026-10-15: "no need to make hotbar spell icons im going to make them
+        /// all myself just set it to the letter the spell starts with"): its name's first letter. Null for a skill with an icon, an empty star,
+        /// or nothing at all.
+        /// </summary>
+        public static string LetterFor(string skillId)
+        {
+            SkillNode node = SkillCatalog.Find(skillId);
+            if (node == null || node.IsPlaceholder || string.IsNullOrEmpty(node.Name) || For(skillId) != null)
+            {
+                return null;
+            }
+            return char.ToUpperInvariant(node.Name[0]).ToString();
+        }
+
         private static bool Draw(string id, List<Shape> shapes)
         {
             switch (id)

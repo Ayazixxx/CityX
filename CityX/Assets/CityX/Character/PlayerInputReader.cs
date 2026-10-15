@@ -163,6 +163,7 @@ namespace CityX.Character
         private IPoisonBreathCaster _poisonBreath;
         private ISwordWaveCaster _swordWave;
         private IAcidRainCaster _acidRain;
+        private SelfSmiteAbility _selfSmite;
         private OctaslashAbility _octaslash;
 
         /// <summary>5: ACID RAIN, a green storm called down where the crosshair points (no further than its reach), burning everyone out in the open.</summary>
@@ -399,6 +400,7 @@ namespace CityX.Character
             _poisonBreath = GetComponent<IPoisonBreathCaster>();
             _swordWave = GetComponent<ISwordWaveCaster>();
             _acidRain = GetComponent<IAcidRainCaster>();
+            _selfSmite = GetComponent<SelfSmiteAbility>();
 
             // The player gets wet in the rain and dries under cover. Added here
             // rather than baked into the prefab: only the real, local player has
@@ -810,6 +812,15 @@ namespace CityX.Character
                 return;
             }
 
+            // SELF SMITE HOLDS THE BODY, as Pikachu's Thunder does (SelfSmiteAbility): from the cast until it frees the caster nothing else is
+            // read, and the body is ticked with no movement (it is rooted), so gravity and the Animator carry on. Mouse look still turns the camera.
+            if (_selfSmite != null && _selfSmite.HoldsTheBody)
+            {
+                _locomotion.Tick(new LocomotionInput { YawDegrees = transform.eulerAngles.y }, deltaTime);
+                _audio?.SilenceFootsteps();
+                return;
+            }
+
             // FROZEN FOR THE ONE-SHOT MANTLE CLIP'S OWN DURATION, checked
             // first of all -- matches player.gd's own _is_climb_topping_out
             // early-return being the very first thing _physics_process
@@ -1131,6 +1142,12 @@ namespace CityX.Character
             if (_skills.Pressed(SkillCatalog.AcidRain, keyboard))
             {
                 CastAcidRain(yawSource);
+            }
+            // SELF SMITE (Electromancer): Pikachu's Thunder, a bolt from the clouds onto the caster, who bursts with electricity. Not while
+            // swinging on the grapple (the swing branch above never reaches here): the move roots the body.
+            if (_skills.Pressed(SkillCatalog.SelfSmite, keyboard) && (_selfSmite != null || (_selfSmite = GetComponent<SelfSmiteAbility>()) != null))
+            {
+                _selfSmite.TryCast();
             }
             AimIceShards(yawSource);
             AimPoisonBreath(yawSource);

@@ -40,6 +40,7 @@ ability.Fired(event) ───────► SendAbilityToServer ────�
 | Bloodrage (8) | `bloodrage` | once at the start (A = duration) | the red aura and the Bloodrage walk/run/jump for the same time |
 | Octaslash (6, sword) | `octaslash` | wind-up begun, dash begun (direction), ended | the coiled pose, the lunge and the eight slashes on the same timeline; hurts nothing -- see docs/OCTASLASH.md |
 | Acid rain (5) | `acid-rain` | once per cast: the storm's centre | the same storm, cosmetic (clouds, rain, glow, sound; burns nothing) -- see docs/ACID_RAIN.md |
+| Self Smite (9) | `self-smite` | once per cast | the same animation, cloud, bolt, burst, light, sky flash and thunder on the same timeline; hurts nothing, never rooted -- see docs/SELF_SMITE.md |
 | Sword spin (2) | `sword-spin` | charging begun, turn begun (A = 1 for air, B = charge), ended | the sword arm out, the free arm balancing, the swoosh, on the same timeline |
 
 The spin's turn and rise are ordinary movement and arrive with the body's own transform. At 25 degrees a frame the turn is stepped by the
