@@ -37,7 +37,8 @@ namespace CityX.UI
         public const float HealthRedFraction = 0.25f;
 
         public static readonly Color HealthGreen = new Color(0.2f, 0.85f, 0.2f);
-        public static readonly Color HealthYellow = new Color(0.95f, 0.85f, 0.15f);
+        /// <summary>Under 75%: a warm yellow, a step toward orange (owner, 2026-10-14: orange, then "more of a yellow actually").</summary>
+        public static readonly Color HealthYellow = new Color(1.0f, 0.78f, 0.12f);
         public static readonly Color HealthRed = new Color(0.9f, 0.15f, 0.15f);
 
         // The portrait is framed from the character's own measurements (see Frame): the head, the hair or

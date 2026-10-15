@@ -282,8 +282,8 @@ namespace CityX.UIEditor
 
         private static readonly Color ManaBlue = new Color(0.12f, 0.38f, 1.0f, 1.0f);
 
-        /// <summary>Stamina is orange now: blue belongs to mana, and yellow is the health bar's own warning colour (PlayerHud.HealthYellow).</summary>
-        private static readonly Color StaminaOrange = new Color(1.0f, 0.55f, 0.1f, 1.0f);
+        /// <summary>Stamina is white with a tinge of blue (owner, 2026-10-14: "make stamina very light blue like white with a slight tinge of blue").</summary>
+        private static readonly Color StaminaPale = new Color(0.86f, 0.93f, 1.0f, 1.0f);
 
         private static readonly Color BadgeDark = new Color(0.06f, 0.05f, 0.04f, 0.96f);
         private static readonly Color BarText = new Color(1.0f, 1.0f, 1.0f, 0.95f);
@@ -327,7 +327,7 @@ namespace CityX.UIEditor
                 out hud.HealthFill, out hud.HealthFillImage, out hud.HealthText);
             hud.ManaBar = BuildBar(plate.transform, "ManaBar", ManaHeight, ManaBlue, 11, wells, fills,
                 out hud.ManaFill, out _, out hud.ManaText);
-            BuildBar(plate.transform, "StaminaBar", StaminaHeight, StaminaOrange, 0, wells, fills,
+            BuildBar(plate.transform, "StaminaBar", StaminaHeight, StaminaPale, 0, wells, fills,
                 out hud.StaminaFill, out _, out _);
             hud.BarWells = wells.ToArray();
             hud.BarFills = fills.ToArray();

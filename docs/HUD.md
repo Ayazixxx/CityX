@@ -14,8 +14,8 @@ have it on screen from the beginning."
 - To its right a dark plate with a gold edge, its left end tucked under the ring, holding a column: the character's name in WoW's yellow, the
   health bar with its percentage, the mana bar with its percentage, and a thin stamina bar without text. The column sizes itself to its rows, so
   with no mana the plate closes up instead of leaving a gap.
-- Bars are glossy (a grey gradient with a band of shine, tinted by each bar's colour) in a dark well. Health keeps its green, yellow under 75%
-  and red under 25% (`PlayerHud.ColourForHealth`); mana is blue; stamina is orange (blue is mana's, and yellow is health's warning).
+- Bars are glossy (a grey gradient with a band of shine, tinted by each bar's colour) in a dark well. Health is green, a warm yellow from 75%
+  and red from 25% (`PlayerHud.ColourForHealth`); mana is blue; stamina is white with a tinge of blue.
 - Percentages read as WoW's do: 100 only when full and 0 only when empty (`PlayerHud.PercentFor`).
 - The art is drawn in code when the HUD first appears and shared, never stored: a 256-pixel texture saved as an asset is half a megabyte.
 
