@@ -251,8 +251,8 @@ namespace CityX.World
             float underside = ceilingY - Mathf.Min(drop, Mathf.Max(0.0f, ceilingY - floorY - HeadroomMetres)) - thick;
 
             // Where the fittings' CENTRES may go: the inner rectangle shrunk by half a fitting, so a whole fitting stays inside it.
-            float px = Mathf.Max(0.0f, (inner.width - sx) * 0.5f), pz = Mathf.Max(0.0f, (inner.height - sz) * 0.5f);
-            inner = Rect.MinMaxRect(inner.center.x - px, inner.center.y - pz, inner.center.x + px, inner.center.y + pz);
+            Rect walls = inner;
+            inner = Centres(walls, sx, sz);
 
             int cols = Mathf.Max(1, Mathf.FloorToInt(inner.width / spacing) + 1);
             int rows = Mathf.Max(1, Mathf.FloorToInt(inner.height / spacing) + 1);
@@ -289,27 +289,25 @@ namespace CityX.World
                 }
             }
 
-            // Every spot of the grid fell on the corner room or the stair hole: one fitting at the free spot nearest the middle, so no room is dark.
+            // Every spot of the grid fell on the corner room or the stair hole: one fitting at the free spot nearest the middle, so no room is dark --
+            // the fitting as it is, else turned a quarter round, else a small one anywhere off the walls (seed 83920571's building 7475: the top
+            // floor's only free strip of ceiling, between the corner room and two stair holes, was 2.3 m wide, and a 2.4 m tube lay across it).
             if (plan.Fixtures.Count == 0)
             {
-                float bestDistance = float.MaxValue;
-                Vector2 best = Vector2.zero;
-                bool any = false;
-                for (float x = inner.xMin; x <= inner.xMax + 0.01f; x += 0.5f)
+                Rect offWalls = Rect.MinMaxRect(area.xMin + 0.3f, area.yMin + 0.3f, area.xMax - 0.3f, area.yMax - 0.3f);
+                float small = Mathf.Min(0.6f, Mathf.Max(sx, sz));
+                bool found = TryFreeSpot(Centres(walls, sx, sz), sx, sz, 0.3f, avoid, area.center, out Vector2 best);
+                if (!found && TryFreeSpot(Centres(walls, sz, sx), sz, sx, 0.3f, avoid, area.center, out best))
                 {
-                    for (float z = inner.yMin; z <= inner.yMax + 0.01f; z += 0.5f)
-                    {
-                        var foot = Rect.MinMaxRect(x - sx * 0.5f - 0.3f, z - sz * 0.5f - 0.3f, x + sx * 0.5f + 0.3f, z + sz * 0.5f + 0.3f);
-                        float d = (new Vector2(x, z) - area.center).sqrMagnitude;
-                        if (d < bestDistance && !Blocked(foot, avoid))
-                        {
-                            bestDistance = d;
-                            best = new Vector2(x, z);
-                            any = true;
-                        }
-                    }
+                    (sx, sz) = (sz, sx);   // turned a quarter round
+                    found = true;
                 }
-                if (any)
+                if (!found && TryFreeSpot(Centres(offWalls, small, small), small, small, 0.1f, avoid, area.center, out best))
+                {
+                    sx = sz = small;
+                    found = true;
+                }
+                if (found)
                 {
                     var min = new Vector3(best.x - sx * 0.5f, underside, best.y - sz * 0.5f);
                     var max = new Vector3(best.x + sx * 0.5f, underside + thick, best.y + sz * 0.5f);
@@ -500,6 +498,37 @@ namespace CityX.World
         public static int SplitFor(float span)
         {
             return span > 30.0f ? 4 : (span > 20.0f ? 3 : (span > 10.0f ? 2 : 1));
+        }
+
+        /// <summary>Where the centre of a fitting <paramref name="fx"/> by <paramref name="fz"/> may go so all of it stays inside <paramref name="within"/>.</summary>
+        private static Rect Centres(Rect within, float fx, float fz)
+        {
+            float px = Mathf.Max(0.0f, (within.width - fx) * 0.5f), pz = Mathf.Max(0.0f, (within.height - fz) * 0.5f);
+            return Rect.MinMaxRect(within.center.x - px, within.center.y - pz, within.center.x + px, within.center.y + pz);
+        }
+
+        /// <summary>
+        /// The free spot for a fitting <paramref name="fx"/> by <paramref name="fz"/> (kept <paramref name="margin"/> clear of everything to
+        /// avoid) nearest <paramref name="towards"/>, its centre in <paramref name="centres"/>, on a 25 cm grid. False when there is none.
+        /// </summary>
+        private static bool TryFreeSpot(Rect centres, float fx, float fz, float margin, IList<Rect> avoid, Vector2 towards, out Vector2 best)
+        {
+            best = Vector2.zero;
+            float bestDistance = float.MaxValue;
+            for (float x = centres.xMin; x <= centres.xMax + 0.01f; x += 0.25f)
+            {
+                for (float z = centres.yMin; z <= centres.yMax + 0.01f; z += 0.25f)
+                {
+                    float d = (new Vector2(x, z) - towards).sqrMagnitude;
+                    var foot = Rect.MinMaxRect(x - fx * 0.5f - margin, z - fz * 0.5f - margin, x + fx * 0.5f + margin, z + fz * 0.5f + margin);
+                    if (d < bestDistance && !Blocked(foot, avoid))
+                    {
+                        bestDistance = d;
+                        best = new Vector2(x, z);
+                    }
+                }
+            }
+            return bestDistance < float.MaxValue;
         }
 
         private static bool Blocked(Rect foot, IList<Rect> avoid)

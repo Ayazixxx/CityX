@@ -208,8 +208,8 @@ namespace CityX.World
             for (int c = step; c < columns.Count; c += step)
             {
                 float u = u0 + c * columns.Size;
-                // A last flat narrower than one column is folded into the one before it.
-                if (u > u0 + span - EndInset - columns.Size * 0.5f)
+                // A last flat of one column or less is folded into the one before it: a 1.6 m flat has no room for its door (BalconyDoors).
+                if (u > u0 + span - EndInset - columns.Size * 1.5f)
                 {
                     break;
                 }

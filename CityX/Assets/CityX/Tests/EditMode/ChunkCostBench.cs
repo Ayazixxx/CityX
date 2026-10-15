@@ -23,7 +23,7 @@ namespace CityX.Tests
             CityScale.Active = CityScale.Default;
             try
             {
-                var world = new CityWorld(47360519);
+                var world = new CityWorld(83920571);
                 world.Plan.TryFindSpawn(out double sx, out double sz);
                 int cx0 = PlanWorld.ChunkOf(sx), cy0 = PlanWorld.ChunkOf(sz);
                 var report = new StringBuilder();

@@ -145,3 +145,9 @@ Tests (`RoomLightsPlayTests`): the flip test as before (its lights now found thr
 dark room (no light but the door lamps, nothing drawn); a lit room glows in its own colour and rooms of one colour share a mesh; the pool never
 outgrows the budget and is reused; a chunk that goes gives its lights back, and a room left on comes back lit; what a powered block costs
 (every room dark: under 2 ms, measured 0.1-0.2; twenty rooms switched on: under 8 ms, measured 1.25).
+
+## Update 2026-10-15: no dark rooms on cramped floors
+
+Seed 83920571 turned up a dark hall: the top floor of a 10 x 12 m building, whose only free strip of ceiling (between the corner room and two
+stair holes) was 2.3 m wide, while its fluorescent tube is 2.4 m. The last-resort fitting (`RoomLighting.Plan`, when the grid finds no free
+spot) now tries the fitting as it is, then turned a quarter round, then a small 0.6 m one anywhere off the walls, on a 25 cm search grid.

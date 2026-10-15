@@ -47,7 +47,7 @@ namespace CityX.ViewEditor
         /// screen's backdrop and the massing scene's own city stop
         /// matching.
         /// </summary>
-        private const int WorldSeed = 47360519;
+        private const int WorldSeed = 83920571;
 
         /// <summary>How glossy the city's three shared surfaces are when DRY. The rain restores to exactly these.</summary>
         private const float GroundDrySmoothness = 0.10f;
@@ -753,6 +753,9 @@ namespace CityX.ViewEditor
             // Every room's light switch (E at the switch), and keeping everyone's switches the same in a session.
             streamerObject.AddComponent<LightSwitchInteractor>();
             streamerObject.AddComponent<CityX.Character.RoomLightsNetwork>();
+            // The doors onto the balconies (2026-10-15): walked into or E to open, kept the same on every machine.
+            streamerObject.AddComponent<BalconyDoorInteractor>();
+            streamerObject.AddComponent<CityX.Character.BalconyDoorsNetwork>();
             // Graffiti (2026-10-15): pieces painted with a spray can, kept the same on every machine, drawn lit (GraffitiPaint.mat).
             streamerObject.AddComponent<CityX.Character.GraffitiNetwork>().PaintMaterial = CityX.WeaponsEditor.SprayCanBuilder.EnsureGraffitiMaterial();
             streamer.RoadLineMaterial = roadLine;

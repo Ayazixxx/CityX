@@ -71,8 +71,45 @@ Left out on purpose (the owner's call): trees and nature, vehicles.
   before. Climbing from balcony to balcony would need a new move (grab a slab's edge from below, hop up parapet to parapet).
 - **Before/after renders:** `ApartmentFrontCapture` (Explicit, `-Graphics`), with `CityMeshBuilder.ApartmentFrontsOn` as the switch.
 
-Not yet (their apartment has it): floor-length windows to the balcony, front doors and small windows along the walkway, an outside
-staircase at a walkway's end.
+Not yet (their apartment has it): front doors and small windows along the walkway, an outside staircase at a walkway's end. (The doors
+onto the balconies came on 2026-10-15: below.)
+
+### The doors onto the balconies (2026-10-15, `World/BalconyDoors.cs`, `View/CityMeshBuilder.BalconyDoors.cs`, `View/BalconyDoorInteractor.cs`)
+
+Owner: "make it so all balconies have a door leading between the inside of the building and the balcony ... most will be sliding glass doors
+which is the most common balcony door in real life ... double doors ... along with the single doors we built already".
+
+- **One per flat per balcony**, in the middle of the flat's stretch of the back wall, in place of the window there (two window columns, one
+  where a column is 2.6 m or wider): a doorway from the balcony floor up to the slab above (2.9 m at most; 2.75 m on the lowest rows that get
+  balconies), cut through both faces of the wall. The cells it takes have no window (`GlassDamage.IsDoorCell`), and no pier stands in front
+  of it. A flat of one column at the end of a wall is folded into its neighbour now (a 1.25 m flat had no room for a door).
+- **The kind is the building's:** sliding 60 % (2.0-3.0 m: a fixed panel on the outer track and one sliding behind it on the inner, the open
+  half at least 0.89 m wide), a pair of glazed doors 25 % (1.5-2.2 m), a single door 15 % (1.3 m: a solid wooden leaf with a lever handle each
+  side, the street doors' look). A flat with no room for its building's kind gets the next narrower one. The aluminium frames are the
+  building's window frame colour.
+- **Which open.** A storey is two window rows and the balconies are on every row, so the door on every other balcony is half way up a room:
+  it stays shut and rattles. A door onto a floor opens unless the floor just inside (1.4 m) has the stairs, the opening they come up
+  through or a partition in it, or a body could not walk from it to the stairs (a flood over the stairs' own walking grid). On seed 83920571:
+  2895 of 9674 doors near the spawn open, and from every one a body walks to the stairs; 1096 of the 3991 doors onto a floor stay shut for
+  the stairs or a wall just inside. (Found on the way: a few floors of buildings with wrapping stairs cannot be reached from their own
+  stairs at all; their doors stay shut too.)
+- **Opening one.** Walk at it (1.6 m out, 1.2 m/s toward it: it opens before you reach it) or press E looking at it (2.5 m); E again shuts
+  it, but not on someone standing in it. Hinged leaves always open into the flat (the balcony is narrow and has the laundry pole and the
+  washing on it). A door stays as the player left it. Sounds: a sliding door's rumble, the street doors' latch and thud, a locked door's
+  rattle, all made in code.
+- **Drawn in the chunk, not an object each.** A block of flats has fifty doors; each is drawn shut or open in the chunk's own mesh and
+  collider, and opening one rebuilds its chunk in the background, the way a broken window does (`CityStreamer.OnBalconyDoorChanged`). So the
+  door pops open rather than swinging: a short moment while the chunk is rebuilt.
+- **Every player sees it:** `Character/BalconyDoorsNetwork` (FishNet broadcasts like the light switches; the server takes only a door that
+  exists and opens, 8 a second per player; a joiner is told every open door).
+- **Research.** The Level Design Book: a sliding door is the simplest door, it recedes into its own frame and nothing blocks it; a Sims
+  mod's sliding glass doors clipped furniture where they slid past their own footprint (ours stack inside the frame); double doors in games
+  (Neverwinter Nights scripts, Minecraft's paired-door packs) open as one; in real flats a slider is the norm where space is short (Japan),
+  French doors the traditional European choice, and a slider opens only half its width (hence the 2 m minimum).
+- **Tests:** `BalconyDoorsTests` (every balcony has one; the kinds' shares; a 2.66 m, 0.58 m wide body fits through every one; which open,
+  checked against `BuildingStairs.WalkPath`; no window in a door's cells; an open door leaves a body-sized way through the wall's mesh and a
+  shut one does not; the state, the network check, the bump and E), `BalconyDoorPlayTests` (a body walks off a balcony through a real
+  sliding door into the flat; a locked door holds it; E shuts and opens), `BalconyDoorCapture` (Explicit, `-Graphics`).
 
 ## Phase 2: pitched roofs (`World/RoofShape.cs`, `View/CityMeshBuilder.Roofs.cs`)
 

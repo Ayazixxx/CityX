@@ -1483,6 +1483,8 @@ namespace CityX.View
             float inset = WindowGrid.PaneInset;
             // A wall with a balcony on every floor (ApartmentFront): what hangs under a window stands on the balcony floor instead.
             bool banded = looks.HasValue && glazing.HangsGlass && FrontFor(site, plan).Covers(which);
+            // And every flat's balcony has a door in it (BalconyDoors), in place of a window: both faces of the wall are cut for it.
+            List<BalconyDoor> balconyDoors = BalconyDoorsOf(site, plan, which);
 
             for (int row = 0; row < rows.Count; row++)
             {
@@ -1493,6 +1495,13 @@ namespace CityX.View
                 }
                 float y0 = floorY + row * rows.Size;
                 float y1 = y0 + rows.Size;
+
+                if (balconyDoors != null && RowHasBalconyDoor(balconyDoors, row))
+                {
+                    AddBalconyDoorRow(wallBuffer, glazing, site, wall, u0, y0, y1, normal, plan, which, columns, rows, row, balconyDoors, looks,
+                        banded ? y0 + 0.02f : float.NegativeInfinity);
+                    continue;
+                }
 
                 if (hasDoor && row == 0)
                 {

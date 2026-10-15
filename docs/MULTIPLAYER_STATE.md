@@ -27,6 +27,7 @@ Everything below is owner-authoritative (the player's own machine decides, the s
 | **Stepping up** (2026-10-15, docs/CLIMBING.md) | a doorstep or a sill up to 0.65 m is stepped onto smoothly; the rise comes with the transform, and the Animator's `Grounded` stays true through it (sent with the other parameters), so a copy is seen taking a stride, not falling | `PlayerLocomotion.StepUp.cs` |
 | **Light switches** (world state, not a body) | FishNet broadcasts: flip -> server (sane room, 12/s) -> every client; a joiner is sent every light that is on. Not RPCs on a player body: those stop at the 100 m view distance. | `RoomLightsNetwork`, `docs/ROOM_LIGHTS.md` |
 | **Graffiti** (2026-10-15, world state, not a body) | FishNet broadcasts like the light switches: a finished piece (its wall spot and its paint, 256 x 256 RGBA gzipped, a few KB) goes painter -> server (a sane piece, the painter's body within 12 m of it, one a second) -> every client; a joiner is sent every piece already up. The can in hand is a held item like the others. | `GraffitiNetwork`, `GraffitiWall`, `docs/GRAFFITI.md` |
+| **Balcony doors** (2026-10-15, world state, not a body) | FishNet broadcasts like the light switches: a door opened or shut goes player -> server (a door that exists and opens, from the plan every machine has; 8 a second) -> every client, whose chunk is rebuilt with it drawn open; a joiner is sent every open door. | `BalconyDoorsNetwork`, `BalconyDoorState`, docs/WORLD_GACHA.md |
 | **Body size** (Grow and Shrink, 2026-10-15) | the body's scale is part of its NetworkTransform (synced, interpolated, a joiner is told); the copy paces its walk to it (`StrideRate`); the cast is an ability event | `BodySizeAbility`, `docs/SIZE_SPELLS.md` |
 
 A joining player's body now has an `Inventory` with the item prefabs (it had none), so it can hold things at all.
@@ -35,7 +36,7 @@ A joining player's body now has an `Inventory` with the item prefabs (it had non
 
 - **Clothing** (jackets, jeans, coats, hats): they are equipment, but a garment merges into the body's skinned mesh and is not shown on copies. `EquipmentReplicationGuardTests` exempts `Wearables`.
 - **Ragdoll / knockdown / stand-up**: a throw (a combo finisher, Self Smite's burst) on another player's copy is sent to their own body (2026-10-15, `IRemoteDamageRelay.TryRelayKnockdown`), so the victim falls on their own machine, and the copy on the attacker's machine falls too; other players see the body's transform but not the limp pose.
-- **Parachute canopy open/closed**, **grapple rope**, **bottle throw projectile**, **vehicles**, **sitting on benches**, **doors**.
+- **Parachute canopy open/closed**, **grapple rope**, **bottle throw projectile**, **vehicles**, **sitting on benches**, **street doors** (the balcony doors are synced, above).
 - Death is shown as health 0 only.
 - **NPCs** (civilians, the flyer, the Crimson Claw, the Shoota): each exists only on the machine that spawned it. The Shoota only ever targets that machine's own player for that reason (docs/SHOOTA.md).
 

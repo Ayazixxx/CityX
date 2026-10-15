@@ -276,3 +276,13 @@ latch sound for the pair; neither shuts on someone standing in the other's way. 
 The wall cut, the windows the doorway passes through (`GlassDamage.IsDoorCell`), the canopy, the fins, the lobby's light switch and the
 entrance steps' landing all read the same width. Research: the Level Design Book (doors), Aliens vs. Predator 2's linked door pairs.
 Tests: `EntranceDoorTests`, `BuildingDoorPlayTests.APair...`; `EntranceDoorCapture` renders a pair shut and open.
+
+## Update 2026-10-15: doors onto the balconies
+
+Owner: "make it so all balconies have a door leading between the inside of the building and the balcony, make it so the type of door varies by
+building, some will have doors like the ones we built already but most will be sliding glass doors". Every flat's balcony has one: sliding glass
+(60 % of buildings), a pair of glazed doors (25 %) or one solid door like the street doors (15 %). Unlike the street doors they are not objects:
+there are fifty to a block of flats, so each is drawn shut or open in the chunk's own mesh and collider, and opening one rebuilds its chunk the
+way a broken window does. Walking at one opens it from 1.6 m off (the rebuild takes a moment), E opens or shuts it, a hinged leaf opens into
+the flat, and the door on every other balcony (half way up a two-row storey) rattles shut. Kept the same for every player by
+`Character/BalconyDoorsNetwork`. The whole design, the sizes and the research: docs/WORLD_GACHA.md, "The doors onto the balconies".

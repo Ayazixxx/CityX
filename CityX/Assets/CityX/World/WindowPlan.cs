@@ -278,6 +278,12 @@ namespace CityX.World
         /// </summary>
         public static WindowPlan For(CityWorld world, BuildingSite site)
         {
+            return For(site);
+        }
+
+        /// <summary>The same, from the site alone: everything it needs (its seed, zone, parameters and contacts) is on the site.</summary>
+        public static WindowPlan For(BuildingSite site)
+        {
             WindowPlan plan = WindowGrid.PlanFor(site.Seed, site.Zone, site.Params);
             // A volume on a roof is an attachment, not a shop: whatever its roll, its ground row is ordinary windows. So is a wing.
             if ((site.OnRoof || site.Wing) && plan.Storefront)

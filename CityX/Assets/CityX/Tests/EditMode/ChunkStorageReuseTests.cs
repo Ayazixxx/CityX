@@ -16,7 +16,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class ChunkStorageReuseTests
     {
-        private const int Seed = 47360519;
+        private const int Seed = 83920571;
 
         private CityScale _scaleBefore;
         private readonly List<Object> _made = new List<Object>();
@@ -62,24 +62,49 @@ namespace CityX.Tests
             return built.GetComponent<MeshFilter>().sharedMesh;
         }
 
-        /// <summary>The biggest chunk (most vertices) of a few round the spawn: a block of towers in the game's own districts.</summary>
+        /// <summary>
+        /// The biggest chunk (most vertices) of a few round the spawn: a block of towers in the game's own districts. The candidates are the chunks
+        /// that OWN the tallest buildings within nine chunks (a building is built by the chunk its centre is in; a grid of every third chunk could
+        /// miss every tower of a district of 150 m blocks, as on seed 83920571).
+        /// </summary>
         private static Vector2Int BiggestNearSpawn(CityStreamer streamer, CityWorld world, out int vertices)
         {
             world.Plan.TryFindSpawn(out double sx, out double sz);
             int cx = PlanWorld.ChunkOf(sx), cy = PlanWorld.ChunkOf(sz);
+            var owners = new List<(float height, Vector2Int chunk)>();
+            for (int dy = -9; dy <= 9; dy++)
+            {
+                for (int dx = -9; dx <= 9; dx++)
+                {
+                    foreach (int id in world.BuildingsOwnedBy(cx + dx, cy + dy))
+                    {
+                        BuildingSite site = world.Building(id);
+                        owners.Add((site.Top - site.PodiumBase, new Vector2Int(site.OwnerChunkX, site.OwnerChunkY)));
+                    }
+                }
+            }
+            owners.Sort((a, b) => b.height.CompareTo(a.height));
+            var candidates = new List<Vector2Int>();
+            foreach ((float _, Vector2Int chunk) in owners)
+            {
+                if (!candidates.Contains(chunk))
+                {
+                    candidates.Add(chunk);
+                }
+                if (candidates.Count == 6)
+                {
+                    break;
+                }
+            }
             var biggest = new Vector2Int(cx, cy);
             vertices = -1;
-            for (int dy = -3; dy <= 3; dy++)
+            foreach (Vector2Int chunk in candidates)
             {
-                for (int dx = -3; dx <= 3; dx++)
+                int count = Build(streamer, chunk).vertexCount;
+                if (count > vertices)
                 {
-                    var chunk = new Vector2Int(cx + dx * 3, cy + dy * 3);
-                    int count = Build(streamer, chunk).vertexCount;
-                    if (count > vertices)
-                    {
-                        vertices = count;
-                        biggest = chunk;
-                    }
+                    vertices = count;
+                    biggest = chunk;
                 }
             }
             return biggest;

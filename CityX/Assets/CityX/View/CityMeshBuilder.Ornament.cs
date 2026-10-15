@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using CityX.World;
 using UnityEngine;
 
@@ -70,11 +71,13 @@ namespace CityX.View
                 float y0 = floorY + rows.Size + (o.BaseCourse ? FacadeOrnament.BaseCourseHeight - 0.10f : 0.0f);
                 float y1 = corniceBottom;
                 buffer.Look = looks.Wall;
+                // Not in front of a flat's door onto its balcony (BalconyDoors): the doorway of a pair or a sliding door can span a column line.
+                List<BalconyDoor> doors = which == ApartmentFront.BalconyWall ? BalconyDoorsOf(site, WindowPlan.For(site), which) : null;
                 for (int c = o.PierEveryColumns; c < columns.Count; c += o.PierEveryColumns)
                 {
                     float u = u0 + c * columns.Size;
                     float half = FacadeOrnament.PierWidth * 0.5f;
-                    if (site.ContactTop(which, u - u0 - half, u - u0 + half) > y0 - floorY)
+                    if (site.ContactTop(which, u - u0 - half, u - u0 + half) > y0 - floorY || CrossesABalconyDoor(doors, u - half, u + half))
                     {
                         continue;
                     }

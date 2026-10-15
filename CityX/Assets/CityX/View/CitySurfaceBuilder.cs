@@ -27,9 +27,10 @@ namespace CityX.View
 
         /// <summary>
         /// Lane paint floats this far above the road (not lower: it would vanish into the road where two ribbons overlap). 2 cm until 2026-10-09; the
-        /// hillier spawn of seed 61839025 buried a tenth of its paint at 2 cm (RoadPaintTests), so 2.5.
+        /// hillier spawn of seed 61839025 buried a tenth of its paint at 2 cm (RoadPaintTests), so 2.5; seed 83920571's buried 9 % at 2.5 against 7 %
+        /// at 3, so 3 (still nothing a 2.6 m body's eye sees as floating).
         /// </summary>
-        public const float PaintLift = 0.025f;
+        public const float PaintLift = 0.03f;
 
         /// <summary>Terrain is sampled on this grid, metres (coarser for distant chunks).</summary>
         public const float TerrainStep = 4.0f;

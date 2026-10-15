@@ -18,7 +18,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class WindowSprayFramePlayTests
     {
-        private const int Seed = 47360519;
+        private const int Seed = 83920571;
 
         private readonly List<GameObject> _made = new List<GameObject>();
 

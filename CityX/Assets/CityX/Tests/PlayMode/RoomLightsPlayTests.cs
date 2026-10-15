@@ -18,7 +18,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class RoomLightsPlayTests
     {
-        private const int Seed = 47360519;
+        private const int Seed = 83920571;
         private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
         private readonly List<GameObject> _made = new List<GameObject>();
         private CityScale _scaleBefore;
@@ -335,10 +335,14 @@ namespace CityX.Tests
             int cx = Mathf.FloorToInt((float)(sx / CityLayout.ChunkSize)), cy = Mathf.FloorToInt((float)(sz / CityLayout.ChunkSize));
             List<CityMeshBuilder.RoomGlow> most = null;
             Vector2Int mostAt = default;
-            for (int dx = -10; dx <= 10; dx++)   // 6 chunks round the spawn held no more than 18 powered rooms on seed 74102958
+            // Ring by ring out from the spawn, until a chunk with 20 powered rooms has turned up (6 chunks round the spawn held no more than 18 on
+            // seed 74102958; seed 83920571's spawn district has a few huge blocks and none of them with power within 10 chunks).
+            for (int ring = 0; ring <= 40 && (most == null || most.Count < 20 || ring <= 10); ring++)
+            for (int dx = -ring; dx <= ring; dx++)
             {
-                for (int dy = -10; dy <= 10; dy++)
+                for (int dy = -ring; dy <= ring; dy++)
                 {
+                    if (Mathf.Max(Mathf.Abs(dx), Mathf.Abs(dy)) != ring) continue;
                     var glows = new List<CityMeshBuilder.RoomGlow>();
                     var origin = new Vector3((cx + dx) * CityLayout.ChunkSize, 0.0f, (cy + dy) * CityLayout.ChunkSize);
                     foreach (int id in world.BuildingsOwnedBy(cx + dx, cy + dy))

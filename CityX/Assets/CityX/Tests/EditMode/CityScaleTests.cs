@@ -12,7 +12,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class CityScaleTests
     {
-        private const int Seed = 47360519;
+        private const int Seed = 83920571;
 
         private static PlanWorld Make(CityScale scale) => PlanWorld.Create(Seed, PlanConfig.For(scale));
 

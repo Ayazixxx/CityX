@@ -530,14 +530,23 @@ namespace CityX.World
             return along >= 0.0f && along <= fp.SideLength;
         }
 
+        [ThreadStatic] private static List<BalconyDoor> s_balconyDoors;
+
         /// <summary>
-        /// A cell the entrance passes through. It never had a window cut in it,
+        /// A cell the entrance passes through, or a flat's balcony door (BalconyDoors). It never had a window cut in it,
         /// so it cannot be broken -- the same whole-cell exclusion the mesh
         /// builder uses when it builds the door row.
         /// </summary>
         public static bool IsDoorCell(BuildingSite site, WindowGrid.Wall wall,
             CellLayout columns, int column, int row)
         {
+            if (wall == ApartmentFront.BalconyWall && row >= 1 && site.Sides < 3)
+            {
+                // A flat's door onto its balcony (BalconyDoors): the cells its doorway passes through have no window.
+                List<BalconyDoor> doors = s_balconyDoors ?? (s_balconyDoors = new List<BalconyDoor>());
+                BalconyDoors.For(site, WindowPlan.For(site), doors);
+                return BalconyDoors.IsDoorCell(doors, column, row);
+            }
             if (wall != WindowGrid.Wall.North || row != 0)
             {
                 return false;

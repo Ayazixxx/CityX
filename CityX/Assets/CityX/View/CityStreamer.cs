@@ -28,7 +28,7 @@ namespace CityX.View
         // real scenes always set this from that same constant at build
         // time. EXPLICIT ASK: "generate a new world every time you make a
         // change to the city generation."
-        public int WorldSeed = 47360519;
+        public int WorldSeed = 83920571;
 
         [Tooltip("Put the player (and the Old Guy, who is placed relative to them) at the spawn point of the world this streamer makes, when it wakes. The scene bakes a spawn point at build time, but the world depends on the city scale in force when the game runs.")]
         public bool PlaceAtSpawn = false;
@@ -528,14 +528,20 @@ namespace CityX.View
         /// <summary>Every chunk the player has been to, as a snapshot -- see ExploredChunks.ToArray.</summary>
         public Vector2Int[] GetExploredChunks() => _explored.ToArray();
 
+        /// <summary>The world being streamed (null until the first build).</summary>
+        public CityWorld World => _world;
+
         private void OnEnable()
         {
             Damage.Changed += OnPaneChanged;
+            // A door onto a balcony opened or shut (World/BalconyDoors, drawn in the chunk's own mesh): its chunk is built again.
+            BalconyDoorState.Shared.Changed += OnBalconyDoorChanged;
         }
 
         private void OnDisable()
         {
             Damage.Changed -= OnPaneChanged;
+            BalconyDoorState.Shared.Changed -= OnBalconyDoorChanged;
             AbandonSwaps();
         }
 
@@ -562,7 +568,28 @@ namespace CityX.View
             // shots with the pistol at a window") cost a whole chunk's mesh upload and collider cook per shot.
             bool glassOnly = _paneSeen.TryGetValue(key, out PaneState before) && before == state && state == PaneState.Cracked;
             _paneSeen[key] = state;
+            RefreshChunk(chunk, glassOnly);
+        }
 
+        /// <summary>A balcony door opened or shut (BalconyDoorState): the chunk its building belongs to is built again with the door drawn the new way.</summary>
+        private void OnBalconyDoorChanged(int building)
+        {
+            if (_world == null || building < 0 || building >= _world.BuildingCount)
+            {
+                return;
+            }
+            BuildingSite owner = _world.Building(building);
+            var chunk = new Vector2Int(owner.OwnerChunkX, owner.OwnerChunkY);
+            if (_far.Contains(chunk))
+            {
+                return;   // the distant version of a building is its shell: no doors to draw (it is built in full when you come close)
+            }
+            RefreshChunk(chunk, false);
+        }
+
+        /// <summary>Builds a loaded chunk again (in the background where it can), after something drawn in it changed; <paramref name="glassOnly"/>: only its cracked glass.</summary>
+        private void RefreshChunk(Vector2Int chunk, bool glassOnly)
+        {
             if (_loaded.TryGetValue(chunk, out GameObject loadedNow) && WorkerThreads > 0)
             {
                 // In the background: the chunk on screen stays until its replacement is ready, and a burst of hits on one chunk is one rebuild.

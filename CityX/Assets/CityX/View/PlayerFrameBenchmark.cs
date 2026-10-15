@@ -165,7 +165,7 @@ namespace CityX.View
             foreach (MonoBehaviour behaviour in FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None))
             {
                 string type = behaviour.GetType().Name;
-                if (type == "NetworkedAnimatorSync" || type == "RoomLightsNetwork")
+                if (type == "NetworkedAnimatorSync" || type == "RoomLightsNetwork" || type == "BalconyDoorsNetwork")
                 {
                     behaviour.enabled = false;
                 }
