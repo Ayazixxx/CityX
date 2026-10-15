@@ -34,7 +34,7 @@ namespace CityX.Tests
             _made.Add(go);
             go.SetActive(false);   // set the fields before Awake runs
             var streamer = go.AddComponent<CityStreamer>();
-            streamer.WorldSeed = 39271846;
+            streamer.WorldSeed = 61928374;
             streamer.RadiusChunks = radius;
             streamer.FullDetailRadiusChunks = fullRadius;
             streamer.DetailHysteresisChunks = 1;
@@ -155,7 +155,7 @@ namespace CityX.Tests
             yield return WaitUntil(() => streamer.LoadedChunkCount >= 11 * 11, 30.0f);
 
             // A building built by one of the far chunks, three to five chunks out.
-            var world = new CityWorld(39271846);
+            var world = new CityWorld(61928374);
             BuildingSite site = BuildingSite.None;
             for (int dx = 3; dx <= 5 && !site.Exists; dx++)
             {

@@ -128,6 +128,11 @@ namespace CityX.World
             {
                 return None;
             }
+            // A house under a pitched roof (RoofShape) is a house, not an apartment block (and its eaves would meet the band's eave).
+            if (RoofShape.For(site).Pitched)
+            {
+                return None;
+            }
             FacadeStyle style = plan.Style;
             if (style == FacadeStyle.Curtain || style == FacadeStyle.HighBand || style == FacadeStyle.Blank)
             {

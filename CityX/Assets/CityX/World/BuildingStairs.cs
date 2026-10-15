@@ -238,7 +238,8 @@ namespace CityX.World
                 site.Zone, site.Seed, site.HasRoofObstacle
                     ? Rect.MinMaxRect(site.ObstacleX0 - 0.4f, site.ObstacleZ0 - 0.4f, site.ObstacleX1 + 0.4f, site.ObstacleZ1 + 0.4f)
                     : Rect.zero,
-                site.RoofSealed);
+                // Nobody stands on a pitched roof (RoofShape): no stair up into the attic under it.
+                site.RoofSealed || RoofShape.For(site).Pitched);
         }
 
         public static Layout PlanFor(float width, float depth, float height, bool basement, BuildingMass mass, ZoneKind zone, int seed, Rect roofObstacle,

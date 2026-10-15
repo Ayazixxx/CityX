@@ -29,7 +29,7 @@ namespace CityX.Tests
             _made.Clear();
         }
 
-        private CityStreamer Streamer(string name, int threads, int radius, Transform viewer, int seed = 39271846)
+        private CityStreamer Streamer(string name, int threads, int radius, Transform viewer, int seed = 61928374)
         {
             var go = new GameObject(name);
             _made.Add(go);

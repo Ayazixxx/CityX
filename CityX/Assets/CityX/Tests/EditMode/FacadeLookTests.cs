@@ -12,7 +12,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class FacadeLookTests
     {
-        private const int Seed = 39271846;
+        private const int Seed = 61928374;
 
         private static CityWorld _world;
         private static CityWorld World => _world ?? (_world = new CityWorld(Seed));
@@ -113,7 +113,7 @@ namespace CityX.Tests
         {
             var counts = new Dictionary<WallMaterial, int>();
             int total = 0;
-            foreach (BuildingSite site in TestSites.NearSpawn(World, 14))
+            foreach (BuildingSite site in TestSites.NearSpawn(World, 20))
             {
                 BuildingLook look = BuildingLook.For(site, WindowPlan.For(World, site).Style);
                 counts.TryGetValue(look.Wall, out int n);

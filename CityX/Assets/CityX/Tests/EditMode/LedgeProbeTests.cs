@@ -136,6 +136,58 @@ namespace CityX.Tests
             Assert.IsFalse(Find(0.7f, out _), "a steep slope was taken for a flat ledge");
         }
 
+        /// <summary>
+        /// A wall up to 3.2 m (near face z = 0.5) under a pitched roof: a slab 0.22 m thick whose underside passes through the wall's top edge and
+        /// rises inward (toward +Z) at <paramref name="pitch"/> degrees, its eaves 0.5 m out past the face (World.RoofShape's houses).
+        /// </summary>
+        private void HouseUnderPitchedRoof(float pitch, out float topAtEaves, out float tan)
+        {
+            Box(new Vector3(0.0f, 1.6f, 1.25f), new Vector3(10.0f, 3.2f, 1.5f));
+            tan = Mathf.Tan(pitch * Mathf.Deg2Rad);
+            float cos = Mathf.Cos(pitch * Mathf.Deg2Rad), sin = Mathf.Sin(pitch * Mathf.Deg2Rad);
+            const float eaveZ = 0.0f, innerZ = 4.0f, thick = 0.22f;
+            float midZ = (eaveZ + innerZ) * 0.5f;
+            Vector3 underMid = new Vector3(0.0f, 3.2f + (midZ - 0.5f) * tan, midZ);
+            Vector3 up = new Vector3(0.0f, cos, -sin);
+            Box(underMid + up * (thick * 0.5f), new Vector3(10.0f, thick, (innerZ - eaveZ) / cos), new Vector3(-pitch, 0.0f, 0.0f));
+            topAtEaves = 3.2f + (eaveZ - 0.5f) * tan + thick / cos;
+            Physics.SyncTransforms();
+        }
+
+        [Test]
+        public void APitchedRoofsEavesAreALedgeAndTheStandSpotIsOnTheSlope()
+        {
+            // A climb up a house used to hang under its eaves for good: the top is a slope, not the shelf or the parapet a ledge was (2026-10-15).
+            HouseUnderPitchedRoof(22.0f, out float topAtEaves, out float tan);
+            Assert.IsTrue(Find(1.0f, out LedgeProbe.Ledge ledge), "the eaves of a 22-degree roof were not taken for a ledge");
+            Assert.AreEqual(0.0f, ledge.Lip.z, 0.08f, "the lip is the eaves' edge, half a metre out past the wall");
+            Assert.Greater(ledge.Stand.z, 0.3f, "the standing spot must be up on the roof, past the eaves");
+            Assert.Less(ledge.Stand.z, 1.5f);
+            float slopeThere = topAtEaves + ledge.Stand.z * tan;
+            Assert.AreEqual(slopeThere, ledge.Stand.y, 0.05f, "the standing spot must be on the slope");
+            Assert.AreEqual(ledge.Stand.y, ledge.Height, 0.01f, "the mantle rises to the standing spot's height before it steps in");
+
+            // Never inside the roof on the way: wherever the feet are over it, they are on or above its slope.
+            for (float u = 0.0f; u <= 1.0f; u += 0.01f)
+            {
+                Vector3 p = CityX.Character.PlayerClimbing.MantlePath(new Vector3(0.0f, 1.0f, -0.4f), ledge, u);
+                if (p.z > 0.0f)
+                {
+                    Assert.GreaterOrEqual(p.y, topAtEaves + p.z * tan - 0.03f, $"feet in the roof at u={u:F2} (z={p.z:F2}, y={p.y:F2})");
+                }
+            }
+        }
+
+        [Test]
+        public void AShallowRoofIsALedgeButOneSteeperThanAClimbTakesIsNot()
+        {
+            HouseUnderPitchedRoof(8.0f, out _, out _);
+            Assert.IsTrue(Find(1.0f, out _), "a shed's shallow roof was not taken for a ledge");
+            TearDown();
+            HouseUnderPitchedRoof(38.0f, out _, out _);
+            Assert.IsFalse(Find(1.0f, out _), "a 38-degree roof is steeper than a climber pulls up onto");
+        }
+
         [Test]
         public void ALedgeWithACeilingOverItHasNoRoomToStand()
         {

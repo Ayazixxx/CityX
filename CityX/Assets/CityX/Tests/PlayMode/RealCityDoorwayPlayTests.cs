@@ -21,7 +21,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class RealCityDoorwayPlayTests
     {
-        private const int Seed = 39271846;
+        private const int Seed = 61928374;
         private readonly List<GameObject> _made = new List<GameObject>();
 
         [TearDown]
@@ -319,10 +319,10 @@ namespace CityX.Tests
             var failures = new List<string>();
             var tooTall = new List<string>();
             int buildings = 0, windows = 0, steppable = 0, entered = 0;
-            foreach (BuildingSite site in TestSites.NearSpawn(world))
+            foreach (BuildingSite site in TestSites.NearSpawn(world, 20))
             {
                 if (site.OnRoof || site.Shell || site.Params.IsSpecial || site.IsOpenGround || site.Sides >= 3) continue;
-                if (buildings++ >= 40) break;
+                if (buildings++ >= 70) break;   // 40 held only 5 steppable shop windows on seed 61928374 (a sparser spawn)
                 var panes = new List<RealCityWindowVaultPlayTests.Candidate>(RealCityWindowVaultPlayTests.PanesOf(world, site, WindowGrid.Wall.North));
                 if (panes.Count == 0) continue;
                 yield return Stream(panes[0].Outside);

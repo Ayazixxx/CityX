@@ -11,7 +11,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class BuildingStairsTests
     {
-        private const int Seed = 39271846;
+        private const int Seed = 61928374;
         private static CityWorld _world;
         private static CityWorld World => _world ?? (_world = new CityWorld(Seed));
 
@@ -73,7 +73,8 @@ namespace CityX.Tests
                     continue;   // sealed sculpture: built without stairs (BuildingShapeTests)
                 }
                 BuildingStairs.Layout layout = BuildingStairs.PlanFor(site);
-                Assert.AreEqual(site.RoofSealed && !layout.SealedTop, layout.RoofCovered, $"#{site.Id}");
+                // Covered by a sealed block on it, or a pitched roof nobody stands on (RoofShape).
+                Assert.AreEqual((site.RoofSealed || RoofShape.For(site).Pitched) && !layout.SealedTop, layout.RoofCovered, $"#{site.Id}");
                 for (int f = 0; f < layout.FloorCount; f++)
                 {
                     if (f == layout.FloorCount - 1 && layout.NoRoofStair)

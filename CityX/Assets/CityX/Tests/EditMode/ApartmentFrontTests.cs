@@ -13,7 +13,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class ApartmentFrontTests
     {
-        private const int Seed = 39271846;
+        private const int Seed = 61928374;
 
         /// <summary>The player's height (BodyRig.StandingHeight): what must walk out of the door and along the back under the first slab.</summary>
         private const float BodyHeight = 2.6f;
@@ -84,7 +84,7 @@ namespace CityX.Tests
             var are = new int[6];
             foreach (BuildingSite site in TestSites.NearSpawn(World, 40))
             {
-                if (!site.Exists || site.Params.IsSpecial || site.OnRoof || site.Shell || site.Wing || site.Sides >= 3)
+                if (!site.Exists || site.Params.IsSpecial || site.OnRoof || site.Shell || site.Wing || site.Sides >= 3 || RoofShape.For(site).Pitched)
                 {
                     continue;
                 }
@@ -331,7 +331,7 @@ namespace CityX.Tests
         {
             // The walkway is the shelter; a canopy under it stood on the walkway's floor. Its underside was at the door's top + 0.12 m.
             int built = 0;
-            foreach (BuildingSite site in Sites)
+            foreach (BuildingSite site in TestSites.NearSpawn(World, 40))   // walkway blocks are a minority of a minority: look widely
             {
                 if (!FrontOf(site).Walkway || !FreeStanding(site))
                 {

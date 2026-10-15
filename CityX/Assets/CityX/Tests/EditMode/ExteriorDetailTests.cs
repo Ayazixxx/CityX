@@ -12,7 +12,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class ExteriorDetailTests
     {
-        private const int Seed = 39271846;
+        private const int Seed = 61928374;
 
         private static CityWorld _world;
         private static CityWorld World => _world ?? (_world = new CityWorld(Seed));
@@ -72,7 +72,8 @@ namespace CityX.Tests
         public void EveryRoofEndsInAParapet()
         {
             int checkedRoofs = 0;
-            foreach (BuildingSite site in Sample(40, s => s.Params.Height > 15.0f))
+            // (A pitched roof has eaves, not a parapet: RoofShapeTests.)
+            foreach (BuildingSite site in Sample(40, s => s.Params.Height > 15.0f && !RoofShape.For(s).Pitched))
             {
                 var structures = new MeshBuffer();
                 Build(site, false, structures, new MeshBuffer(), new MeshBuffer(), new MeshBuffer(), out _);

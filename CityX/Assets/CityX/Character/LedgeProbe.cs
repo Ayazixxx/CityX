@@ -60,7 +60,147 @@ namespace CityX.Character
 
         public static bool TryFind(Vector3 feet, Vector3 outward, float standingHeight, float radius, Transform self, out Ledge ledge)
         {
-            return TryFindShelf(feet, outward, standingHeight, radius, self, out ledge) || TryFindThin(feet, outward, standingHeight, radius, self, out ledge);
+            return TryFindShelf(feet, outward, standingHeight, radius, self, out ledge) || TryFindThin(feet, outward, standingHeight, radius, self, out ledge)
+                || TryFindSlope(feet, outward, standingHeight, radius, self, out ledge);
+        }
+
+        /// <summary>
+        /// The steepest top a climb pulls up onto: a pitched roof's slope (World.RoofShape.MaxPitch is 32 degrees, and a 2.6 m body walks up it),
+        /// short of the 35-degree slab that is a wall's top tipped over (LedgeProbeTests.ASlopedTopIsNotALedge).
+        /// </summary>
+        public const float MaxSlopeDegrees = 33.0f;
+
+        /// <summary>How far up the slope from its edge the top is checked, in metres (the stand spot is within it).</summary>
+        private static readonly float[] SlopeDepths = { 0.15f, 0.5f, 0.85f };
+
+        /// <summary>
+        /// THE EAVES OF A PITCHED ROOF (2026-10-15, World.RoofShape): the top is not level but a walkable slope rising away from the wall, its edge
+        /// standing out past the wall by up to <see cref="MaxOverhangMetres"/> (a climb leans out round eaves as round a cornice: ClimbJut). The
+        /// shelf test wants a level top and the thin one lower ground behind, so neither took it, and a climb up a house hung under its eaves for
+        /// good. Accepted when the slope's edge is in reach and, at each of <see cref="SlopeDepths"/> up from it, the top is there all the way
+        /// across, level across (it rises only away from the wall), and higher than the row before by a steady, walkable rise; the stand spot is
+        /// on the slope with room to stand, and the way up to it is open. The ledge's height is the stand spot's, above the edge: the mantle
+        /// rises to it before it steps in, so the feet pass over the slope rather than through it.
+        /// </summary>
+        private static bool TryFindSlope(Vector3 feet, Vector3 outward, float standingHeight, float radius, Transform self, out Ledge ledge)
+        {
+            ledge = default;
+            outward.y = 0.0f;
+            if (outward.sqrMagnitude < 0.0001f)
+            {
+                return false;
+            }
+            outward.Normalize();
+            Vector3 tangent = Vector3.Cross(Vector3.up, outward);
+
+            // 1. The face at hand height: the wall under the eaves (reaching as far again as a body leans out round them).
+            Vector3 handHeight = feet + Vector3.up * (standingHeight * 0.7f);
+            if (!SolidHit(handHeight + outward * 0.5f, -outward, 1.5f + MaxOverhangMetres, self, out RaycastHit face) || Mathf.Abs(face.normal.y) > 0.3f)
+            {
+                return false;
+            }
+            Vector3 faceNormal = new Vector3(face.normal.x, 0.0f, face.normal.z).normalized;
+            Vector3 facePoint = face.point;
+            float yLow = feet.y + standingHeight * BandLowFraction;
+            float yHigh = feet.y + standingHeight * BandHighFraction;
+            float minNormalY = Mathf.Cos(MaxSlopeDegrees * Mathf.Deg2Rad);
+            float maxRise = Mathf.Tan(MaxSlopeDegrees * Mathf.Deg2Rad);
+
+            // 2. The slope's edge: the first row, coming in from as far out as eaves reach, where the top is there all the way across.
+            float edge = float.NaN, edgeHeight = 0.0f;
+            for (float depth = -MaxOverhangMetres; depth <= 0.3f; depth += 0.05f)
+            {
+                if (TopRow(facePoint - faceNormal * depth, tangent, yHigh, yLow, minNormalY, self, out edgeHeight))
+                {
+                    edge = depth;
+                    break;
+                }
+            }
+            if (float.IsNaN(edge))
+            {
+                return false;
+            }
+
+            // 3. Up from the edge, a steady walkable rise: each row there and level across, and higher than the one before -- by enough to be a slope
+            //    (a level top is the shelf's case, and was refused there) and not so much it is a step or a wall.
+            float previousDepth = edge, previousHeight = edgeHeight;
+            foreach (float d in SlopeDepths)
+            {
+                float depth = edge + d;
+                if (!TopRow(facePoint - faceNormal * depth, tangent, yHigh + d * maxRise, yLow, minNormalY, self, out float rowHeight))
+                {
+                    return false;
+                }
+                float rise = (rowHeight - previousHeight) / (depth - previousDepth);
+                if (rise < 0.05f || rise > maxRise + 0.1f)
+                {
+                    return false;
+                }
+                previousDepth = depth;
+                previousHeight = rowHeight;
+            }
+
+            // 4. Room to stand on the slope a little way up from its edge.
+            Vector3 stand = facePoint - faceNormal * (edge + radius + StandInMetres);
+            if (!SolidHit(new Vector3(stand.x, yHigh + 1.0f, stand.z), Vector3.down, yHigh + 1.0f - yLow, self, out RaycastHit ground)
+                || ground.normal.y < minNormalY)
+            {
+                return false;
+            }
+            stand.y = ground.point.y;
+            if (!HasRoom(stand, standingHeight, radius, self))
+            {
+                return false;
+            }
+
+            // 5. The way up must be open: from just outside the edge, up along the slope at the body's heights over it, to the stand spot.
+            Vector3 lip = new Vector3(facePoint.x, edgeHeight, facePoint.z) - faceNormal * edge;
+            Vector3 outside = lip + faceNormal * (radius + 0.1f);
+            Vector3 toStand = stand - outside;
+            foreach (float up in PathHeights)
+            {
+                if (SolidHit(outside + Vector3.up * (up * standingHeight), toStand.normalized, toStand.magnitude, self, out _))
+                {
+                    return false;
+                }
+            }
+
+            ledge = new Ledge
+            {
+                Lip = lip,
+                Stand = stand,
+                Height = stand.y,
+                Normal = faceNormal,
+            };
+            return true;
+        }
+
+        /// <summary>
+        /// A row of three probes across the wall (<see cref="HalfWidth"/> either side of <paramref name="centre"/>, straight down from
+        /// <paramref name="fromY"/> to <paramref name="toY"/>): the top must be found by every one, walkable (normal up past
+        /// <paramref name="minNormalY"/>) and level across within <see cref="FlatnessMetres"/>.
+        /// </summary>
+        private static bool TopRow(Vector3 centre, Vector3 tangent, float fromY, float toY, float minNormalY, Transform self, out float height)
+        {
+            height = 0.0f;
+            float low = float.MaxValue, high = float.MinValue;
+            for (int s = -1; s <= 1; s++)
+            {
+                Vector3 from = centre + tangent * (s * HalfWidth);
+                from.y = fromY;
+                if (fromY - toY <= 0.0f || !SolidHit(from, Vector3.down, fromY - toY, self, out RaycastHit hit) || hit.normal.y < minNormalY)
+                {
+                    return false;
+                }
+                low = Mathf.Min(low, hit.point.y);
+                high = Mathf.Max(high, hit.point.y);
+            }
+            if (high - low > FlatnessMetres)
+            {
+                return false;
+            }
+            height = (low + high) * 0.5f;
+            return true;
         }
 
         private static bool TryFindShelf(Vector3 feet, Vector3 outward, float standingHeight, float radius, Transform self, out Ledge ledge)

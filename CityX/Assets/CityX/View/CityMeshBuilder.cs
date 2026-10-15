@@ -466,7 +466,7 @@ namespace CityX.View
             AddWallOrnament(structures, site, looks, east, z0, z1, Vector3.right, WindowGrid.Wall.East, lobbyY, roofY, rows, plan.ColumnsFor(z1 - z0), false);
             AddWallOrnament(structures, site, looks, south, x0, x1, Vector3.back, WindowGrid.Wall.South, lobbyY, roofY, rows, plan.ColumnsFor(x1 - x0), false);
             AddWallOrnament(structures, site, looks, north, x0, x1, Vector3.forward, WindowGrid.Wall.North, lobbyY, roofY, rows, plan.ColumnsFor(x1 - x0), false);
-            AddCornerPiers(structures, site, looks, x0, x1, z0, z1, podiumY, roofY + ParapetWallHeight);
+            AddCornerPiers(structures, site, looks, x0, x1, z0, z1, podiumY, roofY + (RoofShape.For(site).Pitched ? 0.0f : ParapetWallHeight));
 
             if (detailRows < rows.Count)
             {
@@ -696,7 +696,7 @@ namespace CityX.View
                     StairPlan topStair = BuildingStairs.PlanFor(site).Floors[shellFloors - 1];
                     hatch = topStair != null ? Shift(topStair.Hole, shellCentreX, shellCentreZ) : Rect.zero;
                 }
-                AddRoof(structures, site, x0, x1, z0, z1, roofY, looks, hatch);
+                AddRoof(structures, site, x0, x1, z0, z1, roofY, looks, hatch, true);
             }
             if (site.Shell && site.OnRoof)
             {
@@ -712,7 +712,7 @@ namespace CityX.View
                 AddWallOrnament(structures, site, looks, east, z0, z1, Vector3.right, WindowGrid.Wall.East, lobbyY, roofY, shellRows, shellPlan.ColumnsFor(z1 - z0), true);
                 AddWallOrnament(structures, site, looks, south, x0, x1, Vector3.back, WindowGrid.Wall.South, lobbyY, roofY, shellRows, shellPlan.ColumnsFor(x1 - x0), true);
                 AddWallOrnament(structures, site, looks, north, x0, x1, Vector3.forward, WindowGrid.Wall.North, lobbyY, roofY, shellRows, shellPlan.ColumnsFor(x1 - x0), true);
-                AddCornerPiers(structures, site, looks, x0, x1, z0, z1, podiumY, roofY + ParapetWallHeight);
+                AddCornerPiers(structures, site, looks, x0, x1, z0, z1, podiumY, roofY + (RoofShape.For(site).Pitched ? 0.0f : ParapetWallHeight));
             }
             structures.Look = SurfaceLook.Default;
 
@@ -1060,8 +1060,15 @@ namespace CityX.View
         /// accident; the climb still tops out over it (PlayerClimbing mantles forward onto whatever is past the wall).
         /// </summary>
         private static void AddRoof(MeshBuffer buffer, BuildingSite site, float x0, float x1, float z0, float z1, float roofY,
-            SiteLooks looks, Rect hatch)
+            SiteLooks looks, Rect hatch, bool far = false)
         {
+            // A pitched roof stands where the parapet and the plant would (CityMeshBuilder.Roofs.cs, World/RoofShape).
+            RoofShape pitched = RoofShape.For(site);
+            if (pitched.Pitched)
+            {
+                AddPitchedRoof(buffer, site, pitched, x0, x1, z0, z1, roofY, looks, far);
+                return;
+            }
             float t = ParapetWallThickness;
             float h = ParapetWallHeight;
             float o = CopingOverhang;

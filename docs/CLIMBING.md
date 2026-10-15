@@ -336,3 +336,10 @@ like this when i should just be running right over this".
   frames and set down on the shop floor.
 - **Measured from what the body stands on**, not the bottom of its capsule (`StandingOnY`): perched on a stair's nosing the rounded bottom dips
   below the tread under it, and an ordinary 0.22 m riser read as a 0.3 m step (the stairs test failed in full runs only).
+
+## Update: onto a pitched roof (2026-10-15)
+
+`LedgeProbe` has a third kind of ledge (`TryFindSlope`) for the eaves of a pitched roof (`World/RoofShape`): the top is a walkable slope (at most 33 degrees,
+`LedgeProbe.MaxSlopeDegrees`) rising away from the wall, its edge up to `MaxOverhangMetres` out past the face. Rows of probes up the slope must each be level across and rise steadily;
+the stand spot is on the slope, and the ledge's height is the stand spot's, so the mantle rises above the edge before it steps in and the feet pass over the slope.
+A 35-degree slab on a wall top is still refused (`ASlopedTopIsNotALedge`). Tests: `LedgeProbeTests.APitchedRoofsEavesAreALedge...`, `RoofClimbPlayTests`.

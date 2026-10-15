@@ -73,3 +73,26 @@ Left out on purpose (the owner's call): trees and nature, vehicles.
 
 Not yet (their apartment has it): floor-length windows to the balcony, front doors and small windows along the walkway, an outside
 staircase at a walkway's end.
+
+## Phase 2: pitched roofs (`World/RoofShape.cs`, `View/CityMeshBuilder.Roofs.cs`)
+
+- **Which buildings.** Low buildings (LowRise, no more than 26 m across the ridge and 48 m along it) in the homes zones and some downtown --
+  per zone 10 % downtown, 25 % urban, 60 % residential, 75 % old town, 70 % outskirts -- and 45 % of warehouses (a low metal gable). Never a
+  special building, a block of a shaped building, or one something stands on. A building something stands against (a terrace's neighbours,
+  the leg of an L) may have them on two opposite walls only: those are the gable's ends, flush, with no verge -- the roof of a row house.
+  Measured on seed 61928374: 196 of the 1601 buildings within 40 chunks of the spawn (101 gables, 57 hips, 38 skillions; 6 sheds).
+- **Kinds.** Gable (ridge along the long side, the wall carried up as a triangle at each end), hip (four slopes, a pyramid on a square house),
+  skillion (one shallow slope, the high wall and the two side triangles carried up). Pitch 22-32 degrees (hip 20-28, skillion 6-12, sheds
+  6-10), lowered if need be so no roof rises more than 5.5 m. Eaves 0.45-0.6 m out (sheds 0.35), verges 0.3 m.
+- **Covering.** Tiles (the facade's Tile material at three times its size: 300 mm tiles; silver-grey or blue-black kawara, terracotta, brown)
+  or standing-seam metal (dark grey, navy, green, red-brown, silver, teal), the seams running down the slope. A skillion is always metal.
+  Ridge cap, fascia along the eaves, a pale soffit under them. A "chimney" roof puts a brick chimney through the slope near the ridge, an
+  "antenna" one a television aerial on the ridge.
+- **What changes with it.** No parapet and no roof plant (`AddRoof` builds the pitched roof instead), no cornice (`FacadeOrnament.For`), the
+  corner piers stop at the eaves, no stair up to the roof (`BuildingStairs`: the attic is shut), and the building is never an apartment block
+  (`ApartmentFront.For`). Far away the same roof less the ridge cap and aerial.
+- **Climbing.** A climb up a house used to hang under its eaves for good: the ledge check (`Character/LedgeProbe`) wanted a level top. It
+  now has a third kind besides the shelf and the parapet: the edge of a walkable slope (no steeper than 33 degrees) rising away from the
+  wall, its eaves up to 0.9 m out. The mantle rises to the stand spot on the slope before stepping in (`RoofClimbPlayTests`: three climbs up a
+  real house, all on its roof).
+- **Before/after renders:** `RoofShapeCapture` (Explicit, `-Graphics`), with `RoofShape.PitchedRoofsOn` as the switch.

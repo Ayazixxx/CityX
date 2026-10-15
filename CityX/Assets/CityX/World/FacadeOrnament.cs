@@ -77,8 +77,19 @@ namespace CityX.World
 
         private const ulong OrnamentSalt = 0x4F524E414DUL;   // "ORNAM"
 
-        /// <summary>The ornament for the building on a site, given its facade family and wall material.</summary>
+        /// <summary>
+        /// The ornament for the building on a site, given its facade family and wall material. A building with a pitched roof (RoofShape) has no
+        /// parapet for a cornice to cap: its eaves are its crown.
+        /// </summary>
         public static FacadeOrnament For(BuildingSite site, FacadeStyle style, WallMaterial wall)
+        {
+            FacadeOrnament o = ForStyle(site, style, wall);
+            return RoofShape.For(site).Pitched
+                ? new FacadeOrnament(o.BaseCourse, o.CourseEveryRows, 0.0f, o.CorniceDepth, o.CorniceAboveRoof, o.PierEveryColumns, o.CornerPiers, o.Lintels)
+                : o;
+        }
+
+        private static FacadeOrnament ForStyle(BuildingSite site, FacadeStyle style, WallMaterial wall)
         {
             ulong s = unchecked((ulong)(long)site.Seed);
             double R(int i) => WorldHash.Unit01(i, 0, OrnamentSalt, s);

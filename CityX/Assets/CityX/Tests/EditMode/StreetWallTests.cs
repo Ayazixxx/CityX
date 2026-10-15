@@ -13,7 +13,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class StreetWallTests
     {
-        private const int Seed = 39271846;
+        private const int Seed = 61928374;
 
         private static CityWorld _world;
         private static CityWorld World => _world ?? (_world = new CityWorld(Seed));
@@ -45,7 +45,7 @@ namespace CityX.Tests
             // neighbour), or a wall was blanked for nothing -- and a contact on the wrong wall, or measured from the wrong end, shows up here.
             BuildingSite[] all = World.Plan.Buildings;
             int checkedContacts = 0;
-            foreach (BuildingSite site in TestSites.NearSpawn(World, 10))
+            foreach (BuildingSite site in TestSites.NearSpawn(World, 18))
             {
                 if (site.Contacts == null || site.OnRoof || site.Sides >= 3)
                 {
@@ -212,7 +212,7 @@ namespace CityX.Tests
         public void MostOfTheCityWearsSomeRelief()
         {
             int sites = 0, cornices = 0, bases = 0;
-            foreach (BuildingSite site in TestSites.NearSpawn(World, 14))
+            foreach (BuildingSite site in TestSites.NearSpawn(World, 20))
             {
                 if (site.OnRoof || site.Shell)
                 {
