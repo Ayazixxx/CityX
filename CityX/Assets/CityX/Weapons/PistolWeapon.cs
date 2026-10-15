@@ -51,6 +51,46 @@ namespace CityX.Weapons
         public const float AdsSpreadDegrees = 0.0f;
 
         /// <summary>
+        /// CS:GO'S INACCURACY (2026-10-14, so the Accuracy stat has something to work on): degrees of cone at a full sprint, in the air, and
+        /// for every shot of a held trigger after the first (up to a limit). Standing or creeping, a first shot stays exact.
+        /// </summary>
+        public const float RunningSpreadDegrees = 2.5f;
+        public const float AirborneSpreadDegrees = 4.0f;
+        public const float SpraySpreadPerShotDegrees = 0.4f;
+        public const float MaxSpraySpreadDegrees = 3.0f;
+
+        /// <summary>Below this speed (metres a second) the body counts as still: creeping does not spread a shot.</summary>
+        public const float StillSpeed = 1.0f;
+
+        /// <summary>Aiming down the sights halves the cone.</summary>
+        public const float AimedSpreadFraction = 0.5f;
+
+        /// <summary>The cone a shot lands in, in degrees: the movement, the air and the held trigger, halved aiming, less Accuracy's share.</summary>
+        public static float SpreadDegrees(float speed, float sprintSpeed, bool grounded, int shotInBurst, bool aiming, float accuracy)
+        {
+            float moving = sprintSpeed > StillSpeed ? Mathf.Clamp01((speed - StillSpeed) / (sprintSpeed - StillSpeed)) * RunningSpreadDegrees : 0.0f;
+            float air = grounded ? 0.0f : AirborneSpreadDegrees;
+            float spray = Mathf.Min(MaxSpraySpreadDegrees, Mathf.Max(0, shotInBurst) * SpraySpreadPerShotDegrees);
+            float cone = (aiming ? AdsSpreadDegrees : HipFireSpreadDegrees) + moving + air + spray;
+            if (aiming)
+            {
+                cone *= AimedSpreadFraction;
+            }
+            return cone * Mathf.Clamp01(1.0f - accuracy);
+        }
+
+        private float SpreadFor(GameObject wielder, bool aiming, int shotInBurst)
+        {
+            PlayerLocomotion locomotion = wielder != null ? wielder.GetComponent<PlayerLocomotion>() : null;
+            PlayerVitals vitals = wielder != null ? wielder.GetComponent<PlayerVitals>() : null;
+            float speed = locomotion != null ? locomotion.CurrentSpeed : 0.0f;
+            float sprint = locomotion != null ? locomotion.SprintSpeed : 7.5f;
+            bool grounded = locomotion == null || locomotion.IsGrounded;
+            float accuracy = vitals != null ? vitals.Stats.Effect(StatId.Accuracy) : 0.0f;
+            return SpreadDegrees(speed, sprint, grounded, shotInBurst, aiming, accuracy);
+        }
+
+        /// <summary>
         /// How far each shot's own pitch is randomised, as a fraction either side of the profile's pitch: overlapping plays of the identical
         /// waveform a few frames apart comb-filter into a stutter; a few percent decorrelates them without being heard as a pitch change.
         /// </summary>
@@ -116,6 +156,9 @@ namespace CityX.Weapons
 
         // ---- live-tunable feel (/gun), on the profile ----
         private float _recoilScale = 1.0f;
+
+        /// <summary>How much faster the kick settles after the last shot: Recoil Control's (1 with none).</summary>
+        private float _settleFaster = 1.0f;
 
         /// <summary>The first shot's camera kick, degrees; setting it scales the whole pattern.</summary>
         public float RecoilPitchDegrees
@@ -246,7 +289,7 @@ namespace CityX.Weapons
             }
             if (_kick > 0.0f)
             {
-                _kick = Mathf.Max(0.0f, _kick - _kick * (1.0f - Mathf.Exp(-Profile.KickRecoverPerSecond * deltaTime)) - 0.0005f);
+                _kick = Mathf.Max(0.0f, _kick - _kick * (1.0f - Mathf.Exp(-Profile.KickRecoverPerSecond * _settleFaster * deltaTime)) - 0.0005f);
             }
 
             if (IsReloading)
@@ -561,6 +604,8 @@ namespace CityX.Weapons
                 reloader.Finished += OnReloadFinished;
                 reloader.Started -= OnReloadStarted;
                 reloader.Started += OnReloadStarted;
+                reloader.SpeedChanged -= SetReloadRecordingSpeed;
+                reloader.SpeedChanged += SetReloadRecordingSpeed;
             }
         }
 
@@ -578,6 +623,7 @@ namespace CityX.Weapons
                 reloader.Marker -= OnReloadMarker;
                 reloader.Finished -= OnReloadFinished;
                 reloader.Started -= OnReloadStarted;
+                reloader.SpeedChanged -= SetReloadRecordingSpeed;
                 if (ReferenceEquals(reloader.Motion, Motion))
                 {
                     reloader.SetMotion(null);
@@ -734,10 +780,16 @@ namespace CityX.Weapons
             _reloadReadyToFire = false;
             IsReloading = true;
 
+            // Reload Speed (2026-10-14): the whole reload -- the motion, its sounds, the timer -- runs this much faster.
+            float speed = PlayerVitals.SpeedOf(WielderVitals, StatId.ReloadSpeed);
             string state = GunReload.NameFor(_reloadEmpty);
             if (_reloader != null && _reloader.CanPlay(_reloadEmpty) && _animationDriver != null && _animationDriver.HasState(state))
             {
                 _animationDriver.PlayLocalState(state);
+                if (!Mathf.Approximately(speed, 1.0f))
+                {
+                    _animationDriver.SetStateSpeed(state, speed);   // the motion's clock, sent on to other players
+                }
                 if (_reloader.IsPlaying)
                 {
                     _reloadByMotion = true;
@@ -746,9 +798,10 @@ namespace CityX.Weapons
                 }
             }
             _reloadByMotion = false;
-            _reloadDuration = _reloadEmpty ? Profile.EmptyReloadSeconds : Profile.ReloadSeconds;
+            _reloadDuration = (_reloadEmpty ? Profile.EmptyReloadSeconds : Profile.ReloadSeconds) / speed;
             _reloadTimeRemaining = _reloadDuration;
             PlayReloadRecording(_reloadEmpty);   // as long as the timer (ReloadSeconds, EmptyReloadSeconds)
+            SetReloadRecordingSpeed(speed);
         }
 
         private void TickReload(float deltaTime)
@@ -830,8 +883,24 @@ namespace CityX.Weapons
             }
             ReloadPlayer.Stop();
             ReloadPlayer.clip = clip;
+            ReloadPlayer.pitch = 1.0f;
             ReloadPlayer.Play();
         }
+
+        /// <summary>
+        /// A faster reload (Reload Speed) plays its recording faster too, so the sounds stay on the motion -- which raises its pitch with it
+        /// (+10% speed, a little higher). Here and on other players' copies (GunReloadDriver.SpeedChanged).
+        /// </summary>
+        private void SetReloadRecordingSpeed(float speed)
+        {
+            if (_reloadRecording && ReloadPlayer != null && speed > 0.0f)
+            {
+                ReloadPlayer.pitch = speed;
+            }
+        }
+
+        /// <summary>The body holding this gun's vitals (its stats), or null when nothing holds it.</summary>
+        private PlayerVitals WielderVitals => _wielder != null ? _wielder.GetComponent<PlayerVitals>() : null;
 
         /// <summary>A reload cut short (a shot once the fresh magazine is in, the body taken by a climb or a fall, the gun put away) stops its recording.</summary>
         private void StopReloadRecording()
@@ -926,7 +995,8 @@ namespace CityX.Weapons
                 return false;
             }
 
-            _fireCooldownRemaining = Profile.FireCooldownSeconds;
+            // Fire Rate shortens the gap between shots (2026-10-14).
+            _fireCooldownRemaining = Profile.FireCooldownSeconds / PlayerVitals.SpeedOf(wielder != null ? wielder.GetComponent<PlayerVitals>() : null, StatId.FireRate);
             MagazineAmmo--;
             int shotInBurst = _sinceShot <= Profile.RecoilResetSeconds ? _burstIndex : 0;
             _burstIndex = shotInBurst + 1;
@@ -951,7 +1021,9 @@ namespace CityX.Weapons
                 voice.PlayOneShot(voice.clip);
             }
 
-            float spreadDegrees = aiming ? AdsSpreadDegrees : HipFireSpreadDegrees;
+            // SPREAD (2026-10-14, for Accuracy): still exact on a standing first shot -- the owner's CS:GO ask -- but, as in CS:GO itself,
+            // running, jumping and holding the trigger down open a cone the shots land in. Accuracy narrows it.
+            float spreadDegrees = SpreadFor(wielder, aiming, shotInBurst);
             Vector3 spreadDirection = ApplySpread(direction, spreadDegrees);
 
             // HITSCAN (CS:GO's zero travel time), THE THREE-TRACE SHOT -- see ResolveTrace.
@@ -976,12 +1048,14 @@ namespace CityX.Weapons
                     var damageable = hit.collider.GetComponentInParent<IDamageable>();
                     if (damageable != null)
                     {
-                        int strength = wielder != null
-                            ? wielder.GetComponent<PlayerVitals>()?.Strength ?? 0
-                            : 0;
-                        float actualDamage = CombatTuning.DamageFor(Profile.Damage, strength);
+                        // Firearm Damage makes a shot hurt more (2% a point; it scaled with Strength, the melee stat, until 2026-10-14), and the
+                        // shooter's Armor Penetration goes with it: a bullet is a blow armour stops and a block can deflect.
+                        PlayerVitals shooter = wielder != null ? wielder.GetComponent<PlayerVitals>() : null;
+                        int firearmDamage = shooter != null ? shooter.Stats[StatId.FirearmDamage] : 0;
+                        float penetration = shooter != null ? shooter.Stats.Effect(StatId.ArmorPenetration) : 0.0f;
+                        float actualDamage = CombatTuning.DamageFor(Profile.Damage, firearmDamage);
                         // No hitstun: a bullet interrupts nothing (pistol.gd's own take_damage passes none either).
-                        damageable.ApplyHit(actualDamage, origin, 0.0f);
+                        DamageContext.Strike(damageable, actualDamage, origin, 0.0f, DamageKind.Bullet, penetration);
                         hitDamageable = true;
                         killed = !damageable.IsAlive;
                         if (BloodPrefab != null)
@@ -1017,8 +1091,12 @@ namespace CityX.Weapons
 
             // THE KICK. Camera recoil is the camera's job (whoever listens to ShotResolved applies it, from the profile's pattern); the gun's
             // own snap-back is ours. Applied AFTER the shot resolved, so the shot itself is always exactly on the crosshair.
-            _kick = 1.0f;
-            Vector2 recoil = Profile.RecoilFor(shotInBurst) * _recoilScale * (aiming ? Profile.AdsRecoilMultiplier : 1.0f);
+            // Recoil Control (2026-10-14) takes its share off the kick, the camera's climb and shake and how long the climb holds.
+            PlayerVitals shooterVitals = wielder != null ? wielder.GetComponent<PlayerVitals>() : null;
+            float steadier = shooterVitals != null ? shooterVitals.Stats.Decrease(StatId.RecoilControl) : 1.0f;
+            _kick = steadier;
+            _settleFaster = shooterVitals != null ? shooterVitals.Stats.Increase(StatId.RecoilControl) : 1.0f;
+            Vector2 recoil = Profile.RecoilFor(shotInBurst) * _recoilScale * (aiming ? Profile.AdsRecoilMultiplier : 1.0f) * steadier;
             ShotResolved?.Invoke(new GunShot
             {
                 Fired = true,
@@ -1030,11 +1108,14 @@ namespace CityX.Weapons
                 Aiming = aiming,
                 RecoilPitchDegrees = recoil.y,
                 RecoilYawDegrees = recoil.x,
-                RecoilHoldSeconds = Profile.RecoilHoldSeconds,
-                ShakeDegrees = Profile.ShakeDegrees * (aiming ? Profile.AdsRecoilMultiplier : 1.0f),
+                RecoilHoldSeconds = Profile.RecoilHoldSeconds * steadier,
+                ShakeDegrees = Profile.ShakeDegrees * (aiming ? Profile.AdsRecoilMultiplier : 1.0f) * steadier,
             });
             return true;
         }
+
+        /// <summary>Seconds before the next shot can go (Fire Rate shortens the wait).</summary>
+        public float FireCooldownRemaining => _fireCooldownRemaining;
 
         /// <summary>How many shots of the current burst have been fired (0 once it has reset).</summary>
         public int ShotsInBurst => _sinceShot <= Profile.RecoilResetSeconds ? _burstIndex : 0;

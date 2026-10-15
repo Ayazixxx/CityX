@@ -85,11 +85,20 @@ namespace CityX.Character
             _kind = kind;
             _striking = true;
             _elapsed = 0.0f;
+            _speed = 1.0f;
             _duration = FistStrikes.Seconds(kind);
             _hold = 0.0f;
             _guardRemaining = GuardLingerSeconds;
             enabled = true;
         }
+
+        /// <summary>The blow's clock rate (Melee Speed, 2026-10-14): set after <see cref="Begin"/>, which starts it at 1.</summary>
+        public void SetSpeed(float speed)
+        {
+            _speed = Mathf.Max(0.0f, float.IsNaN(speed) ? 1.0f : speed);
+        }
+
+        private float _speed = 1.0f;
 
         /// <summary>Ends any blow and drops the guard at once (a block, a ragdoll, an equipped weapon).</summary>
         public void Cancel()
@@ -154,7 +163,7 @@ namespace CityX.Character
                 }
                 else
                 {
-                    _elapsed += deltaTime;
+                    _elapsed += deltaTime * _speed;
                 }
                 if (_elapsed >= _duration)
                 {

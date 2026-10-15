@@ -122,7 +122,7 @@ namespace CityX.Character
             }
             else
             {
-                _target.ApplyHit(amount, transform.position, 0.0f);
+                DamageContext.Strike(_target, amount, transform.position, 0.0f, DamageKind.Magic, 0.0f);
             }
         }
 

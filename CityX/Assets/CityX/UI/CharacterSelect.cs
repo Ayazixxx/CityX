@@ -371,7 +371,7 @@ namespace CityX.UI
             if (StatsLabel != null)
             {
                 StatsLabel.text = character != null
-                    ? $"VIT {character.Vitality}   END {character.Endurance}   STR {character.Strength}"
+                    ? CityX.Character.CharacterStats.Summary(character)
                     : string.Empty;
             }
             if (IndexLabel != null)

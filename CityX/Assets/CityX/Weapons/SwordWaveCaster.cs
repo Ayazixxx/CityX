@@ -64,7 +64,8 @@ namespace CityX.Weapons
             {
                 return false;
             }
-            _cooldown = CooldownSeconds;
+            // Cooldown Reduction shortens it (2026-10-14).
+            _cooldown = CooldownSeconds * PlayerVitals.CooldownFactorOf(_vitals);
             _releaseIn = ReleaseDelaySeconds;
             _chestHeight = chestHeight;
             _direction = direction.normalized;
@@ -74,10 +75,13 @@ namespace CityX.Weapons
 
         private void Release()
         {
+            // A sword technique: Melee Damage (the old Strength) makes it hurt more, and Armor Penetration goes with it.
             int strength = _vitals != null ? _vitals.Strength : 0;
+            float penetration = _vitals != null ? _vitals.Stats.Effect(StatId.ArmorPenetration) : 0.0f;
             // From where the body is when the blade comes through, along the direction the crosshair had when the key was pressed.
             Vector3 origin = transform.position + Vector3.up * _chestHeight;
-            SwordWaveProjectile.Spawn(WavePrefab, origin + _direction * SpawnForwardOffset, _direction * WaveSpeed, strength, _ignore);
+            SwordWaveProjectile.Spawn(WavePrefab, origin + _direction * SpawnForwardOffset, _direction * WaveSpeed, strength, _ignore,
+                penetration: penetration);
             Fired?.Invoke(new AbilityEvent(0, origin + _direction * SpawnForwardOffset, _direction, WaveSpeed));
         }
 

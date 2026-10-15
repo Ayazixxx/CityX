@@ -193,15 +193,16 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void StrengthScalesTheDamageUpward()
+        public void FirearmDamageScalesTheDamageUpward()
         {
-            _vitals.Strength = 50;
+            // The flamethrower is a gun of a kind: Firearm Damage, not Melee Damage (the old Strength), scales it since 2026-10-14.
+            _vitals.Stats[StatId.FirearmDamage] = 50;
             GameObject dummy = MakeDummy(new Vector3(0.0f, 0.0f, 3.0f), out TestDamageable damageable);
             try
             {
                 _flamethrower.Tick(true, Vector3.zero, Vector3.forward, _wielder, 1.0f);
                 Assert.AreEqual(Flamethrower.DamagePerSecond * 2.0f, damageable.TotalDamage, 0.05f,
-                    "50 Strength at 2% a point should double the damage, same chokepoint every other hit uses");
+                    "50 points of Firearm Damage at 2% a point should double the damage, same chokepoint every other hit uses");
             }
             finally
             {

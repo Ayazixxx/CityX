@@ -51,7 +51,9 @@ namespace CityX.Weapons
         public Transform StuckTo { get; private set; }
 
         private Vector3 _velocity;
+        /// <summary>Points in the caster's Spell Power (2% a point), and how much of the target's armour and block it ignores.</summary>
         private int _casterStrength;
+        private float _penetration;
         private Collider[] _ignore;
         private float _age;
         private Vector3 _stuckScale = Vector3.one;
@@ -66,7 +68,7 @@ namespace CityX.Weapons
         public bool Cosmetic { get; private set; }
 
         public static IceShardProjectile Spawn(GameObject prefab, Vector3 origin, Vector3 velocity, int casterStrength, Collider[] ignoreColliders,
-            bool cosmetic = false)
+            bool cosmetic = false, float penetration = 0.0f)
         {
             if (prefab == null || velocity.sqrMagnitude < 1e-6f)
             {
@@ -80,6 +82,7 @@ namespace CityX.Weapons
             }
             shard._velocity = velocity;
             shard._casterStrength = casterStrength;
+            shard._penetration = Mathf.Clamp01(penetration);
             shard.Cosmetic = cosmetic;
             shard._ignore = ignoreColliders;
             shard._trail = instance.GetComponentInChildren<TrailRenderer>();
@@ -188,7 +191,7 @@ namespace CityX.Weapons
             if (character && target.IsAlive && !Cosmetic)
             {
                 float damage = CombatTuning.DamageFor(BaseDamage, _casterStrength);
-                target.ApplyHit(damage, transform.position, CombatTuning.HitstunSeconds * 0.5f);
+                DamageContext.Strike(target, damage, transform.position, CombatTuning.HitstunSeconds * 0.5f, DamageKind.Magic, _penetration);
             }
 
             // Tip in past the surface, pointing the way it came, with a little tilt so a volley does not look stamped out.

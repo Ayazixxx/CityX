@@ -138,11 +138,15 @@ namespace CityX.Character
             }
         }
 
-        /// <summary>The reload's clock rate (1 normally).</summary>
+        /// <summary>The reload's clock rate (1 normally; faster with Reload Speed, 0 for a hit-stop).</summary>
         public void SetSpeed(float speed)
         {
             _speed = Mathf.Max(0.0f, float.IsNaN(speed) ? 1.0f : speed);
+            SpeedChanged?.Invoke(_speed);
         }
+
+        /// <summary>Raised when the clock rate changes, here or on another player's copy: the gun's recording of its reload keeps pace.</summary>
+        public event System.Action<float> SpeedChanged;
 
         private PlayerClimbing _climbing;
         private PlayerVaulting _vaulting;

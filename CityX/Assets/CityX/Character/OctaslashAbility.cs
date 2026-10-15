@@ -392,6 +392,15 @@ namespace CityX.Character
             _passedThrough.Clear();
         }
 
+        /// <summary>A stagger cuts the wind-up short (2026-10-14, Stability): the move ends there, and other players see it end. The dash, once gone, goes on.</summary>
+        public void Interrupt()
+        {
+            if (Current == Phase.Charging)
+            {
+                End();
+            }
+        }
+
         private void End()
         {
             SolidAgain();
@@ -415,7 +424,7 @@ namespace CityX.Character
             PhaseTime = 0.0f;
             if (!_remote)
             {
-                _cooldown = OctaslashMove.CooldownSeconds;
+                _cooldown = OctaslashMove.CooldownSeconds * PlayerVitals.CooldownFactorOf(_vitals);   // Cooldown Reduction shortens it
                 if (wasActive)
                 {
                     Fired?.Invoke(new AbilityEvent(EventEnded, transform.position, DashDirection));

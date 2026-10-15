@@ -30,5 +30,8 @@ namespace CityX.Character
         /// leaves, not at the direction the crosshair had at the press.
         /// </summary>
         void Aim(Vector3 aimPoint);
+
+        /// <summary>A stagger cuts the scream short before the gas leaves (2026-10-14, Stability): no gas.</summary>
+        void Interrupt();
     }
 }

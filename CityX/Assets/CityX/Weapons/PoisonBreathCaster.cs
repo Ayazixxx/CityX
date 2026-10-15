@@ -120,7 +120,8 @@ namespace CityX.Weapons
             {
                 return false;
             }
-            _cooldown = CooldownSeconds;
+            // Cooldown Reduction shortens it (2026-10-14).
+            _cooldown = CooldownSeconds * PlayerVitals.CooldownFactorOf(_vitals);
             _fallbackOrigin = origin;
             _fallbackDirection = direction.normalized;
             _ignore = ignoreColliders;
@@ -128,14 +129,17 @@ namespace CityX.Weapons
 
             if (_driver != null && _driver.HasState(AnimationState))
             {
-                _driver.PlayLocalState(AnimationState, AnimationSpeed, 0.0f);
+                // Cast Speed screams it faster (2026-10-14): the clip, the wind-up before the gas leaves and the whole cast, alike. The speed
+                // goes to other players with the scream (PlayLocalState announces it).
+                float castSpeed = PlayerVitals.SpeedOf(_vitals, StatId.CastSpeed);
+                _driver.PlayLocalState(AnimationState, AnimationSpeed * castSpeed, 0.0f);
                 // The arms do the scream too, on their own layer, unless something else (a sword swing) is using them.
                 if (_driver.HasState(ArmsAnimationState))
                 {
-                    _driver.PlayLocalState(ArmsAnimationState, AnimationSpeed, 0.0f);
+                    _driver.PlayLocalState(ArmsAnimationState, AnimationSpeed * castSpeed, 0.0f);
                 }
-                _castRemaining = ScreamSeconds;
-                _releaseIn = ReleaseSeconds;
+                _castRemaining = ScreamSeconds / castSpeed;
+                _releaseIn = ReleaseSeconds / castSpeed;
             }
             else
             {
@@ -144,6 +148,16 @@ namespace CityX.Weapons
                 Release();
             }
             return true;
+        }
+
+        /// <summary>A stagger cuts the scream short before the gas leaves (Stability, 2026-10-14): no gas, and the cast is over.</summary>
+        public void Interrupt()
+        {
+            if (_releaseIn >= 0.0f)
+            {
+                _releaseIn = -1.0f;
+                _castRemaining = 0.0f;
+            }
         }
 
         public void Aim(Vector3 aimPoint)
@@ -172,8 +186,9 @@ namespace CityX.Weapons
             Vector3 mouth = MouthPosition(_fallbackOrigin);
             Vector3 direction = _hasAimPoint && (_aimPoint - mouth).sqrMagnitude > 0.01f ? (_aimPoint - mouth).normalized : _fallbackDirection;
             Vector3 spawnAt = mouth + direction * SpawnForwardOffset;
-            int strength = _vitals != null ? _vitals.Strength : 0;
-            PoisonGasCloud.Spawn(CloudPrefab, spawnAt, direction * CloudSpeed, strength, _ignore);
+            // A spell: Spell Power makes the poison stronger (2% a point, 2026-10-14).
+            int spellPower = _vitals != null ? _vitals.Stats[StatId.SpellPower] : 0;
+            PoisonGasCloud.Spawn(CloudPrefab, spawnAt, direction * CloudSpeed, spellPower, _ignore);
             PlayHiss();
             Fired?.Invoke(new AbilityEvent(0, spawnAt, direction, CloudSpeed));
         }

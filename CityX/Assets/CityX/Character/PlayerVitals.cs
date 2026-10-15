@@ -32,7 +32,8 @@ namespace CityX.Character
             {
                 return;
             }
-            TakeDamage(amount, false);
+            // Poison is a spell's (the gas, the acid): magic resistance stops its share.
+            TakeDamage(amount * (1.0f - ResistanceTo(DamageKind.Magic, 0.0f)), false);
         }
 
         // --- tuning, ported from player.gd ---
@@ -58,8 +59,17 @@ namespace CityX.Character
         /// </summary>
         public const float ExhaustedRecoverFraction = 0.2f;
 
+        /// <summary>What a point of Max Health and of Max Stamina adds (StatCatalog's own numbers; kept here for what already read them).</summary>
         public const float HealthPerStatPoint = 10.0f;
         public const float StaminaPerStatPoint = 10.0f;
+
+        /// <summary>
+        /// HEALTH COMES BACK ON ITS OWN (2026-10-14, for the Health Regen stat: the game had no regeneration at all): this many points a
+        /// second, plus Health Regen's, once <see cref="HealthRegenDelaySeconds"/> have passed without a blow.
+        /// </summary>
+        public const float BaseHealthRegenPerSecond = 1.0f;
+
+        public const float HealthRegenDelaySeconds = 5.0f;
 
         /// <summary>player.gd STAT_POINTS_PER_LEVEL -- granted on every level-up.</summary>
         public const int StatPointsPerLevel = 5;
@@ -112,20 +122,38 @@ namespace CityX.Character
         // --- stats ---
 
         [Header("Stats")]
-        /// <summary>
-        /// Shown on the HUD badge. Nothing raises it yet -- XP and the skill
-        /// tree are not ported -- but it lives here rather than being a
-        /// hardcoded "1" in the HUD, so that when progression does land there
-        /// is one number to set and no display quietly left behind.
-        /// </summary>
+        /// <summary>Shown on the HUD badge; raised by XP (AddXp).</summary>
         public int Level = 1;
 
-        public int Vitality;
+        /// <summary>
+        /// THE POINTS IN EVERY STAT (owner, 2026-10-14: StatCatalog, twenty-four of them). Everything a stat changes asks this sheet: the
+        /// ceilings and regeneration here, the blows taken here (armour, magic resistance, block chance, stability), and the blows, shots,
+        /// spells and steps the body makes elsewhere.
+        /// </summary>
+        public StatSheet Stats = new StatSheet();
 
-        public int Endurance;
-        public int Strength;
+        /// <summary>The old Vitality: Max Health's points.</summary>
+        public int Vitality
+        {
+            get => Stats[StatId.MaxHealth];
+            set => Stats[StatId.MaxHealth] = value;
+        }
 
-        /// <summary>Earned but not yet spent on Vitality/Endurance/Strength.</summary>
+        /// <summary>The old Endurance: Max Stamina's points.</summary>
+        public int Endurance
+        {
+            get => Stats[StatId.MaxStamina];
+            set => Stats[StatId.MaxStamina] = value;
+        }
+
+        /// <summary>The old Strength: Melee Damage's points (2% a point, as Strength always was).</summary>
+        public int Strength
+        {
+            get => Stats[StatId.MeleeDamage];
+            set => Stats[StatId.MeleeDamage] = value;
+        }
+
+        /// <summary>Earned but not yet spent on the stats.</summary>
         public int StatPoints;
 
         /// <summary>Earned but not yet spent on the skill trees (PlayerSkills.TryLearn). A separate pool from the stat points.</summary>
@@ -154,12 +182,12 @@ namespace CityX.Character
         private float _highestAirborneY;
         private bool _wasAirborne;
 
-        public float MaxHealth => BaseMaxHealth + Vitality * HealthPerStatPoint;
-        public float MaxStamina => BaseMaxStamina + Endurance * StaminaPerStatPoint;
+        public float MaxHealth => _networkMaxHealth > 0.0f ? _networkMaxHealth : BaseMaxHealth + Stats.Effect(StatId.MaxHealth);
+        public float MaxStamina => BaseMaxStamina + Stats.Effect(StatId.MaxStamina);
 
         public float Health => _health;
         public float Stamina => _stamina;
-        public float MaxMana => BaseMaxMana;
+        public float MaxMana => BaseMaxMana + Stats.Effect(StatId.MaxMana);
         public float Mana => _mana;
         public bool IsDead => _health <= 0.0f;
 
@@ -205,6 +233,45 @@ namespace CityX.Character
 
         /// <summary>Raised when a blow empties the poise pool mid-attack: the attack is broken.</summary>
         public event Action PoiseBroken;
+
+        /// <summary>The pool's size: <see cref="MaxPoise"/>, deeper with Stability (60% stability, 1.6 times as deep).</summary>
+        public float PoiseCapacity => MaxPoise * Stats.Increase(StatId.Stability);
+
+        // ---- WHAT THE STATS DO TO A BLOW (2026-10-14) ----
+
+        /// <summary>
+        /// A number from 0 to 1 for every chance a blow rolls (block chance, stability). Random; a test puts a fixed one in to know what it gets.
+        /// </summary>
+        [NonSerialized]
+        public Func<float> Roll = () => UnityEngine.Random.value;
+
+        /// <summary>
+        /// Raised when a block stops a blow outright (Block Chance): the blow's origin and kind. Nothing gets through, no stamina is spent, and a
+        /// bullet glances off. What shows it (a spark, the sound) listens here.
+        /// </summary>
+        public event Action<Vector3, DamageKind> Deflected;
+
+        /// <summary>
+        /// Raised when a blow staggers this body (puts it in hitstun). What was under way and should be cut short by being hit -- a spell's
+        /// wind-up, a charging spin -- listens here. A blow Stability shrugs off raises nothing.
+        /// </summary>
+        public event Action Staggered;
+
+        /// <summary>What a cooldown is multiplied by: Cooldown Reduction's share off (a body with no vitals: 1).</summary>
+        public static float CooldownFactorOf(PlayerVitals vitals) => vitals != null ? vitals.Stats.Decrease(StatId.CooldownReduction) : 1.0f;
+
+        /// <summary>How much faster a stat makes something go: 1 plus its share (a body with no vitals: 1). Melee Speed, Cast Speed, Fire Rate...</summary>
+        public static float SpeedOf(PlayerVitals vitals, StatId stat) => vitals != null ? vitals.Stats.Increase(stat) : 1.0f;
+
+        /// <summary>The whole chance to stop a blow outright while blocking: everyone's <see cref="StatCatalog.BaseBlockChance"/> plus Block Chance.</summary>
+        public float BlockChance => StatCatalog.BaseBlockChance + Stats.Effect(StatId.BlockChance);
+
+        /// <summary>The share of a blow of this kind that armour (physical, bullets) or magic resistance (spells) stops, after the attacker's penetration.</summary>
+        public float ResistanceTo(DamageKind kind, float penetration)
+        {
+            float rating = kind == DamageKind.Magic ? Stats.Effect(StatId.MagicResistance) : Stats.Effect(StatId.Armor);
+            return StatCatalog.RatingReduction(rating * (1.0f - Mathf.Clamp01(penetration)));
+        }
 
         // ---- THE PARRY: a held guard that catches a blow in its first instant ----
 
@@ -378,6 +445,9 @@ namespace CityX.Character
                 return HitResponse.Ignored;
             }
 
+            // What the blow is (DamageContext, said by whoever struck it, or carried here from another player's machine by NetworkedDamage).
+            DamageKind kind = DamageContext.Kind;
+            float penetration = DamageContext.Penetration;
             bool blocked = IsBlocking;
 
             // THE PARRY: a soulslike guard that caught the blow in its first instant stops it dead -- no damage, no stamina -- and answers
@@ -389,15 +459,31 @@ namespace CityX.Character
                 return HitResponse.Blocked;
             }
 
+            // BLOCK CHANCE (2026-10-14): a block can stop a blow outright, a bullet included (owner: "if you hold block you deflect enemy
+            // bullets ... it starts at a lower chance and lets you upgrade it") -- everyone's BaseBlockChance plus the stat, cut by the
+            // attacker's Armor Penetration. Nothing gets through and no stamina is spent; the attacker hears what any block answers.
+            if (blocked && Roll() < BlockChance * (1.0f - penetration))
+            {
+                _healthRegenDelay = HealthRegenDelaySeconds;   // still a fight
+                Deflected?.Invoke(fromPosition, kind);
+                Hit?.Invoke(fromPosition);
+                return BlockDrainsStamina ? HitResponse.Guarded : HitResponse.Blocked;
+            }
+
+            // ARMOUR AND MAGIC RESISTANCE (2026-10-14): a share of the blow is stopped -- armour stops blows and bullets, magic resistance
+            // spells -- rating / (rating + 100), never all of it, less the share the attacker's penetration ignores.
+            amount *= 1.0f - ResistanceTo(kind, penetration);
+
             TakeDamage(amount, blocked);
 
             // SOULS GUARD: a held block pays for what it stops in stamina, and
             // a hit it cannot afford breaks the guard -- you eat the reduced
             // damage anyway and are staggered wide open. Only when the sword
             // combat has switched this on; the classic timed block is untouched.
+            // Stability makes the guard cheaper to hold (harder to break).
             if (blocked && BlockDrainsStamina && !InfiniteStamina)
             {
-                float drain = amount * BlockStaminaPerDamage;
+                float drain = amount * BlockStaminaPerDamage * (1.0f - 0.5f * Stats.Effect(StatId.Stability));
                 if (drain >= _stamina)
                 {
                     _stamina = 0.0f;
@@ -425,10 +511,17 @@ namespace CityX.Character
                     staggers = Poise <= 0.0f;
                     if (staggers)
                     {
-                        Poise = MaxPoise;
+                        Poise = PoiseCapacity;
                         PoiseBroken?.Invoke();
                     }
                 }
+            }
+
+            // STABILITY (2026-10-14): a blow that would stagger is shrugged off with its chance -- no hitstun, and nothing under way is cut
+            // short. The damage still lands.
+            if (!blocked && staggers && hitstunSeconds > 0.0f && Roll() < Stats.Effect(StatId.Stability))
+            {
+                staggers = false;
             }
 
             // A BLOCKED HIT DOES NOT STUN THE DEFENDER. Eating the hitstun as
@@ -440,6 +533,10 @@ namespace CityX.Character
                 // Longest wins rather than newest. A weak jab landing during a
                 // heavy stun should not cut it short.
                 HitstunRemaining = Mathf.Max(HitstunRemaining, hitstunSeconds);
+                if (hitstunSeconds > 0.0f)
+                {
+                    Staggered?.Invoke();
+                }
             }
 
             Hit?.Invoke(fromPosition);
@@ -466,7 +563,7 @@ namespace CityX.Character
         {
             if (!IsDead && _mana < MaxMana)
             {
-                _mana = Mathf.Min(MaxMana, _mana + ManaRegenPerSecond * deltaTime);
+                _mana = Mathf.Min(MaxMana, _mana + ManaRegenPerSecond * Stats.Increase(StatId.ManaRegen) * deltaTime);
             }
         }
 
@@ -497,9 +594,9 @@ namespace CityX.Character
                 _poiseRegenDelay -= waited;
                 poiseTime -= waited;
             }
-            if (_poiseRegenDelay <= 0.0f && poiseTime > 0.0f && Poise < MaxPoise)
+            if (_poiseRegenDelay <= 0.0f && poiseTime > 0.0f && Poise < PoiseCapacity)
             {
-                Poise = Mathf.Min(MaxPoise, Poise + PoiseRegenPerSecond * poiseTime);
+                Poise = Mathf.Min(PoiseCapacity, Poise + PoiseRegenPerSecond * poiseTime);
             }
             if (_finisherRagdollRemaining > 0.0f)
             {
@@ -539,7 +636,7 @@ namespace CityX.Character
             _exhausted = false;
             _wasAirborne = false;
             HitstunRemaining = 0.0f;
-            Poise = MaxPoise;
+            Poise = PoiseCapacity;
             HyperArmour = false;
             PerfectGuardRemaining = 0.0f;
             _pendingPoise = -1.0f;
@@ -550,10 +647,18 @@ namespace CityX.Character
         /// Another player's copy: shows the owner's health (so a copy that has died ignores further hits, and anything that reads it sees the truth).
         /// Raises nothing and costs nothing; only the owner's own vitals ever decide damage.
         /// </summary>
-        public void SetHealthFromNetwork(float health)
+        public void SetHealthFromNetwork(float health, float maxHealth = -1.0f)
         {
+            // The owner's ceiling comes with it (their Max Health stat is theirs, not whatever this machine's copy holds).
+            if (maxHealth > 0.0f && !float.IsNaN(maxHealth))
+            {
+                _networkMaxHealth = maxHealth;
+            }
             _health = Mathf.Clamp(float.IsNaN(health) ? _health : health, 0.0f, MaxHealth);
         }
+
+        /// <summary>Another player's copy: the owner's Max Health, as last shared (0 until then, and always on the owner's own body).</summary>
+        private float _networkMaxHealth;
 
         /// <summary>
         /// Grants XP, ported from player.gd's own add_xp(). Loops rather than
@@ -597,26 +702,72 @@ namespace CityX.Character
         /// </summary>
         public bool SpendStatPoint(string statName)
         {
-            if (StatPoints <= 0)
+            StatId id;
+            switch (statName)
             {
-                return false;
+                case "vitality": id = StatId.MaxHealth; break;
+                case "endurance": id = StatId.MaxStamina; break;
+                case "strength": id = StatId.MeleeDamage; break;
+                default:
+                    StatDefinition stat = StatCatalog.FindByKey(statName);
+                    if (stat == null)
+                    {
+                        return false;
+                    }
+                    id = stat.Id;
+                    break;
+            }
+            return SpendStatPoints(id, 1) == 1;
+        }
+
+        /// <summary>
+        /// Spends up to <paramref name="count"/> points on a stat (the Stats page's "+", five with Shift) and says how many it spent. A stat that
+        /// raises a ceiling raises the bar with it at once, the way spending always has: current health, stamina and mana go up by as much as
+        /// their maximums.
+        /// </summary>
+        public int SpendStatPoints(StatId id, int count)
+        {
+            int spend = Mathf.Min(count, StatPoints);
+            if (spend <= 0)
+            {
+                return 0;
             }
 
             float oldMaxHealth = MaxHealth;
             float oldMaxStamina = MaxStamina;
+            float oldMaxMana = MaxMana;
 
-            switch (statName)
-            {
-                case "vitality": Vitality += 1; break;
-                case "endurance": Endurance += 1; break;
-                case "strength": Strength += 1; break;
-                default: return false;
-            }
-            StatPoints -= 1;
+            Stats[id] += spend;
+            StatPoints -= spend;
 
             _health += MaxHealth - oldMaxHealth;
             _stamina += MaxStamina - oldMaxStamina;
-            return true;
+            _mana += MaxMana - oldMaxMana;
+            return spend;
+        }
+
+        private float _healthRegenDelay;
+
+        /// <summary>
+        /// Health comes back on its own (2026-10-14): <see cref="BaseHealthRegenPerSecond"/> plus Health Regen, once
+        /// <see cref="HealthRegenDelaySeconds"/> have passed since the last blow. Not while dead. Call once per frame (PlayerInputReader does).
+        /// </summary>
+        public void TickHealthRegen(float deltaTime)
+        {
+            if (IsDead || deltaTime <= 0.0f)
+            {
+                return;
+            }
+            if (_healthRegenDelay > 0.0f)
+            {
+                _healthRegenDelay -= deltaTime;
+                return;
+            }
+            if (_health < MaxHealth)
+            {
+                float rate = BaseHealthRegenPerSecond + Stats.Effect(StatId.HealthRegen);
+                _health = Mathf.Min(MaxHealth, _health + rate * deltaTime);
+            }
         }
 
         /// <summary>
@@ -655,6 +806,7 @@ namespace CityX.Character
                 float regen = StaminaRegenPerSecondOverride > 0.0f
                     ? StaminaRegenPerSecondOverride
                     : StaminaRegenPerSecond;
+                regen *= Stats.Increase(StatId.StaminaRegen);
                 _stamina = Mathf.Min(MaxStamina, _stamina + regen * deltaTime);
                 if (_exhausted && _stamina >= MaxStamina * ExhaustedRecoverFraction)
                 {
@@ -764,6 +916,7 @@ namespace CityX.Character
 
             float applied = blocking ? amount * CombatTuning.BlockDamageMultiplier : amount;
             _health = Mathf.Max(0.0f, _health - applied);
+            _healthRegenDelay = HealthRegenDelaySeconds;
             Damaged?.Invoke(applied);
 
             if (_health <= 0.0f)

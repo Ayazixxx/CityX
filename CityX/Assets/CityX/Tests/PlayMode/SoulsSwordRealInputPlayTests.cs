@@ -61,6 +61,7 @@ namespace CityX.Tests
             _scene = SceneManager.GetSceneByPath(ScenePath);
 
             _vitals = Object.FindFirstObjectByType<PlayerVitals>();
+            if (_vitals != null) _vitals.Roll = () => 1.0f;   // no outright blocks (Block Chance): these guards must behave the same every run
             Assert.IsNotNull(_vitals, "no PlayerVitals in the real scene");
             _locomotion = _vitals.GetComponent<PlayerLocomotion>();
 

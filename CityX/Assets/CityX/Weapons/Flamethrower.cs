@@ -48,7 +48,7 @@ namespace CityX.Weapons
         public const float ConeHalfAngleDegrees = 10.0f;
 
         /// <summary>
-        /// Damage per second of continuous contact, before Strength scaling
+        /// Damage per second of continuous contact, before Firearm Damage scaling
         /// -- roughly 1.5x a pistol shot's worth of damage per second
         /// (Damage=20 at FireRatePerSecond=5.5 -> ~110/s at point-blank
         /// full-auto), deliberately short of that: a flamethrower rewards
@@ -319,8 +319,11 @@ namespace CityX.Weapons
 
             float cosLimit = Mathf.Cos(ConeHalfAngleDegrees * Mathf.Deg2Rad);
             IDamageable self = wielder != null ? wielder.GetComponent<IDamageable>() : null;
-            int strength = wielder != null ? (wielder.GetComponent<PlayerVitals>()?.Strength ?? 0) : 0;
-            float damageThisTick = CombatTuning.DamageFor(DamagePerSecond * deltaTime, strength) * flame;
+            // A gun of a kind: Firearm Damage makes it hurt more (2% a point), and Armor Penetration goes with it (2026-10-14).
+            PlayerVitals wielderVitals = wielder != null ? wielder.GetComponent<PlayerVitals>() : null;
+            int firearmDamage = wielderVitals != null ? wielderVitals.Stats[StatId.FirearmDamage] : 0;
+            float penetration = wielderVitals != null ? wielderVitals.Stats.Effect(StatId.ArmorPenetration) : 0.0f;
+            float damageThisTick = CombatTuning.DamageFor(DamagePerSecond * deltaTime, firearmDamage) * flame;
 
             _hitThisTick.Clear();
             foreach (Collider collider in hits)
@@ -347,7 +350,7 @@ namespace CityX.Weapons
                 // No hitstun -- matches PistolWeapon.Fire's own choice: a
                 // continuous stream that also locked its target in place
                 // every single frame would never let anything move again.
-                target.ApplyHit(damageThisTick, origin, 0.0f);
+                DamageContext.Strike(target, damageThisTick, origin, 0.0f, DamageKind.Physical, penetration);
             }
         }
     }

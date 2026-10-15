@@ -41,6 +41,7 @@ namespace CityX.Tests
             _player.transform.position = Vector3.zero;
             _player.transform.rotation = Quaternion.identity;
             _vitals = _player.AddComponent<PlayerVitals>();
+            _vitals.Roll = () => 1.0f;   // no outright blocks (Block Chance): these guards must behave the same every run
             _vitals.Revive();
             _combat = _player.AddComponent<SoulsSwordCombat>();
             _combat.Equip(null);
@@ -537,6 +538,7 @@ namespace CityX.Tests
             _dummyObject = GameObject.CreatePrimitive(PrimitiveType.Capsule);
             _dummyObject.transform.position = new Vector3(0.0f, 1.0f, 1.5f);
             var victim = _dummyObject.AddComponent<PlayerVitals>();
+            victim.Roll = () => 1.0f;   // no outright blocks (Block Chance)
             victim.Revive();
             victim.BlockDrainsStamina = true;
             victim.StartBlock();

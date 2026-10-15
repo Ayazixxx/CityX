@@ -287,6 +287,52 @@ namespace CityX.Tests
 
         // --- damage ---
 
+        /// <summary>
+        /// THE STATS ACROSS THE NETWORK (2026-10-14): a hit on another player's copy carries its kind and the attacker's armour penetration to
+        /// that player's real body, whose own resistances answer it; their Max Health shows on the copy; and a blow their block stops outright
+        /// throws its sparks on the copy too.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheRealBodysStatsAnswerAHitThroughTheRelayAndItsDeflectionShowsOnTheCopy()
+        {
+#if UNITY_EDITOR
+            yield return StartTwoPlayers();
+            var realVitals = _bOnB.GetComponent<PlayerVitals>();
+            var copyVitals = _bOnA.GetComponent<PlayerVitals>();
+            realVitals.Stats[StatId.MagicResistance] = 20;   // 100: half of a spell stopped
+            realVitals.Stats[StatId.MaxHealth] = 5;          // +50 health
+            realVitals.Revive();
+            yield return WaitUntil(() => Mathf.Approximately(copyVitals.MaxHealth, PlayerVitals.BaseMaxHealth + 50.0f),
+                "B's Max Health to show on A's copy of B");
+
+            float before = realVitals.Health;
+            DamageContext.Strike(copyVitals, 20.0f, _aOnA.transform.position, 0.0f, DamageKind.Magic, 0.0f);
+            yield return WaitUntil(() => realVitals.Health < before - 1.0f, "the spell to reach B's real body");
+            Assert.AreEqual(before - 10.0f, realVitals.Health, 0.5f, "B's magic resistance should have stopped half of it");
+
+            // Penetration travels with the hit: a whole penetration ignores the resistance.
+            before = realVitals.Health;
+            DamageContext.Strike(copyVitals, 20.0f, _aOnA.transform.position, 0.0f, DamageKind.Magic, 1.0f);
+            yield return WaitUntil(() => realVitals.Health < before - 1.0f, "the second spell to reach B");
+            Assert.AreEqual(before - 20.0f, realVitals.Health, 0.5f, "full penetration should ignore the resistance");
+
+            // A block that stops the blow outright: the sparks show on A's copy of B as well as on B.
+            var copyEffect = _bOnA.GetComponent<BlockDeflectEffect>();
+            var realEffect = _bOnB.GetComponent<BlockDeflectEffect>();
+            Assert.IsNotNull(copyEffect, "the copy has no deflect effect");
+            realVitals.Roll = () => 0.0f;
+            realVitals.StartBlock();
+            before = realVitals.Health;
+            DamageContext.Strike(copyVitals, 20.0f, _aOnA.transform.position, 0.2f, DamageKind.Bullet, 0.0f);
+            yield return WaitUntil(() => realEffect.Shown > 0, "B's block to stop the bullet");
+            Assert.AreEqual(before, realVitals.Health, 0.01f, "a deflected bullet does no damage");
+            yield return WaitUntil(() => copyEffect.Shown > 0, "the deflection's sparks to show on A's copy of B");
+#else
+            Assert.Ignore("needs the editor to load the networked player prefab.");
+            yield break;
+#endif
+        }
+
         [UnityTest]
         public IEnumerator AHitOnAnotherPlayersCopyLandsOnThatPlayersRealBody()
         {

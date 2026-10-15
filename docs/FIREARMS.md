@@ -219,3 +219,13 @@ reload motion's exact length, 130 and 168 frames at 60 fps, WITHOUT raising its 
   motion does not pull the handle. The clicks also fall where the recording has them, not on the motion's frames (the magazine leaves at 0.63 s).
 - Tests: `FirearmTests` (both recordings as long as their motions, the Glock without), `FirearmPlayTests` (the shooter hears the recording for
   each kind of reload from its start, a shot cuts it off, another player's copy plays it when told the reload by name).
+
+## 2026-10-14: the gun stats (docs/STATS.md)
+
+- Firearm Damage scales every shot (and the flamethrower) at 2% a point; until now guns scaled with Strength, the melee stat.
+- Fire Rate shortens the wait between shots (`PistolWeapon.FireCooldownRemaining`); Reload Speed runs the reload motion, its recording (pitched up
+  with it) and the timer faster, and sends the speed to other players.
+- Recoil Control takes its share off the camera climb, shake and hold and the gun kick, and the kick settles faster.
+- SPREAD, CS:GO's way (`PistolWeapon.SpreadDegrees`), for the Accuracy stat: a standing or creeping first shot is still exact on the crosshair;
+  running opens a cone up to 2.5 degrees, the air 4, and each shot of a held trigger after the first 0.4 more (up to 3). Aiming halves it;
+  Accuracy takes its share off.

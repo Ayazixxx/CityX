@@ -110,7 +110,7 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void OpenRefreshesLevelAndStatLabelsFromVitals()
+        public void OpenRefreshesTheLevelAndEveryStatsRowFromVitals()
         {
             _vitals.AddXp(PlayerVitals.XpPerLevelBase);
             _vitals.SpendStatPoint("strength");
@@ -118,7 +118,31 @@ namespace CityX.Tests
             _stats.Open();
 
             StringAssert.Contains("2", _stats.LevelLabel.text);
-            StringAssert.Contains("1", _stats.StrengthLabel.text);
+            // 2026-10-14: every stat has its row (Strength is Melee Damage), and the old three labels are put away.
+            Assert.AreEqual(StatCatalog.Count, _stats.Rows.Count);
+            StatsPanelView.StatRow melee = System.Linq.Enumerable.First(_stats.Rows, r => r.Id == StatId.MeleeDamage);
+            Assert.AreEqual("1", melee.Points.text);
+            Assert.AreEqual("+2% melee damage", melee.Effect.text);
+            Assert.IsFalse(_stats.StrengthLabel.gameObject.activeSelf);
+            Assert.IsTrue(_stats.IsOpen, "putting the old labels away never closes the page");
+        }
+
+        [Test]
+        public void ThePlusSpendsOnItsStatAndRaisesWhatTheStatRaises()
+        {
+            _vitals.AddXp(PlayerVitals.XpPerLevelBase);   // 5 points
+            _stats.Open();
+            float maxHealth = _vitals.MaxHealth;
+
+            _stats.Spend(StatId.MaxHealth, StatsPanelView.ShiftClickPoints);
+            Assert.AreEqual(maxHealth + 50.0f, _vitals.MaxHealth, 1e-3f);
+            Assert.AreEqual(0, _vitals.StatPoints);
+            StatsPanelView.StatRow row = System.Linq.Enumerable.First(_stats.Rows, r => r.Id == StatId.MaxHealth);
+            Assert.AreEqual("5", row.Points.text);
+            Assert.IsFalse(row.Plus.interactable, "no points left to spend");
+
+            StatsPanelView.StatRow block = System.Linq.Enumerable.First(_stats.Rows, r => r.Id == StatId.BlockChance);
+            Assert.AreEqual("10% block chance", block.Effect.text, "everyone's own chance shows before any points");
         }
 
         [Test]

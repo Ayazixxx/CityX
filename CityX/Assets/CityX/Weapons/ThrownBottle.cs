@@ -20,10 +20,11 @@ namespace CityX.Weapons
 
         private Rigidbody _rigidbody;
         private int _throwerStrength;
+        private float _penetration;
         private bool _consumed;
 
         public static ThrownBottle Spawn(GameObject prefab, Vector3 origin, Vector3 velocity,
-            int throwerStrength, Collider[] ignoreColliders)
+            int throwerStrength, Collider[] ignoreColliders, float penetration = 0.0f)
         {
             if (prefab == null)
             {
@@ -38,6 +39,7 @@ namespace CityX.Weapons
             }
 
             thrown._throwerStrength = throwerStrength;
+            thrown._penetration = Mathf.Clamp01(penetration);
             // GetComponent RATHER THAN THE CACHED FIELD: Awake() has not
             // necessarily run yet on a clone made from an inactive prefab
             // template by the time Spawn touches it here (Unity defers
@@ -110,7 +112,7 @@ namespace CityX.Weapons
             if (hitCharacter)
             {
                 float damage = CombatTuning.DamageFor(ThrowDamage, _throwerStrength);
-                target.ApplyHit(damage, transform.position, CombatTuning.HitstunSeconds);
+                DamageContext.Strike(target, damage, transform.position, CombatTuning.HitstunSeconds, DamageKind.Physical, _penetration);
             }
 
             Destroy(gameObject);

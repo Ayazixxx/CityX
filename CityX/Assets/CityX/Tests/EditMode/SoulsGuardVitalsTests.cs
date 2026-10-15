@@ -20,6 +20,8 @@ namespace CityX.Tests
         {
             _object = new GameObject("Body");
             _vitals = _object.AddComponent<PlayerVitals>();
+            // Everyone's 10% chance to stop a blow outright (Block Chance, 2026-10-14) would make these blocks random: never here.
+            _vitals.Roll = () => 1.0f;
             _vitals.Revive();
             _target = _vitals;
         }

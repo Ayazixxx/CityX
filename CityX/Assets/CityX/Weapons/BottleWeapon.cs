@@ -263,9 +263,11 @@ namespace CityX.Weapons
         {
             if (ThrownBottlePrefab != null)
             {
-                int strength = player.GetComponent<PlayerVitals>()?.Strength ?? 0;
+                var vitals = player.GetComponent<PlayerVitals>();
+                int strength = vitals != null ? vitals.Strength : 0;
+                float penetration = vitals != null ? vitals.Stats.Effect(StatId.ArmorPenetration) : 0.0f;
                 var colliders = player.GetComponentsInChildren<Collider>();
-                ThrownBottle.Spawn(ThrownBottlePrefab, origin, direction.normalized * ThrowSpeedConst, strength, colliders);
+                ThrownBottle.Spawn(ThrownBottlePrefab, origin, direction.normalized * ThrowSpeedConst, strength, colliders, penetration);
             }
 
             var melee = player.GetComponent<MeleeAttacker>();

@@ -76,7 +76,7 @@ Enemies are the real content cost, not terrain (see Enemies).
 
 ### Levels and stats
 
-Exists: level, XP (100 x level per level), 5 stat points per level into Vitality, Endurance, Strength (`PlayerVitals`, `CharacterSave`; saved locally, not on a server yet).
+Exists: level, XP (100 x level per level), 5 stat points per level (`PlayerVitals`, `CharacterSave`; saved locally, not on a server yet). Since 2026-10-14 they go into the owner's list of 24 stats (docs/STATS.md: Max Health, Health Regen, Max Stamina, Stamina Regen, Max Mana, Mana Regen, Melee Damage, Melee Speed, Firearm Damage, Reload Speed, Fire Rate, Spell Power, Cast Speed, Cooldown Reduction, Armor Penetration, Accuracy, Recoil Control, Movement Speed, Flight Speed, Vehicle Handling, Armor, Magic Resistance, Stability, Block Chance), each working in the game except Flight Speed and Vehicle Handling (wings and the new cars come later). Vitality, Endurance and Strength became Max Health, Max Stamina and Melee Damage.
 
 Planned stats (each appears when it becomes relevant: Mana with your first spell, Command with your first summon):
 

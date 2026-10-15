@@ -9,8 +9,8 @@ namespace CityX.UIEditor
 {
     /// <summary>
     /// Builds the Stats panel into the open scene -- Level, an XP bar, how
-    /// many points are left to spend, and a "+" row each for Vitality/
-    /// Endurance/Strength. Reached from the Player submenu.
+    /// many points are left to spend, and the list of every stat (built by StatsPanelView
+    /// itself when it first opens). Reached from the Player submenu.
     ///
     /// STRAIGHT INTO THE SCENE, not a prefab -- same reasoning as
     /// LoadoutPanelBuilder: wired to the player's own PlayerVitals and
@@ -29,19 +29,12 @@ namespace CityX.UIEditor
         private static readonly Color HintColour = new Color(0.55f, 0.58f, 0.66f);
         private static readonly Color BarWellColour = new Color(0.14f, 0.15f, 0.19f, 1.0f);
         private static readonly Color BarFillColour = new Color(1.0f, 0.78f, 0.28f, 1.0f);
-        private static readonly Color RowColour = new Color(0.14f, 0.15f, 0.19f, 1.0f);
-        private static readonly Color RowTextColour = new Color(0.90f, 0.90f, 0.92f);
-        private static readonly Color PlusColour = new Color(0.20f, 0.21f, 0.27f, 1.0f);
         private static readonly Color CloseColour = new Color(0.20f, 0.21f, 0.27f, 1.0f);
 
         private const float PanelMargin = 60.0f;
         private const string TitleText = "STATS";
         private const float BarWidth = 420.0f;
         private const float BarHeight = 22.0f;
-        private const float RowWidth = 420.0f;
-        private const float RowHeight = 44.0f;
-        private const float RowPitch = 58.0f;
-        private const float PlusButtonSize = 36.0f;
 
         public static StatsPanelView AddToScene(PlayerVitals vitals,
             PlayerInputReader inputReader, ThirdPersonCamera orbitCamera)
@@ -99,9 +92,7 @@ namespace CityX.UIEditor
             points.alignment = TextAnchor.UpperLeft;
             view.PointsLabel = points;
 
-            view.VitalityLabel = BuildStatRow(panel.transform, -190.0f, out view.VitalityButton);
-            view.EnduranceLabel = BuildStatRow(panel.transform, -190.0f - RowPitch, out view.EnduranceButton);
-            view.StrengthLabel = BuildStatRow(panel.transform, -190.0f - RowPitch * 2.0f, out view.StrengthButton);
+            // Every stat's row is built by StatsPanelView itself when the page first opens (2026-10-14: twenty-four stats in a list that scrolls).
 
             var closeGo = new GameObject("CloseButton", typeof(RectTransform));
             var closeRect = (RectTransform)closeGo.transform;
@@ -155,49 +146,6 @@ namespace CityX.UIEditor
             fill.AddComponent<Image>().color = BarFillColour;
 
             return fillRect;
-        }
-
-        /// <summary>
-        /// One stat row: a dark background strip with a label (filled in by
-        /// StatsPanelView.Refresh) and a "+" button pinned to its right edge.
-        /// </summary>
-        private static Text BuildStatRow(Transform parent, float y, out Button plusButton)
-        {
-            var row = new GameObject("Row", typeof(RectTransform));
-            row.transform.SetParent(parent, false);
-            PlaceTopLeft(row.transform, new Vector2(24.0f, y), new Vector2(RowWidth, RowHeight));
-            row.AddComponent<Image>().color = RowColour;
-
-            Text label = MakeText(row.transform, "Label", string.Empty, 16, RowTextColour);
-            var labelRect = (RectTransform)label.transform;
-            labelRect.anchorMin = Vector2.zero;
-            labelRect.anchorMax = Vector2.one;
-            labelRect.offsetMin = new Vector2(16.0f, 0.0f);
-            labelRect.offsetMax = new Vector2(-PlusButtonSize - 24.0f, 0.0f);
-            label.alignment = TextAnchor.MiddleLeft;
-
-            var plusGo = new GameObject("Plus", typeof(RectTransform));
-            var plusRect = (RectTransform)plusGo.transform;
-            plusRect.SetParent(row.transform, false);
-            plusRect.anchorMin = new Vector2(1.0f, 0.5f);
-            plusRect.anchorMax = new Vector2(1.0f, 0.5f);
-            plusRect.pivot = new Vector2(1.0f, 0.5f);
-            plusRect.anchoredPosition = new Vector2(-8.0f, 0.0f);
-            plusRect.sizeDelta = new Vector2(PlusButtonSize, PlusButtonSize);
-            Image plusBackground = plusGo.AddComponent<Image>();
-            plusBackground.color = PlusColour;
-            plusButton = plusGo.AddComponent<Button>();
-            plusButton.targetGraphic = plusBackground;
-            Text plusLabel = MakeText(plusGo.transform, "Label", "+", 20, LabelColour);
-            var plusLabelRect = (RectTransform)plusLabel.transform;
-            plusLabelRect.anchorMin = Vector2.zero;
-            plusLabelRect.anchorMax = Vector2.one;
-            plusLabelRect.offsetMin = Vector2.zero;
-            plusLabelRect.offsetMax = Vector2.zero;
-            plusLabel.alignment = TextAnchor.MiddleCenter;
-            plusLabel.raycastTarget = false;
-
-            return label;
         }
 
         private static void PlaceTopLeft(Transform t, Vector2 position, Vector2 size)

@@ -40,6 +40,7 @@ namespace CityX.Character
         private PlayerVitals _vitals;
         private float _sinceHealth;
         private float _lastSentHealth = -1.0f;
+        private float _lastSentMaxHealth = -1.0f;
         private int _nextHitId;
 
         // Server-side rate limit, per sender.
@@ -80,7 +81,7 @@ namespace CityX.Character
             }
             LastRelayedHitId = ++_nextHitId;
             LastRelayWasSent = true;
-            SendHitToServer(amount, fromPosition, hitstunSeconds, poiseDamage, LastRelayedHitId);
+            SendHitToServer(amount, fromPosition, hitstunSeconds, poiseDamage, LastRelayedHitId, (int)DamageContext.Kind, DamageContext.Penetration);
             return true;
         }
 
@@ -99,16 +100,17 @@ namespace CityX.Character
         }
 
         [ServerRpc(RequireOwnership = false)]
-        private void SendHitToServer(float amount, Vector3 fromPosition, float hitstunSeconds, float poiseDamage, int hitId, NetworkConnection sender = null)
+        private void SendHitToServer(float amount, Vector3 fromPosition, float hitstunSeconds, float poiseDamage, int hitId, int kind, float penetration,
+            NetworkConnection sender = null)
         {
-            if (!Allowed(sender, amount) || !Finite(fromPosition) || float.IsNaN(hitstunSeconds) || float.IsNaN(poiseDamage))
+            if (!Allowed(sender, amount) || !Finite(fromPosition) || float.IsNaN(hitstunSeconds) || float.IsNaN(poiseDamage) || float.IsNaN(penetration))
             {
                 return;
             }
             if (Owner.IsValid)
             {
                 ApplyHitOnOwner(Owner, Mathf.Min(amount, MaxHitDamage), fromPosition, Mathf.Clamp(hitstunSeconds, 0.0f, 3.0f),
-                    Mathf.Clamp(poiseDamage, -1.0f, MaxPoiseDamage), hitId, sender.ClientId);
+                    Mathf.Clamp(poiseDamage, -1.0f, MaxPoiseDamage), hitId, sender.ClientId, Mathf.Clamp(kind, 0, (int)DamageKind.Magic), Mathf.Clamp01(penetration));
             }
         }
 
@@ -126,9 +128,10 @@ namespace CityX.Character
         }
 
         [TargetRpc]
-        private void ApplyHitOnOwner(NetworkConnection target, float amount, Vector3 fromPosition, float hitstunSeconds, float poiseDamage, int hitId, int attackerClientId)
+        private void ApplyHitOnOwner(NetworkConnection target, float amount, Vector3 fromPosition, float hitstunSeconds, float poiseDamage, int hitId, int attackerClientId,
+            int kind, float penetration)
         {
-            HitResponse response = ApplyHitHere(amount, fromPosition, hitstunSeconds, poiseDamage);
+            HitResponse response = ApplyHitHere(amount, fromPosition, hitstunSeconds, poiseDamage, (DamageKind)kind, penetration);
             if (response != HitResponse.Landed)
             {
                 SendVerdictToServer(attackerClientId, hitId, (int)response);   // the attacker assumed "landed"; only a different answer needs carrying back
@@ -144,8 +147,12 @@ namespace CityX.Character
             }
         }
 
-        /// <summary>Applies a forwarded hit to THIS body as if it had been struck here. Public so a test can drive it without a network.</summary>
-        public HitResponse ApplyHitHere(float amount, Vector3 fromPosition, float hitstunSeconds, float poiseDamage = -1.0f)
+        /// <summary>
+        /// Applies a forwarded hit to THIS body as if it had been struck here: its kind and the attacker's armour penetration came with it, so
+        /// this body's own armour, magic resistance and block chance answer it (2026-10-14). Public so a test can drive it without a network.
+        /// </summary>
+        public HitResponse ApplyHitHere(float amount, Vector3 fromPosition, float hitstunSeconds, float poiseDamage = -1.0f,
+            DamageKind kind = DamageKind.Physical, float penetration = 0.0f)
         {
             if (_vitals == null)
             {
@@ -155,7 +162,7 @@ namespace CityX.Character
             {
                 _vitals.TakePoise(poiseDamage);
             }
-            return ((IDamageable)_vitals).ApplyHit(amount, fromPosition, hitstunSeconds);
+            return DamageContext.Strike(_vitals, amount, fromPosition, hitstunSeconds, kind, penetration);
         }
 
         // ---- the verdict back to the attacker ----
@@ -247,30 +254,32 @@ namespace CityX.Character
             }
             _sinceHealth = 0.0f;
             float health = _vitals.Health;
-            if (Mathf.Approximately(health, _lastSentHealth))
+            float maxHealth = _vitals.MaxHealth;
+            if (Mathf.Approximately(health, _lastSentHealth) && Mathf.Approximately(maxHealth, _lastSentMaxHealth))
             {
                 return;
             }
             _lastSentHealth = health;
-            SendHealthToServer(health);
+            _lastSentMaxHealth = maxHealth;
+            SendHealthToServer(health, maxHealth);
         }
 
         [ServerRpc(RequireOwnership = true)]
-        private void SendHealthToServer(float health)
+        private void SendHealthToServer(float health, float maxHealth)
         {
-            if (float.IsNaN(health) || float.IsInfinity(health))
+            if (float.IsNaN(health) || float.IsInfinity(health) || float.IsNaN(maxHealth) || float.IsInfinity(maxHealth) || maxHealth <= 0.0f)
             {
                 return;
             }
-            BroadcastHealth(health);
+            BroadcastHealth(health, maxHealth);
         }
 
         [ObserversRpc(ExcludeOwner = true, BufferLast = true)]
-        private void BroadcastHealth(float health)
+        private void BroadcastHealth(float health, float maxHealth)
         {
             if (_vitals != null)
             {
-                _vitals.SetHealthFromNetwork(health);
+                _vitals.SetHealthFromNetwork(health, maxHealth);
             }
         }
     }

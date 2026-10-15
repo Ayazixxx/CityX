@@ -385,6 +385,42 @@ namespace CityX.Character
             {
                 gameObject.AddComponent<PlayerWetness>();
             }
+
+            // The sparks and the ting of a blow stopped outright by a block (Block Chance), here and on other players' copies of this body.
+            if (GetComponent<BlockDeflectEffect>() == null)
+            {
+                gameObject.AddComponent<BlockDeflectEffect>();
+            }
+
+            // A stagger cuts short what was winding up (2026-10-14: the Stability stat makes it rarer).
+            if (_vitals != null)
+            {
+                _vitals.Staggered += OnStaggered;
+            }
+        }
+
+        /// <summary>
+        /// STAGGERED (2026-10-14): a blow that put the body in hitstun cuts short whatever was winding up -- the poison scream before the gas
+        /// leaves, the rest of an ice volley, Octaslash's wind-up, a charging sword spin. A blow the Stability stat shrugs off never gets here.
+        /// </summary>
+        private void OnStaggered()
+        {
+            _poisonBreath?.Interrupt();
+            _iceShards?.Interrupt();
+            if (_octaslash == null)
+            {
+                _octaslash = GetComponent<OctaslashAbility>();
+            }
+            _octaslash?.Interrupt();
+            _melee?.InterruptSpinCharge();
+        }
+
+        private void OnDestroy()
+        {
+            if (_vitals != null)
+            {
+                _vitals.Staggered -= OnStaggered;
+            }
         }
 
         /// <summary>
@@ -557,6 +593,7 @@ namespace CityX.Character
             {
                 _vitals.TickHitstun(deltaTime);
                 _vitals.TickMana(deltaTime);
+                _vitals.TickHealthRegen(deltaTime);
             }
             if (_melee != null)
             {

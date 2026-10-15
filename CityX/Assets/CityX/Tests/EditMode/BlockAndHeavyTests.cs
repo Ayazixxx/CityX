@@ -19,6 +19,8 @@ namespace CityX.Tests
         {
             _object = new GameObject("Body");
             _vitals = _object.AddComponent<PlayerVitals>();
+            // Everyone's 10% chance to stop a blow outright (Block Chance, 2026-10-14) would make these blocks random: never here.
+            _vitals.Roll = () => 1.0f;
             // EditMode never runs Awake, so the health starts at zero and every
             // test would be hitting an already-dead body. Revive does the same
             // filling-up and is already public for respawn.

@@ -260,9 +260,39 @@ namespace CityX.Character
                 return;
             }
 
-            _animator.speed = 1.0f;
+            // Melee Speed (2026-10-14): the swing runs faster, and other players' copies are told how fast.
+            float speed = _melee != null ? _melee.SwingSpeed : 1.0f;
+            bool procedural = FistStrikes.Has(stage.Animation) || SwordStrikes.Has(stage.Animation);
+            _animator.speed = procedural ? 1.0f : speed;
             PlayState(stage.Animation);
-            StatePlayed?.Invoke(stage.Animation);
+            if (Mathf.Approximately(speed, 1.0f))
+            {
+                StatePlayed?.Invoke(stage.Animation);
+                return;
+            }
+            ApplyStateSpeedToPose(stage.Animation, speed);
+            TimedStatePlayed?.Invoke(stage.Animation, speed, 0.0f);
+        }
+
+        /// <summary>A procedural strike's clock (fists, sword, a reload): its pose driver runs at <paramref name="speed"/>. False for anything else.</summary>
+        private bool ApplyStateSpeedToPose(string stateName, float speed)
+        {
+            if (FistStrikes.Has(stateName))
+            {
+                _fist?.SetSpeed(speed);
+                return true;
+            }
+            if (SwordStrikes.Has(stateName))
+            {
+                _sword?.SetSpeed(speed);
+                return true;
+            }
+            if (GunReload.Has(stateName))
+            {
+                _gunReload?.SetSpeed(speed);
+                return true;
+            }
+            return false;
         }
 
         /// <summary>
@@ -276,6 +306,9 @@ namespace CityX.Character
 
         /// <summary>A gun shot by the player this body is a copy of (GunReload.FireName, from the network): the mounted gun shows it.</summary>
         public event System.Action RemoteGunFired;
+
+        /// <summary>A blow the player this body is a copy of stopped outright with a block (BlockDeflectEffect.StateName, from the network).</summary>
+        public event System.Action RemoteDeflected;
 
         /// <summary>Tells other players' copies of this body about something that already happened here (a gun shot), without playing anything.</summary>
         public void AnnounceState(string stateName)
@@ -321,14 +354,9 @@ namespace CityX.Character
 
         private void ApplyStateSpeed(string stateName, float speed)
         {
-            if (SwordStrikes.Has(stateName))
+            // A procedural attack (or reload) has its own clock; the legs go on walking under a hit-stop.
+            if (ApplyStateSpeedToPose(stateName, speed))
             {
-                _sword?.SetSpeed(speed);   // a procedural attack has its own clock; the legs go on walking under a hit-stop
-                return;
-            }
-            if (GunReload.Has(stateName))
-            {
-                _gunReload?.SetSpeed(speed);
                 return;
             }
             if (_animator == null)
@@ -387,9 +415,19 @@ namespace CityX.Character
                 RemoteGunFired?.Invoke();   // the copy's mounted gun flashes, cracks, throws brass
                 return;
             }
+            if (stateName == BlockDeflectEffect.StateName)
+            {
+                RemoteDeflected?.Invoke();   // the copy's guard throws the same sparks and rings the same ting
+                return;
+            }
             if (FistStrikes.Has(stateName) || SwordStrikes.Has(stateName) || HitReactions.Has(stateName) || GunReload.Has(stateName))
             {
                 PlayState(stateName);   // a copy of someone else's body throws the same procedural strike (or raises the same guard, or flinches, or reloads)
+                // ...at the owner's pace (Melee Speed, Reload Speed: 2026-10-14). A garbled speed is ignored.
+                if (!float.IsNaN(speed) && !Mathf.Approximately(speed, 1.0f))
+                {
+                    ApplyStateSpeedToPose(stateName, Mathf.Clamp(speed, MinRemoteSpeed, MaxRemoteSpeed));
+                }
                 return;
             }
             if (!_animator.HasState(LayerFor(stateName), Animator.StringToHash(stateName)))

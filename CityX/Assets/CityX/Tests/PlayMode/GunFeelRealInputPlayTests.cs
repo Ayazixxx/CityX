@@ -128,6 +128,62 @@ namespace CityX.Tests
             yield return null;
         }
 
+        /// <summary>
+        /// THE GUN STATS (2026-10-14): Firearm Damage makes a shot hurt more, Fire Rate shortens the wait for the next one, Reload Speed
+        /// reloads sooner, Recoil Control kicks the camera less -- and a standing first shot still lands exactly on the crosshair.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheGunStatsMakeShotsHurtMoreComeFasterReloadSoonerAndKickLess()
+        {
+            yield return LoadSceneWithAPistol();
+            SparringDummy dummy = DummyOnTheCrosshair(8.0f, maxHealth: 10000.0f);
+            float damage = _pistol.Profile.Damage;
+
+            yield return Click();
+            Assert.AreEqual(1, dummy.TimesHit, "a standing first shot missed the crosshair's target");
+            Assert.AreEqual(damage, dummy.TotalDamageTaken, 0.01f, "with no points a shot does the gun's own damage");
+            float plainCooldown = _pistol.FireCooldownRemaining;
+            float plainKick = _camera.RecoilPitch;
+            yield return Wait(1.5f);
+
+            _vitals.Stats[StatId.FirearmDamage] = 25;   // +50%
+            _vitals.Stats[StatId.FireRate] = 20;        // +30%
+            _vitals.Stats[StatId.RecoilControl] = 25;   // 50% less
+            yield return Click();
+            Assert.AreEqual(2, dummy.TimesHit, "the second standing shot missed");
+            Assert.AreEqual(damage * 2.5f, dummy.TotalDamageTaken, 0.01f, "Firearm Damage +50% should make the second shot do half as much again");
+            Assert.Less(_pistol.FireCooldownRemaining, plainCooldown / 1.25f, "Fire Rate +30% should shorten the wait for the next shot");
+            Assert.Less(_camera.RecoilPitch, plainKick * 0.7f, "Recoil Control 50% should kick the camera much less");
+            yield return Wait(1.5f);
+
+            // Reload Speed: the same reload, timed at +0% and +50%.
+            float plainReload = 0.0f;
+            yield return TimeAReload(seconds => plainReload = seconds);
+            yield return Click();   // a round out again, so there is something to reload
+            yield return Wait(0.5f);
+            _vitals.Stats[StatId.ReloadSpeed] = 25;   // +50%
+            float fastReload = 0.0f;
+            yield return TimeAReload(seconds => fastReload = seconds);
+            Debug.Log($"CityX gun stats: reload {plainReload:0.00} s plain, {fastReload:0.00} s at +50%");
+            Assert.AreEqual(plainReload / 1.5f, fastReload, plainReload * 0.12f, "Reload Speed +50% should reload in two thirds of the time");
+        }
+
+        private IEnumerator TimeAReload(System.Action<float> seconds)
+        {
+            Press(_keyboard.rKey);
+            yield return null;
+            Release(_keyboard.rKey);
+            yield return null;
+            Assert.IsTrue(_pistol.IsReloading, "R did not start a reload");
+            float elapsed = Time.deltaTime;
+            while (_pistol.IsReloading && elapsed < 10.0f)
+            {
+                yield return null;
+                elapsed += Time.deltaTime;
+            }
+            seconds(elapsed);
+        }
+
         [UnityTest]
         public IEnumerator ClickingFiresKicksTheCameraAndTheKickSettlesBack()
         {

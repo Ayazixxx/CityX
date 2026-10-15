@@ -626,7 +626,7 @@ namespace CityX.Character
             }
 
             float before = _swingRemaining;
-            _swingRemaining -= deltaTime;
+            _swingRemaining -= deltaTime * SwingSpeed;   // Melee Speed runs the swing faster (2026-10-14)
 
             // Contact is a moment inside the swing, not its start or end. Fire
             // it when the timer crosses that point, so a long frame cannot skip
@@ -765,12 +765,24 @@ namespace CityX.Character
             }
         }
 
+        /// <summary>
+        /// A stagger cuts a spin's charge short (2026-10-14: the Stability stat's "harder to interrupt"): it ends without spinning, and other
+        /// players see it end. A spin already turning carries on (it is the blow, not the wind-up).
+        /// </summary>
+        public void InterruptSpinCharge()
+        {
+            if (_spinState == SpinState.Charging)
+            {
+                EndSpin();
+            }
+        }
+
         private void EndSpin()
         {
             bool wasSpinning = _spinState != SpinState.None;
             _spinState = SpinState.None;
             _landingLagRemaining = 0.0f;
-            _spinCooldownRemaining = SpinAttackCooldownSeconds;
+            _spinCooldownRemaining = SpinAttackCooldownSeconds * PlayerVitals.CooldownFactorOf(_vitals);   // Cooldown Reduction shortens it
             if (_locomotion != null)
             {
                 _locomotion.GravityScale = 1.0f;
@@ -1009,6 +1021,12 @@ namespace CityX.Character
         private BloodrageAbility _bloodrage;
         private bool _bloodrageLooked;
 
+        /// <summary>How fast this body's swings run: Melee Speed (1 plus its share; 1 with no vitals). The poses and other players' copies follow it.</summary>
+        public float SwingSpeed => PlayerVitals.SpeedOf(_vitals, StatId.MeleeSpeed);
+
+        /// <summary>How much of a target's armour and block chance this body's blows ignore (its Armor Penetration stat, 2026-10-14).</summary>
+        private float Penetration => _vitals != null ? _vitals.Stats.Effect(StatId.ArmorPenetration) : 0.0f;
+
         /// <summary>The melee damage multiplier from Bloodrage (1 when it is not running or this body has none).</summary>
         public float BloodrageFactor
         {
@@ -1064,7 +1082,7 @@ namespace CityX.Character
             foreach (Contact contact in ContactsInReach())
             {
                 HitResponse response =
-                    contact.Target.ApplyHit(damage, transform.position, hitstun);
+                    DamageContext.Strike(contact.Target, damage, transform.position, hitstun, DamageKind.Physical, Penetration);
                 if (response == HitResponse.Ignored)
                 {
                     continue;
@@ -1151,7 +1169,7 @@ namespace CityX.Character
                 return HitResponse.Ignored;
             }
 
-            HitResponse response = target.ApplyHit(damage, transform.position, hitstunSeconds);
+            HitResponse response = DamageContext.Strike(target, damage, transform.position, hitstunSeconds, DamageKind.Physical, Penetration);
             if (response == HitResponse.Ignored)
             {
                 return response;
@@ -1205,7 +1223,7 @@ namespace CityX.Character
             int hits = 0;
             foreach (Contact contact in ContactsInReach(fullCircle: true, reach: reach))
             {
-                HitResponse response = contact.Target.ApplyHit(damage, transform.position, CombatTuning.HitstunSeconds);
+                HitResponse response = DamageContext.Strike(contact.Target, damage, transform.position, CombatTuning.HitstunSeconds, DamageKind.Physical, Penetration);
                 if (response == HitResponse.Ignored)
                 {
                     continue;
@@ -1255,7 +1273,7 @@ namespace CityX.Character
                 {
                     continue;
                 }
-                HitResponse response = contact.Target.ApplyHit(damage, transform.position, CombatTuning.HitstunSeconds);
+                HitResponse response = DamageContext.Strike(contact.Target, damage, transform.position, CombatTuning.HitstunSeconds, DamageKind.Physical, Penetration);
                 if (response == HitResponse.Ignored)
                 {
                     continue;

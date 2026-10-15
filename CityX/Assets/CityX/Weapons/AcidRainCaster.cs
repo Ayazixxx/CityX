@@ -57,10 +57,12 @@ namespace CityX.Weapons
             {
                 return false;
             }
-            _cooldown = CooldownSeconds;
+            // Cooldown Reduction shortens it (2026-10-14).
+            _cooldown = CooldownSeconds * PlayerVitals.CooldownFactorOf(_vitals);
             Vector3 centre = Target(eye, direction.normalized, ignoreColliders, transform.position);
-            int strength = _vitals != null ? _vitals.Strength : 0;
-            AcidRainStorm.Spawn(StormPrefab, centre, strength, ignoreColliders);
+            // A spell: Spell Power makes it burn harder (2% a point, 2026-10-14).
+            int spellPower = _vitals != null ? _vitals.Stats[StatId.SpellPower] : 0;
+            AcidRainStorm.Spawn(StormPrefab, centre, spellPower, ignoreColliders);
             Fired?.Invoke(new AbilityEvent(0, centre, Vector3.zero));
             return true;
         }

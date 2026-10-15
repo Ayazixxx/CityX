@@ -55,6 +55,10 @@ namespace CityX.Weapons
         private Vector3 _direction = Vector3.forward;
         private Collider[] _ignore;
         private PlayerVitals _vitals;
+
+        /// <summary>This volley's gap between shards and its follow-through: the tuned ones, quicker with Cast Speed.</summary>
+        private float _interval = 0.11f;
+        private float _followThrough = 0.4f;
         private AudioSource _audio;
 
         // The nudges, in units of SpreadDegrees: dead centre first, then a ring.
@@ -118,7 +122,7 @@ namespace CityX.Weapons
             while (_shotsLeft > 0 && _nextShotIn <= 0.0f)
             {
                 FireOne();
-                _nextShotIn += ShardIntervalSeconds;
+                _nextShotIn += _interval;
             }
         }
 
@@ -128,19 +132,31 @@ namespace CityX.Weapons
             {
                 return false;
             }
-            _cooldown = CooldownSeconds;
+            // Cooldown Reduction shortens it (2026-10-14).
+            _cooldown = CooldownSeconds * PlayerVitals.CooldownFactorOf(_vitals);
             _shotsLeft = Mathf.Max(1, ShardCount);
+            // Cast Speed looses the shards faster, one after another (2026-10-14).
+            float castSpeed = PlayerVitals.SpeedOf(_vitals, StatId.CastSpeed);
+            _interval = ShardIntervalSeconds / castSpeed;
+            _followThrough = FollowThroughSeconds / castSpeed;
             _shotsFired = 0;
             _volley.Clear();
             _origin = origin;
             _direction = direction.normalized;
             _ignore = ignoreColliders;
             // The pose holds for the whole volley and then eases out over the follow-through.
-            _castPoseRemaining = FollowThroughSeconds + (_shotsLeft - 1) * ShardIntervalSeconds;
+            _castPoseRemaining = _followThrough + (_shotsLeft - 1) * _interval;
             _nextShotIn = 0.0f;
             FireOne();
-            _nextShotIn = ShardIntervalSeconds;
+            _nextShotIn = _interval;
             return true;
+        }
+
+        /// <summary>A stagger stops the volley (Stability, 2026-10-14): the shards not yet loosed never leave, and the hand comes down.</summary>
+        public void Interrupt()
+        {
+            _shotsLeft = 0;
+            _castPoseRemaining = 0.0f;
         }
 
         public void Aim(Vector3 origin, Vector3 direction)
@@ -164,12 +180,14 @@ namespace CityX.Weapons
             Vector3 up = Vector3.Cross(_direction, right);
             Vector3 aimed = (_direction + right * Mathf.Tan(nudge.x) + up * Mathf.Tan(nudge.y)).normalized;
 
-            int strength = _vitals != null ? _vitals.Strength : 0;
+            // A spell: Spell Power makes it hurt more, and the caster's Armor Penetration goes with it (2026-10-14).
+            int spellPower = _vitals != null ? _vitals.Stats[StatId.SpellPower] : 0;
+            float penetration = _vitals != null ? _vitals.Stats.Effect(StatId.ArmorPenetration) : 0.0f;
             Vector3 spawnAt = _origin + aimed * SpawnForwardOffset;
-            _volley.Add(IceShardProjectile.Spawn(ShardPrefab, spawnAt, aimed * ShardSpeed, strength, _ignore));
+            _volley.Add(IceShardProjectile.Spawn(ShardPrefab, spawnAt, aimed * ShardSpeed, spellPower, _ignore, penetration: penetration));
             PlayCastSound();
             // B is how long the raised-hand pose should be held in all (the whole volley and its follow-through): sent with the first shard.
-            float poseSeconds = FollowThroughSeconds + (Mathf.Max(1, ShardCount) - 1) * ShardIntervalSeconds;
+            float poseSeconds = _followThrough + (Mathf.Max(1, ShardCount) - 1) * _interval;
             Fired?.Invoke(new AbilityEvent(0, spawnAt, aimed, ShardSpeed, poseSeconds, _shotsFired));
 
             _shotsLeft--;

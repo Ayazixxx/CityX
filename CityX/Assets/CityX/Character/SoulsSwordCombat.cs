@@ -615,7 +615,7 @@ namespace CityX.Character
                 return;
             }
 
-            _phaseTime += deltaTime;
+            _phaseTime += deltaTime * _swingSpeed;
 
             // A loop, not an if: a long frame can carry the swing across more
             // than one boundary, and none of them may be skipped (a swallowed
@@ -624,7 +624,7 @@ namespace CityX.Character
             {
                 if (_phase == SoulsPhase.Startup)
                 {
-                    ApplyLunge(deltaTime);
+                    ApplyLunge(deltaTime * _swingSpeed);
                     if (_phaseTime < _current.Startup)
                     {
                         return;
@@ -637,7 +637,7 @@ namespace CityX.Character
 
                 if (_phase == SoulsPhase.Active)
                 {
-                    ApplyLunge(deltaTime);
+                    ApplyLunge(deltaTime * _swingSpeed);
                     SweepBlade();
                     if (_phaseTime < _current.Active)
                     {
@@ -699,12 +699,17 @@ namespace CityX.Character
 
         private int _pendingChainIndex;
 
+        /// <summary>How fast the swing under way runs: Melee Speed's, taken when it started.</summary>
+        private float _swingSpeed = 1.0f;
+
         private void StartSwing(SoulsAttack attack, bool light, float yawDegrees)
         {
             // A held block is dropped the moment you swing.
             SetBlockHeld(false);
             ReleaseHitStop();
 
+            // Melee Speed (2026-10-14): the whole swing -- wind-up, cut, recovery, the lunge and the pose -- runs this much faster.
+            _swingSpeed = PlayerVitals.SpeedOf(_vitals, StatId.MeleeSpeed);
             _current = attack;
             _currentIsLight = light;
             _chainIndex = light ? _pendingChainIndex : -1;
@@ -723,7 +728,11 @@ namespace CityX.Character
             // see the same swing.
             if (_driver != null)
             {
-                _driver.PlayLocalState(attack.Animation, attack.AnimatorSpeed, attack.StartSeconds);
+                _driver.PlayLocalState(attack.Animation, attack.AnimatorSpeed * _swingSpeed, attack.StartSeconds);
+                if (attack.IsProcedural && !Mathf.Approximately(_swingSpeed, 1.0f))
+                {
+                    _driver.SetStateSpeed(attack.Animation, attack.AnimatorSpeed * _swingSpeed);   // the pose driver's own clock (sent on to other players)
+                }
             }
             AttackStarted?.Invoke(attack);
         }
@@ -738,7 +747,7 @@ namespace CityX.Character
             _hitStopRemaining = 0.0f;
             if (_clipHeld && _driver != null && _current != null)
             {
-                _driver.SetStateSpeed(_current.Animation, _current.AnimatorSpeed);
+                _driver.SetStateSpeed(_current.Animation, _current.AnimatorSpeed * _swingSpeed);
             }
             _clipHeld = false;
         }
@@ -905,7 +914,8 @@ namespace CityX.Character
 
             HitResponse response = _melee != null
                 ? _melee.RegisterExternalHit(target, point, damage, _current.HitstunSeconds)
-                : target.ApplyHit(damage, transform.position, _current.HitstunSeconds);
+                : DamageContext.Strike(target, damage, transform.position, _current.HitstunSeconds, DamageKind.Physical,
+                    _vitals != null ? _vitals.Stats.Effect(StatId.ArmorPenetration) : 0.0f);
 
             if (response == HitResponse.Ignored)
             {

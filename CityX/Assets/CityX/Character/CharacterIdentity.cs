@@ -67,9 +67,7 @@ namespace CityX.Character
                 _vitals.Level = character.Level;
                 _vitals.Experience = character.Experience;
                 _vitals.StatPoints = character.StatPoints;
-                _vitals.Vitality = character.Vitality;
-                _vitals.Endurance = character.Endurance;
-                _vitals.Strength = character.Strength;
+                CharacterStats.Load(_vitals, character);
                 _vitals.SkillPoints = character.SkillPoints;
                 // The stat points move the ceilings, so the bars have to be
                 // refilled against the NEW maximums or a character with points
@@ -218,9 +216,7 @@ namespace CityX.Character
                 _character.Level = _vitals.Level;
                 _character.Experience = _vitals.Experience;
                 _character.StatPoints = _vitals.StatPoints;
-                _character.Vitality = _vitals.Vitality;
-                _character.Endurance = _vitals.Endurance;
-                _character.Strength = _vitals.Strength;
+                CharacterStats.Save(_vitals, _character);
                 _character.SkillPoints = _vitals.SkillPoints;
             }
             PlayerSkills skills = GetComponent<PlayerSkills>();

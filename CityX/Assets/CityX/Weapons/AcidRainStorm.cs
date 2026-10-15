@@ -198,7 +198,7 @@ namespace CityX.Weapons
                 }
                 else
                 {
-                    target.ApplyHit(amount, head + Vector3.up, 0.0f);
+                    DamageContext.Strike(target, amount, head + Vector3.up, 0.0f, DamageKind.Magic, 0.0f);
                 }
                 Burns++;
             }

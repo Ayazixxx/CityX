@@ -62,6 +62,7 @@ namespace CityX.Tests
             }
             _locomotion = _player.GetComponent<PlayerLocomotion>();
             _vitals = _player.GetComponent<PlayerVitals>();
+            _vitals.Roll = () => 1.0f;   // no outright blocks (Block Chance): these guards must behave the same every run
             _animator = _player.GetComponentInChildren<Animator>();
             _driver = _player.GetComponent<PlayerAnimationDriver>();
 

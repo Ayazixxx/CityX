@@ -92,10 +92,16 @@ namespace CityX.Core
 
         public int Experience;
 
-        /// <summary>Unspent points, earned on level-up. Spent via PlayerVitals.SpendStatPoint.</summary>
+        /// <summary>Unspent points, earned on level-up. Spent via PlayerVitals.SpendStatPoints.</summary>
         public int StatPoints;
 
-        // Stat points already spent, matching PlayerVitals' own three.
+        /// <summary>
+        /// The points in every stat, by its key (StatCatalog in Character, 2026-10-14). Empty in a save from before: CharacterStats.Load then
+        /// takes the old three below, which are still written for the character list and older builds.
+        /// </summary>
+        public List<StatEntry> Stats = new List<StatEntry>();
+
+        // The old three stats' points (Max Health, Max Stamina and Melee Damage since 2026-10-14).
         public int Vitality;
 
         public int Endurance;
@@ -256,6 +262,12 @@ namespace CityX.Core
                 changed = true;
             }
 
+            if (Stats == null)
+            {
+                Stats = new List<StatEntry>();
+                changed = true;
+            }
+
             if (PlaytimeSeconds < 0.0 || double.IsNaN(PlaytimeSeconds))
             {
                 PlaytimeSeconds = 0.0;
@@ -292,6 +304,20 @@ namespace CityX.Core
             if (StatPoints < 0) { StatPoints = 0; changed = true; }
 
             return changed;
+        }
+    }
+
+    /// <summary>One stat's points in a save: by key, so stats can be added, removed or reordered without breaking old saves.</summary>
+    [Serializable]
+    public struct StatEntry
+    {
+        public string Key;
+        public int Points;
+
+        public StatEntry(string key, int points)
+        {
+            Key = key;
+            Points = points;
         }
     }
 }

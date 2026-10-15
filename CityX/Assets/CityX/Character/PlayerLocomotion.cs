@@ -2433,6 +2433,9 @@ namespace CityX.Character
         /// </summary>
         public float AimMoveSpeedMultiplier = 0.8f;
 
+        /// <summary>This body's vitals, for the Movement Speed stat (looked up the first time it is needed).</summary>
+        private PlayerVitals _statsVitals;
+
         /// <summary>
         /// EXPLICIT BUG REPORT, twice over. First: "the pistol aimed in
         /// pose is like positioned to the left slightly make it point
@@ -3042,6 +3045,12 @@ namespace CityX.Character
                 {
                     speed *= _bloodrage.SpeedFactor;
                 }
+                // MOVEMENT SPEED (the stat, 2026-10-14): walking and running, capped so the city can stream in ahead of you.
+                if (_statsVitals == null)
+                {
+                    _statsVitals = GetComponent<PlayerVitals>();
+                }
+                speed *= PlayerVitals.SpeedOf(_statsVitals, StatId.MovementSpeed);
             }
             Vector3 targetHorizontal = MovementRooted ? Vector3.zero : direction * speed;
             Vector3 horizontal;

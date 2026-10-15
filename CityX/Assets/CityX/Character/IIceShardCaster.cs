@@ -30,5 +30,8 @@ namespace CityX.Character
 
         /// <summary>While the volley is still going out, where the rest of it should come from and go: the shards follow the crosshair, they are not all committed at the press.</summary>
         void Aim(Vector3 origin, Vector3 direction);
+
+        /// <summary>A stagger stops the volley (2026-10-14, Stability): the shards not yet loosed never leave.</summary>
+        void Interrupt();
     }
 }

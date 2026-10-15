@@ -109,7 +109,8 @@ namespace CityX.Weapons
                 return false;
             }
 
-            _cooldownRemaining = CooldownSeconds;
+            // Cooldown Reduction shortens it (2026-10-14).
+            _cooldownRemaining = CooldownSeconds * PlayerVitals.CooldownFactorOf(_vitals);
             _castPoseRemaining = CastPoseSeconds;
 
             // PlayOneShot, not Play() -- matching PistolWeapon.ShotPlayer's
@@ -123,11 +124,13 @@ namespace CityX.Weapons
                 CastAudio.PlayOneShot(CastAudio.clip);
             }
 
-            int strength = _vitals != null ? _vitals.Strength : 0;
+            // A spell: Spell Power makes it hurt more (2% a point), and the caster's Armor Penetration goes with it (2026-10-14).
+            int spellPower = _vitals != null ? _vitals.Stats[StatId.SpellPower] : 0;
+            float penetration = _vitals != null ? _vitals.Stats.Effect(StatId.ArmorPenetration) : 0.0f;
             Vector3 forward = direction.normalized;
             FireballProjectile.Spawn(
                 FireballPrefab, origin + forward * SpawnForwardOffset,
-                forward * FireballSpeed, strength, ignoreColliders);
+                forward * FireballSpeed, spellPower, ignoreColliders, penetration: penetration);
             Fired?.Invoke(new AbilityEvent(0, origin + forward * SpawnForwardOffset, forward, FireballSpeed));
             return true;
         }

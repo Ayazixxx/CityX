@@ -237,3 +237,11 @@ sword gait) sets the neck and then the face to the idle's own carriage (`IdleNec
 still turns the torso and the head with it. Measured after: face 11.0, neck 3.0, head 1.7 cm ahead. `SwordIdleHeadPlayTests` holds it within 5
 degrees, 6 degrees and 6 cm of the idle (measured live, so a changed idle clip shows); `SwordIdleHeadCapture` (Explicit, -Graphics) renders both
 side by side.
+
+## 2026-10-14: the combat stats (docs/STATS.md)
+
+- Melee Speed runs the swing clock (startup, active, recovery and the lunge) and the pose faster; other players see the faster swing.
+- Block Chance: while the guard is up, everyone's 10% plus the stat to stop a blow outright -- no damage, no stamina, sparks and a ting (a bullet
+  glances off). Armor Penetration cuts it.
+- Stability: that chance to shrug off a staggering blow; a deeper poise pool for hyper-armoured swings; a cheaper guard (harder to break).
+- Armor stops a share of blows and bullets, Magic Resistance of spells: rating/(rating + 100).

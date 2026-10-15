@@ -19,7 +19,9 @@ namespace CityX.Weapons
         public AudioClip ImpactSound;
 
         private Rigidbody _rigidbody;
+        /// <summary>Points in the caster's Spell Power (2% a point, CombatTuning.DamageFor), and how much of the target's armour and block it ignores.</summary>
         private int _casterStrength;
+        private float _penetration;
         private bool _consumed;
 
         /// <summary>
@@ -29,7 +31,7 @@ namespace CityX.Weapons
         public bool Cosmetic { get; private set; }
 
         public static FireballProjectile Spawn(GameObject prefab, Vector3 origin, Vector3 velocity,
-            int casterStrength, Collider[] ignoreColliders, bool cosmetic = false)
+            int casterStrength, Collider[] ignoreColliders, bool cosmetic = false, float penetration = 0.0f)
         {
             if (prefab == null)
             {
@@ -44,6 +46,7 @@ namespace CityX.Weapons
             }
 
             fireball._casterStrength = casterStrength;
+            fireball._penetration = Mathf.Clamp01(penetration);
             fireball.Cosmetic = cosmetic;
             // GetComponent RATHER THAN THE CACHED FIELD -- see ThrownBottle.
             // Spawn's own comment: Awake has not necessarily run yet on a
@@ -144,7 +147,7 @@ namespace CityX.Weapons
             if (target != null && target.IsAlive)
             {
                 float damage = CombatTuning.DamageFor(BaseDamage, _casterStrength);
-                target.ApplyHit(damage, transform.position, CombatTuning.HitstunSeconds);
+                DamageContext.Strike(target, damage, transform.position, CombatTuning.HitstunSeconds, DamageKind.Magic, _penetration);
             }
 
             FireBurst.Spawn(BurstPrefab, point, normal);
