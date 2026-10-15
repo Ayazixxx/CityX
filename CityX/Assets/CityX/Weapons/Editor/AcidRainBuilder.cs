@@ -20,16 +20,17 @@ namespace CityX.WeaponsEditor
         private static readonly Color CloudDark = new Color(0.16f, 0.17f, 0.19f);
         private static readonly Color CloudSick = new Color(0.34f, 0.35f, 0.37f);
         private static readonly Color CloudPale = new Color(0.50f, 0.51f, 0.52f);
-        private static readonly Color Acid = new Color(0.55f, 1.0f, 0.15f);
 
-        /// <summary>How fast the drops fall, metres per second, and how long they may live (cloud to the deepest street).</summary>
-        private const float DropSpeed = 30.0f;
+        private const string SplashTexturePath = "Assets/CityX/Weapons/AcidRainSplash.png";
+        private const string SplashMaterialPath = "Assets/CityX/Weapons/AcidRainSplash.mat";
 
         /// <summary>
-        /// Where the drops start: well under the 70 m clouds, at about the height of a ten-storey roof. From the street it reads the same as
-        /// rain from the clouds, and over a 60 m radius it keeps the number of drops alive (and colliding with the world) affordable.
+        /// The cloud puffs' sizes, metres. They are 1.5 km up (AcidRain.CloudHeight) and must look as big from the street as the old 70 m ones
+        /// did, so they are some twenty times bigger -- and so few are needed to cover the sky that the deck is far cheaper to draw than before.
         /// </summary>
-        private const float RainFromHeight = 36.0f;
+        private static readonly Vector2 CloudPuffSize = new Vector2(550.0f, 850.0f);
+
+        private static readonly Vector2 UnderbellyPuffSize = new Vector2(350.0f, 600.0f);
 
         [MenuItem("CityX/Rebuild Acid Rain")]
         public static GameObject Build()
@@ -45,15 +46,16 @@ namespace CityX.WeaponsEditor
             var root = new GameObject("AcidRainStorm");
             try
             {
-                AddClouds(root.transform, "Clouds", puffs, rate: 150.0f, size: new Vector2(34.0f, 56.0f), alpha: 0.85f, low: CloudDark, high: CloudSick,
-                    height: AcidRain.CloudHeight);
-                AddClouds(root.transform, "Underbelly", puffs, rate: 80.0f, size: new Vector2(18.0f, 32.0f), alpha: 0.55f, low: CloudSick, high: CloudPale,
-                    height: AcidRain.CloudHeight - 4.0f);
+                AddClouds(root.transform, "Clouds", puffs, rate: 6.0f, burst: 40, size: CloudPuffSize, alpha: 0.85f, low: CloudDark, high: CloudSick,
+                    height: AcidRain.CloudHeight, radius: AcidRain.CloudRadius);
+                AddClouds(root.transform, "Underbelly", puffs, rate: 4.0f, burst: 24, size: UnderbellyPuffSize, alpha: 0.55f, low: CloudSick,
+                    high: CloudPale, height: AcidRain.CloudHeight - 60.0f, radius: AcidRain.CloudRadius * 0.8f);
                 AddRain(root.transform, streak);
+                AddSplashes(root.transform, EnsureSplashMaterial());
 
                 var glowObject = new GameObject("Glow");
                 glowObject.transform.SetParent(root.transform, false);
-                glowObject.transform.localPosition = Vector3.up * (AcidRain.CloudHeight * 0.5f);
+                glowObject.transform.localPosition = Vector3.up * AcidRain.GlowHeight;
                 Light glow = glowObject.AddComponent<Light>();
                 glow.type = LightType.Point;
                 glow.color = new Color(0.62f, 0.85f, 0.45f);   // only a faint sickly cast now the clouds are grey: the acid is the rain
@@ -85,9 +87,12 @@ namespace CityX.WeaponsEditor
             }
         }
 
-        /// <summary>A flat disc of huge slow puffs at <paramref name="height"/>, the storm's ceiling.</summary>
-        private static void AddClouds(Transform parent, string name, Material material, float rate, Vector2 size, float alpha, Color low, Color high,
-            float height)
+        /// <summary>
+        /// A flat disc of huge slow puffs at <paramref name="height"/>, <paramref name="radius"/> across, the storm's ceiling: <paramref name="burst"/>
+        /// at once (a full sky the moment it is cast) and <paramref name="rate"/> a second after.
+        /// </summary>
+        private static void AddClouds(Transform parent, string name, Material material, float rate, int burst, Vector2 size, float alpha, Color low,
+            Color high, float height, float radius)
         {
             var go = new GameObject(name);
             go.transform.SetParent(parent, false);
@@ -100,23 +105,23 @@ namespace CityX.WeaponsEditor
             main.loop = true;
             main.playOnAwake = false;
             main.startLifetime = new ParticleSystem.MinMaxCurve(6.0f, 9.0f);
-            main.startSpeed = new ParticleSystem.MinMaxCurve(0.0f, 0.6f);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(0.0f, 10.0f);   // a slow drift, at 1.5 km
             main.startSize = new ParticleSystem.MinMaxCurve(size.x, size.y);
             main.startRotation = new ParticleSystem.MinMaxCurve(0.0f, Mathf.PI * 2.0f);
             main.startColor = new ParticleSystem.MinMaxGradient(new Color(low.r, low.g, low.b, alpha), new Color(high.r, high.g, high.b, alpha));
             main.simulationSpace = ParticleSystemSimulationSpace.World;
-            main.maxParticles = 2200;
+            main.maxParticles = 200;
             // Already a full sky the moment it is cast: the warning is the clouds darkening in, not the sky slowly filling.
             main.prewarm = false;
 
             ParticleSystem.EmissionModule emission = particles.emission;
             emission.rateOverTime = rate;
-            emission.SetBursts(new[] { new ParticleSystem.Burst(0.0f, (short)(rate * 4.0f)) });
+            emission.SetBursts(new[] { new ParticleSystem.Burst(0.0f, (short)burst) });
 
             ParticleSystem.ShapeModule shape = particles.shape;
             shape.enabled = true;
             shape.shapeType = ParticleSystemShapeType.Circle;
-            shape.radius = AcidRain.Radius;
+            shape.radius = radius;
             shape.radiusThickness = 1.0f;
             shape.rotation = new Vector3(90.0f, 0.0f, 0.0f);   // lie flat
 
@@ -134,8 +139,8 @@ namespace CityX.WeaponsEditor
 
             ParticleSystem.NoiseModule churn = particles.noise;
             churn.enabled = true;
-            churn.strength = 1.2f;
-            churn.frequency = 0.08f;
+            churn.strength = 20.0f;   // the churn of a cloud a kilometre and a half away: big, slow
+            churn.frequency = 0.004f;
             churn.scrollSpeed = 0.15f;
             churn.quality = ParticleSystemNoiseQuality.Medium;
 
@@ -156,12 +161,16 @@ namespace CityX.WeaponsEditor
             renderer.receiveShadows = false;
         }
 
-        /// <summary>The drops: thin green streaks falling from just under the clouds, killed by the first surface they hit.</summary>
-        private static void AddRain(Transform parent, Material material)
+        /// <summary>
+        /// The drops: thin green streaks. Nothing is emitted by rate or shape: AcidRainStorm drops each one by script from just above the viewer,
+        /// with the lifetime that ends it on the first thing below it (a roof, the street), as the city rain does -- the particle system's own
+        /// collision let a quarter of them through the ground at 30 m/s.
+        /// </summary>
+        private static ParticleSystem AddRain(Transform parent, Material material)
         {
-            var go = new GameObject("Rain");
+            var go = new GameObject(AcidRainStorm.RainName);
             go.transform.SetParent(parent, false);
-            go.transform.localPosition = Vector3.up * RainFromHeight;
+            go.transform.localPosition = Vector3.up * AcidRain.RainFromHeight;   // moved up above a flier at run time (AcidRainStorm)
             ParticleSystem particles = go.AddComponent<ParticleSystem>();
             particles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
 
@@ -169,42 +178,20 @@ namespace CityX.WeaponsEditor
             main.duration = 2.0f;
             main.loop = true;
             main.playOnAwake = false;
-            main.startLifetime = (RainFromHeight + AcidRain.Depth) / DropSpeed;
+            main.startLifetime = AcidRain.MaxDropFall / AcidRain.DropSpeed;   // each drop's own is set as it is dropped
             main.startSpeed = 0.0f;
             main.startSize3D = true;
             main.startSizeX = new ParticleSystem.MinMaxCurve(0.05f, 0.08f);
             main.startSizeY = new ParticleSystem.MinMaxCurve(1.0f, 1.0f);
             main.startSizeZ = 1.0f;
-            main.startColor = new ParticleSystem.MinMaxGradient(new Color(Acid.r, Acid.g, Acid.b, 0.55f), new Color(0.8f, 1.0f, 0.4f, 0.75f));
+            main.startColor = new ParticleSystem.MinMaxGradient(AcidRain.DropGreen, AcidRain.DropPale);   // each drop's own is set as it is dropped
             main.simulationSpace = ParticleSystemSimulationSpace.World;
             main.maxParticles = 9000;
 
             ParticleSystem.EmissionModule emission = particles.emission;
-            emission.rateOverTime = 3000.0f;
-
+            emission.enabled = false;
             ParticleSystem.ShapeModule shape = particles.shape;
-            shape.enabled = true;
-            shape.shapeType = ParticleSystemShapeType.Circle;
-            shape.radius = AcidRain.Radius;
-            shape.radiusThickness = 1.0f;
-            shape.rotation = new Vector3(90.0f, 0.0f, 0.0f);
-
-            ParticleSystem.VelocityOverLifetimeModule fall = particles.velocityOverLifetime;
-            fall.enabled = true;
-            fall.space = ParticleSystemSimulationSpace.World;
-            fall.x = new ParticleSystem.MinMaxCurve(0.0f);
-            fall.y = new ParticleSystem.MinMaxCurve(-DropSpeed);
-            fall.z = new ParticleSystem.MinMaxCurve(0.0f);
-
-            // A roof, a deck or the street ends a drop: the rain visibly does not get under cover, and the burn does not either.
-            ParticleSystem.CollisionModule collision = particles.collision;
-            collision.enabled = true;
-            collision.type = ParticleSystemCollisionType.World;
-            collision.mode = ParticleSystemCollisionMode.Collision3D;
-            collision.quality = ParticleSystemCollisionQuality.Medium;
-            collision.lifetimeLoss = 1.0f;
-            collision.bounce = 0.0f;
-            collision.radiusScale = 0.1f;
+            shape.enabled = false;
 
             var renderer = go.GetComponent<ParticleSystemRenderer>();
             renderer.sharedMaterial = material;
@@ -213,6 +200,109 @@ namespace CityX.WeaponsEditor
             renderer.lengthScale = 1.0f;
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             renderer.receiveShadows = false;
+            return particles;
+        }
+
+        /// <summary>
+        /// GREEN SPLASHES WHERE THE DROPS LAND (owner, 2026-10-15: "when you do /rain there are these droplet effects that appear on the floor
+        /// that look good but they arent there during acid rain make a green version ... the same green as the acid rain droplets in the air").
+        /// The city rain's splash, made the way that one is (a few tiny dots thrown up and fading in 0.3 s): AcidRainStorm throws them where and
+        /// when each drop near the viewer lands, in that drop's own colour.
+        /// </summary>
+        private static void AddSplashes(Transform parent, Material material)
+        {
+            var go = new GameObject(AcidRainStorm.SplashesName);
+            go.transform.SetParent(parent, false);
+            ParticleSystem particles = go.AddComponent<ParticleSystem>();
+            particles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+
+            ParticleSystem.MainModule main = particles.main;
+            main.loop = false;
+            main.playOnAwake = false;
+            main.duration = 1.0f;
+            main.startLifetime = 0.3f;
+            main.startSpeed = 0.0f;
+            // A crown a few centimetres across, as the city rain's (RainEffect.BuildSplashes).
+            main.startSize = new ParticleSystem.MinMaxCurve(0.05f, 0.11f);
+            main.startColor = Color.white;   // each splash's own is its drop's
+            main.gravityModifier = 0.6f;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.maxParticles = 3000;
+
+            ParticleSystem.EmissionModule emission = particles.emission;
+            emission.enabled = false;
+            ParticleSystem.ShapeModule shape = particles.shape;
+            shape.enabled = false;
+
+            ParticleSystem.ColorOverLifetimeModule fade = particles.colorOverLifetime;
+            fade.enabled = true;
+            var gradient = new Gradient();
+            gradient.SetKeys(
+                new[] { new GradientColorKey(Color.white, 0.0f), new GradientColorKey(Color.white, 1.0f) },
+                new[] { new GradientAlphaKey(1.0f, 0.0f), new GradientAlphaKey(0.0f, 1.0f) });
+            fade.color = gradient;
+
+            var renderer = go.GetComponent<ParticleSystemRenderer>();
+            renderer.renderMode = ParticleSystemRenderMode.Billboard;
+            renderer.sharedMaterial = material;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+        }
+
+        /// <summary>
+        /// The splash material: URP's unlit particle shader, see-through, WHITE, so each splash's drop colour is the colour; a small soft dot
+        /// drawn here (16 x 16), as the city rain's own splash dot is.
+        /// </summary>
+        private static Material EnsureSplashMaterial()
+        {
+            Texture2D dot = AssetDatabase.LoadAssetAtPath<Texture2D>(SplashTexturePath);
+            if (dot == null)
+            {
+                const int size = 16;
+                var texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
+                for (int y = 0; y < size; y++)
+                {
+                    for (int x = 0; x < size; x++)
+                    {
+                        float dx = (x + 0.5f) / size * 2.0f - 1.0f;
+                        float dy = (y + 0.5f) / size * 2.0f - 1.0f;
+                        float fall = Mathf.Clamp01(1.0f - (dx * dx + dy * dy));
+                        texture.SetPixel(x, y, new Color(1.0f, 1.0f, 1.0f, fall * fall));
+                    }
+                }
+                texture.Apply();
+                System.IO.File.WriteAllBytes(SplashTexturePath, texture.EncodeToPNG());
+                Object.DestroyImmediate(texture);
+                AssetDatabase.ImportAsset(SplashTexturePath, ImportAssetOptions.ForceUpdate);
+                var importer = (TextureImporter)AssetImporter.GetAtPath(SplashTexturePath);
+                importer.alphaIsTransparency = true;
+                importer.wrapMode = TextureWrapMode.Clamp;
+                importer.mipmapEnabled = false;
+                importer.SaveAndReimport();
+                dot = AssetDatabase.LoadAssetAtPath<Texture2D>(SplashTexturePath);
+            }
+
+            Material material = AssetDatabase.LoadAssetAtPath<Material>(SplashMaterialPath);
+            if (material == null)
+            {
+                Shader shader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
+                material = new Material(shader);
+                AssetDatabase.CreateAsset(material, SplashMaterialPath);
+            }
+            material.SetFloat("_Surface", 1.0f);
+            material.SetFloat("_Blend", 0.0f);
+            material.SetFloat("_ZWrite", 0.0f);
+            material.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            material.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            material.SetOverrideTag("RenderType", "Transparent");
+            material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            material.SetColor("_BaseColor", Color.white);
+            material.color = Color.white;
+            material.SetTexture("_BaseMap", dot);
+            material.mainTexture = dot;
+            EditorUtility.SetDirty(material);
+            return material;
         }
 
         /// <summary>A small soft streak: bright down the middle, fading to the sides and the ends.</summary>

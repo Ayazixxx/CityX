@@ -183,6 +183,79 @@ namespace CityX.Tests
             Assert.IsTrue(System.Array.Exists(storms, s => s.Cosmetic), "the shown storm is not cosmetic");
         }
 
+        /// <summary>
+        /// The clouds hang at the cloud layer (owner, 2026-10-15: "make that appear from the height of the clouds"), and where the drops land
+        /// they splash, green: a few droplets thrown up off the ground in the colour of the drop that made them (owner: "make the green the same
+        /// green as the acid rain droplets in the air").
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheCloudsHangAtTheCloudLayerAndTheDropsSplashGreenWhereTheyLand()
+        {
+            Time.captureFramerate = 60;
+            Ground();
+            // A roof 10 m up over one corner of the storm: the drops stop on it, and splash on it.
+            var roof = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            roof.transform.position = new Vector3(20.0f, 10.0f, 20.0f);
+            roof.transform.localScale = new Vector3(16.0f, 0.3f, 16.0f);
+            _made.Add(roof);
+            Physics.SyncTransforms();
+            Transform clouds = _prefab.transform.Find("Clouds");
+            Assert.IsNotNull(clouds, "the prefab has no clouds");
+            Assert.AreEqual(CloudLayer.HeightMetres, clouds.localPosition.y, 1.0f, "the clouds are not at the cloud layer");
+
+            AcidRainStorm storm = AcidRainStorm.Spawn(_prefab, Vector3.zero, 0, null, cosmetic: true);
+            Assert.IsNotNull(storm.Splashes, "the rain has no splashes");
+            Assert.IsNotNull(storm.Rain, "the storm has no rain");
+            // Long enough for the first drops to fall the 36 m to the ground and splash.
+            for (int i = 0; i < 100; i++)
+            {
+                yield return null;
+            }
+            var drops = new ParticleSystem.Particle[storm.Rain.particleCount];
+            int dropCount = storm.Rain.GetParticles(drops);
+            int throughTheGround = 0, underTheRoof = 0;
+            for (int i = 0; i < dropCount; i++)
+            {
+                Vector3 p = drops[i].position;
+                // A drop may be up to one frame's fall (0.5 m) past what it hit in its last frame; any deeper went through.
+                if (p.y < -0.6f)
+                {
+                    throughTheGround++;
+                }
+                if (Mathf.Abs(p.x - 20.0f) < 7.5f && Mathf.Abs(p.z - 20.0f) < 7.5f && p.y < 9.2f)
+                {
+                    underTheRoof++;
+                }
+            }
+            Assert.Greater(dropCount, 1000, "hardly any rain");
+            Assert.AreEqual(0, throughTheGround, $"{throughTheGround} of {dropCount} drops fell through the ground");
+            Assert.AreEqual(0, underTheRoof, $"{underTheRoof} drops fell through the roof");
+            Assert.Greater(storm.Splashes.particleCount, 20, "no splashes where the drops land");
+
+            var particles = new ParticleSystem.Particle[storm.Splashes.particleCount];
+            int count = storm.Splashes.GetParticles(particles);
+            int green = 0, onTheGround = 0, onTheRoof = 0;
+            foreach (ParticleSystem.Particle p in particles)
+            {
+                Color32 c = p.GetCurrentColor(storm.Splashes);
+                if (c.g > c.r && c.g > c.b * 1.5f)
+                {
+                    green++;
+                }
+                if (p.position.y > -0.1f && p.position.y < 0.6f)
+                {
+                    onTheGround++;
+                }
+                else if (p.position.y > 10.0f && p.position.y < 10.8f)
+                {
+                    onTheRoof++;
+                }
+            }
+            Assert.Greater(green, count * 0.9f, "the splashes are not the drops' green");
+            Assert.Greater(onTheGround + onTheRoof, count * 0.9f, "the splashes are not where the drops hit");
+            Assert.Greater(onTheRoof, 0, "no splash on the roof the drops hit");
+        }
+
         /// <summary>Saves Logs/CityShots/acid-rain-*.bmp: the storm over a real street, from the street and from above. Run with -Graphics and look.</summary>
         [UnityTest, Explicit]
         public IEnumerator AcidRainCapture()
@@ -215,6 +288,26 @@ namespace CityX.Tests
             Vector3 above = centre - forward * 60.0f + Vector3.up * 110.0f;
             Photograph(camera, above, Quaternion.LookRotation((centre - above).normalized),
                 "acid-rain-from-afar");
+
+            // 2026-10-15: the clouds at 1.5 km, looked up at from inside the storm; the green splashes on the street, close; and a flier 150 m up
+            // inside the storm, rained on from just above. The scene's camera follows the player, so a camera of our own stands in as the main
+            // one (the rain starts above whichever camera is the main one).
+            camera.enabled = false;
+            var ownObject = new GameObject("AcidRainCam") { tag = "MainCamera" };
+            Camera own = ownObject.AddComponent<Camera>();
+            own.fieldOfView = 60.0f;
+            own.farClipPlane = 2000.0f;
+            own.allowHDR = true;
+            ownObject.AddComponent<UnityEngine.Rendering.Universal.UniversalAdditionalCameraData>().renderPostProcessing = true;
+            _made.Add(ownObject);
+            Vector3 inside = centre - forward * 8.0f + Vector3.up * 1.8f;
+            Photograph(own, inside, Quaternion.LookRotation(forward + Vector3.up * 1.6f), "acid-rain-clouds");
+            Photograph(own, inside + Vector3.up * 0.4f, Quaternion.LookRotation(forward + Vector3.down * 0.55f), "acid-rain-splashes");
+            Vector3 flying = centre + Vector3.up * 150.0f - forward * 10.0f;
+            ownObject.transform.SetPositionAndRotation(flying, Quaternion.LookRotation(forward + Vector3.down * 0.2f));
+            for (int i = 0; i < 90; i++) yield return null;   // the drops start above the flier now, and need a moment to fill the air
+            Photograph(own, flying, Quaternion.LookRotation(forward + Vector3.down * 0.2f), "acid-rain-flying");
+            camera.enabled = true;
 #else
             yield break;
 #endif
