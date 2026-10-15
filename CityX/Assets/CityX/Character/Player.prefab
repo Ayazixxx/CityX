@@ -2533,13 +2533,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: CityX.Character::CityX.Character.PlayerVitals
   Level: 1
-  Vitality: 0
-  Endurance: 0
-  Strength: 0
+  Stats:
+    _points: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
   StatPoints: 0
+  SkillPoints: 0
   Experience: 0
   _health: 100
   _stamina: 130
+  _mana: 100
+  ManaUnlocked: 1
   InfiniteHealth: 0
   InfiniteStamina: 0
   StaminaRegenPerSecondOverride: 0

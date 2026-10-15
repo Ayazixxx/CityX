@@ -246,6 +246,8 @@ namespace CityX.ViewEditor
             GameObject swordPrefab = CityX.WeaponsEditor.SwordBuilder.Build();
             GameObject spikeSwordPrefab = CityX.WeaponsEditor.SpikeSwordBuilder.Build();
             GameObject combatSwordPrefab = CityX.WeaponsEditor.CombatSwordBuilder.Build();
+            GameObject metalCrowbarPrefab = CityX.WeaponsEditor.MetalCrowbarBuilder.Build();
+            GameObject baseballBatPrefab = CityX.WeaponsEditor.BaseballBatBuilder.Build();
             GameObject flamethrowerPrefab = CityX.WeaponsEditor.FlamethrowerBuilder.Build();
             GameObject ak47Prefab = CityX.WeaponsEditor.AK47Builder.Build();
             GameObject topHatPrefab = CityX.WearablesEditor.TopHatBuilder.Build();
@@ -439,6 +441,10 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.SpikeSword, Prefab = spikeSwordPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.CombatSword, Prefab = combatSwordPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.MetalCrowbar, Prefab = metalCrowbarPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.BaseballBat, Prefab = baseballBatPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.TopHat, Prefab = topHatPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry

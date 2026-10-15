@@ -1588,6 +1588,12 @@ namespace CityX.UI
                 case "combatsword":
                 case "combat_sword":
                 case "1h": return ItemRegistry.CombatSword;
+                case "crowbar":
+                case "metalcrowbar":
+                case "metal_crowbar": return ItemRegistry.MetalCrowbar;
+                case "bat":
+                case "baseballbat":
+                case "baseball_bat": return ItemRegistry.BaseballBat;
                 case "flamethrower": return ItemRegistry.Flamethrower;
                 case "ak":
                 case "ak47":

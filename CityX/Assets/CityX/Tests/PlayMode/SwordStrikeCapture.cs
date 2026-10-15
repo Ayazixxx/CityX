@@ -51,6 +51,8 @@ namespace CityX.Tests
             foreach ((string swordLabel, string swordPath) in new[]
             {
                 ("1h", "Assets/CityX/Weapons/CombatSword.prefab"),
+                ("crowbar", "Assets/CityX/Weapons/MetalCrowbar.prefab"),
+                ("bat", "Assets/CityX/Weapons/BaseballBat.prefab"),
                 ("2h", "Assets/CityX/Weapons/Sword.prefab"),
             })
             {
@@ -240,6 +242,8 @@ namespace CityX.Tests
             foreach ((string swordLabel, string swordPath) in new[]
             {
                 ("1h", "Assets/CityX/Weapons/CombatSword.prefab"),
+                ("crowbar", "Assets/CityX/Weapons/MetalCrowbar.prefab"),
+                ("bat", "Assets/CityX/Weapons/BaseballBat.prefab"),
                 ("2h", "Assets/CityX/Weapons/Sword.prefab"),
             })
             {

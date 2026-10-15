@@ -22,6 +22,8 @@ namespace CityX.Items
         public const string Sword = "sword";
         public const string SpikeSword = "spike_sword";
         public const string CombatSword = "combat_sword";
+        public const string MetalCrowbar = "metal_crowbar";
+        public const string BaseballBat = "baseball_bat";
         public const string Flamethrower = "flamethrower";
         public const string AK47 = "ak47";
         public const string TopHat = "top_hat";
@@ -56,6 +58,10 @@ namespace CityX.Items
             [SpikeSword] = new ItemDefinition(SpikeSword, "Spike Sword", "weapon", "hand_r", 1),
             // The owner's COMBATSWORDX.glb (2026-10-13): the first ONE-HANDED sword, with its own attacks and guard.
             [CombatSword] = new ItemDefinition(CombatSword, "Combat Sword", "weapon", "hand_r", 1),
+            // The owner's crowbar.glb (2026-10-15): a one-handed blunt weapon, fought with the combat sword's moves.
+            [MetalCrowbar] = new ItemDefinition(MetalCrowbar, "Metal Crowbar", "weapon", "hand_r", 1),
+            // The owner's baseball bat.glb (2026-10-15): a two-handed blunt weapon, fought with the greatsword's moves.
+            [BaseballBat] = new ItemDefinition(BaseballBat, "Baseball Bat", "weapon", "hand_r", 1),
             [Flamethrower] = new ItemDefinition(Flamethrower, "Flamethrower", "weapon", "hand_r", 1),
             // The AK-47 (2026-10-14): the first automatic rifle -- one firearm component, its own profile (Weapons/FirearmProfile.AK47).
             [AK47] = new ItemDefinition(AK47, "AK-47", "weapon", "hand_r", 1),

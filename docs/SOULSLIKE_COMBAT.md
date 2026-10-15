@@ -245,3 +245,20 @@ side by side.
   glances off). Armor Penetration cuts it.
 - Stability: that chance to shrug off a staggering blow; a deeper poise pool for hyper-armoured swings; a cheaper guard (harder to break).
 - Armor stops a share of blows and bullets, Magic Resistance of spells: rating/(rating + 100).
+
+## Update 2026-10-15: the metal crowbar and the baseball bat
+
+The owner's two models, fought with the sword combat (`SwordWeapon` on each): the **metal crowbar** is one-handed (the combat sword's
+moves: a horizontal slash first) and the **baseball bat** two-handed (the greatsword's moves and hold). `/equip crowbar`, `/equip bat`.
+
+- **Measured, not typed in** (`Weapons/Editor/HeldModelBaker.cs`): both glbs came in lying diagonally. The builder finds each model's long axis
+  from its own vertices (the main eigenvector of their spread), which end is which (the crowbar's claw holds most of the vertices; the bat's
+  barrel is the thicker end), turns it upright in the sword frame and bakes it into a plain mesh asset.
+- **Crowbar** (`MetalCrowbarBuilder`, from `metalcrowbar.glb`, the owner's crowbar.glb renamed as asked): 1.0 m (a 0.77 m wrecking bar at the
+  game's 1.3x), held 14% up from the straight end, the claw curling toward -X, the side a sword's edge leads with. Dark steel, metallic 0.9.
+- **Bat** (`BaseballBatBuilder`, from `baseballbat.glb`): 1.12 m (an 86 cm bat), knob down, the bottom hand 8 cm over the knob so the
+  greatsword's two-handed hold fits it. Unwrapped round its length for **the wood grain**, which `Weapons/WoodGrain.cs` draws in code the first
+  time a bat appears (pale ash, wandering darker grain lines, varnish smoothness 0.35): no image file in the game.
+- Seen by other players like every held item (`NetworkedPlayerWiring.ItemPrefabPaths`). Tests: `BluntWeaponTests`; `SwordStrikeCapture` renders
+  `strike-crowbar-*`, `strike-bat-*`, `grip-crowbar.png`, `grip-bat.png`.
+- Not done: blunt sounds (they use the sword's), and blunt hits drawing blood like a blade.
