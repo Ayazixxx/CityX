@@ -165,6 +165,13 @@ namespace CityX.View
         [Tooltip("rain_noises.mp3, looping while it rains.")]
         public AudioClip RainSound;
 
+        [Tooltip("Recorded thunder (owner, 2026-10-14: \"add these 3 as thunder sounds during the rain ... randomly pick between the 3 sounds, we " +
+                 "will introduce more later\"): one is picked at random for each strike, never the same one twice running. Add more here. " +
+                 "Empty: the synthesised thunder (ThunderSynth).")]
+        public AudioClip[] ThunderRecordings;
+
+        private int _lastRecording = -1;
+
         [Tooltip("The unlit transparent material each drop is drawn with.")]
         public Material DropMaterial;
 
@@ -1157,6 +1164,19 @@ namespace CityX.View
             }
         }
 
+        private bool HasRecordings => ThunderRecordings != null && ThunderRecordings.Length > 0;
+
+        /// <summary>
+        /// How far a recorded strike's sound is muffled by its distance, as a low-pass cutoff (Hz): the whole crack up to 200 m, a low rumble
+        /// from 1.5 km, smoothly (in octaves) between. The synthesised thunder shaped this into each clip; a recording is one strike, so the
+        /// filter does it.
+        /// </summary>
+        public static float RecordedThunderCutoffHz(float distanceMetres)
+        {
+            float t = Mathf.InverseLerp(200.0f, 1500.0f, distanceMetres);
+            return Mathf.Pow(2.0f, Mathf.Lerp(Mathf.Log(22000.0f, 2.0f), Mathf.Log(1200.0f, 2.0f), t));
+        }
+
         private void PlayThunder(float distanceMetres, float shelter)
         {
             AudioClip clip = ThunderClipFor(distanceMetres);
@@ -1164,7 +1184,12 @@ namespace CityX.View
             {
                 return;
             }
-            _thunderFilter.cutoffFrequency = Weather.ShelteredCutoffHz(shelter);
+            float cutoff = Weather.ShelteredCutoffHz(shelter);
+            if (HasRecordings)
+            {
+                cutoff = Mathf.Min(cutoff, RecordedThunderCutoffHz(distanceMetres));   // a recording is one strike: the distance muffles it here
+            }
+            _thunderFilter.cutoffFrequency = cutoff;
             _thunderSound.PlayOneShot(clip, Weather.ThunderVolume(distanceMetres) * Weather.ShelteredVolume(shelter));
             ThunderPlayCount++;
         }
@@ -1175,8 +1200,26 @@ namespace CityX.View
         /// distance bands with two variants each so it is not the same
         /// clap every time.
         /// </summary>
-        private AudioClip ThunderClipFor(float distanceMetres)
+        public AudioClip ThunderClipFor(float distanceMetres)
         {
+            if (HasRecordings)
+            {
+                int count = ThunderRecordings.Length;
+                int pick = Random.Range(0, count);
+                if (count > 1 && pick == _lastRecording)
+                {
+                    pick = (pick + 1 + Random.Range(0, count - 1)) % count;   // never the same strike twice running
+                }
+                for (int tries = 0; tries < count && ThunderRecordings[pick] == null; tries++)
+                {
+                    pick = (pick + 1) % count;
+                }
+                if (ThunderRecordings[pick] != null)
+                {
+                    _lastRecording = pick;
+                    return ThunderRecordings[pick];
+                }
+            }
             int band = distanceMetres < 300.0f ? 0 : distanceMetres < 700.0f ? 1 : distanceMetres < 1200.0f ? 2 : 3;
             float representative = band == 0 ? 180.0f : band == 1 ? 480.0f : band == 2 ? 950.0f : 1500.0f;
             int variant = Random.value < 0.5f ? 0 : 1;

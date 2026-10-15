@@ -295,6 +295,12 @@ namespace CityX.ViewEditor
                 RainEffect rain = rainObject.AddComponent<RainEffect>();
                 rain.RainSound = AssetDatabase.LoadAssetAtPath<AudioClip>(
                     "Assets/CityX/UI/Audio/rain_noises.mp3");
+                rain.ThunderRecordings = new[]
+                {
+                    AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/CityX/UI/Audio/thunder_loud.ogg"),
+                    AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/CityX/UI/Audio/thunder_strike.ogg"),
+                    AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/CityX/UI/Audio/thunder_clap.ogg"),
+                };
                 rain.DropMaterial = EnsureRainMaterial();
                 rain.SplashMaterial = EnsureSplashMaterial();
                 rain.RippleMaterial = EnsureRippleMaterial();
