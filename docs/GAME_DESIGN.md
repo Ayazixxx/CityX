@@ -104,7 +104,9 @@ Classless (like Terraria). Your **title** comes from your top one or two trees (
 
 **Today's number keys are placeholders for tree unlocks:** 1 Fireball, 2 Sword Spin, 3 Ice Shards, 4 Poison Breath, 5 Acid Rain, 6 Octaslash, 7 Sword Wave, 8 Bloodrage.
 
-**The skill menu** (owner, 2026-10-14): one big menu holding every tree, the trees side by side like Skyrim's constellations, each growing upward from its base. Not a fixed perspective: click and drag to move across it, and scroll to slide along the row. (The owner first asked for top to bottom, then kept Skyrim's side by side.) Movement skills (Dash, Climb, Super Jump) are in it too; vaulting stays a default for everyone. My suggestions, not decided: the row wraps around like Skyrim's; zoom with Ctrl+scroll or buttons, out to the whole row; a hybrid tree sits high in the gap between its two parents (Steam between Pyromancer and Hydromancer), so the row's order puts partners side by side; a learned star goes on the bar by dragging it there (or clicking it, then a slot); on a controller the stick moves around the map and the bumpers jump from tree to tree.
+**The skill menu** (owner, 2026-10-14): one big menu holding every tree, the trees side by side like Skyrim's constellations, each growing upward from its base. Not a fixed perspective: click and drag to move across it, and scroll to slide along the row. (The owner first asked for top to bottom, then kept Skyrim's side by side.) My suggestions, not decided: the row wraps around like Skyrim's; zoom with Ctrl+scroll or buttons, out to the whole row; a hybrid tree sits high in the gap between its two parents (Steam between Pyromancer and Hydromancer), so the row's order puts partners side by side; a learned star goes on the bar by dragging it there (or clicking it, then a slot); on a controller the stick moves around the map and the bumpers jump from tree to tree.
+
+**Freerunner** (owner, 2026-10-14): vaulting is the first thing you unlock, in the tutorial, so everyone has it; from it the tree splits into three paths: Dash, Climb and Super Jump. Still open, with my suggestions: whether one character can take all three paths (I suggest yes, the choice is only which comes first); whether pulling yourself up onto a ledge you can jump to belongs to Vault or to Climb (I suggest Vault, so a new player still gets onto low roofs; Climb is gripping and scaling walls anywhere, and climbing into windows too high to vault); where Wall Stick goes (I suggest the Climb path).
 
 ### Infinite upgrades
 
@@ -128,7 +130,7 @@ Every skill that makes sense can be ranked up forever. The cost curve is the mos
 - **Slots on the number keys 1 to 0, all equal** (owner, 2026-10-14: 9 and 0 should be usable). **No ultimate slot**: that was my suggestion, never the owner's. God-tier abilities (the owner's idea) sit in an ordinary slot. The slot count and the controller layout are still open. Must work on a controller (consoles later).
 - **Bottom left of the screen, for now** (owner, 2026-10-14), with round icons rather than World of Warcraft's squares (the owner's idea, like DC Universe Online). In the skill menu the bar sits in the same corner (my suggestion).
 - **One bar per weapon** (Elder Scrolls Online; my suggestion, not decided): switching weapons switches the bar. Weapon abilities need their weapon in hand; spells do not.
-- **Still open:** whether Dash, Climb and Super Jump are known from the start or unlocked in Freerunner, and whether they can go on the bar or keep their own controls (double-tap Shift, hold Space).
+- **Still open:** whether Dash, Climb and Super Jump (unlocked in Freerunner) can go on the bar or keep their own controls (double-tap Shift, hold Space).
 
 ## God-tier spells
 
@@ -217,7 +219,7 @@ Cut from year one: every zone below the Sewers and above the hub, god-tier spell
 | One Attack stat or three | three (Strength, Spell Power, Precision) |
 | Hotbar | Keys 1 to 0, no ultimate slot, bottom left for now (owner); one bar per weapon |
 | Skill menu | one big menu, trees side by side like Skyrim, drag and scroll (owner) |
-| Movement skills | open: known from the start or unlocked; on the bar or on their own controls |
+| Movement skills | Vault for everyone in the tutorial, then three paths: Dash, Climb, Super Jump (owner); on the bar or own controls still open |
 | God-tier rules | kill-to-take, returns when the holder is gone too long |
 | Class titles | from the top one or two trees |
 | Death | normal worlds keep skills; hardcore worlds permanent |
