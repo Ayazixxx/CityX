@@ -1635,13 +1635,13 @@ namespace CityX.View
         }
 
         /// <summary>The solid base under a shop window, metres.</summary>
-        private const float StallRiser = 0.5f;
+        internal const float StallRiser = 0.5f;
 
         /// <summary>Where a shop window's glass ends, as a share of the row. Above it, to the top of the row, is a transom the awning shades.</summary>
-        private const float StorefrontGlassTop = 0.88f;
+        internal const float StorefrontGlassTop = 0.88f;
 
         /// <summary>The share of a cell's width left solid either side of a shop window.</summary>
-        private const float StorefrontPierShare = 0.035f;
+        internal const float StorefrontPierShare = 0.035f;
 
         private const ulong StorefrontStream = 0x53544F52UL;   // "STOR"
 

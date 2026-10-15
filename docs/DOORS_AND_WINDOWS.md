@@ -212,3 +212,55 @@ bullet (`ShatteringBullet`, 5) shatters it like a knock does -- shards, the brea
   shows through it, lit or dark. Glass with nothing behind it (a distant building's strips, a tower's sealed top) stays the old dark 0.72.
   See ROOM_LIGHTS.md (the lighting pass).
 - Entrance canopies, sills, AC units, sign arms and parapet copings are closed boxes now (they had no underside and were see-through from below).
+
+## Update 2026-10-15: a window breaks into its own pieces (and the answer on cost)
+
+Owner: "research how we can improve the window fracturing. would procedurally window fracturing effect performance and be not worth it? find out
+the answer to this question and implement or not while i sleep. either way improve upon the window fracturing system we have now."
+
+**The answer: worth it, done the right way -- only for the pane that breaks, at the moment it breaks.** Measured on this PC (batch mode,
+`GlassFractureTests.BreakingAPaneTakesMicroseconds`, `GlassFracturePlayTests.ABreakIsCheapAndAFullLoadOfFallingGlassIsCheapToSimulate`):
+
+| What | Cost |
+|---|---|
+| Cutting a pane into its crack pattern | about 60 microseconds (35 pieces on average) |
+| A whole break: pattern, 35 meshes, bodies placed | 0.3 to 0.4 ms on its frame (0.65 ms the first; the code is warmed while the city loads) |
+| 160 pieces falling and tumbling at once (the cap) | 0.27 ms of physics a frame |
+
+A 60 fps frame is 16.7 ms. The 2026-09-27 research above worried that real geometry per shard would bring back the draw calls the 60 fps
+pass removed; that holds for giving every window shard geometry, not for this: an unbroken window is still part of its chunk's one merged mesh,
+and a pane becomes pieces only when it breaks, for seven seconds, at most 160 pieces at a time, all with one material (the SRP batcher).
+
+**What other games do.** Pre-fractured meshes are the cheap standard (the cost moves to authoring), but the cracks never line up with where
+the blow landed; fracturing at run time costs more but puts them there. Glass, thin and brittle, breaks in radial cracks from the blow crossed
+by concentric rings, and the number of pieces is what costs, so cap it and clear pieces away (Unigine's fracture documentation). Receiver 2's
+Unity glass generates a 2D pattern at the impact, clips it to the pane and extrudes each piece. Pool the pieces and despawn settled debris
+(general Unity destruction practice).
+
+**What changed.**
+- Before: the pane vanished and the same twelve small pre-made prisms (convex mesh colliders) popped out of the point it was hit, whatever its
+  size.
+- Now: `World/GlassFracture` (pure) cuts the pane's real rectangle (`View/GlassPaneFrame`: the cell less the frame's insets, a shop window's
+  big glass on the entrance row, at the depth the blow landed) into 7 to 11 radial cracks from the impact crossed by three jittered rings
+  (10, 30, 70 cm); a big pane's outer corners are cut across once or twice more; at most 56 pieces, covering the pane exactly.
+- `View/GlassFractureBurst`: each piece a thin slab (8 mm) with a box collider and a body. The slivers round the blow are knocked through the
+  way the blow went (4 m/s for a fist, 6.4 for a heavy blow, 2.4 for a bullet), the rings further out follow slower, and the big pieces on the
+  frame hang on 0.1 to 0.8 s before they drop, as real glass does. Pooled (no allocation after the warm-up; waiting pieces stay switched on,
+  parked far below the city -- switching a body and its collider on was most of a break's cost), never colliding with each other (layer 29),
+  at most 160 alive (a new break takes the oldest), shrinking away after about 7 s. A round building's facets keep the old burst.
+- The glass never gets in a body's way: a piece hanging in the frame is not solid until it drops (a body running through a window that
+  has just broken passes through it), and bodies walk through pieces lying on the ground (their layer, `GlassFracture.ShardLayer`, is
+  excluded from players' and passers-by's controllers). The camera ignores falling glass too. (In the first full test run a hanging piece
+  held a body 0.58 m up and lying ones tripped it.)
+
+Tests: `GlassFractureTests` (the pieces cover the pane exactly once, convex; slivers at the blow, big shards at the frame; the same seed breaks
+the same way; a shop window is a few dozen pieces; the cut matches the glass the city drew for that window), `GlassFracturePlayTests` (the
+pieces start in the pane, the slivers go through, the frame's pieces hang on, all land and are gone after their time; the pool makes no new
+pieces for the next window and caps the total; a body runs through a window that has just broken and over its glass, unlifted; the cost above). Render: `GlassFractureCapture` (with -Graphics).
+
+Sources: [Unigine: Fracture Body](https://developer.unigine.com/docs/latest/principles/physics/bodies/fracture/),
+[Pre-fractured vs run-time fracture (Eurographics)](https://diglib.eg.org/bitstream/handle/10.2312/pt20111142/147-152.pdf),
+[ShatteringTool (Unity thesis project)](https://github.com/Prommerbua/ShatteringTool),
+[unity-mesh-fracture (pre-baked Voronoi cache)](https://github.com/sinanata/unity-mesh-fracture),
+[How to fix destructible environment performance](https://bugnet.io/blog/how-to-fix-destructible-environment-performance),
+[The Art of Destruction in Rainbow Six: Siege (GDC)](https://gdcvault.com/play/1023003/The-Art-of-Destruction-in).

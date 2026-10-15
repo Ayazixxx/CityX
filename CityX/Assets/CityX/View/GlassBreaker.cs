@@ -34,8 +34,12 @@ namespace CityX.View
         [Tooltip("How far a sound carries. A window across the street should be audible.")]
         public float HearingRange = 30.0f;
 
+        /// <summary>How many glass pieces are made while the city loads, so the first window to break makes none on its frame.</summary>
+        public const int PrewarmedPieces = 64;
+
         private CityStreamer _streamer;
         private CityWorld _world;
+        private Material _shardMaterial;
 
         private void Awake()
         {
@@ -72,6 +76,13 @@ namespace CityX.View
                     {
                         Physics.BakeMesh(shard.sharedMesh.GetInstanceID(), shard.convex, shard.cookingOptions);
                     }
+                }
+                // The broken pane's own pieces (GlassFractureBurst) are drawn with the shards' glass, and a first batch is made now.
+                MeshRenderer look = ShardPrefab.GetComponentInChildren<MeshRenderer>(true);
+                _shardMaterial = look != null ? look.sharedMaterial : null;
+                if (_shardMaterial != null)
+                {
+                    GlassFractureBurst.Prewarm(PrewarmedPieces, _shardMaterial);
                 }
             }
         }
@@ -120,7 +131,7 @@ namespace CityX.View
                 {
                     return false;   // already gone
                 }
-                Report(after, point, outward, direction, strength);
+                Report(after, site, key, point, outward, direction, strength);
                 return true;
             }
 
@@ -130,7 +141,7 @@ namespace CityX.View
                 return false;   // already gone
             }
 
-            Report(now, point, outward, direction, strength);
+            Report(now, site, key, point, outward, direction, strength);
             return true;
         }
 
@@ -140,7 +151,8 @@ namespace CityX.View
         /// shard burst (GlassShardBurst) rather than a fading sprite, which is
         /// the only part of a broken window you actually see happen.
         /// </summary>
-        private void Report(PaneState state, Vector3 point, Vector3 outward, Vector3 blowDirection, BlowStrength strength)
+        private void Report(PaneState state, BuildingSite site, PaneKey key, Vector3 point, Vector3 outward, Vector3 blowDirection,
+            BlowStrength strength)
         {
             // GLASS SOUNDS LIKE A SEQUENCE, NOT A SAMPLE: the contact and crack or shatter first, then the
             // tinkle of the pieces landing a moment later (sound-design practice for breaking glass). A
@@ -159,9 +171,21 @@ namespace CityX.View
                 }
             }
 
-            if (state == PaneState.Shattered && ShardPrefab != null)
+            if (state != PaneState.Shattered)
             {
-                GlassShardBurst.Spawn(ShardPrefab, point, ShardDirection(outward, blowDirection));
+                return;
+            }
+            // THE PANE BREAKS INTO ITS OWN PIECES (GlassFractureBurst): cut where it stood round the blow, falling the way the blow went. A round
+            // building's facet keeps the old handful of shards.
+            Vector3 through = ShardDirection(outward, blowDirection);
+            if (_shardMaterial != null && GlassPaneFrame.TryFrame(_world, site, key, point, out PaneFrame frame))
+            {
+                int seed = unchecked(key.GetHashCode() * 31 + Time.frameCount);
+                GlassFractureBurst.Shatter(_shardMaterial, frame, point, through, strength, seed);
+            }
+            else if (ShardPrefab != null)
+            {
+                GlassShardBurst.Spawn(ShardPrefab, point, through);
             }
         }
 

@@ -630,7 +630,7 @@ namespace CityX.Character
             float wantedDistance = Vector3.Distance(pivot, wanted);
             Vector3 direction = (wanted - pivot).normalized;
             RaycastHit[] hits = Physics.SphereCastAll(
-                pivot, 0.25f * scale, direction, wantedDistance, CollisionLayers, QueryTriggerInteraction.Ignore);
+                pivot, 0.25f * scale, direction, wantedDistance, CollisionLayers & CityX.World.GlassFracture.AllButShards, QueryTriggerInteraction.Ignore);   // falling glass does not push the camera in
 
             float nearest = wantedDistance;
             foreach (RaycastHit hit in hits)

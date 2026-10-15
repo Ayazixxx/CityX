@@ -315,7 +315,9 @@ namespace CityX.Tests
             for (int pane = 0; pane < hitPanes; pane++)
             {
                 Vector3 toPane = panes[pane] - standing;
-                bool solid = Physics.Raycast(standing, toPane.normalized, out RaycastHit hit, toPane.magnitude + 0.25f, ~0, QueryTriggerInteraction.Ignore);
+                // (Its own falling glass is not the window: GlassFracture.AllButShards.)
+                bool solid = Physics.Raycast(standing, toPane.normalized, out RaycastHit hit, toPane.magnitude + 0.25f, GlassFracture.AllButShards,
+                    QueryTriggerInteraction.Ignore);
                 Assert.IsFalse(solid, $"window {pane} was shot but its glass is still solid on screen (hit {(solid ? hit.collider.name : "")} at {hit.distance:0.00} m of {toPane.magnitude:0.00})");
             }
 

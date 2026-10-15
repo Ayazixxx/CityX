@@ -1420,6 +1420,7 @@ namespace CityX.Character
         public void Bind()
         {
             _controller = GetComponent<CharacterController>();
+            CityX.World.GlassFracture.LetThrough(_controller);   // broken glass is walked through, not over
             _animator = GetComponentInChildren<Animator>();
             _hips = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.Hips) : null;
             _spine = _animator != null ? _animator.GetBoneTransform(HumanBodyBones.Spine) : null;
