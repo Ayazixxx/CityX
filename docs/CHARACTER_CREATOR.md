@@ -46,3 +46,13 @@ A ring the size of the brush follows the cursor on the body (`ShowBrushRing`). I
 
 - `BodyPaintTests`: round on a 7:1 stretched surface, size 1 is a dot, equal size steps, an unbroken stroke, no paint through to the back, hidden shared texels, mirror, old saves, and save size.
 - `CharacterCreatorPlayTests`: a click on an outstretched arm paints the arm, and the ring has the brush's size. The explicit `BrushCapture` renders `Logs/CityShots/brush-sizes.png`; look at it after any brush change.
+
+## The bucket fills the torso's neck too (2026-10-15)
+
+Owner: "when you do paint bucket fill on torso during character creator with a color, once you load into the game there is like a white
+sliver around the neck that visibly wasnt reached by the paint bucket, but is apart of the torso ... make the paint bucket color the whole
+torso unless being clicked in a contained area". The torso (the Hips row) and the neck (the Neck row) are one surface on the body but two
+rows of the paint atlas, and the fill stopped at its row. `BodyPaint.BucketFillAt` now also crosses between the parts of a group
+(`BucketGroups`: torso and neck) over the body itself: from a texel at the edge of its row's painted area to the other part's texels within
+1.2 cm of it on the surface, facing the same way, still only through the colour that was clicked -- so an outline drawn round an area keeps
+the fill inside, and the arms, legs and head stay fills of their own. Tests: `BodyPaintBucketTests`.

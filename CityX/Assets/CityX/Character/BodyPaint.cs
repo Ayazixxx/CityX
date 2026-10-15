@@ -381,6 +381,8 @@ namespace CityX.Character
             {
                 return;
             }
+            _texelFirstPoint = null;   // the bucket's index of these points is rebuilt from them (EnsureTexelIndex)
+            _texelNextPoint = null;
             int width = PaintAtlas.Width;
             int height = PaintAtlas.Height;
             var points = new List<TexelPoint>(width * height);
@@ -497,8 +499,25 @@ namespace CityX.Character
         }
 
         /// <summary>
-        /// Paint-bucket: floods the contiguous same-colour region touching the
-        /// hit, never leaving that part's own atlas row.
+        /// The parts a bucket fill may cross between, over the body itself (owner, 2026-10-15: a torso bucketed a colour kept "a white sliver
+        /// around the neck that visibly wasnt reached by the paint bucket, but is apart of the torso ... make the paint bucket color the whole
+        /// torso unless being clicked in a contained area"). The torso and its neck are one surface on the body but two rows of the atlas, and a
+        /// fill used to stop at the row's edge: the strip of neck showing above the collar stayed as it was. Arms, legs and the head stay their
+        /// own fills.
+        /// </summary>
+        public static readonly HumanBodyBones[][] BucketGroups =
+        {
+            new[] { HumanBodyBones.Hips, HumanBodyBones.Neck },
+        };
+
+        /// <summary>How near on the body a texel of the other part must be for a fill to cross to it, metres (a texel is 2 to 8 mm).</summary>
+        public const float BucketBridgeMetres = 0.012f;
+
+        /// <summary>
+        /// Paint-bucket: floods the contiguous same-colour region touching the hit. Through the atlas within the part's own row, as it always
+        /// did, and -- for the torso and its neck (<see cref="BucketGroups"/>) -- across their seam on the body too: from a texel at the edge of
+        /// its row's painted area to the texels of the other part lying within <see cref="BucketBridgeMetres"/> of it, facing the same way. Still
+        /// only through the colour clicked, so an outline drawn round an area keeps the fill inside it.
         /// </summary>
         public void BucketFillAt(Vector3 localPoint, int triangle, Color colour)
         {
@@ -516,31 +535,148 @@ namespace CityX.Character
             int startY = Mathf.Clamp(
                 Mathf.FloorToInt(uv.y * PaintAtlas.Height), 0, PaintAtlas.Height - 1);
 
-            int row = RowOfV(uv.y);
-            int y0 = row * PaintAtlas.RowHeight;
-            int y1 = (row + 1) * PaintAtlas.RowHeight - 1;
-
             Color target = _pixels[PixelIndex(startX, startY)];
             if (Same(target, colour))
             {
                 return;
             }
 
-            var queue = new Queue<Vector2Int>();
-            queue.Enqueue(new Vector2Int(startX, startY));
-            _pixels[PixelIndex(startX, startY)] = colour;
+            // The rows this fill may reach: its own, and the other parts of its group.
+            int startRow = startY / PaintAtlas.RowHeight;
+            bool[] rows = BucketRows(startRow);
+            bool bridging = false;
+            for (int r = 0; r < rows.Length; r++)
+            {
+                bridging |= rows[r] && r != startRow;
+            }
+            if (bridging)
+            {
+                EnsureTexelIndex();
+            }
+
+            var queue = new Queue<int>();
+            int start = PixelIndex(startX, startY);
+            _pixels[start] = colour;
+            queue.Enqueue(start);
 
             while (queue.Count > 0)
             {
-                Vector2Int at = queue.Dequeue();
-                TryFlood(queue, at.x + 1, at.y, y0, y1, target, colour);
-                TryFlood(queue, at.x - 1, at.y, y0, y1, target, colour);
-                TryFlood(queue, at.x, at.y + 1, y0, y1, target, colour);
-                TryFlood(queue, at.x, at.y - 1, y0, y1, target, colour);
+                int texel = queue.Dequeue();
+                int x = texel % PaintAtlas.Width;
+                int y = texel / PaintAtlas.Width;
+                int row = y / PaintAtlas.RowHeight;
+                int y0 = row * PaintAtlas.RowHeight;
+                int y1 = y0 + PaintAtlas.RowHeight - 1;
+                TryFlood(queue, x + 1, y, y0, y1, target, colour);
+                TryFlood(queue, x - 1, y, y0, y1, target, colour);
+                TryFlood(queue, x, y + 1, y0, y1, target, colour);
+                TryFlood(queue, x, y - 1, y0, y1, target, colour);
+                if (bridging && AtTheEdgeOfItsRow(x, y, y0, y1))
+                {
+                    Bridge(queue, texel, rows, target, colour);
+                }
             }
         }
 
-        private void TryFlood(Queue<Vector2Int> queue, int x, int y, int y0, int y1,
+        private static bool[] BucketRows(int startRow)
+        {
+            var rows = new bool[PaintAtlas.PartCount];
+            rows[startRow] = true;
+            HumanBodyBones part = PaintAtlas.Parts[startRow];
+            foreach (HumanBodyBones[] group in BucketGroups)
+            {
+                if (System.Array.IndexOf(group, part) < 0)
+                {
+                    continue;
+                }
+                foreach (HumanBodyBones member in group)
+                {
+                    int r = System.Array.IndexOf(PaintAtlas.Parts, member);
+                    if (r >= 0)
+                    {
+                        rows[r] = true;
+                    }
+                }
+            }
+            return rows;
+        }
+
+        /// <summary>A texel on its row's first or last line, or beside a texel no triangle uses: where a part's paint meets another part on the body.</summary>
+        private bool AtTheEdgeOfItsRow(int x, int y, int y0, int y1)
+        {
+            if (y == y0 || y == y1)
+            {
+                return true;
+            }
+            int width = PaintAtlas.Width;
+            return _texelFirstPoint[PixelIndex((x + 1) % width, y)] < 0 || _texelFirstPoint[PixelIndex((x - 1 + width) % width, y)] < 0
+                || _texelFirstPoint[PixelIndex(x, y + 1)] < 0 || _texelFirstPoint[PixelIndex(x, y - 1)] < 0;
+        }
+
+        /// <summary>Fills (and queues) the texels of the group's other rows lying on the body right beside this one, facing the same way.</summary>
+        private void Bridge(Queue<int> queue, int texel, bool[] rows, Color target, Color colour)
+        {
+            float reach = BucketBridgeMetres * BucketBridgeMetres;
+            for (int p = _texelFirstPoint[texel]; p >= 0; p = _texelNextPoint[p])
+            {
+                TexelPoint here = _texelPoints[p];
+                Vector3Int low = GridCellOf(here.Position - Vector3.one * BucketBridgeMetres);
+                Vector3Int high = GridCellOf(here.Position + Vector3.one * BucketBridgeMetres);
+                for (int cx = low.x; cx <= high.x; cx++)
+                {
+                    for (int cy = low.y; cy <= high.y; cy++)
+                    {
+                        for (int cz = low.z; cz <= high.z; cz++)
+                        {
+                            if (!_texelGrid.TryGetValue(new Vector3Int(cx, cy, cz), out List<int> near))
+                            {
+                                continue;
+                            }
+                            foreach (int q in near)
+                            {
+                                TexelPoint there = _texelPoints[q];
+                                int other = there.Texel;
+                                if (other == texel || !rows[other / PaintAtlas.Width / PaintAtlas.RowHeight]
+                                    || (there.Position - here.Position).sqrMagnitude > reach || Vector3.Dot(there.Normal, here.Normal) < 0.0f
+                                    || !Same(_pixels[other], target))
+                                {
+                                    continue;
+                                }
+                                _pixels[other] = colour;
+                                queue.Enqueue(other);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        private int[] _texelFirstPoint;
+        private int[] _texelNextPoint;
+
+        /// <summary>For every texel, the places on the body it is drawn at (<see cref="EnsureTexelMap"/>'s points), as a linked list.</summary>
+        private void EnsureTexelIndex()
+        {
+            EnsureTexelMap();
+            if (_texelFirstPoint != null)
+            {
+                return;
+            }
+            _texelFirstPoint = new int[PaintAtlas.Width * PaintAtlas.Height];
+            for (int i = 0; i < _texelFirstPoint.Length; i++)
+            {
+                _texelFirstPoint[i] = -1;
+            }
+            _texelNextPoint = new int[_texelPoints.Length];
+            for (int p = _texelPoints.Length - 1; p >= 0; p--)
+            {
+                int texel = _texelPoints[p].Texel;
+                _texelNextPoint[p] = _texelFirstPoint[texel];
+                _texelFirstPoint[texel] = p;
+            }
+        }
+
+        private void TryFlood(Queue<int> queue, int x, int y, int y0, int y1,
             Color target, Color colour)
         {
             if (y < y0 || y > y1)
@@ -556,7 +692,7 @@ namespace CityX.Character
                 return;
             }
             _pixels[index] = colour;
-            queue.Enqueue(new Vector2Int(x, y));
+            queue.Enqueue(index);
         }
 
         // --- undo, mirroring and relocating a point on the mesh ---
