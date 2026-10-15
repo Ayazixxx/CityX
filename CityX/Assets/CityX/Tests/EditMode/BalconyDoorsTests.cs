@@ -15,7 +15,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class BalconyDoorsTests
     {
-        private const int Seed = 83920571;
+        private const int Seed = 52817364;
 
         /// <summary>The player's capsule (PlayerRigBuilder): its height and its radius, each with the controller's skin round it.</summary>
         private static float BodyHeight => BodyRig.StandingHeight + 2.0f * 0.03f;
@@ -249,6 +249,16 @@ namespace CityX.Tests
                     {
                         Assert.IsFalse(GlassDamage.IsDoorCell(site, WindowGrid.Wall.South, columns, next, d.Row),
                             $"building {site.Id} flat {d.Unit} row {d.Row}: the cell beside the doorway lost its window");
+                    }
+                }
+                // The quick answer a shot gets (worked out on the spot) is the laid-out doors' own, cell by cell, on every row.
+                int rowCount = WindowGrid.RowsFor(site.Params.Height).Count;
+                for (int row = 0; row < rowCount; row++)
+                {
+                    for (int c = 0; c < columns.Count; c++)
+                    {
+                        Assert.AreEqual(BalconyDoors.IsDoorCell(doors, c, row), BalconyDoors.IsDoorCell(site, plan, c, row),
+                            $"building {site.Id} column {c} row {row}: the quick answer and the laid-out doors disagree");
                     }
                 }
             }

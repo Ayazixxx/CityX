@@ -19,7 +19,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class BulletHolesInRealWindowsPlayTests
     {
-        private const int Seed = 83920571;
+        private const int Seed = 52817364;
 
         private readonly List<GameObject> _made = new List<GameObject>();
 
@@ -82,7 +82,8 @@ namespace CityX.Tests
         /// <summary>
         /// Slides the aim along the window, once the city is in, to where a shot from six metres out meets this window's glass first: some
         /// facades have vertical fins every metre standing out from the glass (seed 74102958: 0.22 to 0.37 m), and the middle of a window can be
-        /// right behind one.
+        /// right behind one. The hit must be at the glass's own depth (BuildingInterior.GlassSetBack in from the wall's face): seed 52817364's
+        /// first window had a fin 0.19 m proud of the wall, close enough to the face to pass for the glass.
         /// </summary>
         private static Target AimAtTheGlass(CityWorld world, Target target)
         {
@@ -92,8 +93,8 @@ namespace CityX.Tests
             {
                 Vector3 centre = target.Centre + along * side;
                 if (Physics.Raycast(centre + target.Outward * 6.0f, -target.Outward, out RaycastHit hit, 20.0f, ~0, QueryTriggerInteraction.Ignore) &&
-                    Mathf.Abs(hit.distance - 6.0f) <= 0.3f && GlassDamage.TryPaneAt(world, site, hit.point - target.Outward * 0.02f, out PaneKey key) &&
-                    key.Equals(target.Key))
+                    Mathf.Abs(hit.distance - (6.0f + BuildingInterior.GlassSetBack)) <= 0.08f &&
+                    GlassDamage.TryPaneAt(world, site, hit.point - target.Outward * 0.02f, out PaneKey key) && key.Equals(target.Key))
                 {
                     target.Centre = centre;
                     return target;

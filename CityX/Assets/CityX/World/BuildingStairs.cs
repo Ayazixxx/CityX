@@ -301,23 +301,29 @@ namespace CityX.World
             {
                 // The flight down is chosen first, and the lobby then has to work round it; if the lobby cannot (the flight cuts a narrow room in two), try
                 // another flight down, and in the end do without a basement.
-                for (int variant = 0; variant < 6 && layout.Basement == null; variant++)
+                // First with most of the lobby walkable into from the flight up from the basement (and of the storey above from the lobby's, when that
+                // storey has no stair of its own), then its middle, then without.
+                for (int pass = 0; pass < 3 && layout.Basement == null; pass++)
                 {
-                    StairPlan down = PlanMixed(seed, -1, storey, hx, hz, Rect.zero, false, null, zone, mass, variant);
-                    if (down == null)
+                    for (int variant = 0; variant < 6 && layout.Basement == null; variant++)
                     {
-                        continue;
-                    }
-                    bool lobbyIsRoof = floors == 1 && !layout.SealedTop;
-                    StairPlan lobby = floors == 1 && layout.NoRoofStair
-                        ? null
-                        : PlanMixed(seed, 0, rises[0], hx, hz, lobbyIsRoof && hasObstacle ? roofObstacle : Rect.zero, true, down, zone, mass);
-                    if (lobby != null || floors == 1 && layout.NoRoofStair)
-                    {
-                        layout.Basement = down;
-                        layout.Floors[0] = lobby;
-                        previous = lobby ?? down;
-                        firstFloor = 1;
+                        StairPlan down = PlanMixed(seed, -1, storey, hx, hz, Rect.zero, false, null, zone, mass, variant);
+                        if (down == null)
+                        {
+                            continue;
+                        }
+                        bool lobbyIsRoof = floors == 1 && !layout.SealedTop;
+                        StairPlan lobby = floors == 1 && layout.NoRoofStair
+                            ? null
+                            : PlanMixed(seed, 0, rises[0], hx, hz, lobbyIsRoof && hasObstacle ? roofObstacle : Rect.zero, true, down, zone, mass, 0,
+                                floors == 2 && layout.NoRoofStair, WalkInMost - pass, floors > 1);
+                        if (lobby != null || floors == 1 && layout.NoRoofStair)
+                        {
+                            layout.Basement = down;
+                            layout.Floors[0] = lobby;
+                            previous = lobby ?? down;
+                            firstFloor = 1;
+                        }
                     }
                 }
             }
@@ -330,11 +336,18 @@ namespace CityX.World
                     layout.Floors[f] = null;
                     break;
                 }
-                layout.Floors[f] = PlanMixed(seed, f, rises[f], hx, hz, roof && hasObstacle ? roofObstacle : Rect.zero, f == 0, previous, zone, mass);
+                // The flight up to a top storey that has no stair of its own must leave that storey walkable too.
+                bool lastFlight = f + 1 == floors - 1 && layout.NoRoofStair;
+                // Held to leaving most of the floors it joins walkable into from it; failing that, their middles; failing that, rather a stair than none.
+                for (int walkIn = WalkInMost; walkIn >= WalkInNone && layout.Floors[f] == null; walkIn--)
+                {
+                    layout.Floors[f] = PlanMixed(seed, f, rises[f], hx, hz, roof && hasObstacle ? roofObstacle : Rect.zero, f == 0, previous, zone, mass, 0,
+                        lastFlight, walkIn, f + 1 < floors);
+                }
                 if (layout.Floors[f] == null && roof && hasObstacle)
                 {
                     // Nothing cleared the volume on the roof by its margin: settle for clearing the volume itself.
-                    layout.Floors[f] = PlanMixed(seed, f, rises[f], hx, hz, Inflate(roofObstacle, -0.4f), f == 0, previous, zone, mass);
+                    layout.Floors[f] = PlanMixed(seed, f, rises[f], hx, hz, Inflate(roofObstacle, -0.4f), f == 0, previous, zone, mass, 0, false, WalkInNone);
                 }
                 previous = layout.Floors[f] ?? previous;
             }
@@ -601,6 +614,9 @@ namespace CityX.World
             public int Floor;          // which floor this is (the lobby is 0)
             public float OuterHx, OuterHz;   // half extents of the whole footprint (the carved room is cut against these)
             public bool Reach;         // check that a body can walk from where it arrives to the stair
+            public bool LastFlight;    // the floor this stair climbs to has none of its own (a sealed or covered top): check it can be walked into too
+            public bool FloorAbove;    // this stair climbs to a floor (not out onto the roof)
+            public int WalkIn;         // how far from where a body arrives it must walk into the floor (WalkInNone, WalkInMiddle, WalkInMost)
         }
 
         /// <summary>The stair of the given shape on one floor, at the given placement; null if anything is wrong with it.</summary>
@@ -734,7 +750,245 @@ namespace CityX.World
             {
                 return false;
             }
-            return prev == null || WalkPath(solids, c.Hx, c.Hz, prev.ExitPoint, plan.EntryPoint) != null;
+            if (prev == null)
+            {
+                return true;
+            }
+            if (WalkPath(solids, c.Hx, c.Hz, prev.ExitPoint, plan.EntryPoint) == null)
+            {
+                return false;
+            }
+            // And off the stairs into the floor itself: a flight that wraps on up round its own landing can shut the way from the one arriving to the
+            // next in by its own steps and the opening below, the rest of the floor out of reach (2026-10-15: 17 floors of the blocks round the spawn,
+            // found by their balcony doors). From where it arrives a body must reach most of the floor.
+            if (c.WalkIn == WalkInNone)
+            {
+                return true;
+            }
+            if (!WalksIn(solids, c.Hx, c.Hz, prev.ExitPoint, c.WalkIn))
+            {
+                return false;
+            }
+            // The same on the floor this one climbs to, as far as this flight makes it (its opening, the corner room; the next stair is not planned
+            // yet): where that floor has no stair of its own (a sealed or covered top), and for a wrap, which can shut its own arrival in by itself
+            // with its opening (seed 52817364: four floors, which no stair planned on them could then open up).
+            if (!c.LastFlight && !(c.FloorAbove && plan.Kind == StairKind.Wrap))
+            {
+                return true;
+            }
+            return WalksIn(FloorSolids(null, plan, c.Floor + 1, c.OuterHx, c.OuterHz), c.Hx, c.Hz, plan.ExitPoint, c.WalkIn);
+        }
+
+        /// <summary>How hard a stair is held to leaving its floors walkable into: not at all, as far as the middle of the floor, or most of it.</summary>
+        private const int WalkInNone = 0, WalkInMiddle = 1, WalkInMost = 2;
+
+        /// <summary>
+        /// From where a body steps off the stairs (<paramref name="from"/>), does it walk into the floor: to the middle of it (<see cref="HallPoint"/>),
+        /// or to most of it (<see cref="MinShareReached"/> of its free ground)?
+        /// </summary>
+        private static bool WalksIn(List<Rect> solids, float hx, float hz, Vector2 from, int level)
+        {
+            // Flooded only on a floor of up to about 50 m square (a bigger floor is not cut in two by one stair, and the flood is the planner's cost):
+            // there the middle of it does.
+            if (level >= WalkInMost && (long)Mathf.CeilToInt(2.0f * hx / FloodCell) * Mathf.CeilToInt(2.0f * hz / FloodCell) <= MaxPlanningFloodCells)
+            {
+                float share = Flood(solids, hx, hz, from, null, MinShareReached);   // stops as soon as it is there
+                return share < 0.0f || share >= MinShareReached;
+            }
+            return !HallPoint(solids, hx, hz, out Vector2 hall) || WalkPath(solids, hx, hz, from, hall) != null;
+        }
+
+        /// <summary>The biggest floor (in flood cells: a 50 m square) the planner floods; a bigger one is held to its middle being walkable.</summary>
+        private const int MaxPlanningFloodCells = 40000;
+
+        /// <summary>
+        /// The middle of a floor, for asking whether a body can get there: the free spot nearest the floor's centre (well clear of every solid, by more
+        /// than a body's radius), on a metre grid round it. False when the floor has none (it is all stair).
+        /// </summary>
+        public static bool HallPoint(List<Rect> solids, float hx, float hz, out Vector2 point)
+        {
+            const float clear = 0.45f + 0.3f;   // WalkPath's body, and a cell's width to spare
+            int rings = Mathf.CeilToInt(Mathf.Max(hx, hz));
+            for (int ring = 0; ring <= rings; ring++)
+            {
+                for (int i = -ring; i <= ring; i++)
+                {
+                    for (int j = -ring; j <= ring; j++)
+                    {
+                        if (Mathf.Max(Mathf.Abs(i), Mathf.Abs(j)) != ring)
+                        {
+                            continue;
+                        }
+                        var p = new Vector2(i, j);
+                        if (Mathf.Abs(p.x) > hx - clear || Mathf.Abs(p.y) > hz - clear || NearASolid(solids, p, clear))
+                        {
+                            continue;
+                        }
+                        point = p;
+                        return true;
+                    }
+                }
+            }
+            point = Vector2.zero;
+            return false;
+        }
+
+        private static bool NearASolid(List<Rect> solids, Vector2 p, float clear)
+        {
+            for (int s = 0; s < solids.Count; s++)
+            {
+                Rect r = solids[s];
+                if (p.x > r.xMin - clear && p.x < r.xMax + clear && p.y > r.yMin - clear && p.y < r.yMax + clear)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // ---- how much of a floor a body reaches: a flood on WalkPath's grid, with its body ----
+
+        /// <summary>The least share of a floor's free ground a body must reach from where the stairs arrive.</summary>
+        public const float MinShareReached = 0.5f;
+
+        /// <summary>A floor of more cells than this is not flooded (a 125 m square): no judgement.</summary>
+        public const int MaxFloodCells = 250000;
+
+        private const float FloodCell = 0.25f;
+
+        private const float FloodRadius = 0.45f;
+
+        // One grid per thread, reused (no garbage while chunks stream in): 0 a cell a body cannot stand in, 1 free, 2 free and reached.
+        [System.ThreadStatic] private static byte[] s_flood;
+        [System.ThreadStatic] private static int[] s_floodQueue;
+        [System.ThreadStatic] private static int s_floodNx, s_floodNz;
+        [System.ThreadStatic] private static float s_floodHx, s_floodHz;
+        [System.ThreadStatic] private static bool s_floodJudged;
+
+        /// <summary>
+        /// Floods a floor (half extents <paramref name="hx"/> by <paramref name="hz"/>) round its solids (FloorSolids) from <paramref name="from"/>,
+        /// and <paramref name="alsoFrom"/> when given: a body of WalkPath's size on its 25 cm grid. Returns the share of the floor's free ground reached;
+        /// afterwards, on this thread, <see cref="Flooded"/> says whether a point was. Negative (no judgement) when the floor is too big to grid or no
+        /// start is where a body can stand.
+        /// </summary>
+        public static float Flood(List<Rect> solids, float hx, float hz, Vector2 from, Vector2? alsoFrom = null, float stopAtShare = 2.0f)
+        {
+            int nx = Mathf.Max(1, Mathf.CeilToInt(2.0f * hx / FloodCell)), nz = Mathf.Max(1, Mathf.CeilToInt(2.0f * hz / FloodCell));
+            s_floodNx = nx;
+            s_floodNz = nz;
+            s_floodHx = hx;
+            s_floodHz = hz;
+            s_floodJudged = false;
+            if ((long)nx * nz > MaxFloodCells)
+            {
+                return -1.0f;
+            }
+            int count = nx * nz;
+            if (s_flood == null || s_flood.Length < count)
+            {
+                s_flood = new byte[count];
+                s_floodQueue = new int[count];
+            }
+            byte[] cells = s_flood;
+            int[] queue = s_floodQueue;
+            for (int iz = 0; iz < nz; iz++)
+            {
+                float z = -hz + (iz + 0.5f) * FloodCell;
+                bool zOk = z > -hz + FloodRadius && z < hz - FloodRadius;
+                for (int ix = 0; ix < nx; ix++)
+                {
+                    float x = -hx + (ix + 0.5f) * FloodCell;
+                    cells[iz * nx + ix] = zOk && x > -hx + FloodRadius && x < hx - FloodRadius ? (byte)1 : (byte)0;
+                }
+            }
+            for (int s = 0; s < solids.Count; s++)
+            {
+                // The cells whose centre is strictly inside the solid grown by the body's radius (WalkPath's own test).
+                Rect r = solids[s];
+                float sx0 = r.xMin - FloodRadius, sx1 = r.xMax + FloodRadius, sz0 = r.yMin - FloodRadius, sz1 = r.yMax + FloodRadius;
+                int cx0 = Mathf.Max(0, Mathf.FloorToInt((sx0 + hx) / FloodCell - 0.5f)), cx1 = Mathf.Min(nx - 1, Mathf.CeilToInt((sx1 + hx) / FloodCell - 0.5f));
+                int cz0 = Mathf.Max(0, Mathf.FloorToInt((sz0 + hz) / FloodCell - 0.5f)), cz1 = Mathf.Min(nz - 1, Mathf.CeilToInt((sz1 + hz) / FloodCell - 0.5f));
+                for (int iz = cz0; iz <= cz1; iz++)
+                {
+                    float z = -hz + (iz + 0.5f) * FloodCell;
+                    if (!(z > sz0 && z < sz1))
+                    {
+                        continue;
+                    }
+                    for (int ix = cx0; ix <= cx1; ix++)
+                    {
+                        float x = -hx + (ix + 0.5f) * FloodCell;
+                        if (x > sx0 && x < sx1)
+                        {
+                            cells[iz * nx + ix] = 0;
+                        }
+                    }
+                }
+            }
+            int free = 0;
+            for (int i = 0; i < count; i++)
+            {
+                free += cells[i];
+            }
+            int head = 0, tail = 0;
+            Seed(from);
+            if (alsoFrom.HasValue)
+            {
+                Seed(alsoFrom.Value);
+            }
+            if (tail == 0 || free == 0)
+            {
+                return -1.0f;
+            }
+            s_floodJudged = true;
+            // Asked only whether it reaches a share: it stops there (and then which points it reached is not known).
+            int enough = stopAtShare <= 1.0f ? Mathf.CeilToInt(stopAtShare * free) : int.MaxValue;
+            while (head < tail)
+            {
+                if (tail >= enough)
+                {
+                    s_floodJudged = false;
+                    break;
+                }
+                int c = queue[head++];
+                int cx = c % nx, cz = c / nx;
+                if (cx + 1 < nx) Visit(c + 1);
+                if (cx > 0) Visit(c - 1);
+                if (cz + 1 < nz) Visit(c + nx);
+                if (cz > 0) Visit(c - nx);
+            }
+            return tail / (float)free;
+
+            void Seed(Vector2 p)
+            {
+                int i = FloodCellAt(p);
+                if (cells[i] == 1)
+                {
+                    cells[i] = 2;
+                    queue[tail++] = i;
+                }
+            }
+
+            void Visit(int a)
+            {
+                if (cells[a] == 1)
+                {
+                    cells[a] = 2;
+                    queue[tail++] = a;
+                }
+            }
+        }
+
+        /// <summary>After <see cref="Flood"/> on this thread: did it reach <paramref name="p"/>? (True when that flood made no judgement.)</summary>
+        public static bool Flooded(Vector2 p)
+        {
+            return !s_floodJudged || s_flood[FloodCellAt(p)] == 2;
+        }
+
+        private static int FloodCellAt(Vector2 p)
+        {
+            return Mathf.Clamp(Mathf.FloorToInt((p.y + s_floodHz) / FloodCell), 0, s_floodNz - 1) * s_floodNx
+                + Mathf.Clamp(Mathf.FloorToInt((p.x + s_floodHx) / FloodCell), 0, s_floodNx - 1);
         }
 
         /// <summary>
@@ -984,14 +1238,15 @@ namespace CityX.World
             return null;
         }
 
-        private static StairPlan PlanMixed(int seed, int floor, float rise, float hx, float hz, Rect avoid, bool frontDoor, StairPlan previous, ZoneKind zone, BuildingMass mass, int variant = 0)
+        private static StairPlan PlanMixed(int seed, int floor, float rise, float hx, float hz, Rect avoid, bool frontDoor, StairPlan previous, ZoneKind zone, BuildingMass mass, int variant = 0,
+            bool lastFlight = false, int walkIn = WalkInMost, bool floorAbove = false)
         {
             var c = new Context
             {
                 Hx = hx, Hz = hz, Rise = rise,
                 Door = frontDoor ? Rect.MinMaxRect(-1.7f, hz - 2.6f, 1.7f, hz) : Rect.zero,
                 Avoid = avoid, Previous = previous, Pad = 0.0f,
-                Floor = floor, OuterHx = hx + OuterWall, OuterHz = hz + OuterWall, Reach = floor >= 0,
+                Floor = floor, OuterHx = hx + OuterWall, OuterHz = hz + OuterWall, Reach = floor >= 0, LastFlight = lastFlight, WalkIn = walkIn, FloorAbove = floorAbove,
             };
             int need = Mathf.CeilToInt(rise / MaxRiser - 0.0001f);
             StairKind first = Preferred(seed + variant * 31, floor, zone, mass);
@@ -1040,6 +1295,9 @@ namespace CityX.World
                 Hx = hx, Hz = hz, Rise = maxRise, Door = door,
                 Avoid = !layout.NoRoofStair && hasObstacle ? obstacle : Rect.zero, Pad = CoreWall,
                 Floor = 0, OuterHx = hx + OuterWall, OuterHz = hz + OuterWall, Reach = true,
+                // Out of its doorway a body must reach most of each floor: a core standing right across a narrow floor leaves the far side shut off
+                // (2026-10-15: seven floors of one block reached 41 %), and then the building does without a core.
+                WalkIn = WalkInMost,
             };
             StairPlan lead = Place(shape, c, Mix(seed, 991), true, out Xf placement);
             if (lead == null)
@@ -1068,6 +1326,7 @@ namespace CityX.World
                 cf.Rise = rises[f];
                 cf.Floor = f;
                 cf.Previous = previous;
+                cf.LastFlight = f + 1 == layout.FloorCount - 1 && layout.NoRoofStair;
                 bool top = f == layout.FloorCount - 1;
                 cf.Avoid = top && hasObstacle ? obstacle : Rect.zero;
                 cf.Door = f == 0 ? door : Rect.zero;
@@ -1110,11 +1369,27 @@ namespace CityX.World
         private static bool Clashes(in BuildingInterior.Room room, StairPlan stair, StairPlan arriving)
         {
             Rect r = Rect.MinMaxRect(room.Plan.xMin - 0.4f, room.Plan.yMin - 0.4f, room.Plan.xMax + 0.4f, room.Plan.yMax + 0.4f);
-            if (stair != null && (Overlap(r, stair.Bounds) || stair.Enclosed && Overlap(r, Inflate(stair.Bounds, CoreWall))))
+            if (stair != null && (Overlap(r, stair.Bounds) || stair.Enclosed && (Overlap(r, Inflate(stair.Bounds, CoreWall)) || Overlap(r, Lobby(stair)))))
             {
                 return true;
             }
-            return arriving != null && (Overlap(r, arriving.Exit) || Overlap(r, arriving.Hole));
+            // Nor in front of a stair core's doorway (2026-10-15: a corner room's wall stood 47 cm in front of a core's door on four floors of a block,
+            // so whoever came up the core could not get out of it).
+            return arriving != null && (Overlap(r, arriving.Exit) || Overlap(r, arriving.Hole) || arriving.Enclosed && Overlap(r, Lobby(arriving)));
+        }
+
+        /// <summary>The floor in front of a stair core's doorway (DoorSide) that must stay clear: as wide as the core's side, DoorLobby deep.</summary>
+        private static Rect Lobby(StairPlan core)
+        {
+            Rect b = core.Bounds;
+            float t = CoreWall;
+            switch (core.DoorSide)
+            {
+                case 0: return Rect.MinMaxRect(b.xMin - t - DoorLobby, b.yMin, b.xMin - t, b.yMax);
+                case 1: return Rect.MinMaxRect(b.xMax + t, b.yMin, b.xMax + t + DoorLobby, b.yMax);
+                case 2: return Rect.MinMaxRect(b.xMin, b.yMin - t - DoorLobby, b.xMax, b.yMin - t);
+                default: return Rect.MinMaxRect(b.xMin, b.yMax + t, b.xMax, b.yMax + t + DoorLobby);
+            }
         }
 
         private static Rect Inflate(Rect r, float by) => Rect.MinMaxRect(r.xMin - by, r.yMin - by, r.xMax + by, r.yMax + by);

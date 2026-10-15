@@ -15,7 +15,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class WindowHitRefreshPlayTests
     {
-        private const int Seed = 83920571;
+        private const int Seed = 52817364;
         private readonly List<GameObject> _made = new List<GameObject>();
 
         [TearDown]
@@ -120,8 +120,11 @@ namespace CityX.Tests
             streamer.Damage.Shoot(key, new Vector2(0.3f, 0.6f), out _);
             Assert.IsTrue(ChunkOf(streamer, world, key) == before, "the chunk was torn down at once instead of being rebuilt in the background");
 
+            // Up to ten seconds by the clock, not a count of frames: a batch run's frames take well under a millisecond, and a block of 400 m
+            // towers (seed 52817364's spawn) takes longer than 300 of them to build again.
             int decals = 0;
-            for (int i = 0; i < 300 && decals == 0; i++)
+            float start = Time.realtimeSinceStartup;
+            while (decals == 0 && Time.realtimeSinceStartup - start < 10.0f)
             {
                 // (the streamer's own Update assembles what the workers finish, round the Viewer)
                 yield return null;

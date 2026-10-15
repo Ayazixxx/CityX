@@ -285,3 +285,23 @@ stopped at 3.4 m of a 6.4 m climb. Now:
 - `BuildingStairsTests.ABodyAlwaysFitsOnEveryStairWithRoomForTheNextStep` sweeps every stair in the city (a 0.5 m radius body on every step, with the
   highest neighbouring step under it, under the slab and the next floor's stair) and `BuildingInteriorPlayTests.EveryKindOfStairCarriesABodyUpAStorey`
   walks the real controller up one building of each kind (and three floors of a core). With the old numbers the second one fails; with these both pass.
+
+### Fix 2026-10-15: every floor can be walked into from its stairs
+
+Found through the balcony doors (a door that opened onto a floor with no way to the stairs). Three causes:
+
+- **A wrapping flight boxed in its own landing.** It climbed on round the spot where the flight from below arrived, and with the opening below
+  that spot was shut in: you climbed past the floor without being able to step off it. The planner (`CanReach`) checked only that a body
+  could walk from where it arrives to where the next flight starts. Now, from where it arrives, a body must also reach at least half of the
+  floor's free ground (`BuildingStairs.Flood`, on `WalkPath`'s own grid and body). Failing that for every placement, the middle of the
+  floor (`HallPoint`); failing that, the old rule: a stair rather than none. The flight up to a top storey with no stair of its own is held
+  to the same for that storey (`Context.LastFlight`), and so is every wrap for the floor it climbs to (it can shut its own arrival in
+  before the next floor's stair is planned, `Context.FloorAbove`).
+- **A corner room walled in a stair core's doorway.** Its inner wall could stand 47 cm in front of the core's door. The room now keeps clear of
+  the core's door lobby (`Clashes`, `Lobby`), going to the other back corner or not being built.
+- **A core across a narrow floor** left the far side unreachable (41 %). Cores are held to the same rule; a building whose core fails it
+  gets ordinary stairs.
+
+`BuildingStairsTests.WhereTheStairsArriveYouCanWalkOffIntoTheFloor` floods from every arrival (its own flood, not the planner's): 0 of 7102
+floors shut in on seed 52817364 (0 of 8262 on 83920571), from 17 near the spawn before. The checks cost about 40 % more planning time (once per building, on the streaming
+threads); the streaming cost tests still pass.

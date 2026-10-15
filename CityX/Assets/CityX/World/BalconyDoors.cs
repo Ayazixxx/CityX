@@ -285,27 +285,8 @@ namespace CityX.World
             Span<int> doorKind = stackalloc int[Mathf.Max(1, n)];
             for (int k = 0; k + 1 < n; k++)
             {
-                doorKind[k] = -1;
-                // The flat's columns: those whose middles lie between its edges.
-                int first = Mathf.CeilToInt((edges[k] - u0) / columns.Size - 0.5f - 1e-3f);
-                int last = Mathf.FloorToInt((edges[k + 1] - u0) / columns.Size - 0.5f + 1e-3f);
-                first = Mathf.Clamp(first, 0, columns.Count - 1);
-                last = Mathf.Clamp(last, first, columns.Count - 1);
-                int flatColumns = last - first + 1;
-                int count = columns.Size >= SingleColumnMetres ? 1 : Mathf.Min(2, flatColumns);
-                int column = first + (flatColumns - count) / 2;
-                float a = Mathf.Max(u0 + column * columns.Size, edges[k] + FromFlatEdge);
-                float b = Mathf.Min(u0 + (column + count) * columns.Size, edges[k + 1] - FromFlatEdge);
-                if (!Fit(kind, b - a, out BalconyDoorKind fitted, out float width))
-                {
-                    continue;   // too narrow a flat for any door a body goes through
-                }
-                float middle = (a + b) * 0.5f;
-                doorU0[k] = middle - width * 0.5f;
-                doorU1[k] = middle + width * 0.5f;
-                doorColumn[k] = column;
-                doorColumns[k] = count;
-                doorKind[k] = (int)fitted;
+                doorKind[k] = FlatDoor(kind, u0, columns, edges[k], edges[k + 1], out doorColumn[k], out doorColumns[k], out doorU0[k], out doorU1[k],
+                    out BalconyDoorKind fitted) ? (int)fitted : -1;   // -1: too narrow a flat for any door a body goes through
             }
 
             // The floor a body walks on: inside the outer walls (BuildingStairs.WalkPath's own room).
@@ -337,17 +318,88 @@ namespace CityX.World
                         if (solids == null)
                         {
                             solids = BuildingStairs.FloorSolids(leaving, arriving, floor, halfW, halfD);
-                            flooded = FloodFromStairs(solids, hx, hz, leaving, arriving);
+                            // Flooded once per floor from where its stairs meet it: the foot of the flight that leaves it, the head of the one that arrives.
+                            flooded = leaving != null || arriving != null;
+                            if (flooded)
+                            {
+                                BuildingStairs.Flood(solids, hx, hz, leaving != null ? leaving.EntryPoint : arriving.ExitPoint,
+                                    leaving != null && arriving != null ? arriving.ExitPoint : (Vector2?)null);
+                            }
                         }
                         Rect inside = Rect.MinMaxRect(doorU0[k], -halfD + BuildingInterior.WallThickness, doorU1[k],
                             -halfD + BuildingInterior.WallThickness + ClearInside);
                         // The floor just inside is free, and from it a body walks to the stairs (not into a pocket the stairs and walls shut off).
-                        opens = !Blocked(solids, inside) && (!flooded || Flooded(hx, hz, new Vector2((doorU0[k] + doorU1[k]) * 0.5f, -hz + 0.8f)));
+                        opens = !Blocked(solids, inside)
+                            && (!flooded || BuildingStairs.Flooded(new Vector2((doorU0[k] + doorU1[k]) * 0.5f, -hz + 0.8f)));
                     }
                     into.Add(new BalconyDoor(k, r, doorColumn[k], doorColumns[k], doorU0[k], doorU1[k], y0, y0 + height,
                         (BalconyDoorKind)doorKind[k], opens));
                 }
             }
+        }
+
+        /// <summary>
+        /// A flat's doorway (the same on every row), between the flat's edges <paramref name="edgeA"/> and <paramref name="edgeB"/> along a wall whose
+        /// column 0 starts at <paramref name="u0"/>: the first window column it takes and how many, where it runs along the wall, and its kind.
+        /// False when the flat has no room for a door a body goes through.
+        /// </summary>
+        private static bool FlatDoor(BalconyDoorKind kind, float u0, CellLayout columns, float edgeA, float edgeB, out int column, out int count,
+            out float doorU0, out float doorU1, out BalconyDoorKind fitted)
+        {
+            // The flat's columns: those whose middles lie between its edges.
+            int first = Mathf.CeilToInt((edgeA - u0) / columns.Size - 0.5f - 1e-3f);
+            int last = Mathf.FloorToInt((edgeB - u0) / columns.Size - 0.5f + 1e-3f);
+            first = Mathf.Clamp(first, 0, columns.Count - 1);
+            last = Mathf.Clamp(last, first, columns.Count - 1);
+            int flatColumns = last - first + 1;
+            count = columns.Size >= SingleColumnMetres ? 1 : Mathf.Min(2, flatColumns);
+            column = first + (flatColumns - count) / 2;
+            float a = Mathf.Max(u0 + column * columns.Size, edgeA + FromFlatEdge);
+            float b = Mathf.Min(u0 + (column + count) * columns.Size, edgeB - FromFlatEdge);
+            doorU0 = doorU1 = 0.0f;
+            if (!Fit(kind, b - a, out fitted, out float width))
+            {
+                return false;
+            }
+            float middle = (a + b) * 0.5f;
+            doorU0 = middle - width * 0.5f;
+            doorU1 = middle + width * 0.5f;
+            return true;
+        }
+
+        /// <summary>
+        /// Whether a window cell of the back wall is a balcony door's (and so has no window: GlassDamage.IsDoorCell), worked out without laying the
+        /// doors out (which plans the building's stairs to see which open): cheap enough for every shot at a window.
+        /// </summary>
+        public static bool IsDoorCell(BuildingSite site, in WindowPlan plan, int column, int row)
+        {
+            if (row < 1)
+            {
+                return false;
+            }
+            ApartmentFront front = ApartmentFront.For(site, plan);
+            CellLayout rows = WindowGrid.RowsFor(site.Params.Height);
+            if (!front.Balconies || row >= rows.Count)
+            {
+                return false;
+            }
+            float u0 = -site.Params.Width * 0.5f;
+            CellLayout columns = plan.ColumnsFor(site.Params.Width);
+            Span<float> edges = stackalloc float[ApartmentFront.MaxEdges(columns)];
+            int n = front.UnitEdges(u0, columns, edges);
+            BalconyDoorKind kind = KindFor(site);
+            for (int k = 0; k + 1 < n; k++)
+            {
+                if (!FlatDoor(kind, u0, columns, edges[k], edges[k + 1], out int first, out int count, out _, out _, out _)
+                    || column < first || column >= first + count)
+                {
+                    continue;
+                }
+                // Only where the balcony is (as in Lay).
+                float mid = (edges[k] + edges[k + 1]) * 0.5f, half = (edges[k + 1] - edges[k]) * 0.5f;
+                return site.ContactTopCentred(WindowGrid.Wall.South, mid - half, mid + half) <= row * rows.Size - 0.5f;
+            }
+            return false;
         }
 
         /// <summary>
@@ -377,129 +429,6 @@ namespace CityX.World
             fitted = kind;
             width = 0.0f;
             return false;
-        }
-
-        // ---- can a body walk from a door to the stairs? BuildingStairs.WalkPath's grid and body, flooded once per floor from the stairs ----
-
-        private const float WalkCell = 0.25f;
-
-        private const float WalkRadius = 0.45f;
-
-        /// <summary>The most cells a floor's flood takes (a 125 m square floor); a bigger floor is not flooded and every door on it counts as reaching.</summary>
-        private const int MaxWalkCells = 250000;
-
-        // One grid per thread, reused: 0 a cell a body cannot stand in, 1 free, 2 free and reached from the stairs.
-        [ThreadStatic] private static byte[] s_cells;
-        [ThreadStatic] private static int[] s_queue;
-
-        /// <summary>
-        /// Floods a floor (half extents <paramref name="hx"/> by <paramref name="hz"/>) from where its stairs meet it -- the foot of the flight that
-        /// leaves it, the head of the one that arrives -- round its solids (BuildingStairs.FloorSolids). Afterwards <see cref="Flooded"/> says which
-        /// points a body walks to from the stairs. False when there is nothing to flood from or the floor is too big to grid.
-        /// </summary>
-        private static bool FloodFromStairs(List<Rect> solids, float hx, float hz, StairPlan leaving, StairPlan arriving)
-        {
-            int nx = Mathf.Max(1, Mathf.CeilToInt(2.0f * hx / WalkCell)), nz = Mathf.Max(1, Mathf.CeilToInt(2.0f * hz / WalkCell));
-            if ((leaving == null && arriving == null) || (long)nx * nz > MaxWalkCells)
-            {
-                return false;
-            }
-            int count = nx * nz;
-            if (s_cells == null || s_cells.Length < count)
-            {
-                s_cells = new byte[count];
-                s_queue = new int[count];
-            }
-            byte[] cells = s_cells;
-            int[] queue = s_queue;
-            for (int iz = 0; iz < nz; iz++)
-            {
-                float z = -hz + (iz + 0.5f) * WalkCell;
-                bool zOk = z > -hz + WalkRadius && z < hz - WalkRadius;
-                for (int ix = 0; ix < nx; ix++)
-                {
-                    float x = -hx + (ix + 0.5f) * WalkCell;
-                    cells[iz * nx + ix] = zOk && x > -hx + WalkRadius && x < hx - WalkRadius ? (byte)1 : (byte)0;
-                }
-            }
-            for (int s = 0; s < solids.Count; s++)
-            {
-                // The cells whose centre is strictly inside the solid grown by the body's radius.
-                Rect r = solids[s];
-                float sx0 = r.xMin - WalkRadius, sx1 = r.xMax + WalkRadius, sz0 = r.yMin - WalkRadius, sz1 = r.yMax + WalkRadius;
-                int cx0 = Mathf.Max(0, Mathf.FloorToInt((sx0 + hx) / WalkCell - 0.5f)), cx1 = Mathf.Min(nx - 1, Mathf.CeilToInt((sx1 + hx) / WalkCell - 0.5f));
-                int cz0 = Mathf.Max(0, Mathf.FloorToInt((sz0 + hz) / WalkCell - 0.5f)), cz1 = Mathf.Min(nz - 1, Mathf.CeilToInt((sz1 + hz) / WalkCell - 0.5f));
-                for (int iz = cz0; iz <= cz1; iz++)
-                {
-                    float z = -hz + (iz + 0.5f) * WalkCell;
-                    if (!(z > sz0 && z < sz1))
-                    {
-                        continue;
-                    }
-                    for (int ix = cx0; ix <= cx1; ix++)
-                    {
-                        float x = -hx + (ix + 0.5f) * WalkCell;
-                        if (x > sx0 && x < sx1)
-                        {
-                            cells[iz * nx + ix] = 0;
-                        }
-                    }
-                }
-            }
-            int head = 0, tail = 0;
-            if (leaving != null)
-            {
-                Seed(leaving.EntryPoint);
-            }
-            if (arriving != null)
-            {
-                Seed(arriving.ExitPoint);
-            }
-            if (tail == 0)
-            {
-                return false;   // the stairs' ends are not where a body stands on this grid: no judgement
-            }
-            while (head < tail)
-            {
-                int c = queue[head++];
-                int cx = c % nx, cz = c / nx;
-                if (cx + 1 < nx) Visit(c + 1);
-                if (cx > 0) Visit(c - 1);
-                if (cz + 1 < nz) Visit(c + nx);
-                if (cz > 0) Visit(c - nx);
-            }
-            return true;
-
-            void Seed(Vector2 p)
-            {
-                int i = CellAt(p, hx, hz, nx, nz);
-                if (cells[i] == 1)
-                {
-                    cells[i] = 2;
-                    queue[tail++] = i;
-                }
-            }
-
-            void Visit(int a)
-            {
-                if (cells[a] == 1)
-                {
-                    cells[a] = 2;
-                    queue[tail++] = a;
-                }
-            }
-        }
-
-        /// <summary>After <see cref="FloodFromStairs"/> on this thread: does a body walk from the stairs to <paramref name="p"/>?</summary>
-        private static bool Flooded(float hx, float hz, Vector2 p)
-        {
-            int nx = Mathf.Max(1, Mathf.CeilToInt(2.0f * hx / WalkCell)), nz = Mathf.Max(1, Mathf.CeilToInt(2.0f * hz / WalkCell));
-            return s_cells[CellAt(p, hx, hz, nx, nz)] == 2;
-        }
-
-        private static int CellAt(Vector2 p, float hx, float hz, int nx, int nz)
-        {
-            return Mathf.Clamp(Mathf.FloorToInt((p.y + hz) / WalkCell), 0, nz - 1) * nx + Mathf.Clamp(Mathf.FloorToInt((p.x + hx) / WalkCell), 0, nx - 1);
         }
 
         private static bool Blocked(List<Rect> solids, Rect area)

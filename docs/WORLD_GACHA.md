@@ -89,17 +89,19 @@ which is the most common balcony door in real life ... double doors ... along wi
   building's window frame colour.
 - **Which open.** A storey is two window rows and the balconies are on every row, so the door on every other balcony is half way up a room:
   it stays shut and rattles. A door onto a floor opens unless the floor just inside (1.4 m) has the stairs, the opening they come up
-  through or a partition in it, or a body could not walk from it to the stairs (a flood over the stairs' own walking grid). On seed 83920571:
-  2895 of 9674 doors near the spawn open, and from every one a body walks to the stairs; 1096 of the 3991 doors onto a floor stay shut for
-  the stairs or a wall just inside. (Found on the way: a few floors of buildings with wrapping stairs cannot be reached from their own
-  stairs at all; their doors stay shut too.)
+  through or a partition in it, or a body could not walk from it to the stairs (a flood over the stairs' own walking grid). On seed 52817364:
+  3564 of 11751 doors near the spawn open, and from every one a body walks to the stairs; 1230 of the 4794 doors onto a floor stay shut
+  for the stairs or a wall just inside. (Found on the way, and fixed the same day: some floors could not be reached from their own stairs
+  at all; docs/BUILDING_INTERIORS.md, "every floor can be walked into from its stairs".)
 - **Opening one.** Walk at it (1.6 m out, 1.2 m/s toward it: it opens before you reach it) or press E looking at it (2.5 m); E again shuts
   it, but not on someone standing in it. Hinged leaves always open into the flat (the balcony is narrow and has the laundry pole and the
   washing on it). A door stays as the player left it. Sounds: a sliding door's rumble, the street doors' latch and thud, a locked door's
   rattle, all made in code.
 - **Drawn in the chunk, not an object each.** A block of flats has fifty doors; each is drawn shut or open in the chunk's own mesh and
   collider, and opening one rebuilds its chunk in the background, the way a broken window does (`CityStreamer.OnBalconyDoorChanged`). So the
-  door pops open rather than swinging: a short moment while the chunk is rebuilt.
+  door pops open rather than swinging: a short moment while the chunk is rebuilt. The laid-out doors are kept per building
+  (`BalconyDoors.For`, which plans the stairs to see which open); a shot at a window asks only whether its cell is a doorway
+  (`BalconyDoors.IsDoorCell(site, plan, column, row)`, worked out on the spot), so a bullet never waits on the stairs.
 - **Every player sees it:** `Character/BalconyDoorsNetwork` (FishNet broadcasts like the light switches; the server takes only a door that
   exists and opens, 8 a second per player; a joiner is told every open door).
 - **Research.** The Level Design Book: a sliding door is the simplest door, it recedes into its own frame and nothing blocks it; a Sims

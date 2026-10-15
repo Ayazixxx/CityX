@@ -13,7 +13,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class RoomLightingTests
     {
-        private const int Seed = 83920571;
+        private const int Seed = 52817364;
 
         private static CityWorld _world;
         private static CityWorld World => _world ?? (_world = new CityWorld(Seed));
@@ -229,16 +229,19 @@ namespace CityX.Tests
             List<CityMeshBuilder.RoomGlow> glows = Glows(powered);
             int withWindows = 0;
             float storey = BuildingInterior.StoreyHeight(powered.Params.Height);
+            int floors = BuildingInterior.FloorCountFor(powered.Params.Height);
             var origin = new Vector3(powered.OwnerChunkX * CityLayout.ChunkSize, 0, powered.OwnerChunkY * CityLayout.ChunkSize);
             foreach (CityMeshBuilder.RoomGlow glow in glows)
             {
                 if (glow.Windows.IsEmpty) continue;
                 withWindows++;
                 float floorY = powered.BaseHeight + glow.Key.Floor * storey;
+                // Up to its ceiling: the top floor takes what is left over above the last whole storey (seed 52817364's building 80).
+                float ceilingY = powered.BaseHeight + BuildingInterior.FloorTop(Mathf.Max(0, glow.Key.Floor), floors, powered.Params.Height, storey);
                 foreach (Vector3 v in glow.Windows.Vertices)
                 {
                     float y = v.y + origin.y;
-                    Assert.That(y, Is.InRange(floorY - 0.1f, floorY + storey + 0.6f), $"{glow.Key}: a window of another floor lights with this room");
+                    Assert.That(y, Is.InRange(floorY - 0.1f, ceilingY + 0.6f), $"{glow.Key}: a window of another floor lights with this room");
                 }
             }
             Assert.Greater(withWindows, 0, "no room of a powered building lights its windows");

@@ -11,7 +11,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class BuildingStairsTests
     {
-        private const int Seed = 83920571;
+        private const int Seed = 52817364;
         private static CityWorld _world;
         private static CityWorld World => _world ?? (_world = new CityWorld(Seed));
 
@@ -352,6 +352,111 @@ namespace CityX.Tests
             }
             Assert.Greater(floorsChecked, 1000);
             Assert.AreEqual(0, blocked, $"{blocked} of {floorsChecked} floors: you cannot walk to the stair. First: {(firsts.Count > 0 ? firsts[0] : "")}");
+        }
+
+        /// <summary>
+        /// The share of a floor's free ground (a 25 cm grid, a 0.45 m body, round the solids) a body reaches from <paramref name="from"/>: a flood, not
+        /// the planner's own walk to one point, so the two are checked against each other.
+        /// </summary>
+        private static float ShareReached(List<Rect> solids, float hx, float hz, Vector2 from)
+        {
+            const float cell = 0.25f, radius = 0.45f;
+            int nx = Mathf.CeilToInt(2.0f * hx / cell), nz = Mathf.CeilToInt(2.0f * hz / cell);
+            var free = new bool[nx * nz];
+            int freeCount = 0;
+            for (int iz = 0; iz < nz; iz++)
+            {
+                for (int ix = 0; ix < nx; ix++)
+                {
+                    float x = -hx + (ix + 0.5f) * cell, z = -hz + (iz + 0.5f) * cell;
+                    bool ok = x > -hx + radius && x < hx - radius && z > -hz + radius && z < hz - radius;
+                    foreach (Rect r in solids)
+                    {
+                        if (ok && x > r.xMin - radius && x < r.xMax + radius && z > r.yMin - radius && z < r.yMax + radius)
+                        {
+                            ok = false;
+                        }
+                    }
+                    free[iz * nx + ix] = ok;
+                    freeCount += ok ? 1 : 0;
+                }
+            }
+            int start = Mathf.Clamp(Mathf.FloorToInt((from.y + hz) / cell), 0, nz - 1) * nx + Mathf.Clamp(Mathf.FloorToInt((from.x + hx) / cell), 0, nx - 1);
+            if (freeCount == 0 || !free[start])
+            {
+                return 0.0f;
+            }
+            var seen = new bool[nx * nz];
+            var queue = new Queue<int>();
+            queue.Enqueue(start);
+            seen[start] = true;
+            int reached = 0;
+            while (queue.Count > 0)
+            {
+                int c = queue.Dequeue();
+                reached++;
+                int cx = c % nx, cz = c / nx;
+                foreach (int a in new[] { cx + 1 < nx ? c + 1 : -1, cx > 0 ? c - 1 : -1, cz + 1 < nz ? c + nx : -1, cz > 0 ? c - nx : -1 })
+                {
+                    if (a >= 0 && free[a] && !seen[a])
+                    {
+                        seen[a] = true;
+                        queue.Enqueue(a);
+                    }
+                }
+            }
+            return reached / (float)freeCount;
+        }
+
+        [Test]
+        public void WhereTheStairsArriveYouCanWalkOffIntoTheFloor()
+        {
+            // A flight that wraps on up round its landing used to leave some floors' arrivals shut in by its own steps and the opening below
+            // (2026-10-15): you climbed past a floor without being able to step off onto it.
+            int floorsChecked = 0, shutIn = 0;
+            var firsts = new List<string>();
+            foreach (BuildingSite site in Buildings(7))
+            {
+                if (site.Sides >= 3)
+                {
+                    continue;   // a round building's stairs are planned in the square in its middle
+                }
+                float halfW = site.Params.Width * 0.5f, halfD = site.Params.Depth * 0.5f;
+                float hx = halfW - BuildingInterior.WallThickness - 0.05f, hz = halfD - BuildingInterior.WallThickness - 0.05f;
+                if (hx > 40.0f || hz > 40.0f)
+                {
+                    continue;   // a grid for a 200 m floor is a lot of cells; the small and middling ones carry the same cases
+                }
+                BuildingStairs.Layout layout = BuildingStairs.PlanFor(site);
+                for (int f = 0; f < layout.FloorCount; f++)
+                {
+                    StairPlan arriving = f == 0 ? layout.Basement : layout.Floors[f - 1];
+                    if (arriving == null)
+                    {
+                        continue;
+                    }
+                    StairPlan plan = layout.Floors[f];
+                    List<Rect> solids = BuildingStairs.FloorSolids(plan, arriving, f, halfW, halfD);
+                    float share = ShareReached(solids, hx, hz, arriving.ExitPoint);
+                    floorsChecked++;
+                    if (share < 0.5f)
+                    {
+                        shutIn++;
+                        if (firsts.Count < 6)
+                        {
+                            firsts.Add($"building {site.Id} floor {f} of {layout.FloorCount}: arriving {arriving.Kind}, leaving {(plan == null ? "none" : plan.Kind.ToString())}, " +
+                                $"{share:P0} of the floor reached from {arriving.ExitPoint}");
+                        }
+                    }
+                }
+            }
+            TestContext.WriteLine($"{shutIn} of {floorsChecked} floors: off the stairs you reach less than half of the floor");
+            foreach (string line in firsts)
+            {
+                TestContext.WriteLine(line);
+            }
+            Assert.Greater(floorsChecked, 1000);
+            Assert.AreEqual(0, shutIn, $"{shutIn} of {floorsChecked} floors cannot be walked into from their stairs. First: {(firsts.Count > 0 ? firsts[0] : "")}");
         }
 
         [Test]
