@@ -21,7 +21,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class RealCityDoorwayPlayTests
     {
-        private const int Seed = 58316274;
+        private const int Seed = 74102958;
         private readonly List<GameObject> _made = new List<GameObject>();
 
         [TearDown]
@@ -135,6 +135,33 @@ namespace CityX.Tests
         }
 
         /// <summary>Everything solid in front of a body at a few heights, for a failure message.</summary>
+        /// <summary>The free height over a window's sill, the lowest of three places across the wall's thickness (rays up from just over the sill).</summary>
+        private static float OpeningOver(Vector3 face, Vector3 inward, float sillY)
+        {
+            float lowest = float.MaxValue;
+            foreach (float depth in new[] { 0.06f, 0.15f, 0.24f })
+            {
+                Vector3 from = face + inward * depth;
+                from.y = sillY + 0.05f;
+                lowest = Mathf.Min(lowest, Physics.Raycast(from, Vector3.up, out RaycastHit hit, 6.0f, ~0, QueryTriggerInteraction.Ignore) ? hit.distance + 0.05f : 6.0f);
+            }
+            return lowest;
+        }
+
+        /// <summary>Whether a standing body fits on the floor just inside the wall (nothing solid where it would stand).</summary>
+        private static bool RoomInside(Vector3 face, Vector3 inward, float floorY)
+        {
+            const float radius = 0.3f;
+            Vector3 at = face + inward * (BuildingInterior.WallThickness + radius + 0.15f);
+            at.y = floorY;
+            Vector3 low = at + Vector3.up * (radius + 0.08f), high = at + Vector3.up * (BodyRig.StandingHeight - radius);
+            foreach (Collider c in Physics.OverlapCapsule(low, high, radius, ~0, QueryTriggerInteraction.Ignore))
+            {
+                return false;
+            }
+            return true;
+        }
+
         private static string Ahead(Vector3 feet, Vector3 inward)
         {
             var parts = new List<string>();
@@ -218,7 +245,7 @@ namespace CityX.Tests
             foreach (BuildingSite site in TestSites.NearSpawn(world))
             {
                 if (site.OnRoof || site.Shell || site.Params.IsSpecial || site.IsOpenGround) continue;   // no door (CityStreamer.AddDoor)
-                if (buildings++ >= 50) break;
+                if (buildings++ >= 90) break;   // 50 held only 7 doors without steps on seed 74102958 (more doors get steps since the door ground is measured at the wall)
                 if (BuildingDecor.EntranceStyleFor(site.BaseHeight - site.DoorGroundHeight).NeedsStairs)
                 {
                     withStairs++;
@@ -330,6 +357,16 @@ namespace CityX.Tests
                     float inside = Vector3.Dot(end - face, c.Inward);
                     string line = $"building {site.Id} column {c.Column}: the sill {rise:0.00} m over the paving at the wall (the plan's {paneBottom - paving:0.00}), " +
                                   $"opening {c.Opening:0.00} m by {c.Width:0.00} m; ended {inside:0.00} m past the wall face at y {end.y - site.BaseHeight:+0.00;-0.00} against the floor";
+                    // A body steps in only where it fits standing: the real opening over the sill (the lowest across the wall's thickness -- a shop
+                    // front's stall riser or a lintel on the inside face makes it lower than the plan's) and standing room just inside (a stair, a
+                    // ceiling). Seed 74102958 has both kinds; they are logged, not failed.
+                    float opening = OpeningOver(face, c.Inward, sill);
+                    bool roomInside = RoomInside(face, c.Inward, site.BaseHeight);
+                    if (rise <= Steppable && (opening < BodyRig.StandingHeight + 0.05f || !roomInside))
+                    {
+                        tooTall.Add(line + $" (no room to stand: opening {opening:0.00} m, room inside {roomInside})");
+                        continue;
+                    }
                     bool canStep = rise <= Steppable;
                     if (canStep) steppable++;
                     if (inside > BuildingInterior.WallThickness + 0.6f)

@@ -20,7 +20,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class RealCityWindowVaultPlayTests
     {
-        private const int Seed = 58316274;
+        private const int Seed = 74102958;
         private readonly List<GameObject> _made = new List<GameObject>();
 
         [TearDown]
@@ -390,6 +390,15 @@ namespace CityX.Tests
         private static bool ClimbsIn(Candidate c, out VaultProbe.Refusal why)
         {
             float sillY = c.Site.BaseHeight + c.SillAboveGround;
+            // The real sill, as the climber's hands find it: a shop front's stall riser stands under some door-side windows, up to 0.35 m over
+            // the plan's pane bottom (seed 74102958), and a climber placed by the plan's number had it out of reach. In the game the climb asks
+            // the vault probe every frame as it rises, so it meets the sill wherever it really is.
+            Vector3 over = c.Outside + c.Inward * 0.78f;
+            over.y = sillY + 1.2f;
+            if (Physics.Raycast(over, Vector3.down, out RaycastHit realSill, 1.6f, ~0, QueryTriggerInteraction.Ignore) && realSill.normal.y > 0.7f)
+            {
+                sillY = realSill.point.y;
+            }
             Vector3 feet = c.Outside + c.Inward * 0.35f;
             feet.y = sillY - BodyRig.StandingHeight * PlayerClimbing.MantleReachFraction + 0.1f;
             return VaultProbe.TryFind(feet + Vector3.up * (BodyRig.StandingHeight * PlayerClimbing.WindowReachLiftFraction), c.Inward,

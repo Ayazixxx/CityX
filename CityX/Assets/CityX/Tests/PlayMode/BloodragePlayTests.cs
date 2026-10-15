@@ -36,6 +36,41 @@ namespace CityX.Tests
             LogAssert.ignoreFailingMessages = false;
         }
 
+        /// <summary>
+        /// Turns the camera (which W walks along) to the clearest way out of where the body stands: the longest run with nothing in the way within
+        /// 14 m ahead, low steps aside. The city round the spawn changes with the world seed; on 74102958 a wall a few metres ahead stopped the
+        /// raging walk, which reached it first, and it measured slower than the plain one.
+        /// </summary>
+        private static void FaceTheOpen(PlayerLocomotion body)
+        {
+            var camera = Object.FindFirstObjectByType<ThirdPersonCamera>();
+            Assert.IsNotNull(camera, "no third-person camera in the scene");
+            var controller = body.GetComponent<CharacterController>();
+            Vector3 feet = body.transform.position;
+            Vector3 bottom = feet + Vector3.up * (controller.radius + 0.7f);   // over anything the step up takes
+            Vector3 top = feet + Vector3.up * (controller.height - controller.radius);
+            float bestYaw = 0.0f, bestFree = -1.0f;
+            for (int yaw = 0; yaw < 360; yaw += 15)
+            {
+                Vector3 direction = Quaternion.Euler(0.0f, yaw, 0.0f) * Vector3.forward;
+                float free = 14.0f;
+                foreach (RaycastHit hit in Physics.CapsuleCastAll(bottom, top, controller.radius * 0.9f, direction, 14.0f, ~0, QueryTriggerInteraction.Ignore))
+                {
+                    if (hit.collider.transform.IsChildOf(body.transform) || hit.distance <= 0.0f)
+                    {
+                        continue;
+                    }
+                    free = Mathf.Min(free, hit.distance);
+                }
+                if (free > bestFree)
+                {
+                    bestFree = free;
+                    bestYaw = yaw;
+                }
+            }
+            camera.Yaw = bestYaw;
+        }
+
         private IEnumerator Load(System.Action<PlayerInputReader, PlayerLocomotion, BloodrageAbility> then)
         {
 #if UNITY_EDITOR
@@ -124,8 +159,10 @@ namespace CityX.Tests
             PlayerLocomotion locomotion = null;
             BloodrageAbility rage = null;
             yield return Load((i, l, r) => { input = i; locomotion = l; rage = r; });
+            FaceTheOpen(locomotion);
 
             // Walks forward holding W (the real key, through the real reader), measuring the second after a second of getting up to speed.
+            var path = new System.Text.StringBuilder();
             IEnumerator WalkAndMeasure(System.Action<float> result)
             {
                 Press(_keyboard.wKey);
@@ -137,6 +174,7 @@ namespace CityX.Tests
                 float t0 = Time.time;
                 for (int i = 0; i < 60; i++)
                 {
+                    if (i % 10 == 0) path.Append($" ({locomotion.transform.position.x:0.0},{locomotion.transform.position.y:0.00},{locomotion.transform.position.z:0.0}) v{locomotion.CurrentSpeed:0.0}{(locomotion.IsSteppingUp ? " step" : "")}{(locomotion.IsGrounded ? "" : " air")} {locomotion.LastMoveCollisionFlags}");
                     yield return null;
                 }
                 Vector3 to = locomotion.transform.position;
@@ -147,15 +185,20 @@ namespace CityX.Tests
             }
 
             float normal = 0.0f, raging = 0.0f;
+            Vector3 start = locomotion.transform.position;
             yield return WalkAndMeasure(v => normal = v);
 
-            // Back the way it came (backwards, not measured), then the same walk with Bloodrage on.
-            Press(_keyboard.sKey);
-            for (int i = 0; i < 150; i++)
+            // Back where it started (put there: on seed 74102958 a wall right behind the spawn stopped the walk back, so the second walk began
+            // metres further on and slid along a wall ahead), then the same walk with Bloodrage on.
+            for (int i = 0; i < 30; i++)
             {
                 yield return null;
             }
-            Release(_keyboard.sKey);
+            var controller = locomotion.GetComponent<CharacterController>();
+            controller.enabled = false;
+            locomotion.transform.position = start;
+            controller.enabled = true;
+            Physics.SyncTransforms();
             for (int i = 0; i < 30; i++)
             {
                 yield return null;
@@ -164,7 +207,7 @@ namespace CityX.Tests
             yield return WalkAndMeasure(v => raging = v);
 
             Assert.Greater(normal, 1.5f, "the body hardly moved");
-            Assert.AreEqual(1.25f, raging / normal, 0.12f, $"normal {normal:0.00} m/s, raging {raging:0.00} m/s");
+            Assert.AreEqual(1.25f, raging / normal, 0.12f, $"normal {normal:0.00} m/s, raging {raging:0.00} m/s; path:{path}");
         }
     }
 }

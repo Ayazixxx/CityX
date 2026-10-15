@@ -317,12 +317,17 @@ like this when i should just be running right over this".
 - **Under a low ceiling the controller's step is cut to the room over the head** (`FitStepUnderCeiling`). Before every sideways move the
   CharacterController lifts the body by its whole step offset; with a ceiling closer than that over the head the lift met it and the body could
   not move at all, even on flat ground. That is what still held the body on a shop window's sill once it had stepped up: the top of the opening
-  is 0.2 m over its head there. The step is now the free height over the head, measured where the body is and where the move takes it.
+  is 0.2 m over its head there. The step is now the free height over the head, measured over the whole patch the head can sweep this move (a
+  flat square the body's width plus the move plus a margin, cast up from the top of the head): under a shop's canopy on seed 74102958 the lifted
+  head met the canopy's front edge 0.3 m ahead and 2.75 m up, was pushed back, and the body shook on the spot (measured straight up, the room
+  looked ample).
 - **Taller than the step up** is the vault (run at it) or a jump. A shop's storefront (glass from a 0.5 m stall riser up to 2.8 m: 0.65 to 1 m
   over the pavement, and lower than the body) is still the vault's dive.
 - Result on the real city near spawn (`RealCityDoorwayPlayTests`): every front door without steps built in front of it is walked and run into
-  (20 of 20; the one left out stands 0.77 m over the pavement at its foot, a city bug, below), and every shattered floor-length window whose sill
-  a body steps is run straight into (8 of 8, sills 0.39 to 0.62 m over the pavement; none before).
+  (20 of 20 on the first seed; the one left out stood 0.77 m over the pavement at its foot with no stairs, a city bug since fixed: the door's
+  ground is now measured at the wall's foot, docs/SUBVERSION_CITY.md), and every shattered floor-length window whose sill a body steps and that has
+  standing room in it and just inside is run straight into (8 of 8, sills 0.39 to 0.62 m over the pavement; none before). On seed 74102958 some
+  are not: a shop front's stall riser leaves an opening lower than the body (the vault's dive), or a stair or a ceiling stands just inside.
 - Tests: `SmallObstaclePlayTests` (raised floors 0.3 to 0.64 m walked and run up, smoothly (under 0.14 m a frame) and on the body's feet
   throughout; low bars stepped over; 0.8 m not; a whole pane over a sill and an opening lower than the body not stepped into; six risers taken one
   at a time; ceilings 0.12 and 0.25 m over the head; the city's floor-length window), `RealCityDoorwayPlayTests` (the doors and the shop windows

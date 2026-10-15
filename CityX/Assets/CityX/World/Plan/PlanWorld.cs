@@ -517,6 +517,12 @@ namespace CityX.World.Plan
         /// <summary>The ground under a lot is sampled at most this far apart to find the highest of it (the floor).</summary>
         public const double GroundSampleMetres = 5.0;
 
+        /// <summary>The paving in front of a door is sampled this far out from its wall, metres: at the wall's foot, and two metres out.</summary>
+        private static readonly double[] DoorGroundOutMetres = { 0.3, 2.0 };
+
+        /// <summary>... and this far along the wall from the door's middle, metres: its middle and both its edges (BuildingInterior.DoorWidth is 1.6).</summary>
+        private static readonly double[] DoorGroundAlongMetres = { -0.8, 0.0, 0.8 };
+
         private static readonly string[][] RoofsByZone =
         {
             /* Core        */ new[] { "antenna", "antenna", "parapet", "", "antenna", "parapet", "", "water_tower" },
@@ -682,6 +688,20 @@ namespace CityX.World.Plan
                     // (CityPlan.LotSubdivider); a building whose block would stand in it is not built.
                     continue;
                 }
+                // The shared floor also clears the ground at the foot of every block at street level -- its corners and the middles of its sides --
+                // not only the lot's own samples: a wing's corner fell between them and the paving came up 8 cm through its floor (BlockPavingTests,
+                // 2026-10-15). A mall's pieces have floors of their own (above).
+                if (mallBase == null)
+                {
+                    foreach (MassVolume vol in volumes)
+                    {
+                        if (vol.Support < 0)
+                        {
+                            double foot = HighestAtFoot(fields, centre, axisX, axisZ, vol);
+                            baseHeight = Math.Max(baseHeight, Math.Ceiling((foot + PavingRise + FloorClearance) * 10.0 - 1e-6) / 10.0);
+                        }
+                    }
+                }
                 List<WallContact>[] contacts = ContactsBetween(volumes);
 
                 // Every volume is its own BuildingSite. One at street level has the ground under it; one above stands on the roof of the one it
@@ -788,9 +808,20 @@ namespace CityX.World.Plan
                             }
                         }
                         podiumBase = Math.Min(podiumBase, mallLow != null ? mallLow[v] : lo);
-                        // The paving two metres out from the front wall: a polygon's front side stands at its apothem, not its half-depth.
-                        double out_ = (vol.Sides >= 3 ? vol.Width * 0.5 * BuildingSite.CosPiOver(vol.Sides) : vol.Depth * 0.5) + 2.0;
-                        doorGround = fields.Height(cx - out_ * vAxisZ, cz + out_ * vAxisX) + PavingRise;
+                        // The paving a body walks over to the door: the LOWEST of it at the wall's foot and two metres out, under the door's middle and
+                        // both its edges (a polygon's front side stands at its apothem, not its half-depth). One point two metres out read a door as
+                        // flush over a dip at the wall's foot that left a 0.77 m step and no stairs (RealCityDoorwayPlayTests, 2026-10-15).
+                        double front = vol.Sides >= 3 ? vol.Width * 0.5 * BuildingSite.CosPiOver(vol.Sides) : vol.Depth * 0.5;
+                        double lowest = double.MaxValue;
+                        foreach (double outward in DoorGroundOutMetres)
+                        {
+                            foreach (double along in DoorGroundAlongMetres)
+                            {
+                                double d = front + outward;
+                                lowest = Math.Min(lowest, fields.Height(cx + along * vAxisX - d * vAxisZ, cz + along * vAxisZ + d * vAxisX));
+                            }
+                        }
+                        doorGround = lowest + PavingRise;
                     }
 
                     list.Add(new BuildingSite(list.Count, volumeParameters, zone, (float)vBase, (float)podiumBase, (float)doorGround,
@@ -1040,6 +1071,26 @@ namespace CityX.World.Plan
         }
 
         /// <summary>A volume's footprint box in the lot frame.</summary>
+        /// <summary>The highest ground at a block's foot: its four corners and the middles of its four sides.</summary>
+        private static double HighestAtFoot(PlanFields fields, Vec2 centre, double axisX, double axisZ, MassVolume vol)
+        {
+            Box(vol, out double x0, out double x1, out double z0, out double z1);
+            double high = double.MinValue;
+            for (int iz = 0; iz <= 2; iz++)
+            {
+                for (int ix = 0; ix <= 2; ix++)
+                {
+                    if (ix == 1 && iz == 1)
+                    {
+                        continue;
+                    }
+                    double lx = x0 + (x1 - x0) * ix * 0.5, lz = z0 + (z1 - z0) * iz * 0.5;
+                    high = Math.Max(high, fields.Height(centre.X + lx * axisX - lz * axisZ, centre.Y + lx * axisZ + lz * axisX));
+                }
+            }
+            return high;
+        }
+
         private static void Box(MassVolume v, out double x0, out double x1, out double z0, out double z1)
         {
             double ex = Math.Abs(v.TurnX) * v.Width * 0.5 + Math.Abs(v.TurnZ) * v.Depth * 0.5;

@@ -182,8 +182,10 @@ namespace CityX.Character
         /// body by its whole step offset to see whether it can step up; with a ceiling closer than that over the head the lift met it and the body
         /// could not move at all, not even on flat ground -- under the top of a shop window it had just stepped into (0.2 m over the head) it stood
         /// on the sill, held. The step is cut to the free height over the head each move (it needs no more: a step up the head has no room for
-        /// cannot be taken anyway). The lift happens where the body is and the sideways move at the lifted height, so the room is measured both
-        /// where it is and where this move takes it (walking in under the edge of a low ceiling). The step up holds its own.
+        /// cannot be taken anyway). The lift happens where the body is and the sideways move at the lifted height, so the room is measured over the
+        /// whole patch the head can sweep this move -- the body's width plus the move plus a margin, every way -- not only straight up: under a
+        /// shop's canopy (seed 74102958, building 5248) the lifted head met the canopy's front edge 0.3 m ahead and 2.75 m up, was pushed back,
+        /// and the body shook on the spot instead of walking in under it. The step up holds its own.
         /// </summary>
         private void FitStepUnderCeiling(Vector3 move)
         {
@@ -192,26 +194,23 @@ namespace CityX.Character
                 return;
             }
             float rest = RestingStepOffset;
-            float radius = _controller.radius;
-            Vector3 topSphere = transform.position + Vector3.up * (_controller.center.y + _controller.height * 0.5f - radius);
-            var ahead = new Vector3(move.x, 0.0f, move.z);
-            if (ahead.sqrMagnitude > 1e-8f)
-            {
-                ahead += ahead.normalized * 0.05f;
-            }
-            float free = rest + _controller.skinWidth + 0.02f;
-            free = Mathf.Min(free, FreeOver(topSphere, radius, free));
-            free = Mathf.Min(free, FreeOver(topSphere + ahead, radius, free));
-            _controller.stepOffset = Mathf.Clamp(free - _controller.skinWidth - 0.01f, 0.02f, rest);
+            float skin = _controller.skinWidth;
+            float reach = _controller.radius + new Vector3(move.x, 0.0f, move.z).magnitude + skin + 0.05f;
+            Vector3 headTop = transform.position + Vector3.up * (_controller.center.y + _controller.height * 0.5f + skin);
+            float free = FreeOverPatch(headTop, reach, rest + 0.05f);
+            _controller.stepOffset = Mathf.Clamp(free - 0.02f, 0.02f, rest);
         }
 
         /// <summary>
-        /// How far a sphere at <paramref name="from"/> rises before it meets something, up to <paramref name="most"/>. What it overlaps already (a
-        /// wall the body is brushing) is not over it, and the body's own capsule and limbs are not anything.
+        /// How far a flat square, <paramref name="halfWidth"/> either way of <paramref name="from"/> (the top of the head), rises before it meets
+        /// something, up to <paramref name="most"/>. What it overlaps already (a wall the body is brushing) is not over it, and the body's own
+        /// capsule and limbs are not anything.
         /// </summary>
-        private float FreeOver(Vector3 from, float radius, float most)
+        private float FreeOverPatch(Vector3 from, float halfWidth, float most)
         {
-            int count = Physics.SphereCastNonAlloc(from, radius, Vector3.up, CeilingHits, most, ~0, QueryTriggerInteraction.Ignore);
+            var half = new Vector3(halfWidth, 0.01f, halfWidth);
+            int count = Physics.BoxCastNonAlloc(from, half, Vector3.up, CeilingHits, Quaternion.Euler(0.0f, transform.eulerAngles.y, 0.0f), most,
+                ~0, QueryTriggerInteraction.Ignore);
             float free = most;
             for (int i = 0; i < count; i++)
             {

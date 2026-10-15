@@ -18,7 +18,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class WindowSprayFramePlayTests
     {
-        private const int Seed = 58316274;
+        private const int Seed = 74102958;
 
         private readonly List<GameObject> _made = new List<GameObject>();
 
@@ -33,13 +33,41 @@ namespace CityX.Tests
         }
 
         /// <summary>A building's street wall with a row of glazed windows in clear air, and where to stand to spray it.</summary>
-        private static bool FindFacade(CityWorld world, out List<Vector3> panes, out Vector3 outward)
+        /// <summary>Up to <paramref name="most"/> door-side facades near spawn with at least four glazed windows in their first two upper rows.</summary>
+        private static List<(List<Vector3> panes, Vector3 outward)> FindFacades(CityWorld world, int most)
         {
+            var found = new List<(List<Vector3>, Vector3)>();
             foreach (BuildingSite site in TestSites.NearSpawn(world))
             {
+                if (found.Count >= most)
+                {
+                    break;
+                }
+                if (FacadeOf(world, site, out List<Vector3> panes, out Vector3 outward))
+                {
+                    found.Add((panes, outward));
+                }
+            }
+            return found;
+        }
+
+        /// <summary>The first such facade near spawn.</summary>
+        private static bool FindFacade(CityWorld world, out List<Vector3> panes, out Vector3 outward)
+        {
+            List<(List<Vector3> panes, Vector3 outward)> facades = FindFacades(world, 1);
+            panes = facades.Count > 0 ? facades[0].panes : null;
+            outward = facades.Count > 0 ? facades[0].outward : Vector3.zero;
+            return facades.Count > 0;
+        }
+
+        private static bool FacadeOf(CityWorld world, BuildingSite site, out List<Vector3> panes, out Vector3 outward)
+        {
+            {
+                panes = null;
+                outward = Vector3.zero;
                 if (site.Params.Width < 12.0f)
                 {
-                    continue;
+                    return false;
                 }
                 outward = CityMeshBuilder.WallNormal(site, WindowGrid.Wall.North);
                 WindowPlan plan = WindowPlan.For(world, site);
@@ -61,14 +89,8 @@ namespace CityX.Tests
                         }
                     }
                 }
-                if (panes.Count >= 4)
-                {
-                    return true;
-                }
+                return panes.Count >= 4;
             }
-            panes = null;
-            outward = Vector3.zero;
-            return false;
         }
 
         /// <summary>
@@ -177,7 +199,8 @@ namespace CityX.Tests
         {
 #if UNITY_EDITOR
             var world = new CityWorld(Seed);
-            Assert.IsTrue(FindFacade(world, out List<Vector3> panes, out Vector3 outward), "no facade with a row of windows near the origin");
+            List<(List<Vector3> panes, Vector3 outward)> facades = FindFacades(world, 6);
+            Assert.IsNotEmpty(facades, "no facade with a row of windows near the origin");
 
             var go = new GameObject("Streamer");
             _made.Add(go);
@@ -193,13 +216,29 @@ namespace CityX.Tests
             go.SetActive(true);
             Assert.IsNotNull(breaker.ShardPrefab, "the shard prefab is missing -- rebuild the scene");
 
-            Vector3 standing = panes[0] + outward * 8.0f + Vector3.up * 0.2f;
             var viewer = new GameObject("Viewer");
             _made.Add(viewer);
-            viewer.transform.position = standing;
             streamer.Viewer = viewer.transform;
-            streamer.StreamAround(standing, int.MaxValue);
-            yield return Streamed(streamer);   // the city settled, as it is when someone stops to shoot at a building
+            List<Vector3> panes = null;
+            Vector3 outward = default, standing = default;
+            foreach ((List<Vector3> facadePanes, Vector3 facadeOutward) in facades)
+            {
+                standing = facadePanes[0] + facadeOutward * 8.0f + Vector3.up * 0.2f;
+                viewer.transform.position = standing;
+                streamer.StreamAround(standing, int.MaxValue);
+                yield return Streamed(streamer);   // the city settled, as it is when someone stops to shoot at a building
+                // Only the windows the shooter can see: something standing out of a facade (a balcony's railing, a ledge) takes the bullets
+                // first, and on seed 74102958 the first facade's first window had one 0.36 m in front of it.
+                Vector3 from = standing;
+                List<Vector3> clear = facadePanes.FindAll(p => !Physics.Raycast(from, (p - from).normalized, (p - from).magnitude - 0.1f, ~0, QueryTriggerInteraction.Ignore));
+                if (clear.Count >= 4)
+                {
+                    panes = clear;
+                    outward = facadeOutward;
+                    break;
+                }
+            }
+            Assert.IsNotNull(panes, "no facade near spawn with four windows in clear sight of the shooter");
 
             var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/AK47.prefab");
             GameObject akObject = Object.Instantiate(prefab, new Vector3(0.0f, -50.0f, 0.0f), Quaternion.identity);

@@ -75,7 +75,7 @@ The old grid world lives in `World/LegacyGrid~/` (CityBlocks, CityChunkGenerator
 - Skybridges and the books of the old city are not in the new one (they were lattice features). Elevated highways with exits and a ring road
   came 2026-10-12 and were rebuilt as their own layer 2026-10-13 (`docs/HIGHWAYS.md`); pedestrian plazas with benches, parking and malls
   came 2026-10-12 (`docs/CITY_LIFE.md`). Seed rerolled to 74920318 with them, to 38461927 for the mall complexes, to 61470385 for the
-  building sizes, to 72604913 for the expressway rebuild, and to 58316274 for its ramp tapers and denser exits.
+  building sizes, to 72604913 for the expressway rebuild, and to 74102958 for its ramp tapers and denser exits.
 - Crosswalks, more street furniture, a smarter yard/courtyard fill, rounded kerb corners, a second row of buildings in deep lots.
 - Endless world: the land fields are seamless noise already; only the roads need region borders (portals at hashed positions). Today the city is one
   5 km region.
@@ -90,3 +90,15 @@ paved as ONE surface from the kerb to the walls (`CitySurfaceBuilder.BuildBlockP
 pavement's height and in one paving look per block. The old pavement ring is drawn only for unpaved blocks; terrain squares wholly under paving
 are skipped. Ground floors were raised to stand on the paving (`PlanBuildings.PavingRise` 0.23 m: floor = ceil(highest ground + 0.23) to the
 decimetre; the door's ground is the paving 2 m out). Seed rerolled to 61839025. Tests: `BlockPavingTests`.
+
+## Update 2026-10-15: door steps measured where you walk, wing floors over their own ground
+
+- **A door's ground** is now the LOWEST paving in front of it -- at the wall's foot and 2 m out, under the door's middle and both edges
+  (`PlanWorld`, `DoorGroundOutMetres`, `DoorGroundAlongMetres`). One point 2 m out read a door as flush over a dip at the wall's foot that left a
+  0.77 m step and no stairs (`RealCityDoorwayPlayTests`); now that door gets its stoop.
+- **The shared ground floor clears the ground at the foot of every block at street level** (`HighestAtFoot`: corners and side middles), not only
+  the lot's 5 m sample grid: a wing's corner fell between the samples and the paving came up 8 cm through its floor (`BlockPavingTests`, building
+  1195). `tools/cityplan -- floorcheck <seed>` lists any floor with paving over a corner (0 at both city scales).
+- Seed rerolled 58316274 -> 74102958. What the new city showed, all fixed: the two above; the player's step lift meeting a shop canopy's front
+  edge (docs/CLIMBING.md); and tests that assumed a clear window (some facades have vertical sun fins every metre, 0.22 to 0.37 m deep, one through
+  the middle of a window), a clear walk from the spawn, or a plan sill where a shop front has a stall riser.

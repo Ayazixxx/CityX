@@ -20,7 +20,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class CrackedPaneKnockPlayTests
     {
-        private const int Seed = 58316274;
+        private const int Seed = 74102958;
         private readonly List<GameObject> _made = new List<GameObject>();
 
         [TearDown]
@@ -133,6 +133,50 @@ namespace CityX.Tests
             public Vector3 Outward;
         }
 
+        /// <summary>The glazed upper windows of the door walls near spawn, nearest first (up to <paramref name="most"/>).</summary>
+        private static List<Target> FindTargets(CityWorld world, int most)
+        {
+            var found = new List<Target>();
+            foreach (BuildingSite site in TestSites.NearSpawn(world))
+            {
+                if (found.Count >= most || site.Params.Width < 8.0f)
+                {
+                    continue;
+                }
+                Vector3 outward = CityMeshBuilder.WallNormal(site, WindowGrid.Wall.North);
+                WindowPlan plan = WindowPlan.For(world, site);
+                CellLayout rows = WindowGrid.RowsFor(site.Params.Height);
+                CellLayout columns = plan.ColumnsFor(site.Params.Width);
+                for (int row = 1; row < Mathf.Min(rows.Count, 3) && found.Count < most; row++)
+                {
+                    for (int column = 1; column < columns.Count - 1 && found.Count < most; column++)
+                    {
+                        if (!plan.IsGlazed(WindowGrid.Wall.North, column, row))
+                        {
+                            continue;
+                        }
+                        Vector3 centre = TestSites.At(site, site.MinX + (column + 0.5f) * columns.Size, site.BaseHeight + (row + 0.5f) * rows.Size, site.MaxZ);
+                        if (GlassDamage.TryPaneAt(world, site, centre + outward * 0.02f, out PaneKey key))
+                        {
+                            found.Add(new Target { Key = key, Centre = centre, Outward = outward });
+                        }
+                    }
+                }
+            }
+            return found;
+        }
+
+        /// <summary>
+        /// Whether nothing stands out of the facade in front of a window's middle: a ray from a metre out meets the glass (at the wall's face or
+        /// behind it), not a fin. Some facades have vertical fins every metre, one right through the middle of a window (seed 74102958), and a
+        /// body put in front of one is put inside it.
+        /// </summary>
+        private static bool ClearInFront(Target target)
+        {
+            return !Physics.Raycast(target.Centre + target.Outward * 1.0f, -target.Outward, out RaycastHit hit, 2.0f, ~0, QueryTriggerInteraction.Ignore) ||
+                   hit.distance > 0.97f;
+        }
+
         private static bool FindTarget(CityWorld world, out Target target)
         {
             foreach (BuildingSite site in TestSites.NearSpawn(world))
@@ -183,7 +227,8 @@ namespace CityX.Tests
         {
 #if UNITY_EDITOR
             var world = new CityWorld(Seed);
-            Assert.IsTrue(FindTarget(world, out Target target));
+            List<Target> targets = FindTargets(world, 16);
+            Assert.IsNotEmpty(targets, "no glazed upper window on a door wall near spawn");
 
             var streamerObject = Made(new GameObject("Streamer"));
             streamerObject.SetActive(false);
@@ -195,10 +240,24 @@ namespace CityX.Tests
             streamerObject.AddComponent<GlassBreaker>();
             streamerObject.SetActive(true);
 
-            Vector3 outside = target.Centre + target.Outward * 1.0f;
-            streamer.StreamAround(outside, int.MaxValue);
-            yield return null;
-            Physics.SyncTransforms();
+            // The first window with nothing standing out of the facade in front of its middle.
+            Target target = default;
+            Vector3 outside = default;
+            bool chosen = false;
+            foreach (Target candidate in targets)
+            {
+                outside = candidate.Centre + candidate.Outward * 1.0f;
+                streamer.StreamAround(outside, int.MaxValue);
+                yield return null;
+                Physics.SyncTransforms();
+                if (ClearInFront(candidate))
+                {
+                    target = candidate;
+                    chosen = true;
+                    break;
+                }
+            }
+            Assert.IsTrue(chosen, "every glazed upper window near spawn has something standing in front of it");
 
             // The first shot cracks the window, which makes its opening (and the trigger box in it).
             streamer.Damage.Shoot(target.Key, new Vector2(0.5f, 0.5f), out _);
@@ -215,7 +274,21 @@ namespace CityX.Tests
             controller.radius = 0.2f;
             controller.minMoveDistance = 0.0f;   // the default 1 mm silently discards a batch-mode frame's tiny step, so he would never reach the glass
             controller.height = 1.4f;
-            player.transform.position = opening + target.Outward * 0.15f;
+            controller.stepOffset = 0.05f;   // the default 0.3 m step lifts him into the top of a 1.86 m window before every move, and he could not move at all (seed 74102958)
+            // Clear of anything standing out of the facade: some facades have vertical fins every metre, one right through the middle of a
+            // window (seed 74102958), and a body placed in one cannot move at all. Slide along the pane to where the little body fits.
+            Vector3 alongPane = Vector3.Cross(Vector3.up, target.Outward).normalized;
+            Vector3 place = opening + target.Outward * 0.15f;
+            foreach (float side in new[] { 0.0f, 0.3f, -0.3f, 0.4f, -0.4f })
+            {
+                Vector3 p = opening + target.Outward * 0.15f + alongPane * side;
+                if (!Physics.CheckCapsule(p + Vector3.up * 0.5f, p - Vector3.up * 0.5f, 0.21f, ~0, QueryTriggerInteraction.Ignore))
+                {
+                    place = p;
+                    break;
+                }
+            }
+            player.transform.position = place;
             Physics.SyncTransforms();
             yield return null;
 

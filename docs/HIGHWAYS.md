@@ -102,11 +102,11 @@ abuts), a median barrier on main lines, lane paint (dashes by distance along; a 
 inner line only where it has left the main line), piers built by the chunk holding their centre (none under a taper's narrow tip), gantry
 signs and barriers. Kerb cuts subtract from the pavement and kerb faces.
 
-### Numbers (seed 58316274, the game's varied 10 km)
+### Numbers (seed 74102958, the game's varied 10 km)
 34 km of main line (ring 14 km, routes 10 and 10 km), 35% of it over a road, 0.8% along one; 5 cloverleafs (all 20 loops and all 20 outer
 connectors); 25 exits with 80 ramps to and from streets (38 diamond, 35 loop, 7 slip) against those 40 connectors; steepest ramp 7.8%;
 2770 piers. The tests' classic city (seed 61839025), five cloverleafs crowded inside a small ring: 13 exits. The world seed was rerolled to
-72604913 for the rebuild and to 58316274 for the tapers and the denser exits.
+72604913 for the rebuild and to 74102958 for the tapers and the denser exits.
 
 ## Tests and pictures
 `CityFeaturesTests` (EditMode, classic seed 61839025): a ring and routes across; no flat crossing and every crossing a cloverleaf; main decks

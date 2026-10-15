@@ -18,7 +18,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class RoomLightsPlayTests
     {
-        private const int Seed = 58316274;
+        private const int Seed = 74102958;
         private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
         private readonly List<GameObject> _made = new List<GameObject>();
         private CityScale _scaleBefore;
@@ -335,9 +335,9 @@ namespace CityX.Tests
             int cx = Mathf.FloorToInt((float)(sx / CityLayout.ChunkSize)), cy = Mathf.FloorToInt((float)(sz / CityLayout.ChunkSize));
             List<CityMeshBuilder.RoomGlow> most = null;
             Vector2Int mostAt = default;
-            for (int dx = -6; dx <= 6; dx++)
+            for (int dx = -10; dx <= 10; dx++)   // 6 chunks round the spawn held no more than 18 powered rooms on seed 74102958
             {
-                for (int dy = -6; dy <= 6; dy++)
+                for (int dy = -10; dy <= 10; dy++)
                 {
                     var glows = new List<CityMeshBuilder.RoomGlow>();
                     var origin = new Vector3((cx + dx) * CityLayout.ChunkSize, 0.0f, (cy + dy) * CityLayout.ChunkSize);

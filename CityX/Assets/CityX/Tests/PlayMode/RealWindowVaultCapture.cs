@@ -22,7 +22,7 @@ namespace CityX.Tests
     [Explicit("renders screenshots; needs a graphics device")]
     public sealed class RealWindowVaultCapture
     {
-        private const int Seed = 58316274;
+        private const int Seed = 74102958;
         private readonly List<GameObject> _made = new List<GameObject>();
         private CityStreamer _streamer;
 

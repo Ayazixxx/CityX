@@ -19,7 +19,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class BulletHolesInRealWindowsPlayTests
     {
-        private const int Seed = 58316274;
+        private const int Seed = 74102958;
 
         private readonly List<GameObject> _made = new List<GameObject>();
 
@@ -79,6 +79,29 @@ namespace CityX.Tests
             return false;
         }
 
+        /// <summary>
+        /// Slides the aim along the window, once the city is in, to where a shot from six metres out meets this window's glass first: some
+        /// facades have vertical fins every metre standing out from the glass (seed 74102958: 0.22 to 0.37 m), and the middle of a window can be
+        /// right behind one.
+        /// </summary>
+        private static Target AimAtTheGlass(CityWorld world, Target target)
+        {
+            BuildingSite site = world.Building(target.Key.Building);
+            Vector3 along = Vector3.Cross(Vector3.up, target.Outward).normalized;
+            foreach (float side in new[] { 0.0f, 0.25f, -0.25f, 0.5f, -0.5f, 0.75f, -0.75f })
+            {
+                Vector3 centre = target.Centre + along * side;
+                if (Physics.Raycast(centre + target.Outward * 6.0f, -target.Outward, out RaycastHit hit, 20.0f, ~0, QueryTriggerInteraction.Ignore) &&
+                    Mathf.Abs(hit.distance - 6.0f) <= 0.3f && GlassDamage.TryPaneAt(world, site, hit.point - target.Outward * 0.02f, out PaneKey key) &&
+                    key.Equals(target.Key))
+                {
+                    target.Centre = centre;
+                    return target;
+                }
+            }
+            return target;
+        }
+
         private static IEnumerator Wait(float seconds)
         {
             for (float elapsed = 0.0f; elapsed < seconds; elapsed += Time.deltaTime)
@@ -110,6 +133,8 @@ namespace CityX.Tests
             yield return null;
             yield return null;
             Physics.SyncTransforms();
+            target = AimAtTheGlass(world, target);
+            standing = target.Centre + target.Outward * 6.0f;
 
             var pistolPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/Pistol.prefab");
             GameObject pistolObject = Object.Instantiate(pistolPrefab, new Vector3(0.0f, -50.0f, 0.0f), Quaternion.identity);
@@ -169,6 +194,8 @@ namespace CityX.Tests
             streamer.StreamAround(standing, int.MaxValue);
             yield return null;
             Physics.SyncTransforms();
+            target = AimAtTheGlass(world, target);
+            standing = target.Centre + target.Outward * 6.0f;
 
             // A crack somebody made earlier: a cracked pane has no solid collider, but a shot must still find it.
             streamer.Damage.Shoot(target.Key, new Vector2(0.5f, 0.5f), out _);
