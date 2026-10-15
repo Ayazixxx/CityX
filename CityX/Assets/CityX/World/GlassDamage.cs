@@ -482,6 +482,10 @@ namespace CityX.World
             {
                 return false;
             }
+            if (wall == WindowGrid.Wall.North && row == 0 && Shopfronts.Shuttered(site, plan, column))
+            {
+                return false;   // a shop with its shutter down (Shopfronts): no window behind it to break
+            }
 
             key = new PaneKey(site.Id, wall, column, row);
             return true;

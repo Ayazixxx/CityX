@@ -37,9 +37,9 @@ Their page says the towns use no outside data, only random numbers and formulas 
 | house with a pitched roof | none (every roof flat) | phase 2: gable / hip / skillion roofs, houses in the homes zones |
 | office (window bands) | `FacadeStyle.Ribbon` | have |
 | factory / warehouse | `HighBand`, sheds | have |
-| shop under windows | storefront ground floor | have; phase 3 adds roller shutters |
+| shop under windows | storefront ground floor | have; **done, phase 3**: roller shutters and the band of shop signs |
 | curtain wall | `Curtain` | have |
-| window canopies (庇), mullions | sills, frames | phase 3 |
+| window canopies (庇), mullions | sills, frames | **done, phase 3**: canopies (mullions: the frames already have them) |
 | floor bands, corner piers, coping, roof plant | `FacadeOrnament`, `AddRoof` | have |
 | church, bell tower, temple, shrine, castle | malls, garages, hospital, bank, police, supermarket | phase 5 |
 | arcaded street (portici) | none | phase 5 |
@@ -135,3 +135,27 @@ which is the most common balcony door in real life ... double doors ... along wi
   wall, its eaves up to 0.9 m out. The mantle rises to the stand spot on the slope before stepping in (`RoofClimbPlayTests`: three climbs up a
   real house, all on its roof).
 - **Before/after renders:** `RoofShapeCapture` (Explicit, `-Graphics`), with `RoofShape.PitchedRoofsOn` as the switch.
+
+## Phase 3: window canopies, roller shutters, shop signs (2026-10-15)
+
+- **Window canopies (庇, `FacadeOrnament.CanopyDepth`).** A thin concrete hood over every window above the street storey, a little wider than
+  the window, 0.36-0.55 m deep (`MinCanopyDepth`..`MaxCanopyDepth`, 8 cm thick, 5 cm over the window's head). Punched and scattered facades
+  only (not glass skins, ribbon offices or sheds), by district: residential 45 %, old town 50 %, outskirts 40 %, urban 22 %, downtown 8 %
+  (measured: 48 %, 52 %, 19 %, 6 %). A building has canopies or stone lintels, never both. Not on a wall with balconies or a walkway (they are
+  the shelter there). Shallower than `ClimbJut.MaxLean`, so a climb leans round them as it does round a cornice.
+- **Roller shutters (シャッター, `World/Shopfronts.cs`).** Three shopfronts in ten have shutters down on some of their bays (each bay 60 %):
+  a slatted metal curtain from the pavement to the top of the shop window, in a 6 cm recess, with the box it rolls into over it. The slats
+  are the metal cladding texture turned on its side and drawn four times as close (one every 12.5 cm), so they cost one quad. No window is
+  cut behind a shutter (the shop's wall is whole inside) and there is no pane to break (`GlassDamage.TryPaneAt`). Mostly galvanised steel,
+  now and then painted.
+- **The sign band.** Over the shopfronts, either side of the door, one sign per shop (about one per 4 m) instead of one board a side: each
+  its own colour from a brighter palette than the walls' (white and cream most, then the reds, yellows, blues and greens of a shopping
+  street), its own depth and drop. 45 % are lit from behind: a panel of lit glass inside a 10 cm rim of the board, dark by day, glowing at
+  night (pink, blue, amber, the whites) -- on a building with power (one in ten, `PowerGrid`), like the blade signs; a dead building's are
+  dark glass.
+- **Tests:** `StreetDetailTests` (canopy shares and rules; a canopy over every upper window of a canopied wall and none over the street storey;
+  shutters on about three shopfronts in ten, no pane behind one, the shop's inside wall whole; lit signs on most shopfronts),
+  `StreetDetailCapture` (Explicit, `-Graphics`: a home's canopies, a shopping street by day and at night, a shutter close up).
+- **Awnings clear the body.** A shop's awning hung its front flap 0.46 m under the top of the street storey: on a short storey (about 3 m)
+  that was at head height, and on seed 61537940 two runs at shop windows stopped against it. Its lowest edge now stays 2.8 m over the shop
+  floor (`CityMeshBuilder.AwningClearance`): on a short storey it hangs less, or is left off.

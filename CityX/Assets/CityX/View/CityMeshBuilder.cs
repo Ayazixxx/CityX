@@ -1634,8 +1634,22 @@ namespace CityX.View
                 float paneU1 = cellU1 - columns.Size * inset;
                 AddWallPanel(wallBuffer, wall, cellU0, paneU0, y0, y1, normal);
                 AddWallPanel(wallBuffer, wall, paneU1, cellU1, y0, y1, normal);
-                AddWallPanel(wallBuffer, wall, paneU0, paneU1, y0, paneY0, normal);
                 AddWallPanel(wallBuffer, wall, paneU0, paneU1, paneY1, y1, normal);
+                if (storefront && Shopfronts.Shuttered(site, plan, column))
+                {
+                    // A shop with its shutter down (Shopfronts), from the pavement to the top of where its window would be: outside the slatted
+                    // curtain in its recess, inside the shop's wall whole (no window was cut).
+                    if (glazing.HangsGlass && looks.HasValue)
+                    {
+                        AddShutter(wallBuffer, site, wall, paneU0, paneU1, y0, paneY1, normal, column);
+                    }
+                    else
+                    {
+                        AddWallPanel(wallBuffer, wall, paneU0, paneU1, y0, paneY1, normal);
+                    }
+                    continue;
+                }
+                AddWallPanel(wallBuffer, wall, paneU0, paneU1, y0, paneY0, normal);
 
                 AddOpening(wallBuffer, glazing, site, wall, paneU0, paneU1, paneY0, paneY1, normal,
                     plan, which, column, 0, looks);
@@ -1651,7 +1665,9 @@ namespace CityX.View
                 {
                     if (storefront)
                     {
-                        AddStorefrontTrim(wallBuffer, site, wall, u0, columns, y0, y1, paneY1, doorU0, doorU1, normal);
+                        // A lit sign glows only on a building with power (World.PowerGrid), as the blade signs do: a dead one's is dark glass.
+                        MeshBuffer signGlass = PowerGrid.IsOn(site) || glazing.Dark == null ? glazing.Lit : glazing.Dark;
+                        AddStorefrontTrim(wallBuffer, signGlass, site, wall, u0, columns, y0, y1, paneY1, doorU0, doorU1, normal);
                     }
                     else
                     {
@@ -1673,17 +1689,11 @@ namespace CityX.View
 
         private const ulong StorefrontStream = 0x53544F52UL;   // "STOR"
 
-        // Muted shop colours: the awnings and the sign boards. Strong colour is the exception here, not the rule.
+        // Muted awning colours: strong colour is the exception here, not the rule (the shop signs carry it: ShopSignColours).
         private static readonly Color[] AwningColours =
         {
             new Color(0.55f, 0.20f, 0.18f), new Color(0.16f, 0.30f, 0.22f), new Color(0.15f, 0.24f, 0.42f),
             new Color(0.78f, 0.72f, 0.58f), new Color(0.52f, 0.36f, 0.18f), new Color(0.24f, 0.24f, 0.26f),
-        };
-
-        private static readonly Color[] SignColours =
-        {
-            new Color(0.13f, 0.13f, 0.14f), new Color(0.82f, 0.80f, 0.74f), new Color(0.40f, 0.12f, 0.12f),
-            new Color(0.12f, 0.20f, 0.36f), new Color(0.14f, 0.28f, 0.20f), new Color(0.62f, 0.50f, 0.20f),
         };
 
         /// <summary>
@@ -1694,11 +1704,10 @@ namespace CityX.View
         /// walk along the pavement. The awning is mounted at the very top of the row and its lowest edge is clear of a tall body; the sign
         /// board sits on the wall of the storey above, in the band under the first row of windows.
         /// </summary>
-        private static void AddStorefrontTrim(MeshBuffer buffer, BuildingSite site, in Wall wall, float u0, CellLayout columns,
+        private static void AddStorefrontTrim(MeshBuffer buffer, MeshBuffer lit, BuildingSite site, in Wall wall, float u0, CellLayout columns,
             float y0, float y1, float glassTop, float doorU0, float doorU1, Vector3 outward)
         {
             var rng = new DeterministicRandom(unchecked((ulong)(uint)site.Seed), StorefrontStream);
-            Color sign = SignColours[rng.Below(SignColours.Length)];
             Color awning = AwningColours[rng.Below(AwningColours.Length)];
             bool hasAwning = rng.NextDouble() < 0.6;
 
@@ -1706,41 +1715,42 @@ namespace CityX.View
             float frontU1 = u0 + columns.Count * columns.Size - 0.35f;
             Color32 saved = buffer.Look;
 
-            // The sign board, proud of the wall, either side of the door.
-            buffer.Look = SurfaceLook.Pack(sign, (int)WallMaterial.Metal, 0.25f);
+            // The band of shop signs over the shopfront, either side of the door: one sign per shop, each its own colours, some lit from behind
+            // (World Gacha's sign band, Shopfronts). It used to be one board in one colour each side.
             float boardBottom = y1 + 0.12f;
             float boardTop = y1 + 0.78f;
-            foreach (float[] span in new[] { new[] { frontU0, doorU0 - 0.15f }, new[] { doorU1 + 0.15f, frontU1 } })
-            {
-                if (span[1] - span[0] < 0.8f)
-                {
-                    continue;
-                }
-                Vector3 b0 = wall.At(span[0], boardBottom);
-                Vector3 b1 = wall.At(span[1], boardTop) + outward * 0.07f;
-                buffer.AddBox(Vector3.Min(b0, b1), Vector3.Max(b0, b1));
-            }
+            int signs = AddSignBand(buffer, lit, site, wall, frontU0, doorU0 - 0.15f, boardBottom, boardTop, outward, 0);
+            AddSignBand(buffer, lit, site, wall, doorU1 + 0.15f, frontU1, boardBottom, boardTop, outward, signs);
 
             if (hasAwning)
             {
                 buffer.Look = SurfaceLook.Pack(awning, (int)WallMaterial.Plaster, 0.35f);
                 float topY = y1 - 0.08f;
-                AddAwning(buffer, wall, frontU0 + 0.1f, doorU0 - 0.25f, topY, outward);
-                AddAwning(buffer, wall, doorU1 + 0.25f, frontU1 - 0.1f, topY, outward);
+                // Its lowest edge clear of a 2.6 m body over the shop floor (the paving along the front is no higher): on a short street storey
+                // it hangs less, or is left off (seed 61537940: two shops' awning flaps at head height stopped a run at their windows).
+                float hang = topY - (y0 + AwningClearance);
+                AddAwning(buffer, wall, frontU0 + 0.1f, doorU0 - 0.25f, topY, outward, hang);
+                AddAwning(buffer, wall, doorU1 + 0.25f, frontU1 - 0.1f, topY, outward, hang);
             }
             buffer.Look = saved;
         }
 
-        /// <summary>A sloped awning between two points along a wall: a top, an underside and a short front flap, open at the ends.</summary>
-        private static void AddAwning(MeshBuffer buffer, in Wall wall, float u0, float u1, float topY, Vector3 outward)
+        /// <summary>How far over the shop floor an awning's lowest edge stays at least, metres: a 2.6 m body and its capsule's skin, and a hand to spare.</summary>
+        internal const float AwningClearance = 2.8f;
+
+        /// <summary>
+        /// A sloped awning between two points along a wall: a top, an underside and a short front flap, open at the ends; hanging down at most
+        /// <paramref name="hang"/> below its top at the wall (its slope and its flap), and left off if that is too little for one.
+        /// </summary>
+        private static void AddAwning(MeshBuffer buffer, in Wall wall, float u0, float u1, float topY, Vector3 outward, float hang)
         {
-            if (u1 - u0 < 0.8f)
+            if (u1 - u0 < 0.8f || hang < 0.12f)
             {
                 return;
             }
             const float projection = 1.1f;
-            const float drop = 0.28f;
-            const float flap = 0.10f;
+            float drop = Mathf.Min(0.28f, hang * 0.74f);
+            float flap = Mathf.Min(0.10f, hang - drop);
             Vector3 wallTop0 = wall.At(u0, topY);
             Vector3 wallTop1 = wall.At(u1, topY);
             Vector3 edgeTop0 = wallTop0 + outward * projection + Vector3.down * drop;
@@ -1958,6 +1968,17 @@ namespace CityX.View
                         wallBuffer.Look = looks.Value.Trim;
                         AddOutset(wallBuffer, wall, normal, u0 - FacadeOrnament.LintelOverhang, u1 + FacadeOrnament.LintelOverhang,
                             y1 + 0.03f, y1 + 0.03f + FacadeOrnament.LintelHeight, FacadeOrnament.LintelDepth, true);
+                        wallBuffer.Look = savedLook;
+                    }
+                    if (looks.Value.Ornament.HasCanopies && row >= 1 && float.IsNegativeInfinity(standOn))
+                    {
+                        // A canopy over the window (FacadeOrnament.CanopyDepth): a thin concrete hood just over its head, a little wider than it. Not
+                        // over the street storey (a 2.6 m head passes under its windows' heads), nor on a wall with balconies or a walkway.
+                        Color32 savedLook = wallBuffer.Look;
+                        wallBuffer.Look = looks.Value.Trim;
+                        float hood = y1 + FacadeOrnament.CanopyGap;
+                        AddOutset(wallBuffer, wall, normal, u0 - FacadeOrnament.CanopyOverhang, u1 + FacadeOrnament.CanopyOverhang,
+                            hood, hood + FacadeOrnament.CanopyThickness, looks.Value.Ornament.CanopyDepth, true);
                         wallBuffer.Look = savedLook;
                     }
                 }

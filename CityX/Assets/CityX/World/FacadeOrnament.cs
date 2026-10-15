@@ -44,6 +44,13 @@ namespace CityX.World
         /// <summary>A stone lintel over each window.</summary>
         public readonly bool Lintels;
 
+        /// <summary>
+        /// How far a small concrete canopy (庇, hisashi) over each window above the street storey stands out from the wall, metres; 0 = none. World
+        /// Gacha's detail, and the everyday Japanese house's: a thin hood that keeps the rain off the window. A building has these or lintels, not
+        /// both.
+        /// </summary>
+        public readonly float CanopyDepth;
+
         // Sizes, metres. Kept small and fixed so nothing reaches a neighbour or a window: every part sits in the wall between the panes.
         public const float BaseCourseHeight = 0.42f;
         public const float BaseCourseDepth = 0.24f;
@@ -57,11 +64,22 @@ namespace CityX.World
         public const float LintelDepth = 0.07f;
         public const float LintelOverhang = 0.10f;
 
+        /// <summary>
+        /// A window canopy: how deep it is at least and at most (a real one is 0.3 to 0.45 m; the city is 1.3 times life size), how thick, how far past
+        /// each side of the window it runs and how far over the window's head it sits. Shallower than ClimbJut.MaxLean, so a climb leans round it as it
+        /// does round a cornice.
+        /// </summary>
+        public const float MinCanopyDepth = 0.36f;
+        public const float MaxCanopyDepth = 0.55f;
+        public const float CanopyThickness = 0.08f;
+        public const float CanopyOverhang = 0.14f;
+        public const float CanopyGap = 0.05f;
+
         /// <summary>The deepest a cornice ever projects (a masonry block's, For's 0.45 + 0.40): nothing on a wall stands further out.</summary>
         public const float MaxCorniceDepth = 0.85f;
 
         public FacadeOrnament(bool baseCourse, int courseEveryRows, float corniceHeight, float corniceDepth, bool corniceAboveRoof,
-            int pierEveryColumns, bool cornerPiers, bool lintels)
+            int pierEveryColumns, bool cornerPiers, bool lintels, float canopyDepth = 0.0f)
         {
             BaseCourse = baseCourse;
             CourseEveryRows = courseEveryRows;
@@ -70,7 +88,34 @@ namespace CityX.World
             CorniceAboveRoof = corniceAboveRoof;
             PierEveryColumns = pierEveryColumns;
             CornerPiers = cornerPiers;
-            Lintels = lintels;
+            Lintels = lintels && canopyDepth <= 0.0f;
+            CanopyDepth = canopyDepth;
+        }
+
+        public bool HasCanopies => CanopyDepth > 0.0f;
+
+        /// <summary>The window canopies a building rolls (<paramref name="die"/> against its district's share; <paramref name="size"/> sets the depth): 0 for none.</summary>
+        private static float Canopy(BuildingSite site, double die, double size)
+        {
+            if (site.OnRoof || die >= CanopyShare(site.Zone))
+            {
+                return 0.0f;
+            }
+            return MinCanopyDepth + (MaxCanopyDepth - MinCanopyDepth) * (float)size;
+        }
+
+        /// <summary>The share of buildings with a punched or scattered facade that have window canopies, by district: the homes zones most.</summary>
+        public static double CanopyShare(ZoneKind zone)
+        {
+            switch (zone)
+            {
+                case ZoneKind.Residential: return 0.45;
+                case ZoneKind.OldTown: return 0.50;
+                case ZoneKind.Outskirts: return 0.40;
+                case ZoneKind.Urban: return 0.22;
+                case ZoneKind.Core: return 0.08;
+                default: return 0.0;   // industrial: sheds
+            }
         }
 
         public bool HasCornice => CorniceHeight > 0.0f;
@@ -85,7 +130,7 @@ namespace CityX.World
         {
             FacadeOrnament o = ForStyle(site, style, wall);
             return RoofShape.For(site).Pitched
-                ? new FacadeOrnament(o.BaseCourse, o.CourseEveryRows, 0.0f, o.CorniceDepth, o.CorniceAboveRoof, o.PierEveryColumns, o.CornerPiers, o.Lintels)
+                ? new FacadeOrnament(o.BaseCourse, o.CourseEveryRows, 0.0f, o.CorniceDepth, o.CorniceAboveRoof, o.PierEveryColumns, o.CornerPiers, o.Lintels, o.CanopyDepth)
                 : o;
         }
 
@@ -108,7 +153,8 @@ namespace CityX.World
                         corniceAboveRoof: false,
                         pierEveryColumns: R(6) < (masonry ? 0.45 : 0.30) ? (R(7) < 0.5 ? 2 : 4) : 0,
                         cornerPiers: R(8) < (masonry ? 0.80 : 0.55),
-                        lintels: masonry ? R(9) < 0.75 : R(9) < 0.35);
+                        lintels: masonry ? R(9) < 0.75 : R(9) < 0.35,
+                        canopyDepth: Canopy(site, R(10), R(11)));
                 case FacadeStyle.Scattered:
                     return new FacadeOrnament(
                         baseCourse: street && R(0) < 0.60,
@@ -118,7 +164,8 @@ namespace CityX.World
                         corniceAboveRoof: false,
                         pierEveryColumns: 0,
                         cornerPiers: R(8) < 0.40,
-                        lintels: R(9) < 0.30);
+                        lintels: R(9) < 0.30,
+                        canopyDepth: Canopy(site, R(10), R(11)));
                 case FacadeStyle.Ribbon:
                     // The bands are the facade; a ledge under each and a crown.
                     return new FacadeOrnament(

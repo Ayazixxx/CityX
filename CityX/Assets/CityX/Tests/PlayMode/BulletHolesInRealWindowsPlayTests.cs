@@ -19,7 +19,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class BulletHolesInRealWindowsPlayTests
     {
-        private const int Seed = 52817364;
+        private const int Seed = 61537940;
 
         private readonly List<GameObject> _made = new List<GameObject>();
 
@@ -45,7 +45,9 @@ namespace CityX.Tests
         {
             foreach (BuildingSite site in TestSites.NearSpawn(world))
             {
-                if (site.Params.Width < 8.0f)
+                // A box building's street wall (the window is found from MinX and MaxZ): not a round tower, whose "north" is a side of its
+                // polygon (seed 61537940's first building near the spawn), nor a sealed block or one on a roof.
+                if (site.Params.Width < 8.0f || site.Sides >= 3 || site.Shell || site.OnRoof)
                 {
                     continue;
                 }

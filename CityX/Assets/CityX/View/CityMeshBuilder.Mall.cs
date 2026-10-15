@@ -47,7 +47,7 @@ namespace CityX.View
         private static readonly Color32 CounterLook = SurfaceLook.Pack(new Color(0.55f, 0.50f, 0.42f), (int)WallMaterial.Metal, 0.5f);
         private static readonly Color32 ShelfLook = SurfaceLook.Pack(new Color(0.75f, 0.74f, 0.70f), (int)WallMaterial.Metal, 0.55f);
 
-        /// <summary>Brand colours: a mall's signs shout where a street shop's (SignColours) murmur.</summary>
+        /// <summary>Brand colours: a mall's signs shout, louder still than a street shop's (ShopSignColours).</summary>
         private static readonly Color[] MallSignColours =
         {
             new Color(0.80f, 0.12f, 0.10f), new Color(0.10f, 0.25f, 0.70f), new Color(0.90f, 0.45f, 0.08f), new Color(0.08f, 0.45f, 0.42f),
