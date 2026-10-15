@@ -102,17 +102,23 @@ namespace CityX.View
             {
                 burst._free.Push(burst.Make());
             }
-            // And one break nobody sees, down where the pool waits: the first real one paid a couple of milliseconds compiling its code.
-            if (material != null && !_warmed)
+            // And breaks nobody sees, down where the pool waits, until every piece has been used once: a pool's first real break paid
+            // 14 ms (WindowSprayFramePlayTests) for its pieces' first meshes, bodies and renderers, and the first in a session for compiling.
+            // (Not cleared between them: a cleared piece goes back on top of the pool and the next break would take the same ones again.)
+            if (material != null && burst._warmedPieces < burst._free.Count + burst._live.Count)
             {
-                _warmed = true;
-                burst.Break(material, new PaneFrame(Parked, Vector3.right, Vector3.up, Vector3.back, 1.0f, 1.5f), Parked + new Vector3(0.5f, 0.7f, 0.0f),
-                    Vector3.forward, BlowStrength.Light, 1);
+                int pool = burst._free.Count + burst._live.Count;
+                for (int seed = 1; burst._warmedPieces < pool && seed < 16; seed++)
+                {
+                    burst._warmedPieces += burst.Break(material, new PaneFrame(Parked, Vector3.right, Vector3.up, Vector3.back, 1.5f, 2.0f),
+                        Parked + new Vector3(0.75f, 1.0f, 0.0f), Vector3.forward, BlowStrength.Light, seed);
+                }
                 Clear();
             }
         }
 
-        private static bool _warmed;
+        /// <summary>How many of this pool's pieces have been through a hidden break (Prewarm).</summary>
+        private int _warmedPieces;
 
         private static GlassFractureBurst Instance()
         {

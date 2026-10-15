@@ -63,6 +63,7 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator RenderTheRealWindowDive()
         {
+            CaptureGuard.NeedsGraphics();
 #if UNITY_EDITOR
             LogAssert.ignoreFailingMessages = true;
             Time.captureFramerate = 60;

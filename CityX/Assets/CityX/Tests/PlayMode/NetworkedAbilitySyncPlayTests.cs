@@ -155,6 +155,22 @@ namespace CityX.Tests
             _ownerBody = ownerCopy.gameObject;
             _remoteBody = remoteCopy.gameObject;
 
+            // EVERY MACHINE OF THIS TEST SHARES ONE SCENE, so the server's copy of each body and each client's copy of the other's stand inside
+            // the real bodies. A cast on one machine hit another machine's copy of its own caster (a fireball leaving A's chest met the server's
+            // copy of A), whose relay then hurt A for real, and A's next cast (the poison breath) was stunned out of happening: a flaky timeout.
+            // In a game each machine has its own scene; here the copies, which only have to show things, are made untouchable.
+            foreach (NetworkObject nob in Object.FindObjectsByType<NetworkObject>(FindObjectsSortMode.None))
+            {
+                if (nob == null || nob.GetComponent<NetworkedPlayerIdentity>() == null || nob.IsOwner)
+                {
+                    continue;
+                }
+                foreach (Collider c in nob.GetComponentsInChildren<Collider>(true))
+                {
+                    c.enabled = false;
+                }
+            }
+
             // A's own input reader would tick the abilities each frame; with no keyboard here the test ticks them itself.
             for (int i = 0; i < 20; i++)
             {

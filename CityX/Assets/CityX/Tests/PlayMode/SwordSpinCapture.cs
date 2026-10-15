@@ -81,6 +81,7 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator RenderTheSpin()
         {
+            CaptureGuard.NeedsGraphics();
 #if UNITY_EDITOR
             LogAssert.ignoreFailingMessages = true;
             _directory = Path.Combine(Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");

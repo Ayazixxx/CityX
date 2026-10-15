@@ -43,6 +43,7 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator RenderTheStepUp()
         {
+            CaptureGuard.NeedsGraphics();
 #if UNITY_EDITOR
             Time.captureFramerate = 60;
             string directory = Path.Combine(Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");

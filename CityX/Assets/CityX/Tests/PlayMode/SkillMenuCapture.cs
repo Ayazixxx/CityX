@@ -25,6 +25,7 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator RenderTheSkillMenuAndTheBar()
         {
+            CaptureGuard.NeedsGraphics();
 #if UNITY_EDITOR
             LogAssert.ignoreFailingMessages = true;
             Time.captureFramerate = 60;

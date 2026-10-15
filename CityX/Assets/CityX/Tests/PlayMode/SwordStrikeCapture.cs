@@ -30,6 +30,7 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator RenderTheSwordAttacks()
         {
+            CaptureGuard.NeedsGraphics();
 #if UNITY_EDITOR
             Time.captureFramerate = 60;
             string directory = Path.Combine(Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
@@ -221,6 +222,7 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator RenderTheGrips()
         {
+            CaptureGuard.NeedsGraphics();
 #if UNITY_EDITOR
             Time.captureFramerate = 60;
             string directory = Path.Combine(Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");

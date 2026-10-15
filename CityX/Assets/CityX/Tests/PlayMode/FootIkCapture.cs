@@ -24,6 +24,7 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator RenderStairsAndSlope()
         {
+            CaptureGuard.NeedsGraphics();
 #if UNITY_EDITOR
             string directory = Path.Combine(Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
             Directory.CreateDirectory(directory);

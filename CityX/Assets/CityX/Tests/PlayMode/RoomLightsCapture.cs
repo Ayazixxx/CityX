@@ -23,6 +23,7 @@ namespace CityX.Tests
         [Timeout(900000)]
         public IEnumerator RenderTheRoomLights()
         {
+            CaptureGuard.NeedsGraphics();
 #if UNITY_EDITOR
             LogAssert.ignoreFailingMessages = true;
             Time.captureFramerate = 60;

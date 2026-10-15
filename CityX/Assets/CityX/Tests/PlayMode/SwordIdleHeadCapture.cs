@@ -19,6 +19,7 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator RenderTheHeadWithAndWithoutTheGreatsword()
         {
+            CaptureGuard.NeedsGraphics();
 #if UNITY_EDITOR
             LogAssert.ignoreFailingMessages = true;
             Time.captureFramerate = 60;

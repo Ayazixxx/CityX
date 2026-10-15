@@ -24,6 +24,7 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator RenderTheUnitFrame()
         {
+            CaptureGuard.NeedsGraphics();
 #if UNITY_EDITOR
             LogAssert.ignoreFailingMessages = true;
             string directory = Path.Combine(Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");

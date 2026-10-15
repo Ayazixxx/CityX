@@ -24,6 +24,7 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator RenderTheCitysLife()
         {
+            CaptureGuard.NeedsGraphics();
 #if UNITY_EDITOR
             LogAssert.ignoreFailingMessages = true;
             Time.captureFramerate = 60;

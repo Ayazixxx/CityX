@@ -143,6 +143,22 @@ namespace CityX.Tests
             Assert.IsNotNull(_bOnB);
             Assert.AreEqual(_aOnA.ObjectId, _aOnB.ObjectId, "the two clients disagree about which body is player A's");
             Assert.AreEqual(_bOnA.ObjectId, _bOnB.ObjectId);
+
+            // EVERY MACHINE OF THIS TEST SHARES ONE SCENE: the server's copy of each body and the other client's copy stand inside the real one.
+            // A's real body walking into a ledge was shoved by its own copies' capsules -- now and then off its feet, which the copy then showed
+            // as a fall (AStepUpOnOnePlayersBodyShowsOnTheCopyAsAStrideNotAFall, flaky in full runs). In a game each machine has its own scene;
+            // here the copies, which only show and relay, are made untouchable (the hit tests strike them directly, not by colliders).
+            foreach (NetworkObject nob in Object.FindObjectsByType<NetworkObject>(FindObjectsSortMode.None))
+            {
+                if (nob == null || nob.GetComponent<NetworkedPlayerIdentity>() == null || nob == _aOnA || nob == _bOnB)
+                {
+                    continue;
+                }
+                foreach (Collider c in nob.GetComponentsInChildren<Collider>(true))
+                {
+                    c.enabled = false;
+                }
+            }
         }
 #endif
 

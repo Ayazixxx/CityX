@@ -17,6 +17,7 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator RenderTheBody()
         {
+            CaptureGuard.NeedsGraphics();
 #if UNITY_EDITOR
             LogAssert.ignoreFailingMessages = true;
             var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab");

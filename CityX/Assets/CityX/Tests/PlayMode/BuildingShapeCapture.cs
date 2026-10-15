@@ -23,6 +23,7 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator RenderTheShapes()
         {
+            CaptureGuard.NeedsGraphics();
 #if UNITY_EDITOR
             LogAssert.ignoreFailingMessages = true;
             Time.captureFramerate = 60;

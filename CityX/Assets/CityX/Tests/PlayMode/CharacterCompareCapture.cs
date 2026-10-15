@@ -89,6 +89,7 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator DumpJoints()
         {
+            CaptureGuard.NeedsGraphics();
 #if UNITY_EDITOR
             Stage(out GameObject player, out _);
             var locomotion = player.GetComponent<PlayerLocomotion>();
@@ -178,6 +179,7 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator RenderABakedClipStrip()
         {
+            CaptureGuard.NeedsGraphics();
 #if UNITY_EDITOR
             Stage(out GameObject player, out Camera camera);
             player.GetComponent<PlayerLocomotion>().enabled = false;
@@ -213,6 +215,7 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator RenderTheArmsCloseUp()
         {
+            CaptureGuard.NeedsGraphics();
 #if UNITY_EDITOR
             Stage(out GameObject player, out Camera camera);
             player.GetComponent<PlayerLocomotion>().enabled = false;
@@ -243,6 +246,7 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator RenderTheJabCloseUp()
         {
+            CaptureGuard.NeedsGraphics();
 #if UNITY_EDITOR
             Stage(out GameObject player, out Camera camera);
             var locomotion = player.GetComponent<PlayerLocomotion>();
@@ -325,6 +329,7 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator RenderTheClimbFromBehind()
         {
+            CaptureGuard.NeedsGraphics();
 #if UNITY_EDITOR
             Stage(out GameObject player, out Camera camera);
             var wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -364,6 +369,7 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator RenderTheIdleFromBehind()
         {
+            CaptureGuard.NeedsGraphics();
 #if UNITY_EDITOR
             Stage(out GameObject player, out Camera camera);
             player.GetComponent<PlayerLocomotion>().enabled = false;
@@ -393,6 +399,7 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator RenderAStrideStrip()
         {
+            CaptureGuard.NeedsGraphics();
 #if UNITY_EDITOR
             Stage(out GameObject player, out Camera camera);
             var locomotion = player.GetComponent<PlayerLocomotion>();
@@ -433,6 +440,7 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator RenderTheBodyLikeGodotDid()
         {
+            CaptureGuard.NeedsGraphics();
 #if UNITY_EDITOR
             Stage(out GameObject player, out Camera camera);
             var locomotion = player.GetComponent<PlayerLocomotion>();

@@ -35,6 +35,7 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator RenderTheGlock()
         {
+            CaptureGuard.NeedsGraphics();
 #if UNITY_EDITOR
             yield return Render("glock", "Assets/CityX/Weapons/Pistol.prefab");
 #else
@@ -45,6 +46,7 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator RenderTheAK47()
         {
+            CaptureGuard.NeedsGraphics();
 #if UNITY_EDITOR
             yield return Render("ak47", "Assets/CityX/Weapons/AK47.prefab");
 #else
