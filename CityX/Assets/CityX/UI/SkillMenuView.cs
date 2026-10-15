@@ -82,6 +82,7 @@ namespace CityX.UI
             public Image Rim;
             public Image Icon;
             public Image Selection;
+            public Image Glow;
             public Text Mark;
             public Text Label;
         }
@@ -135,6 +136,9 @@ namespace CityX.UI
         private Text _resetLabel;
         private float _resetArmedUntil = -1.0f;
         private HotbarView.SlotGraphics[] _barSlots;
+        private Text _barHint;
+        private StarGraphics _chosenStar;
+        private GameObject _eventSystemMade;
         private Image _carryGhost;
         private Text _carryLetter;
         private string _carrying;
@@ -172,6 +176,13 @@ namespace CityX.UI
             if (_instance == this)
             {
                 _instance = null;
+            }
+            if (_eventSystemMade != null)
+            {
+                // The event system this menu made for itself goes with it (one left behind, bound to devices since gone, hears no click: the
+                // real-input tests found that).
+                Destroy(_eventSystemMade);
+                _eventSystemMade = null;
             }
         }
 
@@ -265,6 +276,23 @@ namespace CityX.UI
 
         /// <summary>The chosen star can go on the bar: a learnt spell or technique.</summary>
         public bool SelectedGoesOnBar => CanCarry(Selected);
+
+        /// <summary>The star is drawn as the chosen one (its ring lit): a click on it did that, and the number keys then act on it.</summary>
+        public bool IsHighlighted(string id)
+        {
+            if (id == null || id != Selected)
+            {
+                return false;
+            }
+            foreach (StarGraphics star in _stars)
+            {
+                if (star.Node.Id == id)
+                {
+                    return star.Selection.enabled;
+                }
+            }
+            return false;
+        }
 
         private bool CanCarry(string id)
         {
@@ -620,9 +648,22 @@ namespace CityX.UI
             }
             _dirty = false;
 
+            _chosenStar = null;
             foreach (StarGraphics star in _stars)
             {
                 PaintStar(star, StateOf(star.Node), star.Node.Id == Selected);
+            }
+            // The line over the bar: with a learnt spell chosen, the number keys put it there.
+            if (_barHint != null)
+            {
+                bool goes = SelectedGoesOnBar;
+                _barHint.gameObject.SetActive(goes);
+                if (goes)
+                {
+                    int on = Skills.Bar.SlotOf(Selected);
+                    _barHint.text = (on >= 0 ? $"{SkillCatalog.Find(Selected).Name} is on key {Hotbar.KeyLabel(on)}.  " : $"{SkillCatalog.Find(Selected).Name}:  ")
+                        + "press a number key, 1 to 0, to put it on that key  (or click a slot)";
+                }
             }
             foreach (LineGraphics line in _lines)
             {
@@ -643,16 +684,40 @@ namespace CityX.UI
             {
                 return;
             }
+            bool keysLit = SelectedGoesOnBar;
             for (int i = 0; i < Hotbar.SlotCount; i++)
             {
                 string id = Skills != null ? Skills.Bar[i] : null;
                 HotbarView.Show(_barSlots[i], id, id != null && Skills.CanUseNow(id));
+                // The key numbers light up gold while a spell waits to be put on one.
+                _barSlots[i].Key.color = keysLit ? Gold : Color.white;
+            }
+            // The chosen star's glow breathes, so the eye finds it.
+            if (_chosenStar != null && _chosenStar.Glow.enabled)
+            {
+                float pulse = 1.0f + 0.08f * Mathf.Sin(Time.unscaledTime * 5.0f);
+                _chosenStar.Glow.rectTransform.localScale = Vector3.one * pulse;
+                _chosenStar.Selection.rectTransform.localScale = Vector3.one * (1.0f + 0.03f * Mathf.Sin(Time.unscaledTime * 5.0f));
             }
         }
 
         private void PaintStar(StarGraphics star, StarState state, bool selected)
         {
             star.Selection.enabled = selected;
+            star.Glow.enabled = selected;
+            if (selected)
+            {
+                _chosenStar = star;
+            }
+            else
+            {
+                star.Selection.rectTransform.localScale = Vector3.one;
+                star.Glow.rectTransform.localScale = Vector3.one;
+            }
+            if (star.Label != null)
+            {
+                star.Label.color = selected ? Gold : LabelInk;
+            }
             switch (state)
             {
                 case StarState.Learnt:
@@ -893,7 +958,10 @@ namespace CityX.UI
             var star = new StarGraphics { Node = node };
             star.Root = Place(NewChild(node.Id, parent), at, new Vector2(size, size));
 
-            star.Selection = Centred(star.Root, "Chosen", HudArt.ThinRing, Color.white, size * 1.38f);
+            // The chosen star wears a soft gold glow and a bright gold ring (owner, 2026-10-15: click a skill, it gets highlighted, then press the
+            // number key); a thin white ring was easy to miss.
+            star.Glow = Centred(star.Root, "Glow", HudArt.Disc, new Color(Gold.r, Gold.g, Gold.b, 0.30f), size * 2.3f);
+            star.Selection = Centred(star.Root, "Chosen", HudArt.Ring, Gold, size * 1.55f);
             star.Face = Centred(star.Root, "Face", HudArt.Disc, DarkFace, size);
             star.Face.raycastTarget = true;
             star.Rim = Centred(star.Root, "Rim", HudArt.ThinRing, LockedRim, size);
@@ -928,6 +996,7 @@ namespace CityX.UI
                 shadow.effectColor = new Color(0.0f, 0.0f, 0.0f, 0.75f);
             }
             star.Selection.enabled = false;
+            star.Glow.enabled = false;
 
             var handle = star.Face.gameObject.AddComponent<SkillStarHandle>();
             handle.Menu = this;
@@ -972,7 +1041,7 @@ namespace CityX.UI
             _points = MakeText(root, string.Empty, 15, LabelInk, TextAnchor.UpperLeft);
             TopLeft(_points.rectTransform, new Vector2(136.0f, -22.0f), new Vector2(200.0f, 22.0f));
 
-            Text hint = MakeText(root, "Drag or scroll to move  ·  Ctrl + scroll to zoom  ·  Click a star  ·  Drag a learnt spell onto the bar  ·  " +
+            Text hint = MakeText(root, "Drag or scroll to move  ·  Ctrl + scroll to zoom  ·  Click a star  ·  Click a learnt spell, then press 1 to 0 to put it on that key  ·  " +
                 "Right-click a slot to empty it", 12, HintInk, TextAnchor.UpperLeft);
             TopLeft(hint.rectTransform, new Vector2(24.0f, -50.0f), new Vector2(820.0f, 18.0f));
 
@@ -1085,6 +1154,16 @@ namespace CityX.UI
                 handle.Menu = this;
                 handle.Slot = i;
             }
+            // The hint over the bar, shown while a learnt spell is chosen.
+            _barHint = MakeText(root, string.Empty, 15, Gold, TextAnchor.LowerLeft);
+            RectTransform hint = _barHint.rectTransform;
+            hint.anchorMin = hint.anchorMax = Vector2.zero;
+            hint.pivot = Vector2.zero;
+            hint.anchoredPosition = HotbarView.Corner + new Vector2(0.0f, size + 8.0f);
+            hint.sizeDelta = new Vector2(700.0f, 22.0f);
+            var shadow = _barHint.gameObject.AddComponent<Outline>();
+            shadow.effectColor = new Color(0.0f, 0.0f, 0.0f, 0.85f);
+            _barHint.gameObject.SetActive(false);
         }
 
         // --- small helpers ---
@@ -1163,7 +1242,7 @@ namespace CityX.UI
         }
 
         /// <summary>Without one, nothing on the menu hears a click (the city scene has one; a bare test scene may not).</summary>
-        private static void EnsureEventSystem()
+        private void EnsureEventSystem()
         {
             if (EventSystem.current != null || Object.FindFirstObjectByType<EventSystem>() != null)
             {
@@ -1172,7 +1251,11 @@ namespace CityX.UI
             var events = new GameObject("EventSystem");
             events.AddComponent<EventSystem>();
             events.AddComponent<InputSystemUIInputModule>();
+            _eventSystemMade = events;
         }
+
+        /// <summary>The line over the bar telling the player the number keys put the chosen spell on it is showing (a learnt spell is chosen).</summary>
+        public bool BarHintShown => _barHint != null && _barHint.gameObject.activeSelf;
     }
 
     /// <summary>The sky behind the stars: dragging it moves the map; a click on empty sky lets go of the chosen star.</summary>
