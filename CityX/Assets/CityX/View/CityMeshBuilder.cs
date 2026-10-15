@@ -135,6 +135,8 @@ namespace CityX.View
             {
                 BuildBuildingShell(world, site, builderOrigin, structures, concrete,
                     new Glazing(litGlass, darkGlass, null, damage, null, null, litShare), looks);
+                // An apartment block's balconies and walkway, the distant version (CityMeshBuilder.Apartment.cs; never on a sealed block).
+                AddApartmentFronts(world, site, builderOrigin, structures, looks, true);
             }
             else
             {
@@ -144,6 +146,8 @@ namespace CityX.View
                     new Glazing(litGlass, darkGlass, crackedGlass, damage, crackedOpenings, crackDecals, litShare, windowGlow), looks);
                 AddBalconies(world, site, builderOrigin, structures, looks);
                 AddRibs(world, site, builderOrigin, structures, looks);
+                // An apartment block's balconies on every floor and its walkway (CityMeshBuilder.Apartment.cs).
+                AddApartmentFronts(world, site, builderOrigin, structures, looks, false);
                 // Every room's ceiling lights and the switch by its door; a powered building's glow (CityMeshBuilder.RoomLights.cs).
                 AddRoomLighting(site, concrete, structures, offset, roomGlows, windowGlow);
             }
@@ -888,12 +892,13 @@ namespace CityX.View
             float centreZ = (float)(site.CentreZ - origin.z);
             float baseY = site.BaseHeight - origin.y;
             concrete.Look = looks.Trim;
+            ApartmentFront front = FrontFor(site, WindowPlan.For(world, site));
 
             foreach (BuildingDecor.Balcony balcony in balconies)
             {
-                // Not on a stretch of wall another block of the building stands against.
+                // Not on a stretch of wall another block of the building stands against, nor on a wall with a balcony on every floor already.
                 if (TouchesAnotherBlock(site, balcony.Normal, balcony.WidthAlongX ? balcony.Centre.x : balcony.Centre.z,
-                    BuildingDecor.BalconyWidth * 0.5f, balcony.Centre.y))
+                    BuildingDecor.BalconyWidth * 0.5f, balcony.Centre.y) || front.Covers(balcony.Normal))
                 {
                     continue;
                 }
@@ -998,10 +1003,13 @@ namespace CityX.View
             float y1 = site.BaseHeight - origin.y + site.Params.Height;
 
             facade.Look = looks.Wall;
+            ApartmentFront front = FrontFor(site, WindowPlan.For(world, site));
             foreach (BuildingDecor.Rib rib in ribbed.Fins)
             {
                 bool runsInZ = Mathf.Abs(rib.Normal.x) > 0.5f;
-                if (TouchesAnotherBlock(site, rib.Normal, (rib.U0 + rib.U1) * 0.5f, (rib.U1 - rib.U0) * 0.5f + 0.5f, ribbed.BaseY))
+                // (Not through the slabs of a balcony on every floor either.)
+                if (TouchesAnotherBlock(site, rib.Normal, (rib.U0 + rib.U1) * 0.5f, (rib.U1 - rib.U0) * 0.5f + 0.5f, ribbed.BaseY)
+                    || front.Covers(rib.Normal))
                 {
                     continue;
                 }
@@ -1465,6 +1473,8 @@ namespace CityX.View
         {
             CellLayout columns = plan.ColumnsFor(u1 - u0);
             float inset = WindowGrid.PaneInset;
+            // A wall with a balcony on every floor (ApartmentFront): what hangs under a window stands on the balcony floor instead.
+            bool banded = looks.HasValue && glazing.HangsGlass && FrontFor(site, plan).Covers(which);
 
             for (int row = 0; row < rows.Count; row++)
             {
@@ -1535,7 +1545,7 @@ namespace CityX.View
                     runStart = paneU1;
 
                     AddOpening(wallBuffer, glazing, site, wall, paneU0, paneU1, paneY0, paneY1, normal,
-                        plan, which, column, row, looks);
+                        plan, which, column, row, looks, banded ? y0 + 0.02f : float.NegativeInfinity);
                 }
                 AddWallPanel(wallBuffer, wall, runStart, u1, paneY0, paneY1, normal);
             }
@@ -1618,8 +1628,9 @@ namespace CityX.View
             if (glazing.HangsGlass && looks.HasValue)
             {
                 // A volume standing on a roof (a tower on a podium) is an attachment to the building, not a building of its own: its door is a plain
-                // door in the wall, with no shopfront, awning, canopy or sign.
-                if (!site.OnRoof)
+                // door in the wall, with no shopfront, awning, canopy or sign. Under an apartment block's walkway (ApartmentFront) the walkway is
+                // the shelter, and a sign would stand out through it.
+                if (!site.OnRoof && !(which == ApartmentFront.WalkwayWall && FrontFor(site, plan).Walkway))
                 {
                     if (storefront)
                     {
@@ -1907,7 +1918,7 @@ namespace CityX.View
         /// </summary>
         private static void AddOpening(MeshBuffer wallBuffer, in Glazing glazing, BuildingSite site, in Wall wall,
             float u0, float u1, float y0, float y1, Vector3 normal,
-            in WindowPlan plan, WindowGrid.Wall which, int column, int row, SiteLooks? looks)
+            in WindowPlan plan, WindowGrid.Wall which, int column, int row, SiteLooks? looks, float standOn = float.NegativeInfinity)
         {
             if (glazing.HangsGlass)
             {
@@ -1921,7 +1932,7 @@ namespace CityX.View
                     if (looks.Value.AcDensity > 0.0f && row > 1
                         && AirConditionerAt(site, which, column, row) < looks.Value.AcDensity)
                     {
-                        AddAirConditioner(wallBuffer, wall, u0, u1, y0, normal, looks.Value);
+                        AddAirConditioner(wallBuffer, wall, u0, u1, y0, normal, looks.Value, standOn);
                     }
                     if (looks.Value.Ornament.Lintels)
                     {
@@ -2052,13 +2063,15 @@ namespace CityX.View
         }
 
         /// <summary>A split-system condenser on a bracket under a window: the thing that hangs on every flat in a dense city.</summary>
-        private static void AddAirConditioner(MeshBuffer buffer, in Wall wall, float u0, float u1, float y0, Vector3 outward, SiteLooks looks)
+        private static void AddAirConditioner(MeshBuffer buffer, in Wall wall, float u0, float u1, float y0, Vector3 outward, SiteLooks looks,
+            float standOn = float.NegativeInfinity)
         {
             const float width = 1.05f;
             const float height = 0.46f;
             const float depth = 0.38f;
             float centre = (u0 + u1) * 0.5f;
-            float bottom = y0 - 0.78f;
+            // Hung a metre under its window; on a balcony (ApartmentFront) it stands on the floor instead of hanging through the slab.
+            float bottom = Mathf.Max(y0 - 0.78f, standOn);
             Color32 saved = buffer.Look;
             buffer.Look = looks.Appliance;
             Vector3 a = wall.At(centre - width * 0.5f, bottom);

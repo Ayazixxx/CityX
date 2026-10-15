@@ -133,31 +133,59 @@ namespace CityX.Tests
             // deck. Stand along the trench, clear of the deck's width but close enough that the deck is inside the 40 m rain box.
             CityWorld cityWorld = CurrentWorld.Instance;
             cityWorld.Plan.TryFindSpawn(out double spawnX, out double spawnZ);
-            CityX.World.Plan.EdgeGeometry bridge = null;
-            double bestDistance = double.MaxValue;
+            // The bridges, nearest first. An ordinary bridge: an expressway's bridge has its elevated deck over it too (2026-10-12), sheltering
+            // the land round it.
+            var bridges = new System.Collections.Generic.List<CityX.World.Plan.EdgeGeometry>();
             foreach (CityX.World.Plan.EdgeGeometry g in cityWorld.Plan.Geometry.Edges)
             {
-                // An ordinary bridge: an expressway's bridge has its elevated deck over it too (2026-10-12), sheltering the land round it.
-                if (g == null || !g.Edge.Bridge) continue;
+                if (g != null && g.Edge.Bridge) bridges.Add(g);
+            }
+            double DistanceSquared(CityX.World.Plan.EdgeGeometry g)
+            {
                 double dx = (g.A.X + g.B.X) * 0.5 - spawnX, dz = (g.A.Y + g.B.Y) * 0.5 - spawnZ;
-                if (dx * dx + dz * dz < bestDistance)
+                return dx * dx + dz * dz;
+            }
+            bridges.Sort((p, q) => DistanceSquared(p).CompareTo(DistanceSquared(q)));
+            Assert.Greater(bridges.Count, 0, "no bridge in the real city to stand under");
+
+            // On each, nearest first, the point of the deck with the most room under it, over the channel where there is one; the first bridge
+            // with room for somebody to stand under it is the one. The middle is not always the point: a long bridge's middle can be over the
+            // bank or a building beside it (seed 38461927's was a 204 m arterial). Nor is the nearest bridge always the one: a channel can be
+            // shallow, and on seed 39271846 the nearest bridge's deck stood at most 1.8 m over the bed, no room for anybody under it.
+            CityX.World.Plan.EdgeGeometry bridge = null;
+            float deckX = 0.0f, deckZ = 0.0f;
+            float needed = 1.0f + RainCover.HeadClearance + 0.3f;
+            for (int i = 0; i < bridges.Count && i < 6 && bridge == null; i++)
+            {
+                CityX.World.Plan.EdgeGeometry candidate = bridges[i];
+                // Stand by its middle first, so the whole deck streams in and can be measured.
+                float midX = (float)((candidate.A.X + candidate.B.X) * 0.5), midZ = (float)((candidate.A.Y + candidate.B.Y) * 0.5);
+                Teleport(player, console, new Vector3(midX, GroundAt(midX, midZ) + 0.1f, midZ));
+                yield return new WaitForSeconds(1.0f);
+                Physics.SyncTransforms();
+                double best = 0.5;
+                float bestRoom = float.NegativeInfinity;
+                for (double t = 0.05; t <= 0.95; t += 0.01)
                 {
-                    bestDistance = dx * dx + dz * dz;
-                    bridge = g;
+                    double px = candidate.A.X + (candidate.B.X - candidate.A.X) * t, pz = candidate.A.Y + (candidate.B.Y - candidate.A.Y) * t;
+                    float room = RainCover.CastFromSky((float)px, (float)pz, 450.0f) - GroundAt((float)px, (float)pz)
+                        + (cityWorld.Plan.Fields.IsWater(px, pz) ? 0.5f : 0.0f);
+                    if (room > bestRoom)
+                    {
+                        bestRoom = room;
+                        best = t;
+                    }
+                }
+                TestContext.WriteLine($"bridge {i} ({System.Math.Sqrt(DistanceSquared(candidate)):F0} m from the spawn): the most room under its deck " +
+                    $"{bestRoom:F2} m at t={best:F2}");
+                if (bestRoom > needed)
+                {
+                    bridge = candidate;
+                    deckX = (float)(candidate.A.X + (candidate.B.X - candidate.A.X) * best);
+                    deckZ = (float)(candidate.A.Y + (candidate.B.Y - candidate.A.Y) * best);
                 }
             }
-            Assert.IsNotNull(bridge, "no bridge in the real city to stand under");
-            // The point of the deck over the river channel, the nearest to its middle (a long bridge's middle can be over the bank, or a building
-            // beside it: seed 38461927's was a 204 m arterial).
-            double overWater = 0.5;
-            for (double step = 0.0; step <= 0.5; step += 0.01)
-            {
-                double ta = 0.5 + step, tb = 0.5 - step;
-                if (cityWorld.Plan.Fields.IsWater(bridge.A.X + (bridge.B.X - bridge.A.X) * ta, bridge.A.Y + (bridge.B.Y - bridge.A.Y) * ta)) { overWater = ta; break; }
-                if (cityWorld.Plan.Fields.IsWater(bridge.A.X + (bridge.B.X - bridge.A.X) * tb, bridge.A.Y + (bridge.B.Y - bridge.A.Y) * tb)) { overWater = tb; break; }
-            }
-            float deckX = (float)(bridge.A.X + (bridge.B.X - bridge.A.X) * overWater);
-            float deckZ = (float)(bridge.A.Y + (bridge.B.Y - bridge.A.Y) * overWater);
+            Assert.IsNotNull(bridge, "none of the nearest bridges has room to stand under its deck");
             var along = new Vector3((float)bridge.Dir.Perp.X, 0.0f, (float)bridge.Dir.Perp.Y);   // along the trench, across the deck's width
 
             float x = deckX + along.x * 22.0f, z = deckZ + along.z * 22.0f;

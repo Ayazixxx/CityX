@@ -13,7 +13,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class StreetWallTests
     {
-        private const int Seed = 74102958;
+        private const int Seed = 39271846;
 
         private static CityWorld _world;
         private static CityWorld World => _world ?? (_world = new CityWorld(Seed));
@@ -171,6 +171,7 @@ namespace CityX.Tests
                 CityMeshBuilder.BuildSite(World, site, origin, structures, new MeshBuffer(), new MeshBuffer(), new MeshBuffer(), new MeshBuffer(),
                     null, null, new MeshBuffer(), false);
                 float hw = site.Params.Width * 0.5f, hd = site.Params.Depth * 0.5f;
+                ApartmentFront front = ApartmentFront.For(site, WindowPlan.For(World, site));
                 foreach (Vector3 v in structures.Vertices)
                 {
                     if (v.y < site.BaseHeight + 3.0f || v.y > site.Top + 2.5f)
@@ -180,7 +181,8 @@ namespace CityX.Tests
                     site.WorldToLocal(origin.x + v.x, origin.z + v.z, out double lx, out double lz);
                     double outX = System.Math.Abs(lx) - hw, outZ = System.Math.Abs(lz) - hd;
                     double out_ = System.Math.Max(outX, outZ);
-                    if (v.y > site.Top - 1.0f)
+                    // (An apartment block's balcony band (ApartmentFront) ends in an eave over its top floor, as far out as the balconies below.)
+                    if (v.y > site.Top - 1.0f && !(outZ > outX && front.Covers(lz > 0 ? WindowGrid.Wall.North : WindowGrid.Wall.South)))
                     {
                         Assert.Less(out_, FacadeOrnament.MaxCorniceDepth + 0.05f,
                             $"building {site.Id}: something projects {out_:0.00} m from its wall at the roof line ({v.y - site.Top:0.0} m from the top)");

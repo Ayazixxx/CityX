@@ -12,7 +12,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class ExteriorDetailTests
     {
-        private const int Seed = 74102958;
+        private const int Seed = 39271846;
 
         private static CityWorld _world;
         private static CityWorld World => _world ?? (_world = new CityWorld(Seed));
@@ -44,7 +44,9 @@ namespace CityX.Tests
         {
             // It is walked under and looked up at: built without its bottom face it was see-through from below (owner, 2026-10-09).
             int canopies = 0;
-            foreach (BuildingSite site in Sample(40, s => !s.Shell && !s.OnRoof && s.Sides < 3 && !WindowPlan.For(World, s).Storefront))
+            // (Not under an apartment block's walkway: the walkway is its shelter, ApartmentFrontTests.)
+            foreach (BuildingSite site in Sample(40, s => !s.Shell && !s.OnRoof && s.Sides < 3 && !WindowPlan.For(World, s).Storefront
+                && !ApartmentFront.For(s, WindowPlan.For(World, s)).Walkway))
             {
                 var structures = new MeshBuffer();
                 Build(site, false, structures, new MeshBuffer(), new MeshBuffer(), new MeshBuffer(), out Vector3 origin);

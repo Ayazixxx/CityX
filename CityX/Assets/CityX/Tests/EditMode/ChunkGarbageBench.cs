@@ -17,7 +17,7 @@ namespace CityX.Tests
     [Explicit("a measurement, not a test")]
     public sealed class ChunkGarbageBench
     {
-        private const int Seed = 74102958;
+        private const int Seed = 39271846;
 
         [Test]
         public void MeasureChunkGarbage()

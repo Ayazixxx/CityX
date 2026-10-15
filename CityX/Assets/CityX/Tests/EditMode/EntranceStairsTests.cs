@@ -12,7 +12,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class EntranceStairsTests
     {
-        private const int Seed = 74102958;
+        private const int Seed = 39271846;
 
         [Test]
         public void OnFlatGroundTheFlightIsJustLongEnough()

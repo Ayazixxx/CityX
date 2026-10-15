@@ -19,7 +19,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class RealCityClimbTopOutPlayTests
     {
-        private const int Seed = 74102958;
+        private const int Seed = 39271846;
         private readonly List<GameObject> _made = new List<GameObject>();
 
         [TearDown]
@@ -38,10 +38,11 @@ namespace CityX.Tests
             bool found = false;
             foreach (BuildingSite candidate in TestSites.NearSpawn(world))
             {
-                // A plain box with a roof to reach: not round, not sculpture, not under a sealed block, and no shop awning across the bottom
-                // (a climber cannot get past an overhang, which would make this a test of awnings).
+                // A plain box with a roof to reach: not round, not sculpture, not under a sealed block, and no shop awning or apartment walkway
+                // across the front (a climber cannot get past an overhang, which would make this a test of awnings).
                 bool plain = !candidate.Shell && !candidate.OnRoof && candidate.Sides < 3 && !candidate.RoofSealed
-                    && !WindowPlan.For(world, candidate).Storefront;
+                    && !WindowPlan.For(world, candidate).Storefront
+                    && !ApartmentFront.For(candidate, WindowPlan.For(world, candidate)).Walkway;
                 if (plain && candidate.Params.Width > 10.0f && candidate.Params.Height > 12.0f)
                 {
                     site = candidate;

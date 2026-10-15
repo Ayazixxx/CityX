@@ -155,7 +155,7 @@ namespace CityX.Tests
         /// One whole building (its first volume and every wing and volume that follows it) built with the city's own builder and materials, its floor
         /// at <paramref name="at"/>, on a plain square of pavement. Returns the root to destroy, its height and its size across.
         /// </summary>
-        private static GameObject BuildAlone(CityWorld world, CityStreamer streamer, int firstId, Vector3 at, out float height, out float size)
+        internal static GameObject BuildAlone(CityWorld world, CityStreamer streamer, int firstId, Vector3 at, out float height, out float size)
         {
             BuildingSite first = world.Building(firstId);
             var origin = new Vector3((float)first.CentreX - at.x, first.BaseHeight - at.y, (float)first.CentreZ - at.z);

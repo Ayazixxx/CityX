@@ -78,3 +78,9 @@ longer exists; build a `WindowPlan` with `WindowPlan.For(world, site)` and ask i
 drops the storefront), no awning/canopy/sign board/blade signs, and its ground row uses the ordinary wall look instead of the heavier street-level base, so it reads as the
 building continuing upward. Its door is a plain door in the wall and is dark grey (`CityStreamer.UpperDoorMaterial`) so it differs from the brown street entrances.
 Tests: `StackedVolumeTests`; guard: `BuildingOverlapTests` (no two buildings share space).
+
+## Update: apartment blocks (2026-10-15)
+
+A share of the ordinary buildings in every zone but the industrial one is an apartment block (`World/ApartmentFront.cs`): a balcony on every floor across the
+back wall (slab, parapet or railing, partitions between flats on the column lines, side walls, an eave over the top floor) and, on blocks without a
+shopfront, an open walkway across the street wall. Built by `View/CityMeshBuilder.Apartment.cs`, near and far. The idea and its numbers: `docs/WORLD_GACHA.md`.
