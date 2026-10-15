@@ -414,8 +414,8 @@ MonoBehaviour:
   - {fileID: 7400000, guid: 8b4be7368b5d89c44b8d5711f8015ed2, type: 2}
   - {fileID: -203655887218126122, guid: a02750c3113c3c147a77e9b0eeb33fdb, type: 3}
   BloodrageClips:
-  - {fileID: 7400000, guid: aa3d20c40a411da4c81b724ef70bb6b5, type: 2}
-  - {fileID: 7400000, guid: 7aa079e69f6a3544c87b14c7f9d51881, type: 2}
+  - {fileID: 0}
+  - {fileID: 0}
   - {fileID: -203655887218126122, guid: 4deacc3eb49294243b9e24eddbc0bc17, type: 3}
   AuraPrefab: {fileID: 2292405495710506435, guid: a282b28c718938640ac3de9ed8fe2d6c, type: 3}
 --- !u!114 &2726555814569877422
@@ -1602,7 +1602,7 @@ Animator:
   m_GameObject: {fileID: 3237224974033903402}
   m_Enabled: 1
   m_Avatar: {fileID: 9000000, guid: 25740bae2b2fc0b458a26b11560d249b, type: 2}
-  m_Controller: {fileID: 9100000, guid: c0808131d916ea540becd941709dc711, type: 2}
+  m_Controller: {fileID: 0}
   m_CullingMode: 0
   m_UpdateMode: 0
   m_ApplyRootMotion: 0

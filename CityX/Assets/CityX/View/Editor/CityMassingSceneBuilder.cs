@@ -250,6 +250,7 @@ namespace CityX.ViewEditor
             GameObject baseballBatPrefab = CityX.WeaponsEditor.BaseballBatBuilder.Build();
             GameObject flamethrowerPrefab = CityX.WeaponsEditor.FlamethrowerBuilder.Build();
             GameObject ak47Prefab = CityX.WeaponsEditor.AK47Builder.Build();
+            GameObject sprayCanPrefab = CityX.WeaponsEditor.SprayCanBuilder.Build();
             GameObject topHatPrefab = CityX.WearablesEditor.TopHatBuilder.Build();
             GameObject mustangPrefab = CityX.VehiclesEditor.CarBuilder.Build();
 
@@ -455,6 +456,8 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.Flamethrower, Prefab = flamethrowerPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.AK47, Prefab = ak47Prefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.SprayCan, Prefab = sprayCanPrefab },
                 };
 
                 // --- the grapple swing. Aim (left-click while a grappling
@@ -750,6 +753,8 @@ namespace CityX.ViewEditor
             // Every room's light switch (E at the switch), and keeping everyone's switches the same in a session.
             streamerObject.AddComponent<LightSwitchInteractor>();
             streamerObject.AddComponent<CityX.Character.RoomLightsNetwork>();
+            // Graffiti (2026-10-15): pieces painted with a spray can, kept the same on every machine, drawn lit (GraffitiPaint.mat).
+            streamerObject.AddComponent<CityX.Character.GraffitiNetwork>().PaintMaterial = CityX.WeaponsEditor.SprayCanBuilder.EnsureGraffitiMaterial();
             streamer.RoadLineMaterial = roadLine;
             streamer.CrosswalkMaterial = crosswalk;
             streamer.DoorMaterial = door;

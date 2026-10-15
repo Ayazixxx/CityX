@@ -142,6 +142,12 @@ namespace CityX.UI
             {
                 gameObject.AddComponent<MenuHudFade>();
             }
+
+            // The graffiti canvas, opened by a right-click at a wall with a spray can in hand (2026-10-15).
+            if (GetComponent<GraffitiMenuView>() == null)
+            {
+                gameObject.AddComponent<GraffitiMenuView>();
+            }
         }
 
         private void OnEnable()

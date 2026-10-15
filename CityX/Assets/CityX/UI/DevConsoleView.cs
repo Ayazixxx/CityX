@@ -1612,6 +1612,10 @@ namespace CityX.UI
                 case "baseballbat":
                 case "baseball_bat": return ItemRegistry.BaseballBat;
                 case "flamethrower": return ItemRegistry.Flamethrower;
+                case "spray":
+                case "spraycan":
+                case "spray_can":
+                case "graffiti": return ItemRegistry.SprayCan;
                 case "ak":
                 case "ak47":
                 case "ak-47":

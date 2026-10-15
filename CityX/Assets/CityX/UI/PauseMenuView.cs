@@ -156,7 +156,7 @@ namespace CityX.UI
 
             // The skill menu closes on Escape the same way, so the press
             // that closed it (whichever ran first this frame) is not a pause.
-            if (SkillMenuView.IsAnyOpen || SkillMenuView.ClosedOnFrame == Time.frameCount)
+            if (SkillMenuView.IsAnyOpen || SkillMenuView.ClosedOnFrame == Time.frameCount || GraffitiMenuView.IsAnyOpen || GraffitiMenuView.ClosedOnFrame == Time.frameCount)
             {
                 return;
             }

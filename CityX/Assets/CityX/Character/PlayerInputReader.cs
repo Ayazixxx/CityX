@@ -43,6 +43,15 @@ namespace CityX.Character
         public IEquippableFlamethrower EquippedFlamethrower;
 
         /// <summary>
+        /// Set by the spray can's own OnEquip/OnUnequip (2026-10-15), same pattern as EquippedGun. While non-null, a right-click asks for the
+        /// graffiti canvas (<see cref="SprayRequested"/>) and the fists stand down.
+        /// </summary>
+        public ISprayCan EquippedSprayCan;
+
+        /// <summary>Right-click with a spray can in hand: the UI (GraffitiMenuView) finds the wall in front and opens the canvas on it.</summary>
+        public static event System.Action<PlayerInputReader> SprayRequested;
+
+        /// <summary>
         /// Set by Jetpack's own OnEquip/OnUnequip, same pattern as
         /// EquippedGun. While non-null, Space thrusts instead of charging a
         /// jump -- see the Update() dispatch and IJetpack's own doc comment.
@@ -1610,6 +1619,16 @@ namespace CityX.Character
                         _nextWeaponSwitch = Time.unscaledTime + 0.25f;
                     }
                 }
+            }
+
+            // A SPRAY CAN (2026-10-15): right-click at a wall opens the graffiti canvas; nothing is punched or blocked with a can in hand.
+            if (EquippedSprayCan != null)
+            {
+                if (Mouse.current.rightButton.wasPressedThisFrame)
+                {
+                    SprayRequested?.Invoke(this);
+                }
+                return;
             }
 
             // A GUN TAKES OVER LEFT/RIGHT-CLICK AND RELOAD ENTIRELY WHILE
