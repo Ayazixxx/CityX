@@ -1,0 +1,284 @@
+using System.Collections.Generic;
+using UnityEngine;
+
+namespace CityX.Character
+{
+    /// <summary>What a skill is, which decides whether it can go on the bar.</summary>
+    public enum SkillKind
+    {
+        /// <summary>Its own controls (Shift, Space), never on the bar (owner, 2026-10-14).</summary>
+        Movement,
+        /// <summary>A spell, cast from a slot on the bar.</summary>
+        Spell,
+        /// <summary>A weapon technique, from a slot on the bar, with that weapon in hand.</summary>
+        Ability,
+        /// <summary>A star nobody has designed yet: shown, never learnt.</summary>
+        Placeholder,
+    }
+
+    /// <summary>One constellation on the skill map.</summary>
+    public sealed class SkillTree
+    {
+        public readonly string Id;
+        public readonly string Name;
+
+        /// <summary>False for a tree that is not in the game yet: drawn faded, nothing in it can be learnt.</summary>
+        public readonly bool InGame;
+
+        /// <summary>A hybrid tree (Steam) sits in the gap between its two parents and joins their tops.</summary>
+        public readonly string[] Parents;
+
+        /// <summary>How much of the row the tree takes, in map units (design pixels at zoom 1). A hybrid takes less: it sits in a gap.</summary>
+        public readonly float Width;
+
+        public SkillTree(string id, string name, bool inGame, float width, params string[] parents)
+        {
+            Id = id;
+            Name = name;
+            InGame = inGame;
+            Width = width;
+            Parents = parents ?? new string[0];
+        }
+
+        public bool IsHybrid => Parents.Length > 0;
+    }
+
+    /// <summary>One star: a skill, where it sits in its tree, and what has to be learnt first.</summary>
+    public sealed class SkillNode
+    {
+        public readonly string Id;
+        public readonly string Name;
+        public readonly string TreeId;
+        public readonly SkillKind Kind;
+
+        /// <summary>Learnt before this one can be. Same tree, except a hybrid's first star, which needs the tops of both parents.</summary>
+        public readonly string[] Requires;
+
+        /// <summary>Map units from the bottom of the tree's column: x across from its middle, y up from its base.</summary>
+        public readonly Vector2 Position;
+
+        public readonly string Description;
+
+        /// <summary>Everyone has it from the start (vaulting: the tutorial teaches it, owner 2026-10-14).</summary>
+        public readonly bool KnownFromStart;
+
+        /// <summary>Only with a sword in hand (the sword's spin, wave and Octaslash).</summary>
+        public readonly bool NeedsSword;
+
+        public SkillNode(string id, string name, string treeId, SkillKind kind, Vector2 position, string description,
+            string[] requires = null, bool knownFromStart = false, bool needsSword = false)
+        {
+            Id = id;
+            Name = name;
+            TreeId = treeId;
+            Kind = kind;
+            Position = position;
+            Description = description;
+            Requires = requires ?? new string[0];
+            KnownFromStart = knownFromStart;
+            NeedsSword = needsSword;
+        }
+
+        public bool IsPlaceholder => Kind == SkillKind.Placeholder;
+
+        /// <summary>Spells and weapon techniques go on the bar; movement keeps its own controls (owner, 2026-10-14).</summary>
+        public bool GoesOnBar => Kind == SkillKind.Spell || Kind == SkillKind.Ability;
+    }
+
+    /// <summary>
+    /// THE SKILL TREES (owner, 2026-10-14: "implement all the skills we have so far including the movements like dash, climb, super jump ... with
+    /// the ability to add them as hotbar spells"). One big map, the trees side by side like Skyrim's constellations (docs/SKILLS.md). Every skill
+    /// the game has is a star here; the empty stars ("Not designed yet") hold the places later skills will take, and two trees that are not in the
+    /// game yet (Hydromancer, and Steam, the hybrid of fire and water) show where trees found later and hybrids go.
+    ///
+    /// Freerunner is the owner's: vaulting at the root, given to everyone in the tutorial, then three paths, Dash, Climb (with pulling yourself up
+    /// onto ledges, owner) and Super Jump. Wall Stick on the Climb path is my placement. Every other tree's shape is my layout.
+    /// </summary>
+    public static class SkillCatalog
+    {
+        public const string Vault = "vault";
+        public const string Dash = "dash";
+        public const string Climb = "climb";
+        public const string SuperJump = "super-jump";
+        public const string WallStick = "wall-stick";
+        public const string Fireball = "fireball";
+        public const string IceShards = "ice-shards";
+        public const string PoisonBreath = "poison-breath";
+        public const string AcidRain = "acid-rain";
+        public const string SwordSpin = "sword-spin";
+        public const string SwordWave = "sword-wave";
+        public const string Octaslash = "octaslash";
+        public const string Bloodrage = "bloodrage";
+
+        /// <summary>Skill points a star costs. One each for now; what deeper stars cost is open.</summary>
+        public const int LearnCost = 1;
+
+        /// <summary>Map units between rows of stars, and across between a path and its neighbour.</summary>
+        public const float RowSpacing = 105.0f;
+        public const float PathSpacing = 115.0f;
+
+        /// <summary>The width of an ordinary tree's column, and of a hybrid's narrower one.</summary>
+        public const float TreeWidth = 400.0f;
+        public const float HybridWidth = 270.0f;
+
+        public const string NotDesignedYet = "Not designed yet.";
+
+        /// <summary>The bar a character had before the skill tree existed: what the number keys always did (9 and 0 empty).</summary>
+        public static readonly string[] DefaultBar =
+        {
+            Fireball, SwordSpin, IceShards, PoisonBreath, AcidRain, Octaslash, SwordWave, Bloodrage, null, null,
+        };
+
+        private static readonly SkillTree[] TreeList =
+        {
+            new SkillTree("freerunner", "Freerunner", true, TreeWidth),
+            new SkillTree("sword", "Sword", true, TreeWidth),
+            new SkillTree("berserker", "Berserker", true, TreeWidth),
+            new SkillTree("pyromancer", "Pyromancer", true, TreeWidth),
+            new SkillTree("steam", "Steam", false, HybridWidth, "pyromancer", "hydromancer"),
+            new SkillTree("hydromancer", "Hydromancer", false, TreeWidth),
+            new SkillTree("cryomancer", "Cryomancer", true, TreeWidth),
+            new SkillTree("plaguebringer", "Plaguebringer", true, TreeWidth),
+        };
+
+        private static readonly List<SkillNode> NodeList = BuildNodes();
+        private static readonly Dictionary<string, SkillNode> ById = Index(NodeList);
+
+        /// <summary>The trees in the order they stand along the row, left to right; the row wraps round.</summary>
+        public static IReadOnlyList<SkillTree> Trees => TreeList;
+
+        public static IReadOnlyList<SkillNode> Nodes => NodeList;
+
+        public static SkillNode Find(string id) => id != null && ById.TryGetValue(id, out SkillNode node) ? node : null;
+
+        public static SkillTree FindTree(string id)
+        {
+            foreach (SkillTree tree in TreeList)
+            {
+                if (tree.Id == id)
+                {
+                    return tree;
+                }
+            }
+            return null;
+        }
+
+        public static IEnumerable<SkillNode> InTree(string treeId)
+        {
+            foreach (SkillNode node in NodeList)
+            {
+                if (node.TreeId == treeId)
+                {
+                    yield return node;
+                }
+            }
+        }
+
+        /// <summary>Every star that is a real skill (not a placeholder, in a tree that is in the game).</summary>
+        public static IEnumerable<SkillNode> RealSkills()
+        {
+            foreach (SkillNode node in NodeList)
+            {
+                if (!node.IsPlaceholder && FindTree(node.TreeId).InGame)
+                {
+                    yield return node;
+                }
+            }
+        }
+
+        private static Vector2 At(float across, float row) => new Vector2(across * PathSpacing, row * RowSpacing);
+
+        private static SkillNode Empty(string treeId, int index, Vector2 position, params string[] requires) =>
+            new SkillNode($"{treeId}-{index}", "?", treeId, SkillKind.Placeholder, position, NotDesignedYet, requires);
+
+        private static List<SkillNode> BuildNodes()
+        {
+            var nodes = new List<SkillNode>
+            {
+                // --- Freerunner (owner): vaulting at the root, then Dash, Climb and Super Jump.
+                new SkillNode(Vault, "Vault", "freerunner", SkillKind.Movement, At(0, 0),
+                    "Run at a low wall, a railing or a window with Shift + W and you go over it or through it. Everyone learns it in the tutorial.",
+                    knownFromStart: true),
+                new SkillNode(Dash, "Dash", "freerunner", SkillKind.Movement, At(-1, 1),
+                    "Double-tap Shift: a quick burst the way you are moving, or backwards with nothing held.", new[] { Vault }),
+                new SkillNode(Climb, "Climb", "freerunner", SkillKind.Movement, At(0, 1),
+                    "Hold Space at a wall to grab it, or run into it with Shift + W. Climb any wall, pull yourself up onto ledges and climb in " +
+                    "through windows too high to vault.", new[] { Vault }),
+                new SkillNode(SuperJump, "Super Jump", "freerunner", SkillKind.Movement, At(1, 1),
+                    "Hold Space to crouch and charge, let go to leap. A full charge takes a second and a half and goes many times higher.",
+                    new[] { Vault }),
+                new SkillNode(WallStick, "Wall Stick", "freerunner", SkillKind.Movement, At(0, 2),
+                    "Sprint and leap at a wall to stick to it by your feet, then run along it.", new[] { Climb }),
+                Empty("freerunner", 1, At(-1, 2), Dash),
+                Empty("freerunner", 2, At(-1, 3), "freerunner-1"),
+                Empty("freerunner", 3, At(0, 3), WallStick),
+                Empty("freerunner", 4, At(1, 2), SuperJump),
+                Empty("freerunner", 5, At(1, 3), "freerunner-4"),
+
+                // --- Sword.
+                new SkillNode(SwordSpin, "Sword Spin", "sword", SkillKind.Ability, At(0, 0),
+                    "With a sword: hold the key to charge, let go to spin. In the air it spins at once, climbing.", needsSword: true),
+                new SkillNode(SwordWave, "Sword Wave", "sword", SkillKind.Ability, At(-0.8f, 1),
+                    "With a sword: a swing that sends a crescent of light down the crosshair.", new[] { SwordSpin }, needsSword: true),
+                new SkillNode(Octaslash, "Octaslash", "sword", SkillKind.Ability, At(0.8f, 1),
+                    "With a sword: a long wind-up, then a dash of eight cuts where the camera looks. Click to send it early.",
+                    new[] { SwordSpin }, needsSword: true),
+                Empty("sword", 1, At(-0.8f, 2), SwordWave),
+                Empty("sword", 2, At(0.8f, 2), Octaslash),
+                Empty("sword", 3, At(0, 3), "sword-1", "sword-2"),
+
+                // --- Berserker.
+                new SkillNode(Bloodrage, "Bloodrage", "berserker", SkillKind.Spell, At(0, 0),
+                    "Seven and a half seconds of rage: faster, harder melee blows and a red aura."),
+                Empty("berserker", 1, At(0, 1), Bloodrage),
+                Empty("berserker", 2, At(-0.7f, 2), "berserker-1"),
+                Empty("berserker", 3, At(0.7f, 2), "berserker-1"),
+
+                // --- Pyromancer. Its top star joins Steam.
+                new SkillNode(Fireball, "Fireball", "pyromancer", SkillKind.Spell, At(0, 0),
+                    "A ball of fire down the crosshair that bursts where it lands."),
+                Empty("pyromancer", 1, At(-0.8f, 1), Fireball),
+                Empty("pyromancer", 2, At(0.8f, 1), Fireball),
+                Empty("pyromancer", 3, At(0, 2), "pyromancer-1", "pyromancer-2"),
+                Empty("pyromancer", 4, At(0, 3), "pyromancer-3"),
+
+                // --- Steam: a hybrid, opened by mastering Pyromancer and Hydromancer. Not in the game yet.
+                Empty("steam", 1, At(0, 3.6f), "pyromancer-4", "hydromancer-4"),
+
+                // --- Hydromancer: not in the game yet.
+                Empty("hydromancer", 0, At(0, 0)),
+                Empty("hydromancer", 1, At(-0.8f, 1), "hydromancer-0"),
+                Empty("hydromancer", 2, At(0.8f, 1), "hydromancer-0"),
+                Empty("hydromancer", 3, At(0, 2), "hydromancer-1", "hydromancer-2"),
+                Empty("hydromancer", 4, At(0, 3), "hydromancer-3"),
+
+                // --- Cryomancer.
+                new SkillNode(IceShards, "Ice Shards", "cryomancer", SkillKind.Spell, At(0, 0),
+                    "Four shards of ice, one after another, down the crosshair. They stick where they land."),
+                Empty("cryomancer", 1, At(-0.8f, 1), IceShards),
+                Empty("cryomancer", 2, At(0.8f, 1), IceShards),
+                Empty("cryomancer", 3, At(0, 2), "cryomancer-1", "cryomancer-2"),
+
+                // --- Plaguebringer.
+                new SkillNode(PoisonBreath, "Poison Breath", "plaguebringer", SkillKind.Spell, At(0, 0),
+                    "Scream a cloud of poison gas at the crosshair. Whoever breathes it is poisoned."),
+                new SkillNode(AcidRain, "Acid Rain", "plaguebringer", SkillKind.Spell, At(0, 1),
+                    "Call a storm of acid down where the crosshair points. Anyone out in the open burns; roofs shelter.", new[] { PoisonBreath }),
+                Empty("plaguebringer", 1, At(-0.8f, 2), AcidRain),
+                Empty("plaguebringer", 2, At(0.8f, 2), AcidRain),
+                Empty("plaguebringer", 3, At(0, 3), "plaguebringer-1", "plaguebringer-2"),
+            };
+            return nodes;
+        }
+
+        private static Dictionary<string, SkillNode> Index(List<SkillNode> nodes)
+        {
+            var index = new Dictionary<string, SkillNode>();
+            foreach (SkillNode node in nodes)
+            {
+                index[node.Id] = node;
+            }
+            return index;
+        }
+    }
+}

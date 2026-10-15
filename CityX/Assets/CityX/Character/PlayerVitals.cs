@@ -64,6 +64,9 @@ namespace CityX.Character
         /// <summary>player.gd STAT_POINTS_PER_LEVEL -- granted on every level-up.</summary>
         public const int StatPointsPerLevel = 5;
 
+        /// <summary>player.gd SKILL_POINT_EVERY_N_LEVELS -- one skill point on every second level reached (2, 4, 6...).</summary>
+        public const int SkillPointEveryNLevels = 2;
+
         /// <summary>player.gd XP_PER_LEVEL_BASE -- next level costs this times the level being left.</summary>
         public const int XpPerLevelBase = 100;
 
@@ -124,6 +127,9 @@ namespace CityX.Character
 
         /// <summary>Earned but not yet spent on Vitality/Endurance/Strength.</summary>
         public int StatPoints;
+
+        /// <summary>Earned but not yet spent on the skill trees (PlayerSkills.TryLearn). A separate pool from the stat points.</summary>
+        public int SkillPoints;
 
         /// <summary>Progress toward the next level. Reset (not cleared) on every level-up.</summary>
         public int Experience;
@@ -552,10 +558,9 @@ namespace CityX.Character
         /// <summary>
         /// Grants XP, ported from player.gd's own add_xp(). Loops rather than
         /// a single if so one big grant can trigger several level-ups at
-        /// once. Godot also awards a skill point every few levels here, but
-        /// there is no skill tree on either side to spend it on (see
-        /// PlayerSubmenuView's own doc comment), so that half is left out
-        /// rather than silently building toward a system that does not exist.
+        /// once. Every second level also brings a skill point, as Godot's
+        /// does (SkillPointEveryNLevels), now that there is a skill tree to
+        /// spend it on (PlayerSkills).
         /// </summary>
         public void AddXp(int amount)
         {
@@ -569,6 +574,10 @@ namespace CityX.Character
                 Experience -= ExperienceToNextLevel;
                 Level += 1;
                 StatPoints += StatPointsPerLevel;
+                if (Level % SkillPointEveryNLevels == 0)
+                {
+                    SkillPoints += 1;
+                }
             }
         }
 
@@ -778,6 +787,24 @@ namespace CityX.Character
             _highestAirborneY = currentY;
         }
 
+        private bool _fallForgiven;
+        private float _fallForgivenAboveY;
+
+        /// <summary>
+        /// A SUPER JUMP DOES NOT HURT ITS OWN LANDING (2026-10-14): a full
+        /// charge rises about 15 m, above the safe fall, so every leap would
+        /// cost a fifth of the player's health. The rise of the jump about to
+        /// leave <paramref name="takeOffY"/> is forgiven: the next landing
+        /// counts the fall from no higher than the take-off, so a leap back
+        /// down to the same street is free and one off a roof still costs
+        /// what stepping off that roof would.
+        /// </summary>
+        public void ForgiveFallAbove(float takeOffY)
+        {
+            _fallForgiven = true;
+            _fallForgivenAboveY = takeOffY;
+        }
+
         /// <summary>
         /// Watches height to work out fall damage, and applies it on landing.
         /// Returns the damage dealt, which is zero for a safe landing.
@@ -808,7 +835,13 @@ namespace CityX.Character
             }
             _wasAirborne = false;
 
-            float fallen = _highestAirborneY - currentY;
+            float top = _highestAirborneY;
+            if (_fallForgiven)
+            {
+                top = Mathf.Min(top, _fallForgivenAboveY);
+                _fallForgiven = false;
+            }
+            float fallen = top - currentY;
             if (fallen <= SafeFallDistance)
             {
                 return 0.0f;

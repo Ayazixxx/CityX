@@ -12,15 +12,10 @@ namespace CityX.UI
     /// here closes PlayerMenuView and opens its own independent overlay,
     /// exactly like Quests/Social/Map already do from the rail one level up.
     ///
-    /// SKILLS IS A PLACEHOLDER ON PURPOSE. No skill tree exists in the
-    /// Godot source either -- there's no skill_tree_data.gd, and the
-    /// Skills tab there is an empty menu (the UI was built once, then the
-    /// actual node content was deliberately left out). Building a real one
-    /// in Unity is new design work, not a port, and needs the user's own
-    /// direction -- their own wording when asking for this menu ("the
-    /// skill tree we haven't made yet... that is all for the player button
-    /// for now") explicitly scopes it out of this pass rather than leaving
-    /// it silently unbuilt.
+    /// SKILLS OPENS THE SKILL MENU (SkillMenuView, 2026-10-14): every tree
+    /// side by side on one big map, learning, and the bar. New design work
+    /// rather than a port -- Godot's Skills tab was an empty menu -- built
+    /// to the owner's plan (docs/SKILLS.md).
     /// </summary>
     public sealed class PlayerSubmenuView : MonoBehaviour
     {
@@ -80,8 +75,22 @@ namespace CityX.UI
 
         private void OnSkillsClicked()
         {
+            // The body this machine controls (a player who joined a server
+            // has their own), else the one the C menu was built for.
+            PlayerSkills skills = PlayerSkills.Local;
+            if (skills == null && Menu != null && Menu.Player != null)
+            {
+                skills = PlayerSkills.On(Menu.Player.gameObject);
+            }
+            PlayerInputReader input = Menu != null ? Menu.InputReader : null;
+            ThirdPersonCamera camera = Menu != null ? Menu.OrbitCamera : null;
             Menu?.Close();
-            Placeholder?.Show("SKILLS", "Coming soon.");
+            if (skills == null)
+            {
+                Placeholder?.Show("SKILLS", "No body to learn skills on.");
+                return;
+            }
+            SkillMenuView.Show(skills, input, camera);
         }
 
         private void OnItemsClicked()

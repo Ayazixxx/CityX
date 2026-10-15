@@ -130,6 +130,12 @@ namespace CityX.UI
             {
                 gameObject.AddComponent<GunReticleView>();
             }
+
+            // The bar of skills in the bottom-left corner (keys 1 to 0), built the same way.
+            if (GetComponent<HotbarView>() == null)
+            {
+                gameObject.AddComponent<HotbarView>();
+            }
         }
 
         private void OnEnable()

@@ -397,6 +397,10 @@ namespace CityX.UI
                     Experience(line.Argument(0));
                     return;
 
+                case "skills":
+                    SkillsCommand(line.Argument(0), line.Argument(1));
+                    return;
+
                 case "spawn":
                     Spawn(line.Argument(0));
                     return;
@@ -730,6 +734,61 @@ namespace CityX.UI
                 }
             }
             return best < double.MaxValue;
+        }
+
+        /// <summary>
+        /// "/skills": what the player has learnt, their skill points and their bar; "/skills points 5", "/skills reset", "/skills all",
+        /// "/skills new" (a brand new character's: vaulting and the starting point) -- for trying the skill menu out.
+        /// </summary>
+        private void SkillsCommand(string verb, string amount)
+        {
+            PlayerSkills skills = PlayerSkills.Local;
+            if (skills == null && Vitals != null)
+            {
+                skills = PlayerSkills.On(Vitals.gameObject);
+            }
+            if (skills == null)
+            {
+                Log("no body here");
+                return;
+            }
+            PlayerVitals vitals = skills.GetComponent<PlayerVitals>();
+            switch (verb)
+            {
+                case null:
+                    break;
+                case "points":
+                    if (vitals == null || amount == null || !int.TryParse(amount, NumberStyles.Integer, CultureInfo.InvariantCulture, out int points))
+                    {
+                        Log(DevCommands.UsageFor("skills"));
+                        return;
+                    }
+                    skills.SetPoints(vitals.SkillPoints + points);
+                    break;
+                case "reset":
+                    Log($"forgot everything but vaulting: {skills.ResetAll()} point(s) back");
+                    break;
+                case "all":
+                    skills.LearnEverything();
+                    break;
+                case "new":
+                    skills.ResetAll();
+                    skills.SetPoints(CityX.Core.CharacterSave.StartingSkillPoints);
+                    break;
+                default:
+                    Log(DevCommands.UsageFor("skills"));
+                    return;
+            }
+
+            var learnt = new System.Collections.Generic.List<string>(skills.Book.Learnt);
+            learnt.Sort(System.StringComparer.Ordinal);
+            var bar = new System.Text.StringBuilder();
+            for (int slot = 0; slot < Hotbar.SlotCount; slot++)
+            {
+                bar.Append(Hotbar.KeyLabel(slot)).Append('=').Append(skills.Bar[slot] ?? "-").Append(slot < Hotbar.SlotCount - 1 ? "  " : string.Empty);
+            }
+            Log($"{skills.Points} skill point(s); learnt: {string.Join(", ", learnt)}");
+            Log("bar: " + bar);
         }
 
         private void Experience(string amount)

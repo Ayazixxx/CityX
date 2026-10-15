@@ -253,5 +253,40 @@ namespace CityX.UI
             }
             return Finish(texture, pixels, Vector4.zero, "HudRimShadow");
         }
+
+        private static Sprite _disc;
+        private static Sprite _thinRing;
+
+        /// <summary>A plain white disc with a soft edge, tinted by its Image: the faces of the bar's slots and of the skill map's stars.</summary>
+        public static Sprite Disc => _disc != null ? _disc : (_disc = MakeDisc(128, 0.0f));
+
+        /// <summary>A plain white ring, a tenth of the radius wide, tinted by its Image: a star's outline on the skill map.</summary>
+        public static Sprite ThinRing => _thinRing != null ? _thinRing : (_thinRing = MakeDisc(128, 0.9f));
+
+        /// <summary>A white disc, or a ring when <paramref name="hole"/> (a fraction of the radius) is above zero; one pixel of soft edge.</summary>
+        private static Sprite MakeDisc(int size, float hole)
+        {
+            Texture2D texture = NewTexture(size, size, true);
+            var pixels = new Color[size * size];
+            float half = size * 0.5f;
+            float outer = half - 1.0f;
+            float inner = outer * hole;
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float dx = x + 0.5f - half;
+                    float dy = y + 0.5f - half;
+                    float d = Mathf.Sqrt(dx * dx + dy * dy);
+                    float alpha = Mathf.Clamp01(outer - d + 0.5f);
+                    if (hole > 0.0f)
+                    {
+                        alpha *= Mathf.Clamp01(d - inner + 0.5f);
+                    }
+                    pixels[y * size + x] = new Color(1.0f, 1.0f, 1.0f, alpha);
+                }
+            }
+            return Finish(texture, pixels, Vector4.zero, hole > 0.0f ? "HudThinRing" : "HudDisc");
+        }
     }
 }

@@ -70,11 +70,16 @@ namespace CityX.Character
                 _vitals.Vitality = character.Vitality;
                 _vitals.Endurance = character.Endurance;
                 _vitals.Strength = character.Strength;
+                _vitals.SkillPoints = character.SkillPoints;
                 // The stat points move the ceilings, so the bars have to be
                 // refilled against the NEW maximums or a character with points
                 // in Vitality spawns on a fraction of their health.
                 _vitals.Revive();
             }
+
+            // What they have learnt and what is on their bar (a save from
+            // before the skill tree keeps everything it could already use).
+            PlayerSkills.On(gameObject).Load(character);
 
             var hair = GetComponentInChildren<CharacterHair>(includeInactive: true);
             if (hair != null)
@@ -216,6 +221,12 @@ namespace CityX.Character
                 _character.Vitality = _vitals.Vitality;
                 _character.Endurance = _vitals.Endurance;
                 _character.Strength = _vitals.Strength;
+                _character.SkillPoints = _vitals.SkillPoints;
+            }
+            PlayerSkills skills = GetComponent<PlayerSkills>();
+            if (skills != null)
+            {
+                skills.Save(_character);
             }
             _character.LastPlayedUnixSeconds =
                 System.DateTimeOffset.UtcNow.ToUnixTimeSeconds();

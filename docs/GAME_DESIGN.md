@@ -108,6 +108,8 @@ Classless (like Terraria). Your **title** comes from your top one or two trees (
 
 **Freerunner** (owner, 2026-10-14): vaulting is the first thing you unlock, in the tutorial, so everyone has it; from it the tree splits into three paths: Dash, Climb and Super Jump. For now one character can learn every path; what gets locked is decided later. Pulling yourself up onto a ledge is part of Climb (owner; I had suggested Vault), so a new character vaults over low walls and through windows but cannot pull up onto ledges, scale walls or climb into high windows until they take Climb: the tutorial and the starting area must not need climbing. My suggestion, not decided: Wall Stick on the Climb path.
 
+**Built 2026-10-14** (docs/SKILLS.md): the skill map in the C menu (Player, Skills) with all eight trees, learning with skill points (one every second level, a new character starts with one), a free reset, the bar in the bottom-left corner, and Dash, Climb, Wall Stick, Super Jump and every spell locked until learnt. Characters made before it keep everything they had (which never included the charged jump).
+
 ### Infinite upgrades
 
 Every skill that makes sense can be ranked up forever. The cost curve is the most important dial in the game. If you pour one point per level into one skill:

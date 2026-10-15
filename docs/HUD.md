@@ -32,5 +32,10 @@ and hides without it, the health percentage, the character's name), `PlayerHudPo
 the portrait, the shoulders only the bottom), `PlayerVitalsProgressionTests` (mana spent, refused, regained, not while dead, refilled on
 respawn). `PlayerHudLookCapture` (Explicit, -Graphics) renders `Logs/CityShots/hud-frame-*.png`, each with a close-up.
 
+## 2026-10-14: the bar of skills, bottom left
+
+Ten round slots on the keys 1 to 9 and 0 in the bottom-left corner (owner: round icons like DC Universe Online, "just have the hotbar at the
+bottom left for now"): `HotbarView`, added by `PlayerHud.Awake` and built in code. See docs/SKILLS.md.
+
 **Not done**: a portrait of a target (WoW's target frame), buff and debuff icons under the frame, a rested or combat glow, numbers alongside the
-percentages on hover.
+percentages on hover, cooldown sweeps on the bar's slots.

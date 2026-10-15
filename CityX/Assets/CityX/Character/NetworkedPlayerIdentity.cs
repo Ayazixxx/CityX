@@ -115,14 +115,22 @@ namespace CityX.Character
         {
             base.OnStartClient();
 
+            // THE SKILL MENU AND THE BAR FOLLOW THE BODY THIS MACHINE CONTROLS:
+            // somebody else's body gives the claim up, our own takes it.
+            PlayerSkills skills = GetComponent<PlayerSkills>();
             if (!IsOwner)
             {
                 if (_inputReader != null)
                 {
                     _inputReader.enabled = false;
                 }
+                if (skills != null && PlayerSkills.Local == skills)
+                {
+                    PlayerSkills.Local = null;
+                }
                 return;
             }
+            PlayerSkills.Local = skills != null ? skills : PlayerSkills.On(gameObject);
 
             // A dynamically-spawned clone (a joining peer's own body -- see
             // NetworkedPlayerSpawner) has no camera of its own: the scene's

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace CityX.Core
@@ -101,6 +102,27 @@ namespace CityX.Core
 
         public int Strength;
 
+        /// <summary>
+        /// Which skill data this save holds. 0 is a save written before the skill tree existed (2026-10-14): that character keeps every skill
+        /// it could already use and the number keys it had (PlayerSkills.Load). Characters made since start with vaulting and
+        /// <see cref="StartingSkillPoints"/>.
+        /// </summary>
+        public int SkillsVersion;
+
+        public const int CurrentSkillsVersion = 1;
+
+        /// <summary>Unspent skill points (a separate pool from the stat points: owner, 2026-10-10).</summary>
+        public int SkillPoints;
+
+        /// <summary>A new character's first point, so the first path can be chosen straight after the tutorial teaches vaulting.</summary>
+        public const int StartingSkillPoints = 1;
+
+        /// <summary>The ids of the skills learnt (SkillCatalog in Character).</summary>
+        public List<string> LearnedSkills = new List<string>();
+
+        /// <summary>The bar, keys 1 to 0: a skill id per slot, an empty string for an empty slot.</summary>
+        public List<string> Hotbar = new List<string>();
+
         /// <summary>Seconds played, shown on the select screen.</summary>
         public double PlaytimeSeconds;
 
@@ -129,6 +151,8 @@ namespace CityX.Core
                 Id = Guid.NewGuid().ToString("N"),
                 Name = CleanName(name),
                 Skin = skin,
+                SkillsVersion = CurrentSkillsVersion,
+                SkillPoints = StartingSkillPoints,
                 CreatedUnixSeconds = now,
                 LastPlayedUnixSeconds = now,
             };
@@ -211,6 +235,24 @@ namespace CityX.Core
             if (Experience < 0)
             {
                 Experience = 0;
+                changed = true;
+            }
+
+            if (SkillPoints < 0)
+            {
+                SkillPoints = 0;
+                changed = true;
+            }
+
+            if (LearnedSkills == null)
+            {
+                LearnedSkills = new List<string>();
+                changed = true;
+            }
+
+            if (Hotbar == null)
+            {
+                Hotbar = new List<string>();
                 changed = true;
             }
 

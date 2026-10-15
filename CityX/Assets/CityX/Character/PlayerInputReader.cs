@@ -256,6 +256,7 @@ namespace CityX.Character
 
         private bool _jumpHeld;
         private float _jumpHeldSeconds;
+        private int _lastJumpChargeFrame = -10;
 
         /// <summary>
         /// Set inside TickCombat's own gun branch, read back here in Update()
@@ -294,6 +295,13 @@ namespace CityX.Character
         private PlayerClimbing _climbing;
         private PlayerVaulting _vaulting;
         private WallStick _wallStick;
+
+        /// <summary>
+        /// What this body has learnt and what is on its bar (owner, 2026-10-14). The number keys cast whatever is in their slot, and Dash, Climb,
+        /// Wall Stick and Super Jump work only once learnt; vaulting always does. A body with no character knows what the game had before the
+        /// skill tree: everything but Super Jump (PlayerSkills).
+        /// </summary>
+        private PlayerSkills _skills;
 
         /// <summary>Whether the player is asking to grab a wall (Space held a moment): see GrabIntent.</summary>
         private readonly GrabIntent _grabIntent = new GrabIntent();
@@ -363,6 +371,7 @@ namespace CityX.Character
             _climbing = GetComponent<PlayerClimbing>();
             _vaulting = GetComponent<PlayerVaulting>();
             _wallStick = GetComponent<WallStick>();
+            _skills = PlayerSkills.On(gameObject);
             _fireballCaster = GetComponent<IFireballCaster>();
             _iceShards = GetComponent<IIceShardCaster>();
             _poisonBreath = GetComponent<IPoisonBreathCaster>();
@@ -754,21 +763,21 @@ namespace CityX.Character
                 // "it still works just comes from your left hand". Same
                 // digit1Key/origin-height/ignore-colliders shape as the
                 // ordinary ground cast below.
-                if (_fireballCaster != null && keyboard.digit1Key.wasPressedThisFrame && swingYawSource != null)
+                if (_fireballCaster != null && _skills.Pressed(SkillCatalog.Fireball, keyboard) && swingYawSource != null)
                 {
                     float height = (_locomotion != null ? _locomotion.StandingHeight : 1.8f) * 0.68f;
                     Vector3 origin = transform.position + Vector3.up * height;
                     _fireballCaster.TryCast(origin, ConvergedDirection(origin, swingYawSource), GetComponentsInChildren<Collider>());
                 }
-                if (keyboard.digit3Key.wasPressedThisFrame)
+                if (_skills.Pressed(SkillCatalog.IceShards, keyboard))
                 {
                     CastIceShards(swingYawSource);
                 }
-                if (keyboard.digit4Key.wasPressedThisFrame)
+                if (_skills.Pressed(SkillCatalog.PoisonBreath, keyboard))
                 {
                     CastPoisonBreath(swingYawSource);
                 }
-                if (keyboard.digit5Key.wasPressedThisFrame)
+                if (_skills.Pressed(SkillCatalog.AcidRain, keyboard))
                 {
                     CastAcidRain(swingYawSource);
                 }
@@ -836,7 +845,8 @@ namespace CityX.Character
             // why the very first climbing frame must not also fall through
             // to ordinary WASD movement computed from the same held W that
             // just triggered the grab.
-            if (_climbing != null && wallGrabsAllowed &&
+            // CLIMBING IS A SKILL (the Freerunner tree's Climb, which also pulls you up onto ledges): not learnt, no wall is ever grabbed.
+            if (_climbing != null && wallGrabsAllowed && _skills.Knows(SkillCatalog.Climb) &&
                 (_grabCarry == null || !_grabCarry.IsCarrying) &&
                 !_locomotion.IsDashing)
             {
@@ -876,7 +886,8 @@ namespace CityX.Character
 
             // RUNNING INTO A TALL WALL CLIMBS IT (Shift + W, held; guarded against stairs, doors and grazing -- see PlayerClimbing.TryStartAuto). After the
             // vault above so a low obstacle is vaulted, and after the Space-hold grab so a deliberate grab always wins.
-            if (_climbing != null && wallGrabsAllowed && !_locomotion.IsDashing && (_grabCarry == null || !_grabCarry.IsCarrying))
+            if (_climbing != null && wallGrabsAllowed && _skills.Knows(SkillCatalog.Climb) && !_locomotion.IsDashing
+                && (_grabCarry == null || !_grabCarry.IsCarrying))
             {
                 float stamina = _vitals != null ? _vitals.Stamina : float.MaxValue;
                 if (_climbing.TryStartAuto(keyboard.wKey.isPressed, keyboard.leftShiftKey.isPressed, _locomotion.IsGrounded, stamina, deltaTime, wishDirection))
@@ -910,7 +921,7 @@ namespace CityX.Character
             // being airborne, climbing's own grab is not gated on grounded
             // at all, so an airborne sprint+W into a shallow-enough wall
             // still climbs a ladder exactly as before this existed).
-            if (_wallStick != null && wallGrabsAllowed &&
+            if (_wallStick != null && wallGrabsAllowed && _skills.Knows(SkillCatalog.WallStick) &&
                 (_grabCarry == null || !_grabCarry.IsCarrying) &&
                 !_locomotion.IsDashing)
             {
@@ -972,7 +983,9 @@ namespace CityX.Character
             // (ragdoll/dead/stunned/topping-out/grapple-active all bail out
             // of Update long before reaching here), so those states block
             // a cast the same way they already block everything else.
-            if (_fireballCaster != null && keyboard.digit1Key.wasPressedThisFrame && yawSource != null)
+            //
+            // EVERY SPELL NOW CASTS FROM ITS SLOT ON THE BAR (PlayerSkills.Pressed): whichever of the keys 1 to 0 holds it, once learnt.
+            if (_fireballCaster != null && _skills.Pressed(SkillCatalog.Fireball, keyboard) && yawSource != null)
             {
                 // Roughly chest height, matching the same fraction
                 // MeleeAttacker.SwingOrigin/the weapon-throw origin below
@@ -985,18 +998,18 @@ namespace CityX.Character
 
             // 3: ICE SHARDS, innate like the fireball: four shards one after another down the crosshair, each sticking where it lands. The
             // rest of a volley follows the crosshair as it goes out.
-            if (keyboard.digit3Key.wasPressedThisFrame)
+            if (_skills.Pressed(SkillCatalog.IceShards, keyboard))
             {
                 CastIceShards(yawSource);
             }
             // 4: POISON GAS, innate like the fireball: a cloud of purple gas blown out down the crosshair; whatever breathes it is poisoned
             // (never the one who blew it).
-            if (keyboard.digit4Key.wasPressedThisFrame)
+            if (_skills.Pressed(SkillCatalog.PoisonBreath, keyboard))
             {
                 CastPoisonBreath(yawSource);
             }
             // 5: ACID RAIN (a god-tier test spell): a storm of acid over a wide area where the crosshair points; roofs shelter.
-            if (keyboard.digit5Key.wasPressedThisFrame)
+            if (_skills.Pressed(SkillCatalog.AcidRain, keyboard))
             {
                 CastAcidRain(yawSource);
             }
@@ -1004,7 +1017,7 @@ namespace CityX.Character
             AimPoisonBreath(yawSource);
 
             // 8: BLOODRAGE, innate like the fireball (see BloodrageAbility): +25% speed and melee damage, the Bloodrage walk/run/jump, a red aura, 7.5 s.
-            if (keyboard.digit8Key.wasPressedThisFrame)
+            if (_skills.Pressed(SkillCatalog.Bloodrage, keyboard))
             {
                 if (_bloodrageAbility == null)
                 {
@@ -1115,26 +1128,37 @@ namespace CityX.Character
 
             bool chargingJumpNow = false;
             float jumpChargeFraction = 0.0f;
-            // PLAIN JUMP, CHARGING KEPT IN THE VAULT -- EXPLICIT ASK: "get
-            // rid of charged jump for now that is going to be a skill tree
-            // ability keep it in the vault." TickJumpCharge itself is
-            // untouched and still fully correct, just not called from here
-            // for now -- a future skill unlock can route back through it.
-            // In its place, a bare tap of Space while grounded fires the
-            // jump immediately at PlayerLocomotion's own base JumpVelocity:
-            // JumpReleased with JumpChargeFraction left at 0 makes
-            // PlayerLocomotion.Tick's own height-multiplier lerp resolve to
-            // exactly 1 (no bonus height at all), which is precisely the
-            // un-charged jump this restores -- no changes needed in
-            // PlayerLocomotion itself. Computed unconditionally (not just
-            // when the jetpack skips its own Tick below) since it is
-            // already grounded-gated on its own and jetpackThrusting is
-            // already forced false while grounded (see its own doc comment
-            // just above), so a tap of Space always means jump there,
-            // jetpack equipped or not.
+            bool jumpReleased;
             // (A sword spin on the ground holds the body, charge included: no jumping out of it.)
-            bool jumpReleased = _locomotion.IsGrounded && keyboard.spaceKey.wasPressedThisFrame
-                && !(_melee != null && _melee.IsSpinAttacking);
+            bool spinHoldsTheBody = _melee != null && _melee.IsSpinAttacking;
+            // SUPER JUMP IS A SKILL NOW (owner, 2026-10-14: the Freerunner
+            // tree's Super Jump). The charged jump was kept in the vault
+            // ("get rid of charged jump for now that is going to be a skill
+            // tree ability keep it in the vault"); learning Super Jump routes
+            // Space back through TickJumpCharge, untouched: held, it charges;
+            // let go, it jumps, up to ChargedJumpHeightMultiplier times as
+            // high. Without the skill, a bare tap of Space while grounded
+            // fires the jump at once at PlayerLocomotion's base JumpVelocity
+            // (JumpReleased with JumpChargeFraction 0 resolves the height
+            // multiplier to exactly 1). Computed unconditionally (not just
+            // when the jetpack skips its own Tick below): it is grounded-gated
+            // on its own and jetpackThrusting is forced false while grounded,
+            // so Space on the ground always means jump, jetpack or not.
+            if (_skills.Knows(SkillCatalog.SuperJump) && !spinHoldsTheBody)
+            {
+                TickJumpCharge(keyboard, _locomotion.IsGrounded, deltaTime,
+                    out chargingJumpNow, out jumpReleased, out jumpChargeFraction);
+                // The leap's own height never hurts its landing (PlayerVitals.ForgiveFallAbove).
+                if (jumpReleased && jumpChargeFraction > 0.0f && _locomotion.IsGrounded)
+                {
+                    _vitals?.ForgiveFallAbove(transform.position.y);
+                }
+            }
+            else
+            {
+                _jumpHeld = false;
+                jumpReleased = _locomotion.IsGrounded && keyboard.spaceKey.wasPressedThisFrame && !spinHoldsTheBody;
+            }
 
             // A JETPACK TAKES SPACE OVER ONLY ONCE ACTUALLY AIRBORNE --
             // EXPLICIT BUG REPORT: "when you press space on the floor with
@@ -1669,11 +1693,12 @@ namespace CityX.Character
             {
                 return;
             }
-            if (canStart && keyboard.digit2Key.wasPressedThisFrame)
+            // From whichever slot of the bar holds it (2 by default).
+            if (canStart && _skills.Pressed(SkillCatalog.SwordSpin, keyboard))
             {
                 _melee.TrySpinAttack(charge: true);
             }
-            if (_melee.IsChargingSpin && !keyboard.digit2Key.isPressed)
+            if (_melee.IsChargingSpin && !_skills.Held(SkillCatalog.SwordSpin, keyboard))
             {
                 _melee.ReleaseSpinAttack();
             }
@@ -1731,7 +1756,7 @@ namespace CityX.Character
                 float chest = (_locomotion != null ? _locomotion.StandingHeight : 1.8f) * 0.55f;
                 Vector3 look = ConvergedDirection(transform.position + Vector3.up * chest, source);
                 _octaslash.Aim(look);
-                if (keyboard != null && keyboard.digit6Key.wasPressedThisFrame && !spinning && !souls.IsCommitted)
+                if (_skills.Pressed(SkillCatalog.Octaslash, keyboard) && !spinning && !souls.IsCommitted)
                 {
                     _octaslash.TryStart(look);
                 }
@@ -1764,7 +1789,7 @@ namespace CityX.Character
 
             // 7: THE SWORD'S WAVE (a Getsuga Tensho style crescent). The sword swings (a light attack) and a crescent of light leaves the
             // blade down the crosshair, exactly where the fireball would go. Only with the sword in hand, and not mid-swing.
-            if (keyboard != null && keyboard.digit7Key.wasPressedThisFrame && _swordWave != null && source != null
+            if (_skills.Pressed(SkillCatalog.SwordWave, keyboard) && _swordWave != null && source != null
                 && !spinning && !souls.IsCommitted && _swordWave.CanCast)
             {
                 float height = (_locomotion != null ? _locomotion.StandingHeight : 1.8f) * 0.68f;
@@ -1814,6 +1839,13 @@ namespace CityX.Character
             chargingJumpNow = false;
             jumpReleased = false;
             chargeFraction = 0.0f;
+
+            // A charge that something else interrupted (a wall grab, a vault or a swing took the frame) is dropped, never paid out later.
+            if (_jumpHeld && _lastJumpChargeFrame != Time.frameCount - 1)
+            {
+                _jumpHeld = false;
+            }
+            _lastJumpChargeFrame = Time.frameCount;
 
             if (keyboard.spaceKey.wasPressedThisFrame && grounded)
             {
@@ -1901,6 +1933,13 @@ namespace CityX.Character
             SoulsSwordCombat souls = SoulsSword;
             bool soulsRoll = souls != null && souls.IsEquipped;
             if (soulsRoll && !souls.CanRoll)
+            {
+                return;
+            }
+
+            // THE DASH IS A SKILL (owner, 2026-10-14: the Freerunner tree's Dash). The sword's roll is not: it is the sword fighter's dodge,
+            // part of sword combat, and stays with the sword whatever is learnt.
+            if (!soulsRoll && !_skills.Knows(SkillCatalog.Dash))
             {
                 return;
             }

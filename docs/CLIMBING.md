@@ -42,6 +42,10 @@ Sticky feet (`WallStick`) uses the same intent and the same probe.
 | Hop off | tap Space again (after letting go) |
 | Sticky feet | hold Space in the air + Shift, facing a wall |
 
+**Climbing is a skill since 2026-10-14** (the Freerunner tree's Climb, docs/SKILLS.md): without it no wall is grabbed, so no climbing, no pulling
+up onto ledges (owner: "pulling yourself up onto a ledge naturally is apart of climb") and no climbing in through high windows. Sticky feet is
+Wall Stick, above Climb. Vaulting is everyone's. A body with no character (the editor's play button, the tests) knows Climb and Wall Stick.
+
 ## Tests
 
 `WallGrabIntentTests` (fixtures: doorway, jamb, window, stairs, fence, corner, door, angle, intent),
