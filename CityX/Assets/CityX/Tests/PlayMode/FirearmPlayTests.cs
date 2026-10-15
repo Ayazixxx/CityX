@@ -347,5 +347,72 @@ namespace CityX.Tests
             yield break;
 #endif
         }
+
+        /// <summary>
+        /// THE AK-47'S OWN RELOAD RECORDING (owner, 2026-10-14: "replace the ak47 reload sound with this"): it plays from the start of each reload, the
+        /// one for rounds left or the empty one, for the shooter and on another player's copy of them (multiplayer-first), and stops when a shot
+        /// cuts the reload short.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheAK47ReloadPlaysItsRecordingForTheShooterAndOnOtherPlayersCopies()
+        {
+#if UNITY_EDITOR
+            yield return World();
+            GameObject player = Player(new Vector3(0, 0.05f, 0));
+            var locomotion = player.GetComponent<PlayerLocomotion>();
+            PistolWeapon gun = Gun("Assets/CityX/Weapons/AK47.prefab");
+            gun.OnEquip(player, CityX.Items.ItemInstanceData.None);
+            yield return Frames(locomotion, 0.4f, new LocomotionInput { GunEquipped = true });
+            Assert.IsNotNull(gun.Profile.ReloadSound, "setup: the AK-47 has no reload recording -- CityX > Rebuild Firearms");
+
+            // Rounds left: the shorter recording, from its start.
+            gun.SetAmmo(10, 60);
+            gun.TryReload();
+            GunReloadDriver reloader = player.GetComponent<PlayerAnimationDriver>().GunReloader;
+            Assert.IsTrue(reloader.IsPlaying && !reloader.IsEmptyReload, "setup: the tactical reload did not start");
+            Assert.AreSame(gun.Profile.ReloadSound, gun.ReloadPlayer.clip, "the reload with rounds left did not play its recording");
+            Assert.IsTrue(gun.ReloadPlayer.isPlaying);
+            yield return Frames(locomotion, 0.8f, new LocomotionInput { GunEquipped = true });
+            Assert.IsTrue(gun.ReloadPlayer.isPlaying && gun.ReloadPlayer.clip == gun.Profile.ReloadSound, "the recording stopped or was replaced part-way");
+
+            // A shot once the fresh magazine is in cuts the reload short, and its recording with it.
+            float elapsed = 0.0f;
+            while (!gun.ReloadAmmoIn && elapsed < 3.0f)
+            {
+                locomotion.Tick(new LocomotionInput { GunEquipped = true }, Dt);
+                yield return null;
+                elapsed += Dt;
+            }
+            Assert.IsTrue(gun.ReloadAmmoIn, "setup: the new magazine never went in");
+            Vector3 origin = player.transform.position + Vector3.up * 2.0f - Vector3.forward * 2.0f;
+            Assert.IsTrue(gun.Fire(origin, Vector3.forward, false, player), "setup: the shot after the click did not fire");
+            Assert.IsFalse(gun.ReloadPlayer.isPlaying, "the reload recording played on over the shot that cut the reload short");
+            yield return Frames(locomotion, 0.5f, new LocomotionInput { GunEquipped = true });
+
+            // Empty: the longer recording, with the action racked.
+            gun.SetAmmo(0, 60);
+            gun.TryReload();
+            Assert.IsTrue(reloader.IsPlaying && reloader.IsEmptyReload, "setup: the empty reload did not start");
+            Assert.AreSame(gun.Profile.EmptyReloadSound, gun.ReloadPlayer.clip, "the empty reload did not play its recording");
+            Assert.IsTrue(gun.ReloadPlayer.isPlaying);
+
+            // Another player's copy, told the reload by name, plays the same recording on its own gun.
+            GameObject copy = Player(new Vector3(4, 0.05f, 0));
+            var copyLocomotion = copy.GetComponent<PlayerLocomotion>();
+            PistolWeapon model = Gun("Assets/CityX/Weapons/AK47.prefab");
+            model.MountCosmetic(copy);
+            foreach (MonoBehaviour b in model.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                b.enabled = false;   // as NetworkedEquipmentSync leaves a copy's item
+            }
+            yield return Frames(copyLocomotion, 0.3f, new LocomotionInput { GunEquipped = true });
+            copy.GetComponent<PlayerAnimationDriver>().PlayRemoteState(GunReload.EmptyName, 1.0f, 0.0f);
+            Assert.AreSame(model.Profile.EmptyReloadSound, model.ReloadPlayer.clip, "another player's copy did not play the empty reload's recording");
+            Assert.IsTrue(model.ReloadPlayer.isPlaying);
+            model.UnmountCosmetic(copy);
+#else
+            yield break;
+#endif
+        }
     }
 }

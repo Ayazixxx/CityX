@@ -744,6 +744,8 @@ MonoBehaviour:
     MotionResource: Glock/GlockReload
     ReloadSeconds: 1.4
     EmptyReloadSeconds: 1.73
+    ReloadSound: {fileID: 0}
+    EmptyReloadSound: {fileID: 0}
     HoldPosition: {x: 0.1, y: -0.01, z: 0.095}
     HoldDipDegrees: 15
     HoldScale: 1

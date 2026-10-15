@@ -82,6 +82,16 @@ namespace CityX.Weapons
 
         public float EmptyReloadSeconds = 1.73f;
 
+        [Tooltip("The gun's own recording of a reload with rounds still in the magazine, made exactly as long as the tactical reload (the motion's " +
+                 "tactical segment), played from its start. None: the motion's events make the synthesised clicks instead (FirearmEffects).")]
+        public AudioClip ReloadSound;
+
+        [Tooltip("The same for the empty reload (the action racked too), as long as the motion's empty segment.")]
+        public AudioClip EmptyReloadSound;
+
+        /// <summary>The recording for this kind of reload, or null when the gun has none (its reload clicks are synthesised).</summary>
+        public AudioClip ReloadSoundFor(bool empty) => empty ? EmptyReloadSound : ReloadSound;
+
         [Header("The hold (the gun's frame in the right hand bone's)")]
         [Tooltip("Where the gun's origin (the web of its grip) sits in the hand bone's frame: the web of the hand, between thumb and index.")]
         public Vector3 HoldPosition = new Vector3(0.10f, -0.01f, 0.095f);

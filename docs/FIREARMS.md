@@ -133,7 +133,8 @@ crosshair, pointing at it; a test checks it is on screen and that the line from 
   and tips up (as before, after the arms are solved), a **spent case** flies out of the port -- short and fat from the Glock, long
   from the AK -- tumbles, bounces and lies on the floor for four seconds. Simulated arcs, no physics bodies: nothing they do can
   block a shot.
-- **Sounds**: the reload's magazine-out clack, the click of the seat and the rack are synthesised (like the hit tick). The AK's shot
+- **Sounds**: the reload's magazine-out clack, the click of the seat and the rack are synthesised (like the hit tick); the AK-47 plays a
+  recording instead since 2026-10-14 (see the update at the end). The AK's shot
   is the pistol clip pitched down to 0.78 -- a real rifle recording would be better.
 
 ### Other players see all of it
@@ -197,3 +198,24 @@ crosshair, pointing at it; a test checks it is on screen and that the line from 
 - Sources: [AK-47 vs SG 553 -- csdb.gg](https://csdb.gg/compare/ak-47-vs-sg-553/) and [How to use the AK in CS2 -- Profilerr](https://profilerr.net/how-to-use-the-ak-in-cs2-correctly-and-effectively/)
   (600 RPM); [CS:GO weapons -- biligame wiki](https://wiki.biligame.com/csgo/Weapon) (tracer frequency differs by weapon: every shot on the
   M249, every third on the M4A4); [CS:GO patch notes -- SteamDB](https://steamdb.info/patchnotes/2565539) (a tracer on the first bullet).
+
+## Update 2026-10-14 (evening): the AK-47 reloads to a real recording
+
+Owner: "replace the ak47 reload sound with this. speed it up so its 2.8 seconds when magazine is empty and 2.17 seconds with rounds left, but
+try to maintain the pitch even when sped up." The recording (3.42 s, stereo, the magazine out, in, and the charging handle) is sped up to each
+reload motion's exact length, 130 and 168 frames at 60 fps, WITHOUT raising its pitch:
+
+- `CityX/SourceArt/AK47/stretch_reload.py` runs in Blender's own Python (its audio library reads the MP3 and writes Vorbis; numpy does the
+  rest; no ffmpeg on this machine). WSOLA: short overlapping windows of the recording, each taken from further along than it is laid down and
+  nudged to where it joins the last one in phase. It keeps the clicks sharp (a phase vocoder smears them) and every click in its place, only
+  closer together. The ringing frequencies of the metal stay within a few percent (1626 Hz, 4479 Hz, 4565 Hz...); a plain speed-up (an
+  AudioSource's pitch) would have raised them by the speed, 1.22 and 1.58 times. The source and the command are kept beside the script.
+- `Weapons/Audio/ak47_reload_tactical.ogg` (2.167 s, 26 KB) and `ak47_reload_empty.ogg` (2.800 s, 33 KB) go on the AK's profile
+  (`FirearmProfile.ReloadSound`, `EmptyReloadSound`, set by `AK47Builder`). `GunReloadDriver.Started` tells the gun a reload began, on the
+  shooter's body and on other players' copies alike, and the gun plays the matching recording from its start; the motion's events then make no
+  synthesised clicks. A shot once the fresh magazine is in, a body taken by a climb or a fall, or the gun put away stops it. The Glock keeps
+  its synthesised clicks (no recording on its profile).
+- The recording racks the charging handle at its end, and the tactical reload plays the same recording sped up, so it racks too, although the
+  motion does not pull the handle. The clicks also fall where the recording has them, not on the motion's frames (the magazine leaves at 0.63 s).
+- Tests: `FirearmTests` (both recordings as long as their motions, the Glock without), `FirearmPlayTests` (the shooter hears the recording for
+  each kind of reload from its start, a shot cuts it off, another player's copy plays it when told the reload by name).

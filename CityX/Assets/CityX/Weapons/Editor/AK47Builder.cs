@@ -19,6 +19,15 @@ namespace CityX.WeaponsEditor
         private const string ModelPath = "Assets/CityX/Weapons/AK47.glb";
         private const string MeshFolder = "Assets/CityX/Weapons/AK47Meshes";
 
+        /// <summary>
+        /// The reload's own recordings (owner, 2026-10-14: "replace the ak47 reload sound with this. speed it up so its 2.8 seconds when magazine
+        /// is empty and 2.17 seconds with rounds left, but try to maintain the pitch"): one recording, sped up to each reload's exact length
+        /// without changing its pitch by CityX/SourceArt/AK47/stretch_reload.py (WSOLA, in Blender's Python).
+        /// </summary>
+        public const string ReloadSoundPath = "Assets/CityX/Weapons/Audio/ak47_reload_tactical.ogg";
+
+        public const string EmptyReloadSoundPath = "Assets/CityX/Weapons/Audio/ak47_reload_empty.ogg";
+
         /// <summary>The Blender materials' looks: blued steel, darker small parts, the red-brown laminated wood, the steel magazine.</summary>
         public static readonly Dictionary<string, FirearmBuilder.Finish> Finishes = new Dictionary<string, FirearmBuilder.Finish>
         {
@@ -31,7 +40,20 @@ namespace CityX.WeaponsEditor
         [MenuItem("CityX/Rebuild AK-47")]
         public static GameObject Build()
         {
-            return FirearmBuilder.Build(ModelPath, PrefabPath, MeshFolder, "AK47", "AK47", FirearmProfile.AK47(), Finishes);
+            FirearmProfile profile = FirearmProfile.AK47();
+            profile.ReloadSound = LoadClip(ReloadSoundPath);
+            profile.EmptyReloadSound = LoadClip(EmptyReloadSoundPath);
+            return FirearmBuilder.Build(ModelPath, PrefabPath, MeshFolder, "AK47", "AK47", profile, Finishes);
+        }
+
+        private static AudioClip LoadClip(string path)
+        {
+            var clip = AssetDatabase.LoadAssetAtPath<AudioClip>(path);
+            if (clip == null)
+            {
+                Debug.LogWarning($"CityX: no reload recording at {path} -- the AK-47 falls back to the synthesised reload clicks.");
+            }
+            return clip;
         }
     }
 }

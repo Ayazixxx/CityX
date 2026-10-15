@@ -42,6 +42,10 @@ namespace CityX.Character
         /// <summary>The reload ran to its end (not raised on a cancel).</summary>
         public event System.Action Finished;
 
+        /// <summary>A reload began, and whether it is the empty one: on an owner's body and on other players' copies alike (the gun plays its own
+        /// recording of it from here, FirearmProfile.ReloadSound).</summary>
+        public event System.Action<bool> Started;
+
         /// <summary>A reload is in progress (its motion still playing).</summary>
         public bool IsPlaying => _playing;
 
@@ -120,6 +124,7 @@ namespace CityX.Character
             _nextEvent = 0;
             _passed.Clear();
             enabled = true;
+            Started?.Invoke(empty);
             return true;
         }
 

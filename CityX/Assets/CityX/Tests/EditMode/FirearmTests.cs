@@ -208,5 +208,29 @@ namespace CityX.Tests
             }
         }
 #endif
+
+#if UNITY_EDITOR
+        [Test]
+        public void TheAK47ReloadsToItsOwnRecordingCutToEachReloadsLengthAndTheGlockKeepsItsClicks()
+        {
+            // Owner, 2026-10-14: "replace the ak47 reload sound with this. speed it up so its 2.8 seconds when magazine is empty and 2.17 seconds
+            // with rounds left, but try to maintain the pitch". Each recording is exactly as long as the motion it plays with, so it ends as the hands do.
+            var ak = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/AK47.prefab").GetComponent<PistolWeapon>();
+            AudioClip tactical = ak.Profile.ReloadSoundFor(false);
+            AudioClip empty = ak.Profile.ReloadSoundFor(true);
+            Assert.IsNotNull(tactical, "the AK-47 has no recording for a reload with rounds left -- CityX > Rebuild Firearms");
+            Assert.IsNotNull(empty, "the AK-47 has no recording for an empty reload -- CityX > Rebuild Firearms");
+            Assert.AreNotSame(tactical, empty);
+            Assert.AreEqual(2.17f, tactical.length, 0.01f, "the reload with rounds left");
+            Assert.AreEqual(2.8f, empty.length, 0.01f, "the empty reload");
+            Assert.AreEqual(ak.Motion.SegmentSeconds(GunReload.TacticalSegment), tactical.length, 0.01f, "the recording outlasts or falls short of its motion");
+            Assert.AreEqual(ak.Motion.SegmentSeconds(GunReload.EmptySegment), empty.length, 0.01f, "the recording outlasts or falls short of its motion");
+            Assert.AreEqual(ak.Profile.ReloadSeconds, tactical.length, 0.01f, "a body without the motion times its reload by ReloadSeconds");
+            Assert.AreEqual(ak.Profile.EmptyReloadSeconds, empty.length, 0.01f);
+            var glock = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/Pistol.prefab").GetComponent<PistolWeapon>();
+            Assert.IsNull(glock.Profile.ReloadSoundFor(false), "the Glock keeps its synthesised reload clicks");
+            Assert.IsNull(glock.Profile.ReloadSoundFor(true));
+        }
+#endif
     }
 }

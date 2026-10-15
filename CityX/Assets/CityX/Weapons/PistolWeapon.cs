@@ -167,6 +167,7 @@ namespace CityX.Weapons
         private bool _reloadAmmoIn;
         private bool _reloadReadyToFire;
         private bool _reloadByMotion;
+        private bool _reloadRecording;   // the reload in progress plays the gun's own recording (FirearmProfile.ReloadSound), not the clicks
         private float _muzzleFlashRemaining;
         private bool _equipped;
         private Transform _nearbyPlayer;
@@ -558,6 +559,8 @@ namespace CityX.Weapons
                 reloader.Marker += OnReloadMarker;
                 reloader.Finished -= OnReloadFinished;
                 reloader.Finished += OnReloadFinished;
+                reloader.Started -= OnReloadStarted;
+                reloader.Started += OnReloadStarted;
             }
         }
 
@@ -574,6 +577,7 @@ namespace CityX.Weapons
             {
                 reloader.Marker -= OnReloadMarker;
                 reloader.Finished -= OnReloadFinished;
+                reloader.Started -= OnReloadStarted;
                 if (ReferenceEquals(reloader.Motion, Motion))
                 {
                     reloader.SetMotion(null);
@@ -583,6 +587,7 @@ namespace CityX.Weapons
 
         public void OnUnequip(GameObject player)
         {
+            StopReloadRecording();   // put away mid-reload
             var input = player.GetComponent<PlayerInputReader>();
             if (input != null && ReferenceEquals(input.EquippedGun, this))
             {
@@ -743,10 +748,7 @@ namespace CityX.Weapons
             _reloadByMotion = false;
             _reloadDuration = _reloadEmpty ? Profile.EmptyReloadSeconds : Profile.ReloadSeconds;
             _reloadTimeRemaining = _reloadDuration;
-            if (ReloadPlayer != null && ReloadPlayer.clip != null)
-            {
-                ReloadPlayer.Play();
-            }
+            PlayReloadRecording(_reloadEmpty);   // as long as the timer (ReloadSeconds, EmptyReloadSeconds)
         }
 
         private void TickReload(float deltaTime)
@@ -756,6 +758,7 @@ namespace CityX.Weapons
                 // The motion was cut short by something taking the body (a ragdoll, a climb): the magazine is in only if it had seated.
                 if (_reloader == null || !_reloader.IsPlaying)
                 {
+                    StopReloadRecording();
                     EndReload();
                 }
                 return;
@@ -775,10 +778,10 @@ namespace CityX.Weapons
             {
                 case GunReload.DropEvent:
                     FirearmEffects.DropMagazine(MagazinePart, transform.TransformDirection(Profile.MagazineOutLocal), _wielder != null ? _wielder : _cosmeticBody);
-                    PlayReloadSound(FirearmEffects.MagazineOut);
+                    if (!_reloadRecording) PlayReloadSound(FirearmEffects.MagazineOut);
                     break;
                 case GunReload.SeatEvent:
-                    PlayReloadSound(FirearmEffects.MagazineIn);
+                    if (!_reloadRecording) PlayReloadSound(FirearmEffects.MagazineIn);
                     if (_equipped && IsReloading)
                     {
                         Refill();
@@ -787,7 +790,7 @@ namespace CityX.Weapons
                     }
                     break;
                 case GunReload.RackEvent:
-                    PlayReloadSound(FirearmEffects.Rack);
+                    if (!_reloadRecording) PlayReloadSound(FirearmEffects.Rack);
                     if (_equipped && IsReloading)
                     {
                         _reloadReadyToFire = _reloadAmmoIn;
@@ -806,6 +809,38 @@ namespace CityX.Weapons
                 }
                 EndReload();
             }
+        }
+
+        /// <summary>
+        /// A reload began, here or on another player's copy (GunReloadDriver.Started). A gun with its own recording of a reload (owner, 2026-10-14:
+        /// the AK-47's, sped up to the motion's length at its own pitch) plays it from the start, and the motion's events make no clicks of their own.
+        /// </summary>
+        private void OnReloadStarted(bool empty)
+        {
+            PlayReloadRecording(empty);
+        }
+
+        private void PlayReloadRecording(bool empty)
+        {
+            AudioClip clip = Profile.ReloadSoundFor(empty);
+            _reloadRecording = clip != null && ReloadPlayer != null;
+            if (!_reloadRecording || !ReloadPlayer.isActiveAndEnabled)
+            {
+                return;
+            }
+            ReloadPlayer.Stop();
+            ReloadPlayer.clip = clip;
+            ReloadPlayer.Play();
+        }
+
+        /// <summary>A reload cut short (a shot once the fresh magazine is in, the body taken by a climb or a fall, the gun put away) stops its recording.</summary>
+        private void StopReloadRecording()
+        {
+            if (_reloadRecording && ReloadPlayer != null)
+            {
+                ReloadPlayer.Stop();
+            }
+            _reloadRecording = false;
         }
 
         private void PlayReloadSound(AudioClip clip)
@@ -869,6 +904,7 @@ namespace CityX.Weapons
                 {
                     _reloader.Cancel();
                 }
+                StopReloadRecording();
                 EndReload();
             }
 
