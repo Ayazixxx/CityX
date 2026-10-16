@@ -8,13 +8,20 @@ namespace CityX.Tests
 {
     /// <summary>
     /// A building wears one whole facade, and the city has all the kinds a real one does: glass towers, ribbon
-    /// bands, punched windows, irregular openings, clerestory sheds and blank walls -- with party walls and
-    /// shopfronts on top. These check that the mix exists, that it follows where a building stands and how
-    /// big it is, and that a glass tower really is glass all the way round.
+    /// bands, punched windows, clerestory sheds and blank walls -- with party walls and shopfronts on top.
+    /// (Not the SCATTERED facade of irregular openings any more: owner, 2026-10-15, "make the window placements
+    /// all intentional and based off how real buildings are built".) These check that the mix exists, that it
+    /// follows where a building stands and how big it is, and that a glass tower really is glass all the way round.
     /// </summary>
     public sealed class FacadeVarietyTests
     {
         private const int Seed = 20260810;
+
+        /// <summary>
+        /// The ordinary building of every real city has a regular grid of punched windows, so Punched is most of ours; this is how much of the
+        /// city one style may be before the mix has gone (0.6 while Scattered took a share; Punched is about 0.58 now).
+        /// </summary>
+        private const double MostOneStyleMayBe = 0.64;
 
         private static IEnumerable<(BuildingSite site, WindowPlan plan, ZoneKind zone)> Sample(int radius)
         {
@@ -69,6 +76,11 @@ namespace CityX.Tests
 
             foreach (FacadeStyle style in Enum.GetValues(typeof(FacadeStyle)))
             {
+                if (style == FacadeStyle.Scattered)
+                {
+                    Assert.AreEqual(0, counts[(int)style], "a building with scattered, random windows: every placement is to be a regular grid");
+                    continue;
+                }
                 Assert.Greater(counts[(int)style], 0, $"no {style} building within 40 chunks of the origin");
             }
         }
@@ -87,7 +99,7 @@ namespace CityX.Tests
             Assert.Greater(total, 60, "too few buildings sampled to mean anything");
             foreach (FacadeStyle style in Enum.GetValues(typeof(FacadeStyle)))
             {
-                Assert.Less(counts[(int)style] / (double)total, 0.6, $"{style} is most of the city");
+                Assert.Less(counts[(int)style] / (double)total, MostOneStyleMayBe, $"{style} is most of the city ({counts[(int)style]} of {total})");
             }
         }
 

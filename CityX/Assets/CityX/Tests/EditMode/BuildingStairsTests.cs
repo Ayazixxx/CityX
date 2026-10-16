@@ -11,7 +11,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class BuildingStairsTests
     {
-        private const int Seed = 70485213;
+        private const int Seed = 58203917;
         private static CityWorld _world;
         private static CityWorld World => _world ?? (_world = new CityWorld(Seed));
 
@@ -480,6 +480,114 @@ namespace CityX.Tests
                 }
             }
             Assert.Greater(cores, 20);
+        }
+
+        /// <summary>
+        /// Not a test: every building (not one in seven), every floor -- the floors a body cannot walk into off their stairs, and a map of the first
+        /// few (the floor on its 25 cm grid: # a solid, . free, o reached from where the stairs arrive, E that spot). Explicit; run it with -Filter.
+        /// </summary>
+        [Test, Explicit("a survey with a map, for finding why a floor is shut in")]
+        public void ProbeEveryFloorForOnesShutInByTheirStairs()
+        {
+            int floorsChecked = 0, shutIn = 0, mapped = 0;
+            foreach (BuildingSite site in Buildings(1))
+            {
+                if (site.Sides >= 3)
+                {
+                    continue;
+                }
+                float halfW = site.Params.Width * 0.5f, halfD = site.Params.Depth * 0.5f;
+                float hx = halfW - BuildingInterior.WallThickness - 0.05f, hz = halfD - BuildingInterior.WallThickness - 0.05f;
+                if (hx > 40.0f || hz > 40.0f)
+                {
+                    continue;
+                }
+                BuildingStairs.Layout layout = BuildingStairs.PlanFor(site);
+                for (int f = 0; f < layout.FloorCount; f++)
+                {
+                    StairPlan arriving = f == 0 ? layout.Basement : layout.Floors[f - 1];
+                    if (arriving == null)
+                    {
+                        continue;
+                    }
+                    StairPlan plan = layout.Floors[f];
+                    List<Rect> solids = BuildingStairs.FloorSolids(plan, arriving, f, halfW, halfD);
+                    float share = ShareReached(solids, hx, hz, arriving.ExitPoint);
+                    floorsChecked++;
+                    if (share >= 0.5f)
+                    {
+                        continue;
+                    }
+                    shutIn++;
+                    WindowPlan facade = WindowPlan.For(World, site);
+                    TestContext.WriteLine($"building {site.Id} ({site.Params.Width:F1} x {site.Params.Depth:F1} x {site.Params.Height:F1} m, {site.Params.Mass}, {facade.Style}, " +
+                        $"zone {site.Zone}, core {layout.Core}, {layout.FloorCount} floors) floor {f}: arriving {arriving.Kind} x{arriving.Flights}, leaving " +
+                        $"{(plan == null ? "none" : plan.Kind + " x" + plan.Flights)}, {share:P0} reached from {arriving.ExitPoint}; arriving exit {arriving.Exit}, hole {arriving.Hole}" +
+                        $"{(plan == null ? "" : $"; leaving entry {plan.Entry}, hole {plan.Hole}, room suppressed {plan.SuppressRoom}")}");
+                    if (mapped++ < 4)
+                    {
+                        TestContext.WriteLine(FloorMap(solids, hx, hz, arriving.ExitPoint));
+                    }
+                }
+            }
+            TestContext.WriteLine($"{shutIn} of {floorsChecked} floors shut in");
+        }
+
+        /// <summary>The floor on the test's grid, a character a cell, north (+z) at the top.</summary>
+        private static string FloorMap(List<Rect> solids, float hx, float hz, Vector2 from)
+        {
+            const float cell = 0.25f, radius = 0.45f;
+            int nx = Mathf.CeilToInt(2.0f * hx / cell), nz = Mathf.CeilToInt(2.0f * hz / cell);
+            var free = new bool[nx * nz];
+            for (int iz = 0; iz < nz; iz++)
+            {
+                for (int ix = 0; ix < nx; ix++)
+                {
+                    float x = -hx + (ix + 0.5f) * cell, z = -hz + (iz + 0.5f) * cell;
+                    bool ok = x > -hx + radius && x < hx - radius && z > -hz + radius && z < hz - radius;
+                    foreach (Rect r in solids)
+                    {
+                        if (ok && x > r.xMin - radius && x < r.xMax + radius && z > r.yMin - radius && z < r.yMax + radius)
+                        {
+                            ok = false;
+                        }
+                    }
+                    free[iz * nx + ix] = ok;
+                }
+            }
+            int start = Mathf.Clamp(Mathf.FloorToInt((from.y + hz) / cell), 0, nz - 1) * nx + Mathf.Clamp(Mathf.FloorToInt((from.x + hx) / cell), 0, nx - 1);
+            var seen = new bool[nx * nz];
+            if (free[start])
+            {
+                var queue = new Queue<int>();
+                queue.Enqueue(start);
+                seen[start] = true;
+                while (queue.Count > 0)
+                {
+                    int c = queue.Dequeue();
+                    int cx = c % nx, cz = c / nx;
+                    foreach (int a in new[] { cx + 1 < nx ? c + 1 : -1, cx > 0 ? c - 1 : -1, cz + 1 < nz ? c + nx : -1, cz > 0 ? c - nx : -1 })
+                    {
+                        if (a >= 0 && free[a] && !seen[a])
+                        {
+                            seen[a] = true;
+                            queue.Enqueue(a);
+                        }
+                    }
+                }
+            }
+            var text = new System.Text.StringBuilder();
+            text.AppendLine($"solids: {string.Join(" | ", solids)}");
+            for (int iz = nz - 1; iz >= 0; iz--)
+            {
+                for (int ix = 0; ix < nx; ix++)
+                {
+                    int c = iz * nx + ix;
+                    text.Append(c == start ? 'E' : seen[c] ? 'o' : free[c] ? '.' : '#');
+                }
+                text.AppendLine();
+            }
+            return text.ToString();
         }
     }
 }

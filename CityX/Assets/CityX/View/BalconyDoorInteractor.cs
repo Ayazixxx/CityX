@@ -256,7 +256,14 @@ namespace CityX.View
             if (!_doorsOf.TryGetValue(site.Id, out List<BalconyDoor> doors))
             {
                 doors = new List<BalconyDoor>();
-                BalconyDoors.For(site, WindowPlan.For(site), doors);
+                WindowPlan plan = WindowPlan.For(site);
+                BalconyDoors.For(site, plan, doors);
+                // And the footbridges' doorways (Footbridges), on whichever wall a bridge meets.
+                CityWorld world = CurrentWorld.Instance;
+                if (world != null)
+                {
+                    Footbridges.DoorsOf(world, site, plan, doors);
+                }
                 _doorsOf[site.Id] = doors;
             }
             return doors;

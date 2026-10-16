@@ -750,28 +750,29 @@ namespace CityX.World
             {
                 return false;
             }
-            if (prev == null)
-            {
-                return true;
-            }
-            if (WalkPath(solids, c.Hx, c.Hz, prev.ExitPoint, plan.EntryPoint) == null)
-            {
-                return false;
-            }
-            // And off the stairs into the floor itself: a flight that wraps on up round its own landing can shut the way from the one arriving to the
-            // next in by its own steps and the opening below, the rest of the floor out of reach (2026-10-15: 17 floors of the blocks round the spawn,
-            // found by their balcony doors). From where it arrives a body must reach most of the floor.
             if (c.WalkIn == WalkInNone)
             {
-                return true;
+                return prev == null || WalkPath(solids, c.Hx, c.Hz, prev.ExitPoint, plan.EntryPoint) != null;
             }
-            if (!WalksIn(solids, c.Hx, c.Hz, prev.ExitPoint, c.WalkIn))
+            if (prev != null)
             {
-                return false;
+                if (WalkPath(solids, c.Hx, c.Hz, prev.ExitPoint, plan.EntryPoint) == null)
+                {
+                    return false;
+                }
+                // And off the stairs into the floor itself: a flight that wraps on up round its own landing can shut the way from the one arriving to
+                // the next in by its own steps and the opening below, the rest of the floor out of reach (2026-10-15: 17 floors of the blocks round the
+                // spawn, found by their balcony doors). From where it arrives a body must reach most of the floor.
+                if (!WalksIn(solids, c.Hx, c.Hz, prev.ExitPoint, c.WalkIn))
+                {
+                    return false;
+                }
             }
             // The same on the floor this one climbs to, as far as this flight makes it (its opening, the corner room; the next stair is not planned
             // yet): where that floor has no stair of its own (a sealed or covered top), and for a wrap, which can shut its own arrival in by itself
-            // with its opening (seed 52817364: four floors, which no stair planned on them could then open up).
+            // with its opening (seed 52817364: four floors, which no stair planned on them could then open up). A lobby with no basement flight
+            // arriving on it (prev null) is held to this too: it used to answer before getting here, and one lobby's wrap (seed 58203917, building
+            // 1603 at the classic scale, 18 x 9 m) opened a 5.9 m hole across its 8 m floor above, boxing that floor's arrival in for good.
             if (!c.LastFlight && !(c.FloorAbove && plan.Kind == StairKind.Wrap))
             {
                 return true;

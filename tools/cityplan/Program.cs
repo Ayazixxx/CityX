@@ -5,7 +5,7 @@
         // dotnet run -c Release --project tools/cityplan -- [seed] [halfMetres] [pixels] [out.png] [centreX centreZ viewHalf]
         if (args.Length > 0 && args[0] == "site")
         {
-            var w = CityX.World.Plan.PlanWorld.For(args.Length > 2 ? int.Parse(args[2]) : 70485213);
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 2 ? int.Parse(args[2]) : 58203917);
             var s = w.Buildings[int.Parse(args[1])];
             System.Console.WriteLine($"#{s.Id} {s.Params.Width:F1}x{s.Params.Depth:F1}x{s.Params.Height:F1} mass={s.Params.Mass} sides={s.Sides} shell={s.Shell} wing={s.Wing} roof={s.OnRoof} sealed={s.RoofSealed} contacts={(s.Contacts?.Length ?? 0)} obstacle={s.HasRoofObstacle} basement={s.Params.HasBasement}");
             System.Console.WriteLine($"  centre ({s.CentreX:F1},{s.CentreZ:F1}) axis ({s.AxisX:F3},{s.AxisZ:F3}) base {s.BaseHeight:F2}");
@@ -21,7 +21,7 @@
         // floorcheck [seed]: every ground floor whose footprint corner has the paving above it (BlockPavingTests), with what kind of volume it is.
         if (args.Length > 0 && args[0] == "floorcheck")
         {
-            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 70485213);
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 58203917);
             int bad = 0;
             foreach (var s in w.Buildings)
             {
@@ -57,7 +57,7 @@
         if (args.Length > 0 && args[0] == "interchanges")
         {
             // interchanges [seed]: the game's own plan (PlanWorld.For), its spawn, every interchange and the ramps' ends, to compare with a capture's log.
-            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 70485213);
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 58203917);
             var xw = w.Data.Expressways;
             w.TryFindSpawn(out double sx, out double sz);
             System.Console.WriteLine($"spawn ({sx:F0},{sz:F0}); {w.Data.Nodes.Count} nodes, {w.Data.Lots.Count} lots");
@@ -72,12 +72,12 @@
             }
             return 0;
         }
-        if (args.Length > 0 && args[0] == "nearspawn") { PlanDiagnose.NearSpawn(args.Length > 1 ? int.Parse(args[1]) : 70485213, args.Length > 2 ? int.Parse(args[2]) : 12); return 0; }
-        if (args.Length > 0 && args[0] == "overlaps") { PlanDiagnose.Overlaps(args.Length > 1 ? int.Parse(args[1]) : 70485213); return 0; }
+        if (args.Length > 0 && args[0] == "nearspawn") { PlanDiagnose.NearSpawn(args.Length > 1 ? int.Parse(args[1]) : 58203917, args.Length > 2 ? int.Parse(args[2]) : 12); return 0; }
+        if (args.Length > 0 && args[0] == "overlaps") { PlanDiagnose.Overlaps(args.Length > 1 ? int.Parse(args[1]) : 58203917); return 0; }
         if (args.Length > 0 && args[0] == "profile-line")
         {
             // The ground and what stands on it along a line: profile-line x0 z0 x1 z1 [seed]
-            var w = CityX.World.Plan.PlanWorld.For(args.Length > 5 ? int.Parse(args[5]) : 70485213);
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 5 ? int.Parse(args[5]) : 58203917);
             double x0 = double.Parse(args[1]), z0 = double.Parse(args[2]), x1 = double.Parse(args[3]), z1 = double.Parse(args[4]);
             for (int i = 0; i <= 20; i++)
             {
@@ -90,7 +90,7 @@
         if (args.Length > 0 && args[0] == "partywalls")
         {
             // How much of the city stands shoulder to shoulder: ground-level boxes with a blank stretch of wall, and how much wall that is.
-            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 70485213);
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 58203917);
             int ground = 0, touching = 0, contacts = 0;
             double metres = 0.0;
             foreach (var s in w.Buildings)
@@ -105,10 +105,70 @@
             System.Console.WriteLine($"{ground} street-level boxes, {touching} touch another block ({100.0 * touching / ground:F0}%), {contacts} contacts, {metres / 1000.0:F1} km of blank wall");
             return 0;
         }
+        if (args.Length > 0 && args[0] == "pavingcheck")
+        {
+            // pavingcheck [seed]: every paved block whose kerb outline, triangulated, does not cover itself exactly (BlockPavingTests), with its corners.
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 58203917);
+            int bad = 0, paved = 0, index = -1;
+            foreach (var block in w.Data.Blocks)
+            {
+                index++;
+                if (!block.Paved) continue;
+                paved++;
+                double area = 0.0;
+                int[] t = block.InnerTriangles;
+                for (int k = 0; k < t.Length; k += 3)
+                {
+                    area += System.Math.Abs(CityX.World.Plan.PlanMath.SignedArea(new[] { block.Inner[t[k]], block.Inner[t[k + 1]], block.Inner[t[k + 2]] }));
+                }
+                double outline = System.Math.Abs(CityX.World.Plan.PlanMath.SignedArea(block.Inner));
+                if (System.Math.Abs(outline - area) <= outline * 1e-6 + 1e-6) continue;
+                bad++;
+                System.Console.WriteLine($"block {index}: outline {outline:F3} triangles {area:F3} ({t.Length / 3} triangles, {block.Inner.Count} corners, {block.Poly.Count} in the road outline)");
+                for (int i = 0; i < block.Poly.Count; i++) System.Console.WriteLine($"  road corner {i}: ({block.Poly[i].X:F4},{block.Poly[i].Y:F4}) class {block.EdgeClass[i]} half width {CityX.World.Plan.CityPlan.HalfWidth(w.Data.Config, block.EdgeClass[i]):F3} sidewalk {w.Data.Config.SidewalkWidth:F3}");
+                for (int i = 0; i < block.Inner.Count; i++)
+                {
+                    var a = block.Inner[i];
+                    var b = block.Inner[(i + 1) % block.Inner.Count];
+                    var c = block.Inner[(i + 2) % block.Inner.Count];
+                    double cross = CityX.World.Plan.Vec2.Cross(b - a, c - b);
+                    System.Console.WriteLine($"  corner {i}: ({a.X:F4},{a.Y:F4}) edge {(b - a).Length:F4} m, turn {cross:E2}");
+                }
+                for (int k = 0; k < t.Length; k += 3)
+                {
+                    System.Console.WriteLine($"  triangle {t[k]} {t[k + 1]} {t[k + 2]} area {CityX.World.Plan.PlanMath.SignedArea(new[] { block.Inner[t[k]], block.Inner[t[k + 1]], block.Inner[t[k + 2]] }):F3}");
+                }
+            }
+            System.Console.WriteLine($"{bad} of {paved} paved blocks not covered exactly");
+            return 0;
+        }
+        if (args.Length > 0 && args[0] == "insetfail")
+        {
+            // insetfail [seed]: every block whose kerb line could not be inset (no paving, no lots), with why -- the inset's own steps, replayed here.
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 58203917);
+            int lost = 0;
+            foreach (var block in w.Data.Blocks)
+            {
+                if (block.Inner != null || block.Poly == null || block.Poly.Count < 3) continue;
+                lost++;
+                var poly = block.Poly;
+                int n = poly.Count;
+                var distances = new double[n];
+                for (int i = 0; i < n; i++) distances[i] = CityX.World.Plan.CityPlan.HalfWidth(w.Data.Config, block.EdgeClass[i]);
+                var lotDistances = new double[n];
+                for (int i = 0; i < n; i++) lotDistances[i] = distances[i] + w.Data.Config.SidewalkWidth;
+                string why = "kerb: " + InsetWhy(poly, distances) + "; lot line: " + InsetWhy(poly, lotDistances);
+                double minEdge = double.MaxValue;
+                for (int i = 0; i < n; i++) minEdge = System.Math.Min(minEdge, (poly[(i + 1) % n] - poly[i]).Length);
+                System.Console.WriteLine($"block {w.Data.Blocks.IndexOf(block)}: {n} corners, shortest edge {minEdge:F2} m, area {System.Math.Abs(CityX.World.Plan.PlanMath.SignedArea(poly)):F0}: {why}");
+            }
+            System.Console.WriteLine($"{lost} blocks without a kerb line");
+            return 0;
+        }
         if (args.Length > 0 && args[0] == "fitcheck")
         {
             // Every lot's fitted rectangle must lie inside the lot's footprint.
-            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 70485213);
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 58203917);
             int bad = 0, total = 0;
             foreach (var lot in w.Data.Lots)
             {
@@ -134,7 +194,7 @@
         if (args.Length > 0 && args[0] == "fitlot")
         {
             // fitlot <lot id> [seed]: one lot's footprint in its frontage's frame (x along it, z out of the front) and the rectangle fitted in it.
-            var w = CityX.World.Plan.PlanWorld.For(args.Length > 2 ? int.Parse(args[2]) : 70485213);
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 2 ? int.Parse(args[2]) : 58203917);
             int id = int.Parse(args[1]);
             foreach (var lot in w.Data.Lots)
             {
@@ -174,7 +234,7 @@
         {
             // scalecheck <seed>: CityScaleTests.AVariedCityRunsFromClassicSizedBuildingsToHugeOnes's numbers -- the long side's percentiles,
             // classic against varied.
-            int seed = args.Length > 1 ? int.Parse(args[1]) : 70485213;
+            int seed = args.Length > 1 ? int.Parse(args[1]) : 58203917;
             System.Collections.Generic.List<double> Long(CityX.World.Plan.CityScale scale)
             {
                 var w = CityX.World.Plan.PlanWorld.Create(seed, CityX.World.Plan.PlanConfig.For(scale));
@@ -194,7 +254,7 @@
         {
             // How big the city's buildings are: footprint side (square root of the area), height, and the share above fixed thresholds
             // (pass the thresholds from an earlier run as args 2-3 to compare a change against the same lines).
-            var w = CityX.World.Plan.PlanWorld.Create(args.Length > 1 ? int.Parse(args[1]) : 70485213, CityX.World.Plan.PlanWorld.DefaultConfig());
+            var w = CityX.World.Plan.PlanWorld.Create(args.Length > 1 ? int.Parse(args[1]) : 58203917, CityX.World.Plan.PlanWorld.DefaultConfig());
             var sides = new System.Collections.Generic.List<double>();
             var heights = new System.Collections.Generic.List<double>();
             foreach (var b in w.Buildings)
@@ -231,7 +291,7 @@
         if (args.Length > 0 && args[0] == "nearbridge")
         {
             // The bridge nearest the spawn (what RainRealCityPlayTests stands beside), and what is round it.
-            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 70485213);
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 58203917);
             w.TryFindSpawn(out double sx, out double sz);
             CityX.World.Plan.EdgeGeometry best = null;
             double bestD = double.MaxValue;
@@ -286,11 +346,68 @@
             }
             return 0;
         }
-        if (args.Length > 0 && args[0] == "profile") { PlanProfile.Run(args.Length > 1 ? int.Parse(args[1]) : 70485213); return 0; }
+        if (args.Length > 0 && args[0] == "profile") { PlanProfile.Run(args.Length > 1 ? int.Parse(args[1]) : 58203917); return 0; }
         return SubversionPlan.Run(args);
     }
 
     /// <summary>How far a point is outside a counter-clockwise convex-or-not polygon (0 inside): the largest distance past any edge it is outside of, when outside.</summary>
+    /// <summary>PlanMath.InsetPolygon step by step, saying which check refused the polygon.</summary>
+    private static string InsetWhy(System.Collections.Generic.IList<CityX.World.Plan.Vec2> poly, double[] distances)
+    {
+        int n = poly.Count;
+        var lineP = new CityX.World.Plan.Vec2[n];
+        var lineD = new CityX.World.Plan.Vec2[n];
+        for (int i = 0; i < n; i++)
+        {
+            var dir = (poly[(i + 1) % n] - poly[i]).Normalized;
+            lineP[i] = poly[i] + dir.Perp * distances[i];
+            lineD[i] = dir;
+        }
+        var result = new System.Collections.Generic.List<CityX.World.Plan.Vec2>();
+        for (int i = 0; i < n; i++)
+        {
+            int prev = (i + n - 1) % n;
+            double denom = CityX.World.Plan.Vec2.Cross(lineD[prev], lineD[i]);
+            CityX.World.Plan.Vec2 v;
+            if (System.Math.Abs(denom) < 1e-9) v = lineP[i];
+            else
+            {
+                double t = CityX.World.Plan.Vec2.Cross(lineP[i] - lineP[prev], lineD[i]) / denom;
+                v = lineP[prev] + lineD[prev] * t;
+                double limit = 3.0 * System.Math.Max(distances[prev], distances[i]) + 1.0;
+                if ((v - poly[i]).Length > limit * 2.5) return $"mitre at corner {i} thrown {(v - poly[i]).Length:F1} m (limit {limit * 2.5:F1})";
+            }
+            result.Add(v);
+        }
+        for (int pass = 0; pass < n; pass++)
+        {
+            bool folded = false;
+            for (int i = 0; i < n; i++)
+            {
+                int j = (i + 1) % n;
+                var edge = result[j] - result[i];
+                if (CityX.World.Plan.Vec2.Dot(edge, lineD[i]) >= 0.0) continue;
+                int prev = (i + n - 1) % n;
+                double denom = CityX.World.Plan.Vec2.Cross(lineD[prev], lineD[j]);
+                if (System.Math.Abs(denom) < 1e-9) return $"edge {i} backwards by {edge.Length:F2} m (road edge {(poly[j] - poly[i]).Length:F2} m) and its neighbours are parallel";
+                double t = CityX.World.Plan.Vec2.Cross(lineP[j] - lineP[prev], lineD[j]) / denom;
+                var meet = lineP[prev] + lineD[prev] * t;
+                double limit = 3.0 * System.Math.Max(distances[prev], System.Math.Max(distances[i], distances[j])) + 1.0;
+                if ((meet - poly[i]).Length > limit * 2.5) return $"edge {i} backwards by {edge.Length:F2} m (road edge {(poly[j] - poly[i]).Length:F2} m), collapse point {(meet - poly[i]).Length:F1} m off (limit {limit * 2.5:F1})";
+                System.Console.WriteLine($"    (collapsed edge {i}: it ran backwards by {edge.Length:F2} m, road edge {(poly[j] - poly[i]).Length:F2} m)");
+                result[i] = meet;
+                result[j] = meet;
+                folded = true;
+            }
+            if (!folded) break;
+        }
+        double before = CityX.World.Plan.PlanMath.SignedArea(poly);
+        double after = CityX.World.Plan.PlanMath.SignedArea(result);
+        if (after <= 1.0) return $"inset area {after:F1} (vanished)";
+        if (after > before) return $"inset area {after:F1} > {before:F1}";
+        if (CityX.World.Plan.PlanMath.SelfIntersects(result)) return "the inset crosses itself";
+        return "fine now?";
+    }
     private static double Outside(CityX.World.Plan.Vec2[] poly, CityX.World.Plan.Vec2 p)
     {
         bool inside = false;

@@ -104,8 +104,19 @@ namespace CityX.View
                 return;
             }
 
+            // A balcony on every FLOOR, not every window row: a storey inside is two rows (BuildingInterior.StoreyHeightRows), and a balcony on
+            // the row between stood half way up the room's wall with a door that opened onto nothing (owner, 2026-10-15: "the doors are like
+            // stacked on top of eachother in one room"). The eave over the top floor stays. A balcony reaches up to the slab above it, a storey.
+            int floors = BuildingInterior.FloorCountFor(site.Params.Height);
             for (int r = 1; r <= rows.Count; r++)
             {
+                bool eave = r == rows.Count;
+                bool floorRow = r % BuildingInterior.StoreyHeightRows == 0 && r / BuildingInterior.StoreyHeightRows < floors;
+                if (!floorRow && !eave)
+                {
+                    continue;
+                }
+                float toSlabAbove = (Mathf.Min(r + BuildingInterior.StoreyHeightRows, rows.Count) - r) * rows.Size;
                 float floorY = lobbyY + r * rows.Size;
                 float fromY = r * rows.Size;
                 int runStart = -1;
@@ -119,8 +130,8 @@ namespace CityX.View
                     }
                     else if (!open && runStart >= 0)
                     {
-                        AddBalconyRun(buffer, site, front, wall, outward, edges, runStart, k, floorY, rows.Size, depth, looks, parapet,
-                            far, walkway, r == rows.Count, r);
+                        AddBalconyRun(buffer, site, front, wall, outward, edges, runStart, k, floorY, toSlabAbove, depth, looks, parapet,
+                            far, walkway, eave, r);
                         runStart = -1;
                     }
                 }
@@ -214,7 +225,7 @@ namespace CityX.View
                 }
                 float left = k == first ? fa + wallT : fa + half;
                 float right = k == end - 1 ? fb - wallT : fb - half;
-                if (right - left < 0.8f)
+                if (right - left < 0.8f || !ApartmentFront.LaundryOn)
                 {
                     continue;
                 }

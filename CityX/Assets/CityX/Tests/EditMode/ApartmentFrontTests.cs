@@ -13,7 +13,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class ApartmentFrontTests
     {
-        private const int Seed = 70485213;
+        private const int Seed = 58203917;
 
         /// <summary>The player's height (BodyRig.StandingHeight): what must walk out of the door and along the back under the first slab.</summary>
         private const float BodyHeight = 2.6f;
@@ -312,9 +312,14 @@ namespace CityX.Tests
                             found[r] = true;
                         }
                     }
+                    // A balcony on every FLOOR (a storey is two window rows), and the eave over the top one; none on the row half way up a storey
+                    // (owner, 2026-10-15: its door "stacked on top" of the floor's in one room).
+                    int floors = BuildingInterior.FloorCountFor(site.Params.Height);
                     for (int r = 1; r <= rows.Count; r++)
                     {
-                        Assert.IsTrue(found[r], $"building {site.Id} ({(far ? "far" : "near")}): no balcony slab on row line {r} of {rows.Count}");
+                        bool floorRow = r % BuildingInterior.StoreyHeightRows == 0 && r / BuildingInterior.StoreyHeightRows < floors;
+                        bool eave = r == rows.Count;
+                        Assert.AreEqual(floorRow || eave, found[r], $"building {site.Id} ({(far ? "far" : "near")}): {(floorRow || eave ? "no balcony slab" : "a balcony slab")} on row line {r} of {rows.Count}");
                     }
                     Assert.IsFalse(found[0], $"building {site.Id}: a balcony slab in front of the street floor");
                 }

@@ -104,6 +104,12 @@ namespace CityX.World
 
         public const float PoleFromWall = 0.55f;
 
+        /// <summary>
+        /// Whether the balconies get their laundry poles, washing and airing futons. OFF (owner, 2026-10-15: "removed folded laundry from
+        /// balconies we can add stuff like that later right now it just gets in the way"); the code stays for later.
+        /// </summary>
+        public const bool LaundryOn = false;
+
         /// <summary>The share of flats with a laundry pole up, and with a futon or a rug airing over the parapet (solid parapets only).</summary>
         public const double PoleShare = 0.45;
 

@@ -12,7 +12,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class StreetDetailTests
     {
-        private const int Seed = 70485213;
+        private const int Seed = 58203917;
 
         private static CityWorld _world;
         private static CityWorld World => _world ?? (_world = new CityWorld(Seed));

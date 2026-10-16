@@ -41,7 +41,16 @@ namespace CityX.World
         /// </summary>
         public readonly bool Opens;
 
+        /// <summary>The wall it is in: the back wall (ApartmentFront.BalconyWall) for a flat's balcony door, any wall for a footbridge's (Footbridges).</summary>
+        public readonly WindowGrid.Wall Wall;
+
         public BalconyDoor(int unit, int row, int column, int columns, float u0, float u1, float y0, float y1, BalconyDoorKind kind, bool opens)
+            : this(unit, row, column, columns, u0, u1, y0, y1, kind, opens, ApartmentFront.BalconyWall)
+        {
+        }
+
+        public BalconyDoor(int unit, int row, int column, int columns, float u0, float u1, float y0, float y1, BalconyDoorKind kind, bool opens,
+            WindowGrid.Wall wall)
         {
             Unit = unit;
             Row = row;
@@ -53,6 +62,7 @@ namespace CityX.World
             Y1 = y1;
             Kind = kind;
             Opens = opens;
+            Wall = wall;
         }
 
         public float Width => U1 - U0;
@@ -296,6 +306,11 @@ namespace CityX.World
                 float y0 = r * rows.Size;
                 int floor = r / BuildingInterior.StoreyHeightRows;
                 bool floorRow = r % BuildingInterior.StoreyHeightRows == 0 && floor < stairs.FloorCount;
+                if (!floorRow)
+                {
+                    // No balcony on the row between two floors any more (CityMeshBuilder.Apartment.cs), so no door there: it kept an ordinary window.
+                    continue;
+                }
                 List<Rect> solids = null;
                 bool flooded = false;
                 for (int k = 0; k + 1 < n; k++)
@@ -373,9 +388,9 @@ namespace CityX.World
         /// </summary>
         public static bool IsDoorCell(BuildingSite site, in WindowPlan plan, int column, int row)
         {
-            if (row < 1)
+            if (row < 1 || row % BuildingInterior.StoreyHeightRows != 0 || row / BuildingInterior.StoreyHeightRows >= BuildingInterior.FloorCountFor(site.Params.Height))
             {
-                return false;
+                return false;   // only a floor's row has a balcony, and a door
             }
             ApartmentFront front = ApartmentFront.For(site, plan);
             CellLayout rows = WindowGrid.RowsFor(site.Params.Height);
@@ -450,10 +465,17 @@ namespace CityX.World
         /// </summary>
         public static void InWorld(BuildingSite site, in BalconyDoor door, out Vector3 corner, out Vector3 along, out Vector3 outward)
         {
-            double back = -site.Params.Depth * 0.5;   // the back wall (ApartmentFront.BalconyWall) is the building's -Z face
-            site.LocalToWorld(door.U0, back, out double x0, out double z0);
-            site.LocalToWorld(door.U0 + 1.0, back, out double x1, out double z1);
-            site.LocalToWorld(door.U0, back - 1.0, out double xo, out double zo);
+            // The door's wall (a flat's is the back wall, the building's -Z face; a footbridge's any): its start, run and outward normal in the
+            // building's frame; the door's low jamb is U0 along it from its start.
+            Footbridges.WallFrame(site, door.Wall, out _, out Vector2 run, out Vector2 outLocal, out _);
+            // U0 runs along the wall in the building's frame about its centre: x on the front and back walls, z on the side walls.
+            float hw = site.Params.Width * 0.5f, hd = site.Params.Depth * 0.5f;
+            Vector2 low = door.Wall == WindowGrid.Wall.North ? new Vector2(door.U0, hd)
+                : door.Wall == WindowGrid.Wall.South ? new Vector2(door.U0, -hd)
+                : door.Wall == WindowGrid.Wall.East ? new Vector2(hw, door.U0) : new Vector2(-hw, door.U0);
+            site.LocalToWorld(low.x, low.y, out double x0, out double z0);
+            site.LocalToWorld(low.x + run.x, low.y + run.y, out double x1, out double z1);
+            site.LocalToWorld(low.x + outLocal.x, low.y + outLocal.y, out double xo, out double zo);
             corner = new Vector3((float)x0, site.BaseHeight + door.Y0, (float)z0);
             along = new Vector3((float)(x1 - x0), 0.0f, (float)(z1 - z0)).normalized;
             outward = new Vector3((float)(xo - x0), 0.0f, (float)(zo - z0)).normalized;

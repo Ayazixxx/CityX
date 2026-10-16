@@ -93,12 +93,16 @@ namespace CityX.World
         /// </summary>
         private static readonly double[][] StyleWeightsByMass =
         {
-            /* LowRise   */ new[] { 8.0, 8.0, 46.0, 28.0, 0.0, 10.0 },
-            /* MidRise   */ new[] { 18.0, 18.0, 40.0, 24.0, 0.0, 0.0 },
-            /* Slab      */ new[] { 8.0, 24.0, 30.0, 30.0, 0.0, 8.0 },
+            // No SCATTERED facades any more (owner, 2026-10-15: "enough with the buildings with random window placements make the window
+            // placements all intentional and based off how real buildings are built"): their share went to the regular punched grid and,
+            // so that the ordinary streets are not one grid after another, to the ribbon bands of the modern block of flats; a warehouse's
+            // to its high band and blank walls.
+            /* LowRise   */ new[] { 8.0, 16.0, 66.0, 0.0, 0.0, 10.0 },
+            /* MidRise   */ new[] { 18.0, 24.0, 58.0, 0.0, 0.0, 0.0 },
+            /* Slab      */ new[] { 8.0, 30.0, 54.0, 0.0, 0.0, 8.0 },
             /* Tower     */ new[] { 45.0, 25.0, 30.0, 0.0, 0.0, 0.0 },
             /* Supertall */ new[] { 75.0, 25.0, 0.0, 0.0, 0.0, 0.0 },
-            /* Warehouse */ new[] { 0.0, 0.0, 0.0, 12.0, 48.0, 40.0 },
+            /* Warehouse */ new[] { 0.0, 0.0, 0.0, 0.0, 54.0, 46.0 },
         };
 
         /// <summary>
@@ -212,7 +216,7 @@ namespace CityX.World
                     head = 0.20f;
                     break;
                 case FacadeStyle.Blank:
-                    scatter = 0.03;
+                    scatter = 0.0;   // a blank wall is blank: the odd window scattered over it (3 %) was a random one (owner, 2026-10-15)
                     sill = 0.25f;
                     head = 0.15f;
                     break;

@@ -25,13 +25,15 @@ same speckle. Now a building is given ONE facade style, chosen from where it sta
 | Curtain | floor-to-ceiling glass on every cell of every wall, thin mullion grid, **double-width units** | 100% of cells |
 | Ribbon | alternating glass bands and solid spandrel, double-width units | every other row |
 | Punched | regular separate windows, shorter than the row (sill 28%, head 14%) | every 1st or 2nd column |
-| Scattered | irregular openings, each building its own density (20-40%) | the old speckle |
+| Scattered | irregular openings, each building its own density (20-40%) -- **RETIRED 2026-10-15** (owner: "enough with the buildings with random window placements make the window placements all intentional and based off how real buildings are built"): weight 0 everywhere, its share went to Punched and Ribbon | none now |
 | HighBand | one high strip of windows, blank below (sheds) | one row |
 | Blank | almost nothing | ~3% |
 
 Weights come from the building's massing (tower/supertall = mostly glass, warehouse = high band or blank, slab
-leans irregular) multiplied by its zone (downtown = glass, old town = small punched windows, industrial =
-blank). See `StyleWeightsByMass` and `StyleBiasFor` -- both are plain tables to retune.
+leans ribbon and punched) multiplied by its zone (downtown = glass, old town = small punched windows, industrial =
+blank). See `StyleWeightsByMass` and `StyleBiasFor` -- both are plain tables to retune. Punched is about 0.58 of the
+city now (`FacadeVarietyTests.NoStyleTakesOverTheCity` allows 0.64): the ordinary building of every real city has a
+regular grid of punched windows.
 
 ## On top of the style
 

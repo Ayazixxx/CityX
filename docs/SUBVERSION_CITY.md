@@ -104,3 +104,23 @@ decimetre; the door's ground is the paving 2 m out). Seed rerolled to 61839025. 
 - Seed rerolled 58316274 -> 74102958. What the new city showed, all fixed: the two above; the player's step lift meeting a shop canopy's front
   edge (docs/CLIMBING.md); and tests that assumed a clear window (some facades have vertical sun fins every metre, 0.22 to 0.37 m deep, one through
   the middle of a window), a clear walk from the spawn, or a plan sill where a shop front has a stall riser.
+
+## Update 2026-10-15 (night): a kerb line folded flat (seed 58203917, block 520 at the classic scale)
+
+- **The fold.** `PlanMath.InsetPolygon` moves every edge of a block's road outline inward by its road's half width and joins the moved edges at
+  their mitres. A block with a 30-degree corner and a 25 m road stub on it (a boulevard bending at a junction right next to a sharp corner with a
+  street) moved the stub's two ends past each other -- a sharp corner's mitre slides the vertex a long way along the edge, further than the edge
+  is long -- so the inset edge came out BACKWARDS, and because the stub was collinear with the next edge the fold lay flat along it: no edge
+  crossed another, the area was still smaller than the road outline, and both checks passed. The paving's triangles then overlapped by a tenth
+  (`BlockPavingTests.EveryPavedBlockIsCoveredKerbToKerb`: 932.9 m2 of triangles for an 852.2 m2 outline).
+- **The fix.** After the mitres, any edge whose direction is against its road edge's is COLLAPSED: both its ends go to where the edges either side
+  of it meet, a zero-length edge (passes repeat until nothing folds). The vertex count stays one per road corner, which the pavement ring relies
+  on (`CitySurfaceBuilder.BuildPavement` pairs kerb, lot line and road class by index); `PlanMath.Triangulate` skips a vertex on top of the one
+  before it so the duplicate blocks no ear. A block whose neighbours are parallel at the collapse, or whose collapse point is thrown too far, is
+  refused as before. Blocks that were "paved" from a folded lot line (a 700 m2 triangle between three roads at the classic scale, a 2000 m2
+  sliver at the varied) are now dropped like other fold-overs: unpaved, no lots -- the open-space pass (docs/OPEN_SPACE.md) will pave such
+  islands instead.
+- **Checks in seconds:** `tools/cityplan -- pavingcheck [seed]` (every paved block's triangles against its outline, with the corners of a bad
+  one) and `insetfail [seed]` (every block without a kerb line and which check refused it, the inset replayed step by step). Remember
+  `CITYX_CITY_SCALE=classic`: the Unity tests run at the classic scale (`Tests/*/ClassicCityScaleFixture.cs`), the tool defaults to the game's
+  varied one.

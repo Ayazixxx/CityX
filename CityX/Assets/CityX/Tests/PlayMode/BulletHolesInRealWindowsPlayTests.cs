@@ -19,7 +19,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class BulletHolesInRealWindowsPlayTests
     {
-        private const int Seed = 70485213;
+        private const int Seed = 58203917;
 
         private readonly List<GameObject> _made = new List<GameObject>();
 
@@ -41,13 +41,14 @@ namespace CityX.Tests
         }
 
         /// <summary>A pane on a building's door wall with clear air in front of it: the first thing a ray from six metres out hits is that pane.</summary>
-        private static bool FindTarget(CityWorld world, out Target target)
+        private static bool FindTarget(CityWorld world, out Target target, bool round = false)
         {
             foreach (BuildingSite site in TestSites.NearSpawn(world))
             {
-                // A box building's street wall (the window is found from MinX and MaxZ): not a round tower, whose "north" is a side of its
-                // polygon (seed 61537940's first building near the spawn), nor a sealed block or one on a roof.
-                if (site.Params.Width < 8.0f || site.Sides >= 3 || site.Shell || site.OnRoof)
+                // A box building's street wall (the window is found from MinX and MaxZ), or (round) a round tower's front side, which faces +Z
+                // like a box's north wall with its columns laid from -half to +half of the side (GlassDamage.RoundAlong); not a sealed block or
+                // one on a roof.
+                if (site.Params.Width < 8.0f || (site.Sides >= 3) != round || site.Shell || site.OnRoof)
                 {
                     continue;
                 }
@@ -56,7 +57,10 @@ namespace CityX.Tests
                 Vector3 outward = CityMeshBuilder.WallNormal(site, WindowGrid.Wall.North);
                 WindowPlan plan = WindowPlan.For(world, site);
                 CellLayout rows = WindowGrid.RowsFor(site.Params.Height);
-                CellLayout columns = plan.ColumnsFor(site.Params.Width);
+                float sideLength = round ? RoundFootprint.Of(site).SideLength : site.Params.Width;
+                float frontZ = round ? (float)site.CentreZ + RoundFootprint.Of(site).Apothem : (float)site.MaxZ;
+                float u0 = round ? (float)site.CentreX - sideLength * 0.5f : (float)site.MinX;
+                CellLayout columns = plan.ColumnsFor(sideLength);
                 for (int row = 1; row < Mathf.Min(rows.Count, 4); row++)
                 {
                     for (int column = 1; column < columns.Count - 1; column++)
@@ -66,9 +70,9 @@ namespace CityX.Tests
                             continue;
                         }
                         Vector3 centre = TestSites.At(site,
-                            site.MinX + (column + 0.5f) * columns.Size,
+                            u0 + (column + 0.5f) * columns.Size,
                             site.BaseHeight + (row + 0.5f) * rows.Size,
-                            site.MaxZ);
+                            frontZ);
                         if (GlassDamage.TryPaneAt(world, site, centre + outward * 0.02f, out PaneKey key))
                         {
                             target = new Target { Key = key, Centre = centre, Outward = outward };
@@ -116,9 +120,21 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator EveryBulletAtTheSameWindowMakesItsOwnHoleAndTheWindowStaysUp()
         {
+            return ShootOneWindowFourTimesThenDownWithTheFifth(false);
+        }
+
+        /// <summary>Owner, 2026-10-15: "the windows on the round buildings are not fracturing in the new improved way like the square buildings".</summary>
+        [UnityTest]
+        public IEnumerator ARoundTowersWindowTakesBulletHolesLikeABoxBuildings()
+        {
+            return ShootOneWindowFourTimesThenDownWithTheFifth(true);
+        }
+
+        private IEnumerator ShootOneWindowFourTimesThenDownWithTheFifth(bool round)
+        {
 #if UNITY_EDITOR
             var world = new CityWorld(Seed);
-            Assert.IsTrue(FindTarget(world, out Target target), "no window to shoot at near the origin");
+            Assert.IsTrue(FindTarget(world, out Target target, round), round ? "no round tower's window to shoot at near the origin" : "no window to shoot at near the origin");
 
             var go = new GameObject("Streamer");
             _made.Add(go);

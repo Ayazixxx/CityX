@@ -209,7 +209,22 @@ namespace CityX.World.Plan
             var remaining = new List<int>(n);
             for (int i = 0; i < n; i++)
             {
+                // A vertex on top of the one before it (a collapsed edge, see InsetPolygon) is no corner: left out, or it would sit on every
+                // ear's corner and block it.
+                Vec2 last = poly[remaining.Count > 0 ? remaining[remaining.Count - 1] : (n - 1)];
+                if (remaining.Count > 0 && (poly[i] - last).Length < 1e-7)
+                {
+                    continue;
+                }
                 remaining.Add(i);
+            }
+            if (remaining.Count > 1 && (poly[remaining[0]] - poly[remaining[remaining.Count - 1]]).Length < 1e-7)
+            {
+                remaining.RemoveAt(remaining.Count - 1);
+            }
+            if (remaining.Count < 3)
+            {
+                return new int[0];
             }
             var triangles = new List<int>((n - 2) * 3);
             int guard = 0;
@@ -402,6 +417,47 @@ namespace CityX.World.Plan
                     }
                 }
                 result.Add(v);
+            }
+
+            // A moved edge shorter than the shift of its ends comes out BACKWARDS: at a sharp corner the mitre slides the vertex a long way
+            // along the edge, and when the edge is shorter than that (a block corner cut off by a stub of road three metres long) its two ends
+            // cross over. The result is folded -- a lobe wound the wrong way -- and when the fold lies flat along the next edge neither the
+            // area check nor the crossing check below sees it (seed 58203917 at the classic scale: a kerb line whose paving triangles
+            // overlapped by a tenth, BlockPavingTests). Such an edge is collapsed: both its ends go to where the edges either side of it meet,
+            // a zero-length edge the pavement ring draws as nothing and Triangulate skips; the count stays one vertex per road corner, which
+            // the ring (CitySurfaceBuilder.BuildPavement pairs kerb, lot line and road class by index) relies on.
+            for (int pass = 0; pass < n; pass++)
+            {
+                bool folded = false;
+                for (int i = 0; i < n; i++)
+                {
+                    int j = (i + 1) % n;
+                    Vec2 edge = result[j] - result[i];
+                    if (Vec2.Dot(edge, lineD[i]) >= 0.0)
+                    {
+                        continue;   // runs the way its road edge does (or has no length)
+                    }
+                    int prev = (i + n - 1) % n;
+                    double denom = Vec2.Cross(lineD[prev], lineD[j]);
+                    if (Math.Abs(denom) < 1e-9)
+                    {
+                        return false;   // its neighbours are parallel: nowhere for the corner to go
+                    }
+                    double t = Vec2.Cross(lineP[j] - lineP[prev], lineD[j]) / denom;
+                    Vec2 meet = lineP[prev] + lineD[prev] * t;
+                    double limit = 3.0 * Math.Max(distances[prev], Math.Max(distances[i], distances[j])) + 1.0;
+                    if ((meet - poly[i]).Length > limit * 2.5)
+                    {
+                        return false;
+                    }
+                    result[i] = meet;
+                    result[j] = meet;
+                    folded = true;
+                }
+                if (!folded)
+                {
+                    break;
+                }
             }
 
             double before = SignedArea(poly);

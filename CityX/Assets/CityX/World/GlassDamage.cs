@@ -542,11 +542,19 @@ namespace CityX.World
         public static bool IsDoorCell(BuildingSite site, WindowGrid.Wall wall,
             CellLayout columns, int column, int row)
         {
-            if (wall == ApartmentFront.BalconyWall && row >= 1 && site.Sides < 3)
+            if (row >= 1 && site.Sides < 3)
             {
+                // A footbridge's doorway (Footbridges, known once the building has been built), on any wall.
+                if (Footbridges.IsDoorCell(site, wall, column, row))
+                {
+                    return true;
+                }
                 // A flat's door onto its balcony (BalconyDoors): the cells its doorway passes through have no window. Worked out on the spot, not
                 // from the laid-out doors (those plan the stairs): this runs on every shot at a window.
-                return BalconyDoors.IsDoorCell(site, WindowPlan.For(site), column, row);
+                if (wall == ApartmentFront.BalconyWall)
+                {
+                    return BalconyDoors.IsDoorCell(site, WindowPlan.For(site), column, row);
+                }
             }
             if (wall != WindowGrid.Wall.North || row != 0)
             {

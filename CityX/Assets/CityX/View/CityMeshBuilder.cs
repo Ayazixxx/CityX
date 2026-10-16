@@ -133,13 +133,17 @@ namespace CityX.View
             // A sealed block (a stage of a twisted tower, a block of a wonky pile) is its outside only at every distance: nothing in it to go into.
             else if (far || site.Shell)
             {
+                // The building's footbridges (World/Footbridges) are known before its walls, which cut their doorways.
+                Footbridges.For(world, site);
                 BuildBuildingShell(world, site, builderOrigin, structures, concrete,
                     new Glazing(litGlass, darkGlass, null, damage, null, null, litShare), looks);
                 // An apartment block's balconies and walkway, the distant version (CityMeshBuilder.Apartment.cs; never on a sealed block).
                 AddApartmentFronts(world, site, builderOrigin, structures, looks, true);
+                AddFootbridges(world, site, builderOrigin, structures, true);
             }
             else
             {
+                Footbridges.For(world, site);
                 // A powered building's rooms get their glow set up first, so each window can add its own glow to the room behind it as it is built.
                 RoomWindowGlow windowGlow = roomGlows != null ? RoomWindowGlow.For(site, offset) : null;
                 BuildBuilding(world, site, builderOrigin, structures, concrete,
@@ -148,6 +152,8 @@ namespace CityX.View
                 AddRibs(world, site, builderOrigin, structures, looks);
                 // An apartment block's balconies on every floor and its walkway (CityMeshBuilder.Apartment.cs).
                 AddApartmentFronts(world, site, builderOrigin, structures, looks, false);
+                // The footbridges it decides, across to the buildings facing it (CityMeshBuilder.Footbridges.cs).
+                AddFootbridges(world, site, builderOrigin, structures, false);
                 // Every room's ceiling lights and the switch by its door; a powered building's glow (CityMeshBuilder.RoomLights.cs).
                 AddRoomLighting(site, concrete, structures, offset, roomGlows, windowGlow);
             }

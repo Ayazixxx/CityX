@@ -16,7 +16,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class BalconyDoorPlayTests
     {
-        private const int Seed = 70485213;
+        private const int Seed = 58203917;
         private readonly List<GameObject> _made = new List<GameObject>();
 
         [SetUp]
@@ -33,7 +33,10 @@ namespace CityX.Tests
             BalconyDoorState.Shared.Clear();
         }
 
-        /// <summary>A free-standing apartment block near the spawn with a door of <paramref name="kind"/> that opens, and the locked door over it.</summary>
+        /// <summary>
+        /// A free-standing apartment block near the spawn with a door of <paramref name="kind"/> that opens, and a door in it that stays shut (the
+        /// stairs or a wall just inside: since 2026-10-15 every door is on a floor, there is no door half way up a room any more).
+        /// </summary>
         private static bool FindDoors(CityWorld world, BalconyDoorKind kind, out BuildingSite site, out BalconyDoor opens, out BalconyDoor locked)
         {
             var doors = new List<BalconyDoor>();
@@ -44,16 +47,18 @@ namespace CityX.Tests
                     continue;
                 }
                 BalconyDoors.For(candidate, WindowPlan.For(world, candidate), doors);
-                foreach (BalconyDoor d in doors)
+                int open = -1, shut = -1;
+                for (int i = 0; i < doors.Count; i++)
                 {
-                    int above = BalconyDoors.Find(doors, d.Unit, d.Row + 1);
-                    if (d.Opens && d.Kind == kind && above >= 0 && !doors[above].Opens)
-                    {
-                        site = candidate;
-                        opens = d;
-                        locked = doors[above];
-                        return true;
-                    }
+                    if (open < 0 && doors[i].Opens && doors[i].Kind == kind) open = i;
+                    if (shut < 0 && !doors[i].Opens) shut = i;
+                }
+                if (open >= 0 && shut >= 0)
+                {
+                    site = candidate;
+                    opens = doors[open];
+                    locked = doors[shut];
+                    return true;
                 }
             }
             site = default;
@@ -132,7 +137,7 @@ namespace CityX.Tests
         }
 
         [UnityTest]
-        public IEnumerator ADoorHalfWayUpARoomStaysShutAndHoldsYouOnTheBalcony()
+        public IEnumerator ADoorWithTheStairsJustInsideStaysShutAndHoldsYouOnTheBalcony()
         {
             var world = new CityWorld(Seed);
             Assert.IsTrue(FindDoors(world, BalconyDoorKind.Sliding, out BuildingSite site, out _, out BalconyDoor locked),
@@ -146,7 +151,7 @@ namespace CityX.Tests
             interactor.PlayerBody = body;
             yield return Walk(body, -near.Outward, 1.5f);
 
-            Assert.IsFalse(BalconyDoorState.Shared.IsOpen(site.Id, locked.Unit, locked.Row), "a door with no floor behind it opened");
+            Assert.IsFalse(BalconyDoorState.Shared.IsOpen(site.Id, locked.Unit, locked.Row), "a door with the stairs or a wall just inside opened");
             Assert.IsTrue(interactor.LastWasLocked, "walking into it did not try it");
             Vector3 p = near.Local(body.transform.position);
             Assert.Greater(p.z, 0.0f, "the body went through a shut door");

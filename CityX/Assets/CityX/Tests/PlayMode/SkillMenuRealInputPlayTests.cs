@@ -25,6 +25,12 @@ namespace CityX.Tests
         public override void Setup()
         {
             base.Setup();
+            // A leftover event system from the test before (the menu's own, Destroy'd at the end of ITS frame, which is this one) would be
+            // found by the menu, which then makes none of its own -- and the click below goes to nobody.
+            foreach (UnityEngine.EventSystems.EventSystem leftover in Object.FindObjectsByType<UnityEngine.EventSystems.EventSystem>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                Object.DestroyImmediate(leftover.gameObject);
+            }
             _keyboard = InputSystem.AddDevice<Keyboard>();
             _mouse = InputSystem.AddDevice<Mouse>();
         }

@@ -25,15 +25,29 @@ namespace CityX.View
 
         [System.ThreadStatic] private static List<BalconyDoor> s_wallDoors;
 
-        /// <summary>The balcony doors in a wall (only the back wall of a building with balconies has any), or null. One list per thread, refilled.</summary>
+        /// <summary>
+        /// The doors in a wall: the flats' balcony doors (only the back wall of a building with balconies has any) and the footbridges' doorways
+        /// (Footbridges, worked out before the walls by BuildSite), or null. One list per thread, refilled.
+        /// </summary>
         private static List<BalconyDoor> BalconyDoorsOf(BuildingSite site, in WindowPlan plan, WindowGrid.Wall which)
         {
-            if (which != ApartmentFront.BalconyWall || !FrontFor(site, plan).Balconies)
-            {
-                return null;
-            }
             List<BalconyDoor> doors = s_wallDoors ?? (s_wallDoors = new List<BalconyDoor>());
-            BalconyDoors.For(site, plan, doors);
+            doors.Clear();
+            if (which == ApartmentFront.BalconyWall && FrontFor(site, plan).Balconies)
+            {
+                BalconyDoors.For(site, plan, doors);
+            }
+            Footbridge[] bridges = Footbridges.Cached(site);
+            if (bridges.Length > 0)
+            {
+                int before = doors.Count;
+                Footbridges.DoorsOf(site, plan, bridges, doors);
+                // Only this wall's.
+                for (int i = doors.Count - 1; i >= before; i--)
+                {
+                    if (doors[i].Wall != which) doors.RemoveAt(i);
+                }
+            }
             return doors.Count > 0 ? doors : null;
         }
 

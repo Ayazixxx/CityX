@@ -62,6 +62,10 @@ Not in their list, added alongside it (my suggestion, in the spirit of their Jap
 - **Lived-in:** a laundry pole in 45 % of flats (near the wall, 2.7 m up: clear of a 2.6 m head, and leaving the strip behind the
   parapet free for a climber pulling up), washing on half of them (1 to 4 pieces, mostly whites and blues), a futon airing over 12 % of
   solid parapets. Air conditioners under the windows stand on the balcony floor instead of hanging through the slab.
+  **2026-10-15 (later): the laundry is OFF** (`ApartmentFront.LaundryOn = false`; owner: "removed folded laundry from balconies we can add
+  stuff like that later right now it just gets in the way"), and **a balcony sits on every FLOOR, not every window row** (owner, with two
+  screenshots: "these balconies make no sense the doors are like stacked on top of eachother in one room"): a storey is two rows, so the
+  balconies and their doors are on the even rows only, one per flat per floor, each slab at its floor's height.
 - **Parapet finish:** the building's own wall (45 %), white (30 %) or bare concrete (25 %).
 - **Not twice:** the old single balconies and the vertical fins skip a wall with a band.
 - **Far away** only the slabs, parapets (or top rail) and side walls, so a block keeps its stripes as it comes into full detail.
@@ -89,8 +93,8 @@ which is the most common balcony door in real life ... double doors ... along wi
   half at least 0.89 m wide), a pair of glazed doors 25 % (1.5-2.2 m), a single door 15 % (1.3 m: a solid wooden leaf with a lever handle each
   side, the street doors' look). A flat with no room for its building's kind gets the next narrower one. The aluminium frames are the
   building's window frame colour.
-- **Which open.** A storey is two window rows and the balconies are on every row, so the door on every other balcony is half way up a room:
-  it stays shut and rattles. A door onto a floor opens unless the floor just inside (1.4 m) has the stairs, the opening they come up
+- **Which open.** (Until 2026-10-15 the balconies were on every window row, so the door on every other one was half way up a room and stayed
+  shut and rattling; now there is one balcony per floor and no such door.) A door onto a floor opens unless the floor just inside (1.4 m) has the stairs, the opening they come up
   through or a partition in it, or a body could not walk from it to the stairs (a flood over the stairs' own walking grid). On seed 52817364:
   3564 of 11751 doors near the spawn open, and from every one a body walks to the stairs; 1230 of the 4794 doors onto a floor stay shut
   for the stairs or a wall just inside. (Found on the way, and fixed the same day: some floors could not be reached from their own stairs

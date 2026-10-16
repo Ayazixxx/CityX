@@ -19,7 +19,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class RealCityClimbTopOutPlayTests
     {
-        private const int Seed = 70485213;
+        private const int Seed = 58203917;
         private readonly List<GameObject> _made = new List<GameObject>();
 
         [TearDown]
@@ -87,9 +87,10 @@ namespace CityX.Tests
                 if (!climbing.TryStart(GrabIntent.AlreadyHeld(), true, 100.0f)) continue;
                 climbs++;
 
-                bool mantled = false;
+                bool mantled = false, entered = false;
                 float mantleStartY = 0.0f;
                 const float dt = 1.0f / 60.0f;
+                var vaulting = player.GetComponent<PlayerVaulting>();
                 for (float t = 0.0f; t < 40.0f; t += dt)
                 {
                     if (climbing.IsClimbing) climbing.Tick(false, true, false, vitals, dt, false);
@@ -99,10 +100,17 @@ namespace CityX.Tests
                         mantled = true;
                         climbing.TickMantle(dt);
                     }
+                    else if (vaulting != null && vaulting.IsVaulting)
+                    {
+                        // An opening in reach on the way up (a broken window, a footbridge's door since 2026-10-15) is dived through from the climb,
+                        // which hands the body to the vault: driven here as the locomotion drives it in the game, to its end.
+                        entered = true;
+                        vaulting.Tick(dt);
+                    }
                     else break;
                     yield return null;
                 }
-                Debug.Log($"CityX climb spot {i}: mantled={mantled} climbing={climbing.IsClimbing} y={player.transform.position.y:F1} roof={roofY:F1} start={floorY:F1} stamina={vitals.Stamina:F1} grounded={player.GetComponent<CharacterController>().isGrounded}");
+                Debug.Log($"CityX climb spot {i}: mantled={mantled} entered an opening={entered} climbing={climbing.IsClimbing} y={player.transform.position.y:F1} roof={roofY:F1} start={floorY:F1} stamina={vitals.Stamina:F1} grounded={player.GetComponent<CharacterController>().isGrounded}");
                 if (mantled)
                 {
                     mantles++;

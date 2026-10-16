@@ -311,3 +311,10 @@ wall stood 82 cm from the opening's edge, too tight for a body: half the floor w
 half-the-floor rule and the planner fell back to the middle of the floor (47 % reached). A carved room's walls now keep a body's passage
 (1.25 m: half the wall, a 0.9 m body, a grid cell) from the opening a stair comes up through (`PassageBesideOpening` in `Clashes`), going to the
 other back corner or not being built. 0 of 9344 floors shut in.
+
+**And a lobby's own wrap (seed 58203917, building 1603 at the classic scale, 18 x 9 m, 7 floors).** `CanReach` answered "fine" for a lobby with
+no basement flight arriving on it before it got to the floor-above check, so the lobby's wrap was never held to leaving the first floor walkable:
+its 5.9 m opening ran across the 8 m floor above, a metre short of each wall, and that floor's arrival was boxed in by it whatever stair went
+there next (4 % reached). The floor-above check now runs for the lobby too. Found by surveying EVERY floor instead of one building in seven:
+`BuildingStairsTests.ProbeEveryFloorForOnesShutInByTheirStairs` (Explicit) lists each shut-in floor with a map of it on the walking grid
+(`#` solid, `.` free, `o` reached from where the stairs arrive); it was the only one of 46,505.

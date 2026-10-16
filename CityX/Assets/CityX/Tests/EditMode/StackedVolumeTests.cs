@@ -9,7 +9,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class StackedVolumeTests
     {
-        private const int Seed = 70485213;
+        private const int Seed = 58203917;
 
         [Test]
         public void OnlyTheBottomVolumeOfABuildingIsAtStreetLevel()

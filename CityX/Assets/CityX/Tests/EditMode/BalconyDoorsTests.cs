@@ -15,7 +15,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class BalconyDoorsTests
     {
-        private const int Seed = 70485213;
+        private const int Seed = 58203917;
 
         /// <summary>The player's capsule (PlayerRigBuilder): its height and its radius, each with the controller's skin round it.</summary>
         private static float BodyHeight => BodyRig.StandingHeight + 2.0f * 0.03f;
@@ -79,12 +79,15 @@ namespace CityX.Tests
                 CellLayout rows = WindowGrid.RowsFor(site.Params.Height);
                 var edges = new float[ApartmentFront.MaxEdges(columns)];
                 int n = front.UnitEdges(-site.Params.Width * 0.5f, columns, edges);
+                int floorCount = BuildingStairs.PlanFor(site).FloorCount;
                 for (int r = 1; r < rows.Count; r++)
                 {
+                    // A balcony (and so a door) only on a floor's row: a storey is two window rows.
+                    bool floorRow = r % BuildingInterior.StoreyHeightRows == 0 && r / BuildingInterior.StoreyHeightRows < floorCount;
                     for (int k = 0; k + 1 < n; k++)
                     {
                         float mid = (edges[k] + edges[k + 1]) * 0.5f, half = (edges[k + 1] - edges[k]) * 0.5f;
-                        bool balcony = site.ContactTopCentred(WindowGrid.Wall.South, mid - half, mid + half) <= r * rows.Size - 0.5f;
+                        bool balcony = floorRow && site.ContactTopCentred(WindowGrid.Wall.South, mid - half, mid + half) <= r * rows.Size - 0.5f;
                         int found = 0;
                         foreach (BalconyDoor d in list)
                         {
@@ -217,7 +220,8 @@ namespace CityX.Tests
             }
             Debug.Log($"[BalconyDoors] {opening} of {all} doors open; from {walked} a body walks to the stairs, {stuck.Count} cannot; " +
                 $"{shutForTheStairs} on a floor stay shut ({shutInTheWay} with the stairs or a wall just inside, the rest with no way from them to the stairs)");
-            Assert.That(opening / (float)all, Is.InRange(0.25f, 0.55f), "a door on every other balcony opens, less those with the stairs just inside");
+            // Every door is on a floor now (no balcony half way up a storey): most open, less those with the stairs just inside.
+            Assert.That(opening / (float)all, Is.GreaterThan(0.6f), "most doors open (every one is on a floor), less those with the stairs just inside");
             Assert.That(shutForTheStairs / (float)(opening + shutForTheStairs), Is.LessThan(0.3f), "most doors onto a floor open (the rest have the stairs, the opening they come up through or a wall just inside)");
             Assert.That(stuck, Is.Empty, $"doors that open where a body cannot walk to the stairs: {string.Join("; ", stuck.GetRange(0, Mathf.Min(5, stuck.Count)))}");
         }
