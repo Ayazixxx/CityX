@@ -19,7 +19,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class RealCityClimbTopOutPlayTests
     {
-        private const int Seed = 58203917;
+        private const int Seed = 91736402;
         private readonly List<GameObject> _made = new List<GameObject>();
 
         [TearDown]
@@ -38,11 +38,16 @@ namespace CityX.Tests
             bool found = false;
             foreach (BuildingSite candidate in TestSites.NearSpawn(world))
             {
-                // A plain box with a roof to reach: not round, not sculpture, not under a sealed block, and no shop awning or apartment walkway
-                // across the front (a climber cannot get past an overhang, which would make this a test of awnings).
+                // A plain box with a roof to reach: not round, not sculpture, not under a sealed block, and no shop awning, apartment walkway
+                // or balconies across the wall climbed (a climber cannot get past an overhang, and a stack of balcony slabs is no wall to grab:
+                // this would become a test of awnings or balconies; seed 91736402's first candidate was a block of flats).
+                WindowPlan facade = WindowPlan.For(world, candidate);
+                // ...and an ordinary building: a parking garage's front is open spandrel bands with air above each (seed 91736402's first pick:
+                // nothing to grab at four spots of six, a 1.4 m spandrel at the others).
                 bool plain = !candidate.Shell && !candidate.OnRoof && candidate.Sides < 3 && !candidate.RoofSealed
-                    && !WindowPlan.For(world, candidate).Storefront
-                    && !ApartmentFront.For(candidate, WindowPlan.For(world, candidate)).Walkway;
+                    && !facade.Storefront
+                    && !ApartmentFront.For(candidate, facade).Any
+                    && !candidate.IsParkingGarage && !candidate.IsOpenGround && !candidate.IsMall && !candidate.IsMallAnchor;
                 if (plain && candidate.Params.Width > 10.0f && candidate.Params.Height > 12.0f)
                 {
                     site = candidate;
@@ -51,6 +56,9 @@ namespace CityX.Tests
                 }
             }
             Assert.IsTrue(found, "no tall building to test against");
+            Debug.Log($"CityX facade climb building {site.Id}: {site.Params.Width:F1} x {site.Params.Depth:F1} x {site.Params.Height:F1} m, {site.Params.Mass}, " +
+                $"{WindowPlan.For(world, site).Style}, zone {site.Zone}, special '{site.Params.SpecialType}', contacts {(site.Contacts?.Length ?? 0)}, " +
+                $"roof {RoofShape.For(site).Kind}, wing {site.Wing}, base {site.BaseHeight:F2}, podium {site.PodiumBase:F2}");
 
             var go = new GameObject("Streamer");
             _made.Add(go);
@@ -84,7 +92,13 @@ namespace CityX.Tests
                 vitals.InfiniteStamina = true;
                 yield return null;
                 yield return null;
-                if (!climbing.TryStart(GrabIntent.AlreadyHeld(), true, 100.0f)) continue;
+                if (!climbing.TryStart(GrabIntent.AlreadyHeld(), true, 100.0f))
+                {
+                    bool wallThere = Physics.Raycast(at + Vector3.up * 1.3f, inward, out RaycastHit probe, 3.0f, ~0, QueryTriggerInteraction.Ignore);
+                    Debug.Log($"CityX climb spot {i}: no grab at {at}; a ray at chest height {(wallThere ? $"hits {probe.collider.name} {probe.distance:F2} m away (normal {probe.normal})" : "hits nothing within 3 m")}; " +
+                        $"grounded={player.GetComponent<CharacterController>().isGrounded} y={player.transform.position.y:F2} floor={floorY:F2}");
+                    continue;
+                }
                 climbs++;
 
                 bool mantled = false, entered = false;

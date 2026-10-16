@@ -12,7 +12,7 @@ namespace CityX.View
     ///
     /// No cars (owner, 2026-10-12: "get rid of the cars"): abandoned cars were built on the decks, streets and car parks, then taken out.
     /// </summary>
-    public static class CityProps
+    public static partial class CityProps
     {
         public static readonly Color32 Concrete = SurfaceLook.Pack(new Color32(206, 204, 198, 255), (int)WallMaterial.Concrete, 0.55f);
         public static readonly Color32 DarkConcrete = SurfaceLook.Pack(new Color32(150, 148, 144, 255), (int)WallMaterial.Concrete, 0.7f);

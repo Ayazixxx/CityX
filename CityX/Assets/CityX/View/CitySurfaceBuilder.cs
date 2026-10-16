@@ -50,7 +50,7 @@ namespace CityX.View
 
         public static void Build(CityWorld world, int chunkX, int chunkY, Vector3 origin,
             MeshBuffer ground, MeshBuffer pavement, MeshBuffer structures, MeshBuffer markings,
-            MeshBuffer laneDividers, MeshBuffer guardRail, bool far)
+            MeshBuffer laneDividers, MeshBuffer guardRail, bool far, MeshBuffer lit = null)
         {
             PlanWorld plan = world.Plan;
             double size = PlanWorld.ChunkSize;
@@ -68,7 +68,7 @@ namespace CityX.View
                 BuildBlockPaving(ctx, block, blockIndex, pavement, step, cuts);
                 if (block.Plaza && !far)
                 {
-                    BuildPlazaFurniture(ctx, block, blockIndex, structures);
+                    BuildOpenSpace(ctx, block, blockIndex, structures, lit);   // CitySurfaceBuilder.OpenSpace.cs: the block's role and its pieces
                 }
                 if (block.Mall && !far)
                 {
@@ -468,13 +468,15 @@ namespace CityX.View
 
         // ---------------------------------------------------------------- pavement and kerb
 
-        /// <summary>The one look of a block's paving: the pavement and everything inside it up to the walls, so they read as one surface. A plaza is laid in setts.</summary>
-        private static Color32 BlockPavingLook(PlanBlock block, int blockIndex)
+        /// <summary>
+        /// The one look of a block's paving: the pavement and everything inside it up to the walls, so they read as one surface. An open block is
+        /// laid by its role (setts for the square, earth for the vacant lot: OpenSpacePavingLook).
+        /// </summary>
+        private static Color32 BlockPavingLook(PlanWorld plan, PlanBlock block, int blockIndex)
         {
             if (block.Plaza)
             {
-                float h = LatticeHash(blockIndex, 9, 23);
-                return SurfaceLook.Pack(new Color(0.84f + 0.06f * h, 0.80f + 0.05f * h, 0.74f), SurfaceLook.Setts, 0.35f);
+                return OpenSpacePavingLook(plan, blockIndex);
             }
             if (block.Mall)
             {
@@ -497,7 +499,7 @@ namespace CityX.View
             Rect2 r = ctx.Rect;
             int n = Mathf.Max(1, Mathf.RoundToInt((float)(r.X1 - r.X0) / step));
             double s = (r.X1 - r.X0) / n;
-            buffer.Look = BlockPavingLook(block, blockIndex);
+            buffer.Look = BlockPavingLook(ctx.Plan, block, blockIndex);
             Func<double, double, double> height = (x, z) => ctx.Plan.GroundHeight(x, z) + RoadLift + KerbHeight;
             int[] t = block.InnerTriangles;
             for (int k = 0; k + 2 < t.Length; k += 3)
@@ -937,122 +939,6 @@ namespace CityX.View
             }
             structures.Look = SurfaceLook.Default;
         }
-
-        // ---------------------------------------------------------------- plazas
-
-        /// <summary>
-        /// A pedestrian plaza's furniture, Whyte's way: sittable edges (benches along every side, facing in), planters at the corners, bollards along
-        /// the kerb, a feature in the middle (a dry fountain, or its needle alone) with benches round it, a shuttered kiosk on the longest side --
-        /// and the rubble the years have left.
-        /// </summary>
-        private static void BuildPlazaFurniture(Context ctx, PlanBlock block, int blockIndex, MeshBuffer structures)
-        {
-            List<Vec2> ring = block.Inner;
-            if (ring == null || ring.Count < 3) return;
-            Bounds(ring, out double bx0, out double bz0, out double bx1, out double bz1);
-            if (!ctx.Rect.Overlaps(bx0 - 1.0, bz0 - 1.0, bx1 + 1.0, bz1 + 1.0)) return;
-            Func<double, double, double> height = (x, z) => ctx.Plan.GroundHeight(x, z) + RoadLift + KerbHeight;
-            Vec2 centre = PlanMath.Centroid(ring);
-            uint h = (uint)Mathf.FloorToInt(LatticeHash(blockIndex, 11, 113) * 1000.0f);
-            int n = ring.Count;
-            int longest = 0;
-            double longestLen = 0.0;
-            for (int e = 0; e < n; e++)
-            {
-                double l = (ring[(e + 1) % n] - ring[e]).Length;
-                if (l > longestLen) { longestLen = l; longest = e; }
-            }
-            double extent = Math.Sqrt(block.Area);
-
-            bool Inside(Vec2 p, double margin) => PlanMath.PointInPolygon(p, ring) && PlanMath.PointInPolygon(p + new Vec2(margin, margin), ring)
-                && PlanMath.PointInPolygon(p - new Vec2(margin, margin), ring) && PlanMath.PointInPolygon(p + new Vec2(margin, -margin), ring)
-                && PlanMath.PointInPolygon(p + new Vec2(-margin, margin), ring);
-
-            // The eight compass directions, for the things set round the middle.
-            Vec2[] compass =
-            {
-                new Vec2(1.0, 0.0), new Vec2(0.7071, 0.7071), new Vec2(0.0, 1.0), new Vec2(-0.7071, 0.7071),
-                new Vec2(-1.0, 0.0), new Vec2(-0.7071, -0.7071), new Vec2(0.0, -1.0), new Vec2(0.7071, -0.7071),
-            };
-
-            // The middle.
-            if (ctx.Contains(centre) && Inside(centre, 4.5))
-            {
-                Vector3 at = ctx.Local(centre.X, 0.0, centre.Y);
-                float y = ctx.LocalY(height(centre.X, centre.Y));
-                float radius = (float)Math.Min(3.4, 0.11 * extent);
-                if (h % 3u != 0u)
-                {
-                    CityProps.AddFountain(structures, at.x, at.z, y, radius, h % 3u == 1u);
-                }
-                else
-                {
-                    CityProps.AddPlanter(structures, at.x, at.z, y, radius, radius, 0.8f);
-                }
-                for (int k = 0; k < 4; k++)
-                {
-                    Vec2 d = compass[k * 2];   // 90 degrees apart
-                    Vec2 p = centre + d * (radius + 2.6);
-                    if (!ctx.Contains(p) || !Inside(p, 1.5)) continue;
-                    // A bench's seat faces the +z of its frame, which is its +x turned a quarter: a frame of +x = d.Perp faces -d, the middle.
-                    Vec2 frame = d.Perp;
-                    Vector3 b = ctx.Local(p.X, 0.0, p.Y);
-                    CityProps.AddBench(structures, b.x, b.z, ctx.LocalY(height(p.X, p.Y)), (float)frame.X, (float)frame.Y);
-                }
-            }
-
-            for (int e = 0; e < n; e++)
-            {
-                Vec2 i0 = ring[e], i1 = ring[(e + 1) % n];
-                double len = (i1 - i0).Length;
-                if (len < 6.0) continue;
-                Vec2 dir = (i1 - i0) / len;
-                Vec2 inward = dir.Perp;   // the kerb ring is counter-clockwise: the plaza is on the left of each edge
-                for (double t = 1.6; t < len - 1.2; t += 3.0)
-                {
-                    Vec2 p = i0 + dir * t + inward * 0.45;
-                    if (!ctx.Contains(p)) continue;
-                    Vector3 at = ctx.Local(p.X, 0.0, p.Y);
-                    CityProps.AddBollard(structures, at.x, at.z, ctx.LocalY(height(p.X, p.Y)));
-                }
-                for (double t = 5.0; t < len - 4.0; t += 7.5)
-                {
-                    // Along the edge, the seat facing in (the frame's +z is dir.Perp, the inward side).
-                    Vec2 p = i0 + dir * t + inward * 2.2;
-                    if (!ctx.Contains(p) || !Inside(p, 1.4)) continue;
-                    Vector3 at = ctx.Local(p.X, 0.0, p.Y);
-                    CityProps.AddBench(structures, at.x, at.z, ctx.LocalY(height(p.X, p.Y)), (float)dir.X, (float)dir.Y);
-                }
-                foreach (double t in new[] { 2.4, len - 2.4 })
-                {
-                    Vec2 p = i0 + dir * t + inward * 2.3;
-                    if (!ctx.Contains(p) || !Inside(p, 1.5)) continue;
-                    Vector3 at = ctx.Local(p.X, 0.0, p.Y);
-                    CityProps.AddPlanter(structures, at.x, at.z, ctx.LocalY(height(p.X, p.Y)), 1.2f, 0.6f, 0.7f, (float)dir.X, (float)dir.Y);
-                }
-                if (e == longest && len > 20.0)
-                {
-                    Vec2 p = i0 + dir * (len * 0.5) + inward * 4.6;
-                    if (ctx.Contains(p) && Inside(p, 2.0))
-                    {
-                        Vector3 at = ctx.Local(p.X, 0.0, p.Y);
-                        CityProps.AddKiosk(structures, at.x, at.z, ctx.LocalY(height(p.X, p.Y)), (float)dir.X, (float)dir.Y, blockIndex);
-                    }
-                }
-            }
-
-            // What the years left.
-            for (int k = 0; k < 2; k++)
-            {
-                Vec2 d = compass[(int)((h / (uint)(k + 1)) % 8u)];
-                Vec2 p = centre + d * (extent * (0.18 + 0.1 * k));
-                if (!ctx.Contains(p) || !Inside(p, 1.8)) continue;
-                Vector3 at = ctx.Local(p.X, 0.0, p.Y);
-                CityProps.AddRubble(structures, at.x, at.z, ctx.LocalY(height(p.X, p.Y)), 1.3f, blockIndex * 7 + k);
-            }
-            structures.Look = SurfaceLook.Default;
-        }
-
         // ---------------------------------------------------------------- bridges
 
         /// <summary>The underside and sides of a bridge deck, its pavement, and a parapet along each side.</summary>

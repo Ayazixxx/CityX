@@ -15,7 +15,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class BalconyDoorsTests
     {
-        private const int Seed = 58203917;
+        private const int Seed = 91736402;
 
         /// <summary>The player's capsule (PlayerRigBuilder): its height and its radius, each with the controller's skin round it.</summary>
         private static float BodyHeight => BodyRig.StandingHeight + 2.0f * 0.03f;
@@ -425,21 +425,23 @@ namespace CityX.Tests
             {
                 var scratch = new List<BalconyDoor>();
                 BalconyDoor opens = default, locked = default;
-                BuildingSite site = default;
+                BuildingSite site = default, lockedSite = default;
                 bool foundOpen = false, foundLocked = false;
+                // A door that opens and one that does not, on any buildings near the spawn (with a balcony per floor a locked door -- the stairs
+                // or a wall just inside -- is rare, and seed 91736402 had none on a building that also had an open one).
                 foreach ((BuildingSite s, List<BalconyDoor> doors) in Near)
                 {
                     foreach (BalconyDoor d in doors)
                     {
                         if (d.Opens && !foundOpen) { opens = d; foundOpen = true; site = s; }
-                        if (!d.Opens && foundOpen && !foundLocked && s.Id == site.Id) { locked = d; foundLocked = true; }
+                        if (!d.Opens && !foundLocked) { locked = d; foundLocked = true; lockedSite = s; }
                     }
                     if (foundOpen && foundLocked) break;
                 }
-                Assert.IsTrue(foundOpen && foundLocked, "need a building with a door that opens and one that does not");
+                Assert.IsTrue(foundOpen && foundLocked, "need a door that opens and one that does not");
                 BalconyDoorMessage Message(int building, int unit, int row) => new BalconyDoorMessage { Building = building, Unit = unit, Row = row, Open = true };
                 Assert.IsTrue(BalconyDoorsNetwork.Acceptable(Message(site.Id, opens.Unit, opens.Row), scratch), "a door that opens");
-                Assert.IsFalse(BalconyDoorsNetwork.Acceptable(Message(site.Id, locked.Unit, locked.Row), scratch), "a door that does not open");
+                Assert.IsFalse(BalconyDoorsNetwork.Acceptable(Message(lockedSite.Id, locked.Unit, locked.Row), scratch), "a door that does not open");
                 Assert.IsFalse(BalconyDoorsNetwork.Acceptable(Message(site.Id, 4000, opens.Row), scratch), "no such flat");
                 Assert.IsFalse(BalconyDoorsNetwork.Acceptable(Message(-1, 0, 2), scratch), "no such building");
                 Assert.IsFalse(BalconyDoorsNetwork.Acceptable(Message(World.BuildingCount, 0, 2), scratch), "no such building");

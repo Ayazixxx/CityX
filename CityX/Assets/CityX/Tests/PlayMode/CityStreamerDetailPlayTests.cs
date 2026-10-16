@@ -34,7 +34,7 @@ namespace CityX.Tests
             _made.Add(go);
             go.SetActive(false);   // set the fields before Awake runs
             var streamer = go.AddComponent<CityStreamer>();
-            streamer.WorldSeed = 58203917;
+            streamer.WorldSeed = 91736402;
             streamer.RadiusChunks = radius;
             streamer.FullDetailRadiusChunks = fullRadius;
             streamer.DetailHysteresisChunks = 1;
@@ -156,7 +156,7 @@ namespace CityX.Tests
 
             // A building built by one of the far chunks: anywhere in the ring three to five chunks out (the origin's east side alone was open
             // ground on seed 58203917).
-            var world = new CityWorld(58203917);
+            var world = new CityWorld(91736402);
             BuildingSite site = BuildingSite.None;
             for (int dx = -5; dx <= 5 && !site.Exists; dx++)
             {

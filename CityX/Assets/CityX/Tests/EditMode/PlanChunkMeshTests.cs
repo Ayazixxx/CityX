@@ -14,7 +14,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class PlanChunkMeshTests
     {
-        private const int Seed = 58203917;
+        private const int Seed = 91736402;
 
         private static CityWorld _world;
         private static CityWorld World => _world ?? (_world = new CityWorld(Seed));
@@ -195,12 +195,16 @@ namespace CityX.Tests
         {
             foreach (BuildingSite site in TestSites.NearSpawn(World, 14))
             {
-                if (Math.Abs(site.AxisX) > 0.3 && Math.Abs(site.AxisZ) > 0.3 && site.Params.Width > 12.0f && site.Params.Height > 15.0f)
+                // A turned building WITH WINDOWS: a garage, a car park, a mall or a blank-walled shed has no glass to find (seed 91736402's first
+                // turned building near the spawn was one).
+                if (Math.Abs(site.AxisX) > 0.3 && Math.Abs(site.AxisZ) > 0.3 && site.Params.Width > 12.0f && site.Params.Height > 15.0f
+                    && !site.IsParkingGarage && !site.IsOpenGround && !site.IsMall && !site.IsMallAnchor
+                    && WindowPlan.For(World, site).Style != FacadeStyle.Blank)
                 {
                     return site;
                 }
             }
-            Assert.Fail("no turned building near the spawn");
+            Assert.Fail("no turned building with windows near the spawn");
             return default;
         }
 

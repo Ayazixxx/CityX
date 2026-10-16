@@ -17,7 +17,7 @@ namespace CityX.ViewEditor
     /// </summary>
     public static class InteriorSurvey
     {
-        private const int Seed = 58203917;
+        private const int Seed = 91736402;
 
         [MenuItem("CityX/Survey Interiors")]
         public static void Run()

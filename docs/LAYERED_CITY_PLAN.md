@@ -105,5 +105,5 @@ floor 1 at the lowest; its underside at least 5.2 m over the street). The doorwa
 door where the column is narrow) that opens like a balcony door, onto a floor clear of the stairs. Blocks of eight floors or more get a second
 bridge three or more floors higher 40 % of the time. Shares of facing pairs: downtown 55 %, busy streets 50 %, homes 40 %, old town 35 %.
 The lower-numbered block of a pair decides and draws the deck; the other finds it among its neighbours, so both agree. Near the spawn on seed
-58203917: 193 bridges (71 downtown, 109 on the busy streets). Tests: `FootbridgeTests` (placement, floors, clearance, both ends agreeing, the
+91736402: 193 bridges (71 downtown, 109 on the busy streets). Tests: `FootbridgeTests` (placement, floors, clearance, both ends agreeing, the
 doorways, the deck drawn), `FootbridgeWalkPlayTests` (a body walks a deck end to end), `FootbridgeCapture`.

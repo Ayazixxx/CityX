@@ -153,6 +153,70 @@ Only the bollard lights and the kiosk's sign band glow (the owner removed street
 4. **Hill stairs** (with the layered plan's L1).
 Each phase: EditMode + PlayMode, the captures looked at, a new world seed where the plan changed, and a note here.
 
+## 7. Built so far: phase 1, the roles and the kit (2026-10-15 night)
+
+- **`World/OpenSpace.cs`** (pure): every plaza block (Amenities.ChoosePlazas) gets a ROLE from its district and the world seed (`RoleOf`, the
+  weights of 4.1 by `ZoneKind`) and a LAYOUT (`LayoutFor`): a list of pieces (`OpenPiece`: kind, where, which way, a capsule footprint, a seed,
+  fallen or not, whether a body walks round it) and dry-lawn outlines. Placement rules: every piece keeps `Clearance` 1.2 m of paving from every
+  other and `KerbMargin` 1.4 m from the kerb, and keeps off the SPINES -- the straight walks from the middle of every kerb edge to the middle of
+  the block (`SpineHalfWidth` 1.2 either side), which stop short of the focal piece -- so a block can be crossed from any side to any other.
+  `Walkable` floods a half-metre grid round the pieces from the front kerb's middle and asks for every other kerb's middle and 70 % of the free
+  ground; the tests run it over every open block (0 of 59 shut on seed 58203917 at the classic scale). Results on that seed: plaza 23, pocket
+  park 10, promenade 0 (the classic blocks are too square), bare yard 12, vacant lot 5, quiet court 9: 44 % empty-feeling.
+- **The civic square** (`Plaza`): a focal piece in the middle (the dry fountain, a tiered tower, a pergola or a chessboard with pieces, some
+  fallen), seat blocks in rows flanking the walks, shade over the back half (sails on posts, or umbrella tables with chairs), a kiosk and a bike
+  rack on the longest kerb, planters at the corners, Whyte's edges (benches facing in every 7.5 m, dead trees in planters every 9 m), bollard
+  lights down both sides of every walk, a name wall, bins, rubble. A square wider than `QuadrantExtent` 40 m is composed by QUADRANTS between its
+  walks, each a room: a dry lawn with loose chairs and cube seats, a grove of dead trees, a seating court under sails, a terrace of long
+  planters with seat blocks, a cafe of umbrella tables; the first is always a court or a cafe (shade), no two neighbours the same.
+- **The pocket park**: one or two dry lawns (an ellipse of 12 points pushed in and out, shrunk until it clears the kerb), loose chairs on and
+  round them (a third fallen), a pergola or a round tree bench at the back, benches and dead trees along the kerbs, a kiosk. **The promenade**:
+  tree planters and benches in two rows every 4.5 m, bins, lights. **The bare yard**: nothing (40 %), or one bench, one heap of rubble or one
+  dead tree. **The vacant lot**: earth, 2-4 heaps of rubble, a painted hoarding along the street in two runs with a 3.2 m gap. **The quiet court**:
+  planters along the kerbs every 7 m and a sparse grid inside, nothing to sit on.
+- **`View/CityProps.OpenSpace.cs`**: the kit as boxes and beams (`AddBeam`: a square beam from a to b at any tilt -- branches, posts, slats,
+  fallen pieces): seat block, shade sail (three steel posts, a canted double-sided triangle of fabric, torn = bare posts), umbrella table (table,
+  pole, an eight-panel canopy, three or four chairs; fallen = the umbrella down beside it and a chair over), chair (fallen = on its side), picnic
+  table, cube seat, bollard light (a band into the lit glass as `SurfaceLook.PackFloodlit` on a powered block, dark otherwise), dead tree (a
+  tapering trunk, 4-7 branches going out and up, twigs), tree planter, round tree bench, pergola, tiered tower (five concrete tiers on a stone
+  core, a finial), chessboard and pieces, bike rack, name wall (lettering bars), hoarding, bin, lawn kerb. **`View/CitySurfaceBuilder.OpenSpace.cs`**
+  draws a block's layout: the paving in the role's look (`OpenSpacePavingLook`: earth for the vacant lot, warm setts for the square and the court,
+  plain paving for the rest), the lawns as straw ground 2 cm over the paving with a concrete kerb, the pieces (each by the chunk it stands in), the
+  bollards along the kerb. The lit glass reaches the ground pass now (`CitySurfaceBuilder.Build(..., lit)`).
+- **Tests**: `OpenSpaceTests` (EditMode: the mix of roles and the empty share, every piece inside its kerb and clear of the others, every block
+  crossable on foot from any kerb to any other, the same block the same twice, each role's own things), `OpenSpaceWalkPlayTests` (a body the
+  player's size walks the front walk of the nearest square to the middle and the side walk out, on the streamed paving among the real pieces),
+  `OpenSpaceCapture` (Explicit, -Graphics: one block of each role from above by day and at dusk, and from a person's eye at its kerb,
+  `Logs/CityShots/open-*.png`).
+- **Decided without asking** (the questions in 6): dead trees yes (bare, in planters and groves: what stood, stands); lawns as dry straw; colour
+  on the umbrellas, sails and cube seats (rust, sand, slate, bottle green, faded blue; yellow, red, blue cubes); the shares of 4.1.
+- **Not yet** (phase 2 on): the paving patterns of 4.3 (new texture slices), the streets of 4.4 (pedestrian streets, parklets, junction
+  triangles, median islands), forecourts, hill stairs, the night glow checked up close, civilians stopping in the squares.
+
+## 8. Phase 2, planned: the streets (how, in this code)
+
+- **Pedestrian streets.** A pure rule, no plan storage: `PedestrianStreets.Is(plan, RoadEdge)` -- a Street-class edge, not a bridge, 30-120 m long,
+  in dense country (population over 0.5 at its middle), both ends at nodes with three or more live edges (closing it cuts nothing off), chosen
+  3-5 % by a hash of the edge id and the world seed. Drawn by `CitySurfaceBuilder`: the ribbon (`BuildRoad`) at the PAVEMENT's height in setts
+  with no lane paint (`BuildPaint` skips it); the block edge along it draws no kerb face (`BuildPavement` finds the road edge of a block edge by
+  its two node positions: `PlanWorld.EdgeBetween`); bollards and planters across both ends just inside the trims; furniture down the middle
+  (tree planters every 9 m alternating with umbrella tables and benches on the centre line, 3.5 m of walk either side). The junction plates at
+  the ends stay asphalt.
+- **Parklets.** On a street with shopfronts (the facing building's `WindowPlan.Storefront`), one per 150 m of frontage by hash: a 2 x 6 m
+  platform at the kerb, at pavement height, inside the ribbon, with a planter edge, a picnic table and two chairs; the kerb face is interrupted
+  by it. Drawn with the block edge's pavement.
+- **Leftover blocks and median islands.** Every paved block with no lots (a tiny junction triangle; a block too thin for lots, which the plan
+  will PAVE instead of dropping once `CityPlan.Subdivide` keeps the kerb line when the lot line fails) is an open block too: `OpenSpace.LayoutFor`
+  takes them (`IsOpen`: paved, no mall, no lot cut from it) with roles by size -- under 300 m2 a junction triangle (planters along the kerbs, two
+  umbrella tables, bollards at the points), a thin one a median island (a line of planters and dead trees, a bench, bollards at the ends),
+  otherwise the roles of 4.1. A plan change: a new world seed with it.
+- **Paving patterns (4.3).** Three new texture slices in `FacadeTextures` (Rows 3 -> 4, slices 12-14): "pavers" (1.2 m pale pavers, a dark joint
+  band every 2.4 m), "strips" (1.8 m pale and 0.6 m dark across) and "drygrass" (straw); `SurfaceLook.Pavers/Strips/DryGrass`; the scene builder
+  redraws the atlas when its size changes. The square and the promenade use pavers and strips by seed; the lawns use the grass slice instead
+  of tinted earth.
+- Tests as in phase 1: the rule's shares, the geometry (no piece in the road, the walks clear), a body walking a pedestrian street end to end,
+  captures. Then phase 3 forecourts, phase 4 hill stairs.
+
 ## 6. Open questions (owner)
 - Dead trees: bare trunks in the planters and lawns, allowed by the lore (nothing has grown since the rapture; what stood stays)? Or treeless?
 - Lawns as dry straw-coloured grass, or bare earth?

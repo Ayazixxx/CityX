@@ -48,7 +48,7 @@ namespace CityX.View
             if (includeSurface)
             {
                 CitySurfaceBuilder.Build(world, chunkX, chunkY, origin, ground, flatConcrete, structures,
-                    markings, laneDividers, guardRail, far);
+                    markings, laneDividers, guardRail, far, litGlass);   // the lit glass for the open spaces' lights
             }
 
             List<int> owned = world.BuildingsOwnedBy(chunkX, chunkY);

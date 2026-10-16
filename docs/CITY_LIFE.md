@@ -3,7 +3,9 @@
 Asked: "research parking lots and parking garages in cities and decide how often they should spawn dont make it too often. make malls a thing,
 massive buildings with "stores" within them and a cafeteria etc. make them very rare though. and make it unable to spawn nearby another they
 should be as far away from each other as malls usually are away from each other in real life. design pedestrian plazas and place them
-throughout the cities as well. research various video game cities and real life cities". Expressways: `docs/HIGHWAYS.md`.
+throughout the cities as well. research various video game cities and real life cities". Expressways: `docs/HIGHWAYS.md`. **The plazas were
+reworked on 2026-10-15 into open spaces with roles (a civic square, a pocket park, a promenade, a bare yard, a vacant lot, a quiet court) and a
+real furniture kit: `docs/OPEN_SPACE.md`; the plaza paragraphs below describe the first version.**
 
 ## What the research found
 
