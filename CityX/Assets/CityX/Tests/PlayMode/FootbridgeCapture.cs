@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using CityX.View;
 using CityX.World;
@@ -84,6 +85,48 @@ namespace CityX.Tests
             // From above and to one side, the whole bridge and its buildings.
             BuildingShapeCapture.Shoot(camera, directory, "bridge-above", middle + side * 30.0f + Vector3.up * 20.0f, middle);
             Debug.Log($"CityX footbridge capture: {best.SiteA}->{best.SiteB} ({world.Building(best.SiteA).Zone}), floors {best.FloorA}/{best.FloorB}, span {best.Span:F1} m");
+
+            // A bridge's door on a facade with fins or piers (owner, 2026-10-16: the fins stood across the door, and the door would not open),
+            // seen from the deck the way the third-person camera sees it: shut, then open.
+            var doors = new List<BalconyDoor>();
+            bool foundDoor = false;
+            BuildingSite doorSite = default;
+            BalconyDoor door = default;
+            foreach (BuildingSite site in TestSites.NearSpawn(world, 40))
+            {
+                if (Footbridges.For(world, site).Length == 0) continue;
+                WindowPlan plan = WindowPlan.For(world, site);
+                bool ribs = BuildingDecor.Ribs(site.Seed, site.Params.Width, site.Params.Depth, site.Params.Height,
+                    -BuildingInterior.EntranceWidth(site) * 0.5f, BuildingInterior.EntranceWidth(site) * 0.5f).Fins.Count > 0;
+                bool piers = FacadeOrnament.For(site, plan.Style, BuildingLook.For(site, plan.Style).Wall).PierEveryColumns > 0;
+                if (!ribs && !piers) continue;
+                doors.Clear();
+                Footbridges.DoorsOf(world, site, plan, doors);
+                if (doors.Count == 0) continue;
+                doorSite = site;
+                door = doors[0];
+                foundDoor = true;
+                break;
+            }
+            if (foundDoor)
+            {
+                BalconyDoors.InWorld(doorSite, door, out Vector3 corner, out Vector3 along, out Vector3 outward);
+                Vector3 doorMiddle = corner + along * (door.Width * 0.5f);
+                viewer.transform.position = doorMiddle;
+                streamer.Rebuild();
+                streamer.StreamAround(doorMiddle, int.MaxValue);
+                yield return new WaitForSecondsRealtime(2.0f);
+                Vector3 behind = doorMiddle + outward * 3.4f + Vector3.up * 3.7f + along * 0.6f;
+                BuildingShapeCapture.Shoot(camera, directory, "bridge-door-shut", behind, doorMiddle + Vector3.up * 1.4f);
+                BalconyDoorState.Shared.Use(doorSite.Id, door.Unit, door.Row, true);
+                streamer.Rebuild();
+                streamer.StreamAround(doorMiddle, int.MaxValue);
+                yield return new WaitForSecondsRealtime(2.0f);
+                BuildingShapeCapture.Shoot(camera, directory, "bridge-door-open", behind, doorMiddle + Vector3.up * 1.4f);
+                BalconyDoorState.Shared.Clear();
+                Debug.Log($"CityX footbridge capture: a bridge door on building {doorSite.Id} ({doorSite.Zone} {doorSite.Params.Mass}), the {door.Wall} wall, " +
+                    $"{door.Kind} {door.Width:F2} m");
+            }
             Object.Destroy(cameraObject);
             Object.Destroy(viewer);
 #else

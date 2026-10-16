@@ -51,8 +51,12 @@ namespace CityX.View
             return doors.Count > 0 ? doors : null;
         }
 
-        /// <summary>Whether a stretch of the wall (<paramref name="u0"/>..<paramref name="u1"/>) runs into any of the doorways (on any row).</summary>
-        private static bool CrossesABalconyDoor(List<BalconyDoor> doors, float u0, float u1)
+        /// <summary>
+        /// Whether a stretch of the wall (<paramref name="u0"/>..<paramref name="u1"/>) runs into any of the doorways (on any row). With
+        /// <paramref name="bridges"/> false a footbridge's door does not count: what stands on the wall is broken round its landing instead
+        /// (<see cref="NextBridgeLanding"/>), not left off the whole height of the wall.
+        /// </summary>
+        private static bool CrossesABalconyDoor(List<BalconyDoor> doors, float u0, float u1, bool bridges = true)
         {
             if (doors == null)
             {
@@ -60,12 +64,69 @@ namespace CityX.View
             }
             for (int i = 0; i < doors.Count; i++)
             {
+                if (!bridges && doors[i].Unit >= Footbridges.DoorUnitBase)
+                {
+                    continue;
+                }
                 if (doors[i].U0 < u1 && doors[i].U1 > u0)
                 {
                     return true;
                 }
             }
             return false;
+        }
+
+        /// <summary>How far a footbridge's landing is kept clear past its deck's sides and under the deck and over the door's head, metres.</summary>
+        public const float BridgeLandingMargin = 0.35f;
+
+        /// <summary>
+        /// The stretch a footbridge's landing keeps clear on its wall, in the wall's u (from the building's centre) and heights over the building's
+        /// floor: the deck's width (or the door's, if wider) and a margin either side, from under the deck to over the door's head.
+        /// </summary>
+        public static void BridgeLanding(in BalconyDoor door, out float u0, out float u1, out float y0, out float y1)
+        {
+            float middle = (door.U0 + door.U1) * 0.5f;
+            float half = Mathf.Max(door.Width, Footbridges.DeckWidth) * 0.5f + BridgeLandingMargin;
+            u0 = middle - half;
+            u1 = middle + half;
+            y0 = door.Y0 - Footbridges.DeckThickness - BridgeLandingMargin;
+            y1 = door.Y1 + BridgeLandingMargin;
+        }
+
+        /// <summary>
+        /// For something standing on the wall across <paramref name="u0"/>..<paramref name="u1"/> from <paramref name="from"/> up to <paramref name="top"/>
+        /// (absolute heights; the building's floor at <paramref name="floorY"/>): where it must stop for the lowest footbridge landing it would cross
+        /// above <paramref name="from"/> (<paramref name="top"/> when none), and in <paramref name="resume"/> where it may start again over it.
+        /// </summary>
+        private static float NextBridgeLanding(List<BalconyDoor> doors, float floorY, float u0, float u1, float from, float top, out float resume)
+        {
+            float stop = top;
+            resume = top;
+            if (doors == null)
+            {
+                return stop;
+            }
+            for (int i = 0; i < doors.Count; i++)
+            {
+                if (doors[i].Unit < Footbridges.DoorUnitBase)
+                {
+                    continue;
+                }
+                BridgeLanding(doors[i], out float lu0, out float lu1, out float ly0, out float ly1);
+                ly0 += floorY;
+                ly1 += floorY;
+                if (lu0 >= u1 || lu1 <= u0 || ly1 <= from)
+                {
+                    continue;
+                }
+                float start = Mathf.Max(ly0, from);
+                if (start < stop)
+                {
+                    stop = start;
+                    resume = Mathf.Min(top, ly1);
+                }
+            }
+            return stop;
         }
 
         private static bool RowHasBalconyDoor(List<BalconyDoor> doors, int row)

@@ -1,0 +1,105 @@
+using System.Collections.Generic;
+using CityX.View;
+using CityX.World;
+using NUnit.Framework;
+using UnityEngine;
+
+namespace CityX.Tests
+{
+    /// <summary>
+    /// Nothing on a facade stands in front of a footbridge's doorway (owner, 2026-10-16: "make it so the sliding glass door on a connecting bridge isnt
+    /// being blocked by the buildings decals/architecture make those go away around the glass door"): the piers (FacadeOrnament) and the cast fins
+    /// (BuildingDecor ribs) stop under a bridge's deck and start again over its door. Checked by looking at each door from the deck: rays from 1.5 m out
+    /// over the deck, across the doorway's width and up its height, reach the wall's face without hitting anything on the way.
+    /// </summary>
+    public sealed class FootbridgeDoorwayTests
+    {
+        private const int Seed = 46283197;
+
+        [Test]
+        public void NothingOnTheFacadeStandsInFrontOfABridgeDoor()
+        {
+            var world = new CityWorld(Seed);
+            var doors = new List<BalconyDoor>();
+            int checkedDoors = 0, withRelief = 0;
+            foreach (BuildingSite site in TestSites.NearSpawn(world, 40))
+            {
+                if (Footbridges.For(world, site).Length == 0) continue;
+                doors.Clear();
+                Footbridges.DoorsOf(world, site, WindowPlan.For(world, site), doors);
+                if (doors.Count == 0) continue;
+                FacadeOrnament o = FacadeOrnament.For(site, WindowPlan.For(world, site).Style, BuildingLook.For(site, WindowPlan.For(world, site).Style).Wall);
+                bool relief = o.PierEveryColumns > 0 || BuildingDecor.Ribs(site.Seed, site.Params.Width, site.Params.Depth, site.Params.Height,
+                    -BuildingInterior.EntranceWidth(site) * 0.5f, BuildingInterior.EntranceWidth(site) * 0.5f).Fins.Count > 0;
+                var structures = new MeshBuffer();
+                var origin = new Vector3(site.OwnerChunkX * CityLayout.ChunkSize, 0, site.OwnerChunkY * CityLayout.ChunkSize);
+                CityMeshBuilder.BuildSite(world, site, origin, structures, new MeshBuffer(), new MeshBuffer(), new MeshBuffer(), null, null, null, null, false);
+                foreach (BalconyDoor door in doors)
+                {
+                    BalconyDoors.InWorld(site, door, out Vector3 corner, out Vector3 along, out Vector3 outward);
+                    checkedDoors++;
+                    withRelief += relief ? 1 : 0;
+                    const float start = 1.5f;
+                    for (int i = 1; i <= 5; i++)
+                    {
+                        float u = door.Width * i / 6.0f;
+                        for (int j = 1; j <= 5; j++)
+                        {
+                            float y = 0.2f + (door.Height - 0.35f) * j / 5.0f;
+                            Vector3 from = corner + along * u + Vector3.up * y + outward * start;
+                            if (Hit(structures, origin, from, -outward, start - 0.04f, out float distance, out Vector3 a, out Vector3 b, out Vector3 c))
+                            {
+                                string Frame(Vector3 p)
+                                {
+                                    Vector3 d = p + origin - corner;
+                                    return $"({Vector3.Dot(d, along):F2} along, {d.y:F2} up, {Vector3.Dot(d, outward):F2} out)";
+                                }
+                                ApartmentFront front = ApartmentFront.For(site, WindowPlan.For(world, site));
+                                Assert.Fail($"building {site.Id} ({site.Params.Mass} {site.Zone}, pier every {o.PierEveryColumns}, relief {relief}, apartment front " +
+                                    $"{front.Any} balconies {front.Balconies}): something stands {start - distance:F2} m out from the {door.Wall} wall in front of the " +
+                                    $"bridge door (row {door.Row}, {door.Kind}), {u:F2} m along it and {y:F2} m up: a triangle {Frame(a)} {Frame(b)} {Frame(c)}");
+                            }
+                        }
+                    }
+                }
+            }
+            Debug.Log($"[FootbridgeDoorway] {checkedDoors} bridge doors looked at from their decks, {withRelief} on facades with piers or fins");
+            Assert.That(checkedDoors, Is.GreaterThan(10), "too few bridge doors near the spawn to check");
+        }
+
+        /// <summary>The nearest triangle of a buffer a ray meets within <paramref name="reach"/> (Moller-Trumbore, both faces).</summary>
+        private static bool Hit(MeshBuffer buffer, Vector3 origin, Vector3 from, Vector3 dir, float reach, out float distance,
+            out Vector3 ha, out Vector3 hb, out Vector3 hc)
+        {
+            distance = float.MaxValue;
+            ha = hb = hc = Vector3.zero;
+            List<Vector3> v = buffer.Vertices;
+            List<int> t = buffer.Triangles;
+            Vector3 o = from - origin;
+            for (int k = 0; k + 2 < t.Count; k += 3)
+            {
+                Vector3 a = v[t[k]], b = v[t[k + 1]], c = v[t[k + 2]];
+                Vector3 e1 = b - a, e2 = c - a;
+                Vector3 p = Vector3.Cross(dir, e2);
+                float det = Vector3.Dot(e1, p);
+                if (Mathf.Abs(det) < 1e-8f) continue;
+                float inv = 1.0f / det;
+                Vector3 s = o - a;
+                float bu = Vector3.Dot(s, p) * inv;
+                if (bu < 0.0f || bu > 1.0f) continue;
+                Vector3 q = Vector3.Cross(s, e1);
+                float bv = Vector3.Dot(dir, q) * inv;
+                if (bv < 0.0f || bu + bv > 1.0f) continue;
+                float d = Vector3.Dot(e2, q) * inv;
+                if (d > 0.0f && d < reach && d < distance)
+                {
+                    distance = d;
+                    ha = a;
+                    hb = b;
+                    hc = c;
+                }
+            }
+            return distance < reach;
+        }
+    }
+}

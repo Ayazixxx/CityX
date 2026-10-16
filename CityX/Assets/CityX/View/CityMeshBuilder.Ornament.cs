@@ -71,17 +71,28 @@ namespace CityX.View
                 float y0 = floorY + rows.Size + (o.BaseCourse ? FacadeOrnament.BaseCourseHeight - 0.10f : 0.0f);
                 float y1 = corniceBottom;
                 buffer.Look = looks.Wall;
-                // Not in front of a flat's door onto its balcony (BalconyDoors): the doorway of a pair or a sliding door can span a column line.
-                List<BalconyDoor> doors = which == ApartmentFront.BalconyWall ? BalconyDoorsOf(site, WindowPlan.For(site), which) : null;
+                // Not in front of a flat's door onto its balcony (BalconyDoors): the doorway of a pair or a sliding door can span a column line. And
+                // broken round a footbridge's landing on any wall (Footbridges, owner 2026-10-16: the bridge's door was "blocked by the buildings
+                // decals/architecture"): the pier stops under the deck and starts again over the door.
+                List<BalconyDoor> doors = BalconyDoorsOf(site, WindowPlan.For(site), which);
                 for (int c = o.PierEveryColumns; c < columns.Count; c += o.PierEveryColumns)
                 {
                     float u = u0 + c * columns.Size;
                     float half = FacadeOrnament.PierWidth * 0.5f;
-                    if (site.ContactTop(which, u - u0 - half, u - u0 + half) > y0 - floorY || CrossesABalconyDoor(doors, u - half, u + half))
+                    if (site.ContactTop(which, u - u0 - half, u - u0 + half) > y0 - floorY || CrossesABalconyDoor(doors, u - half, u + half, false))
                     {
                         continue;
                     }
-                    AddOutset(buffer, wall, normal, u - half, u + half, y0, y1, FacadeOrnament.PierDepth, false);
+                    float from = y0;
+                    while (from < y1 - 0.01f)
+                    {
+                        float to = NextBridgeLanding(doors, floorY, u - half, u + half, from, y1, out float resume);
+                        if (to > from + 0.01f)
+                        {
+                            AddOutset(buffer, wall, normal, u - half, u + half, from, to, FacadeOrnament.PierDepth, false);
+                        }
+                        from = resume;
+                    }
                 }
             }
             buffer.Look = saved;

@@ -107,3 +107,15 @@ bridge three or more floors higher 40 % of the time. Shares of facing pairs: dow
 The lower-numbered block of a pair decides and draws the deck; the other finds it among its neighbours, so both agree. Near the spawn on seed
 91736402: 193 bridges (71 downtown, 109 on the busy streets). Tests: `FootbridgeTests` (placement, floors, clearance, both ends agreeing, the
 doorways, the deck drawn), `FootbridgeWalkPlayTests` (a body walks a deck end to end), `FootbridgeCapture`.
+
+**Bridge doors fixed (2026-10-16, owner: "doesnt let me open sliding glass doors bridges connecting buildings", and the door "being blocked by the
+buildings decals/architecture make those go away around the glass door").** The door interactor (`View/BalconyDoorInteractor.FindNear`) only asked
+buildings whose BACK wall was near for their doors (the flats' balcony doors are all there), so a bridge's door on a front or side wall was never
+found: neither E nor walking into it did anything. A building with a bridge is now asked whenever any of its walls is within reach. And a bridge's
+LANDING on its wall -- the deck's width (or the door's, if wider) and 0.35 m either side, from under the deck to 0.35 m over the door's head
+(`CityMeshBuilder.BridgeLanding`) -- is kept clear of everything the facade hangs out from the wall: the piers (`FacadeOrnament`) and the cast fins
+(`BuildingDecor` ribs) stop under the deck and start again over the door (`NextBridgeLanding`), and the small single balconies and the lit blade
+signs, placed by their own dice, are left off where they would stand in it (one balcony's rail stood across a door, a blade sign beside another).
+Tests: `FootbridgeDoorwayTests` (197 bridge doors near the spawn looked at from their decks, 115 on facades with piers or fins: rays across each
+doorway from 1.5 m out reach the wall), `FootbridgeDoorPlayTests` (E opens and shuts a bridge door on a front or side wall; walking down the
+deck opens it and the body walks into the building), `FootbridgeCapture` (`bridge-door-shut` and `bridge-door-open`, from the deck).

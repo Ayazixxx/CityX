@@ -200,7 +200,9 @@ namespace CityX.View
 
         /// <summary>
         /// The doors of the buildings round <paramref name="feet"/> within <see cref="NearMetres"/> of it and on its floor, into
-        /// <paramref name="into"/> (cleared first). Only a building whose back wall is near is asked for its doors, and each building's are kept.
+        /// <paramref name="into"/> (cleared first). A building is asked for its doors when its back wall is near (the flats' balcony doors) or, when
+        /// a footbridge meets it, when any of its walls is (a bridge's door can be on any wall: until 2026-10-16 only the back wall was looked at,
+        /// so a bridge door on the front or a side wall could be neither opened with E nor walked open). Each building's doors are kept.
         /// </summary>
         public void FindNear(CityWorld world, Vector3 feet, List<Near> into)
         {
@@ -225,8 +227,10 @@ namespace CityX.View
                         }
                         b.WorldToLocal(feet.x, feet.z, out double lx, out double lz);
                         double back = -b.Params.Depth * 0.5;
-                        if (System.Math.Abs(lx) > b.Params.Width * 0.5 + 1.0 || lz < back - ApartmentFront.MaxDepth - NearMetres * 0.5
-                            || lz > back + NearMetres)
+                        bool nearBack = System.Math.Abs(lx) <= b.Params.Width * 0.5 + 1.0 && lz >= back - ApartmentFront.MaxDepth - NearMetres * 0.5
+                            && lz <= back + NearMetres;
+                        bool nearAWall = System.Math.Abs(lx) <= b.Params.Width * 0.5 + NearMetres && System.Math.Abs(lz) <= b.Params.Depth * 0.5 + NearMetres;
+                        if (!nearBack && !(nearAWall && Footbridges.For(world, b).Length > 0))
                         {
                             continue;
                         }
