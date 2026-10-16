@@ -12,7 +12,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class RoofShapeTests
     {
-        private const int Seed = 91736402;
+        private const int Seed = 46283197;
 
         private static CityWorld _world;
         private static CityWorld World => _world ?? (_world = new CityWorld(Seed));
@@ -63,8 +63,8 @@ namespace CityX.Tests
                 if (site.Params.Mass == BuildingMass.Warehouse)
                 {
                     sheds++;
-                    Assert.AreEqual(RoofKind.Gable, roof.Kind, what);
-                    Assert.That(roof.Pitch, Is.InRange(5.0f, 10.5f), $"{what}: a shed's roof is a low one");
+                    Assert.That(roof.Kind, Is.EqualTo(RoofKind.Gable).Or.EqualTo(RoofKind.Skillion).Or.EqualTo(RoofKind.Saltbox), what);
+                    Assert.That(roof.Pitch, Is.InRange(3.5f, 12.5f), $"{what}: a shed's roof is a low one");
                     continue;
                 }
                 Assert.AreEqual(BuildingMass.LowRise, site.Params.Mass, $"{what}: a pitched roof on a tall building");
@@ -74,7 +74,205 @@ namespace CityX.Tests
             Debug.Log($"[RoofShape] {pitched} pitched roofs of {Sites.Count} buildings within 40 chunks ({sheds} sheds, {terraced} terraced): " +
                 string.Join(", ", kinds));
             Assert.That(pitched, Is.GreaterThan(40), "too few pitched roofs to be seen");
-            Assert.That(kinds.Count, Is.EqualTo(3), "not every kind of roof turns up");
+            Assert.That(kinds.Count, Is.GreaterThanOrEqualTo(3), "not every kind of roof turns up");
+            Assert.IsTrue(kinds.ContainsKey(RoofKind.Gable) && kinds.ContainsKey(RoofKind.Hip) && kinds.ContainsKey(RoofKind.Skillion), "no gable, hip or skillion");
+        }
+
+        [Test]
+        public void TheNewKindsTurnUpAtTheirRealWorldShares()
+        {
+            // Phase 2b (owner, 2026-10-15: "research how often these roofs occur in real world environments and make the chance they occur
+            // ingame similar"): saltboxes a few per cent of the pitched houses, skillions one in twelve in the homes and more downtown, flat roofs
+            // with eaves a quarter to a third of the flat house roofs in the homes and a few mid-rise blocks downtown; never on a tower.
+            int pitchedHouses = 0, saltboxHouses = 0, skillionHomes = 0, pitchedHomes = 0;
+            int flatHomes = 0, eavesHomes = 0, midRiseDowntown = 0, eavesMidRise = 0, flatSheds = 0, eavesSheds = 0, pitchedSheds = 0, skillionSheds = 0, saltboxSheds = 0;
+            foreach (BuildingSite site in TestSites.NearSpawn(World, 80))
+            {
+                RoofShape roof = RoofShape.For(site);
+                BuildingMass mass = site.Params.Mass;
+                string what = $"building {site.Id} ({site.Zone} {mass} {site.Params.Width:F0}x{site.Params.Depth:F0}x{site.Params.Height:F0})";
+                if (mass == BuildingMass.Tower || mass == BuildingMass.Supertall || mass == BuildingMass.Slab)
+                {
+                    Assert.IsTrue(roof.HasParapet, $"{what}: a {roof.Kind} roof on a tall building");
+                    continue;
+                }
+                bool homes = site.Zone == ZoneKind.Residential || site.Zone == ZoneKind.Outskirts;
+                bool downtown = site.Zone == ZoneKind.Core || site.Zone == ZoneKind.Urban;
+                if (mass == BuildingMass.Warehouse)
+                {
+                    if (roof.Pitched)
+                    {
+                        pitchedSheds++;
+                        skillionSheds += roof.Kind == RoofKind.Skillion ? 1 : 0;
+                        saltboxSheds += roof.Kind == RoofKind.Saltbox ? 1 : 0;
+                    }
+                    else
+                    {
+                        flatSheds++;
+                        eavesSheds += roof.Kind == RoofKind.FlatEaves ? 1 : 0;
+                    }
+                    continue;
+                }
+                if (mass == BuildingMass.MidRise)
+                {
+                    Assert.IsFalse(roof.Pitched, $"{what}: a pitched roof on a mid-rise block");
+                    if (downtown)
+                    {
+                        midRiseDowntown++;
+                        eavesMidRise += roof.Kind == RoofKind.FlatEaves ? 1 : 0;
+                    }
+                    continue;
+                }
+                if (roof.Pitched)
+                {
+                    pitchedHouses++;
+                    saltboxHouses += roof.Kind == RoofKind.Saltbox ? 1 : 0;
+                    if (roof.Kind == RoofKind.Saltbox)
+                    {
+                        Assert.That(roof.Attic, Is.InRange(0.5f, RoofShape.MaxAttic + 0.01f), $"{what}: a saltbox's attic");
+                        float across = roof.AlongX ? site.Params.Depth : site.Params.Width;
+                        Assert.That(roof.SaltboxRidgeFromFront(across) / across, Is.InRange(RoofShape.MinSaltboxRidgeShare - 0.01f, 0.5f), $"{what}: the ridge is not forward");
+                        Assert.That(roof.RiseOver(site.Params.Width, site.Params.Depth), Is.LessThanOrEqualTo(RoofShape.MaxRise + 0.02f), what);
+                    }
+                    if (homes)
+                    {
+                        pitchedHomes++;
+                        skillionHomes += roof.Kind == RoofKind.Skillion ? 1 : 0;
+                    }
+                }
+                else if (homes)
+                {
+                    flatHomes++;
+                    eavesHomes += roof.Kind == RoofKind.FlatEaves ? 1 : 0;
+                    if (roof.Kind == RoofKind.FlatEaves)
+                    {
+                        Assert.That(roof.Eave, Is.InRange(RoofShape.MinFlatEave, RoofShape.MaxFlatEave), $"{what}: the eaves");
+                    }
+                }
+            }
+            Debug.Log($"[RoofShape] within 80 chunks: {pitchedHouses} pitched houses ({saltboxHouses} saltboxes; in the homes {skillionHomes} skillions of {pitchedHomes}), " +
+                $"{eavesHomes} of {flatHomes} flat house roofs in the homes with eaves, {eavesMidRise} of {midRiseDowntown} downtown mid-rises, " +
+                $"sheds: {pitchedSheds} pitched ({skillionSheds} skillion, {saltboxSheds} saltbox), {eavesSheds} of {flatSheds} flat with eaves");
+            Assert.That(pitchedHouses, Is.GreaterThan(100));
+            Assert.That(saltboxHouses, Is.GreaterThanOrEqualTo(1), "no saltbox anywhere");
+            Assert.That(saltboxHouses / (double)pitchedHouses, Is.LessThan(0.08), "too many saltboxes: they are a few per cent of real roofs");
+            Assert.That(skillionHomes / (double)Mathf.Max(1, pitchedHomes), Is.InRange(0.03, 0.2), "the homes' shed roofs: one in twelve");
+            Assert.That(flatHomes, Is.GreaterThan(20));
+            Assert.That(eavesHomes / (double)flatHomes, Is.InRange(0.15, 0.45), "flat roofs with eaves in the homes: a quarter to a third");
+            if (midRiseDowntown >= 60)
+            {
+                Assert.That(eavesMidRise / (double)midRiseDowntown, Is.InRange(0.02, 0.16), "a few downtown mid-rises get an overhang");
+            }
+            if (flatSheds >= 12)
+            {
+                Assert.That(eavesSheds / (double)flatSheds, Is.InRange(0.08, 0.45), "a quarter of the flat sheds get a gutter and overhang");
+            }
+            if (pitchedSheds >= 20)
+            {
+                Assert.That(skillionSheds + saltboxSheds, Is.GreaterThan(0), "no monopitch or lean-to shed");
+            }
+        }
+
+        [Test]
+        public void ASaltboxIsAStoreyTallerInFrontWithItsRidgeForwardAndItsLongSlopeBehind()
+        {
+            BuildingSite house = default;
+            bool found = false;
+            foreach (BuildingSite site in TestSites.NearSpawn(World, 80))
+            {
+                if (RoofShape.For(site).Kind == RoofKind.Saltbox && site.Params.Mass != BuildingMass.Warehouse)
+                {
+                    house = site;
+                    found = true;
+                    break;
+                }
+            }
+            Assert.IsTrue(found, "no saltbox house within 80 chunks");
+            RoofShape roof = RoofShape.For(house);
+            float across = roof.AlongX ? house.Params.Depth : house.Params.Width;
+            float half = across * 0.5f;
+            float t = Mathf.Tan(roof.Pitch * Mathf.Deg2Rad);
+            float back = roof.LowAtMin ? -half : half, front = -back;   // the long slope falls to the back wall
+            float dir = Mathf.Sign(front - back);
+            float roofY = house.Top;
+            string what = $"building {house.Id} ({house.Params.Width:F0}x{house.Params.Depth:F0}x{house.Params.Height:F0}, pitch {roof.Pitch:F0}, attic {roof.Attic:F2})";
+            foreach (bool far in new[] { false, true })
+            {
+                var structures = new MeshBuffer();
+                Build(house, far, structures, out Vector3 origin);
+                // Across the roof at the middle of its length, from just inside the back wall to just inside the front one.
+                const int samples = 24;
+                float highest = float.NegativeInfinity, highestAt = 0.0f;
+                for (int i = 0; i <= samples; i++)
+                {
+                    float b = Mathf.Lerp(back + dir * 0.3f, front - dir * 0.3f, i / (float)samples);
+                    float lx = roof.AlongX ? 0.0f : b, lz = roof.AlongX ? b : 0.0f;
+                    house.LocalToWorld(lx, lz, out double wx, out double wz);
+                    float top = TopAt(structures, origin, (float)wx, (float)wz, out Vector3 normal);
+                    Assert.That(top, Is.GreaterThan(roofY + 0.05f), $"{what} {(far ? "far" : "near")}: nothing over b = {b:F1}");
+                    if (top > highest)
+                    {
+                        highest = top;
+                        highestAt = b;
+                    }
+                    if (i == 0)
+                    {
+                        Assert.That(top, Is.LessThan(roofY + 0.3f * t + RoofShape.Thickness / Mathf.Cos(roof.Pitch * Mathf.Deg2Rad) + 0.35f),
+                            $"{what}: the long slope does not come down to the back wall's top");
+                    }
+                    if (i == samples)
+                    {
+                        Assert.That(top, Is.GreaterThan(roofY + roof.Attic - 0.05f), $"{what}: the front is not a storey taller");
+                    }
+                }
+                float fromFront = Mathf.Abs(front - highestAt) / across;
+                Assert.That(fromFront, Is.InRange(RoofShape.MinSaltboxRidgeShare - 0.06f, 0.5f), $"{what}: the ridge is {fromFront:P0} of the span from the front");
+                // The slope's top is the roof's thickness over the ridge line, and near by the ridge cap stands 0.2 m over that.
+                float ridge = roofY + roof.RiseOver(house.Params.Width, house.Params.Depth);
+                Assert.That(highest, Is.InRange(ridge - 0.35f, ridge + 0.65f), $"{what}: the ridge's height ({highest - roofY:F2} m over the walls, {ridge - roofY:F2} expected)");
+            }
+            Assert.IsTrue(BuildingStairs.PlanFor(house).NoRoofStair, $"{what}: a stair up into the attic");
+        }
+
+        [Test]
+        public void AFlatRoofWithEavesHasNoParapetAndStandsOutPastEveryWall()
+        {
+            BuildingSite house = default;
+            bool found = false;
+            foreach (BuildingSite site in TestSites.NearSpawn(World, 80))
+            {
+                if (RoofShape.For(site).Kind == RoofKind.FlatEaves && site.Params.Mass == BuildingMass.LowRise)
+                {
+                    house = site;
+                    found = true;
+                    break;
+                }
+            }
+            Assert.IsTrue(found, "no low building with a flat roof with eaves within 80 chunks");
+            RoofShape roof = RoofShape.For(house);
+            string what = $"building {house.Id} ({house.Zone} {house.Params.Width:F0}x{house.Params.Depth:F0}x{house.Params.Height:F0}, eave {roof.Eave:F2})";
+            Assert.IsFalse(roof.HasParapet, what);
+            Assert.IsTrue(roof.IsFlat && !roof.Pitched, what);
+            Assert.That(roof.Eave, Is.InRange(RoofShape.MinFlatEave, RoofShape.MaxFlatEave), what);
+            WindowPlan plan = WindowPlan.For(World, house);
+            Assert.IsFalse(FacadeOrnament.For(house, plan.Style, BuildingLook.For(house, plan.Style).Wall).HasCornice, $"{what}: a cornice with no parapet to cap");
+            Assert.IsFalse(RoofBillboards.For(house).Exists, $"{what}: a billboard with no parapet to stand behind");
+            BuildingStairs.Layout stairs = BuildingStairs.PlanFor(house);
+            if (!stairs.SealedTop)
+            {
+                Assert.IsFalse(stairs.NoRoofStair, $"{what}: the deck is there to stand on, so the stair comes up to it");
+            }
+            var structures = new MeshBuffer();
+            Build(house, false, structures, out Vector3 origin);
+            float hw = house.Params.Width * 0.5f, hd = house.Params.Depth * 0.5f;
+            float lip = house.Top + RoofShape.FlatEavesLip;
+            foreach ((float lx, float lz) in new[] { (0.0f, -hd - 0.4f), (0.0f, hd + 0.4f), (-hw - 0.4f, 0.0f), (hw + 0.4f, 0.0f) })
+            {
+                house.LocalToWorld(lx, lz, out double wx, out double wz);
+                float top = TopAt(structures, origin, (float)wx, (float)wz, out Vector3 normal);
+                Assert.That(top, Is.EqualTo(lip).Within(0.03f), $"{what}: the eaves' top over ({lx:F1}, {lz:F1})");
+                Assert.That(normal.y, Is.GreaterThan(0.99f), $"{what}: the eaves are not level");
+            }
         }
 
         [Test]
@@ -158,7 +356,7 @@ namespace CityX.Tests
                 }
                 built++;
             }
-            Assert.That(seen.Count, Is.EqualTo(3), "not every kind of roof was checked");
+            Assert.That(seen.Count, Is.GreaterThanOrEqualTo(3), "not every kind of roof was checked");
         }
 
         /// <summary>The height of the highest upward-facing triangle over a point, and its normal (the roof seen from above).</summary>

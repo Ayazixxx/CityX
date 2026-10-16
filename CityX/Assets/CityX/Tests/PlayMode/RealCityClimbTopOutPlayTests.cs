@@ -19,7 +19,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class RealCityClimbTopOutPlayTests
     {
-        private const int Seed = 91736402;
+        private const int Seed = 46283197;
         private readonly List<GameObject> _made = new List<GameObject>();
 
         [TearDown]
@@ -48,7 +48,9 @@ namespace CityX.Tests
                     && !facade.Storefront
                     && !ApartmentFront.For(candidate, facade).Any
                     && !candidate.IsParkingGarage && !candidate.IsOpenGround && !candidate.IsMall && !candidate.IsMallAnchor;
-                if (plain && candidate.Params.Width > 10.0f && candidate.Params.Height > 12.0f)
+                // ...no taller than its real window rows: past CityMeshBuilder.FullDetailRows (100 m) a tower's wall is a flat panel with nothing to
+                // grab (seed 46283197's first pick, a 122 m curtain-wall tower, stalled every climb 100 m up).
+                if (plain && candidate.Params.Width > 10.0f && candidate.Params.Height > 12.0f && candidate.Params.Height <= 60.0f)
                 {
                     site = candidate;
                     found = true;

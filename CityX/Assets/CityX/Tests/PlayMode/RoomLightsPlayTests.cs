@@ -18,7 +18,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class RoomLightsPlayTests
     {
-        private const int Seed = 91736402;
+        private const int Seed = 46283197;
         private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
         private readonly List<GameObject> _made = new List<GameObject>();
         private CityScale _scaleBefore;

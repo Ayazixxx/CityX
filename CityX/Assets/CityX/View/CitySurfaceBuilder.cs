@@ -829,7 +829,11 @@ namespace CityX.View
                 new Vector2(0, 0), new Vector2(len, 0), new Vector2(len, 1), new Vector2(0, 1));
         }
 
-        /// <summary>Now and then a row of barricades across a street: the evacuation's last cordons.</summary>
+        /// <summary>
+        /// Now and then a row of barricades across a street: the evacuation's last cordons. On a pedestrian street (World/PedestrianStreets) the
+        /// whole ribbon is the footway, so the cordon stands across its middle only and leaves the walk along each side clear (a 2.6 m body walks
+        /// the street end to end: PedestrianStreetWalkPlayTests; seed 46283197's street had its cordon's end barrier across the walk).
+        /// </summary>
         private static void AddStreetBarricades(Context ctx, EdgeGeometry g, MeshBuffer structures)
         {
             if (g.Edge.Bridge) return;
@@ -841,10 +845,13 @@ namespace CityX.View
             {
                 double t = g.Length * 0.5;
                 Vec2 c = g.A + g.Dir * t;
-                int count = (int)((2.0 * hw - 1.0) / 3.2);
+                bool walk = PedestrianStreets.Is(ctx.Plan, g.Edge);
+                double span = walk ? hw - PedestrianStreets.WalkWidth : hw - 0.5;   // how far from the middle a barrier may reach
+                int count = (int)(2.0 * span / 3.2);
+                double first = walk ? -(count - 1) * 1.6 : -hw + 1.0 + 1.6;   // centred on a pedestrian street; from the kerb side on a road
                 for (int i = 0; i < count; i++)
                 {
-                    Vec2 pos = c + perp * (-hw + 1.0 + 1.6 + i * 3.2);
+                    Vec2 pos = c + perp * (first + i * 3.2);
                     if (!ctx.Contains(pos)) continue;
                     Vector3 at = ctx.Local(pos.X, 0.0, pos.Y);
                     CityProps.AddBarrier(structures, at.x, at.z, ctx.LocalY(height(pos.X, pos.Y)), (float)perp.X, (float)perp.Y);

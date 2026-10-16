@@ -119,6 +119,13 @@ namespace CityX.View
                 float hd = Mathf.Max(0.5f, site.Params.Depth * 0.5f - SkylineInset);
                 structures.AddBox(new Vector3(-hw, bottom, -hd), new Vector3(hw, top, hd));
             }
+            // A tall tower's top (World/TowerTop) as a stub on the box or prism: the far towers keep their masts, spires and crowns.
+            TowerTop tip = TowerTop.For(site);
+            if (tip.Exists)
+            {
+                float square = site.Sides >= 3 ? RoundFootprint.Of(site).InnerHalf * 2.0f : 0.0f;
+                AddSkylineTop(structures, tip, top, square > 0.0f ? square : site.Params.Width, square > 0.0f ? square : site.Params.Depth);
+            }
             structures.ClearFrame();
         }
 

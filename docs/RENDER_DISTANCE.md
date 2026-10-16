@@ -1,5 +1,9 @@
 # Render distance: the skyline tier (2026-10-15)
 
+*Later the same day:* a tall tower's mast, spire or crown (`World/TowerTop`, docs/WORLD_GACHA.md phase 2b) is drawn on its skyline box as a
+stub (`CityMeshBuilder.AddSkylineTop`: a pole, a few tapering boxes, four slabs in pale metal), so the far towers keep their silhouettes;
+`SkylineTests` lets a box rise to its top's reach.
+
 Asked (owner, 2026-10-15, of @_chuckyc's OpenMapTiles earth game): "the render distance on his looks waaay better than ours i want mine like
 that". Before: `CityStreamer` built the city in full detail to 8 chunks (192 m), as far shells to 30 chunks (720 m), and the air (`CityHaze`,
 driven by the fog distances 460-690 m) hid the end of it: from a roof or a jetpack the city stopped at a wall of haze a few blocks out

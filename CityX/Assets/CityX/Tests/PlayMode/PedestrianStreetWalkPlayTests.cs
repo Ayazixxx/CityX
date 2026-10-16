@@ -17,7 +17,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class PedestrianStreetWalkPlayTests
     {
-        private const int Seed = 91736402;
+        private const int Seed = 46283197;
         private readonly List<GameObject> _made = new List<GameObject>();
 
         [TearDown]
@@ -103,6 +103,29 @@ namespace CityX.Tests
             }
             double walked = Vec2.Dot(new Vec2(body.transform.position.x, body.transform.position.z) - start, g.Dir);
             Debug.Log($"CityX pedestrian street walk: edge {edge.Id} ({g.Length:F0} m long, {g.HalfWidth * 2.0:F1} m wide, {best:F0} m from the spawn): walked {walked:F1} of {t1 - t0:F1} m, lowest {lowest:F2} m to the setts");
+            if (walked < t1 - t0 - 1.5)
+            {
+                // What stopped it: whatever stands ahead at knee, hip, chest and head height, and where that is on the street.
+                var stopped = new Vec2(body.transform.position.x, body.transform.position.z);
+                float ground = Paving(stopped);
+                // Rays along the street from 2.5 m behind the body (clear of its own capsule), every half metre across the whole ribbon and at four
+                // heights: what stands ahead, and how much of the street's width it takes (seed 46283197: a cordon of barricades across the middle).
+                var perp = new Vector3((float)g.Dir.Perp.X, 0.0f, (float)g.Dir.Perp.Y);
+                Vector3 behind = new Vector3(body.transform.position.x, ground, body.transform.position.z) - flat * 2.5f - perp * (float)side;
+                for (float w = -(float)g.HalfWidth + 0.3f; w <= (float)g.HalfWidth - 0.3f; w += 0.5f)
+                {
+                    foreach (float h in new[] { 0.1f, 0.4f, 1.0f, 2.2f })
+                    {
+                        if (Physics.Raycast(behind + perp * w + Vector3.up * h, flat, out RaycastHit hit, 6.0f) && hit.collider.gameObject != body.gameObject)
+                        {
+                            var p = new Vec2(hit.point.x, hit.point.z);
+                            string parent = hit.collider.transform.parent != null ? hit.collider.transform.parent.name : "-";
+                            Debug.Log($"CityX pedestrian street walk: at w={Vec2.Dot(p - g.A, g.Dir.Perp):F1} {h:F1} m up: '{hit.collider.name}' (under '{parent}') at t={Vec2.Dot(p - g.A, g.Dir):F1}, " +
+                                $"{hit.point.y - ground:F2} m over the setts, normal ({hit.normal.x:F2},{hit.normal.y:F2},{hit.normal.z:F2})");
+                        }
+                    }
+                }
+            }
             Assert.That(lowest, Is.GreaterThan(-0.3f), "the body fell through the street");
             Assert.That(walked, Is.GreaterThan(t1 - t0 - 1.5), $"the walk is blocked: the body stopped {t1 - t0 - walked:F1} m short of the far end");
 

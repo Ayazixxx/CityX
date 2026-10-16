@@ -236,6 +236,11 @@ Each phase: EditMode + PlayMode, the captures looked at, a new world seed where 
   142 (50) of them beside an expressway (its corridor cuts the lots back: `Expressways.CutBack`), the rest on water, steep or tiny: big empty paved
   blocks downtown. Phase 2b gives them roles (vacant lots and bare yards under the viaducts, with rubble and hoardings) -- `tools/cityplan --
   emptyblocks`, `emptynear`, `edgeblocks <edge>` list them.
+- **The cordons (seed 46283197, later the same night):** one street in thirty over 40 m carries a row of barricades across its middle (the
+  evacuation's last cordons, `CitySurfaceBuilder.AddStreetBarricades`), and on the new seed's nearest pedestrian street the row's end barrier stood
+  across the walk, 26 m short of the far end. On a pedestrian street the cordon now stands across the middle only (within the half width less the
+  3 m walk) and the walks along both sides stay clear; the walk test says what blocks it when it is blocked (rays across the whole ribbon), and
+  `tools/cityplan -- edge <id> [seed] [t]` prints a road's geometry, chunk crossings and the roads, buildings and kerb rings about a point on it.
 
 ## 6. Open questions (owner)
 - Dead trees: bare trunks in the planters and lawns, allowed by the lore (nothing has grown since the rapture; what stood stays)? Or treeless?

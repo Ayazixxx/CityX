@@ -4,13 +4,15 @@ using UnityEngine;
 namespace CityX.View
 {
     /// <summary>
-    /// A pitched roof (World/RoofShape): gable, hip, skillion, or a warehouse's low gable, standing on the top of the walls in place of the parapet
-    /// and the roof plant. In the wall buffer: it draws with the facade in the same draw call, and the chunk's collider takes it (a 2.6 m body
-    /// walks up any of them: the steepest is 32 degrees).
+    /// A pitched roof (World/RoofShape): gable, hip, skillion, saltbox, or a warehouse's low gable or shed, standing on the top of the walls in
+    /// place of the parapet and the roof plant; and the flat roof with eaves, a slab carried out past the walls with no parapet. In the wall
+    /// buffer: it draws with the facade in the same draw call, and the chunk's collider takes it (a 2.6 m body walks up any of them: the
+    /// steepest is 32 degrees).
     ///
     /// The underside of each slope passes through the top edge of the walls, so the roof closes the building with the top floor's ceiling under
     /// it (the attic is shut: no stair comes up to it). Past the walls it is the eaves, and their underside (the soffit) and front edge (the
-    /// fascia) are drawn. A gable or a skillion closes its ends with the wall carried up as a triangle, in the wall's own look.
+    /// fascia) are drawn. A gable or a skillion closes its ends with the wall carried up as a triangle, in the wall's own look; a saltbox
+    /// carries its front wall up a storey and closes its ends with its own profile.
     ///
     /// The covering is the facade's Tile material at a roof tile's size (three times the wall tile's) or its standing-seam Metal, laid with the
     /// seams running down the slope; tinted by RoofShape.Tint.
@@ -56,6 +58,8 @@ namespace CityX.View
             Color32 trim = SurfaceLook.Pack(shape.Tint * 0.78f, (int)WallMaterial.Metal, 0.4f);
             Color32 soffit = SurfaceLook.Pack(SoffitTint, (int)WallMaterial.Plaster, 0.35f);
             float uvScale = shape.Covering == RoofCovering.Tile ? 1.0f / RoofTileScale : 1.0f;
+            // Where the roof's highest line is, for the chimney or the aerial: its b, its height, and the b the chimney stands at.
+            float ridgeB, peak, chimneyB;
 
             switch (shape.Kind)
             {
@@ -86,6 +90,9 @@ namespace CityX.View
                     {
                         RidgeCap(buffer, axes, trim, a0 - v, a1 + v, bc, ridge + thick);
                     }
+                    ridgeB = bc;
+                    peak = ridge;
+                    chimneyB = bc - 1.0f;
                     break;
                 }
                 case RoofKind.Hip:
@@ -121,11 +128,65 @@ namespace CityX.View
                     {
                         RidgeCap(buffer, axes, trim, ar0, ar1, bc, ridge + thick);
                     }
+                    ridgeB = bc;
+                    peak = ridge;
+                    chimneyB = bc - 1.0f;
                     break;
                 }
-                case RoofKind.Skillion:
+                case RoofKind.Saltbox:
                 {
-                    // One slope across the whole span, low over one long wall and high over the other.
+                    // The ridge forward of the middle, the front wall (the street door's) carried up a storey, the front slope short and the back
+                    // slope long at the same pitch, down to the back wall's top: two storeys in front, one behind.
+                    float e = shape.Eave, v = shape.Verge, attic = shape.Attic;
+                    float span = b1 - b0;
+                    float s = shape.LowAtMin ? 1.0f : -1.0f;   // from the back wall toward the front
+                    float bBack = shape.LowAtMin ? b0 : b1, bFront = shape.LowAtMin ? b1 : b0;
+                    float r = shape.SaltboxRidgeFromFront(span);
+                    float bRidge = bFront - s * r;
+                    float ridgeY = roofY + attic + r * t;
+                    float frontEaveB = bFront + s * e, frontEaveY = roofY + attic - e * t;
+                    float backEaveB = bBack - s * e, backEaveY = roofY - e * t;
+                    for (int slope = 0; slope < 2; slope++)   // the front slope, then the back one
+                    {
+                        bool front = slope == 0;
+                        float side = front ? s : -s;
+                        float bEave = front ? frontEaveB : backEaveB, eaveY = front ? frontEaveY : backEaveY;
+                        Vector3 up = axes.N(0.0f, cos, side * sin);
+                        buffer.Look = covering;
+                        Slope(buffer, axes, up, a0 - v, a1 + v, bEave, eaveY + thick, bRidge, ridgeY + thick, uvScale);
+                        buffer.Look = soffit;
+                        Slope(buffer, axes, -up, a0 - v, a1 + v, bEave, eaveY, bRidge, ridgeY, 1.0f);
+                        buffer.Look = trim;
+                        Fascia(buffer, axes, axes.N(0.0f, 0.0f, side), a0 - v, a1 + v, bEave, eaveY, eaveY + thick);
+                        Verge(buffer, axes, axes.N(-1.0f, 0.0f, 0.0f), a0 - v, bEave, eaveY, bRidge, ridgeY, thick);
+                        Verge(buffer, axes, axes.N(1.0f, 0.0f, 0.0f), a1 + v, bEave, eaveY, bRidge, ridgeY, thick);
+                    }
+                    // The front wall carried up its storey, and each end wall as the saltbox's own profile: along the walls' top from the back
+                    // to the front, up the attic, to the ridge, and down the long slope to the back.
+                    buffer.Look = looks.Wall;
+                    AddFace(buffer, axes.N(0.0f, 0.0f, s), axes.P(a0, roofY, bFront), axes.P(a1, roofY, bFront), axes.P(a1, roofY + attic, bFront),
+                        axes.P(a0, roofY + attic, bFront));
+                    for (int end = 0; end < 2; end++)
+                    {
+                        float aEnd = end == 0 ? a0 : a1;
+                        Vector3 n = axes.N(end == 0 ? -1.0f : 1.0f, 0.0f, 0.0f);
+                        Vector3 p0 = axes.P(aEnd, roofY, bBack), p1 = axes.P(aEnd, roofY, bFront), p2 = axes.P(aEnd, roofY + attic, bFront);
+                        Vector3 p3 = axes.P(aEnd, ridgeY, bRidge);
+                        buffer.AddTriangle(p0, p1, p2, n, Uv(p0, n), Uv(p1, n), Uv(p2, n));
+                        buffer.AddTriangle(p0, p2, p3, n, Uv(p0, n), Uv(p2, n), Uv(p3, n));
+                    }
+                    if (!far)
+                    {
+                        RidgeCap(buffer, axes, trim, a0 - v, a1 + v, bRidge, ridgeY + thick);
+                    }
+                    ridgeB = bRidge;
+                    peak = ridgeY;
+                    chimneyB = bRidge + s * 1.0f;   // on the front slope, the saltbox's own place for it
+                    break;
+                }
+                default:
+                {
+                    // A skillion: one slope across the whole span, low over one long wall and high over the other.
                     float e = shape.Eave, v = shape.Verge, high = 0.3f;
                     float span = b1 - b0;
                     float rise = span * t;
@@ -158,11 +219,67 @@ namespace CityX.View
                         Vector3 p0 = axes.P(aEnd, roofY, lowB), p1 = axes.P(aEnd, roofY, highB), p2 = axes.P(aEnd, roofY + rise, highB);
                         buffer.AddTriangle(p0, p1, p2, n, Uv(p0, n), Uv(p1, n), Uv(p2, n));
                     }
+                    ridgeB = highB;
+                    peak = roofY + rise;
+                    chimneyB = highB - dir * 1.2f;
                     break;
                 }
             }
-            AddRoofTopper(buffer, site, shape, axes, a0, a1, b0, b1, roofY, t, thick, looks, far);
+            AddRoofTopper(buffer, site, shape, axes, a0, a1, b0, b1, roofY, ridgeB, peak, chimneyB, thick, looks, far);
             buffer.Look = saved;
+        }
+
+        /// <summary>
+        /// A flat roof with eaves (RoofKind.FlatEaves): the deck's slab carried out past every wall, a fascia round its edge standing a little
+        /// over the deck (the gravel stop), a pale soffit under the overhang. No parapet, no coping.
+        /// </summary>
+        private static void AddFlatEavesRoof(MeshBuffer buffer, BuildingSite site, in RoofShape shape, float x0, float x1, float z0, float z1,
+            float roofY)
+        {
+            float e = shape.Eave;
+            float y0 = roofY - RoofShape.FlatEavesThickness, y1 = roofY + RoofShape.FlatEavesLip;
+            Color32 saved = buffer.Look;
+            Color32 fascia = SurfaceLook.Pack(shape.Tint, (int)WallMaterial.Metal,
+                0.25f + 0.3f * (float)WorldHash.Unit01(7, 0, 0x52465757UL, unchecked((ulong)(uint)site.Seed)));
+            Color32 soffit = SurfaceLook.Pack(SoffitTint, (int)WallMaterial.Plaster, 0.35f);
+            // Four strips round the walls: the south and north ones the full width, corners and all; the west and east ones between them.
+            EaveStrip(buffer, fascia, soffit, x0 - e, x1 + e, z0 - e, z0, roofY, y0, y1, Vector3.back, true);
+            EaveStrip(buffer, fascia, soffit, x0 - e, x1 + e, z1, z1 + e, roofY, y0, y1, Vector3.forward, true);
+            EaveStrip(buffer, fascia, soffit, x0 - e, x0, z0, z1, roofY, y0, y1, Vector3.left, false);
+            EaveStrip(buffer, fascia, soffit, x1, x1 + e, z0, z1, roofY, y0, y1, Vector3.right, false);
+            buffer.Look = saved;
+        }
+
+        /// <summary>
+        /// One strip of a flat roof's eaves, the box <paramref name="sx0"/>..<paramref name="sx1"/> by <paramref name="sz0"/>..<paramref name="sz1"/>
+        /// from the soffit at <paramref name="y0"/> to the lip at <paramref name="y1"/>: its fascia on the <paramref name="outward"/> side, its
+        /// top, its soffit, the lip's inner face over the deck, and (<paramref name="ends"/>) its two ends at the corners.
+        /// </summary>
+        private static void EaveStrip(MeshBuffer buffer, Color32 fascia, Color32 soffit, float sx0, float sx1, float sz0, float sz1, float roofY,
+            float y0, float y1, Vector3 outward, bool ends)
+        {
+            buffer.Look = fascia;
+            bool alongX = outward.z != 0.0f;   // the strip runs along x, its fascia facing -z or +z
+            if (alongX)
+            {
+                float zOut = outward.z < 0.0f ? sz0 : sz1, zIn = outward.z < 0.0f ? sz1 : sz0;
+                AddFace(buffer, outward, new Vector3(sx0, y0, zOut), new Vector3(sx1, y0, zOut), new Vector3(sx1, y1, zOut), new Vector3(sx0, y1, zOut));
+                AddFace(buffer, -outward, new Vector3(sx0, roofY, zIn), new Vector3(sx1, roofY, zIn), new Vector3(sx1, y1, zIn), new Vector3(sx0, y1, zIn));
+            }
+            else
+            {
+                float xOut = outward.x < 0.0f ? sx0 : sx1, xIn = outward.x < 0.0f ? sx1 : sx0;
+                AddFace(buffer, outward, new Vector3(xOut, y0, sz0), new Vector3(xOut, y0, sz1), new Vector3(xOut, y1, sz1), new Vector3(xOut, y1, sz0));
+                AddFace(buffer, -outward, new Vector3(xIn, roofY, sz0), new Vector3(xIn, roofY, sz1), new Vector3(xIn, y1, sz1), new Vector3(xIn, y1, sz0));
+            }
+            AddFace(buffer, Vector3.up, new Vector3(sx0, y1, sz0), new Vector3(sx1, y1, sz0), new Vector3(sx1, y1, sz1), new Vector3(sx0, y1, sz1));
+            if (ends)
+            {
+                AddFace(buffer, Vector3.left, new Vector3(sx0, y0, sz0), new Vector3(sx0, y0, sz1), new Vector3(sx0, y1, sz1), new Vector3(sx0, y1, sz0));
+                AddFace(buffer, Vector3.right, new Vector3(sx1, y0, sz0), new Vector3(sx1, y0, sz1), new Vector3(sx1, y1, sz1), new Vector3(sx1, y1, sz0));
+            }
+            buffer.Look = soffit;
+            AddFace(buffer, Vector3.down, new Vector3(sx0, y0, sz0), new Vector3(sx1, y0, sz0), new Vector3(sx1, y0, sz1), new Vector3(sx0, y0, sz1));
         }
 
         /// <summary>
@@ -232,35 +349,31 @@ namespace CityX.View
         }
 
         /// <summary>
-        /// What the roof's type (BuildingParams.Roof) puts on a pitched roof: a chimney through the slope near the ridge, or a television aerial
-        /// on the ridge. The other types are a flat roof's things.
+        /// What the roof's type (BuildingParams.Roof) puts on a pitched roof: a chimney through the slope near the ridge (at <paramref name="chimneyB"/>),
+        /// or a television aerial on the ridge (at <paramref name="ridgeB"/>, whose top is at <paramref name="peak"/>). The other types are a flat roof's things.
         /// </summary>
         private static void AddRoofTopper(MeshBuffer buffer, BuildingSite site, in RoofShape shape, in RoofAxes axes, float a0, float a1, float b0,
-            float b1, float roofY, float t, float thick, SiteLooks looks, bool far)
+            float b1, float roofY, float ridgeB, float peak, float chimneyB, float thick, SiteLooks looks, bool far)
         {
             string kind = site.Params.Roof ?? "";
             double die = WorldHash.Unit01(8, 0, 0x52465757UL, unchecked((ulong)(uint)site.Seed));
             float a = Mathf.Lerp(a0 + 1.5f, a1 - 1.5f, 0.2f + 0.6f * (float)die);
-            float bc = (b0 + b1) * 0.5f;
             if (shape.Kind == RoofKind.Hip)
             {
                 // On the ridge, which a hip roof's ends cut short (an aerial past it stood over the falling end, in the air).
                 float s = (b1 - b0) * 0.5f, middle = (a0 + a1) * 0.5f;
                 a = Mathf.Clamp(a, Mathf.Min(a0 + s, middle), Mathf.Max(a1 - s, middle));
             }
-            // The roof's highest line: the ridge, or a skillion's high side.
-            float peak = roofY + (shape.Kind == RoofKind.Skillion ? (b1 - b0) : (b1 - b0) * 0.5f) * t;
             if (kind == "chimney")
             {
                 // On the slope a metre down from the ridge (or from a skillion's high side); its top well over the ridge.
-                float b = shape.Kind == RoofKind.Skillion ? (shape.LowAtMin ? b1 - 1.2f : b0 + 1.2f) : bc - 1.0f;
                 float top = peak + thick + 1.1f;
                 buffer.Look = looks.Base;
-                Vector3 p = axes.P(a - 0.45f, roofY, b - 0.45f), q = axes.P(a + 0.45f, top, b + 0.45f);
+                Vector3 p = axes.P(a - 0.45f, roofY, chimneyB - 0.45f), q = axes.P(a + 0.45f, top, chimneyB + 0.45f);
                 buffer.AddBox(Vector3.Min(p, q), Vector3.Max(p, q));
                 buffer.Look = looks.Trim;
-                p = axes.P(a - 0.55f, top, b - 0.55f);
-                q = axes.P(a + 0.55f, top + 0.12f, b + 0.55f);
+                p = axes.P(a - 0.55f, top, chimneyB - 0.55f);
+                q = axes.P(a + 0.55f, top + 0.12f, chimneyB + 0.55f);
                 buffer.AddBox(Vector3.Min(p, q), Vector3.Max(p, q), true);
             }
             else if (kind == "antenna" && shape.Kind != RoofKind.Skillion && !far)
@@ -268,13 +381,13 @@ namespace CityX.View
                 // A television aerial on the ridge: a mast and three cross bars of falling length.
                 float ridgeTop = peak + thick + RoofShape.RidgeHeight;
                 buffer.Look = looks.Frame;
-                Vector3 m = axes.P(a, ridgeTop, bc);
+                Vector3 m = axes.P(a, ridgeTop, ridgeB);
                 AddMast(buffer, m.x, m.z, ridgeTop - 0.1f, 2.4f);
                 for (int i = 0; i < 3; i++)
                 {
                     float y = ridgeTop + 1.3f + i * 0.4f;
                     float half = 0.7f - i * 0.18f;
-                    Vector3 c0 = axes.P(a - half, y, bc - 0.02f), c1 = axes.P(a + half, y + 0.04f, bc + 0.02f);
+                    Vector3 c0 = axes.P(a - half, y, ridgeB - 0.02f), c1 = axes.P(a + half, y + 0.04f, ridgeB + 0.02f);
                     buffer.AddBox(Vector3.Min(c0, c1), Vector3.Max(c0, c1), true);
                 }
             }

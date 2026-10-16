@@ -93,6 +93,12 @@ namespace CityX.World
         public readonly bool RoofSealed;
 
         /// <summary>
+        /// The building's street-level floor, absolute: the base its ground volumes share, so a stage stacked on a podium knows how high the whole
+        /// tower stands (<see cref="Reach"/>). A ground volume's is its own <see cref="BaseHeight"/>.
+        /// </summary>
+        public readonly float GroundLevel;
+
+        /// <summary>
         /// 0 for a box; otherwise the building is round or many-sided: a regular polygon of this many sides (RoundFootprint) whose corners lie on the
         /// circle <see cref="BuildingParams.Width"/> across (Width and Depth are equal). One side faces the front, and the door is on it.
         /// </summary>
@@ -125,10 +131,11 @@ namespace CityX.World
             float doorGroundHeight, double centreX, double centreZ, double axisX, double axisZ,
             int ownerChunkX, int ownerChunkY, int seed,
             float obstacleX0 = 0.0f, float obstacleX1 = 0.0f, float obstacleZ0 = 0.0f, float obstacleZ1 = 0.0f, bool onRoof = false,
-            bool shell = false, bool wing = false, WallContact[] contacts = null, bool roofSealed = false, int sides = 0)
+            bool shell = false, bool wing = false, WallContact[] contacts = null, bool roofSealed = false, int sides = 0, float groundLevel = float.NaN)
         {
             Sides = sides;
             RoofSealed = roofSealed;
+            GroundLevel = float.IsNaN(groundLevel) ? baseHeight : groundLevel;
             Shell = shell;
             Wing = wing;
             Contacts = contacts;
@@ -157,8 +164,11 @@ namespace CityX.World
         public BuildingSite WithContacts(WallContact[] contacts)
         {
             return new BuildingSite(Id, Params, Zone, BaseHeight, PodiumBase, DoorGroundHeight, CentreX, CentreZ, AxisX, AxisZ, OwnerChunkX, OwnerChunkY,
-                Seed, ObstacleX0, ObstacleX1, ObstacleZ0, ObstacleZ1, OnRoof, Shell, Wing, contacts, RoofSealed, Sides);
+                Seed, ObstacleX0, ObstacleX1, ObstacleZ0, ObstacleZ1, OnRoof, Shell, Wing, contacts, RoofSealed, Sides, GroundLevel);
         }
+
+        /// <summary>How far the top of this volume stands over the building's street-level floor: a stacked stage's reach is the whole tower's.</summary>
+        public float Reach => Top - GroundLevel;
 
         public bool Exists => Params.HasBuilding;
 

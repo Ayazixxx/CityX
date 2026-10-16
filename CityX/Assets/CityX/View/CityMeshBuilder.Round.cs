@@ -128,7 +128,12 @@ namespace CityX.View
             {
                 structures.Look = looks.Roof;
                 AddRoundSlabFace(structures, fp, Rect.zero, roofY, Vector3.up);
-                AddRoofPlant(structures, site, -innerHalf, innerHalf, -innerHalf, innerHalf, roofY, looks, Rect.zero);
+                // A tall round tower's top (World/TowerTop) on the roof's square inside the parapet, the plant kept off it.
+                TowerTop farTop = TowerTop.For(site);
+                Rect farTopGround = farTop.Exists
+                    ? AddTowerTop(structures, PowerGrid.IsOn(site) ? glazing.Lit : null, farTop, -innerHalf, innerHalf, -innerHalf, innerHalf, roofY, looks, true)
+                    : Rect.zero;
+                AddRoofPlant(structures, site, -innerHalf, innerHalf, -innerHalf, innerHalf, roofY, looks, Rect.zero, Rect.zero, farTopGround, false, farTop.Exists);
                 if (sealedBlock && site.OnRoof)
                 {
                     structures.Look = looks.Trim;
@@ -166,7 +171,11 @@ namespace CityX.View
                 AddRoundSlab(concrete, fp, Rect.zero, roofY, structures, inside);
             }
             structures.Look = looks.Roof;
-            AddRoofPlant(structures, site, -innerHalf, innerHalf, -innerHalf, innerHalf, roofY, looks, hatch);
+            TowerTop towerTop = TowerTop.For(site);
+            Rect topGround = towerTop.Exists
+                ? AddTowerTop(structures, PowerGrid.IsOn(site) ? glazing.Lit : null, towerTop, -innerHalf, innerHalf, -innerHalf, innerHalf, roofY, looks, false)
+                : Rect.zero;
+            AddRoofPlant(structures, site, -innerHalf, innerHalf, -innerHalf, innerHalf, roofY, looks, hatch, Rect.zero, topGround, false, towerTop.Exists);
             structures.Look = SurfaceLook.Default;
             concrete.Look = SurfaceLook.Default;   // the next building's entrance steps are outside
         }

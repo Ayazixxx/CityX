@@ -909,7 +909,7 @@ namespace CityX.World.Plan
                         cx, cz, vAxisX, vAxisZ, PlanWorld.ChunkOf(cx), PlanWorld.ChunkOf(cz), volumeSeed,
                         ox0, ox1, oz0, oz1, !ground, vol.Shell, vol.Wing,
                         contacts[v] != null ? contacts[v].ToArray() : null,
-                        !isTop && volumes[above].Shell, vol.Sides));
+                        !isTop && volumes[above].Shell, vol.Sides, (float)baseHeight));
                     blockOf.Add(lot.BlockIndex);
                     lotOf.Add(lot.Id);
                 }

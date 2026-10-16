@@ -10,7 +10,7 @@ namespace CityX.Tests
     /// <summary>Round and many-sided towers (BuildingSite.Sides, RoundFootprint, CityMeshBuilder.BuildRound). See docs/BUILDING_SHAPES.md.</summary>
     public sealed class RoundTowerTests
     {
-        private const int Seed = 91736402;
+        private const int Seed = 46283197;
 
         private static CityWorld _world;
         private static CityWorld World => _world ?? (_world = new CityWorld(Seed));
@@ -172,7 +172,8 @@ namespace CityX.Tests
                             // Within the circle, give or take the parapet's coping, awnings, signs and the entrance steps at the door.
                             Assert.LessOrEqual(new Vector2(v.x, v.z).magnitude, radius + 4.0f + steps, $"#{site.Id} far={far}: a vertex far off the circle");
                             Assert.GreaterOrEqual(v.y, site.PodiumBase - 0.5f, $"#{site.Id}: below the podium");
-                            Assert.LessOrEqual(v.y, site.Top + 30.0f, $"#{site.Id}: above the tallest antenna mast");
+                            // Nothing over the tallest antenna mast, or over the tower's own top (World/TowerTop: a spire on a tall round tower).
+                            Assert.LessOrEqual(v.y, site.Top + Mathf.Max(30.0f, TowerTop.For(site).Height + 1.0f), $"#{site.Id}: above the tallest antenna mast");
                         }
                         Assert.AreEqual(0, b.Triangles.Count % 3);
                     }

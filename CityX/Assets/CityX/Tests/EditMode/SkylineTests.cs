@@ -12,7 +12,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class SkylineTests
     {
-        private const int Seed = 91736402;
+        private const int Seed = 46283197;
         private static CityWorld _world;
         private static CityWorld World => _world ?? (_world = new CityWorld(Seed));
 
@@ -87,7 +87,9 @@ namespace CityX.Tests
                     double u = dx * site.AxisX + dz * site.AxisZ;
                     double w = -dx * site.AxisZ + dz * site.AxisX;
                     double hw = site.Params.Width * 0.5 + 1e-3, hd = (site.Sides >= 3 ? site.Params.Width : site.Params.Depth) * 0.5 + 1e-3;
-                    if (System.Math.Abs(u) <= hw && System.Math.Abs(w) <= hd && p.y <= site.Top + 1e-3 && p.y >= Mathf.Min(site.PodiumBase, site.BaseHeight) - CityMeshBuilder.SkylineFloorDrop - 0.5f - 1e-3)
+                    // Under its roof, or within its top's reach (a tower's mast, spire or crown: World/TowerTop).
+                    double ceiling = site.Top + TowerTop.For(site).Height + 1e-3;
+                    if (System.Math.Abs(u) <= hw && System.Math.Abs(w) <= hd && p.y <= ceiling && p.y >= Mathf.Min(site.PodiumBase, site.BaseHeight) - CityMeshBuilder.SkylineFloorDrop - 0.5f - 1e-3)
                     {
                         inside = true;
                         break;

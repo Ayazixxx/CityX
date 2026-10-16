@@ -108,7 +108,7 @@ namespace CityX.World
         public static RoofBillboard For(BuildingSite site)
         {
             if (!site.Exists || site.Shell || site.Params.IsSpecial || site.Sides >= 3 || site.HasRoofObstacle || site.RoofSealed
-                || site.Params.Height < MinBuildingHeight || site.Params.Height > MaxBuildingHeight || RoofShape.For(site).Pitched)
+                || site.Params.Height < MinBuildingHeight || site.Params.Height > MaxBuildingHeight || !RoofShape.For(site).HasParapet)
             {
                 return default;
             }

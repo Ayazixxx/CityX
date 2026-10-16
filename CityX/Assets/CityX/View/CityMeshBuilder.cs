@@ -472,7 +472,7 @@ namespace CityX.View
             AddWallOrnament(structures, site, looks, east, z0, z1, Vector3.right, WindowGrid.Wall.East, lobbyY, roofY, rows, plan.ColumnsFor(z1 - z0), false);
             AddWallOrnament(structures, site, looks, south, x0, x1, Vector3.back, WindowGrid.Wall.South, lobbyY, roofY, rows, plan.ColumnsFor(x1 - x0), false);
             AddWallOrnament(structures, site, looks, north, x0, x1, Vector3.forward, WindowGrid.Wall.North, lobbyY, roofY, rows, plan.ColumnsFor(x1 - x0), false);
-            AddCornerPiers(structures, site, looks, x0, x1, z0, z1, podiumY, roofY + (RoofShape.For(site).Pitched ? 0.0f : ParapetWallHeight));
+            AddCornerPiers(structures, site, looks, x0, x1, z0, z1, podiumY, roofY + (RoofShape.For(site).HasParapet ? ParapetWallHeight : 0.0f));
 
             if (detailRows < rows.Count)
             {
@@ -719,7 +719,7 @@ namespace CityX.View
                 AddWallOrnament(structures, site, looks, east, z0, z1, Vector3.right, WindowGrid.Wall.East, lobbyY, roofY, shellRows, shellPlan.ColumnsFor(z1 - z0), true);
                 AddWallOrnament(structures, site, looks, south, x0, x1, Vector3.back, WindowGrid.Wall.South, lobbyY, roofY, shellRows, shellPlan.ColumnsFor(x1 - x0), true);
                 AddWallOrnament(structures, site, looks, north, x0, x1, Vector3.forward, WindowGrid.Wall.North, lobbyY, roofY, shellRows, shellPlan.ColumnsFor(x1 - x0), true);
-                AddCornerPiers(structures, site, looks, x0, x1, z0, z1, podiumY, roofY + (RoofShape.For(site).Pitched ? 0.0f : ParapetWallHeight));
+                AddCornerPiers(structures, site, looks, x0, x1, z0, z1, podiumY, roofY + (RoofShape.For(site).HasParapet ? ParapetWallHeight : 0.0f));
             }
             structures.Look = SurfaceLook.Default;
 
@@ -1071,16 +1071,24 @@ namespace CityX.View
             SiteLooks looks, Rect hatch, bool far = false, MeshBuffer lit = null)
         {
             // A pitched roof stands where the parapet and the plant would (CityMeshBuilder.Roofs.cs, World/RoofShape).
-            RoofShape pitched = RoofShape.For(site);
-            if (pitched.Pitched)
+            RoofShape shape = RoofShape.For(site);
+            if (shape.Pitched)
             {
-                AddPitchedRoof(buffer, site, pitched, x0, x1, z0, z1, roofY, looks, far);
+                AddPitchedRoof(buffer, site, shape, x0, x1, z0, z1, roofY, looks, far);
+                return;
+            }
+            Color32 saved = buffer.Look;
+            if (shape.Kind == RoofKind.FlatEaves)
+            {
+                // A slab with eaves and no parapet: a vent or two on it, nothing else.
+                AddFlatEavesRoof(buffer, site, shape, x0, x1, z0, z1, roofY);
+                AddRoofPlant(buffer, site, x0, x1, z0, z1, roofY, looks, hatch, Rect.zero, Rect.zero, true);
+                buffer.Look = saved;
                 return;
             }
             float t = ParapetWallThickness;
             float h = ParapetWallHeight;
             float o = CopingOverhang;
-            Color32 saved = buffer.Look;
 
             // The wall, in the walls' own look so it reads as the facade carried up past the roof.
             buffer.Look = looks.Wall;
@@ -1111,7 +1119,11 @@ namespace CityX.View
                 AddRoofBillboard(buffer, lit, board, x0, x1, z1, roofY, far);
             }
 
-            AddRoofPlant(buffer, site, x0, x1, z0, z1, roofY, looks, hatch, boardGround);
+            // A tall tower's top (World/TowerTop): a mast, a spire or a crown. The plant keeps off its ground, and the "antenna" roof type's own
+            // mast is left out beside it.
+            TowerTop top = TowerTop.For(site);
+            Rect topGround = top.Exists ? AddTowerTop(buffer, lit, top, x0, x1, z0, z1, roofY, looks, far) : Rect.zero;
+            AddRoofPlant(buffer, site, x0, x1, z0, z1, roofY, looks, hatch, boardGround, topGround, false, top.Exists);
             buffer.Look = saved;
         }
 
@@ -1130,8 +1142,14 @@ namespace CityX.View
         /// What stands on a flat roof. Boxes, for the same reason everything else here is (a skyline is read from far off and a cylinder costs
         /// sixteen times the triangles to say the same thing), but at the scale of the real thing.
         /// </summary>
+        /// <summary>
+        /// The plant on a flat roof: the signature piece of the roof's type (BuildingParams.Roof) and some ordinary units, placed off the hatch,
+        /// a billboard's ground (<paramref name="keepClear"/>), a tower top's (<paramref name="keepClear2"/>) and whatever stands on the roof.
+        /// <paramref name="sparse"/> (a flat roof with eaves) keeps only a few ordinary units; <paramref name="hasTop"/> leaves out the "antenna"
+        /// type's own mast, the tower's top being one.
+        /// </summary>
         private static void AddRoofPlant(MeshBuffer buffer, BuildingSite site, float x0, float x1, float z0, float z1, float roofY,
-            SiteLooks looks, Rect hatch, Rect keepClear = default)
+            SiteLooks looks, Rect hatch, Rect keepClear = default, Rect keepClear2 = default, bool sparse = false, bool hasTop = false)
         {
             var rng = new DeterministicRandom(unchecked((ulong)(uint)site.Seed), RoofStream);
             float margin = ParapetWallThickness + 0.9f;
@@ -1151,6 +1169,10 @@ namespace CityX.View
             {
                 taken.Add(keepClear);
             }
+            if (keepClear2.width > 0.0f)
+            {
+                taken.Add(keepClear2);
+            }
             if (site.HasRoofObstacle)
             {
                 float cx = (x0 + x1) * 0.5f;
@@ -1159,9 +1181,17 @@ namespace CityX.View
             }
 
             string roof = site.Params.Roof ?? "";
-            float density = roof == "shed" ? 0.9f : (roof == "" || roof == "parapet" ? 0.45f : 0.6f);
+            if (sparse)
+            {
+                roof = "";
+            }
+            else if (hasTop && roof == "antenna")
+            {
+                roof = "parapet";
+            }
+            float density = sparse ? 0.25f : (roof == "shed" ? 0.9f : (roof == "" || roof == "parapet" ? 0.45f : 0.6f));
             float area = (rx1 - rx0) * (rz1 - rz0);
-            int units = Mathf.Clamp(Mathf.RoundToInt(area / 150.0f * density * (0.5f + (float)rng.NextDouble())), 0, 12);
+            int units = Mathf.Clamp(Mathf.RoundToInt(area / 150.0f * density * (0.5f + (float)rng.NextDouble())), 0, sparse ? 3 : 12);
 
             Color32 plant = SurfaceLook.Pack(new Color(0.84f, 0.85f, 0.86f), (int)WallMaterial.Metal, 0.45f);
             Color32 darkPlant = SurfaceLook.Pack(new Color(0.40f, 0.42f, 0.44f), (int)WallMaterial.Metal, 0.5f);

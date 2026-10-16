@@ -11,7 +11,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class PlanWorldTests
     {
-        private const int Seed = 91736402;
+        private const int Seed = 46283197;
 
         /// <summary>A smaller city than the game's, so the whole fixture runs in about a second.</summary>
         private static PlanConfig SmallCity()

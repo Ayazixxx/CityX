@@ -21,7 +21,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class RealCityDoorwayPlayTests
     {
-        private const int Seed = 91736402;
+        private const int Seed = 46283197;
         private readonly List<GameObject> _made = new List<GameObject>();
 
         [TearDown]

@@ -94,7 +94,8 @@ which is the most common balcony door in real life ... double doors ... along wi
   side, the street doors' look). A flat with no room for its building's kind gets the next narrower one. The aluminium frames are the
   building's window frame colour.
 - **Which open.** (Until 2026-10-15 the balconies were on every window row, so the door on every other one was half way up a room and stayed
-  shut and rattling; now there is one balcony per floor and no such door.) A door onto a floor opens unless the floor just inside (1.4 m) has the stairs, the opening they come up
+  shut and rattling; now there is one balcony per floor and no such door.) A door onto a floor opens unless the floor just inside (1.4 m) has the
+  stairs, the opening they come up
   through or a partition in it, or a body could not walk from it to the stairs (a flood over the stairs' own walking grid). On seed 52817364:
   3564 of 11751 doors near the spawn open, and from every one a body walks to the stairs; 1230 of the 4794 doors onto a floor stay shut
   for the stairs or a wall just inside. (Found on the way, and fixed the same day: some floors could not be reached from their own stairs
@@ -141,6 +142,79 @@ which is the most common balcony door in real life ... double doors ... along wi
   wall, its eaves up to 0.9 m out. The mantle rises to the stand spot on the slope before stepping in (`RoofClimbPlayTests`: three climbs up a
   real house, all on its roof).
 - **Before/after renders:** `RoofShapeCapture` (Explicit, `-Graphics`), with `RoofShape.PitchedRoofsOn` as the switch.
+
+## Phase 2b: shed, saltbox and flat-with-eaves roofs; the tops of the towers (2026-10-15)
+
+Owner, with three roof icons (a shed roof, a flat roof with overhanging eaves, a saltbox): "add all of these types of roof as types that can occur
+in both the city district and the residential district. research how often these roofs occur in real world environments and make the chance they
+occur ingame similar. also figure out what types of buildings they are typically utilized for"; and with six tower icons (an antenna mast on a
+stepped top, an art-deco stepped crown with a spire, a needle spire, the Chrysler crown, the Empire State's mast, a slanted glass spire): "I want it
+to have a chance that these types of tips generate only on really tall towers ... implement a few different types ... research the ratio that
+these generally appear in comparison to flat roofs in real life cities and make them generate at a similar rate."
+
+### What was found
+
+- **How often, roofs.** OpenStreetMap's `roof:shape` over 9.75 million tagged buildings (taginfo, 2026-10): gabled 56.2 %, flat 21.2 %, hipped
+  10.0 %, pyramidal 3.0 %, skillion 2.9 %, half-hipped 1.4 %, gambrel 0.46 %, mansard 0.37 %, saltbox 0.35 % (plus the double and quadruple
+  saltboxes, 0.45 %), lean-to 0.15 %. The mapping is European and residential heavy; the roofing trade's guides (GAF, Roof Crafters) only rank:
+  gable the commonest house roof of North America, hip second, flat the least common on homes and the rule on commercial and industrial
+  buildings (low-slope roofing is about 55 % of all the roofing sold in the western US).
+- **What for.** A SHED (skillion) roof: the modern house, additions, garages, the small workshop or retail box, the industrial shed (a monopitch).
+  A SALTBOX: 17th-18th century New England, a gable whose back slope runs on down over a one-storey lean-to (two storeys in front, one behind),
+  kept today on garages, sheds and the odd house. A FLAT ROOF WITH OVERHANGING EAVES: the mid-century house (the ranch, the Eichler), the
+  1950s-80s school, motel, dealership and strip shop, the modern pavilion: a thin slab with a fascia projecting past the walls, no parapet.
+- **Tower tops.** CTBUH counts a spire in a building's height and an antenna not, and dropped its ranking by roof height in 2009 because
+  flat-topped skyscrapers "are not as common in the modern era"; its 2013 "vanity height" study found 61 % of the then 72 supertalls would be
+  under 300 m without their non-occupiable top. No census of the KINDS of top exists, so they were counted off the tallest-building lists: New
+  York, 68 towers over 230 m: 5 spires, 1 mast, 11 crowns or stepped tops, 51 flat (a quarter topped; 7 of the 19 over 300 m); Chicago, 57 over
+  150 m: 2 spires, 1 mast, 13 crowns, 41 flat (6 of the 7 over 300 m, 8 of 32 at 200-300 m, 2 of 18 at 150-200 m). Hong Kong's list notes none.
+
+### What was built
+
+- **Roof kinds (`World/RoofShape.cs`):** `Saltbox` and `FlatEaves` beside gable, hip and skillion. Shares of the PITCHED house roofs by zone
+  (gable / hip / skillion / saltbox): the homes 58 / 32 / 8 / 2, old town 57 / 35 / 4 / 4 (the saltbox belongs there), downtown 49 / 30 / 20 / 1
+  (the houses between towers are the modern ones); downtown's pitched-house share raised from 10 to 16 % (Core) and 25 to 30 % (Urban). Of the
+  FLAT house roofs, slabs with eaves instead of parapets: the homes 30 %, downtown 25 %, old town 10 %, industrial 15 %; of the mid-rise blocks
+  8 % downtown, 6 % in the homes, 3 % old town (a 1960s office or walk-up with an overhang). Warehouses: 45 % pitched as before, now 60 % the low
+  gable, 30 % a monopitch shed (4-7 degrees), 10 % a shed with a lean-to (a low saltbox); of the flat ones 25 % get the overhang and gutter. Never
+  on a slab, a tower or a supertall. Measured on seed 46283197: of the 984 pitched houses within 80 chunks of the spawn 15 are saltboxes (1.5 %) and,
+  in the homes, 49 of 757 are skillions (6.5 %); 212 of the 967 flat house roofs in the homes have eaves instead of a parapet (22 %), 149 of 3161
+  downtown mid-rise volumes (4.7 %: the stacked and sealed ones never do); of the sheds 55 are pitched (18 monopitch, 6 lean-to) and 18 of the 79 flat
+  ones have the overhang (23 %).
+- **The saltbox** (`View/CityMeshBuilder.Roofs.cs`): both slopes at one pitch (26-32 degrees), the front wall (the street door's) carried up an
+  attic storey (0.45 of the height, 3.6 m at most: two storeys in front, one behind), so the ridge sits forward (the attic's height over twice the
+  pitch's tangent, never nearer the
+  front than a fifth of the span) and the back slope runs long and low to the back wall's top; the end walls close in the saltbox's own profile;
+  the ridge kept under 5.5 m like every roof; the chimney on the front slope. On a house with the ridge along its width the long slope is the back
+  (south) one; along its depth, either side.
+- **The flat roof with eaves:** the deck's slab carried 0.7-0.9 m out past every wall (no further than `ClimbJut.MaxLean`, so a climb leans round
+  it as round a cornice), a fascia in white, cream, dark brown, charcoal or pale grey standing 10 cm over the deck as the gravel stop, a pale
+  soffit under the overhang. No parapet, no coping, no cornice (`FacadeOrnament`), no billboard (`RoofBillboards`), the corner piers stop at the
+  soffit, a vent or two instead of the full roof plant; the stair still comes up through the deck (`RoofShape.IsFlat`). `RoofShape.Pitched` now
+  means sloped (nobody stands on it) and `HasParapet` the plain flat roof: what wants a parapet (cornice, billboard, piers) asks for that.
+- **Tower tops (`World/TowerTop.cs`, `View/CityMeshBuilder.TowerTops.cs`).** The topmost volume of a tower that reaches 100 m (a plain tower, the
+  tower on its podium, the top stage of a stepped one; a box or a round one; not the leg of an L, not a set piece: `BuildingSite.Reach` is the whole
+  tower's height, since a stage carries the building's mass but only its own height) gets one on its flat parapet roof by its
+  seed: a Tower (110-240 m) 22 % (mast 5, spire 5, stepped crown 5, fins 7), a Supertall (240 m up) 55 % (spire 20, stepped crown 12, fins 9,
+  mast 8, slanted spire 6), matching the lists above (a fifth of the towers, more than half of the supertalls, crowns the commonest).
+  MAST: a platform, a lattice of four legs tapering in over the lower two thirds with a brace ring every six metres, a pole, two cross bars and a
+  beacon whose red glow (the billboards' floodlit trick in the lit glass) shows at night on a powered building; 12-20 % of the tower's reach, 18 m at
+  least. SPIRE: a drum and a needle of eight tapering boxes with a collar of bars; 14-26 %. STEPPED CROWN: three setback tiers in the wall's own
+  look with a band of trim on each, then the needle; 18-24 %. SLANTED SPIRE: at a corner, leaning eight degrees in over the roof; 16-24 %.
+  FINS: a crown of 2.4 m fins every six metres round the roof's edge inside the parapet, a pair meeting at each corner, closed by a ring; 5-7 %.
+  Placed in the roof's middle (the slanted one at a corner; a round roof's square inside its parapet, and no fins there), slid along the roof's longer
+  side or shrunk (a crown's first tier down to 6 m, else
+  it becomes a plain spire) to keep 1.2 m off the stair's hatch as a billboard does, and 1.3 m inside the parapet; the roof plant keeps off its
+  base, and an "antenna" roof type's own 6-30 m mast is left out beside it. Drawn near and far alike (less the small bars), and the SKYLINE TIER
+  carries a stub of it on its box (a pole, a few tapering boxes, four slabs), so the far towers keep their silhouettes (docs/RENDER_DISTANCE.md).
+  Measured on seed 46283197: 68 of the 303 towers within 80 chunks carry a top (22 %) and so does the one supertall: 24 crowns of fins, 16 masts, 16
+  spires, 13 stepped crowns (no slanted spire: only a supertall rolls one).
+- **Tests:** `RoofShapeTests` (the shares above over the region; a saltbox built near and far: a storey taller in front, its ridge forward, its
+  long slope down to the back wall, no stair into its attic; a flat roof with eaves: its lip at one height 0.4 m out past every wall, no cornice,
+  no billboard, the stair still up to it; the old guards widened to the new kinds), `TowerTopTests` (only free-standing towers with parapet roofs,
+  the share by mass, heights in range, inside the roof's edges and off the hatch, the mesh reaching the top's height near and far and the skyline
+  stub more than half of it), `SkylineTests` (a box may now rise to its top's reach), `RoofKindsCapture` (Explicit, `-Graphics`: each new roof and
+  each top alone, from the street, from above, and the tops close up). New world seed 46283197.
 
 ## Phase 3: window canopies, roller shutters, shop signs (2026-10-15)
 
