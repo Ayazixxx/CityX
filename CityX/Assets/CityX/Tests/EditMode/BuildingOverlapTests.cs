@@ -11,7 +11,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class BuildingOverlapTests
     {
-        private const int Seed = 46283197;
+        private const int Seed = 63428175;
 
         private static Vector2[] Corners(BuildingSite s)
         {
