@@ -89,6 +89,10 @@ namespace CityX.View
                 {
                     BuildPaint(ctx, g, markings, laneDividers);
                     AddStreetBarricades(ctx, g, structures);
+                    if (PedestrianStreets.Is(plan, g.Edge))
+                    {
+                        BuildPedestrianStreet(ctx, g, structures, lit);   // CitySurfaceBuilder.Pedestrian.cs: bollards across its ends, furniture down its middle
+                    }
                 }
             }
 
@@ -433,7 +437,15 @@ namespace CityX.View
             Vec2 perp = g.Dir.Perp * g.HalfWidth;
             Func<double, double, double> height = RoadHeight(ctx, g);
 
-            buffer.Look = AsphaltLook(g.Edge.Class, g.Edge.Id);
+            // A pedestrian street (PedestrianStreets) is laid in setts at the PAVEMENT's height, flush with the pavements either side (BuildPavement
+            // draws no kerb face along it); the junction plates at its ends stay asphalt, a kerb's step below.
+            bool walk = PedestrianStreets.Is(ctx.Plan, g.Edge);
+            if (walk)
+            {
+                Func<double, double, double> road = height;
+                height = (x, z) => road(x, z) + KerbHeight;
+            }
+            buffer.Look = walk ? PedestrianStreetLook(g.Edge.Id) : AsphaltLook(g.Edge.Class, g.Edge.Id);
             int pieces = Math.Max(1, (int)Math.Ceiling((t1 - t0) / PieceLength));
             for (int i = 0; i < pieces; i++)
             {
@@ -569,8 +581,10 @@ namespace CityX.View
                     }
                     buffer.Look = SurfaceLook.Pack(new Color32(214, 212, 206, 255), (int)WallMaterial.Concrete, 0.45f);
 
-                    // The kerb: a vertical face along the inner edge, from the road up to the pavement, facing the road -- not where a ramp crosses it.
-                    if (ClipSegment(ia, ib, ctx.Rect, out Vec2 ca, out Vec2 cb) && (cb - ca).Length > 0.02)
+                    // The kerb: a vertical face along the inner edge, from the road up to the pavement, facing the road -- not where a ramp crosses it,
+                    // and not along a pedestrian street, whose setts lie flush with the pavement.
+                    bool flush = PedestrianStreets.Along(ctx.Plan, block.Poly[e], block.Poly[f]);
+                    if (!flush && ClipSegment(ia, ib, ctx.Rect, out Vec2 ca, out Vec2 cb) && (cb - ca).Length > 0.02)
                     foreach ((Vec2 ka, Vec2 kb) in OutsideCuts(ca, cb, cuts))
                     {
                         if ((kb - ka).Length < 0.02) continue;
@@ -705,6 +719,7 @@ namespace CityX.View
 
         private static void BuildPaint(Context ctx, EdgeGeometry g, MeshBuffer yellow, MeshBuffer white)
         {
+            if (PedestrianStreets.Is(ctx.Plan, g.Edge)) return;   // no lanes, no crossings: nothing drives here
             Func<double, double, double> height = RoadHeight(ctx, g);
             Crossings(ctx, g, white, height);
             PaintLanes(ctx, g, yellow, white, height, g.TrimA + 1.5, g.Length - g.TrimB - 1.5, g.Edge.Class, false);

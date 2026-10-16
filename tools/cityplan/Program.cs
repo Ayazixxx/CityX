@@ -165,6 +165,88 @@
             System.Console.WriteLine($"{lost} blocks without a kerb line");
             return 0;
         }
+        if (args.Length > 0 && args[0] == "edgeblocks")
+        {
+            // edgeblocks <edge id> [seed]: the blocks either side of a road edge, with what is on them (lots), to see what a pedestrian street runs between.
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 2 ? int.Parse(args[2]) : 91736402);
+            int edgeId = int.Parse(args[1]);
+            var e = w.Data.Edges[edgeId];
+            var lotsByBlock = new System.Collections.Generic.Dictionary<int, int>();
+            foreach (var lot in w.Data.Lots) lotsByBlock[lot.BlockIndex] = (lotsByBlock.TryGetValue(lot.BlockIndex, out int c) ? c : 0) + 1;
+            System.Console.WriteLine($"edge {edgeId} {e.Class} {e.Length:F0} m from ({e.A.P.X:F0},{e.A.P.Y:F0}) to ({e.B.P.X:F0},{e.B.P.Y:F0}), population {w.Fields.Population((e.A.P + e.B.P) * 0.5):F2}");
+            for (int b = 0; b < w.Data.Blocks.Count; b++)
+            {
+                var block = w.Data.Blocks[b];
+                int n = block.Poly.Count;
+                for (int i = 0; i < n; i++)
+                {
+                    var p = block.Poly[i]; var q = block.Poly[(i + 1) % n];
+                    bool match = (p - e.A.P).Length < 0.01 && (q - e.B.P).Length < 0.01 || (p - e.B.P).Length < 0.01 && (q - e.A.P).Length < 0.01;
+                    if (!match) continue;
+                    lotsByBlock.TryGetValue(b, out int lots);
+                    System.Console.WriteLine($"  block {b}: {n} corners, area {block.Area:F0}, paved {block.Paved}, plaza {block.Plaza}, mall {block.Mall}, encloses {block.Encloses}, inner {(block.Inner != null)}, lots {lots}");
+                }
+            }
+            return 0;
+        }
+        if (args.Length > 0 && args[0] == "emptyblocks")
+        {
+            // emptyblocks [seed]: paved blocks that are no plaza and no mall and got no lots at all -- how many, how big, where (population).
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 91736402);
+            var lotsByBlock = new System.Collections.Generic.Dictionary<int, int>();
+            foreach (var lot in w.Data.Lots) lotsByBlock[lot.BlockIndex] = (lotsByBlock.TryGetValue(lot.BlockIndex, out int c) ? c : 0) + 1;
+            int paved = 0, empty = 0, emptyDense = 0;
+            double emptyArea = 0.0;
+            var samples = new System.Collections.Generic.List<string>();
+            for (int b = 0; b < w.Data.Blocks.Count; b++)
+            {
+                var block = w.Data.Blocks[b];
+                if (!block.Paved || block.Plaza || block.Mall || block.Encloses) continue;
+                paved++;
+                if (lotsByBlock.ContainsKey(b)) continue;
+                empty++;
+                emptyArea += block.Area;
+                var c = CityX.World.Plan.PlanMath.Centroid(block.Inner);
+                double pop = w.Fields.Population(c);
+                if (pop > 0.5) emptyDense++;
+                if (samples.Count < 12) samples.Add($"block {b}: {block.Poly.Count} corners, {block.Area:F0} m2, population {pop:F2}, at ({c.X:F0},{c.Y:F0})");
+            }
+            System.Console.WriteLine($"{empty} of {paved} paved ordinary blocks have no lots ({emptyArea / 10000.0:F1} ha), {emptyDense} of them in dense country");
+            foreach (string s in samples) System.Console.WriteLine("  " + s);
+            return 0;
+        }
+        if (args.Length > 0 && args[0] == "emptynear")
+        {
+            // emptynear [seed]: of the paved ordinary blocks with no lots, how many lie under or beside an expressway (a path within 40 m of the centroid or crossing the block).
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 91736402);
+            var lotsByBlock = new System.Collections.Generic.HashSet<int>();
+            foreach (var lot in w.Data.Lots) lotsByBlock.Add(lot.BlockIndex);
+            int empty = 0, nearXway = 0, water = 0, steep = 0, small = 0;
+            var paths = w.Data.Expressways.Paths;
+            for (int b = 0; b < w.Data.Blocks.Count; b++)
+            {
+                var block = w.Data.Blocks[b];
+                if (!block.Paved || block.Plaza || block.Mall || block.Encloses || lotsByBlock.Contains(b)) continue;
+                empty++;
+                var c = CityX.World.Plan.PlanMath.Centroid(block.Inner);
+                double nearest = double.MaxValue;
+                foreach (var path in paths)
+                {
+                    for (int i = 0; i + 1 < path.Count; i++)
+                    {
+                        nearest = System.Math.Min(nearest, CityX.World.Plan.PlanMath.DistanceToSegment(c, path.P[i], path.P[i + 1], out _));
+                    }
+                }
+                double radius = System.Math.Sqrt(block.Area) * 0.5;
+                if (nearest < radius + 40.0) nearXway++;
+                if (w.Fields.IsWater(c)) water++;
+                double h0 = w.GroundHeight(c.X - radius, c.Y), h1 = w.GroundHeight(c.X + radius, c.Y), h2 = w.GroundHeight(c.X, c.Y - radius), h3 = w.GroundHeight(c.X, c.Y + radius);
+                if (System.Math.Max(System.Math.Abs(h1 - h0), System.Math.Abs(h3 - h2)) / (2.0 * radius + 1e-6) > 0.15) steep++;
+                if (block.Area < 1200.0) small++;
+            }
+            System.Console.WriteLine($"{empty} empty blocks: {nearXway} by an expressway, {water} on water, {steep} steep (over 15 %), {small} under 1200 m2");
+            return 0;
+        }
         if (args.Length > 0 && args[0] == "fitcheck")
         {
             // Every lot's fitted rectangle must lie inside the lot's footprint.

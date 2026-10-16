@@ -217,6 +217,26 @@ Each phase: EditMode + PlayMode, the captures looked at, a new world seed where 
 - Tests as in phase 1: the rule's shares, the geometry (no piece in the road, the walks clear), a body walking a pedestrian street end to end,
   captures. Then phase 3 forecourts, phase 4 hill stairs.
 
+## 9. Built: phase 2a, the pedestrian streets (2026-10-15 night)
+
+- **`World/PedestrianStreets.cs`** (pure): `Is(plan, edge)` -- a Street-class edge, no bridge, 30-120 m (times the plan's scale) in dense country
+  (population 0.5 at its middle), both ends at nodes with three or more live edges, with a building on at least one side (`PlanWorld.BlocksBeside`
+  + `BlockHasLots`; the first pick ran between two empty paved blocks), chosen 5 % by a hash of the edge id and the world seed: 76 of 1705 such
+  streets on seed 91736402 at the classic scale (4.5 %). `Furniture(plan, g)`: bollards every 1.6 m across both ends 1.2 m inside the trims with
+  a planter either side of the middle, and down the middle every 9 m a dead tree in its planter, an umbrella table (a bench where the street is
+  too narrow) or a bench facing one walk, a bollard light between each pair; `WalkWidth` 3 m kept either side.
+- **`View/CitySurfaceBuilder`**: the ribbon (`BuildRoad`) in setts at the PAVEMENT's height (`PedestrianStreetLook`), no lane paint and no
+  crossings (`BuildPaint` returns), no kerb face along it (`BuildPavement`, `PedestrianStreets.Along` via `PlanWorld.EdgeBetween`: a block's corners
+  are road nodes), the junction plates at its ends a kerb's step below; the furniture through `DrawPiece` (`CitySurfaceBuilder.Pedestrian.cs`,
+  shared with the open blocks). Lights lit on half the streets (`Powered`).
+- **Tests**: `PedestrianStreetTests` (the share and the rule, every piece inside the ribbon with a walk beside it and bollards across both ends,
+  the block-edge lookup, a chunk's ribbon in setts at the pavement's height with no paint and its bollards), `PedestrianStreetWalkPlayTests` (a
+  body walks the nearest street's walk end to end and out between the bollards), `PedestrianStreetCapture` (`Logs/CityShots/street-pedestrian-*.png`).
+- **Found on the way:** 220 of the 1205 ordinary paved blocks at the classic scale (60 of 1875 at the game's varied scale) have NO lots at all,
+  142 (50) of them beside an expressway (its corridor cuts the lots back: `Expressways.CutBack`), the rest on water, steep or tiny: big empty paved
+  blocks downtown. Phase 2b gives them roles (vacant lots and bare yards under the viaducts, with rubble and hoardings) -- `tools/cityplan --
+  emptyblocks`, `emptynear`, `edgeblocks <edge>` list them.
+
 ## 6. Open questions (owner)
 - Dead trees: bare trunks in the planters and lawns, allowed by the lore (nothing has grown since the rapture; what stood stays)? Or treeless?
 - Lawns as dry straw-coloured grass, or bare earth?

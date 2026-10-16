@@ -72,39 +72,11 @@ namespace CityX.View
                 }
             }
 
-            // The pieces, each by the chunk it stands in.
+            // The pieces, each by the chunk it stands in (DrawPiece, CitySurfaceBuilder.Pedestrian.cs: the streets share the kit).
             foreach (OpenPiece p in layout.Pieces)
             {
                 if (!ctx.Contains(p.At)) continue;
-                Vector3 at = ctx.Local(p.At.X, 0.0, p.At.Y);
-                float y = ctx.LocalY(height(p.At.X, p.At.Y));
-                float cos = (float)p.Dir.X, sin = (float)p.Dir.Y;
-                switch (p.Kind)
-                {
-                    case OpenProp.Bench: CityProps.AddBench(structures, at.x, at.z, y, cos, sin); break;
-                    case OpenProp.SeatBlock: CityProps.AddSeatBlock(structures, at.x, at.z, y, cos, sin, p.Seed); break;
-                    case OpenProp.Planter: CityProps.AddPlanter(structures, at.x, at.z, y, (float)p.HalfX, (float)p.HalfZ, 0.55f, cos, sin); break;
-                    case OpenProp.TreePlanter: CityProps.AddTreePlanter(structures, at.x, at.z, y, cos, sin, p.Seed); break;
-                    case OpenProp.DeadTree: CityProps.AddDeadTree(structures, at.x, at.z, y, p.Seed); break;
-                    case OpenProp.ShadeSail: CityProps.AddShadeSail(structures, at.x, at.z, y, cos, sin, p.Seed, p.Fallen); break;
-                    case OpenProp.UmbrellaTable: CityProps.AddUmbrellaTable(structures, at.x, at.z, y, cos, sin, p.Seed, p.Fallen); break;
-                    case OpenProp.PicnicTable: CityProps.AddPicnicTable(structures, at.x, at.z, y, cos, sin); break;
-                    case OpenProp.CubeSeat: CityProps.AddCubeSeat(structures, at.x, at.z, y, cos, sin, p.Seed); break;
-                    case OpenProp.BollardLight: CityProps.AddBollardLight(structures, lit, at.x, at.z, y, layout.Powered); break;
-                    case OpenProp.Fountain: CityProps.AddFountain(structures, at.x, at.z, y, (float)p.Extra, !p.Fallen); break;
-                    case OpenProp.Tower: CityProps.AddTower(structures, at.x, at.z, y, (float)p.Extra); break;
-                    case OpenProp.Pergola: CityProps.AddPergola(structures, at.x, at.z, y, cos, sin); break;
-                    case OpenProp.Chessboard: CityProps.AddChessboard(structures, at.x, at.z, y, cos, sin); break;
-                    case OpenProp.ChessPiece: CityProps.AddChessPiece(structures, at.x, at.z, y + 0.025f, cos, sin, p.Seed, p.Fallen); break;
-                    case OpenProp.Kiosk: CityProps.AddKiosk(structures, at.x, at.z, y, cos, sin, p.Seed); break;
-                    case OpenProp.BikeRack: CityProps.AddBikeRack(structures, at.x, at.z, y, cos, sin); break;
-                    case OpenProp.NameWall: CityProps.AddNameWall(structures, at.x, at.z, y, cos, sin, p.Seed); break;
-                    case OpenProp.Rubble: CityProps.AddRubble(structures, at.x, at.z, y, (float)p.Extra, p.Seed); break;
-                    case OpenProp.Hoarding: CityProps.AddHoarding(structures, at.x, at.z, y, cos, sin, (float)p.HalfX, (float)p.Extra, p.Seed); break;
-                    case OpenProp.Chair: CityProps.AddChair(structures, at.x, at.z, y, cos, sin, p.Seed, p.Fallen); break;
-                    case OpenProp.Bin: CityProps.AddBin(structures, at.x, at.z, y, cos, sin); break;
-                    case OpenProp.RoundBench: CityProps.AddRoundBench(structures, at.x, at.z, y, p.Seed); break;
-                }
+                DrawPiece(ctx, p, height(p.At.X, p.At.Y), structures, lit, layout.Powered);
             }
 
             // Bollards along the kerb, every 3 m, where the role keeps the street out.

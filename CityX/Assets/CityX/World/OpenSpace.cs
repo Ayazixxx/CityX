@@ -29,8 +29,8 @@ namespace CityX.World
     /// <summary>The things an open block can hold (View/CityProps builds each).</summary>
     public enum OpenProp
     {
-        Bench, SeatBlock, Planter, TreePlanter, DeadTree, ShadeSail, UmbrellaTable, PicnicTable, CubeSeat, BollardLight, Fountain, Tower, Pergola,
-        Chessboard, ChessPiece, Kiosk, BikeRack, NameWall, Rubble, Hoarding, Chair, Bin, RoundBench,
+        Bench, SeatBlock, Planter, TreePlanter, DeadTree, ShadeSail, UmbrellaTable, PicnicTable, CubeSeat, BollardLight, Bollard, Fountain, Tower,
+        Pergola, Chessboard, ChessPiece, Kiosk, BikeRack, NameWall, Rubble, Hoarding, Chair, Bin, RoundBench,
     }
 
     /// <summary>

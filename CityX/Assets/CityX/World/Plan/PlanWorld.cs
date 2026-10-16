@@ -130,6 +130,87 @@ namespace CityX.World.Plan
         public List<int> KerbCutsIn(int cx, int cy) =>
             _kerbCutsByChunk.TryGetValue(Key(cx, cy), out List<int> l) ? l : NoneList;
 
+        private Dictionary<(long, long), int> _nodeIdAtPosition;
+        private Dictionary<(int, int), RoadEdge> _edgeBetweenNodes;
+        private readonly object _edgeLookupLock = new object();
+
+        /// <summary>
+        /// The live road edge joining two road nodes given by their positions (a block's corners ARE road nodes: the block edge from Poly[i] to
+        /// Poly[i + 1] runs along it), or null. Built once, on first use, on whichever thread asks (the pedestrian streets, PedestrianStreets.Along).
+        /// </summary>
+        public RoadEdge EdgeBetween(Vec2 a, Vec2 b)
+        {
+            lock (_edgeLookupLock)
+            {
+                if (_nodeIdAtPosition == null)
+                {
+                    _nodeIdAtPosition = new Dictionary<(long, long), int>();
+                    foreach (RoadNode node in Data.Nodes)
+                    {
+                        _nodeIdAtPosition[PositionKey(node.P)] = node.Id;
+                    }
+                    _edgeBetweenNodes = new Dictionary<(int, int), RoadEdge>();
+                    foreach (RoadEdge e in Data.Edges)
+                    {
+                        if (e == null || !e.Alive) continue;
+                        _edgeBetweenNodes[(Math.Min(e.A.Id, e.B.Id), Math.Max(e.A.Id, e.B.Id))] = e;
+                    }
+                }
+                if (!_nodeIdAtPosition.TryGetValue(PositionKey(a), out int na) || !_nodeIdAtPosition.TryGetValue(PositionKey(b), out int nb))
+                {
+                    return null;
+                }
+                return _edgeBetweenNodes.TryGetValue((Math.Min(na, nb), Math.Max(na, nb)), out RoadEdge edge) ? edge : null;
+            }
+        }
+
+        private static (long, long) PositionKey(Vec2 p) => ((long)Math.Round(p.X * 1000.0), (long)Math.Round(p.Y * 1000.0));
+
+        private Dictionary<(int, int), List<int>> _blocksBesideEdge;
+        private HashSet<int> _blocksWithLots;
+
+        /// <summary>The blocks a road edge runs along (one or two: the faces either side of it), by block index; empty for an edge at the plan's edge.</summary>
+        public List<int> BlocksBeside(RoadEdge edge)
+        {
+            lock (_edgeLookupLock)
+            {
+                if (_blocksBesideEdge == null)
+                {
+                    EdgeBetween(edge.A.P, edge.B.P);   // the node lookup
+                    _blocksBesideEdge = new Dictionary<(int, int), List<int>>();
+                    for (int b = 0; b < Data.Blocks.Count; b++)
+                    {
+                        List<Vec2> poly = Data.Blocks[b].Poly;
+                        int n = poly.Count;
+                        for (int i = 0; i < n; i++)
+                        {
+                            if (!_nodeIdAtPosition.TryGetValue(PositionKey(poly[i]), out int p) || !_nodeIdAtPosition.TryGetValue(PositionKey(poly[(i + 1) % n]), out int q)) continue;
+                            var key = (Math.Min(p, q), Math.Max(p, q));
+                            if (!_blocksBesideEdge.TryGetValue(key, out List<int> list)) _blocksBesideEdge[key] = list = new List<int>(2);
+                            if (!list.Contains(b)) list.Add(b);
+                        }
+                    }
+                    _blocksWithLots = new HashSet<int>();
+                    foreach (PlanLot lot in Data.Lots) _blocksWithLots.Add(lot.BlockIndex);
+                }
+                return _blocksBesideEdge.TryGetValue((Math.Min(edge.A.Id, edge.B.Id), Math.Max(edge.A.Id, edge.B.Id)), out List<int> beside) ? beside : NoneList;
+            }
+        }
+
+        /// <summary>Whether any lot (so any building) was cut from a block.</summary>
+        public bool BlockHasLots(int blockIndex)
+        {
+            lock (_edgeLookupLock)
+            {
+                if (_blocksWithLots == null)
+                {
+                    _blocksWithLots = new HashSet<int>();
+                    foreach (PlanLot lot in Data.Lots) _blocksWithLots.Add(lot.BlockIndex);
+                }
+                return _blocksWithLots.Contains(blockIndex);
+            }
+        }
+
         /// <summary>The buildings of the mall complex on a mall block (its corridors, stores, garage and pads); empty for any other block.</summary>
         public BuildingSite[] MallSites(int blockIndex) =>
             _mallSites.TryGetValue(blockIndex, out BuildingSite[] sites) ? sites : NoSites;
