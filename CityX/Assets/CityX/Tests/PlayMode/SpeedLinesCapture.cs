@@ -36,8 +36,12 @@ namespace CityX.Tests
             JetpackSpeedLines lines = JetpackSpeedLines.Attach(cameraObject.transform);
             try
             {
-                foreach ((string label, float fraction) in new[] { ("full", 1.0f), ("three-quarters", 0.75f) })
+                // Against the sky, where they should all but vanish, and against the dark of a street canyon, where they should read as air going past.
+                var sky = new Color(0.45f, 0.6f, 0.8f);
+                var dark = new Color(0.10f, 0.11f, 0.13f);
+                foreach ((string label, float fraction, Color background) in new[] { ("full", 1.0f, sky), ("three-quarters", 0.75f, sky), ("full-dark", 1.0f, dark) })
                 {
+                    camera.backgroundColor = background;
                     Vector3 velocity = cameraObject.transform.forward * Mathf.Lerp(20.0f, 60.0f, fraction);
                     for (int frame = 0; frame < 90; frame++)
                     {

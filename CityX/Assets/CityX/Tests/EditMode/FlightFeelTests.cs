@@ -183,19 +183,30 @@ namespace CityX.Tests
 
         /// <summary>
         /// THE SPEED LINES ARE SUBTLE (owner, 2026-10-15: "make the lines ... a little more subtle. research how other games to it"): few, only at
-        /// real speed, at the screen's edges with the middle clear, thin and faint -- faintest nearest the middle.
+        /// real speed, at the screen's edges with the middle clear, thin and faint -- faintest nearest the middle. And since the same evening SOFT
+        /// ("looks way better when they are mostly invisible instead of just being white lines"): a wisp with no edge, fading in and out along its
+        /// length, at under a tenth of full strength.
         /// </summary>
         [Test]
-        public void TheSpeedLinesAreFewFaintAndKeptToTheEdges()
+        public void TheSpeedLinesAreFewFaintSoftAndKeptToTheEdges()
         {
-            Assert.LessOrEqual(FlightFeel.MaxStreaksPerSecond, 45.0f, "too many streaks at full speed");
+            Assert.LessOrEqual(FlightFeel.MaxStreaksPerSecond * CityX.Weapons.JetpackSpeedLines.RateShare, 35.0f, "too many streaks at full speed");
             Assert.AreEqual(0.0f, FlightFeel.StreakRate(0.4f), "streaks at an ordinary flying speed");
             Assert.Less(FlightFeel.StreakRate(0.75f), FlightFeel.MaxStreaksPerSecond * 0.4f, "they should build up only near full speed");
             Assert.GreaterOrEqual(CityX.Weapons.JetpackSpeedLines.MinRing, 4.5f, "the middle of the screen should stay clear");
-            Assert.LessOrEqual(CityX.Weapons.JetpackSpeedLines.MaxAlpha, 0.26f, "too bright");
-            Assert.LessOrEqual(CityX.Weapons.JetpackSpeedLines.StreakWidth, 0.021f, "too thick");
+            Assert.LessOrEqual(CityX.Weapons.JetpackSpeedLines.MaxAlpha, 0.15f, "too bright: a wisp, not a line");
+            Assert.LessOrEqual(CityX.Weapons.JetpackSpeedLines.VisibleWidth, 0.1f, "too thick");
             Assert.Less(CityX.Weapons.JetpackSpeedLines.AlphaAt(CityX.Weapons.JetpackSpeedLines.MinRing),
                 CityX.Weapons.JetpackSpeedLines.AlphaAt(CityX.Weapons.JetpackSpeedLines.MaxRing) * 0.5f, "the inner streaks should be the faintest");
+            Assert.GreaterOrEqual(CityX.Weapons.JetpackSpeedLines.LengthPerSpeed * 60.0f, 4.0f, "a full-speed streak should be metres long");
+
+            // The sprite: full in the middle, nothing at its sides (no hard edge), nothing at its ends (it fades in and out along its length).
+            Assert.AreEqual(1.0f, CityX.Weapons.JetpackSpeedLines.SpriteAlpha(0.5f, 0.5f), 1e-3f);
+            Assert.Less(CityX.Weapons.JetpackSpeedLines.SpriteAlpha(0.5f, 0.0f), 0.01f, "the sprite has a hard side");
+            Assert.Less(CityX.Weapons.JetpackSpeedLines.SpriteAlpha(0.5f, 1.0f), 0.01f, "the sprite has a hard side");
+            Assert.AreEqual(0.0f, CityX.Weapons.JetpackSpeedLines.SpriteAlpha(0.0f, 0.5f), 1e-6f, "the sprite starts with a hard end");
+            Assert.AreEqual(0.0f, CityX.Weapons.JetpackSpeedLines.SpriteAlpha(1.0f, 0.5f), 1e-6f, "the sprite ends with a hard end");
+            Assert.AreEqual(Mathf.Exp(-1.0f), CityX.Weapons.JetpackSpeedLines.SpriteAlpha(0.5f, 0.5f + CityX.Weapons.JetpackSpeedLines.CoreShare), 1e-3f, "a Gaussian across");
         }
     }
 }

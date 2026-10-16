@@ -94,3 +94,20 @@ fades them out toward the centre; Spider-Man sells speed mostly with things whip
   a third of that at its inner edge, so the ones nearest the middle are the faintest (`JetpackSpeedLines.AlphaAt`).
 - Still tunable live: `/flight streaks <n>`. Test: `FlightFeelTests.TheSpeedLinesAreFewFaintAndKeptToTheEdges`; `SpeedLinesCapture` (Explicit,
   -Graphics) renders `speed-lines-full.png` and `speed-lines-three-quarters.png`.
+
+## Update 2026-10-15 (later): wisps, not white lines
+
+Owner: other games' lines look "way better when they are mostly invisible instead of just being white lines they our game". Two things were wrong:
+
+- **The lines were OPAQUE.** The material set `_Surface` and `_Blend` (what the inspector reads) but never the blend factors, the transparent
+  keyword or the queue (what the shader uses), so every alpha above -- 0.25, a third of it inside -- was ignored and a streak drew as a solid
+  white quad. Found by rendering the new wisp, which came out a solid bar. `MakeMaterial` now sets `_SrcBlend`/`_DstBlend` (SrcAlpha, One: additive),
+  `_ZWrite` 0, `_SURFACE_TYPE_TRANSPARENT` and the transparent queue, the same way `SelfSmiteBolt` does.
+- **A hard-edged quad is a line.** A streak is now a stretched SPRITE made at run time (`MakeTexture`, 128 x 32): a Gaussian across it
+  (`CoreShare` 0.22 of the 0.14 m width, so the visible core is about 9 cm with no edge anywhere) and a fade in and out along its length
+  (`SpriteAlpha`). Additive at `MaxAlpha` 0.12 at the ring's outer edge, a quarter of that at its inner edge; twice as long (`LengthPerSpeed` 0.08:
+  a 60 m/s dash draws a 4.8 m wisp), 0.55 s long, 30 % fewer (`RateShare`). Against the sky they all but vanish; against a dark tower they are a
+  breath of air going past.
+- `SpeedLinesCapture` now also renders `speed-lines-full-dark.png` (against a dark backdrop, where they should read). The old pictures are in
+  `Logs/CityShots/before/`. Test: `FlightFeelTests.TheSpeedLinesAreFewFaintSoftAndKeptToTheEdges` (the sprite's profile, the strength, the visible
+  width, the length).
