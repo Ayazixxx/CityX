@@ -26,6 +26,8 @@ paler, the far skyline melts into the sky. Ours had a flat linear fog wall at 15
   jetpack you no longer see the dome's ground half past the edge of the streamed city.
 - **The streamed-city edge** still comes from `RenderSettings.fogStartDistance/fogEndDistance` (the storm and the intro's cloud fall drive those): the haze
   fades to all-sky from halfway between them to the end. The built-in fog is switched **off** while the haze draws (`DayNightCycle.HazeDrawn`).
+  **2026-10-15:** the distances are 600-2200 m now, the end at the edge of the skyline tier (`docs/RENDER_DISTANCE.md`): the far city melts into the sky
+  over its last 800 m instead of stopping at 690.
 - `HazeSetup.EnsureFeature` (run by the scene builder) puts the pass on both the PC and Mobile renderers. Globals are cleared in `DayNightCycle.OnDisable`
   so the title screen never inherits the city's air.
 - **Grade**: split toning (shade a touch cool, sunlight a touch warm), stronger bloom (threshold 0.95, intensity 0.5) so lit windows glow at night.

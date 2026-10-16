@@ -216,7 +216,8 @@ profile of where the flight allocates. Standing still with the city loaded alloc
 
 The streamer reached 24 chunks (576 m) but the clear-weather fog ended at 380 m, hiding a third of it. Now `CityMassingSceneBuilder.ViewRadiusChunks`
 = 30 (720 m) with the fog at 460-690 m: you see about 690 m instead of 380. More far-detail chunks are loaded (61x61 instead of 49x49); watch the
-frame time on big views.
+frame time on big views. **2026-10-15:** a third tier past the ring, the skyline (`SkylineStreamer`: boxes to 2.2 km, about 2,500 vertices a
+384 m group, no colliders), and the fog out to 2200 m: `docs/RENDER_DISTANCE.md`.
 
 ## Update: buildings popping in up close (2026-10-12)
 

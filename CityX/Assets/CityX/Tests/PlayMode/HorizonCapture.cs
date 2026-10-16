@@ -66,6 +66,14 @@ namespace CityX.Tests
             streamer.Viewer = viewer.transform;
             streamer.Rebuild();
             streamer.StreamAround(spawn, int.MaxValue);
+            // And the skyline tier past it (SkylineStreamer, 2026-10-15), all of it at once.
+            var skyline = Object.FindFirstObjectByType<SkylineStreamer>();
+            if (skyline != null)
+            {
+                skyline.Viewer = viewer.transform;
+                skyline.Rebuild();
+                skyline.StreamAround(spawn);
+            }
             float settled = 0.0f, waited = 0.0f;
             int last = -1;
             while (waited < 90.0f && settled < 2.0f)
@@ -111,8 +119,8 @@ namespace CityX.Tests
                 BuildingShapeCapture.Shoot(camera, directory, $"horizon-jetpack-{when}", spawn + Vector3.up * 120.0f, spawn + Vector3.up * 120.0f + look * 1000.0f + Vector3.down * 120.0f);
                 BuildingShapeCapture.Shoot(camera, directory, $"horizon-street-{when}", eye, eye + street * 100.0f + Vector3.up * 4.0f);
             }
-            Debug.Log($"CityX horizon capture: {streamer.LoadedChunkCount} chunks loaded, camera far plane {far:F0} m, fog {RenderSettings.fogStartDistance:F0}-{RenderSettings.fogEndDistance:F0} m, " +
-                $"longest street view {longest:F0} m");
+            Debug.Log($"CityX horizon capture: {streamer.LoadedChunkCount} chunks loaded, {(skyline != null ? skyline.LoadedGroupCount : 0)} skyline groups, camera far plane {far:F0} m, " +
+                $"fog {RenderSettings.fogStartDistance:F0}-{RenderSettings.fogEndDistance:F0} m, longest street view {longest:F0} m");
             Object.Destroy(cameraObject);
             Object.Destroy(viewer);
 #else

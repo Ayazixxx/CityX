@@ -169,7 +169,7 @@ namespace CityX.ViewEditor
             GameObject cameraObject = new GameObject("FlyCamera");
             Camera camera = cameraObject.AddComponent<Camera>();
             camera.tag = "MainCamera";
-            camera.farClipPlane = 2000.0f;
+            camera.farClipPlane = 3000.0f;   // past the skyline tier's reach (SkylineStreamer.RadiusMetres, 2200 m; was 2000 before 2026-10-15)
             camera.nearClipPlane = 0.15f;
             // player.gd's own camera.fov -- ThirdPersonCamera.Awake reads
             // _restFieldOfView straight off this Camera component (the same
@@ -777,6 +777,16 @@ namespace CityX.ViewEditor
             streamer.Viewer = cameraObject.transform;
             console.Streamer = streamer;
 
+            // The skyline beyond the streamed city (SkylineStreamer, 2026-10-15: "the render distance on his looks waaay better than ours i want
+            // mine like that"): every building past the streamed ring as a box in its own colour, the ground as a floor, out to the fog's end at
+            // ClearFogEndMetres, in the same wall and ground materials; the fog that used to hide the ring's edge now hides the skyline's.
+            GameObject skylineObject = new GameObject("Skyline");
+            SkylineStreamer skyline = skylineObject.AddComponent<SkylineStreamer>();
+            skyline.WorldSeed = WorldSeed;
+            skyline.GroundMaterial = ground;
+            skyline.StructureMaterial = structure;
+            skyline.Viewer = cameraObject.transform;
+
             // --- the map. M opens it; it guards itself against opening on
             // --- top of the console or while the game is paused.
             var mapPlayer = Object.FindFirstObjectByType<PlayerVitals>();
@@ -1011,13 +1021,16 @@ namespace CityX.ViewEditor
         /// (2026-10-09: ACES tried and reverted -- see the tonemapping line below.)
         /// </summary>
         /// <summary>
-        /// How far the city streams, in 24 m chunks (30 = 720 m), and the clear-weather fog distances that hide its edge: the haze is total at the fog
-        /// end, which must stay inside the streamed ring. 24 / 150-380 m until 2026-10-09, when the owner asked for more render distance -- the streamed
-        /// city then reached 576 m but the fog hid everything past 380.
+        /// How far the city streams in full, in 24 m chunks (30 = 720 m), and the clear-weather fog distances: the haze is total at the fog end,
+        /// which must stay inside what is drawn. 24 / 150-380 m until 2026-10-09, when the owner asked for more render distance -- the streamed city
+        /// then reached 576 m but the fog hid everything past 380; 30 / 460-690 m from then; and since 2026-10-15 the skyline tier
+        /// (SkylineStreamer: the buildings as boxes in their own colours out to 2200 m) carries the city on past the streamed ring, so the fog's end
+        /// went out to the skyline's edge and its start to 600 m: the near city stays clear, the far one melts into the sky (CityHaze's edge fade
+        /// runs from half way between the two to the end).
         /// </summary>
         public const int ViewRadiusChunks = 30;
-        public const float ClearFogStartMetres = 460.0f;
-        public const float ClearFogEndMetres = 690.0f;
+        public const float ClearFogStartMetres = 600.0f;
+        public const float ClearFogEndMetres = SkylineStreamer.RadiusMetres;
 
         /// <summary>Stops of exposure added before the tonemap (0: the sun and sky are already tuned for the neutral curve).</summary>
         public const float GradeExposure = 0.0f;

@@ -55,14 +55,19 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void TheFogEndsJustInsideTheStreamedCity()
+        public void TheFogEndsAtTheEdgeOfTheSkylineAndWellPastTheStreamedCity()
         {
-            // Past the fog end everything is sky, so the streamed ring must reach at least that far, and the fog should end near its edge, not hide
-            // half of it (it did: 576 m streamed, 380 m seen).
+            // Past the fog end everything is sky, so what is drawn must reach at least that far: the streamed ring (720 m) until 2026-10-15, and
+            // since then the skyline tier beyond it (SkylineStreamer, boxes out to its radius). The fog should end at the skyline's edge, not hide
+            // part of it (it once did: 576 m streamed, 380 m seen), and must start well past the streamed ring so none of the detailed city is lost
+            // in the edge fade (CityHaze.EdgeFadeFraction: the fade runs from half way between the two).
             float streamed = CityMassingSceneBuilder.ViewRadiusChunks * CityX.World.CityLayout.ChunkSize;
-            Assert.Less(CityMassingSceneBuilder.ClearFogEndMetres, streamed, "the edge of the streamed city would show past the fog");
-            Assert.Greater(CityMassingSceneBuilder.ClearFogEndMetres, streamed * 0.85f, "the fog hides city that is streamed and paid for");
+            Assert.AreEqual(SkylineStreamer.RadiusMetres, CityMassingSceneBuilder.ClearFogEndMetres, 1e-3f, "the fog should end where the skyline ends");
+            Assert.Greater(CityMassingSceneBuilder.ClearFogEndMetres, streamed * 2.0f, "the skyline tier is there to be seen far past the streamed ring");
             Assert.Less(CityMassingSceneBuilder.ClearFogStartMetres, CityMassingSceneBuilder.ClearFogEndMetres);
+            float fadeStart = Mathf.Lerp(CityMassingSceneBuilder.ClearFogStartMetres, CityMassingSceneBuilder.ClearFogEndMetres, CityHaze.EdgeFadeFraction);
+            Assert.Greater(fadeStart, streamed, "the edge fade would eat into the streamed city");
+            Assert.Greater(CityMassingSceneBuilder.ClearFogStartMetres, 400.0f, "the near city should stay clear of the edge fade");
         }
 
         [Test]
