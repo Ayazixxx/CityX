@@ -103,6 +103,8 @@ inner line only where it has left the main line), piers built by the chunk holdi
 signs and barriers. Kerb cuts subtract from the pavement and kerb faces.
 
 ### Numbers (seed 74102958, the game's varied 10 km)
+Seed 70485213 after the 2026-10-15 rework (routes aimed at the outlying centres, loops one exit in eight): 32 km of main line (ring 13.7, a route through the city 11.5, a bypass 7.1), 2 cloverleafs, 24 exits with 66 diamond ramps, 21 loop ramps and 1 slip; the earlier hashed routes gave 5 cloverleafs and 20 exits on this seed. The 2026-10-13 numbers follow.
+
 34 km of main line (ring 14 km, routes 10 and 10 km), 35% of it over a road, 0.8% along one; 5 cloverleafs (all 20 loops and all 20 outer
 connectors); 25 exits with 80 ramps to and from streets (38 diamond, 35 loop, 7 slip) against those 40 connectors; steepest ramp 7.8%;
 2770 piers. The tests' classic city (seed 61839025), five cloverleafs crowded inside a small ring: 13 exits. The world seed was rerolled to
@@ -139,3 +141,35 @@ ring and a closed end. Map views: `dotnet run -c Release
 - Interchange glossary: https://www.kurumi.com/roads/interchanges/gloss.html
 - Elevated highways: https://en.wikipedia.org/wiki/Elevated_highway ; https://en.wikipedia.org/wiki/Yan%27an_Elevated_Road ; https://en.wikipedia.org/wiki/Expressways_of_Shanghai
 - GTA V: https://gta.fandom.com/wiki/Numbered_Highways_in_GTA_V ; https://gta.fandom.com/wiki/Los_Santos_Freeway_(HD_Universe)
+
+## How highways flow through cities (research, 2026-10-15)
+
+Owner, of the plan maps: "whats up with these highway clusters where they just spin around eachother and go nowhere is this common in real
+life? ... this is why i want you to research how humans utilize highways and when they are used ... also research how highways flow
+throughout cities."
+
+**What the circles were.** Two things: cloverleafs (a loop for each of the four left turns) where two expressways crossed, and loop exit
+ramps (a partial cloverleaf's). Both are real. The cloverleaf is the 1930s-70s American answer to a freeway crossing; its loops put merging
+and leaving traffic in the same lane (weaving), so cities stopped building them and rebuild old ones as stacks and turbines (flyovers), or
+"cloverstacks" (two loops kept, two replaced by flyovers), or raindrop diamonds. Exits are mostly diamonds: about six in ten of a state's
+interchanges (Alabama's inventory, NCHRP), partial cloverleafs one in six, and a city of ten kilometres has two or three freeway-to-freeway
+interchanges, two miles apart (Caltrans HDM 501.3). Our first version had nine of them and loops on half the exits: too many of both.
+
+**How a system is shaped.** Radials bring the intercity roads to the city; an inner loop (a distributor) rings the downtown and the
+radials end on it or pass through it; an outer belt a few kilometres out carries through traffic round the city and ties the radials
+together, each radial passing a suburb or a satellite town with an exit about every mile (the 1944 US interregional plan's belt lines;
+Horwood 1959; the TRB's radial/circumferential/distributor studies). Paris: the autoroutes end at the Périphérique's gates; Tokyo's Shuto:
+the C1 loop round the centre and radials out to the C2 and the outer ring; Houston: the I-610 loop, Beltway 8 outside it and the radials
+through both; Beijing: rings two to six and the radials.
+
+**How a freeway ends.** On another freeway with a trumpet (one loop and three direct ramps), a directional T (all direct, the "New England
+Y") or a triangle; or by coming down to grade and becoming an arterial. One that just stops is a cancelled freeway.
+
+**Changed today:** the routes across are aimed at the outlying centres (two on opposite sides share one route; a lone one well outside the
+ring gets a bypass along its tangent; nearer in, none), so the crossings with the ring are few; exits beside those centres come first; loops
+lead on one exit in eight. **Next:** a radial that ENDS on the ring with a trumpet or a directional T instead of crossing it, and flyovers
+(a stack) in place of the loops at the busiest crossing.
+
+Sources: Interchange and Cloverleaf interchange (Wikipedia); kurumi.com's cloverleaf and trumpet pages; TxDOT RDM 15-3 (types of
+interchanges); IDOT's I-57/IL-16 raindrop diamond; TRB Circular 430 and NAP 27198 chapter 6 (Alabama's 63 % diamonds); roads.org.uk on
+triangle junctions; the FHWA's interregional-highways history; Horwood, HRB Bulletin 230.

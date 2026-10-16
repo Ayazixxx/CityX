@@ -31,6 +31,7 @@ public static class SubversionPlan
         var cfg = PlanWorld.DefaultConfig();
         if (half > 0.0) cfg.Half = half;   // 0: the game's own region, exactly
         else half = cfg.Half;
+        if (view <= 0.0) view = half;   // asked for the game's own region: the view is that region
         var sw = Stopwatch.StartNew();
         PlanWorld world = PlanWorld.Create(seed, cfg);
         sw.Stop();

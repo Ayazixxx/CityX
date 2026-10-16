@@ -66,6 +66,54 @@ namespace CityX.Tests
             Assert.GreaterOrEqual(through, 2, "fewer than two routes across the region");
         }
 
+        /// <summary>
+        /// Owner (2026-10-15): "the highways as they are now feel pointless they just go nowhere ... make them function the same to connect our
+        /// cities". Every outlying centre (a satellite town beyond the ring's downtown) has a route across passing beside it and an exit near it.
+        /// </summary>
+        [Test]
+        public void InTheGamesOwnCityEveryOutlyingCentreHasAnExpresswayAndAnExitNearIt()
+        {
+            // The game's own varied city (the classic test city is too small for satellite towns beyond its ring). A lone centre nearer in than
+            // a bypass allows gets no route of its own, so a route may be as far as the pairing lets it: every centre still gets a main line
+            // within twice the reach, and an exit within twice the exit reach.
+            CityScale before = CityScale.Active;
+            try
+            {
+                CityScale.Active = CityScale.Default;
+                PlanWorld plan = PlanWorld.For(Seed);
+                ExpresswayNetwork xw = plan.Data.Expressways;
+                PlanConfig cfg = plan.Data.Config;
+                double r = cfg.ExpresswayHalfWidth / 12.0;
+                int outlying = 0;
+                foreach (Vec2 c in plan.Data.Centres)
+                {
+                    if (c.Length <= ExpresswayPlanner.SatelliteFromRing * cfg.RingRadius) continue;
+                    outlying++;
+                    double nearestLine = double.MaxValue;
+                    foreach (ExpresswayRoute route in xw.Routes)
+                    {
+                        ViaductPath m = xw.Paths[route.Path];
+                        for (int i = 0; i + 1 < m.Count; i++)
+                        {
+                            nearestLine = Math.Min(nearestLine, PlanMath.DistanceToSegment(c, m.P[i], m.P[i + 1], out _));
+                        }
+                    }
+                    Assert.LessOrEqual(nearestLine, 2.0 * ExpresswayPlanner.SatelliteReach * r, $"the centre at ({c.X:F0},{c.Y:F0}) has no expressway near it ({nearestLine:F0} m to the nearest)");
+                    double nearestExit = double.MaxValue;
+                    foreach (ExpresswayInterchange ic in xw.Interchanges)
+                    {
+                        if (!ic.System) nearestExit = Math.Min(nearestExit, (ic.At - c).Length);
+                    }
+                    Assert.LessOrEqual(nearestExit, 2.0 * ExpresswayPlanner.SatelliteExitReach * r, $"the centre at ({c.X:F0},{c.Y:F0}) has no exit near it ({nearestExit:F0} m to the nearest)");
+                }
+                Assert.GreaterOrEqual(outlying, 1, "the game's city has no outlying centre to check");
+            }
+            finally
+            {
+                CityScale.Active = before;
+            }
+        }
+
         [Test]
         public void NoTwoExpresswaysMeetOnTheFlatAndEveryCrossingIsACloverleaf()
         {

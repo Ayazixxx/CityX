@@ -770,6 +770,9 @@ namespace CityX.World.Plan
             public RoadEdge Street;
             public int Rank;
             public double Order;
+
+            /// <summary>0 beside an outlying centre (its exit comes first), else 1.</summary>
+            public int NearCentre;
         }
 
         /// <summary>
@@ -801,6 +804,7 @@ namespace CityX.World.Plan
                             Street = e,
                             Rank = e.Class == RoadClass.Boulevard ? 0 : (e.Class == RoadClass.Arterial ? 1 : 2),
                             Order = Rand(0x65786974U, e.Id * 31 + route.Id),
+                            NearCentre = NearSatellite(x) ? 0 : 1,
                         };
                         if (!_crossings.TryGetValue(route.Id, out List<ExitCandidate> list)) _crossings[route.Id] = list = new List<ExitCandidate>();
                         list.Add(crossing);
@@ -810,9 +814,12 @@ namespace CityX.World.Plan
                     }
                 }
             }
+            // The exits beside the outlying centres first (the towns the routes were laid to serve), then the best streets.
             candidates.Sort((p, q) =>
             {
-                int c = p.Rank.CompareTo(q.Rank);
+                int c = p.NearCentre.CompareTo(q.NearCentre);
+                if (c != 0) return c;
+                c = p.Rank.CompareTo(q.Rank);
                 if (c != 0) return c;
                 c = p.Order.CompareTo(q.Order);
                 return c != 0 ? c : p.Street.Id.CompareTo(q.Street.Id);
@@ -864,8 +871,11 @@ namespace CityX.World.Plan
             int[] directions = Rand(0x7369676EU, cand.Street.Id) < 0.5 ? new[] { 1, -1 } : new[] { -1, 1 };
             foreach (int sigma in directions)
             {
+                // Mostly diamonds, as a real city's exits are (about six in ten of a state's interchanges are diamonds, parclos with their loops one
+                // in six: NCHRP / Alabama's inventory); a loop first on one exit in eight (owner, 2026-10-15: the loops read as ramps that "spin
+                // around eachother and go nowhere").
                 double pick = Rand(0x73686170U, cand.Street.Id * 2 + (sigma > 0 ? 1 : 0));
-                string[] order = pick < 0.45 ? new[] { "diamond", "slip", "loop" } : (pick < 0.62 ? new[] { "slip", "loop", "diamond" } : new[] { "loop", "diamond", "slip" });
+                string[] order = pick < 0.70 ? new[] { "diamond", "slip", "loop" } : (pick < 0.875 ? new[] { "slip", "diamond", "loop" } : new[] { "loop", "diamond", "slip" });
                 foreach (bool leaving in new[] { true, false })
                 {
                     ViaductPath ramp = null;

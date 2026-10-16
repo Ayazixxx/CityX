@@ -107,10 +107,39 @@ namespace CityX.World.Plan
         private readonly ExpresswayNetwork _out = new ExpresswayNetwork();
         private readonly List<RoadEdge> _edgeScratch = new List<RoadEdge>();
 
+        /// <summary>The OUTLYING urban centres (CityPlan's, beyond the downtown): the routes across are aimed at them, and exits land beside them.</summary>
+        private readonly List<Vec2> _satellites = new List<Vec2>();
+
+        /// <summary>
+        /// A centre this near a route's line (metres, times the road scale) is served by it; an exit this near a centre is that centre's; a centre
+        /// this far from the origin (a share of the ring's radius) is outlying, not downtown. Owner, 2026-10-15: "the highways as they are now feel
+        /// pointless they just go nowhere ... make them function the same to connect our cities": a real network's radials run from the ring out
+        /// to the satellite towns and the next cities (FHWA's 1944 interregional plan; Horwood 1959), and that is where its exits are.
+        /// </summary>
+        public const double SatelliteReach = 600.0;
+
+        public const double SatelliteExitReach = 900.0;
+
+        public const double SatelliteFromRing = 0.6;
+
+        /// <summary>How hard a route's line is pulled toward an outlying centre it passes (a cost taken off, see PlaceCost), and the most routes across.</summary>
+        public const double SatellitePull = 0.6;
+
+        public const int MaxThroughRoutes = 4;
+
+        /// <summary>
+        /// Two outlying centres on opposite sides of the downtown (the angle between them within about 70 degrees of a straight line) share one
+        /// route through both; a centre with no partner well outside the ring gets a BYPASS, a route past it along its tangent; one nearer in gets
+        /// none of its own (the exits of whatever passes it come first, NearCentre). Every route through the downtown crosses every other one
+        /// there and the ring twice, and each crossing is a cloverleaf: a real city has two or three freeway-to-freeway interchanges, not nine
+        /// (owner, 2026-10-15, of the first try: "highway clusters where they just spin around eachother and go nowhere").
+        /// </summary>
+        public const double SatellitePairCos = 0.3;
+
         /// <summary>What happened to the candidates, for the plan harness: counts by reason.</summary>
         [ThreadStatic] public static Dictionary<string, int> Tally;
 
-        private ExpresswayPlanner(RoadNetwork net, PlanFields fields, PlanConfig cfg, uint seed)
+        private ExpresswayPlanner(RoadNetwork net, PlanFields fields, PlanConfig cfg, uint seed, List<Vec2> centres)
         {
             _net = net;
             _fields = fields;
@@ -119,13 +148,21 @@ namespace CityX.World.Plan
             _w = cfg.ExpresswayHalfWidth;
             _wr = cfg.RampHalfWidth;
             _r = cfg.ExpresswayHalfWidth / 12.0;   // the road scale: 1 in the classic city
+            // The plan's own centres (the same call CityPlan.Generate makes, when it does not hand them in), the downtown's left out.
+            foreach (Vec2 c in centres ?? fields.FindCentres(cfg.Half, 100.0 * cfg.Scale, 650.0 * cfg.Scale, 0.52, 6))
+            {
+                if (c.Length > SatelliteFromRing * cfg.RingRadius)
+                {
+                    _satellites.Add(c);
+                }
+            }
         }
 
-        /// <summary>The expressways of a region, over its finished road network.</summary>
-        public static ExpresswayNetwork Plan(RoadNetwork net, PlanFields fields, PlanConfig cfg, uint seed)
+        /// <summary>The expressways of a region, over its finished road network; <paramref name="centres"/> are the plan's urban centres (CityPlan).</summary>
+        public static ExpresswayNetwork Plan(RoadNetwork net, PlanFields fields, PlanConfig cfg, uint seed, List<Vec2> centres = null)
         {
             Tally = new Dictionary<string, int>();
-            var planner = new ExpresswayPlanner(net, fields, cfg, seed);
+            var planner = new ExpresswayPlanner(net, fields, cfg, seed, centres);
             planner.LayRoutes();
             planner.LayProfiles();
             planner.SystemInterchanges();
@@ -167,11 +204,66 @@ namespace CityX.World.Plan
                 List<Vec2> ring = RingAlignment();
                 if (ring != null) AddMainline(ring, true);
             }
-            for (int k = 0; k < _cfg.ThroughRoutes; k++)
+            // The routes across are aimed at the outlying centres (the satellite towns), strongest first: a centre gets a route passing beside it,
+            // two on opposite sides of the downtown share one, and a centre that another route already passes needs none; then, up to the
+            // configured count, routes at hashed angles as before.
+            var served = new bool[_satellites.Count];
+            int laid = 0;
+            for (int i = 0; i < _satellites.Count && laid < MaxThroughRoutes; i++)
+            {
+                if (served[i]) continue;
+                Vec2 a = _satellites[i];
+                int partner = -1;
+                double bestCos = SatellitePairCos;
+                for (int j = i + 1; j < _satellites.Count; j++)
+                {
+                    if (served[j]) continue;
+                    double cos = Vec2.Dot(a.Normalized, (_satellites[j] * -1.0).Normalized);
+                    if (cos > bestCos)
+                    {
+                        bestCos = cos;
+                        partner = j;
+                    }
+                }
+                served[i] = true;
+                if (partner >= 0) served[partner] = true;
+                List<Vec2> route = RadialAlignment(laid, a, partner >= 0 ? _satellites[partner] : (Vec2?)null);
+                if (route == null) continue;
+                AddMainline(route, false);
+                laid++;
+                for (int j = 0; j < _satellites.Count; j++)
+                {
+                    if (!served[j] && DistanceToPolyline(_satellites[j], route) <= SatelliteReach * _r) served[j] = true;
+                }
+            }
+            for (int k = 0; laid < _cfg.ThroughRoutes && k < MaxThroughRoutes; k++)
             {
                 List<Vec2> route = ThroughAlignment(k);
-                if (route != null) AddMainline(route, false);
+                if (route == null) continue;
+                AddMainline(route, false);
+                laid++;
             }
+        }
+
+        /// <summary>The nearest a point comes to a route's line.</summary>
+        private static double DistanceToPolyline(Vec2 p, List<Vec2> pts)
+        {
+            double best = double.MaxValue;
+            for (int i = 0; i + 1 < pts.Count; i++)
+            {
+                best = Math.Min(best, PlanMath.DistanceToSegment(p, pts[i], pts[i + 1], out _));
+            }
+            return best;
+        }
+
+        /// <summary>Whether a point is beside one of the outlying centres (an exit there is that centre's).</summary>
+        private bool NearSatellite(Vec2 p)
+        {
+            foreach (Vec2 s in _satellites)
+            {
+                if ((p - s).Length <= SatelliteExitReach * _r) return true;
+            }
+            return false;
         }
 
         /// <summary>
@@ -222,7 +314,58 @@ namespace CityX.World.Plan
             Vec2 nrm = u.Perp;
             double side = (k & 1) == 0 ? 1.0 : -1.0;
             double offset = side * r0 * (0.13 + 0.09 * Rand(0x74687232U, k));
+            return AlignmentAlong(u, nrm * offset, r0);
+        }
 
+        /// <summary>
+        /// A route across the region aimed at an outlying centre <paramref name="a"/>: with <paramref name="b"/> (one on the far side of the
+        /// downtown) the line through both, moved sideways if need be to skirt the downtown as the hashed routes do; alone, a bypass along the
+        /// tangent at <paramref name="a"/> (past the town, not into the downtown); then bent and cut like the hashed routes.
+        /// </summary>
+        private List<Vec2> RadialAlignment(int k, Vec2 a, Vec2? b)
+        {
+            double r0 = Math.Max(_cfg.RingRadius, 600.0 * _r);
+            // A bypass along the tangent only well outside the ring: nearer, a tangent meets the ring at a grazing angle no cloverleaf can be laid
+            // on (the test city's lone centre sat on the ring: "0 loops and 1 curves of 8"). Nearer in, the line toward the downtown, pushed
+            // sideways a third of the ring's radius so it crosses the ring squarely and skirts the centre.
+            bool tangent = !b.HasValue && a.Length >= BypassFromRing * r0;
+            Vec2 u = b.HasValue ? (b.Value - a).Normalized : tangent ? a.Normalized.Perp : a.Normalized;
+            Vec2 nrm = u.Perp;
+            Vec2 lineOrigin = a - u * Vec2.Dot(a, u);   // the line's point nearest the origin
+            double off = Vec2.Dot(lineOrigin, nrm);
+            double least = r0 * (b.HasValue ? 0.13 + 0.09 * Rand(0x72616431U, k) : 0.35);   // "rad1"
+            if (Math.Abs(off) < least)
+            {
+                double side = off > 0.0 ? 1.0 : off < 0.0 ? -1.0 : ((k & 1) == 0 ? 1.0 : -1.0);
+                lineOrigin = nrm * (side * least);
+            }
+            // A lone centre nearer in than a bypass allows gets no route of its own: a line through it toward the downtown crossed the ring
+            // where there was no room for a cloverleaf (the test city) and added two interchanges for one town.
+            if (!b.HasValue && !tangent)
+            {
+                return null;
+            }
+            List<Vec2> route = AlignmentAlong(u, lineOrigin, r0);
+            // A stub (a tangent clipped short by the region's corner) is no route.
+            return route != null && Length(route) >= MinRouteShare * 2.0 * _cfg.Half ? route : null;
+        }
+
+        /// <summary>A lone centre at least this many ring radii out gets a tangent bypass; a route across must be at least this share of the region wide.</summary>
+        public const double BypassFromRing = 1.5;
+
+        public const double MinRouteShare = 0.6;
+
+        private static double Length(List<Vec2> pts)
+        {
+            double length = 0.0;
+            for (int i = 0; i + 1 < pts.Count; i++) length += (pts[i + 1] - pts[i]).Length;
+            return length;
+        }
+
+        /// <summary>The route along the line through <paramref name="lineOrigin"/> in direction <paramref name="u"/>, bent off what it should keep off, smoothed and cut.</summary>
+        private List<Vec2> AlignmentAlong(Vec2 u, Vec2 lineOrigin, double r0)
+        {
+            Vec2 nrm = u.Perp;
             double step = 320.0 * _r;
             double extent = _cfg.Half * 1.6;
             int m = (int)(2.0 * extent / step) + 1;
@@ -232,7 +375,7 @@ namespace CityX.World.Plan
             var position = new Vec2[m, choices];
             for (int j = 0; j < m; j++)
             {
-                Vec2 baseP = nrm * offset + u * (-extent + j * step);
+                Vec2 baseP = lineOrigin + u * (-extent + j * step);
                 for (int c = 0; c < choices; c++)
                 {
                     double delta = -reach + 2.0 * reach * c / (choices - 1);
@@ -361,7 +504,14 @@ namespace CityX.World.Plan
             }
             double slope = _fields.Slope(q.X, q.Y);
             double centre = r0 > 0.0 && q.Length < 0.3 * r0 ? (0.3 * r0 - q.Length) / (0.3 * r0) : 0.0;
-            return wet * 2.0 + slope * 3.0 + centre * 2.0 + _fields.Population(q) * 0.25;
+            // Pulled toward an outlying centre it passes (SatellitePull), so the route serves the town rather than skirting it wide.
+            double pull = 0.0;
+            foreach (Vec2 s in _satellites)
+            {
+                double d = (q - s).Length / (SatelliteReach * _r);
+                pull = Math.Max(pull, Math.Exp(-d * d));
+            }
+            return wet * 2.0 + slope * 3.0 + centre * 2.0 + _fields.Population(q) * 0.25 - pull * SatellitePull;
         }
 
         private static Vec2 Clamp(Vec2 p, double half) => new Vec2(Math.Max(-half, Math.Min(half, p.X)), Math.Max(-half, Math.Min(half, p.Y)));

@@ -124,7 +124,7 @@ namespace CityX.World.Plan
 
             // The expressways go over the finished network, before the blocks are cut into lots: decks and ramps are geometry over the land, not
             // roads of the graph, and no lot is cut under them.
-            data.Expressways = ExpresswayPlanner.Plan(net, fields, cfg, PlanNoise.Mix(unchecked((uint)worldSeed), 0x78776179U));   // "xway"
+            data.Expressways = ExpresswayPlanner.Plan(net, fields, cfg, PlanNoise.Mix(unchecked((uint)worldSeed), 0x78776179U), centres);   // "xway"
 
             data.Blocks = BlockExtractor.Extract(net, cfg);
             MarkEnclosing(data.Blocks);
