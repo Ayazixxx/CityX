@@ -146,6 +146,38 @@ namespace CityX.View
         }
 
         /// <summary>
+        /// Something knocking into a CRACKED pane (CrackedPane: a body walking or running into it, a thrown thing): the pane gives way the way a
+        /// blow takes it -- the break sound, and the glass cut into its own pieces round <paramref name="point"/> (where the body met it, on the
+        /// pane), falling the way it was going. Until 2026-10-16 a knock only marked the pane broken and it vanished; owner: "they only do the
+        /// procedural fracture when you shoot them a bunch of times but after being 'shattered' they should do the procedural fracture when you
+        /// walk into them". A knock at 4 m/s or more (a sprint, a dive) throws the pieces like a heavy blow. False when the pane was not cracked.
+        /// </summary>
+        public bool Knock(PaneKey key, Vector3 point, Vector3 direction, float speed)
+        {
+            if (_world == null)
+            {
+                _world = new CityWorld(_streamer.WorldSeed);
+            }
+            if (_streamer.Damage.StateOf(key) != PaneState.Cracked || key.Building < 0 || key.Building >= _world.BuildingCount)
+            {
+                return false;
+            }
+            BuildingSite site = _world.Building(key.Building);
+            Vector2 impactUV = GlassDamage.FractionWithinPane(_world, site, key, point);
+            PaneState now = _streamer.Damage.Hit(key, impactUV);
+            if (now != PaneState.Shattered)
+            {
+                return false;
+            }
+            BlowStrength strength = speed >= HeavyKnockSpeed ? BlowStrength.Heavy : BlowStrength.Light;
+            Report(now, site, key, point, CityMeshBuilder.WallNormal(site, key.Wall), direction, strength);
+            return true;
+        }
+
+        /// <summary>A knock at this speed or more, m/s, throws a pane's pieces like a heavy blow (a sprint, a dive, a jetpack).</summary>
+        public const float HeavyKnockSpeed = 4.0f;
+
+        /// <summary>
         /// The noise and the mess. A crack knocks; a shatter breaks and throws
         /// shards -- city_chunk.gd's own two sounds, now with a real physics
         /// shard burst (GlassShardBurst) rather than a fading sprite, which is

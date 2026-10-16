@@ -237,7 +237,14 @@ namespace CityX.Tests
             streamer.RadiusChunks = 2;
             streamer.GeneratorThreads = 0;
             streamer.SpawnPreStreamBudget = 0;
-            streamerObject.AddComponent<GlassBreaker>();
+            // The breaker with the game's own glass for the pieces (GlassFractureBurst), so a knock is seen to break the pane into them.
+            var breaker = streamerObject.AddComponent<GlassBreaker>();
+            var shardLook = Made(new GameObject("ShardLook"));
+            shardLook.SetActive(false);
+            shardLook.AddComponent<MeshFilter>();
+            shardLook.AddComponent<MeshRenderer>().sharedMaterial =
+                UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/CityX/View/Materials/GlassShards.mat");
+            breaker.ShardPrefab = shardLook;
             streamerObject.SetActive(true);
 
             // The first window with nothing standing out of the facade in front of its middle.
@@ -301,6 +308,7 @@ namespace CityX.Tests
                 "a window shattered by itself round somebody standing at it, which is what was reported");
 
             // Now he walks into it.
+            int piecesBefore = GlassFractureBurst.LiveShards;
             CollisionFlags lastFlags = CollisionFlags.None;
             CollisionFlags everFlags = CollisionFlags.None;
             float totalRequested = 0.0f;
@@ -340,6 +348,9 @@ namespace CityX.Tests
                 }
             }
             Assert.AreEqual(PaneState.Shattered, streamer.Damage.StateOf(target.Key), "walking into a cracked window did not break it" + diag);
+            // ...and it broke the way a blow breaks it: into its own pieces (owner, 2026-10-16: "they only do the procedural fracture when you shoot
+            // them a bunch of times but after being 'shattered' they should do the procedural fracture when you walk into them").
+            Assert.Greater(GlassFractureBurst.LiveShards, piecesBefore, "walking into a cracked window made it vanish instead of breaking into its pieces");
 #else
             yield break;
 #endif

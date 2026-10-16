@@ -64,10 +64,30 @@ namespace CityX.View
                 return;
             }
 
-            // This shatters the pane, which rebuilds the chunk, which destroys
-            // this object. Nothing may touch anything on it afterwards -- and
-            // nothing does, because Hit is the last thing here.
-            _damage.Hit(_key);
+            // The pane breaks the way a blow breaks it (GlassBreaker.Knock): the sound, and its glass cut into its own pieces round where the body
+            // met it, thrown the way it was going. Where it met it: the nearest point of the body to the pane's middle, carried onto the pane's
+            // plane along the way it was moving.
+            Vector3 velocity = VelocityOf(other);
+            Vector3 point = OnPanePlane(other.ClosestPoint(transform.position), velocity.sqrMagnitude > 1e-6f ? velocity.normalized : Vector3.zero);
+            GlassBreaker breaker = GetComponentInParent<GlassBreaker>();
+
+            // This shatters the pane, which rebuilds the chunk, which destroys this object. Nothing may touch anything on it afterwards -- and
+            // nothing does: the break is the last thing here.
+            if (breaker == null || !breaker.Knock(_key, point, velocity, velocity.magnitude))
+            {
+                _damage.Hit(_key);
+            }
+        }
+
+        /// <summary>How fast something is moving: a character's controller, or a simulated body's velocity.</summary>
+        private static Vector3 VelocityOf(Collider other)
+        {
+            if (other is CharacterController controller)
+            {
+                return controller.velocity;
+            }
+            Rigidbody body = other.attachedRigidbody;
+            return body != null ? body.linearVelocity : Vector3.zero;
         }
 
         /// <summary>

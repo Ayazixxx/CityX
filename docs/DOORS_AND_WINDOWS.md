@@ -286,3 +286,13 @@ there are fifty to a block of flats, so each is drawn shut or open in the chunk'
 way a broken window does. Walking at one opens it from 1.6 m off (the rebuild takes a moment), E opens or shuts it, a hinged leaf opens into
 the flat, and the door on every other balcony (half way up a two-row storey) rattles shut. Kept the same for every player by
 `Character/BalconyDoorsNetwork`. The whole design, the sizes and the research: docs/WORLD_GACHA.md, "The doors onto the balconies".
+
+## Update 2026-10-16: a window walked into breaks into its pieces too
+
+Owner: "windows dont fracture the same way as when you shoot them vs walking into them. right now they only do the procedural fracture when you
+shoot them a bunch of times but after being shattered they should do the procedural fracture when you walk into them". A knock into a cracked
+pane (`View/CrackedPane`: a body walking or running into it, a thrown thing) only marked the pane broken, so it vanished with no sound and no
+pieces; a shot or a blow went through `GlassBreaker`, which plays the break and cuts the glass into its own pieces (`GlassFractureBurst`).
+A knock now goes through `GlassBreaker.Knock` as well: the pane is cut round where the body met it (the nearest point of the body to the
+pane, carried onto the pane along the way it was moving), the pieces thrown the way it was going, a sprint or a dive (4 m/s or more) like a
+heavy blow. Test: `CrackedPaneKnockPlayTests` (a body walking into a cracked window breaks it, and its pieces are in the air).
