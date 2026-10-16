@@ -58,14 +58,22 @@ namespace CityX.View
             var ctx = new Context(plan, origin, rect);
 
             float step = far ? FarTerrainStep : TerrainStep;
-            BuildTerrain(ctx, pavement, step, plan.BlocksIn(chunkX, chunkY));
+            // The ground is cut away over every basement (BasementCuts): it ran through them a foot under the lobby floor.
+            List<Vec2[]> basements = BasementCuts(ctx, chunkX, chunkY);
+            BuildTerrain(ctx, pavement, step, plan.BlocksIn(chunkX, chunkY), basements);
             List<Vec2[]> cuts = KerbCuts(ctx, chunkX, chunkY);
+            List<Vec2[]> pavingCuts = cuts;
+            if (basements.Count > 0)
+            {
+                pavingCuts = new List<Vec2[]>(cuts);
+                pavingCuts.AddRange(basements);
+            }
 
             foreach (int blockIndex in plan.BlocksIn(chunkX, chunkY))
             {
                 PlanBlock block = plan.Data.Blocks[blockIndex];
-                BuildPavement(ctx, block, blockIndex, pavement, far, cuts);
-                BuildBlockPaving(ctx, block, blockIndex, pavement, step, cuts);
+                BuildPavement(ctx, block, blockIndex, pavement, far, pavingCuts);
+                BuildBlockPaving(ctx, block, blockIndex, pavement, step, pavingCuts);
                 if (block.Plaza && !far)
                 {
                     BuildOpenSpace(ctx, block, blockIndex, structures, lit);   // CitySurfaceBuilder.OpenSpace.cs: the block's role and its pieces
@@ -379,7 +387,7 @@ namespace CityX.View
 
         // ---------------------------------------------------------------- terrain
 
-        private static void BuildTerrain(Context ctx, MeshBuffer buffer, float step, List<int> blockIndices)
+        private static void BuildTerrain(Context ctx, MeshBuffer buffer, float step, List<int> blockIndices, List<Vec2[]> basements = null)
         {
             Rect2 r = ctx.Rect;
             int n = Mathf.Max(1, Mathf.RoundToInt((float)(r.X1 - r.X0) / step));
@@ -398,6 +406,24 @@ namespace CityX.View
                 {
                     double x0 = r.X0 + ix * s, x1 = x0 + s, z0 = r.Z0 + iz * s, z1 = z0 + s;
                     buffer.Look = GroundLook(ctx, (x0 + x1) * 0.5, (z0 + z1) * 0.5, blockIndices);
+                    if (basements != null && basements.Count > 0 && Touches(basements, x0, z0, x1, z1))
+                    {
+                        // Over a basement: the cell less the footprints over it, each piece at the cell's own surface (bilinear in its corners,
+                        // so straight along its edges like the whole cells beside it, and no seam opens between them).
+                        double h00 = heights[ix, iz], h01 = heights[ix, iz + 1], h11 = heights[ix + 1, iz + 1], h10 = heights[ix + 1, iz];
+                        double cx0 = x0, cz0 = z0, cs = s;
+                        Func<double, double, double> surface = (x, z) =>
+                        {
+                            double u = (x - cx0) / cs, v = (z - cz0) / cs;
+                            return h00 * (1.0 - u) * (1.0 - v) + h10 * u * (1.0 - v) + h01 * (1.0 - u) * v + h11 * u * v;
+                        };
+                        var cell = new List<Vec2> { new Vec2(x0, z0), new Vec2(x1, z0), new Vec2(x1, z1), new Vec2(x0, z1) };
+                        foreach (List<Vec2> part in Subtract(cell, basements))
+                        {
+                            Fan(ctx, buffer, part, surface);
+                        }
+                        continue;
+                    }
                     Vector3 a = ctx.Local(x0, heights[ix, iz], z0);
                     Vector3 b = ctx.Local(x0, heights[ix, iz + 1], z1);
                     Vector3 c = ctx.Local(x1, heights[ix + 1, iz + 1], z1);
@@ -545,6 +571,85 @@ namespace CityX.View
 
         /// <summary>A clipped piece of paving smaller than this (square metres) is a sliver of float noise, not ground: not drawn.</summary>
         private const double SliverArea = 1e-4;
+
+        // ---------------------------------------------------------------- basements: the ground cut away over them
+
+        /// <summary>How many chunks from its centre's chunk a building's footprint can reach (the largest blocks are some 70 m across).</summary>
+        private const int BasementReachChunks = 4;
+
+        /// <summary>
+        /// Whether a building has a basement under it the ground must keep out of: an ordinary box building on the ground with one in its plan
+        /// (CityMeshBuilder.BuildBasement). Garages, car parks, malls, round towers and sealed blocks are built without one; a block standing on
+        /// another's roof has its "basement" inside that one.
+        /// </summary>
+        public static bool HasBasementUnder(BuildingSite site) =>
+            site.Exists && site.Params.HasBasement && site.Sides < 3 && !site.Shell && !site.OnRoof && !site.IsOpenGround && !site.IsParkingGarage
+            && !site.IsMall && !site.IsMallAnchor;
+
+        /// <summary>A building's footprint on the ground, counter-clockwise.</summary>
+        public static Vec2[] Footprint(BuildingSite site)
+        {
+            double hw = site.Params.Width * 0.5, hd = site.Params.Depth * 0.5;
+            var poly = new Vec2[4];
+            int i = 0;
+            foreach ((double lx, double lz) in new[] { (-hw, -hd), (hw, -hd), (hw, hd), (-hw, hd) })
+            {
+                site.LocalToWorld(lx, lz, out double x, out double z);
+                poly[i++] = new Vec2(x, z);
+            }
+            if (PlanMath.SignedArea(poly) < 0.0)
+            {
+                System.Array.Reverse(poly);
+            }
+            return poly;
+        }
+
+        /// <summary>
+        /// The footprints of the buildings with a basement that reach into this chunk. The terrain and the block's paving are cut away over them:
+        /// they ran right through every basement, a foot or so under the lobby floor, so its stairs led down into the street's paving (owner,
+        /// 2026-10-16: "the basement is only 1 foot high"). Nothing is seen through the cut: the lobby floor closes it from above and the walls
+        /// all round, and the basement's own floor and walls are a storey down.
+        /// </summary>
+        private static List<Vec2[]> BasementCuts(Context ctx, int chunkX, int chunkY)
+        {
+            var cuts = new List<Vec2[]>();
+            for (int dy = -BasementReachChunks; dy <= BasementReachChunks; dy++)
+            {
+                for (int dx = -BasementReachChunks; dx <= BasementReachChunks; dx++)
+                {
+                    List<int> owned = ctx.Plan.BuildingsOwnedBy(chunkX + dx, chunkY + dy);
+                    for (int i = 0; i < owned.Count; i++)
+                    {
+                        BuildingSite site = ctx.Plan.Buildings[owned[i]];
+                        if (!HasBasementUnder(site))
+                        {
+                            continue;
+                        }
+                        Vec2[] poly = Footprint(site);
+                        Bounds(poly, out double x0, out double z0, out double x1, out double z1);
+                        if (ctx.Rect.Overlaps(x0, z0, x1, z1))
+                        {
+                            cuts.Add(poly);
+                        }
+                    }
+                }
+            }
+            return cuts;
+        }
+
+        /// <summary>Whether any of the polygons' bounds overlap a cell.</summary>
+        private static bool Touches(List<Vec2[]> polys, double x0, double z0, double x1, double z1)
+        {
+            for (int i = 0; i < polys.Count; i++)
+            {
+                Bounds(polys[i], out double px, out double pz, out double Px, out double Pz);
+                if (Px > x0 && px < x1 && Pz > z0 && pz < z1)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
 
         private static void BuildPavement(Context ctx, PlanBlock block, int blockIndex, MeshBuffer buffer, bool far, List<Vec2[]> cuts)
         {

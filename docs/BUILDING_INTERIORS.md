@@ -318,3 +318,15 @@ its 5.9 m opening ran across the 8 m floor above, a metre short of each wall, an
 there next (4 % reached). The floor-above check now runs for the lobby too. Found by surveying EVERY floor instead of one building in seven:
 `BuildingStairsTests.ProbeEveryFloorForOnesShutInByTheirStairs` (Explicit) lists each shut-in floor with a map of it on the walking grid
 (`#` solid, `.` free, `o` reached from where the stairs arrive); it was the only one of 46,505.
+
+## Fix 2026-10-16: the ground kept out of the basements
+
+Owner, with a screenshot looking down a lobby's opening to its basement: "the basement is only 1 foot high". The terrain grid and the block's
+paving (`View/CitySurfaceBuilder`) ran across every building's footprint (the old ground cut under the footprint was lost in the move to the
+free-form plan), so they passed through each basement a foot or so under the lobby floor: its stairs went down two or three steps and met the
+street's paving, which also stopped a body. The footprints of the buildings with a basement (`CitySurfaceBuilder.HasBasementUnder`: an ordinary
+box building on the ground, not a garage, car park, mall or round tower) are now cut out of the terrain (each cell less the footprints, at the
+cell's own surface so no seam opens beside it), the block paving and the pavement ring. The lobby floor closes the cut from above and the walls
+all round. Tests: `BasementGroundTests` (no ground left in any basement's height near the spawn, the paving just outside its walls whole),
+`BasementWalkPlayTests` (the real player controller walks down a 6.4 m basement stair from the lobby to the basement floor). Found on the way,
+left for its own fix: on seed 46283197 building 2520 stands across the dead end of street 3542 (a block placed over a road).
