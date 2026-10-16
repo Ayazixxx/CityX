@@ -36,7 +36,7 @@ namespace CityX.Tests
             {
                 foreach (Footbridge b in Footbridges.For(world, site))
                 {
-                    if (b.SiteA != site.Id) continue;
+                    if (b.SiteA != site.Id || b.Shape != BridgeShape.Straight || b.Path.HasStairs) continue;   // a straight deck: the walk goes door to door in a line (the other shapes: FootbridgePathWalkPlayTests)
                     BuildingSite other = world.Building(b.SiteB);
                     if (site.Contacts != null && site.Contacts.Length > 0 || other.Contacts != null && other.Contacts.Length > 0) continue;
                     bridge = b;

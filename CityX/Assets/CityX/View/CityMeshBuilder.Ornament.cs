@@ -75,6 +75,7 @@ namespace CityX.View
                 // broken round a footbridge's landing on any wall (Footbridges, owner 2026-10-16: the bridge's door was "blocked by the buildings
                 // decals/architecture"): the pier stops under the deck and starts again over the door.
                 List<BalconyDoor> doors = BalconyDoorsOf(site, WindowPlan.For(site), which);
+                List<FacadeClearing> clearings = BridgeClearings(site, which);
                 for (int c = o.PierEveryColumns; c < columns.Count; c += o.PierEveryColumns)
                 {
                     float u = u0 + c * columns.Size;
@@ -86,7 +87,7 @@ namespace CityX.View
                     float from = y0;
                     while (from < y1 - 0.01f)
                     {
-                        float to = NextBridgeLanding(doors, floorY, u - half, u + half, from, y1, out float resume);
+                        float to = NextBridgeLanding(clearings, floorY, u - half, u + half, from, y1, out float resume);
                         if (to > from + 0.01f)
                         {
                             AddOutset(buffer, wall, normal, u - half, u + half, from, to, FacadeOrnament.PierDepth, false);

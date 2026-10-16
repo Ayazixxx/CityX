@@ -34,11 +34,18 @@ namespace CityX.Tests
                 var structures = new MeshBuffer();
                 var origin = new Vector3(site.OwnerChunkX * CityLayout.ChunkSize, 0, site.OwnerChunkY * CityLayout.ChunkSize);
                 CityMeshBuilder.BuildSite(world, site, origin, structures, new MeshBuffer(), new MeshBuffer(), new MeshBuffer(), null, null, null, null, false);
+                Footbridge[] bridges = Footbridges.For(world, site);
                 foreach (BalconyDoor door in doors)
                 {
                     BalconyDoors.InWorld(site, door, out Vector3 corner, out Vector3 along, out Vector3 outward);
                     checkedDoors++;
                     withRelief += relief ? 1 : 0;
+                    // Along the deck back to the door (a bridge can leave its wall on the slant, 2026-10-16): from 1.5 m along it, it is 1.5 m to the wall.
+                    Footbridge bridge = bridges[door.Unit - Footbridges.DoorUnitBase];
+                    Vector3[] line = bridge.Path.Points;
+                    Vector3 deck = site.Id == bridge.SiteA ? line[1] - line[0] : line[line.Length - 2] - line[line.Length - 1];
+                    deck.y = 0.0f;
+                    deck.Normalize();
                     const float start = 1.5f;
                     for (int i = 1; i <= 5; i++)
                     {
@@ -46,8 +53,8 @@ namespace CityX.Tests
                         for (int j = 1; j <= 5; j++)
                         {
                             float y = 0.2f + (door.Height - 0.35f) * j / 5.0f;
-                            Vector3 from = corner + along * u + Vector3.up * y + outward * start;
-                            if (Hit(structures, origin, from, -outward, start - 0.04f, out float distance, out Vector3 a, out Vector3 b, out Vector3 c))
+                            Vector3 from = corner + along * u + Vector3.up * y + deck * start;
+                            if (Hit(structures, origin, from, -deck, start - 0.04f, out float distance, out Vector3 a, out Vector3 b, out Vector3 c))
                             {
                                 string Frame(Vector3 p)
                                 {

@@ -44,7 +44,8 @@ namespace CityX.Tests
                 Assert.Less(b.SiteA, b.SiteB, $"{what}: the lower-numbered building decides");
                 Assert.IsTrue(Footbridges.Eligible(a) && Footbridges.Eligible(c), $"{what}: an end on a building that cannot carry one");
                 Assert.That(b.Span, Is.InRange(Footbridges.MinSpan, Footbridges.MaxSpan), $"{what}: span {b.Span:F1} m");
-                Assert.That(Mathf.Abs(b.StartWorld.y - b.EndWorld.y), Is.LessThanOrEqualTo(Footbridges.MaxRise + 1e-3f), $"{what}: the ends' floors differ too much");
+                // The ends' floors no further apart than a deck takes (it slopes), or the bridge's flights (2026-10-16).
+                Assert.That(Mathf.Abs(b.StartWorld.y - b.EndWorld.y), Is.LessThanOrEqualTo((b.Path.HasStairs ? Footbridges.MaxStairRise : Footbridges.MaxRise) + 1e-3f), $"{what}: the ends' floors differ too much");
                 // Level with each building's floor.
                 float storeyA = BuildingInterior.StoreyHeight(a.Params.Height), storeyB = BuildingInterior.StoreyHeight(c.Params.Height);
                 Assert.AreEqual(a.BaseHeight + b.FloorA * storeyA, b.StartWorld.y, 1e-3f, $"{what}: not level with A's floor");
@@ -55,7 +56,8 @@ namespace CityX.Tests
                 Assert.Less(OffWall(a, b.WallA, (float)ax, (float)az), 0.02f, $"{what}: the start is not on A's wall");
                 Assert.Less(OffWall(c, b.WallB, (float)bx, (float)bz), 0.02f, $"{what}: the end is not on B's wall");
                 // Clear of the street under the middle.
-                Vector3 mid = (b.StartWorld + b.EndWorld) * 0.5f;
+                Vector2 midPlan = b.Path.PlanAt(b.Path.Length * 0.5f, out _);
+                var mid = new Vector3(midPlan.x, b.Path.HeightAt(b.Path.Length * 0.5f), midPlan.y);   // the path's own middle: a curve or a dog-leg is not straight
                 float ground = (float)World.Plan.GroundHeight(mid.x, mid.z);
                 Assert.That(mid.y - Footbridges.DeckThickness - ground, Is.GreaterThan(Footbridges.GroundClearance - 0.5f), $"{what}: too low over the ground");
                 // Both ends agree: B finds the same bridge.
@@ -120,7 +122,8 @@ namespace CityX.Tests
                 var origin = new Vector3(a.OwnerChunkX * CityLayout.ChunkSize, 0, a.OwnerChunkY * CityLayout.ChunkSize);
                 CityMeshBuilder.BuildSite(World, a, origin, structures, new MeshBuffer(), new MeshBuffer(), new MeshBuffer(), new MeshBuffer(), null, null,
                     new MeshBuffer(), false);
-                Vector3 mid = (b.StartWorld + b.EndWorld) * 0.5f - origin;
+                Vector2 midPlan = b.Path.PlanAt(b.Path.Length * 0.5f, out _);
+                Vector3 mid = new Vector3(midPlan.x, b.Path.HeightAt(b.Path.Length * 0.5f), midPlan.y) - origin;
                 Assert.IsTrue(Crosses(structures, mid + Vector3.up * 0.5f, mid - Vector3.up * 0.6f), $"{what}: no deck drawn at the bridge's middle");
                 if (++checkedBridges >= 10) break;
             }

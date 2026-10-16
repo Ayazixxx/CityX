@@ -954,11 +954,11 @@ namespace CityX.View
                 WindowGrid.Wall which = runsInZ
                     ? (rib.Normal.x > 0.0f ? WindowGrid.Wall.East : WindowGrid.Wall.West)
                     : (rib.Normal.z > 0.0f ? WindowGrid.Wall.North : WindowGrid.Wall.South);
-                List<BalconyDoor> doors = BalconyDoorsOf(site, plan, which);
+                List<FacadeClearing> clearings = BridgeClearings(site, which);
                 float from = y0;
                 while (from < y1 - 0.01f)
                 {
-                    float to = NextBridgeLanding(doors, floorY, rib.U0, rib.U1, from, y1, out float resume);
+                    float to = NextBridgeLanding(clearings, floorY, rib.U0, rib.U1, from, y1, out float resume);
                     if (to > from + 0.01f)
                     {
                         AddFin(facade, wall, u0, u1, from, to, rib.Normal, ribbed.Depth, runsInZ ? Vector3.forward : Vector3.right);
@@ -1665,7 +1665,7 @@ namespace CityX.View
                     }
                     // (The street storey is the building's first row, so its bottom is the building's floor.)
                     AddBladeSigns(wallBuffer, glazing, site, wall, u0, u0 + columns.Count * columns.Size, y0, doorU0, doorU1, normal, looks.Value, storefront,
-                        BalconyDoorsOf(site, plan, which), y0);
+                        BridgeClearings(site, which), y0);
                 }
             }
         }
@@ -1849,7 +1849,7 @@ namespace CityX.View
         /// The panels are in the lit glass, so they come on at dusk like the windows and are dark glass by day; the frame is metal.
         /// </summary>
         private static void AddBladeSigns(MeshBuffer wallBuffer, in Glazing glazing, BuildingSite site, in Wall wall, float u0, float u1,
-            float y0, float doorU0, float doorU1, Vector3 outward, SiteLooks looks, bool storefront, List<BalconyDoor> doors = null, float floorY = 0.0f)
+            float y0, float doorU0, float doorU1, Vector3 outward, SiteLooks looks, bool storefront, List<FacadeClearing> clearings = null, float floorY = 0.0f)
         {
             if (glazing.Lit == null)
             {
@@ -1882,7 +1882,7 @@ namespace CityX.View
                 {
                     u = Mathf.Lerp(u0 + 1.6f, u1 - 1.6f, (float)rng.NextDouble());
                     found = (u < doorU0 - 2.2f || u > doorU1 + 2.2f)
-                        && NextBridgeLanding(doors, floorY, u - 0.2f, u + 0.2f, bottom, bottom + height, out _) >= bottom + height - 0.01f;
+                        && NextBridgeLanding(clearings, floorY, u - 0.2f, u + 0.2f, bottom, bottom + height, out _) >= bottom + height - 0.01f;
                 }
                 if (!found)
                 {

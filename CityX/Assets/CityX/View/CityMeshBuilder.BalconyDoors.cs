@@ -94,27 +94,34 @@ namespace CityX.View
         }
 
         /// <summary>
+        /// The stretches of a wall kept clear for the footbridges known for the building (Footbridges.ClearingsOn): each bridge's landing, as wide as
+        /// its deck meets the wall (wider on the slant), from under the deck to over the door's head, and each street stair's run down the wall,
+        /// with <see cref="BridgeLandingMargin"/> round them. Null when there are none.
+        /// </summary>
+        private static List<FacadeClearing> BridgeClearings(BuildingSite site, WindowGrid.Wall which)
+        {
+            var clearings = new List<FacadeClearing>();
+            Footbridges.ClearingsOn(site, which, clearings, BridgeLandingMargin);
+            return clearings.Count > 0 ? clearings : null;
+        }
+
+        /// <summary>
         /// For something standing on the wall across <paramref name="u0"/>..<paramref name="u1"/> from <paramref name="from"/> up to <paramref name="top"/>
-        /// (absolute heights; the building's floor at <paramref name="floorY"/>): where it must stop for the lowest footbridge landing it would cross
+        /// (absolute heights; the building's floor at <paramref name="floorY"/>): where it must stop for the lowest footbridge clearing it would cross
         /// above <paramref name="from"/> (<paramref name="top"/> when none), and in <paramref name="resume"/> where it may start again over it.
         /// </summary>
-        private static float NextBridgeLanding(List<BalconyDoor> doors, float floorY, float u0, float u1, float from, float top, out float resume)
+        private static float NextBridgeLanding(List<FacadeClearing> clearings, float floorY, float u0, float u1, float from, float top, out float resume)
         {
             float stop = top;
             resume = top;
-            if (doors == null)
+            if (clearings == null)
             {
                 return stop;
             }
-            for (int i = 0; i < doors.Count; i++)
+            for (int i = 0; i < clearings.Count; i++)
             {
-                if (doors[i].Unit < Footbridges.DoorUnitBase)
-                {
-                    continue;
-                }
-                BridgeLanding(doors[i], out float lu0, out float lu1, out float ly0, out float ly1);
-                ly0 += floorY;
-                ly1 += floorY;
+                float lu0 = clearings[i].U0, lu1 = clearings[i].U1;
+                float ly0 = clearings[i].Y0 + floorY, ly1 = clearings[i].Y1 + floorY;
                 if (lu0 >= u1 || lu1 <= u0 || ly1 <= from)
                 {
                     continue;

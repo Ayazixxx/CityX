@@ -120,3 +120,41 @@ stood across another, were removed altogether on 2026-10-16).
 Tests: `FootbridgeDoorwayTests` (197 bridge doors near the spawn looked at from their decks, 115 on facades with piers or fins: rays across each
 doorway from 1.5 m out reach the wall), `FootbridgeDoorPlayTests` (E opens and shuts a bridge door on a front or side wall; walking down the
 deck opens it and the body walks into the building), `FootbridgeCapture` (`bridge-door-shut` and `bridge-door-open`, from the deck).
+
+**Footbridges, second pass (2026-10-16): shapes, flights, rails, higher, and stairs down to the street.** Owner, with four reference images (dark
+concrete towers, catwalks with post-and-rail railings crossing on the slant, zig-zag stairs climbing between buildings, a curved catwalk): *"ive
+noticed the sky bridges are often times very low, make these have a lower chance of appearing closer to the surface and a higher chance of
+appear on taller buildings. I also want to make the sky bridges more intricate ... more variety in angles/curves/turns, make them have different
+types of guard rails ... make more staircases throughout the city overall, and have some of them connect to the sky bridges."*
+
+- **Higher.** A pair's chance is the district's share times `TallFactor` of the shorter block's floors (three floors a sixth of it, ten the
+  whole, sixteen and up 1.3 times); a bridge's floor is drawn weighted by its deck's clearance over the street (`HeightWeight`: 8 m clear a
+  fifth as likely as 30 m and up). Pairs of eight floors or more get a second bridge half the time, of sixteen a third a third of the time,
+  each three or more floors above the last. Near the spawn: mean clearance 30.5 m, 8 % of bridges under 12 m.
+- **Shapes** (`BridgeShape`, by district): STRAIGHT across; ANGLED to a doorway along the other wall, 10-40 degrees off square, the deck's ends
+  cut along the walls; DOG-LEG out square onto a landing by each wall and across between them on the slant (20-70 degrees), mitred at the
+  turns, a PIER under each landing where the ground there is not a road; S-CURVE square out of one doorway and square into the other (a cubic
+  sampled every 1.6 m). A straight or curved span over 24 m gets a pier in its middle the same way. Any shape that will not fit falls back to
+  straight. The path (`BridgePath`: points along the walking surface, per stretch deck or a flight) is what is drawn, walked and tested.
+- **Flights.** Two floors more than 1.6 m apart (up to 9 m, about two storeys) are joined by steps in the bridge's straight part (the dog-leg's
+  middle): risers at most 0.22 m, treads 0.36 m, a landing every 18 steps (4 m; the building code's 12 ft between landings is 4.75 m at the
+  game's 1.3x), level deck either side. 36 of the 108 bridges near the spawn have them.
+- **Rails** (`BridgeRail`, by district): a concrete PARAPET with a handrail; a catwalk's RAILS (posts every 1.6 m, top and middle rail, toe
+  board); PICKETS (balusters every 0.14 m between a top and a bottom rail); MESH panels between posts; industrial PIPE rails (three pipes,
+  posts every 2 m). Far off the open kinds are a plain panel. **Decks** (`BridgeDeck`): a concrete slab, or a STEEL catwalk plate on two beams
+  (often downtown with open rails, most of the time in the industrial districts).
+- **Street stairs** (`StreetStair`): the pair's lowest bridge, where it leaves its wall square, often gets a stair from the deck's side down
+  along that wall to the paving: a STRAIGHT RUN of flights hugging the wall where the deck is 16 m or less over the paving and the wall has
+  room; else a ZIG-ZAG TOWER against the wall (flights doubling back on two lanes, a landing across both at each end, rails between the lanes,
+  along the outside and round the landings' ends, posts to the ground), up to 45 m. Never over a road or into another building, never into the
+  ground on the way down, clear of a wall's corners; on a front only where the street storey is plain (no shop front, no entrance stairs) and a
+  good stride clear of the door. The bridge's rail on that side is open where the stair leaves it. 8 near the spawn, 7 of them towers.
+- **The facade keeps clear** of each bridge's landing on its wall (as wide as the deck meets the wall: wider on the slant) and of each street
+  stair's run (`Footbridges.ClearingsOn`; the piers, fins and blade signs stop and start again round them).
+- Tests: `FootbridgeShapeTests` (every shape, rail and deck built near the spawn; every path walkable in plan: ends on the walls, decks no
+  steeper than 1 in 10, steps no higher than a riser and a tread deep, turns only at landings, clear of every other building and of the
+  street, piers off the roads; the bridges high; the street stairs along their walls onto the paving, off the roads, the facade clear of
+  them), `FootbridgePathWalkPlayTests` (a body walks a dog-leg, a curve, a slanted bridge and a bridge's flight door to door, and climbs a
+  straight street stair and a 19.6 m tower from the paving onto the deck), `FootbridgeTests` and `FootbridgeDoorwayTests` updated (stairs may
+  join floors further apart; the doorway is looked at along the deck), `FootbridgeVarietyCapture` (bridges-*.png: each shape, each rail, the
+  flights, a street stair and a tower).
