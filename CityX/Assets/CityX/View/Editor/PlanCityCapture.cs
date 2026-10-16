@@ -24,7 +24,7 @@ namespace CityX.ViewEditor
         private const int Height = 720;
 
         // Must match CityMassingSceneBuilder.WorldSeed.
-        private const int WorldSeed = 63428175;
+        private const int WorldSeed = 45678679;
 
         // The time of day the rig is lit for, and what the shots are called: the same cameras at night give the lit windows, the signs
         // and the streets under lamplight their own picture.

@@ -68,13 +68,21 @@ namespace CityX.View
             // skirt down each road's edge to the ground beside it (RoadSkirt).
             List<Vec2[]> terrainCuts = RoadCuts(ctx, chunkX, chunkY);
             terrainCuts.AddRange(basements);
+            // The stairways through the steep blocks (CitySurfaceBuilder.StairLanes.cs) are cut out of the ground and the paving, their treads
+            // sinking into the slope where it steepens; the stepped sidewalks (CitySurfaceBuilder.SidewalkSteps.cs) out of the paving.
+            var stairCuts = new List<Vec2[]>();
+            List<StairLane> stairLanes = StairLanesHere(ctx, chunkX, chunkY, stairCuts);
+            terrainCuts.AddRange(stairCuts);
+            // From afar a stepped sidewalk is its sloping paving: hundreds of small treads nobody sees at that distance are left off.
+            List<(int block, int edge)> steppedSidewalks = far ? new List<(int block, int edge)>() : SteppedSidewalksHere(ctx, plan.BlocksIn(chunkX, chunkY), stairCuts);
             BuildTerrain(ctx, pavement, step, plan.BlocksIn(chunkX, chunkY), terrainCuts);
             List<Vec2[]> cuts = KerbCuts(ctx, chunkX, chunkY);
             List<Vec2[]> pavingCuts = cuts;
-            if (basements.Count > 0)
+            if (basements.Count > 0 || stairCuts.Count > 0)
             {
                 pavingCuts = new List<Vec2[]>(cuts);
                 pavingCuts.AddRange(basements);
+                pavingCuts.AddRange(stairCuts);
             }
 
             foreach (int blockIndex in plan.BlocksIn(chunkX, chunkY))
@@ -92,11 +100,19 @@ namespace CityX.View
                 }
             }
             BuildDriveways(ctx, drives, pavement);   // CitySurfaceBuilder.Garages.cs: the drives into the garages, over their cuts
+            BuildStairLanes(ctx, stairLanes, pavement, far);
+            BuildSteppedSidewalks(ctx, steppedSidewalks, pavement);
 
             foreach (int edgeId in plan.EdgesIn(chunkX, chunkY))
             {
                 EdgeGeometry g = plan.Geometry.Edges[edgeId];
                 if (g == null) continue;
+                if (StepStreets.Is(plan, g.Edge))
+                {
+                    // Too steep to drive: steps from plate to plate, bollards across its ends (CitySurfaceBuilder.StepStreets.cs). No paint.
+                    BuildStepStreet(ctx, g, pavement, structures, far);
+                    continue;
+                }
                 BuildRoad(ctx, g, ground, step);
                 if (g.Edge.Bridge)
                 {
@@ -910,7 +926,7 @@ namespace CityX.View
                 Vec2 kerb = i0 + (i1 - i0) * s;
                 Vec2 outer = o0 + (o1 - o0) * s;
                 Vec2 at = kerb + (outer - kerb) * 0.30;
-                if (at.X < ctx.Rect.X0 || at.X >= ctx.Rect.X1 || at.Y < ctx.Rect.Z0 || at.Y >= ctx.Rect.Z1 || InCut(at, cuts))
+                if (at.X < ctx.Rect.X0 || at.X >= ctx.Rect.X1 || at.Y < ctx.Rect.Z0 || at.Y >= ctx.Rect.Z1 || InCut(at, cuts) || BeforeStairway(ctx, block, at))
                 {
                     continue;
                 }

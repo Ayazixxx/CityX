@@ -13,7 +13,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class ApartmentFrontTests
     {
-        private const int Seed = 63428175;
+        private const int Seed = 45678679;
 
         /// <summary>The player's height (BodyRig.StandingHeight): what must walk out of the door and along the back under the first slab.</summary>
         private const float BodyHeight = 2.6f;

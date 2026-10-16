@@ -26,7 +26,7 @@ look but still remember how the city as we have it now is configured."
 ## What scales
 FOOTPRINT multiplies every length in the plan (`PlanConfig.For`): road growth, snap distances, bridge spans, hills, rivers, population, the downtown radius, the
 region (10 km half width at huge, 20 km across), block and lot sizes, setbacks, massing. The result is the classic plan drawn bigger (same topology; the huge
-city has 17,218 buildings, the classic 13,640). Roads widen only by its square root (a street twice as wide at x4), hills by the same.
+city has 17,218 buildings, the classic 13,640). Roads widen only by its square root (a street twice as wide at x4), hills by the same; San Francisco's hills over them (2026-10-16, `PlanConfig.HillockAmplitude`, SUBVERSION_CITY.md) by the road scale too, and their spacing with it, so the varied city has 90 m hills 900 m apart however wide its districts are.
 HEIGHT multiplies building heights and the thresholds that make a tower or a supertall (judged relative to the classic metres), and the podium's storeys.
 Windows are wider by the square root of the footprint (3.2 m instead of 1.6 at huge), floors are still 3.2 m a row and a storey is still two rows.
 

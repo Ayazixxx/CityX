@@ -14,7 +14,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class PlanChunkMeshTests
     {
-        private const int Seed = 63428175;
+        private const int Seed = 45678679;
 
         private static CityWorld _world;
         private static CityWorld World => _world ?? (_world = new CityWorld(Seed));
@@ -110,6 +110,11 @@ namespace CityX.Tests
                 List<(float, float, float, float)> segmentsA = BoundarySegments(a, dx, true), segmentsB = BoundarySegments(b, dx, false);
                 onlyA.RemoveAll(p => OnASegment(p, segmentsB));
                 onlyB.RemoveAll(p => OnASegment(p, segmentsA));
+                // Nor a point within a centimetre (along and in height) of one on the other side: a cut's corner exactly on the border (seed 45678679:
+                // a stairway's corner at x = 24.00) is clipped on each side by a different path, and the two answers can round to centimetres a
+                // centimetre apart.
+                onlyA.RemoveAll(p => Near(p, edgeB));
+                onlyB.RemoveAll(p => Near(p, edgeA));
                 Assert.IsTrue(onlyA.Count == 0 && onlyB.Count == 0,
                     $"chunks ({cx},{cy}) and ({cx + dx},{cy + dy}) do not meet exactly on their shared edge: " +
                     $"{edgeA.Count} points vs {edgeB.Count}; only in the first (along cm, height cm): {string.Join(" ", onlyA)} {Describe(a, onlyA, dx)}; " +
@@ -276,6 +281,18 @@ namespace CityX.Tests
         }
 
         /// <summary>Whether a border point (along cm, height cm) lies on one of the other side's border edges, within a centimetre.</summary>
+        private static bool Near((int, int) point, HashSet<(int, int)> others)
+        {
+            for (int da = -1; da <= 1; da++)
+            {
+                for (int dh = -1; dh <= 1; dh++)
+                {
+                    if (others.Contains((point.Item1 + da, point.Item2 + dh))) return true;
+                }
+            }
+            return false;
+        }
+
         private static bool OnASegment((int, int) point, List<(float, float, float, float)> segments)
         {
             float along = point.Item1 / 100.0f, height = point.Item2 / 100.0f;

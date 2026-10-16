@@ -475,7 +475,7 @@ namespace CityX.World.Plan
         /// Clips a polygon to the points at least <paramref name="distance"/> from the line through <paramref name="a"/> on the side of the unit
         /// normal <paramref name="n"/> (Sutherland-Hodgman, one plane), carrying each edge's flag; the edge the cut makes is flagged false.
         /// </summary>
-        private static void KeepBeyond(List<Vec2> poly, List<bool> flags, Vec2 a, Vec2 n, double distance)
+        internal static void KeepBeyond(List<Vec2> poly, List<bool> flags, Vec2 a, Vec2 n, double distance)
         {
             int count = poly.Count;
             var outPoly = new List<Vec2>(count + 2);

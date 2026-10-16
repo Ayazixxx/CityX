@@ -12,7 +12,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class ExteriorDetailTests
     {
-        private const int Seed = 63428175;
+        private const int Seed = 45678679;
 
         private static CityWorld _world;
         private static CityWorld World => _world ?? (_world = new CityWorld(Seed));
@@ -72,8 +72,8 @@ namespace CityX.Tests
         public void EveryRoofEndsInAParapet()
         {
             int checkedRoofs = 0;
-            // (A pitched roof has eaves, not a parapet: RoofShapeTests.)
-            foreach (BuildingSite site in Sample(40, s => s.Params.Height > 15.0f && !RoofShape.For(s).Pitched))
+            // (A pitched roof has eaves, not a parapet, and so has a flat roof with eaves, its slab 0.1 m proud of the walls: RoofShapeTests.)
+            foreach (BuildingSite site in Sample(40, s => s.Params.Height > 15.0f && !RoofShape.For(s).Pitched && RoofShape.For(s).Kind != RoofKind.FlatEaves))
             {
                 var structures = new MeshBuffer();
                 Build(site, false, structures, new MeshBuffer(), new MeshBuffer(), new MeshBuffer(), out _);
@@ -101,9 +101,39 @@ namespace CityX.Tests
                 Build(site, false, structures, new MeshBuffer(), new MeshBuffer(), new MeshBuffer(), out Vector3 origin);
                 float low = site.BaseHeight + 0.7f;
                 float high = site.BaseHeight + 2.6f;
+                // A footbridge's stair down to the street runs along the wall and a pier stands under a landing (Footbridges): walked on and round,
+                // not hung in the way (seed 45678679's building 490 has a street stair 2 m out from its wall).
+                var bridgeParts = new List<(Vector2 a, Vector2 b, float reach)>();
+                foreach (Footbridge bridge in Footbridges.For(World, site))
+                {
+                    if (bridge.Stair != null)
+                    {
+                        Vector3[] points = bridge.Stair.Points;
+                        for (int k = 1; k < points.Length; k++)
+                        {
+                            bridgeParts.Add((new Vector2(points[k - 1].x, points[k - 1].z), new Vector2(points[k].x, points[k].z), bridge.Stair.Width + 0.4f));
+                        }
+                    }
+                    foreach (Vector3 pier in bridge.Path.Piers)
+                    {
+                        bridgeParts.Add((new Vector2(pier.x, pier.z), new Vector2(pier.x, pier.z), 1.5f));
+                    }
+                }
                 foreach (Vector3 v in structures.Vertices)
                 {
                     if (v.y < low || v.y > high)
+                    {
+                        continue;
+                    }
+                    var flat = new Vector2(origin.x + v.x, origin.z + v.z);
+                    bool onBridge = false;
+                    foreach ((Vector2 a, Vector2 b, float reach) in bridgeParts)
+                    {
+                        Vector2 ab = b - a;
+                        float t = ab.sqrMagnitude < 1e-6f ? 0.0f : Mathf.Clamp01(Vector2.Dot(flat - a, ab) / ab.sqrMagnitude);
+                        if ((a + ab * t - flat).magnitude <= reach) onBridge = true;
+                    }
+                    if (onBridge)
                     {
                         continue;
                     }
@@ -150,8 +180,13 @@ namespace CityX.Tests
                 {
                     var lit = new MeshBuffer();
                     Build(site, far, new MeshBuffer(), new MeshBuffer(), lit, new MeshBuffer(), out _);
+                    // A floodlit billboard on the roof (World/RoofBillboards, 2026-10-15) lights its own face and lamps at night: over the roof, not a
+                    // window (seed 45678679's building 483).
+                    bool board = RoofBillboards.For(site).Exists;
+                    float roof = site.BaseHeight + site.Params.Height;
                     foreach (Vector3 v in lit.Vertices)
                     {
+                        if (board && v.y >= roof - 0.05f) continue;
                         Assert.Less(v.y, site.BaseHeight + 12.0f,
                             $"building {site.Id} ({(far ? "far" : "near")}): something lit {v.y - site.BaseHeight:0.0} m up that no switch turned on");
                     }

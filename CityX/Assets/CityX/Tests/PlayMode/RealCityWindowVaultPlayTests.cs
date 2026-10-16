@@ -20,7 +20,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class RealCityWindowVaultPlayTests
     {
-        private const int Seed = 63428175;
+        private const int Seed = 45678679;
         private readonly List<GameObject> _made = new List<GameObject>();
 
         [TearDown]
@@ -237,12 +237,21 @@ namespace CityX.Tests
             foreach (BuildingSite site in TestSites.NearSpawn(world))
             {
                 if (site.Params.Width < 10.0f || site.Params.Height < 8.0f || site.OnRoof || site.Params.IsSpecial || site.Sides >= 3) continue;
-                if (buildingsTried++ > 60) break;
+                if (buildingsTried++ > 400) break;
                 // Not the door wall: its ground row is the entrance's own (AddDoorRow), not plain panes.
                 foreach (WindowGrid.Wall wall in new[] { WindowGrid.Wall.East, WindowGrid.Wall.West, WindowGrid.Wall.South })
                 {
                     var panes = new List<Candidate>(PanesOf(world, site, wall));
                     if (panes.Count == 0) continue;
+                    // From the plan first (the paving at the pane): only a wall with a pane near the ground is streamed and measured. On the hills
+                    // (seed 45678679) most ground floors stand well over the street on one side, and the nearest 60 buildings had none.
+                    bool nearGround = false;
+                    foreach (Candidate c in panes)
+                    {
+                        double paving = world.Plan.GroundHeight(c.Outside.x, c.Outside.z) + CityX.World.Plan.PlanBuildings.PavingRise;
+                        if (c.SillAboveGround + c.Site.BaseHeight - paving < 0.6) nearGround = true;
+                    }
+                    if (!nearGround) continue;
                     yield return Stream(panes[0].Outside);
                     foreach (Candidate c in panes)
                     {

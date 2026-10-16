@@ -482,12 +482,15 @@ namespace CityX.World
         }
 
         /// <summary>
-        /// How the share scales with the shorter block's floors: three floors a sixth of it, ten floors the whole, sixteen and more 1.3 times
-        /// (owner: "a higher chance of appear on taller buildings").
+        /// How the share scales with the shorter block's floors (owner: "a higher chance of appear on taller buildings"): rising as the floors over
+        /// two to the power 1.5 -- three or four floors a twelfth of it, six a third, eight two thirds, ten the whole, twelve and more 1.4 times. (It
+        /// rose in a straight line until 2026-10-16, and on seed 45678679 fewer than half the bridges near the spawn joined blocks of eight floors.)
+        /// A square root, not Math.Pow, so every machine agrees.
         /// </summary>
         public static double TallFactor(int floors)
         {
-            return Mathf.Clamp((floors - 2) / 8.0f, 0.16f, 1.3f);
+            double f = System.Math.Max(0.0, (floors - 2) / 8.0);
+            return System.Math.Min(1.4, System.Math.Max(0.08, f * System.Math.Sqrt(f)));
         }
 
         /// <summary>

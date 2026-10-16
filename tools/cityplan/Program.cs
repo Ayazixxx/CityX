@@ -5,7 +5,7 @@
         // dotnet run -c Release --project tools/cityplan -- [seed] [halfMetres] [pixels] [out.png] [centreX centreZ viewHalf]
         if (args.Length > 0 && args[0] == "site")
         {
-            var w = CityX.World.Plan.PlanWorld.For(args.Length > 2 ? int.Parse(args[2]) : 63428175);
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 2 ? int.Parse(args[2]) : 45678679);
             var s = w.Buildings[int.Parse(args[1])];
             System.Console.WriteLine($"#{s.Id} {s.Params.Width:F1}x{s.Params.Depth:F1}x{s.Params.Height:F1} mass={s.Params.Mass} sides={s.Sides} shell={s.Shell} wing={s.Wing} roof={s.OnRoof} sealed={s.RoofSealed} contacts={(s.Contacts?.Length ?? 0)} obstacle={s.HasRoofObstacle} basement={s.Params.HasBasement}");
             System.Console.WriteLine($"  centre ({s.CentreX:F1},{s.CentreZ:F1}) axis ({s.AxisX:F3},{s.AxisZ:F3}) base {s.BaseHeight:F2}");
@@ -22,7 +22,7 @@
         // nearest that point (how far out of its carriageway).
         if (args.Length > 0 && args[0] == "garages")
         {
-            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 63428175);
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 45678679);
             int count = 0, raised = 0, noRoad = 0;
             foreach (var s in w.Buildings)
             {
@@ -76,10 +76,390 @@
             System.Console.WriteLine($"{count} garages; {raised} with the deck over 0.3 m above the ground in front; {noRoad} with no road within 8 m of the front");
             return 0;
         }
+        // openwalk [seed] [block]: an open block's layout and why OpenSpace.Walkable fails it: each kerb edge's door point, whether it is free,
+        // and the pieces that block it or the edges it is too near.
+        // near [seed] [x] [z]: what of the stairs, steps and step streets lies within 6 m of a point, and which blocks are listed for its chunk.
+        if (args.Length > 0 && args[0] == "near")
+        {
+            var w = CityX.World.Plan.PlanWorld.For(int.Parse(args[1]));
+            var p = new CityX.World.Plan.Vec2(double.Parse(args[2], System.Globalization.CultureInfo.InvariantCulture), double.Parse(args[3], System.Globalization.CultureInfo.InvariantCulture));
+            int pcx = CityX.World.Plan.PlanWorld.ChunkOf(p.X), pcy = CityX.World.Plan.PlanWorld.ChunkOf(p.Y);
+            System.Console.WriteLine($"point {p} in chunk ({pcx},{pcy}); ground {w.GroundHeight(p.X, p.Y):F2}");
+            for (int cy = pcy - 1; cy <= pcy + 1; cy++)
+                for (int cx = pcx - 1; cx <= pcx + 1; cx++)
+                    System.Console.WriteLine($"  chunk ({cx},{cy}) blocks: {string.Join(",", w.BlocksIn(cx, cy))}");
+            for (int b = 0; b < w.Data.Blocks.Count; b++)
+            {
+                var block = w.Data.Blocks[b];
+                if (block.Inner == null || block.Outer == null) continue;
+                for (int e = 0; e < block.Inner.Count; e++)
+                {
+                    if (!CityX.World.SteppedSidewalks.Is(w, b, e)) continue;
+                    var strip = CityX.World.SteppedSidewalks.Strip(block, e);
+                    double d = double.MaxValue;
+                    for (int i = 0; i < strip.Length; i++) d = System.Math.Min(d, CityX.World.Plan.PlanMath.DistanceToSegment(p, strip[i], strip[(i + 1) % strip.Length], out _));
+                    if (CityX.World.Plan.PlanMath.PointInPolygon(p, strip)) d = 0.0;
+                    if (d < 6.0) System.Console.WriteLine($"  stepped sidewalk block {b} edge {e} at {d:F2} m: {string.Join(" ", strip)}");
+                }
+                if (block.StairLane >= 0)
+                {
+                    var corridor = CityX.World.Plan.StairLanes.Corridor(w.Data.StairLanes[block.StairLane]);
+                    double d = double.MaxValue;
+                    for (int i = 0; i < corridor.Length; i++) d = System.Math.Min(d, CityX.World.Plan.PlanMath.DistanceToSegment(p, corridor[i], corridor[(i + 1) % corridor.Length], out _));
+                    if (d < 6.0) System.Console.WriteLine($"  stairway {block.StairLane} (block {b}) at {d:F2} m: {string.Join(" ", corridor)}");
+                }
+            }
+            foreach (var g in w.Geometry.Edges)
+            {
+                if (g == null) continue;
+                double d = CityX.World.Plan.PlanMath.DistanceToSegment(p, g.A, g.B, out _) - g.HalfWidth;
+                if (d < 6.0) System.Console.WriteLine($"  road {g.Edge.Id} {g.Edge.Class} at {d:F2} m from its edge; step street {CityX.World.StepStreets.Is(w, g.Edge)}; pedestrian {CityX.World.PedestrianStreets.Is(w, g.Edge)}");
+            }
+            return 0;
+        }
+        // stairdepth [seed]: how far the stairways' and step streets' treads sink under (or stand over) the surface they follow, the worst of each.
+        if (args.Length > 0 && args[0] == "stairdepth")
+        {
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 45678679);
+            double laneSink = 0.0, laneSide = 0.0;
+            int laneDeep = 0, laneSideDeep = 0;
+            foreach (CityX.World.Plan.StairLane lane in w.Data.StairLanes)
+            {
+                var treads = CityX.World.Plan.StairLanes.Profile(lane, w.Fields);
+                double worst = 0.0, side = 0.0;
+                foreach (var t in treads)
+                {
+                    double s = (t.S0 + t.S1) * 0.5;
+                    var p = lane.A + lane.Dir * s;
+                    worst = System.Math.Max(worst, w.GroundHeight(p.X, p.Y) + 0.23 - t.Top);
+                    foreach (double across in new[] { -lane.Width * 0.5, lane.Width * 0.5 })
+                    {
+                        var q = p + lane.Dir.Perp * across;
+                        side = System.Math.Max(side, w.GroundHeight(q.X, q.Y) + 0.23 - t.Top);
+                    }
+                }
+                laneSink = System.Math.Max(laneSink, worst);
+                laneSide = System.Math.Max(laneSide, side);
+                if (worst > 0.6) laneDeep++;
+                if (side > 0.6) laneSideDeep++;
+            }
+            System.Console.WriteLine($"stairways {w.Data.StairLanes.Count}: the middle sinks up to {laneSink:F2} m ({laneDeep} over 0.6 m); a side's paving stands up to {laneSide:F2} m over the treads ({laneSideDeep} over 0.6 m)");
+            double streetSink = 0.0, streetOver = 0.0;
+            int streetDeep = 0, streets = 0;
+            foreach (var g in w.Geometry.Edges)
+            {
+                if (g == null || !CityX.World.StepStreets.Is(w, g.Edge)) continue;
+                streets++;
+                var treads = CityX.World.StepStreets.Profile(w, g, out bool fromB);
+                double t0 = g.TrimA, t1 = g.Length - g.TrimB;
+                var dir = fromB ? -g.Dir : g.Dir;
+                var low = g.A + g.Dir * (fromB ? t1 : t0);
+                double worst = 0.0;
+                foreach (var t in treads)
+                {
+                    var p = low + dir * ((t.S0 + t.S1) * 0.5);
+                    double road = w.GroundHeight(p.X, p.Y) + 0.07;
+                    worst = System.Math.Max(worst, road - t.Top);
+                    streetOver = System.Math.Max(streetOver, t.Top - road);
+                }
+                streetSink = System.Math.Max(streetSink, worst);
+                if (worst > 0.6) streetDeep++;
+            }
+            System.Console.WriteLine($"step streets {streets}: the treads sink up to {streetSink:F2} m under the road ({streetDeep} over 0.6 m), stand up to {streetOver:F2} m over it");
+            return 0;
+        }
+        // stepstreet [seed] [edge]: a step street's carriageway between its trims, the road's height along it, and its treads.
+        if (args.Length > 0 && args[0] == "stepstreet")
+        {
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 45678679);
+            var g = w.Geometry.Edges[int.Parse(args[2])];
+            double t0 = g.TrimA, t1 = g.Length - g.TrimB;
+            System.Console.WriteLine($"edge {g.Edge.Id} {g.Edge.Class}: {g.Length:F1} m, trims {g.TrimA:F1}/{g.TrimB:F1}, carriageway {t1 - t0:F1} m; step street {CityX.World.StepStreets.Is(w, g.Edge)}");
+            for (double t = t0; t <= t1 + 1e-6; t += (t1 - t0) / 10.0)
+            {
+                var p = g.A + g.Dir * t;
+                System.Console.WriteLine($"  {t - t0,5:F1} m: road {w.GroundHeight(p.X, p.Y) + 0.07:F2}");
+            }
+            var treads = CityX.World.StepStreets.Profile(w, g, out bool fromB);
+            System.Console.WriteLine($"  from {(fromB ? "B" : "A")}: {treads.Count} treads");
+            foreach (var t in treads) System.Console.Write($" [{t.S0:F2}-{t.S1:F2} {t.Top:F2}]");
+            System.Console.WriteLine();
+            return 0;
+        }
+        if (args.Length > 0 && args[0] == "openwalkall")
+        {
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 45678679);
+            int all = 0, shut = 0;
+            foreach (int index in w.Data.PlazaBlocks)
+            {
+                var block = w.Data.Blocks[index];
+                if (block.Inner == null) continue;
+                all++;
+                if (!CityX.World.OpenSpace.Walkable(CityX.World.OpenSpace.LayoutFor(w, index), block.Inner, 0.45, out double share))
+                {
+                    shut++;
+                    System.Console.WriteLine($"  block {index} shut: {share:P1} reached");
+                }
+            }
+            System.Console.WriteLine($"{shut} of {all} open blocks cannot be crossed");
+            return 0;
+        }
+        if (args.Length > 0 && args[0] == "openwalk")
+        {
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 45678679);
+            int index = int.Parse(args[2]);
+            var block = w.Data.Blocks[index];
+            var layout = CityX.World.OpenSpace.LayoutFor(w, index);
+            bool ok = CityX.World.OpenSpace.Walkable(layout, block.Inner, 0.45, out double share);
+            System.Console.WriteLine($"block {index}: {layout.Role}, {layout.Pieces.Count} pieces, front edge {layout.Front}; walkable {ok}, {share:P1} reached");
+            var ring = block.Inner;
+            int n = ring.Count;
+            for (int e = 0; e < n; e++)
+            {
+                var a = ring[e];
+                var c = ring[(e + 1) % n];
+                double len = (c - a).Length;
+                var door = (a + c) * 0.5 + (c - a).Normalized.Perp * (0.45 + 0.6);
+                bool inside = CityX.World.OpenSpace.Inside(ring, door, 0.45);
+                var blockers = new System.Collections.Generic.List<string>();
+                foreach (var p in layout.Pieces) if (p.Blocks && p.Distance(door) < 0.45) blockers.Add($"{p.Kind} at {p.At}");
+                System.Console.WriteLine($"  edge {e}: {len:F1} m from {a} to {c}; door {door} inside-with-margin {inside}; blocked by {string.Join(", ", blockers)}");
+            }
+            foreach (var p in layout.Pieces) System.Console.WriteLine($"  piece {p.Kind} at {p.At} half {p.HalfX:F2}x{p.HalfZ:F2} blocks {p.Blocks}");
+            return 0;
+        }
+        // hillseeds [first] [count]: seeds whose ground round the origin (where the spawn's downtown is) is most on the hills, quickly from the
+        // fields alone, the best ten listed: for choosing a new world seed where the hills and their stairs are seen from the spawn.
+        if (args.Length > 0 && args[0] == "hillseeds")
+        {
+            int first = args.Length > 1 ? int.Parse(args[1]) : 10000000;
+            int count = args.Length > 2 ? int.Parse(args[2]) : 2000;
+            var cfg = CityX.World.Plan.PlanConfig.For(CityX.World.Plan.CityScale.Active);
+            var ranked = new System.Collections.Generic.List<(double share, double near, int seed)>();
+            var rng = new System.Random(first);
+            for (int k = 0; k < count; k++)
+            {
+                int seed = rng.Next(10000000, 99999999);
+                var fields = new CityX.World.Plan.PlanFields(seed, cfg);
+                int land = 0, hilly = 0, nearLand = 0, nearHilly = 0;
+                for (double gx = -1200.0; gx <= 1200.0; gx += 100.0)
+                {
+                    for (double gz = -1200.0; gz <= 1200.0; gz += 100.0)
+                    {
+                        if (fields.IsWater(gx, gz)) continue;
+                        bool on = fields.Hillock(gx, gz) > 2.0;
+                        land++;
+                        if (on) hilly++;
+                        if (gx * gx + gz * gz < 500.0 * 500.0)
+                        {
+                            nearLand++;
+                            if (on) nearHilly++;
+                        }
+                    }
+                }
+                ranked.Add(((double)hilly / System.Math.Max(1, land), (double)nearHilly / System.Math.Max(1, nearLand), seed));
+            }
+            ranked.Sort((p, q) => (q.share + q.near).CompareTo(p.share + p.near));
+            for (int k = 0; k < 10 && k < ranked.Count; k++)
+            {
+                System.Console.WriteLine($"  seed {ranked[k].seed}: {ranked[k].share:P0} of the land within 1.2 km of the origin on a hill, {ranked[k].near:P0} within 500 m");
+            }
+            return 0;
+        }
+        // hills [seed] [amplitude] [wavelength]: how steep the city is with these hills (the scale's own when left out): the streets' grades along
+        // their length, the sidewalks' along the kerb, and how far each building's floor stands over the lowest ground round it (the bare wall it
+        // shows downhill).
+        if (args.Length > 0 && args[0] == "hills")
+        {
+            int seed = args.Length > 1 ? int.Parse(args[1]) : 45678679;
+            var cfg = CityX.World.Plan.PlanConfig.For(CityX.World.Plan.CityScale.Active);
+            if (args.Length > 2) cfg.HillAmplitude = double.Parse(args[2], System.Globalization.CultureInfo.InvariantCulture);
+            if (args.Length > 3) cfg.HillWavelength = double.Parse(args[3], System.Globalization.CultureInfo.InvariantCulture);
+            if (args.Length > 4) cfg.HillockAmplitude = double.Parse(args[4], System.Globalization.CultureInfo.InvariantCulture);
+            if (args.Length > 5) cfg.HillockWavelength = double.Parse(args[5], System.Globalization.CultureInfo.InvariantCulture);
+            if (args.Length > 6) cfg.HillDistrictWavelength = double.Parse(args[6], System.Globalization.CultureInfo.InvariantCulture);
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            var w = CityX.World.Plan.PlanWorld.Create(seed, cfg);
+            System.Console.WriteLine($"{CityX.World.Plan.CityScale.Active.Name}: amplitude {cfg.HillAmplitude:F1} m, wavelength {cfg.HillWavelength:F0} m, hills {cfg.HillockAmplitude:F0} m every {cfg.HillockWavelength:F0} m in districts {cfg.HillDistrictWavelength:F0} m; planned in {clock.ElapsedMilliseconds} ms, {w.Data.Lots.Count} lots, {w.Buildings.Length} buildings");
+            double Q(System.Collections.Generic.List<double> l, double q) => l.Count == 0 ? 0.0 : l[System.Math.Min(l.Count - 1, (int)(q * l.Count))];
+            var grades = new System.Collections.Generic.List<double>();
+            double over16 = 0.0, over21 = 0.0, allLength = 0.0;
+            foreach (var e in w.Data.Edges)
+            {
+                if (!e.Alive || e.Length < 10.0) continue;
+                double g = System.Math.Abs(w.GroundHeight(e.B.P.X, e.B.P.Y) - w.GroundHeight(e.A.P.X, e.A.P.Y)) / e.Length;
+                grades.Add(g);
+                allLength += e.Length;
+                if (g > 0.16) over16 += e.Length;
+                if (g > 0.21) over21 += e.Length;
+            }
+            grades.Sort();
+            System.Console.WriteLine($"  streets {grades.Count}: grade median {Q(grades, 0.5):P1}, 90% {Q(grades, 0.9):P1}, 99% {Q(grades, 0.99):P1}, steepest {Q(grades, 1.0):P1}; " +
+                $"of the length over 16% {over16 / System.Math.Max(1.0, allLength):P1}, over 21% (a car stalls) {over21 / System.Math.Max(1.0, allLength):P1}");
+            int all = 0;
+            var bands = new int[6];
+            foreach (CityX.World.Plan.PlanBlock block in w.Data.Blocks)
+            {
+                if (block.Inner == null || block.Outer == null) continue;
+                for (int e = 0; e < block.Inner.Count; e++)
+                {
+                    CityX.World.Plan.Vec2 i0 = block.Inner[e], i1 = block.Inner[(e + 1) % block.Inner.Count];
+                    double length = (i1 - i0).Length;
+                    if (length < 6.0) continue;
+                    all++;
+                    double grade = System.Math.Abs(w.GroundHeight(i1.X, i1.Y) - w.GroundHeight(i0.X, i0.Y)) / length;
+                    bands[System.Math.Min(5, (int)(grade / 0.07))]++;
+                }
+            }
+            System.Console.WriteLine($"  sidewalks {all}: 0-7% {bands[0]}, 7-14% {bands[1]}, 14-21% {bands[2]}, 21-28% {bands[3]}, 28-35% {bands[4]}, 35%+ {bands[5]}");
+            double lowest = double.MaxValue, highest = double.MinValue;
+            int land = 0, hilly = 0;
+            for (double gx = -cfg.Half; gx <= cfg.Half; gx += 50.0)
+            {
+                for (double gz = -cfg.Half; gz <= cfg.Half; gz += 50.0)
+                {
+                    if (w.Fields.IsWater(gx, gz)) continue;
+                    land++;
+                    double gh = w.GroundHeight(gx, gz);
+                    lowest = System.Math.Min(lowest, gh);
+                    highest = System.Math.Max(highest, gh);
+                    if (w.Fields.Hillock(gx, gz) > 2.0) hilly++;
+                }
+            }
+            var timer = System.Diagnostics.Stopwatch.StartNew();
+            double sum = 0.0;
+            for (int i = 0; i < 1000000; i++) sum += w.Fields.Height((i * 1.37) % cfg.Half, (i * 0.71) % cfg.Half);
+            System.Console.WriteLine($"  ground {lowest:F0} to {highest:F0} m; {(double)hilly / System.Math.Max(1, land):P0} of the land on a hill; " +
+                $"a million heights in {timer.ElapsedMilliseconds} ms ({sum % 1.0:F2})");
+            var exposed = new System.Collections.Generic.List<double>();
+            foreach (var s in w.Buildings)
+            {
+                if (s.OnRoof || s.Wing) continue;
+                double low = double.MaxValue;
+                foreach (double fx in new[] { -0.5, 0.0, 0.5 })
+                {
+                    foreach (double fz in new[] { -0.5, 0.0, 0.5 })
+                    {
+                        if (fx == 0.0 && fz == 0.0) continue;
+                        s.LocalToWorld(fx * s.Params.Width, fz * s.Params.Depth, out double x, out double z);
+                        low = System.Math.Min(low, w.GroundHeight(x, z));
+                    }
+                }
+                exposed.Add(s.BaseHeight - low);
+            }
+            exposed.Sort();
+            int tall = 0;
+            foreach (double x in exposed) if (x > 6.0) tall++;
+            System.Console.WriteLine($"  buildings' floor over the lowest ground round them: median {Q(exposed, 0.5):F1} m, 90% {Q(exposed, 0.9):F1} m, 99% {Q(exposed, 0.99):F1} m, " +
+                $"most {Q(exposed, 1.0):F1} m; over 6 m: {tall} ({(double)tall / System.Math.Max(1, exposed.Count):P1})");
+            return 0;
+        }
+        // steepsidewalks [seed] [grade]: the blocks' sidewalks (kerb to lot line, along each road) whose ground climbs at least the grade along the
+        // kerb: how many and how long, by steepness band.
+        if (args.Length > 0 && args[0] == "steepsidewalks")
+        {
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 45678679);
+            double least = args.Length > 2 ? double.Parse(args[2]) : 0.14;
+            int all = 0, steep = 0;
+            double steepLength = 0.0, steepest = 0.0;
+            var bands = new int[6];
+            foreach (CityX.World.Plan.PlanBlock block in w.Data.Blocks)
+            {
+                if (block.Inner == null || block.Outer == null) continue;
+                for (int e = 0; e < block.Inner.Count; e++)
+                {
+                    CityX.World.Plan.Vec2 i0 = block.Inner[e], i1 = block.Inner[(e + 1) % block.Inner.Count];
+                    double length = (i1 - i0).Length;
+                    if (length < 6.0) continue;
+                    all++;
+                    double grade = System.Math.Abs(w.GroundHeight(i1.X, i1.Y) - w.GroundHeight(i0.X, i0.Y)) / length;
+                    bands[System.Math.Min(5, (int)(grade / 0.05))]++;
+                    steepest = System.Math.Max(steepest, grade);
+                    if (grade < least) continue;
+                    steep++;
+                    steepLength += length;
+                }
+            }
+            System.Console.WriteLine($"{all} sidewalks of 6 m or more; {steep} climb {least:P0} or more ({steepLength:F0} m of them); the steepest {steepest:P0}");
+            System.Console.WriteLine($"  by grade: 0-5% {bands[0]}, 5-10% {bands[1]}, 10-15% {bands[2]}, 15-20% {bands[3]}, 20-25% {bands[4]}, 25%+ {bands[5]}");
+            return 0;
+        }
+        // stairlanes [seed]: the stairways through steep blocks (World/Plan/StairLanes): how many, how long and how high, how many steps, and how many
+        // steep blocks there were to choose from (a drop of StairLanes.MinDrop or more across them).
+        if (args.Length > 0 && args[0] == "stairlanes")
+        {
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 45678679);
+            int steep = 0;
+            foreach (CityX.World.Plan.PlanBlock block in w.Data.Blocks)
+            {
+                if (block.Outer == null || block.Outer.Count < 3 || !block.Paved || block.Plaza || block.Mall || block.Encloses) continue;
+                double lo = double.MaxValue, hi = double.MinValue;
+                foreach (CityX.World.Plan.Vec2 p in block.Outer)
+                {
+                    double h = w.GroundHeight(p.X, p.Y);
+                    lo = System.Math.Min(lo, h);
+                    hi = System.Math.Max(hi, h);
+                }
+                if (hi - lo >= CityX.World.Plan.StairLanes.MinDrop) steep++;
+            }
+            double length = 0.0, drop = 0.0;
+            int steps = 0;
+            foreach (CityX.World.Plan.StairLane lane in w.Data.StairLanes)
+            {
+                length += lane.Length;
+                drop += lane.Drop;
+                var treads = CityX.World.Plan.StairLanes.Profile(lane, w.Fields);
+                for (int i = 1; i < treads.Count; i++) if (treads[i].Top > treads[i - 1].Top + 1e-9) steps++;
+            }
+            int n = System.Math.Max(1, w.Data.StairLanes.Count);
+            System.Console.WriteLine($"{w.Data.StairLanes.Count} stairways ({steep} blocks drop {CityX.World.Plan.StairLanes.MinDrop} m or more across), " +
+                $"mean {length / n:F0} m long, {drop / n:F1} m up, {steps} steps up in all");
+            w.TryFindSpawn(out double sx, out double sz);
+            var spawn = new CityX.World.Plan.Vec2(sx, sz);
+            int near1 = 0, near2 = 0;
+            foreach (CityX.World.Plan.StairLane lane in w.Data.StairLanes)
+            {
+                double d = ((lane.A + lane.B) * 0.5 - spawn).Length;
+                if (d < 1000.0) near1++;
+                if (d < 2000.0) near2++;
+            }
+            int land = 0, hilly = 0;
+            for (double gx = sx - 1500.0; gx <= sx + 1500.0; gx += 50.0)
+            {
+                for (double gz = sz - 1500.0; gz <= sz + 1500.0; gz += 50.0)
+                {
+                    if (w.Fields.IsWater(gx, gz)) continue;
+                    land++;
+                    if (w.Fields.Hillock(gx, gz) > 2.0) hilly++;
+                }
+            }
+            System.Console.WriteLine($"  near the spawn ({sx:F0}, {sz:F0}): {near1} within 1 km, {near2} within 2 km; {(double)hilly / System.Math.Max(1, land):P0} of the land within 1.5 km on a hill");
+            var stepClock = System.Diagnostics.Stopwatch.StartNew();
+            int stepped = CityX.World.SteppedSidewalks.Count(w);
+            System.Console.WriteLine($"  {stepped} sidewalks are steps (worked out in {stepClock.ElapsedMilliseconds} ms)");
+            int stepStreets = 0, stepNear = 0;
+            int stepShort = 0;
+            double stepWorst = 0.0;
+            double stepLength = 0.0;
+            foreach (CityX.World.Plan.RoadEdge edge in w.Data.Edges)
+            {
+                if (!CityX.World.StepStreets.Is(w, edge)) continue;
+                stepStreets++;
+                var sg = w.Geometry.Edges[edge.Id];
+                var st = CityX.World.StepStreets.Profile(w, sg, out bool sFromB);
+                var top = sg.A + sg.Dir * (sFromB ? sg.TrimA : sg.Length - sg.TrimB);
+                double miss = System.Math.Abs(w.GroundHeight(top.X, top.Y) + 0.07 - st[st.Count - 1].Top);
+                if (miss > 0.15) { stepShort++; stepWorst = System.Math.Max(stepWorst, miss); }
+                stepLength += edge.Length;
+                if (((edge.A.P + edge.B.P) * 0.5 - spawn).Length < 1000.0) stepNear++;
+            }
+            System.Console.WriteLine($"  {stepStreets} step streets ({stepLength:F0} m), {stepNear} within 1 km of the spawn; {stepShort} miss their top by more than 0.15 m (worst {stepWorst:F2} m)");
+            return 0;
+        }
         // underroads [seed]: every live road's carriageway sampled each metre at its middle and 80 % out to either side: the points a building stands on.
         if (args.Length > 0 && args[0] == "underroads")
         {
-            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 63428175);
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 45678679);
             int roads = 0, points = 0, shown = 0;
             foreach (CityX.World.Plan.RoadEdge e in w.Data.Edges)
             {
@@ -227,7 +607,7 @@
         // towers [seed] [chunkRadius]: the tall buildings round the spawn by mass and by the flags that keep a tower top (World/TowerTop) off them.
         if (args.Length > 0 && args[0] == "towers")
         {
-            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 63428175);
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 45678679);
             int radius = args.Length > 2 ? int.Parse(args[2]) : 80;
             w.TryFindSpawn(out double sx, out double sz);
             int cx = CityX.World.Plan.PlanWorld.ChunkOf(sx), cy = CityX.World.Plan.PlanWorld.ChunkOf(sz);
@@ -263,7 +643,7 @@
         // floorcheck [seed]: every ground floor whose footprint corner has the paving above it (BlockPavingTests), with what kind of volume it is.
         if (args.Length > 0 && args[0] == "floorcheck")
         {
-            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 63428175);
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 45678679);
             int bad = 0;
             foreach (var s in w.Buildings)
             {
@@ -299,7 +679,7 @@
         if (args.Length > 0 && args[0] == "interchanges")
         {
             // interchanges [seed]: the game's own plan (PlanWorld.For), its spawn, every interchange and the ramps' ends, to compare with a capture's log.
-            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 63428175);
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 45678679);
             var xw = w.Data.Expressways;
             w.TryFindSpawn(out double sx, out double sz);
             System.Console.WriteLine($"spawn ({sx:F0},{sz:F0}); {w.Data.Nodes.Count} nodes, {w.Data.Lots.Count} lots");
@@ -314,12 +694,12 @@
             }
             return 0;
         }
-        if (args.Length > 0 && args[0] == "nearspawn") { PlanDiagnose.NearSpawn(args.Length > 1 ? int.Parse(args[1]) : 63428175, args.Length > 2 ? int.Parse(args[2]) : 12); return 0; }
-        if (args.Length > 0 && args[0] == "overlaps") { PlanDiagnose.Overlaps(args.Length > 1 ? int.Parse(args[1]) : 63428175); return 0; }
+        if (args.Length > 0 && args[0] == "nearspawn") { PlanDiagnose.NearSpawn(args.Length > 1 ? int.Parse(args[1]) : 45678679, args.Length > 2 ? int.Parse(args[2]) : 12); return 0; }
+        if (args.Length > 0 && args[0] == "overlaps") { PlanDiagnose.Overlaps(args.Length > 1 ? int.Parse(args[1]) : 45678679); return 0; }
         if (args.Length > 0 && args[0] == "profile-line")
         {
             // The ground and what stands on it along a line: profile-line x0 z0 x1 z1 [seed]
-            var w = CityX.World.Plan.PlanWorld.For(args.Length > 5 ? int.Parse(args[5]) : 63428175);
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 5 ? int.Parse(args[5]) : 45678679);
             double x0 = double.Parse(args[1]), z0 = double.Parse(args[2]), x1 = double.Parse(args[3]), z1 = double.Parse(args[4]);
             for (int i = 0; i <= 20; i++)
             {
@@ -332,7 +712,7 @@
         if (args.Length > 0 && args[0] == "partywalls")
         {
             // How much of the city stands shoulder to shoulder: ground-level boxes with a blank stretch of wall, and how much wall that is.
-            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 63428175);
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 45678679);
             int ground = 0, touching = 0, contacts = 0;
             double metres = 0.0;
             foreach (var s in w.Buildings)
@@ -350,7 +730,7 @@
         if (args.Length > 0 && args[0] == "pavingcheck")
         {
             // pavingcheck [seed]: every paved block whose kerb outline, triangulated, does not cover itself exactly (BlockPavingTests), with its corners.
-            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 63428175);
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 45678679);
             int bad = 0, paved = 0, index = -1;
             foreach (var block in w.Data.Blocks)
             {
@@ -387,7 +767,7 @@
         if (args.Length > 0 && args[0] == "insetfail")
         {
             // insetfail [seed]: every block whose kerb line could not be inset (no paving, no lots), with why -- the inset's own steps, replayed here.
-            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 63428175);
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 45678679);
             int lost = 0;
             foreach (var block in w.Data.Blocks)
             {
@@ -410,7 +790,7 @@
         if (args.Length > 0 && args[0] == "edgeblocks")
         {
             // edgeblocks <edge id> [seed]: the blocks either side of a road edge, with what is on them (lots), to see what a pedestrian street runs between.
-            var w = CityX.World.Plan.PlanWorld.For(args.Length > 2 ? int.Parse(args[2]) : 63428175);
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 2 ? int.Parse(args[2]) : 45678679);
             int edgeId = int.Parse(args[1]);
             var e = w.Data.Edges[edgeId];
             var lotsByBlock = new System.Collections.Generic.Dictionary<int, int>();
@@ -434,7 +814,7 @@
         if (args.Length > 0 && args[0] == "emptyblocks")
         {
             // emptyblocks [seed]: paved blocks that are no plaza and no mall and got no lots at all -- how many, how big, where (population).
-            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 63428175);
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 45678679);
             var lotsByBlock = new System.Collections.Generic.Dictionary<int, int>();
             foreach (var lot in w.Data.Lots) lotsByBlock[lot.BlockIndex] = (lotsByBlock.TryGetValue(lot.BlockIndex, out int c) ? c : 0) + 1;
             int paved = 0, empty = 0, emptyDense = 0;
@@ -460,7 +840,7 @@
         if (args.Length > 0 && args[0] == "emptynear")
         {
             // emptynear [seed]: of the paved ordinary blocks with no lots, how many lie under or beside an expressway (a path within 40 m of the centroid or crossing the block).
-            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 63428175);
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 45678679);
             var lotsByBlock = new System.Collections.Generic.HashSet<int>();
             foreach (var lot in w.Data.Lots) lotsByBlock.Add(lot.BlockIndex);
             int empty = 0, nearXway = 0, water = 0, steep = 0, small = 0;
@@ -492,7 +872,7 @@
         if (args.Length > 0 && args[0] == "fitcheck")
         {
             // Every lot's fitted rectangle must lie inside the lot's footprint.
-            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 63428175);
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 45678679);
             int bad = 0, total = 0;
             foreach (var lot in w.Data.Lots)
             {
@@ -518,7 +898,7 @@
         if (args.Length > 0 && args[0] == "fitlot")
         {
             // fitlot <lot id> [seed]: one lot's footprint in its frontage's frame (x along it, z out of the front) and the rectangle fitted in it.
-            var w = CityX.World.Plan.PlanWorld.For(args.Length > 2 ? int.Parse(args[2]) : 63428175);
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 2 ? int.Parse(args[2]) : 45678679);
             int id = int.Parse(args[1]);
             foreach (var lot in w.Data.Lots)
             {
@@ -558,7 +938,7 @@
         {
             // scalecheck <seed>: CityScaleTests.AVariedCityRunsFromClassicSizedBuildingsToHugeOnes's numbers -- the long side's percentiles,
             // classic against varied.
-            int seed = args.Length > 1 ? int.Parse(args[1]) : 63428175;
+            int seed = args.Length > 1 ? int.Parse(args[1]) : 45678679;
             System.Collections.Generic.List<double> Long(CityX.World.Plan.CityScale scale)
             {
                 var w = CityX.World.Plan.PlanWorld.Create(seed, CityX.World.Plan.PlanConfig.For(scale));
@@ -578,7 +958,7 @@
         {
             // How big the city's buildings are: footprint side (square root of the area), height, and the share above fixed thresholds
             // (pass the thresholds from an earlier run as args 2-3 to compare a change against the same lines).
-            var w = CityX.World.Plan.PlanWorld.Create(args.Length > 1 ? int.Parse(args[1]) : 63428175, CityX.World.Plan.PlanWorld.DefaultConfig());
+            var w = CityX.World.Plan.PlanWorld.Create(args.Length > 1 ? int.Parse(args[1]) : 45678679, CityX.World.Plan.PlanWorld.DefaultConfig());
             var sides = new System.Collections.Generic.List<double>();
             var heights = new System.Collections.Generic.List<double>();
             foreach (var b in w.Buildings)
@@ -615,7 +995,7 @@
         if (args.Length > 0 && args[0] == "nearbridge")
         {
             // The bridge nearest the spawn (what RainRealCityPlayTests stands beside), and what is round it.
-            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 63428175);
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 45678679);
             w.TryFindSpawn(out double sx, out double sz);
             CityX.World.Plan.EdgeGeometry best = null;
             double bestD = double.MaxValue;
@@ -670,7 +1050,7 @@
             }
             return 0;
         }
-        if (args.Length > 0 && args[0] == "profile") { PlanProfile.Run(args.Length > 1 ? int.Parse(args[1]) : 63428175); return 0; }
+        if (args.Length > 0 && args[0] == "profile") { PlanProfile.Run(args.Length > 1 ? int.Parse(args[1]) : 45678679); return 0; }
         return SubversionPlan.Run(args);
     }
 

@@ -133,6 +133,11 @@ Where the ground is too steep for a street the plan already bends roads round; t
 - **Zigzag**: on an open slope, timber or steel flights switching back with landings, timber rails.
 - **Cliff switchback**: steel flights on concrete columns up a cut face between two terraces, pipe rails.
 Each is walkable with real collision, has a way on and off at both ends (a pavement or a plaza), and is tested by a body walking up it.
+**Built 2026-10-16** (LAYERED_CITY_PLAN.md, "Stairways, stepped sidewalks and hills"): the stair street as two kinds -- a STEP STREET where a
+street itself climbs 21 % or more (concrete steps plate to plate, bollards across both ends, a terraced planter splitting a wide one into two
+flights, a handrail each), and a STAIRWAY straight across a steep block between two streets at different heights (a handrail down the middle,
+planters on the landings) -- and the steep sidewalks laid as steps. No painted risers, name tiles or lamp posts yet (lamps were removed by
+the owner); the zigzag and the cliff switchback not yet.
 
 ### 4.7 "Once alive"
 The dressing rules: every fountain dry; every planter earth; chairs and tables some tipped; umbrellas some folded, some torn; the kiosk shuttered;
@@ -160,6 +165,8 @@ Each phase: EditMode + PlayMode, the captures looked at, a new world seed where 
   fallen or not, whether a body walks round it) and dry-lawn outlines. Placement rules: every piece keeps `Clearance` 1.2 m of paving from every
   other and `KerbMargin` 1.4 m from the kerb, and keeps off the SPINES -- the straight walks from the middle of every kerb edge to the middle of
   the block (`SpineHalfWidth` 1.2 either side), which stop short of the focal piece -- so a block can be crossed from any side to any other.
+  Since 2026-10-16 every piece also keeps `DoorClear` 0.75 m from each long kerb's way in, `DoorDepth` 1.05 m inside its middle (where `Walkable`
+  starts and ends): on seed 45678679 an umbrella table turned toward a triangle's short side, beside its spine but over its way in, shut it off.
   `Walkable` floods a half-metre grid round the pieces from the front kerb's middle and asks for every other kerb's middle and 70 % of the free
   ground; the tests run it over every open block (0 of 59 shut on seed 58203917 at the classic scale). Results on that seed: plaza 23, pocket
   park 10, promenade 0 (the classic blocks are too square), bare yard 12, vacant lot 5, quiet court 9: 44 % empty-feeling.
@@ -221,7 +228,8 @@ Each phase: EditMode + PlayMode, the captures looked at, a new world seed where 
 
 - **`World/PedestrianStreets.cs`** (pure): `Is(plan, edge)` -- a Street-class edge, no bridge, 30-120 m (times the plan's scale) in dense country
   (population 0.5 at its middle), both ends at nodes with three or more live edges, with a building on at least one side (`PlanWorld.BlocksBeside`
-  + `BlockHasLots`; the first pick ran between two empty paved blocks), chosen 5 % by a hash of the edge id and the world seed: 76 of 1705 such
+  + `BlockHasLots`; the first pick ran between two empty paved blocks), not a step street (21 % or more: steps instead, 2026-10-16), chosen 5 % by a
+  hash of the edge id and the world seed: 76 of 1705 such
   streets on seed 91736402 at the classic scale (4.5 %). `Furniture(plan, g)`: bollards every 1.6 m across both ends 1.2 m inside the trims with
   a planter either side of the middle, and down the middle every 9 m a dead tree in its planter, an umbrella table (a bench where the street is
   too narrow) or a bench facing one walk, a bollard light between each pair; `WalkWidth` 3 m kept either side.

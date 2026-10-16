@@ -46,7 +46,18 @@ thousand edges, so a server can send it.
   `PaneKey` is now (building, wall, column, row); glass, doors, interior volumes and cracked-pane triggers all follow the building's turn.
 - **Rivers and lakes are dry concrete trenches** (user, 2026-10-01: no water yet). They stay in the plan as channels that steer the roads and
   force the bridges. Add a water surface later.
-- **Terrain** is the plan's smooth hills (30 m amplitude); a building's floor is the highest ground under it, with a podium down to the lowest.
+- **Terrain** is the plan's smooth rolling ground (30 m amplitude times the road scale), and since 2026-10-16 **San Francisco's hills** over it
+  (`PlanFields.Hillock`; owner: "maybe make the terrain more hilly overall"): rounded hills up to 64 m high about 640 m apart at the classic
+  scale (90 m and 900 m at the game's varied scale, both times the road scale), rising out of level ground where their noise is above zero
+  and rounding off at the top, only in the hilly districts (a 1840 m noise; the rest keeps the rolling ground), never within four river
+  bands of a river or by a shore, so no river cuts a gorge. Before them the rolling ground, stretched with the footprint, left the game's
+  city almost flat: half its streets under 1 %, 27 sidewalks in the region at 14 % or more. With them (seed 63428175, varied): the steepest
+  1 % of streets 26 %, the steepest 51 %, 1.8 % of the street length over 21 % (where the car stalls), 465 sidewalks at 14 % or more, the
+  ground from -5 to 123 m, and a building's floor more than 6 m over the lowest ground round it for 14 % of them (was 2 %). A height costs
+  1.7 times what it did (200 ns), the plan no more. The steep blocks get stairways, the steep sidewalks steps and the streets too steep to
+  drive (21 % or more) are steps from junction to junction (LAYERED_CITY_PLAN.md).
+  `tools/cityplan -- hills [seed] [amplitude] [wavelength] [hill height] [hill spacing] [district]` measures any setting; `hillseeds` ranks
+  seeds by the hills round the spawn. A building's floor is the highest ground under it, with a podium down to the lowest.
 - **Pedestrians**: `StreetNetwork` now walks the road graph (nearest road, a side of it, round junctions) via `CurrentWorld`.
 - Spawn: the junction nearest the origin with no water within 90 m and plenty of buildings around it.
 - The generated region is finite (5 km square) and the terrain carries on beyond it as bare ground.

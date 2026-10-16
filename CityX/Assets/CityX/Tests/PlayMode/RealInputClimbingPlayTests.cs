@@ -99,6 +99,16 @@ namespace CityX.Tests
             ahead.y = 0.0f;
             ahead.Normalize();
             Vector3 player = locomotion.transform.position;
+            // On level ground: the spawn can be at the foot of a step street (seed 45678679), and a step up just before the wall reads as running
+            // up stairs into it, which rightly does not climb. The player is moved, if need be, to a spot nearby with level ground ahead.
+            Vector3 level = LevelSpot(locomotion.transform, ahead);
+            if ((level - player).sqrMagnitude > 0.01f)
+            {
+                locomotion.transform.position = level + Vector3.up * 0.1f;
+                Physics.SyncTransforms();
+                yield return Wait(0.5f);
+                player = locomotion.transform.position;
+            }
             _wall = new GameObject("TestWall");
             _wall.transform.position = player + ahead * 1.7f + Vector3.up * 14.0f;
             _wall.transform.rotation = Quaternion.LookRotation(ahead);
@@ -115,6 +125,62 @@ namespace CityX.Tests
 #else
             yield break;
 #endif
+        }
+
+        /// <summary>
+        /// The feet's spot nearest a point (the point itself first, then out to 24 m back or to either side) from which the ground runs level for 5 m
+        /// along <paramref name="ahead"/>, with nothing in the way: no step up or down more than 3 cm, and no more than 10 cm of rise or fall.
+        /// </summary>
+        private static Vector3 LevelSpot(Transform body, Vector3 ahead)
+        {
+            Vector3 feet = body.position;
+            Vector3 right = Vector3.Cross(Vector3.up, ahead);
+            // Nearest first, out to 24 m: on the hills (seed 45678679) the ground round the spawn slopes everywhere, and running up a slope into a
+            // wall rightly reads as running up a ramp (PlayerClimbing.StairRiseSpeed).
+            var offsets = new System.Collections.Generic.List<Vector2>();
+            for (float back = -6.0f; back <= 24.0f; back += 3.0f)
+            {
+                for (float side = -24.0f; side <= 24.0f; side += 3.0f) offsets.Add(new Vector2(back, side));
+            }
+            offsets.Sort((p, q) => p.sqrMagnitude.CompareTo(q.sqrMagnitude));
+            foreach (Vector2 o in offsets)
+            {
+                Vector3 at = feet - ahead * o.x + right * o.y;
+                if (!GroundUnder(at, body, out float start)) continue;
+                bool level = true;
+                float last = start;
+                for (float d = 0.2f; d <= 5.0f && level; d += 0.2f)
+                {
+                    // No step on the way, and no more than 10 cm of rise or fall in all.
+                    level = GroundUnder(at + ahead * d, body, out float y) && Mathf.Abs(y - last) <= 0.03f && Mathf.Abs(y - start) <= 0.1f;
+                    last = y;
+                }
+                // And nothing in the way: the test's wall goes 1.7 m ahead, its box 2.6 m ahead with the landing past it.
+                Vector3 chest = new Vector3(at.x, start + 1.3f, at.z);
+                if (level && !Blocked(chest, ahead, 5.5f, body) && !Blocked(chest + Vector3.up * 1.0f, ahead, 5.5f, body)) return new Vector3(at.x, start, at.z);
+            }
+            return feet;
+        }
+
+        private static bool Blocked(Vector3 from, Vector3 dir, float distance, Transform body)
+        {
+            foreach (RaycastHit hit in Physics.RaycastAll(from, dir, distance, ~0, QueryTriggerInteraction.Ignore))
+            {
+                if (!hit.collider.transform.IsChildOf(body)) return true;
+            }
+            return false;
+        }
+
+        /// <summary>The highest solid surface under a point (up to half a metre over it, 3 m under), the body's own colliders left out.</summary>
+        private static bool GroundUnder(Vector3 at, Transform body, out float y)
+        {
+            y = float.MinValue;
+            foreach (RaycastHit hit in Physics.RaycastAll(at + Vector3.up * 3.0f, Vector3.down, 6.0f, ~0, QueryTriggerInteraction.Ignore))
+            {
+                if (hit.collider.transform.IsChildOf(body) || hit.point.y > at.y + 0.5f) continue;   // not the body, nor a canopy overhead
+                y = Mathf.Max(y, hit.point.y);
+            }
+            return y > float.MinValue;
         }
 
         /// <summary>How many doors are within <paramref name="radius"/> of a point, found the way PlayerClimbing finds them (their trigger volumes count).</summary>

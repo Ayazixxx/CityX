@@ -614,6 +614,30 @@ namespace CityX.World.Plan
             /* Outskirts   */ new[] { "", "", "", "shed", "", "chimney", "shed", "water_tower" },
         };
 
+        /// <summary>
+        /// Whether the street a lot fronts (the edge of its block's outline nearest the middle of its front) is too steep to drive, and so steps
+        /// (StepStreets.Steep): no garage or car park is put there.
+        /// </summary>
+        private static bool FrontsSteepStreet(CityPlanData data, PlanFields fields, PlanLot lot)
+        {
+            if (lot.Footprint == null || lot.BlockIndex < 0 || lot.BlockIndex >= data.Blocks.Count) return false;
+            PlanBlock block = data.Blocks[lot.BlockIndex];
+            int n = lot.Footprint.Length, m = block.Poly.Count;
+            Vec2 front = (lot.Footprint[lot.FrontEdge] + lot.Footprint[(lot.FrontEdge + 1) % n]) * 0.5;
+            int nearest = -1;
+            double best = double.MaxValue;
+            for (int e = 0; e < m; e++)
+            {
+                double d = PlanMath.DistanceToSegment(front, block.Poly[e], block.Poly[(e + 1) % m], out _);
+                if (d < best)
+                {
+                    best = d;
+                    nearest = e;
+                }
+            }
+            return nearest >= 0 && StepStreets.Steep(fields, block.Poly[nearest], block.Poly[(nearest + 1) % m], block.EdgeClass[nearest]);
+        }
+
         public static BuildingSite[] Resolve(CityPlanData data, PlanFields fields, uint seed)
         {
             var list = new List<BuildingSite>(data.Lots.Count);
@@ -653,7 +677,10 @@ namespace CityX.World.Plan
 
                 // The set pieces: a mall (its block was cut as one lot for it), a car park (handed out here, rarely and spaced out). Their own
                 // dice, so the dice above keep meaning what they always did for every other building.
-                LotUse use = parking.Decide(zone, lot, centre, width, depth, PlanNoise.Mix(h, 0x7061726BU) / 4294967296.0);   // "park"
+                // Never onto a street too steep to drive, which is steps (StepStreets): its drive would meet a flight.
+                LotUse use = lot.Use == LotUse.Building && FrontsSteepStreet(data, fields, lot)
+                    ? LotUse.Building
+                    : parking.Decide(zone, lot, centre, width, depth, PlanNoise.Mix(h, 0x7061726BU) / 4294967296.0);   // "park"
                 string special = "";
                 if (use != LotUse.Building)
                 {

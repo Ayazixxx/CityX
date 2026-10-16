@@ -27,6 +27,16 @@ namespace CityX.World.Plan
         public double HillAmplitude = 55.0;
         public double HillWavelength = 1500.0;
 
+        /// <summary>
+        /// San Francisco's hills (owner, 2026-10-16: "maybe make the terrain more hilly overall"; Nob, Russian and Telegraph Hills stand 80-110 m
+        /// over the flats round them, their streets climbing up to 31 %, and where a street would be steeper there are steps): rounded hills of up
+        /// to <see cref="HillockAmplitude"/> metres over the rolling ground, about <see cref="HillockWavelength"/> apart, in the hilly districts
+        /// (<see cref="HillDistrictWavelength"/> across; the flat ones keep the rolling ground alone), never by a river or a shore. Zero: none.
+        /// </summary>
+        public double HillockAmplitude = 0.0;
+        public double HillockWavelength = 650.0;
+        public double HillDistrictWavelength = 2600.0;
+
         /// <summary>Wavelength of the river-carving noise; its zero crossings are the rivers.</summary>
         public double RiverWavelength = 1700.0;
 
@@ -118,6 +128,12 @@ namespace CityX.World.Plan
             cfg.RingRadius = 1100.0 * r * r;   // the same share of the region at every scale
             cfg.HillAmplitude = 30.0 * r;
             cfg.HillWavelength *= s;
+            // San Francisco's hills (2026-10-16), sized like the roads: at the game's varied scale 90 m high and 900 m apart, which gives the
+            // steepest streets 25-45 % and some 4 % of the sidewalks 14 % or more (tools/cityplan hills); the rolling ground alone, stretched with
+            // the footprint, had left the game's city almost flat (half its streets under 1 %, 27 sidewalks in the region at 14 %).
+            cfg.HillockAmplitude = 64.0 * r;
+            cfg.HillockWavelength = 640.0 * r;
+            cfg.HillDistrictWavelength = 1840.0 * r;
             cfg.RiverWavelength *= s;
             cfg.PopulationWavelength *= s;
             cfg.OriginRadius *= s;
@@ -148,6 +164,8 @@ namespace CityX.World.Plan
         private readonly uint _seedPop;
         private readonly uint _seedLake;
         private readonly uint _seedDistrict;
+        private readonly uint _seedHillocks;
+        private readonly uint _seedHillDistrict;
 
         public PlanFields(int worldSeed, PlanConfig cfg)
         {
@@ -158,6 +176,8 @@ namespace CityX.World.Plan
             _seedPop = PlanNoise.Mix(s, 0x706F7075U);     // "popu"
             _seedLake = PlanNoise.Mix(s, 0x6C616B65U);    // "lake"
             _seedDistrict = PlanNoise.Mix(s, 0x64697374U);  // "dist"
+            _seedHillocks = PlanNoise.Mix(s, 0x6B6E6F6CU);  // "knol"
+            _seedHillDistrict = PlanNoise.Mix(s, 0x68647374U);  // "hdst"
         }
 
         public PlanConfig Config => _cfg;
@@ -252,6 +272,7 @@ namespace CityX.World.Plan
             double h = _cfg.SeaLevel + 18.0 + hills * _cfg.HillAmplitude;
 
             double river = Math.Abs(RiverNoise(x, y));
+            h += Hillock(x, y, river);
             if (river < _cfg.RiverBand * 2.2)
             {
                 // The banks shelve down into the river.
@@ -263,6 +284,37 @@ namespace CityX.World.Plan
                 }
             }
             return h;
+        }
+
+        /// <summary>
+        /// The hill a place stands on (<see cref="PlanConfig.HillockAmplitude"/>), metres over the rolling ground: none in the flat districts or
+        /// by the water. The hill noise is shaped so the hills rise out of level ground (none where it is below zero) and round off at the top.
+        /// </summary>
+        public double Hillock(double x, double y) => Hillock(x, y, Math.Abs(RiverNoise(x, y)));
+
+        /// <summary>The noise value at which a hill reaches its full height (the rise is a smoothstep from zero up to this).</summary>
+        private const double HillockCrest = 0.55;
+
+        private double Hillock(double x, double y, double river)
+        {
+            if (_cfg.HillockAmplitude <= 0.0) return 0.0;
+            // By a river the ground stays as it was, so a river never cuts a gorge through a hill; the bank zone itself is 2.2 bands wide.
+            double wet = Smooth((river - _cfg.RiverBand * 2.2) / (_cfg.RiverBand * 4.0));
+            if (wet <= 0.0) return 0.0;
+            double kd = 1.0 / _cfg.HillDistrictWavelength;
+            double district = Smooth((PlanNoise.Fbm(x * kd, y * kd, 2, _seedHillDistrict) + 0.2) / 0.4);
+            if (district <= 0.0) return 0.0;
+            double k = 1.0 / _cfg.HillockWavelength;
+            double bump = Smooth(PlanNoise.Fbm(x * k, y * k, 2, _seedHillocks) / HillockCrest);
+            if (bump <= 0.0) return 0.0;
+            double shore = Smooth((LakeNoise(x, y) - _cfg.LakeLevel) / 0.25);
+            return _cfg.HillockAmplitude * bump * district * wet * shore;
+        }
+
+        private static double Smooth(double t)
+        {
+            t = t < 0.0 ? 0.0 : t > 1.0 ? 1.0 : t;
+            return t * t * (3.0 - 2.0 * t);
         }
 
         /// <summary>How much of a city this place wants to be, 0 to 1. Water is zero.</summary>

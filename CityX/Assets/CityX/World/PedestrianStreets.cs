@@ -51,6 +51,7 @@ namespace CityX.World
         public static bool Is(PlanWorld plan, RoadEdge edge)
         {
             if (edge == null || edge.Class != RoadClass.Street || edge.Bridge || !edge.Alive) return false;
+            if (StepStreets.Is(plan, edge)) return false;   // too steep for tables and trees: it is steps (StepStreets)
             Vec2 mid = (edge.A.P + edge.B.P) * 0.5;
             double s = plan.Fields.ScaleAt(mid.X, mid.Y);
             double length = edge.Length;

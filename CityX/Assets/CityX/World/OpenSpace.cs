@@ -102,6 +102,14 @@ namespace CityX.World
         public const double Clearance = 1.2;
         public const double SpineHalfWidth = 1.2;
 
+        /// <summary>
+        /// Each long kerb's way in: a point this far inside its middle (a walking body's 0.45 m and 0.6 m more, as <see cref="Walkable"/> takes
+        /// it), which no piece may come within <see cref="DoorClear"/> of.
+        /// </summary>
+        public const double DoorDepth = 1.05;
+
+        public const double DoorClear = 0.75;
+
         /// <summary>How far in from the kerb a piece keeps (the kerb bollards stand at 0.45).</summary>
         public const double KerbMargin = 1.4;
 
@@ -350,6 +358,13 @@ namespace CityX.World
                         {
                             if (SegmentDistance(a, b, sa, sb) < halfZ + SpineHalfWidth) return false;
                         }
+                    }
+                    // Clear of every long kerb's way in, just inside its middle (where Walkable starts and ends its walks): on seed 45678679 an
+                    // umbrella table turned toward a triangle's short side, beside the spine but over its way in, shut that side off.
+                    for (int e = 0; e < _ring.Count; e++)
+                    {
+                        if (EdgeLength(e) < 6.0) continue;
+                        if (piece.Distance(EdgeMid(e) + Edge(e).Perp * DoorDepth) < DoorClear) return false;
                     }
                 }
                 Layout.Pieces.Add(piece);

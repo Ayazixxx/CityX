@@ -44,6 +44,9 @@ namespace CityX.World.Plan
 
         /// <summary>A mall's parking: always the open-air lot round it, now and then a garage beside it as well (MallParking).</summary>
         public MallParking MallParking;
+
+        /// <summary>The stairway straight across this steep block (an index into CityPlanData.StairLanes), or -1 (StairLanes).</summary>
+        public int StairLane = -1;
     }
 
     /// <summary>
@@ -93,6 +96,9 @@ namespace CityX.World.Plan
 
         public List<int> PlazaBlocks = new List<int>();
         public List<int> MallBlocks = new List<int>();
+
+        /// <summary>The public stairways through steep blocks, from one street's pavement to the other's (StairLanes).</summary>
+        public List<StairLane> StairLanes = new List<StairLane>();
     }
 
     public static class CityPlan
@@ -526,6 +532,7 @@ namespace CityX.World.Plan
 
             Amenities.ChooseMalls(data, PlanNoise.Mix(seed, 0x6D616C6CU));    // "mall"
             Amenities.ChoosePlazas(data, PlanNoise.Mix(seed, 0x706C617AU));   // "plaz"
+            StairLanes.Choose(data, PlanNoise.Mix(seed, 0x73746169U));        // "stai"
 
             foreach (PlanBlock block in data.Blocks)
             {
@@ -566,7 +573,15 @@ namespace CityX.World.Plan
                 var front = new List<bool>(inset.Count);
                 for (int i = 0; i < inset.Count; i++) front.Add(true);
                 var stack = new Stack<Piece>();
-                stack.Push(new Piece { V = inset, Front = front });
+                var whole = new Piece { V = inset, Front = front };
+                if (block.StairLane >= 0)
+                {
+                    PushBesideStairway(stack, whole, data.StairLanes[block.StairLane]);
+                }
+                else
+                {
+                    stack.Push(whole);
+                }
 
                 var done = new List<Piece>();
                 int guard = 0;
@@ -632,6 +647,24 @@ namespace CityX.World.Plan
                 StreetWall = false,
                 Use = LotUse.Mall,
             });
+        }
+
+        /// <summary>
+        /// A block with a stairway across it (StairLanes): its land either side, each the lot line clipped to the far side of a line
+        /// <see cref="StairLanes.LotClear"/> beyond the stairway's edge, the cut facing the stairway rather than a street. StairLanes chose the
+        /// crossing so that each line crosses the lot line just twice, so each side is one piece.
+        /// </summary>
+        private static void PushBesideStairway(Stack<Piece> stack, Piece whole, StairLane lane)
+        {
+            Vec2 across = lane.Dir.Perp;
+            double clear = lane.Width * 0.5 + StairLanes.LotClear;
+            foreach (double way in new[] { 1.0, -1.0 })
+            {
+                var v = new List<Vec2>(whole.V);
+                var f = new List<bool>(whole.Front);
+                ExpresswayNetwork.KeepBeyond(v, f, lane.A, across * way, clear);
+                if (v.Count >= 3) stack.Push(new Piece { V = v, Front = f });
+            }
         }
 
         private static bool HasFront(Piece p)
