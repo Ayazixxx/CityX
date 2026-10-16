@@ -18,5 +18,6 @@
     <Compile Include="..\..\CityX\Assets\CityX\World\BuildingParams.cs" />
     <Compile Include="..\..\CityX\Assets\CityX\World\ZoneKind.cs" />
     <Compile Include="..\..\CityX\Assets\CityX\World\DeterministicRandom.cs" />
+    <Compile Include="..\..\CityX\Assets\CityX\World\GarageEntrances.cs" />
   </ItemGroup>
 </Project>

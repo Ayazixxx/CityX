@@ -30,7 +30,6 @@ namespace CityX.ViewEditor
             var looks = new HashSet<string>();
             var skylineHeights = new List<float>();
             int total = 0;
-            int withBalcony = 0;
             int special = 0;
 
             for (int id = 0; id < count; id++)
@@ -48,7 +47,6 @@ namespace CityX.ViewEditor
                 Bump(zone, site.Zone);
                 looks.Add($"{site.Params.Mass}/{plan.Style}/{site.Params.Roof}/{site.Zone}");
                 special += site.Params.IsSpecial ? 1 : 0;
-                withBalcony += BuildingDecor.Balconies(site.Seed, site.Params.Width, site.Params.Depth, site.Params.Height).Count > 0 ? 1 : 0;
                 skylineHeights.Add(site.Params.Height);
             }
 
@@ -61,7 +59,7 @@ namespace CityX.ViewEditor
             report.AppendLine("roof: " + Format(roof, total));
             report.AppendLine("zone: " + Format(zone, total));
             report.AppendLine($"distinct (mass, style, roof, zone) combinations: {looks.Count} for {total} buildings");
-            report.AppendLine($"buildings with at least one balcony: {withBalcony} ({(float)withBalcony / Mathf.Max(1, total):P0}); special landmark buildings: {special}");
+            report.AppendLine($"special landmark buildings: {special}");
             Debug.Log(report.ToString());
         }
 

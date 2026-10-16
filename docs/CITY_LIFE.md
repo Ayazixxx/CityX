@@ -69,9 +69,37 @@ Manhattan, Watch Dogs' Chicago riverwalk, Yakuza's Kamurocho with its Millennium
   and a `P` sign, a zig-zag parked-on ramp along the back wall rising deck to deck with the arrival cut out of the slab above, a parapet round the
   roof, stalls painted in rows (`StallWidth` 3.2 x `StallDepth` 6.2, `AisleWidth` 8), rubble. Far: the
   outside only, the openings as dark bands.
+- **Getting a car in** (owner, 2026-10-16, with a screenshot: "there was physically no way for the car to drive into it, the road leads into a
+  wall it doesnt turn into the garage"). Two faults. (1) A dead-end road, or one with the same block on both sides, is left out of the blocks'
+  outlines (`BlockExtractor` prunes it before tracing), so the lots were cut straight across it, but it stayed alive and was drawn on under the
+  buildings into their walls: 47 such roads ran under 129 buildings on seed 63428175. `BlockExtractor.RetireRoadsInsideBlocks` now retires every
+  such road inside a block (and takes it out of its junctions); one an expressway ramp or exit lands on stays, and the lots keep clear of it and
+  its pavement (`ExpresswayNetwork.HeldStreets`, cut back like a deck). (2) The plan stands a building on the highest ground of its lot, so on a
+  hillside a garage's deck stood on a solid podium up to 16 m over the street, and the bank between the road and its wall could be 2 m high and
+  45 % steep: 285 of 287 garages were a ledge to the street. `World/GarageEntrances.cs` now gives each opening a **drive** from the edge of the
+  carriageway in front (found along the opening's middle, `CarriagewayOut`), level with the road there, rising or falling at `Grade` **12 %** at
+  most across the pavement (cut into the bank or built over a dip, a concrete face down each side), and on through the opening to the **lowest
+  deck**, which stands where the drives reach it (as near the paving at the wall as a drive from the road climbs to, never over the plan's floor);
+  where the other opening's road is lower, its ramp runs on inside, the deck cut away for it and walled each side. The levels stack from that deck
+  to the roof the plan gave the garage, walled solid below the plan's floor (the hill behind them). The ground and paving are cut away under the
+  whole garage and each drive (`CitySurfaceBuilder.Garages.cs`; the cut search reaches 8 chunks for a garage, one runs 360 m along its street).
+  The game's car is a box on its wheel rays with no suspension: it climbs a clean 9 degree ramp but stalls on 12 degrees, and a 2 cm step stops it
+  dead (`CarFlatDriveProbe`), so the drives are 12 % and meet the road (tucked just under it, `UnderRoad`/`IntoRoad`) and the deck
+  (`FloorLift`) with no edge. Tests: `GarageEntranceTests` (no live road under any building in the region; every garage's drives meet the road at
+  the kerb at 12 % or less and reach the deck; nothing of the ground over a dug-in garage's deck or its drives), `GarageDriveInPlayTests` (a body
+  walks in through either opening onto the lowest deck; the real car, driven from the carriageway, ends 6 m inside on the deck),
+  `GarageEntranceCapture` (garage-*.png). A road whose middle carries the evacuation's cordon of barricades (`CitySurfaceBuilder.HasCordon`) can
+  still block a garage's drive: the drive test picks a road without one. Steep hillside roads tilt across their whole width (a 23 degree tilt in
+  front of one garage on this seed), and the car cannot drive across them either: a road-surface question, not the garage's.
 - **Car park** (`BuildParkingLot`): asphalt over the lot that follows the ground like the block paving round it (sampled on `LotCell` 4 m cells;
   the first version stood on a building's podium and read as a raised platform on any slope), a 0.6 m wall stepping down the slope with the gap at
-  the front, a booth with its barrier arm and `P` sign, stall rows, a barrier and some rubble. (No cars: owner, 2026-10-12.)
+  the front, a booth with its barrier arm and `P` sign, stall rows, a barrier and some rubble. (No cars: owner, 2026-10-12.) **2026-10-16** (owner:
+  "the parking spot decals are glitching like fading in and out of the street terrain below"): the paint was sampled on its own (each line in two
+  pieces between points on the smooth ground) while the asphalt lies on its 4 m cells' triangles, so on a hill the lines dipped under the asphalt
+  between their ends; and the block's paving, on the terrain's own grid, stood through the asphalt where the ground bulged. Now each line is cut
+  where it crosses a cell's edge or diagonal and every corner stands `LotPaintLift` 3 cm over the asphalt's own triangles, and the ground and
+  paving are cut away under the lot (`CitySurfaceBuilder`), its asphalt `LotLift` 2 cm over the paving with an edge face across the entrance.
+  `CityFeaturesTests.ACarParksPaintLiesOnItsAsphaltAndNoGroundStandsThroughIt` (the lot on the steepest ground: 16 m of fall across 39 m).
 - **Mall** (`CityMeshBuilder.Mall.cs`): every piece is built with the passages to the pieces it touches -- at the middle of each shared stretch
   (`WallContact`), the same point seen from both sides, `MallPassageWidth` 12 x `MallPassageHeight` 5.6 m -- and where a side corridor or an anchor
   meets a corridor's flank, the shops there make way for it on the ground floor. **Corridors** (`BuildMall`): blank light walls with a base band on

@@ -40,8 +40,12 @@ namespace CityX.Tests
             foreach (BuildingSite candidate in TestSites.NearSpawn(world))
             {
                 // A door at street level: a raised one has its entrance stairs along this wall (EntranceStairs), which is not plain wall.
+                // And a wall with wall in it: a curtain wall is glass from floor to ceiling, and a shop front is glass at the street, so neither is a
+                // plain wall to grab at a standing body's height (seed 63428175's first pick was a curtain-wall office: 3 spots of 75).
+                WindowPlan plan = WindowPlan.For(world, candidate);
                 if (candidate.Params.Width > 10.0f && candidate.Params.Height > 8.0f && !candidate.OnRoof && !candidate.Params.IsSpecial   // a garage or mall has open entrances, not a doorway
-                    && !BuildingDecor.EntranceStyleFor(candidate.BaseHeight - candidate.DoorGroundHeight).NeedsStairs)
+                    && !BuildingDecor.EntranceStyleFor(candidate.BaseHeight - candidate.DoorGroundHeight).NeedsStairs
+                    && plan.Style != FacadeStyle.Curtain && !plan.Storefront)
                 {
                     site = candidate;
                     found = true;
@@ -49,6 +53,10 @@ namespace CityX.Tests
                 }
             }
             Assert.IsTrue(found, "no building to test against");
+            WindowPlan facade = WindowPlan.For(world, site);
+            Debug.Log($"CityX wall probe building {site.Id}: {site.Params.Width:F1} x {site.Params.Depth:F1} x {site.Params.Height:F1} m, {site.Params.Mass}, " +
+                $"{facade.Style}, storefront {facade.Storefront}, apartment front {ApartmentFront.For(site, facade).Any}, zone {site.Zone}, base {site.BaseHeight:F2}, " +
+                $"door ground {site.DoorGroundHeight:F2}, contacts {(site.Contacts?.Length ?? 0)}");
 
             var go = new GameObject("Streamer");
             _made.Add(go);

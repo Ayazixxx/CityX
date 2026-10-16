@@ -102,8 +102,9 @@ namespace CityX.Tests
             yield return null;
             Physics.SyncTransforms();
 
-            // A shot from the balcony, 2 m out: the ray meets something that takes the blow, and that is this sheet of this door.
-            Vector3 muzzle = onGlass + outward * 2.0f;
+            // A shot from the balcony, 1 m out (on it: a balcony is 1.5-2.1 m deep, and from 2 m out the shot at a shallow one met its 1.35 m parapet,
+            // seed 63428175): the ray meets something that takes the blow, and that is this sheet of this door.
+            Vector3 muzzle = onGlass + outward * 1.0f;
             Assert.IsTrue(Physics.Raycast(muzzle, -outward, out RaycastHit hit, 3.0f, ~0, QueryTriggerInteraction.Ignore), "the shot met nothing");
             var breakable = hit.collider.GetComponentInParent<IBreakableSurface>();
             Assert.IsNotNull(breakable, $"the shot met '{hit.collider.name}', which no blow breaks");

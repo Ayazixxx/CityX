@@ -66,7 +66,10 @@ namespace CityX.Tests
                 {
                     continue;   // a cliff: capped, not a landing to test
                 }
-                float x = f.Side * (half + f.StartOf(f.Steps) + EntranceStairs.Tread * 0.5f);
+                // Where the foot lands stepping off the last step: the next tread's middle (the planner stops the flight at the first step the
+                // ground there has risen to meet, so it is at most a riser down). Under the last step's own middle the ground can be lower on a
+                // steep bank (seed 63428175's building 3040: 0.47 m), but each step is a solid block down to the paving, so nothing hangs.
+                float x = f.Side * (half + f.StartOf(f.Steps + 1) + EntranceStairs.Tread * 0.5f);
                 float gap = f.TopOf(f.Steps, site.BaseHeight) - Paving(x, lineZ);
                 Assert.Less(gap, EntranceStairs.Riser * 2.0f + 0.01f, $"building {site.Id}: its entrance stairs end {gap:0.00} m above the paving");   // (two risers, to the centimetre: seed 47360519 ended one 0.4408 m up)
                 flights++;

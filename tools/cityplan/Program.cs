@@ -18,6 +18,136 @@
             }
             return 0;
         }
+        // garages [seed]: every parking garage: its car deck over the street in front of its entrances (the rise a car must climb), and the road
+        // nearest that point (how far out of its carriageway).
+        if (args.Length > 0 && args[0] == "garages")
+        {
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 63428175);
+            int count = 0, raised = 0, noRoad = 0;
+            foreach (var s in w.Buildings)
+            {
+                if (!s.IsParkingGarage) continue;
+                count++;
+                double worst = double.MinValue, nearest = double.MaxValue;
+                foreach (double lx in new[] { -6.5, 6.5 })
+                {
+                    s.LocalToWorld(lx, s.Params.Depth * 0.5 + 1.5, out double fx, out double fz);
+                    worst = System.Math.Max(worst, s.BaseHeight - w.GroundHeight(fx, fz));
+                    s.LocalToWorld(lx, s.Params.Depth * 0.5, out double ex, out double ez);
+                    var p = new CityX.World.Plan.Vec2(ex, ez);
+                    for (int cy = CityX.World.Plan.PlanWorld.ChunkOf(ez) - 1; cy <= CityX.World.Plan.PlanWorld.ChunkOf(ez) + 1; cy++)
+                    {
+                        for (int cx = CityX.World.Plan.PlanWorld.ChunkOf(ex) - 1; cx <= CityX.World.Plan.PlanWorld.ChunkOf(ex) + 1; cx++)
+                        {
+                            foreach (int e in w.EdgesIn(cx, cy))
+                            {
+                                CityX.World.Plan.EdgeGeometry g = w.Geometry.Edges[e];
+                                if (g == null) continue;
+                                nearest = System.Math.Min(nearest, CityX.World.Plan.PlanMath.DistanceToSegment(p, g.A, g.B, out _) - g.HalfWidth);
+                            }
+                        }
+                    }
+                }
+                if (worst > 0.3) raised++;
+                if (nearest > 8.0) noRoad++;
+                if (worst > 0.3 || nearest > 8.0) System.Console.WriteLine($"  garage {s.Id} {s.Params.Width:F0}x{s.Params.Depth:F0}x{s.Params.Height:F0}: deck {worst:F2} m over the ground in front, nearest carriageway {nearest:F1} m from the front wall, base {s.BaseHeight:F2} door ground {s.DoorGroundHeight:F2} podium {s.PodiumBase:F2}");
+            }
+            int below = 0, flush = 0, upTo1 = 0, upTo2 = 0, over2 = 0;
+            foreach (var s in w.Buildings) { if (!s.IsParkingGarage) continue; double r = s.BaseHeight - s.DoorGroundHeight; if (r < -0.05) below++; else if (r < 0.2) flush++; else if (r < 1.0) upTo1++; else if (r < 2.0) upTo2++; else over2++; }
+            System.Console.WriteLine($"rise of the deck over the paving at the door: below {below}, flush {flush}, 0.2-1 m {upTo1}, 1-2 m {upTo2}, over 2 m {over2}");
+            // The entrance ramps (GarageEntrances): how long and how steep.
+            int ramps = 0, steep = 0, steepest = 0;
+            double maxGrade = 0.0, maxLength = 0.0;
+            foreach (var s in w.Buildings)
+            {
+                foreach (CityX.World.GarageEntrance e in CityX.World.GarageEntrances.For(w, s))
+                {
+                    if (!e.HasRamp) continue;
+                    ramps++;
+                    double grade = e.Rise / e.Length;
+                    if (grade > CityX.World.GarageEntrances.Grade + 1e-3) steep++;
+                    if (grade > 0.25) steepest++;
+                    maxGrade = System.Math.Max(maxGrade, grade);
+                    maxLength = System.Math.Max(maxLength, e.Length);
+                    if (grade > 0.2 || e.Length > 30.0) System.Console.WriteLine($"  garage {s.Id} {s.Params.Width:F0}x{s.Params.Depth:F0}: opening {e.X0:F0}..{e.X1:F0} rise {e.Rise:F2} m over {e.Length:F1} m ({grade:P0}); deck {e.DeckY:F2} street {e.StreetY:F2} door ground {s.DoorGroundHeight:F2} podium {s.PodiumBase:F2}");
+                }
+            }
+            System.Console.WriteLine($"entrance ramps: {ramps}; steeper than {CityX.World.GarageEntrances.Grade:P0} (garage too shallow): {steep}, over 25 %: {steepest}; steepest {maxGrade:P0}, longest {maxLength:F1} m");
+            System.Console.WriteLine($"{count} garages; {raised} with the deck over 0.3 m above the ground in front; {noRoad} with no road within 8 m of the front");
+            return 0;
+        }
+        // underroads [seed]: every live road's carriageway sampled each metre at its middle and 80 % out to either side: the points a building stands on.
+        if (args.Length > 0 && args[0] == "underroads")
+        {
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 63428175);
+            int roads = 0, points = 0, shown = 0;
+            foreach (CityX.World.Plan.RoadEdge e in w.Data.Edges)
+            {
+                if (!e.Alive) continue;
+                CityX.World.Plan.EdgeGeometry g = w.Geometry.Edges[e.Id];
+                if (g == null) continue;
+                roads++;
+                for (double t = g.TrimA; t <= g.Length - g.TrimB; t += 1.0)
+                {
+                    foreach (double side in new[] { -0.8, 0.0, 0.8 })
+                    {
+                        CityX.World.Plan.Vec2 q = g.A + g.Dir * t + g.Dir.Perp * (g.HalfWidth * side);
+                        int b = w.BuildingAt(q.X, q.Y);
+                        if (b < 0) continue;
+                        points++;
+                        if (shown++ < 10) System.Console.WriteLine($"  road {e.Id} ({e.Class}, {g.Length:F0} m, blocks beside {w.BlocksBeside(e).Count}) under building {b} ({w.Buildings[b].Params.Mass} '{w.Buildings[b].Params.SpecialType}', onRoof {w.Buildings[b].OnRoof}) at t {t:F0} side {side}");
+                    }
+                }
+            }
+            System.Console.WriteLine($"{roads} live roads; {points} carriageway points under a building");
+            return 0;
+        }
+        // spurs [seed]: the alive roads with no block beside them (dead ends pruned before blocks are traced, roads inside one block): how many,
+        // how many run under a building, and what those buildings are.
+        if (args.Length > 0 && args[0] == "spurs")
+        {
+            var w = CityX.World.Plan.PlanWorld.For(args.Length > 1 ? int.Parse(args[1]) : 91736402);
+            int alive = 0, spurs = 0, underBuildings = 0, deadEnds = 0;
+            var kinds = new System.Collections.Generic.Dictionary<string, int>();
+            int shown = 0;
+            foreach (CityX.World.Plan.RoadEdge e in w.Data.Edges)
+            {
+                if (!e.Alive) continue;
+                alive++;
+                if (w.BlocksBeside(e).Count > 0) continue;
+                spurs++;
+                bool dead = e.A.Edges.Count == 1 || e.B.Edges.Count == 1;
+                if (dead) deadEnds++;
+                CityX.World.Plan.EdgeGeometry g = w.Geometry.Edges[e.Id];
+                if (g == null) continue;
+                var hit = new System.Collections.Generic.HashSet<int>();
+                for (double t = g.TrimA; t <= g.Length - g.TrimB; t += 1.0)
+                {
+                    CityX.World.Plan.Vec2 p = g.A + g.Dir * t;
+                    foreach (double side in new[] { -g.HalfWidth * 0.8, 0.0, g.HalfWidth * 0.8 })
+                    {
+                        CityX.World.Plan.Vec2 q = p + g.Dir.Perp * side;
+                        int b = w.BuildingAt(q.X, q.Y);
+                        if (b >= 0) hit.Add(b);
+                    }
+                }
+                if (hit.Count == 0) continue;
+                underBuildings++;
+                foreach (int b in hit)
+                {
+                    var s = w.Buildings[b];
+                    string kind = string.IsNullOrEmpty(s.Params.SpecialType) ? s.Params.Mass.ToString() : s.Params.SpecialType;
+                    kinds[kind] = kinds.TryGetValue(kind, out int n) ? n + 1 : 1;
+                }
+                if (shown++ < 12)
+                {
+                    System.Console.WriteLine($"  edge {e.Id} ({e.Class}, {g.Length:F0} m{(dead ? ", dead end" : "")}) under buildings {string.Join(",", hit)}");
+                }
+            }
+            System.Console.WriteLine($"{alive} alive roads; {spurs} with no block beside them ({deadEnds} dead ends); {underBuildings} of those run under a building");
+            foreach (var kv in kinds) System.Console.WriteLine($"  {kv.Value,5} x {kv.Key}");
+            return 0;
+        }
         // edge <id> [seed] [t]: one road edge's geometry (ends, direction, length, trims, half width), the chunks it runs through and where it crosses
         // their boundaries, the road nodes within 20 m of the point t metres along it (a junction mid-way), and the blocks beside it.
         if (args.Length > 1 && args[0] == "edge")
@@ -28,6 +158,7 @@
             CityX.World.Plan.RoadEdge edge = w.Data.Edges[id];
             CityX.World.Plan.EdgeGeometry g = w.Geometry.Edges[id];
             System.Console.WriteLine($"edge {id}: class {edge.Class} bridge {edge.Bridge} alive {edge.Alive} A ({g.A.X:F1},{g.A.Y:F1}) B ({g.B.X:F1},{g.B.Y:F1}) dir ({g.Dir.X:F3},{g.Dir.Y:F3}) length {g.Length:F1} trims {g.TrimA:F1}/{g.TrimB:F1} halfWidth {g.HalfWidth:F2}");
+            System.Console.WriteLine($"  node A {edge.A.Id}: {edge.A.Edges.Count} edges; node B {edge.B.Id}: {edge.B.Edges.Count} edges; ramps landing on it {w.Data.Expressways.Paths.FindAll(p => p.StreetEdge == id).Count}, kerb cuts {w.Data.Expressways.KerbCuts.FindAll(c => c.StreetEdge == id).Count}, exits {w.Data.Expressways.Interchanges.FindAll(i => i.StreetEdge == id).Count}");
             double chunk = CityX.World.Plan.PlanWorld.ChunkSize;
             int lastCx = int.MinValue, lastCy = int.MinValue;
             for (double t = 0.0; t <= g.Length; t += 0.25)

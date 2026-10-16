@@ -133,14 +133,22 @@ namespace CityX.Tests
             {
                 foreach (Vector3 v in paintBuffer.Vertices) if (Inside(v, 0.2)) paint++;
             }
-            for (int i = 0; i < buffers[0].Vertices.Count; i++)
+            // Each upward face whose middle is on the street, well in from its edges (a street piece has corners only at its edges, and where a
+            // chunk's border cuts it: counting corners inside the street found none when no border crossed it), with every corner at the pavement's height.
+            List<Vector3> verts = buffers[0].Vertices;
+            for (int i = 0; i + 2 < buffers[0].Triangles.Count; i += 3)
             {
-                Vector3 v = buffers[0].Vertices[i];
-                if (!Inside(v, 0.5)) continue;
-                SurfaceLook.Unpack(buffers[0].Colors[i], out _, out int slice, out _);
+                int ia = buffers[0].Triangles[i], ib = buffers[0].Triangles[i + 1], ic = buffers[0].Triangles[i + 2];
+                Vector3 a = verts[ia], b = verts[ib], c = verts[ic];
+                if (Vector3.Cross(b - a, c - a).normalized.y < 0.35f && Vector3.Cross(b - a, c - a).normalized.y > -0.35f) continue;   // a skirt
+                if (!Inside((a + b + c) / 3.0f, 0.5)) continue;
+                SurfaceLook.Unpack(buffers[0].Colors[ia], out _, out int slice, out _);
                 if (slice == SurfaceLook.Setts) setts++; else other++;
-                double expected = Plan.GroundHeight(v.x + origin.x, v.z + origin.z) + CitySurfaceBuilder.RoadLift + CitySurfaceBuilder.KerbHeight;
-                Assert.AreEqual(expected, v.y + origin.y, 0.02, "the ribbon is not at the pavement's height");
+                foreach (Vector3 v in new[] { a, b, c })
+                {
+                    double expected = Plan.GroundHeight(v.x + origin.x, v.z + origin.z) + CitySurfaceBuilder.RoadLift + CitySurfaceBuilder.KerbHeight;
+                    Assert.AreEqual(expected, v.y + origin.y, 0.02, "the ribbon is not at the pavement's height");
+                }
             }
             Assert.Greater(setts, 0, "no setts on the pedestrian street");
             Assert.AreEqual(0, other, "the pedestrian street has asphalt in it");

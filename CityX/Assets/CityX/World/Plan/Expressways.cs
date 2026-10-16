@@ -198,6 +198,14 @@ namespace CityX.World.Plan
         public int StreetEdge;
     }
 
+    /// <summary>A street the lots keep clear of (see <see cref="ExpresswayNetwork.HeldStreets"/>): its centreline and how far either side is kept.</summary>
+    public struct HeldStreet
+    {
+        public Vec2 A;
+        public Vec2 B;
+        public double Clear;
+    }
+
     /// <summary>A row of barriers across a carriageway: where an expressway leaves the region, closed since the evacuation.</summary>
     public sealed class ExpresswayBarrier
     {
@@ -243,6 +251,12 @@ namespace CityX.World.Plan
 
         /// <summary>Land between a ramp and its main line, inside a loop, inside an interchange: kept clear of lots.</summary>
         public readonly List<Vec2[]> Infields = new List<Vec2[]>();
+
+        /// <summary>
+        /// Streets inside a block that bound no block but carry a ramp's foot or an exit (a dead end a ramp runs down onto): the lots are cut back
+        /// from them as from a deck, so nothing is built across them. Filled by <see cref="BlockExtractor.RetireRoadsInsideBlocks"/>.
+        /// </summary>
+        public readonly List<HeldStreet> HeldStreets = new List<HeldStreet>();
 
         /// <summary>No lot is cut within this of a deck's edge (TxDOT: keep 15-20 ft between the structure and buildings).</summary>
         public const double LotMargin = 5.0;
@@ -432,6 +446,23 @@ namespace CityX.World.Plan
                 }
                 // 0.3 m more than the margin: the footprint's corners stand out along the samples' own normals, a hair off the segment's.
                 KeepBeyond(cutPoly, cutFront, a, nrm * side, half + LotMargin + 0.3);
+                if (cutPoly.Count < 3) return false;
+            }
+            // A held street inside the block: cut back to its pavement's width from its carriageway, on the lot's own side.
+            foreach (HeldStreet s in HeldStreets)
+            {
+                Vec2 d = s.B - s.A;
+                if (d.Length < 1e-6) continue;
+                Vec2 nrm = d.Normalized.Perp;
+                var foot = new[] { s.A + nrm * s.Clear, s.B + nrm * s.Clear, s.B - nrm * s.Clear, s.A - nrm * s.Clear };
+                if (!PlanMath.PolygonsIntersect(cutPoly, foot)) continue;
+                double side = Vec2.Dot(PlanMath.Centroid(cutPoly) - (s.A + s.B) * 0.5, nrm) >= 0.0 ? 1.0 : -1.0;
+                if (ReferenceEquals(cutPoly, poly))
+                {
+                    cutPoly = new List<Vec2>(poly);
+                    cutFront = new List<bool>(front);
+                }
+                KeepBeyond(cutPoly, cutFront, s.A, nrm * side, s.Clear);
                 if (cutPoly.Count < 3) return false;
             }
             if (ReferenceEquals(cutPoly, poly)) return true;

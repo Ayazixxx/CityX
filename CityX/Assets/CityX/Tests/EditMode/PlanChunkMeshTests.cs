@@ -104,7 +104,13 @@ namespace CityX.Tests
                 onlyA.RemoveAll(edgeB.Contains);
                 var onlyB = new List<(int, int)>(edgeB);
                 onlyB.RemoveAll(edgeA.Contains);
-                Assert.IsTrue(edgeA.SetEquals(edgeB),
+                // A point on one side only is no seam if it lies on a straight edge of the other side's surface: the terrain cut away under the
+                // roads (2026-10-16) is cut along each road piece's lines, which can put a corner on one chunk's border that the neighbour's
+                // straight cell edge passes through at the same height (a T-junction, no gap).
+                List<(float, float, float, float)> segmentsA = BoundarySegments(a, dx, true), segmentsB = BoundarySegments(b, dx, false);
+                onlyA.RemoveAll(p => OnASegment(p, segmentsB));
+                onlyB.RemoveAll(p => OnASegment(p, segmentsA));
+                Assert.IsTrue(onlyA.Count == 0 && onlyB.Count == 0,
                     $"chunks ({cx},{cy}) and ({cx + dx},{cy + dy}) do not meet exactly on their shared edge: " +
                     $"{edgeA.Count} points vs {edgeB.Count}; only in the first (along cm, height cm): {string.Join(" ", onlyA)} {Describe(a, onlyA, dx)}; " +
                     $"only in the second: {string.Join(" ", onlyB)} {Describe(b, onlyB, dx)}");
@@ -246,6 +252,41 @@ namespace CityX.Tests
                 }
             }
             return points;
+        }
+
+        /// <summary>The surface's triangle edges lying along the shared border: (along, height) at each end, metres.</summary>
+        private static List<(float, float, float, float)> BoundarySegments(MeshBuffer[] chunk, int dx, bool leavingSide)
+        {
+            var segments = new List<(float, float, float, float)>();
+            float edge = leavingSide ? CityLayout.ChunkSize : 0.0f;
+            foreach (MeshBuffer buffer in new[] { chunk[0], chunk[1] })
+            {
+                for (int i = 0; i + 2 < buffer.Triangles.Count; i += 3)
+                {
+                    for (int k = 0; k < 3; k++)
+                    {
+                        Vector3 p = buffer.Vertices[buffer.Triangles[i + k]], q = buffer.Vertices[buffer.Triangles[i + (k + 1) % 3]];
+                        float pa = dx != 0 ? p.x : p.z, qa = dx != 0 ? q.x : q.z;
+                        if (Math.Abs(pa - edge) > 1e-3f || Math.Abs(qa - edge) > 1e-3f) continue;
+                        segments.Add((dx != 0 ? p.z : p.x, p.y, dx != 0 ? q.z : q.x, q.y));
+                    }
+                }
+            }
+            return segments;
+        }
+
+        /// <summary>Whether a border point (along cm, height cm) lies on one of the other side's border edges, within a centimetre.</summary>
+        private static bool OnASegment((int, int) point, List<(float, float, float, float)> segments)
+        {
+            float along = point.Item1 / 100.0f, height = point.Item2 / 100.0f;
+            foreach ((float a0, float y0, float a1, float y1) in segments)
+            {
+                float lo = Math.Min(a0, a1), hi = Math.Max(a0, a1);
+                if (along < lo - 0.005f || along > hi + 0.005f || hi - lo < 1e-4f) continue;
+                float y = y0 + (y1 - y0) * ((along - a0) / (a1 - a0));
+                if (Math.Abs(y - height) <= 0.01f) return true;
+            }
+            return false;
         }
 
         /// <summary>For a failure message: the triangles (buffer, three chunk-local corners, normal) that use each of the given boundary points.</summary>

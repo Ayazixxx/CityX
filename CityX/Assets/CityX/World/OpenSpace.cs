@@ -495,6 +495,15 @@ namespace CityX.World
                         if (TryPlace(OpenProp.UmbrellaTable, P(s, t), _u, 1.1, 1.1, Seed(180 + shade), fallen: U(0xA8 + shade) < 0.3)) shade++;
                     }
                 }
+                // A thin square can be all walks and seats on that grid (seed 63428175's block 404, 43 m across, got no shade at all): then a
+                // table or two on a finer grid, beside a walk if need be.
+                for (double t = _sv1 - 2.5; shade < Math.Min(want, 2) && t > _sv0 + 2.5; t -= 1.6)
+                {
+                    for (double s = _su0 + 2.5; shade < Math.Min(want, 2) && s <= _su1 - 2.5; s += 1.6)
+                    {
+                        if (TryPlace(OpenProp.UmbrellaTable, P(s, t), _u, 1.1, 1.1, Seed(190 + shade), fallen: U(0xB8 + shade) < 0.3, offSpines: false)) shade++;
+                    }
+                }
             }
 
             /// <summary>The rooms a big square's quadrants are given.</summary>

@@ -124,3 +124,27 @@ decimetre; the door's ground is the paving 2 m out). Seed rerolled to 61839025. 
   one) and `insetfail [seed]` (every block without a kerb line and which check refused it, the inset replayed step by step). Remember
   `CITYX_CITY_SCALE=classic`: the Unity tests run at the classic scale (`Tests/*/ClassicCityScaleFixture.cs`), the tool defaults to the game's
   varied one.
+
+## Update 2026-10-16: the ground no longer shows through the roads; dead-end roads under buildings retired
+
+- **Poke-through.** Owner, with a night screenshot of a sloping street: "on areas where the terrain slopes there are often times different
+  colored textures poking through". A road ribbon is laid in 5 m pieces, each straight across the road's whole width (two triangles from corners
+  at the ground + `RoadLift`); the terrain under it is sampled every 4 m (every 8 m from afar). On a curving hillside the terrain bulged up
+  through the asphalt, by as much as 0.74 m, and where the two lay within a few centimetres they fought. `SurfacePokeSurvey` (EditMode,
+  Explicit: every half metre of the chunks round the spawn and of the 160 hilliest road chunks within 40 of it, near and far, the surface on top
+  and what it covers) found 3,636 points of earth over a road's asphalt and about 1,500 more where they fought within 3 cm, near; the spawn's
+  own ground is flat and showed none, which is why nothing caught it before.
+- **The fix.** The terrain is cut away under every road ribbon piece and junction plate (`CitySurfaceBuilder.RoadCuts`, not under a bridge),
+  as it already was under basements, and each road and plate edge gets a SKIRT (`RoadSkirt`): a face from the road's edge to the terrain mesh's
+  own height beside it (`TerrainMeshHeight`) and 0.15 m past it, facing the road where a bank stands over it and away where the road stands
+  over the ground; set back 2 cm so it hides behind a kerb's face rather than fighting it. A road graded straight across, the way real ones are.
+  The survey after: no earth over or fighting a road's asphalt near or far; a few dozen scattered points off the roads. Cost: about 0.1 ms a
+  chunk (`ChunkCostBench`: median 0.8 -> 0.9 ms full, 0.4 -> 0.5 ms far). Guard: `RoadGroundTests` (the 40 hilliest road chunks near the
+  spawn at the game's scale, near and far: on every carriageway point, the earth 3 cm or more under the asphalt). `PlanChunkMeshTests`' seam test
+  now accepts a corner on one chunk's border that lies on the neighbour's straight border edge (the cut lines can put one there: a T-junction,
+  no gap).
+- **Dead ends under buildings.** `BlockExtractor` prunes dead-end streets (and roads with the same block on both sides) before it traces the
+  blocks, so the lots were cut across them, but they stayed alive and were drawn on under the buildings (owner: "the road leads into a wall";
+  47 roads under 129 buildings on seed 63428175). `BlockExtractor.RetireRoadsInsideBlocks` retires each such road inside a block; one an
+  expressway ramp or exit lands on stays, with the lots kept clear of it (`ExpresswayNetwork.HeldStreets`). `tools/cityplan -- spurs`,
+  `underroads` and `garages`; `GarageEntranceTests.NoLiveRoadRunsUnderABuilding`. The parking garages' drives: docs/CITY_LIFE.md.

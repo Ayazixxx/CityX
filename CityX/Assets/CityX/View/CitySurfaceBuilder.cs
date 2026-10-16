@@ -58,9 +58,17 @@ namespace CityX.View
             var ctx = new Context(plan, origin, rect);
 
             float step = far ? FarTerrainStep : TerrainStep;
-            // The ground is cut away over every basement (BasementCuts): it ran through them a foot under the lobby floor.
-            List<Vec2[]> basements = BasementCuts(ctx, chunkX, chunkY);
-            BuildTerrain(ctx, pavement, step, plan.BlocksIn(chunkX, chunkY), basements);
+            // The ground is cut away over every basement (BasementCuts): it ran through them a foot under the lobby floor; and under every garage
+            // (GarageEntrances: its lowest deck is at the street, dug into the hill).
+            var drives = new List<Driveway>();
+            List<Vec2[]> basements = BasementCuts(ctx, chunkX, chunkY, drives);
+            // ... and under every road and junction: they lay their own surface, graded straight across a piece, and on a curving hillside the
+            // ground (sampled every 4 m) bulged up through it by as much as 0.7 m, and fought it where the two lay within a few centimetres (owner,
+            // 2026-10-16: "on areas where the terrain slopes there are often times different colored textures poking through"). RoadCuts, and the
+            // skirt down each road's edge to the ground beside it (RoadSkirt).
+            List<Vec2[]> terrainCuts = RoadCuts(ctx, chunkX, chunkY);
+            terrainCuts.AddRange(basements);
+            BuildTerrain(ctx, pavement, step, plan.BlocksIn(chunkX, chunkY), terrainCuts);
             List<Vec2[]> cuts = KerbCuts(ctx, chunkX, chunkY);
             List<Vec2[]> pavingCuts = cuts;
             if (basements.Count > 0)
@@ -83,12 +91,13 @@ namespace CityX.View
                     BuildMallGrounds(ctx, block, blockIndex, structures, laneDividers);   // white paint (the buffer named for the lane dividers draws white, "markings" yellow)
                 }
             }
+            BuildDriveways(ctx, drives, pavement);   // CitySurfaceBuilder.Garages.cs: the drives into the garages, over their cuts
 
             foreach (int edgeId in plan.EdgesIn(chunkX, chunkY))
             {
                 EdgeGeometry g = plan.Geometry.Edges[edgeId];
                 if (g == null) continue;
-                BuildRoad(ctx, g, ground);
+                BuildRoad(ctx, g, ground, step);
                 if (g.Edge.Bridge)
                 {
                     BuildBridgeParts(ctx, g, pavement, structures, guardRail);
@@ -110,7 +119,7 @@ namespace CityX.View
                 if (j == null) continue;
                 if (j.Plate != null)
                 {
-                    BuildPlate(ctx, j, ground);
+                    BuildPlate(ctx, j, ground, step);
                 }
             }
 
@@ -455,7 +464,96 @@ namespace CityX.View
             };
         }
 
-        private static void BuildRoad(Context ctx, EdgeGeometry g, MeshBuffer buffer)
+        /// <summary>
+        /// The ground under every road and junction plate that reaches into this chunk, as convex pieces to cut out of the terrain: each ribbon
+        /// piece as BuildRoad lays it, each plate as BuildPlate fans it. Not under a bridge (its deck stands over the dip it spans).
+        /// </summary>
+        private static List<Vec2[]> RoadCuts(Context ctx, int chunkX, int chunkY)
+        {
+            var cuts = new List<Vec2[]>();
+            foreach (int edgeId in ctx.Plan.EdgesIn(chunkX, chunkY))
+            {
+                EdgeGeometry g = ctx.Plan.Geometry.Edges[edgeId];
+                if (g == null || g.Edge.Bridge) continue;
+                double t0 = g.TrimA, t1 = g.Length - g.TrimB;
+                if (t1 - t0 < 0.05) continue;
+                Vec2 perp = g.Dir.Perp * g.HalfWidth;
+                int pieces = Math.Max(1, (int)Math.Ceiling((t1 - t0) / PieceLength));
+                for (int i = 0; i < pieces; i++)
+                {
+                    Vec2 ca = g.A + g.Dir * (t0 + (t1 - t0) * i / pieces);
+                    Vec2 cb = g.A + g.Dir * (t0 + (t1 - t0) * (i + 1) / pieces);
+                    var quad = new[] { ca + perp, cb + perp, cb - perp, ca - perp };
+                    Bounds(quad, out double mx, out double mz, out double Mx, out double Mz);
+                    if (ctx.Rect.Overlaps(mx, mz, Mx, Mz)) cuts.Add(quad);
+                }
+            }
+            foreach (int nodeId in ctx.Plan.JunctionsIn(chunkX, chunkY))
+            {
+                JunctionGeometry j = ctx.Plan.Geometry.Junctions[nodeId];
+                if (j?.Plate == null) continue;
+                for (int i = 0; i < j.Plate.Length; i++)
+                {
+                    var tri = new[] { j.Node.P, j.Plate[i], j.Plate[(i + 1) % j.Plate.Length] };
+                    if (Math.Abs(PlanMath.SignedArea(tri)) < 1e-4) continue;
+                    Bounds(tri, out double mx, out double mz, out double Mx, out double Mz);
+                    if (ctx.Rect.Overlaps(mx, mz, Mx, Mz)) cuts.Add(tri);
+                }
+            }
+            return cuts;
+        }
+
+        /// <summary>
+        /// The terrain mesh's own height at a point (BuildTerrain: the ground sampled on the step's grid, each cell split corner (x0, z0) to
+        /// (x1, z1)), not the smooth ground under it.
+        /// </summary>
+        private static double TerrainMeshHeight(Context ctx, double x, double z, float step)
+        {
+            double s = PlanWorld.ChunkSize / Math.Max(1, Math.Round(PlanWorld.ChunkSize / step));
+            double x0 = Math.Floor(x / s) * s, z0 = Math.Floor(z / s) * s;
+            double u = (x - x0) / s, v = (z - z0) / s;
+            double ha = ctx.Plan.GroundHeight(x0, z0), hb = ctx.Plan.GroundHeight(x0, z0 + s);
+            double hc = ctx.Plan.GroundHeight(x0 + s, z0 + s), hd = ctx.Plan.GroundHeight(x0 + s, z0);
+            return v >= u ? ha + (hc - hb) * u + (hb - ha) * v : ha + (hd - ha) * u + (hc - hd) * v;
+        }
+
+        /// <summary>How far a road's skirt reaches past the ground beside it, so no sliver of the cut under the road shows.</summary>
+        private const float SkirtPastGround = 0.15f;
+
+        /// <summary>... and stands this far back from the road's edge, behind a kerb's face (which is in the edge's plane) and under the pavement.</summary>
+        private const double SkirtSetBack = 0.02;
+
+        /// <summary>
+        /// A road's skirt along one edge (the part in this chunk): a face down (or up) from the road's edge to the ground's mesh beside it and on
+        /// past it, both ways round, the terrain under the road being cut away. Under a pavement it is hidden; at the edge of town, or wherever the
+        /// road's straight piece and the ground part, it is the edge of the road's bed.
+        /// </summary>
+        private static void RoadSkirt(Context ctx, MeshBuffer buffer, Vec2 a, Vec2 b, Vec2 towardRoad, Func<double, double, double> height, float step)
+        {
+            if (!ClipSegment(a, b, ctx.Rect, out Vec2 ca, out Vec2 cb) || (cb - ca).Length < 0.02) return;
+            int pieces = Math.Max(1, (int)Math.Ceiling((cb - ca).Length / TerrainStep));
+            var inward = new Vector3((float)towardRoad.X, 0.0f, (float)towardRoad.Y);
+            if (inward.sqrMagnitude < 1e-8f) return;
+            inward.Normalize();
+            // Set back a hair from the road's edge: where a kerb runs along it, the kerb's face is in that very plane, and the two fought.
+            Vec2 back = towardRoad.Normalized * -SkirtSetBack;
+            for (int i = 0; i < pieces; i++)
+            {
+                Vec2 p = ca + (cb - ca) * ((double)i / pieces) + back, q = ca + (cb - ca) * ((double)(i + 1) / pieces) + back;
+                double rp = height(p.X, p.Y), rq = height(q.X, q.Y);
+                double gp = TerrainMeshHeight(ctx, p.X, p.Y, step), gq = TerrainMeshHeight(ctx, q.X, q.Y, step);
+                double topP = Math.Max(rp, gp), topQ = Math.Max(rq, gq);
+                double lowP = Math.Min(rp, gp) - SkirtPastGround, lowQ = Math.Min(rq, gq) - SkirtPastGround;
+                Vector3 p0 = ctx.Local(p.X, lowP, p.Y), q0 = ctx.Local(q.X, lowQ, q.Y);
+                Vector3 p1 = ctx.Local(p.X, topP, p.Y), q1 = ctx.Local(q.X, topQ, q.Y);
+                float len = (float)(q - p).Length;
+                // Seen from the road where the bank stands over it (a cutting), from outside where the road stands over the ground (its bed).
+                Vector3 facing = gp + gq > rp + rq ? inward : -inward;
+                buffer.AddQuad(p0, q0, q1, p1, facing, new Vector2(0, 0), new Vector2(len, 0), new Vector2(len, 1), new Vector2(0, 1));
+            }
+        }
+
+        private static void BuildRoad(Context ctx, EdgeGeometry g, MeshBuffer buffer, float step)
         {
             double t0 = g.TrimA;
             double t1 = g.Length - g.TrimB;
@@ -484,10 +582,16 @@ namespace CityX.View
                 if (!ctx.Rect.Overlaps(mx, mz, Mx, Mz)) continue;
                 List<Vec2> clipped = Clip(quad, ctx.Rect);
                 Fan(ctx, buffer, clipped, height);
+                // Its two edges' skirts, down to the ground the terrain is cut back to (a bridge's deck has its own sides).
+                if (!g.Edge.Bridge)
+                {
+                    RoadSkirt(ctx, buffer, ca + perp, cb + perp, -perp, height, step);
+                    RoadSkirt(ctx, buffer, ca - perp, cb - perp, perp, height, step);
+                }
             }
         }
 
-        private static void BuildPlate(Context ctx, JunctionGeometry j, MeshBuffer buffer)
+        private static void BuildPlate(Context ctx, JunctionGeometry j, MeshBuffer buffer, float step)
         {
             Vec2[] plate = j.Plate;
             Bounds(plate, out double mx, out double mz, out double Mx, out double Mz);
@@ -501,6 +605,8 @@ namespace CityX.View
                 var tri = new List<Vec2> { centre, plate[i], plate[(i + 1) % plate.Length] };
                 List<Vec2> clipped = Clip(tri, ctx.Rect);
                 Fan(ctx, buffer, clipped, height);
+                // Its outline's skirt (along the roads' ends it lies under the ribbons, hidden).
+                RoadSkirt(ctx, buffer, plate[i], plate[(i + 1) % plate.Length], centre - (plate[i] + plate[(i + 1) % plate.Length]) * 0.5, height, step);
             }
         }
 
@@ -577,6 +683,9 @@ namespace CityX.View
         /// <summary>How many chunks from its centre's chunk a building's footprint can reach (the largest blocks are some 70 m across).</summary>
         private const int BasementReachChunks = 4;
 
+        /// <summary>... and a garage's (one runs 360 m along its street).</summary>
+        private const int GarageReachChunks = 8;
+
         /// <summary>
         /// Whether a building has a basement under it the ground must keep out of: an ordinary box building on the ground with one in its plan
         /// (CityMeshBuilder.BuildBasement). Garages, car parks, malls, round towers and sealed blocks are built without one; a block standing on
@@ -610,18 +719,35 @@ namespace CityX.View
         /// 2026-10-16: "the basement is only 1 foot high"). Nothing is seen through the cut: the lobby floor closes it from above and the walls
         /// all round, and the basement's own floor and walls are a storey down.
         /// </summary>
-        private static List<Vec2[]> BasementCuts(Context ctx, int chunkX, int chunkY)
+        private static List<Vec2[]> BasementCuts(Context ctx, int chunkX, int chunkY, List<Driveway> drives = null)
         {
             var cuts = new List<Vec2[]>();
-            for (int dy = -BasementReachChunks; dy <= BasementReachChunks; dy++)
+            for (int dy = -GarageReachChunks; dy <= GarageReachChunks; dy++)
             {
-                for (int dx = -BasementReachChunks; dx <= BasementReachChunks; dx++)
+                for (int dx = -GarageReachChunks; dx <= GarageReachChunks; dx++)
                 {
                     List<int> owned = ctx.Plan.BuildingsOwnedBy(chunkX + dx, chunkY + dy);
                     for (int i = 0; i < owned.Count; i++)
                     {
                         BuildingSite site = ctx.Plan.Buildings[owned[i]];
-                        if (!HasBasementUnder(site))
+                        if (site.IsParkingGarage && site.Exists)
+                        {
+                            // A garage's lowest deck is at its street (GarageEntrances), below the top of its lot's ground on a hillside, and a drive
+                            // runs to each opening from the kerb: the ground and the paving are cut away under the whole garage and each drive, or
+                            // the hill comes up through them (CitySurfaceBuilder.Garages.cs). Its walls and podium close the cut.
+                            if (drives != null) AddGarageCuts(ctx, site, cuts, drives);
+                            continue;
+                        }
+                        if (site.IsOpenGround && site.Exists)
+                        {
+                            // An open car park lays its own asphalt on its own grid: the ground and paving under it stood through it on a hill and
+                            // its paint flickered in and out (owner, 2026-10-16). Cut away; its wall and its entrance's edge close the cut.
+                            Vec2[] lot = Footprint(site);
+                            Bounds(lot, out double lx0, out double lz0, out double lx1, out double lz1);
+                            if (ctx.Rect.Overlaps(lx0, lz0, lx1, lz1)) cuts.Add(lot);
+                            continue;
+                        }
+                        if (!HasBasementUnder(site) || System.Math.Abs(dx) > BasementReachChunks || System.Math.Abs(dy) > BasementReachChunks)
                         {
                             continue;
                         }
@@ -934,6 +1060,10 @@ namespace CityX.View
                 new Vector2(0, 0), new Vector2(len, 0), new Vector2(len, 1), new Vector2(0, 1));
         }
 
+        /// <summary>Whether a road has a row of barricades across its middle (AddStreetBarricades): one long road in thirty or so.</summary>
+        public static bool HasCordon(EdgeGeometry g) =>
+            !g.Edge.Bridge && g.Length - g.TrimA - g.TrimB >= 22.0 && g.Length > 40.0 && LatticeHash(g.Edge.Id, 7, 79) < 0.035f;
+
         /// <summary>
         /// Now and then a row of barricades across a street: the evacuation's last cordons. On a pedestrian street (World/PedestrianStreets) the
         /// whole ribbon is the footway, so the cordon stands across its middle only and leaves the walk along each side clear (a 2.6 m body walks
@@ -946,7 +1076,7 @@ namespace CityX.View
             Func<double, double, double> height = RoadHeight(ctx, g);
             Vec2 perp = g.Dir.Perp;
             double hw = g.HalfWidth;
-            if (g.Length > 40.0 && LatticeHash(g.Edge.Id, 7, 79) < 0.035f)
+            if (HasCordon(g))
             {
                 double t = g.Length * 0.5;
                 Vec2 c = g.A + g.Dir * t;

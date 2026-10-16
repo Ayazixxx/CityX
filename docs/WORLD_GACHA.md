@@ -67,7 +67,7 @@ Not in their list, added alongside it (my suggestion, in the spirit of their Jap
   screenshots: "these balconies make no sense the doors are like stacked on top of eachother in one room"): a storey is two rows, so the
   balconies and their doors are on the even rows only, one per flat per floor, each slab at its floor's height.
 - **Parapet finish:** the building's own wall (45 %), white (30 %) or bare concrete (25 %).
-- **Not twice:** the old single balconies and the vertical fins skip a wall with a band.
+- **Not twice:** the vertical fins skip a wall with a band. (The old random single balconies were removed on 2026-10-16, owner: "get rid of these random pointless mini balconies"; balconies are the apartment blocks' alone now.)
 - **Far away** only the slabs, parapets (or top rail) and side walls, so a block keeps its stripes as it comes into full detail.
 - **Cost** (`ApartmentFrontTests.MeasureTheCost`, 81 chunks): near downtown +0.7 % wall triangles, residential +6.2 %; far +21 to 36 % of a
   small number; build time unchanged (4.1 ms a downtown chunk).

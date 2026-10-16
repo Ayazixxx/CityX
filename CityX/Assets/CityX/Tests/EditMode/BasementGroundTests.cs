@@ -66,8 +66,8 @@ namespace CityX.Tests
                         }
                         if (OnARoad(world, x, z))
                         {
-                            // A separate plan fault, not the ground under the basement: on seed 46283197 a block stands across the end of a dead-end
-                            // street (building 2520 over road 3542). Counted here, fixed in the plan on its own.
+                            // A separate plan fault, not the ground under the basement: on seed 46283197 a block stood across the end of a dead-end
+                            // street (building 2520 over road 3542). Fixed in the plan since (BlockExtractor.RetireRoadsInsideBlocks; GarageEntranceTests).
                             onRoads++;
                             continue;
                         }

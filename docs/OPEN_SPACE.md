@@ -265,3 +265,7 @@ Each phase: EditMode + PlayMode, the captures looked at, a new world seed where 
   [GDC: Urban Planning in Games](https://gdcvault.com/play/1034528/Level-Design-Summit-Urban-Planning);
   [Insomniac's Spider-Man 2 art blast (ArtStation)](https://magazine.artstation.com/2023/11/insomniac-games-marvels-spider-man-2-art-blast/),
   [80.lv on Spider-Man's Manhattan](https://80.lv/articles/spider-man-a-deep-dive-into-the-look-creation-of-manhattan)
+
+**2026-10-16 (seed 63428175):** a thin furnished plaza (block 404, 43 m across) came out all walks and seats on the 3.2 m grid the shade
+fallback scans (`ShadeAnywhere`), so it had no shade at all (`OpenSpaceTests.EachRoleHasItsOwnThings`). The fallback now tries a finer 1.6 m
+grid, beside a walk if need be, until the square has a table or two.

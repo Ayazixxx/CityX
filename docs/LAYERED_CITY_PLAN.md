@@ -114,8 +114,9 @@ buildings whose BACK wall was near for their doors (the flats' balcony doors are
 found: neither E nor walking into it did anything. A building with a bridge is now asked whenever any of its walls is within reach. And a bridge's
 LANDING on its wall -- the deck's width (or the door's, if wider) and 0.35 m either side, from under the deck to 0.35 m over the door's head
 (`CityMeshBuilder.BridgeLanding`) -- is kept clear of everything the facade hangs out from the wall: the piers (`FacadeOrnament`) and the cast fins
-(`BuildingDecor` ribs) stop under the deck and start again over the door (`NextBridgeLanding`), and the small single balconies and the lit blade
-signs, placed by their own dice, are left off where they would stand in it (one balcony's rail stood across a door, a blade sign beside another).
+(`BuildingDecor` ribs) stop under the deck and start again over the door (`NextBridgeLanding`), and the lit blade
+signs, placed by their own dice, are left off where they would stand in it (a blade sign stood beside one door; the random single balconies, whose rail
+stood across another, were removed altogether on 2026-10-16).
 Tests: `FootbridgeDoorwayTests` (197 bridge doors near the spawn looked at from their decks, 115 on facades with piers or fins: rays across each
 doorway from 1.5 m out reach the wall), `FootbridgeDoorPlayTests` (E opens and shuts a bridge door on a front or side wall; walking down the
 deck opens it and the body walks into the building), `FootbridgeCapture` (`bridge-door-shut` and `bridge-door-open`, from the deck).

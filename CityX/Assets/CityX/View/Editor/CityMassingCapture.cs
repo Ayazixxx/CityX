@@ -953,23 +953,9 @@ namespace CityX.ViewEditor
                     {
                         continue;
                     }
-                    // ON THIS WALL, not just somewhere on the building. Two of
-                    // the three walls a balcony can land on face sideways, so
-                    // "has a balcony" picked a building whose balconies were
-                    // both round the corner, and the shot proved nothing.
+                    // ON THIS WALL, not just somewhere on the building. (The random single balconies this shot also looked for were removed
+                    // on 2026-10-16; only the fins are left to find.)
                     var subjects = new List<Vector3>();
-                    foreach (BuildingDecor.Balcony balcony in BuildingDecor.Balconies(
-                                 world.ChunkSeed(x, y),
-                                 site.Params.Width, site.Params.Depth, site.Params.Height))
-                    {
-                        if (balcony.Normal.z < -0.5f)
-                        {
-                            subjects.Add(new Vector3(
-                                (float)site.CentreX + balcony.Centre.x,
-                                site.BaseHeight + balcony.Centre.y,
-                                (float)site.CentreZ + balcony.Centre.z));
-                        }
-                    }
 
                     bool ribbed = false;
                     foreach (BuildingDecor.Rib rib in BuildingDecor.Ribs(

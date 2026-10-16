@@ -969,6 +969,111 @@ namespace CityX.Tests
             Assert.GreaterOrEqual(heights.Count, 3, "the garage has no decks");
         }
 
+        /// <summary>
+        /// A car park's paint lies on its asphalt and nothing of the ground stands through either (owner, 2026-10-16: "the parking spot decals are
+        /// glitching like fading in and out of the street terrain below"). The lot on the steepest ground near the spawn: every painted triangle
+        /// stands its lift over the asphalt's own triangles (sampled on their own, the lines dipped under the asphalt between their ends), and the
+        /// ground and the block's paving are cut away under the lot (they stood through it where the ground bulged).
+        /// </summary>
+        [Test]
+        public void ACarParksPaintLiesOnItsAsphaltAndNoGroundStandsThroughIt()
+        {
+            BuildingSite lot = default;
+            double steepest = -1.0;
+            foreach (BuildingSite b in Plan.Buildings)
+            {
+                if (!b.IsOpenGround || !b.Exists) continue;
+                double lo = double.MaxValue, hi = double.MinValue;
+                for (int i = 0; i <= 4; i++)
+                {
+                    for (int j = 0; j <= 4; j++)
+                    {
+                        b.LocalToWorld((i / 4.0 - 0.5) * b.Params.Width, (j / 4.0 - 0.5) * b.Params.Depth, out double x, out double z);
+                        double g = Plan.GroundHeight(x, z);
+                        lo = Math.Min(lo, g);
+                        hi = Math.Max(hi, g);
+                    }
+                }
+                if (hi - lo > steepest)
+                {
+                    steepest = hi - lo;
+                    lot = b;
+                }
+            }
+            Assert.IsTrue(lot.Exists, "no car park");
+            MeshBuffer concrete = Site(lot, false)[1];
+            bool SameLook(Color32 c, Color32 look) => c.r == look.r && c.g == look.g && c.b == look.b && c.a == look.a;
+            // The asphalt's height under a point, from its own triangles (in the lot's frame).
+            float AsphaltAt(float x, float z)
+            {
+                for (int k = 0; k + 2 < concrete.Triangles.Count; k += 3)
+                {
+                    int ia = concrete.Triangles[k], ib = concrete.Triangles[k + 1], ic = concrete.Triangles[k + 2];
+                    if (!SameLook(concrete.Colors[ia], CityMeshBuilder.LotLook)) continue;
+                    Vector3 a = concrete.Vertices[ia], b = concrete.Vertices[ib], c = concrete.Vertices[ic];
+                    float d = (b.z - c.z) * (a.x - c.x) + (c.x - b.x) * (a.z - c.z);
+                    if (Mathf.Abs(d) < 1e-9f) continue;
+                    float wa = ((b.z - c.z) * (x - c.x) + (c.x - b.x) * (z - c.z)) / d;
+                    float wb = ((c.z - a.z) * (x - c.x) + (a.x - c.x) * (z - c.z)) / d;
+                    if (wa < -1e-4f || wb < -1e-4f || wa + wb > 1.0001f) continue;
+                    return wa * a.y + wb * b.y + (1.0f - wa - wb) * c.y;
+                }
+                return float.NaN;
+            }
+            int painted = 0;
+            float worst = 0.0f;
+            for (int k = 0; k + 2 < concrete.Triangles.Count; k += 3)
+            {
+                int ia = concrete.Triangles[k];
+                if (!SameLook(concrete.Colors[ia], CityMeshBuilder.StallPaint)) continue;
+                foreach (int corner in new[] { ia, concrete.Triangles[k + 1], concrete.Triangles[k + 2] })
+                {
+                    Vector3 p = concrete.Vertices[corner];
+                    float under = AsphaltAt(p.x, p.z);
+                    Assert.IsFalse(float.IsNaN(under), $"paint off the asphalt at ({p.x:F2}, {p.z:F2})");
+                    float lift = p.y - under;
+                    worst = Mathf.Max(worst, Mathf.Abs(lift - CityMeshBuilder.LotPaintLift));
+                    Assert.That(lift, Is.EqualTo(CityMeshBuilder.LotPaintLift).Within(0.004f), $"the paint at ({p.x:F2}, {p.z:F2}) is {lift:F3} m over the asphalt");
+                }
+                painted++;
+            }
+            Assert.Greater(painted, 20, "the car park has no paint");
+
+            // The ground and the paving under the lot: none of it anywhere across the lot (its wall's width in from its edges).
+            int checkedPoints = 0;
+            for (int i = 0; i <= 6; i++)
+            {
+                for (int j = 0; j <= 6; j++)
+                {
+                    double lx = (i / 6.0 - 0.5) * (lot.Params.Width - 1.0), lz = (j / 6.0 - 0.5) * (lot.Params.Depth - 1.0);
+                    lot.LocalToWorld(lx, lz, out double x, out double z);
+                    int cx = PlanWorld.ChunkOf(x), cy = PlanWorld.ChunkOf(z);
+                    var origin = new Vector3(cx * CityLayout.ChunkSize, 0, cy * CityLayout.ChunkSize);
+                    var ground = new MeshBuffer();
+                    var pavement = new MeshBuffer();
+                    CitySurfaceBuilder.Build(World, cx, cy, origin, ground, pavement, new MeshBuffer(), new MeshBuffer(), new MeshBuffer(), new MeshBuffer(), false);
+                    float asphalt = AsphaltAt((float)lx, (float)lz);
+                    foreach (MeshBuffer m in new[] { ground, pavement })
+                    {
+                        for (int k = 0; k + 2 < m.Triangles.Count; k += 3)
+                        {
+                            Vector3 a = m.Vertices[m.Triangles[k]] + origin, b = m.Vertices[m.Triangles[k + 1]] + origin, c = m.Vertices[m.Triangles[k + 2]] + origin;
+                            if (Vector3.Cross(b - a, c - a).y <= 1e-6f) continue;
+                            float d = (b.z - c.z) * (a.x - c.x) + (c.x - b.x) * (a.z - c.z);
+                            if (Mathf.Abs(d) < 1e-9f) continue;
+                            float wa = ((b.z - c.z) * ((float)x - c.x) + (c.x - b.x) * ((float)z - c.z)) / d;
+                            float wb = ((c.z - a.z) * ((float)x - c.x) + (a.x - c.x) * ((float)z - c.z)) / d;
+                            if (wa < -1e-4f || wb < -1e-4f || wa + wb > 1.0001f) continue;
+                            float y = wa * a.y + wb * b.y + (1.0f - wa - wb) * c.y;
+                            Assert.Greater(asphalt - y, 1.0f, $"the ground stands {y - asphalt:F2} m against the car park's asphalt at ({lx:F1}, {lz:F1}) in the lot");
+                        }
+                    }
+                    checkedPoints++;
+                }
+            }
+            Debug.Log($"CityX car park {lot.Id} ({lot.Params.Width:F0}x{lot.Params.Depth:F0} m, {steepest:F2} m of fall across it): {painted} painted triangles, worst {worst * 1000.0f:F1} mm off their lift; {checkedPoints} points with no ground under the asphalt");
+        }
+
         [Test]
         public void TheChunksAroundAnExitAndAMallAreWoundAndFinite()
         {

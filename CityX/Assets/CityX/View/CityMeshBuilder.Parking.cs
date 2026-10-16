@@ -18,7 +18,10 @@ namespace CityX.View
         public const float GarageColumnBayX = 8.0f;
         public const float GarageColumnBayZ = 16.0f;
         public const float GarageRampWidth = 6.0f;
-        public const float GarageEntranceWidth = 7.0f;
+        public const float GarageEntranceWidth = GarageEntrances.OpeningWidth;
+
+        /// <summary>An entrance ramp dropping more than this from the deck gets a wall along each side of its cut.</summary>
+        public const float GarageCutWallRise = 0.45f;
 
         /// <summary>A parking stall: a real 2.6 x 5.0 m at 1.3x.</summary>
         public const float StallWidth = 3.2f;
@@ -27,32 +30,74 @@ namespace CityX.View
 
 
         private static readonly Color32 GarageFloorLook = SurfaceLook.Pack(new Color(0.62f, 0.62f, 0.63f), SurfaceLook.Asphalt, 0.7f);
-        private static readonly Color32 LotLook = SurfaceLook.Pack(new Color(0.70f, 0.70f, 0.70f), SurfaceLook.Asphalt, 0.75f);
-        private static readonly Color32 StallPaint = SurfaceLook.Pack(new Color(0.95f, 0.95f, 0.92f), SurfaceLook.Paving, 0.3f);
+        public static readonly Color32 LotLook = SurfaceLook.Pack(new Color(0.70f, 0.70f, 0.70f), SurfaceLook.Asphalt, 0.75f);
+        public static readonly Color32 StallPaint = SurfaceLook.Pack(new Color(0.95f, 0.95f, 0.92f), SurfaceLook.Paving, 0.3f);
 
         /// <summary>
         /// A multi-storey car park in the builder's frame (x along the frontage, +z the front, y absolute): decks on a column grid, each
         /// with a spandrel round it and open air above the spandrel, a parked-on ramp along the back wall zigzagging up to the roof, two
         /// entrance openings on the front, and bays painted on every deck. The distant version is the outside only.
         /// </summary>
-        private static void BuildGarage(BuildingSite site, Vector3 origin, MeshBuffer structures, MeshBuffer concrete, SiteLooks looks, bool far)
+        private static void BuildGarage(CityWorld world, BuildingSite site, Vector3 origin, MeshBuffer structures, MeshBuffer concrete, SiteLooks looks, bool far)
         {
             float x0 = (float)(site.MinX - origin.x), x1 = (float)(site.MaxX - origin.x);
             float z0 = (float)(site.MinZ - origin.z), z1 = (float)(site.MaxZ - origin.z);
             float podiumY = site.PodiumBase - origin.y;
-            float floorY = site.BaseHeight - origin.y;
+            float padY = site.BaseHeight - origin.y;   // the plan's floor: the top of the lot's ground
             float height = site.Params.Height;
-            int levels = Mathf.Max(2, Mathf.RoundToInt(height / (float)CityX.World.Plan.Amenities.GarageFloorHeight));
-            float floorH = height / levels;
-            float roofY = floorY + height;
+            float roofY = padY + height;
             Color32 wall = looks.Base;   // the ground-floor material: a garage is all base
             Color32 frame = CityProps.Concrete;
 
-            // The podium fills the slope under the ground deck.
-            if (floorY - podiumY > 0.02f)
+            // THE LOWEST DECK IS AT THE STREET (GarageEntrances): on its podium over the top of its lot the deck stood up to 16 m over the street
+            // and no car could get in. The decks run from the street up to the roof the plan gave it, walled solid below the plan's floor (the hill
+            // is behind them); where an opening's paving is lower than the deck, a short driveway ramp inside it. The frontage in strips across:
+            // beside, an opening, the pier, an opening, beside; an opening's strip is the deck only behind its ramp.
+            GarageEntrance[] entrances = GarageEntrances.For(world.Plan, site);
+            float floorY = entrances[0].DeckY - origin.y;
+            int levels = Mathf.Max(2, Mathf.RoundToInt((roofY - floorY) / (float)CityX.World.Plan.Amenities.GarageFloorHeight));
+            float floorH = (roofY - floorY) / levels;
+            float cx = (x0 + x1) * 0.5f;
+            float[] stripX = { x0, cx + entrances[0].X0, cx + entrances[0].X1, cx + entrances[1].X0, cx + entrances[1].X1, x1 };
+            float StripRamp(int strip) => strip == 1 ? entrances[0].Length : strip == 3 ? entrances[1].Length : 0.0f;
+
+            // The podium fills the ground under the lowest deck where it falls away below it (a metre into the ground: the ground is cut away
+            // under the whole garage, CitySurfaceBuilder), notched for the ramps, each on a wedge of its own down to the paving.
+            concrete.Look = wall;
+            for (int s = 0; s < 5; s++)
             {
+                float sx0 = Mathf.Max(x0, stripX[s]), sx1 = Mathf.Min(x1, stripX[s + 1]);
+                if (sx1 - sx0 < 0.01f || floorY - podiumY <= 0.02f) continue;
+                concrete.AddBox(new Vector3(sx0, podiumY - 1.0f, z0), new Vector3(sx1, floorY, z1 - StripRamp(s)));
+            }
+            for (int i = 0; i < 2; i++)
+            {
+                GarageEntrance e = entrances[i];
+                if (!e.HasRamp) continue;
+                float ex0 = cx + e.X0, ex1 = cx + e.X1;
+                float top = z1 - e.Length;
+                float foot = e.StreetY - origin.y, deck = floorY;
+                float bottom = Mathf.Min(podiumY, foot) - 0.3f;
+                // The ramp's own surface, a wedge's sloped top, from the deck at its top down to the paving at the front wall.
+                concrete.Look = GarageFloorLook;
+                Vector3 slope = new Vector3(0.0f, foot - deck, e.Length).normalized;
+                Vector3 up = new Vector3(0.0f, slope.z, -slope.y);
+                concrete.AddQuad(new Vector3(ex0, deck + GarageEntrances.FloorLift, top), new Vector3(ex0, foot + GarageEntrances.FloorLift, z1), new Vector3(ex1, foot + GarageEntrances.FloorLift, z1), new Vector3(ex1, deck + GarageEntrances.FloorLift, top),
+                    up, new Vector2(ex0, top), new Vector2(ex0, z1), new Vector2(ex1, z1), new Vector2(ex1, top));
                 concrete.Look = wall;
-                concrete.AddBox(new Vector3(x0, podiumY, z0), new Vector3(x1, floorY, z1));
+                // Its front face (down from the paving into the ground) and its two sides (against the podium beside it, below it where the podium stops).
+                concrete.AddQuad(new Vector3(ex1, bottom, z1), new Vector3(ex0, bottom, z1), new Vector3(ex0, foot, z1), new Vector3(ex1, foot, z1), Vector3.forward,
+                    new Vector2(0, 0), new Vector2(ex1 - ex0, 0), new Vector2(ex1 - ex0, foot - bottom), new Vector2(0, foot - bottom));
+                concrete.AddQuad(new Vector3(ex0, bottom, top), new Vector3(ex0, bottom, z1), new Vector3(ex0, foot, z1), new Vector3(ex0, deck, top), Vector3.left,
+                    new Vector2(0, 0), new Vector2(e.Length, 0), new Vector2(e.Length, foot - bottom), new Vector2(0, deck - bottom));
+                concrete.AddQuad(new Vector3(ex1, bottom, z1), new Vector3(ex1, bottom, top), new Vector3(ex1, deck, top), new Vector3(ex1, foot, z1), Vector3.right,
+                    new Vector2(0, 0), new Vector2(e.Length, 0), new Vector2(e.Length, deck - bottom), new Vector2(0, foot - bottom));
+                // A wall along each side of the cut on the deck, where it drops more than a kerb: nothing drives or walks off into it.
+                if (e.Rise > GarageCutWallRise)
+                {
+                    concrete.AddBox(new Vector3(ex0 - 0.25f, deck, top), new Vector3(ex0, deck + 0.9f, z1 - 0.3f));
+                    concrete.AddBox(new Vector3(ex1, deck, top), new Vector3(ex1 + 0.25f, deck + 0.9f, z1 - 0.3f));
+                }
             }
 
             // The ground deck's surface and every deck above it (a slab with the ramp's arrival cut out of it), with the roof on top.
@@ -63,9 +108,15 @@ namespace CityX.View
                 bool roof = k == levels;
                 if (k == 0)
                 {
+                    // In strips, each behind its ramp.
                     concrete.Look = GarageFloorLook;
-                    concrete.AddQuad(new Vector3(x0, slabTop + 0.02f, z0), new Vector3(x0, slabTop + 0.02f, z1), new Vector3(x1, slabTop + 0.02f, z1), new Vector3(x1, slabTop + 0.02f, z0),
-                        Vector3.up, new Vector2(x0, z0), new Vector2(x0, z1), new Vector2(x1, z1), new Vector2(x1, z0));
+                    for (int s = 0; s < 5; s++)
+                    {
+                        float sx0 = Mathf.Max(x0, stripX[s]), sx1 = Mathf.Min(x1, stripX[s + 1]), sz1 = z1 - StripRamp(s);
+                        if (sx1 - sx0 < 0.01f) continue;
+                        concrete.AddQuad(new Vector3(sx0, slabTop + GarageEntrances.FloorLift, z0), new Vector3(sx0, slabTop + GarageEntrances.FloorLift, sz1), new Vector3(sx1, slabTop + GarageEntrances.FloorLift, sz1), new Vector3(sx1, slabTop + GarageEntrances.FloorLift, z0),
+                            Vector3.up, new Vector2(sx0, z0), new Vector2(sx0, sz1), new Vector2(sx1, sz1), new Vector2(sx1, z0));
+                    }
                 }
                 else if (!far || roof)
                 {
@@ -84,21 +135,22 @@ namespace CityX.View
                     break;
                 }
 
-                // The spandrel round this level (open above it), with the entrance openings on the front at street level.
+                // The spandrel round this level (open above it), with the entrance openings on the front at street level. Below the plan's floor
+                // the walls are solid up to it (to the next deck when it is higher still): the hill the garage is dug into stands behind them.
                 float bandTop = slabTop + GarageSpandrelHeight;
+                float wallTop = Mathf.Max(bandTop, Mathf.Min(padY, slabTop + floorH - GarageSlabThickness));
                 structures.Look = wall;
-                structures.AddBox(new Vector3(x0, slabTop, z0), new Vector3(x1, bandTop, z0 + 0.3f));             // back
-                structures.AddBox(new Vector3(x0, slabTop, z0), new Vector3(x0 + 0.3f, bandTop, z1));             // left
-                structures.AddBox(new Vector3(x1 - 0.3f, slabTop, z0), new Vector3(x1, bandTop, z1));             // right
-                float cx = (x0 + x1) * 0.5f;
+                structures.AddBox(new Vector3(x0, slabTop, z0), new Vector3(x1, wallTop, z0 + 0.3f));             // back
+                structures.AddBox(new Vector3(x0, slabTop, z0), new Vector3(x0 + 0.3f, wallTop, z1));             // left
+                structures.AddBox(new Vector3(x1 - 0.3f, slabTop, z0), new Vector3(x1, wallTop, z1));             // right
                 if (k == 0)
                 {
                     // Two openings either side of the middle for cars, with the band between them carrying the P sign.
-                    float gap = GarageEntranceWidth;
-                    float pier = 3.0f;
-                    structures.AddBox(new Vector3(x0, slabTop, z1 - 0.3f), new Vector3(cx - pier - gap, bandTop, z1));
-                    structures.AddBox(new Vector3(cx - pier, slabTop, z1 - 0.3f), new Vector3(cx + pier, bandTop, z1));
-                    structures.AddBox(new Vector3(cx + pier + gap, slabTop, z1 - 0.3f), new Vector3(x1, bandTop, z1));
+                    float gap = GarageEntrances.OpeningWidth;
+                    float pier = GarageEntrances.HalfPier;
+                    structures.AddBox(new Vector3(x0, slabTop, z1 - 0.3f), new Vector3(cx - pier - gap, wallTop, z1));
+                    structures.AddBox(new Vector3(cx - pier, slabTop, z1 - 0.3f), new Vector3(cx + pier, wallTop, z1));
+                    structures.AddBox(new Vector3(cx + pier + gap, slabTop, z1 - 0.3f), new Vector3(x1, wallTop, z1));
                     // A lintel over each opening, so the deck above has something to sit on.
                     structures.AddBox(new Vector3(cx - pier - gap, floorY + floorH - 0.9f, z1 - 0.3f), new Vector3(cx - pier, floorY + floorH, z1));
                     structures.AddBox(new Vector3(cx + pier, floorY + floorH - 0.9f, z1 - 0.3f), new Vector3(cx + pier + gap, floorY + floorH, z1));
@@ -106,7 +158,7 @@ namespace CityX.View
                 }
                 else
                 {
-                    structures.AddBox(new Vector3(x0, slabTop, z1 - 0.3f), new Vector3(x1, bandTop, z1));
+                    structures.AddBox(new Vector3(x0, slabTop, z1 - 0.3f), new Vector3(x1, wallTop, z1));
                 }
 
                 if (far)
@@ -114,7 +166,7 @@ namespace CityX.View
                     // From afar the open air between the spandrels is a dark band: the deck's shadowed inside.
                     structures.Look = SurfaceLook.Pack(new Color(0.16f, 0.16f, 0.17f), (int)WallMaterial.Concrete, 0.8f);
                     float voidTop = slabTop + floorH - GarageSlabThickness;
-                    AddWallRing(structures, x0 + 0.1f, x1 - 0.1f, z0 + 0.1f, z1 - 0.1f, bandTop, voidTop);
+                    AddWallRing(structures, x0 + 0.1f, x1 - 0.1f, z0 + 0.1f, z1 - 0.1f, wallTop, voidTop);
                     continue;
                 }
 
@@ -129,9 +181,9 @@ namespace CityX.View
                     for (int iz = 0; iz <= nz; iz++)
                     {
                         float pz = Mathf.Lerp(z0 + 0.5f, z1 - 0.5f, iz / (float)nz);
-                        if (k == 0 && Mathf.Abs(px - cx) < GarageEntranceWidth + 3.5f && pz > z1 - 1.0f)
+                        if (k == 0 && (Mathf.Abs(px - cx) < GarageEntranceWidth + 3.5f && pz > z1 - 1.0f || OnEntranceRamp(px, pz, 0.6f)))
                         {
-                            continue;   // not in the entrance
+                            continue;   // not in the entrance, nor on its ramp
                         }
                         if (pz > rampZ0 - 0.4f && pz < rampZ1 + 0.4f && iz != 0)
                         {
@@ -155,9 +207,39 @@ namespace CityX.View
                 float rowZ2 = z1 - 0.5f - StallDepth, rowZ3 = z1 - 0.5f;
                 if (rowZ2 > rowZ1 + AisleWidth * 0.5f)
                 {
-                    PaintStallRow(concrete, x0 + 1.0f, x1 - 1.0f, rowZ0, rowZ1, slabTop + 0.02f);
-                    PaintStallRow(concrete, x0 + 1.0f, x1 - 1.0f, rowZ2, rowZ3, slabTop + 0.02f);
+                    if (k == 0)
+                    {
+                        // The ground deck's rows stop either side of an entrance ramp that reaches into them.
+                        PaintStallRowBesideRamps(rowZ0, rowZ1, slabTop + 0.02f);
+                        PaintStallRowBesideRamps(rowZ2, rowZ3, slabTop + 0.02f);
+                    }
+                    else
+                    {
+                        PaintStallRow(concrete, x0 + 1.0f, x1 - 1.0f, rowZ0, rowZ1, slabTop + 0.02f);
+                        PaintStallRow(concrete, x0 + 1.0f, x1 - 1.0f, rowZ2, rowZ3, slabTop + 0.02f);
+                    }
                 }
+            }
+
+            bool OnEntranceRamp(float px, float pz, float margin)
+            {
+                foreach (GarageEntrance e in entrances)
+                {
+                    if (e.HasRamp && px > cx + e.X0 - margin && px < cx + e.X1 + margin && pz > z1 - e.Length - margin) return true;
+                }
+                return false;
+            }
+
+            void PaintStallRowBesideRamps(float rz0, float rz1, float y)
+            {
+                float from = x0 + 1.0f;
+                foreach (GarageEntrance e in entrances)
+                {
+                    if (!e.HasRamp || z1 - e.Length >= rz1) continue;
+                    if (cx + e.X0 - 0.5f - from > StallWidth) PaintStallRow(concrete, from, cx + e.X0 - 0.5f, rz0, rz1, y);
+                    from = cx + e.X1 + 0.5f;
+                }
+                if (x1 - 1.0f - from > StallWidth) PaintStallRow(concrete, from, x1 - 1.0f, rz0, rz1, y);
             }
 
             // The roof's own bays.
@@ -308,10 +390,32 @@ namespace CityX.View
                 }
             }
 
+            // The asphalt's own height anywhere on it: on the very triangles just laid (each cell split corner (ax, az) to (bx, bz), as AddQuad
+            // splits it), so the paint lies exactly on it. Sampled on its own, the paint dipped under the asphalt between its ends and flickered
+            // in and out (owner, 2026-10-16: "the parking spot decals are glitching like fading in and out").
+            float cellW = (x1 - x0) / nx, cellD = (z1 - z0) / nz;
+            float Surface(float px, float pz)
+            {
+                int i = Mathf.Clamp(Mathf.FloorToInt((px - x0) / cellW), 0, nx - 1);
+                int j = Mathf.Clamp(Mathf.FloorToInt((pz - z0) / cellD), 0, nz - 1);
+                float ax = x0 + i * cellW, az = z0 + j * cellD;
+                float u = Mathf.Clamp01((px - ax) / cellW), v = Mathf.Clamp01((pz - az) / cellD);
+                float ha = Top(ax, az), hb = Top(ax, az + cellD), hc = Top(ax + cellW, az + cellD), hd = Top(ax + cellW, az);
+                return v >= u ? ha + (hc - hb) * u + (hb - ha) * v : ha + (hd - ha) * u + (hc - hd) * v;
+            }
+
             // The wall: 0.6 m, running with the ground, with the entrance gap on the front wall.
             float cx = (x0 + x1) * 0.5f;
             float gap = GarageEntranceWidth;
             structures.Look = CityProps.Concrete;
+            // Across the entrance gap, the asphalt's edge face down into the ground (the ground is cut away under the lot: CitySurfaceBuilder).
+            for (int k = 0; k < 4; k++)
+            {
+                float ea = cx - gap * 0.5f + gap * k / 4.0f, eb = cx - gap * 0.5f + gap * (k + 1) / 4.0f;
+                float ya = Top(ea, z1), yb = Top(eb, z1);
+                structures.AddQuad(new Vector3(ea, ya - 0.5f, z1), new Vector3(eb, yb - 0.5f, z1), new Vector3(eb, yb, z1), new Vector3(ea, ya, z1), Vector3.forward,
+                    new Vector2(0, 0), new Vector2(eb - ea, 0), new Vector2(eb - ea, 0.5f), new Vector2(0, 0.5f));
+            }
             AddSlopingWall(structures, x0, z0, x1, z0 + 0.25f, Top);
             AddSlopingWall(structures, x0, z0, x0 + 0.25f, z1, Top);
             AddSlopingWall(structures, x1 - 0.25f, z0, x1, z1, Top);
@@ -350,11 +454,11 @@ namespace CityX.View
             int row = 0;
             while (rowZ + StallDepth <= z1 - 5.0f)
             {
-                PaintStallRowOnGround(concrete, x0 + 1.0f, x1 - 1.0f, rowZ, rowZ + StallDepth, Top);
+                PaintStallRowOnGround(concrete, x0 + 1.0f, x1 - 1.0f, rowZ, rowZ + StallDepth, Surface, z0, cellD, x0, cellW);
                 float second = rowZ + StallDepth + AisleWidth;
                 if (second + StallDepth <= z1 - 5.0f)
                 {
-                    PaintStallRowOnGround(concrete, x0 + 1.0f, x1 - 1.0f, second, second + StallDepth, Top);
+                    PaintStallRowOnGround(concrete, x0 + 1.0f, x1 - 1.0f, second, second + StallDepth, Surface, z0, cellD, x0, cellW);
                 }
                 rowZ += rowDepth;
                 row++;
@@ -373,10 +477,11 @@ namespace CityX.View
         public const float LotCell = 4.0f;
 
         /// <summary>
-        /// How far the lot's asphalt stands above the block's paving: a kerb's worth, so the paving (planar across each terrain cell) never
-        /// pokes through the lot (sampled from the smooth ground on its own, turned grid) where the ground bulges between the two.
+        /// How far the lot's asphalt stands above the block's paving. A kerb's worth (0.12) until 2026-10-16, so the paving (planar across each
+        /// terrain cell) did not poke through the lot (sampled on its own, turned grid) where the ground bulges between the two; the ground and
+        /// the paving are cut away under the lot since (CitySurfaceBuilder), so it lies all but flush with the paving at its entrance.
         /// </summary>
-        public const float LotLift = 0.12f;
+        public const float LotLift = 0.02f;
 
         /// <summary>
         /// A 0.6 m wall between two corners of a box outline, in pieces of about 3 m, each a prism whose top and bottom run with the ground
@@ -411,20 +516,45 @@ namespace CityX.View
         }
 
         /// <summary>PaintStallRow on sloping ground: each line in two pieces that follow the surface.</summary>
-        private static void PaintStallRowOnGround(MeshBuffer paint, float x0, float x1, float rz0, float rz1, System.Func<float, float, float> top)
+        /// <summary>How far the paint stands over the lot's asphalt.</summary>
+        public const float LotPaintLift = 0.03f;
+
+        /// <summary>
+        /// PaintStallRow on a sloping lot: each line cut where it crosses a cell of the asphalt (every <paramref name="cellD"/> from
+        /// <paramref name="gridZ0"/>) and a cell's diagonal, each corner of each piece <see cref="LotPaintLift"/> over the asphalt's own triangles
+        /// (<paramref name="surface"/>): a piece then runs parallel to the triangle under it, never into it.
+        /// </summary>
+        private static void PaintStallRowOnGround(MeshBuffer paint, float x0, float x1, float rz0, float rz1, System.Func<float, float, float> surface,
+            float gridZ0, float cellD, float gridX0, float cellW)
         {
             int stalls = Mathf.FloorToInt((x1 - x0) / StallWidth);
             if (stalls < 1) return;
             float start = x0 + ((x1 - x0) - stalls * StallWidth) * 0.5f;
             paint.Look = StallPaint;
-            float rzm = (rz0 + rz1) * 0.5f;
+            var cuts = new System.Collections.Generic.List<float>(8);
             for (int i = 0; i <= stalls; i++)
             {
                 float lx = start + i * StallWidth;
-                foreach ((float za, float zb) in new[] { (rz0, rzm), (rzm, rz1) })
+                cuts.Clear();
+                cuts.Add(rz0);
+                cuts.Add(rz1);
+                // The cells' edges across the line, and where the line crosses each cell's diagonal (v = u within the cell).
+                float u = (lx - gridX0) / cellW - Mathf.Floor((lx - gridX0) / cellW);
+                for (int j = Mathf.FloorToInt((rz0 - gridZ0) / cellD); j <= Mathf.CeilToInt((rz1 - gridZ0) / cellD); j++)
                 {
-                    float ya = top(lx, za) + 0.03f, yb = top(lx, zb) + 0.03f;
-                    paint.AddQuad(new Vector3(lx - 0.06f, ya, za), new Vector3(lx - 0.06f, yb, zb), new Vector3(lx + 0.06f, yb, zb), new Vector3(lx + 0.06f, ya, za), Vector3.up,
+                    float edge = gridZ0 + j * cellD;
+                    float diagonal = edge + u * cellD;
+                    if (edge > rz0 && edge < rz1) cuts.Add(edge);
+                    if (diagonal > rz0 && diagonal < rz1) cuts.Add(diagonal);
+                }
+                cuts.Sort();
+                for (int k = 0; k + 1 < cuts.Count; k++)
+                {
+                    float za = cuts[k], zb = cuts[k + 1];
+                    if (zb - za < 0.01f) continue;
+                    paint.AddQuad(
+                        new Vector3(lx - 0.06f, surface(lx - 0.06f, za) + LotPaintLift, za), new Vector3(lx - 0.06f, surface(lx - 0.06f, zb) + LotPaintLift, zb),
+                        new Vector3(lx + 0.06f, surface(lx + 0.06f, zb) + LotPaintLift, zb), new Vector3(lx + 0.06f, surface(lx + 0.06f, za) + LotPaintLift, za), Vector3.up,
                         new Vector2(0, 0), new Vector2(0, 1), new Vector2(1, 1), new Vector2(1, 0));
                 }
             }

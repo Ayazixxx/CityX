@@ -11,6 +11,7 @@
         "CityX.Character",
         "CityX.Weapons",
         "CityX.Wearables",
+        "CityX.Vehicles",
         "CityX.World",
         "CityX.View",
         "CityX.UI",

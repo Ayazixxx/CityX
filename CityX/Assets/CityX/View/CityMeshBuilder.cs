@@ -107,7 +107,7 @@ namespace CityX.View
 
             if (site.IsParkingGarage)
             {
-                BuildGarage(site, builderOrigin, structures, concrete, looks, far);   // CityMeshBuilder.Parking.cs
+                BuildGarage(world, site, builderOrigin, structures, concrete, looks, far);   // CityMeshBuilder.Parking.cs
             }
             else if (site.IsOpenGround)
             {
@@ -148,7 +148,6 @@ namespace CityX.View
                 RoomWindowGlow windowGlow = roomGlows != null ? RoomWindowGlow.For(site, offset) : null;
                 BuildBuilding(world, site, builderOrigin, structures, concrete,
                     new Glazing(litGlass, darkGlass, crackedGlass, damage, crackedOpenings, crackDecals, litShare, windowGlow), looks);
-                AddBalconies(world, site, builderOrigin, structures, looks);
                 AddRibs(world, site, builderOrigin, structures, looks);
                 // An apartment block's balconies on every floor and its walkway (CityMeshBuilder.Apartment.cs).
                 AddApartmentFronts(world, site, builderOrigin, structures, looks, false);
@@ -875,98 +874,6 @@ namespace CityX.View
                 float top = flight.TopOf(k, doorThreshold.y);
                 float foot = Mathf.Min(Mathf.Min(Paving(a, wallZ), Paving(b, wallZ)), Mathf.Min(Paving(a, z1), Paving(b, z1))) - EntranceStairs.Footing;
                 concrete.AddBox(new Vector3(Mathf.Min(a, b), Mathf.Min(foot, top - 0.05f), wallZ), new Vector3(Mathf.Max(a, b), top, z1));
-            }
-        }
-
-        /// <summary>
-        /// Balcony slabs and their railings, hung off the facade.
-        ///
-        /// Concrete rather than facade, like everything else that is not the
-        /// windowed wall itself -- a balcony reading as a sheet of windows
-        /// stuck to the side of a building is worse than no balcony.
-        /// </summary>
-        private static void AddBalconies(CityWorld world, BuildingSite site, Vector3 origin,
-            MeshBuffer concrete, SiteLooks looks)
-        {
-            List<BuildingDecor.Balcony> balconies = BuildingDecor.Balconies(
-                site.Seed,
-                site.Params.Width, site.Params.Depth, site.Params.Height);
-            if (balconies.Count == 0)
-            {
-                return;
-            }
-
-            float centreX = (float)(site.CentreX - origin.x);
-            float centreZ = (float)(site.CentreZ - origin.z);
-            float baseY = site.BaseHeight - origin.y;
-            concrete.Look = looks.Trim;
-            WindowPlan plan = WindowPlan.For(world, site);
-            ApartmentFront front = FrontFor(site, plan);
-
-            foreach (BuildingDecor.Balcony balcony in balconies)
-            {
-                // Not on a stretch of wall another block of the building stands against, nor on a wall with a balcony on every floor already.
-                float along = balcony.WidthAlongX ? balcony.Centre.x : balcony.Centre.z;
-                if (TouchesAnotherBlock(site, balcony.Normal, along, BuildingDecor.BalconyWidth * 0.5f, balcony.Centre.y) || front.Covers(balcony.Normal))
-                {
-                    continue;
-                }
-                // Nor where a footbridge lands (owner, 2026-10-16: its rail stood across a bridge's door, the deck running into it).
-                WindowGrid.Wall which = Mathf.Abs(balcony.Normal.x) > 0.5f
-                    ? (balcony.Normal.x > 0.0f ? WindowGrid.Wall.East : WindowGrid.Wall.West)
-                    : (balcony.Normal.z > 0.0f ? WindowGrid.Wall.North : WindowGrid.Wall.South);
-                List<BalconyDoor> doors = BalconyDoorsOf(site, plan, which);
-                float bottom = baseY + balcony.Centre.y - BuildingDecor.BalconySlabThickness;
-                if (NextBridgeLanding(doors, baseY, along - BuildingDecor.BalconyWidth * 0.5f, along + BuildingDecor.BalconyWidth * 0.5f, bottom,
-                        bottom + BuildingDecor.BalconySlabThickness + BuildingDecor.BalconyRailHeight, out _)
-                    < bottom + BuildingDecor.BalconySlabThickness + BuildingDecor.BalconyRailHeight - 0.01f)
-                {
-                    continue;
-                }
-
-                Vector3 centre = new Vector3(
-                    balcony.Centre.x + centreX,
-                    balcony.Centre.y + baseY,
-                    balcony.Centre.z + centreZ);
-
-                // Width runs one way and depth the other depending on which
-                // wall it hangs off, which is what WidthAlongX settles.
-                float sizeX = balcony.WidthAlongX
-                    ? BuildingDecor.BalconyWidth : BuildingDecor.BalconyDepth;
-                float sizeZ = balcony.WidthAlongX
-                    ? BuildingDecor.BalconyDepth : BuildingDecor.BalconyWidth;
-
-                AddCentredBox(concrete, centre.x, centre.z,
-                    centre.y - BuildingDecor.BalconySlabThickness * 0.5f,
-                    sizeX, BuildingDecor.BalconySlabThickness, sizeZ);
-
-                // The rail along the open edge, set in by its own thickness so
-                // it stands ON the slab rather than off the end of it.
-                Vector3 outer = centre + balcony.Normal
-                    * (BuildingDecor.BalconyDepth * 0.5f
-                       - BuildingDecor.BalconyRailThickness * 0.5f);
-                AddCentredBox(concrete, outer.x, outer.z, centre.y,
-                    balcony.WidthAlongX
-                        ? BuildingDecor.BalconyWidth : BuildingDecor.BalconyRailThickness,
-                    BuildingDecor.BalconyRailHeight,
-                    balcony.WidthAlongX
-                        ? BuildingDecor.BalconyRailThickness : BuildingDecor.BalconyWidth);
-
-                // And one down each side, so it reads as an enclosure rather
-                // than a shelf with a fence on the far edge.
-                Vector3 sideStep = balcony.WidthAlongX
-                    ? new Vector3(BuildingDecor.BalconyWidth * 0.5f, 0.0f, 0.0f)
-                    : new Vector3(0.0f, 0.0f, BuildingDecor.BalconyWidth * 0.5f);
-                foreach (float sign in new[] { -1.0f, 1.0f })
-                {
-                    Vector3 side = centre + sideStep * sign;
-                    AddCentredBox(concrete, side.x, side.z, centre.y,
-                        balcony.WidthAlongX
-                            ? BuildingDecor.BalconyRailThickness : BuildingDecor.BalconyDepth,
-                        BuildingDecor.BalconyRailHeight,
-                        balcony.WidthAlongX
-                            ? BuildingDecor.BalconyDepth : BuildingDecor.BalconyRailThickness);
-                }
             }
         }
 

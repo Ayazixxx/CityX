@@ -126,8 +126,13 @@ namespace CityX.World.Plan
             // roads of the graph, and no lot is cut under them.
             data.Expressways = ExpresswayPlanner.Plan(net, fields, cfg, PlanNoise.Mix(unchecked((uint)worldSeed), 0x78776179U), centres);   // "xway"
 
-            data.Blocks = BlockExtractor.Extract(net, cfg);
+            data.Blocks = BlockExtractor.Extract(net, cfg, out bool[] bounding);
             MarkEnclosing(data.Blocks);
+            // A dead-end street, or a road with the same block on both sides, is left out of the blocks' outlines above, so the lots are cut
+            // straight across it: drawn, it ran on under the buildings and ended in a wall (owner, 2026-10-16: "the road leads into a wall it
+            // doesnt turn into the garage"). Such a road inside a block is retired with its junction; one outside every block (the city's
+            // edge) stays, and so does one an expressway ramp or exit lands on.
+            BlockExtractor.RetireRoadsInsideBlocks(net, bounding, data.Blocks, data.Expressways, cfg);
 
             uint lotSeed = PlanNoise.Mix(unchecked((uint)worldSeed), 0x6C6F7473U);    // "lots"
             LotSubdivider.Subdivide(data, lotSeed);
@@ -212,7 +217,13 @@ namespace CityX.World.Plan
     /// </summary>
     public static class BlockExtractor
     {
-        public static List<PlanBlock> Extract(RoadNetwork net, PlanConfig cfg)
+        public static List<PlanBlock> Extract(RoadNetwork net, PlanConfig cfg) => Extract(net, cfg, out _);
+
+        /// <summary>
+        /// As above; <paramref name="bounding"/> says, per edge, whether the road is one the blocks were traced from (false for a dead end pruned
+        /// first, a road with the same block on both sides, and a dead road).
+        /// </summary>
+        public static List<PlanBlock> Extract(RoadNetwork net, PlanConfig cfg, out bool[] bounding)
         {
             int edgeCount = net.Edges.Count;
             var active = new bool[edgeCount];
@@ -264,7 +275,67 @@ namespace CityX.World.Plan
                 block.Area = area;
                 blocks.Add(block);
             }
+            bounding = active;
             return blocks;
+        }
+
+        /// <summary>
+        /// Retires every live road the blocks were not traced from (<paramref name="bounding"/> false) that lies inside a block: a dead end or a
+        /// road with the same block on both sides, which the lots are cut across. Its middle inside a block's outline decides it (such a road
+        /// crosses no other road, so it lies wholly in one face); a road an expressway ramp or exit lands on is kept. Taken out of its nodes'
+        /// lists as <see cref="RoadNetwork"/> retires a split road, so its junctions are shaped without it. Returns how many were retired.
+        /// </summary>
+        public static int RetireRoadsInsideBlocks(RoadNetwork net, bool[] bounding, List<PlanBlock> blocks, ExpresswayNetwork expressways, PlanConfig cfg)
+        {
+            var needed = new HashSet<int>();
+            if (expressways != null)
+            {
+                foreach (ViaductPath p in expressways.Paths) if (p.StreetEdge >= 0) needed.Add(p.StreetEdge);
+                foreach (KerbCut c in expressways.KerbCuts) if (c.StreetEdge >= 0) needed.Add(c.StreetEdge);
+                foreach (ExpresswayInterchange i in expressways.Interchanges) if (i.StreetEdge >= 0) needed.Add(i.StreetEdge);
+            }
+            var boxes = new double[blocks.Count][];
+            for (int b = 0; b < blocks.Count; b++)
+            {
+                double x0 = double.MaxValue, z0 = double.MaxValue, x1 = double.MinValue, z1 = double.MinValue;
+                foreach (Vec2 p in blocks[b].Poly)
+                {
+                    x0 = Math.Min(x0, p.X);
+                    z0 = Math.Min(z0, p.Y);
+                    x1 = Math.Max(x1, p.X);
+                    z1 = Math.Max(z1, p.Y);
+                }
+                boxes[b] = new[] { x0, z0, x1, z1 };
+            }
+            int retired = 0;
+            for (int e = 0; e < net.Edges.Count; e++)
+            {
+                RoadEdge edge = net.Edges[e];
+                if (!edge.Alive || bounding[e]) continue;
+                Vec2 mid = (edge.A.P + edge.B.P) * 0.5;
+                bool inside = false;
+                for (int b = 0; b < blocks.Count && !inside; b++)
+                {
+                    double[] box = boxes[b];
+                    if (mid.X <= box[0] || mid.Y <= box[1] || mid.X >= box[2] || mid.Y >= box[3]) continue;
+                    inside = PlanMath.PointInPolygon(mid, blocks[b].Poly);
+                }
+                if (!inside) continue;
+                if (needed.Contains(e))
+                {
+                    // A ramp runs down onto it: it stays, and the lots keep clear of it and its pavement.
+                    if (expressways != null)
+                    {
+                        expressways.HeldStreets.Add(new HeldStreet { A = edge.A.P, B = edge.B.P, Clear = CityPlan.HalfWidth(cfg, edge.Class) + cfg.SidewalkWidth });
+                    }
+                    continue;
+                }
+                edge.Alive = false;
+                edge.A.Edges.Remove(edge);
+                edge.B.Edges.Remove(edge);
+                retired++;
+            }
+            return retired;
         }
 
         private static void PruneSpurs(RoadNetwork net, bool[] active)
