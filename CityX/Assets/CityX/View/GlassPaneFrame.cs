@@ -49,6 +49,10 @@ namespace CityX.View
             {
                 return false;   // a round building's facets: the old burst
             }
+            if (DoorGlass.IsDoorPane(key))
+            {
+                return TryDoorFrame(world, site, key, onGlass, out frame);
+            }
             bool runsInZ = key.Wall == WindowGrid.Wall.West || key.Wall == WindowGrid.Wall.East;
             float span = runsInZ ? site.Params.Depth : site.Params.Width;
             CellLayout rows = WindowGrid.RowsFor(site.Params.Height);
@@ -100,6 +104,30 @@ namespace CityX.View
             // The glass is where the blow landed on it: the wall's face is in front of it by the depth of the reveal.
             start += normal * Vector3.Dot(onGlass - start, normal);
             frame = new PaneFrame(start, across, Vector3.up, normal, width, paneY1 - paneY0);
+            return true;
+        }
+
+        /// <summary>
+        /// A door's sheet of glass (World/DoorGlass) in the world, as the door stands now: the corner at the low end of its glass, across it the way
+        /// the building's frame runs, up, its normal; its plane where the blow landed on it.
+        /// </summary>
+        private static bool TryDoorFrame(CityWorld world, BuildingSite site, PaneKey key, Vector3 onGlass, out PaneFrame frame)
+        {
+            frame = default;
+            if (!DoorGlass.TryPane(world, site, key, out DoorPane pane) || pane.Width < 0.05f || pane.Height < 0.05f)
+            {
+                return false;
+            }
+            // The building's frame about its centre, turned into the world: +x is AxisX, +z is AxisX turned a quarter toward +z.
+            var axisX = new Vector3((float)site.AxisX, 0.0f, (float)site.AxisZ);
+            var axisZ = new Vector3(-(float)site.AxisZ, 0.0f, (float)site.AxisX);
+            float lx = pane.RunsInZ ? pane.Plane : pane.U0, lz = pane.RunsInZ ? pane.U0 : pane.Plane;
+            site.LocalToWorld(lx, lz, out double wx, out double wz);
+            var start = new Vector3((float)wx, site.BaseHeight + pane.Y0, (float)wz);
+            Vector3 across = pane.RunsInZ ? axisZ : axisX;
+            Vector3 normal = axisX * pane.Normal.x + axisZ * pane.Normal.z;
+            start += normal * Vector3.Dot(onGlass - start, normal);
+            frame = new PaneFrame(start, across, Vector3.up, normal, pane.Width, pane.Height);
             return true;
         }
 

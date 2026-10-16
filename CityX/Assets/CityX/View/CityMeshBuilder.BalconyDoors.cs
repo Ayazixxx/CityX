@@ -252,6 +252,7 @@ namespace CityX.View
             float panelHeight = height - BalconyDoors.HeadBar - BalconyDoors.Threshold;
             Vector3 sill = low + Vector3.up * BalconyDoors.Threshold;   // the panels stand on the threshold
             bool lowSide = BalconyDoors.FixedOnLow(site, door.Unit);
+            // The frames are drawn here; their glass, each sheet as its damage has it, from DoorGlass (what a bullet hits is what is drawn).
             switch (door.Kind)
             {
                 case BalconyDoorKind.Sliding:
@@ -261,10 +262,11 @@ namespace CityX.View
                     float slidingShut = lowSide ? width - jamb - panel : jamb;
                     // Open, the sliding panel stands behind the fixed one (a little short of all the way: its handle stops it).
                     float slidingAt = open ? fixedAt + (lowSide ? BalconyDoors.SlidingStop : -BalconyDoors.SlidingStop) : slidingShut;
-                    AddGlazedPanel(wallBuffer, glassBuffer, sill + along * fixedAt + inward * BalconyDoors.OuterTrack, along, inward, panel,
+                    AddGlazedPanel(wallBuffer, null, sill + along * fixedAt + inward * BalconyDoors.OuterTrack, along, inward, panel,
                         panelHeight, frame, glass);
-                    AddGlazedPanel(wallBuffer, glassBuffer, sill + along * slidingAt + inward * BalconyDoors.InnerTrack, along, inward, panel,
+                    AddGlazedPanel(wallBuffer, null, sill + along * slidingAt + inward * BalconyDoors.InnerTrack, along, inward, panel,
                         panelHeight, frame, glass);
+                    AddDoorGlass(glazing, glassBuffer, site, door, open, y0 - door.Y0, glass);
                     break;
                 }
                 case BalconyDoorKind.Double:
@@ -275,15 +277,16 @@ namespace CityX.View
                     Vector3 plane = inward * BalconyDoors.LeafPlane;
                     if (open)
                     {
-                        AddGlazedPanel(wallBuffer, glassBuffer, sill + along * (jamb + t) + plane, inward, along, leaf, panelHeight, frame, glass);
-                        AddGlazedPanel(wallBuffer, glassBuffer, sill + along * (width - jamb - t) + plane, inward, -along, leaf, panelHeight, frame,
+                        AddGlazedPanel(wallBuffer, null, sill + along * (jamb + t) + plane, inward, along, leaf, panelHeight, frame, glass);
+                        AddGlazedPanel(wallBuffer, null, sill + along * (width - jamb - t) + plane, inward, -along, leaf, panelHeight, frame,
                             glass);
                     }
                     else
                     {
-                        AddGlazedPanel(wallBuffer, glassBuffer, sill + along * jamb + plane, along, inward, leaf, panelHeight, frame, glass);
-                        AddGlazedPanel(wallBuffer, glassBuffer, sill + along * (width - jamb) + plane, -along, inward, leaf, panelHeight, frame, glass);
+                        AddGlazedPanel(wallBuffer, null, sill + along * jamb + plane, along, inward, leaf, panelHeight, frame, glass);
+                        AddGlazedPanel(wallBuffer, null, sill + along * (width - jamb) + plane, -along, inward, leaf, panelHeight, frame, glass);
                     }
+                    AddDoorGlass(glazing, glassBuffer, site, door, open, y0 - door.Y0, glass);
                     break;
                 }
                 default:
@@ -303,6 +306,85 @@ namespace CityX.View
                     }
                     break;
                 }
+            }
+        }
+
+        [System.ThreadStatic] private static DoorPane[] s_doorPanes;
+
+        /// <summary>
+        /// The glass of a door's panels or leaves (World/DoorGlass), each sheet as its damage has it: whole (the door's own glass, both faces),
+        /// cracked (the cracked glass, with a real hole and a crack decal at every bullet that hit it, and a trigger box a knock or a bullet finds:
+        /// a cracked sheet is walkable, like a cracked window), or gone (its frame stands empty). <paramref name="floorY"/> is the building's floor
+        /// in this frame (the door's heights are above it).
+        /// </summary>
+        private static void AddDoorGlass(in Glazing glazing, MeshBuffer glassBuffer, BuildingSite site, in BalconyDoor door, bool open, float floorY,
+            Color32 glassLook)
+        {
+            DoorPane[] panes = s_doorPanes ?? (s_doorPanes = new DoorPane[2]);
+            int n = DoorGlass.Panes(site, door, open, panes);
+            for (int i = 0; i < n; i++)
+            {
+                DoorPane pane = panes[i];
+                PaneState state = glazing.Damage == null ? PaneState.Intact : glazing.Damage.StateOf(pane.Key);
+                if (state == PaneState.Shattered)
+                {
+                    continue;
+                }
+                var sheet = new Wall(pane.RunsInZ, pane.Plane, pane.U0, pane.U1);
+                float y0 = floorY + pane.Y0, y1 = floorY + pane.Y1;
+                Vector3 normal = pane.Normal;
+                if (state == PaneState.Cracked)
+                {
+                    MeshBuffer cracked = glazing.Cracked;
+                    if (cracked == null)
+                    {
+                        continue;
+                    }
+                    if (glazing.Damage.TryGetImpacts(pane.Key, out Vector2[] impacts))
+                    {
+                        var centres = new Vector2[impacts.Length];
+                        for (int k = 0; k < impacts.Length; k++)
+                        {
+                            centres[k] = ClampedHoleCentre(pane.U0, pane.U1, y0, y1, impacts[k]);
+                        }
+                        AddPaneWithHoles(cracked, sheet, pane.U0, pane.U1, y0, y1, normal, centres);
+                        if (glazing.Decals != null)
+                        {
+                            foreach (Vector2 centre in centres)
+                            {
+                                AddCrackDecal(glazing.Decals, sheet, centre, normal);
+                                AddCrackDecal(glazing.Decals, sheet, centre, -normal);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        AddDoubleSidedWallPanel(cracked, sheet, pane.U0, pane.U1, y0, y1, normal);
+                    }
+                    if (glazing.Openings != null)
+                    {
+                        // The box a knock or a bullet finds, turned with the sheet: an open leaf stands square to its wall, so its box is turned a
+                        // quarter (CrackedPane measures a knock through the sheet along the box's turn).
+                        Vector3 centre3 = sheet.At((pane.U0 + pane.U1) * 0.5f, (y0 + y1) * 0.5f);
+                        Quaternion turn = pane.Turned ? Quaternion.Euler(0.0f, 90.0f, 0.0f) : Quaternion.identity;
+                        Vector3 size = pane.Turned
+                            ? new Vector3(pane.Width, y1 - y0, CrackedOpeningDepth)
+                            : (pane.RunsInZ ? new Vector3(CrackedOpeningDepth, y1 - y0, pane.Width) : new Vector3(pane.Width, y1 - y0, CrackedOpeningDepth));
+                        glazing.Openings.Add(new CrackedOpening(pane.Key, centre3, size, turn));
+                    }
+                    continue;
+                }
+                if (glassBuffer == null)
+                {
+                    continue;
+                }
+                Color32 saved = glassBuffer.Look;
+                glassBuffer.Look = glassLook;
+                float w = pane.Width, h = y1 - y0;
+                Vector3 a = sheet.At(pane.U0, y0), b = sheet.At(pane.U1, y0), c = sheet.At(pane.U1, y1), d = sheet.At(pane.U0, y1);
+                glassBuffer.AddQuad(a, b, c, d, normal, new Vector2(0, 0), new Vector2(w, 0), new Vector2(w, h), new Vector2(0, h));
+                glassBuffer.AddQuad(a, b, c, d, -normal, new Vector2(0, 0), new Vector2(w, 0), new Vector2(w, h), new Vector2(0, h));
+                glassBuffer.Look = saved;
             }
         }
 

@@ -296,3 +296,25 @@ pieces; a shot or a blow went through `GlassBreaker`, which plays the break and 
 A knock now goes through `GlassBreaker.Knock` as well: the pane is cut round where the body met it (the nearest point of the body to the
 pane, carried onto the pane along the way it was moving), the pieces thrown the way it was going, a sprint or a dive (4 m/s or more) like a
 heavy blow. Test: `CrackedPaneKnockPlayTests` (a body walking into a cracked window breaks it, and its pieces are in the air).
+
+## Update 2026-10-16: the glass in the doors breaks like a window, and broken glass is shared
+
+Owner: "can you make the sliding glass doors fracturable like the glass windows". A sliding door's two panels and a pair's two leaves (the doors
+onto the balconies and a footbridge's doorway) each hold a sheet of glass, and each sheet is now a pane of its own in `GlassDamage`
+(`World/DoorGlass`: its key is the door's unit and the panel, past every window's column). Shot, it takes a bullet hole and cracks, the
+fifth bullet or a blow brings it down into its own pieces (`GlassFractureBurst`, cut from the sheet where it stands: `GlassPaneFrame`), and
+something walking into a cracked one breaks it into its pieces too. The damage goes with the sheet: a cracked panel slides open cracked, a
+broken leaf swings open empty, and a cracked or broken sheet is walkable like a cracked window (a locked door's broken half lets a body
+through). `DoorGlass.Panes` is the one layout of the sheets, shut and open, that the mesh draws from, a blow is looked up on
+(`GlassDamage.TryPaneAt`, before the window grid: an open leaf stands up to a leaf's width into the room) and the pieces are cut from, so
+all three agree. A solid wooden door has no glass.
+
+**Broken glass is shared** (`Character/GlassDamageNetwork`, docs/MULTIPLAYER_STATE.md): until now a window another player broke stood whole on
+your screen (their shot is only its flash and tracer here). A pane this player breaks goes to the server and every player as it now stands,
+with where the blow landed, so they hear it and see its pieces fall; merged, never overwritten, and a joiner is told every broken pane.
+
+Tests: `DoorGlassTests` (two sheets in every glazed doorway, shut and open; a blow on a sheet finds it, shut and open, with its place on it
+and its frame; the glass drawn is where a blow finds it, a cracked sheet drawn with its hole and a box for knocks, a broken one gone; the
+messages and the merge), `DoorGlassPlayTests` (a shot from the balcony reaches the glass, four bullets four holes, the fifth brings the sheet
+down in pieces; walking into a cracked sheet breaks it into pieces), `NetworkedGlassPlayTests` (a server and two clients: holes, the break,
+a late message that changes nothing, a late joiner), `DoorGlassCapture` (`Logs/CityShots/doorglass-*.png`).

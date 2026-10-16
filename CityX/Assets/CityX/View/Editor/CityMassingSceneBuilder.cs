@@ -756,6 +756,8 @@ namespace CityX.ViewEditor
             // The doors onto the balconies (2026-10-15): walked into or E to open, kept the same on every machine.
             streamerObject.AddComponent<BalconyDoorInteractor>();
             streamerObject.AddComponent<CityX.Character.BalconyDoorsNetwork>();
+            // Broken glass (2026-10-16): a window or a door's glass another player broke is broken here too.
+            streamerObject.AddComponent<CityX.Character.GlassDamageNetwork>();
             // Graffiti (2026-10-15): pieces painted with a spray can, kept the same on every machine, drawn lit (GraffitiPaint.mat).
             streamerObject.AddComponent<CityX.Character.GraffitiNetwork>().PaintMaterial = CityX.WeaponsEditor.SprayCanBuilder.EnsureGraffitiMaterial();
             streamer.RoadLineMaterial = roadLine;

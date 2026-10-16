@@ -111,6 +111,36 @@ namespace CityX.World
     }
 
     /// <summary>
+    /// A pane as one machine has it after a blow, on its way to the others (Character.GlassDamageNetwork): its state and its holes, and where the
+    /// blow landed and which way it went, so the others hear the glass and see it fall where it broke.
+    /// </summary>
+    public readonly struct PaneChange
+    {
+        public readonly PaneKey Key;
+        public readonly PaneState State;
+        public readonly Vector2[] Impacts;
+        public readonly Vector3 Point;
+        public readonly Vector3 Direction;
+        public readonly BlowStrength Strength;
+
+        public PaneChange(PaneKey key, PaneState state, Vector2[] impacts, Vector3 point, Vector3 direction, BlowStrength strength)
+        {
+            Key = key;
+            State = state;
+            Impacts = impacts;
+            Point = point;
+            Direction = direction;
+            Strength = strength;
+        }
+    }
+
+    /// <summary>Carries a broken pane to the other machines in a session (Character.GlassDamageNetwork).</summary>
+    public interface IGlassRelay
+    {
+        void Send(in PaneChange change);
+    }
+
+    /// <summary>
     /// Which windows in the city are broken.
     ///
     /// OUTSIDE THE CHUNK, DELIBERATELY. A chunk is thrown away and rebuilt
@@ -263,6 +293,12 @@ namespace CityX.World
             // The building is turned in the world; its windows are laid out in its own unturned frame (BuildingSite).
             site.ToBuilderFrame(point.x, point.z, out double frameX, out double frameZ);
             point = new Vector3((float)frameX, point.y, (float)frameZ);
+            if (DoorGlass.IsDoorPane(key))
+            {
+                // A door's sheet of glass: along it and up it, as the door stands now.
+                var framePoint = new Vector3(point.x - (float)site.CentreX, point.y - site.BaseHeight, point.z - (float)site.CentreZ);
+                return DoorGlass.TryPane(world, site, key, out DoorPane pane) ? DoorGlass.Fraction(pane, framePoint) : new Vector2(0.5f, 0.5f);
+            }
             if (site.Sides >= 3)
             {
                 RoundAlong(site, point, out _, out float roundAlong, out _);
@@ -392,6 +428,88 @@ namespace CityX.World
             }
         }
 
+        // --- sharing (Character.GlassDamageNetwork) ---
+
+        /// <summary>The record the game's city draws from (the CityStreamer's), for a machine's network link to bring other players' glass into.</summary>
+        public static GlassDamage Current;
+
+        /// <summary>Carries a pane this machine's player broke to the other machines in a session (Character.GlassDamageNetwork); null alone.</summary>
+        public static IGlassRelay Relay;
+
+        /// <summary>A pane broken on another machine has been brought into <see cref="Current"/>: the window breaker plays it (the sound, the pieces).</summary>
+        public static event Action<PaneChange> Heard;
+
+        /// <summary>Raises <see cref="Heard"/> (the network link, after it merged a change into <see cref="Current"/>).</summary>
+        public static void RaiseHeard(in PaneChange change) => Heard?.Invoke(change);
+
+        /// <summary>A pane as it stands now, with its holes, for telling another machine.</summary>
+        public PaneChange Now(PaneKey key, Vector3 point, Vector3 direction, BlowStrength strength)
+        {
+            lock (_gate)
+            {
+                PaneState state = _broken.TryGetValue(key, out PaneState s) ? s : PaneState.Intact;
+                Vector2[] holes = _impactPoints.TryGetValue(key, out List<Vector2> list) ? list.ToArray() : new Vector2[0];
+                return new PaneChange(key, state, holes, point, direction, strength);
+            }
+        }
+
+        /// <summary>
+        /// Brings a pane as another machine has it into this record, never backwards: a pane further gone than here takes that state and its holes;
+        /// a cracked pane with more holes there takes them; anything else (an older message, one already applied) changes nothing. So messages may
+        /// arrive twice or out of order. Returns the state the pane was in here before; <paramref name="changed"/> says whether it moved.
+        /// </summary>
+        public PaneState Merge(in PaneChange change, out bool changed)
+        {
+            PaneState was;
+            changed = false;
+            lock (_gate)
+            {
+                was = _broken.TryGetValue(change.Key, out PaneState s) ? s : PaneState.Intact;
+                int holes = _impactPoints.TryGetValue(change.Key, out List<Vector2> list) ? list.Count : 0;
+                int theirs = change.Impacts != null ? change.Impacts.Length : 0;
+                if (change.State > was || (change.State == PaneState.Cracked && was == PaneState.Cracked && theirs > holes))
+                {
+                    changed = true;
+                    if (change.State == PaneState.Intact)
+                    {
+                        _broken.Remove(change.Key);
+                    }
+                    else
+                    {
+                        _broken[change.Key] = change.State;
+                    }
+                    if (change.State == PaneState.Cracked && theirs > 0)
+                    {
+                        _impactPoints[change.Key] = new List<Vector2>(change.Impacts);
+                    }
+                    else if (change.State == PaneState.Shattered)
+                    {
+                        _impactPoints.Remove(change.Key);
+                    }
+                }
+            }
+            if (changed)
+            {
+                Changed?.Invoke(change.Key, change.State);
+            }
+            return was;
+        }
+
+        /// <summary>Every broken pane with its holes, for a joining player.</summary>
+        public List<PaneChange> Snapshot()
+        {
+            lock (_gate)
+            {
+                var all = new List<PaneChange>(_broken.Count);
+                foreach (KeyValuePair<PaneKey, PaneState> pane in _broken)
+                {
+                    Vector2[] holes = _impactPoints.TryGetValue(pane.Key, out List<Vector2> list) ? list.ToArray() : new Vector2[0];
+                    all.Add(new PaneChange(pane.Key, pane.Value, holes, Vector3.zero, Vector3.zero, BlowStrength.Light));
+                }
+                return all;
+            }
+        }
+
         // --- addressing ---
 
         /// <summary>
@@ -437,6 +555,13 @@ namespace CityX.World
             if (site.Sides >= 3)
             {
                 return TryRoundPaneAt(world, site, point, aboveFloor, out key);
+            }
+
+            // The glass of a door (DoorGlass): a sliding door's panels, a pair's leaves -- in the doorway or, open, behind it or across it.
+            if (DoorGlass.TryPaneAt(world, site, new Vector3(point.x - (float)site.CentreX, aboveFloor, point.z - (float)site.CentreZ), out DoorPane doorPane))
+            {
+                key = doorPane.Key;
+                return true;
             }
 
             // The nearest of the four wall planes, and how far off it the point

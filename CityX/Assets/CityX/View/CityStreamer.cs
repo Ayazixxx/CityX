@@ -536,12 +536,18 @@ namespace CityX.View
             Damage.Changed += OnPaneChanged;
             // A door onto a balcony opened or shut (World/BalconyDoors, drawn in the chunk's own mesh): its chunk is built again.
             BalconyDoorState.Shared.Changed += OnBalconyDoorChanged;
+            // The glass other players break comes into this city's record (Character.GlassDamageNetwork).
+            GlassDamage.Current = Damage;
         }
 
         private void OnDisable()
         {
             Damage.Changed -= OnPaneChanged;
             BalconyDoorState.Shared.Changed -= OnBalconyDoorChanged;
+            if (ReferenceEquals(GlassDamage.Current, Damage))
+            {
+                GlassDamage.Current = null;
+            }
             AbandonSwaps();
         }
 

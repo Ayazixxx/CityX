@@ -132,6 +132,7 @@ namespace CityX.View
                     return false;   // already gone
                 }
                 Report(after, site, key, point, outward, direction, strength);
+                Tell(key, point, direction, strength);
                 return true;
             }
 
@@ -142,7 +143,52 @@ namespace CityX.View
             }
 
             Report(now, site, key, point, outward, direction, strength);
+            Tell(key, point, direction, strength);
             return true;
+        }
+
+        /// <summary>
+        /// Tells the other machines in a session (GlassDamage.Relay, Character.GlassDamageNetwork) how a pane this machine's player broke stands now,
+        /// with where the blow landed and which way it went, so they see it break there too. Alone, nothing is listening.
+        /// </summary>
+        private void Tell(PaneKey key, Vector3 point, Vector3 direction, BlowStrength strength)
+        {
+            if (GlassDamage.Relay != null && ReferenceEquals(GlassDamage.Current, _streamer.Damage))
+            {
+                GlassDamage.Relay.Send(_streamer.Damage.Now(key, point, direction, strength));
+            }
+        }
+
+        private void OnEnable()
+        {
+            GlassDamage.Heard += OnHeard;
+        }
+
+        private void OnDisable()
+        {
+            GlassDamage.Heard -= OnHeard;
+        }
+
+        /// <summary>
+        /// A pane another player broke has come into this city's record (GlassDamageNetwork merged it): its sound, and -- if it came down -- its
+        /// pieces falling from where it was hit, the way the blow went. A pane told about on joining (no point) only changes how the city is drawn.
+        /// </summary>
+        private void OnHeard(PaneChange change)
+        {
+            if (!ReferenceEquals(GlassDamage.Current, _streamer != null ? _streamer.Damage : null) || change.Point == Vector3.zero)
+            {
+                return;
+            }
+            if (_world == null)
+            {
+                _world = new CityWorld(_streamer.WorldSeed);
+            }
+            if (change.Key.Building < 0 || change.Key.Building >= _world.BuildingCount)
+            {
+                return;
+            }
+            BuildingSite site = _world.Building(change.Key.Building);
+            Report(change.State, site, change.Key, change.Point, CityMeshBuilder.WallNormal(site, change.Key.Wall), change.Direction, change.Strength);
         }
 
         /// <summary>
@@ -171,6 +217,7 @@ namespace CityX.View
             }
             BlowStrength strength = speed >= HeavyKnockSpeed ? BlowStrength.Heavy : BlowStrength.Light;
             Report(now, site, key, point, CityMeshBuilder.WallNormal(site, key.Wall), direction, strength);
+            Tell(key, point, direction, strength);
             return true;
         }
 
