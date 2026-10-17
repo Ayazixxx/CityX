@@ -299,6 +299,36 @@ namespace CityX.Tests
 #endif
         }
 
+        /// <summary>
+        /// The carried one-handed sword's hand swings with the walk (owner, 2026-10-17: "when holding the combat sword the right hand appears
+        /// frozen i believe it should continue to move naturally with sword in hand"): walking, it goes forward and back with the steps.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheCarriedOneHandedSwordSwingsWithTheWalk()
+        {
+#if UNITY_EDITOR
+            Build("Assets/CityX/Weapons/CombatSword.prefab");
+            for (int i = 0; i < 90; i++) yield return Frame(new Vector2(0.0f, 0.5f));
+            PlayerAnimationDriver driver = _player.GetComponent<PlayerAnimationDriver>();
+            Assert.IsTrue(driver.SwordPoser.IsCarrying, "the sword is not being carried");
+            Transform shoulder = _animator.GetBoneTransform(HumanBodyBones.RightUpperArm);
+            Transform hand = _animator.GetBoneTransform(HumanBodyBones.RightHand);
+            float most = float.MinValue, least = float.MaxValue;
+            for (int i = 0; i < 120; i++)
+            {
+                yield return Frame(new Vector2(0.0f, 0.5f));
+                float forward = Vector3.Dot(hand.position - shoulder.position, _player.transform.forward);
+                most = Mathf.Max(most, forward);
+                least = Mathf.Min(least, forward);
+            }
+            Debug.Log($"CityX carried sword hand swings {most - least:0.000} m fore and aft walking");
+            Assert.Greater(most - least, 0.08f, "the carried sword hand stays frozen while walking");
+            Assert.Less(most - least, 0.6f, "the carried sword hand flails");
+#else
+            yield break;
+#endif
+        }
+
         /// <summary>The one-handed sword moves with its own clips (owner, 2026-10-17: the 1H sword runs and side-steps) and goes back to the plain set without it.</summary>
         [UnityTest]
         public IEnumerator AOneHandedSwordRunsWithItsOwnClips()

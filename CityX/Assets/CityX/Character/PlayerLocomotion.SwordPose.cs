@@ -29,6 +29,12 @@ namespace CityX.Character
 
         private float _supportWristTwist;
 
+        /// <summary>The walk's own swing of the sword hand, given back to the one-handed carry (CarrySwing).</summary>
+        private readonly CarrySwing _carrySwing = new CarrySwing();
+
+        /// <summary>How far the carry's hand was swung by the walk this frame, body frame, metres (for tests).</summary>
+        public Vector3 CarrySwingOffset { get; private set; }
+
         /// <summary>The blade's tip is kept at least this far above the ground under the body, metres: a low follow-through pitches up rather than through the floor.</summary>
         public const float TipFloorClearance = 0.06f;
 
@@ -186,6 +192,19 @@ namespace CityX.Character
             }
             float w = Mathf.Clamp01(_swordFrame.Weight);
 
+            // The animation's own sword hand, before anything here moves it: a hand-driven carry swings with it (CarrySwing).
+            float handDriven = Mathf.Clamp01(_swordFrame.HandDriven);
+            if (handDriven > 0.001f)
+            {
+                Vector3 clipHand = transform.InverseTransformDirection(_handR.position - _rightUpperArm.position);
+                CarrySwingOffset = _carrySwing.Step(clipHand, Time.deltaTime) * handDriven;
+            }
+            else
+            {
+                _carrySwing.Reset();
+                CarrySwingOffset = Vector3.zero;
+            }
+
             // The torso into the cut, before the arm is solved from the shoulder it moved. The hips have already turned their share
             // (ApplySwordHips), so the spine turns the rest. How much of the authored twist and lean the body does is the grip settings' torso
             // amount (1 as authored, 0 upright), read live so it can be tuned while the game runs.
@@ -201,7 +220,8 @@ namespace CityX.Character
             // The sword arm: the wrist to the frame's point, the elbow down or out as it says.
             float armLength = Vector3.Distance(_rightUpperArm.position, _rightLowerArm.position) + Vector3.Distance(_rightLowerArm.position, _handR.position);
             Vector3 h = _swordFrame.Hand;
-            Vector3 target = _rightUpperArm.position + (transform.right * h.x + transform.up * h.y + transform.forward * h.z) * armLength;
+            Vector3 target = _rightUpperArm.position + (transform.right * h.x + transform.up * h.y + transform.forward * h.z) * armLength
+                + transform.TransformDirection(CarrySwingOffset);
             float elbowOut = Mathf.Clamp01(_swordFrame.ElbowOut);
             Vector3 hint = -transform.up * (1.0f - 0.8f * elbowOut) + transform.right * (0.55f + 0.9f * elbowOut);
             // A hanging arm's elbow bends back, a little out.
@@ -262,7 +282,6 @@ namespace CityX.Character
             // should be facing downward"): the arm hangs and the hand is the hanging arm's own -- wrist straight, palm to the leg, thumb forward,
             // tipped a little so the point goes down -- and the sword hangs from it at whatever angle its hold gives (so adjusting the hold in
             // the editor IS adjusting the carry). Aiming the blade instead twisted the hand round the grip.
-            float handDriven = Mathf.Clamp01(_swordFrame.HandDriven);
             if (handDriven > 0.0f)
             {
                 Vector3 fingers = _handR.position - _rightLowerArm.position;
