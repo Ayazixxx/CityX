@@ -240,6 +240,64 @@ namespace CityX.Tests
 #endif
         }
 
+        /// <summary>
+        /// Adjusting the hold by hand in the editor (owner, 2026-10-16: "i will likely need to adjust the grip and positioning of the sword
+        /// manually"): while the held sword is selected the hand holds still and the sword turns IN it, as the gizmo turns it; deselected,
+        /// the stance points the blade where it wants with the new hold.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator WhileTheHoldIsBeingEditedTheSwordTurnsInTheStillHand()
+        {
+#if UNITY_EDITOR
+            Build("Assets/CityX/Weapons/SpikeSword.prefab");
+            for (int i = 0; i < 60; i++) yield return Frame(Vector2.zero);
+            Transform hand = _animator.GetBoneTransform(HumanBodyBones.RightHand);
+            WeaponGripSettings.HoldBeingEdited = true;
+            try
+            {
+                yield return Frame(Vector2.zero);   // the hold as it was is kept from here
+                Quaternion handBefore = hand.rotation;
+                Vector3 edgeBefore = -_sword.transform.right;
+                _sword.transform.localRotation = _sword.transform.localRotation * Quaternion.AngleAxis(30.0f, Vector3.up);   // the gizmo: spun about the blade
+                for (int i = 0; i < 10; i++) yield return Frame(Vector2.zero);
+                Assert.Less(Quaternion.Angle(handBefore, hand.rotation), 3.0f, "the hand turned round the sword while its hold was being edited");
+                Assert.Greater(Vector3.Angle(edgeBefore, -_sword.transform.right), 20.0f, "the sword did not turn in the hand");
+            }
+            finally
+            {
+                WeaponGripSettings.HoldBeingEdited = false;
+            }
+            for (int i = 0; i < 10; i++) yield return Frame(Vector2.zero);
+            SwordFrame frame = _locomotion.CurrentSwordFrame;
+            Transform body = _player.transform;
+            Vector3 asked = (body.right * frame.Blade.x + body.up * frame.Blade.y + body.forward * frame.Blade.z).normalized;
+            Assert.Less(Vector3.Angle(asked, _sword.transform.up), 25.0f, "with the hold edited, the stance no longer points the blade where it wants");   // (the held stances give a little of the blade's angle to a straight wrist)
+#else
+            yield break;
+#endif
+        }
+
+        /// <summary>
+        /// A one-handed sword is carried with the forearm running straight into the hand (owner, 2026-10-16, with the combat sword: "angle the
+        /// arm properly so theres no that weird bend"): the elbow is placed for it and the hand meets it the rest of the way.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator AOneHandedSwordIsCarriedWithAStraightWrist()
+        {
+#if UNITY_EDITOR
+            Build("Assets/CityX/Weapons/CombatSword.prefab");
+            for (int i = 0; i < 60; i++) yield return Frame(Vector2.zero);
+            Transform hand = _animator.GetBoneTransform(HumanBodyBones.RightHand);
+            Transform elbow = _animator.GetBoneTransform(HumanBodyBones.RightLowerArm);
+            float wristBend = Vector3.Angle(hand.position - elbow.position, hand.right);
+            Assert.Less(wristBend, 20.0f, $"the wrist is bent {wristBend:0} degrees carrying the sword");
+            Vector3 blade = (_sword.BladeTipWorld - _sword.BladeBaseWorld).normalized;
+            Assert.Less(blade.y, -0.3f, "the carried blade does not point down");
+#else
+            yield break;
+#endif
+        }
+
         [UnityTest]
         public IEnumerator TheSwordIsCarriedLowAtTheSideAndTheCopyCarriesItTheSameWay()
         {

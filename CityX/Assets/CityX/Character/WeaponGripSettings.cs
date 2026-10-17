@@ -59,6 +59,14 @@ namespace CityX.Character
         private static WeaponGripSettings _current;
 
         /// <summary>
+        /// True while a held sword's hold is being adjusted in the editor (the sword or its left-hand marker selected in Play Mode: set by
+        /// the editor's grip tools). The sword pose stops re-aiming the hand while it is, so turning the sword with the Scene view gizmo
+        /// visibly turns it IN the hand, instead of the hand turning round it to keep the blade where the stance wants it (2026-10-16:
+        /// the stance aims the blade, which otherwise made the gizmo look stuck).
+        /// </summary>
+        public static bool HoldBeingEdited { get; set; }
+
+        /// <summary>
         /// The settings in force: the saved asset, or a plain default one (nothing tuned) when there is
         /// none -- so a fresh project, and a test that puts its own in place, both work.
         /// </summary>

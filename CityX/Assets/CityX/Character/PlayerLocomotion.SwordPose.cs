@@ -17,6 +17,13 @@ namespace CityX.Character
         private Transform _posedSword;
         private ISwordBlade _posedBlade;
 
+        /// <summary>The sword's hold in the hand as it was when adjusting it in the editor began (WeaponGripSettings.HoldBeingEdited).</summary>
+        private bool _holdEditFrozen;
+
+        private Vector3 _frozenBladeInHand;
+
+        private Vector3 _frozenEdgeInHand;
+
         /// <summary>The sword wrist's and the support wrist's twists last frame (WristTwist's continuity: no forearm flip through the half turn).</summary>
         private float _swordWristTwist;
 
@@ -27,6 +34,9 @@ namespace CityX.Character
 
         /// <summary>How much of the left arm's full length a two-handed grip may ask of it (a straight arm locks and pops; a hair short of it reads as reaching).</summary>
         public const float SupportReachShare = 0.97f;
+
+        /// <summary>In the held stances, how much of the wrist's remaining bend the hand gives up by turning onto the forearm's line.</summary>
+        public const float WristStraightenShare = 0.6f;
 
         public void SetSwordPose(in SwordFrame frame)
         {
@@ -209,10 +219,53 @@ namespace CityX.Character
             Transform sword = PosedSword();
             if (sword != null)
             {
-                bladeInHand = sword.localRotation * Vector3.up;
-                edgeInHand = sword.localRotation * Vector3.left;
+                if (WeaponGripSettings.HoldBeingEdited && _holdEditFrozen)
+                {
+                    // The hold is being adjusted in the editor: the hand keeps the turn it had when that began, so the sword turns in it.
+                    bladeInHand = _frozenBladeInHand;
+                    edgeInHand = _frozenEdgeInHand;
+                }
+                else
+                {
+                    bladeInHand = sword.localRotation * Vector3.up;
+                    edgeInHand = sword.localRotation * Vector3.left;
+                    _frozenBladeInHand = bladeInHand;
+                    _frozenEdgeInHand = edgeInHand;
+                    _holdEditFrozen = WeaponGripSettings.HoldBeingEdited;
+                }
+            }
+            if (!WeaponGripSettings.HoldBeingEdited)
+            {
+                _holdEditFrozen = false;
             }
             Quaternion wanted = Quaternion.LookRotation(bladeWorld, edgeWorld.normalized) * Quaternion.Inverse(Quaternion.LookRotation(bladeInHand, edgeInHand));
+
+            // THE FOREARM RUNS INTO THE HAND (owner, 2026-10-16, holding the sword: "angle the arm properly so theres no that weird bend"): in the
+            // held stances the elbow is put where the forearm comes straight in along the hand (the hand bone's +X runs to the fingertips),
+            // as near as the arm's lengths allow, rather than where the key bows it -- which left the wrist bent to make up the difference.
+            float align = Mathf.Clamp01(_swordFrame.ForearmAlign);
+            if (align > 0.0f)
+            {
+                float forearm = Vector3.Distance(_rightLowerArm.position, _handR.position);
+                Vector3 idealElbow = target - (wanted * Vector3.right) * forearm;
+                Vector3 toward = idealElbow - _rightUpperArm.position;
+                if (toward.sqrMagnitude > 1e-6f)
+                {
+                    hint = Vector3.Lerp(hint.normalized, toward.normalized, align);
+                    TwoBoneIK.Solve(_rightUpperArm, _rightLowerArm, _handR, target, hint, w);
+                }
+                // What the elbow cannot take up, the hand meets halfway: turned part of the way onto the forearm's line (the held blade
+                // shifts a few degrees; a straight wrist matters more). Not while the hold is being edited: the hand must hold still then.
+                if (!WeaponGripSettings.HoldBeingEdited && !_swordFrame.TwoHanded)   // (two hands on a hilt bend the wrists: that is the grip)
+                {
+                    Vector3 forearmLine = _handR.position - _rightLowerArm.position;
+                    if (forearmLine.sqrMagnitude > 1e-6f)
+                    {
+                        Quaternion straighten = Quaternion.FromToRotation(wanted * Vector3.right, forearmLine.normalized);
+                        wanted = Quaternion.Slerp(Quaternion.identity, straighten, align * WristStraightenShare) * wanted;
+                    }
+                }
+            }
             _handR.rotation = Quaternion.Slerp(_handR.rotation, wanted, w);
 
             // BOTH HANDS STAY ON A TWO-HANDED GRIP (owner, 2026-10-16: "use inverse kinematic so the hands reach the correct grip points on each

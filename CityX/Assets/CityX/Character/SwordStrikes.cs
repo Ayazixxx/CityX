@@ -93,6 +93,9 @@ namespace CityX.Character
 
         /// <summary>0 to 1: how far through the cut it is (1 at the contact), for effects.</summary>
         public float Reach;
+
+        /// <summary>0 to 1: how much the elbow is placed so the forearm runs straight into the hand (no bent wrist) rather than where the key bows it. The held stances (carry, ready, guard) use it; the cuts keep their authored elbows.</summary>
+        public float ForearmAlign;
     }
 
     /// <summary>
@@ -332,13 +335,17 @@ namespace CityX.Character
         /// </summary>
         public static SwordFrame Ready(bool oneHanded)
         {
-            return oneHanded ? Frame(ReadyKey1H, 1.0f, false) : Frame(ReadyKey2H, 1.0f, true);
+            SwordFrame frame = oneHanded ? Frame(ReadyKey1H, 1.0f, false) : Frame(ReadyKey2H, 1.0f, true);
+            frame.ForearmAlign = 1.0f;
+            return frame;
         }
 
         /// <summary>The held guard: one-handed, the blade across the body at chest height; two-handed, the blade up across the front, edge out.</summary>
         public static SwordFrame Guard(bool oneHanded)
         {
-            return oneHanded ? Frame(GuardKey1H, 1.0f, false) : Frame(GuardKey2H, 1.0f, true);
+            SwordFrame frame = oneHanded ? Frame(GuardKey1H, 1.0f, false) : Frame(GuardKey2H, 1.0f, true);
+            frame.ForearmAlign = 1.0f;
+            return frame;
         }
 
         /// <summary>
@@ -354,6 +361,7 @@ namespace CityX.Character
             SwordFrame frame = Lerp(low, trail, t);
             frame.Footwork = 0.0f;
             frame.FreeHandWeight = 0.0f;
+            frame.ForearmAlign = 1.0f;
             return frame;
         }
 
@@ -766,6 +774,7 @@ namespace CityX.Character
                 FreeElbowOut = Mathf.Lerp(a.FreeElbowOut, b.FreeElbowOut, t),
                 FreeHandWeight = Mathf.Lerp(a.FreeHandWeight, b.FreeHandWeight, t),
                 Reach = Mathf.Lerp(a.Reach, b.Reach, t),
+                ForearmAlign = Mathf.Lerp(a.ForearmAlign, b.ForearmAlign, t),
             };
         }
 

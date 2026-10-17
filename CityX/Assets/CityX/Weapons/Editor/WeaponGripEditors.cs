@@ -59,16 +59,25 @@ namespace CityX.WeaponsEditor
             AssetDatabase.SaveAssets();
         }
 
+        /// <summary>
+        /// The sword in a body's hand: a two-handed one carries its left-hand marker, a one-handed one has none but is still under the
+        /// hand (it used to be missed, and the menu said no sword was held with the combat sword or the crowbar in hand).
+        /// </summary>
         private static SwordWeapon HeldSword()
         {
+            SwordWeapon oneHanded = null;
             foreach (SwordWeapon sword in Object.FindObjectsByType<SwordWeapon>(FindObjectsSortMode.None))
             {
                 if (sword.LeftHandGrip != null)
                 {
                     return sword;
                 }
+                if (oneHanded == null && sword.OneHanded && sword.transform.parent != null && sword.GetComponentInParent<Animator>() != null)
+                {
+                    oneHanded = sword;
+                }
             }
-            return null;
+            return oneHanded;
         }
 
         private static PistolWeapon HeldPistol()
@@ -83,20 +92,25 @@ namespace CityX.WeaponsEditor
             return null;
         }
 
-        [MenuItem("CityX/Weapon Grips/Select the held sword")]
+        // FIRST IN THE CityX MENU (priority): it has well over a hundred entries, and the grips sat somewhere down the list where the owner
+        // could not find them (2026-10-16: "I dont see weapon grips").
+        public const int MenuPriority = -1000;
+
+        [MenuItem("CityX/Weapon Grips/Select the held sword", false, MenuPriority)]
         private static void SelectHeldSword()
         {
             SwordWeapon sword = HeldSword();
             if (sword == null)
             {
-                EditorUtility.DisplayDialog("No sword held", "Press Play, then equip the sword in the game (press ` and type /equip sword).", "OK");
+                EditorUtility.DisplayDialog("No sword held", "Press Play, then equip a sword in the game (press ` and type /equip sword, " +
+                    "/equip spikesword, /equip combatsword, /equip bat or /equip crowbar).", "OK");
                 return;
             }
             Selection.activeGameObject = sword.gameObject;
             SceneView.FrameLastActiveSceneView();
         }
 
-        [MenuItem("CityX/Weapon Grips/Select the held pistol")]
+        [MenuItem("CityX/Weapon Grips/Select the held pistol", false, MenuPriority + 1)]
         private static void SelectHeldPistol()
         {
             PistolWeapon pistol = HeldPistol();
@@ -109,7 +123,7 @@ namespace CityX.WeaponsEditor
             SceneView.FrameLastActiveSceneView();
         }
 
-        [MenuItem("CityX/Weapon Grips/Open the grip settings (torso amount, saved holds)")]
+        [MenuItem("CityX/Weapon Grips/Open the grip settings (torso amount, saved holds)", false, MenuPriority + 2)]
         private static void OpenSettings()
         {
             WeaponGripSettings settings = EnsureAsset();
@@ -171,8 +185,10 @@ namespace CityX.WeaponsEditor
 
             DrawTorso(settings);
             EditorGUILayout.HelpBox(
-                "Move slides the sword along the hand; Rotate turns the blade (its edge is the gold-trimmed side). " +
-                "The left hand follows the orange marker wherever the swing takes the sword. Save keeps it after you stop the game.",
+                "Move slides the sword along the hand; Rotate turns the blade (its edge is the gold-trimmed side; on the spike sword, the spikes). " +
+                "While the sword or the marker is selected the hand holds still, so you see the sword move in it; deselect it and the stance " +
+                "points the blade again with the new hold. The left hand follows the orange marker wherever the swing takes the sword. " +
+                "Save keeps it after you stop the game.",
                 MessageType.None);
         }
 
@@ -283,6 +299,29 @@ namespace CityX.WeaponsEditor
         {
             DrawDefaultInspector();
             WeaponGripEditorTools.DrawPistol((PistolWeapon)target);
+        }
+    }
+
+    /// <summary>
+    /// Tells the running game when a held sword's hold is being adjusted -- the sword, or its left-hand marker, selected in Play Mode --
+    /// so the sword pose keeps the hand still and the gizmo visibly moves the sword IN the hand (WeaponGripSettings.HoldBeingEdited).
+    /// Deselect it and the stance aims the blade again, with the new hold.
+    /// </summary>
+    [InitializeOnLoad]
+    internal static class SwordHoldEditWatch
+    {
+        static SwordHoldEditWatch()
+        {
+            Selection.selectionChanged += Refresh;
+            EditorApplication.playModeStateChanged += _ => Refresh();
+        }
+
+        private static void Refresh()
+        {
+            GameObject selected = Selection.activeGameObject;
+            WeaponGripSettings.HoldBeingEdited = Application.isPlaying && selected != null
+                && selected.GetComponentInParent<SwordWeapon>() != null
+                && selected.GetComponentInParent<Animator>() != null;   // a sword in a body's hand, not one lying on the ground
         }
     }
 
