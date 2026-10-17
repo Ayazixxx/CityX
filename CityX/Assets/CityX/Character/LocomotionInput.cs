@@ -119,6 +119,12 @@ namespace CityX.Character
         public bool SwordEquipped;
 
         /// <summary>
+        /// A ONE-HANDED sword is in hand (the combat sword, the crowbar): drives the Animator's "Sword1HEquipped" bool, which swaps Locomotion
+        /// for Sword1HLocomotion (the owner's 1H sword runs and side-steps, 2026-10-17). Never true with SwordEquipped.
+        /// </summary>
+        public bool Sword1HEquipped;
+
+        /// <summary>
         /// True whenever a pistol is equipped (EquippedGun != null),
         /// regardless of whether right-click is currently held -- unlike
         /// Aiming, this stays true the whole time the gun is holstered in

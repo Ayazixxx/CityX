@@ -1158,6 +1158,7 @@ namespace CityX.Character
         private static readonly int ChargingJumpParameter = Animator.StringToHash("ChargingJump");
         private static readonly int AimingParameter = Animator.StringToHash("Aiming");
         private static readonly int SwordEquippedParameter = Animator.StringToHash("SwordEquipped");
+        private static readonly int Sword1HEquippedParameter = Animator.StringToHash("Sword1HEquipped");
         private static readonly int GunEquippedParameter = Animator.StringToHash("GunEquipped");
         private static readonly int JetpackThrustingParameter = Animator.StringToHash("JetpackThrusting");
         private static readonly int DancingParameter = Animator.StringToHash("Dancing");
@@ -3417,6 +3418,7 @@ namespace CityX.Character
                 _animator.SetBool(ChargingJumpParameter, input.ChargingJump);
                 _animator.SetBool(AimingParameter, input.Aiming);
                 _animator.SetBool(SwordEquippedParameter, input.SwordEquipped);
+                _animator.SetBool(Sword1HEquippedParameter, input.Sword1HEquipped);
                 _animator.SetBool(GunEquippedParameter, input.GunEquipped);
                 _animator.SetBool(JetpackThrustingParameter, input.JetpackThrusting);
                 _animator.SetBool(DancingParameter, input.Dancing);

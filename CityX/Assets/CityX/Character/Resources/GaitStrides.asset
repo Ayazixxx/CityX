@@ -85,3 +85,30 @@ MonoBehaviour:
   - Tree: SwordLocomotion
     Move: {x: 2.828427, y: -2.828427}
     Stride: 1.12
+  - Tree: Sword1HLocomotion
+    Move: {x: 0, y: 4}
+    Stride: 1.12
+  - Tree: Sword1HLocomotion
+    Move: {x: 0, y: 7.5}
+    Stride: 1.12
+  - Tree: Sword1HLocomotion
+    Move: {x: 0, y: -4}
+    Stride: 1.12
+  - Tree: Sword1HLocomotion
+    Move: {x: -4, y: 0}
+    Stride: 1.12
+  - Tree: Sword1HLocomotion
+    Move: {x: 4, y: 0}
+    Stride: 1.12
+  - Tree: Sword1HLocomotion
+    Move: {x: -2.828427, y: 2.828427}
+    Stride: 1.12
+  - Tree: Sword1HLocomotion
+    Move: {x: 2.828427, y: 2.828427}
+    Stride: 1.12
+  - Tree: Sword1HLocomotion
+    Move: {x: -2.828427, y: -2.828427}
+    Stride: 1.12
+  - Tree: Sword1HLocomotion
+    Move: {x: 2.828427, y: -2.828427}
+    Stride: 1.12

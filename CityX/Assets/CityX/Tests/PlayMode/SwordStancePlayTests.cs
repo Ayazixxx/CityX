@@ -72,7 +72,7 @@ namespace CityX.Tests
             Vector2 move = _combat.IsCommitted ? stick * _combat.CommittedMoveSpeedFraction : stick;
             _combat.Tick(Dt);
             _vitals.TickHitstun(Dt);
-            _locomotion.Tick(new LocomotionInput { SwordEquipped = !_combat.IsOneHanded, Move = move }, Dt);
+            _locomotion.Tick(new LocomotionInput { SwordEquipped = !_combat.IsOneHanded, Sword1HEquipped = _combat.IsOneHanded, Move = move }, Dt);
             yield return null;
         }
 
@@ -294,6 +294,25 @@ namespace CityX.Tests
             Assert.Less((-_sword.transform.right).y, -0.3f, "the edge does not face down");
             Vector3 blade = (_sword.BladeTipWorld - _sword.BladeBaseWorld).normalized;
             Assert.Less(blade.y, -0.3f, "the carried blade does not point down");
+#else
+            yield break;
+#endif
+        }
+
+        /// <summary>The one-handed sword moves with its own clips (owner, 2026-10-17: the 1H sword runs and side-steps) and goes back to the plain set without it.</summary>
+        [UnityTest]
+        public IEnumerator AOneHandedSwordRunsWithItsOwnClips()
+        {
+#if UNITY_EDITOR
+            Build("Assets/CityX/Weapons/CombatSword.prefab");
+            for (int i = 0; i < 40; i++) yield return Frame(new Vector2(1.0f, 0.0f));
+            Assert.IsTrue(_animator.GetCurrentAnimatorStateInfo(0).IsName("Sword1HLocomotion"), "the one-handed sword is not moving with its own clips");
+            for (int i = 0; i < 40; i++)
+            {
+                _locomotion.Tick(new LocomotionInput { Move = new Vector2(1.0f, 0.0f) }, Dt);
+                yield return null;
+            }
+            Assert.IsTrue(_animator.GetCurrentAnimatorStateInfo(0).IsName("Locomotion"), "putting the sword away did not hand the legs back to the plain walk");
 #else
             yield break;
 #endif

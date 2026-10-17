@@ -278,6 +278,7 @@ namespace CityX.CharacterEditor
             // AddSwordStates looks its state up by name for the sword
             // swings' own exit transition.
             AddSwordLocomotion(controller, root);
+            AddSword1HLocomotion(controller, root);
             AddSwordStates(root);
             // AFTER AddSwordStates and every base state: the upper-body layer
             // plays the SAME sword clips as those base states, over the top of
@@ -312,7 +313,7 @@ namespace CityX.CharacterEditor
         }
 
         /// <summary>The walking states whose cycles Grow and Shrink slow down or speed up (BodySizeAbility.StrideRateName).</summary>
-        public static readonly string[] StridingStates = { "Locomotion", "Crouched", "SwordLocomotion", "GunLocomotion" };
+        public static readonly string[] StridingStates = { "Locomotion", "Crouched", "SwordLocomotion", "Sword1HLocomotion", "GunLocomotion" };
 
         /// <summary>
         /// GROW AND SHRINK'S STRIDE (BodySizeAbility): a float, 1 at the body's own size, that every walking state plays at. A giant's legs are
@@ -1341,6 +1342,85 @@ namespace CityX.CharacterEditor
 
             Link(locomotion, swordLocomotionState, 0.15f, "SwordEquipped", true);
             Link(swordLocomotionState, locomotion, 0.15f, "SwordEquipped", false);
+        }
+
+        /// <summary>
+        /// THE ONE-HANDED SWORD'S OWN MOVES (owner, 2026-10-17: six Mixamo-style clips, "implement these animations to the 1handed sword"):
+        /// 1hsw_run_forward / _backward / _left / _right and 1hsw_walk_left / _right. The same shape as the plain Locomotion tree (directional
+        /// over MoveX/MoveZ, real metres per second, diagonals as mixes) so it slots under the same parameters: the idle at the centre (the sword
+        /// is held by the posed carry over it), the ordinary walk forward at walking pace, the sword RUN forward at sprint pace, the sword run
+        /// backward at walking pace (a backward move never goes faster), and whichever of each side's sword walk or sword run moves its feet
+        /// nearer walking pace at the sides (ClipCadence then re-paces every one to the body). BOOL-GATED both ways like the two-handed set,
+        /// and cross-faded over 0.25 s so drawing or putting away the sword never snaps the legs; the attacks are posed on top of whatever this
+        /// plays and their legs hand over to the footwork stepper and back over 0.15 s (SwordFootwork).
+        /// </summary>
+        private static void AddSword1HLocomotion(AnimatorController controller, AnimatorStateMachine root)
+        {
+            // The idle and the walk are the plain tree's own (baked from the Godot clips), taken from it rather than looked up again.
+            AnimatorState locomotion = FindState(root, "Locomotion");
+            Motion idle = null, walk = null;
+            if (locomotion != null && locomotion.motion is BlendTree plain)
+            {
+                foreach (ChildMotion child in plain.children)
+                {
+                    if (child.motion is AnimationClip && child.position == Vector2.zero) idle = child.motion;
+                    if (child.motion is AnimationClip && child.position == new Vector2(0.0f, WalkSpeed)) walk = child.motion;
+                }
+            }
+            AnimationClip run = FindClip("1hsw_run_forward");
+            AnimationClip back = FindClip("1hsw_run_backward");
+            if (idle == null || walk == null || run == null || locomotion == null)
+            {
+                Debug.LogWarning("CityX: the one-handed sword's clips are missing -- a one-handed sword will walk with the plain cycle.");
+                return;
+            }
+            AnimationClip left = SideClip("1hsw_walk_left", "1hsw_run_left");
+            AnimationClip right = SideClip("1hsw_walk_right", "1hsw_run_right");
+            MakeLooping(run);
+            MakeLooping(back);
+            MakeLooping(left);
+            MakeLooping(right);
+
+            controller.AddParameter("Sword1HEquipped", AnimatorControllerParameterType.Bool);
+            controller.CreateBlendTreeInController("Sword1HLocomotion", out BlendTree tree, 0);
+            tree.blendType = BlendTreeType.FreeformDirectional2D;
+            tree.blendParameter = "MoveX";
+            tree.blendParameterY = "MoveZ";
+            tree.AddChild(idle, Vector2.zero);
+            tree.AddChild(walk, new Vector2(0.0f, WalkSpeed));
+            tree.AddChild(run, new Vector2(0.0f, SprintSpeed));
+            if (back != null) tree.AddChild(back, new Vector2(0.0f, -WalkSpeed));
+            if (left != null) tree.AddChild(left, new Vector2(-WalkSpeed, 0.0f));
+            if (right != null) tree.AddChild(right, new Vector2(WalkSpeed, 0.0f));
+            AddDiagonals(tree, walk, back, left, right);
+
+            AnimatorState state = FindState(root, "Sword1HLocomotion");
+            Link(locomotion, state, 0.25f, "Sword1HEquipped", true);
+            Link(state, locomotion, 0.25f, "Sword1HEquipped", false);
+        }
+
+        /// <summary>Of a side's walk and run, the one whose feet move nearest walking pace (the body never goes sideways faster).</summary>
+        private static AnimationClip SideClip(string walkName, string runName)
+        {
+            AnimationClip walk = FindClip(walkName);
+            AnimationClip run = FindClip(runName);
+            if (walk == null || run == null)
+            {
+                return walk != null ? walk : run;
+            }
+            GameObject rig = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath));
+            try
+            {
+                float walkPace = ClipCadence.GroundSpeed(walk, rig);
+                float runPace = ClipCadence.GroundSpeed(run, rig);
+                bool useRun = runPace > 0.2f && (walkPace < 0.2f || Mathf.Abs(Mathf.Log(WalkSpeed / runPace)) < Mathf.Abs(Mathf.Log(WalkSpeed / walkPace)));
+                Debug.Log($"CityX: {walkName} moves {walkPace:0.00} m/s, {runName} {runPace:0.00} m/s: the side-step at {WalkSpeed} m/s is {(useRun ? runName : walkName)}");
+                return useRun ? run : walk;
+            }
+            finally
+            {
+                Object.DestroyImmediate(rig);
+            }
         }
 
         /// <summary>

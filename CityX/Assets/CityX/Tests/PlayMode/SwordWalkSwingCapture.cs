@@ -83,7 +83,7 @@ namespace CityX.Tests
                     float soleHeight = BodyRig.FootY * feet[0].lossyScale.y;
 
                     // Settle, then walk a second before the first swing so the gait is up to speed.
-                    var input = new LocomotionInput { SwordEquipped = !combat.IsOneHanded };
+                    var input = new LocomotionInput { SwordEquipped = !combat.IsOneHanded, Sword1HEquipped = combat.IsOneHanded };
                     for (int i = 0; i < 40; i++)
                     {
                         locomotion.Tick(input, Dt);

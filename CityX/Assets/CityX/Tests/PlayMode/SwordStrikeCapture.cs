@@ -70,7 +70,7 @@ namespace CityX.Tests
                 var combat = player.GetComponent<SoulsSwordCombat>();
                 combat.HitStopSeconds = 0.0f;
                 var driver = player.GetComponent<PlayerAnimationDriver>();
-                var idle = new LocomotionInput { SwordEquipped = !combat.IsOneHanded };
+                var idle = new LocomotionInput { SwordEquipped = !combat.IsOneHanded, Sword1HEquipped = combat.IsOneHanded };
                 for (int i = 0; i < 60; i++)
                 {
                     locomotion.Tick(idle, Dt);
@@ -271,7 +271,7 @@ namespace CityX.Tests
                 var sword = Object.Instantiate(swordPrefab, new Vector3(10, 1, 10), Quaternion.identity).GetComponent<SwordWeapon>();
                 sword.OnEquip(player, CityX.Items.ItemInstanceData.None);
                 var combat = player.GetComponent<SoulsSwordCombat>();
-                var idle = new LocomotionInput { SwordEquipped = !combat.IsOneHanded };
+                var idle = new LocomotionInput { SwordEquipped = !combat.IsOneHanded, Sword1HEquipped = combat.IsOneHanded };
                 for (int i = 0; i < 40; i++)
                 {
                     combat.SetBlockHeld(true);

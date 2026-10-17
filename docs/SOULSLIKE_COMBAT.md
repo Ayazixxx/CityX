@@ -374,3 +374,14 @@ moves: a horizontal slash first) and the **baseball bat** two-handed (the greats
 - Seen by other players like every held item (`NetworkedPlayerWiring.ItemPrefabPaths`). Tests: `BluntWeaponTests`; `SwordStrikeCapture` renders
   `strike-crowbar-*`, `strike-bat-*`, `grip-crowbar.png`, `grip-bat.png`.
 - Not done: blunt sounds (they use the sword's), and blunt hits drawing blood like a blade.
+
+## Update 2026-10-17: the one-handed sword's own walk set
+
+Owner's six clips (`1hsw_run_forward/backward/left/right`, `1hsw_walk_left/right`, in `Character/Animations`, humanoid on the shared avatar)
+play in `Sword1HLocomotion` (PlayerRigBuilder.AddSword1HLocomotion) while a one-handed sword is in hand: the plain idle and walk at the centre
+and at walking pace (the Godot-baked ones), the sword run forward at sprint pace, the sword run backward going back, and at the sides whichever
+of the sword walk or run moves its feet nearer walking pace (the runs, measured at build). Gated by the `Sword1HEquipped` bool
+(LocomotionInput, set by PlayerInputReader, sent to other players by NetworkedAnimatorSync), cross-faded over 0.25 s each way; ClipCadence
+paces it like every other tree. The posed carry and attacks lie on top; the feet hand over to the attack footwork and back over 0.25 s.
+The one-handed carry is hand-driven (the arm hangs, the sword hangs from the hand by its hold), so the hold set with CityX > Weapon Grips
+is the carry's angle.

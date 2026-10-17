@@ -63,7 +63,7 @@ namespace CityX.Character
         public const float OverlapShare = 0.6f;
 
         /// <summary>The feet's places are taken and given back over this long, seconds.</summary>
-        public const float FadeSeconds = 0.15f;
+        public const float FadeSeconds = 0.25f;   // 0.15 until 2026-10-17 (owner: "make it flow between the animations and the attack animations smoothly")
 
         /// <summary>The front foot's toes turn out this much, the back foot's this much (a fighting stance), degrees.</summary>
         public const float FrontToeOutDegrees = 10.0f;

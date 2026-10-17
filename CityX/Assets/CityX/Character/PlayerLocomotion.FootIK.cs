@@ -31,7 +31,7 @@ namespace CityX.Character
         private Vector3 _groundNormal = Vector3.up;
         private float _strideScale = 1.0f;
         private static readonly RaycastHit[] FootHits = new RaycastHit[8];
-        private static readonly string[] GaitTrees = { "Locomotion", "SwordLocomotion", "GunLocomotion", "Crouched" };
+        private static readonly string[] GaitTrees = { "Locomotion", "SwordLocomotion", "Sword1HLocomotion", "GunLocomotion", "Crouched" };
 
         /// <summary>The planting bookkeeping (locks, hip drop), for tests and captures.</summary>
         public FootPlanting FootPlanting => _feet;

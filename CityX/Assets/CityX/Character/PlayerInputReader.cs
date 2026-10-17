@@ -1413,6 +1413,10 @@ namespace CityX.Character
                 SwordEquipped = _melee != null && _melee.EquippedWeapon != null &&
                                 _melee.EquippedWeapon.MovesetId == ComboChain.Sword &&
                                 !(_melee.EquippedWeapon is ISwordBlade oneHandedBlade && oneHandedBlade.IsOneHanded),
+                // The one-handed sword's own runs and side-steps (Sword1HLocomotion).
+                Sword1HEquipped = _melee != null && _melee.EquippedWeapon != null &&
+                                  _melee.EquippedWeapon.MovesetId == ComboChain.Sword &&
+                                  _melee.EquippedWeapon is ISwordBlade heldBlade && heldBlade.IsOneHanded,
                 GunEquipped = EquippedGun != null,
                 // Where the gun's shot would end -- the arm aims at it (see
                 // LocomotionInput.GunAimPoint).
