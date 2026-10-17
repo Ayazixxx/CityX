@@ -269,7 +269,18 @@ have one, scaled to this game's 130-point stamina bar.
   catches, and a tap of the button is all it takes.
 * **Held guard.** Past its first instant the guard soaks: it costs stamina equal
   to the damage absorbed. A hit you cannot afford **breaks the guard**: 1s stagger,
-  stamina to zero. A soaked hit does NOT punish the attacker (`HitResponse.Guarded`).
+  stamina to zero.
+* **The guard rebound** (owner, 2026-10-17: "implement a stagger system for if you
+  swing at a block"). A blow a held guard soaks (`HitResponse.Guarded`) now throws the
+  attacker's blade back off it: stunned for `GuardReboundSeconds` (0.6s, shorter than
+  a parry's 0.9s), the sword arm knocked up and back past the shoulder and the body
+  leaning away (`sword1h_rebound` / `sword2h_rebound`, posed by
+  `SwordPoseDriver.BeginRebound`, announced by name), then gathered into the ready
+  stance. A parried attacker plays the same rebound for its longer stun. Every guarded
+  or parried blow clashes: sparks and a ting (`PlayerVitals.GuardStruck` ->
+  `BlockDeflectEffect`). Against another player the rebound comes back with the
+  defender's verdict (`ApplyRemoteVerdict(Guarded)`). The swordsman NPC
+  (docs/SWORDSMAN.md) punishes exactly this opening.
 
 ## Hit detection
 
@@ -292,8 +303,9 @@ Two volumes, both live only during Active:
   **The verdict comes back**: the attacker hears "landed" at once (the hit-stop must
   not wait for a round trip), and when the victim's own body decided otherwise --
   parried, soaked, rolled through -- that answer is sent back with the hit's id and
-  the attacker's `SoulsSwordCombat` takes it (`ApplyRemoteVerdict`): a parry
-  staggers a remote attacker exactly as it does offline. The defender decides what
+  the attacker's `SoulsSwordCombat` takes it (`ApplyRemoteVerdict`): a parry or a
+  soak by a held guard throws a remote attacker's blade back exactly as it does
+  offline. The defender decides what
   happened to them (the research's rule for a dodge or a parry to feel fair).
 * Still one-sided: the victim's flinch arrives with the network's delay, and a
   blow that reached a copy's hitbox on the attacker's screen is the blow that

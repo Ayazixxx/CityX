@@ -49,6 +49,12 @@ is rechecked every half second against where you are now.
 **Local for now**, as the Crimson Claw is: NPCs are not networked yet. A Shoota exists only on the machine that spawned it and only ever
 targets that machine's own player, never another player's copy (who could not see who was shooting them).
 
+## 2026-10-17: he had no animation
+
+Found while building the swordsman: `Shoota.prefab` had no animator controller (the builder copies `Player.prefab` in the same run that rebuilds
+the player rig, and the reference came out empty), so he stood in his bind pose with nothing playing. `ShootaBuilder` now sets the controller
+by path; `EnemyPrefabAnimatorTests` guards it.
+
 ## Tests
 
 `ShootaMindTests` (EditMode: the reaction beat and bursts, cover and reload, no ducking at every hit, chase and give up, spread, cover behind

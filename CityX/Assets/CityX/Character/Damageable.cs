@@ -88,10 +88,12 @@ namespace CityX.Character
 
         /// <summary>
         /// Soaked by a HELD guard (the soulslike sword's block): the defender
-        /// paid stamina for it and took reduced damage, but the attacker is NOT
-        /// punished -- only a well-timed block does that. Keeping it separate
-        /// from Blocked is what stops an ordinary held guard from stunning
-        /// everything that hits it.
+        /// paid stamina for it and took reduced damage, and the attacker's
+        /// blade bounces off it -- a shorter stun than a well-timed block's
+        /// (SoulsSwordCombat.GuardReboundSeconds against BlockedRecoilSeconds;
+        /// owner, 2026-10-17: "implement a stagger system for if you swing at
+        /// a block"). Kept separate from Blocked so the two can punish by
+        /// different amounts.
         /// </summary>
         Guarded = 3,
     }

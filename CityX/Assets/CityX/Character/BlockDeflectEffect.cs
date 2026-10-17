@@ -49,13 +49,21 @@ namespace CityX.Character
         private void OnEnable()
         {
             if (_vitals != null) _vitals.Deflected += OnDeflected;
+            if (_vitals != null) _vitals.GuardStruck += OnGuardStruck;
             if (_driver != null) _driver.RemoteDeflected += OnRemoteDeflected;
         }
 
         private void OnDisable()
         {
             if (_vitals != null) _vitals.Deflected -= OnDeflected;
+            if (_vitals != null) _vitals.GuardStruck -= OnGuardStruck;
             if (_driver != null) _driver.RemoteDeflected -= OnRemoteDeflected;
+        }
+
+        /// <summary>A sword guard met a blow (a parry or a soak, owner 2026-10-17's guard rebound): the same clash of sparks and the ting.</summary>
+        private void OnGuardStruck(Vector3 from)
+        {
+            OnDeflected(from, DamageKind.Physical);
         }
 
         private void OnDeflected(Vector3 from, DamageKind kind)

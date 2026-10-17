@@ -15,6 +15,7 @@ namespace CityX.WeaponsEditor
     public static class ShootaBuilder
     {
         private const string PlayerPrefabPath = "Assets/CityX/Character/Player.prefab";
+        private const string ControllerPath = "Assets/CityX/Character/PlayerAnimator.controller";
         private const string GunPrefabPath = "Assets/CityX/Weapons/AK47.prefab";
         public const string PrefabPath = "Assets/CityX/Character/Shoota.prefab";
 
@@ -58,6 +59,20 @@ namespace CityX.WeaponsEditor
                     {
                         renderer.sharedMaterials = materials;
                     }
+                }
+
+                // THE ANIMATION CONTROLLER BY PATH, set on the copy before it is saved: the player rig is rebuilt earlier in the same run (a new
+                // controller asset), and the reference carried over from Player.prefab came out empty -- the body stood in its bind pose with
+                // nothing playing (the Shoota had been like that since; found 2026-10-17 building the swordsman).
+                var controller = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(ControllerPath);
+                if (controller == null)
+                {
+                    Debug.LogError("CityX: no player animator controller -- rebuild the player rig first.");
+                    return null;
+                }
+                foreach (Animator animator in root.GetComponentsInChildren<Animator>(true))
+                {
+                    animator.runtimeAnimatorController = controller;
                 }
 
                 var brain = root.AddComponent<ShootaBrain>();

@@ -109,6 +109,7 @@ namespace CityX.UIEditor
             view.FlyingNpcPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
                 "Assets/CityX/Character/FlyingNpc.prefab");
             view.ShootaPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Shoota.prefab");
+            view.SwordsmanPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Swordsman.prefab");
             view.CrimsonClawPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
                 "Assets/CityX/Character/CrimsonClaw.prefab");
             view.RadioPrefab = radioPrefab;

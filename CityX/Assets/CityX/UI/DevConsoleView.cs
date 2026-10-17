@@ -67,6 +67,9 @@ namespace CityX.UI
         [Tooltip("What /spawn shoota puts down -- a white player-model NPC with an AK-47 who shoots on sight and takes cover.")]
         public GameObject ShootaPrefab;
 
+        [Tooltip("What /spawn swordsman puts down -- a slate-blue player-model NPC with the combat sword who duels you: blocks, rolls, punishes.")]
+        public GameObject SwordsmanPrefab;
+
         [Tooltip("What /spawn radio puts down.")]
         public GameObject RadioPrefab;
 
@@ -121,6 +124,9 @@ namespace CityX.UI
 
         /// <summary>How far ahead /spawn shoota puts him: far enough to see him turn and raise the rifle.</summary>
         public const float ShootaSpawnDistance = 14.0f;
+
+        /// <summary>How far ahead /spawn swordsman puts him: a few strides off, so you see him come in.</summary>
+        public const float SwordsmanSpawnDistance = 8.0f;
 
         private readonly List<string> _lines = new List<string>();
         private Shader _litShader;
@@ -873,6 +879,16 @@ namespace CityX.UI
                     // Further off than the rest: he opens fire the moment he sees you, so you get a moment to react.
                     Instantiate(ShootaPrefab, origin.position + origin.forward * ShootaSpawnDistance, facing);
                     Log("spawned a Shoota -- he shoots on sight, takes cover when hurt or reloading");
+                    return;
+
+                case "swordsman":
+                    if (SwordsmanPrefab == null)
+                    {
+                        Log("no swordsman prefab wired");
+                        return;
+                    }
+                    Instantiate(SwordsmanPrefab, origin.position + origin.forward * SwordsmanSpawnDistance, facing);
+                    Log("spawned a swordsman -- draw your sword: he blocks, rolls and punishes a blade that bounces off his guard");
                     return;
 
                 case "radio":

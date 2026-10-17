@@ -111,6 +111,10 @@ namespace CityX.Character
             {
                 return _sword != null && _sword.IsGuarding && _sword.OneHanded == guardOneHanded;
             }
+            if (SwordStrikes.TryGetRebound(stateName, out bool reboundOneHanded))
+            {
+                return _sword != null && _sword.IsRebounding && _sword.OneHanded == reboundOneHanded;
+            }
             if (HitReactions.TryGet(stateName, out HitDirection hitDirection, out bool stagger))
             {
                 return _flinch != null && _flinch.IsPlaying && _flinch.Direction == hitDirection && _flinch.IsStagger == stagger;
@@ -481,6 +485,13 @@ namespace CityX.Character
             {
                 _fist?.Cancel();
                 _sword?.BeginGuard(guardOneHanded);
+                return;
+            }
+            // A blade thrown back off a guard (SoulsSwordCombat's rebound): posed like an attack, on this body and its copies.
+            if (SwordStrikes.TryGetRebound(stateName, out bool reboundOneHanded))
+            {
+                _fist?.Cancel();
+                _sword?.BeginRebound(reboundOneHanded);
                 return;
             }
             // Anything else takes the arms back from the guard. The upper body's empty state is how a sword attack or guard is ended (the

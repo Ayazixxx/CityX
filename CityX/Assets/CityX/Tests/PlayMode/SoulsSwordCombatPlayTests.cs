@@ -579,8 +579,12 @@ namespace CityX.Tests
             Assert.IsTrue(_vitals.IsStunned, "a timed block did not punish the attacker");
         }
 
+        /// <summary>
+        /// THE GUARD REBOUND (owner, 2026-10-17: "implement a stagger system for if you swing at a block"): a blow a held guard soaks still
+        /// costs the defender stamina, and now throws the attacker's blade back and stuns them for GuardReboundSeconds -- less than a parry.
+        /// </summary>
         [Test]
-        public void HavingYourSwingMerelyGuardedDoesNotStaggerYou()
+        public void HavingYourSwingGuardedThrowsYourBladeBack()
         {
             Object.DestroyImmediate(_dummyObject);
             _dummyObject = GameObject.CreatePrimitive(PrimitiveType.Capsule);
@@ -591,11 +595,16 @@ namespace CityX.Tests
             victim.BlockDrainsStamina = true;
             victim.StartBlock();
             Physics.SyncTransforms();
+            bool rebounded = false;
+            _combat.Rebounded += () => rebounded = true;
 
             _combat.RequestLight(0.0f);
             Step(_combat.Light1.Startup + _combat.Light1.Active + 0.02f);
 
-            Assert.IsFalse(_vitals.IsStunned, "an ordinary held guard stunned its attacker");
+            Assert.IsTrue(rebounded, "the blade was not thrown back off the guard");
+            Assert.IsTrue(_vitals.IsStunned, "swinging into a held guard did not stagger the attacker");
+            Assert.LessOrEqual(_vitals.HitstunRemaining, _combat.GuardReboundSeconds + 0.001f, "a soaked blow should stun for the rebound, not more");
+            Assert.Less(_combat.GuardReboundSeconds, _combat.BlockedRecoilSeconds, "a parry should punish more than a held guard");
             Assert.Less(victim.Stamina, victim.MaxStamina, "the guard did not pay stamina for the hit");
         }
 
@@ -706,13 +715,14 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void AnotherPlayersVerdictOfParriedStaggersThisAttacker()
+        public void AnotherPlayersVerdictOfGuardedOrParriedStaggersThisAttacker()
         {
             Assert.IsFalse(_vitals.IsStunned);
-            _combat.ApplyRemoteVerdict(HitResponse.Guarded);
-            Assert.IsFalse(_vitals.IsStunned, "a soaked blow does not punish the attacker");
             _combat.ApplyRemoteVerdict(HitResponse.Ignored);
             Assert.IsFalse(_vitals.IsStunned, "a rolled-through blow does not punish the attacker");
+            _combat.ApplyRemoteVerdict(HitResponse.Guarded);
+            Assert.IsTrue(_vitals.IsStunned, "a held guard on the other player's machine must throw this attacker's blade back");
+            Assert.AreEqual(_combat.GuardReboundSeconds, _vitals.HitstunRemaining, 0.001f);
             _combat.ApplyRemoteVerdict(HitResponse.Blocked);
             Assert.IsTrue(_vitals.IsStunned, "a parry on the other player's machine must stagger this attacker");
             Assert.AreEqual(_combat.BlockedRecoilSeconds, _vitals.HitstunRemaining, 0.001f);

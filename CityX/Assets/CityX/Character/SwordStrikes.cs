@@ -141,6 +141,28 @@ namespace CityX.Character
         /// <summary>The parry flourish: a held guard snapped forward for a moment when it catches a blow in its first instant.</summary>
         public const string ParryName = "sword_parry";
 
+        /// <summary>
+        /// THE REBOUND (owner, 2026-10-17: "implement a stagger system for if you swing at a block"): a blade that struck a guard is thrown
+        /// back off it -- the sword arm knocked up and back past the shoulder, the shoulders turned open and the body leaning away -- held a
+        /// moment wide open, then gathered back into the ready stance. Played on the attacker for as long as SoulsSwordCombat stuns it, and
+        /// announced by name like a swing, so other players see whose blow bounced.
+        /// </summary>
+        public const string Rebound1HName = "sword1h_rebound";
+
+        public const string Rebound2HName = "sword2h_rebound";
+
+        /// <summary>How long the rebound takes, seconds: thrown back, held open, gathered back.</summary>
+        public const float ReboundSeconds = 0.6f;
+
+        public static string ReboundName(bool oneHanded) => oneHanded ? Rebound1HName : Rebound2HName;
+
+        /// <summary>True for a rebound state name, with which hold it is.</summary>
+        public static bool TryGetRebound(string animation, out bool oneHanded)
+        {
+            oneHanded = animation == Rebound1HName;
+            return animation == Rebound1HName || animation == Rebound2HName;
+        }
+
         public static readonly SwordStrikeKind[] All =
         {
             SwordStrikeKind.Slash1H, SwordStrikeKind.Cut1H, SwordStrikeKind.Thrust1H, SwordStrikeKind.Overhead1H,
@@ -171,7 +193,8 @@ namespace CityX.Character
         }
 
         /// <summary>A strike, a guard or the parry: anything this plays instead of the Animator.</summary>
-        public static bool Has(string animation) => TryGet(animation, out _) || TryGetGuard(animation, out _) || animation == ParryName;
+        public static bool Has(string animation) => TryGet(animation, out _) || TryGetGuard(animation, out _) || animation == ParryName
+            || TryGetRebound(animation, out _);
 
         public static string NameOf(SwordStrikeKind kind)
         {
@@ -664,9 +687,39 @@ namespace CityX.Character
         /// <summary>The pose at <paramref name="t01"/> (0 to 1) through an attack of the given kind.</summary>
         public static SwordFrame Evaluate(SwordStrikeKind kind, float t01)
         {
-            t01 = Mathf.Clamp01(t01);
-            Key[] keys = KeysFor(kind);
-            bool twoHanded = !IsOneHanded(kind);
+            return Sample(KeysFor(kind), Mathf.Clamp01(t01), !IsOneHanded(kind));
+        }
+
+        private static Key[] _rebound1H;
+        private static Key[] _rebound2H;
+
+        /// <summary>The pose at <paramref name="t01"/> (0 to 1) through a rebound off a guard (<see cref="Rebound1HName"/>).</summary>
+        public static SwordFrame Rebound(bool oneHanded, float t01)
+        {
+            Key[] keys = oneHanded ? (_rebound1H ?? (_rebound1H = BuildRebound(true))) : (_rebound2H ?? (_rebound2H = BuildRebound(false)));
+            return Sample(keys, Mathf.Clamp01(t01), !oneHanded);
+        }
+
+        /// <summary>
+        /// Thrown back: the hand up beside and behind the shoulder, the blade pointing up and back over it, the edge out at whoever blocked it,
+        /// the shoulders turned open to the right and the body leaning away (fast out of the contact, slowing as it goes); held there a moment,
+        /// wide open; then gathered back into the ready stance. The start is wherever the cut was when it struck (the pose driver takes over
+        /// from it).
+        /// </summary>
+        private static Key[] BuildRebound(bool oneHanded)
+        {
+            Key ready = oneHanded ? ReadyKey1H : ReadyKey2H;
+            Key thrown = oneHanded
+                ? Pose(0.24f, Ease.SlowIn, new Vector3(0.62f, 1.74f, 0.02f), new Vector3(0.28f, 0.80f, -0.53f), Vector3.forward,
+                    elbow: 0.60f, twist: 28.0f, hips: 10.0f, lean: -9.0f, tilt: 3.0f, drop: 0.05f, lead: -0.5f, depth: 0.30f)
+                : Pose(0.24f, Ease.SlowIn, new Vector3(0.40f, 1.80f, 0.06f), new Vector3(0.20f, 0.85f, -0.48f), Vector3.forward,
+                    elbow: 0.50f, twist: 30.0f, hips: 12.0f, lean: -9.0f, tilt: 3.0f, drop: 0.05f, lead: -1.0f, depth: 0.35f);
+            return new[] { ready, thrown, Hold(thrown, 0.50f), At(ready, 1.0f) };
+        }
+
+        /// <summary>The pose at <paramref name="t01"/> along a run of keys.</summary>
+        private static SwordFrame Sample(Key[] keys, float t01, bool twoHanded)
+        {
 
             int i = 0;
             while (i < keys.Length - 2 && t01 >= keys[i + 1].T)

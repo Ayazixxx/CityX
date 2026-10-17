@@ -294,6 +294,12 @@ namespace CityX.Character
         /// <summary>Raised with the blow's origin when the guard parries it: no damage, no stamina, and the attacker is the one left open.</summary>
         public event Action<Vector3> Parried;
 
+        /// <summary>
+        /// Raised with the blow's origin whenever a soulslike guard meets a blow -- a parry or a soak (not a guard broken): the blades clash.
+        /// What shows it (the sparks and the ting, BlockDeflectEffect) listens here.
+        /// </summary>
+        public event Action<Vector3> GuardStruck;
+
         public bool IsAlive => !IsDead;
 
         public event Action Died;
@@ -493,6 +499,7 @@ namespace CityX.Character
             {
                 PerfectGuardRemaining = 0.0f;
                 Parried?.Invoke(fromPosition);
+                GuardStruck?.Invoke(fromPosition);
                 return HitResponse.Blocked;
             }
 
@@ -534,6 +541,10 @@ namespace CityX.Character
                 }
                 _stamina -= drain;
                 DelayStaminaRegen(0.5f);
+            }
+            if (blocked && BlockDrainsStamina)
+            {
+                GuardStruck?.Invoke(fromPosition);   // the guard held: the blades clash
             }
 
             // POISE: the blow's poise damage drains the pool. Inside an attack with hyper-armour the body only staggers once the pool is

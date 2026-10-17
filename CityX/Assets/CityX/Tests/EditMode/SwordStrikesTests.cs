@@ -266,6 +266,31 @@ namespace CityX.Tests
             Assert.Greater(Mathf.Abs(guard1.Blade.x), 0.5f, "the one-handed guard holds the blade across the body");
         }
 
+        /// <summary>
+        /// THE REBOUND (owner, 2026-10-17: "implement a stagger system for if you swing at a block"): a blade off a guard is thrown up and back,
+        /// the body leaning away, then gathered back into the ready stance -- and it travels by name like a swing.
+        /// </summary>
+        [Test]
+        public void TheReboundThrowsTheBladeBackUpAndGathersIntoTheStance()
+        {
+            foreach (bool oneHanded in new[] { true, false })
+            {
+                SwordFrame ready = SwordStrikes.Ready(oneHanded);
+                SwordFrame thrown = SwordStrikes.Rebound(oneHanded, 0.35f);
+                SwordFrame end = SwordStrikes.Rebound(oneHanded, 1.0f);
+                string hold = oneHanded ? "1h" : "2h";
+                Assert.Greater(thrown.Blade.y, 0.6f, $"{hold}: the blade is not thrown up");
+                Assert.Less(thrown.Blade.z, 0.0f, $"{hold}: the blade is not thrown back");
+                Assert.Greater(thrown.Hand.y, ready.Hand.y + 0.1f, $"{hold}: the hand is not knocked up");
+                Assert.Less(thrown.LeanDegrees, 0.0f, $"{hold}: the body does not lean away");
+                Assert.Less(Vector3.Distance(end.Hand, ready.Hand), 0.01f, $"{hold}: the rebound does not end in the ready stance");
+                Assert.AreEqual(!oneHanded, thrown.TwoHanded);
+            }
+            Assert.IsTrue(SwordStrikes.Has(SwordStrikes.Rebound1HName));
+            Assert.IsTrue(SwordStrikes.TryGetRebound(SwordStrikes.ReboundName(false), out bool one) && !one);
+            Assert.IsTrue(SwordStrikes.TryGetRebound(SwordStrikes.ReboundName(true), out one) && one);
+        }
+
         [Test]
         public void TheTwoHandedWindUpsKeepTheGripWithinTheLeftArmsReach()
         {

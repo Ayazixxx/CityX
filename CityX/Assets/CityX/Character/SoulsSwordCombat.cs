@@ -257,6 +257,20 @@ namespace CityX.Character
         [Tooltip("Seconds YOU are staggered when your swing is PARRIED (caught in the first instant of a guard): the blade thrown back, you wide open. Sekiro-long.")]
         public float BlockedRecoilSeconds = 0.9f;
 
+        /// <summary>
+        /// THE GUARD REBOUND (owner, 2026-10-17: "implement a stagger system for if you swing at a block"): a blow a HELD guard soaks throws
+        /// the attacker's blade back off it (SwordStrikes.Rebound1HName) and leaves them stunned this long -- open to the defender's answer.
+        /// Shorter than a parry's <see cref="BlockedRecoilSeconds"/>, which stays the bigger punishment for the better-timed guard. A blow the
+        /// guard could not afford breaks the guard instead and does not rebound.
+        /// </summary>
+        public float GuardReboundSeconds = 0.6f;
+
+        /// <summary>Raised when this body's blade is thrown back off a guard (a soak or a parry, here or decided on another player's machine).</summary>
+        public event System.Action Rebounded;
+
+        /// <summary>A rebound decided this frame, shown as the swing it came off ends (the next Tick: the stun interrupts the swing first).</summary>
+        private bool _reboundPending;
+
         [Tooltip("Seconds from the guard coming up during which a blow is parried outright: no damage, no stamina, the attacker staggered. Tap to parry, hold to block.")]
         public float PerfectGuardSeconds = 0.2f;
 
@@ -600,8 +614,16 @@ namespace CityX.Character
                 // Being staggered is the price of trading blows with no poise.
                 Interrupt();
                 SetBlockHeld(false);
+                if (_reboundPending)
+                {
+                    // Bounced off a guard: the blade thrown back, shown on this body and (by name) on its copies.
+                    _reboundPending = false;
+                    _driver?.PlayLocalState(SwordStrikes.ReboundName(_oneHanded));
+                    Rebounded?.Invoke();
+                }
                 return;
             }
+            _reboundPending = false;
 
             if (_bufferRemaining > 0.0f)
             {
@@ -957,9 +979,13 @@ namespace CityX.Character
 
             if (response == HitResponse.Blocked && _vitals != null)
             {
-                // PARRIED (or the classic timed block): the blade thrown back and you are the one left open. A merely held guard (Guarded)
-                // costs the defender stamina instead and does not do this.
-                _vitals.Stun(BlockedRecoilSeconds);
+                // PARRIED (or the classic timed block): the blade thrown back and you are the one left open, the longest.
+                Rebound(BlockedRecoilSeconds);
+            }
+            else if (response == HitResponse.Guarded && _vitals != null)
+            {
+                // SOAKED BY A HELD GUARD: the defender pays stamina for it, and the blade still bounces -- you are open, a little less long.
+                Rebound(GuardReboundSeconds);
             }
             else if (response == HitResponse.Landed && victim != null && victim.Relay is NetworkedDamage relay && relay.LastRelayWasSent)
             {
@@ -1000,16 +1026,31 @@ namespace CityX.Character
         }
 
         /// <summary>
-        /// What the other player's own body did with a swing this machine saw land: PARRIED (Blocked) leaves this attacker staggered exactly as
-        /// a local parry does; soaked by a held guard, or rolled through (Ignored), changes nothing here -- the hit-stop already played, and the
-        /// damage was never this machine's to decide. Public so a test can hand one in without a network.
+        /// What the other player's own body did with a swing this machine saw land: PARRIED (Blocked) or soaked by a held guard (Guarded)
+        /// throws this attacker's blade back exactly as it would offline (a parry for longer); rolled through (Ignored) changes nothing here --
+        /// the hit-stop already played, and the damage was never this machine's to decide. Public so a test can hand one in without a network.
         /// </summary>
         public void ApplyRemoteVerdict(HitResponse response)
         {
-            if (response == HitResponse.Blocked && _vitals != null)
+            if (_vitals == null)
             {
-                _vitals.Stun(BlockedRecoilSeconds);
+                return;
             }
+            if (response == HitResponse.Blocked)
+            {
+                Rebound(BlockedRecoilSeconds);
+            }
+            else if (response == HitResponse.Guarded)
+            {
+                Rebound(GuardReboundSeconds);
+            }
+        }
+
+        /// <summary>The blade came back off a guard: stunned for <paramref name="seconds"/>, the rebound shown as the swing ends (next Tick).</summary>
+        private void Rebound(float seconds)
+        {
+            _vitals.Stun(seconds);
+            _reboundPending = true;
         }
 
         private void TickVerdicts(float deltaTime)

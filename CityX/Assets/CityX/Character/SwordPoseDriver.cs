@@ -64,6 +64,7 @@ namespace CityX.Character
         private SwordStrikeKind _kind;
         private bool _striking;
         private bool _guarding;
+        private bool _rebounding;
         private bool _oneHanded;
         private float _elapsed;
         private float _duration = 0.5f;
@@ -88,6 +89,18 @@ namespace CityX.Character
 
         /// <summary>A guard is being held.</summary>
         public bool IsGuarding => _guarding;
+
+        /// <summary>The blade is being thrown back off a guard (<see cref="SwordStrikes.Rebound1HName"/>).</summary>
+        public bool IsRebounding => _rebounding;
+
+        /// <summary>The rebound comes off the cut that struck the guard this quickly, seconds: a bounce is sudden.</summary>
+        public const float ReboundTakeoverSeconds = 0.06f;
+
+        /// <summary>
+        /// An attack or a rebound that has run out settles into the ready stance over this long, seconds, from wherever it ended: the stance
+        /// holds the arm its own way (the elbow low, the wrist cocked, the free hand left to the clips), and switching to it at once jumped.
+        /// </summary>
+        public const float SettleSeconds = 0.15f;
 
         /// <summary>The sword is being carried (no attack, guard or ready stance): a two-handed one posed (<see cref="SwordStrikes.Carry"/>), a one-handed one by its own clips.</summary>
         public bool IsCarrying => _carrying && !_striking && !_guarding && _readyRemaining <= 0.0f;
@@ -149,6 +162,21 @@ namespace CityX.Character
             enabled = true;
         }
 
+        /// <summary>The blade bounced off a guard: thrown back, held open, gathered into the ready stance (<see cref="SwordStrikes.Rebound"/>).</summary>
+        public void BeginRebound(bool oneHanded)
+        {
+            StartTakeover(ReboundTakeoverSeconds);
+            _oneHanded = oneHanded;
+            _striking = false;
+            _guarding = false;
+            _rebounding = true;
+            _elapsed = 0.0f;
+            _duration = SwordStrikes.ReboundSeconds;
+            _speed = 1.0f;
+            _readyRemaining = ReadyLingerSeconds;
+            enabled = true;
+        }
+
         /// <summary>How long the parry flourish takes, seconds: the guard snapped forward and back.</summary>
         public const float ParrySeconds = 0.22f;
 
@@ -167,6 +195,10 @@ namespace CityX.Character
         /// <summary>Ends the attack or guard in progress; the ready stance lingers (a swing's end, a guard lowered).</summary>
         public void Release()
         {
+            if (_rebounding)
+            {
+                return;   // the rebound plays out (the swing it came off ends as it starts), then lowers into the ready stance itself
+            }
             if (_striking || _guarding)
             {
                 StartTakeover(ReleaseTakeoverSeconds);
@@ -181,6 +213,7 @@ namespace CityX.Character
         {
             _striking = false;
             _guarding = false;
+            _rebounding = false;
             _speed = 1.0f;
             _readyRemaining = 0.0f;
             _takeoverRemaining = 0.0f;
@@ -248,7 +281,7 @@ namespace CityX.Character
         {
             ISwordBlade held = _locomotion != null ? _locomotion.HeldSword : null;
             bool busy = BodyIsBusy();
-            if (busy && (_striking || _guarding || _readyRemaining > 0.0f || _engage > 0.0f))
+            if (busy && (_striking || _guarding || _rebounding || _readyRemaining > 0.0f || _engage > 0.0f))
             {
                 Cancel();
                 _engage = 0.0f;
@@ -259,13 +292,15 @@ namespace CityX.Character
                 _carryOneHanded = held.IsOneHanded;
             }
 
-            if (_striking)
+            if (_striking || _rebounding)
             {
                 _elapsed += deltaTime * _speed;
                 if (_elapsed >= _duration)
                 {
                     _striking = false;
+                    _rebounding = false;
                     _readyRemaining = ReadyLingerSeconds;
+                    StartTakeover(SettleSeconds);
                 }
             }
             else if (!_guarding && _readyRemaining > 0.0f)
@@ -277,7 +312,7 @@ namespace CityX.Character
                 }
             }
 
-            bool fighting = _striking || _guarding || _readyRemaining > 0.0f;
+            bool fighting = _striking || _guarding || _rebounding || _readyRemaining > 0.0f;
             bool wantsPose = fighting || CarryIsPosed;
             float engageSeconds = wantsPose
                 ? (_striking || _guarding ? Mathf.Max(EngageSeconds, _fromClipSeconds) : CarryEngageSeconds)
@@ -304,7 +339,11 @@ namespace CityX.Character
             _stanceGate = Mathf.Lerp(_stanceGate, stanceTarget, rate);
 
             SwordFrame frame;
-            if (_striking)
+            if (_rebounding)
+            {
+                frame = SwordStrikes.Rebound(_oneHanded, Progress);
+            }
+            else if (_striking)
             {
                 frame = SwordStrikes.Evaluate(_kind, Progress);
             }

@@ -274,6 +274,10 @@ namespace CityX.ViewEditor
             // --- the Shoota (2026-10-15): the player's own body, white, with the AK-47 and a mind of its own. After the player rig and the AK-47,
             // --- which it is made of; spawned only by /spawn shoota.
             CityX.WeaponsEditor.ShootaBuilder.Build();
+
+            // --- the swordsman (2026-10-17): the player's own body, slate blue, with the combat sword and a duelist's mind. After the player rig
+            // --- and the combat sword; spawned only by /spawn swordsman.
+            CityX.WeaponsEditor.SwordsmanBuilder.Build();
             if (playerPrefab != null)
             {
                 GameObject player = (GameObject)PrefabUtility.InstantiatePrefab(playerPrefab);
