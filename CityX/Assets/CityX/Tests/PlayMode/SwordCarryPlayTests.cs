@@ -279,6 +279,10 @@ namespace CityX.Tests
             Transform shoulder = _animator.GetBoneTransform(HumanBodyBones.RightUpperArm);
             Transform elbow = _animator.GetBoneTransform(HumanBodyBones.RightLowerArm);
             Transform hand = _animator.GetBoneTransform(HumanBodyBones.RightHand);
+            Transform freeShoulder = _animator.GetBoneTransform(HumanBodyBones.LeftUpperArm);
+            Transform freeHand = _animator.GetBoneTransform(HumanBodyBones.LeftHand);
+            float armLength = Vector3.Distance(freeShoulder.position, _animator.GetBoneTransform(HumanBodyBones.LeftLowerArm).position)
+                + Vector3.Distance(_animator.GetBoneTransform(HumanBodyBones.LeftLowerArm).position, freeHand.position);
             for (int i = 0; i < 30; i++) yield return Frame(Vector2.zero, false);
             foreach (bool guard in new[] { false, true })
             {
@@ -291,6 +295,7 @@ namespace CityX.Tests
                     combat.RequestLight(0.0f);
                 }
                 float worstRise = float.MinValue, worstWrist = 0.0f, worstElbowOverShoulder = float.MinValue, settledWrist = 0.0f;
+                float freeHighest = float.MinValue, freeForemost = float.MinValue;
                 int heldFrames = 0;
                 for (int i = 0; i < 150; i++)
                 {
@@ -307,12 +312,18 @@ namespace CityX.Tests
                     worstRise = Mathf.Max(worstRise, elbow.position.y - (shoulder.position.y + chord.y * t));
                     worstElbowOverShoulder = Mathf.Max(worstElbowOverShoulder, elbow.position.y - shoulder.position.y);
                     settledWrist = Vector3.Angle(hand.position - elbow.position, hand.right);
+                    // The free hand (owner: "make it relaxed"): how high toward its shoulder it is held, and how far out in front.
+                    freeHighest = Mathf.Max(freeHighest, (freeHand.position.y - freeShoulder.position.y) / armLength);
+                    freeForemost = Mathf.Max(freeForemost, Vector3.Dot(freeHand.position - freeShoulder.position, _player.transform.forward) / armLength);
                     worstWrist = Mathf.Max(worstWrist, settledWrist);
                     heldFrames++;
                 }
                 string name = guard ? "the guard" : "the stance after a swing";
                 Debug.Log($"CityX 1H {name}: the elbow at most {worstRise:0.00} m above the shoulder-hand line and {worstElbowOverShoulder:0.00} m above the shoulder; the wrist bent at most {worstWrist:0} deg, {settledWrist:0} deg once settled ({heldFrames} frames held)");
                 Assert.Greater(heldFrames, 30, $"{name}: was never held");
+                Debug.Log($"CityX 1H {name}: the free hand at highest {freeHighest:0.00} arm lengths from its shoulder (below is negative), at most {freeForemost:0.00} in front of it");
+                Assert.Less(freeHighest, -0.7f, $"{name}: the free hand is held up (like a shield), not hanging relaxed");
+                Assert.Less(freeForemost, 0.3f, $"{name}: the free hand is held out in front, not hanging relaxed");
                 Assert.Less(worstRise, 0.02f, $"{name}: the arm bends upward, the elbow raised above the line to the hand");
                 Assert.Less(settledWrist, 40.0f, $"{name}: the wrist is bent further than a wrist goes");
                 Assert.Less(worstWrist, 60.0f, $"{name}: the wrist folds over as the stance takes over");

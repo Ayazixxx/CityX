@@ -161,7 +161,7 @@ namespace CityX.Tests
             return Vector3.Angle(elbow.position - shoulder.position, hand.position - elbow.position);
         }
 
-        /// <summary>One cell: row 0 from the body's right side, row 1 from behind and above like the game camera, row 2 from the front-right.</summary>
+        /// <summary>One cell: row 0 from the body's right side, row 1 from behind and above like the game camera, row 2 from the front, a little to its left.</summary>
         private static void Shoot(Camera camera, Texture2D sheet, int column, GameObject player, int row)
         {
             float height = player.GetComponent<PlayerLocomotion>().StandingHeight;
@@ -183,7 +183,7 @@ namespace CityX.Tests
             }
             else
             {
-                position = chest + player.transform.forward * 4.5f + player.transform.right * 2.6f + Vector3.up * 0.2f;
+                position = chest + player.transform.forward * 4.8f - player.transform.right * 1.2f + Vector3.up * 0.2f;
                 lookAt = chest + Vector3.down * 0.3f;
                 camera.fieldOfView = 42.0f;
             }

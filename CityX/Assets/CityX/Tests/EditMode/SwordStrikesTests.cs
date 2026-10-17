@@ -226,13 +226,33 @@ namespace CityX.Tests
             }
         }
 
+        /// <summary>
+        /// One-handed, the empty hand is relaxed (owner, 2026-10-17: "i dont like the way left arm is in holding shield position after swinging.
+        /// make it relaxed"): low at the side through a cut, swinging against the sword, and left to the clips in the stance and the guard.
+        /// </summary>
         [Test]
-        public void TheFreeHandIsRaisedForOneHandedAttacksAndOnTheGripForTwoHanded()
+        public void TheFreeHandHangsRelaxedForOneHandedAttacksAndIsOnTheGripForTwoHanded()
         {
             SwordFrame one = SwordStrikes.Evaluate(SwordStrikeKind.Cut1H, 0.3f);
             Assert.IsFalse(one.TwoHanded);
-            Assert.Greater(one.FreeHand.z, 0.2f, "the free hand should be raised in front");
-            Assert.Greater(one.FreeHand.x, 0.0f, "the free hand should be across the body (inward)");
+            Assert.Less(one.FreeHand.y, -0.7f, "the free hand should hang low at the side, not be held up in front");
+            Assert.LessOrEqual(one.FreeHand.x, 0.0f, "the free hand should hang at its own side, not across the body");
+            Assert.AreEqual(0.0f, SwordStrikes.Ready(true).FreeHandWeight, 0.001f, "the stance after a swing holds the free hand up instead of leaving it relaxed");
+            Assert.AreEqual(0.0f, SwordStrikes.Guard(true).FreeHandWeight, 0.001f, "the guard holds the free hand up instead of leaving it relaxed");
+            foreach (SwordStrikeKind kind in SwordStrikes.All)
+            {
+                if (SwordStrikes.IsOneHanded(kind))
+                {
+                    float most = float.MinValue, least = float.MaxValue;
+                    for (int i = 0; i <= 50; i++)
+                    {
+                        float z = SwordStrikes.Evaluate(kind, i / 50.0f).FreeHand.z;
+                        most = Mathf.Max(most, z);
+                        least = Mathf.Min(least, z);
+                    }
+                    Assert.LessOrEqual(most - least, 2.0f * SwordStrikes.FreeHandBalanceSwing + 0.001f, $"{kind}: the free hand flails");
+                }
+            }
 
             SwordFrame two = SwordStrikes.Evaluate(SwordStrikeKind.Cut2H, 0.3f);
             Assert.IsTrue(two.TwoHanded);

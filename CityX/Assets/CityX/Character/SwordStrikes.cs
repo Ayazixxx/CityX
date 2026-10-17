@@ -331,20 +331,29 @@ namespace CityX.Character
         /// <summary>
         /// The stance the attacks start from and return to, held for a while after the last one (in place of the carry). Two-handed: a MIDDLE
         /// GUARD, the hands in front of the belly, the blade forward and up at the opponent's face, the edge down, the left foot forward and
-        /// the knees a little bent. One-handed: the hand at the waist with the point forward and up, the free hand low in front.
+        /// the knees a little bent. One-handed: the hand at the waist with the point forward and up, the free arm left to the clips (relaxed
+        /// at the side, swinging with the walk: see <see cref="FreeHandRelaxed"/>).
         /// </summary>
         public static SwordFrame Ready(bool oneHanded)
         {
             SwordFrame frame = oneHanded ? Frame(ReadyKey1H, 1.0f, false) : Frame(ReadyKey2H, 1.0f, true);
             frame.ForearmAlign = 1.0f;
+            if (oneHanded)
+            {
+                frame.FreeHandWeight = 0.0f;
+            }
             return frame;
         }
 
-        /// <summary>The held guard: one-handed, the blade across the body at chest height; two-handed, the blade up across the front, edge out.</summary>
+        /// <summary>The held guard: one-handed, the blade across the body at chest height and the free arm relaxed (the clips'); two-handed, the blade up across the front, edge out.</summary>
         public static SwordFrame Guard(bool oneHanded)
         {
             SwordFrame frame = oneHanded ? Frame(GuardKey1H, 1.0f, false) : Frame(GuardKey2H, 1.0f, true);
             frame.ForearmAlign = 1.0f;
+            if (oneHanded)
+            {
+                frame.FreeHandWeight = 0.0f;
+            }
             return frame;
         }
 
@@ -364,10 +373,22 @@ namespace CityX.Character
             return frame;
         }
 
-        /// <summary>The free (left) hand's place in the one-handed stance: low in front of the stomach, elbow bent, ready to balance a cut.</summary>
-        public static readonly Vector3 FreeHandReady = new Vector3(0.22f, -0.55f, 0.30f);
+        /// <summary>
+        /// THE FREE (LEFT) HAND OF A ONE-HANDED SWORD, RELAXED (owner, 2026-10-17, of it held low in front of the stomach after a swing: "i dont
+        /// like the way left arm is in holding shield position after swinging. make it relaxed or look at what most one handed sword animations
+        /// do with the other hand when not holding anything"). With nothing in it, games and fencers keep the empty hand out of the way: hanging
+        /// loose at the side between swings (the stance and the guard leave it to the clips, so it hangs standing and swings walking), and in a
+        /// cut swinging against the sword for balance, like a tennis player's other arm: forward while the sword is wound back on the right, drawn
+        /// back as it crosses. This is where it hangs, from the left shoulder in arm lengths (out to the left, down, a touch forward): 96% of the
+        /// arm's reach, so the elbow keeps only a soft bend (at 85% it bent 65 degrees and stuck out like a hand on the hip).
+        /// </summary>
+        public static readonly Vector3 FreeHandRelaxed = new Vector3(-0.20f, -0.94f, 0.06f);
 
-        public const float FreeHandElbowOut = 0.25f;
+        /// <summary>How far the free hand swings forward and back against the sword in a cut, arm lengths.</summary>
+        public const float FreeHandBalanceSwing = 0.12f;
+
+        /// <summary>The relaxed free arm's elbow: a little out, mostly back (a soft hanging bend).</summary>
+        public const float FreeHandElbowOut = 0.1f;
 
         private static readonly Key ReadyKey2H = Pose(0.0f, Ease.Smooth, hand: new Vector3(0.10f, 1.42f, 0.40f), blade: new Vector3(-0.06f, 0.37f, 0.927f),
             edge: Vector3.down, elbow: 0.25f, twist: 10.0f, hips: 6.0f, lean: 4.0f, tilt: 0.0f, drop: 0.08f, lead: -1.0f, depth: 0.35f);
@@ -726,12 +747,12 @@ namespace CityX.Character
             };
         }
 
-        /// <summary>The free hand through a one-handed attack: low in front, swinging a little the other way from the cut for balance.</summary>
+        /// <summary>The free hand through a one-handed attack: hanging relaxed at the side, swinging against the cut for balance (<see cref="FreeHandRelaxed"/>).</summary>
         private static Vector3 FreeHandFor(Key key)
         {
-            // Inward (positive x on the left hand) as the sword goes out to the right, and the other way; a touch higher while the torso leans.
-            float counter = Mathf.Clamp(-key.Hand.x * 0.25f, -0.15f, 0.15f);
-            return FreeHandReady + new Vector3(counter, key.Lean * 0.004f, -key.Reach * 0.12f);
+            // Forward while the sword hand is out on the right (wound up), back as it crosses to the left (the cut through): against the sword.
+            float balance = Mathf.Clamp((key.Hand.x - 0.15f) * 0.5f, -1.0f, 1.0f) * FreeHandBalanceSwing;
+            return FreeHandRelaxed + new Vector3(0.0f, 0.0f, balance);
         }
 
         /// <summary>

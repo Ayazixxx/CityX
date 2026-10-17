@@ -432,3 +432,11 @@ sword up and forward cocks the wrist toward the little finger instead, so one-ha
 elbow hangs at the side (9 cm below the shoulder-to-hand line in the ready stance, 22 in the guard; it was 16 cm above), the wrist settles
 at 35 degrees (53 for a moment while a swing hands over to the stance). Two-handed stances are unchanged. `SwordCarryCapture` renders
 `carry-ready.png` and `carry-ready-walk.png` (a light attack, then the stance); `SwordCarryPlayTests.AfterASwingTheArmBendsDownAtTheElbow`.
+
+**The free hand is relaxed** (owner, same day, with a screenshot: "i dont like the way left arm is in holding shield position after
+swinging. make it relaxed or look at what most one handed sword animations do with the other hand when not holding anything"). It used to
+be placed low in front of the stomach through every one-handed attack, the stance and the guard (`FreeHandReady`), which read as holding a
+shield. With nothing in it, the empty hand is kept out of the way: the stance and the guard no longer place it at all
+(`FreeHandWeight` 0, so the carry clips' arm hangs standing and swings walking), and through a cut it hangs by the hip
+(`SwordStrikes.FreeHandRelaxed`, 96% of the arm's reach, a soft elbow) and swings against the sword for balance like a tennis player's
+other arm (`FreeHandBalanceSwing`, forward while the sword is wound back, back as it crosses).
