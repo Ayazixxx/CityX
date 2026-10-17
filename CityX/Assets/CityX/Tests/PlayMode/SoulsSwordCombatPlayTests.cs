@@ -96,11 +96,29 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void TheSwingFacesTheCameraYawTheInstantItStarts()
+        public void TheSwingTurnsToTheCameraYawDuringItsWindUpAndFacesItWhenTheBladeIsLive()
         {
+            // Owner, 2026-10-16: no awkward turns. The body used to jump straight round to the camera's yaw on the click (110 degrees in one
+            // frame here); it turns into the swing through the wind-up instead, quickly, and faces the aim before the blade can hurt anything.
             _player.transform.rotation = Quaternion.Euler(0.0f, 200.0f, 0.0f);
             _combat.RequestLight(90.0f);
+            float first = Mathf.Abs(Mathf.DeltaAngle(_player.transform.eulerAngles.y, 90.0f));
+            Assert.Greater(first, 60.0f, "the body jumped round to the aim on the click");
 
+            Step(1.0f / 60.0f);
+            float second = Mathf.Abs(Mathf.DeltaAngle(_player.transform.eulerAngles.y, 90.0f));
+            Assert.Less(second, first, "the body is not turning toward the aim");
+
+            Step(_combat.Light1.Startup);
+            Assert.AreEqual(SoulsPhase.Active, _combat.Phase);
+            Assert.AreEqual(90.0f, _player.transform.eulerAngles.y, 0.01f, "the blade went live facing somewhere other than the aim");
+        }
+
+        [Test]
+        public void ASmallCorrectionStillLandsOnTheAim()
+        {
+            _player.transform.rotation = Quaternion.Euler(0.0f, 91.5f, 0.0f);
+            _combat.RequestLight(90.0f);
             Assert.AreEqual(90.0f, _player.transform.eulerAngles.y, 0.01f);
         }
 

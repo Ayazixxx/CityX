@@ -21,8 +21,11 @@ horizontal slash (the owner's choice).
 | 2 | The old spin attack (unchanged). |
 | **Tab** | Lock on (works with or without a sword). Keep pressing to rotate through the surrounding enemies; the press after the last one releases. |
 
-Every swing faces the camera the instant you click -- and while locked on the
-camera is steering at the enemy, so the swing goes at the enemy.
+Every swing turns to face where the camera looks during its wind-up (1080 degrees a
+second, `SwingTurnDegreesPerSecond`) and faces it exactly by the time the blade is
+live -- and while locked on the camera is steering at the enemy, so the swing goes at
+the enemy. (Until 2026-10-16 it snapped round on the click: half a turn in one frame
+was one of the "awkward" turns.)
 
 ## The attacks are posed, not played from clips (2026-10-13)
 
@@ -46,13 +49,65 @@ sword animation is built:
   hips (`HipDrop`, handed to the foot IK so the feet stay planted);
 * the **edge leads** the motion (never the flat of the blade).
 
-| Attack | 1H (combat sword) | 2H (greatsword) |
+**Second pass, 2026-10-16** (owner: "my character holds and swings the sword
+awkwardly ... make the character is not turned in any awkward way and make sure his
+feet dont lock up during combat animations while moving", with a reference video
+whose "two handed horizontal slashes" they liked, and "use the spikesword as guide ...
+the side with the spikes" should hit). Research: the hips drive a cut and the
+shoulders follow (koshi-mawari; the zwerchhau turns hips and shoulders into it); a
+swordsman steps into every cut; the blade carries on through the target; the off
+hand tracks the grip by IK; feet are latched where they land and step only once left
+too far. What changed:
+
+* **Cut planes**: a slash's blade turns within one plane (`SwordStrikes.CutPlane`:
+  the flat forehand and backhand, the two diagonals, the overhead), and its edge is
+  the plane's tangent -- the cutting side (the spike sword's spikes, its local -X)
+  leads by construction. `SwordStrikesTests.TheEdgeLeadsEveryCut` on paper,
+  `SwordStancePlayTests.TheSpikedEdgeLeadsEveryCutOnTheRig` on the real spike sword.
+* **No dead stop at the contact**: the strike and the follow-through sweep the blade
+  at the same average rate, so its speed is continuous through the hit
+  (`TheBladeCarriesItsSpeedThroughTheContact`).
+* **The hips lead**: each key has a hip turn as well as the shoulders'; the hips are
+  turned first (`PlayerLocomotion.ApplySwordHips`, before the foot IK, legs re-solved
+  under them) and the spine turns the rest, so the waist is never wrung more than
+  25 degrees (`TheHipsLeadTheShouldersIntoTheCut`).
+* **No stoop**: a posed swing or guard no longer follows the sword idle clip's spine
+  (`TorsoFollowsClip` is off while the pose is active). That clip is bent forward
+  over the sword, and following it bowed the body about 35 degrees into every cut
+  (`SwordStancePlayTests.TheBodyStaysUprightThroughTheSwingsAndTheGuard`).
+* **A stance and steps**: each key says which foot leads and how far apart the feet
+  are; the stance opens into each cut and `SwordFootwork` steps the feet to it (see
+  "The feet step under the sword"). The knees are bent: the ready stance crouches
+  8 cm, the cuts 10-14, the heavies 16-20.
+* **Arms out**: the cuts reach out to 0.9 arm lengths at the contact instead of
+  staying at the chest.
+* The **two-handed chain** is the reference's: a flat forehand, a flat backhand
+  (the right foot passing forward), then the diagonal finisher.
+
+| Attack | 1H (combat sword) | 2H (greatsword, spike sword, bat) |
 |---|---|---|
-| Light 1 | `sword1h_slash`: horizontal, right to left, chest height, 0.75 s | `sword2h_cut`: diagonal from over the right shoulder down to the left, 0.9 s |
-| Light 2 | `sword1h_cut`: backhand from over the left shoulder down to the right, 0.8 s | `sword2h_reverse`: rising backhand from low left to upper right, 0.9 s |
-| Light 3 | `sword1h_thrust`: hilt to the hip, driven straight out with a step, 0.7 s | `sword2h_sweep`: flat sweep right to left at waist height, 1.0 s |
+| Light 1 | `sword1h_slash`: horizontal, right to left, chest height, 0.75 s | `sword2h_sweep`: FLAT FOREHAND, right to left at chest height, hips leading, the front foot striding, 0.85 s |
+| Light 2 | `sword1h_cut`: backhand from over the left shoulder down to the right, the right foot stepping through, 0.8 s | `sword2h_reverse`: FLAT BACKHAND, left to right at chest height, the right foot passing forward, 0.85 s |
+| Light 3 | `sword1h_thrust`: hilt to the hip, driven straight out in a lunge onto the right foot, 0.7 s | `sword2h_cut`: the finisher, a wide diagonal from over the right shoulder down to the lower left, a long step, 1.0 s |
 | Heavy | `sword1h_overhead`: from behind the head down the middle, hips sinking, 1.1 s | `sword2h_slam`: overhead with the longest hold, everything into the floor, 1.5 s |
-| Guard | `sword1h_guard`: blade across the body, free hand raised | `sword2h_guard`: blade up in front, both hands on the grip |
+| Guard | `sword1h_guard`: blade across the body, free hand low | `sword2h_guard`: blade up across the front, both hands on the grip |
+
+## The hold (the carry), 2026-10-16
+
+The sword used to be held by the sword idle clip: arms straight out at shoulder
+height, the blade straight up in front of the face, whether walking or standing. Now
+`SwordPoseDriver` holds it whenever a sword is in the right hand and nothing else is
+using the body (`SwordStrikes.Carry`): **low at the right side, the point forward
+and down, the edge down**, both hands on the hilt; at a sprint the blade **trails
+behind** instead (blended by the body's measured speed, 4.5 to 7 m/s). A one-handed
+sword is carried the same way and the free arm swings with the walk. For 3 s after a
+swing or guard the **ready stance** is held instead (a middle guard: the hands at the
+belly, the point at the opponent's face, the left foot forward, the knees a little
+bent), then it lowers into the carry over 0.45 s. The carry yields to anything that
+owns the body (climbing, a ragdoll, a seat, the spin, a baked move, a dance, push-ups,
+a spell's whole-body clip: `PlayerLocomotion.ClipOwnsTheBody`). Another player's copy
+finds the same sword under the same hand and carries it the same way, with nothing
+sent.
 
 How it reaches the rig: `SwordPoseDriver` (added at runtime like `FistPoseDriver`)
 runs the attack's clock -- a **hit-stop freezes it** (`SetSpeed 0`) -- and hands
@@ -66,7 +121,7 @@ ground** (`KeepTipAboveGround`), places the free hand (one-handed) or lets the
 support hand follow the grip (two-handed). A new attack or a guard **takes over
 from the pose the body is actually in** (the last swing's recovery) across a third
 of its length, so a chain never snaps. The ready stance lingers 3 s after the last
-swing, then the arms go back to the walk cycle.
+swing, then lowers into the carry (see "The hold").
 
 `SoulsAttack.FromStrike` derives each attack's Startup/Active/Recovery from the
 strike's own `ActiveStart`/`ActiveEnd`, so the blade is live from just before the
@@ -77,10 +132,15 @@ through the ground, two-handed poses within the left arm's reach, the slash flat
 right-to-left).
 
 **Look at it:** `tools/unity_tests.ps1 -Platform PlayMode -Graphics -Filter
-CityX.Tests.SwordStrikeCapture` writes `CityX/Logs/CityShots/strike-<1h|2h>-<attack>.png`
-(nine frames across each attack from the side, the front and behind) and
-`grip-<1h|2h>.png` (the hands on the grips). The old clip-based menus
-(`CityX > Capture Souls Sword`, `Measure Sword Clips`) still exist for the clips.
+CityX.Tests.SwordStrikeCapture` writes `CityX/Logs/CityShots/strike-<spike|1h|crowbar|bat|2h>-<attack>.png`
+(nine frames across each attack from the side, the front and behind; the spike
+sword's spikes show which side leads), `strike-<sword>-carry.png` (the hold) and
+`grip-<sword>.png` (the hands on the grips). `CityX.Tests.SwordWalkSwingCapture`
+writes `swingwalk-<spike|1h>-<forward|sideways|standing>.png` (the light chain thrown
+walking forward, sideways and standing, from the side and from behind) and logs the
+feet: steps taken, how far a foot on the ground slid, how far it got from its hip.
+The old clip-based menus (`CityX > Capture Souls Sword`, `Measure Sword Clips`) still
+exist for the clips.
 
 ## The hands close round the grip
 
@@ -89,15 +149,64 @@ not humanoid-mapped) and `HandGrip` folds them round whatever is mounted on the
 hand: the sword hand always, the support hand once it is on the weapon. See
 `docs/CHARACTER_LOOK.md` ("Finger bones and grips").
 
-## The legs keep walking under the sword
+**Both hands on the grip, by IK (2026-10-16**, owner: "use inverse kinematic so the
+hands reach the correct grip points on each weapon"). The right hand carries the
+sword (it is mounted at the weapon's tuned grip); the left reaches for the weapon's
+`LeftHandGrip` marker (two-bone IK, palm on the point). Now:
 
-The attacks are posed over the **base layer's walk cycle**, so you can walk while
-swinging, at `CommittedMoveSpeedFraction` (0.4) of walking speed, and at half speed
-while guarding; the feet keep stepping (and the foot IK keeps them on the ground).
-The two-handed carry is the 2hsw locomotion tree (`LocomotionInput.SwordEquipped`);
-a one-handed sword is carried by the ordinary walk's own arm. The masked
-`UpperBody` Animator layer is still there for anything that plays a clip; the
-posed attacks do not use it. Verified by `SoulsSwordRigPlayTests.TheLegsKeepWalking...`.
+* wherever a cut takes the grip further from the left shoulder than that arm can
+  reach, the whole sword is **drawn in toward it** (the right arm re-solved, the blade
+  kept pointing the same way): the left palm stays within 1-2 cm of its grip point
+  through every attack (it strayed up to 13 cm);
+* the left hand is **turned onto the handle** (thumb up the handle toward the blade,
+  the palm facing the side its forearm comes from) instead of keeping whatever wrist
+  the walk clip gave it, faded out where the forearm runs along the handle (there the
+  palm's side is undefined);
+* the twist either wrist needs goes into its forearm **continuously**
+  (`WristTwist.ShareWithForearm(..., ref last)`): a hand rolling through the half
+  turn (a backhand's edge coming over) no longer flips the forearm 200 degrees in a
+  frame.
+
+## The feet step under the sword (SwordFootwork, 2026-10-16)
+
+The attacks used to be posed over the base layer's walk cycle slowed to
+`CommittedMoveSpeedFraction` (0.4): a blend of the idle and the walk that barely lifts
+its feet, so swinging on the move slid each foot about 3.4 m along the ground in
+three seconds with two real steps, and every lunge dragged them
+(`SwordWalkSwingCapture` measured it). Now, while a sword attack is in progress (and
+in the ready stance and the guard up to a guarded walk, 2.6 m/s), the feet are placed
+by `SwordFootwork` instead of the clip:
+
+* each foot has a **place** in the frame's stance (a little wider than the hips, the
+  leading foot forward by half the stance depth, the back foot turned out 35
+  degrees);
+* a **planted foot never moves**; once it is left more than 0.18 leg lengths from
+  its place (or as far as the body goes in 0.12 s, whichever is more), or turned 40
+  degrees from it, it takes a 0.17 s **step** there, lifting about 10 cm, landing a
+  little ahead of where its place is going;
+* **one foot steps at a time** until the first is 60% through its step; the feet
+  never cross;
+* everything is kept within the **leg's reach** from its hip (`FootReach`: what the
+  leg can reach along the ground with the hips as low as the crouch puts them), and a
+  foot at the end of its reach steps at once -- a short-legged body standing tall
+  reaches very little, which is also why the stance crouches;
+* turning faster than 240 degrees a second (the swing's quick turn to the aim) the
+  planted feet **pivot** with the body for the excess instead of staying while the
+  hips spin over them;
+* the lunge (`SoulsAttack.LungeMetres`) now surges from halfway through the wind-up to
+  the end of the live window, eased, and the feet step with it;
+* the foot IK puts the ankles where the stepper says (the planting's own locks stand
+  aside), knees pointing the way the toes do.
+
+Swinging while walking now takes about 17 steps in 3.4 s and the planted feet stay
+put (`SwordStancePlayTests.SwingingWhileWalkingTheFeetStepAndDoNotSlide`); standing,
+the feet step into the stance and with each lunge. The two-handed walk is still the
+2hsw locomotion tree when not fighting (`LocomotionInput.SwordEquipped`). Pure rules
+in `SwordFootworkTests`; the clip yardstick in `SoulsSwordRigPlayTests.TheLegsKeepWalking...`
+(with the sparring dummy moved out of the way: walking into it, the body stopped and
+the old clip marched on the spot, which those tests had counted as walking).
+Another player's copy steps the same way from its own measured motion and the
+attack's name (`SwordStancePlayTests.TheSwordIsCarriedLow...`).
 
 ## Lock-on
 
@@ -221,8 +330,11 @@ Grips; a one-handed sword saves its own hold, `WeaponGripSettings.OneHand*`).
 * The attacks are keyframed by hand from the research, not from reference
   animations: the owner may yet bring reference moves to recreate (the offer
   stands), and any attack is a few numbers to retune.
-* The two-handed sweep still takes the support hand a little off the grip at the
-  very end of its follow-through (`SwordStrikeCapture` logs the worst distance).
+* Swinging on the move is a quick shuffle (about five steps a second at the swing's
+  1.6 m/s): the legs are short for the speed. The steps' lengths and timing are a
+  handful of constants at the top of `SwordFootwork`.
+* The light strikes are fast (the greatsword's tip peaks around 80 m/s for a frame or
+  two at the contact); there is no swing trail yet to carry the eye along the arc.
 * Windows and numbers are from the research; *feel* (how long the wind-up should
   be, how big the heavy's stagger is, whether 0.2s is the right parry window for
   this game's ping) can only be judged by playing it, against another player.

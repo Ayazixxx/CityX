@@ -282,10 +282,13 @@ namespace CityX.Character
         private bool _gunEquipped;
 
         /// <summary>
-        /// A sword swing is a torso movement first and an arm movement second, so while a committed
-        /// attack or a guard is playing the spine and hips follow the clip instead of being held at
-        /// identity (see LateUpdate). Set by SoulsSwordCombat; walking and standing keep the lock the
+        /// A sword swing PLAYED FROM A CLIP is a torso movement first and an arm movement second, so while one (or a guard clip) plays the
+        /// spine and hips follow the clip instead of being held at identity (see LateUpdate). Walking and standing keep the lock the
         /// locomotion clips need, which is why this is not simply "sword equipped".
+        ///
+        /// NOT WHILE THE ATTACK IS POSED (SwordStrikes, every attack since 2026-10-13): the pose turns the hips and the spine itself, and the
+        /// clip under it is only the sword walk/idle, whose spine is bent forward over the sword. Following it added that stoop to every swing
+        /// and guard, a hunchback bowing into each cut (owner, 2026-10-16: "make the character is not turned in any awkward way").
         /// </summary>
         public bool TorsoFollowsClip
         {
@@ -295,7 +298,23 @@ namespace CityX.Character
                 {
                     _souls = GetComponent<SoulsSwordCombat>();   // added on the first equip
                 }
-                return _souls != null && _souls.IsEquipped && (_souls.IsCommitted || _souls.IsBlocking);
+                return _souls != null && _souls.IsEquipped && (_souls.IsCommitted || _souls.IsBlocking) && !SwordPoseActive;
+            }
+        }
+
+        /// <summary>
+        /// A clip that moves the whole body is playing (a dance, push-ups, a spell's whole-body move): the procedural sword hold and stance
+        /// stand aside for it.
+        /// </summary>
+        public bool ClipOwnsTheBody
+        {
+            get
+            {
+                if (_animator == null || !_animator.enabled || _animator.runtimeAnimatorController == null)
+                {
+                    return false;
+                }
+                return _animator.GetBool(DancingParameter) || _animator.GetBool(BreakdancingParameter) || PushUpOwnsTheBody || SpellClipOwnsTheTorso;
             }
         }
 
@@ -490,6 +509,33 @@ namespace CityX.Character
                 // Blend the finished solution in, rather than blending each pass (which would compound).
                 _leftUpperArm.rotation = Quaternion.Slerp(upperStart, _leftUpperArm.rotation, weight);
                 _leftLowerArm.rotation = Quaternion.Slerp(lowerStart, _leftLowerArm.rotation, weight);
+            }
+
+            // A HANDLE IS WRAPPED, NOT JUST TOUCHED (owner, 2026-10-16: "use inverse kinematic so the hands reach the correct grip points on each
+            // weapon"). With a sword, a bat (anything held in both hands all the time) the left hand is TURNED onto the handle the way the right
+            // hand holds it: the thumb up the handle toward the blade, the palm facing the side its forearm comes from (the handshake grip both
+            // hands take on a two-handed handle), instead of keeping whatever wrist the walk clip gave it while a cut swings the handle round
+            // through it. Turned about the wrist, so the palm stays on the grip point; the twist that needs goes into the forearm.
+            if (!_supportOnlyWhenAiming)
+            {
+                Vector3 handle = _supportAnchor.up;
+                Vector3 forearm = _leftLowerArm.position - _handL.position;
+                Vector3 towardElbow = forearm - handle * Vector3.Dot(forearm, handle);
+                // Only as far as the forearm comes at the handle from the side: run along it, which side the palm faces is undefined and would
+                // flip from frame to frame.
+                float across = forearm.sqrMagnitude > 1e-8f ? towardElbow.magnitude / forearm.magnitude : 0.0f;
+                float wrapWeight = weight * Mathf.SmoothStep(0.0f, 1.0f, Mathf.InverseLerp(0.25f, 0.6f, across));
+                if (wrapWeight > 0.0f)
+                {
+                    // The left hand bone: -Y is the palm, +Z the thumb, +X runs back up the arm (HandGrip).
+                    Quaternion wrap = Quaternion.LookRotation(handle, Vector3.Cross(handle, towardElbow.normalized));
+                    _handL.rotation = Quaternion.Slerp(_handL.rotation, wrap, wrapWeight);
+                    WristTwist.ShareWithForearm(_leftLowerArm, _handL, ref _supportWristTwist);
+                }
+                else
+                {
+                    _supportWristTwist = 0.0f;
+                }
             }
         }
 
@@ -1579,8 +1625,10 @@ namespace CityX.Character
             }
             // In a push-up, the body tipped up about the toes until the palms are on the floor (PlayerLocomotion.PushUps.cs).
             ApplyPushUpGrounding();
-            // The feet on the real ground (hip drop, locks, sole tilt): right after the clamp, which it builds on, and before every pose that
-            // only touches the upper body. See PlayerLocomotion.FootIK.cs.
+            // A sword cut's hips turn first (the legs are re-solved under them by the foot IK, right after).
+            ApplySwordHips();
+            // The feet on the real ground (hip drop, locks, sole tilt, a sword fight's stepping): right after the clamp, which it builds on,
+            // and before every pose that only touches the upper body. See PlayerLocomotion.FootIK.cs.
             ApplyFootIK();
             ApplyHeadForward();
             ApplySwordHeadCarriage();

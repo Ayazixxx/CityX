@@ -51,6 +51,30 @@ namespace CityX.Tests
         }
 
         [Test]
+        public void TurningThroughTheHalfTurnTheForearmDoesNotFlip()
+        {
+            // A backhand rolls the sword hand through 180 degrees against the forearm. Measured fresh each frame the twist reads +179 then
+            // -179, and the forearm, clamped either way, flipped 200 degrees in one frame (the pose watchdog caught it at 5000+ deg/s).
+            // Carried on from last frame's, it stays at its limit instead.
+            float last = 0.0f;
+            float previousTake = 0.0f;
+            float worstJump = 0.0f;
+            for (float degrees = 120.0f; degrees <= 240.0f; degrees += 5.0f)
+            {
+                _lower.rotation = Quaternion.identity;   // the forearm comes fresh from the IK every frame
+                _hand.localRotation = Quaternion.AngleAxis(degrees, Vector3.right);
+                WristTwist.ShareWithForearm(_lower, _hand, ref last);
+                float take = WristTwist.TwistDegrees(_lower.rotation, Vector3.right);
+                if (degrees > 120.0f)
+                {
+                    worstJump = Mathf.Max(worstJump, Mathf.Abs(Mathf.DeltaAngle(previousTake, take)));
+                }
+                previousTake = take;
+            }
+            Assert.Less(worstJump, 10.0f, $"the forearm jumped {worstJump:0} degrees in one step as the hand turned through the half turn");
+        }
+
+        [Test]
         public void TheForearmStopsAtItsLimitAndTheRestStaysInTheWrist()
         {
             _hand.localRotation = Quaternion.AngleAxis(150.0f, Vector3.right);

@@ -45,6 +45,51 @@ namespace CityX.Character
             return twist - take;
         }
 
+        /// <summary>
+        /// The same, CONTINUOUS from frame to frame: <paramref name="last"/> carries the twist the wrist had last frame (start it at 0), and this
+        /// frame's is taken as whichever of its whole-turn equivalents is nearest to it. A hand turning through the half turn (a backhand rolling
+        /// the edge over) would otherwise read +179 then -179 degrees and the forearm, clamped either way, would flip 200 degrees in one frame.
+        /// </summary>
+        public static float ShareWithForearm(Transform lower, Transform hand, ref float last, float maxDegrees = MaxForearmDegrees)
+        {
+            if (lower == null || hand == null)
+            {
+                return 0.0f;
+            }
+            Vector3 axisWorld = hand.position - lower.position;
+            if (axisWorld.sqrMagnitude < 1e-8f)
+            {
+                return 0.0f;
+            }
+            axisWorld.Normalize();
+            Quaternion handWorld = hand.rotation;
+            Quaternion lowerWorld = lower.rotation;
+            Quaternion relative = Quaternion.Inverse(lowerWorld) * handWorld;
+            Vector3 axisLocal = Quaternion.Inverse(lowerWorld) * axisWorld;
+
+            float twist = Unwrapped(TwistDegrees(relative, axisLocal), last);
+            last = twist;
+            float take = Mathf.Clamp(twist, -maxDegrees, maxDegrees);
+            if (Mathf.Abs(take) > 0.01f)
+            {
+                lower.rotation = lowerWorld * Quaternion.AngleAxis(take, axisLocal);
+                hand.rotation = handWorld;
+            }
+            return twist - take;
+        }
+
+        /// <summary>
+        /// <paramref name="degrees"/> moved by whole turns to lie nearest <paramref name="last"/>, but never more than three quarters of a turn
+        /// either way (so a twist cannot wind up over many frames into turns it does not have).
+        /// </summary>
+        public static float Unwrapped(float degrees, float last)
+        {
+            degrees += 360.0f * Mathf.Round((last - degrees) / 360.0f);
+            if (degrees > 270.0f) degrees -= 360.0f;
+            if (degrees < -270.0f) degrees += 360.0f;
+            return degrees;
+        }
+
         /// <summary>The signed angle, in degrees, of a rotation's twist about <paramref name="axis"/> (unit): the swing-twist decomposition's twist.</summary>
         public static float TwistDegrees(Quaternion q, Vector3 axis)
         {

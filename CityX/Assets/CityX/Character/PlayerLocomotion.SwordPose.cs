@@ -4,11 +4,12 @@ namespace CityX.Character
 {
     /// <summary>
     /// THE SWORD ATTACKS, APPLIED TO THE RIG (see <see cref="SwordStrikes"/> for what they are and <see cref="SwordPoseDriver"/> for their timing).
-    /// After the Animator, each frame: the torso is turned, leaned and tilted into the cut; the sword arm is solved (two-bone IK) to put the wrist
-    /// where the frame says; the hand is turned so the BLADE points the way the frame says with its EDGE leading, which is what makes a cut read
-    /// as a cut and not a wave; the twist that needs goes into the forearm, not the wrist (<see cref="WristTwist"/>); with a one-handed sword the
-    /// free hand is placed too; with a two-handed one the support hand follows the grip as it always has (ApplySupportHand runs right after).
-    /// The hips' drop is handed to the foot IK, which bends the legs so the feet stay planted under it.
+    /// After the Animator, each frame: the HIPS are turned first (<see cref="ApplySwordHips"/>, before the foot IK, so the legs are re-solved to the
+    /// planted feet under them), then the torso is turned the rest of the way, leaned and tilted into the cut; the sword arm is solved (two-bone IK)
+    /// to put the wrist where the frame says; the hand is turned so the BLADE points the way the frame says with its EDGE leading, which is what
+    /// makes a cut read as a cut and not a wave; the twist that needs goes into the forearm, not the wrist (<see cref="WristTwist"/>); with a
+    /// one-handed sword the free hand is placed too; with a two-handed one the support hand follows the grip as it always has (ApplySupportHand
+    /// runs right after). The hips' drop and the stance are handed to the foot IK, which bends the legs and steps the feet (SwordFootwork).
     /// </summary>
     public sealed partial class PlayerLocomotion
     {
@@ -16,8 +17,16 @@ namespace CityX.Character
         private Transform _posedSword;
         private ISwordBlade _posedBlade;
 
+        /// <summary>The sword wrist's and the support wrist's twists last frame (WristTwist's continuity: no forearm flip through the half turn).</summary>
+        private float _swordWristTwist;
+
+        private float _supportWristTwist;
+
         /// <summary>The blade's tip is kept at least this far above the ground under the body, metres: a low follow-through pitches up rather than through the floor.</summary>
         public const float TipFloorClearance = 0.06f;
+
+        /// <summary>How much of the left arm's full length a two-handed grip may ask of it (a straight arm locks and pops; a hair short of it reads as reaching).</summary>
+        public const float SupportReachShare = 0.97f;
 
         public void SetSwordPose(in SwordFrame frame)
         {
@@ -29,7 +38,7 @@ namespace CityX.Character
             _swordFrame = default;
         }
 
-        /// <summary>True while a sword pose (an attack, a guard or the ready stance) is being applied.</summary>
+        /// <summary>True while a sword pose (an attack, a guard, the ready stance or the carry) is being applied.</summary>
         public bool SwordPoseActive => _swordFrame.Active && _swordFrame.Weight > 0.001f;
 
         /// <summary>The sword pose being applied this frame (for tests and captures).</summary>
@@ -38,10 +47,26 @@ namespace CityX.Character
         /// <summary>How far the hips are sunk by the pose this frame, metres: the foot IK takes it off the root with the legs kept planted.</summary>
         private float PoseHipDrop => _swordFrame.Active ? Mathf.Max(0.0f, _swordFrame.HipDrop) * Mathf.Clamp01(_swordFrame.Weight) : 0.0f;
 
+        /// <summary>How much the feet should stand in the sword's stance and step (SwordFootwork) this frame, 0 to 1.</summary>
+        private float SwordFootworkWanted => _swordFrame.Active ? Mathf.Clamp01(_swordFrame.Footwork) * Mathf.Clamp01(_swordFrame.Weight) : 0.0f;
+
+        /// <summary>The sword in the right hand, if there is one: on this body or on another player's copy alike (the same model is mounted there).</summary>
+        public ISwordBlade HeldSword
+        {
+            get
+            {
+                PosedSword();
+                return _posedBlade;
+            }
+        }
+
         /// <summary>The blade's axis in the right hand bone's own frame when nothing says otherwise: out past the thumb.</summary>
         private static readonly Vector3 FallbackBladeInHand = new Vector3(0.26f, 0.0f, 0.966f).normalized;
 
         private static readonly Vector3 FallbackEdgeInHand = new Vector3(0.966f, 0.0f, -0.26f).normalized;
+
+        /// <summary>The right hand's child count when it was last searched for a sword: asked every frame on every body (the carry), searched only when it changes.</summary>
+        private int _posedSwordSearchedChildren = -1;
 
         /// <summary>The sword under the right hand, if one is mounted there (its own transform; the blade runs along its +Y and the edge faces its -X).</summary>
         private Transform PosedSword()
@@ -54,6 +79,11 @@ namespace CityX.Character
             {
                 return _posedSword;
             }
+            if (_posedSword == null && _posedBlade == null && _handR.childCount == _posedSwordSearchedChildren)
+            {
+                return null;   // nothing mounted since the last look
+            }
+            _posedSwordSearchedChildren = _handR.childCount;
             _posedSword = null;
             _posedBlade = null;
             for (int i = 0; i < _handR.childCount; i++)
@@ -114,20 +144,45 @@ namespace CityX.Character
             }
         }
 
+        /// <summary>
+        /// THE HIPS LEAD THE CUT (the kinetic chain: hips first, the shoulders after them). Turned here, before the foot IK, about the vertical; the
+        /// thighs are given back their own heading so the legs do not swing round with the pelvis, and the foot IK then solves each leg from the
+        /// turned hip down to its planted foot: the knees follow, the feet stay where they stand.
+        /// </summary>
+        private void ApplySwordHips()
+        {
+            if (!SwordPoseActive || _hips == null)
+            {
+                return;
+            }
+            float degrees = _swordFrame.HipTwistDegrees * Mathf.Clamp01(_swordFrame.Weight) * Mathf.Clamp01(TorsoFollowStrength);
+            if (Mathf.Abs(degrees) < 0.01f)
+            {
+                return;
+            }
+            Quaternion leftThigh = _leftUpperLeg != null ? _leftUpperLeg.rotation : Quaternion.identity;
+            Quaternion rightThigh = _rightUpperLeg != null ? _rightUpperLeg.rotation : Quaternion.identity;
+            _hips.rotation = Quaternion.AngleAxis(degrees, transform.up) * _hips.rotation;
+            if (_leftUpperLeg != null) _leftUpperLeg.rotation = leftThigh;
+            if (_rightUpperLeg != null) _rightUpperLeg.rotation = rightThigh;
+        }
+
         private void ApplySwordPose()
         {
             if (!SwordPoseActive || _rightUpperArm == null || _rightLowerArm == null || _handR == null)
             {
+                _swordWristTwist = 0.0f;
                 return;
             }
             float w = Mathf.Clamp01(_swordFrame.Weight);
 
-            // The torso into the cut, before the arm is solved from the shoulder it moved. How much of the authored twist and lean the body
-            // does is the grip settings' torso amount (1 as authored, 0 upright), read live so it can be tuned while the game runs.
+            // The torso into the cut, before the arm is solved from the shoulder it moved. The hips have already turned their share
+            // (ApplySwordHips), so the spine turns the rest. How much of the authored twist and lean the body does is the grip settings' torso
+            // amount (1 as authored, 0 upright), read live so it can be tuned while the game runs.
             float torso = w * Mathf.Clamp01(TorsoFollowStrength);
             if (_spine != null && torso > 0.0f)
             {
-                Quaternion twist = Quaternion.AngleAxis(_swordFrame.TwistDegrees * torso, transform.up);
+                Quaternion twist = Quaternion.AngleAxis((_swordFrame.TwistDegrees - _swordFrame.HipTwistDegrees) * torso, transform.up);
                 Quaternion lean = Quaternion.AngleAxis(_swordFrame.LeanDegrees * torso, transform.right);
                 Quaternion tilt = Quaternion.AngleAxis(_swordFrame.TiltDegrees * torso, transform.forward);
                 _spine.rotation = twist * lean * tilt * _spine.rotation;
@@ -159,13 +214,33 @@ namespace CityX.Character
             }
             Quaternion wanted = Quaternion.LookRotation(bladeWorld, edgeWorld.normalized) * Quaternion.Inverse(Quaternion.LookRotation(bladeInHand, edgeInHand));
             _handR.rotation = Quaternion.Slerp(_handR.rotation, wanted, w);
-            KeepTipAboveGround(w);
-            WristTwist.ShareWithForearm(_rightLowerArm, _handR);
 
-            // The free hand, when the sword leaves it free.
-            if (!_swordFrame.TwoHanded)
+            // BOTH HANDS STAY ON A TWO-HANDED GRIP (owner, 2026-10-16: "use inverse kinematic so the hands reach the correct grip points on each
+            // weapon"): the right hand carries the sword, the left reaches for its grip point (ApplySupportHand). Wherever a cut takes the sword
+            // further from the LEFT shoulder than that arm can reach, the whole sword is drawn in toward it (the right arm re-solved, the blade
+            // kept pointing the same way) until it can: the hands never come apart.
+            if (_swordFrame.TwoHanded && _supportAnchor != null && _leftUpperArm != null && _leftLowerArm != null && _handL != null)
             {
-                PlaceFist(_leftUpperArm, _leftLowerArm, _handL, _swordFrame.FreeHand, w, _swordFrame.FreeElbowOut, -1.0f);
+                float leftReach = (Vector3.Distance(_leftUpperArm.position, _leftLowerArm.position) + Vector3.Distance(_leftLowerArm.position, _handL.position))
+                    * SupportReachShare + PalmOffsetMetres;
+                Vector3 grip = _supportAnchor.TransformPoint(_supportLocalPoint);
+                Vector3 fromShoulder = grip - _leftUpperArm.position;
+                float over = fromShoulder.magnitude - leftReach;
+                if (over > 0.0f)
+                {
+                    target -= fromShoulder.normalized * over;
+                    TwoBoneIK.Solve(_rightUpperArm, _rightLowerArm, _handR, target, hint, w);
+                    _handR.rotation = Quaternion.Slerp(_handR.rotation, wanted, w);
+                }
+            }
+            KeepTipAboveGround(w);
+            WristTwist.ShareWithForearm(_rightLowerArm, _handR, ref _swordWristTwist);
+
+            // The free hand, when the sword leaves it free (and the pose places it at all: the carry leaves it swinging with the walk).
+            float free = w * Mathf.Clamp01(_swordFrame.FreeHandWeight);
+            if (!_swordFrame.TwoHanded && free > 0.001f)
+            {
+                PlaceFist(_leftUpperArm, _leftLowerArm, _handL, _swordFrame.FreeHand, free, _swordFrame.FreeElbowOut, -1.0f);
             }
         }
     }

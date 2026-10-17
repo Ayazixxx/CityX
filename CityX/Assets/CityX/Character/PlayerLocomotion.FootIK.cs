@@ -21,6 +21,7 @@ namespace CityX.Character
     public sealed partial class PlayerLocomotion
     {
         private readonly FootPlanting _feet = new FootPlanting();
+        private readonly SwordFootwork _footwork = new SwordFootwork();
         private Vector3 _footIkLastPosition;
         private float _footIkLastYaw;
         private bool _footIkHasLast;
@@ -34,6 +35,12 @@ namespace CityX.Character
 
         /// <summary>The planting bookkeeping (locks, hip drop), for tests and captures.</summary>
         public FootPlanting FootPlanting => _feet;
+
+        /// <summary>The sword fight's stepping feet (SwordFootwork), for tests and captures.</summary>
+        public SwordFootwork SwordFootwork => _footwork;
+
+        /// <summary>How fast the body moves over the ground, measured from its own motion (so a network copy's is the same), smoothed, metres per second.</summary>
+        public float MeasuredGroundSpeed => _feet.BodyGroundSpeed;
 
         /// <summary>The ground's normal under the feet, smoothed; up when there is none or the feet are not being placed.</summary>
         public Vector3 GroundNormal => _groundNormal;
@@ -113,6 +120,7 @@ namespace CityX.Character
             if (moved.sqrMagnitude > TeleportMetres * TeleportMetres)
             {
                 _feet.Reset();
+                _footwork.Reset();
                 moved = Vector3.zero;
             }
             var flat = new Vector3(moved.x, 0.0f, moved.z);
@@ -142,8 +150,38 @@ namespace CityX.Character
             float floorY = transform.position.y;
             // Standing still the soles are laid flat (SolveLeg) and set down flat: measured as a flat sole, the foot is placed so its whole sole is on the ground.
             float flatten = Mathf.Clamp01(1.0f - speed / FlatFootBelowSpeed);
-            FootPlanting.Sample left = SampleFoot(0, _leftFoot, _leftUpperLeg, _leftLowerLeg, floorY, heading, flatten);
-            FootPlanting.Sample right = SampleFoot(1, _rightFoot, _rightUpperLeg, _rightLowerLeg, floorY, heading, flatten);
+
+            // THE SWORD'S FOOTWORK (SwordFootwork): in a sword fight the feet stand in the stance and step to it, instead of following the walk clip
+            // (whose slowed blend slid them along the ground). Off in the air (last frame's verdict: this frame's needs the samples below).
+            float footworkWanted = FootIkEnabled && !_footIkWasInAir && !IsResized && (_controller == null || _controller.enabled) ? SwordFootworkWanted : 0.0f;
+            float legLength = Vector3.Distance(_leftUpperLeg.position, _leftLowerLeg.position) + Vector3.Distance(_leftLowerLeg.position, _leftFoot.position);
+            _footwork.Step(deltaTime, footworkWanted, new SwordFootwork.Body
+            {
+                Ground = position,
+                Yaw = yaw,
+                Velocity = moved / deltaTime,
+                LegLength = legLength,
+                LeftHip = _leftUpperLeg.position,
+                RightHip = _rightUpperLeg.position,
+                Reach = FootReach(legLength, floorY, soleOffset),
+                Lead = _swordFrame.StanceLead,
+                Depth = _swordFrame.StanceDepth,
+                ClipLeft = _leftFoot.position,
+                ClipRight = _rightFoot.position,
+                ClipLeftYaw = HeadingOf(_leftFoot),
+                ClipRightYaw = HeadingOf(_rightFoot),
+            });
+            float footwork = _footwork.Weight;
+            Vector3 leftAnimated = StrideWarped(_leftFoot.position, heading);
+            Vector3 rightAnimated = StrideWarped(_rightFoot.position, heading);
+            if (footwork > 0.0f)
+            {
+                leftAnimated = Vector3.Lerp(leftAnimated, FootworkAnkle(0, floorY, soleOffset), footwork);
+                rightAnimated = Vector3.Lerp(rightAnimated, FootworkAnkle(1, floorY, soleOffset), footwork);
+                flatten = Mathf.Max(flatten, footwork);
+            }
+            FootPlanting.Sample left = SampleFoot(0, _leftFoot, _leftUpperLeg, _leftLowerLeg, floorY, leftAnimated, flatten);
+            FootPlanting.Sample right = SampleFoot(1, _rightFoot, _rightUpperLeg, _rightLowerLeg, floorY, rightAnimated, flatten);
 
             // In the air: the controller says so AND no ground is right there under a foot (a riser's edge, a slope's flicker), or for too long; a jump at once.
             bool grounded = _animator.GetBool(GroundedParameter);
@@ -174,7 +212,8 @@ namespace CityX.Character
             }
             _footIkWasInAir = inAir;
 
-            bool releaseLocks = Mathf.Abs(yawDelta) > ReleaseLocksYawDegreesPerFrame && speed < ReleaseLocksBelowSpeed;
+            // (The footwork plants its own feet: the planting's locks stand aside while it has them.)
+            bool releaseLocks = (Mathf.Abs(yawDelta) > ReleaseLocksYawDegreesPerFrame && speed < ReleaseLocksBelowSpeed) || footwork > 0.01f;
             _feet.Step(deltaTime, active, left, right, floorY, soleOffset, releaseLocks, moved / deltaTime);
 
             // The slope under the body, for the lean: the feet's grounds averaged, smoothed.
@@ -195,10 +234,55 @@ namespace CityX.Character
             }
 
             // Strafing, the leading foot turns toward the way the body goes (the owner's forwarded advice): it opens the legs and reads as a sidestep.
-            float side = heading != Vector3.zero ? Vector3.Dot(heading, transform.right) : 0.0f;
+            // In a sword fight the footwork says which way each foot points instead (the stance: the back foot turned out).
+            float side = heading != Vector3.zero && footwork <= 0.0f ? Vector3.Dot(heading, transform.right) : 0.0f;
             Quaternion lean = _lean.Rotation();
-            SolveLeg(0, _leftUpperLeg, _leftLowerLeg, _leftFoot, -transform.right, lean, side < -0.25f ? LeadYaw(_leftFoot, heading, -side) : 0.0f, flatten);
-            SolveLeg(1, _rightUpperLeg, _rightLowerLeg, _rightFoot, transform.right, lean, side > 0.25f ? LeadYaw(_rightFoot, heading, side) : 0.0f, flatten);
+            SolveLeg(0, _leftUpperLeg, _leftLowerLeg, _leftFoot, -transform.right, lean, side < -0.25f ? LeadYaw(_leftFoot, heading, -side) : 0.0f, flatten,
+                _footwork.Of(0).Yaw, footwork);
+            SolveLeg(1, _rightUpperLeg, _rightLowerLeg, _rightFoot, transform.right, lean, side > 0.25f ? LeadYaw(_rightFoot, heading, side) : 0.0f, flatten,
+                _footwork.Of(1).Yaw, footwork);
+        }
+
+        /// <summary>A planted foot may be at least this far out from under its hip, leg lengths, whatever the hips' height (the planting dips them for it).</summary>
+        public const float LeastFootReachShare = 0.15f;
+
+        /// <summary>
+        /// How far out along the ground from under its hip a planted foot can be, metres, with the hips as low as the planting and the sword's
+        /// crouch are about to put them: what is left of the leg (all but 3%: a straight leg locks) beside the drop from the hip to the ankle.
+        /// A short leg standing tall reaches very little, which is why the sword's stance crouches.
+        /// </summary>
+        private float FootReach(float legLength, float floorY, float soleOffset)
+        {
+            float hipY = 0.5f * (_leftUpperLeg.position.y + _rightUpperLeg.position.y) - _feet.TotalDrop - PoseHipDrop;
+            float down = hipY - (floorY + soleOffset);
+            float usable = legLength * 0.97f;
+            float reach = down < usable ? Mathf.Sqrt(usable * usable - down * down) : 0.0f;
+            return Mathf.Max(reach, LeastFootReachShare * legLength);
+        }
+
+        /// <summary>Which way a foot's toes point, degrees about the vertical (its +Z is the toes).</summary>
+        private static float HeadingOf(Transform foot)
+        {
+            Vector3 toes = foot.forward;
+            return Mathf.Atan2(toes.x, toes.z) * Mathf.Rad2Deg;
+        }
+
+        /// <summary>A footwork foot's ankle: on the body's floor, a sole's height up, plus its step's lift.</summary>
+        private Vector3 FootworkAnkle(int index, float floorY, float soleOffset)
+        {
+            SwordFootwork.Foot foot = _footwork.Of(index);
+            return new Vector3(foot.Position.x, floorY + soleOffset + foot.Lift, foot.Position.z);
+        }
+
+        /// <summary>STRIDE WARPING: the clip's foot's offset from the body's centre along its travel, scaled (the sprint's feet reach 20% further than the run clip's).</summary>
+        private Vector3 StrideWarped(Vector3 animated, Vector3 heading)
+        {
+            if (heading != Vector3.zero && Mathf.Abs(_strideScale - 1.0f) > 0.001f)
+            {
+                float along = Vector3.Dot(animated - transform.position, heading);
+                animated += heading * (along * (_strideScale - 1.0f));
+            }
+            return animated;
         }
 
         private float _headForwardBlend;
@@ -312,24 +396,19 @@ namespace CityX.Character
         }
 
         /// <summary>
-        /// The clip's ankle (its offset from the body along the travel scaled by the stride) and the ground under it (under its lock while it is held):
-        /// a ray from above the highest step a foot could be on. The foot's lowest point this frame comes from its rotation (toe, heel or sole,
-        /// whichever is lowest: a running foot strikes toe first).
+        /// The ankle where it should be this frame (<paramref name="animated"/>: the clip's, stride-warped, or the sword footwork's) and the ground
+        /// under it (under its lock while it is held): a ray from above the highest step a foot could be on. The foot's lowest point this frame
+        /// comes from its rotation (toe, heel or sole, whichever is lowest: a running foot strikes toe first).
         /// </summary>
-        private FootPlanting.Sample SampleFoot(int index, Transform foot, Transform upper, Transform lower, float floorY, Vector3 heading, float flatten)
+        private FootPlanting.Sample SampleFoot(int index, Transform foot, Transform upper, Transform lower, float floorY, Vector3 animated, float flatten)
         {
-            Vector3 animated = foot.position;
-            // STRIDE WARPING: the foot's offset from the body's centre along its travel, scaled (the sprint's feet reach 20% further than the run clip's).
-            if (heading != Vector3.zero && Mathf.Abs(_strideScale - 1.0f) > 0.001f)
-            {
-                float along = Vector3.Dot(animated - transform.position, heading);
-                animated += heading * (along * (_strideScale - 1.0f));
-            }
             var sample = new FootPlanting.Sample
             {
                 Animated = animated,
                 Normal = Vector3.up,
-                Hip = upper.position,
+                // Where the hip WILL be: a sword stance's crouch (PoseHipDrop, taken off the root after the planting) lowers it, and judged from
+                // the standing height a planted foot out in the stance looked out of reach and was pulled in under the hip: dragged.
+                Hip = upper.position + Vector3.down * PoseHipDrop,
                 LegLength = Vector3.Distance(upper.position, lower.position) + Vector3.Distance(lower.position, foot.position),
             };
             float scale = foot.lossyScale.y;
@@ -382,9 +461,11 @@ namespace CityX.Character
         /// <summary>
         /// Puts one ankle on its placement: the leg solved to reach it (keeping the clip's own knee direction), the foot kept at the clip's angle in the
         /// world rather than turned with the shin, the whole-body lean taken back off it (a sole stays flat on the ground while the body leans), the
-        /// sole tilted onto the slope, and the leading foot of a strafe turned toward the travel by <paramref name="yawDegrees"/>.
+        /// sole tilted onto the slope, and the leading foot of a strafe turned toward the travel by <paramref name="yawDegrees"/>. In a sword fight the
+        /// toes are turned to the footwork's heading instead (<paramref name="headingYaw"/>, by <paramref name="headingWeight"/>).
         /// </summary>
-        private void SolveLeg(int index, Transform upper, Transform lower, Transform foot, Vector3 outward, Quaternion lean, float yawDegrees, float flatten)
+        private void SolveLeg(int index, Transform upper, Transform lower, Transform foot, Vector3 outward, Quaternion lean, float yawDegrees, float flatten,
+            float headingYaw = 0.0f, float headingWeight = 0.0f)
         {
             FootPlanting.Placement placement = _feet.Of(index);
             float weight = placement.Weight;
@@ -400,6 +481,12 @@ namespace CityX.Character
                 bow -= axis * (Vector3.Dot(bow, axis) / axis.sqrMagnitude);
             }
             Vector3 hint = bow.sqrMagnitude > 1e-4f ? bow.normalized : (transform.forward + outward * 0.2f);
+            if (headingWeight > 0.0f)
+            {
+                // In the stance the knee goes the way its toes point (the back knee turned out with its foot), not wherever the walk clip bent it.
+                float r = headingYaw * Mathf.Deg2Rad;
+                hint = Vector3.Slerp(hint, new Vector3(Mathf.Sin(r), 0.0f, Mathf.Cos(r)), Mathf.Clamp01(headingWeight)).normalized;
+            }
             Quaternion footBefore = foot.rotation;
             TwoBoneIK.Solve(upper, lower, foot, placement.Target, hint, weight);
 
@@ -416,6 +503,12 @@ namespace CityX.Character
                 Vector3 groundUp = tilt * Vector3.up;
                 Quaternion flat = Quaternion.FromToRotation(asClipped * Vector3.up, groundUp) * asClipped;
                 asClipped = Quaternion.Slerp(asClipped, flat, flatten);
+            }
+            if (headingWeight > 0.0f)
+            {
+                Vector3 toes = asClipped * Vector3.forward;
+                float now = Mathf.Atan2(toes.x, toes.z) * Mathf.Rad2Deg;
+                yawDegrees = Mathf.DeltaAngle(now, headingYaw) * Mathf.Clamp01(headingWeight);
             }
             Quaternion wanted = Quaternion.AngleAxis(yawDegrees, Vector3.up) * asClipped;
             foot.rotation = Quaternion.Slerp(footBefore, wanted, weight);

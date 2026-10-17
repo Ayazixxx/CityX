@@ -132,3 +132,15 @@ point of each foot (the toe) on the ground, so the heels floated up to 8.8 cm. B
 foot is now measured as a flat sole (`SampleFoot`: its sole is `BodyRig.FootY` under the ankle, not the tiptoe's depth) so the ankle is set
 down until the whole sole is on the ground, and turned so the sole's up is the ground's normal (`SolveLeg`, the foot's heading kept). Walking
 and running are untouched. `FlatFeetPlayTests.StandingInTheIdleBothHeelsAndToesAreOnTheGround`: heel and toe now within 0.4 cm.
+
+## Update: a sword fight's feet step (2026-10-16)
+
+Owner: "make sure his feet dont lock up during combat animations while moving". Swinging on the move left the legs to the walk clip slowed to
+40%, which shuffled the feet along the ground. While a sword attack is in progress (and in the ready stance or the guard below a guarded walk)
+the ankles are now placed by `SwordFootwork` instead of the clip: a stance from the sword's frame, planted feet that never move, a 0.17 s
+step when one is left too far from its place, within the leg's reach of its hip (`FootReach`, from the hips' height after the planting's and
+the sword crouch's drop). In `ApplyFootIK` the stepper's ankles replace the clip's before the samples are taken, the planting's locks stand
+aside while it has the feet, the soles lie flat, the toes and the knees point the stepper's way, and each sample's hip is taken where the
+crouch will put it (`PoseHipDrop`) -- judged from standing height, a planted foot out in the stance looked out of reach and was pulled in
+under the hip: dragged. A sword cut's hips are turned before all this (`ApplySwordHips`) so the legs are solved under them. See
+docs/SOULSLIKE_COMBAT.md ("The feet step under the sword").

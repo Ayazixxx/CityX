@@ -51,6 +51,7 @@ namespace CityX.Tests
             var playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab");
             foreach ((string swordLabel, string swordPath) in new[]
             {
+                ("spike", "Assets/CityX/Weapons/SpikeSword.prefab"),   // the spikes are its edge: which side leads each cut is plain to see
                 ("1h", "Assets/CityX/Weapons/CombatSword.prefab"),
                 ("crowbar", "Assets/CityX/Weapons/MetalCrowbar.prefab"),
                 ("bat", "Assets/CityX/Weapons/BaseballBat.prefab"),
@@ -83,6 +84,15 @@ namespace CityX.Tests
                 float armLength = Vector3.Distance(rightShoulder.position, rightElbow.position) + Vector3.Distance(rightElbow.position, rightHand.position);
                 var log = new StringBuilder();
                 log.AppendLine($"arm (shoulder to wrist) {armLength:0.000} m; shoulder {player.transform.InverseTransformPoint(rightShoulder.position).ToString("0.00")}");
+
+                // The carry: standing with the sword in hand, nothing being done with it.
+                {
+                    var sheet = new Texture2D(Cell, Cell * 3, TextureFormat.RGB24, false);
+                    Shoot(camera, sheet, 0, player, 0);
+                    Shoot(camera, sheet, 0, player, 1);
+                    Shoot(camera, sheet, 0, player, 2);
+                    Save(sheet, Path.Combine(directory, $"strike-{swordLabel}-carry.png"));
+                }
 
                 // The stances: ready (after a swing) and the guard.
                 foreach ((string label, System.Action start) in new (string, System.Action)[]
@@ -243,6 +253,7 @@ namespace CityX.Tests
             var playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab");
             foreach ((string swordLabel, string swordPath) in new[]
             {
+                ("spike", "Assets/CityX/Weapons/SpikeSword.prefab"),
                 ("1h", "Assets/CityX/Weapons/CombatSword.prefab"),
                 ("crowbar", "Assets/CityX/Weapons/MetalCrowbar.prefab"),
                 ("bat", "Assets/CityX/Weapons/BaseballBat.prefab"),

@@ -246,6 +246,18 @@ namespace CityX.Tests
 
         // --- THE LEGS KEEP WALKING UNDER THE SWORD ------------------------------
 
+        /// <summary>
+        /// The rig with the sparring dummy moved out of the way: it stands 1.6 m ahead, and walking into it the body stopped dead within a
+        /// fifth of a second -- the old walk clip went on marching on the spot, which these measurements counted as walking, while the
+        /// sword's footwork (SwordFootwork, 2026-10-16) rightly keeps the feet still on a body that is not going anywhere.
+        /// </summary>
+        private void BuildToWalk()
+        {
+            Build();
+            _dummyObject.transform.position = new Vector3(40.0f, 1.0f, -40.0f);
+            Physics.SyncTransforms();
+        }
+
         private sealed class Travel
         {
             public float Feet;
@@ -309,7 +321,7 @@ namespace CityX.Tests
         public IEnumerator TheLegsKeepWalkingWhileTheSwordSwings()
         {
 #if UNITY_EDITOR
-            Build();
+            BuildToWalk();
             _vitals.InfiniteStamina = true;
             yield return Frame(0.5f);
 
@@ -332,7 +344,7 @@ namespace CityX.Tests
 
             Assert.IsTrue(_combat.IsCommitted || swinging.Hand > 0.0f, "setup: the swing never started");
             Assert.Greater(swinging.Feet, plain.Feet * 0.6f,
-                $"the legs froze during the swing: the feet travelled {swinging.Feet:0.00} against {plain.Feet:0.00} walking");
+                $"the legs froze during the swing: the feet travelled {swinging.Feet:0.00} against {plain.Feet:0.00} walking (footwork {_locomotion.SwordFootwork.Weight:0.00}, steps {_locomotion.SwordFootwork.StepsTaken}, speed {_locomotion.MeasuredGroundSpeed:0.0} m/s, frame footwork {_locomotion.CurrentSwordFrame.Footwork:0.00}, drop {_locomotion.CurrentSwordFrame.HipDrop:0.00})");
             Assert.Greater(swinging.Hand, plain.Hand * 2.0f,
                 $"the sword hand did not actually swing ({swinging.Hand:0.00} against {plain.Hand:0.00} walking)");
             Assert.Less(swinging.HipsHeightRange, plain.HipsHeightRange + 0.25f,
@@ -352,7 +364,7 @@ namespace CityX.Tests
         public IEnumerator TheSameSwingOnTheBaseLayerFreezesTheLegsByTheSameMeasurement()
         {
 #if UNITY_EDITOR
-            Build();
+            BuildToWalk();
             _vitals.InfiniteStamina = true;
             yield return Frame(0.5f);
 
@@ -382,7 +394,7 @@ namespace CityX.Tests
         public IEnumerator TheLegsKeepWalkingWhileTheGuardIsUp()
         {
 #if UNITY_EDITOR
-            Build();
+            BuildToWalk();
             _vitals.InfiniteStamina = true;
             yield return Frame(0.5f);
 
@@ -394,7 +406,7 @@ namespace CityX.Tests
 
             Assert.IsTrue(_driver.IsPlaying(_combat.BlockStateName), "setup: the guard never came up");
             Assert.Greater(guarding.Feet, plain.Feet * 0.6f,
-                $"the legs froze under the raised guard: the feet travelled {guarding.Feet:0.00} against {plain.Feet:0.00}");
+                $"the legs froze under the raised guard: the feet travelled {guarding.Feet:0.00} against {plain.Feet:0.00} (footwork {_locomotion.SwordFootwork.Weight:0.00}, steps {_locomotion.SwordFootwork.StepsTaken}, speed {_locomotion.MeasuredGroundSpeed:0.0} m/s, frame footwork {_locomotion.CurrentSwordFrame.Footwork:0.00}, drop {_locomotion.CurrentSwordFrame.HipDrop:0.00})");
 #else
             yield break;
 #endif

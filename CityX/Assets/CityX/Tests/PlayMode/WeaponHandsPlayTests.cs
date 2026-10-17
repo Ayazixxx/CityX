@@ -341,12 +341,12 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// The sword is held the way a two-handed sword is: blade up, cutting edge toward the enemy, hilt
-        /// between the fists -- not across the chest with the blade over a shoulder (the Godot mount, which
-        /// put the blade axis 87 degrees off the line between the hands).
+        /// The sword is CARRIED the way a two-handed sword is between fights (owner, 2026-10-16: "my character holds ... the sword awkwardly";
+        /// it used to be held out at arm's length at the shoulders, blade straight up): low at the right side, the point forward and down, the
+        /// cutting edge down, the hilt between the fists with the right hand at the guard and the left below it, both hands on the handle.
         /// </summary>
         [UnityTest]
-        public IEnumerator TheSwordIsHeldBladeUpWithItsEdgeForward()
+        public IEnumerator TheSwordIsCarriedLowWithItsEdgeDownAndBothHandsOnTheHilt()
         {
 #if UNITY_EDITOR
             BuildPlayer();
@@ -358,19 +358,17 @@ namespace CityX.Tests
             Vector3 right = Bone(HumanBodyBones.RightHand).position;
             Vector3 left = Bone(HumanBodyBones.LeftHand).position;
             Vector3 handLine = (right - left).normalized;
+            Vector3 shoulder = Bone(HumanBodyBones.RightUpperArm).position;
 
-            Debug.Log($"CityX sword held: blade {blade.ToString("0.00")}, edge (sword -X) {(-sword.transform.right).ToString("0.00")}, " +
-                      $"blade vs the line between the hands {Vector3.Angle(blade, handLine):0} deg");
-            Assert.Greater(blade.y, 0.5f, $"the blade should point up, not {blade.ToString("0.00")}");
-            Assert.Less(Vector3.Angle(blade, handLine), 40.0f, "the blade should run along the line from the lower hand to the upper");
-            Assert.Greater(Vector3.Dot(-sword.transform.right, _player.transform.forward), 0.5f,
-                "the cutting edge should face the way the wielder faces");
-
-            // The hilt (guard) sits above both hands and the pommel below them.
-            float guard = sword.transform.TransformPoint(Vector3.zero).y;
-            float pommel = sword.transform.TransformPoint(new Vector3(0.0f, -0.4f, 0.0f)).y;
-            Assert.Greater(guard, Mathf.Max(right.y, left.y) - 0.02f, "the guard should be at or above the top hand");
-            Assert.Less(pommel, Mathf.Min(right.y, left.y) + 0.02f, "the pommel should be at or below the bottom hand");
+            Debug.Log($"CityX sword carried: blade {blade.ToString("0.00")}, edge (sword -X) {(-sword.transform.right).ToString("0.00")}, " +
+                      $"blade vs the line between the hands {Vector3.Angle(blade, handLine):0} deg, hands {shoulder.y - right.y:0.00} m below the shoulder");
+            Assert.Less(blade.y, -0.2f, $"the carried blade should point down, not {blade.ToString("0.00")}");
+            Assert.Greater(Vector3.Dot(blade, _player.transform.forward), 0.5f, "the carried blade should point ahead");
+            Assert.Less((-sword.transform.right).y, -0.5f, "the cutting edge should face down");
+            Assert.Greater(shoulder.y - right.y, 0.4f, "the hands should be low at the side, not up at the shoulders");
+            Assert.Less(Vector3.Angle(blade, handLine), 40.0f, "the blade should run on from the lower hand through the upper");
+            Assert.Less(DistanceFromGrip(sword, right), 0.08f, "the right hand is off the hilt");
+            Assert.Less(_locomotion.SupportHandError, 0.05f, $"the left palm is {_locomotion.SupportHandError * 100:0} cm from its grip point");
 #else
             yield break;
 #endif
@@ -378,10 +376,13 @@ namespace CityX.Tests
 
         /// <summary>
         /// The torso holds still for walking and standing (the locomotion clips' hips sway is what that
-        /// lock is for) but follows the clip through a committed swing, where the twist IS the swing.
+        /// lock is for), is turned by the swing's own pose through a committed swing (where the twist IS the
+        /// swing: SwordStrikes, the hips leading), settles into the ready stance's small turn after it, and is
+        /// back straight once the sword is only carried again. It never follows the sword idle clip's stooped
+        /// spine (owner, 2026-10-16: no awkward turns).
         /// </summary>
         [UnityTest]
-        public IEnumerator TheTorsoStandsStillUntilASwingAndThenFollowsTheClip()
+        public IEnumerator TheTorsoStandsStillUntilASwingAndThenFollowsThePose()
         {
 #if UNITY_EDITOR
             BuildPlayer();
@@ -403,11 +404,14 @@ namespace CityX.Tests
             }
             Assert.IsTrue(combat.IsCommitted || mostLean > 0.0f);
             Debug.Log($"CityX torso: most the spine turned during a light swing {mostLean:0.0} deg");
-            Assert.Greater(mostLean, 5.0f, "the swing never used the torso -- the clip's hips/spine motion is still being thrown away");
+            Assert.Greater(mostLean, 5.0f, "the swing never used the torso");
+            Assert.IsFalse(_locomotion.TorsoFollowsClip, "a posed swing turns the torso itself: it must not also follow the sword idle clip's stoop");
 
             yield return SwordFrames(1.5f, combat);
             Assert.IsFalse(_locomotion.TorsoFollowsClip, "the torso should be released once the swing is over");
-            Assert.Less(Quaternion.Angle(spine.localRotation, Quaternion.identity), 0.5f, "the spine should be back at identity after the swing");
+            Assert.Less(Quaternion.Angle(spine.localRotation, Quaternion.identity), 8.0f, "after the swing the spine should be in the ready stance's small turn");
+            yield return SwordFrames(SwordPoseDriver.ReadyLingerSeconds + SwordPoseDriver.ReadyToCarrySeconds + 0.3f, combat);
+            Assert.Less(Quaternion.Angle(spine.localRotation, Quaternion.identity), 0.5f, "the spine should be straight again once the sword is only carried");
 #else
             yield break;
 #endif

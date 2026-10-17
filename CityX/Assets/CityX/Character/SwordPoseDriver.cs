@@ -6,8 +6,13 @@ namespace CityX.Character
     /// Plays the sword attacks (<see cref="SwordStrikes"/>) on a body, owner or network copy alike: <see cref="PlayerAnimationDriver"/> calls
     /// <see cref="Begin"/> when an attack starts (here, or replayed from the network, which is why a copy swings the same way) and
     /// <see cref="BeginGuard"/> when a guard is raised; this advances the attack, holds the READY stance for a few seconds after the last one,
-    /// and hands each frame to <see cref="PlayerLocomotion"/>, whose LateUpdate poses the arm, the blade and the torso (after the Animator,
-    /// like every other procedural pose).
+    /// and hands each frame to <see cref="PlayerLocomotion"/>, whose LateUpdate poses the arm, the blade, the torso, the hips and the feet
+    /// (after the Animator, like every other procedural pose).
+    ///
+    /// THE CARRY (owner, 2026-10-16: "my character holds ... the sword awkwardly"): whenever a sword is in the right hand and nothing else is
+    /// using the body, it is held the way <see cref="SwordStrikes.Carry"/> says (low at the right side, trailing behind at a sprint) instead
+    /// of the sword idle clip's arms held out at shoulder height. The sword is found under the hand on any body (a network copy mounts the
+    /// same model there), so another player's copy carries it the same way with nothing sent.
     ///
     /// The attack's clock is what the combat freezes for a hit-stop (<see cref="SetSpeed"/> 0): the pose holds exactly where the blade landed.
     /// </summary>
@@ -16,18 +21,38 @@ namespace CityX.Character
         /// <summary>How long the ready stance is held after the last attack or guard, seconds.</summary>
         public const float ReadyLingerSeconds = 3.0f;
 
-        /// <summary>How quickly the pose takes hold (and lets go back to the carry), seconds.</summary>
+        /// <summary>How quickly an attack or guard takes hold, seconds.</summary>
         public const float EngageSeconds = 0.08f;
+
+        /// <summary>How quickly the carry takes hold (a sword drawn, a climb over), seconds.</summary>
+        public const float CarryEngageSeconds = 0.25f;
 
         public const float DisengageSeconds = 0.35f;
 
-        /// <summary>An attack takes over from the pose the body is in (the last one's recovery, a guard) across this share of its own length.</summary>
+        /// <summary>An attack takes over from the pose the body is in (the last one's recovery, a guard, the carry) across this share of its own length.</summary>
         public const float AttackTakeoverShare = 0.3f;
 
         /// <summary>A guard comes up from, and the ready stance returns from, the pose the body is in over this long, seconds.</summary>
         public const float GuardTakeoverSeconds = 0.15f;
 
         public const float ReleaseTakeoverSeconds = 0.25f;
+
+        /// <summary>The ready stance lowers into the carry over this long once it has lingered, seconds.</summary>
+        public const float ReadyToCarrySeconds = 0.45f;
+
+        /// <summary>
+        /// In the ready stance or the guard the feet take the fighting stance and step (SwordFootwork) up to a guarded walk (half a walk, 2 m/s);
+        /// walking off at full pace, the walk clip's legs take them back between these speeds, metres per second. Mid-attack the stance holds
+        /// at any speed (the stepper keeps up).
+        /// </summary>
+        public const float StanceHeldBelowSpeed = 2.6f;
+
+        public const float StanceGoneAboveSpeed = 3.4f;
+
+        /// <summary>The carry trails the blade behind between these speeds (a walk is 4, a sprint 7.5), metres per second.</summary>
+        public const float TrailFromSpeed = 4.5f;
+
+        public const float TrailFullSpeed = 7.0f;
 
         private PlayerLocomotion _locomotion;
         private SwordStrikeKind _kind;
@@ -44,12 +69,19 @@ namespace CityX.Character
         private SwordFrame _takeoverFrom;
         private float _takeoverSeconds;
         private float _takeoverRemaining;
+        private bool _carrying;
+        private bool _carryOneHanded;
+        private float _run01;
+        private float _stanceGate = 1.0f;
 
         /// <summary>An attack is in progress.</summary>
         public bool IsStriking => _striking;
 
         /// <summary>A guard is being held.</summary>
         public bool IsGuarding => _guarding;
+
+        /// <summary>The sword is being carried (no attack, guard or ready stance): the hold of <see cref="SwordStrikes.Carry"/>.</summary>
+        public bool IsCarrying => _carrying && !_striking && !_guarding && _readyRemaining <= 0.0f;
 
         public SwordStrikeKind Kind => _kind;
 
@@ -132,7 +164,7 @@ namespace CityX.Character
             _speed = 1.0f;
         }
 
-        /// <summary>Ends everything and drops the stance at once (a ragdoll, a climb, the sword put away).</summary>
+        /// <summary>Ends everything and drops the stance at once (a ragdoll, a climb, the sword put away). The carry comes back by itself.</summary>
         public void Cancel()
         {
             _striking = false;
@@ -169,7 +201,10 @@ namespace CityX.Character
         private GrappleSwing _grapple;
         private bool _looked;
 
-        /// <summary>Something else owns the body: a climb or vault, a ragdoll, a grapple, a seat, the sword spin or a baked move. The pose yields to all of them.</summary>
+        /// <summary>
+        /// Something else owns the body: a climb or vault, a ragdoll, a grapple, a seat, the sword spin or a baked move, or a clip that moves
+        /// the whole body (a dance, push-ups, a spell's). The pose yields to all of them.
+        /// </summary>
         private bool BodyIsBusy()
         {
             if (!_looked)
@@ -185,7 +220,7 @@ namespace CityX.Character
                 || (_ragdoll != null && _ragdoll.IsLimp)
                 || (_grapple != null && _grapple.IsActive)
                 || (_locomotion != null && (_locomotion.IsSitting || _locomotion.InCarSeat
-                    || _locomotion.SwordSpinPoseBlend > 0.01f || _locomotion.BakedPoseWeight > 0.01f));
+                    || _locomotion.SwordSpinPoseBlend > 0.01f || _locomotion.BakedPoseWeight > 0.01f || _locomotion.ClipOwnsTheBody));
         }
 
         private void Update()
@@ -196,11 +231,19 @@ namespace CityX.Character
         /// <summary>Advances by <paramref name="deltaTime"/> and gives the locomotion this frame's pose. Public so a test can step it without frames.</summary>
         public void Step(float deltaTime)
         {
-            if ((_striking || _guarding || _readyRemaining > 0.0f || _engage > 0.0f) && BodyIsBusy())
+            ISwordBlade held = _locomotion != null ? _locomotion.HeldSword : null;
+            bool busy = BodyIsBusy();
+            if (busy && (_striking || _guarding || _readyRemaining > 0.0f || _engage > 0.0f))
             {
                 Cancel();
                 _engage = 0.0f;
             }
+            _carrying = held != null && !busy;
+            if (_carrying)
+            {
+                _carryOneHanded = held.IsOneHanded;
+            }
+
             if (_striking)
             {
                 _elapsed += deltaTime * _speed;
@@ -213,10 +256,16 @@ namespace CityX.Character
             else if (!_guarding && _readyRemaining > 0.0f)
             {
                 _readyRemaining -= deltaTime;
+                if (_readyRemaining <= 0.0f && _carrying)
+                {
+                    StartTakeover(ReadyToCarrySeconds);   // the guard lowered into the carry, not dropped
+                }
             }
 
-            bool wantsPose = _striking || _guarding || _readyRemaining > 0.0f;
-            _engage = Mathf.MoveTowards(_engage, wantsPose ? 1.0f : 0.0f, deltaTime / (wantsPose ? EngageSeconds : DisengageSeconds));
+            bool fighting = _striking || _guarding || _readyRemaining > 0.0f;
+            bool wantsPose = fighting || _carrying;
+            float engageSeconds = wantsPose ? (_striking || _guarding ? EngageSeconds : CarryEngageSeconds) : DisengageSeconds;
+            _engage = Mathf.MoveTowards(_engage, wantsPose ? 1.0f : 0.0f, deltaTime / engageSeconds);
 
             if (_locomotion == null)
             {
@@ -226,12 +275,41 @@ namespace CityX.Character
             {
                 _locomotion.ClearSwordPose();
                 _hasLastFrame = false;
-                enabled = false;
                 return;
             }
 
-            SwordFrame frame = _striking ? SwordStrikes.Evaluate(_kind, Progress)
-                : (_guarding ? SwordStrikes.Guard(_oneHanded) : SwordStrikes.Ready(_oneHanded));
+            // How fast the body is going (measured, the same on a network copy): the carry trails the blade at a sprint, and walking off lets
+            // the ready stance's feet go back to the walk.
+            float speed = _locomotion.MeasuredGroundSpeed;
+            float rate = 1.0f - Mathf.Exp(-deltaTime / 0.15f);
+            _run01 = Mathf.Lerp(_run01, Mathf.InverseLerp(TrailFromSpeed, TrailFullSpeed, speed), rate);
+            float stanceTarget = 1.0f - Mathf.InverseLerp(StanceHeldBelowSpeed, StanceGoneAboveSpeed, speed);
+            _stanceGate = Mathf.Lerp(_stanceGate, stanceTarget, rate);
+
+            SwordFrame frame;
+            if (_striking)
+            {
+                frame = SwordStrikes.Evaluate(_kind, Progress);
+            }
+            else if (_guarding)
+            {
+                frame = SwordStrikes.Guard(_oneHanded);
+                frame.Footwork *= _stanceGate;
+            }
+            else if (_readyRemaining > 0.0f)
+            {
+                frame = SwordStrikes.Ready(_oneHanded);
+                frame.Footwork *= _stanceGate;
+            }
+            else if (_carrying)
+            {
+                frame = SwordStrikes.Carry(_carryOneHanded, _run01);
+            }
+            else
+            {
+                // The sword gone (put away, dropped): the last pose fades back to the clip rather than jumping to another first.
+                frame = _hasLastFrame ? _lastFrame : SwordStrikes.Ready(_oneHanded);
+            }
             if (_takeoverRemaining > 0.0f)
             {
                 _takeoverRemaining -= deltaTime * _speed;   // held still by a hit-stop like the attack itself

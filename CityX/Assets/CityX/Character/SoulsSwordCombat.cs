@@ -183,13 +183,14 @@ namespace CityX.Character
         // same for every swing, and there were none for one hand). Each attack's live window comes from its own strike: the blade goes live
         // just before the contact -- the fastest moment of the path -- and stops in the follow-through; the rest of the swing is the recovery.
         // Two sets, picked by the sword in hand (ISwordBlade.IsOneHanded): the greatsword's big cuts, and the combat sword's quicker ones,
-        // whose first attack is a horizontal slash (the owner's choice).
+        // whose first attack is a horizontal slash (the owner's choice). The two-handed chain is two FLAT slashes, forehand then backhand,
+        // then the diagonal finisher (owner, 2026-10-16: "i like the two handed horizontal slashes of this linked game").
         // Poise: a light takes 25 (20 one-handed) off a target's 60, a heavy 60 (50) -- so a heavy breaks an opponent's heavy outright and it
         // takes three lights to stop one; only the heavies have hyper-armour themselves (the research: poise is for committed attacks).
         [Header("Two-handed light chain (left click)")]
-        public SoulsAttack Light1 = SoulsAttack.FromStrike(SwordStrikeKind.Cut2H, 0.55f, 22.0f, 1.00f, 0.40f, 0.25f, 25.0f, false);
+        public SoulsAttack Light1 = SoulsAttack.FromStrike(SwordStrikeKind.Sweep2H, 0.55f, 22.0f, 1.00f, 0.40f, 0.25f, 25.0f, false);
         public SoulsAttack Light2 = SoulsAttack.FromStrike(SwordStrikeKind.Reverse2H, 0.55f, 22.0f, 1.05f, 0.40f, 0.25f, 25.0f, false);
-        public SoulsAttack Light3 = SoulsAttack.FromStrike(SwordStrikeKind.Sweep2H, 0.60f, 26.0f, 1.30f, 0.55f, 0.35f, 30.0f, false);
+        public SoulsAttack Light3 = SoulsAttack.FromStrike(SwordStrikeKind.Cut2H, 0.60f, 26.0f, 1.30f, 0.55f, 0.35f, 30.0f, false);
 
         [Header("Two-handed heavy (middle mouse)")]
         public SoulsAttack Heavy = SoulsAttack.FromStrike(SwordStrikeKind.Slam2H, 0.60f, 40.0f, 2.00f, 0.90f, 0.50f, 60.0f, true);
@@ -285,9 +286,20 @@ namespace CityX.Character
         public const string IdleStateName = PlayerAnimationDriver.UpperEmptyStateName;
 
         [Tooltip(
-            "Fraction of walking speed while a swing is under way. The swings play on the upper body only, " +
-            "so the legs keep walking under them; 0 roots the body for the whole swing, 1 is no penalty.")]
+            "Fraction of walking speed while a swing is under way. The feet step under the swing (SwordFootwork); " +
+            "0 roots the body for the whole swing, 1 is no penalty.")]
         public float CommittedMoveSpeedFraction = 0.4f;
+
+        [Tooltip("How fast the body turns to where the camera looks as a swing winds up, degrees per second. Whatever the turn, the body " +
+                 "faces it by the time the blade is live; turning rather than snapping is what keeps a swing from jumping round on the spot.")]
+        public float SwingTurnDegreesPerSecond = 1080.0f;
+
+        /// <summary>The lunge starts this far into the wind-up (a share of it) and runs, eased, to the end of the live window: the body surges into the cut.</summary>
+        public const float LungeStartShare = 0.5f;
+
+        private float _swingYaw;
+        private bool _turningIntoSwing;
+        private float _lungeDone;
 
         // --- state ---------------------------------------------------------
 
@@ -624,7 +636,8 @@ namespace CityX.Character
             {
                 if (_phase == SoulsPhase.Startup)
                 {
-                    ApplyLunge(deltaTime * _swingSpeed);
+                    TurnIntoSwing(deltaTime * _swingSpeed);
+                    ApplyLunge();
                     if (_phaseTime < _current.Startup)
                     {
                         return;
@@ -633,11 +646,13 @@ namespace CityX.Character
                     _phase = SoulsPhase.Active;
                     _hitThisSwing.Clear();
                     _havePrevBlade = false;
+                    // The blade goes live facing where it was aimed, however far the wind-up had to turn.
+                    TurnIntoSwing(float.PositiveInfinity);
                 }
 
                 if (_phase == SoulsPhase.Active)
                 {
-                    ApplyLunge(deltaTime * _swingSpeed);
+                    ApplyLunge();
                     SweepBlade();
                     if (_phaseTime < _current.Active)
                     {
@@ -721,7 +736,14 @@ namespace CityX.Character
             // Swing where the camera is looking, not wherever the body last
             // happened to face -- without this a swing goes off at an angle
             // from the crosshair whenever you stopped turning a moment ago.
-            transform.rotation = Quaternion.Euler(0.0f, yawDegrees, 0.0f);
+            // TURNED INTO through the wind-up (SwingTurnDegreesPerSecond), not
+            // snapped: a body that jumped half round on the spot in one frame
+            // was one of the "awkward" turns (owner, 2026-10-16). It faces the
+            // way by the time the blade is live (made sure of in Tick).
+            _swingYaw = yawDegrees;
+            _turningIntoSwing = true;
+            _lungeDone = 0.0f;
+            TurnIntoSwing(0.0f);
 
             // The attack, by name: a SwordStrikes attack is posed by the driver's SwordPoseDriver (speed 1, from its start); a clip, if one
             // is ever used again, is played as the slice described -- announced to the network the same way either way, so other players
@@ -760,6 +782,7 @@ namespace CityX.Character
             ReleaseHitStop();
             _phase = SoulsPhase.Idle;
             _phaseTime = 0.0f;
+            _turningIntoSwing = false;
             _chainIndex = -1;
             _currentIsLight = false;
             if (_vitals != null)
@@ -1026,7 +1049,12 @@ namespace CityX.Character
             }
         }
 
-        private void ApplyLunge(float deltaTime)
+        /// <summary>
+        /// THE LUNGE: from halfway through the wind-up to the end of the live window, eased in and out, so the body surges into the cut rather
+        /// than gliding at a steady pace from the click (the feet step with it: SwordFootwork). Moved by what is still owed, so a long frame
+        /// cannot carry it further than <see cref="SoulsAttack.LungeMetres"/>.
+        /// </summary>
+        private void ApplyLunge()
         {
             if (_controller == null || _current == null || _current.LungeMetres <= 0.0f)
             {
@@ -1037,8 +1065,33 @@ namespace CityX.Character
             {
                 return;
             }
-            Vector3 step = transform.forward * (_current.LungeMetres / window) * deltaTime;
-            _controller.Move(step);
+            float elapsed = _phase == SoulsPhase.Startup ? _phaseTime : _current.Startup + _phaseTime;
+            float p = Mathf.InverseLerp(_current.Startup * LungeStartShare, window, elapsed);
+            float wanted = p * p * (3.0f - 2.0f * p) * _current.LungeMetres;
+            float step = wanted - _lungeDone;
+            if (step > 0.0f)
+            {
+                _controller.Move(transform.forward * step);
+                _lungeDone = wanted;
+            }
+        }
+
+        /// <summary>Turns the body toward the swing's aim by at most <paramref name="deltaTime"/> worth of <see cref="SwingTurnDegreesPerSecond"/> (infinity: all the way).</summary>
+        private void TurnIntoSwing(float deltaTime)
+        {
+            if (!_turningIntoSwing)
+            {
+                return;
+            }
+            Quaternion aim = Quaternion.Euler(0.0f, _swingYaw, 0.0f);
+            float left = Quaternion.Angle(transform.rotation, aim);
+            if (left <= 2.0f || float.IsPositiveInfinity(deltaTime) || left <= SwingTurnDegreesPerSecond * deltaTime)
+            {
+                transform.rotation = aim;
+                _turningIntoSwing = false;
+                return;
+            }
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, aim, SwingTurnDegreesPerSecond * deltaTime);
         }
 
         // --- animation ---------------------------------------------------------
