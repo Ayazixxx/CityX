@@ -10,8 +10,10 @@ namespace CityX.View
     /// A step street drawn (World/StepStreets: a street too steep to drive, built as steps as San Francisco's are): from the junction plate at one
     /// end to the plate at the other, the carriageway's width in concrete treads following the ground (each a block down past the ground, which
     /// the road's cut has already taken away), a row of bollards across the level pad at each end, and -- where the street is wide -- a stepped
-    /// concrete planter down the middle splitting it into two flights (the Lyon Street Steps), each flight with a handrail on posts. No asphalt,
-    /// no paint, no barricades. Each tread is built by the chunk its middle is in.
+    /// concrete planter down the middle splitting it into two flights (the Lyon Street Steps), each flight with a handrail on posts. Its sides
+    /// close against the sloping sidewalks beside it: a retaining face up to the paving where that stands over a tread, a parapet on the
+    /// sidewalk's edge where the drop is a fall; the kerb is not drawn along the steps (BuildPavement). No asphalt, no paint, no barricades.
+    /// Each tread is built by the chunk its middle is in.
     /// </summary>
     public static partial class CitySurfaceBuilder
     {
@@ -38,6 +40,23 @@ namespace CityX.View
                 Vec2 a = Point(t.S0, -half), b = Point(t.S1, -half), c = Point(t.S1, half), d = Point(t.S0, half);
                 double bottom = Math.Min(t.Top, Math.Min(Math.Min(Ground(a), Ground(b)), Math.Min(Ground(c), Ground(d)))) - StairLaneFooting;
                 AddTreadBlock(ctx, pavement, a, b, c, d, t.Top, bottom, StairLaneLook, StairLaneLook);
+                // Its sides, where the sloping sidewalk beside stands over the tread: a retaining face up to the paving (the kerb is not drawn
+                // along the steps), and a parapet on the sidewalk's edge where the drop is a fall.
+                foreach (double across in new[] { -half, half })
+                {
+                    Vec2 p = Point(t.S0, across), q = Point(t.S1, across);
+                    double pp = Ground(p) + PlanBuildings.PavingRise, pq = Ground(q) + PlanBuildings.PavingRise;
+                    if (pp <= t.Top + 0.02 && pq <= t.Top + 0.02) continue;
+                    Vec2 inward = dir.Perp * -Math.Sign(across);
+                    pavement.Look = StairLaneRetaining;
+                    float len = (float)(t.S1 - t.S0);
+                    pavement.AddQuad(ctx.Local(p.X, t.Top, p.Y), ctx.Local(q.X, t.Top, q.Y), ctx.Local(q.X, Math.Max(pq, t.Top), q.Y), ctx.Local(p.X, Math.Max(pp, t.Top), p.Y),
+                        new Vector3((float)inward.X, 0.0f, (float)inward.Y), new Vector2(0, 0), new Vector2(len, 0), new Vector2(len, 1), new Vector2(0, 1));
+                    if (!far && pp > t.Top + StairLaneParapetFrom && pq > t.Top + StairLaneParapetFrom)
+                    {
+                        AddParapet(ctx, pavement, p, q, pp, pq, -inward);
+                    }
+                }
                 // The planter down the middle, a box on each tread between the end pads: terraced like the steps.
                 if (median && !far && i > 0 && i < treads.Count - 1)
                 {

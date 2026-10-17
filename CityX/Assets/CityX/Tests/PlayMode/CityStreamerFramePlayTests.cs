@@ -20,7 +20,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class CityStreamerFramePlayTests
     {
-        private const int Seed = 45678679;
+        private const int Seed = 19077151;
 
         private readonly List<GameObject> _made = new List<GameObject>();
         private CityScale _scaleBefore;

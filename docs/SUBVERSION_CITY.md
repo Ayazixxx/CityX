@@ -54,8 +54,9 @@ thousand edges, so a server can send it.
   city almost flat: half its streets under 1 %, 27 sidewalks in the region at 14 % or more. With them (seed 63428175, varied): the steepest
   1 % of streets 26 %, the steepest 51 %, 1.8 % of the street length over 21 % (where the car stalls), 465 sidewalks at 14 % or more, the
   ground from -5 to 123 m, and a building's floor more than 6 m over the lowest ground round it for 14 % of them (was 2 %). A height costs
-  1.7 times what it did (200 ns), the plan no more. The steep blocks get stairways, the steep sidewalks steps and the streets too steep to
-  drive (21 % or more) are steps from junction to junction (LAYERED_CITY_PLAN.md).
+  1.7 times what it did (200 ns), the plan no more. The steep blocks get stairways and the streets too steep to drive (21 % or
+  more) are steps from junction to junction (LAYERED_CITY_PLAN.md; the sidewalks laid as steps beside steep roads were taken out the same
+  day, owner: "look like shit and serve no purpose").
   `tools/cityplan -- hills [seed] [amplitude] [wavelength] [hill height] [hill spacing] [district]` measures any setting; `hillseeds` ranks
   seeds by the hills round the spawn. A building's floor is the highest ground under it, with a podium down to the lowest.
 - **Pedestrians**: `StreetNetwork` now walks the road graph (nearest road, a side of it, round junctions) via `CurrentWorld`.

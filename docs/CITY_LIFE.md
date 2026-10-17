@@ -88,7 +88,25 @@ Manhattan, Watch Dogs' Chicago riverwalk, Yakuza's Kamurocho with its Millennium
   (`FloorLift`) with no edge. Tests: `GarageEntranceTests` (no live road under any building in the region; every garage's drives meet the road at
   the kerb at 12 % or less and reach the deck; nothing of the ground over a dug-in garage's deck or its drives), `GarageDriveInPlayTests` (a body
   walks in through either opening onto the lowest deck; the real car, driven from the carriageway, ends 6 m inside on the deck),
-  `GarageEntranceCapture` (garage-*.png). A road whose middle carries the evacuation's cordon of barricades (`CitySurfaceBuilder.HasCordon`) can
+  `GarageEntranceCapture` (garage-*.png). **Seed 19077151** found two more ways to stop the car. (a) The drive's mouth was level across the
+  opening while the road's edge in front of it is not: on a street sloping along the frontage, or where a road's 5 m piece spans a crease in
+  the hill (each piece is a quad on the ground at its corners, so it can stand up to a metre off the ground between them), a level mouth stood
+  off the road at one side (by more than 5 cm at 87 of the 114 drives, up to 2.3 m), a step the car stopped at. The mouth now lies on the road
+  AS DRAWN (`CitySurfaceBuilder.DriveHeight`, `DrawnRoadAt`: the ribbon's piece, or the junction plate at its end, clipped and fanned as
+  `BuildRoad`/`BuildPlate` lay it), tucked `UnderRoad` under it, and eases off to level at the wall where the deck is level across; where the
+  mouth is not level it is laid in strips 0.25 m across (`DriveMouthStrip`). That twist (the road's slope at the mouth, level at the wall)
+  steepens the drive at one side of a car by the road's slope times the car's half width over the pavement's width: 12 % along the middle
+  from a road rising 11 % across the opening was 16.5 % under the car's left wheels, and the car (a box with no suspension) beached at the
+  drive's foot. So a drive climbs that much less across the pavement (`GarageEntrances.TwistAllowance` 1.8 m: the grade less
+  |road slope| x 1.8 / kerb distance, none at all where the road is steeper than that along the frontage) and the rest of the climb is the
+  straight ramp inside, level across (`GarageEntrance.WallY`: the drive bends there; 99 of the 102 climbing drives are eased). (b) A column of
+  the lowest deck's grid stood 16 m in, straight in front of an opening: the columns keep out of each drive's lane
+  (`CityMeshBuilder.GarageEntranceLaneHalf` 2.6 m either side of the opening's middle). Tests:
+  `GarageEntranceTests.EachDrivesMouthIsFlushWithTheRoadAcrossTheOpening` (every drive in the city, built, every half metre across its mouth:
+  the drive never over the road, the road at most 3.3 cm over the drive), `NoDriveIsSteeperThanTheGradeAtACarsSide`,
+  `TheLaneInFromEachDriveIsClearOnTheLowestDeck` (nothing in a car-wide lane from the front wall to the back aisle, six garages near the
+  spawn), and the car's drive-in (garage 6789: 16.7 m in, never under 3.45 m/s; it beached at the twisted drive's foot before).
+  A road whose middle carries the evacuation's cordon of barricades (`CitySurfaceBuilder.HasCordon`) can
   still block a garage's drive: the drive test picks a road without one. Steep hillside roads tilt across their whole width (a 23 degree tilt in
   front of one garage on this seed), and the car cannot drive across them either: a road-surface question, not the garage's.
 - **Car park** (`BuildParkingLot`): asphalt over the lot that follows the ground like the block paving round it (sampled on `LotCell` 4 m cells;

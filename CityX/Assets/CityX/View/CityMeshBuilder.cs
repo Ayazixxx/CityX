@@ -396,7 +396,7 @@ namespace CityX.View
                 BuildingDecor.EntranceStyleFor(site.BaseHeight - site.DoorGroundHeight);
             if (entrance.NeedsStairs)
             {
-                AddEntranceStairs(world, site, concrete, new Vector3(centreX, lobbyY, z1));
+                AddEntranceStairs(world, site, concrete, new Vector3(centreX, lobbyY, z1), halfX);
             }
 
             var west = new Wall(true, x0, z0, z1);
@@ -844,37 +844,98 @@ namespace CityX.View
         /// </summary>
         /// (2026-10-09: rebuilt as a landing at the door and a flight down ALONG the wall, every step a solid block to the paving under it and the
         /// flight ending where the ground meets it -- see World/EntranceStairs.cs for why the straight-out flight floated and blocked streets.)
-        /// <paramref name="doorThreshold"/> is in the building's own frame relative to its centre (the door wall's outward normal +z, along it +x).
-        private static void AddEntranceStairs(CityWorld world, BuildingSite site, MeshBuffer concrete, Vector3 doorThreshold)
+        /// (2026-10-16: on the hills a flight past the end of its own front ran into what stood beside it; the stair now folds back along the wall
+        /// within its ends, a lane further out each time, railed where it folds -- World/EntranceStairs.PlanFolded.)
+        /// <paramref name="doorThreshold"/> is in the building's own frame relative to its centre (the door wall's outward normal +z, along it +x);
+        /// <paramref name="wallHalf"/> is how far the door wall runs either side of the door.
+        private static void AddEntranceStairs(CityWorld world, BuildingSite site, MeshBuffer concrete, Vector3 doorThreshold, float wallHalf)
         {
             float wallZ = doorThreshold.z;
-            float lineZ = wallZ + EntranceStairs.Width * 0.5f;   // the flight's centre line, out from the wall
-            // The landing spans the doorway and a little either side: a pair of doors (BuildingInterior.HasDoubleEntrance) needs a longer one.
-            float halfLanding = Mathf.Max(EntranceStairs.LandingLength, BuildingInterior.EntranceWidth(site) + 0.4f) * 0.5f;
+            float halfLanding = EntranceStairs.HalfLanding(site);
             float Paving(float x, float z)
             {
                 site.LocalToWorld(x, z, out double wx, out double wz);
                 return (float)(world.Plan.GroundHeight(wx, wz) + CityX.World.Plan.PlanBuildings.PavingRise);
             }
+            // (2026-10-16) Along the wall from the door (x measured from it, the wall's ends wallHalf either side), folding back into a lane further
+            // out where it nears an end, as many lanes as fit before the road (World/EntranceStairs.ForDoor).
+            EntranceStairs.Folded stair = EntranceStairs.ForDoor(world.Plan, site, doorThreshold.x, doorThreshold.y, wallZ, wallHalf);
+            float w = stair.LaneWidth;   // broad, or tight where the broad stair could not reach the ground
 
-            EntranceStairs.Flight flight = EntranceStairs.Plan(doorThreshold.y,
-                (side, along) => Paving(doorThreshold.x + side * (halfLanding + along), lineZ));
-
-            // The landing in front of the door, solid down to the lowest paving under it.
-            float x0 = doorThreshold.x - halfLanding, x1 = doorThreshold.x + halfLanding;
-            float z1 = wallZ + EntranceStairs.Width;
-            float landingFoot = Mathf.Min(Mathf.Min(Paving(x0, wallZ), Paving(x1, wallZ)), Mathf.Min(Paving(x0, z1), Paving(x1, z1))) - EntranceStairs.Footing;
-            concrete.AddBox(new Vector3(x0, landingFoot, wallZ), new Vector3(x1, doorThreshold.y, z1));
-
-            // The flight, down along the wall.
-            for (int k = 1; k <= flight.Steps; k++)
+            // A solid block from a height down past the lowest paving at its corners.
+            void Block(float xa, float xb, float za, float zb, float top)
             {
-                float a = doorThreshold.x + flight.Side * (halfLanding + flight.StartOf(k));
-                float b = a + flight.Side * EntranceStairs.Tread;
-                float top = flight.TopOf(k, doorThreshold.y);
-                float foot = Mathf.Min(Mathf.Min(Paving(a, wallZ), Paving(b, wallZ)), Mathf.Min(Paving(a, z1), Paving(b, z1))) - EntranceStairs.Footing;
-                concrete.AddBox(new Vector3(Mathf.Min(a, b), Mathf.Min(foot, top - 0.05f), wallZ), new Vector3(Mathf.Max(a, b), top, z1));
+                float foot = Mathf.Min(Mathf.Min(Paving(xa, za), Paving(xb, za)), Mathf.Min(Paving(xa, zb), Paving(xb, zb))) - EntranceStairs.Footing;
+                concrete.AddBox(new Vector3(Mathf.Min(xa, xb), Mathf.Min(foot, top - 0.05f), Mathf.Min(za, zb)), new Vector3(Mathf.Max(xa, xb), top, Mathf.Max(za, zb)));
             }
+
+            // The landing in front of the door, then each flight and each turn.
+            float x0 = doorThreshold.x - halfLanding, x1 = doorThreshold.x + halfLanding;
+            Block(x0, x1, wallZ, wallZ + w, doorThreshold.y);
+            foreach (EntranceStairs.Run run in stair.Runs)
+            {
+                float za = wallZ + run.Lane * w, zb = za + w;
+                for (int k = 1; k <= run.Steps; k++)
+                {
+                    Block(doorThreshold.x + run.StepA(k), doorThreshold.x + run.StepB(k), za, zb, run.TopOf(k));
+                }
+            }
+            foreach (EntranceStairs.Turn turn in stair.Turns)
+            {
+                Block(doorThreshold.x + turn.X0, doorThreshold.x + turn.X1, wallZ + turn.Lane * w, wallZ + (turn.Lane + 2) * w, turn.Top);
+            }
+
+            // A folded stair's edges are a fall: a rail along each flight's open side (the next lane, lower, or the street), along the landing
+            // where the next lane passes below it, and round each turn's far end and outer side.
+            if (stair.Lanes < 2) return;
+            Color32 saved = concrete.Look;
+            concrete.Look = EntranceRailLook;
+            foreach (EntranceStairs.Run run in stair.Runs)
+            {
+                if (run.Steps == 0) continue;
+                float z = wallZ + (run.Lane + 1) * w - 0.05f;
+                AddEntranceRail(concrete, new Vector3(doorThreshold.x + run.StepA(1), run.TopOf(1), z), new Vector3(doorThreshold.x + run.End, run.Bottom, z));
+            }
+            AddEntranceRail(concrete, new Vector3(x0, doorThreshold.y, wallZ + w - 0.05f), new Vector3(x1, doorThreshold.y, wallZ + w - 0.05f));
+            foreach (EntranceStairs.Turn turn in stair.Turns)
+            {
+                float zIn = wallZ + turn.Lane * w + 0.05f, zOut = wallZ + (turn.Lane + 2) * w - 0.05f;
+                float xEnd = doorThreshold.x + turn.X1 - Mathf.Sign(turn.X1 - turn.X0) * 0.05f;
+                AddEntranceRail(concrete, new Vector3(xEnd, turn.Top, zIn), new Vector3(xEnd, turn.Top, zOut));
+                AddEntranceRail(concrete, new Vector3(doorThreshold.x + turn.X0, turn.Top, zOut), new Vector3(xEnd, turn.Top, zOut));
+            }
+            concrete.Look = saved;
+        }
+
+        private static readonly Color32 EntranceRailLook = SurfaceLook.Pack(new Color(0.24f, 0.25f, 0.26f), (int)WallMaterial.Metal, 0.5f);
+
+        /// <summary>The height of a folded entrance stair's rail over its treads, metres.</summary>
+        public const float EntranceRailHeight = 1.1f;
+
+        /// <summary>
+        /// A rail along a line over a walking surface (from and to on the surface, in the building's frame): posts at both ends and every 1.6 m or so
+        /// standing on it, and a bar from head to head.
+        /// </summary>
+        private static void AddEntranceRail(MeshBuffer buffer, Vector3 from, Vector3 to)
+        {
+            float run = new Vector2(to.x - from.x, to.z - from.z).magnitude;
+            if (run < 0.2f) return;
+            int posts = Mathf.Max(2, Mathf.CeilToInt(run / 1.6f) + 1);
+            for (int i = 0; i < posts; i++)
+            {
+                Vector3 p = Vector3.Lerp(from, to, i / (float)(posts - 1));
+                buffer.AddBox(new Vector3(p.x - 0.03f, p.y, p.z - 0.03f), new Vector3(p.x + 0.03f, p.y + EntranceRailHeight, p.z + 0.03f));
+            }
+            Vector3 up = Vector3.up * EntranceRailHeight;
+            Vector3 a = from + up, b = to + up;
+            Vector3 flat = new Vector3(b.x - a.x, 0.0f, b.z - a.z).normalized;
+            Vector3 side = Vector3.Cross(Vector3.up, flat) * 0.025f, down = Vector3.down * 0.05f;
+            Vector3 n = Vector3.Cross(side, b - a).normalized;
+            if (n.y < 0.0f) n = -n;
+            AddFace(buffer, n, a - side, a + side, b + side, b - side);
+            AddFace(buffer, -n, a - side + down, b - side + down, b + side + down, a + side + down);
+            AddFace(buffer, side.normalized, a + side, a + side + down, b + side + down, b + side);
+            AddFace(buffer, -side.normalized, a - side, b - side, b - side + down, a - side + down);
         }
 
         /// <summary>

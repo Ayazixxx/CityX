@@ -10,7 +10,7 @@ namespace CityX.Tests
     /// <summary>Round and many-sided towers (BuildingSite.Sides, RoundFootprint, CityMeshBuilder.BuildRound). See docs/BUILDING_SHAPES.md.</summary>
     public sealed class RoundTowerTests
     {
-        private const int Seed = 45678679;
+        private const int Seed = 19077151;
 
         private static CityWorld _world;
         private static CityWorld World => _world ?? (_world = new CityWorld(Seed));
@@ -164,6 +164,23 @@ namespace CityX.Tests
                     // A door up a slope has a flight of steps out to the street, as long as the climb needs.
                     BuildingDecor.EntranceStyle entrance = BuildingDecor.EntranceStyleFor(site.BaseHeight - site.DoorGroundHeight);
                     float steps = entrance.NeedsStairs ? BuildingInterior.StepsFor(entrance.Rise) * CityMeshBuilder.StreetStairTreadDepth : 0.0f;
+                    // Nothing under the podium but the footing of those steps: a folded stair's outer lanes stand on the paving further out in front of
+                    // the door, lower down a slope (2026-10-16, EntranceStairs.PlanFolded: #110 on seed 19077151 reached 4.5 cm past half a metre under).
+                    float lowest = site.PodiumBase - 0.5f;
+                    if (entrance.NeedsStairs)
+                    {
+                        RoundFootprint fp = RoundFootprint.Of(site);
+                        float half = fp.SideLength * 0.5f, reach = EntranceStairs.MaxLanes * EntranceStairs.Width;
+                        for (float u = -half; u <= half + 1e-3f; u += half * 0.5f)
+                        {
+                            for (float o = 0.0f; o <= reach + 1e-3f; o += EntranceStairs.Width * 0.5f)
+                            {
+                                site.LocalToWorld(u, fp.Apothem + o, out double wx, out double wz);
+                                float paving = (float)(World.Plan.GroundHeight(wx, wz) + CityX.World.Plan.PlanBuildings.PavingRise);
+                                lowest = Mathf.Min(lowest, paving - EntranceStairs.Footing - 0.05f);
+                            }
+                        }
+                    }
                     foreach (MeshBuffer b in new[] { structures, concrete, lit, dark })
                     {
                         foreach (Vector3 v in b.Vertices)
@@ -171,7 +188,7 @@ namespace CityX.Tests
                             Assert.IsFalse(float.IsNaN(v.x) || float.IsNaN(v.y) || float.IsNaN(v.z), $"#{site.Id}: NaN");
                             // Within the circle, give or take the parapet's coping, awnings, signs and the entrance steps at the door.
                             Assert.LessOrEqual(new Vector2(v.x, v.z).magnitude, radius + 4.0f + steps, $"#{site.Id} far={far}: a vertex far off the circle");
-                            Assert.GreaterOrEqual(v.y, site.PodiumBase - 0.5f, $"#{site.Id}: below the podium");
+                            Assert.GreaterOrEqual(v.y, lowest, $"#{site.Id}: below the podium (and its entrance stairs' footing)");
                             // Nothing over the tallest antenna mast, or over the tower's own top (World/TowerTop: a spire on a tall round tower).
                             Assert.LessOrEqual(v.y, site.Top + Mathf.Max(30.0f, TowerTop.For(site).Height + 1.0f), $"#{site.Id}: above the tallest antenna mast");
                         }

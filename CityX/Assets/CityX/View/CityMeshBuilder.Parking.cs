@@ -18,6 +18,9 @@ namespace CityX.View
         public const float GarageColumnBayX = 8.0f;
         public const float GarageColumnBayZ = 16.0f;
         public const float GarageRampWidth = 6.0f;
+
+        /// <summary>Half the lane kept clear of columns on the lowest deck straight in from each entrance, metres (a 3.4 m car and room).</summary>
+        public const float GarageEntranceLaneHalf = 2.6f;
         public const float GarageEntranceWidth = GarageEntrances.OpeningWidth;
 
         /// <summary>An entrance ramp dropping more than this from the deck gets a wall along each side of its cut.</summary>
@@ -189,6 +192,10 @@ namespace CityX.View
                         {
                             continue;   // not on the ramp
                         }
+                        if (k == 0 && InEntranceLane(px))
+                        {
+                            continue;   // not in the lane straight in from an entrance (2026-10-16: a column 16 m in stopped the car on seed 19077151)
+                        }
                         concrete.AddBox(new Vector3(px - GarageColumnSize * 0.5f, slabTop, pz - GarageColumnSize * 0.5f),
                             new Vector3(px + GarageColumnSize * 0.5f, levelTop, pz + GarageColumnSize * 0.5f));
                     }
@@ -219,6 +226,16 @@ namespace CityX.View
                         PaintStallRow(concrete, x0 + 1.0f, x1 - 1.0f, rowZ2, rowZ3, slabTop + 0.02f);
                     }
                 }
+            }
+
+            // The lowest deck's lane in from each entrance, as wide as a car (Vehicles/Car, 3.4 m at the player's scale) and room either side.
+            bool InEntranceLane(float px)
+            {
+                foreach (GarageEntrance e in entrances)
+                {
+                    if (e.HasDriveway && System.Math.Abs(px - (cx + (e.X0 + e.X1) * 0.5f)) < GarageEntranceLaneHalf) return true;
+                }
+                return false;
             }
 
             bool OnEntranceRamp(float px, float pz, float margin)

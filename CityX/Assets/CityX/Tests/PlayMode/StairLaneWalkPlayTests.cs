@@ -11,14 +11,14 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// The stairways through steep blocks and the stepped sidewalks are walked (owner, 2026-10-15: "make everything walkable and functionable as a
+    /// The stairways through steep blocks and the step streets are walked (owner, 2026-10-15: "make everything walkable and functionable as a
     /// pedestrian not just look good"; the stairs, 2026-10-16): the real player controller, in a real streamed city, climbs the stairway nearest
     /// the spawn from the low street's pavement to the high street's, beside the handrail down its middle, and walks back down; and climbs a
-    /// stepped sidewalk from its low end to its high end.
+    /// step street between its bollards from one junction to the other.
     /// </summary>
     public sealed class StairLaneWalkPlayTests
     {
-        private const int Seed = 45678679;
+        private const int Seed = 19077151;
         private const float Step = 1.0f / 60.0f;
         private readonly List<GameObject> _made = new List<GameObject>();
 
@@ -69,7 +69,7 @@ namespace CityX.Tests
         /// steering back onto the line as it goes: how far along it got, and the worst it stood off the surface the line's height gives.
         /// </summary>
         private static IEnumerator Walk(PlayerLocomotion locomotion, Vec2 origin, Vec2 dir, double offset, double from, double to,
-            System.Func<double, double> surface, float[] result)
+            System.Func<double, double> surface, float[] result, List<string> trace = null)
         {
             Transform body = locomotion.transform;
             Vec2 side = dir.Perp * offset;
@@ -86,6 +86,12 @@ namespace CityX.Tests
                 Vector3 toward = new Vector3((float)(aim.X - p.x), 0.0f, (float)(aim.Y - p.z));
                 locomotion.Tick(new LocomotionInput { Move = new Vector2(0.0f, 1.0f), YawDegrees = Mathf.Atan2(toward.x, toward.z) * Mathf.Rad2Deg }, Step);
                 yield return null;
+                if (trace != null && tick < 8)
+                {
+                    var controller = body.GetComponent<CharacterController>();
+                    trace.Add($"tick {tick}: at {body.position} yaw {body.eulerAngles.y:F0} aim yaw {Mathf.Atan2(toward.x, toward.z) * Mathf.Rad2Deg:F0} grounded {locomotion.IsGrounded} " +
+                        $"velocity {controller.velocity} flags {controller.collisionFlags} step {controller.stepOffset:F2} slope {controller.slopeLimit:F0} enabled {controller.enabled}");
+                }
                 worst = Mathf.Max(worst, Mathf.Abs(body.position.y - (float)surface(along)));
             }
             result[0] = (float)along;
@@ -124,8 +130,44 @@ namespace CityX.Tests
             PlayerLocomotion locomotion = made[0];
             float startY = locomotion.transform.position.y;
             var up = new float[2];
-            yield return Walk(locomotion, lane.A, dir, 1.2, 0.4, length - 0.6, s => CitySurfaceBuilder.TreadTopAt(treads, s), up);
+            var trace = new List<string>();
+            yield return Walk(locomotion, lane.A, dir, 1.2, 0.4, length - 0.6, s => CitySurfaceBuilder.TreadTopAt(treads, s), up, trace);
             float climbed = locomotion.transform.position.y - startY;
+            if (up[0] < length - 2.0)
+            {
+                // What stopped it, for the failure: what the body's capsule touches, and what is just ahead of it at knee and chest height.
+                Vector3 at = locomotion.transform.position;
+                var flatDir = new Vector3((float)dir.X, 0.0f, (float)dir.Y);
+                var touching = new List<string>();
+                foreach (Collider c in Physics.OverlapCapsule(at + Vector3.up * 0.5f, at + Vector3.up * 2.1f, 0.55f, ~0, QueryTriggerInteraction.Ignore))
+                {
+                    if (c.transform.IsChildOf(locomotion.transform)) continue;
+                    touching.Add($"{c.name} ({c.GetType().Name}) {c.bounds.center} {c.bounds.size}");
+                }
+                foreach (Vector3 o in new[] { Vector3.zero, flatDir * 0.4f, -flatDir * 0.4f })
+                {
+                    if (Physics.Raycast(at + o + Vector3.up * 1.3f, Vector3.up, out RaycastHit over, 6.0f, ~0, QueryTriggerInteraction.Ignore))
+                        touching.Add($"over (offset {o}): {over.collider.name} at {over.point.y - at.y:F2} m over the feet, normal {over.normal}");
+                }
+                foreach (float h in new[] { 0.3f, 1.0f, 1.8f })
+                {
+                    if (Physics.Raycast(at + Vector3.up * h, flatDir, out RaycastHit hit, 2.0f, ~0, QueryTriggerInteraction.Ignore))
+                        touching.Add($"ahead at {h} m: {hit.collider.name} {hit.distance:F2} m, normal {hit.normal}, point {hit.point}");
+                }
+                Debug.Log($"CityX stairway walk stuck at {at}: {string.Join("; ", touching)}");
+                foreach (string line in trace) Debug.Log("CityX stairway walk, " + line);
+                foreach (BuildingSite site in world.Plan.Buildings)
+                {
+                    double dx = site.CentreX - at.x, dz = site.CentreZ - at.z;
+                    if (dx * dx + dz * dz > 60.0 * 60.0) continue;
+                    foreach (Footbridge b in Footbridges.For(world, site))
+                    {
+                        if (b.SiteA != site.Id) continue;
+                        string stair = b.Stair == null ? "no street stair" : $"street stair {(b.Stair.Switchback ? "tower" : "straight")} from {b.Stair.Points[0]} to {b.Stair.Points[b.Stair.Points.Length - 1]}";
+                        Debug.Log($"CityX stairway walk, bridge {b.SiteA}->{b.SiteB} #{b.Index} {b.Shape}: {stair}; piers {string.Join(" ", b.Path.Piers)}");
+                    }
+                }
+            }
             var down = new float[2];
             yield return Walk(locomotion, lane.A, dir, -1.2, length - 0.6, 0.6, s => CitySurfaceBuilder.TreadTopAt(treads, s), down);
             Debug.Log($"CityX stairway walk: stairway {lane.Id} ({length:F0} m, {lane.Drop:F1} m up, {best:F0} m from the spawn): up to {up[0]:F1} m " +
@@ -179,70 +221,6 @@ namespace CityX.Tests
             Debug.Log($"CityX step street walk: street {street.Edge.Id} ({length:F0} m, {rise:F1} m up, {best:F0} m from the spawn), {across:F1} m off its middle: " +
                 $"got to {up[0]:F1} m, climbed {climbed:F2} m, at most {up[1]:F2} m off the treads");
             Assert.That(up[0], Is.GreaterThan(length - 2.5), $"the climb stopped {length - up[0]:F1} m short");
-            Assert.That(climbed, Is.GreaterThan(rise - 0.45), "the body did not climb the steps");
-            Assert.That(up[1], Is.LessThan(0.6f), "the body left the steps");
-        }
-
-        [UnityTest]
-        public IEnumerator TheRealPlayerClimbsASteppedSidewalk()
-        {
-            var world = new CityWorld(Seed);
-            world.Plan.TryFindSpawn(out double sx, out double sz);
-            var spawn = new Vec2(sx, sz);
-            (int block, int edge) pick = (-1, -1);
-            double best = double.MaxValue;
-            List<PlanBlock> blocks = world.Plan.Data.Blocks;
-            for (int b = 0; b < blocks.Count; b++)
-            {
-                if (blocks[b].Inner == null || blocks[b].Outer == null) continue;
-                for (int e = 0; e < blocks[b].Inner.Count; e++)
-                {
-                    if (!SteppedSidewalks.Is(world.Plan, b, e)) continue;
-                    Vec2 a = blocks[b].Inner[e], c = blocks[b].Inner[(e + 1) % blocks[b].Inner.Count];
-                    double length = (c - a).Length;
-                    if (length < 15.0 || length > 120.0) continue;
-                    double d = ((a + c) * 0.5 - spawn).Length;
-                    if (d < best)
-                    {
-                        best = d;
-                        pick = (b, e);
-                    }
-                }
-            }
-            Assert.GreaterOrEqual(pick.block, 0, "no stepped sidewalk");
-            PlanBlock block = blocks[pick.block];
-            int n = block.Inner.Count, f = (pick.edge + 1) % n;
-            Vec2 i0 = block.Inner[pick.edge], i1 = block.Inner[f], o0 = block.Outer[pick.edge], o1 = block.Outer[f];
-            Vec2 m0 = (i0 + o0) * 0.5, m1 = (i1 + o1) * 0.5;
-            List<(double t0, double t1, double top)> treads = SteppedSidewalks.Treads(world.Plan, block, pick.edge);
-            // Climb it from its low end: the line down the strip's middle.
-            bool upward = treads[treads.Count - 1].top > treads[0].top;
-            Vec2 low = upward ? m0 : m1, high = upward ? m1 : m0;
-            double run = (high - low).Length;
-            Vec2 dir = (high - low).Normalized;
-            double Top(double s)
-            {
-                double t = upward ? s / run : 1.0 - s / run;
-                foreach ((double t0, double t1, double top) in treads)
-                {
-                    if (t >= t0 && t <= t1) return top;
-                }
-                return t <= 0.0 ? treads[0].top : treads[treads.Count - 1].top;
-            }
-            City(new Vector3((float)((low.X + high.X) * 0.5), (float)Top(run * 0.5), (float)((low.Y + high.Y) * 0.5)), run * 0.5 + 8.0);
-            yield return null;
-            Vec2 start = low + dir * 0.8;
-            var made = new PlayerLocomotion[1];
-            yield return Player(new Vector3((float)start.X, (float)Top(0.8) + 0.1f, (float)start.Y), made);
-            PlayerLocomotion locomotion = made[0];
-            float startY = locomotion.transform.position.y;
-            var up = new float[2];
-            yield return Walk(locomotion, low, dir, 0.0, 0.8, run - 1.0, Top, up);
-            float climbed = locomotion.transform.position.y - startY;
-            double rise = Top(run - 1.0) - Top(0.8);
-            Debug.Log($"CityX stepped sidewalk walk: block {pick.block} edge {pick.edge} ({run:F0} m, {treads.Count} treads, {rise:F1} m up, {best:F0} m from the spawn): " +
-                $"got to {up[0]:F1} m, climbed {climbed:F2} m, at most {up[1]:F2} m off the treads");
-            Assert.That(up[0], Is.GreaterThan(run - 2.0), $"the climb stopped {run - up[0]:F1} m short");
             Assert.That(climbed, Is.GreaterThan(rise - 0.45), "the body did not climb the steps");
             Assert.That(up[1], Is.LessThan(0.6f), "the body left the steps");
         }

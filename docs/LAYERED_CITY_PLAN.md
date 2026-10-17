@@ -147,20 +147,20 @@ types of guard rails ... make more staircases throughout the city overall, and h
 - **Street stairs** (`StreetStair`): the pair's lowest bridge, where it leaves its wall square, often gets a stair from the deck's side down
   along that wall to the paving: a STRAIGHT RUN of flights hugging the wall where the deck is 16 m or less over the paving and the wall has
   room; else a ZIG-ZAG TOWER against the wall (flights doubling back on two lanes, a landing across both at each end, rails between the lanes,
-  along the outside and round the landings' ends, posts to the ground), up to 45 m. Never over a road or into another building, never into the
+  along the outside and round the landings' ends, posts to the ground), up to 45 m (its steps counted for the paving at its foot as finally placed: a 0.226 m riser once slipped past the 0.22 m limit). Never over a road or into another building, never into the
   ground on the way down, clear of a wall's corners; on a front only where the street storey is plain (no shop front, no entrance stairs) and a
   good stride clear of the door. The bridge's rail on that side is open where the stair leaves it. 8 near the spawn, 7 of them towers.
 - **The facade keeps clear** of each bridge's landing on its wall (as wide as the deck meets the wall: wider on the slant) and of each street
   stair's run (`Footbridges.ClearingsOn`; the piers, fins and blade signs stop and start again round them).
 - Tests: `FootbridgeShapeTests` (every shape, rail and deck built near the spawn; every path walkable in plan: ends on the walls, decks no
   steeper than 1 in 10, steps no higher than a riser and a tread deep, turns only at landings, clear of every other building and of the
-  street, piers off the roads; the bridges high; the street stairs along their walls onto the paving, off the roads, the facade clear of
+  street, piers off the roads; the bridges high and favouring the tall blocks, against the share of tall blocks round about (seed 19077151: 47 % of the bridges join blocks of eight floors where 34 % of the blocks are that tall); the street stairs along their walls onto the paving, off the roads, the facade clear of
   them), `FootbridgePathWalkPlayTests` (a body walks a dog-leg, a curve, a slanted bridge and a bridge's flight door to door, and climbs a
   straight street stair and a 19.6 m tower from the paving onto the deck), `FootbridgeTests` and `FootbridgeDoorwayTests` updated (stairs may
   join floors further apart; the doorway is looked at along the deck), `FootbridgeVarietyCapture` (bridges-*.png: each shape, each rail, the
   flights, a street stair and a tower).
 
-**Stairways, stepped sidewalks and hills (2026-10-16): the stairs that are streets, a first part of L1.** Owner, the same message: *"make
+**Stairways, step streets and hills (2026-10-16): the stairs that are streets, a first part of L1.** Owner, the same message: *"make
 more staircases throughout the city overall ... san francisco has a lot of randoms staircases that go up hills and stuff in intricate ways
 study how they do it, maybe make the terrain more hilly overall."* What San Francisco and Pittsburgh do (Wikipedia, "Step street"; KQED's
 Bay Curious on the city's 600-900 public stairways; the Pittsburgh city steps guides, some 700 sets, about 450 on structures and 350 set
@@ -190,30 +190,36 @@ as steps on a steep street (22nd Street at Vicksburg, a 31.5 % block). Concrete 
   hydrants and cabinets keep out of its ends. A stairway whose treads would stray more than 1 m from the paving along its middle (too steep
   for its flights: one sank 5 m into a trench) is not taken. On seed 45678679: 177 in the game's region (18 within 1 km of the spawn, mean
   118 m long and 19 m up, the middle at most 0.3 m under the paving), 118 in the classic test region.
-- **Stepped sidewalks** (`World/SteppedSidewalks`): a block's sidewalk along a street whose kerb climbs 14 % or more over 6 m or more, not along
-  a pedestrian street and not where a garage's drive or a ramp's kerb cut crosses it, is steps: the strip from the kerb to the lot line (and
-  5 cm out over the road, so the kerb is not drawn along it) cut from the paving and laid as treads following the slope, each 0.2 m from the
-  last, long where the street is gentle and short where it is steep; each tread's face to the road is the kerb there; a retaining face up to
-  the paving beyond the lot line where that is higher. Worked out once per plan (60-80 ms) so every chunk agrees. From afar (the far chunks) a stepped sidewalk is
-  its sloping paving. 723 in the game's region,
-  796 (of 809 steep ones) in the classic test region, the steepest 56 %.
+- **Stepped sidewalks: built and taken out the same day.** For a few hours a sidewalk beside a street whose kerb climbs 14 % or more was laid
+  as steps (22nd Street at Vicksburg); the owner, with two screenshots of one beside a steep road at the spawn: *"the along side the road
+  stairs look like shit and serve no purpose get rid of them"*. The sidewalks beside steep roads are sloping paving again, as before
+  (`StepStreetTests` checks the sidewalks of the steepest streets near the spawn are the smooth slope).
 - **Step streets** (`World/StepStreets`): an ordinary street (not an arterial, a boulevard or a bridge) climbing 21 % or more from junction to
   junction over 15 m or more -- where the car stalls, and steeper than San Francisco built streets to be driven -- is steps from the junction
   plate at one end to the plate at the other, the Vallejo, Filbert and Lyon Street way: the carriageway's width of concrete treads on the
   stairways' profile (pads of 1 m at the ends), a row of bollards across each end's pad closing it to cars, and on a wide street a terraced
   concrete planter of bare earth down the middle splitting it into two flights, each with a handrail (`CitySurfaceBuilder.StepStreets.cs`);
-  no asphalt, paint or barricades; its sidewalks, as steep, are stepped sidewalks. Not a street an expressway ramp or exit lands on, and not
-  one steeper than any flight climbs (its stair must meet the road at both junctions and keep within 0.75 m of it all the way: a street
-  down a river bank sank 13 m under its own road; such streets stay roads). A steep street is no
-  pedestrian street (tables and trees on a slope); no garage or car park is put on a lot whose front is a steep street
-  (`PlanBuildings.FrontsSteepStreet`). 95 in the game's region (10.1 km; 4 within 1 km of the spawn), 144 in the classic test region.
+  no asphalt, paint or barricades. Its sidewalks stay sloping paving; the steps close their sides against them (a retaining face up to the
+  paving where it stands over a tread, a parapet on the sidewalk's edge where the drop passes 0.6 m) and the kerb is not drawn along the
+  steps (`CitySurfaceBuilder.OffTheSteps`). Not a street an expressway ramp or exit lands on, and not one steeper than any flight climbs (its
+  stair must meet the road at both junctions and keep within 0.75 m of it all the way: a street down a river bank sank 13 m under its own
+  road; such streets stay roads). A steep street is no pedestrian street (tables and trees on a slope); no garage or car park is put on a lot
+  whose front is a steep street (`PlanBuildings.FrontsSteepStreet`).
+- **The world seed was rerolled again**, to **19077151** with the stepped sidewalks' removal: the most stairs near the spawn of the hilliest
+  seeds (`tools/cityplan -- stairlanes`): 134 stairways in the game's region (27 within 1 km of the spawn) and 101 step streets (22 within
+  1 km); in the classic test region 125 stairways and 146 step streets.
 - Tests: `HillTests` (31 % of the land within 2.5 km of the origin on a hill at the game's scale, 17 % of it 14 % or steeper; no hill by the
   water; the ground never near the fall-through rescue), `StairLaneTests` (every stairway on its block's lot line at both ends, inside its
-  block, steep enough; its treads contiguous, a riser at most apart, no flight over 18 steps, within 1 m of the paving; no lot or building on one; the treads built
-  and nothing of the ground over them), `SteppedSidewalkTests` (every steep sidewalk is steps unless a drive or ramp crosses it, and no
-  other; the treads a riser apart within half a riser of the paving; built, nothing over them), `StepStreetTests` (every step street steep,
-  none a pedestrian street; its treads plate to plate, a riser apart, within 0.75 m of the road and meeting it at both ends; built as steps with bollards and no
-  asphalt; no garage or car park opening onto one), `StairLaneWalkPlayTests` (the real player controller climbs a 56 m stairway 7.3 m up and
-  walks back down, climbs a 68 m step street 16.4 m up between its bollards, and a 60 m stepped sidewalk 10.8 m up), `StairLaneCapture`
-  (stairs-*.png: three stairways from below, above and their tops, a stepped sidewalk, a step street from its foot and its top, the steepest
-  street near the spawn that is still a road).
+  block, steep enough; its treads contiguous, a riser at most apart, no flight over 18 steps, within 1 m of the paving; no lot or building on
+  one; the treads built and nothing of the ground over them), `StepStreetTests` (every step street steep, none a pedestrian street; its
+  treads plate to plate, a riser apart, within 0.75 m of the road and meeting it at both ends; built as steps with bollards and no asphalt;
+  the sidewalks beside the steepest streets smooth sloping paving; no garage or car park opening onto one), `StairLaneWalkPlayTests` (the
+  real player controller climbs the stairway nearest the spawn and walks back down, and climbs a step street between its bollards),
+  `StairLaneCapture` (stairs-*.png: three stairways from below, above and their tops, the view from the spawn up the steepest road leaving it,
+  a step street from its foot and its top, the steepest street near the spawn that is still a road, and the folded entrance stair near the
+  spawn with the most lanes).
+- **What the hills did to the buildings' own stairs and the garages** (found by the new seed's tests): a front door on the downhill side can
+  stand 10-17 m over its street, and its one flight down along the wall ran up to 20 m, past the end of its own front and across a stairway's
+  foot. Entrance stairs now fold back along their own front, a lane further out each time, railed, as many lanes as fit before the road, tight
+  ones where broad ones would not reach (BUILDING_EXTERIORS.md, "entrance stairs fold back on the hills"). And the garages' drives meet the
+  road as drawn all across their mouths, their lanes inside clear of columns (CITY_LIFE.md, "Getting a car in").

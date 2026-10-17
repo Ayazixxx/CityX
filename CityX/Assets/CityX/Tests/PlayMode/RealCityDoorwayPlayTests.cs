@@ -21,7 +21,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class RealCityDoorwayPlayTests
     {
-        private const int Seed = 45678679;
+        private const int Seed = 19077151;
         private readonly List<GameObject> _made = new List<GameObject>();
 
         [TearDown]
@@ -242,15 +242,17 @@ namespace CityX.Tests
             var failures = new List<string>();
             var tooTall = new List<string>();
             int buildings = 0, withStairs = 0, doors = 0, attempts = 0, entered = 0;
-            foreach (BuildingSite site in TestSites.NearSpawn(world))
+            foreach (BuildingSite site in TestSites.NearSpawn(world, 30))
             {
                 if (site.OnRoof || site.Shell || site.Params.IsSpecial || site.IsOpenGround) continue;   // no door (CityStreamer.AddDoor)
-                if (buildings++ >= 90) break;   // 50 held only 7 doors without steps on seed 74102958 (more doors get steps since the door ground is measured at the wall)
                 if (BuildingDecor.EntranceStyleFor(site.BaseHeight - site.DoorGroundHeight).NeedsStairs)
                 {
                     withStairs++;
                     continue;
                 }
+                // Fourteen doors without steps, however many buildings that takes: on the hills (seed 19077151) the first ninety buildings near the
+                // spawn held one (50 held 7 on seed 74102958, before the hills).
+                if (buildings++ >= 14) break;
                 site.LocalToWorld(0.0, site.FrontHalfDepth, out double fx, out double fz);
                 Vector3 outward = BuildingDoor.PanelFor(site).Facing.normalized;
                 Vector3 face = new Vector3((float)fx, site.BaseHeight, (float)fz);

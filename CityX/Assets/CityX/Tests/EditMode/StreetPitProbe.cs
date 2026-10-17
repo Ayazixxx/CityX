@@ -17,7 +17,7 @@ namespace CityX.Tests
     [Explicit("a survey of the generated city; prints, asserts nothing")]
     public sealed class StreetPitProbe
     {
-        private const int Seed = 45678679;
+        private const int Seed = 19077151;
 
         /// <summary>A spot is a hole when the top surface over it is this far under the ground, metres.</summary>
         private const float Depth = 0.8f;

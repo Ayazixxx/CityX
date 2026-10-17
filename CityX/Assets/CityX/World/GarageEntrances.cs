@@ -26,7 +26,13 @@ namespace CityX.World
         /// <summary>Where the drive reaches the deck, metres in from the front wall (negative: before the wall, out in front).</summary>
         public readonly float RampEnd;
 
-        public GarageEntrance(float x0, float x1, float kerbOut, float roadY, float deckY, float rampEnd)
+        /// <summary>
+        /// The drive's height at the front wall when the ramp runs on inside: straight from the road to here across the pavement, straight from here
+        /// to the deck inside (where the road slopes along the frontage, the drive climbs less out there: <see cref="GarageEntrances.TwistAllowance"/>).
+        /// </summary>
+        public readonly float WallY;
+
+        public GarageEntrance(float x0, float x1, float kerbOut, float roadY, float deckY, float rampEnd, float wallY)
         {
             X0 = x0;
             X1 = x1;
@@ -34,6 +40,7 @@ namespace CityX.World
             RoadY = roadY;
             DeckY = deckY;
             RampEnd = rampEnd;
+            WallY = wallY;
         }
 
         /// <summary>How far the ramp runs on inside the garage past its front wall (0: the drive is level with the deck at the wall).</summary>
@@ -51,13 +58,18 @@ namespace CityX.World
         /// <summary>Whether a drive is cut across the pavement in front (a road was found in front of the opening).</summary>
         public bool HasDriveway => KerbOut > 0.0f;
 
-        /// <summary>The drive's surface <paramref name="inFromFront"/> metres in from the front wall: the road's level out at the kerb, the deck's past the ramp.</summary>
+        /// <summary>
+        /// The drive's surface <paramref name="inFromFront"/> metres in from the front wall: the road's level out at the kerb, the deck's past the ramp;
+        /// straight between, or bent at the wall (<see cref="WallY"/>) where the ramp runs on inside.
+        /// </summary>
         public float SurfaceAt(float inFromFront)
         {
             float start = -KerbOut;
             if (inFromFront <= start) return RoadY;
             if (inFromFront >= RampEnd) return DeckY;
-            return RoadY + (DeckY - RoadY) * ((inFromFront - start) / (RampEnd - start));
+            if (RampEnd <= 0.0f || start >= 0.0f) return RoadY + (DeckY - RoadY) * ((inFromFront - start) / (RampEnd - start));
+            if (inFromFront <= 0.0f) return RoadY + (WallY - RoadY) * ((inFromFront - start) / -start);
+            return WallY + (DeckY - WallY) * (inFromFront / RampEnd);
         }
     }
 
@@ -85,6 +97,15 @@ namespace CityX.World
         /// with no suspension, climbs a clean 9 degree ramp but stalls on 12 degrees: CarFlatDriveProbe).
         /// </summary>
         public const float Grade = 0.12f;
+
+        /// <summary>
+        /// Half the game's car's width and a margin, metres (Vehicles/Car, 3.4 m wide at the player's scale). Where the road slopes along the
+        /// frontage, a drive's mouth follows the road and the drive untwists to level at the wall (CitySurfaceBuilder.DriveHeight), which steepens
+        /// it at a car's side by the road's slope times this over the pavement's width: the drive climbs that much less across the pavement, and the
+        /// rest on the straight ramp inside (2026-10-16, seed 19077151: a 12 % drive from a road rising 11 % across the opening was 16.5 % under the
+        /// car's left wheels, and the car, a box with no suspension, beached at its foot).
+        /// </summary>
+        public const float TwistAllowance = 1.8f;
 
         /// <summary>A rise at most this big is no ramp (a car rolls over it).</summary>
         public const float FlushRise = 0.05f;
@@ -142,6 +163,7 @@ namespace CityX.World
             var x0s = new float[2];
             var kerbs = new float[2];
             var roads = new float[2];
+            var slopes = new float[2];
             float deck = float.MinValue;
             for (int i = 0; i < 2; i++)
             {
@@ -174,6 +196,13 @@ namespace CityX.World
                 x0s[i] = x0;
                 kerbs[i] = kerb;
                 roads[i] = road;
+                if (kerb > 0.0f)
+                {
+                    // The road's edge across the opening: how much it rises per metre from one side to the other (a street sloping along the frontage).
+                    site.LocalToWorld(x0, front + kerb, out double lx, out double lz);
+                    site.LocalToWorld(x1, front + kerb, out double rx, out double rz);
+                    slopes[i] = (float)((plan.GroundHeight(rx, rz) - plan.GroundHeight(lx, lz)) / (x1 - x0));
+                }
                 // The deck this opening would have: the paving at the wall, as near as a drive from the road climbs (or falls) to over the pavement.
                 float reach = Grade * kerb;
                 deck = System.Math.Max(deck, System.Math.Min(road + reach, System.Math.Max(road - reach, paving)));
@@ -182,11 +211,31 @@ namespace CityX.World
             var two = new GarageEntrance[2];
             for (int i = 0; i < 2; i++)
             {
-                float rise = deck - roads[i];
-                float run = System.Math.Abs(rise) <= FlushRise ? 0.0f : System.Math.Max(ShortestRamp, System.Math.Abs(rise) / Grade);
-                float rampEnd = System.Math.Min(longest, run - kerbs[i]);
-                if (System.Math.Abs(rise) <= FlushRise) rampEnd = -kerbs[i];
-                two[i] = new GarageEntrance(x0s[i], x0s[i] + OpeningWidth, kerbs[i], System.Math.Abs(rise) <= FlushRise ? deck : roads[i], deck, rampEnd);
+                float x0 = x0s[i], kerb = kerbs[i], rise = deck - roads[i];
+                if (System.Math.Abs(rise) <= FlushRise)
+                {
+                    two[i] = new GarageEntrance(x0, x0 + OpeningWidth, kerb, deck, deck, -kerb, deck);   // level with the road: no ramp
+                    continue;
+                }
+                // Across the pavement at the grade, less what the twist adds at a car's side where the road slopes along the frontage; a drive that
+                // reaches the deck out there ends there.
+                float outGrade = kerb > 0.0f ? System.Math.Max(0.0f, Grade - System.Math.Abs(slopes[i]) * TwistAllowance / kerb) : Grade;
+                float runOut = outGrade > 1e-3f ? System.Math.Max(ShortestRamp, System.Math.Abs(rise) / outGrade) : float.MaxValue;
+                if (runOut <= kerb)
+                {
+                    two[i] = new GarageEntrance(x0, x0 + OpeningWidth, kerb, roads[i], deck, runOut - kerb, deck);
+                    continue;
+                }
+                // The rest inside, on the straight ramp at the grade (steeper where the garage is too shallow for it).
+                float wall = roads[i] + System.Math.Sign(rise) * outGrade * kerb;
+                float inside = System.Math.Abs(deck - wall) / Grade;
+                if (kerb <= 0.0f || outGrade <= 1e-3f) inside = System.Math.Max(ShortestRamp, inside);   // all of the climb is in here: a slope, never a step
+                if (inside < 1e-3f)
+                {
+                    two[i] = new GarageEntrance(x0, x0 + OpeningWidth, kerb, roads[i], deck, 0.0f, deck);
+                    continue;
+                }
+                two[i] = new GarageEntrance(x0, x0 + OpeningWidth, kerb, roads[i], deck, System.Math.Min(longest, inside), wall);
             }
             return two;
         }

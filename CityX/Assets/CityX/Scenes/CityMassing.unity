@@ -4855,7 +4855,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: CityX.View::CityX.View.SkylineStreamer
   Viewer: {fileID: 15135037}
-  WorldSeed: 45678679
+  WorldSeed: 19077151
   GroundMaterial: {fileID: 2100000, guid: 5d9d356daafca5941ae7799b532b93ca, type: 2}
   StructureMaterial: {fileID: 2100000, guid: 735625d766399834aab7a05294559a9d, type: 2}
   BuildAllAtStart: 1
@@ -5701,7 +5701,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 87f6998c40d9ae841a518feb6ac5b71f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.View::CityX.View.CityStreamer
-  WorldSeed: 45678679
+  WorldSeed: 19077151
   PlaceAtSpawn: 1
   RadiusChunks: 30
   FullDetailRadiusChunks: 8

@@ -17,8 +17,8 @@ namespace CityX.World
     /// the road and meets it at both junctions (a street steeper than any flight climbs, a river bank, stays a road), is a step street: from the junction plate at one
     /// end to the plate at the other its carriageway is concrete steps following the ground (<see cref="Profile"/>: the stairways' treads,
     /// landings every flight), with a level pad at each end where a row of bollards closes it to cars; a wide one is split into two flights by a
-    /// planter down its middle (the Lyon Street Steps), each flight with a handrail down it. Its sidewalks, as steep, are steps of their own
-    /// (SteppedSidewalks). No garage or car park is put on one (Amenities.ParkingPlanner). It is a pure rule of the plan: the plan stores nothing.
+    /// planter down its middle (the Lyon Street Steps), each flight with a handrail down it; its sidewalks stay sloping paving, the
+    /// steps closing their sides against them. No garage or car park is put on one (PlanBuildings.FrontsSteepStreet). It is a pure rule of the plan: the plan stores nothing.
     /// </summary>
     public static class StepStreets
     {
@@ -33,7 +33,7 @@ namespace CityX.World
 
         /// <summary>
         /// The most a step street's treads may stray from the road they replace, under it or over it, metres: steeper than its flights can climb (a
-        /// river bank on seed 45678679), the stair sank 13 m under the road in the middle, below its own stepped sidewalks; such a street stays a road.
+        /// river bank on seed 45678679), the stair sank 13 m under the road in the middle, far below its own sidewalks; such a street stays a road.
         /// </summary>
         public const double MaxStray = 0.75;
 

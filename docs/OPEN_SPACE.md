@@ -133,10 +133,11 @@ Where the ground is too steep for a street the plan already bends roads round; t
 - **Zigzag**: on an open slope, timber or steel flights switching back with landings, timber rails.
 - **Cliff switchback**: steel flights on concrete columns up a cut face between two terraces, pipe rails.
 Each is walkable with real collision, has a way on and off at both ends (a pavement or a plaza), and is tested by a body walking up it.
-**Built 2026-10-16** (LAYERED_CITY_PLAN.md, "Stairways, stepped sidewalks and hills"): the stair street as two kinds -- a STEP STREET where a
+**Built 2026-10-16** (LAYERED_CITY_PLAN.md, "Stairways, step streets and hills"): the stair street as two kinds -- a STEP STREET where a
 street itself climbs 21 % or more (concrete steps plate to plate, bollards across both ends, a terraced planter splitting a wide one into two
 flights, a handrail each), and a STAIRWAY straight across a steep block between two streets at different heights (a handrail down the middle,
-planters on the landings) -- and the steep sidewalks laid as steps. No painted risers, name tiles or lamp posts yet (lamps were removed by
+planters on the landings). (Sidewalks laid as steps beside steep roads were tried and taken out the same day: the owner found them
+ugly and pointless.) No painted risers, name tiles or lamp posts yet (lamps were removed by
 the owner); the zigzag and the cliff switchback not yet.
 
 ### 4.7 "Once alive"

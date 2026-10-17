@@ -1461,6 +1461,11 @@ namespace CityX.World
                 lastO = lastInner ? o1 : o2;
                 foot = PavingAt(world, ByWall(a, startU, way, lastD, lastO));
             }
+            // The last pass moved the foot onto new paving after the steps were counted: counted again for the rise to it, or the steps are
+            // a little over MaxRiser where it is lower (a 0.226 m riser on seed 19077151).
+            if (top - foot > MaxTowerRise) return null;
+            steps = Mathf.Max(steps, StepsFor(top - foot));
+            flightsCount = Mathf.CeilToInt(steps / (float)FlightMax);
             if (flightsCount < 2) return null;   // one flight is a straight run
             float d0 = -FlightLanding, d1 = full + FlightLanding;
             if (!FootprintClear(world, a, startU, way, length, d0, d1, 0.15f, o2 + half - 0.1f, out float u0, out float u1)) return null;

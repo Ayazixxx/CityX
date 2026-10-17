@@ -37,7 +37,7 @@ namespace CityX.Tests
         {
             // The pedestrian walks the road graph of the published city (StreetNetwork reads CurrentWorld), and starts on a real
             // pavement, so the floor goes under that spot rather than at the origin.
-            _world = new CityWorld(45678679);
+            _world = new CityWorld(19077151);
             CurrentWorld.Instance = _world;
             _world.Plan.TryFindSpawn(out double sx, out double sz);
             Vector3 onPavement = StreetNetwork.SnapToPavement(new Vector3((float)sx + 6.0f, 0.0f, (float)sz + 6.0f));

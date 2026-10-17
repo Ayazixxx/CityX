@@ -69,12 +69,11 @@ namespace CityX.View
             List<Vec2[]> terrainCuts = RoadCuts(ctx, chunkX, chunkY);
             terrainCuts.AddRange(basements);
             // The stairways through the steep blocks (CitySurfaceBuilder.StairLanes.cs) are cut out of the ground and the paving, their treads
-            // sinking into the slope where it steepens; the stepped sidewalks (CitySurfaceBuilder.SidewalkSteps.cs) out of the paving.
+            // sinking into the slope where it steepens. (The sidewalks beside steep roads were laid as steps for a day; the owner had them
+            // taken out, 2026-10-16: "the along side the road stairs look like shit and serve no purpose". They are sloping paving again.)
             var stairCuts = new List<Vec2[]>();
             List<StairLane> stairLanes = StairLanesHere(ctx, chunkX, chunkY, stairCuts);
             terrainCuts.AddRange(stairCuts);
-            // From afar a stepped sidewalk is its sloping paving: hundreds of small treads nobody sees at that distance are left off.
-            List<(int block, int edge)> steppedSidewalks = far ? new List<(int block, int edge)>() : SteppedSidewalksHere(ctx, plan.BlocksIn(chunkX, chunkY), stairCuts);
             BuildTerrain(ctx, pavement, step, plan.BlocksIn(chunkX, chunkY), terrainCuts);
             List<Vec2[]> cuts = KerbCuts(ctx, chunkX, chunkY);
             List<Vec2[]> pavingCuts = cuts;
@@ -101,7 +100,6 @@ namespace CityX.View
             }
             BuildDriveways(ctx, drives, pavement);   // CitySurfaceBuilder.Garages.cs: the drives into the garages, over their cuts
             BuildStairLanes(ctx, stairLanes, pavement, far);
-            BuildSteppedSidewalks(ctx, steppedSidewalks, pavement);
 
             foreach (int edgeId in plan.EdgesIn(chunkX, chunkY))
             {
@@ -464,14 +462,16 @@ namespace CityX.View
 
         // ---------------------------------------------------------------- roads
 
-        private static Func<double, double, double> RoadHeight(Context ctx, EdgeGeometry g)
+        private static Func<double, double, double> RoadHeight(Context ctx, EdgeGeometry g) => RoadHeight(ctx.Plan, g);
+
+        private static Func<double, double, double> RoadHeight(PlanWorld plan, EdgeGeometry g)
         {
             if (!g.Edge.Bridge)
             {
-                return (x, z) => ctx.Plan.GroundHeight(x, z) + RoadLift;
+                return (x, z) => plan.GroundHeight(x, z) + RoadLift;
             }
-            double hA = ctx.Plan.GroundHeight(g.A.X, g.A.Y) + RoadLift;
-            double hB = ctx.Plan.GroundHeight(g.B.X, g.B.Y) + RoadLift;
+            double hA = plan.GroundHeight(g.A.X, g.A.Y) + RoadLift;
+            double hB = plan.GroundHeight(g.B.X, g.B.Y) + RoadLift;
             return (x, z) =>
             {
                 double t = ((x - g.A.X) * g.Dir.X + (z - g.A.Y) * g.Dir.Y) / g.Length;
@@ -806,6 +806,9 @@ namespace CityX.View
                 Vec2 i0 = block.Inner[e], i1 = block.Inner[f];
                 Vec2 o0 = block.Outer[e], o1 = block.Outer[f];
                 double length = (i1 - i0).Length;
+                // Along a step street the steps close their own sides (CitySurfaceBuilder.StepStreets.cs): no kerb between its junction plates.
+                RoadEdge road = ctx.Plan.EdgeBetween(block.Poly[e], block.Poly[f]);
+                EdgeGeometry steps = road != null && StepStreets.Is(ctx.Plan, road) ? ctx.Plan.Geometry.Edges[road.Id] : null;
                 int pieces = Math.Max(1, (int)Math.Ceiling(length / PieceLength));
                 for (int p = 0; p < pieces; p++)
                 {
@@ -832,7 +835,7 @@ namespace CityX.View
                     // and not along a pedestrian street, whose setts lie flush with the pavement.
                     bool flush = PedestrianStreets.Along(ctx.Plan, block.Poly[e], block.Poly[f]);
                     if (!flush && ClipSegment(ia, ib, ctx.Rect, out Vec2 ca, out Vec2 cb) && (cb - ca).Length > 0.02)
-                    foreach ((Vec2 ka, Vec2 kb) in OutsideCuts(ca, cb, cuts))
+                    foreach ((Vec2 ka, Vec2 kb) in OffTheSteps(OutsideCuts(ca, cb, cuts), steps))
                     {
                         if ((kb - ka).Length < 0.02) continue;
                         Vec2 d = (ib - ia).Normalized;
@@ -852,6 +855,39 @@ namespace CityX.View
                 {
                     AddSidewalkProps(ctx, block, e, buffer, cuts);
                 }
+            }
+        }
+
+        /// <summary>
+        /// The parts of kerb segments beside a road that lie off a step street's steps (between its trims, where the junction plates end): all
+        /// of them when <paramref name="steps"/> is null.
+        /// </summary>
+        private static IEnumerable<(Vec2 a, Vec2 b)> OffTheSteps(List<(Vec2 a, Vec2 b)> segments, EdgeGeometry steps)
+        {
+            foreach ((Vec2 a, Vec2 b) in segments)
+            {
+                if (steps == null)
+                {
+                    yield return (a, b);
+                    continue;
+                }
+                double ta = Vec2.Dot(a - steps.A, steps.Dir), tb = Vec2.Dot(b - steps.A, steps.Dir);
+                double t0 = steps.TrimA, t1 = steps.Length - steps.TrimB;
+                if (Math.Abs(tb - ta) < 1e-9)
+                {
+                    if (ta < t0 || ta > t1) yield return (a, b);
+                    continue;
+                }
+                // The segment's own fractions where the steps begin and end, in order along it.
+                double u0 = (t0 - ta) / (tb - ta), u1 = (t1 - ta) / (tb - ta);
+                double lo = Math.Max(0.0, Math.Min(u0, u1)), hi = Math.Min(1.0, Math.Max(u0, u1));
+                if (lo >= hi)
+                {
+                    yield return (a, b);   // wholly off the steps
+                    continue;
+                }
+                if (lo > 0.0) yield return (a, a + (b - a) * lo);
+                if (hi < 1.0) yield return (a + (b - a) * hi, b);
             }
         }
 

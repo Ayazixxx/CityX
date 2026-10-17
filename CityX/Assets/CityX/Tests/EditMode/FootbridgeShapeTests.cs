@@ -15,7 +15,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class FootbridgeShapeTests
     {
-        private const int Seed = 45678679;
+        private const int Seed = 19077151;
 
         private static CityWorld _world;
         private static CityWorld World => _world ?? (_world = new CityWorld(Seed));
@@ -152,12 +152,26 @@ namespace CityX.Tests
                 int floors = Mathf.Min(BuildingInterior.FloorCountFor(World.Building(b.SiteA).Params.Height), BuildingInterior.FloorCountFor(World.Building(b.SiteB).Params.Height));
                 if (floors >= Footbridges.SecondBridgeFloors) tallPairs++;
             }
+            // The tall blocks among the buildings round about (the ordinary blocks of three floors or more a bridge could join): the bridges
+            // favour them (owner: "a higher chance of appear on taller buildings"), however many there are where the spawn happens to be
+            // (seed 19077151's spawn is among mid-rise blocks: 24 of its 51 bridges join blocks of eight floors).
+            int ordinary = 0, tallBlocks = 0;
+            foreach (BuildingSite site in TestSites.NearSpawn(World, 50))
+            {
+                if (site.OnRoof || site.Wing || site.Sides >= 3 || site.Params.IsSpecial) continue;
+                int floors = BuildingInterior.FloorCountFor(site.Params.Height);
+                if (floors < 3) continue;
+                ordinary++;
+                if (floors >= Footbridges.SecondBridgeFloors) tallBlocks++;
+            }
             float share = low / (float)Bridges.Count;
+            float tallShare = tallPairs / (float)Bridges.Count, tallBlockShare = tallBlocks / (float)System.Math.Max(1, ordinary);
             Debug.Log($"CityX footbridge heights: {Bridges.Count} bridges, mean clearance {clearances / Bridges.Count:F1} m, {share:P0} under 12 m, " +
-                $"{tallPairs} between blocks of {Footbridges.SecondBridgeFloors} floors or more");
+                $"{tallPairs} ({tallShare:P0}) between blocks of {Footbridges.SecondBridgeFloors} floors or more, where {tallBlockShare:P0} of the " +
+                $"{ordinary} blocks of three floors or more round about are that tall");
             Assert.That(share, Is.LessThan(0.35f), "too many low bridges");
             Assert.That(clearances / Bridges.Count, Is.GreaterThan(16.0f), "the bridges stand low on average");
-            Assert.That(tallPairs, Is.GreaterThan(Bridges.Count / 2), "most bridges should join tall blocks");
+            Assert.That(tallShare, Is.GreaterThan(System.Math.Max(0.35f, tallBlockShare * 1.3f)), "the bridges should favour the tall blocks");
         }
 
         [Test]

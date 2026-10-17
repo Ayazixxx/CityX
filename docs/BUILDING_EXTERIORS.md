@@ -210,3 +210,26 @@ downhill front door can be metres up; its flight ran straight OUT from the door,
 hung in the air and a tall rise carried it across the pavement into the road. Now (`World/EntranceStairs.cs`, `CityMeshBuilder.AddEntranceStairs`)
 a landing stands in front of the door and the flight runs down ALONG the wall, on whichever side the ground comes up to meet it sooner; every step
 is a solid block down to the paving under it, and the flight stops at the first step the ground reaches. Tests: `EntranceStairsTests`.
+
+## Update: entrance stairs fold back on the hills (2026-10-16)
+
+With the hills (`PlanFields.Hillock`, 2026-10-16) a door can stand 10-14 m over the paving (about one building in thirty), and the one flight down
+along the wall then ran up to 20 m: past the end of its own front and across whatever stood beside it (found when a body could not climb a
+stairway between two blocks: building 5737's flight stood across the stairway's foot). Such a stair now FOLDS the way a hillside building's is
+built (`EntranceStairs.PlanFolded`, `ForDoor`): a flight along the wall to just short of its end (`EndMargin` 0.3 m), a platform a flight's width
+long, the next flight back the other way one lane (`Width` 1.6 m) further out, at most `MaxLanes` 3 lanes and never more than fit before the road
+(`LanesFor`: the carriageway's distance at both ends and the middle of the front, `GarageEntrances.CarriagewayOut`). Of the two ways a stair can
+start, the one that reaches the ground in fewer lanes, then in fewer steps; a low door's stair is still the single flight it was. Every step and
+platform is a solid block down to the paving under it (`Footing` below it). A folded stair has a metal rail (`EntranceRailHeight` 1.1 m, posts
+about every 1.6 m) along each flight's outer edge, the landing's outer edge and each platform's far end and outer side. A folded stair may take
+`MaxFoldedSteps` 100 steps (22 m of rise; a single flight still stops at `MaxSteps` 60): doors 13-17 m up with long fronts stopped at 60. Where
+even so the broad stair cannot reach the ground in the lanes that fit before the road, a TIGHT one is tried (`NarrowWidth` 1.2 m flights: three
+lanes where two broad ones fit; the 2.6 m player's capsule is 0.52 m across) and the one that ends lower is built (`Folded.LaneWidth`). On seed
+19077151, of the 199 raised doors near the spawn 34 fold, 6 of them tight, and none is left short (before the tight stair and the 100 steps: 10,
+their stairs ending up to 5 m over the paving). Should a door still be too high, its stair ends at a drop in front of its own wall, never across
+the street or a neighbour's front. Tests: `EntranceStairsTests` (a high door's stair folds within its wall's ends, each flight a lane further
+out from where the last ended; a low door's is the one flight; past 60 steps on a long front; a tight stair reaching where the broad one fits two
+lanes; every real stair near the spawn within its front and its lanes, at most one in forty short, its foot at most two risers over the paving),
+`EntranceStairWalkPlayTests` (the real player controller climbs the broad folded stair near the spawn with the most lanes, 12 m up in three
+lanes, and a tight one, 14.5 m up, from the paving round every platform to the door's landing), `RoundTowerTests` (a round tower's mesh reaches
+below its podium only by its entrance stair's footing), `StairLaneCapture` (`stairs-entrance-folded*.png`).
