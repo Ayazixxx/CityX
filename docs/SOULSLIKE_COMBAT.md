@@ -385,3 +385,5 @@ of the sword walk or run moves its feet nearer walking pace (the runs, measured 
 paces it like every other tree. The posed carry and attacks lie on top; the feet hand over to the attack footwork and back over 0.25 s.
 The one-handed carry is hand-driven (the arm hangs, the sword hangs from the hand by its hold), so the hold set with CityX > Weapon Grips
 is the carry's angle.
+
+- **The carried one-handed hand swings with the walk** (2026-10-17): the hand-driven carry adds `CarrySwing` -- the clip hand's offset from a 0.6 s running middle, capped at 0.35 m -- to its point, so the sword arm moves in step (about 17 cm fore and aft walking) instead of staying pinned by the hip.
