@@ -262,6 +262,72 @@ namespace CityX.Tests
 #endif
         }
 
+        /// <summary>
+        /// The stance held after a swing bends the arm at the elbow, low at the side, with the wrist tipped to raise the blade (owner, 2026-10-17,
+        /// with a screenshot of it: "its still holding it awkardly its like bent at the wrong part of the arm", "this is the pose after
+        /// swinging"): the elbow hangs below the line from the shoulder to the hand, not up by the face, and the wrist bends no further than a
+        /// wrist does.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator AfterASwingTheArmBendsDownAtTheElbow()
+        {
+#if UNITY_EDITOR
+            Build();
+            var combat = _player.GetComponent<SoulsSwordCombat>();
+            combat.HitStopSeconds = 0.0f;
+            PlayerAnimationDriver driver = _player.GetComponent<PlayerAnimationDriver>();
+            Transform shoulder = _animator.GetBoneTransform(HumanBodyBones.RightUpperArm);
+            Transform elbow = _animator.GetBoneTransform(HumanBodyBones.RightLowerArm);
+            Transform hand = _animator.GetBoneTransform(HumanBodyBones.RightHand);
+            for (int i = 0; i < 30; i++) yield return Frame(Vector2.zero, false);
+            foreach (bool guard in new[] { false, true })
+            {
+                if (guard)
+                {
+                    driver.SwordPoser.BeginGuard(true);
+                }
+                else
+                {
+                    combat.RequestLight(0.0f);
+                }
+                float worstRise = float.MinValue, worstWrist = 0.0f, worstElbowOverShoulder = float.MinValue, settledWrist = 0.0f;
+                int heldFrames = 0;
+                for (int i = 0; i < 150; i++)
+                {
+                    combat.Tick(Dt);
+                    yield return Frame(Vector2.zero, false);
+                    bool held = guard ? driver.SwordPoser.IsGuarding : (!driver.SwordPoser.IsStriking && !driver.SwordPoser.IsCarrying);
+                    if (!held || _locomotion.CurrentSwordFrame.Weight < 0.99f)
+                    {
+                        continue;
+                    }
+                    // How far the elbow sits above the straight line from the shoulder to the wrist (+ = bent upward, the wrong way).
+                    Vector3 chord = hand.position - shoulder.position;
+                    float t = Mathf.Clamp01(Vector3.Dot(elbow.position - shoulder.position, chord) / chord.sqrMagnitude);
+                    worstRise = Mathf.Max(worstRise, elbow.position.y - (shoulder.position.y + chord.y * t));
+                    worstElbowOverShoulder = Mathf.Max(worstElbowOverShoulder, elbow.position.y - shoulder.position.y);
+                    settledWrist = Vector3.Angle(hand.position - elbow.position, hand.right);
+                    worstWrist = Mathf.Max(worstWrist, settledWrist);
+                    heldFrames++;
+                }
+                string name = guard ? "the guard" : "the stance after a swing";
+                Debug.Log($"CityX 1H {name}: the elbow at most {worstRise:0.00} m above the shoulder-hand line and {worstElbowOverShoulder:0.00} m above the shoulder; the wrist bent at most {worstWrist:0} deg, {settledWrist:0} deg once settled ({heldFrames} frames held)");
+                Assert.Greater(heldFrames, 30, $"{name}: was never held");
+                Assert.Less(worstRise, 0.02f, $"{name}: the arm bends upward, the elbow raised above the line to the hand");
+                Assert.Less(settledWrist, 40.0f, $"{name}: the wrist is bent further than a wrist goes");
+                Assert.Less(worstWrist, 60.0f, $"{name}: the wrist folds over as the stance takes over");
+                if (guard)
+                {
+                    driver.SwordPoser.Release();
+                }
+                driver.SwordPoser.Cancel();
+                for (int i = 0; i < 40; i++) yield return Frame(Vector2.zero, false);
+            }
+#else
+            yield break;
+#endif
+        }
+
         /// <summary>Another player's copy, given only what NetworkedAnimatorSync gives it (the flags and the motion), holds the sword as the owner does.</summary>
         [UnityTest]
         public IEnumerator AnotherPlayersCopyCarriesItTheSameWay()

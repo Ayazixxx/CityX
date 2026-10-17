@@ -54,25 +54,24 @@ namespace CityX.Tests
             var playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab");
             var swordPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/CombatSword.prefab");
             var log = new StringBuilder();
-            foreach ((string scenario, Vector2 stick, bool sprint, bool withSword) in new[]
+            foreach ((string scenario, Vector2 stick, bool sprint, bool swing) in new[]
             {
-                ("idle", Vector2.zero, false, true),
-                ("walk", new Vector2(0.0f, 1.0f), false, true),
-                ("sprint", new Vector2(0.0f, 1.0f), true, true),
-                ("strafe", new Vector2(1.0f, 0.0f), false, true),
-                ("back", new Vector2(0.0f, -1.0f), false, true),
+                ("idle", Vector2.zero, false, false),
+                ("walk", new Vector2(0.0f, 1.0f), false, false),
+                ("sprint", new Vector2(0.0f, 1.0f), true, false),
+                ("strafe", new Vector2(1.0f, 0.0f), false, false),
+                ("back", new Vector2(0.0f, -1.0f), false, false),
+                // A light attack at the start, then the stance held after it (owner, 2026-10-17: "this is the pose after swinging").
+                ("ready", Vector2.zero, false, true),
+                ("ready-walk", new Vector2(0.0f, 1.0f), false, true),
             })
             {
                 var player = Object.Instantiate(playerPrefab, new Vector3(0, 0.05f, -100.0f), Quaternion.identity);
                 player.GetComponent<PlayerInputReader>().enabled = false;
                 var locomotion = player.GetComponent<PlayerLocomotion>();
                 player.GetComponent<PlayerVitals>().InfiniteStamina = true;
-                SwordWeapon sword = null;
-                if (withSword)
-                {
-                    sword = Object.Instantiate(swordPrefab, new Vector3(30, 1, 30), Quaternion.identity).GetComponent<SwordWeapon>();
-                    sword.OnEquip(player, CityX.Items.ItemInstanceData.None);
-                }
+                SwordWeapon sword = Object.Instantiate(swordPrefab, new Vector3(30, 1, 30), Quaternion.identity).GetComponent<SwordWeapon>();
+                sword.OnEquip(player, CityX.Items.ItemInstanceData.None);
                 Animator animator = player.GetComponentInChildren<Animator>();
                 Transform shoulder = animator.GetBoneTransform(HumanBodyBones.RightUpperArm);
                 Transform elbow = animator.GetBoneTransform(HumanBodyBones.RightLowerArm);
@@ -95,8 +94,16 @@ namespace CityX.Tests
                 float lastBend = ElbowBend(shoulder, elbow, hand);
                 float worstTurn = 0.0f, worstJump = 0.0f, worstBendRate = 0.0f, worstWrist = 0.0f, worstTurnAt = 0.0f;
                 float bendMin = 180.0f, bendMax = 0.0f, foreMin = 9.0f, foreMax = -9.0f;
+                var combat = player.GetComponent<SoulsSwordCombat>();
+                combat.HitStopSeconds = 0.0f;
+                if (swing)
+                {
+                    combat.RequestLight(0.0f);
+                }
                 for (float t = 0.0f; t < Span; t += Dt)
                 {
+                    combat.Tick(Dt);
+                    input.Move = combat.IsCommitted ? stick * combat.CommittedMoveSpeedFraction : stick;
                     locomotion.Tick(input, Dt);
                     yield return null;
                     float turn = Quaternion.Angle(lastHand, hand.rotation);
@@ -133,7 +140,7 @@ namespace CityX.Tests
                                $"elbow bend {bendMin:0}-{bendMax:0} deg, changing at most {worstBendRate:0.0} deg/frame; wrist bent at most {worstWrist:0} deg; " +
                                $"hand fore/aft {foreMin:0.00}..{foreMax:0.00} m");
                 Save(sheet, Path.Combine(directory, $"carry-{scenario}.png"));
-                if (sword != null) Object.Destroy(sword.gameObject);
+                Object.Destroy(sword.gameObject);
                 Object.Destroy(player);
                 yield return null;
             }

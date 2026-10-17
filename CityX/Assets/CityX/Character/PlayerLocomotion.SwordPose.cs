@@ -32,6 +32,21 @@ namespace CityX.Character
         /// <summary>The blade's tip is kept at least this far above the ground under the body, metres: a low follow-through pitches up rather than through the floor.</summary>
         public const float TipFloorClearance = 0.06f;
 
+        /// <summary>
+        /// In a one-handed held stance the wrist is tipped this far toward the little finger, degrees, and the forearm comes into the hand at
+        /// that angle: a fist holding a sword up and forward cocks the wrist so the point rises while the forearm stays level and the elbow low
+        /// at the side. With the forearm run straight along the knuckles instead, the elbow went up by the face (owner, 2026-10-17, of the stance
+        /// after a swing: "its like bent at the wrong part of the arm").
+        /// </summary>
+        public const float HeldWristCockDegrees = 35.0f;
+
+        /// <summary>
+        /// How far a one-handed held stance's hand gives way, 0 to 1, toward where an arm with that cocked wrist can actually put it: the stance
+        /// keys place the hand without the arm's lengths in mind, and pinned there the elbow could not get low enough for the wrist to stay at
+        /// HeldWristCockDegrees (it was bent 57). The blade still points where the stance says; only the hand moves, a few centimetres.
+        /// </summary>
+        public const float HeldHandYield = 1.0f;
+
         /// <summary>How much of the left arm's full length a two-handed grip may ask of it (a straight arm locks and pops; a hair short of it reads as reaching).</summary>
         public const float SupportReachShare = 0.97f;
 
@@ -240,13 +255,29 @@ namespace CityX.Character
             Quaternion wanted = Quaternion.LookRotation(bladeWorld, edgeWorld.normalized) * Quaternion.Inverse(Quaternion.LookRotation(bladeInHand, edgeInHand));
 
             // THE FOREARM RUNS INTO THE HAND (owner, 2026-10-16, holding the sword: "angle the arm properly so theres no that weird bend"): in the
-            // held stances the elbow is put where the forearm comes straight in along the hand (the hand bone's +X runs to the fingertips),
-            // as near as the arm's lengths allow, rather than where the key bows it -- which left the wrist bent to make up the difference.
+            // held stances the elbow is put where the forearm comes in along the hand (the hand bone's +X runs to the fingertips), as near as the
+            // arm's lengths allow, rather than where the key bows it -- which left the wrist bent to make up the difference. A one-handed grip
+            // comes in at its cocked wrist (HeldWristCockDegrees: the hand tipped toward the little finger, so the forearm runs between the
+            // knuckles and the thumb), which keeps the elbow low at the side.
             float align = Mathf.Clamp01(_swordFrame.ForearmAlign);
             if (align > 0.0f)
             {
                 float forearm = Vector3.Distance(_rightLowerArm.position, _handR.position);
-                Vector3 idealElbow = target - (wanted * Vector3.right) * forearm;
+                Quaternion forearmInHand = _swordFrame.TwoHanded ? Quaternion.identity : Quaternion.AngleAxis(-HeldWristCockDegrees, Vector3.up);
+                Vector3 forearmAlong = wanted * forearmInHand * Vector3.right;
+                if (!_swordFrame.TwoHanded)
+                {
+                    // The hand where the upper arm can hang the elbow for that forearm: the elbow toward where it would be, the upper arm's length
+                    // from the shoulder, and the wrist the forearm's length on from it.
+                    float upperArm = Vector3.Distance(_rightUpperArm.position, _rightLowerArm.position);
+                    Vector3 elbowToward = target - forearmAlong * forearm - _rightUpperArm.position;
+                    if (elbowToward.sqrMagnitude > 1e-6f)
+                    {
+                        Vector3 reachable = _rightUpperArm.position + elbowToward.normalized * upperArm + forearmAlong * forearm;
+                        target = Vector3.Lerp(target, reachable, HeldHandYield * align);   // (solved to below, with the elbow placed for it)
+                    }
+                }
+                Vector3 idealElbow = target - forearmAlong * forearm;
                 Vector3 toward = idealElbow - _rightUpperArm.position;
                 if (toward.sqrMagnitude > 1e-6f)
                 {

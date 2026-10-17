@@ -423,3 +423,12 @@ rolled the hand half a turn to lead with the spine, and lowering the stance back
 `SwordWeapon.EdgeOnPlusX` (set by CombatSwordBuilder) now says which side is sharp: `EdgeLocal`/`EdgeDirectionWorld` follow it, the sword
 pose reads the edge from it, and the default one-handed hold turns that side to the knuckles (`DefaultOneHandGripRotationFor`), as the
 owner's own hold does.
+
+**The held one-handed stances bend at the elbow** (owner, same day, with a screenshot of the stance after a swing: "its like bent at the
+wrong part of the arm"). The ready stance and the guard lay the forearm along the hand (`ForearmAlign`); with the real edge down in the ready
+stance the knuckles face down, so a forearm straight along them came down from above and put the elbow up by the face. A fist holding a
+sword up and forward cocks the wrist toward the little finger instead, so one-handed stances now bring the forearm in at
+`PlayerLocomotion.HeldWristCockDegrees` (35) and let the hand give way (`HeldHandYield`) to where an arm with that wrist can put it: the
+elbow hangs at the side (9 cm below the shoulder-to-hand line in the ready stance, 22 in the guard; it was 16 cm above), the wrist settles
+at 35 degrees (53 for a moment while a swing hands over to the stance). Two-handed stances are unchanged. `SwordCarryCapture` renders
+`carry-ready.png` and `carry-ready-walk.png` (a light attack, then the stance); `SwordCarryPlayTests.AfterASwingTheArmBendsDownAtTheElbow`.
