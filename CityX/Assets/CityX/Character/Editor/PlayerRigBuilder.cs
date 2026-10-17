@@ -777,8 +777,9 @@ namespace CityX.CharacterEditor
             state.speed = SelfSmiteMove.ClipSpeed;
             AnimatorStateTransition back = state.AddTransition(locomotion);
             back.hasExitTime = true;
-            back.exitTime = 0.95f;
-            back.duration = 0.15f;
+            back.exitTime = Mathf.Clamp01(SelfSmiteMove.ClipExitSeconds / SelfSmiteMove.ClipSeconds);   // as the caster is freed
+            back.hasFixedDuration = true;
+            back.duration = SelfSmiteMove.ClipExitBlendSeconds;
         }
 
         private static void AddPhaseTransition(AnimatorState from, AnimatorState to, int phase, float duration)

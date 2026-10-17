@@ -63,11 +63,23 @@ namespace CityX.Character
         /// <summary>The Animator state that plays selfsmite.fbx (PlayerRigBuilder.AddSelfSmiteState).</summary>
         public const string StateName = "SelfSmite";
 
-        /// <summary>When selfsmite.fbx's hands are thrown down, in its own seconds (measured on the rig: fastest fall of the hands, 1.15-1.3 s).</summary>
-        public const float ClipHandsDownSeconds = 1.27f;
+        /// <summary>
+        /// When selfsmite.fbx's hands are thrown down, in its own seconds: the fastest fall of the hands, measured on the rig (CityX > Measure Self
+        /// Smite Clip). The owner's second clip (2026-10-17, SelfSmiteA.fbx: "replace the self smite animation with this one") raises the hands
+        /// to 0.4 s, slams them at 0.49 s, stays low to 1.7 s and stands up by 2.3 s. (The first clip's slam was at 1.27 s of 2.967.)
+        /// </summary>
+        public const float ClipHandsDownSeconds = 0.49f;
 
         /// <summary>The clip's own length, seconds.</summary>
-        public const float ClipSeconds = 2.967f;
+        public const float ClipSeconds = 2.367f;
+
+        /// <summary>
+        /// Where in its own seconds the clip is left for the walk: as the caster is freed. The clip stays crouched long after that, so the state
+        /// hands back then and blends up out of the crouch over <see cref="ClipExitBlendSeconds"/> rather than holding a free body down.
+        /// </summary>
+        public static float ClipExitSeconds => FreeSeconds * ClipSpeed;
+
+        public const float ClipExitBlendSeconds = 0.35f;
 
         /// <summary>The Animator's speed for the clip: its hands come down as the bolt lands.</summary>
         public static float ClipSpeed => ClipHandsDownSeconds / StrikeSeconds;

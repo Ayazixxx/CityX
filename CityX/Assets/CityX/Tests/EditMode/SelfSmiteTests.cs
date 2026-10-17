@@ -39,9 +39,12 @@ namespace CityX.Tests
         public void TheHandsAreThrownDownAsTheBoltLandsAndTheClipEndsAboutWhenTheCasterIsFree()
         {
             Assert.AreEqual(SelfSmiteMove.StrikeSeconds, SelfSmiteMove.ClipHandsDownSeconds / SelfSmiteMove.ClipSpeed, 1e-4f);
-            Assert.That(SelfSmiteMove.ClipSpeed, Is.InRange(1.5f, 3.0f), "a sensible speed-up of the owner's clip");
-            float clipEnds = SelfSmiteMove.ClipSeconds / SelfSmiteMove.ClipSpeed;
-            Assert.AreEqual(SelfSmiteMove.FreeSeconds, clipEnds, 0.1f, "the clip should end about when the caster is free");
+            Assert.That(SelfSmiteMove.ClipSpeed, Is.InRange(0.7f, 3.0f), "a sensible change of pace for the owner's clip");
+            // The clip is left for the walk as the caster is freed, inside the clip and after its slam.
+            float leaves = SelfSmiteMove.ClipExitSeconds / SelfSmiteMove.ClipSpeed;
+            Assert.AreEqual(SelfSmiteMove.FreeSeconds, leaves, 1e-4f, "the clip should hand back to the walk when the caster is free");
+            Assert.Greater(SelfSmiteMove.ClipExitSeconds, SelfSmiteMove.ClipHandsDownSeconds);
+            Assert.Less(SelfSmiteMove.ClipExitSeconds, SelfSmiteMove.ClipSeconds);
         }
 
         [Test]
