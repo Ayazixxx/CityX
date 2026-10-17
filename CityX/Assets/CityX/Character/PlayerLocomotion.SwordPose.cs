@@ -183,11 +183,6 @@ namespace CityX.Character
             }
             float w = Mathf.Clamp01(_swordFrame.Weight);
 
-            // The animation's own sword arm, before anything here moves it: a hand-driven carry keeps it (the one-handed sword clips swing it).
-            float handDriven = Mathf.Clamp01(_swordFrame.HandDriven);
-            Vector3 clipHand = _handR.position;
-            Vector3 clipElbow = _rightLowerArm.position;
-
             // The torso into the cut, before the arm is solved from the shoulder it moved. The hips have already turned their share
             // (ApplySwordHips), so the spine turns the rest. How much of the authored twist and lean the body does is the grip settings' torso
             // amount (1 as authored, 0 upright), read live so it can be tuned while the game runs.
@@ -206,17 +201,6 @@ namespace CityX.Character
             Vector3 target = _rightUpperArm.position + (transform.right * h.x + transform.up * h.y + transform.forward * h.z) * armLength;
             float elbowOut = Mathf.Clamp01(_swordFrame.ElbowOut);
             Vector3 hint = -transform.up * (1.0f - 0.8f * elbowOut) + transform.right * (0.55f + 0.9f * elbowOut);
-            // A HAND-DRIVEN CARRY KEEPS THE CLIP'S ARM (owner, 2026-10-17: "make it fluid motion no jumps too no weird bends"): the wrist
-            // where the clip put it, the elbow bending the way the clip bent it, so the arm swings exactly as the animation swings it.
-            if (handDriven > 0.0f)
-            {
-                target = Vector3.Lerp(target, clipHand, handDriven);
-                Vector3 clipBend = clipElbow - 0.5f * (_rightUpperArm.position + clipHand);
-                if (clipBend.sqrMagnitude > 1e-6f)
-                {
-                    hint = Vector3.Slerp(hint.normalized, clipBend.normalized, handDriven);
-                }
-            }
             TwoBoneIK.Solve(_rightUpperArm, _rightLowerArm, _handR, target, hint, w);
 
             // The hand turned so the blade points where the frame says, edge first.
@@ -241,7 +225,9 @@ namespace CityX.Character
                 else
                 {
                     bladeInHand = sword.localRotation * Vector3.up;
-                    edgeInHand = sword.localRotation * Vector3.left;
+                    // The sword's own edge (most face their -X; the combat sword's faces +X), in the hand's frame.
+                    Vector3 edgeAlong = _posedBlade != null ? _posedBlade.EdgeDirectionWorld : Vector3.zero;
+                    edgeInHand = edgeAlong.sqrMagnitude > 1e-6f ? _handR.InverseTransformDirection(edgeAlong) : sword.localRotation * Vector3.left;
                     _frozenBladeInHand = bladeInHand;
                     _frozenEdgeInHand = edgeInHand;
                     _holdEditFrozen = WeaponGripSettings.HoldBeingEdited;
@@ -269,20 +255,6 @@ namespace CityX.Character
                 }
             }
 
-            // A HAND-DRIVEN HOLD (the one-handed carry, owner 2026-10-17: "the elbow is all bent weird and the blade is facing the wrong way it
-            // should be facing downward", then "make it fluid motion no jumps too no weird bends"): the hand is the swinging arm's own -- wrist
-            // straight, palm to the leg, thumb forward -- turned at the wrist at most CarryHand.MaxWristDegrees toward where the carry wants the
-            // blade, so the blade stays steady while the arm swings, and the sword's roll in the hand is its hold's (adjusting the hold in the
-            // editor IS adjusting the carry).
-            if (handDriven > 0.0f)
-            {
-                Vector3 fingers = _handR.position - _rightLowerArm.position;
-                if (fingers.sqrMagnitude > 1e-6f)
-                {
-                    Quaternion natural = CarryHand.Turn(CarryHand.Natural(fingers, transform.forward), bladeInHand, bladeWorld);
-                    wanted = Quaternion.Slerp(wanted, natural, handDriven);
-                }
-            }
             _handR.rotation = Quaternion.Slerp(_handR.rotation, wanted, w);
 
             // BOTH HANDS STAY ON A TWO-HANDED GRIP (owner, 2026-10-16: "use inverse kinematic so the hands reach the correct grip points on each

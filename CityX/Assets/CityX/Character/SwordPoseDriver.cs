@@ -9,10 +9,13 @@ namespace CityX.Character
     /// and hands each frame to <see cref="PlayerLocomotion"/>, whose LateUpdate poses the arm, the blade, the torso, the hips and the feet
     /// (after the Animator, like every other procedural pose).
     ///
-    /// THE CARRY (owner, 2026-10-16: "my character holds ... the sword awkwardly"): whenever a sword is in the right hand and nothing else is
-    /// using the body, it is held the way <see cref="SwordStrikes.Carry"/> says (low at the right side, trailing behind at a sprint) instead
-    /// of the sword idle clip's arms held out at shoulder height. The sword is found under the hand on any body (a network copy mounts the
-    /// same model there), so another player's copy carries it the same way with nothing sent.
+    /// THE CARRY (owner, 2026-10-16: "my character holds ... the sword awkwardly"): whenever a TWO-HANDED sword is in the right hand and
+    /// nothing else is using the body, it is held the way <see cref="SwordStrikes.Carry"/> says (low at the right side, trailing behind at a
+    /// sprint) instead of the sword idle clip's arms held out at shoulder height. The sword is found under the hand on any body (a network copy
+    /// mounts the same model there), so another player's copy carries it the same way with nothing sent. A ONE-HANDED sword is carried by its
+    /// own clips (the sword1h_* locomotion, <see cref="SwordCarryArm"/>; owner, 2026-10-17: "make you own sword running and walking animations
+    /// and make them look good"): nothing is posed over them, an attack blends in from the arm they swing, and the stance after it lowers back
+    /// into them.
     ///
     /// The attack's clock is what the combat freezes for a hit-stop (<see cref="SetSpeed"/> 0): the pose holds exactly where the blade landed.
     /// </summary>
@@ -37,8 +40,11 @@ namespace CityX.Character
 
         public const float ReleaseTakeoverSeconds = 0.25f;
 
-        /// <summary>The ready stance lowers into the carry over this long once it has lingered, seconds.</summary>
+        /// <summary>The ready stance lowers into the posed carry over this long once it has lingered, seconds.</summary>
         public const float ReadyToCarrySeconds = 0.45f;
+
+        /// <summary>A one-handed sword's ready stance lowers into its clips' carry over this long, seconds: the hand comes from the belly to the thigh, so it settles a little slower.</summary>
+        public const float ReadyToClipCarrySeconds = 0.6f;
 
         /// <summary>
         /// In the ready stance or the guard the feet take the fighting stance and step (SwordFootwork) up to a guarded walk (half a walk, 2 m/s);
@@ -71,6 +77,9 @@ namespace CityX.Character
         private float _takeoverRemaining;
         private bool _carrying;
         private bool _carryOneHanded;
+
+        /// <summary>An attack or guard starting from no pose (a one-handed sword's clips) blends in over this long instead of EngageSeconds, seconds.</summary>
+        private float _fromClipSeconds;
         private float _run01;
         private float _stanceGate = 1.0f;
 
@@ -80,8 +89,11 @@ namespace CityX.Character
         /// <summary>A guard is being held.</summary>
         public bool IsGuarding => _guarding;
 
-        /// <summary>The sword is being carried (no attack, guard or ready stance): the hold of <see cref="SwordStrikes.Carry"/>.</summary>
+        /// <summary>The sword is being carried (no attack, guard or ready stance): a two-handed one posed (<see cref="SwordStrikes.Carry"/>), a one-handed one by its own clips.</summary>
         public bool IsCarrying => _carrying && !_striking && !_guarding && _readyRemaining <= 0.0f;
+
+        /// <summary>The carry is a pose laid over the clips (a two-handed sword); a one-handed sword's carry is its clips' own.</summary>
+        private bool CarryIsPosed => _carrying && !_carryOneHanded;
 
         public SwordStrikeKind Kind => _kind;
 
@@ -182,10 +194,13 @@ namespace CityX.Character
                 _takeoverFrom = _lastFrame;
                 _takeoverSeconds = seconds;
                 _takeoverRemaining = seconds;
+                _fromClipSeconds = 0.0f;
             }
             else
             {
+                // Nothing posed to take over from (a one-handed sword's clips carry it): the pose's weight comes up over the same time instead.
                 _takeoverRemaining = 0.0f;
+                _fromClipSeconds = seconds;
             }
         }
 
@@ -256,15 +271,17 @@ namespace CityX.Character
             else if (!_guarding && _readyRemaining > 0.0f)
             {
                 _readyRemaining -= deltaTime;
-                if (_readyRemaining <= 0.0f && _carrying)
+                if (_readyRemaining <= 0.0f && CarryIsPosed)
                 {
                     StartTakeover(ReadyToCarrySeconds);   // the guard lowered into the carry, not dropped
                 }
             }
 
             bool fighting = _striking || _guarding || _readyRemaining > 0.0f;
-            bool wantsPose = fighting || _carrying;
-            float engageSeconds = wantsPose ? (_striking || _guarding ? EngageSeconds : CarryEngageSeconds) : DisengageSeconds;
+            bool wantsPose = fighting || CarryIsPosed;
+            float engageSeconds = wantsPose
+                ? (_striking || _guarding ? Mathf.Max(EngageSeconds, _fromClipSeconds) : CarryEngageSeconds)
+                : (_carrying ? ReadyToClipCarrySeconds : DisengageSeconds);   // a one-handed stance lowers into its clips' carry
             _engage = Mathf.MoveTowards(_engage, wantsPose ? 1.0f : 0.0f, deltaTime / engageSeconds);
 
             if (_locomotion == null)
@@ -301,13 +318,14 @@ namespace CityX.Character
                 frame = SwordStrikes.Ready(_oneHanded);
                 frame.Footwork *= _stanceGate;
             }
-            else if (_carrying)
+            else if (CarryIsPosed)
             {
-                frame = SwordStrikes.Carry(_carryOneHanded, _run01);
+                frame = SwordStrikes.Carry(_run01);
             }
             else
             {
-                // The sword gone (put away, dropped): the last pose fades back to the clip rather than jumping to another first.
+                // The sword gone (put away, dropped), or a one-handed sword's stance lowering into its clips' carry: the last pose fades back
+                // to the clip rather than jumping to another first.
                 frame = _hasLastFrame ? _lastFrame : SwordStrikes.Ready(_oneHanded);
             }
             if (_takeoverRemaining > 0.0f)

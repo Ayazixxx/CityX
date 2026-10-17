@@ -257,11 +257,11 @@ namespace CityX.Tests
             {
                 yield return Frame(Vector2.zero);   // the hold as it was is kept from here
                 Quaternion handBefore = hand.rotation;
-                Vector3 edgeBefore = -_sword.transform.right;
+                Vector3 edgeBefore = _sword.EdgeDirectionWorld;
                 _sword.transform.localRotation = _sword.transform.localRotation * Quaternion.AngleAxis(30.0f, Vector3.up);   // the gizmo: spun about the blade
                 for (int i = 0; i < 10; i++) yield return Frame(Vector2.zero);
                 Assert.Less(Quaternion.Angle(handBefore, hand.rotation), 3.0f, "the hand turned round the sword while its hold was being edited");
-                Assert.Greater(Vector3.Angle(edgeBefore, -_sword.transform.right), 20.0f, "the sword did not turn in the hand");
+                Assert.Greater(Vector3.Angle(edgeBefore, _sword.EdgeDirectionWorld), 20.0f, "the sword did not turn in the hand");
             }
             finally
             {
@@ -278,8 +278,8 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// A one-handed sword is carried with the forearm running straight into the hand (owner, 2026-10-16, with the combat sword: "angle the
-        /// arm properly so theres no that weird bend"): the elbow is placed for it and the hand meets it the rest of the way.
+        /// A one-handed sword is carried with the wrist near in line with the forearm (owner, 2026-10-16, with the combat sword: "angle the
+        /// arm properly so theres no that weird bend"): its carry clips tip the point down with a relaxed wrist, never a folded one.
         /// </summary>
         [UnityTest]
         public IEnumerator AOneHandedSwordIsCarriedWithAStraightWrist()
@@ -290,8 +290,8 @@ namespace CityX.Tests
             Transform hand = _animator.GetBoneTransform(HumanBodyBones.RightHand);
             Transform elbow = _animator.GetBoneTransform(HumanBodyBones.RightLowerArm);
             float wristBend = Vector3.Angle(hand.position - elbow.position, hand.right);
-            Assert.Less(wristBend, CarryHand.MaxWristDegrees + 3.0f, $"the wrist is bent {wristBend:0} degrees carrying the sword");   // (cocked on purpose to keep the point down)
-            Assert.Less((-_sword.transform.right).y, -0.3f, "the edge does not face down");
+            Assert.Less(wristBend, SwordCarryArm.MaxDeviation + 4.0f, $"the wrist is bent {wristBend:0} degrees carrying the sword");   // (tipped toward the little finger on purpose: the point goes down)
+            Assert.Less(_sword.EdgeDirectionWorld.y, -0.3f, "the edge does not face down");
             Vector3 blade = (_sword.BladeTipWorld - _sword.BladeBaseWorld).normalized;
             Assert.Less(blade.y, -0.3f, "the carried blade does not point down");
 #else

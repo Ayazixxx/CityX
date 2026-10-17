@@ -262,8 +262,8 @@ namespace CityX.Tests
             }
             poses.Add(("ready", SwordStrikes.Ready(false)));
             poses.Add(("guard", SwordStrikes.Guard(false)));
-            poses.Add(("carry", SwordStrikes.Carry(false, 0.0f)));
-            poses.Add(("carry at a sprint", SwordStrikes.Carry(false, 1.0f)));
+            poses.Add(("carry", SwordStrikes.Carry(0.0f)));
+            poses.Add(("carry at a sprint", SwordStrikes.Carry(1.0f)));
             float worst = 0.0f;
             string worstAt = "";
             foreach ((string label, SwordFrame f) in poses)
@@ -430,20 +430,18 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void TheSwordIsCarriedLowAndTrailsAtASprint()
+        public void TheTwoHandedSwordIsCarriedLowAndTrailsAtASprint()
         {
-            foreach (bool oneHanded in new[] { false, true })
-            {
-                SwordFrame walk = SwordStrikes.Carry(oneHanded, 0.0f);
-                SwordFrame sprint = SwordStrikes.Carry(oneHanded, 1.0f);
-                Assert.Less(walk.Blade.y, -0.3f, $"{(oneHanded ? "1h" : "2h")}: the carried blade does not point down");
-                Assert.Greater(walk.Blade.z, 0.5f, $"{(oneHanded ? "1h" : "2h")}: walking, the carried blade does not point ahead");
-                Assert.Less(sprint.Blade.z, -0.5f, $"{(oneHanded ? "1h" : "2h")}: sprinting, the blade does not trail behind");
-                Assert.Less(SwordStrikes.HandPoint(walk).y, 1.45f, "the hands are not low: the old carry held them out at the shoulders");
-                Assert.AreEqual(0.0f, walk.Footwork, 0.001f, "the carry should leave the legs to the walk");
-                Assert.AreEqual(!oneHanded, walk.TwoHanded);
-                Assert.AreEqual(0.0f, walk.FreeHandWeight, 0.001f, "a one-handed carry leaves the free arm to swing with the walk");
-            }
+            // (A one-handed sword is carried by its own clips, not posed: SwordCarryArmTests, SwordCarryPlayTests.)
+            SwordFrame walk = SwordStrikes.Carry(0.0f);
+            SwordFrame sprint = SwordStrikes.Carry(1.0f);
+            Assert.Less(walk.Blade.y, -0.3f, "the carried blade does not point down");
+            Assert.Greater(walk.Blade.z, 0.5f, "walking, the carried blade does not point ahead");
+            Assert.Less(sprint.Blade.z, -0.5f, "sprinting, the blade does not trail behind");
+            Assert.Less(SwordStrikes.HandPoint(walk).y, 1.45f, "the hands are not low: the old carry held them out at the shoulders");
+            Assert.AreEqual(0.0f, walk.Footwork, 0.001f, "the carry should leave the legs to the walk");
+            Assert.IsTrue(walk.TwoHanded);
+            Assert.AreEqual(0.0f, walk.FreeHandWeight, 0.001f, "the carry does not place the free hand: the grip does");
             // The two-handed ready stance is a middle guard: the point forward at the opponent, not straight up in front of the face.
             SwordFrame ready = SwordStrikes.Ready(false);
             Assert.Greater(ready.Blade.z, 0.8f);

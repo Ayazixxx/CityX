@@ -70,6 +70,7 @@ MonoBehaviour:
   _itemId: metal_crowbar
   _oneHanded: 1
   _bladeLength: 0.77
+  _edgeOnPlusX: 0
 --- !u!1 &7175222802630437933
 GameObject:
   m_ObjectHideFlags: 0

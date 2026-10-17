@@ -84,10 +84,22 @@ namespace CityX.Weapons
         public Vector3 BladeTipWorld => transform.TransformPoint(new Vector3(0.0f, _bladeLength, 0.0f));
 
         /// <summary>
-        /// The cutting edge faces local -X: SwordBuilder's blade profile puts the sharp slice (no thickness) at edge_x - half the width, the
-        /// thick spine at edge_x + half, and curves the tip toward -X (a kopis: the edge is on the inside of the curve).
+        /// The cutting edge is on local +X instead of -X: true for the owner's combat sword, whose model is thin on +X (2 to 7 mm) and thick on
+        /// -X (24 to 27 mm) the whole length of the blade (measured 2026-10-17). Every pose leads with the edge and the default hold turns it to
+        /// the knuckles, so a sword marked the wrong way round swings with its spine and twists the hand half a turn.
         /// </summary>
-        public Vector3 EdgeDirectionWorld => transform.TransformDirection(Vector3.left);
+        [SerializeField] private bool _edgeOnPlusX;
+
+        public bool EdgeOnPlusX { get => _edgeOnPlusX; set => _edgeOnPlusX = value; }
+
+        /// <summary>
+        /// The side the cutting edge faces in the sword root's own space. -X for SwordBuilder's greatsword (its blade profile puts the sharp slice
+        /// at edge_x - half the width, the thick spine at edge_x + half, and curves the tip toward -X: a kopis, the edge on the inside of the
+        /// curve) and the spike sword (its spikes); +X where <see cref="EdgeOnPlusX"/> says so.
+        /// </summary>
+        public Vector3 EdgeLocal => _edgeOnPlusX ? Vector3.right : Vector3.left;
+
+        public Vector3 EdgeDirectionWorld => transform.TransformDirection(EdgeLocal);
 
         // ---- THE HOLD ----
         //
@@ -141,11 +153,16 @@ namespace CityX.Weapons
         //
         // DERIVED FROM THE HAND'S OWN SHAPE (FusedBodyShape.AddHand), not from a clip: in the right-hand bone's frame +X runs down the arm to the
         // fingertips, -Y is the palm's side (toward the body with the arm hanging) and +Z is the thumb's. A gripped handle lies across the palm,
-        // so the blade runs out past the thumb (+Z) tilted a little toward the fingers, with the edge in line with the knuckles (+X), and the
-        // guard sits just beyond the palm's surface. Tuned by hand the same way as the two-handed hold (WeaponGripSettings.OneHand*).
+        // so the blade runs straight out past the thumb (+Z), with the edge in line with the knuckles (+X), and the guard sits just beyond the
+        // palm's surface. Tuned by hand the same way as the two-handed hold (WeaponGripSettings.OneHand*).
+        //
+        // STRAIGHT OUT, as the owner set it by hand (2026-10-17: their saved hold runs the blade 3 degrees back toward the wrist and 4 toward
+        // the palm from straight out; the default takes the first, the hold has no tilt toward the palm); it was tilted 15 degrees toward the
+        // fingers. The one-handed sword's carry clips (SwordCarryArm) point the blade forward and down from it, and with the old tilt the
+        // point dragged on the ground.
 
-        /// <summary>The blade's direction (hilt to tip) in the right-hand bone's frame for a one-handed hold: out past the thumb, 15 degrees toward the fingers.</summary>
-        public static readonly Vector3 OneHandBladeAxisInHand = new Vector3(0.26f, 0.0f, 0.966f).normalized;
+        /// <summary>The blade's direction (hilt to tip) in the right-hand bone's frame for a one-handed hold: straight out past the thumb, as the owner holds it.</summary>
+        public static readonly Vector3 OneHandBladeAxisInHand = new Vector3(-0.056f, 0.0f, 0.998f).normalized;
 
         /// <summary>How far past the palm's surface the handle's axis lies: half the palm's thickness and the handle's own radius.</summary>
         public const float OneHandHandleBelowPalm = FusedBodyShape.PalmHalfThickness + 0.03f;
@@ -166,10 +183,16 @@ namespace CityX.Weapons
         public static Quaternion OneHandGripRotation =>
             WeaponGripSettings.Current.OneHandTuned ? Quaternion.Euler(WeaponGripSettings.Current.OneHandEuler) : DefaultOneHandGripRotation;
 
+        /// <summary>The default one-handed hold for a sword whose edge is on +X or -X: the edge toward the knuckles either way (turned half round the blade for +X).</summary>
+        public static Quaternion DefaultOneHandGripRotationFor(bool edgeOnPlusX) =>
+            edgeOnPlusX ? Quaternion.AngleAxis(180.0f, OneHandBladeAxisInHand) * DefaultOneHandGripRotation : DefaultOneHandGripRotation;
+
         /// <summary>This sword's position in the right hand: the hold for its kind (saved or derived).</summary>
         public Vector3 HoldPosition => _oneHanded ? OneHandGripPosition : GripPosition;
 
-        public Quaternion HoldRotation => _oneHanded ? OneHandGripRotation : GripRotation;
+        public Quaternion HoldRotation => _oneHanded
+            ? (WeaponGripSettings.Current.OneHandTuned ? OneHandGripRotation : DefaultOneHandGripRotationFor(_edgeOnPlusX))
+            : GripRotation;
 
         /// <summary>
         /// The marker the left hand reaches for, a child of the sword. Select it while the game runs and

@@ -120,7 +120,7 @@ namespace CityX.Character
 
         /// <summary>
         /// A ONE-HANDED sword is in hand (the combat sword, the crowbar): drives the Animator's "Sword1HEquipped" bool, which swaps Locomotion
-        /// for Sword1HLocomotion (the owner's 1H sword runs and side-steps, 2026-10-17). Never true with SwordEquipped.
+        /// for Sword1HLocomotion (its own carry clips: the walk, run and strafes with a sword arm, SwordCarryBaker). Never true with SwordEquipped.
         /// </summary>
         public bool Sword1HEquipped;
 

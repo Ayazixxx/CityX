@@ -75,6 +75,21 @@ namespace CityX.Tests
             Assert.Greater(position.z, 0.05f, "the guard should sit out past the thumb (+Z)");
         }
 
+        /// <summary>
+        /// The combat sword's sharp side is its +X (the model is 2-7 mm thick there, 24-27 mm on -X: measured 2026-10-17), so its poses lead with
+        /// that side and its default hold turns that side to the knuckles, as the owner's own saved hold does.
+        /// </summary>
+        [Test]
+        public void ItsEdgeIsTheModelsThinSideAndTheHoldTurnsItToTheKnuckles()
+        {
+            var sword = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath).GetComponent<SwordWeapon>();
+            Assert.IsTrue(sword.EdgeOnPlusX, "the combat sword's edge is marked on its thick side");
+            Assert.AreEqual(Vector3.right, sword.EdgeLocal);
+            Quaternion hold = SwordWeapon.DefaultOneHandGripRotationFor(true);
+            Assert.Less(Vector3.Angle(hold * Vector3.up, SwordWeapon.OneHandBladeAxisInHand), 0.1f, "turning the hold for the edge moved the blade");
+            Assert.Greater((hold * sword.EdgeLocal).x, 0.9f, "the default hold does not turn the combat sword's edge to the knuckles");
+        }
+
         [Test]
         public void EveryBodyCanEquipItSoOthersSeeIt()
         {

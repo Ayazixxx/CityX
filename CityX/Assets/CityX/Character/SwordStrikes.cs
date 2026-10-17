@@ -96,9 +96,6 @@ namespace CityX.Character
 
         /// <summary>0 to 1: how much the elbow is placed so the forearm runs straight into the hand (no bent wrist) rather than where the key bows it. The held stances (carry, ready, guard) use it; the cuts keep their authored elbows.</summary>
         public float ForearmAlign;
-
-        /// <summary>0 to 1: the hand is the hanging arm's own and the sword hangs from it by its hold, instead of the hand being turned to aim the blade (the one-handed carry).</summary>
-        public float HandDriven;
     }
 
     /// <summary>
@@ -352,20 +349,18 @@ namespace CityX.Character
         }
 
         /// <summary>
-        /// THE CARRY: the sword held while nothing is being done with it (walking about, standing). Low and relaxed at the right side, the point
-        /// forward and down (the reference's carry); with <paramref name="run01"/> rising to 1 at a sprint, the blade trails behind instead.
-        /// The legs are the walk's own (no footwork) and a one-handed sword's free arm swings with the walk.
+        /// THE TWO-HANDED CARRY: the sword held while nothing is being done with it (walking about, standing). Low and relaxed at the right side,
+        /// the point forward and down (the reference's carry); with <paramref name="run01"/> rising to 1 at a sprint, the blade trails behind
+        /// instead. The legs are the walk's own (no footwork). A ONE-HANDED sword is carried by its own clips instead (the sword1h_* locomotion,
+        /// SwordCarryArm), not posed.
         /// </summary>
-        public static SwordFrame Carry(bool oneHanded, float run01)
+        public static SwordFrame Carry(float run01)
         {
             float t = Mathf.SmoothStep(0.0f, 1.0f, Mathf.Clamp01(run01));
-            SwordFrame low = oneHanded ? Frame(CarryKey1H, 1.0f, false) : Frame(CarryKey2H, 1.0f, true);
-            SwordFrame trail = oneHanded ? Frame(TrailKey1H, 1.0f, false) : Frame(TrailKey2H, 1.0f, true);
-            SwordFrame frame = Lerp(low, trail, t);
+            SwordFrame frame = Lerp(Frame(CarryKey2H, 1.0f, true), Frame(TrailKey2H, 1.0f, true), t);
             frame.Footwork = 0.0f;
             frame.FreeHandWeight = 0.0f;
-            frame.ForearmAlign = oneHanded ? 0.0f : 1.0f;
-            frame.HandDriven = oneHanded ? 1.0f : 0.0f;
+            frame.ForearmAlign = 1.0f;
             return frame;
         }
 
@@ -392,11 +387,6 @@ namespace CityX.Character
         private static readonly Key TrailKey2H = Pose(0.0f, Ease.Smooth, hand: new Vector3(0.30f, 1.32f, -0.02f), blade: new Vector3(0.25f, -0.45f, -0.86f),
             edge: Vector3.down, elbow: 0.15f, twist: -8.0f, hips: 0.0f, lean: 0.0f, tilt: 0.0f, drop: 0.0f, lead: -1.0f, depth: 0.30f);
 
-        private static readonly Key CarryKey1H = Pose(0.0f, Ease.Smooth, hand: new Vector3(0.42f, 1.08f, -0.02f), blade: new Vector3(0.0f, -0.70f, 0.71f),
-            edge: Vector3.down, elbow: 0.15f, twist: 0.0f, hips: 0.0f, lean: 0.0f, tilt: 0.0f, drop: 0.0f, lead: -0.5f, depth: 0.30f);
-
-        private static readonly Key TrailKey1H = Pose(0.0f, Ease.Smooth, hand: new Vector3(0.42f, 1.08f, -0.02f), blade: new Vector3(0.15f, -0.55f, -0.82f),
-            edge: Vector3.down, elbow: 0.15f, twist: 0.0f, hips: 0.0f, lean: 0.0f, tilt: 0.0f, drop: 0.0f, lead: -0.5f, depth: 0.30f);
 
         // ---- the keyframes -------------------------------------------------------------------------------------------------------------
 
@@ -779,7 +769,6 @@ namespace CityX.Character
                 FreeHandWeight = Mathf.Lerp(a.FreeHandWeight, b.FreeHandWeight, t),
                 Reach = Mathf.Lerp(a.Reach, b.Reach, t),
                 ForearmAlign = Mathf.Lerp(a.ForearmAlign, b.ForearmAlign, t),
-                HandDriven = Mathf.Lerp(a.HandDriven, b.HandDriven, t),
             };
         }
 

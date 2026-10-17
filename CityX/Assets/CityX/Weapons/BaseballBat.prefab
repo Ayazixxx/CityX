@@ -70,6 +70,7 @@ MonoBehaviour:
   _itemId: baseball_bat
   _oneHanded: 0
   _bladeLength: 0.72
+  _edgeOnPlusX: 0
 --- !u!1 &1642096565736658083
 GameObject:
   m_ObjectHideFlags: 0

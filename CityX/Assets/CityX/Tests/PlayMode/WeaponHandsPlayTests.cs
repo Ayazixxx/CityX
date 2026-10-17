@@ -360,11 +360,11 @@ namespace CityX.Tests
             Vector3 handLine = (right - left).normalized;
             Vector3 shoulder = Bone(HumanBodyBones.RightUpperArm).position;
 
-            Debug.Log($"CityX sword carried: blade {blade.ToString("0.00")}, edge (sword -X) {(-sword.transform.right).ToString("0.00")}, " +
+            Debug.Log($"CityX sword carried: blade {blade.ToString("0.00")}, edge {sword.EdgeDirectionWorld.ToString("0.00")}, " +
                       $"blade vs the line between the hands {Vector3.Angle(blade, handLine):0} deg, hands {shoulder.y - right.y:0.00} m below the shoulder");
             Assert.Less(blade.y, -0.2f, $"the carried blade should point down, not {blade.ToString("0.00")}");
             Assert.Greater(Vector3.Dot(blade, _player.transform.forward), 0.5f, "the carried blade should point ahead");
-            Assert.Less((-sword.transform.right).y, -0.5f, "the cutting edge should face down");
+            Assert.Less(sword.EdgeDirectionWorld.y, -0.5f, "the cutting edge should face down");
             Assert.Greater(shoulder.y - right.y, 0.4f, "the hands should be low at the side, not up at the shoulders");
             Assert.Less(Vector3.Angle(blade, handLine), 40.0f, "the blade should run on from the lower hand through the upper");
             Assert.Less(DistanceFromGrip(sword, right), 0.08f, "the right hand is off the hilt");

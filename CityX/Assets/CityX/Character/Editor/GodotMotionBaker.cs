@@ -92,6 +92,20 @@ namespace CityX.CharacterEditor
         /// <summary>Bakes one Godot animation by file name (without .tres). Returns the saved clip, or null if the file is missing.</summary>
         public static AnimationClip Bake(string godotName, bool loop)
         {
+            return Bake(godotName, loop, "godot_" + godotName, PathOf(godotName), null, null);
+        }
+
+        /// <summary>Shown the bake skeleton at one sampled moment of a clip (seconds into it, and the clip's length), once the Godot pose is on it.</summary>
+        public delegate void PoseHook(Dictionary<string, Transform> bones, float time, float length);
+
+        /// <summary>
+        /// Bakes one Godot animation into a humanoid clip called <paramref name="clipName"/>, saved at <paramref name="path"/>. With hooks it makes
+        /// ANOTHER clip from the Godot one (SwordCarryBaker: the walk with a sword arm): every sampled moment is first shown to
+        /// <paramref name="measure"/>, all of them in order before anything is baked, then each to <paramref name="adjust"/>, which may re-pose
+        /// bones before the moment is read back as muscles.
+        /// </summary>
+        public static AnimationClip Bake(string godotName, bool loop, string clipName, string path, PoseHook measure, PoseHook adjust)
+        {
             string projectRoot = Directory.GetParent(Application.dataPath).FullName;
             string file = Path.GetFullPath(Path.Combine(projectRoot, GodotDirectory, godotName + ".tres"));
             if (!File.Exists(file))
@@ -155,9 +169,39 @@ namespace CityX.CharacterEditor
                 Quaternion hangLeft = Quaternion.Euler(0.0f, 0.0f, hangDegrees);
                 Quaternion hangRight = Quaternion.Euler(0.0f, 0.0f, -hangDegrees);
 
+                if (measure != null)
+                {
+                    foreach (float time in times)
+                    {
+                        PoseAt(time);
+                        measure(bones, time, motion.Length);
+                    }
+                }
+
                 foreach (float time in times)
                 {
                     frame++;
+                    PoseAt(time);
+                    adjust?.Invoke(bones, time, motion.Length);
+
+                    handler.GetHumanPose(ref pose);
+                    for (int i = 0; i < muscleCount; i++)
+                    {
+                        muscleValues[i][frame] = pose.muscles[i];
+                    }
+                    rootTValues[0][frame] = pose.bodyPosition.x;
+                    rootTValues[1][frame] = pose.bodyPosition.y;
+                    rootTValues[2][frame] = pose.bodyPosition.z;
+                    rootQValues[0][frame] = pose.bodyRotation.x;
+                    rootQValues[1][frame] = pose.bodyRotation.y;
+                    rootQValues[2][frame] = pose.bodyRotation.z;
+                    rootQValues[3][frame] = pose.bodyRotation.w;
+                }
+                handler.Dispose();
+
+                // The Godot pose at one moment, from the rest up.
+                void PoseAt(float time)
+                {
                     foreach (KeyValuePair<string, (Vector3 position, Quaternion rotation)> entry in rest)
                     {
                         bones[entry.Key].localPosition = entry.Value.position;
@@ -202,23 +246,9 @@ namespace CityX.CharacterEditor
                         }
                         bones[target].localRotation = q;
                     }
-
-                    handler.GetHumanPose(ref pose);
-                    for (int i = 0; i < muscleCount; i++)
-                    {
-                        muscleValues[i][frame] = pose.muscles[i];
-                    }
-                    rootTValues[0][frame] = pose.bodyPosition.x;
-                    rootTValues[1][frame] = pose.bodyPosition.y;
-                    rootTValues[2][frame] = pose.bodyPosition.z;
-                    rootQValues[0][frame] = pose.bodyRotation.x;
-                    rootQValues[1][frame] = pose.bodyRotation.y;
-                    rootQValues[2][frame] = pose.bodyRotation.z;
-                    rootQValues[3][frame] = pose.bodyRotation.w;
                 }
-                handler.Dispose();
 
-                if (godotName == "run")
+                if (clipName == "godot_run")
                 {
                     var dump = new System.Text.StringBuilder("RUNMUSCLES\n");
                     foreach (string muscle in new[] { "Left Lower Leg Stretch", "Left Lower Leg Twist In-Out", "Left Upper Leg Front-Back", "Left Upper Leg In-Out", "Left Upper Leg Twist In-Out", "Left Foot Up-Down", "Left Foot Twist In-Out", "Left Forearm Stretch", "Left Forearm Twist In-Out" })
@@ -248,11 +278,11 @@ namespace CityX.CharacterEditor
                     }
                     if (worstStep > 0.45f)
                     {
-                        Debug.LogWarning($"CityX: {godotName}: muscle '{HumanTrait.MuscleName[i]}' jumps {worstStep:F2} between frames {worstAt - 1} and {worstAt} ({muscleValues[i][worstAt - 1]:F2} -> {muscleValues[i][worstAt]:F2})");
+                        Debug.LogWarning($"CityX: {clipName}: muscle '{HumanTrait.MuscleName[i]}' jumps {worstStep:F2} between frames {worstAt - 1} and {worstAt} ({muscleValues[i][worstAt - 1]:F2} -> {muscleValues[i][worstAt]:F2})");
                     }
                 }
 
-                var clip = new AnimationClip { name = "godot_" + godotName, frameRate = SampleRate };
+                var clip = new AnimationClip { name = clipName, frameRate = SampleRate };
                 float[] timeArray = times.ToArray();
                 for (int i = 0; i < muscleCount; i++)
                 {
@@ -279,8 +309,7 @@ namespace CityX.CharacterEditor
                 settings.stopTime = times[times.Count - 1];
                 AnimationUtility.SetAnimationClipSettings(clip, settings);
 
-                Directory.CreateDirectory(Path.Combine(projectRoot, OutputDirectory));
-                string path = PathOf(godotName);
+                Directory.CreateDirectory(Path.Combine(projectRoot, Path.GetDirectoryName(path)));
                 // UPDATED IN PLACE, not deleted and recreated: a recreated asset gets a new GUID, and the controller built against the old one would silently lose its clip.
                 var existing = AssetDatabase.LoadAssetAtPath<AnimationClip>(path);
                 if (existing != null)
@@ -295,7 +324,7 @@ namespace CityX.CharacterEditor
                 {
                     AssetDatabase.CreateAsset(clip, path);
                 }
-                Debug.Log($"CityX: baked {godotName} -- {times.Count} frames, {motion.Length:F2} s, {(loop ? "looping" : "once")} -> {path}");
+                Debug.Log($"CityX: baked {clipName} from {godotName} -- {times.Count} frames, {motion.Length:F2} s, {(loop ? "looping" : "once")} -> {path}");
                 return clip;
             }
             finally

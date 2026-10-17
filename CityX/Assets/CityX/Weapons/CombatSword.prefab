@@ -160,3 +160,4 @@ MonoBehaviour:
   _itemId: combat_sword
   _oneHanded: 1
   _bladeLength: 1.39
+  _edgeOnPlusX: 1

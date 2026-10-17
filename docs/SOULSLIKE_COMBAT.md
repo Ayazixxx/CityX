@@ -100,7 +100,8 @@ height, the blade straight up in front of the face, whether walking or standing.
 using the body (`SwordStrikes.Carry`): **low at the right side, the point forward
 and down, the edge down**, both hands on the hilt; at a sprint the blade **trails
 behind** instead (blended by the body's measured speed, 4.5 to 7 m/s). A one-handed
-sword is carried the same way and the free arm swings with the walk. For 3 s after a
+sword is carried by its own clips instead (see "the one-handed sword's own walk set"
+below), with nothing posed over them. For 3 s after a
 swing or guard the **ready stance** is held instead (a middle guard: the hands at the
 belly, the point at the opponent's face, the left foot forward, the knees a little
 bent), then it lowers into the carry over 0.45 s. The carry yields to anything that
@@ -377,13 +378,48 @@ moves: a horizontal slash first) and the **baseball bat** two-handed (the greats
 
 ## Update 2026-10-17: the one-handed sword's own walk set
 
-Owner's six clips (`1hsw_run_forward/backward/left/right`, `1hsw_walk_left/right`, in `Character/Animations`, humanoid on the shared avatar)
-play in `Sword1HLocomotion` (PlayerRigBuilder.AddSword1HLocomotion) while a one-handed sword is in hand: the plain idle and walk at the centre
-and at walking pace (the Godot-baked ones), the sword run forward at sprint pace, the sword run backward going back, and at the sides whichever
-of the sword walk or run moves its feet nearer walking pace (the runs, measured at build). Gated by the `Sword1HEquipped` bool
-(LocomotionInput, set by PlayerInputReader, sent to other players by NetworkedAnimatorSync), cross-faded over 0.25 s each way; ClipCadence
-paces it like every other tree. The posed carry and attacks lie on top; the feet hand over to the attack footwork and back over 0.25 s.
-The one-handed carry is hand-driven (the arm hangs, the sword hangs from the hand by its hold), so the hold set with CityX > Weapon Grips
-is the carry's angle.
+Owner, 2026-10-17: "the sword is like spinning around make you own sword running and walking animations and make them look good", then
+"research how games do one handed sword running and walking animations and make ours work".
 
-- **The carried one-handed arm is the clips' own** (2026-10-17, "fluid motion no jumps too no weird bends"): the hand-driven carry keeps the Sword1H clip's wrist position and elbow bend (IK target and hint taken from the clip), and `CarryHand` turns the straight-wrist hand at most 50 deg toward the carry's blade direction (shortest turn, no down/up choice that could flip). Running, the blade swings like a pendulum but never rises past level; `SwordCarryCapture` renders walk/run/idle beside the bare clips.
+**What games do** (researched that day): the carry is a locomotion set of its own, apart from the combat stance; the sword arm hangs relaxed,
+a little away from the body, and swings only a little, against the leg on its own side; the sword is held off to the side so it clears the
+legs; the wrist stays near in line with the forearm (a hammer grip pointed down reads as a broken wrist); the arm trails a little to show the
+weight; the parts overlap (upper arm, then forearm, then hand) rather than swinging as one piece. Sources: the Warbell hero-locomotion
+write-up (sword arm phased against its own leg; carry apart from combat), animation critiques on polycount and student blogs (broken wrist,
+tip clearance, trailing weight), Brian LeMay's arm-swing notes (overlap of no more than two drawings in sixteen).
+
+**Why the blade spun before.** The sword sits across the fist, out past the thumb, so whatever pitches the forearm pitches the blade by the
+same angle: the clips' forearm swinging through 80 degrees see-sawed the sword from the ground to straight ahead. Every runtime fix on top of
+other clips (hand-driven carry, clip arm plus a limited wrist turn) still let the arm swing it.
+
+**What it is now.** `SwordCarryBaker` (Character/Editor, run by PlayerRigBuilder before the controller is built, or CityX > Bake One-Handed
+Sword Carry) bakes `Animations/Sword1H/sword1h_{idle,walk,run,walk_backward,walk_left,walk_right}.anim` from the game's own Godot clips
+(GodotMotionBaker with a measure and an adjust hook): legs, hips, chest, head and free arm are the plain set's; the right arm is
+`SwordCarryArm`'s, in real joint angles (shoulder swing and lift, upper-arm roll, elbow, forearm roll, wrist deviation and flex):
+
+| | shoulder | lift | elbow | thumb turned out | wrist toward little finger |
+|---|---|---|---|---|---|
+| idle, walk, strafes, back | 12 deg back | 14 | 8 | 18 | 27 |
+| run (sprint) | 22 deg back | 16 | 16 | 26 | 26 |
+
+Its swing is read off the clip's own right arm (forward and back of its middle, in the chest's frame) and handed on in shares: the shoulder
+0.3 of it walking, 0.2 running, 0.5 of the idle's sway standing; the elbow bends 0.15 more as it comes forward and the wrist leans the point
+back down by 0.35 (0.3 running), both 0.06 of a cycle late (overlap). So the hand swings (27 cm walking against the free hand's 63, 38 against
+103 sprinting) while the blade holds 19-28 degrees below level, 15-35 degrees out from the leg, turning at most 1-3 degrees a frame;
+it clears the legs by at least 11 cm and the ground by 15 cm or more, with either hold (SwordCarryPlayTests). `Sword1HLocomotion` holds them at the plain tree's own
+places, so the cadence, strides and foot placement are the plain walk's.
+
+Nothing is posed over the carry: `SwordPoseDriver` lays `SwordStrikes.Carry` only on a two-handed sword now. An attack from the carry blends
+in over its takeover time (30% of the attack) from the clips' arm; the ready stance after it lowers back into the clips over 0.6 s. The
+one-handed default hold now runs the blade straight out past the thumb (`SwordWeapon.OneHandBladeAxisInHand`), as the owner holds it; tilted
+15 degrees toward the fingers, as it was, the carried point dragged on the ground. The owner's six `1hsw_*` clips stay in
+`Character/Animations` but are no longer played. `SwordCarryCapture` renders idle, walk, sprint, strafe and back from the side, from behind
+and from the front-right (`carry-*.png`).
+
+**The combat sword's edge is its +X.** Measured on the model: 2-7 mm thick on +X, 24-27 mm on -X, the whole length of the blade; every other
+sword's edge is -X (the greatsword's profile, the spike sword's spikes). The code assumed -X for all of them, so the owner turned their saved
+one-handed hold half round the blade to make the sword look right, and then every one-handed pose (the cuts, the guard, the ready stance)
+rolled the hand half a turn to lead with the spine, and lowering the stance back into the carry snapped the hand round 87 degrees in a frame.
+`SwordWeapon.EdgeOnPlusX` (set by CombatSwordBuilder) now says which side is sharp: `EdgeLocal`/`EdgeDirectionWorld` follow it, the sword
+pose reads the edge from it, and the default one-handed hold turns that side to the knuckles (`DefaultOneHandGripRotationFor`), as the
+owner's own hold does.

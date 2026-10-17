@@ -69,6 +69,7 @@ namespace CityX.WeaponsEditor
                 sword.ItemId = ItemRegistry.CombatSword;
                 sword.OneHanded = true;
                 sword.BladeLength = BladeLength;
+                sword.EdgeOnPlusX = true;   // the model's thin side (SwordWeapon.EdgeOnPlusX)
 
                 GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
                 AssetDatabase.SaveAssets();

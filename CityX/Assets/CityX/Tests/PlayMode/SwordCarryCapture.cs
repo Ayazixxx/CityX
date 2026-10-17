@@ -14,9 +14,10 @@ namespace CityX.Tests
 {
     /// <summary>
     /// The one-handed sword CARRIED on the move (owner, 2026-10-17: "he is moving is arm very akwardly make it fluid motion no jumps too no
-    /// weird bends"): the combat sword walked and run with, beside the same clips with no sword in hand (the arm as the animation moves it).
-    /// Renders a film strip of each (rows: from the right side, from behind like the game camera) and logs how the sword arm moves: its
-    /// fastest turn of the hand, jump of the hand, change of the elbow's bend, and the wrist's bend.
+    /// weird bends", then "make you own sword running and walking animations and make them look good"): the combat sword stood, walked,
+    /// sprinted, strafed and backed up with, on its own carry clips. Renders a film strip of each (rows: from the right side, from behind like
+    /// the game camera, from the front-right) and logs how the sword arm moves: its fastest turn of the hand, jump of the hand, change of the
+    /// elbow's bend, and the wrist's bend.
     ///
     /// Run with a graphics device: tools/unity_tests.ps1 -Platform PlayMode -Graphics -Filter CityX.Tests.SwordCarryCapture
     /// Output: CityX/Logs/CityShots/carry-&lt;scenario&gt;.png
@@ -26,6 +27,7 @@ namespace CityX.Tests
     {
         private const int Cell = 240;
         private const int Columns = 12;
+        private const int Rows = 3;
         private const float Dt = 1.0f / 60.0f;
 
         [UnityTest]
@@ -52,13 +54,13 @@ namespace CityX.Tests
             var playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab");
             var swordPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/CombatSword.prefab");
             var log = new StringBuilder();
-            foreach ((string scenario, Vector2 stick, bool withSword) in new[]
+            foreach ((string scenario, Vector2 stick, bool sprint, bool withSword) in new[]
             {
-                ("walk", new Vector2(0.0f, 0.5f), true),
-                ("run", new Vector2(0.0f, 1.0f), true),
-                ("idle", Vector2.zero, true),
-                ("clip-walk", new Vector2(0.0f, 0.5f), false),
-                ("clip-run", new Vector2(0.0f, 1.0f), false),
+                ("idle", Vector2.zero, false, true),
+                ("walk", new Vector2(0.0f, 1.0f), false, true),
+                ("sprint", new Vector2(0.0f, 1.0f), true, true),
+                ("strafe", new Vector2(1.0f, 0.0f), false, true),
+                ("back", new Vector2(0.0f, -1.0f), false, true),
             })
             {
                 var player = Object.Instantiate(playerPrefab, new Vector3(0, 0.05f, -100.0f), Quaternion.identity);
@@ -76,14 +78,14 @@ namespace CityX.Tests
                 Transform elbow = animator.GetBoneTransform(HumanBodyBones.RightLowerArm);
                 Transform hand = animator.GetBoneTransform(HumanBodyBones.RightHand);
 
-                var input = new LocomotionInput { Sword1HEquipped = true, Move = stick };
+                var input = new LocomotionInput { Sword1HEquipped = true, Move = stick, Sprint = sprint };
                 for (int i = 0; i < 90; i++)
                 {
                     locomotion.Tick(input, Dt);
                     yield return null;
                 }
 
-                var sheet = new Texture2D(Cell * Columns, Cell * 2, TextureFormat.RGB24, false);
+                var sheet = new Texture2D(Cell * Columns, Cell * Rows, TextureFormat.RGB24, false);
                 const float Span = 1.6f;
                 float shotEvery = Span / Columns;
                 float nextShot = 0.0f;
@@ -119,8 +121,10 @@ namespace CityX.Tests
 
                     if (t >= nextShot - 0.0001f && column < Columns)
                     {
-                        Shoot(camera, sheet, column, player, 0);
-                        Shoot(camera, sheet, column, player, 1);
+                        for (int row = 0; row < Rows; row++)
+                        {
+                            Shoot(camera, sheet, column, player, row);
+                        }
                         column++;
                         nextShot += shotEvery;
                     }
@@ -150,7 +154,7 @@ namespace CityX.Tests
             return Vector3.Angle(elbow.position - shoulder.position, hand.position - elbow.position);
         }
 
-        /// <summary>One cell: row 0 from the body's right side, row 1 from behind and above like the game camera.</summary>
+        /// <summary>One cell: row 0 from the body's right side, row 1 from behind and above like the game camera, row 2 from the front-right.</summary>
         private static void Shoot(Camera camera, Texture2D sheet, int column, GameObject player, int row)
         {
             float height = player.GetComponent<PlayerLocomotion>().StandingHeight;
@@ -164,11 +168,17 @@ namespace CityX.Tests
                 lookAt = chest;
                 camera.fieldOfView = 40.0f;
             }
-            else
+            else if (row == 1)
             {
                 position = body - player.transform.forward * 4.0f + Vector3.up * (height * 0.95f) + player.transform.right * 1.2f;
                 lookAt = chest + player.transform.forward * 1.2f;
                 camera.fieldOfView = 50.0f;
+            }
+            else
+            {
+                position = chest + player.transform.forward * 4.5f + player.transform.right * 2.6f + Vector3.up * 0.2f;
+                lookAt = chest + Vector3.down * 0.3f;
+                camera.fieldOfView = 42.0f;
             }
             camera.transform.position = position;
             camera.transform.rotation = Quaternion.LookRotation((lookAt - position).normalized, Vector3.up);
@@ -184,7 +194,7 @@ namespace CityX.Tests
             camera.targetTexture = null;
             target.Release();
             Object.Destroy(target);
-            sheet.SetPixels(column * Cell, (1 - row) * Cell, Cell, Cell, image.GetPixels());
+            sheet.SetPixels(column * Cell, (Rows - 1 - row) * Cell, Cell, Cell, image.GetPixels());
             Object.Destroy(image);
         }
 

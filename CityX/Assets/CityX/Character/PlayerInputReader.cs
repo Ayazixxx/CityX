@@ -1413,7 +1413,7 @@ namespace CityX.Character
                 SwordEquipped = _melee != null && _melee.EquippedWeapon != null &&
                                 _melee.EquippedWeapon.MovesetId == ComboChain.Sword &&
                                 !(_melee.EquippedWeapon is ISwordBlade oneHandedBlade && oneHandedBlade.IsOneHanded),
-                // The one-handed sword's own runs and side-steps (Sword1HLocomotion).
+                // The one-handed sword's own carry clips (Sword1HLocomotion: SwordCarryBaker's walk, run and strafes with a sword arm).
                 Sword1HEquipped = _melee != null && _melee.EquippedWeapon != null &&
                                   _melee.EquippedWeapon.MovesetId == ComboChain.Sword &&
                                   _melee.EquippedWeapon is ISwordBlade heldBlade && heldBlade.IsOneHanded,
