@@ -38,6 +38,9 @@ namespace CityX.UI
 
         public bool IsActive => _overlay != null;
 
+        /// <summary>The session open on this machine, if one is: the HUD steps aside for it (MenuHudFade).</summary>
+        public static PlayerRedrawStarter Active { get; private set; }
+
         private void Awake()
         {
             _identity = GetComponent<CharacterIdentity>();
@@ -66,6 +69,7 @@ namespace CityX.UI
             if (OrbitCamera != null) OrbitCamera.enabled = false;
 
             _overlay = RedrawCreatorRuntime.Build(gameObject, HairMeshes, HairMaterial, OnConfirm, OnCancel);
+            Active = this;
             Seed(character);
         }
 
@@ -134,6 +138,10 @@ namespace CityX.UI
             {
                 Destroy(_overlay);
                 _overlay = null;
+            }
+            if (Active == this)
+            {
+                Active = null;
             }
             if (InputReader != null) InputReader.enabled = true;
             if (OrbitCamera != null) OrbitCamera.enabled = true;

@@ -47,3 +47,7 @@ Player fly-out's Loadout, Stats, Skills and Items, Quests and Social, the map), 
 (bottom left) fade out over 0.2 s and come back the same way when it shuts (`UI/MenuHudFade.cs`, added by `PlayerHud.Awake` like the hotbar,
 so no scene rebuild: the frame is found by name and given a CanvasGroup; the hotbar reads the same visibility into its own, which already hid
 it for the chat). Real time, so a slowed game cannot slow the fade. Test: `MenuHudFadePlayTests` (half-faded mid-way, gone, back).
+
+ReDraw counts too (owner, 2026-10-17: "the portrait in the top left as well as the hotbar skills should go away on this redraw menu"): it is
+reached from the C menu after that has closed, so `MenuHudFade.AnyMenuOpen` also asks `PlayerRedrawStarter.Active`, and while ReDraw is up
+the crosshair fades too (`CrosshairVisibility`, a CanvasGroup on `PlayerHud.Crosshair`). Test: `RedrawRealInputPlayTests`.

@@ -56,3 +56,17 @@ rows of the paint atlas, and the fill stopped at its row. `BodyPaint.BucketFillA
 (`BucketGroups`: torso and neck) over the body itself: from a texel at the edge of its row's painted area to the other part's texels within
 1.2 cm of it on the surface, facing the same way, still only through the colour that was clicked -- so an outline drawn round an area keeps
 the fill inside, and the arms, legs and head stay fills of their own. Tests: `BodyPaintBucketTests`.
+
+## ReDraw's tools did nothing (2026-10-17)
+
+Owner, with a screenshot of the in-game ReDraw: "the redraw menu is broken, none of the tools work properly", "particularly the eye dropper
+tool i noticed wasnt working". ReDraw's panel is built during play (`RedrawCreatorRuntime`), and `ButtonAction`, `CreatorControls` and
+`HairColourControls` wire themselves in `Awake` -- which fires the instant a component is added to an active object, before the builder has
+said what the button does or which slider is which. So every button woke up as "does nothing" and never listened: the brush/bucket/eyedropper
+buttons (stuck on the brush, which is why painting alone worked), the swatches, mirror, eraser, undo, redo, the hue and brush sliders and the
+hairstyles. The title screen's creator never had it: it is built in the editor and saved, so its components wake up wired. The overlay is now
+built inactive and switched on at the end, as its stage already was. And the eyedropper set the creator's colour behind the panel's back, so
+the square, the hue and the preview kept the old colour and the pick looked like it had failed: `CreatorControls` now adopts whatever colour
+the creator has. Tests: `RedrawRealInputPlayTests` (a mouse on the real buttons, swatches, sliders, hairstyles, the eyedropper on a painted
+spot, the bucket, and the HUD) -- `PlayerRedrawStarterPlayTests` calls the creator directly, which is how this went unnoticed.
+

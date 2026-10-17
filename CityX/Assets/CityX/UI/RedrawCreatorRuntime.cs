@@ -63,6 +63,13 @@ namespace CityX.UI
             System.Action<CharacterCreator> onConfirm, System.Action onCancel)
         {
             var root = new GameObject("RedrawOverlay", typeof(RectTransform));
+            // INACTIVE FOR THE WHOLE BUILD, switched on at the very end -- the panel's own version of BuildStage's rule below. ButtonAction,
+            // CreatorControls and HairColourControls wire themselves up in Awake, and Awake fires the instant a component is added to an
+            // ACTIVE object: before this file has said what the button does or which slider is which. Built active, every button woke up as
+            // "does nothing" and never listened, and neither did the sliders -- the tools, the swatches, mirror, eraser, undo, redo, the hue
+            // and brush sliders and the hairstyles all did nothing (owner, 2026-10-17: "none of the tools work properly", "particularly the eye
+            // dropper"). The title screen's creator never had this: it is built in the editor and saved, so its components wake up wired.
+            root.SetActive(false);
             Canvas canvas = root.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             // Above every other panel -- ReDraw is a full takeover, the same
@@ -90,6 +97,8 @@ namespace CityX.UI
             BuildDiscardPrompt(root.transform, overlays);
 
             EnsureEventSystem();
+            // NOW every component's fields are set: waking them wires every button and slider to what it does.
+            root.SetActive(true);
             return root;
         }
 

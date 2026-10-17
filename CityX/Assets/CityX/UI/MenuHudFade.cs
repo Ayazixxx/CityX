@@ -10,6 +10,10 @@ namespace CityX.UI
     /// Added by PlayerHud.Awake (as the hotbar is), so it needs no rebuilt scene: the portrait frame is found by its name (PlayerHudBuilder's
     /// "StatusFrame") and given a CanvasGroup here; the hotbar reads <see cref="Visibility"/> into its own (it already hides for the chat).
     /// Real time, so a menu that slows the game cannot slow the fade.
+    ///
+    /// REDRAW TOO (owner, 2026-10-17: "the portrait in the top left as well as the hotbar skills should go away on this redraw menu"): the
+    /// in-game character creator is reached from the C menu after it has closed, so it counts as a menu of its own here; and while it is up
+    /// the crosshair goes as well (it sat over the character being painted).
     /// </summary>
     public sealed class MenuHudFade : MonoBehaviour
     {
@@ -23,6 +27,10 @@ namespace CityX.UI
         public float Visibility { get; private set; } = 1.0f;
 
         private CanvasGroup _frame;
+        private CanvasGroup _crosshair;
+
+        /// <summary>1 normally, 0 while ReDraw is open (the crosshair has no business over the character creator).</summary>
+        public float CrosshairVisibility { get; private set; } = 1.0f;
         private PlayerMenuView _menu;
         private StatsPanelView _stats;
         private LoadoutPanelView _loadout;
@@ -35,7 +43,7 @@ namespace CityX.UI
         public bool AnyMenuOpen =>
             (_menu != null && _menu.IsOpen) || SkillMenuView.IsAnyOpen ||
             (_stats != null && _stats.IsOpen) || (_loadout != null && _loadout.IsOpen) || (_items != null && _items.IsOpen) ||
-            (_placeholder != null && _placeholder.IsOpen) || (_map != null && _map.IsOpen);
+            (_placeholder != null && _placeholder.IsOpen) || (_map != null && _map.IsOpen) || PlayerRedrawStarter.Active != null;
 
         private void Update()
         {
@@ -50,6 +58,12 @@ namespace CityX.UI
             if (_frame != null)
             {
                 _frame.alpha = Visibility;
+            }
+            CrosshairVisibility = Mathf.MoveTowards(CrosshairVisibility, PlayerRedrawStarter.Active != null ? 0.0f : 1.0f,
+                Time.unscaledDeltaTime / FadeSeconds);
+            if (_crosshair != null)
+            {
+                _crosshair.alpha = CrosshairVisibility;
             }
         }
 
@@ -67,6 +81,20 @@ namespace CityX.UI
                     }
                     _frame.blocksRaycasts = false;
                     _frame.interactable = false;
+                }
+            }
+            if (_crosshair == null)
+            {
+                PlayerHud hud = GetComponent<PlayerHud>();
+                if (hud != null && hud.Crosshair != null)
+                {
+                    _crosshair = hud.Crosshair.GetComponent<CanvasGroup>();
+                    if (_crosshair == null)
+                    {
+                        _crosshair = hud.Crosshair.AddComponent<CanvasGroup>();
+                    }
+                    _crosshair.blocksRaycasts = false;
+                    _crosshair.interactable = false;
                 }
             }
             if (_menu == null) _menu = Object.FindFirstObjectByType<PlayerMenuView>(FindObjectsInactive.Include);

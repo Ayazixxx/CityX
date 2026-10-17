@@ -71,6 +71,9 @@ namespace CityX.UI
         /// <summary>Matches the Value slider's own old default, so a fresh creator still opens on white.</summary>
         private float _value = 1.0f;
 
+        /// <summary>The colour this panel last gave the creator: when the creator's differs, something else (the eyedropper) chose it.</summary>
+        private Color _shown = Color.white;
+
         private void Awake()
         {
             if (SVSquare != null && SVSquare.texture == null)
@@ -127,6 +130,14 @@ namespace CityX.UI
             if (Creator == null)
             {
                 return;
+            }
+
+            // THE EYEDROPPER (owner, 2026-10-17: "particularly the eye dropper tool i noticed wasnt working"): it sets the creator's colour itself,
+            // and the square, the hue and the preview went on showing the old one -- the pick looked like it had done nothing. Whatever chose the
+            // colour, the panel now shows it.
+            if (!SameColour(Creator.Colour, _shown))
+            {
+                Adopt(Creator.Colour);
             }
 
             for (int i = 0; i < ToolButtons.Length; i++)
@@ -214,9 +225,15 @@ namespace CityX.UI
             Recolour();
         }
 
+        private static bool SameColour(Color a, Color b)
+        {
+            return Mathf.Abs(a.r - b.r) < 0.002f && Mathf.Abs(a.g - b.g) < 0.002f && Mathf.Abs(a.b - b.b) < 0.002f;
+        }
+
         private void Recolour()
         {
             Color picked = Color.HSVToRGB(_hue, _saturation, _value);
+            _shown = picked;
 
             if (Creator != null)
             {
