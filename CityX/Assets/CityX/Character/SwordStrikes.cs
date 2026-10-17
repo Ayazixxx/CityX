@@ -96,6 +96,9 @@ namespace CityX.Character
 
         /// <summary>0 to 1: how much the elbow is placed so the forearm runs straight into the hand (no bent wrist) rather than where the key bows it. The held stances (carry, ready, guard) use it; the cuts keep their authored elbows.</summary>
         public float ForearmAlign;
+
+        /// <summary>0 to 1: the hand is the hanging arm's own and the sword hangs from it by its hold, instead of the hand being turned to aim the blade (the one-handed carry).</summary>
+        public float HandDriven;
     }
 
     /// <summary>
@@ -361,7 +364,8 @@ namespace CityX.Character
             SwordFrame frame = Lerp(low, trail, t);
             frame.Footwork = 0.0f;
             frame.FreeHandWeight = 0.0f;
-            frame.ForearmAlign = 1.0f;
+            frame.ForearmAlign = oneHanded ? 0.0f : 1.0f;
+            frame.HandDriven = oneHanded ? 1.0f : 0.0f;
             return frame;
         }
 
@@ -388,10 +392,10 @@ namespace CityX.Character
         private static readonly Key TrailKey2H = Pose(0.0f, Ease.Smooth, hand: new Vector3(0.30f, 1.32f, -0.02f), blade: new Vector3(0.25f, -0.45f, -0.86f),
             edge: Vector3.down, elbow: 0.15f, twist: -8.0f, hips: 0.0f, lean: 0.0f, tilt: 0.0f, drop: 0.0f, lead: -1.0f, depth: 0.30f);
 
-        private static readonly Key CarryKey1H = Pose(0.0f, Ease.Smooth, hand: new Vector3(0.40f, 1.24f, 0.12f), blade: new Vector3(0.10f, -0.60f, 0.79f),
+        private static readonly Key CarryKey1H = Pose(0.0f, Ease.Smooth, hand: new Vector3(0.42f, 1.08f, -0.02f), blade: new Vector3(0.0f, -0.70f, 0.71f),
             edge: Vector3.down, elbow: 0.15f, twist: 0.0f, hips: 0.0f, lean: 0.0f, tilt: 0.0f, drop: 0.0f, lead: -0.5f, depth: 0.30f);
 
-        private static readonly Key TrailKey1H = Pose(0.0f, Ease.Smooth, hand: new Vector3(0.42f, 1.26f, -0.02f), blade: new Vector3(0.15f, -0.55f, -0.82f),
+        private static readonly Key TrailKey1H = Pose(0.0f, Ease.Smooth, hand: new Vector3(0.42f, 1.08f, -0.02f), blade: new Vector3(0.15f, -0.55f, -0.82f),
             edge: Vector3.down, elbow: 0.15f, twist: 0.0f, hips: 0.0f, lean: 0.0f, tilt: 0.0f, drop: 0.0f, lead: -0.5f, depth: 0.30f);
 
         // ---- the keyframes -------------------------------------------------------------------------------------------------------------
@@ -775,6 +779,7 @@ namespace CityX.Character
                 FreeHandWeight = Mathf.Lerp(a.FreeHandWeight, b.FreeHandWeight, t),
                 Reach = Mathf.Lerp(a.Reach, b.Reach, t),
                 ForearmAlign = Mathf.Lerp(a.ForearmAlign, b.ForearmAlign, t),
+                HandDriven = Mathf.Lerp(a.HandDriven, b.HandDriven, t),
             };
         }
 

@@ -35,8 +35,8 @@ namespace CityX.Character
         /// <summary>How much of the left arm's full length a two-handed grip may ask of it (a straight arm locks and pops; a hair short of it reads as reaching).</summary>
         public const float SupportReachShare = 0.97f;
 
-        /// <summary>In the held stances, how much of the wrist's remaining bend the hand gives up by turning onto the forearm's line.</summary>
-        public const float WristStraightenShare = 0.6f;
+        /// <summary>A hand-driven carry tips the hand this far at the wrist (toward the little finger) so the point goes down rather than ahead.</summary>
+        public const float CarryWristTiltDegrees = 30.0f;
 
         public void SetSwordPose(in SwordFrame frame)
         {
@@ -204,6 +204,8 @@ namespace CityX.Character
             Vector3 target = _rightUpperArm.position + (transform.right * h.x + transform.up * h.y + transform.forward * h.z) * armLength;
             float elbowOut = Mathf.Clamp01(_swordFrame.ElbowOut);
             Vector3 hint = -transform.up * (1.0f - 0.8f * elbowOut) + transform.right * (0.55f + 0.9f * elbowOut);
+            // A hanging arm's elbow bends back, a little out.
+            hint = Vector3.Lerp(hint, -transform.forward * 0.4f + transform.right * 0.6f, Mathf.Clamp01(_swordFrame.HandDriven));
             TwoBoneIK.Solve(_rightUpperArm, _rightLowerArm, _handR, target, hint, w);
 
             // The hand turned so the blade points where the frame says, edge first.
@@ -254,16 +256,28 @@ namespace CityX.Character
                     hint = Vector3.Lerp(hint.normalized, toward.normalized, align);
                     TwoBoneIK.Solve(_rightUpperArm, _rightLowerArm, _handR, target, hint, w);
                 }
-                // What the elbow cannot take up, the hand meets halfway: turned part of the way onto the forearm's line (the held blade
-                // shifts a few degrees; a straight wrist matters more). Not while the hold is being edited: the hand must hold still then.
-                if (!WeaponGripSettings.HoldBeingEdited && !_swordFrame.TwoHanded)   // (two hands on a hilt bend the wrists: that is the grip)
+            }
+
+            // A HAND-DRIVEN HOLD (the one-handed carry, owner 2026-10-17: "the elbow is all bent weird and the blade is facing the wrong way it
+            // should be facing downward"): the arm hangs and the hand is the hanging arm's own -- wrist straight, palm to the leg, thumb forward,
+            // tipped a little so the point goes down -- and the sword hangs from it at whatever angle its hold gives (so adjusting the hold in
+            // the editor IS adjusting the carry). Aiming the blade instead twisted the hand round the grip.
+            float handDriven = Mathf.Clamp01(_swordFrame.HandDriven);
+            if (handDriven > 0.0f)
+            {
+                Vector3 fingers = _handR.position - _rightLowerArm.position;
+                Vector3 thumb = transform.forward - fingers.normalized * Vector3.Dot(transform.forward, fingers.normalized);
+                if (fingers.sqrMagnitude > 1e-6f && thumb.sqrMagnitude > 1e-6f)
                 {
-                    Vector3 forearmLine = _handR.position - _rightLowerArm.position;
-                    if (forearmLine.sqrMagnitude > 1e-6f)
-                    {
-                        Quaternion straighten = Quaternion.FromToRotation(wanted * Vector3.right, forearmLine.normalized);
-                        wanted = Quaternion.Slerp(Quaternion.identity, straighten, align * WristStraightenShare) * wanted;
-                    }
+                    fingers.Normalize();
+                    thumb.Normalize();
+                    // The right hand bone: +X to the fingertips, +Z the thumb, Y = Z x X (the palm is -Y).
+                    Quaternion natural = Quaternion.LookRotation(thumb, Vector3.Cross(thumb, fingers));
+                    Vector3 palmAxis = natural * Vector3.up;
+                    Quaternion down = Quaternion.AngleAxis(CarryWristTiltDegrees, palmAxis) * natural;
+                    Quaternion up = Quaternion.AngleAxis(-CarryWristTiltDegrees, palmAxis) * natural;
+                    natural = (down * bladeInHand).y < (up * bladeInHand).y ? down : up;
+                    wanted = Quaternion.Slerp(wanted, natural, handDriven);
                 }
             }
             _handR.rotation = Quaternion.Slerp(_handR.rotation, wanted, w);

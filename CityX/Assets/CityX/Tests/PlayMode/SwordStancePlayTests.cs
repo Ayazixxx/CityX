@@ -290,7 +290,8 @@ namespace CityX.Tests
             Transform hand = _animator.GetBoneTransform(HumanBodyBones.RightHand);
             Transform elbow = _animator.GetBoneTransform(HumanBodyBones.RightLowerArm);
             float wristBend = Vector3.Angle(hand.position - elbow.position, hand.right);
-            Assert.Less(wristBend, 20.0f, $"the wrist is bent {wristBend:0} degrees carrying the sword");
+            Assert.Less(wristBend, 38.0f, $"the wrist is bent {wristBend:0} degrees carrying the sword");   // (tipped 30 on purpose, point down)
+            Assert.Less((-_sword.transform.right).y, -0.3f, "the edge does not face down");
             Vector3 blade = (_sword.BladeTipWorld - _sword.BladeBaseWorld).normalized;
             Assert.Less(blade.y, -0.3f, "the carried blade does not point down");
 #else
