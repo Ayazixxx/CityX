@@ -135,6 +135,10 @@ namespace CityX.Tests
                 for (int a = 0; a < attacks.Length; a++)
                 {
                     (string label, System.Action start, SoulsAttack attack) = attacks[a];
+                    if (label == "light3" && combat.LightChainLength < 3)
+                    {
+                        continue;   // a one-handed chain is two slashes back and forth: no third
+                    }
                     // Chain into the second and third lights: throw the earlier ones and buffer the next at each window.
                     for (int earlier = 0; earlier < a && a < 3; earlier++)
                     {

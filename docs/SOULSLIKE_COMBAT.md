@@ -14,7 +14,7 @@ horizontal slash (the owner's choice).
 
 | Input | What it does |
 |---|---|
-| Left-click | Light attack. Chains light 1 -> 2 -> 3 -> back to 1. |
+| Left-click | Light attack. Two-handed: chains light 1 -> 2 -> 3 -> back to 1. One-handed: the two slashes back and forth (no thrust, owner 2026-10-17). You keep 65% of walking speed while swinging (40% until 2026-10-17). |
 | Middle-click | Heavy attack: slow wind-up, big damage, long stagger, hyper-armour. (F stays unbound: explicit ask.) |
 | Right-click (hold) | Guard. Its **first 0.2 s parries** (tap to parry, hold to block). Slows you to half speed (legs keep walking). Costs stamina per hit absorbed. |
 | Double-tap Shift | Roll (dodge). Legal out of idle or the tail of a swing, never out of a wind-up. 0.42 s of i-frames. |

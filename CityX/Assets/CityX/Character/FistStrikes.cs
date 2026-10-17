@@ -123,11 +123,11 @@ namespace CityX.Character
         {
             switch (kind)
             {
-                case FistKind.Jab: return 0.65f;
-                case FistKind.Cross: return 0.55f;
-                case FistKind.Hook: return 0.45f;
-                case FistKind.Uppercut: return 0.4f;
-                default: return 0.25f;
+                case FistKind.Jab: return 0.8f;
+                case FistKind.Cross: return 0.75f;
+                case FistKind.Hook: return 0.7f;
+                case FistKind.Uppercut: return 0.65f;
+                default: return 0.5f;
             }
         }
 

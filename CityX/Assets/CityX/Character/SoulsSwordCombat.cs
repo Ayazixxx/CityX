@@ -288,7 +288,7 @@ namespace CityX.Character
         [Tooltip(
             "Fraction of walking speed while a swing is under way. The feet step under the swing (SwordFootwork); " +
             "0 roots the body for the whole swing, 1 is no penalty.")]
-        public float CommittedMoveSpeedFraction = 0.4f;
+        public float CommittedMoveSpeedFraction = 0.65f;   // 0.4 until 2026-10-17 (owner: "move a little quicker not full walking speed but faster than you go now")
 
         [Tooltip("How fast the body turns to where the camera looks as a swing winds up, degrees per second. Whatever the turn, the body " +
                  "faces it by the time the blade is live; turning rather than snapping is what keeps a swing from jumping round on the spot.")]
@@ -355,6 +355,13 @@ namespace CityX.Character
             }
             return index == 0 ? Light1 : (index == 1 ? Light2 : Light3);
         }
+
+        /// <summary>
+        /// How many lights the chain runs through before it starts again: the two-handed three, the one-handed TWO -- the horizontal slash
+        /// and the backhand, back and forth (owner, 2026-10-17: "get rid of the stabbing animation that happens on the third click with the
+        /// one handed sword. just use the first two ... go back and forth between them"). OneHandLight3 (the thrust) stays defined, unused.
+        /// </summary>
+        public int LightChainLength => _oneHanded ? 2 : 3;
 
         /// <summary>The heavy for the sword in hand.</summary>
         public SoulsAttack HeavyAttack => _oneHanded ? OneHandHeavy : Heavy;
@@ -696,7 +703,7 @@ namespace CityX.Character
             }
             else
             {
-                int index = chained && _currentIsLight ? (_chainIndex + 1) % 3 : 0;
+                int index = chained && _currentIsLight ? (_chainIndex + 1) % LightChainLength : 0;
                 next = LightAttack(index);
                 _pendingChainIndex = index;
                 light = true;

@@ -467,6 +467,36 @@ namespace CityX.Tests
             Assert.AreEqual(0, seen[3], "the chain did not wrap around to the first swing");
         }
 
+        private sealed class OneHandedBlade : ISwordBlade
+        {
+            public Vector3 BladeBaseWorld => Vector3.zero;
+            public Vector3 BladeTipWorld => Vector3.forward;
+            public bool IsOneHanded => true;
+            public float GetMeleeDamage() => 10.0f;
+        }
+
+        [Test]
+        public void TheOneHandedChainGoesBackAndForthBetweenItsTwoSlashes()
+        {
+            // Owner, 2026-10-17: "get rid of the stabbing animation that happens on the third click with the one handed sword. just use the
+            // first two horizontal slashes and make it go back and forth between them".
+            _combat.Equip(new OneHandedBlade());
+            var seen = new System.Collections.Generic.List<string>();
+            _combat.AttackStarted += attack => seen.Add(attack.Animation);
+            _vitals.InfiniteStamina = true;
+            for (float t = 0.0f; t < 6.0f; t += 0.05f)
+            {
+                _combat.RequestLight(0.0f);
+                Step(0.05f);
+            }
+            Assert.GreaterOrEqual(seen.Count, 5, "the chain did not continue");
+            Assert.IsFalse(seen.Contains(SwordStrikes.Thrust1HName), "the one-handed chain still thrusts");
+            for (int i = 0; i < seen.Count; i++)
+            {
+                Assert.AreEqual(i % 2 == 0 ? SwordStrikes.Slash1HName : SwordStrikes.Cut1HName, seen[i], $"swing {i + 1} of the chain");
+            }
+        }
+
         [Test]
         public void ALateFreshPressAfterTheChainEndsStartsTheFirstSwingAgain()
         {
