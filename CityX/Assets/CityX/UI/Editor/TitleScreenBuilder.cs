@@ -66,8 +66,7 @@ namespace CityX.UIEditor
         private static readonly float TimeOfDay =
             SkyCycle.DaySeconds + SkyCycle.NightSeconds * 0.34f;
 
-        /// <summary>The logo's width as a fraction of the row's, and its shape (the art is 942x714).</summary>
-        private const float LogoWidthFraction = 0.26f;
+        /// <summary>The logo's shape (the art is 942x714).</summary>
         private const float LogoAspect = 942.0f / 714.0f;
 
         /// <summary>Where the logo hangs on z: in FRONT of every building (negative), so it draws over the rooftops rather than under them.</summary>
@@ -566,7 +565,7 @@ namespace CityX.UIEditor
             title.SettingsPanel = BuildSettings(root.transform, title);
 
             title.Show(TitleScreen.Panel.Menu);
-            EnsureEventSystem();
+            UiKit.EnsureEventSystem();
         }
 
         /// <summary>
@@ -1087,17 +1086,6 @@ namespace CityX.UIEditor
             rect.anchorMax = Vector2.one;
             rect.offsetMin = new Vector2(inset, inset);
             rect.offsetMax = new Vector2(-inset, -inset);
-        }
-
-        private static void EnsureEventSystem()
-        {
-            if (Object.FindFirstObjectByType<UnityEngine.EventSystems.EventSystem>() != null)
-            {
-                return;
-            }
-            var events = new GameObject("EventSystem");
-            events.AddComponent<UnityEngine.EventSystems.EventSystem>();
-            events.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
         }
     }
 }

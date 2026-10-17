@@ -67,31 +67,6 @@ namespace CityX.CharacterEditor
         [MenuItem("CityX/Export Player Body Reference (OBJ)")]
         public static void Export()
         {
-            // BodyRig.Bones() (T-pose) covers every bone LimbCapsules needs;
-            // BodyRig.RestBones() only redefines the arm chain (and,
-            // harmlessly, a few bones that already agree in both -- see its
-            // own doc comment: "the legs already hang straight down in both
-            // conventions"). Overlaying it is exactly "use the arms-down
-            // numbers where they exist, the T-pose ones elsewhere" -- there
-            // is nowhere the two disagree outside the arms.
-            var positions = new Dictionary<HumanBodyBones, Vector3>();
-            foreach (BodyRig.Bone bone in BodyRig.Bones())
-            {
-                positions[bone.Human] = bone.Position;
-            }
-            foreach (BodyRig.Bone bone in BodyRig.RestBones())
-            {
-                positions[bone.Human] = bone.Position;
-            }
-
-            Vector3 BonePosition(HumanBodyBones human) =>
-                positions.TryGetValue(human, out Vector3 p) ? p : Vector3.zero;
-
-            // ReferenceHeight, not BodyRig.StandingHeight -- see
-            // BodyRigBuilder.Segments' own comment: FusedBodyShape's radii
-            // are already the numbers the body was drawn with, so the scale
-            // factor has to come out at exactly one or the thicknesses get
-            // rescaled.
             // THE SAVED BODY ITSELF, not a fresh extraction: since 2026-10-13 the shipped mesh has its hands extracted on a finer grid
             // and stitched on (FusedBodyMesh.ExtractBody), so re-extracting here would give a reference with mitten hands. The asset's
             // vertices are in the arms-down rest pose already (that is what the bind pose maps from).

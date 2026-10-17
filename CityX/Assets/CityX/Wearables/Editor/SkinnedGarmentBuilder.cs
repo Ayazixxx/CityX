@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.IO;
 using CityX.Character;
 using CityX.CharacterEditor;
+using CityX.Core;
 using CityX.Items;
 using CityX.Wearables;
 using UnityEditor;
@@ -651,7 +652,7 @@ namespace CityX.WearablesEditor
 
                 foreach (Turn turn in pose)
                 {
-                    Transform bone = FindDeep(body.transform, turn.Bone);
+                    Transform bone = TransformSearch.FindDeep(body.transform, turn.Bone);
                     if (bone == null)
                     {
                         Debug.LogWarning($"CityX: no bone called '{turn.Bone}' -- that part of the pose did nothing.");
@@ -729,23 +730,6 @@ namespace CityX.WearablesEditor
                 }
                 Object.DestroyImmediate(root);
             }
-        }
-
-        private static Transform FindDeep(Transform root, string name)
-        {
-            if (root.name == name)
-            {
-                return root;
-            }
-            foreach (Transform child in root)
-            {
-                Transform hit = FindDeep(child, name);
-                if (hit != null)
-                {
-                    return hit;
-                }
-            }
-            return null;
         }
     }
 }

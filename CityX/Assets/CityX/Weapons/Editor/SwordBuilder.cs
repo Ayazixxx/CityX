@@ -38,7 +38,6 @@ namespace CityX.WeaponsEditor
         // --- two_handed_sword.gd's own shared constants ---
         private const float GripLen = 0.20f;
         private const float ModelScale = 2.0f;
-        private const float GripCenterT = 0.5f;
 
         // --- greatsword.gd's own constants ---
         private const float GripRadius = 0.025f;

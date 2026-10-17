@@ -41,7 +41,7 @@ namespace CityX.Tests
         }
 
         [UnityTearDown]
-        public IEnumerator TearDown()
+        public IEnumerator UnityTearDown()
         {
             foreach (SparringDummy dummy in _dummies)
             {

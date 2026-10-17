@@ -33,7 +33,7 @@ namespace CityX.Tests
         }
 
         [UnityTearDown]
-        public IEnumerator TearDown()
+        public IEnumerator UnityTearDown()
         {
             if (_camera != null) Object.Destroy(_camera.gameObject);
             if (_sceneCamera != null) _sceneCamera.enabled = true;

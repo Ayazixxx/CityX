@@ -76,7 +76,7 @@ namespace CityX.Tests
         // declares -- see BenchSeatPlayTests' own identical comment on why
         // shadowing that name breaks device cleanup between tests.
         [UnityTearDown]
-        public IEnumerator TearDown()
+        public IEnumerator UnityTearDown()
         {
             if (_player != null) Object.DestroyImmediate(_player);
             if (_bookObject != null) Object.DestroyImmediate(_bookObject);

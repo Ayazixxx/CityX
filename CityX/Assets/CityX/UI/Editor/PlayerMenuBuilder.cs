@@ -84,7 +84,7 @@ namespace CityX.UIEditor
             var content = new GameObject("Content", typeof(RectTransform));
             var contentRect = (RectTransform)content.transform;
             contentRect.SetParent(root.transform, false);
-            Stretch(contentRect);
+            UiKit.Stretch(contentRect);
 
             var rail = new GameObject("Rail", typeof(RectTransform));
             var railRect = (RectTransform)rail.transform;
@@ -112,7 +112,7 @@ namespace CityX.UIEditor
             view.Submenu = BuildSubmenu(content.transform, view, loadout, stats, inventory, placeholder, redraw);
 
             view.Root = content;
-            EnsureEventSystem();
+            UiKit.EnsureEventSystem();
             return view;
         }
 
@@ -217,7 +217,7 @@ namespace CityX.UIEditor
             iconRect.pivot = new Vector2(0.0f, 0.5f);
             iconRect.anchoredPosition = new Vector2(10.0f, 0.0f);
 
-            Text text = MakeText(go.transform, "Label", label, 16, FlyoutTextColour);
+            Text text = UiKit.MakeText(go.transform, "Label", label, 16, FlyoutTextColour);
             var textRect = (RectTransform)text.transform;
             textRect.anchorMin = new Vector2(0.0f, 0.0f);
             textRect.anchorMax = new Vector2(1.0f, 1.0f);
@@ -255,39 +255,6 @@ namespace CityX.UIEditor
             image.raycastTarget = false;
             image.preserveAspect = true;
             return image;
-        }
-
-        private static Text MakeText(Transform parent, string name, string content, int size, Color colour)
-        {
-            var go = new GameObject(name, typeof(RectTransform));
-            go.transform.SetParent(parent, false);
-            Text text = go.AddComponent<Text>();
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            text.fontSize = size;
-            text.color = colour;
-            text.raycastTarget = false;
-            text.text = content;
-            return text;
-        }
-
-        private static void Stretch(RectTransform rect)
-        {
-            rect.anchorMin = Vector2.zero;
-            rect.anchorMax = Vector2.one;
-            rect.offsetMin = Vector2.zero;
-            rect.offsetMax = Vector2.zero;
-        }
-
-        /// <summary>Without one of these no button on this panel ever receives a click -- see MapPanelBuilder's own copy of this note.</summary>
-        private static void EnsureEventSystem()
-        {
-            if (Object.FindFirstObjectByType<EventSystem>() != null)
-            {
-                return;
-            }
-            var events = new GameObject("EventSystem");
-            events.AddComponent<EventSystem>();
-            events.AddComponent<InputSystemUIInputModule>();
         }
     }
 }

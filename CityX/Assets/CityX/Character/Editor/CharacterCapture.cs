@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
 using CityX.Character;
+using CityX.Core;
 using UnityEditor;
 using UnityEngine;
 
@@ -205,8 +206,8 @@ namespace CityX.CharacterEditor
 
             // THE CHARGED JUMP POSE, NEWLY ADDED AND NEVER SWEPT -- the raw
             // retargeted clip crossed the arm tight across the torso far
-            // enough to open a real hole here (confirmed with
-            // ArmpitShotBright and DiagnoseFusedBodyMeshTopology: the base
+            // enough to open a real hole here (confirmed with a flood-lit
+            // render and DiagnoseFusedBodyMeshTopology: the base
             // mesh has zero boundary edges, so the hole was a Linear Blend
             // Skinning collapse under an extreme rotation, not a bad mesh).
             // PlayerRigBuilder.DampenChargedJumpPose pulls the whole
@@ -235,118 +236,6 @@ namespace CityX.CharacterEditor
             if (Application.isBatchMode)
             {
                 EditorApplication.Exit(0);
-            }
-        }
-
-        /// <summary>
-        /// TEMPORARY DIAGNOSTIC, not a real check -- floods the crease with
-        /// light far past anything believable in game, purely to tell a
-        /// true hole (stays exactly background-black no matter how much
-        /// light is thrown at it, because there is no surface there to
-        /// light) apart from an extreme but real, closed crease (lightens
-        /// up once shadow stops being the only thing explaining it).
-        /// </summary>
-        private static void ArmpitShotBright(GameObject prefab, string outputDirectory, string name, float yaw,
-            Vector3 cameraPosition, Vector3 lookAt, IEnumerable<Turn> pose, AnimationClip clip, float clipFraction)
-        {
-            var root = new GameObject("ArmpitCheckBrightRig");
-            RenderTexture target = null;
-            var previousAmbient = RenderSettings.ambientMode;
-            var previousSky = RenderSettings.ambientSkyColor;
-            // Declared BEFORE the try, not inside it -- a value only
-            // assigned inside try is unreachable from finally, which is
-            // exactly the CS0103 this file's own armpit-lighting fix hit
-            // earlier this session.
-            var previousCullModes = new List<(Material material, float cull)>();
-            try
-            {
-                var sunObject = new GameObject("Sun");
-                sunObject.transform.SetParent(root.transform);
-                Light sun = sunObject.AddComponent<Light>();
-                sun.type = LightType.Directional;
-                sun.intensity = 3.0f;
-                sun.transform.rotation = Quaternion.Euler(20.0f, 20.0f + yaw, 0.0f);
-
-                RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
-                RenderSettings.ambientSkyColor = new Color(0.9f, 0.9f, 0.95f);
-
-                var instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
-                instance.transform.SetParent(root.transform);
-                instance.transform.position = Vector3.zero;
-                instance.transform.rotation = Quaternion.Euler(0.0f, yaw, 0.0f);
-                Pose(instance, pose);
-                SampleClip(instance, clip, clipFraction);
-
-                // DIAGNOSTIC ONLY: force double-sided rendering. If the mesh
-                // is genuinely watertight (confirmed separately by
-                // DiagnoseFusedBodyMeshTopology finding zero boundary
-                // edges) but an extreme pose flips a local patch of
-                // triangles inside out through differential skinning, back-
-                // face culling would make exactly that patch invisible --
-                // the camera ray keeps going and hits the background,
-                // which looks identical to a real hole from the front but
-                // would visibly fill back in from the BACK face the moment
-                // culling stops discarding it.
-                foreach (SkinnedMeshRenderer skin in instance.GetComponentsInChildren<SkinnedMeshRenderer>())
-                {
-                    skin.updateWhenOffscreen = true;
-                    foreach (Material material in skin.sharedMaterials)
-                    {
-                        if (material != null && material.HasProperty("_Cull"))
-                        {
-                            previousCullModes.Add((material, material.GetFloat("_Cull")));
-                            material.SetFloat("_Cull", (float)UnityEngine.Rendering.CullMode.Off);
-                        }
-                    }
-                }
-
-                // A point light shoved right where the crease is, so
-                // whatever surface is there (if any) gets lit from close
-                // range regardless of the crease's own facing.
-                var pointObject = new GameObject("PointLight");
-                pointObject.transform.SetParent(root.transform);
-                pointObject.transform.position = lookAt + new Vector3(0.0f, 0.0f, -0.3f);
-                Light point = pointObject.AddComponent<Light>();
-                point.type = LightType.Point;
-                point.intensity = 8.0f;
-                point.range = 3.0f;
-
-                var cameraObject = new GameObject("Camera");
-                cameraObject.transform.SetParent(root.transform);
-                Camera camera = cameraObject.AddComponent<Camera>();
-                camera.clearFlags = CameraClearFlags.SolidColor;
-                camera.backgroundColor = new Color(0.05f, 0.06f, 0.09f);
-                camera.fieldOfView = 28.0f;
-                camera.nearClipPlane = 0.05f;
-                cameraObject.transform.position = cameraPosition;
-                cameraObject.transform.LookAt(lookAt);
-
-                target = new RenderTexture(700, 700, 24, RenderTextureFormat.ARGB32) { antiAliasing = 8 };
-                camera.targetTexture = target;
-                camera.Render();
-                RenderTexture.active = target;
-                var image = new Texture2D(700, 700, TextureFormat.RGB24, false);
-                image.ReadPixels(new Rect(0, 0, 700, 700), 0, 0);
-                image.Apply();
-                string path = Path.Combine(outputDirectory, name + ".png");
-                File.WriteAllBytes(path, image.EncodeToPNG());
-                Object.DestroyImmediate(image);
-                Debug.Log($"CityX: wrote {path}");
-            }
-            finally
-            {
-                // RESTORED, NOT LEFT OFF. sharedMaterials are the real
-                // project assets, not per-instance copies -- leaving this
-                // set would permanently switch the player's actual skin
-                // material to double-sided rendering.
-                foreach ((Material material, float cull) in previousCullModes)
-                {
-                    material.SetFloat("_Cull", cull);
-                }
-                RenderSettings.ambientMode = previousAmbient;
-                RenderSettings.ambientSkyColor = previousSky;
-                if (target != null) { target.Release(); Object.DestroyImmediate(target); }
-                Object.DestroyImmediate(root);
             }
         }
 
@@ -617,7 +506,7 @@ namespace CityX.CharacterEditor
 
             foreach (Turn turn in turns)
             {
-                Transform bone = FindDeep(instance.transform, turn.Bone);
+                Transform bone = TransformSearch.FindDeep(instance.transform, turn.Bone);
                 if (bone == null)
                 {
                     Debug.LogWarning($"CityX: no bone called '{turn.Bone}' -- that part of the " +
@@ -718,23 +607,6 @@ namespace CityX.CharacterEditor
                     CityX.Character.BodyRig.PositionOf(HumanBodyBones.Hips));
                 animator.transform.position += rest - hips.position;
             }
-        }
-
-        private static Transform FindDeep(Transform root, string name)
-        {
-            if (root.name == name)
-            {
-                return root;
-            }
-            foreach (Transform child in root)
-            {
-                Transform hit = FindDeep(child, name);
-                if (hit != null)
-                {
-                    return hit;
-                }
-            }
-            return null;
         }
 
         private static void Shoot(GameObject prefab, string directory, string name, float yaw,

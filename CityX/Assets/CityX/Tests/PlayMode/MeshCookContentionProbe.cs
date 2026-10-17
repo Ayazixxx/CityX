@@ -66,8 +66,8 @@ namespace CityX.Tests
                 var reference = new GameObject("options");
                 MeshColliderCookingOptions options = reference.AddComponent<MeshCollider>().cookingOptions;   // what a new chunk's collider uses
                 Object.Destroy(reference);
-                Physics.BakeMesh(onMesh.GetInstanceID(), false, options);
-                Physics.BakeMesh(offMesh.GetInstanceID(), false, options);
+                Physics.BakeMesh(onMesh.GetEntityId(), false, options);
+                Physics.BakeMesh(offMesh.GetEntityId(), false, options);
                 GameObject turnOff = WithCollider(offMesh, true);
                 var turnOn = new GameObject("on");
                 turnOn.SetActive(false);
@@ -75,7 +75,7 @@ namespace CityX.Tests
                 yield return null;
                 Physics.SyncTransforms();
 
-                int bigId = big.GetInstanceID();
+                EntityId bigId = big.GetEntityId();
                 int started = 0, finished = 0;
                 double cookMs = 0.0;
                 if (withCook)

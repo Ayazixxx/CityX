@@ -35,7 +35,7 @@ namespace CityX.Tests
         }
 
         [UnityTearDown]
-        public IEnumerator TearDown()
+        public IEnumerator UnityTearDown()
         {
             if (GraffitiMenuView.IsAnyOpen) GraffitiMenuView.Current.Close(apply: false);
             GraffitiWall.Clear();

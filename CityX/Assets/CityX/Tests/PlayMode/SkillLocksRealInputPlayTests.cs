@@ -30,7 +30,7 @@ namespace CityX.Tests
         }
 
         [UnityTearDown]
-        public IEnumerator TearDown()
+        public IEnumerator UnityTearDown()
         {
             if (_wall != null) Object.Destroy(_wall);
             foreach (IceShardProjectile shard in Object.FindObjectsByType<IceShardProjectile>(FindObjectsSortMode.None))

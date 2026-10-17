@@ -1,3 +1,4 @@
+using CityX.Core;
 using UnityEngine;
 
 namespace CityX.UI
@@ -71,7 +72,7 @@ namespace CityX.UI
         {
             if (_frame == null)
             {
-                Transform frame = FindDeep(transform, StatusFrameName);
+                Transform frame = TransformSearch.FindDeep(transform, StatusFrameName);
                 if (frame != null)
                 {
                     _frame = frame.GetComponent<CanvasGroup>();
@@ -103,23 +104,6 @@ namespace CityX.UI
             if (_items == null) _items = Object.FindFirstObjectByType<InventoryPanelView>(FindObjectsInactive.Include);
             if (_placeholder == null) _placeholder = Object.FindFirstObjectByType<PlaceholderPanelView>(FindObjectsInactive.Include);
             if (_map == null) _map = Object.FindFirstObjectByType<MapPanelView>(FindObjectsInactive.Include);
-        }
-
-        private static Transform FindDeep(Transform root, string name)
-        {
-            if (root.name == name)
-            {
-                return root;
-            }
-            for (int i = 0; i < root.childCount; i++)
-            {
-                Transform found = FindDeep(root.GetChild(i), name);
-                if (found != null)
-                {
-                    return found;
-                }
-            }
-            return null;
         }
     }
 }

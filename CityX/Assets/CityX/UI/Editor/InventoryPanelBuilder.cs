@@ -84,7 +84,7 @@ namespace CityX.UIEditor
             border.effectColor = BorderColour;
             border.effectDistance = new Vector2(2.0f, -2.0f);
 
-            Text title = MakeText(panel.transform, "Title", TitleText, 22, LabelColour);
+            Text title = UiKit.MakeText(panel.transform, "Title", TitleText, 22, LabelColour);
             var titleRect = (RectTransform)title.transform;
             titleRect.anchorMin = new Vector2(0.0f, 1.0f);
             titleRect.anchorMax = new Vector2(0.0f, 1.0f);
@@ -93,7 +93,7 @@ namespace CityX.UIEditor
             titleRect.sizeDelta = new Vector2(300.0f, 30.0f);
             title.alignment = TextAnchor.UpperLeft;
 
-            Text hint = MakeText(panel.transform, "Hint", HintText, 13, HintColour);
+            Text hint = UiKit.MakeText(panel.transform, "Hint", HintText, 13, HintColour);
             var hintRect = (RectTransform)hint.transform;
             hintRect.anchorMin = new Vector2(1.0f, 0.0f);
             hintRect.anchorMax = new Vector2(1.0f, 0.0f);
@@ -102,7 +102,7 @@ namespace CityX.UIEditor
             hintRect.sizeDelta = new Vector2(460.0f, 20.0f);
             hint.alignment = TextAnchor.LowerRight;
 
-            Text equipLabel = MakeText(panel.transform, "EquipLabel", "EQUIPPED", 14, LabelColour);
+            Text equipLabel = UiKit.MakeText(panel.transform, "EquipLabel", "EQUIPPED", 14, LabelColour);
             var equipLabelRect = (RectTransform)equipLabel.transform;
             equipLabelRect.anchorMin = new Vector2(0.0f, 1.0f);
             equipLabelRect.anchorMax = new Vector2(0.0f, 1.0f);
@@ -113,7 +113,7 @@ namespace CityX.UIEditor
 
             BuildEquipRow(panel.transform, view);
 
-            Text storageLabel = MakeText(panel.transform, "StorageLabel", "STORAGE", 14, LabelColour);
+            Text storageLabel = UiKit.MakeText(panel.transform, "StorageLabel", "STORAGE", 14, LabelColour);
             var storageLabelRect = (RectTransform)storageLabel.transform;
             storageLabelRect.anchorMin = new Vector2(0.0f, 1.0f);
             storageLabelRect.anchorMax = new Vector2(0.0f, 1.0f);
@@ -131,7 +131,7 @@ namespace CityX.UIEditor
             // ever bring it back. Same shape DevConsole/PauseMenu/PlayerChat
             // already use.
             view.Root = panel;
-            EnsureEventSystem();
+            UiKit.EnsureEventSystem();
             return view;
         }
 
@@ -166,7 +166,7 @@ namespace CityX.UIEditor
                 Button button = go.AddComponent<Button>();
                 button.targetGraphic = background;
 
-                Text keyCaption = MakeText(go.transform, "Key", InventoryPanelView.SlotLabelText[i], 9, HintColour);
+                Text keyCaption = UiKit.MakeText(go.transform, "Key", InventoryPanelView.SlotLabelText[i], 9, HintColour);
                 var keyRect = (RectTransform)keyCaption.transform;
                 keyRect.anchorMin = new Vector2(0.0f, 1.0f);
                 keyRect.anchorMax = new Vector2(1.0f, 1.0f);
@@ -176,7 +176,7 @@ namespace CityX.UIEditor
                 keyCaption.alignment = TextAnchor.UpperCenter;
                 keyCaption.raycastTarget = false;
 
-                Text itemCaption = MakeText(go.transform, "Item", "--", 11, SlotTextColour);
+                Text itemCaption = UiKit.MakeText(go.transform, "Item", "--", 11, SlotTextColour);
                 var itemRect = (RectTransform)itemCaption.transform;
                 itemRect.anchorMin = Vector2.zero;
                 itemRect.anchorMax = Vector2.one;
@@ -230,7 +230,7 @@ namespace CityX.UIEditor
                 Button button = go.AddComponent<Button>();
                 button.targetGraphic = background;
 
-                Text caption = MakeText(go.transform, "Label", string.Empty, 11, SlotTextColour);
+                Text caption = UiKit.MakeText(go.transform, "Label", string.Empty, 11, SlotTextColour);
                 var captionRect = (RectTransform)caption.transform;
                 captionRect.anchorMin = Vector2.zero;
                 captionRect.anchorMax = Vector2.one;
@@ -246,31 +246,6 @@ namespace CityX.UIEditor
 
             view.StorageButtons = buttons;
             view.StorageLabels = labels;
-        }
-
-        private static Text MakeText(Transform parent, string name, string content, int size, Color colour)
-        {
-            var go = new GameObject(name, typeof(RectTransform));
-            go.transform.SetParent(parent, false);
-            Text text = go.AddComponent<Text>();
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            text.fontSize = size;
-            text.color = colour;
-            text.raycastTarget = false;
-            text.text = content;
-            return text;
-        }
-
-        /// <summary>Without one of these no button on this panel ever receives a click -- see MapPanelBuilder's own copy of this note.</summary>
-        private static void EnsureEventSystem()
-        {
-            if (Object.FindFirstObjectByType<EventSystem>() != null)
-            {
-                return;
-            }
-            var events = new GameObject("EventSystem");
-            events.AddComponent<EventSystem>();
-            events.AddComponent<InputSystemUIInputModule>();
         }
     }
 }

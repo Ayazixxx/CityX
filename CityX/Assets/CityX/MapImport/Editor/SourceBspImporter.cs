@@ -486,14 +486,6 @@ namespace CityX.MapImport
             }
         }
 
-        private static Material LoadDefaultMaterial()
-        {
-            // Whatever the render pipeline's default is. The map arrives
-            // untextured on purpose; this just makes it visible.
-            Shader shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
-            return new Material(shader);
-        }
-
         private static void EnsureFolder(string folder)
         {
             if (AssetDatabase.IsValidFolder(folder))

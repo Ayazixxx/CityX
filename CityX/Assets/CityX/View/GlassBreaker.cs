@@ -74,7 +74,7 @@ namespace CityX.View
                 {
                     if (shard.sharedMesh != null)
                     {
-                        Physics.BakeMesh(shard.sharedMesh.GetInstanceID(), shard.convex, shard.cookingOptions);
+                        Physics.BakeMesh(shard.sharedMesh.GetEntityId(), shard.convex, shard.cookingOptions);
                     }
                 }
                 // The broken pane's own pieces (GlassFractureBurst) are drawn with the shards' glass, and a first batch is made now.

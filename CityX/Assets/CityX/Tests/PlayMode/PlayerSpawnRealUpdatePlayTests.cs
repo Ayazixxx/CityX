@@ -39,7 +39,7 @@ namespace CityX.Tests
         }
 
         [UnityTearDown]
-        public IEnumerator TearDown()
+        public IEnumerator UnityTearDown()
         {
             if (_scene.IsValid() && _scene.isLoaded)
             {

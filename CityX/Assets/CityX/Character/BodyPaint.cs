@@ -1068,12 +1068,6 @@ namespace CityX.Character
             return true;
         }
 
-        private static int RowOfV(float v)
-        {
-            return Mathf.Clamp(
-                Mathf.FloorToInt(v * PaintAtlas.PartCount), 0, PaintAtlas.PartCount - 1);
-        }
-
         private static int PixelIndex(int x, int y)
         {
             return y * PaintAtlas.Width + x;

@@ -30,7 +30,7 @@ namespace CityX.Tests
         }
 
         [UnityTearDown]
-        public IEnumerator TearDown()
+        public IEnumerator UnityTearDown()
         {
             if (_wall != null) Object.Destroy(_wall);
             if (_scene.IsValid() && _scene.isLoaded)

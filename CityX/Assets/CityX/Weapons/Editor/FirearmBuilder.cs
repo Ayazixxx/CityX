@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using CityX.CharacterEditor;
+using CityX.Core;
 using CityX.Weapons;
 using UnityEditor;
 using UnityEngine;
@@ -79,7 +80,7 @@ namespace CityX.WeaponsEditor
                 Debug.LogError($"CityX: no model at {glbPath} -- run its Blender build script (CityX/SourceArt).");
                 return null;
             }
-            Transform gun = FindDeep(model.transform, gunNode) ?? model.transform;
+            Transform gun = TransformSearch.FindDeep(model.transform, gunNode) ?? model.transform;
             System.IO.Directory.CreateDirectory(meshFolder);
 
             var root = new GameObject(rootName);
@@ -309,23 +310,6 @@ namespace CityX.WeaponsEditor
                 Debug.LogWarning($"CityX: no audio clip at {clipPath} -- {name} will play silently.");
             }
             return source;
-        }
-
-        private static Transform FindDeep(Transform root, string name)
-        {
-            if (root.name == name)
-            {
-                return root;
-            }
-            foreach (Transform child in root)
-            {
-                Transform hit = FindDeep(child, name);
-                if (hit != null)
-                {
-                    return hit;
-                }
-            }
-            return null;
         }
     }
 }

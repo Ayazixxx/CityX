@@ -286,7 +286,7 @@ namespace CityX.UI
                 }
                 _rows.Add(MakeRow(contentRect, stat));
             }
-            EnsureEventSystem();
+            UiKit.EnsureEventSystem();
         }
 
         private static void MakeHeading(Transform parent, string text)
@@ -369,17 +369,6 @@ namespace CityX.UI
             rect.anchorMax = Vector2.one;
             rect.offsetMin = offsetMin;
             rect.offsetMax = offsetMax;
-        }
-
-        private static void EnsureEventSystem()
-        {
-            if (EventSystem.current != null || Object.FindFirstObjectByType<EventSystem>() != null)
-            {
-                return;
-            }
-            var events = new GameObject("EventSystem");
-            events.AddComponent<EventSystem>();
-            events.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
         }
     }
 }

@@ -127,7 +127,7 @@ namespace CityX.UIEditor
 
             select.PedestalAnchors = anchors;
 
-            SetLayerRecursively(stage, layer);
+            CreatorKit.SetLayerRecursively(stage, layer);
 
             var cameraObject = new GameObject("SelectCamera");
             cameraObject.transform.SetParent(stage.transform, false);
@@ -174,10 +174,10 @@ namespace CityX.UIEditor
                                  "the characters will not draw.");
             }
 
-            AddLight(stage, layer, "Key", new Vector3(22.0f, 150.0f, 0.0f), 1.4f, Color.white);
-            AddLight(stage, layer, "Fill", new Vector3(10.0f, -40.0f, 0.0f), 0.8f,
+            CreatorKit.AddLight(stage, layer, "Key", new Vector3(22.0f, 150.0f, 0.0f), 1.4f, Color.white);
+            CreatorKit.AddLight(stage, layer, "Fill", new Vector3(10.0f, -40.0f, 0.0f), 0.8f,
                 new Color(0.82f, 0.86f, 1.0f));
-            AddLight(stage, layer, "Back", new Vector3(-25.0f, 20.0f, 0.0f), 0.5f,
+            CreatorKit.AddLight(stage, layer, "Back", new Vector3(-25.0f, 20.0f, 0.0f), 0.5f,
                 new Color(1.0f, 0.95f, 0.85f));
 
             // The one light that says "this is the chosen one" -- a downward
@@ -250,22 +250,6 @@ namespace CityX.UIEditor
             select.HairMaterialAsset = material;
         }
 
-        private static void AddLight(GameObject stage, int layer, string name, Vector3 angles,
-            float intensity, Color colour)
-        {
-            var go = new GameObject($"{name}Light");
-            go.transform.SetParent(stage.transform, false);
-            go.transform.rotation = Quaternion.Euler(angles);
-            go.layer = layer;
-
-            Light light = go.AddComponent<Light>();
-            light.type = LightType.Directional;
-            light.intensity = intensity;
-            light.color = colour;
-            light.cullingMask = 1 << layer;
-            light.shadows = LightShadows.None;
-        }
-
         /// <summary>See CharacterCreatorBuilder's own identical method -- kept as its own copy rather than shared, since the two builders otherwise depend on nothing of each other's.</summary>
         private static int EnsureLayer(string name)
         {
@@ -291,15 +275,6 @@ namespace CityX.UIEditor
             Debug.LogWarning($"CityX: no free layer for '{name}' -- the select screen will render " +
                              "the whole scene behind the pedestals.");
             return 0;
-        }
-
-        private static void SetLayerRecursively(GameObject root, int layer)
-        {
-            root.layer = layer;
-            foreach (Transform child in root.GetComponentsInChildren<Transform>(true))
-            {
-                child.gameObject.layer = layer;
-            }
         }
 
         // --- the carousel's UI half ---

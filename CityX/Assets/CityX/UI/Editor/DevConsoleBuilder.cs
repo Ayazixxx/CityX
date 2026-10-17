@@ -130,7 +130,7 @@ namespace CityX.UIEditor
             view.OrbitCamera = orbitCamera;
             view.Swing = inputReader != null ? inputReader.GetComponent<GrappleSwing>() : null;
 
-            EnsureEventSystem();
+            UiKit.EnsureEventSystem();
             return view;
         }
 
@@ -144,24 +144,6 @@ namespace CityX.UIEditor
             text.color = Ink;
             text.raycastTarget = false;
             return text;
-        }
-
-        /// <summary>
-        /// Without one of these an InputField never receives a keystroke -- no
-        /// error, no warning, it simply stays empty. And it has to be the Input
-        /// System module: this project runs the new system only, so Unity's
-        /// default StandaloneInputModule would compile, sit there, and deliver
-        /// nothing.
-        /// </summary>
-        private static void EnsureEventSystem()
-        {
-            if (Object.FindFirstObjectByType<EventSystem>() != null)
-            {
-                return;
-            }
-            var events = new GameObject("EventSystem");
-            events.AddComponent<EventSystem>();
-            events.AddComponent<InputSystemUIInputModule>();
         }
     }
 }

@@ -483,32 +483,13 @@ namespace CityX.UI
             // that is a T-pose, arms straight out, which reads as broken on
             // a screen whose whole point is showing off the character
             // rather than exposing it for painting. Posed to a natural
-            // arms-down stance instead, the same fixed rotations
-            // PistolBuilder.PoseArmsDown already uses for its own grip
-            // renders.
+            // arms-down stance instead, the same fixed rotations the
+            // weapon builders' grip renders use.
             foreach (Animator animator in body.GetComponentsInChildren<Animator>(true))
             {
                 animator.enabled = false;
             }
-            PoseArmsDown(body.transform);
-        }
-
-        /// <summary>Same fixed pose PistolBuilder.PoseArmsDown uses -- arms relaxed at the sides rather than the bind pose's T-pose.</summary>
-        private static void PoseArmsDown(Transform root)
-        {
-            SetLocalRotation(root, "arm_l", new Vector3(0.0f, 0.0f, 78.0f));
-            SetLocalRotation(root, "forearm_l", new Vector3(0.0f, 0.0f, 12.0f));
-            SetLocalRotation(root, "arm_r", new Vector3(0.0f, 0.0f, -78.0f));
-            SetLocalRotation(root, "forearm_r", new Vector3(0.0f, 0.0f, -12.0f));
-        }
-
-        private static void SetLocalRotation(Transform root, string boneName, Vector3 euler)
-        {
-            Transform bone = FindDeep(root, boneName);
-            if (bone != null)
-            {
-                bone.localRotation = Quaternion.Euler(euler);
-            }
+            StillPose.ArmsDown(body.transform);
         }
 
         private static void Strip<T>(GameObject root) where T : Component
@@ -564,7 +545,7 @@ namespace CityX.UI
                 }
             }
 
-            Transform head = FindDeep(body.transform, "head");
+            Transform head = TransformSearch.FindDeep(body.transform, "head");
             if (head != null && HairStyleMeshes != null && HairStyleMeshes.Length > 0)
             {
                 var hair = body.AddComponent<CharacterHair>();
@@ -574,18 +555,6 @@ namespace CityX.UI
                 hair.SetStyle(string.IsNullOrEmpty(character.HairStyle) ? "none" : character.HairStyle);
                 hair.SetColour(character.HairColour);
             }
-        }
-
-        private static Transform FindDeep(Transform root, string name)
-        {
-            foreach (Transform child in root.GetComponentsInChildren<Transform>(true))
-            {
-                if (child.name == name)
-                {
-                    return child;
-                }
-            }
-            return null;
         }
     }
 }

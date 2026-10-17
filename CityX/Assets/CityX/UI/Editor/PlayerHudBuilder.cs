@@ -139,7 +139,7 @@ namespace CityX.UIEditor
                 }
             }
 
-            EnsureEventSystem();
+            UiKit.EnsureEventSystem();
             return instance;
         }
 
@@ -212,27 +212,6 @@ namespace CityX.UIEditor
             light.shadows = LightShadows.None;
 
             return camera;
-        }
-
-        /// <summary>
-        /// Without one of these, a Button is a coloured rectangle that cannot be
-        /// clicked -- no error, no warning, it simply never fires.
-        ///
-        /// The module has to be the Input System one. This project sets
-        /// activeInputHandler to the new system only, so the StandaloneInputModule
-        /// that Unity's own menu adds by default would compile, sit there, and
-        /// silently deliver nothing.
-        /// </summary>
-        private static void EnsureEventSystem()
-        {
-            if (Object.FindFirstObjectByType<EventSystem>() != null)
-            {
-                return;
-            }
-
-            var events = new GameObject("EventSystem");
-            events.AddComponent<EventSystem>();
-            events.AddComponent<InputSystemUIInputModule>();
         }
 
         private static GameObject BuildCrosshair(Transform parent)

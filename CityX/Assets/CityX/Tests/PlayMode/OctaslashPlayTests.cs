@@ -53,7 +53,7 @@ namespace CityX.Tests
         }
 
         [UnityTearDown]
-        public IEnumerator TearDown()
+        public IEnumerator UnityTearDown()
         {
             Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
             foreach (GameObject go in _made)

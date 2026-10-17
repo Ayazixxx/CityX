@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using CityX.Character;
 using CityX.CharacterEditor;
 using CityX.Items;
 using CityX.Weapons;
@@ -75,7 +76,7 @@ namespace CityX.WeaponsEditor
 
                 // Arms down, matching CharacterCapture's own Rest pose --
                 // a pistol held at the hip, not mid-swing.
-                PoseArmsDown(player.transform);
+                StillPose.ArmsDown(player.transform);
 
                 var pistolInstance = (GameObject)PrefabUtility.InstantiatePrefab(pistolPrefab);
                 var pistol = pistolInstance.GetComponent<PistolWeapon>();
@@ -290,34 +291,5 @@ namespace CityX.WeaponsEditor
             animator.transform.localPosition = rootPosition;
             animator.transform.localRotation = rootRotation;
         }
-
-        private static void PoseArmsDown(Transform root)
-        {
-            SetLocalRotation(root, "arm_l", new Vector3(0.0f, 0.0f, 78.0f));
-            SetLocalRotation(root, "forearm_l", new Vector3(0.0f, 0.0f, 12.0f));
-            SetLocalRotation(root, "arm_r", new Vector3(0.0f, 0.0f, -78.0f));
-            SetLocalRotation(root, "forearm_r", new Vector3(0.0f, 0.0f, -12.0f));
-        }
-
-        private static void SetLocalRotation(Transform root, string boneName, Vector3 euler)
-        {
-            Transform bone = FindDeep(root, boneName);
-            if (bone != null)
-            {
-                bone.localRotation = Quaternion.Euler(euler);
-            }
-        }
-
-        private static Transform FindDeep(Transform root, string name)
-        {
-            if (root.name == name) return root;
-            foreach (Transform child in root)
-            {
-                Transform hit = FindDeep(child, name);
-                if (hit != null) return hit;
-            }
-            return null;
-        }
-
     }
 }

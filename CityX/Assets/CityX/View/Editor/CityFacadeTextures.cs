@@ -66,8 +66,7 @@ namespace CityX.ViewEditor
             System.IO.Directory.CreateDirectory(Directory_);
 
             // The walls no longer use this tiling texture: they use the facade texture arrays (FacadeTextureBuilder). Not drawn any more, so
-            // 11 MB of unused PNG is not rebuilt on every scene build; BuildFacade is kept for reference.
-            // BuildFacade();
+            // 11 MB of unused PNG is not rebuilt on every scene build (the old BuildFacade is in git history, before 2026-10-17).
 
             // Slightly warm rather than neutral. A neutral dark grey lit only
             // by a blue sky comes out blue, and the first render had streets
@@ -79,69 +78,6 @@ namespace CityX.ViewEditor
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             Debug.Log($"CityX: textures written to {Directory_}");
-        }
-
-        /// <summary>
-        /// Poured concrete and the floor lines across it. NO WINDOWS.
-        ///
-        /// It used to paint them, and that was safe because it was the only
-        /// place in the city anything window-shaped was drawn. Now the geometry
-        /// cuts real openings on <see cref="CellLayout"/>'s grid, and this tile
-        /// is anchored to world metres -- a 19.8m wall has twelve 1.65m columns
-        /// and this tile has 1.6m ones. Two grids drawing windows on one wall
-        /// is precisely what CellLayout's own comment records going wrong in
-        /// the Godot build: black windows and transparent windows combined, and
-        /// walls overlapping each other. One system draws windows, and it is no
-        /// longer this one.
-        ///
-        /// What stays is what a wall still needs from a texture and cannot get
-        /// from geometry: the concrete itself, and a floor line at every
-        /// storey. That banding is what carries the brutalist read at distance,
-        /// where individual windows are already too small to see.
-        /// </summary>
-        private static void BuildFacade()
-        {
-            int width = Mathf.RoundToInt(FacadeTileWidth * PixelsPerMetre);
-            int height = Mathf.RoundToInt(FacadeTileHeight * PixelsPerMetre);
-
-            var albedo = new Color[width * height];
-            // Height is kept separately and converted to a normal map at the
-            // end. Deriving normals from the albedo instead would turn every
-            // dirt streak into a bump.
-            var relief = new float[width * height];
-
-            int cellHeight = height / TileFloors;
-
-            for (int y = 0; y < height; y++)
-            {
-                for (int x = 0; x < width; x++)
-                {
-                    int index = y * width + x;
-
-                    float concrete = ConcreteTone(x, y, width, height);
-                    albedo[index] = new Color(concrete, concrete, concrete * 0.99f);
-                    relief[index] = 0.5f + (concrete - ConcreteBase) * 0.35f;
-
-                    int inCellY = y - y / cellHeight * cellHeight;
-
-                    // The slab edge: a dark line with a lighter lip above it.
-                    if (inCellY < 3)
-                    {
-                        float shade = concrete * 0.72f;
-                        albedo[index] = new Color(shade, shade, shade);
-                        relief[index] = 0.18f;
-                    }
-                    else if (inCellY < 7)
-                    {
-                        float shade = Mathf.Min(1.0f, concrete * 1.12f);
-                        albedo[index] = new Color(shade, shade, shade);
-                        relief[index] = 0.86f;
-                    }
-                }
-            }
-
-            SaveTexture("CityFacade", width, height, albedo, srgb: true);
-            SaveNormalMap("CityFacadeNormal", width, height, relief, strength: 3.0f);
         }
 
         /// <summary>

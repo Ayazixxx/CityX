@@ -70,11 +70,11 @@ namespace CityX.UIEditor
             border.effectColor = BorderColour;
             border.effectDistance = new Vector2(2.0f, -2.0f);
 
-            Text title = MakeText(panel.transform, "Title", TitleText, 22, LabelColour);
+            Text title = UiKit.MakeText(panel.transform, "Title", TitleText, 22, LabelColour);
             PlaceTopLeft(title.transform, new Vector2(24.0f, -16.0f), new Vector2(300.0f, 30.0f));
             title.alignment = TextAnchor.UpperLeft;
 
-            Text level = MakeText(panel.transform, "Level", string.Empty, 18, LabelColour);
+            Text level = UiKit.MakeText(panel.transform, "Level", string.Empty, 18, LabelColour);
             PlaceTopLeft(level.transform, new Vector2(24.0f, -58.0f), new Vector2(300.0f, 24.0f));
             level.alignment = TextAnchor.UpperLeft;
             view.LevelLabel = level;
@@ -82,12 +82,12 @@ namespace CityX.UIEditor
             view.ExperienceBarFill = BuildBar(panel.transform, new Vector2(24.0f, -92.0f),
                 new Vector2(BarWidth, BarHeight));
 
-            Text xp = MakeText(panel.transform, "ExperienceLabel", string.Empty, 13, HintColour);
+            Text xp = UiKit.MakeText(panel.transform, "ExperienceLabel", string.Empty, 13, HintColour);
             PlaceTopLeft(xp.transform, new Vector2(24.0f, -120.0f), new Vector2(BarWidth, 18.0f));
             xp.alignment = TextAnchor.UpperLeft;
             view.ExperienceLabel = xp;
 
-            Text points = MakeText(panel.transform, "PointsLabel", string.Empty, 15, LabelColour);
+            Text points = UiKit.MakeText(panel.transform, "PointsLabel", string.Empty, 15, LabelColour);
             PlaceTopLeft(points.transform, new Vector2(24.0f, -148.0f), new Vector2(300.0f, 22.0f));
             points.alignment = TextAnchor.UpperLeft;
             view.PointsLabel = points;
@@ -106,7 +106,7 @@ namespace CityX.UIEditor
             closeBackground.color = CloseColour;
             Button closeButton = closeGo.AddComponent<Button>();
             closeButton.targetGraphic = closeBackground;
-            Text closeLabel = MakeText(closeGo.transform, "Label", "Close", 15, LabelColour);
+            Text closeLabel = UiKit.MakeText(closeGo.transform, "Label", "Close", 15, LabelColour);
             var closeLabelRect = (RectTransform)closeLabel.transform;
             closeLabelRect.anchorMin = Vector2.zero;
             closeLabelRect.anchorMax = Vector2.one;
@@ -118,7 +118,7 @@ namespace CityX.UIEditor
 
             view.Root = root;
             root.SetActive(false);
-            EnsureEventSystem();
+            UiKit.EnsureEventSystem();
             return view;
         }
 
@@ -156,31 +156,6 @@ namespace CityX.UIEditor
             rect.pivot = new Vector2(0.0f, 1.0f);
             rect.anchoredPosition = position;
             rect.sizeDelta = size;
-        }
-
-        private static Text MakeText(Transform parent, string name, string content, int size, Color colour)
-        {
-            var go = new GameObject(name, typeof(RectTransform));
-            go.transform.SetParent(parent, false);
-            Text text = go.AddComponent<Text>();
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            text.fontSize = size;
-            text.color = colour;
-            text.raycastTarget = false;
-            text.text = content;
-            return text;
-        }
-
-        /// <summary>Without one of these no button on this panel ever receives a click -- see MapPanelBuilder's own copy of this note.</summary>
-        private static void EnsureEventSystem()
-        {
-            if (Object.FindFirstObjectByType<EventSystem>() != null)
-            {
-                return;
-            }
-            var events = new GameObject("EventSystem");
-            events.AddComponent<EventSystem>();
-            events.AddComponent<InputSystemUIInputModule>();
         }
     }
 }

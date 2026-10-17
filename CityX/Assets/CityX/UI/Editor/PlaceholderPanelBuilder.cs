@@ -69,7 +69,7 @@ namespace CityX.UIEditor
             border.effectColor = BorderColour;
             border.effectDistance = new Vector2(2.0f, -2.0f);
 
-            Text title = MakeText(panel.transform, "Title", "", 22, TitleColour);
+            Text title = UiKit.MakeText(panel.transform, "Title", "", 22, TitleColour);
             var titleRect = (RectTransform)title.transform;
             titleRect.anchorMin = new Vector2(0.0f, 1.0f);
             titleRect.anchorMax = new Vector2(1.0f, 1.0f);
@@ -78,7 +78,7 @@ namespace CityX.UIEditor
             titleRect.sizeDelta = new Vector2(-40.0f, 30.0f);
             title.alignment = TextAnchor.UpperCenter;
 
-            Text message = MakeText(panel.transform, "Message", "", 15, MessageColour);
+            Text message = UiKit.MakeText(panel.transform, "Message", "", 15, MessageColour);
             var messageRect = (RectTransform)message.transform;
             messageRect.anchorMin = new Vector2(0.0f, 0.5f);
             messageRect.anchorMax = new Vector2(1.0f, 0.5f);
@@ -99,7 +99,7 @@ namespace CityX.UIEditor
             closeBackground.color = CloseColour;
             Button closeButton = closeGo.AddComponent<Button>();
             closeButton.targetGraphic = closeBackground;
-            Text closeLabel = MakeText(closeGo.transform, "Label", "Close", 15, TitleColour);
+            Text closeLabel = UiKit.MakeText(closeGo.transform, "Label", "Close", 15, TitleColour);
             var closeLabelRect = (RectTransform)closeLabel.transform;
             closeLabelRect.anchorMin = Vector2.zero;
             closeLabelRect.anchorMax = Vector2.one;
@@ -114,32 +114,8 @@ namespace CityX.UIEditor
 
             view.Root = root;
             root.SetActive(false);
-            EnsureEventSystem();
+            UiKit.EnsureEventSystem();
             return view;
-        }
-
-        private static Text MakeText(Transform parent, string name, string content, int size, Color colour)
-        {
-            var go = new GameObject(name, typeof(RectTransform));
-            go.transform.SetParent(parent, false);
-            Text text = go.AddComponent<Text>();
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            text.fontSize = size;
-            text.color = colour;
-            text.raycastTarget = false;
-            text.text = content;
-            return text;
-        }
-
-        private static void EnsureEventSystem()
-        {
-            if (Object.FindFirstObjectByType<EventSystem>() != null)
-            {
-                return;
-            }
-            var events = new GameObject("EventSystem");
-            events.AddComponent<EventSystem>();
-            events.AddComponent<InputSystemUIInputModule>();
         }
     }
 }

@@ -1,4 +1,5 @@
 using CityX.Character;
+using CityX.Core;
 using CityX.Items;
 using UnityEngine;
 
@@ -59,7 +60,7 @@ namespace CityX.Wearables
 
         protected override void OnEquipped(GameObject player)
         {
-            Transform skin = FindDeep(player.transform, "Skin");
+            Transform skin = TransformSearch.FindDeep(player.transform, "Skin");
             if (skin != null)
             {
                 _bodySkin = skin.GetComponent<SkinnedMeshRenderer>();
@@ -201,27 +202,6 @@ namespace CityX.Wearables
                 }
                 _rightUpperArm.localRotation = _rightUpperArmBase * Quaternion.Euler(0.0f, 0.0f, SleeveArmSpreadDegrees);
             }
-        }
-
-        /// <summary>
-        /// A plain Transform.Find("Skin") only checks DIRECT children, and
-        /// FusedBodyBuilder.BuildBody nests it two deep (Player/Body/Skin,
-        /// same for the civilian/OldGuy roots) -- a shallow Find silently
-        /// returned null here and never hid anything, which is why a
-        /// mid-stride pose still showed bare skin through the hood and
-        /// wherever a limb kicked past the cloak's own coverage. Confirmed
-        /// by rendering CaptureWearables' own stride shot before this fix.
-        /// </summary>
-        private static Transform FindDeep(Transform root, string name)
-        {
-            foreach (Transform child in root.GetComponentsInChildren<Transform>(true))
-            {
-                if (child.name == name)
-                {
-                    return child;
-                }
-            }
-            return null;
         }
 
         protected override void OnUnequipped(GameObject player)

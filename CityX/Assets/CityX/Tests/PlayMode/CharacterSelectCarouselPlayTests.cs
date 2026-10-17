@@ -93,7 +93,7 @@ namespace CityX.Tests
             Assert.IsNotNull(animator, "the pedestal body has no Animator");
             Assert.IsFalse(animator.enabled, "the pedestal body should be held still, not animated");
 
-            Transform armLeft = FindDeep(body.transform, "arm_l");
+            Transform armLeft = TransformSearch.FindDeep(body.transform, "arm_l");
             Assert.IsNotNull(armLeft, "no arm_l bone -- cannot confirm the pose");
             float angle = Quaternion.Angle(armLeft.localRotation, Quaternion.Euler(0.0f, 0.0f, 78.0f));
             Assert.Less(angle, 1.0f,
@@ -165,18 +165,6 @@ namespace CityX.Tests
 #else
             yield break;
 #endif
-        }
-
-        private static Transform FindDeep(Transform root, string name)
-        {
-            foreach (Transform child in root.GetComponentsInChildren<Transform>(true))
-            {
-                if (child.name == name)
-                {
-                    return child;
-                }
-            }
-            return null;
         }
     }
 }

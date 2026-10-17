@@ -49,13 +49,13 @@ namespace CityX.Tests
         }
 
         // [UnityTearDown], NOT the plain [TearDown] InputTestFixture itself
-        // already declares -- shadowing that same method name broke its own
+        // already declares -- a [TearDown] shadowing that same method broke its own
         // device cleanup between tests (a later test's Press() failed with
         // "Key:/Keyboard/e does not have an associated state"), the same
         // reason GrappleSwingRealInputPlayTests' own teardown is also
         // [UnityTearDown] rather than [TearDown].
         [UnityTearDown]
-        public IEnumerator TearDown()
+        public IEnumerator UnityTearDown()
         {
             if (_player != null) Object.DestroyImmediate(_player);
             if (_benchObject != null) Object.DestroyImmediate(_benchObject);

@@ -202,12 +202,6 @@ namespace CityX.Character
             }
         }
 
-        private static Vector3 FingertipOf(float side)
-        {
-            return new Vector3(
-                side * (BodyRig.ShoulderX + BodyRig.ArmLength), BodyRig.ShoulderY, 0.0f);
-        }
-
         /// <summary>
         /// How much of each end of a row is reserved for a capsule's rounded
         /// CAP, and how quickly the overflow asymptotes into it.

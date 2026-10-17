@@ -52,14 +52,14 @@ namespace CityX.UIEditor
             var dim = new GameObject("Dim", typeof(RectTransform));
             var dimRect = (RectTransform)dim.transform;
             dimRect.SetParent(root.transform, false);
-            Stretch(dimRect);
+            UiKit.Stretch(dimRect);
             dim.AddComponent<Image>().color = new Color(0.0f, 0.0f, 0.0f, 0.6f);
             view.Dim = dim;
 
             view.PausePanel = BuildPausePanel(dim.transform, view);
             view.SettingsPanel = BuildSettingsPanel(dim.transform, view);
 
-            EnsureEventSystem();
+            UiKit.EnsureEventSystem();
             return view;
         }
 
@@ -234,7 +234,7 @@ namespace CityX.UIEditor
             var fillArea = new GameObject("Fill", typeof(RectTransform));
             var fillRect = (RectTransform)fillArea.transform;
             fillRect.SetParent(go.transform, false);
-            Stretch(fillRect);
+            UiKit.Stretch(fillRect);
             Image fill = fillArea.AddComponent<Image>();
             fill.color = Gold;
 
@@ -285,26 +285,6 @@ namespace CityX.UIEditor
             toggle.graphic = checkImage;
             toggle.isOn = true;
             return toggle;
-        }
-
-        private static void Stretch(RectTransform rect)
-        {
-            rect.anchorMin = Vector2.zero;
-            rect.anchorMax = Vector2.one;
-            rect.offsetMin = Vector2.zero;
-            rect.offsetMax = Vector2.zero;
-        }
-
-        /// <summary>Without one of these an InputField/Button never receives a click -- see DevConsoleBuilder's own copy of this note.</summary>
-        private static void EnsureEventSystem()
-        {
-            if (Object.FindFirstObjectByType<EventSystem>() != null)
-            {
-                return;
-            }
-            var events = new GameObject("EventSystem");
-            events.AddComponent<EventSystem>();
-            events.AddComponent<InputSystemUIInputModule>();
         }
     }
 }

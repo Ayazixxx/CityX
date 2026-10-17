@@ -1,25 +1,23 @@
 using CityX.Character;
+using CityX.Core;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.Rendering.Universal;
 using UnityEngine.UI;
+using static CityX.UI.CreatorKit;
 
 namespace CityX.UI
 {
     /// <summary>
     /// Builds ReDraw's own character creator overlay -- AT RUNTIME, during
-    /// play. This is a deliberate, purpose-built twin of
-    /// CityX.UIEditor.CharacterCreatorBuilder, not a call into it:
-    /// CharacterCreatorBuilder lives in CityX.UI.Editor, an editor-only
-    /// assembly (includePlatforms: Editor) built around AssetDatabase and
-    /// meant to bake the title screen's own creator into a scene ONCE, at
-    /// edit time. Pressing ReDraw happens DURING PLAY, and nothing
-    /// editor-only can run then -- so the whole stage-building/stripping/
-    /// tool-column pipeline is reimplemented here using only runtime-safe
-    /// APIs (Destroy instead of DestroyImmediate, serialized Mesh/Material
-    /// references instead of AssetDatabase.LoadAssetAtPath, a project layer
-    /// looked up by name instead of one created on demand).
+    /// play. The tool column, the prompts and the stage's lights come from
+    /// CreatorKit, which the title screen's creator
+    /// (CityX.UIEditor.CharacterCreatorBuilder, baked in the editor) is built
+    /// from too, so the two cannot drift apart. What is here is only what has
+    /// to differ at runtime: Destroy instead of DestroyImmediate, serialized
+    /// Mesh/Material references instead of AssetDatabase.LoadAssetAtPath, a
+    /// project layer looked up by name instead of one created on demand.
     ///
     /// CLONES THE LIVE PLAYER, NOT A PREFAB. The title screen's creator
     /// clones Player.prefab because it is making a character from nothing;
@@ -35,24 +33,7 @@ namespace CityX.UI
     /// </summary>
     public static class RedrawCreatorRuntime
     {
-        private static readonly Color Gold = new Color(0.75f, 0.6f, 0.2f, 1.0f);
-        private static readonly Color Paper = new Color(0.82f, 0.82f, 0.84f, 1.0f);
-        private static readonly Color Idle = new Color(0.11f, 0.12f, 0.15f, 0.95f);
-
         private static readonly Vector2 DesignResolution = new Vector2(1152.0f, 648.0f);
-
-        private const float ColumnWidth = 200.0f;
-        private const float ActionBarHeight = 88.0f;
-
-        private static readonly Color[] Palette =
-        {
-            new Color(0.10f, 0.10f, 0.12f), new Color(0.95f, 0.95f, 0.95f),
-            new Color(0.72f, 0.16f, 0.16f), new Color(0.90f, 0.45f, 0.12f),
-            new Color(0.92f, 0.80f, 0.20f), new Color(0.25f, 0.60f, 0.28f),
-            new Color(0.20f, 0.45f, 0.80f), new Color(0.45f, 0.25f, 0.65f),
-            new Color(0.85f, 0.55f, 0.70f), new Color(0.55f, 0.40f, 0.28f),
-            new Color(0.78f, 0.62f, 0.53f), new Color(0.45f, 0.48f, 0.52f),
-        };
 
         /// <summary>
         /// Builds the whole overlay -- 3D stage plus tool column -- and
@@ -92,11 +73,26 @@ namespace CityX.UI
             overlays.OnConfirmRedraw = onConfirm;
             overlays.OnCancelRedraw = onCancel;
 
-            BuildToolColumn(root.transform, creator, overlays);
+            // SAVE/CANCEL, not ENTER THE CITY/BACK -- there is no name to
+            // give an existing character and nowhere to hand it off to.
+            // CANCEL reuses CreatorTryBack rather than a redraw-only Kind:
+            // that already shows the discard prompt when HasEdits is true
+            // and calls Discard() otherwise -- the exact same "are you sure"
+            // guard the title screen gets, just routed to OnCancelRedraw
+            // instead of Title.Show (see CreatorOverlays.Discard).
+            BuildToolColumn(root.transform, creator, "REDRAW", overlays, column =>
+            {
+                MakeAnchoredButton(column, "SaveButton", "SAVE", Gold,
+                    new Vector2(0.0f, 52.0f), new Vector2(172.0f, 36.0f),
+                    ButtonAction.Kind.CreatorRedrawSave, creator, null, overlays);
+                MakeAnchoredButton(column, "CancelButton", "CANCEL", Paper,
+                    new Vector2(0.0f, 16.0f), new Vector2(172.0f, 32.0f),
+                    ButtonAction.Kind.CreatorTryBack, creator, null, overlays);
+            });
             HairColourPanel.Build(root.transform, creator);
             BuildDiscardPrompt(root.transform, overlays);
 
-            EnsureEventSystem();
+            UiKit.EnsureEventSystem();
             // NOW every component's fields are set: waking them wires every button and slider to what it does.
             root.SetActive(true);
             return root;
@@ -105,9 +101,9 @@ namespace CityX.UI
         // --- the 3D half ---
 
         /// <summary>
-        /// The turntable, the cloned body and the camera. A runtime twin of
+        /// The turntable, the cloned body and the camera: the runtime version of
         /// CharacterCreatorBuilder.BuildStage -- see this file's own doc
-        /// comment for why it cannot just call that one.
+        /// comment for what differs.
         /// </summary>
         private static GameObject BuildStage(GameObject player, Mesh[] hairMeshes, Material hairMaterial,
             out CharacterCreator creator)
@@ -268,7 +264,7 @@ namespace CityX.UI
 
         private static CharacterHair AddHair(GameObject body, Mesh[] hairMeshes, Material hairMaterial)
         {
-            Transform head = FindDeep(body.transform, "head");
+            Transform head = TransformSearch.FindDeep(body.transform, "head");
             if (head == null)
             {
                 Debug.LogWarning("CityX: no head bone on ReDraw's clone -- no hair.");
@@ -282,49 +278,6 @@ namespace CityX.UI
             return hair;
         }
 
-        private static MeshRenderer FindHead(GameObject body)
-        {
-            Transform head = FindDeep(body.transform, "head");
-            return head != null ? head.GetComponentInChildren<MeshRenderer>(true) : null;
-        }
-
-        private static Transform FindDeep(Transform root, string name)
-        {
-            foreach (Transform child in root.GetComponentsInChildren<Transform>(true))
-            {
-                if (child.name == name)
-                {
-                    return child;
-                }
-            }
-            return null;
-        }
-
-        private static void AddLight(GameObject stage, int layer, string name, Vector3 angles,
-            float intensity, Color colour)
-        {
-            var go = new GameObject($"{name}Light");
-            go.transform.SetParent(stage.transform, false);
-            go.transform.rotation = Quaternion.Euler(angles);
-            go.layer = layer;
-
-            Light light = go.AddComponent<Light>();
-            light.type = LightType.Directional;
-            light.intensity = intensity;
-            light.color = colour;
-            light.cullingMask = 1 << layer;
-            light.shadows = LightShadows.None;
-        }
-
-        private static void SetLayerRecursively(GameObject root, int layer)
-        {
-            root.layer = layer;
-            foreach (Transform child in root.GetComponentsInChildren<Transform>(true))
-            {
-                child.gameObject.layer = layer;
-            }
-        }
-
         /// <summary>RUNTIME-SAFE: Destroy(), not DestroyImmediate() -- this always runs during play.</summary>
         private static void Strip<T>(GameObject root) where T : Component
         {
@@ -332,492 +285,6 @@ namespace CityX.UI
             {
                 Object.Destroy(found);
             }
-        }
-
-        // --- the tool column ---
-
-        /// <summary>
-        /// The same tool set the title screen's creator has -- brush/bucket/
-        /// eyedropper, the colour square and palette, brush size, mirror/
-        /// eraser, undo/redo, hair -- minus the name prompt and CharacterSelect
-        /// handoff, which only apply to making a brand new character.
-        /// </summary>
-        private static void BuildToolColumn(Transform parent, CharacterCreator creator,
-            CreatorOverlays overlays)
-        {
-            var column = new GameObject("Tools", typeof(RectTransform));
-            var rect = (RectTransform)column.transform;
-            rect.SetParent(parent, false);
-            rect.anchorMin = new Vector2(0.0f, 0.0f);
-            rect.anchorMax = new Vector2(0.0f, 1.0f);
-            rect.pivot = new Vector2(0.0f, 0.5f);
-            rect.offsetMin = new Vector2(0.0f, 0.0f);
-            rect.offsetMax = new Vector2(ColumnWidth, 0.0f);
-
-            column.AddComponent<Image>().color = new Color(0.05f, 0.06f, 0.08f, 0.92f);
-
-            var controls = column.AddComponent<CreatorControls>();
-            controls.Creator = creator;
-
-            Transform t = column.transform;
-
-            MakeLabel(t, "Heading", "REDRAW", 20, Gold, At(-24.0f), 24.0f);
-
-            MakeToolRow(t, creator, controls);
-
-            MakeLabel(t, "PaletteLabel", "COLOUR", 13, Paper, At(-94.0f), 18.0f);
-            controls.SVSquare = MakeSquare(t, At(-166.0f), 128.0f);
-            controls.Hue = MakeHueSlider(t, "HueSlider", At(-244.0f), 150.0f);
-            controls.Preview = MakeSwatch(t, "Preview", At(-266.0f),
-                new Vector2(150.0f, 16.0f), Color.white);
-
-            MakePalette(t, creator, controls, -292.0f);
-
-            controls.BrushLabel =
-                MakeLabel(t, "BrushLabel", "BRUSH  1", 13, Paper, At(-348.0f), 18.0f);
-            controls.BrushSize = MakeSlider(t, "BrushSlider", At(-370.0f), 1.0f, 15.0f,
-                CharacterCreator.DefaultBrushRadius, wholeNumbers: true);
-
-            controls.MirrorButton = MakeButton(t, "MirrorButton", "MIRROR", Paper,
-                new Vector2(-46.0f, -400.0f), new Vector2(88.0f, 30.0f),
-                ButtonAction.Kind.CreatorToggleMirror, creator, overlays);
-            controls.EraserButton = MakeButton(t, "EraserButton", "ERASER", Paper,
-                new Vector2(46.0f, -400.0f), new Vector2(88.0f, 30.0f),
-                ButtonAction.Kind.CreatorToggleEraser, creator, overlays);
-
-            MakeButton(t, "UndoButton", "UNDO", Paper,
-                new Vector2(-46.0f, -434.0f), new Vector2(88.0f, 30.0f),
-                ButtonAction.Kind.CreatorUndo, creator, overlays);
-            MakeButton(t, "RedoButton", "REDO", Paper,
-                new Vector2(46.0f, -434.0f), new Vector2(88.0f, 30.0f),
-                ButtonAction.Kind.CreatorRedo, creator, overlays);
-            controls.UndoButton = t.Find("UndoButton").GetComponent<Button>();
-            controls.RedoButton = t.Find("RedoButton").GetComponent<Button>();
-
-            // The hairstyle buttons are on the hair colour card, on the right (HairColourPanel): here, the third row hid under the bar.
-
-            MakeLabel(t, "HintLabel",
-                "Drag the body to paint it.\nDrag anywhere else to turn it.\nScroll to zoom.",
-                10, new Color(0.62f, 0.64f, 0.70f),
-                At(-480.0f), 40.0f);
-
-            var bar = new GameObject("ActionBar", typeof(RectTransform));
-            var barRect = (RectTransform)bar.transform;
-            barRect.SetParent(t, false);
-            barRect.anchorMin = new Vector2(0.0f, 0.0f);
-            barRect.anchorMax = new Vector2(1.0f, 0.0f);
-            barRect.pivot = new Vector2(0.5f, 0.0f);
-            barRect.anchoredPosition = Vector2.zero;
-            barRect.sizeDelta = new Vector2(0.0f, ActionBarHeight);
-            bar.AddComponent<Image>().color = new Color(0.04f, 0.05f, 0.07f, 1.0f);
-
-            // SAVE/CANCEL, not ENTER THE CITY/BACK -- there is no name to
-            // give an existing character and nowhere to hand it off to.
-            // CANCEL reuses CreatorTryBack rather than a redraw-only Kind:
-            // that already shows the discard prompt when HasEdits is true
-            // and calls Discard() otherwise -- the exact same "are you sure"
-            // guard the title screen gets, just routed to OnCancelRedraw
-            // instead of Title.Show (see CreatorOverlays.Discard).
-            MakeAnchoredButton(t, "SaveButton", "SAVE", Gold,
-                new Vector2(0.0f, 52.0f), new Vector2(172.0f, 36.0f),
-                ButtonAction.Kind.CreatorRedrawSave, creator, overlays);
-            MakeAnchoredButton(t, "CancelButton", "CANCEL", Paper,
-                new Vector2(0.0f, 16.0f), new Vector2(172.0f, 32.0f),
-                ButtonAction.Kind.CreatorTryBack, creator, overlays);
-        }
-
-        private static Vector2 At(float y) => new Vector2(0.0f, y);
-
-        private static void MakeToolRow(Transform parent, CharacterCreator creator,
-            CreatorControls controls)
-        {
-            string[] names = { "Brush", "Bucket", "Eyedropper" };
-            string[] kinds = { "brush", "bucket", "eyedropper" };
-
-            var faces = new Image[names.Length];
-            var icons = new RawImage[names.Length];
-
-            for (int i = 0; i < names.Length; i++)
-            {
-                Image face = MakeButton(parent, names[i] + "Button", string.Empty, Gold,
-                    new Vector2(i * 58.0f - 58.0f, -62.0f), new Vector2(54.0f, 40.0f),
-                    ButtonAction.Kind.CreatorTool, creator, overlays: null, value: i);
-                faces[i] = face;
-
-                var iconObject = new GameObject("Icon", typeof(RectTransform));
-                var iconRect = (RectTransform)iconObject.transform;
-                iconRect.SetParent(face.transform, false);
-                iconRect.anchorMin = iconRect.anchorMax = new Vector2(0.5f, 0.5f);
-                iconRect.pivot = new Vector2(0.5f, 0.5f);
-                iconRect.anchoredPosition = Vector2.zero;
-                iconRect.sizeDelta = new Vector2(30.0f, 30.0f);
-
-                var icon = iconObject.AddComponent<RawImage>();
-                icon.texture = ToolIcons.Build(kinds[i]);
-                icon.raycastTarget = false;
-                icons[i] = icon;
-            }
-
-            controls.ToolButtons = faces;
-            controls.ToolIconImages = icons;
-        }
-
-        private static RawImage MakeSquare(Transform parent, Vector2 position, float size)
-        {
-            var go = new GameObject("SVSquare", typeof(RectTransform));
-            var rect = (RectTransform)go.transform;
-            rect.SetParent(parent, false);
-            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 1.0f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = position;
-            rect.sizeDelta = new Vector2(size, size);
-
-            var image = go.AddComponent<RawImage>();
-            image.texture = CreatorControls.BuildSquare(0.0f);
-            return image;
-        }
-
-        private static Slider MakeHueSlider(Transform parent, string name, Vector2 position,
-            float width)
-        {
-            var go = new GameObject(name, typeof(RectTransform));
-            var rect = (RectTransform)go.transform;
-            rect.SetParent(parent, false);
-            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 1.0f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = position;
-            rect.sizeDelta = new Vector2(width, 16.0f);
-
-            var background = go.AddComponent<RawImage>();
-            background.texture = CreatorControls.BuildHueStrip();
-
-            var fillArea = new GameObject("Fill", typeof(RectTransform));
-            var fillRect = (RectTransform)fillArea.transform;
-            fillRect.SetParent(go.transform, false);
-            fillRect.anchorMin = Vector2.zero;
-            fillRect.anchorMax = Vector2.one;
-            fillRect.offsetMin = Vector2.zero;
-            fillRect.offsetMax = Vector2.zero;
-            Image fill = fillArea.AddComponent<Image>();
-            fill.color = new Color(0.0f, 0.0f, 0.0f, 0.0f);
-
-            var handle = new GameObject("Handle", typeof(RectTransform));
-            var handleRect = (RectTransform)handle.transform;
-            handleRect.SetParent(go.transform, false);
-            handleRect.sizeDelta = new Vector2(6.0f, 20.0f);
-            Image handleImage = handle.AddComponent<Image>();
-            handleImage.color = Paper;
-
-            Slider slider = go.AddComponent<Slider>();
-            slider.fillRect = fillRect;
-            slider.handleRect = handleRect;
-            slider.targetGraphic = handleImage;
-            slider.direction = Slider.Direction.LeftToRight;
-            slider.minValue = 0.0f;
-            slider.maxValue = 1.0f;
-            slider.wholeNumbers = false;
-            slider.value = 0.0f;
-            return slider;
-        }
-
-        private static Image MakeSwatch(Transform parent, string name, Vector2 position,
-            Vector2 size, Color colour)
-        {
-            var go = new GameObject(name, typeof(RectTransform));
-            var rect = (RectTransform)go.transform;
-            rect.SetParent(parent, false);
-            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 1.0f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = position;
-            rect.sizeDelta = size;
-
-            Image image = go.AddComponent<Image>();
-            image.color = colour;
-            image.raycastTarget = false;
-            return image;
-        }
-
-        private static Slider MakeSlider(Transform parent, string name, Vector2 position,
-            float minimum, float maximum, float value, bool wholeNumbers)
-        {
-            var go = new GameObject(name, typeof(RectTransform));
-            var rect = (RectTransform)go.transform;
-            rect.SetParent(parent, false);
-            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 1.0f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = position;
-            rect.sizeDelta = new Vector2(150.0f, 16.0f);
-
-            Image background = go.AddComponent<Image>();
-            background.color = new Color(0.16f, 0.17f, 0.20f, 1.0f);
-
-            var fillArea = new GameObject("Fill", typeof(RectTransform));
-            var fillRect = (RectTransform)fillArea.transform;
-            fillRect.SetParent(go.transform, false);
-            fillRect.anchorMin = Vector2.zero;
-            fillRect.anchorMax = Vector2.one;
-            fillRect.offsetMin = Vector2.zero;
-            fillRect.offsetMax = Vector2.zero;
-            Image fill = fillArea.AddComponent<Image>();
-            fill.color = Gold;
-
-            var handle = new GameObject("Handle", typeof(RectTransform));
-            var handleRect = (RectTransform)handle.transform;
-            handleRect.SetParent(go.transform, false);
-            handleRect.sizeDelta = new Vector2(10.0f, 20.0f);
-            Image handleImage = handle.AddComponent<Image>();
-            handleImage.color = Paper;
-
-            Slider slider = go.AddComponent<Slider>();
-            slider.fillRect = fillRect;
-            slider.handleRect = handleRect;
-            slider.targetGraphic = handleImage;
-            slider.direction = Slider.Direction.LeftToRight;
-            slider.minValue = minimum;
-            slider.maxValue = maximum;
-            slider.wholeNumbers = wholeNumbers;
-            slider.value = value;
-            return slider;
-        }
-
-        private static void MakePalette(Transform parent, CharacterCreator creator,
-            CreatorControls controls, float top)
-        {
-            const int perRow = 6;
-            const float pitch = 28.0f;
-
-            for (int i = 0; i < Palette.Length; i++)
-            {
-                Color swatch = Palette[i];
-                int column = i % perRow;
-                int row = i / perRow;
-
-                var go = new GameObject($"Swatch{i}", typeof(RectTransform));
-                var rect = (RectTransform)go.transform;
-                rect.SetParent(parent, false);
-                rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 1.0f);
-                rect.pivot = new Vector2(0.5f, 0.5f);
-                rect.anchoredPosition = new Vector2(
-                    column * pitch - pitch * (perRow - 1) * 0.5f,
-                    top - row * pitch);
-                rect.sizeDelta = new Vector2(26.0f, 26.0f);
-
-                Image image = go.AddComponent<Image>();
-                image.color = swatch;
-
-                Button button = go.AddComponent<Button>();
-                button.targetGraphic = image;
-
-                var wiring = go.AddComponent<ButtonAction>();
-                wiring.Action = ButtonAction.Kind.CreatorColour;
-                wiring.Creator = creator;
-                wiring.Colour = swatch;
-                wiring.Controls = controls;
-            }
-        }
-
-        // --- the discard-confirmation prompt ---
-
-        /// <summary>
-        /// The same "discard your painted design and go back?" check the
-        /// title screen's creator has, reused as-is -- CreatorOverlays'
-        /// TryGoBack/KeepEditing/Discard already work for either flow (see
-        /// Discard's own Title-vs-redraw branch).
-        /// </summary>
-        private static void BuildDiscardPrompt(Transform parent, CreatorOverlays overlays)
-        {
-            GameObject dim = MakeDim(parent, "DiscardPrompt");
-            RectTransform panel = MakePromptPanel(dim.transform, new Vector2(400.0f, 180.0f));
-
-            Text question = MakeLabel(panel, "Question",
-                "Discard your painted design and go back?", 16, Paper,
-                new Vector2(0.0f, 34.0f), 48.0f);
-            ((RectTransform)question.transform).sizeDelta = new Vector2(340.0f, 48.0f);
-
-            MakePromptButton(panel, "DiscardButton", "DISCARD & BACK", Paper,
-                new Vector2(-80.0f, -44.0f), new Vector2(150.0f, 40.0f),
-                ButtonAction.Kind.CreatorDiscard, overlays);
-            MakePromptButton(panel, "CancelButton", "CANCEL", Gold,
-                new Vector2(85.0f, -44.0f), new Vector2(110.0f, 40.0f),
-                ButtonAction.Kind.CreatorKeepEditing, overlays);
-
-            overlays.ConfirmPanel = dim;
-            dim.SetActive(false);
-        }
-
-        private static GameObject MakeDim(Transform parent, string name)
-        {
-            var go = new GameObject(name, typeof(RectTransform));
-            var rect = (RectTransform)go.transform;
-            rect.SetParent(parent, false);
-            Stretch(rect);
-            go.AddComponent<Image>().color = new Color(0.0f, 0.0f, 0.0f, 0.7f);
-            return go;
-        }
-
-        private static RectTransform MakePromptPanel(Transform parent, Vector2 size)
-        {
-            var go = new GameObject("Panel", typeof(RectTransform));
-            var rect = (RectTransform)go.transform;
-            rect.SetParent(parent, false);
-            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = Vector2.zero;
-            rect.sizeDelta = size;
-
-            go.AddComponent<Image>().color = new Color(0.10f, 0.11f, 0.14f, 0.98f);
-            var outline = go.AddComponent<Outline>();
-            outline.effectColor = new Color(0.55f, 0.63f, 1.0f, 0.6f);
-            outline.effectDistance = new Vector2(2.0f, -2.0f);
-            return rect;
-        }
-
-        private static void MakePromptButton(Transform parent, string name, string label,
-            Color tint, Vector2 position, Vector2 size, ButtonAction.Kind action,
-            CreatorOverlays overlays)
-        {
-            var go = new GameObject(name, typeof(RectTransform));
-            var rect = (RectTransform)go.transform;
-            rect.SetParent(parent, false);
-            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = position;
-            rect.sizeDelta = size;
-
-            Image background = go.AddComponent<Image>();
-            background.color = Idle;
-
-            Button button = go.AddComponent<Button>();
-            button.targetGraphic = background;
-
-            var wiring = go.AddComponent<ButtonAction>();
-            wiring.Action = action;
-            wiring.Overlays = overlays;
-            wiring.Creator = overlays.Creator;
-
-            ColorBlock colours = button.colors;
-            colours.highlightedColor = new Color(0.22f, 0.20f, 0.12f, 1.0f);
-            colours.pressedColor = tint;
-            button.colors = colours;
-
-            Caption(go.transform, label, 13, tint);
-        }
-
-        // --- small pieces ---
-
-        private static Image MakeButton(Transform parent, string name, string label, Color tint,
-            Vector2 position, Vector2 size, ButtonAction.Kind action,
-            CharacterCreator creator, CreatorOverlays overlays, int value = 0, int fontSize = 13)
-        {
-            var go = new GameObject(name, typeof(RectTransform));
-            var rect = (RectTransform)go.transform;
-            rect.SetParent(parent, false);
-            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 1.0f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = position;
-            rect.sizeDelta = size;
-
-            Image background = go.AddComponent<Image>();
-            background.color = Idle;
-
-            Button button = go.AddComponent<Button>();
-            button.targetGraphic = background;
-
-            var wiring = go.AddComponent<ButtonAction>();
-            wiring.Action = action;
-            wiring.Creator = creator;
-            wiring.Value = value;
-            wiring.Overlays = overlays;
-
-            ColorBlock colours = button.colors;
-            colours.highlightedColor = new Color(0.22f, 0.20f, 0.12f, 1.0f);
-            colours.pressedColor = tint;
-            colours.disabledColor = new Color(0.09f, 0.09f, 0.10f, 0.6f);
-            button.colors = colours;
-
-            if (!string.IsNullOrEmpty(label))
-            {
-                Caption(go.transform, label, fontSize, tint);
-            }
-            return background;
-        }
-
-        private static Text Caption(Transform parent, string content, int size, Color colour)
-        {
-            var go = new GameObject("Label", typeof(RectTransform));
-            var rect = (RectTransform)go.transform;
-            rect.SetParent(parent, false);
-            Stretch(rect);
-
-            Text text = go.AddComponent<Text>();
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            text.fontSize = size;
-            text.color = colour;
-            text.alignment = TextAnchor.MiddleCenter;
-            text.horizontalOverflow = HorizontalWrapMode.Overflow;
-            text.raycastTarget = false;
-            text.text = content;
-            return text;
-        }
-
-        private static void MakeAnchoredButton(Transform parent, string name, string label,
-            Color tint, Vector2 position, Vector2 size, ButtonAction.Kind action,
-            CharacterCreator creator, CreatorOverlays overlays)
-        {
-            MakeButton(parent, name, label, tint, position, size, action, creator, overlays);
-            var rect = (RectTransform)parent.Find(name);
-            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.0f);
-        }
-
-        private static Text MakeLabel(Transform parent, string name, string content, int size,
-            Color colour, Vector2 position, float height)
-        {
-            var go = new GameObject(name, typeof(RectTransform));
-            var rect = (RectTransform)go.transform;
-            rect.SetParent(parent, false);
-            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 1.0f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = position;
-            rect.sizeDelta = new Vector2(ColumnWidth - 16.0f, height);
-
-            Text text = go.AddComponent<Text>();
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            text.fontSize = size;
-            text.color = colour;
-            text.alignment = TextAnchor.MiddleCenter;
-            text.raycastTarget = false;
-            text.text = content;
-            return text;
-        }
-
-        private static Text MakeLabel(RectTransform parent, string name, string content,
-            int size, Color colour, Vector2 position, float height)
-        {
-            Text text = MakeLabel(parent.transform, name, content, size, colour, position, height);
-            var rect = (RectTransform)text.transform;
-            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = position;
-            return text;
-        }
-
-        private static void Stretch(RectTransform rect)
-        {
-            rect.anchorMin = Vector2.zero;
-            rect.anchorMax = Vector2.one;
-            rect.offsetMin = Vector2.zero;
-            rect.offsetMax = Vector2.zero;
-        }
-
-        /// <summary>Without one of these no button on this panel ever receives a click -- see MapPanelBuilder's own copy of this note.</summary>
-        private static void EnsureEventSystem()
-        {
-            if (Object.FindFirstObjectByType<EventSystem>() != null)
-            {
-                return;
-            }
-            var events = new GameObject("EventSystem");
-            events.AddComponent<EventSystem>();
-            events.AddComponent<InputSystemUIInputModule>();
         }
     }
 }

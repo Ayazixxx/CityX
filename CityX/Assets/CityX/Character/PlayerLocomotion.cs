@@ -1,3 +1,4 @@
+using CityX.Core;
 using CityX.World;
 using UnityEngine;
 
@@ -1019,7 +1020,7 @@ namespace CityX.Character
                 _bakedHasFingers = false;
                 for (int i = 0; i < _bakedBones.Length; i++)
                 {
-                    _bakedBones[i] = FindBone(_animator.transform, _bakedPose.Bones[i]);
+                    _bakedBones[i] = TransformSearch.FindDeep(_animator.transform, _bakedPose.Bones[i]);
                     _bakedLowerBody[i] = BakedMotion.IsLowerBody(_bakedPose.Bones[i]);
                     _bakedHasFingers |= _bakedBones[i] != null && BakedMotion.IsFingerBone(_bakedPose.Bones[i]);
                 }
@@ -1061,23 +1062,6 @@ namespace CityX.Character
                     part.gameObject.SetActive(_bakedPose.PropVisible[p]);
                 }
             }
-        }
-
-        private static Transform FindBone(Transform root, string name)
-        {
-            if (root.name == name)
-            {
-                return root;
-            }
-            for (int i = 0; i < root.childCount; i++)
-            {
-                Transform found = FindBone(root.GetChild(i), name);
-                if (found != null)
-                {
-                    return found;
-                }
-            }
-            return null;
         }
 
         /// <summary>The most the barrel correction may turn the arm, so a wild clip pose cannot fling it.</summary>

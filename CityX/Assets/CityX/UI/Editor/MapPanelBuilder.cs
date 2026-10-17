@@ -105,7 +105,7 @@ namespace CityX.UIEditor
 
             view.MiniMap = BuildMiniMap(root.transform, streamer, player, waypoint);
 
-            Text title = MakeText(panel.transform, "Title", TitleText, 22, LabelColour);
+            Text title = UiKit.MakeText(panel.transform, "Title", TitleText, 22, LabelColour);
             var titleRect = (RectTransform)title.transform;
             titleRect.anchorMin = new Vector2(0.0f, 1.0f);
             titleRect.anchorMax = new Vector2(0.0f, 1.0f);
@@ -114,7 +114,7 @@ namespace CityX.UIEditor
             titleRect.sizeDelta = new Vector2(300.0f, 30.0f);
             title.alignment = TextAnchor.UpperLeft;
 
-            Text hint = MakeText(panel.transform, "Hint", HintText, 13, HintColour);
+            Text hint = UiKit.MakeText(panel.transform, "Hint", HintText, 13, HintColour);
             var hintRect = (RectTransform)hint.transform;
             hintRect.anchorMin = new Vector2(1.0f, 0.0f);
             hintRect.anchorMax = new Vector2(1.0f, 0.0f);
@@ -123,7 +123,7 @@ namespace CityX.UIEditor
             hintRect.sizeDelta = new Vector2(620.0f, 20.0f);
             hint.alignment = TextAnchor.LowerRight;
 
-            Text legend = MakeText(panel.transform, "Legend", LegendText, 13, HintColour);
+            Text legend = UiKit.MakeText(panel.transform, "Legend", LegendText, 13, HintColour);
             var legendRect = (RectTransform)legend.transform;
             legendRect.anchorMin = new Vector2(1.0f, 1.0f);
             legendRect.anchorMax = new Vector2(1.0f, 1.0f);
@@ -140,7 +140,7 @@ namespace CityX.UIEditor
             // without hiding itself, the same shape DevConsole/PauseMenu/
             // PlayerChat's own builders already use.
             view.Root = panel;
-            EnsureEventSystem();
+            UiKit.EnsureEventSystem();
             return view;
         }
 
@@ -189,7 +189,7 @@ namespace CityX.UIEditor
             mini.Player = player;
             mini.Waypoint = waypoint;
 
-            Text north = MakeText(frameRect, "North", "N", 15, new Color(1.0f, 0.4f, 0.35f));
+            Text north = UiKit.MakeText(frameRect, "North", "N", 15, new Color(1.0f, 0.4f, 0.35f));
             north.fontStyle = FontStyle.Bold;
             north.alignment = TextAnchor.MiddleCenter;
             var northRect = (RectTransform)north.transform;
@@ -199,7 +199,7 @@ namespace CityX.UIEditor
             mini.NorthLabel = northRect;
 
             // Beside the frame, not in it: the frame's mask would clip a label hung below it.
-            Text distance = MakeText(groupRect, "WaypointDistance", "", 13, LabelColour);
+            Text distance = UiKit.MakeText(groupRect, "WaypointDistance", "", 13, LabelColour);
             distance.alignment = TextAnchor.UpperCenter;
             var distanceRect = (RectTransform)distance.transform;
             distanceRect.anchorMin = distanceRect.anchorMax = new Vector2(1.0f, 1.0f);
@@ -209,31 +209,6 @@ namespace CityX.UIEditor
             distance.gameObject.AddComponent<Outline>().effectColor = new Color(0.0f, 0.0f, 0.0f, 0.8f);
             mini.WaypointLabel = distance;
             return group;
-        }
-
-        private static Text MakeText(Transform parent, string name, string content, int size, Color colour)
-        {
-            var go = new GameObject(name, typeof(RectTransform));
-            go.transform.SetParent(parent, false);
-            Text text = go.AddComponent<Text>();
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            text.fontSize = size;
-            text.color = colour;
-            text.raycastTarget = false;
-            text.text = content;
-            return text;
-        }
-
-        /// <summary>Without one of these MapCanvas never receives a scroll or drag -- see DevConsoleBuilder's own copy of this note.</summary>
-        private static void EnsureEventSystem()
-        {
-            if (Object.FindFirstObjectByType<EventSystem>() != null)
-            {
-                return;
-            }
-            var events = new GameObject("EventSystem");
-            events.AddComponent<EventSystem>();
-            events.AddComponent<InputSystemUIInputModule>();
         }
     }
 }

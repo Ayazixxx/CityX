@@ -156,7 +156,7 @@ namespace CityX.View
                 // Every room's ceiling lights and the switch by its door; a powered building's glow (CityMeshBuilder.RoomLights.cs).
                 AddRoomLighting(site, concrete, structures, offset, roomGlows, windowGlow);
             }
-            // (The lit crowns and panels of tall towers -- AddSkylineLights -- went with the random lit windows, 2026-10-09.)
+            // (The lit crowns and panels of tall towers went with the random lit windows, 2026-10-09.)
             structures.Look = SurfaceLook.Default;
             structures.UvOffset = Vector2.zero;
             if (litGlass != null)
@@ -1485,7 +1485,7 @@ namespace CityX.View
         /// <summary>
         /// AddWallPanel's own shape, but double-sided (see AddDoubleSidedFace's
         /// own doc comment) -- used ONLY for the glass frame strips
-        /// AddPaneWithHole cuts around a bullet hole, so a cracked pane can
+        /// AddPaneWithHoles cuts around a bullet hole, so a cracked pane can
         /// still be finished off (shattered) by a second shot from inside
         /// the same way an intact one can now be cracked from inside.
         /// </summary>
@@ -1815,91 +1815,6 @@ namespace CityX.View
             AddFace(buffer, up, wallTop0, wallTop1, edgeTop1, edgeTop0);
             AddFace(buffer, -up, wallTop0, wallTop1, edgeTop1, edgeTop0);
             AddFace(buffer, outward, edgeTop0, edgeTop1, flapBottom1, flapBottom0);
-        }
-
-        private const ulong SkylineStream = 0x534B594CUL;   // "SKYL"
-
-        /// <summary>
-        /// What makes a night skyline a skyline and not a field of lit windows: a band of light round the crown of some tall towers, and now
-        /// and then a big lit panel up the side of one downtown. Both are lit glass, so they come on at dusk like the windows (and are dark
-        /// glass by day). Few on purpose: about four in ten tall towers have a crown, about one in seven downtown towers a panel.
-        /// </summary>
-        private static void AddSkylineLights(BuildingSite site, MeshBuffer lit, float x0, float x1, float z0, float z1, float lobbyY, float roofY)
-        {
-            if (lit == null || site.Params.Height < 70.0f)
-            {
-                return;
-            }
-            DeterministicRandom rng = SkylineLightsOf(site, out bool crown, out bool panel);
-            if (!crown && !panel)
-            {
-                return;
-            }
-
-            // Cool and blue are the colours of a city's towers; amber and warm white are rarer.
-            int[] colours = { 2, 2, 3, 3, 7, 0, 4 };
-            Color32 saved = lit.Look;
-            var west = new Wall(true, x0, z0, z1);
-            var east = new Wall(true, x1, z0, z1);
-            var south = new Wall(false, z0, x0, x1);
-            var north = new Wall(false, z1, x0, x1);
-
-            if (crown)
-            {
-                lit.Look = SurfaceLook.PackGlass(0, colours[rng.Below(colours.Length)], 0.0f);
-                float top = roofY - 2.2f;
-                float bottom = top - 1.7f;
-                // Not on a stretch of wall another block of the building stands against: the strip would be inside it.
-                float above = bottom - lobbyY;
-                if (site.ContactTop(WindowGrid.Wall.West, 0.0f, z1 - z0) <= above) AddLitStrip(lit, west, z0, z1, bottom, top, Vector3.left);
-                if (site.ContactTop(WindowGrid.Wall.East, 0.0f, z1 - z0) <= above) AddLitStrip(lit, east, z0, z1, bottom, top, Vector3.right);
-                if (site.ContactTop(WindowGrid.Wall.South, 0.0f, x1 - x0) <= above) AddLitStrip(lit, south, x0, x1, bottom, top, Vector3.back);
-                if (site.ContactTop(WindowGrid.Wall.North, 0.0f, x1 - x0) <= above) AddLitStrip(lit, north, x0, x1, bottom, top, Vector3.forward);
-            }
-
-            if (panel)
-            {
-                lit.Look = SurfaceLook.PackGlass(0, colours[rng.Below(colours.Length)], 0.0f);
-                bool onFront = rng.NextDouble() < 0.5;
-                Wall wall = onFront ? north : (rng.NextDouble() < 0.5 ? west : east);
-                Vector3 normal = onFront ? Vector3.forward : (wall.Plane < 0.0f ? Vector3.left : Vector3.right);
-                float span = onFront ? x1 - x0 : z1 - z0;
-                float width = Mathf.Min(span * 0.6f, 9.0f);
-                float height = Mathf.Min(site.Params.Height * 0.22f, 15.0f);
-                float centre = Mathf.Lerp((onFront ? x0 : z0) + width * 0.5f + 1.0f, (onFront ? x1 : z1) - width * 0.5f - 1.0f, (float)rng.NextDouble());
-                float bottom = lobbyY + site.Params.Height * 0.35f + (float)rng.NextDouble() * site.Params.Height * 0.2f;
-                WindowGrid.Wall which = onFront ? WindowGrid.Wall.North : (wall.Plane < 0.0f ? WindowGrid.Wall.West : WindowGrid.Wall.East);
-                float start = onFront ? x0 : z0;
-                if (site.ContactTop(which, centre - width * 0.5f - start, centre + width * 0.5f - start) <= bottom - lobbyY)
-                {
-                    AddLitStrip(lit, wall, centre - width * 0.5f, centre + width * 0.5f, bottom, bottom + height, normal);
-                }
-            }
-            lit.Look = saved;
-        }
-
-        /// <summary>Whether a building has a lit crown and/or a lit panel (decided here, and so testable); returns the random stream to carry on with.</summary>
-        public static DeterministicRandom SkylineLightsOf(BuildingSite site, out bool crown, out bool panel)
-        {
-            var rng = new DeterministicRandom(unchecked((ulong)(uint)site.Seed), SkylineStream);
-            bool tall = site.Params.Mass == BuildingMass.Tower || site.Params.Mass == BuildingMass.Supertall || site.Params.Height >= 110.0f;
-            crown = site.Params.Height >= 70.0f && tall && rng.NextDouble() < 0.40;
-            panel = site.Params.Height >= 70.0f && (site.Zone == ZoneKind.Core || site.Zone == ZoneKind.Urban) && rng.NextDouble() < 0.14;
-            return rng;
-        }
-
-        /// <summary>A flat lit quad a hand's width proud of a wall, between two heights and two positions along it.</summary>
-        private static void AddLitStrip(MeshBuffer lit, in Wall wall, float u0, float u1, float y0, float y1, Vector3 outward)
-        {
-            if (u1 - u0 < 0.5f || y1 - y0 < 0.5f)
-            {
-                return;
-            }
-            Vector3 lift = outward * 0.14f;
-            float w = u1 - u0;
-            float h = y1 - y0;
-            lit.AddQuad(wall.At(u0, y0) + lift, wall.At(u1, y0) + lift, wall.At(u1, y1) + lift, wall.At(u0, y1) + lift, outward,
-                new Vector2(0, 0), new Vector2(w, 0), new Vector2(w, h), new Vector2(0, h));
         }
 
         private const ulong BladeStream = 0x424C4144UL;   // "BLAD"
@@ -2326,7 +2241,7 @@ namespace CityX.View
         /// <summary>
         /// Where a hole actually lands within its own pane, clamped so it
         /// never pokes out past the pane's own edge -- shared between
-        /// AddPaneWithHole (the real geometric opening) and AddCrackDecal
+        /// AddPaneWithHoles (the real geometric opening) and AddCrackDecal
         /// (the crack texture sitting on top of it), so the two always
         /// agree on centre even when an impact near a pane's edge gets
         /// pulled inward.
@@ -2338,26 +2253,6 @@ namespace CityX.View
             float centreU = Mathf.Clamp(Mathf.Lerp(u0, u1, impactUV.x), u0 + halfW, u1 - halfW);
             float centreY = Mathf.Clamp(Mathf.Lerp(y0, y1, impactUV.y), y0 + halfH, y1 - halfH);
             return new Vector2(centreU, centreY);
-        }
-
-        /// <summary>
-        /// A cracked pane with a real opening punched through it at
-        /// `centre` -- four strips framing a hole, the exact same technique
-        /// AddWallAround already uses to cut a window's own opening into
-        /// the wall around it, just nested one level down into the pane
-        /// itself.
-        ///
-        /// STILL THE SAME `glass` (Cracked) BUFFER for the frame, so the
-        /// rest of the pane keeps reading as broken/frosted glass around a
-        /// hole rather than clean glass with a hole in it. THE WALKTHROUGH
-        /// TRIGGER STAYS WHOLE-PANE, deliberately -- shrinking it to just
-        /// this hole is a bigger, separate change to CrackedOpening/
-        /// CrackedPane that nothing here asked for.
-        /// </summary>
-        private static void AddPaneWithHole(MeshBuffer glass, in Wall wall,
-            float u0, float u1, float y0, float y1, Vector3 normal, Vector2 centre)
-        {
-            AddPaneWithHoles(glass, wall, u0, u1, y0, y1, normal, new[] { centre });
         }
 
         /// <summary>
@@ -2429,7 +2324,7 @@ namespace CityX.View
         /// <summary>
         /// The real crack-texture decal (BulletHoleCrack.png, via
         /// CrackDecalMaterial) sitting on top of the base glass, centred on
-        /// the same `centre` AddPaneWithHole just cut its own real opening
+        /// the same `centre` AddPaneWithHoles just cut its own real opening
         /// at -- EXPLICIT ASK: replacing the old plain square hole with the
         /// user's own reference image, "radial cracks with a real see-
         /// through hole in the middle" instead of a bare geometric notch.

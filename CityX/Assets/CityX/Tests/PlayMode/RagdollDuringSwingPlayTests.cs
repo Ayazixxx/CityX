@@ -53,7 +53,7 @@ namespace CityX.Tests
         }
 
         [UnityTearDown]
-        public IEnumerator TearDown()
+        public IEnumerator UnityTearDown()
         {
             // See LocomotionAnimatorStabilityPlayTests's own TearDown
             // comment for why this is set and why it must always be

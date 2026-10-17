@@ -80,7 +80,7 @@ namespace CityX.UIEditor
             border.effectColor = BorderColour;
             border.effectDistance = new Vector2(2.0f, -2.0f);
 
-            Text title = MakeText(panel.transform, "Title", TitleText, 22, LabelColour);
+            Text title = UiKit.MakeText(panel.transform, "Title", TitleText, 22, LabelColour);
             var titleRect = (RectTransform)title.transform;
             titleRect.anchorMin = new Vector2(0.0f, 1.0f);
             titleRect.anchorMax = new Vector2(0.0f, 1.0f);
@@ -89,7 +89,7 @@ namespace CityX.UIEditor
             titleRect.sizeDelta = new Vector2(300.0f, 30.0f);
             title.alignment = TextAnchor.UpperLeft;
 
-            Text hint = MakeText(panel.transform, "Hint", HintText, 13, HintColour);
+            Text hint = UiKit.MakeText(panel.transform, "Hint", HintText, 13, HintColour);
             var hintRect = (RectTransform)hint.transform;
             hintRect.anchorMin = new Vector2(1.0f, 1.0f);
             hintRect.anchorMax = new Vector2(1.0f, 1.0f);
@@ -112,7 +112,7 @@ namespace CityX.UIEditor
             closeBackground.color = CloseColour;
             Button closeButton = closeGo.AddComponent<Button>();
             closeButton.targetGraphic = closeBackground;
-            Text closeLabel = MakeText(closeGo.transform, "Label", "Close", 15, LabelColour);
+            Text closeLabel = UiKit.MakeText(closeGo.transform, "Label", "Close", 15, LabelColour);
             var closeLabelRect = (RectTransform)closeLabel.transform;
             closeLabelRect.anchorMin = Vector2.zero;
             closeLabelRect.anchorMax = Vector2.one;
@@ -124,7 +124,7 @@ namespace CityX.UIEditor
 
             view.Root = root;
             root.SetActive(false);
-            EnsureEventSystem();
+            UiKit.EnsureEventSystem();
             return view;
         }
 
@@ -166,7 +166,7 @@ namespace CityX.UIEditor
                 Button button = go.AddComponent<Button>();
                 button.targetGraphic = background;
 
-                Text keyCaption = MakeText(go.transform, "Key", labelText[i], 13, HintColour);
+                Text keyCaption = UiKit.MakeText(go.transform, "Key", labelText[i], 13, HintColour);
                 var keyRect = (RectTransform)keyCaption.transform;
                 keyRect.anchorMin = new Vector2(0.0f, 1.0f);
                 keyRect.anchorMax = new Vector2(1.0f, 1.0f);
@@ -176,7 +176,7 @@ namespace CityX.UIEditor
                 keyCaption.alignment = TextAnchor.UpperCenter;
                 keyCaption.raycastTarget = false;
 
-                Text itemCaption = MakeText(go.transform, "Item", "--", 15, SlotTextColour);
+                Text itemCaption = UiKit.MakeText(go.transform, "Item", "--", 15, SlotTextColour);
                 var itemRect = (RectTransform)itemCaption.transform;
                 itemRect.anchorMin = Vector2.zero;
                 itemRect.anchorMax = Vector2.one;
@@ -192,31 +192,6 @@ namespace CityX.UIEditor
 
             view.SlotButtons = buttons;
             view.SlotLabels = labels;
-        }
-
-        private static Text MakeText(Transform parent, string name, string content, int size, Color colour)
-        {
-            var go = new GameObject(name, typeof(RectTransform));
-            go.transform.SetParent(parent, false);
-            Text text = go.AddComponent<Text>();
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            text.fontSize = size;
-            text.color = colour;
-            text.raycastTarget = false;
-            text.text = content;
-            return text;
-        }
-
-        /// <summary>Without one of these no button on this panel ever receives a click -- see MapPanelBuilder's own copy of this note.</summary>
-        private static void EnsureEventSystem()
-        {
-            if (Object.FindFirstObjectByType<EventSystem>() != null)
-            {
-                return;
-            }
-            var events = new GameObject("EventSystem");
-            events.AddComponent<EventSystem>();
-            events.AddComponent<InputSystemUIInputModule>();
         }
     }
 }

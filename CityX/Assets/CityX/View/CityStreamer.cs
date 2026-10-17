@@ -1507,7 +1507,7 @@ namespace CityX.View
             private const int Waiting = 0, Cooking = 1, Done = 2, Abandoned = 3;
             private int _state;
 
-            public int MeshId;
+            public EntityId MeshId;
             public MeshColliderCookingOptions Options;
 
             public bool IsDone => Volatile.Read(ref _state) == Done;
@@ -1666,7 +1666,7 @@ namespace CityX.View
             GameObject fresh = AssembleChunk(payload, deferCollider: true);
             var collider = fresh.GetComponent<MeshCollider>();
             Mesh mesh = fresh.GetComponent<MeshFilter>().sharedMesh;
-            var cook = new ColliderCook { MeshId = mesh.GetInstanceID(), Options = collider.cookingOptions };
+            var cook = new ColliderCook { MeshId = mesh.GetEntityId(), Options = collider.cookingOptions };
             _pendingSwaps.Add(new PendingSwap
             {
                 Key = payload.Key, Fresh = fresh, Replaces = replaces, Collider = collider, Mesh = mesh, Cook = cook,

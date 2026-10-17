@@ -113,19 +113,8 @@ namespace CityX.UIEditor
             view.Inventory = inventory;
             view.Ragdoll = ragdoll;
 
-            EnsureEventSystem();
+            UiKit.EnsureEventSystem();
             return view;
-        }
-
-        private static void EnsureEventSystem()
-        {
-            if (Object.FindFirstObjectByType<EventSystem>() != null)
-            {
-                return;
-            }
-            var events = new GameObject("EventSystem");
-            events.AddComponent<EventSystem>();
-            events.AddComponent<InputSystemUIInputModule>();
         }
     }
 }

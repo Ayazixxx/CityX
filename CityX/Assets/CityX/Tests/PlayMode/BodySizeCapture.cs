@@ -34,7 +34,7 @@ namespace CityX.Tests
         }
 
         [UnityTearDown]
-        public IEnumerator TearDown()
+        public IEnumerator UnityTearDown()
         {
             if (_passerBy != null) Object.Destroy(_passerBy);
             if (_camera != null) Object.Destroy(_camera.gameObject);

@@ -219,7 +219,7 @@ namespace CityX.UI
             TakeSnapshot();
             _shownVersion = -1;
             _last = null;
-            EnsureEventSystem();
+            UiKit.EnsureEventSystem();
             _root.SetActive(true);
             Current = this;
             Refresh();
@@ -540,7 +540,7 @@ namespace CityX.UI
             var root = (RectTransform)_root.transform;
 
             Image backdrop = MakeImage("Backdrop", root, Backdrop);
-            Stretch(backdrop.rectTransform);
+            UiKit.Stretch(backdrop.rectTransform);
             backdrop.raycastTarget = true;   // nothing behind the menu takes a click
 
             Text title = MakeText("Title", root, "GRAFFITI", 24, TextAnchor.MiddleCenter);
@@ -638,14 +638,6 @@ namespace CityX.UI
             return rect;
         }
 
-        private static void Stretch(RectTransform rect)
-        {
-            rect.anchorMin = Vector2.zero;
-            rect.anchorMax = Vector2.one;
-            rect.offsetMin = Vector2.zero;
-            rect.offsetMax = Vector2.zero;
-        }
-
         /// <summary>Centred on the screen's middle, at <paramref name="at"/> design pixels, <paramref name="size"/> big.</summary>
         private static void Place(RectTransform rect, Vector2 at, Vector2 size)
         {
@@ -695,18 +687,7 @@ namespace CityX.UI
             button.targetGraphic = face;
             button.onClick.AddListener(onClick);
             Text text = MakeText("Label", face.rectTransform, label, 15, TextAnchor.MiddleCenter);
-            Stretch(text.rectTransform);
-        }
-
-        private static void EnsureEventSystem()
-        {
-            if (EventSystem.current != null || Object.FindFirstObjectByType<EventSystem>() != null)
-            {
-                return;
-            }
-            var events = new GameObject("EventSystem");
-            events.AddComponent<EventSystem>();
-            events.AddComponent<InputSystemUIInputModule>();
+            UiKit.Stretch(text.rectTransform);
         }
     }
 }

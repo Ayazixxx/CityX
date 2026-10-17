@@ -32,7 +32,7 @@ namespace CityX.Tests
         }
 
         [UnityTearDown]
-        public IEnumerator TearDown()
+        public IEnumerator UnityTearDown()
         {
             if (_dummy != null) Object.Destroy(_dummy);
             if (_scene.IsValid() && _scene.isLoaded)
