@@ -53,8 +53,8 @@ of the longer articles blocked the fetch, so those points come from the search s
   code (`DoorSounds`), so the game gains no audio files.
 - Not done: a character reach/push animation (there is no such clip), auto-close, locked doors.
 
-**Windows** (`World/GlassDamage.cs`, `View/GlassBreaker.cs`, `Character/SoulsSwordCombat.cs`,
-`Character/PlayerLocomotion.cs`, `Weapons/ThrownBottle.cs`)
+**Windows** (`World/GlassDamage.cs`, `View/GlassBreaker.cs`, `Character/Combat/SoulsSwordCombat.cs`,
+`Character/Movement/PlayerLocomotion.cs`, `Weapons/ThrownBottle.cs`)
 - Blows have a **strength**. A fist or a bullet is *light* (a whole pane cracks, a second blow shatters it,
   as before). A **sword swing** (the blade is traced through space each active frame, so a fast swing cannot
   skip over a pane), a **thrown bottle** (4 m/s or faster) and (running or diving into an INTACT pane no longer breaks it: removed 2026-10-05 by request; a CRACKED pane still gives way to a knock) a ~~sprint or jetpack dive at 6.5 m/s or

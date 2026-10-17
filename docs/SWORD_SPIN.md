@@ -21,7 +21,7 @@ Sources: SmashWiki "Link (SSBU) / Up special" and "Spin Attack", UltimateFrameDa
 
 ## What the game does
 
-All of the timeline is in [SwordSpinMove.cs](../CityX/Assets/CityX/Character/SwordSpinMove.cs) as frame counts at 60 fps, so it can be
+All of the timeline is in [SwordSpinMove.cs](../CityX/Assets/CityX/Character/Abilities/SwordSpinMove.cs) as frame counts at 60 fps, so it can be
 checked against the above (`SwordSpinMoveTests`).
 
 | | Ground | Air |

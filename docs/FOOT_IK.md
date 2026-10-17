@@ -19,7 +19,7 @@ of what you learn."
 
 ## What it does
 
-`Character/FootPlanting.cs` (pure, tested without a scene) and `Character/PlayerLocomotion.FootIK.cs` (`ApplyFootIK`, run in `LateUpdate` right after
+`Character/Movement/FootPlanting.cs` (pure, tested without a scene) and `Character/Movement/PlayerLocomotion.FootIK.cs` (`ApplyFootIK`, run in `LateUpdate` right after
 `ClampFeetAboveGround`, before the upper-body poses):
 
 1. **Ground under each foot**: a ray straight down at the ankle's position (under its lock while it is held), from 0.55 m above the clip's floor,

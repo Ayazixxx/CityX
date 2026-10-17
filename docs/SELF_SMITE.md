@@ -14,7 +14,7 @@ The first spell of the **Electromancer** tree (its root; one skill point). On th
 a character from the menu learns it in the C menu and drags it to any slot. Its icon is a bold **S** until the owner draws one
 (`SkillIcons.LetterFor`: any skill with no drawn icon shows its name's first letter on the bar, its star and the dragged ghost).
 
-## The timeline (`Character/SelfSmiteMove.cs`)
+## The timeline (`Character/Abilities/SelfSmiteMove.cs`)
 
 Thunder's frame data from Super Smash Bros. Ultimate, at 60 frames a second. Frame N runs from (N-1)/60 s to N/60 s after the key.
 

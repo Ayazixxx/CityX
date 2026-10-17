@@ -54,11 +54,11 @@ accumulates and dries on its own clock, and consequences for the player.
 | Thunder delayed by 343 m/s, duller and quieter with distance | `Weather.ThunderDelaySeconds`, `View/ThunderSynth.cs` |
 | Lightning: jagged bolt to a tall building, glow, whole sky flashes | `View/LightningBolt.cs`, `RainEffect.StrikeLightning`, `DayNightCycle.Flash` |
 | A storm greys the sky, fog and background TOGETHER | `SkyCycle.Weathered`, `DayNightCycle.Overcast` |
-| Wet ground: less traction | `Character/PlayerLocomotion.cs` (`Weather.GroundTraction`) |
-| Wet walls and ladders: more stamina, and a slow slide | `Character/WallStick.cs`, `Character/PlayerClimbing.cs` |
+| Wet ground: less traction | `Character/Movement/PlayerLocomotion.cs` (`Weather.GroundTraction`) |
+| Wet walls and ladders: more stamina, and a slow slide | `Character/Movement/WallStick.cs`, `Character/Movement/PlayerClimbing.cs` |
 | Rain weakens flames (reach and damage) | `Weapons/Flamethrower.cs` (`Weather.FlameStrength`) |
-| Pedestrians hurry, and seek a roof | `Character/CivilianBrain.cs` (`IRainSense`) |
-| The player soaks, darkens and dries | `Character/PlayerWetness.cs` |
+| Pedestrians hurry, and seek a roof | `Character/NPC/CivilianBrain.cs` (`IRainSense`) |
+| The player soaks, darkens and dries | `Character/Player/PlayerWetness.cs` |
 | Dev console | `/weather rain [light\|moderate\|heavy\|0.1-1]`, `clear`, `dry`, `lightning [metres]`, `status` |
 
 ### Design rules worth keeping

@@ -9,7 +9,7 @@ worry about implement the mechanics of those stats just put them on the list" (w
 
 **Points**: five stat points a level (Godot's `STAT_POINTS_PER_LEVEL`), a separate pool from the skill points. The Stats page (C, Player, Stats)
 lists every stat under Vitals, Offense, Precision, Mobility and Defense, scrolling; "+" spends one, Shift and "+" five. What each point is worth
-and every cap are mine, first values to tune (`Character/StatCatalog.cs`).
+and every cap are mine, first values to tune (`Character/Stats/StatCatalog.cs`).
 
 | Stat | A point | Cap | What it does in the game |
 |---|---|---|---|
@@ -40,7 +40,7 @@ and every cap are mine, first values to tune (`Character/StatCatalog.cs`).
 
 ## What was added for them
 
-- **Damage kinds** (`Character/DamageContext.cs`): every blow says what it is -- Physical (fists, blades, thrown things, a claw, the sword's
+- **Damage kinds** (`Character/Combat/DamageContext.cs`): every blow says what it is -- Physical (fists, blades, thrown things, a claw, the sword's
   wave), Bullet (guns; armour stops it, a block can deflect it) or Magic (spells) -- and how much armour it ignores. `IDamageable` is unchanged:
   the attacker opens a scope around the hit and the target reads it, as poise damage was already said.
 - **The stagger cuts things short** (`PlayerVitals.Staggered`): a blow that puts the body in hitstun stops the poison scream before the gas
@@ -49,7 +49,7 @@ and every cap are mine, first values to tune (`Character/StatCatalog.cs`).
   CS:GO ask -- but running opens the cone up to 2.5 degrees, the air 4, and each shot of a held trigger after the first 0.4 more (up to 3). Aiming
   halves it; Accuracy takes its share off.
 - **Health regeneration**: none existed (see Health Regen).
-- **Deflection sparks and ting** (`Character/BlockDeflectEffect.cs`): drawn and voiced in code.
+- **Deflection sparks and ting** (`Character/Combat/BlockDeflectEffect.cs`): drawn and voiced in code.
 
 ## Multiplayer
 

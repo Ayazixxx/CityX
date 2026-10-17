@@ -26,7 +26,7 @@ The animation was made in Blender on 2026-10-12. The owner's brief: "an animatio
 
 ## What the game does
 
-All the numbers are in `Character/OctaslashMove.cs`.
+All the numbers are in `Character/Abilities/OctaslashMove.cs`.
 
 | | |
 |---|---|

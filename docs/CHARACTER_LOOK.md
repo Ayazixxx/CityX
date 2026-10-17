@@ -128,7 +128,7 @@ bones of its own** and the hands close round what they hold.
 "Research the best dynamic movement animations for roblox like characters ... ours can be improved upon." Research (physics-driven lean,
 Roblox DevForum tilt threads, a game developer's tips the owner shared, procedural animation toolkits): lean INTO acceleration (forward setting
 off, back braking, into the inside of a turn, which is sideways acceleration) and a little into speed; scale physical angles down for a cartoon
-body; smooth; nothing in the air. `Character/BodyLean.cs` (pure: 0.9 deg per m/s, 1.1 deg per m/s^2, cap 13, smoothing 0.12/0.1 s) and
+body; smooth; nothing in the air. `Character/Movement/BodyLean.cs` (pure: 0.9 deg per m/s, 1.1 deg per m/s^2, cap 13, smoothing 0.12/0.1 s) and
 `PlayerLocomotion.ApplyBodyLean` tilt the WHOLE visual root at the feet (not the spine: rigid tubes come apart if the spine bends), from the
 body's measured motion, so other players' copies lean too. Ground + plain walk/run blend only. Tests: `BodyLeanTests`, `BodyLeanPlayTests`
 (renders lean-*.png). Not done from the research: head-stable lean (rotating from the head), landing squash, foot locking -- see the deferred

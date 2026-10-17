@@ -63,7 +63,7 @@ Three separate causes, found in this order:
 
 ## What was built
 
-- `Character/TwoBoneIK.cs` - the analytic reach (law of cosines, elbow hint, blends by
+- `Character/Posing/TwoBoneIK.cs` - the analytic reach (law of cosines, elbow hint, blends by
   weight, clamps to 99.5% of the arm so it never locks straight). 6 unit tests
   (`TwoBoneIKTests`). It caught a real bug in its first version (the forearm was aimed
   from its pre-shoulder-turn rotation).

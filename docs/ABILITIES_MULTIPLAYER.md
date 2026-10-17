@@ -17,7 +17,7 @@ ability does its thing
 ability.Fired(event) ───────► SendAbilityToServer ────► BroadcastAbility (ExcludeOwner) ──► ability.PlayRemote(event)
 ```
 
-- **`IReplicatedAbility`** (`Character/IReplicatedAbility.cs`): `AbilityId`, `event Fired(AbilityEvent)`, `PlayRemote(AbilityEvent)`.
+- **`IReplicatedAbility`** (`Character/Abilities/IReplicatedAbility.cs`): `AbilityId`, `event Fired(AbilityEvent)`, `PlayRemote(AbilityEvent)`.
 - **`AbilityEvent`**: `Kind`, `Origin`, `Direction`, `A`, `B`, `N` -- plain numbers, the ability decides what they mean.
 - **`NetworkedAbilitySync`** (on the body next to `NetworkedAnimatorSync`) finds every `IReplicatedAbility` on the body, sends the owner's `Fired`
   events as one reliable RPC pair keyed by a hash of the ability id, and calls `PlayRemote` on the other copies. **A new ability costs no

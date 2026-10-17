@@ -11,7 +11,7 @@ hotbar at the bottom left for now"; "vaulting will be the first one you unlock i
 go in movement will be Dash, Climb, Super Jump"; "right now every character can learn every path"; "pulling yourself up onto a ledge naturally is
 apart of climb"; movement does not go on the bar ("not the ones we included so far").
 
-### The trees (`Character/SkillCatalog.cs`)
+### The trees (`Character/Abilities/SkillCatalog.cs`)
 
 One row, left to right, wrapping round: **Freerunner, Sword, Berserker, Pyromancer, Steam, Hydromancer, Cryomancer, Plaguebringer, Electromancer, Wizard**.
 

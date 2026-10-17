@@ -24,10 +24,10 @@ and **cancelling a recovery into the next punch**; (i) **instant response**: att
 
 ## What it does now
 
-- `Character/FistStrikes.cs` (pure data and maths): five procedural strikes. Each is a path for the throwing fist (in arm lengths, relative to its shoulder), a torso twist
+- `Character/Posing/FistStrikes.cs` (pure data and maths): five procedural strikes. Each is a path for the throwing fist (in arm lengths, relative to its shoulder), a torso twist
   and lean, a duration and a contact moment. `Evaluate(kind, t, guard)` gives the pose; `Guard()` the stance. Chain: **jab, cross, hook, uppercut, haymaker** (same
   damage/hitstun as before; the haymaker is still the finisher and the held punch).
-- `Character/FistPoseDriver.cs`: plays a strike on any body (the owner's and every network copy's: `PlayerAnimationDriver.PlayState` hands it the move), holds the guard for 3 s
+- `Character/Posing/FistPoseDriver.cs`: plays a strike on any body (the owner's and every network copy's: `PlayerAnimationDriver.PlayState` hands it the move), holds the guard for 3 s
   after the last blow, and freezes the fist at full reach for 55 ms when a blow lands (hit-stop). Yields to anything else that owns the arms (a weapon, a gun, a climb, a vault, a ragdoll, a grapple).
 - `PlayerLocomotion.ApplyFistPose` (LateUpdate, after the Animator): twists and leans the spine, puts each fist where the frame says with two-bone IK, the other held in the guard.
   `SetFacingOverride` turns the body.

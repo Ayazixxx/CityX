@@ -15,9 +15,9 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="System.Drawing.Common" Version="9.0.0" />
-    <Compile Include="..\..\CityX\Assets\CityX\Character\BodyRig.cs" />
-    <Compile Include="..\..\CityX\Assets\CityX\Character\FusedBodyShape.cs" />
-    <Compile Include="..\..\CityX\Assets\CityX\Character\FusedBodyMesh.cs" />
-    <Compile Include="..\..\CityX\Assets\CityX\Character\PaintAtlas.cs" />
+    <Compile Include="..\..\CityX\Assets\CityX\Character\Body\BodyRig.cs" />
+    <Compile Include="..\..\CityX\Assets\CityX\Character\Body\FusedBodyShape.cs" />
+    <Compile Include="..\..\CityX\Assets\CityX\Character\Body\FusedBodyMesh.cs" />
+    <Compile Include="..\..\CityX\Assets\CityX\Character\Body\PaintAtlas.cs" />
   </ItemGroup>
 </Project>

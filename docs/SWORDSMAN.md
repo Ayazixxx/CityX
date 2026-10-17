@@ -22,7 +22,7 @@
 - **The player's health and ragdoll**: he can be hit by anything, knocked down, and dies limp; the body goes after 25 s. Beating him is worth
   **80 XP**.
 
-## How he fights (`Character/DuelistMind.cs`, pure)
+## How he fights (`Character/NPC/DuelistMind.cs`, pure)
 
 By priority, every frame:
 

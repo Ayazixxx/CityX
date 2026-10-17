@@ -162,7 +162,7 @@ R&D for scale and feel, kept separate from the real player:
 |---|---|
 | Modes / args | `CityX/Assets/CityX/Core/GameMode.cs`, `Core/LaunchArgs.cs` |
 | Startup | `Net/NetworkBootstrap.cs`, `UI/TitleMultiplayerView.cs` |
-| Player spawn | `Character/NetworkedPlayerSpawner.cs`, `Character/NetworkedPlayerIdentity.cs`, `Character/NetworkedAnimatorSync.cs` |
+| Player spawn | `Character/Network/NetworkedPlayerSpawner.cs`, `Character/Network/NetworkedPlayerIdentity.cs`, `Character/Network/NetworkedAnimatorSync.cs` |
 | Prefab / scene wiring | `Character/Editor/NetworkedPlayerBuilder.cs`, `View/Editor/CityMassingSceneBuilder.cs` |
 | Interest management | `NetworkedPlayerBuilder.AddViewDistanceObserver`, `Character/PlayerViewDistance.asset` |
 | Scale / prediction R&D | `Spike/` |

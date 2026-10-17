@@ -19,7 +19,7 @@
 - **The player's health and ragdoll** (`PlayerVitals`, `Ragdoll`): he can be hit by anything, knocked down (Self Smite's burst, finishers),
   and dies limp; the body goes after 25 s. Killing him is worth **60 XP** (`PlayerVitals.XpRewardOnDeath`; guns now pay kill XP too).
 
-## How he fights (`Character/ShootaMind.cs`, pure)
+## How he fights (`Character/NPC/ShootaMind.cs`, pure)
 
 | State | What he does | Leaves it when |
 |---|---|---|
@@ -36,7 +36,7 @@
   The tracer is drawn along the true path, with the flash, the crack, the brass and the bolt.
 - **Never through a wall**: he only shoots what he can see.
 
-## Cover (`Character/CoverPicker.cs`)
+## Cover (`Character/NPC/CoverPicker.cs`)
 
 Rings of spots round him (2.5 to 20 m, 16 each): a spot is cover when the lines from your eye to a crouching body there (head and chest) both
 hit something solid, it does not take him more than 1.5 m closer to you, and he can run to it in a straight line or by way of one turn

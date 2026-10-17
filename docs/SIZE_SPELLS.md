@@ -37,8 +37,8 @@ While resized, **climbing, vaulting, wall-stick and foot placement are off**: th
 
 | What | Where |
 |---|---|
-| The size over time, the 30 s, the change by ratio (log space), room to grow, speed and stride (pure) | `Character/BodySize.cs` |
-| The spell on the body: casts, applies the scale, room check, swirl, sound | `Character/BodySizeAbility.cs` |
+| The size over time, the 30 s, the change by ratio (log space), room to grow, speed and stride (pure) | `Character/Abilities/BodySize.cs` |
+| The spell on the body: casts, applies the scale, room check, swirl, sound | `Character/Abilities/BodySizeAbility.cs` |
 | Speed, jump, dash, animator speeds, step heights x size | `PlayerLocomotion` (`BodyScale`, `SizeSpeedFactor`, `IsResized`), `PlayerLocomotion.StepUp.cs` |
 | Camera distances x size | `ThirdPersonCamera` (reads the body's scale) |
 | Fall damage in a giant's lengths | `PlayerVitals.FallScale` |

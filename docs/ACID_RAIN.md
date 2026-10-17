@@ -35,7 +35,7 @@ Owner's request: "make the acid rain ... in a large area but not the entire worl
 |---|---|
 | Spell code | `Weapons/AcidRainStorm.cs` (the `AcidRain` rules and the storm) and `Weapons/AcidRainCaster.cs` |
 | Builder | `Weapons/Editor/AcidRainBuilder.cs` |
-| Input | `Character/IAcidRainCaster.cs`; key 5 in `PlayerInputReader` |
+| Input | `Character/Abilities/IAcidRainCaster.cs`; key 5 in `PlayerInputReader` |
 | Assets | `AcidRainStorm.prefab`, `AcidRainStreak.png`, `AcidRainStreak.mat` |
 
 Tests are in `AcidRainPlayTests`:

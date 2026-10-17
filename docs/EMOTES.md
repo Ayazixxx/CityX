@@ -14,7 +14,7 @@ doing pushups your xp goes up 1 xp per push up".
 - **Clips**: the owner's three Mixamo animations, `Character/Animations/pushup_enter.fbx` (Idle To Push Up), `pushup.fbx` (Push Up, looped) and
   `pushup_exit.fbx` (Push Up To Idle), imported like the crouches: the drop of the hips is baked into the pose, measured from the feet
   (`CharacterImportSetup`, `lowers`).
-- **The emote** (`Character/PushUpEmote.cs`, pure): going down, pushing up on repeat, getting up. It keeps time with the clips' own lengths, which
+- **The emote** (`Character/Posing/PushUpEmote.cs`, pure): going down, pushing up on repeat, getting up. It keeps time with the clips' own lengths, which
   `PlayerRigBuilder` writes into the reader (enter 2.6 s, a push-up 1.53 s, getting up 3.1 s). A push-up finished is +1 XP (`PlayerVitals.AddXp`).
   Called off by WASD, Space, Shift, Ctrl, a spell key 1 to 0 or a mouse button; a call while going down is kept, and it gets up once down. The body
   is held (no walking, no turning) until it stands again; the mouse still turns the camera. A blow, death or a fall ends it at once.

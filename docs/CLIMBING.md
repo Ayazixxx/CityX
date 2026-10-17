@@ -19,11 +19,11 @@ metre off the wall), facing whichever way it happened to be facing.
 
 ## What it does now
 
-1. **Intent** (`Character/GrabIntent.cs`). Space held for 0.2 s is a grab; a tap is a jump. Needs W held toward
+1. **Intent** (`Character/Interaction/GrabIntent.cs`). Space held for 0.2 s is a grab; a tap is a jump. Needs W held toward
    the wall. One hold grabs once (release to grab again), and a 0.6 s cooldown after any grab ends, so a hop-off is
    not undone by the next frame. Not available with a jetpack or parachute on the back (Space means thrust or
    canopy there).
-2. **A real wall** (`Character/WallProbe.cs`). Nine rays (three across, at knee, chest and head height) must ALL
+2. **A real wall** (`Character/Movement/WallProbe.cs`). Nine rays (three across, at knee, chest and head height) must ALL
    hit, on one flat face (hit distances within 0.3 m, normals within 20 degrees), near-vertical, within 45 degrees
    of where the player is facing, and not a person, a door or flying glass. A doorway, a window opening, a jamb, a
    stair, a low fence and an outside corner each have a gap or a second face in that grid. On a real streamed
@@ -158,7 +158,7 @@ the same every frame (no climbing motion at all).
 No free climbing clip was fetched (a download needs permission; see the end of this note); what Breath of the Wild shows is not a clip but PLANTED LIMBS: the hands and feet hold the wall, the body moves
 up past them, and a limb that has been left behind takes a quick step to a new hold, the diagonal pairs taking turns. That is built procedurally, so it works at any height and speed, down as well as up:
 
-- `Character/ClimbLimbStepper.cs` (pure, tested): four anchors on the wall surface; a limb steps (0.13 s, a small lift off the wall) when it is more than 0.30 of its length behind its ideal hold; only
+- `Character/Movement/ClimbLimbStepper.cs` (pure, tested): four anchors on the wall surface; a limb steps (0.13 s, a small lift off the wall) when it is more than 0.30 of its length behind its ideal hold; only
   one diagonal pair (left hand + right foot, or right hand + left foot) steps at a time, so the other carries the weight, and the two hands never let go together; holds are spread wider than the shoulders and
   hips, as a climber's are; each is snapped onto the real surface (a raycast) a few centimetres off it; no hold is ever inside the wall.
 - `PlayerLocomotion.ApplyClimbLimbs` (LateUpdate, after the Animator): puts each hand and foot on its target with two-bone IK (elbows out and down, knees out and away from the wall), leans the chest into the
@@ -174,7 +174,7 @@ up past them, and a limb that has been left behind takes a quick step to a new h
 Facades got real relief (`World/FacadeOrnament.cs`: a base course over the shop fronts, string courses, cornices up to 0.85 m deep). The first full PlayMode run after
 it showed every real-city facade climb letting go a metre up: the body rose into the underside of the base course, stopped rising, and the stuck guard released it.
 
-- `Character/ClimbJut.cs`: one box sweep per frame, a column as wide as the body from just under the feet to 0.5 m over the head (down past the feet when climbing
+- `Character/Movement/ClimbJut.cs`: one box sweep per frame, a column as wide as the body from just under the feet to 0.5 m over the head (down past the feet when climbing
   down), swept in toward the wall: the deepest thing jutting out past the plane the climb holds. `LeanFor`: lean out by all of it, up to 0.9 m (`MaxLean`, deeper than
   the deepest cornice); anything deeper (a balcony) is not leaned round. `PlayerClimbing.Tick` adds the lean to the hang point, so the body swings out ahead of the
   ledge and settles back once its feet are past. The head-height "is there wall left" check reaches as far again as the lean.
@@ -303,7 +303,7 @@ like this when i should just be running right over this".
   fence, a sill with a lower room behind it). A raised floor does neither: a 0.44 m step stopped the body dead, walking or running. In the city
   the floor-length windows beside a front door have their sills 0.4 to 0.6 m over the pavement, and a survey of the real city near spawn ran
   into them shattered and got into none.
-- **The step up** (`Character/StepUpProbe.cs`, `Character/PlayerLocomotion.StepUp.cs`). Anything in the way up to a quarter of the body's
+- **The step up** (`Character/Movement/StepUpProbe.cs`, `Character/Movement/PlayerLocomotion.StepUp.cs`). Anything in the way up to a quarter of the body's
   height (0.65 m, the share Unreal's character steps by default) is stepped onto in the stride, walking or running. The probe validates in
   stages like the vault's: a near-vertical face at shin height along the direction of travel (from the body's middle and either side of it); the
   face stands on the body's own ground, so a staircase (whose second riser stands on the first tread) is never one step and stays the
