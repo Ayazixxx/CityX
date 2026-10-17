@@ -70,3 +70,12 @@ the square, the hue and the preview kept the old colour and the pick looked like
 the creator has. Tests: `RedrawRealInputPlayTests` (a mouse on the real buttons, swatches, sliders, hairstyles, the eyedropper on a painted
 spot, the bucket, and the HUD) -- `PlayerRedrawStarterPlayTests` calls the creator directly, which is how this went unnoticed.
 
+## One kit for both creators (2026-10-17)
+
+The title screen's creator (`CharacterCreatorBuilder`, baked in the editor) and ReDraw's (`RedrawCreatorRuntime`, built during play) had
+about 500 lines in common, copied by hand, and had drifted (the bug above is what the drift looked like). Both are now built from
+`UI/CreatorKit`: the tool column (`BuildToolColumn`, given the heading, the overlays the tool buttons carry and the two action buttons),
+the discard prompt, the prompt parts and the stage's lights. Each creator keeps only what really differs: which body it clones and how,
+where its hair and its layer come from, ENTER THE CITY/BACK against SAVE/CANCEL, and the title screen's name prompt. The title scene the
+builder writes came out identical, object for object. See docs/CODE_STYLE.md.
+

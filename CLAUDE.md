@@ -12,6 +12,7 @@ Unity port of a Godot game: a procedurally generated multiplayer megacity with t
 - Repo root = the **original Godot project** (`project.godot`, `main.gd`, `player/`, `city/`...). **Read-only reference** for porting: read the `.gd`, reuse its assets. Never edit it.
 - `CityX/` = the Unity project. Code is in `CityX/Assets/CityX/<Area>/`, one assembly each: `Core`, `Items`, `World` (pure city/plan logic), `Character`, `Weapons`, `Wearables`, `Vehicles`, `View` (mesh building, chunk streaming), `UI`, `Net`. `Spike/` is a networking sandbox: ignore it.
 - Editor-only builders live in `*/Editor/`. Tests: `Assets/CityX/Tests/EditMode` and `PlayMode`.
+- `Character`'s runtime scripts sit in topic folders: `Player`, `Movement`, `Posing`, `Combat`, `Abilities`, `Stats`, `Body`, `NPC`, `Network`, `Interaction`, `Story`. Big classes are split into partial files by topic (`PlayerLocomotion.Climbing.cs`). Namespaces stay one per assembly.
 - `CityX/SourceArt/<Move>/` = moves animated in Blender (driven through the Blender MCP, `.mcp.json`). Its scripts rebuild the rig, bake the poses and export JSON to `Resources`, which `BakedMotion` plays bone by bone after the Animator. The `.blend` is not committed. Example: `docs/OCTASLASH.md`.
 - `docs/*.md` hold the design notes per feature (CLIMBING, FIST_COMBAT, MULTIPLAYER_STATE, ...). Read the relevant one before changing a feature; update it after.
 - `docs/GAME_DESIGN.md` is the whole-game plan (progression, world layers, death, karma, factions, roadmap, open decisions). Read it before starting any new system; build in its roadmap order.
@@ -29,6 +30,7 @@ Unity port of a Godot game: a procedurally generated multiplayer megacity with t
 - Procedural poses (IK, torso twist, climb limbs) run in `PlayerLocomotion.LateUpdate` **after** the Animator, with `TwoBoneIK`. The animation driver is told states **by name**; no parallel animator-parameter state machines.
 - Tuning data goes in ScriptableObjects or serialized fields, with named constants, not scattered numbers.
 - No joint-physics swing for the grapple (failed six times).
+- **Code style: `docs/CODE_STYLE.md`** (read it before writing code). Reuse the shared helpers it lists (`TransformSearch`, `UiKit`, `CreatorKit`, `StillPose`...) and never paste a helper into a second file. Keep one topic per file. Commit no diagnostics or dead code. Keep comments to the why, and put the history in commits and docs. Keep the build at zero compiler warnings.
 
 ## Hard rules
 - **Multiplayer-first**: anything a player does or has (ability, held item, movement) must be visible to other players in the same commit: `IReplicatedAbility` or `ICosmeticMountable`, wired in `PlayerAbilityWiring` / `NetworkedPlayerWiring`, with a test. Guard tests enforce it. Spec: `docs/MULTIPLAYER_STATE.md`.
