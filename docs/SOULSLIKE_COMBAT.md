@@ -386,4 +386,4 @@ paces it like every other tree. The posed carry and attacks lie on top; the feet
 The one-handed carry is hand-driven (the arm hangs, the sword hangs from the hand by its hold), so the hold set with CityX > Weapon Grips
 is the carry's angle.
 
-- **The carried one-handed hand swings with the walk** (2026-10-17): the hand-driven carry adds `CarrySwing` -- the clip hand's offset from a 0.6 s running middle, capped at 0.35 m -- to its point, so the sword arm moves in step (about 17 cm fore and aft walking) instead of staying pinned by the hip.
+- **The carried one-handed arm is the clips' own** (2026-10-17, "fluid motion no jumps too no weird bends"): the hand-driven carry keeps the Sword1H clip's wrist position and elbow bend (IK target and hint taken from the clip), and `CarryHand` turns the straight-wrist hand at most 50 deg toward the carry's blade direction (shortest turn, no down/up choice that could flip). Running, the blade swings like a pendulum but never rises past level; `SwordCarryCapture` renders walk/run/idle beside the bare clips.

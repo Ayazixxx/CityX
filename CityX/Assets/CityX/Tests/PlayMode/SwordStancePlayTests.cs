@@ -290,7 +290,7 @@ namespace CityX.Tests
             Transform hand = _animator.GetBoneTransform(HumanBodyBones.RightHand);
             Transform elbow = _animator.GetBoneTransform(HumanBodyBones.RightLowerArm);
             float wristBend = Vector3.Angle(hand.position - elbow.position, hand.right);
-            Assert.Less(wristBend, 38.0f, $"the wrist is bent {wristBend:0} degrees carrying the sword");   // (tipped 30 on purpose, point down)
+            Assert.Less(wristBend, CarryHand.MaxWristDegrees + 3.0f, $"the wrist is bent {wristBend:0} degrees carrying the sword");   // (cocked on purpose to keep the point down)
             Assert.Less((-_sword.transform.right).y, -0.3f, "the edge does not face down");
             Vector3 blade = (_sword.BladeTipWorld - _sword.BladeBaseWorld).normalized;
             Assert.Less(blade.y, -0.3f, "the carried blade does not point down");
@@ -324,6 +324,39 @@ namespace CityX.Tests
             Debug.Log($"CityX carried sword hand swings {most - least:0.000} m fore and aft walking");
             Assert.Greater(most - least, 0.08f, "the carried sword hand stays frozen while walking");
             Assert.Less(most - least, 0.6f, "the carried sword hand flails");
+#else
+            yield break;
+#endif
+        }
+
+        /// <summary>
+        /// Running with the one-handed sword the arm moves fluidly (owner, 2026-10-17: "he is moving is arm very akwardly make it fluid motion
+        /// no jumps too no weird bends"): the hand never jumps or snaps round, and the swinging arm never tips the blade up past level.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator RunningTheCarriedOneHandedSwordMovesFluidly()
+        {
+#if UNITY_EDITOR
+            Build("Assets/CityX/Weapons/CombatSword.prefab");
+            for (int i = 0; i < 90; i++) yield return Frame(new Vector2(0.0f, 1.0f));
+            Transform hand = _animator.GetBoneTransform(HumanBodyBones.RightHand);
+            Quaternion last = hand.rotation;
+            Vector3 lastLocal = _player.transform.InverseTransformPoint(hand.position);
+            float worstTurn = 0.0f, worstJump = 0.0f, highest = -1.0f;
+            for (int i = 0; i < 120; i++)
+            {
+                yield return Frame(new Vector2(0.0f, 1.0f));
+                Vector3 local = _player.transform.InverseTransformPoint(hand.position);
+                worstTurn = Mathf.Max(worstTurn, Quaternion.Angle(last, hand.rotation));
+                worstJump = Mathf.Max(worstJump, (local - lastLocal).magnitude);
+                highest = Mathf.Max(highest, (_sword.BladeTipWorld - _sword.BladeBaseWorld).normalized.y);
+                last = hand.rotation;
+                lastLocal = local;
+            }
+            Debug.Log($"CityX running 1H carry: hand turns at most {worstTurn:0.0} deg/frame, moves at most {worstJump * 100.0f:0.0} cm/frame, blade rises to {highest:0.00}");
+            Assert.Less(worstTurn, 12.0f, "the sword hand snaps round while running");
+            Assert.Less(worstJump, 0.09f, "the sword hand jumps while running");
+            Assert.Less(highest, 0.2f, "the swinging arm tips the carried blade up");
 #else
             yield break;
 #endif

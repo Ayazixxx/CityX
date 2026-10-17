@@ -29,20 +29,11 @@ namespace CityX.Character
 
         private float _supportWristTwist;
 
-        /// <summary>The walk's own swing of the sword hand, given back to the one-handed carry (CarrySwing).</summary>
-        private readonly CarrySwing _carrySwing = new CarrySwing();
-
-        /// <summary>How far the carry's hand was swung by the walk this frame, body frame, metres (for tests).</summary>
-        public Vector3 CarrySwingOffset { get; private set; }
-
         /// <summary>The blade's tip is kept at least this far above the ground under the body, metres: a low follow-through pitches up rather than through the floor.</summary>
         public const float TipFloorClearance = 0.06f;
 
         /// <summary>How much of the left arm's full length a two-handed grip may ask of it (a straight arm locks and pops; a hair short of it reads as reaching).</summary>
         public const float SupportReachShare = 0.97f;
-
-        /// <summary>A hand-driven carry tips the hand this far at the wrist (toward the little finger) so the point goes down rather than ahead.</summary>
-        public const float CarryWristTiltDegrees = 30.0f;
 
         public void SetSwordPose(in SwordFrame frame)
         {
@@ -192,18 +183,10 @@ namespace CityX.Character
             }
             float w = Mathf.Clamp01(_swordFrame.Weight);
 
-            // The animation's own sword hand, before anything here moves it: a hand-driven carry swings with it (CarrySwing).
+            // The animation's own sword arm, before anything here moves it: a hand-driven carry keeps it (the one-handed sword clips swing it).
             float handDriven = Mathf.Clamp01(_swordFrame.HandDriven);
-            if (handDriven > 0.001f)
-            {
-                Vector3 clipHand = transform.InverseTransformDirection(_handR.position - _rightUpperArm.position);
-                CarrySwingOffset = _carrySwing.Step(clipHand, Time.deltaTime) * handDriven;
-            }
-            else
-            {
-                _carrySwing.Reset();
-                CarrySwingOffset = Vector3.zero;
-            }
+            Vector3 clipHand = _handR.position;
+            Vector3 clipElbow = _rightLowerArm.position;
 
             // The torso into the cut, before the arm is solved from the shoulder it moved. The hips have already turned their share
             // (ApplySwordHips), so the spine turns the rest. How much of the authored twist and lean the body does is the grip settings' torso
@@ -220,12 +203,20 @@ namespace CityX.Character
             // The sword arm: the wrist to the frame's point, the elbow down or out as it says.
             float armLength = Vector3.Distance(_rightUpperArm.position, _rightLowerArm.position) + Vector3.Distance(_rightLowerArm.position, _handR.position);
             Vector3 h = _swordFrame.Hand;
-            Vector3 target = _rightUpperArm.position + (transform.right * h.x + transform.up * h.y + transform.forward * h.z) * armLength
-                + transform.TransformDirection(CarrySwingOffset);
+            Vector3 target = _rightUpperArm.position + (transform.right * h.x + transform.up * h.y + transform.forward * h.z) * armLength;
             float elbowOut = Mathf.Clamp01(_swordFrame.ElbowOut);
             Vector3 hint = -transform.up * (1.0f - 0.8f * elbowOut) + transform.right * (0.55f + 0.9f * elbowOut);
-            // A hanging arm's elbow bends back, a little out.
-            hint = Vector3.Lerp(hint, -transform.forward * 0.4f + transform.right * 0.6f, Mathf.Clamp01(_swordFrame.HandDriven));
+            // A HAND-DRIVEN CARRY KEEPS THE CLIP'S ARM (owner, 2026-10-17: "make it fluid motion no jumps too no weird bends"): the wrist
+            // where the clip put it, the elbow bending the way the clip bent it, so the arm swings exactly as the animation swings it.
+            if (handDriven > 0.0f)
+            {
+                target = Vector3.Lerp(target, clipHand, handDriven);
+                Vector3 clipBend = clipElbow - 0.5f * (_rightUpperArm.position + clipHand);
+                if (clipBend.sqrMagnitude > 1e-6f)
+                {
+                    hint = Vector3.Slerp(hint.normalized, clipBend.normalized, handDriven);
+                }
+            }
             TwoBoneIK.Solve(_rightUpperArm, _rightLowerArm, _handR, target, hint, w);
 
             // The hand turned so the blade points where the frame says, edge first.
@@ -279,23 +270,16 @@ namespace CityX.Character
             }
 
             // A HAND-DRIVEN HOLD (the one-handed carry, owner 2026-10-17: "the elbow is all bent weird and the blade is facing the wrong way it
-            // should be facing downward"): the arm hangs and the hand is the hanging arm's own -- wrist straight, palm to the leg, thumb forward,
-            // tipped a little so the point goes down -- and the sword hangs from it at whatever angle its hold gives (so adjusting the hold in
-            // the editor IS adjusting the carry). Aiming the blade instead twisted the hand round the grip.
+            // should be facing downward", then "make it fluid motion no jumps too no weird bends"): the hand is the swinging arm's own -- wrist
+            // straight, palm to the leg, thumb forward -- turned at the wrist at most CarryHand.MaxWristDegrees toward where the carry wants the
+            // blade, so the blade stays steady while the arm swings, and the sword's roll in the hand is its hold's (adjusting the hold in the
+            // editor IS adjusting the carry).
             if (handDriven > 0.0f)
             {
                 Vector3 fingers = _handR.position - _rightLowerArm.position;
-                Vector3 thumb = transform.forward - fingers.normalized * Vector3.Dot(transform.forward, fingers.normalized);
-                if (fingers.sqrMagnitude > 1e-6f && thumb.sqrMagnitude > 1e-6f)
+                if (fingers.sqrMagnitude > 1e-6f)
                 {
-                    fingers.Normalize();
-                    thumb.Normalize();
-                    // The right hand bone: +X to the fingertips, +Z the thumb, Y = Z x X (the palm is -Y).
-                    Quaternion natural = Quaternion.LookRotation(thumb, Vector3.Cross(thumb, fingers));
-                    Vector3 palmAxis = natural * Vector3.up;
-                    Quaternion down = Quaternion.AngleAxis(CarryWristTiltDegrees, palmAxis) * natural;
-                    Quaternion up = Quaternion.AngleAxis(-CarryWristTiltDegrees, palmAxis) * natural;
-                    natural = (down * bladeInHand).y < (up * bladeInHand).y ? down : up;
+                    Quaternion natural = CarryHand.Turn(CarryHand.Natural(fingers, transform.forward), bladeInHand, bladeWorld);
                     wanted = Quaternion.Slerp(wanted, natural, handDriven);
                 }
             }
