@@ -36,13 +36,16 @@ namespace CityX.Character
     /// a frame count at 60 fps from SmashWiki / UltimateFrameData, kept as frames so it can be checked against them. See
     /// docs/SWORD_SPIN.md for the sources. Pure functions of time, so none of it needs a scene.
     ///
-    /// GROUND. One spin, slow and undulating (its speed swells and dips as it turns), that hits everything once. How hard depends on
-    /// WHEN it connects: the first frames are the strongest and it fades to half over the spin (14% -> 12 -> 9 -> 7 in Smash). Hold
-    /// the key to CHARGE it for up to 60 frames first, for up to 1.6x the damage. Committed for 74 frames, 91 for the whole animation.
+    /// GROUND. Four fast turns in a low crouch that hit everything once. How hard depends on WHEN it connects: the first frames are the
+    /// strongest and it fades to half over the spin (14% -> 12 -> 9 -> 7 in Smash). Hold the key to CHARGE it for up to 60 frames first,
+    /// for up to 1.6x the damage. Committed for 74 frames, 91 for the whole animation.
     ///
-    /// AIR. A fast spin that hits eight times (alternating front and back, 4% and 2%) across frames 8-38, with a final hit at frame
+    /// AIR. A faster spin that hits eight times (alternating front and back, 4% and 2%) across frames 8-38, with a final hit at frame
     /// 48 that launches upward, while the body RISES. 91 frames; landing before it ends costs 30 frames of landing lag; it can be
     /// used once per time in the air.
+    ///
+    /// THE LOOK is an animation made in Blender from Smash's own hitbox GIFs, frame by frame (CityX/SourceArt/SwordSpin): the body turns
+    /// inside it, so the clip's frame f is the move's frame f and the blows land where the blade is.
     /// </summary>
     public static class SwordSpinMove
     {
@@ -73,17 +76,6 @@ namespace CityX.Character
 
         /// <summary>The ground spin hands the body back this long after it starts (frame 74: interruptible).</summary>
         public static readonly float GroundCommitSeconds = Frames(74.0f);
-
-        /// <summary>The ground spin's body turns this long: its hit window (to frame 39) plus the slowing-down after it.</summary>
-        public static readonly float GroundTurnSeconds = Frames(50.0f);
-
-        /// <summary>A ground spin turns this many degrees (two revolutions).</summary>
-        public const float GroundTotalDegrees = 720.0f;
-
-        /// <summary>How strongly its speed swells and dips (0 = steady; 0.45 = from 55% to 145% of the average) and how many times.</summary>
-        public const float GroundUndulation = 0.45f;
-
-        public const int GroundUndulationCycles = 2;
 
         /// <summary>
         /// The ground spin's damage by when it connects, as a multiplier on the sword's damage (before charge): the clean hit (frames 7-8)
@@ -135,37 +127,44 @@ namespace CityX.Character
         /// <summary>Landing before the animation ends costs this long (30 frames).</summary>
         public static readonly float AirLandingLagSeconds = Frames(30.0f);
 
-        /// <summary>An aerial spin turns this many degrees (three revolutions, fast).</summary>
-        public const float AirTotalDegrees = 1080.0f;
-
         // ---- both ----
-
-        /// <summary>How long the body turns for.</summary>
-        public static float TurnSeconds(SpinKind kind) => kind == SpinKind.Ground ? GroundTurnSeconds : AirActiveSeconds;
 
         /// <summary>How long the move keeps the body (until control comes back, the animation permitting).</summary>
         public static float CommitSeconds(SpinKind kind) => kind == SpinKind.Ground ? GroundCommitSeconds : AirCommitSeconds;
 
-        public static float TotalDegrees(SpinKind kind) => kind == SpinKind.Ground ? GroundTotalDegrees : AirTotalDegrees;
+        // ---- the animation ----
+
+        /// <summary>The Blender animation, in Resources: the ground spin, the held charge and the air spin.</summary>
+        public const string MotionResource = "SwordSpin/SwordSpinMotion";
+
+        public const string GroundSegment = "ground";
+
+        /// <summary>The cocked pose, breathing, looped while a charge is held.</summary>
+        public const string ChargeSegment = "ground_hold";
+
+        public const string AirSegment = "air";
+
+        public static string Segment(SpinKind kind) => kind == SpinKind.Ground ? GroundSegment : AirSegment;
 
         /// <summary>
-        /// How far round the body has turned <paramref name="seconds"/> into the spin, in degrees. Monotonic, and ends on exactly a
-        /// whole number of revolutions so the body finishes facing where it started. Ground: speed swells and dips. Air: fast at the
-        /// start, easing off to 70% of the average at the end.
+        /// The ground spin's cocked pose, where a held charge waits (Smash: frames 3-4). A charged spin carries on from here when the key
+        /// is let go, so its first blow lands three frames later.
         /// </summary>
-        public static float AngleAt(SpinKind kind, float seconds)
-        {
-            float turn = TurnSeconds(kind);
-            float u = Mathf.Clamp01(seconds / turn);
-            float total = TotalDegrees(kind);
-            if (kind == SpinKind.Ground)
-            {
-                float phase = 2.0f * Mathf.PI * GroundUndulationCycles;
-                return total * (u + GroundUndulation * Mathf.Sin(phase * u) / phase);
-            }
-            // 0.7 u + 0.3 (1 - (1 - u)^2): speed 1.3 x average at the start, 0.7 x at the end.
-            float eased = 0.7f * u + 0.3f * (1.0f - (1.0f - u) * (1.0f - u));
-            return total * eased;
-        }
+        public static readonly float ChargeFrameSeconds = Frames(4.0f);
+
+        /// <summary>Where a ground spin's timeline starts after <paramref name="chargeSeconds"/> of charging: the wind-up already done is not done again.</summary>
+        public static float StartSeconds(SpinKind kind, float chargeSeconds) =>
+            kind == SpinKind.Ground ? Mathf.Clamp(chargeSeconds, 0.0f, ChargeFrameSeconds) : 0.0f;
+
+        /// <summary>
+        /// Light trails from the blade while it sweeps: until the ground spin's last turn has slowed into the lunge (frame 46), and the air
+        /// spin's launching cut is overhead (frame 51).
+        /// </summary>
+        public static float SlashEndSeconds(SpinKind kind) => Frames(kind == SpinKind.Ground ? 46.0f : 51.0f);
+
+        /// <summary>The animation takes the body over in a few frames, and hands it back over the last few before the move lets go.</summary>
+        public static readonly float PoseBlendInSeconds = Frames(3.0f);
+
+        public static readonly float PoseBlendOutSeconds = Frames(8.0f);
     }
 }

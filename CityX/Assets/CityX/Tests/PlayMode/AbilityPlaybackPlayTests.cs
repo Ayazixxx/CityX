@@ -200,27 +200,38 @@ namespace CityX.Tests
         }
 
         [UnityTest]
-        public IEnumerator AnotherPlayersSwordSpinShowsTheArmOutAndTheSwooshThenEnds()
+        public IEnumerator AnotherPlayersSwordSpinPlaysItsAnimationAndLightOnTheirBodyThenLetsGo()
         {
 #if UNITY_EDITOR
             GameObject body = RemoteBody();
             var melee = body.GetComponent<MeleeAttacker>();
             var locomotion = body.GetComponent<PlayerLocomotion>();
-            Assert.IsNotNull(melee.SpinTrailPrefab, "setup: the player has no swoosh prefab");
+            Assert.IsNotNull(melee.SpinSlashMaterial, "setup: the player has no slash material for the spin");
+            Transform hips = body.GetComponentInChildren<Animator>().GetBoneTransform(HumanBodyBones.Hips);
+            // The other player's sword, as their copy carries it: the model mounted in the right hand and nothing else (ICosmeticMountable).
+            GameObject sword = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/Sword.prefab"));
+            _made.Add(sword);
+            sword.GetComponent<ICosmeticMountable>().MountCosmetic(body);
             yield return null;
+            float standingHips = hips.localPosition.y;
+            Quaternion facing = body.transform.rotation;
 
             melee.PlayRemote(new AbilityEvent(MeleeAttacker.SpinEventTurning, Vector3.zero, Vector3.forward, 0.0f, 0.0f));
             Assert.IsTrue(melee.IsShowingRemoteSpin);
-            // Half a second of real frames: the arm eases out at a fixed rate per second, not per frame.
+            // Half a second of real frames: the body whirls inside the animation, so the hips face every way in turn.
+            var faced = new System.Collections.Generic.HashSet<int>();
             for (float t = 0.0f; t < 0.5f; t += Time.deltaTime)
             {
-                melee.TickRemoteSpin(Time.deltaTime);
                 yield return null;
+                Vector3 forward = Vector3.ProjectOnPlane(hips.forward, Vector3.up);
+                faced.Add(Mathf.FloorToInt(Mathf.Repeat(Mathf.Atan2(forward.x, forward.z) * Mathf.Rad2Deg, 360.0f) / 45.0f));
             }
-            Assert.Greater(locomotion.SwordSpinPoseBlend, 0.5f, "the sword arm never went out");
-            Transform trail = body.transform.Find("SwordSpinTrail");
-            Assert.IsNotNull(trail, "no swoosh");
-            Assert.Greater(trail.GetComponent<SwordSpinTrail>().Intensity, 0.3f, "the swoosh is not showing");
+            Assert.Greater(locomotion.BakedPoseWeight, 0.9f, "the spin's animation is not on the copy");
+            Assert.Less(hips.localPosition.y, standingHips - 0.2f, "the copy is not crouched in the spin");
+            Assert.GreaterOrEqual(faced.Count, 5, $"the copy's body did not whirl round (it faced {faced.Count} of 8 ways)");
+            Assert.Less(Quaternion.Angle(facing, body.transform.rotation), 0.5f, "the spin turned the copy's own facing");
+            Assert.IsNotNull(melee.SpinSlash, "the copy's spin has no light");
+            Assert.IsTrue(melee.SpinSlash.IsShowing, "no light trails from the copy's blade");
 
             melee.PlayRemote(new AbilityEvent(MeleeAttacker.SpinEventEnded, Vector3.zero, Vector3.forward));
             Assert.IsFalse(melee.IsShowingRemoteSpin);
@@ -228,7 +239,8 @@ namespace CityX.Tests
             {
                 yield return null;
             }
-            Assert.Less(locomotion.SwordSpinPoseBlend, 0.05f, "the arm stayed out after the spin ended");
+            Assert.AreEqual(0.0f, locomotion.BakedPoseWeight, "the copy was left holding the animation");
+            Assert.IsFalse(melee.SpinSlash.IsShowing, "the light never faded");
 #else
             yield break;
 #endif

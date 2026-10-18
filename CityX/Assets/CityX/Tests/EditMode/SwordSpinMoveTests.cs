@@ -1,5 +1,6 @@
 using CityX.Character;
 using NUnit.Framework;
+using UnityEngine;
 
 namespace CityX.Tests
 {
@@ -88,56 +89,178 @@ namespace CityX.Tests
             Assert.AreEqual(30.0f * Frame, SwordSpinMove.AirLandingLagSeconds, 1e-5f);
         }
 
-        [TestCase(SpinKind.Ground)]
-        [TestCase(SpinKind.Air)]
-        public void TheTurnEndsOnWholeRevolutions(SpinKind kind)
+        [Test]
+        public void AChargedSpinCarriesOnFromItsCockedFrame()
         {
-            float end = SwordSpinMove.AngleAt(kind, SwordSpinMove.TurnSeconds(kind));
-            Assert.AreEqual(SwordSpinMove.TotalDegrees(kind), end, 1e-2f);
-            Assert.AreEqual(0.0f, end % 360.0f, 1e-2f, "the body should end facing where it began");
-            Assert.AreEqual(end, SwordSpinMove.AngleAt(kind, 99.0f), 1e-2f, "and stay there");
-            Assert.AreEqual(0.0f, SwordSpinMove.AngleAt(kind, 0.0f), 1e-4f);
+            Assert.AreEqual(4.0f * Frame, SwordSpinMove.ChargeFrameSeconds, 1e-5f, "Smash charges on frames 3-4");
+            Assert.AreEqual(0.0f, SwordSpinMove.StartSeconds(SpinKind.Ground, 0.0f), 1e-5f, "a spin that never charged winds up from the start");
+            Assert.AreEqual(2.0f * Frame, SwordSpinMove.StartSeconds(SpinKind.Ground, 2.0f * Frame), 1e-5f, "a short charge has wound up that far");
+            Assert.AreEqual(SwordSpinMove.ChargeFrameSeconds, SwordSpinMove.StartSeconds(SpinKind.Ground, 1.0f), 1e-5f);
+            Assert.AreEqual(0.0f, SwordSpinMove.StartSeconds(SpinKind.Air, 1.0f), 1e-5f, "the air spin is never charged");
+            Assert.AreEqual(3.0f * Frame, SwordSpinMove.GroundHitStart - SwordSpinMove.ChargeFrameSeconds, 1e-5f,
+                "a charge let go lands its first blow three frames later");
         }
 
-        [TestCase(SpinKind.Ground)]
-        [TestCase(SpinKind.Air)]
-        public void TheTurnNeverRunsBackwards(SpinKind kind)
+        // ---- the animation, made in Blender from Smash's hitbox GIFs (CityX/SourceArt/SwordSpin) ----
+
+        private static BakedMotion Motion()
         {
-            float last = 0.0f;
-            float turn = SwordSpinMove.TurnSeconds(kind);
-            for (int i = 1; i <= 600; i++)
+            BakedMotion motion = BakedMotion.Load(SwordSpinMove.MotionResource);
+            Assert.IsNotNull(motion, "the sword spin's animation is missing -- export it from Blender (SourceArt/SwordSpin/spin_build_all.py)");
+            return motion;
+        }
+
+        private static int FrameOf(float seconds) => Mathf.RoundToInt(seconds * 60.0f);
+
+        /// <summary>Which way the body faces on a frame, degrees about up (Unity's: positive is to the right).</summary>
+        private static float Facing(BakedMotion motion, int frame)
+        {
+            Vector3 forward = BakedMotionPoses.WorldTurns(motion, frame)["hips"] * Vector3.forward;
+            return Mathf.Atan2(forward.x, forward.z) * Mathf.Rad2Deg;
+        }
+
+        /// <summary>How far the body has turned to the LEFT by each frame of a segment since its first, unwrapped.</summary>
+        private static float[] TurnedLeft(BakedMotion motion, string segment)
+        {
+            int start = motion.SegmentStart(segment);
+            int count = motion.SegmentFrames(segment);
+            var turned = new float[count + 1];
+            float last = Facing(motion, start);
+            for (int f = 1; f <= count; f++)
             {
-                float angle = SwordSpinMove.AngleAt(kind, turn * i / 600.0f);
-                Assert.GreaterOrEqual(angle, last - 1e-3f, $"{kind} turned back at step {i}");
-                last = angle;
+                float now = Facing(motion, start + f);
+                turned[f] = turned[f - 1] - Mathf.DeltaAngle(last, now);
+                last = now;
+            }
+            return turned;
+        }
+
+        private static Vector3 BladeOn(BakedMotion motion, int frame) => BakedMotionPoses.Blade(BakedMotionPoses.WorldTurns(motion, frame));
+
+        [Test]
+        public void TheAnimationIsOnTheGamesOwnBonesAndLastsAsLongAsTheMove()
+        {
+            BakedMotion motion = Motion();
+            CollectionAssert.AreEquivalent(BakedMotionPoses.BodyBonesWithoutFingers(), motion.Bones, "the animation's bones are not BodyRig's");
+            Assert.AreEqual(BakedMotion.RootBone, motion.Bones[0]);
+            Assert.AreEqual(60, motion.FramesPerSecond);
+            foreach (string segment in new[] { SwordSpinMove.GroundSegment, SwordSpinMove.ChargeSegment, SwordSpinMove.AirSegment })
+            {
+                Assert.IsTrue(motion.HasSegment(segment), $"no '{segment}' in the animation");
+            }
+            // Played until the body is handed back, never reaching the next segment's first frame.
+            Assert.Greater(motion.SegmentSeconds(SwordSpinMove.GroundSegment), SwordSpinMove.CommitSeconds(SpinKind.Ground) + Frame);
+            Assert.GreaterOrEqual(motion.SegmentSeconds(SwordSpinMove.AirSegment), SwordSpinMove.CommitSeconds(SpinKind.Air));
+        }
+
+        [Test]
+        public void TheGroundSpinWindsUpToTheRightThenTurnsFourTimesToTheLeftAndEndsFacingAhead()
+        {
+            BakedMotion motion = Motion();
+            float[] turned = TurnedLeft(motion, SwordSpinMove.GroundSegment);
+            int cocked = FrameOf(SwordSpinMove.ChargeFrameSeconds);
+            Assert.Less(turned[cocked], -20.0f, "the wind-up does not turn the body to the right, cocking the sword");
+            for (int f = cocked + 1; f <= 49; f++)
+            {
+                Assert.GreaterOrEqual(turned[f] - turned[f - 1], -0.5f, $"the spin turns back at frame {f}");
+            }
+            // The lunge it ends in turns the hips a little to the right of ahead, as a lunge does.
+            Assert.AreEqual(1440.0f, turned[49], 15.0f, "not four turns to the left, ending facing ahead");
+            Assert.AreEqual(1440.0f, turned[FrameOf(SwordSpinMove.GroundCommitSeconds)], 15.0f, "not facing ahead when the body is handed back");
+            // Fastest at the start (Smash's first turn takes 8 frames, the third 12): the speed of frames 7-15 against 27-35.
+            Assert.Greater(turned[15] - turned[7], (turned[35] - turned[27]) * 1.2f, "the spin does not start fast and slow down");
+        }
+
+        [Test]
+        public void TheFirstGroundBlowCutsStraightAheadAndTheSwordArmStaysOutLowAndLevelThroughTheSpin()
+        {
+            BakedMotion motion = Motion();
+            int start = motion.SegmentStart(SwordSpinMove.GroundSegment);
+            int first = FrameOf(SwordSpinMove.GroundHitStart);
+            Assert.Greater(BladeOn(motion, start + first).z, 0.8f, "the first, strongest blow does not cut straight ahead");
+            for (int f = first; f <= FrameOf(SwordSpinMove.GroundHitEnd); f++)
+            {
+                var world = BakedMotionPoses.WorldTurns(motion, start + f);
+                var joints = BakedMotionPoses.Joints(motion, start + f, world);
+                Vector3 blade = BakedMotionPoses.Blade(world);
+                Assert.Less(Mathf.Abs(blade.y), 0.35f, $"frame {f}: the blade is not swept level");
+                Assert.Greater((joints["hand_r"] - joints["arm_r"]).magnitude, 0.8f, $"frame {f}: the sword arm is not straight out");
+                Vector3 outward = Vector3.ProjectOnPlane(joints["hand_r"] - joints["hips"], Vector3.up).normalized;
+                Assert.Greater(Vector3.Dot(Vector3.ProjectOnPlane(blade, Vector3.up).normalized, outward), 0.7f,
+                    $"frame {f}: the blade does not carry on out from the body");
+                Assert.Less(joints["hips"].y, 0.66f, $"frame {f}: the spin is not crouched");
+                Vector3 stance = joints["foot_l"] - joints["foot_r"];
+                Assert.Greater(new Vector2(stance.x, stance.z).magnitude, 0.6f, $"frame {f}: the feet are not wide apart");
             }
         }
 
-        /// <summary>Slow and undulating on the ground: its speed really does swell and dip (not a steady turn), but never stops.</summary>
         [Test]
-        public void TheGroundSpinsSpeedSwellsAndDips()
+        public void TheChargeHoldsTheCockedPoseWithTheSwordBehindAndLoopsOnItself()
         {
-            float turn = SwordSpinMove.TurnSeconds(SpinKind.Ground);
-            float slowest = float.MaxValue, fastest = 0.0f;
-            for (int i = 0; i < 600; i++)
+            BakedMotion motion = Motion();
+            int cocked = motion.SegmentStart(SwordSpinMove.GroundSegment) + FrameOf(SwordSpinMove.ChargeFrameSeconds);
+            int hold = motion.SegmentStart(SwordSpinMove.ChargeSegment);
+            for (int b = 0; b < motion.Bones.Count; b++)
             {
-                float a0 = SwordSpinMove.AngleAt(SpinKind.Ground, turn * i / 600.0f);
-                float a1 = SwordSpinMove.AngleAt(SpinKind.Ground, turn * (i + 1) / 600.0f);
-                float speed = (a1 - a0) / (turn / 600.0f);
-                slowest = UnityEngine.Mathf.Min(slowest, speed);
-                fastest = UnityEngine.Mathf.Max(fastest, speed);
+                Assert.Less(Quaternion.Angle(motion.RotationAt(cocked, b), motion.RotationAt(hold, b)), 3.0f,
+                    $"{motion.Bones[b]}: the held charge is not the cocked pose the spin carries on from");
             }
-            Assert.Greater(slowest, 0.0f, "it must never stall");
-            Assert.Greater(fastest / slowest, 2.0f, "the undulation should be plain: fastest well over twice the slowest");
+            Assert.Less(BladeOn(motion, hold).z, -0.5f, "the charge does not cock the sword behind");
+            float step = BakedMotionPoses.WorstStep(motion, hold, hold + motion.SegmentFrames(SwordSpinMove.ChargeSegment) - 1, true, out string where);
+            Assert.Less(step, 4.0f, $"the held charge snaps (or jumps where it loops): {step:0} degrees at {where}");
         }
 
-        /// <summary>The air spin is the fast one: it turns faster, on average, than the ground one.</summary>
         [Test]
-        public void TheAirSpinTurnsFasterThanTheGroundSpin()
+        public void TheAirSpinsBlowsLandWithTheBladeAheadOrBehindAndTheLastSwingsItUp()
         {
-            float ground = SwordSpinMove.TotalDegrees(SpinKind.Ground) / SwordSpinMove.TurnSeconds(SpinKind.Ground);
-            float air = SwordSpinMove.TotalDegrees(SpinKind.Air) / SwordSpinMove.TurnSeconds(SpinKind.Air);
-            Assert.Greater(air, ground * 1.4f);
+            BakedMotion motion = Motion();
+            int start = motion.SegmentStart(SwordSpinMove.AirSegment);
+            var pulses = SwordSpinMove.AirPulses;
+            for (int i = 0; i < pulses.Length - 1; i++)
+            {
+                int frame = FrameOf(pulses[i].Time);
+                float ahead = BladeOn(motion, start + frame).z;
+                if (i % 2 == 0)
+                {
+                    Assert.Greater(ahead, 0.7f, $"blow {i} (frame {frame}) is a front one, but the blade is not ahead");
+                }
+                else
+                {
+                    Assert.Less(ahead, -0.7f, $"blow {i} (frame {frame}) is a back one, but the blade is not behind");
+                }
+            }
+            Assert.Less(BladeOn(motion, start + 45).y, 0.0f, "the launching cut does not start low");
+            Assert.Greater(BladeOn(motion, start + 51).y, 0.8f, "the launching cut does not end overhead");
+        }
+
+        [Test]
+        public void TheAirSpinTurnsFasterThanTheGroundSpinAndEndsFacingAhead()
+        {
+            BakedMotion motion = Motion();
+            float[] air = TurnedLeft(motion, SwordSpinMove.AirSegment);
+            float[] ground = TurnedLeft(motion, SwordSpinMove.GroundSegment);
+            Assert.Greater(air[38] - air[8], (ground[37] - ground[7]) * 1.1f, "the air spin is not the faster one");
+            int end = motion.SegmentStart(SwordSpinMove.AirSegment) + FrameOf(SwordSpinMove.AirCommitSeconds);
+            Assert.Less(Mathf.Abs(Mathf.DeltaAngle(0.0f, Facing(motion, end))), 10.0f, "the air spin does not end facing ahead");
+        }
+
+        [Test]
+        public void NothingSnapsOutsideTheWhirl()
+        {
+            BakedMotion motion = Motion();
+            int ground = motion.SegmentStart(SwordSpinMove.GroundSegment);
+            int air = motion.SegmentStart(SwordSpinMove.AirSegment);
+            // The whirl turns the body up to 60 degrees a frame, never so far that the frames between could be read the wrong way round.
+            float step = BakedMotionPoses.WorstStep(motion, ground, ground + 49, false, out string where);
+            Assert.Less(step, 120.0f, $"the ground spin turns a bone too far in one frame: {step:0} degrees at {where}");
+            step = BakedMotionPoses.WorstStep(motion, air, air + 52, false, out where);
+            Assert.Less(step, 120.0f, $"the air spin turns a bone too far in one frame: {step:0} degrees at {where}");
+            // The held lunge and the lowered blade are slow; at the end the arms come back to the guard quickly, as the body is handed back
+            // (Octaslash's follow-through allows as much).
+            step = BakedMotionPoses.WorstStep(motion, ground + 50, ground + FrameOf(SwordSpinMove.GroundCommitSeconds), false, out where);
+            Assert.Less(step, 18.0f, $"the ground spin's ending snaps: {step:0} degrees at {where}");
+            step = BakedMotionPoses.WorstStep(motion, air + 58, air + FrameOf(SwordSpinMove.AirCommitSeconds), false, out where);
+            Assert.Less(step, 18.0f, $"the air spin's ending snaps: {step:0} degrees at {where}");
         }
     }
 }

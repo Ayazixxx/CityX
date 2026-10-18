@@ -342,16 +342,7 @@ namespace CityX.Character
         }
 
         /// <summary>The sword in the right hand: the equipped one on the player's own body, the mounted model on another player's copy.</summary>
-        private ISwordBlade HeldBlade()
-        {
-            if (_melee != null && _melee.SwordBlade is Object held && held != null)
-            {
-                return _melee.SwordBlade;
-            }
-            Animator animator = GetComponentInChildren<Animator>();
-            Transform hand = animator != null ? animator.GetBoneTransform(HumanBodyBones.RightHand) : null;
-            return hand != null ? hand.GetComponentInChildren<ISwordBlade>() : null;
-        }
+        private ISwordBlade HeldBlade() => _melee != null ? _melee.BladeInHand() : null;
 
         private readonly System.Collections.Generic.List<Collider> _passedThrough = new System.Collections.Generic.List<Collider>();
 

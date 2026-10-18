@@ -27,7 +27,6 @@ namespace CityX.CharacterEditor
         private const string PoisonGasPrefabPath = "Assets/CityX/Weapons/PoisonGasCloud.prefab";
         private const string SwordWavePrefabPath = "Assets/CityX/Weapons/SwordWave.prefab";
         private const string AcidRainPrefabPath = "Assets/CityX/Weapons/AcidRainStorm.prefab";
-        private const string SlashMaterialPath = "Assets/CityX/Character/SwordSpinTrail.mat";
         private const string ThunderStrikeClipPath = "Assets/CityX/UI/Audio/thunder_strike.ogg";
         private const string SelfSmiteLightMaterialPath = "Assets/CityX/Character/SelfSmiteLight.mat";
 
@@ -67,7 +66,7 @@ namespace CityX.CharacterEditor
 
             // --- Octaslash (key 6, sword in hand): Sephiroth's held up special.
             var octaslash = GetOrAdd<OctaslashAbility>(player);
-            octaslash.SlashMaterial = AssetDatabase.LoadAssetAtPath<Material>(SlashMaterialPath) ?? octaslash.SlashMaterial;
+            octaslash.SlashMaterial = SwordSlashMaterialBuilder.Ensure();
 
             // --- Self Smite (Electromancer, key 9 on the default bar): Pikachu's Thunder. Its bolt is drawn in code; only the thunder is an asset.
             var selfSmite = GetOrAdd<SelfSmiteAbility>(player);

@@ -164,13 +164,40 @@ namespace CityX.Character
             _samples.Add(now);
         }
 
-        /// <summary>The blade part way from <paramref name="a"/> to <paramref name="b"/>: its inner end slides, and it turns (its direction and length
-        /// are slerped), so the outer end swings through an arc.</summary>
+        /// <summary>Below this turn between two frames the blade is only slid, not swung about a pivot.</summary>
+        private const float SwingDegreesMin = 2.0f;
+
+        /// <summary>
+        /// The blade part way from <paramref name="a"/> to <paramref name="b"/>, swung as a rigid blade is: turned by the part of the turn between
+        /// them about the one pivot that carries its inner end from where it was to where it is (the shoulder for a cut, the body's middle for a
+        /// whole-body spin), so both its ends follow arcs. Sliding the inner end straight across instead drew a spin's ring of light as a polygon.
+        /// </summary>
         public static Sample Between(Sample a, Sample b, float t)
         {
-            Vector3 inner = Vector3.Lerp(a.Inner, b.Inner, t);
-            Vector3 along = Vector3.Slerp(a.Outer - a.Inner, b.Outer - b.Inner, t);
-            return new Sample { Time = Mathf.Lerp(a.Time, b.Time, t), Inner = inner, Outer = inner + along };
+            float time = Mathf.Lerp(a.Time, b.Time, t);
+            Vector3 alongA = a.Outer - a.Inner;
+            Vector3 alongB = b.Outer - b.Inner;
+            float length = Mathf.Lerp(alongA.magnitude, alongB.magnitude, t);
+            Quaternion.FromToRotation(alongA, alongB).ToAngleAxis(out float angle, out Vector3 axis);
+            if (angle < SwingDegreesMin || alongA.sqrMagnitude < 1e-8f || float.IsInfinity(axis.x))
+            {
+                Vector3 slid = Vector3.Lerp(a.Inner, b.Inner, t);
+                return new Sample { Time = time, Inner = slid, Outer = slid + Vector3.Slerp(alongA, alongB, t) };
+            }
+            // In the plane across the turn's axis the inner end goes round a centre on the perpendicular bisector of its move; any move along
+            // the axis is slid.
+            Vector3 move = b.Inner - a.Inner;
+            Vector3 axial = Vector3.Project(move, axis);
+            Vector3 chord = move - axial;
+            Vector3 centre = a.Inner;
+            if (chord.sqrMagnitude > 1e-10f)
+            {
+                float fromMiddle = chord.magnitude * 0.5f / Mathf.Tan(angle * 0.5f * Mathf.Deg2Rad);
+                centre = a.Inner + chord * 0.5f + Vector3.Cross(axis, chord).normalized * fromMiddle;
+            }
+            Quaternion part = Quaternion.AngleAxis(angle * t, axis);
+            Vector3 inner = centre + part * (a.Inner - centre) + axial * t;
+            return new Sample { Time = time, Inner = inner, Outer = inner + part * alongA.normalized * length };
         }
 
         /// <summary>Forgets every position older than <paramref name="lifeSeconds"/>.</summary>

@@ -52,6 +52,7 @@ namespace CityX.Tests
         {
             public ISwordBlade Blade;
             public Transform LeftHand;
+            public Transform Chest;
             public Vector3 Right;
             public Vector3 Along;
             public Vector3 LeftHandOffset;
@@ -59,9 +60,10 @@ namespace CityX.Tests
 
             private void LateUpdate()
             {
-                Right = transform.right;
+                // The chest's own right: the body turns inside the spin's animation, its transform does not.
+                Right = Chest.rotation * Vector3.right;
                 Along = (Blade.BladeTipWorld - Blade.BladeBaseWorld).normalized;
-                LeftHandOffset = LeftHand.position - transform.position;
+                LeftHandOffset = LeftHand.position - Chest.position;
                 Sampled = true;
             }
         }
@@ -238,30 +240,33 @@ namespace CityX.Tests
             yield return Seconds(0.3f);
             Assert.IsTrue(_melee.IsSpinTurning, "setup: should be mid-spin");
 
-            // MEASURED AT THE END OF THE FRAME, by a probe that runs after the locomotion's LateUpdate (where the arms are placed). A
-            // coroutine resumes after Update and BEFORE LateUpdate: by then the spin has already turned the body this frame but the arms
-            // still carry last frame's pose, so on a slow frame the two differ by a frame's worth of turning (900 degrees a second).
+            // MEASURED AT THE END OF THE FRAME, by a probe that runs after the locomotion's LateUpdate (where the animation is laid on the
+            // body): a coroutine resumes BEFORE LateUpdate, while the bones still carry last frame's pose.
             var blade = _melee.EquippedWeapon as ISwordBlade;
             Assert.IsNotNull(blade, "the equipped sword should describe its blade");
+            Animator animator = _vitals.GetComponentInChildren<Animator>();
             var probe = _vitals.gameObject.AddComponent<PoseProbe>();
             probe.Blade = blade;
-            probe.LeftHand = _vitals.GetComponentInChildren<Animator>().GetBoneTransform(HumanBodyBones.LeftHand);
+            probe.LeftHand = animator.GetBoneTransform(HumanBodyBones.LeftHand);
+            probe.Chest = animator.GetBoneTransform(HumanBodyBones.Spine);
             yield return null;
             yield return null;
             Assert.IsTrue(probe.Sampled);
-            Assert.Less(Vector3.Angle(probe.Along, probe.Right), 20.0f,
-                $"the blade points {Vector3.Angle(probe.Along, probe.Right):0} degrees off straight out to the right " +
-                $"(pose blend {_locomotion.SwordSpinPoseBlend:0.00}, spun for {_melee.SpinElapsedSeconds:0.00}s, kind {_melee.CurrentSpinKind})");
-            Assert.Less(Mathf.Abs(probe.Along.y), 0.2f, "the blade should be level");
+            Assert.Greater(_melee.SpinPoseWeight, 0.9f, "the spin's animation does not hold the body");
+            Assert.IsNotNull(_melee.SpinPoseShown, "no frame of the spin's animation is shown");
+            Assert.Greater(_locomotion.BakedPoseWeight, 0.9f, "the animation was not laid on the body");
+            Assert.Less(Vector3.Angle(probe.Along, probe.Right), 30.0f,
+                $"the blade points {Vector3.Angle(probe.Along, probe.Right):0} degrees off straight out to the chest's right " +
+                $"(spun for {_melee.SpinElapsedSeconds:0.00}s, kind {_melee.CurrentSpinKind})");
+            Assert.Less(Mathf.Abs(probe.Along.y), 0.35f, "the blade should be swept level");
             Assert.Less(Vector3.Dot(probe.LeftHandOffset, probe.Right), -0.2f, "the free arm should be out the other side for balance");
-            Assert.Greater(_locomotion.SwordSpinPoseBlend, 0.9f);
 #else
             yield break;
 #endif
         }
 
         [UnityTest]
-        public IEnumerator TheSpinDrawsAGlowingTrailThatFadesAfter()
+        public IEnumerator TheSpinTrailsLightFromTheBladeThatFadesAfter()
         {
 #if UNITY_EDITOR
             yield return LoadSceneWithASword();
@@ -271,13 +276,13 @@ namespace CityX.Tests
             Release(_keyboard.digit2Key);
             yield return Seconds(0.3f);
 
-            Transform made = _vitals.transform.Find("SwordSpinTrail");
-            Assert.IsNotNull(made, "no swoosh drawn -- is the trail prefab on the player's MeleeAttacker?");
-            var trail = made.GetComponent<SwordSpinTrail>();
-            Assert.Greater(trail.Intensity, 0.5f, "the swoosh is not showing mid-spin");
+            BladeTrail trail = _melee.SpinSlash;
+            Assert.IsNotNull(trail, "no light trails from the blade -- is the slash material on the player's MeleeAttacker?");
+            Assert.IsTrue(trail.IsEmitting && trail.IsShowing, "the light is not trailing from the blade mid-spin");
+            Assert.Greater(trail.RibbonBounds.extents.magnitude, 1.0f, "the light is not a sweep round the body");
 
             yield return Seconds(1.2f);
-            Assert.Less(trail.Intensity, 0.05f, "the swoosh never died away");
+            Assert.IsFalse(trail.IsShowing, "the light never died away");
 #else
             yield break;
 #endif

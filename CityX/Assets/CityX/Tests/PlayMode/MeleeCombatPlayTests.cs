@@ -537,32 +537,21 @@ namespace CityX.Tests
             Assert.IsTrue(_attacker.TrySpinAttack(), "still refused to spin after its own cooldown fully elapsed");
         }
 
-        /// <summary>The actual "spins around" -- without this, "press 2 to spin" would just be a stationary 360-degree hit with nothing to look at.</summary>
+        /// <summary>
+        /// The turn is inside the spin's animation (SwordSpinMoveTests): the body's own facing never moves, so the camera, what the body faces
+        /// and other players' copies are left alone, and it ends facing where it began.
+        /// </summary>
         [Test]
-        public void SpinAttackActuallyRotatesTheBody()
-        {
-            _attacker.EquippedWeapon = new FakeSwordWeapon();
-            Quaternion before = _attackerObject.transform.rotation;
-
-            Assert.IsTrue(_attacker.TrySpinAttack());
-            Step(_attacker.SpinAttackSeconds * 0.5f);
-
-            float rotated = Quaternion.Angle(before, _attackerObject.transform.rotation);
-            Assert.Greater(rotated, 45.0f,
-                $"the body only turned {rotated:0.0} degrees halfway through the spin -- that reads as standing still, not spinning");
-        }
-
-        /// <summary>Whole revolutions, so the body is facing where it started when it lets go -- not left pointing wherever a speed profile ended.</summary>
-        [Test]
-        public void TheSpinEndsFacingWhereItBegan()
+        public void TheSpinNeverTurnsTheBodysOwnFacing()
         {
             _attacker.EquippedWeapon = new FakeSwordWeapon();
             _attackerObject.transform.rotation = Quaternion.Euler(0.0f, 37.0f, 0.0f);
             Quaternion before = _attackerObject.transform.rotation;
 
             Assert.IsTrue(_attacker.TrySpinAttack());
-            Step(_attacker.SpinAttackSeconds + 0.05f);
-
+            Step(_attacker.SpinAttackSeconds * 0.5f);
+            Assert.Less(Quaternion.Angle(before, _attackerObject.transform.rotation), 0.5f, "the spin turned the body's facing halfway through");
+            Step(_attacker.SpinAttackSeconds * 0.5f + 0.05f);
             Assert.Less(Quaternion.Angle(before, _attackerObject.transform.rotation), 0.5f, "the spin left the body turned");
         }
 

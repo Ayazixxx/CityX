@@ -1808,7 +1808,7 @@ namespace CityX.CharacterEditor
                 bloodrage.OriginalClips = _bloodrageOriginals;
                 bloodrage.BloodrageClips = _bloodrageReplacements;
                 bloodrage.AuraPrefab = BloodrageAuraBuilder.Build();
-                melee.SpinTrailPrefab = SwordSpinTrailBuilder.Build();
+                melee.SpinSlashMaterial = SwordSlashMaterialBuilder.Ensure();
                 // Makes the body be whoever was chosen in the menu, and does
                 // nothing at all when the world is opened directly -- which is
                 // how it is opened most of the time.

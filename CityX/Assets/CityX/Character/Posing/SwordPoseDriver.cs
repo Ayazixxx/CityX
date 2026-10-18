@@ -268,7 +268,7 @@ namespace CityX.Character
                 || (_ragdoll != null && _ragdoll.IsLimp)
                 || (_grapple != null && _grapple.IsActive)
                 || (_locomotion != null && (_locomotion.IsSitting || _locomotion.InCarSeat
-                    || _locomotion.SwordSpinPoseBlend > 0.01f || _locomotion.BakedPoseWeight > 0.01f || _locomotion.ClipOwnsTheBody));
+                    || _locomotion.BakedPoseWeight > 0.01f || _locomotion.ClipOwnsTheBody));
         }
 
         private void Update()

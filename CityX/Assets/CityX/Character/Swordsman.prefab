@@ -1188,6 +1188,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: CityX.Character::CityX.Character.PlayerLocomotion
   FootIkEnabled: 1
+  GunMuzzle: {fileID: 0}
+  AimYawOffsetDegrees: 0
+  ArmAimYawOffsetDegrees: 0
+  AimMoveSpeedMultiplier: 0.8
+  InCarSeat: 0
+  IsSitting: 0
   WalkSpeed: 4
   SprintSpeed: 7.5
   JetpackDiveSpeedMultiplier: 2
@@ -1197,12 +1203,6 @@ MonoBehaviour:
   TurnDegreesPerSecond: 720
   HorizontalAcceleration: 60
   StandingHeight: 2.6009998
-  InCarSeat: 0
-  IsSitting: 0
-  GunMuzzle: {fileID: 0}
-  AimYawOffsetDegrees: 0
-  ArmAimYawOffsetDegrees: 0
-  AimMoveSpeedMultiplier: 0.8
 --- !u!114 &2513371025312938545
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1280,12 +1280,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a792d9ddecc64af4fba5a1008d5ffbdc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Character::CityX.Character.MeleeAttacker
-  Range: 2.5
-  OriginHeightFraction: 0.68
-  HalfArcDegrees: 60
-  SwingSeconds: 0.35
-  HeavySwingSeconds: 0.6
-  ContactFraction: 0.45
   SpinReachMetres: 2.8
   SpinAttackCooldownSeconds: 0.4
   SpinAttackDamageScale: 1
@@ -1294,12 +1288,17 @@ MonoBehaviour:
   AirSpinMoveFraction: 0.5
   AirSpinLaunchUp: 9
   AirSpinLaunchAway: 3
-  SpinTrailPrefab: {fileID: 39743738579222980, guid: 9def757261269bc47a393e7e64b4df75, type: 3}
+  SpinSlashMaterial: {fileID: 2100000, guid: 2b060d6e4d0b57746a498c94c7b4830b, type: 2}
+  Range: 2.5
+  OriginHeightFraction: 0.68
+  HalfArcDegrees: 60
+  SwingSeconds: 0.35
+  HeavySwingSeconds: 0.6
+  ContactFraction: 0.45
   ImpactSounds:
   - {fileID: 8300000, guid: 2653802eb30c13044b5710cc20f73b48, type: 3}
   - {fileID: 8300000, guid: 26785f141b5374340a94ed5a3e1adb79, type: 3}
   - {fileID: 8300000, guid: 77a58efee0ea09d488071e5691565cfe, type: 3}
-  BloodPrefab: {fileID: 1915120181931642789, guid: 869b8d2395627e44facdf411babf4d27, type: 3}
   TargetLayers:
     serializedVersion: 2
     m_Bits: 4294967295
@@ -1354,8 +1353,8 @@ MonoBehaviour:
   - {fileID: 7400000, guid: 8b4be7368b5d89c44b8d5711f8015ed2, type: 2}
   - {fileID: -203655887218126122, guid: a02750c3113c3c147a77e9b0eeb33fdb, type: 3}
   BloodrageClips:
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: 7400000, guid: aa3d20c40a411da4c81b724ef70bb6b5, type: 2}
+  - {fileID: 7400000, guid: 7aa079e69f6a3544c87b14c7f9d51881, type: 2}
   - {fileID: -203655887218126122, guid: 4deacc3eb49294243b9e24eddbc0bc17, type: 3}
   AuraPrefab: {fileID: 2292405495710506435, guid: a282b28c718938640ac3de9ed8fe2d6c, type: 3}
 --- !u!114 &3078665294196709967

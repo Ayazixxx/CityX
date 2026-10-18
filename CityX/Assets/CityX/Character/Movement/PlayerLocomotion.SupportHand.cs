@@ -64,9 +64,8 @@ namespace CityX.Character
         {
             float deltaTime = Mathf.Max(_lastTickDeltaTime, 0.0f);
             _supportBlend = Mathf.MoveTowards(_supportBlend, _supportAnchor != null ? 1.0f : 0.0f, SupportHandBlendPerSecond * deltaTime);
-            // The sword spin lets go of the handle: the sword arm goes out alone and the free arm balances it (ApplySwordSpinPose). So does a baked
-            // move, which places the free arm itself (ApplyBakedPose).
-            float weight = _supportBlend * (_supportOnlyWhenAiming ? EasedGunAimBlend : 1.0f) * (1.0f - _spinPoseBlend) * (1.0f - _bakedPoseWeight);
+            // A baked move (the sword spin, Octaslash) lets go of the handle: it places the free arm itself (ApplyBakedPose).
+            float weight = _supportBlend * (_supportOnlyWhenAiming ? EasedGunAimBlend : 1.0f) * (1.0f - _bakedPoseWeight);
             if (weight <= 0.0f || _supportAnchor == null || _leftUpperArm == null || _leftLowerArm == null || _handL == null)
             {
                 return;

@@ -1,8 +1,10 @@
-# OCTASLASH, exported for Unity: every frame of the CityXRig's action (octaslash_pose.py bakes it; a hand edit in Blender is exported the same way)
-# written as each bone's LOCAL rotation in the game's own live skeleton, plus where the hips are.
+# A BODY MOVE, exported for Unity: every frame of the CityXRig's action (octaslash_pose.py bakes Octaslash's, ../SwordSpin/spin_pose.py the
+# sword spin's; a hand edit in Blender is exported the same way) written as each bone's LOCAL rotation in the game's own live skeleton, plus
+# where the hips are.
 #
-# Run inside Blender after octaslash_pose.py:   exec(open(r"<this file>").read())
-# Writes CityX/Assets/CityX/Character/Resources/Octaslash/OctaslashMotion.json, which BakedMotion reads.
+# Run inside Blender after the bake:   exec(open(r"<this file>").read())
+# Writes CityX/Assets/CityX/Character/Resources/Octaslash/OctaslashMotion.json, which BakedMotion reads. Another move sets EXPORT_PATH and
+# EXPORT_SEGMENTS (its segment markers, in timeline order) before running it.
 #
 # THE TRIP BACK TO UNITY'S BONES.
 #  * Axes: Blender (x, y, z) is Unity (-x, z, -y) (the character faces -Y in Blender, +Z in Unity, and its left is +X in Blender, -X in Unity). A rotation
@@ -19,9 +21,9 @@ import os
 from mathutils import Matrix, Quaternion, Vector
 
 RIG = "CityXRig"
-OUT = globals().get("OCTASLASH_EXPORT_PATH") or os.path.join(
+OUT = globals().get("EXPORT_PATH") or globals().get("OCTASLASH_EXPORT_PATH") or os.path.join(
     r"C:\Users\Lenovo\Downloads\the game", "CityX", "Assets", "CityX", "Character", "Resources", "Octaslash", "OctaslashMotion.json")
-SEGMENTS = ("coil_in", "hold", "dash", "recover")
+SEGMENTS = tuple(globals().get("EXPORT_SEGMENTS") or ("coil_in", "hold", "dash", "recover"))
 
 M = Matrix(((-1, 0, 0), (0, 0, 1), (0, -1, 0)))     # Blender -> Unity
 ARM_DOWN = math.degrees(math.atan2(1.9 - 0.88, 0.58 - 0.35))

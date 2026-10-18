@@ -42,10 +42,10 @@ ability.Fired(event) ───────► SendAbilityToServer ────�
 | Acid rain (5) | `acid-rain` | once per cast: the storm's centre | the same storm, cosmetic (clouds, rain, glow, sound; burns nothing) -- see docs/ACID_RAIN.md |
 | Self Smite (9) | `self-smite` | once per cast | the same animation, cloud, bolt, burst, light, sky flash and thunder on the same timeline; hurts nothing, never rooted -- see docs/SELF_SMITE.md |
 | Grow, Shrink (0, and the Wizard tree) | `body-size` | once per cast or early end | the swirl of motes, the chime and the raised hand; the SIZE itself comes with the body's NetworkTransform (it syncs scale), so a late joiner sees it too -- see docs/SIZE_SPELLS.md |
-| Sword spin (2) | `sword-spin` | charging begun, turn begun (A = 1 for air, B = charge), ended | the sword arm out, the free arm balancing, the swoosh, on the same timeline |
+| Sword spin (2) | `sword-spin` | charging begun, turn begun (A = 1 for air, B = charge), ended | the Blender animation (the turn is inside it) and the light trailing from the blade, on the same timeline -- see docs/SWORD_SPIN.md |
 
-The spin's turn and rise are ordinary movement and arrive with the body's own transform. At 25 degrees a frame the turn is stepped by the
-transform sync rather than smooth.
+The spin's rise is ordinary movement and arrives with the body's own transform; its turn is inside the animation (since 2026-10-17), so a
+copy whirls smoothly whatever the transform sync's rate.
 
 ## Both bodies get the abilities
 

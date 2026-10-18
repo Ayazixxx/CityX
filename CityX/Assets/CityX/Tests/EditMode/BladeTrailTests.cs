@@ -27,6 +27,28 @@ namespace CityX.Tests
             Assert.AreEqual(60.0f, middle, 0.5f, "half way through the frame the blade is half way round");
         }
 
+        /// <summary>The sword spin: the blade held out at arm's length while the whole body turns 45 degrees a frame. Its inner end goes round the body too.</summary>
+        [Test]
+        public void ABladeSweptRoundTheBodyKeepsToItsCircleNotThePolygonOfItsFrames()
+        {
+            var path = new BladeTrailPath();
+            for (int f = 0; f <= 4; f++)
+            {
+                Quaternion turn = Quaternion.AngleAxis(f * 45.0f, Vector3.up);
+                path.Add(f / 60.0f, turn * new Vector3(2.0f, 1.2f, 0.0f), turn * new Vector3(4.0f, 1.2f, 0.3f), 8);
+            }
+            Assert.AreEqual(33, path.Count);
+            for (int i = 0; i < path.Count; i++)
+            {
+                Vector3 inner = path[i].Inner, outer = path[i].Outer;
+                Assert.AreEqual(2.0f, new Vector2(inner.x, inner.z).magnitude, 1e-3f, $"step {i}: the blade's inner end cut inside the circle");
+                Assert.AreEqual(Mathf.Sqrt(16.0f + 0.09f), new Vector2(outer.x, outer.z).magnitude, 1e-3f, $"step {i}: the tip cut inside the circle");
+                Assert.AreEqual(1.2f, inner.y, 1e-4f);
+            }
+            float middle = Vector3.SignedAngle(Vector3.right, path[4].Inner - Vector3.up * 1.2f, Vector3.up);
+            Assert.AreEqual(22.5f, middle, 0.5f, "half way through a frame the blade is half way round its turn");
+        }
+
         [Test]
         public void ItForgetsWhatIsOlderThanItsLife()
         {

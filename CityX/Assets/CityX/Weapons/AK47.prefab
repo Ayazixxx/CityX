@@ -647,7 +647,6 @@ MonoBehaviour:
   - {fileID: 8812987840363239307}
   - {fileID: 8660654964874497978}
   - {fileID: 768292956483236079}
-  BloodPrefab: {fileID: 1915120181931642789, guid: 869b8d2395627e44facdf411babf4d27, type: 3}
   TargetLayers:
     serializedVersion: 2
     m_Bits: 4294967295

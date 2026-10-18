@@ -61,16 +61,7 @@ namespace CityX.Tests
         public void TheAnimationIsOnTheGamesOwnBones()
         {
             BakedMotion motion = Motion();
-            var names = new System.Collections.Generic.List<string>();
-            foreach (BodyRig.Bone bone in BodyRig.Bones())
-            {
-                if (BodyRig.IsFinger(bone.Human))
-                {
-                    continue;   // the fingers are posed by HandGrip, never by a baked move (the Blender rig has none)
-                }
-                names.Add(bone.Name);
-            }
-            CollectionAssert.AreEquivalent(names, motion.Bones, "the animation's bones are not BodyRig's");
+            CollectionAssert.AreEquivalent(BakedMotionPoses.BodyBonesWithoutFingers(), motion.Bones, "the animation's bones are not BodyRig's");
             Assert.AreEqual(BakedMotion.RootBone, motion.Bones[0]);
         }
 
@@ -109,50 +100,6 @@ namespace CityX.Tests
             }
         }
 
-        /// <summary>World turns of the body's bones on one frame, from the root down, the way the skeleton applies them.</summary>
-        private static System.Collections.Generic.Dictionary<string, Quaternion> WorldTurns(BakedMotion motion, int frame)
-        {
-            var parent = new System.Collections.Generic.Dictionary<string, string>();
-            foreach (BodyRig.Bone bone in BodyRig.Bones())
-            {
-                parent[bone.Name] = bone.Parent;
-            }
-            var world = new System.Collections.Generic.Dictionary<string, Quaternion>();
-            for (int b = 0; b < motion.Bones.Count; b++)
-            {
-                string name = motion.Bones[b];
-                Quaternion local = motion.RotationAt(frame, b);
-                world[name] = parent[name] == null ? local : world[parent[name]] * local;
-            }
-            return world;
-        }
-
-        /// <summary>Where every joint is on one frame: the skeleton's T-pose rest offsets turned by the frame's rotations, from its hips down.</summary>
-        private static System.Collections.Generic.Dictionary<string, Vector3> Joints(BakedMotion motion, int frame,
-            System.Collections.Generic.Dictionary<string, Quaternion> world)
-        {
-            var bones = new System.Collections.Generic.Dictionary<string, BodyRig.Bone>();
-            foreach (BodyRig.Bone bone in BodyRig.Bones())
-            {
-                bones[bone.Name] = bone;
-            }
-            var at = new System.Collections.Generic.Dictionary<string, Vector3>();
-            foreach (string name in motion.Bones)
-            {
-                BodyRig.Bone bone = bones[name];
-                at[name] = bone.Parent == null
-                    ? motion.HipsAt(frame)
-                    : at[bone.Parent] + world[bone.Parent] * (bone.Position - bones[bone.Parent].Position);
-            }
-            return at;
-        }
-
-        /// <summary>The blade's direction on a frame: the hand's turn applied to the sword's default hold (the animation was posed with it).</summary>
-        private static Vector3 Blade(System.Collections.Generic.Dictionary<string, Quaternion> world)
-        {
-            return world["hand_r"] * CityX.Weapons.SwordWeapon.DefaultGripRotation * Vector3.up;
-        }
-
         [Test]
         public void TheDashLungesAlongItFacingAheadAndEveryCutPassesStraightThrough()
         {
@@ -164,7 +111,7 @@ namespace CityX.Tests
             {
                 int frame = dashStart + k;
                 Assert.Less(Vector3.Distance(OctaslashMove.FlightPivot, motion.HipsAt(frame)), 0.05f, $"dash frame {k}: the hips are not at the pivot");
-                var world = WorldTurns(motion, frame);
+                var world = BakedMotionPoses.WorldTurns(motion, frame);
                 Vector3 facing = Vector3.ProjectOnPlane(world["hips"] * Vector3.forward, Vector3.up).normalized;
                 Assert.Greater(facing.z, 0.85f, $"dash frame {k}: the body does not face along the dash");
                 Assert.Less(Mathf.Abs((world["hips"] * Vector3.right).y), 0.3f, $"dash frame {k}: the body rolls");
@@ -172,13 +119,13 @@ namespace CityX.Tests
                 Assert.Greater(chest.z, 0.4f, $"dash frame {k}: the body does not lean into the dash");
                 Assert.Greater(chest.y, 0.3f, $"dash frame {k}: the body lies flat");
 
-                var joints = Joints(motion, frame, world);
+                var joints = BakedMotionPoses.Joints(motion, frame, world);
                 Vector3 hips = joints["hips"];
                 Assert.Greater(joints["shin_l"].z - hips.z, 0.15f, $"dash frame {k}: the left knee is not driven forward");
                 Assert.Less(joints["foot_r"].z - hips.z, -0.2f, $"dash frame {k}: the right leg does not trail behind");
 
                 // A cut every two frames with the blade straight ahead; between them the blade is drawn back or swung across, out of the way.
-                float ahead = Blade(world).z;
+                float ahead = BakedMotionPoses.Blade(world).z;
                 if (k % 2 == 0)
                 {
                     Assert.Greater(ahead, 0.8f, $"dash frame {k} is a cut, but the blade is not straight ahead");
@@ -189,32 +136,11 @@ namespace CityX.Tests
                 }
             }
             // The wind-up raises the blade overhead and the last cut brings it down ahead.
-            var windUp = WorldTurns(motion, dashStart + 15);
-            Assert.Greater(Blade(windUp).y, 0.6f, "the blade is not raised for the last cut");
-            var last = WorldTurns(motion, dashStart + 16);
-            Assert.Greater(Blade(last).z, 0.8f, "the last cut is not ahead");
-            Assert.Less(Blade(last).y, 0.0f, "the last cut is not coming down");
-        }
-
-        /// <summary>The most any bone turns from one frame to the next across <paramref name="from"/>..<paramref name="to"/> (and from the last back to the first if it loops).</summary>
-        private static float WorstStep(BakedMotion motion, int from, int to, bool loops, out string where)
-        {
-            float worst = 0.0f;
-            where = "";
-            for (int f = from; f < to + (loops ? 1 : 0); f++)
-            {
-                int next = f + 1 > to ? from : f + 1;
-                for (int b = 0; b < motion.Bones.Count; b++)
-                {
-                    float step = Quaternion.Angle(motion.RotationAt(f, b), motion.RotationAt(next, b));
-                    if (step > worst)
-                    {
-                        worst = step;
-                        where = $"{motion.Bones[b]}, frame {f} -> {next}";
-                    }
-                }
-            }
-            return worst;
+            var windUp = BakedMotionPoses.WorldTurns(motion, dashStart + 15);
+            Assert.Greater(BakedMotionPoses.Blade(windUp).y, 0.6f, "the blade is not raised for the last cut");
+            var last = BakedMotionPoses.WorldTurns(motion, dashStart + 16);
+            Assert.Greater(BakedMotionPoses.Blade(last).z, 0.8f, "the last cut is not ahead");
+            Assert.Less(BakedMotionPoses.Blade(last).y, 0.0f, "the last cut is not coming down");
         }
 
         [Test]
@@ -227,18 +153,18 @@ namespace CityX.Tests
             int recover = motion.SegmentStart(OctaslashMove.RecoverSegment);
             int end = recover + motion.SegmentFrames(OctaslashMove.RecoverSegment);
 
-            float step = WorstStep(motion, coil, hold, false, out string where);
+            float step = BakedMotionPoses.WorstStep(motion, coil, hold, false, out string where);
             Assert.Less(step, 12.0f, $"the coil snaps: {step:0} degrees at {where}");
-            step = WorstStep(motion, hold, dash - 1, true, out where);
+            step = BakedMotionPoses.WorstStep(motion, hold, dash - 1, true, out where);
             Assert.Less(step, 6.0f, $"the held coil snaps (or jumps where it loops): {step:0} degrees at {where}");
             // The last cut carries on down through the follow-through's first frames; after those, the follow-through ends with a quick flourish, the
             // blade swung from behind down past the right side back into the guard (and the body is let go of over those same frames), so its wrist
             // may turn faster than the coil's.
             const int lastCutCarriesOn = 3;
-            step = WorstStep(motion, recover + lastCutCarriesOn, end, false, out where);
+            step = BakedMotionPoses.WorstStep(motion, recover + lastCutCarriesOn, end, false, out where);
             Assert.Less(step, 20.0f, $"the follow-through snaps: {step:0} degrees at {where}");
             // The cuts are a blade whipped across in a frame, but never so far that the frames between could be read the wrong way round (180).
-            step = WorstStep(motion, dash, recover + lastCutCarriesOn, false, out where);
+            step = BakedMotionPoses.WorstStep(motion, dash, recover + lastCutCarriesOn, false, out where);
             Assert.Less(step, 150.0f, $"a cut turns a bone too far in one frame: {step:0} degrees at {where}");
         }
     }
