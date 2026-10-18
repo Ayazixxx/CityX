@@ -310,20 +310,7 @@ namespace CityX.CharacterEditor
                 AnimationUtility.SetAnimationClipSettings(clip, settings);
 
                 Directory.CreateDirectory(Path.Combine(projectRoot, Path.GetDirectoryName(path)));
-                // UPDATED IN PLACE, not deleted and recreated: a recreated asset gets a new GUID, and the controller built against the old one would silently lose its clip.
-                var existing = AssetDatabase.LoadAssetAtPath<AnimationClip>(path);
-                if (existing != null)
-                {
-                    existing.ClearCurves();
-                    EditorUtility.CopySerialized(clip, existing);
-                    EditorUtility.SetDirty(existing);
-                    UnityEngine.Object.DestroyImmediate(clip);
-                    clip = existing;
-                }
-                else
-                {
-                    AssetDatabase.CreateAsset(clip, path);
-                }
+                clip = ClipAsset.Store(clip, path);
                 Debug.Log($"CityX: baked {clipName} from {godotName} -- {times.Count} frames, {motion.Length:F2} s, {(loop ? "looping" : "once")} -> {path}");
                 return clip;
             }

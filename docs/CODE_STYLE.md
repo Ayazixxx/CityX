@@ -28,6 +28,8 @@ conventions down and apply them every time.
    - `Character/Interaction/InteractionReach.LookSource`, `CanReach`, `LocalPlayerBody` and `IsLeaving`: where a player looks from, whether a
      pickup is in reach, and which body entering or leaving its trigger is this machine's player.
    - `Tests/PlayMode/BuildingShapeCapture.Shoot` and `ShotsFolder`: render a camera to `Logs/CityShots/<name>.png` (20 captures use it).
+   - `Character/Editor/ClipAsset.Store`: save a generated animation clip into the one already at its path. Never delete and re-create an
+     asset that prefabs or controllers hold: what still held the deleted one saves a blank.
    - Already shared before: `TwoBoneIK`, `DeterministicRandom`, `CaptureGuard` (tests), the `*Strikes` keyframe tables and others.
 2. **One topic per file.** A file past about a thousand lines usually holds several topics. Split it into partial files by topic, named
    `Class.Topic.cs` (see `PlayerLocomotion.*.cs`), and where a topic can stand on its own, make it a class of its own. Pure logic in plain

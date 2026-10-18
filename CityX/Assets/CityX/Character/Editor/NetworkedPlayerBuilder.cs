@@ -115,6 +115,15 @@ namespace CityX.CharacterEditor
                 NetworkedPlayerReserialize.ReserializeEditorSetValues(
                     networkObject, setWasActiveDuringEdit: true, setSceneId: false);
 
+                // The path hash FishNet's prefab list gave this prefab (only the editor's refresh of that list sets it) is kept: a rebuild
+                // used to zero it until the editor was next opened.
+                GameObject previous = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath);
+                NetworkObject previousNetwork = previous != null ? previous.GetComponent<NetworkObject>() : null;
+                if (previousNetwork != null)
+                {
+                    networkObject.SetAssetPathHash(previousNetwork.AssetPathHash);
+                }
+
                 GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
                 Debug.Log($"CityX: networked player written to {PrefabPath}");
                 return saved;

@@ -31,6 +31,12 @@ pitch, and fits the run's neck nod (a shift search; clamped to the limit) so it 
 against 28), which still read as "tilted backwards". `BloodrageHeadFit` now matches the head's tilt RELATIVE TO THE TORSO (the sprint's is -9.3 degrees, the run now -9.3: neck nod shifted by -0.6),
 so the head hangs forward off the hunched back the way the sprint's does.
 
+**Joining players' Bloodrage walk and run (2026-10-17):** `NetworkedPlayer.prefab` had its first two `BloodrageClips` (the walk and the run)
+saved blank, so a joining player, and every copy of one, kept the ordinary walk and run in Bloodrage (only the jump changed). `PlayerRigBuilder`
+deleted and re-made the two stride-widened clips on every build, and a body saved while it still held the deleted ones stored nothing. The
+clips are now written into the ones already there (`ClipAsset.Store`, as the Godot clips always were), and
+`NetworkedPlayerRigTests.EveryBodyMadeFromThePlayersKeepsItsBloodrageClips` checks the joining player, the swordsman and the Shoota.
+
 **Sword wave hitbox (2026-10-04):** the WHOLE crescent is the hitbox for enemies (a trigger box round all of it, on the tilted visual; each target is hurt once and the wave passes through).
 Only a 0.3 m sphere at its CENTRE meets the world, swept along each fixed step and checked where it stands (`SwordWaveProjectile.WorldCheckRadius`), so the lower tip scraping the ground no longer
 ends it. `SwordWaveProjectilePlayTests` pins both (ground under the lower edge does not stop it; centre in the ground does; a wall does; middle, top tip and bottom tip all hurt).

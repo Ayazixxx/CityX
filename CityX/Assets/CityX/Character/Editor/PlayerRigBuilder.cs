@@ -1119,7 +1119,6 @@ namespace CityX.CharacterEditor
             }
 
             var dampened = Object.Instantiate(source);
-            dampened.name = "charged_jumpDampened";
 
             foreach (EditorCurveBinding binding in AnimationUtility.GetCurveBindings(source))
             {
@@ -1149,13 +1148,7 @@ namespace CityX.CharacterEditor
                 AnimationUtility.SetEditorCurve(dampened, binding, curve);
             }
 
-            string path = $"{AnimationDirectory}/charged_jump_dampened.anim";
-            if (AssetDatabase.LoadAssetAtPath<AnimationClip>(path) != null)
-            {
-                AssetDatabase.DeleteAsset(path);
-            }
-            AssetDatabase.CreateAsset(dampened, path);
-            return dampened;
+            return ClipAsset.Store(dampened, $"{AnimationDirectory}/charged_jump_dampened.anim");
         }
 
         /// <summary>One transition, with the boilerplate that is the same every time.</summary>
@@ -1999,7 +1992,6 @@ namespace CityX.CharacterEditor
             }
 
             var exaggerated = Object.Instantiate(source);
-            exaggerated.name = modelName + "Stride";
 
             foreach (EditorCurveBinding binding in AnimationUtility.GetCurveBindings(source))
             {
@@ -2028,13 +2020,7 @@ namespace CityX.CharacterEditor
                 AnimationUtility.SetEditorCurve(exaggerated, binding, curve);
             }
 
-            string path = $"{AnimationDirectory}/{modelName}_stride.anim";
-            if (AssetDatabase.LoadAssetAtPath<AnimationClip>(path) != null)
-            {
-                AssetDatabase.DeleteAsset(path);
-            }
-            AssetDatabase.CreateAsset(exaggerated, path);
-            return exaggerated;
+            return ClipAsset.Store(exaggerated, $"{AnimationDirectory}/{modelName}_stride.anim");
         }
 
         private static void MakeLooping(AnimationClip clip)
