@@ -83,7 +83,8 @@ control, reload speed: 1.42 s to 0.95 s at +50%), `NetworkedPlayerStateSyncPlayT
 ## Fixed on the way
 
 The Stats page sat on its own hidden object, so the first time it opened it woke up and closed itself (and gave the controls back): it now
-opens on the first click. The Loadout page has the same pattern and was left as it is.
+opens on the first click. The Loadout page, a book's page, the "coming soon" page and the C-menu's Player fly-out had the same pattern, and
+since 2026-10-17 have the same guard (`MenuFirstOpenPlayTests` shows each once, as its builder leaves it).
 
 ## Not done
 

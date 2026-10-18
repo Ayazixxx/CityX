@@ -98,7 +98,8 @@ These are bigger than a tidy-up, so each would go in as a careful change of its 
   the lean) could become components or plain classes of their own.
 - Copy-paste remains between:
   - some panel builders (`LoadoutPanelBuilder` and `StatsPanelBuilder`, `PauseMenuBuilder` and `TitleScreenBuilder`,
-    `BookPanelBuilder` and `PlaceholderPanelBuilder`)
+    `BookPanelBuilder` and `PlaceholderPanelBuilder`), and the first-open guard (`_opening`) in the five views that sit on their own
+    hidden root (Stats, Loadout, Book, Placeholder, the Player fly-out)
   - the three icon painters (`MenuIcons`, `ToolIcons`, `SkillIcons`)
   - the render tests (`*Capture`), which each carry their own copy of the shoot-and-save code
 - Older files carry long history comments: bug reports, dates and the owner's words inside the code. Rule 5 applies to new code; old

@@ -48,12 +48,20 @@ namespace CityX.UI
             if (SkillsButton != null) SkillsButton.onClick.AddListener(OnSkillsClicked);
             if (ItemsButton != null) ItemsButton.onClick.AddListener(OnItemsClicked);
             if (ReDrawButton != null) ReDrawButton.onClick.AddListener(OnRedrawClicked);
-            Hide();
+            // The fly-out wakes the first time it is shown (it sits on its own hidden object): hiding it then would undo that very Show.
+            if (!_opening)
+            {
+                Hide();
+            }
         }
+
+        private bool _opening;
 
         public void Show()
         {
+            _opening = true;
             if (Root != null) Root.SetActive(true);
+            _opening = false;
         }
 
         public void Hide()

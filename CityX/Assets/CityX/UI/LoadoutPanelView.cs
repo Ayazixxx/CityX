@@ -72,6 +72,7 @@ namespace CityX.UI
         public ThirdPersonCamera OrbitCamera;
 
         private bool _wasCursorCaptured;
+        private bool _opening;
 
         public bool IsOpen => Root != null && Root.activeSelf;
 
@@ -86,7 +87,11 @@ namespace CityX.UI
                 }
             }
             if (CloseButton != null) CloseButton.onClick.AddListener(Close);
-            Close();
+            // The page wakes the first time it is shown (it sits on its own hidden object): closing it then would undo that very Open.
+            if (!_opening)
+            {
+                Close();
+            }
         }
 
         private void Update()
@@ -115,7 +120,9 @@ namespace CityX.UI
             if (InputReader != null) InputReader.enabled = false;
             if (OrbitCamera != null) OrbitCamera.enabled = false;
 
+            _opening = true;
             if (Root != null) Root.SetActive(true);
+            _opening = false;
             Refresh();
         }
 
