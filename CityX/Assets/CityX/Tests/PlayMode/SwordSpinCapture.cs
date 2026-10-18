@@ -66,8 +66,8 @@ namespace CityX.Tests
                     yield return null;
                 }
                 Vector3 centre = body.position + Vector3.up * 1.3f;
-                CaptureShots.Shoot(camera, $"spin-{kind}-f{frame:00}-side", centre + body.right * 7.5f + Vector3.up * 0.3f, centre);
-                CaptureShots.Shoot(camera, $"spin-{kind}-f{frame:00}-behind", centre - body.forward * 5.5f + Vector3.up * 2.4f, centre + body.forward);
+                BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, $"spin-{kind}-f{frame:00}-side", centre + body.right * 7.5f + Vector3.up * 0.3f, centre);
+                BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, $"spin-{kind}-f{frame:00}-behind", centre - body.forward * 5.5f + Vector3.up * 2.4f, centre + body.forward);
             }
         }
 
@@ -114,8 +114,8 @@ namespace CityX.Tests
             yield return Seconds(0.45f);
             {
                 Vector3 centre = body.position + Vector3.up * 1.3f;
-                CaptureShots.Shoot(camera, "spin-charge-side", centre + body.right * 7.5f + Vector3.up * 0.3f, centre);
-                CaptureShots.Shoot(camera, "spin-charge-behind", centre - body.forward * 5.5f + Vector3.up * 2.4f, centre + body.forward);
+                BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, "spin-charge-side", centre + body.right * 7.5f + Vector3.up * 0.3f, centre);
+                BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, "spin-charge-behind", centre - body.forward * 5.5f + Vector3.up * 2.4f, centre + body.forward);
             }
             Release(_keyboard.digit2Key);
             yield return ShootFrames(camera, melee, body, "ground", GroundFrames);
@@ -134,7 +134,7 @@ namespace CityX.Tests
             yield return null;
             Release(_keyboard.digit2Key);
             yield return ShootFrames(camera, melee, body, "air", AirFrames);
-            Debug.Log($"CityX: spin capture wrote to {CaptureShots.Folder}; kind {melee.CurrentSpinKind}, animation weight {locomotion.BakedPoseWeight:0.00}");
+            Debug.Log($"CityX: spin capture wrote to {BuildingShapeCapture.ShotsFolder}; kind {melee.CurrentSpinKind}, animation weight {locomotion.BakedPoseWeight:0.00}");
             Time.captureFramerate = 0;
             Object.Destroy(cameraObject);
 #else

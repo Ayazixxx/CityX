@@ -44,6 +44,16 @@ thousand edges, so a server can send it.
   builds the part of the ground inside its square (`CitySurfaceBuilder`: terrain, road ribbons, junction plates, pavement + kerb, lane paint,
   bridges -- all clipped to the chunk, heights from one function, so neighbours meet exactly) plus every building whose centre is in it.
   `PaneKey` is now (building, wall, column, row); glass, doors, interior volumes and cracked-pane triggers all follow the building's turn.
+- **Lane paint lies ON the asphalt** (2026-10-17, owner: "the street decals are often loading in glitching into the terrain. i want them to
+  be apart of the texture of the street not hovering above or glitching into the terrain"). A stripe was a flat quad from the road's height
+  at its own corners, 3 cm up, while the road under it lies on its own 5 m pieces, each flat: wherever the road bent under a stripe, part of
+  it sank in and part floated (round the spawn of seed 19077151, 14 % of the paint was sunk and 27 % stood more than 8 cm over the road). Now
+  `CitySurfaceBuilder.LayPaintOnAsphalt` cuts every stripe along the asphalt's own triangles under it (roads, junction plates, expressway
+  decks: the `ground` buffer, its upward faces) and sets each piece on that triangle's plane, `PaintOnAsphaltLift` 1 cm above it, so it bends
+  exactly where the road bends; where two surfaces overlap each gets its piece and the upper one shows. Paint over no asphalt (a mall's lot)
+  is left as it was; car parks lay theirs on their own cells (docs/CITY_LIFE.md). `RoadPaintTests` measures it as the eye sees it, the top
+  paint against the top surface at every corner and middle of every stripe piece: 99.8 % within 3 mm of the lift, none sunk, none floating,
+  0.2 % hidden under a kerb. `RoadPaintCapture` (Explicit, `-Graphics`) films it low along the streets where the road bends most under it.
 - **Rivers and lakes are dry concrete trenches** (user, 2026-10-01: no water yet). They stay in the plan as channels that steer the roads and
   force the bridges. Add a water surface later.
 - **Terrain** is the plan's smooth rolling ground (30 m amplitude times the road scale), and since 2026-10-16 **San Francisco's hills** over it

@@ -56,6 +56,8 @@ namespace CityX.View
             double size = PlanWorld.ChunkSize;
             var rect = new Rect2(chunkX * size, chunkY * size, (chunkX + 1) * size, (chunkY + 1) * size);
             var ctx = new Context(plan, origin, rect);
+            int markingsFrom = markings?.Triangles.Count ?? 0, markingsVertexFrom = markings?.Vertices.Count ?? 0;
+            int dividersFrom = laneDividers?.Triangles.Count ?? 0, dividersVertexFrom = laneDividers?.Vertices.Count ?? 0;
 
             float step = far ? FarTerrainStep : TerrainStep;
             // The ground is cut away over every basement (BasementCuts): it ran through them a foot under the lobby floor; and under every garage
@@ -139,6 +141,10 @@ namespace CityX.View
 
             // The expressways over it all: decks, ramps and connectors, piers, signs (yellow paint is the "markings" buffer, white the dividers).
             BuildExpressways(ctx, chunkX, chunkY, ground, pavement, structures, markings, laneDividers, guardRail, far);
+
+            // Every stripe laid on the asphalt it marks, bending where the road bends (CitySurfaceBuilder.PaintOnAsphalt.cs).
+            LayPaintOnAsphalt(markings, markingsFrom, markingsVertexFrom, ground, origin);
+            LayPaintOnAsphalt(laneDividers, dividersFrom, dividersVertexFrom, ground, origin);
 
             // The buildings that follow stamp their own looks; none of the ground's is left on a buffer for them to inherit.
             ground.Look = SurfaceLook.Default;

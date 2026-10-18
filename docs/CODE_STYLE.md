@@ -26,7 +26,7 @@ conventions down and apply them every time.
    - `Character/Posing/StillPose`: fixed poses for a body shown without its Animator.
    - `Items/InertModel`: an item's model with nothing of the item acting (another player's copy holds one; a dead body drops one).
    - `Character/Interaction/InteractionReach.LookSource` and `CanReach`: where a player looks from, and whether a pickup is in reach.
-   - `Tests/PlayMode/CaptureShots`: render a camera to `Logs/CityShots/<name>.png` for a new capture.
+   - `Tests/PlayMode/BuildingShapeCapture.Shoot` and `ShotsFolder`: render a camera to `Logs/CityShots/<name>.png` (20 captures use it).
    - Already shared before: `TwoBoneIK`, `DeterministicRandom`, `CaptureGuard` (tests), the `*Strikes` keyframe tables and others.
 2. **One topic per file.** A file past about a thousand lines usually holds several topics. Split it into partial files by topic, named
    `Class.Topic.cs` (see `PlayerLocomotion.*.cs`), and where a topic can stand on its own, make it a class of its own. Pure logic in plain

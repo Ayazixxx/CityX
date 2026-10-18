@@ -112,15 +112,15 @@ namespace CityX.Tests
                 {
                     yield return null;   // a coroutine resumes before the frame's poses: one frame more shows frame `at`
                 }
-                CaptureShots.Shoot(_camera, $"dropped-sword-t{at:000}", watch + side * 6.5f + Vector3.up * 0.6f, watch);
+                BuildingShapeCapture.Shoot(_camera, BuildingShapeCapture.ShotsFolder, $"dropped-sword-t{at:000}", watch + side * 6.5f + Vector3.up * 0.6f, watch);
             }
             for (int i = 0; i < 60; i++)
             {
                 yield return null;
             }
             Vector3 lying = sword.Centre;
-            CaptureShots.Shoot(_camera, "dropped-sword-lying", body.position + Vector3.up * 4.2f - forward * 1.5f + side * 1.8f, lying);
-            CaptureShots.Shoot(_camera, "dropped-sword-close", lying + new Vector3(0.0f, 1.4f, 0.0f) - forward * 1.6f + side * 0.8f, lying);
+            BuildingShapeCapture.Shoot(_camera, BuildingShapeCapture.ShotsFolder, "dropped-sword-lying", body.position + Vector3.up * 4.2f - forward * 1.5f + side * 1.8f, lying);
+            BuildingShapeCapture.Shoot(_camera, BuildingShapeCapture.ShotsFolder, "dropped-sword-close", lying + new Vector3(0.0f, 1.4f, 0.0f) - forward * 1.6f + side * 0.8f, lying);
             Debug.Log($"CityX: dropped sword lies at {lying}, {Vector3.Distance(lying, _swordsman.transform.position):0.00} m from the corpse, " +
                       $"lowest point {sword.Solid.bounds.min.y - body.position.y:0.00} m above the player's feet");
 #else

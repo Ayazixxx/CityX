@@ -273,6 +273,17 @@ namespace CityX.Tests
             return top;
         }
 
+        /// <summary>Where every capture's pictures go: Logs/CityShots (made if missing).</summary>
+        internal static string ShotsFolder
+        {
+            get
+            {
+                string folder = Path.Combine(Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
+                Directory.CreateDirectory(folder);
+                return folder;
+            }
+        }
+
         internal static void Shoot(Camera camera, string directory, string name, Vector3 position, Vector3 lookAt)
         {
             camera.transform.position = position;
