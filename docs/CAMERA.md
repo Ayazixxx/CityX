@@ -26,7 +26,7 @@ thirds). The view then reaches over the character to what is ahead:
 
 | | Before | Now |
 |---|---|---|
-| Camera height over the pivot (`FramingHeight`, in the view's own up) | 0 | **1.3 m** |
+| Camera height over the pivot (`FramingHeight`, in the view's own up) | 0 | **1.0 m** (1.3 at first; the owner chose 1.0 after playing it) |
 | Distance back (`Distance`) | 4.0 m | **4.8 m** |
 | Over the right shoulder (`ShoulderOffset`) | 0.5 m | 0.5 m |
 | Field of view (vertical) | 75 | 75 |
@@ -54,7 +54,8 @@ ceiling about a storey up, the raised camera meets the ceiling sooner than the o
 `/camera reset` goes back to the defaults. A setting that feels better should be reported, so it can become the default.
 
 The scene's camera is generated (`CityMassingSceneBuilder`). A changed default needs the scene rebuilt. On 2026-10-17 the rebuilt scene
-differed from the old one in that one component only: `FramingHeight` 1.3, `Distance` 4.8.
+differed from the old one in that one component only: `FramingHeight` 1.3, `Distance` 4.8. The same day the owner set the height to 1.0
+("set the camera height to 1"); the rebuilt scene changed in that value only.
 
 ## Tests and renders
 

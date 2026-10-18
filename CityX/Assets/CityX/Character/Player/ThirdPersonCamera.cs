@@ -49,11 +49,11 @@ namespace CityX.Character
         /// head and shoulders in the middle of the screen: exactly where someone standing in front of you is. Third-person action games raise the
         /// camera over the head and let the body sit low in the frame (the Souls games, Assassin's Creed; the Unreal and Cinemachine third-person
         /// rigs' raised arm). In the view's own up, so the body keeps its place in the frame at any pitch. Eased away while aiming, whose
-        /// over-the-shoulder framing is its own (AimPivotRaise, AimShoulderOffset). See docs/CAMERA.md.
+        /// over-the-shoulder framing is its own (AimPivotRaise, AimShoulderOffset). 1.3 at first; 1.0 is the owner's choice after playing it (2026-10-17). See docs/CAMERA.md.
         /// </summary>
         public float FramingHeight = DefaultFramingHeight;
 
-        public const float DefaultFramingHeight = 1.3f;
+        public const float DefaultFramingHeight = 1.0f;
 
         /// <summary>
         /// How far behind the pivot the camera hangs, metres (the spring arm's length, before walls pull it in). 4.0 was player.gd's own
