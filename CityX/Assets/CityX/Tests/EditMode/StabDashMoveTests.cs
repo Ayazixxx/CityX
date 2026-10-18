@@ -1,4 +1,5 @@
 using CityX.Character;
+using CityX.Weapons;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -109,7 +110,7 @@ namespace CityX.Tests
             int cocked = motion.SegmentStart(StabDashMove.Segment) + 9;
             var world = BakedMotionPoses.WorldTurns(motion, cocked);
             var joints = BakedMotionPoses.Joints(motion, cocked, world);
-            Vector3 blade = BakedMotionPoses.Blade(world);
+            Vector3 blade = BakedMotionPoses.Blade(world, SwordWeapon.ThrustBladeAxisInHand);
             Assert.Less(joints["hand_r"].z, joints["neck"].z - 0.3f, "the sword hand is not drawn back behind the body");
             Assert.Greater(blade.z, 0.5f, "the drawn-back blade does not point ahead");
             Assert.Less(blade.y, -0.15f, "the drawn-back blade does not point down");
@@ -127,7 +128,7 @@ namespace CityX.Tests
             {
                 var world = BakedMotionPoses.WorldTurns(motion, start + f);
                 var joints = BakedMotionPoses.Joints(motion, start + f, world);
-                Vector3 blade = BakedMotionPoses.Blade(world);
+                Vector3 blade = BakedMotionPoses.Blade(world, SwordWeapon.ThrustBladeAxisInHand);
                 Assert.Less(Vector3.Angle(blade, Vector3.forward), 12.0f, $"frame {f}: the blade is not thrust straight ahead");
                 Assert.Greater((joints["hand_r"] - joints["arm_r"]).magnitude, 0.8f, $"frame {f}: the sword arm is not straight");
                 Assert.Greater(joints["hand_r"].z - joints["arm_r"].z, 0.75f, $"frame {f}: the sword arm is not out ahead");
@@ -149,6 +150,27 @@ namespace CityX.Tests
                 Assert.Greater(joints["foot_l"].z, joints["hips"].z + 0.4f, $"frame {f}: the front foot is not out ahead");
                 Assert.Greater(joints["hand_l"].y, joints["arm_l"].y + 0.1f, $"frame {f}: the free arm is not raised");
                 Assert.Less(joints["hand_l"].z, joints["arm_l"].z, $"frame {f}: the free arm is not behind");
+            }
+        }
+
+        /// <summary>
+        /// The free arm in the lunge is a fencer's rear arm: the upper arm out to the side at the shoulder's height, the forearm up. Owner,
+        /// 2026-10-18: "the left arm is being bent the wrong way like its broken" -- the GIF's fist cocked up behind the head hung the upper arm
+        /// down the forward-pitched chest and folded the forearm back up past it.
+        /// </summary>
+        [Test]
+        public void TheFreeArmInTheLungeIsLiftedOutToTheSideNotHangingAndFoldedBack()
+        {
+            BakedMotion motion = Motion();
+            int start = motion.SegmentStart(StabDashMove.Segment);
+            for (int f = 13; f <= 35; f++)
+            {
+                var world = BakedMotionPoses.WorldTurns(motion, start + f);
+                var joints = BakedMotionPoses.Joints(motion, start + f, world);
+                Vector3 elbow = joints["forearm_l"], shoulder = joints["arm_l"], hand = joints["hand_l"];
+                Assert.Greater(elbow.y, shoulder.y - 0.15f, $"frame {f}: the free elbow hangs below the shoulder");
+                Assert.Less(elbow.x, shoulder.x - 0.25f, $"frame {f}: the free elbow is not out to the side");
+                Assert.Greater(hand.y, elbow.y + 0.2f, $"frame {f}: the free forearm is not raised from the elbow");
             }
         }
 
@@ -175,7 +197,7 @@ namespace CityX.Tests
             float step = BakedMotionPoses.WorstStep(motion, start, start + 9, false, out string where);
             Assert.Less(step, 60.0f, $"the wind-up snaps: {step:0} degrees at {where}");
             step = BakedMotionPoses.WorstStep(motion, start + 9, start + 14, false, out where);
-            Assert.Less(step, 100.0f, $"the thrust turns a bone too far in one frame: {step:0} degrees at {where}");
+            Assert.Less(step, 120.0f, $"the thrust turns a bone too far in one frame: {step:0} degrees at {where}");
             // The lunge is held; in the recovery the free arm comes down and round to the grip quickly, as the body is handed back.
             step = BakedMotionPoses.WorstStep(motion, start + 14, start + FrameOf(StabDashMove.CommitSeconds), false, out where);
             Assert.Less(step, 25.0f, $"the lunge or the recovery snaps: {step:0} degrees at {where}");

@@ -9,10 +9,12 @@
 #   1-4     sinking into a wide, deep squat, side-on to where it will go, the sword hand drawn back past the right shoulder with the blade
 #           pointing ahead and down beside the body, the free arm reaching ahead at chest height (GIF frames 0-3)
 #   4-9     the squat deepening, the weight going back (GIF frames 3-8)
-#   9-12    the release: the body unwinding to face ahead, the sword hand coming through at the hip with the blade level (frame 11), then the
-#           arm thrust out straight, the back leg driving (frame 12, the first and strongest hit)
+#   9-12    the release: the body unwinding to face ahead, the sword hand coming forward past the shoulder (frame 10, solved halfway) and
+#           through at the hip with the blade level (frame 11), then the arm thrust out straight, the back leg driving (frame 12, the first and
+#           strongest hit)
 #   12-31   the lunge, held while the body slides (the game moves it): very low, the torso pitched far forward, the sword arm and blade dead
-#           level ahead, the back leg stretched out behind, the free arm cocked up behind the shoulders (GIF frames 11-30)
+#           level ahead, the back leg stretched out behind, the free arm raised as a fencer's rear arm: the upper arm out to the side and back,
+#           the forearm up (GIF frames 11-30; the GIF's fist cocked up behind the head bent the elbow backwards on this forward-pitched body)
 #   31-41   the slide dying, the head lifting a little (GIF frames 30-33); held
 #   41-59   recovering: the back leg drawn in, the body rising, the blade brought back up into the stance (not in the GIF, which ends at 34)
 #
@@ -58,8 +60,8 @@ def drawn():
     out beside the body; the free arm reaching ahead (GIF frame 3)."""
     hy = 0.58
     P = {"hips": (0.0, hy, -0.08), "body": rot(p=4, y=-28), "spine": rot(p=2, y=-8), "neck": rot(p=-4, y=18), "head": rot(p=-4, y=16),
-         "sword": {"hand": (0.22, -0.08, -0.50), "blade": (0.32, -0.36, 0.88), "space": "root"},
-         "free": {"hand": (0.08, -0.30, 0.66), "pole": (0.0, -1.0, -0.2), "space": "root"}}
+         "sword": {"hand": (0.20, -0.25, -0.12), "blade": (0.10, -0.18, 0.98), "space": "root"},
+         "free": {"hand": (0.08, -0.30, 0.66), "pole": (-0.7, -0.7, 0.0), "space": "root"}}
     P.update(squat_legs(hy, front=0.44, back=0.40))
     return P
 
@@ -69,8 +71,8 @@ def cocked():
     ahead and down; the free fist out ahead at chest height, aiming (GIF frames 5-8)."""
     hy = 0.47
     P = {"hips": (0.0, hy, -0.16), "body": rot(p=2, y=-36), "spine": rot(p=2, y=-8), "neck": rot(p=-4, y=24), "head": rot(p=-4, y=20),
-         "sword": {"hand": (0.20, 0.02, -0.60), "blade": (0.36, -0.40, 0.84), "space": "root"},
-         "free": {"hand": (0.05, -0.20, 0.72), "pole": (0.0, -1.0, -0.2), "space": "root"}}
+         "sword": {"hand": (0.20, -0.20, -0.30), "blade": (0.10, -0.22, 0.97), "space": "root"},
+         "free": {"hand": (0.05, -0.20, 0.72), "pole": (-0.7, -0.7, 0.0), "space": "root"}}
     P.update(squat_legs(hy, front=0.50, back=0.46))
     return P
 
@@ -80,8 +82,8 @@ def launch():
     swinging back past the left hip, the back leg pushing (GIF frame 10)."""
     hy = 0.52
     P = {"hips": (0.0, hy, -0.10), "body": rot(p=20, y=-10), "spine": rot(p=6), "neck": rot(p=-16, y=6), "head": rot(p=-12, y=4),
-         "sword": {"hand": (0.0, -0.42, 0.45), "blade": (0.0, -0.03, 1.0), "space": "root"},
-         "free": {"hand": (-0.18, -0.40, -0.40), "pole": (-0.4, -0.7, -0.4), "space": "root"}}
+         "sword": {"hand": (0.04, -0.30, 0.52), "blade": (0.0, -0.03, 1.0), "space": "root"},
+         "free": {"hand": (-0.18, -0.40, -0.40), "pole": (-0.9, -0.3, 0.1), "space": "root"}}
     P.update(lunge_legs(hy, front=0.48, back=(0.14, -0.34, -0.58)))
     return P
 
@@ -91,8 +93,8 @@ def thrust():
     shoulder driven forward; the free arm flung back; the back leg straightening behind (GIF frame 11)."""
     hy = 0.46
     P = {"hips": (0.0, hy, -0.12), "body": rot(p=42, y=10), "spine": rot(p=6, y=6), "neck": rot(p=-28, y=-8), "head": rot(p=-22, y=-6),
-         "sword": {"hand": (-0.10, 0.0, 0.88), "blade": (0.0, 0.0, 1.0), "space": "root"},
-         "free": {"hand": (-0.18, 0.05, -0.60), "pole": (-0.4, -0.7, -0.4), "space": "root"}}
+         "sword": {"hand": (-0.08, -0.26, 0.84), "blade": (0.0, 0.0, 1.0), "space": "root"},
+         "free": {"hand": (-0.40, 0.10, -0.50), "pole": (-0.5, -0.8, -0.3), "space": "root"}}
     P.update(lunge_legs(hy, front=0.58, back=(0.14, -0.28, -0.68)))
     return P
 
@@ -102,8 +104,8 @@ def slide(sink=0.0):
     arm and blade dead level; the free arm cocked up behind the shoulders, the back leg stretched out behind (GIF frames 12-30)."""
     hy = 0.41 - sink
     P = {"hips": (0.0, hy, -0.16), "body": rot(p=52, y=12), "spine": rot(p=8, y=6), "neck": rot(p=-36, y=-10), "head": rot(p=-26, y=-8),
-         "sword": {"hand": (-0.08, 0.04, 0.88), "blade": (0.0, 0.0, 1.0), "space": "root"},
-         "free": {"hand": (-0.22, 0.32, -0.40), "pole": (-0.5, -0.4, -0.7), "space": "root"}}
+         "sword": {"hand": (-0.06, -0.30, 0.83), "blade": (0.0, 0.0, 1.0), "space": "root"},
+         "free": {"hand": (-0.37, 0.36, -0.25), "pole": (-0.5, -0.8, -0.4), "space": "root"}}
     P.update(lunge_legs(hy, front=0.62, back=(0.14, -0.25, -0.70)))
     return P
 
@@ -113,8 +115,8 @@ def slide_end(arm_down=False):
     arm has come down behind, ready to rise."""
     hy = 0.44
     P = {"hips": (0.0, hy, -0.14), "body": rot(p=44, y=10), "spine": rot(p=6, y=5), "neck": rot(p=-30, y=-8), "head": rot(p=-22, y=-6),
-         "sword": {"hand": (-0.08, 0.02, 0.88), "blade": (0.0, -0.03, 1.0), "space": "root"},
-         "free": {"hand": (-0.22, 0.28, -0.42), "pole": (-0.5, -0.4, -0.7), "space": "root"}}
+         "sword": {"hand": (-0.06, -0.30, 0.83), "blade": (0.0, -0.03, 1.0), "space": "root"},
+         "free": {"hand": (-0.38, 0.28, -0.28), "pole": (-0.5, -0.8, -0.4), "space": "root"}}
     if arm_down:
         P["free"] = {"hand": (-0.20, -0.45, -0.30), "pole": (-0.4, -0.7, -0.4), "space": "root"}
     P.update(lunge_legs(hy, front=0.60, back=(0.14, -0.27, -0.69)))
@@ -136,19 +138,44 @@ def rise():
 # ---------------------------------------------------------------------------------------------------------------------------------------------
 # THE TIMELINE
 
+def tween(a, b, t):
+    """A pose part way from pose `a` to pose `b`, before solving: places and directions interpolated, turns slerped. Solved as it is, each limb
+    takes a path between the two; the bones of two solved poses slerped instead turned the short way round, the blade passing straight up."""
+    def lerp(x, y):
+        return tuple(x[i] + (y[i] - x[i]) * t for i in range(3))
+    P = {"hips": lerp(a["hips"], b["hips"])}
+    for k in ("body", "spine", "neck", "head"):
+        qa, qb = a.get(k, Quaternion()), b.get(k, Quaternion())
+        if qa.dot(qb) < 0.0:
+            qb = -qb
+        P[k] = qa.slerp(qb, t)
+    for arm in ("sword", "free"):
+        A, B = a[arm], b[arm]
+        part = {"hand": lerp(A["hand"], B["hand"]), "space": A.get("space", "chest")}
+        for k in ("blade", "pole"):
+            if k in A and k in B:
+                part[k] = tuple(unit(Vector(lerp(A[k], B[k]))))
+        P[arm] = part
+    for leg in ("l_leg", "r_leg"):
+        A, B = a[leg], b[leg]
+        P[leg] = {"foot": lerp(A["foot"], B["foot"]), "knee": lerp(A["knee"], B["knee"]), "toe": lerp(A["toe"], B["toe"]),
+                  "space": A.get("space", "root")}
+    return P
+
 def stab_frames():
     s, s_p = chained(stance(), None, "stance")
     d, d_p = chained(drawn(), s_p, "drawn")
     c, c_p = chained(cocked(), d_p, "cocked")
-    l, l_p = chained(launch(), c_p, "launch")
+    through, through_p = chained(tween(cocked(), launch(), 0.5), c_p, "coming through")
+    l, l_p = chained(launch(), through_p, "launch")
     t, t_p = chained(thrust(), l_p, "thrust")
     sl, sl_p = chained(slide(), t_p, "slide")
     low, low_p = chained(slide(sink=0.02), sl_p, "slide low")
     end, end_p = chained(slide_end(), low_p, "slide end")
     down, down_p = chained(slide_end(arm_down=True), end_p, "arm down")
     up, _ = chained(rise(), down_p, "rise")
-    keys = [(0, s, "inout"), (4, d, "inout"), (9, c, "linear"), (11, l, "linear"), (12, t, "out"), (14, sl, "inout"), (20, low, "inout"),
-            (31, low, "inout"), (35, end, "inout"), (42, down, "inout"), (51, up, "inout"), (STAB[1], s, "linear")]
+    keys = [(0, s, "inout"), (4, d, "inout"), (9, c, "linear"), (10, through, "linear"), (11, l, "linear"), (12, t, "out"), (14, sl, "inout"), (20, low, "inout"),
+            (31, low, "inout"), (35, end, "inout"), (45, down, "inout"), (53, up, "inout"), (STAB[1], s, "linear")]
     return {f: keyed(keys, f) for f in range(STAB[0], STAB[1] + 1)}
 
 

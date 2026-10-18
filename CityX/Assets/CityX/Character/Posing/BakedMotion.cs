@@ -361,6 +361,12 @@ namespace CityX.Character
         /// <summary>True to leave the hips and legs alone (a reload while walking): only the spine up, the arms and the fingers are posed.</summary>
         public bool UpperBodyOnly;
 
+        /// <summary>
+        /// The stab dash: while it holds the body, the sword in the right hand is held in the thrust grip the move was posed with in Blender, so the
+        /// blade points where the move means it, gripped in the fist, whatever hold the sword is otherwise in (ISwordBlade.HoldForThrust).
+        /// </summary>
+        public bool ThrustGrip;
+
         /// <summary>The held thing's parts (BakedMotion.Props), each in the held thing's own frame.</summary>
         public readonly IReadOnlyList<string> Props;
 

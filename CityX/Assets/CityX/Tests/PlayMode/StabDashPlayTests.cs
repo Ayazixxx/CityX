@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using CityX.Character;
 using CityX.Items;
+using CityX.Weapons;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -13,7 +14,8 @@ namespace CityX.Tests
     /// <summary>
     /// The stab dash (the Mii Swordfighter's Power Thrust) through the real keys in the real city: from its slot on the bar with the sword in hand
     /// it draws back in a squat, then lunges a dash's 4.8 m where the camera looks with the blade thrust out, running through what is ahead
-    /// once; the body is held from the key to the end; a wall stops the slide short; without a sword nothing happens.
+    /// once; the body is held from the key to the end; a wall stops the slide short; without a sword nothing happens; with the one-handed
+    /// combat sword the blade is thrust straight and level too, and the sword goes back to its own hold after.
     /// </summary>
     public sealed class StabDashPlayTests : InputTestFixture
     {
@@ -68,7 +70,7 @@ namespace CityX.Tests
             LogAssert.ignoreFailingMessages = false;
         }
 
-        private IEnumerator LoadScene(bool withSword)
+        private IEnumerator LoadScene(bool withSword, string sword = ItemRegistry.Sword)
         {
 #if UNITY_EDITOR
             LogAssert.ignoreFailingMessages = true;
@@ -85,9 +87,9 @@ namespace CityX.Tests
             if (withSword)
             {
                 Inventory inventory = _vitals.GetComponent<Inventory>();
-                inventory.AddItem(ItemRegistry.Sword, 1);
-                Assert.IsTrue(inventory.RemoveFromStorage(ItemRegistry.Sword, 1, out ItemInstanceData data));
-                Assert.IsTrue(inventory.EquipItemId(ItemRegistry.Sword, _vitals.gameObject, data), "could not equip the sword");
+                inventory.AddItem(sword, 1);
+                Assert.IsTrue(inventory.RemoveFromStorage(sword, 1, out ItemInstanceData data));
+                Assert.IsTrue(inventory.EquipItemId(sword, _vitals.gameObject, data), $"could not equip the {sword}");
             }
             _vitals.InfiniteHealth = true;
             Time.captureFramerate = 60;   // one frame = 1/60 s, so the move's frames are the game's
@@ -162,6 +164,10 @@ namespace CityX.Tests
             Assert.Less(hips.localPosition.y, standingHips - 0.3f, "the body is not low in the lunge");
             Transform hand = _vitals.GetComponentInChildren<Animator>().GetBoneTransform(HumanBodyBones.RightHand);
             Assert.Greater(_vitals.transform.InverseTransformPoint(hand.position).z, 0.9f, "the sword arm is not thrust out ahead");
+            ISwordBlade held = _vitals.GetComponent<MeleeAttacker>().BladeInHand();
+            Vector3 blade = (held.BladeTipWorld - held.BladeBaseWorld).normalized;
+            Assert.Less(Vector3.Angle(Vector3.ProjectOnPlane(blade, Vector3.up), heading), 15.0f, "the blade is not thrust straight ahead");
+            Assert.Less(Mathf.Abs(blade.y), 0.25f, "the blade is not level");
 
             for (int i = 0; i < 120 && _stab.IsActive; i++)
             {
@@ -178,6 +184,45 @@ namespace CityX.Tests
             Assert.AreEqual(1, target.Launches, "the clean thrust did not throw what it caught");
             Assert.AreEqual(0.0f, _locomotion.BakedPoseWeight, "the animation was not let go");
             Assert.IsFalse(_locomotion.MovementRooted, "the body was left rooted");
+        }
+
+        /// <summary>
+        /// Owner, 2026-10-18, with the one-handed combat sword: the blade "isnt even pointed straight horizontally", then "make him grip the sword
+        /// properly too as well as pointing it horizontally". Through the lunge the sword is in the thrust grip the move was posed with
+        /// (ISwordBlade.HoldForThrust): the blade straight ahead and level, the handle across the fist (not lying along the hand and forearm);
+        /// after it, the sword is back in its own hold.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator WithTheOneHandedSwordTheBladeIsThrustStraightAndLevelGrippedInTheFistThenBackInItsHold()
+        {
+            yield return LoadScene(withSword: true, sword: ItemRegistry.CombatSword);
+            Vector3 heading = OpenRun.Face(_vitals, _made, 12.0f);
+            yield return null;
+            var melee = _vitals.GetComponent<MeleeAttacker>();
+            var sword = melee.BladeInHand() as SwordWeapon;
+            Assert.IsNotNull(sword, "setup: no sword in the hand");
+            Assert.IsTrue(sword.OneHanded, "setup: the combat sword is not held one-handed");
+
+            yield return PressStabKey();
+            yield return UntilMoveFrame(20);
+            Vector3 blade = (sword.BladeTipWorld - sword.BladeBaseWorld).normalized;
+            Assert.Less(Vector3.Angle(Vector3.ProjectOnPlane(blade, Vector3.up), heading), 15.0f, "the blade is not thrust straight ahead");
+            Assert.Less(Mathf.Abs(blade.y), 0.25f, $"the blade is not level: {Mathf.Asin(blade.y) * Mathf.Rad2Deg:0} degrees");
+            Transform hand = _vitals.GetComponentInChildren<Animator>().GetBoneTransform(HumanBodyBones.RightHand);
+            Vector3 handLength = hand.TransformDirection(Vector3.right);
+            Assert.Greater(Vector3.Angle(blade, handLength), 30.0f, "the handle lies along the hand instead of across the fist");
+            Vector3 fist = hand.TransformPoint(SwordWeapon.FistPoint);
+            Vector3 offLine = Vector3.ProjectOnPlane(fist - sword.BladeBaseWorld, blade);
+            Assert.Less(offLine.magnitude, 0.03f, "the handle does not run through the fist");
+
+            for (int i = 0; i < 120 && _stab.IsActive; i++)
+            {
+                yield return null;
+            }
+            yield return null;
+            Assert.IsFalse(_stab.IsActive, "the stab dash never ended");
+            Assert.Less(Quaternion.Angle(sword.transform.localRotation, sword.HoldRotation), 1.0f, "the sword was not handed back to its own hold");
+            Assert.Less((sword.transform.localPosition - sword.HoldPosition).magnitude, 0.01f, "the sword was not handed back to its own hold");
         }
 
         [UnityTest]

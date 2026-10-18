@@ -53,6 +53,12 @@ namespace CityX.Tests
             return world["hand_r"] * CityX.Weapons.SwordWeapon.DefaultGripRotation * Vector3.up;
         }
 
+        /// <summary>The blade's direction on a frame for a move posed with another grip: the blade along <paramref name="bladeInHand"/> in the right hand's frame.</summary>
+        public static Vector3 Blade(Dictionary<string, Quaternion> world, Vector3 bladeInHand)
+        {
+            return world["hand_r"] * bladeInHand;
+        }
+
         /// <summary>The most any bone turns from one frame to the next across <paramref name="from"/>..<paramref name="to"/> (and from the last back to the first if it loops).</summary>
         public static float WorstStep(BakedMotion motion, int from, int to, bool loops, out string where)
         {

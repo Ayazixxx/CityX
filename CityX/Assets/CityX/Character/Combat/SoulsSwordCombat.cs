@@ -136,6 +136,14 @@ namespace CityX.Character
         /// <summary>True for a sword held in one hand (the other is free): the one-handed attacks and guard are used.</summary>
         bool IsOneHanded => false;
 
+        /// <summary>
+        /// Holds the sword in the thrust grip at <paramref name="weight"/> (the handle in the fist, turned so the blade leans out toward the
+        /// fingertips), and as it is otherwise held at 0. PlayerLocomotion does it while the stab dash's pose holds the body (BakedPose.ThrustGrip).
+        /// </summary>
+        void HoldForThrust(float weight)
+        {
+        }
+
         float GetMeleeDamage();
     }
 

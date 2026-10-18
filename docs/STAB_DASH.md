@@ -55,8 +55,33 @@ a stab stopped by a wall does not bury the head in it.
 The recovery (frames 35-59) is not in the GIF: the lunge held a little, then the back leg drawn in, the body rising and the blade brought back
 up into the sword stance, which the clip ends in exactly (it is handed back over its last 8 frames).
 
-`StabDashCapture` (an Explicit PlayMode test, needs `-Graphics`) films it in the city from the side (Smash's view) and from behind (the game's
-camera), following the body, and from one point beside the slide to show its length, to `Logs/CityShots/stabdash-*.png`.
+**Fixed 2026-10-18, the owner's two reports** ("the left arm is being bent the wrong way like its broken, and the blade isnt even pointed
+straight horizontally", with a screenshot holding the combat sword):
+- **The free arm.** The GIF's fist cocked up behind the head, on this body pitched far forward, hung the upper arm down the chest and folded
+  the forearm back up past it: from in front, an elbow bent backwards. It is now a fencer's rear arm: the upper arm out to the side at the
+  shoulder's height, the forearm up. The release (frame 10) is solved halfway between the drawn-back pose and the next, from their settings
+  rather than by turning the bones between them, which had swung the blade straight up and flipped the free arm round. Checked from in
+  front on the free arm's side as well as from the side and behind (`stab_render.py` view `frontleft`).
+- **The blade, and the grip** (then: "make him grip the sword properly too as well as pointing it horizontally"). The move had been posed
+  with the two-handed sword's hold, and the one-handed combat sword is held straight out past the thumb, so its blade pointed down at the
+  street. Holding it the two-handed way instead levelled the blade but laid its long handle (47 cm) along the forearm, the fingers closing on
+  nothing. Now the move is posed with, and the game holds every sword in, a THRUST GRIP (`SwordWeapon.ThrustTiltDegrees`, `FistPoint`,
+  `ThrustGripRotation`; `stab_grip.py` puts the Blender rig's sword in the same): the handle in the fist where the one-handed hold has it,
+  turned within the fist so the blade comes out between the thumb and the index finger leaning 50 degrees toward the fingertips, the guard at
+  the knuckles (the combat sword keeps its own tuned place along the handle), the pommel under the wrist. While the stab holds the body the
+  sword is in it (`BakedPose.ThrustGrip`, `ISwordBlade.HoldForThrust`), and back in its own hold as the move lets go.
+  - The sword arm reaches a little down (20 degrees) through the lunge, so the blade carries on level from a closed fist with the handle's tail
+    under the forearm rather than along it; the wind-up is a spear's chamber, the sword hand drawn back beside the chest with the blade aimed
+    ahead and a little down (drawn far back behind the head, as the GIF has it, this grip bent the wrist right back).
+  - The pose solver now also counts the hand's twist round its forearm when it picks how the blade rolls in the hand (`SOLVER_TWIST_WEIGHT`
+    in `octaslash_pose.py`, 0 unless a move asks, so Octaslash and the spin solve as before): picked for the least wrist bend alone, the
+    thrust grip wrung the forearm into a ribbon at the wrist.
+  - The spin and Octaslash are posed with the two-handed hold and keep the sword in its own hold, as before.
+
+`StabDashCapture` (an Explicit PlayMode test, needs `-Graphics`) films it in the city from the side (Smash's view), from behind (the game's
+camera) and from in front on the free arm's side, following the body, the sword hand close up from its side and from in front, and from one
+point beside the slide to show its length, with the two-handed sword (`Logs/CityShots/stabdash-*.png`) and the one-handed combat sword
+(`stabdash-1h-*.png`).
 
 ### Editing the animation
 
@@ -79,10 +104,12 @@ through `PlayerAbilityWiring`.
 - `StabDashMoveTests` (EditMode): the hit frames and the three damage bands, the clean hit, frame 59; the slide a dash's length from frame 11 to
   35, fastest off the mark and slowing all the way; the animation on BodyRig's bones and as long as the move, the squat with the sword drawn
   back, the blade straight ahead on a straight arm on every hit frame, the low lunge with the back leg stretched out and the free arm raised,
-  ending in the stance it started from, nothing snapping but the thrust.
+  its elbow lifted out to the side (never hanging with the forearm folded back up), ending in the stance it started from, nothing snapping
+  but the dip and the thrust.
 - `StabDashPlayTests` (real keys, real city): the squat, then the lunge a dash's length where the camera looks, facing it, low, the arm out,
-  running through a target beside the line once and throwing it; walking and jumping do nothing meanwhile; a wall stops the slide short;
-  without a sword nothing happens.
+  running through a target beside the line once and throwing it, the blade straight ahead and level; walking and jumping do nothing
+  meanwhile; a wall stops the slide short; without a sword nothing happens; with the one-handed combat sword the blade is straight and level
+  too, the handle running through the fist and across it (not along the hand), and the sword is back in its own hold after.
 - `AbilityPlaybackPlayTests.AnotherPlayersStabDashLungesOnTheirBodyThenLetsGoAndHurtsNothing`.
 - `SkillTreeTests`: a star of the Sword tree, needing a sword, its id the ability's.
 

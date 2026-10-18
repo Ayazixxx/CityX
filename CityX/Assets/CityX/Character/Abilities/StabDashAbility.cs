@@ -89,6 +89,10 @@ namespace CityX.Character
             _controller = GetComponent<CharacterController>();
             _motion = BakedMotion.Load(StabDashMove.MotionResource);
             _pose = _motion != null ? _motion.NewPose() : null;
+            if (_pose != null)
+            {
+                _pose.ThrustGrip = true;
+            }
         }
 
         /// <summary>The key: draws back, turning to where <paramref name="look"/> points (kept up to date through Aim until the lunge leaves).</summary>

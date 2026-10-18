@@ -10,10 +10,11 @@ VIEWS = {
     "side": (Vector((-7.5, -1.0, 1.2)), Vector((0.0, -1.0, 1.0)), 42.0),
     "behind": (Vector((-1.2, 6.0, 3.4)), Vector((0.0, -1.0, 1.1)), 50.0),
     "front": (Vector((2.5, -7.0, 1.6)), Vector((0.0, 0.0, 1.0)), 45.0),
+    "frontleft": (Vector((4.5, -5.0, 1.4)), Vector((0.0, -0.8, 0.9)), 40.0),
 }
 
 
-def render_stab(out_dir, frames, views=("side", "behind", "front")):
+def render_stab(out_dir, frames, views=("side", "behind", "front", "frontleft")):
     os.makedirs(out_dir, exist_ok=True)
     scene = bpy.context.scene
     _workbench(scene, size=(640, 480))

@@ -202,6 +202,39 @@ namespace CityX.Weapons
 
         private Transform _leftHandGrip;
 
+        // ---- THE THRUST GRIP (the stab dash) ----
+        //
+        // A sword thrust straight out ahead (the stab dash's lunge, animated in Blender) is held with the handle in the fist where the one-handed
+        // hold has it, turned within the fist so the blade comes out between the thumb and the index finger leaning toward the fingertips: the
+        // fingers round the handle, the blade carrying on ahead of the arm. Owner, 2026-10-18: "make him grip the sword properly too as well as
+        // pointing it horizontally". Held straight out past the thumb (the one-handed hold), the blade stood off the arm and pointed at the street;
+        // held as the two-handed sword is, the one-handed sword's long handle ran back along the forearm. SourceArt/StabDash/stab_build_all.py
+        // poses the move with this same grip.
+
+        /// <summary>How far the thrust grip leans the blade from straight out past the thumb toward the fingertips, degrees, about the palm's normal.</summary>
+        public const float ThrustTiltDegrees = 50.0f;
+
+        /// <summary>Where the fist holds a handle, in the right-hand bone's frame: the palm's middle along the hand, the handle's radius under the palm.</summary>
+        public static Vector3 FistPoint => new Vector3(PlayerLocomotion.PalmOffsetMetres, -OneHandHandleBelowPalm, 0.0f);
+
+        /// <summary>The blade's direction (hilt to tip) in the right-hand bone's frame in the thrust grip.</summary>
+        public static Vector3 ThrustBladeAxisInHand => Quaternion.AngleAxis(ThrustTiltDegrees, Vector3.up) * OneHandBladeAxisInHand;
+
+        /// <summary>This sword's rotation in the right hand in the thrust grip: the one-handed hold's (edge toward the knuckles), leaned.</summary>
+        public Quaternion ThrustGripRotation => Quaternion.AngleAxis(ThrustTiltDegrees, Vector3.up) * DefaultOneHandGripRotationFor(_edgeOnPlusX);
+
+        /// <summary>How far up the handle from the fist this sword's guard sits: its one-handed hold's own (tuned) reach, or the two-handed upper grip's.</summary>
+        private float ThrustGripReach => _oneHanded
+            ? Mathf.Max(OneHandGripDown, Vector3.Dot(HoldPosition - FistPoint, HoldRotation * Vector3.up))
+            : DefaultPrimaryGripDown;
+
+        /// <summary>Holds the sword in the thrust grip, <paramref name="weight"/> of the way from its own hold (0: its own).</summary>
+        public void HoldForThrust(float weight)
+        {
+            transform.localPosition = Vector3.Lerp(HoldPosition, FistPoint + ThrustBladeAxisInHand * ThrustGripReach, weight);
+            transform.localRotation = Quaternion.Slerp(HoldRotation, ThrustGripRotation, weight);
+        }
+
         /// <summary>Puts the sword and the left-hand marker where the current hold (saved or derived) says.</summary>
         public void ApplyGrip()
         {

@@ -12,9 +12,10 @@ namespace CityX.Tests
 {
     /// <summary>
     /// Not a test: films the stab dash in the real scene on the frames that matter (StabDashMove's, which are Smash's), from the side as Smash
-    /// shows it and from behind as the game's camera does, following the body, and from one fixed point beside the slide so its length shows, to
-    /// Logs/CityShots/stabdash-*.png, so the animation can be LOOKED AT (green tests are no proof that it looks right). Explicit, so the suite
-    /// skips it; run it by name with -Graphics:
+    /// shows it, from behind as the game's camera does and from in front on its left (the free arm's side), following the body, and from one
+    /// fixed point beside the slide so its length shows, to Logs/CityShots/stabdash-*.png (with the two-handed sword) and stabdash-1h-*.png
+    /// (with the one-handed combat sword), so the animation can be LOOKED AT (green tests are no proof that it looks right). Explicit, so the
+    /// suite skips it; run it by name with -Graphics:
     /// ./tools/unity_tests.ps1 -Platform PlayMode -Graphics -Filter CityX.Tests.StabDashCapture
     /// </summary>
     [Explicit("renders screenshots; needs a graphics device")]
@@ -54,6 +55,17 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator RenderTheStabDash()
         {
+            yield return Film(ItemRegistry.Sword, "stabdash");
+        }
+
+        [UnityTest]
+        public IEnumerator RenderTheStabDashWithTheOneHandedSword()
+        {
+            yield return Film(ItemRegistry.CombatSword, "stabdash-1h");
+        }
+
+        private IEnumerator Film(string sword, string prefix)
+        {
             CaptureGuard.NeedsGraphics();
 #if UNITY_EDITOR
             LogAssert.ignoreFailingMessages = true;
@@ -74,9 +86,9 @@ namespace CityX.Tests
             var locomotion = vitals.GetComponent<PlayerLocomotion>();
             var stab = vitals.GetComponent<StabDashAbility>();
             Inventory inventory = vitals.GetComponent<Inventory>();
-            inventory.AddItem(ItemRegistry.Sword, 1);
-            inventory.RemoveFromStorage(ItemRegistry.Sword, 1, out ItemInstanceData data);
-            inventory.EquipItemId(ItemRegistry.Sword, vitals.gameObject, data);
+            inventory.AddItem(sword, 1);
+            inventory.RemoveFromStorage(sword, 1, out ItemInstanceData data);
+            inventory.EquipItemId(sword, vitals.gameObject, data);
             PlayerSkills.On(vitals.gameObject).PutOnBar(0, SkillCatalog.StabDash);
             vitals.InfiniteHealth = true;
             Time.captureFramerate = 60;   // frame-exact: the animation is timed
@@ -112,6 +124,7 @@ namespace CityX.Tests
             camera.farClipPlane = 600.0f;
             camera.allowHDR = true;
             Transform body = vitals.transform;
+            Transform hand = vitals.GetComponentInChildren<Animator>().GetBoneTransform(HumanBodyBones.RightHand);
             Vector3 middle = body.position + heading * (StabDashMove.SlideMetres * 0.5f) + Vector3.up * 1.2f;
             // Shot from whichever side of the run is open (a building's wall may be close on the other).
             Vector3 side = Vector3.Cross(Vector3.up, heading).normalized;
@@ -135,12 +148,18 @@ namespace CityX.Tests
                 Vector3 centre = body.position + Vector3.up * 1.2f + heading * 0.6f;
                 if (System.Array.IndexOf(Frames, frame) >= 0)
                 {
-                    BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, $"stabdash-f{frame:00}-side", centre + side * 6.5f + Vector3.up * 0.3f, centre);
-                    BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, $"stabdash-f{frame:00}-behind", centre - heading * 5.0f + Vector3.up * 2.0f, centre + heading * 1.5f);
+                    BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, $"{prefix}-f{frame:00}-side", centre + side * 6.5f + Vector3.up * 0.3f, centre);
+                    BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, $"{prefix}-f{frame:00}-behind", centre - heading * 5.0f + Vector3.up * 2.0f, centre + heading * 1.5f);
+                    Vector3 left = -Vector3.Cross(Vector3.up, heading).normalized;
+                    BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, $"{prefix}-f{frame:00}-frontleft", centre + heading * 3.2f + left * 2.4f, centre);
+                    // The sword hand close up, to see the grip.
+                    Vector3 grip = hand.position;
+                    BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, $"{prefix}-f{frame:00}-hand", grip + body.right * 1.3f + Vector3.up * 0.25f - heading * 0.2f, grip);
+                    BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, $"{prefix}-f{frame:00}-handfront", grip + heading * 1.1f + body.right * 0.5f + Vector3.up * 0.3f, grip);
                 }
                 if (System.Array.IndexOf(FixedFrames, frame) >= 0)
                 {
-                    BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, $"stabdash-fixed-f{frame:00}", middle + side * 8.5f + Vector3.up * 0.5f, middle);
+                    BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, $"{prefix}-fixed-f{frame:00}", middle + side * 8.5f + Vector3.up * 0.5f, middle);
                 }
             }
             Debug.Log($"CityX: stab dash capture wrote to {BuildingShapeCapture.ShotsFolder}; slid {stab.Slid:0.00} m, stopped {stab.Stopped}");

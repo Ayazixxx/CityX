@@ -140,6 +140,11 @@ ELBOW_WEIGHT = 80.0
 # And the blade's roll: a degree of wrist bend against this many degrees of roll away from the last pose's (see `edge_near`).
 EDGE_KEEP = 0.3
 
+# And a degree of the sword hand's twist about its own length, against the forearm's turn: a hand turned far round its forearm wrings the
+# arm's tube into a ribbon at the wrist. Off unless a move asks (SOLVER_TWIST_WEIGHT; the stab dash's thrust grip needs it), so Octaslash
+# and the spin solve as they were posed.
+TWIST_WEIGHT = globals().get("SOLVER_TWIST_WEIGHT", 0.0)
+
 # The grip holds the blade this far off the hand's own line (SwordWeapon's default hold), so a straight wrist leaves the blade at this angle to
 # the forearm.
 HAND_TO_BLADE = BLADE_REST.angle(unit(TAIL["hand_r"] - HEAD["hand_r"]))
@@ -197,11 +202,19 @@ def solve(P):
             # `edge_near`: the last pose's edge. Turning the blade far about its own length between two poses spins the sword in the hand for
             # nothing, so a roll close to it is preferred.
             near = unit(space @ U(*spec["edge_near"])) if spec.get("edge_near") is not None else None
+            # The forearm's own turn, as it is set below, for the hand's twist against it.
+            upper_now = unit(elbow - shoulder)
+            forearm_turn = upper_now.rotation_difference(forearm) @ delta(u_rest, FWD, upper_now, -(out - upper_now * out.dot(upper_now)))
+            hand_axis = unit(TAIL[h] - HEAD[h])
             best = None
             for edge in edges:
                 turn = delta(BLADE_REST, EDGE_REST, blade, edge)
                 bent = forearm.angle(unit(turn @ (TAIL[h] - HEAD[h])))
                 cost = math.degrees(bent) + (EDGE_KEEP * math.degrees(edge.angle(near)) if near is not None else 0.0)
+                if TWIST_WEIGHT > 0.0:
+                    r = forearm_turn.inverted() @ turn
+                    twist = 2.0 * math.degrees(math.atan2(Vector((r.x, r.y, r.z)).dot(hand_axis), r.w))
+                    cost += TWIST_WEIGHT * abs((twist + 180.0) % 360.0 - 180.0)
                 if best is None or cost < best[0]:
                     best = (cost, bent, turn)
             _, bent, Dh = best
