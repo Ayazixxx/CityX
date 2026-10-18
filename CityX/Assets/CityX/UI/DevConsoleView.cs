@@ -449,6 +449,10 @@ namespace CityX.UI
                     AimCommand(line.Argument(0), line.Argument(1));
                     return;
 
+                case "camera":
+                    CameraCommand(line.Argument(0), line.Argument(1));
+                    return;
+
                 case "sword":
                     SwordCommand(line.Argument(0), line.Argument(1));
                     return;
@@ -1432,6 +1436,51 @@ namespace CityX.UI
                     return;
             }
             Log($"flight {name} = {number}");
+        }
+
+        /// <summary>
+        /// "/camera height|distance|shoulder|fov &lt;value&gt;", "/camera reset" or a bare "/camera": the follow camera's framing, live, to try
+        /// other framings in play (owner, 2026-10-17: "i feel like the camera pov needs to be adjusted so i can see more of whats going on in
+        /// front of me"). For the session only; the defaults are ThirdPersonCamera's.
+        /// </summary>
+        private void CameraCommand(string sub, string a)
+        {
+            if (OrbitCamera == null)
+            {
+                Log("no camera here");
+                return;
+            }
+            if (sub == null)
+            {
+                Log($"camera: height {OrbitCamera.FramingHeight:0.00} m over the shoulder, distance {OrbitCamera.Distance:0.00} m, " +
+                    $"shoulder {OrbitCamera.ShoulderOffset:0.00} m, fov {OrbitCamera.RestFieldOfView:0}");
+                return;
+            }
+            if (sub == "reset")
+            {
+                OrbitCamera.FramingHeight = ThirdPersonCamera.DefaultFramingHeight;
+                OrbitCamera.Distance = ThirdPersonCamera.DefaultDistance;
+                OrbitCamera.ShoulderOffset = ThirdPersonCamera.DefaultShoulderOffset;
+                OrbitCamera.RestFieldOfView = ThirdPersonCamera.DefaultFieldOfView;
+                Log("camera back to its defaults");
+                return;
+            }
+            if (!TryParseFloat(a, out float value))
+            {
+                Log(DevCommands.UsageFor("camera"));
+                return;
+            }
+            switch (sub)
+            {
+                case "height": OrbitCamera.FramingHeight = value; break;
+                case "distance": OrbitCamera.Distance = Mathf.Max(0.5f, value); break;
+                case "shoulder": OrbitCamera.ShoulderOffset = value; break;
+                case "fov": OrbitCamera.RestFieldOfView = Mathf.Clamp(value, 30.0f, 120.0f); break;
+                default:
+                    Log(DevCommands.UsageFor("camera"));
+                    return;
+            }
+            Log($"camera {sub} set to {value:0.00}");
         }
 
         private void AimCommand(string sub, string a)

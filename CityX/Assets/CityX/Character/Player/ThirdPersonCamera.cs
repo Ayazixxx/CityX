@@ -36,19 +36,33 @@ namespace CityX.Character
         public const float RagdollPivotHeight = 0.4f;
 
         [Tooltip(
-            "Where the camera pivots on the body, as a fraction of standing height. " +
-            "0.73 puts it at 1.6m on a 2.2m body, matching player.gd's own " +
-            "BASE_CAMERA_PIVOT_HEIGHT -- a fraction rather than a metre value so it stays " +
-            "sensible when the height is changed.")]
+            "Where the camera pivots on the body, as a fraction of standing height: 0.73 is " +
+            "about 1.9 m on the 2.6 m body (player.gd's own BASE_CAMERA_PIVOT_HEIGHT was 0.73 " +
+            "of its body). A fraction rather than metres so it stays sensible when the height " +
+            "changes. The camera itself sits FramingHeight above this.")]
         public float PivotHeightFraction = 0.73f;
 
         /// <summary>
-        /// player.gd's own SpringArm3D spring_length (player.tscn), found by
-        /// actually reading Godot's real camera source instead of guessing --
-        /// EXPLICIT ASK: "I WANT IT EXACTLY THE SAME." Was 4.5, a guess made
-        /// without ever checking Godot's own real number.
+        /// How far above the pivot the camera sits, in the view's own up, metres. The body is framed in the lower half of the screen and the middle of
+        /// the screen shows what is in front, over the head (owner, 2026-10-17: "i feel like the camera pov needs to be adjusted so i can see more
+        /// of whats going on in front of me, look at other third person action/fighting games"). Looking level at the pivot (the chest) put the
+        /// head and shoulders in the middle of the screen: exactly where someone standing in front of you is. Third-person action games raise the
+        /// camera over the head and let the body sit low in the frame (the Souls games, Assassin's Creed; the Unreal and Cinemachine third-person
+        /// rigs' raised arm). In the view's own up, so the body keeps its place in the frame at any pitch. Eased away while aiming, whose
+        /// over-the-shoulder framing is its own (AimPivotRaise, AimShoulderOffset). See docs/CAMERA.md.
         /// </summary>
-        public float Distance = 4.0f;
+        public float FramingHeight = DefaultFramingHeight;
+
+        public const float DefaultFramingHeight = 1.3f;
+
+        /// <summary>
+        /// How far behind the pivot the camera hangs, metres (the spring arm's length, before walls pull it in). 4.0 was player.gd's own
+        /// spring_length; with the camera raised over the head (FramingHeight) it hangs a little further back, so more of the street and of
+        /// whoever is in front fits around the body (owner, 2026-10-17, see FramingHeight).
+        /// </summary>
+        public float Distance = DefaultDistance;
+
+        public const float DefaultDistance = 4.8f;
         public float LookDegreesPerPixel = 0.12f;
 
         /// <summary>
@@ -78,7 +92,15 @@ namespace CityX.Character
             "silhouette, with nothing on screen to actually judge alignment against. Matches " +
             "player.gd's own SHOULDER_OFFSET_X exactly -- was 0.85, a from-scratch guess made " +
             "without ever checking Godot's own already-tuned real number.")]
-        public float ShoulderOffset = 0.5f;
+        public float ShoulderOffset = DefaultShoulderOffset;
+
+        public const float DefaultShoulderOffset = 0.5f;
+
+        /// <summary>
+        /// The game camera's field of view when neither aiming nor flying, degrees (vertical): player.gd's own camera.fov. Set on the Camera by
+        /// the scene builder; this camera reads it from there at Start (RestFieldOfView).
+        /// </summary>
+        public const float DefaultFieldOfView = 75.0f;
 
         /// <summary>
         /// How far to the side of the pivot the camera sits while aiming, metres. HISTORY: 0.25, then 0.65, then 1.415 (player.gd's own
@@ -204,6 +226,13 @@ namespace CityX.Character
         /// <summary>How many times its own size the followed body is (Grow and Shrink scale its transform); 1 for anything else.</summary>
         private float BodyScale => Target != null ? Mathf.Clamp(Target.lossyScale.y, 0.01f, 100.0f) : 1.0f;
         private float _restFieldOfView;
+
+        /// <summary>The field of view when neither aiming nor flying, degrees (vertical): read off the Camera at Start, settable live (/camera fov).</summary>
+        public float RestFieldOfView
+        {
+            get => _restFieldOfView;
+            set => _restFieldOfView = value;
+        }
         private float _currentShoulderOffset;
 
         // Camera recoil is a VISUAL OFFSET layered on the aim (never written
@@ -610,7 +639,10 @@ namespace CityX.Character
                 AimShoulderOffsetMetresPerSecond * Time.deltaTime);
             _currentShoulderSide = Mathf.MoveTowards(
                 _currentShoulderSide, _shoulderSide, ShoulderSwapPerSecond * Time.deltaTime);
-            Vector3 shoulderPivot = pivot + rotation * Vector3.right * (_currentShoulderOffset * _currentShoulderSide * scale);
+            // Over the head (FramingHeight): the body sits low in the frame and the middle of the screen shows what is in front. Aiming eases
+            // down to its own over-the-shoulder framing.
+            float raise = FramingHeight * (1.0f - AimCameraBlend) * scale;
+            Vector3 shoulderPivot = pivot + rotation * new Vector3(_currentShoulderOffset * _currentShoulderSide * scale, raise, 0.0f);
             float distance = Mathf.Lerp(Distance + FlightDistanceBonus, AimDistance, AimCameraBlend) * scale;
             Vector3 wanted = shoulderPivot - rotation * Vector3.forward * distance;
 

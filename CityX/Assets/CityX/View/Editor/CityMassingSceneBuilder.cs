@@ -179,7 +179,7 @@ namespace CityX.ViewEditor
             // narrower than Godot's real 75 -- never noticed because nothing
             // ever set it either way). EXPLICIT ASK: "I WANT IT EXACTLY THE
             // SAME," found by actually reading player.gd instead of guessing.
-            camera.fieldOfView = 75.0f;
+            camera.fieldOfView = ThirdPersonCamera.DefaultFieldOfView;
             camera.backgroundColor = new Color(0.55f, 0.60f, 0.66f);
             camera.allowHDR = true;
             camera.allowMSAA = true;

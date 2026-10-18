@@ -140,6 +140,7 @@ namespace CityX.UI
             "jacket",
             "pistol",
             "aim",
+            "camera",
             "sword",
             "gun",
             "flight",
@@ -178,6 +179,8 @@ namespace CityX.UI
                     "live-tunes the aim camera's shoulder offset while aiming. /aim yaw rotates the WHOLE " +
                     "character (body, arm, and head together); /aim armyaw nudges just the arm/gun's own " +
                     "angle without moving the body";
+                case "camera": return "/camera -- shows the follow camera's numbers; /camera height <metres over the shoulder>, " +
+                    "/camera distance <metres back>, /camera shoulder <metres to the side>, /camera fov <degrees>, /camera reset";
                 case "sword": return "/sword -- lists every sword-combat number; /sword <name> <value> sets one " +
                     "(e.g. /sword BufferSeconds 0.3, /sword Heavy.Startup 0.8, /sword Light1.Recovery 0.5). " +
                     "Needs a sword equipped. Startup/Active/Recovery are seconds; Active is when the blade can hurt";

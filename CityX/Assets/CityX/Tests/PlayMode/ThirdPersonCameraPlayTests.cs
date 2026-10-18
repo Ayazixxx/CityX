@@ -66,6 +66,64 @@ namespace CityX.Tests
         }
 
         /// <summary>
+        /// THE FRAMING (owner, 2026-10-17: "i feel like the camera pov needs to be adjusted so i can see more of whats going on in front of
+        /// me"): looking level, the whole body sits in the lower half of the frame, and someone as tall standing a few metres in front is seen
+        /// over the head rather than behind it. Looking level at the chest, as the camera used to, put the head above the middle of the screen,
+        /// with whoever was in front hidden behind it.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator LookingLevelTheBodySitsLowInTheFrameAndWhoeverIsAheadIsSeenOverIt()
+        {
+            var rig = new GameObject("FramingRig");
+            Camera lens = rig.AddComponent<Camera>();
+            lens.fieldOfView = ThirdPersonCamera.DefaultFieldOfView;
+            ThirdPersonCamera follow = rig.AddComponent<ThirdPersonCamera>();
+            follow.Target = _target.transform;
+            follow.Yaw = 0.0f;
+            follow.Pitch = 0.0f;
+            try
+            {
+                yield return null;
+
+                const float height = 1.8f;   // what the camera assumes for a body without PlayerLocomotion
+                Vector3 feet = _target.transform.position;
+                Vector3 head = lens.WorldToViewportPoint(feet + Vector3.up * height);
+                Vector3 soles = lens.WorldToViewportPoint(feet);
+                Assert.Less(head.y, 0.5f, $"the top of the head is at {head.y:0.00} of the screen's height: above the middle, in front of what is ahead");
+                Assert.Greater(soles.y, 0.0f, "the feet are off the bottom of the screen");
+                Vector3 ahead = lens.WorldToViewportPoint(feet + Vector3.forward * 4.0f + Vector3.up * height);
+                Assert.Greater(ahead.y, head.y + 0.02f, "the head of someone as tall 4 m in front is hidden behind the player's own");
+            }
+            finally
+            {
+                Object.Destroy(rig);
+            }
+        }
+
+        /// <summary>Aiming keeps its own over-the-shoulder framing: the camera comes down from over the head to the aiming place.</summary>
+        [UnityTest]
+        public IEnumerator AimingBringsTheCameraDownFromOverTheHeadToItsOwnPlace()
+        {
+            yield return null;
+            float restHeight = _cameraObject.transform.position.y;
+
+            _camera.IsAiming = true;
+            for (int i = 0; i < 60; i++)   // a second; the camera takes a quarter to get there
+            {
+                yield return null;
+            }
+
+            const float height = 1.8f;
+            Vector3 expected = _target.transform.position
+                + Vector3.up * (_camera.PivotHeightFraction * height + _camera.AimPivotRaise)
+                + Vector3.right * _camera.AimShoulderOffset
+                - Vector3.forward * _camera.AimDistance;
+            Assert.Less(Vector3.Distance(expected, _cameraObject.transform.position), 0.01f,
+                $"aiming put the camera at {_cameraObject.transform.position}, not its over-the-shoulder place {expected}");
+            Assert.Less(_cameraObject.transform.position.y, restHeight - 0.5f, "aiming did not bring the camera down from over the head");
+        }
+
+        /// <summary>
         /// THE ACTUAL BUG this exists to catch: a wall right on top of the
         /// pivot used to clamp the camera down to its old 0.4m minimum,
         /// which combined with the camera's own 0.15m near clip plane left

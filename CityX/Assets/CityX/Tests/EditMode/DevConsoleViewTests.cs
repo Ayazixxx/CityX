@@ -320,5 +320,37 @@ namespace CityX.Tests
             Assert.DoesNotThrow(() => view.Submit("/goto"));
             Assert.AreEqual(before, vitals.transform.position, "an invalid /goto still moved the player");
         }
+
+        /// <summary>/camera tunes the follow camera's framing live, and /camera reset puts every number back to its default.</summary>
+        [Test]
+        public void TheCameraCommandTunesTheFollowCameraAndResetPutsItBack()
+        {
+            _bodyObject = new GameObject("Camera");
+            var follow = _bodyObject.AddComponent<ThirdPersonCamera>();
+            _consoleObject = new GameObject("DevConsole");
+            var view = _consoleObject.AddComponent<DevConsoleView>();
+            view.OrbitCamera = follow;
+            view.Bind();
+
+            view.Submit("/camera height 2");
+            view.Submit("/camera distance 6");
+            view.Submit("/camera shoulder 0.8");
+            view.Submit("/camera fov 60");
+            Assert.AreEqual(2.0f, follow.FramingHeight, 1e-4f, "/camera height");
+            Assert.AreEqual(6.0f, follow.Distance, 1e-4f, "/camera distance");
+            Assert.AreEqual(0.8f, follow.ShoulderOffset, 1e-4f, "/camera shoulder");
+            Assert.AreEqual(60.0f, follow.RestFieldOfView, 1e-4f, "/camera fov");
+
+            view.Submit("/camera reset");
+            Assert.AreEqual(ThirdPersonCamera.DefaultFramingHeight, follow.FramingHeight, 1e-4f);
+            Assert.AreEqual(ThirdPersonCamera.DefaultDistance, follow.Distance, 1e-4f);
+            Assert.AreEqual(ThirdPersonCamera.DefaultShoulderOffset, follow.ShoulderOffset, 1e-4f);
+            Assert.AreEqual(ThirdPersonCamera.DefaultFieldOfView, follow.RestFieldOfView, 1e-4f);
+
+            Assert.DoesNotThrow(() => view.Submit("/camera"));
+            Assert.DoesNotThrow(() => view.Submit("/camera height"));
+            Assert.DoesNotThrow(() => view.Submit("/camera nonsense 3"));
+            Assert.AreEqual(ThirdPersonCamera.DefaultFramingHeight, follow.FramingHeight, 1e-4f, "a bad /camera changed the framing");
+        }
     }
 }
