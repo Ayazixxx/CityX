@@ -499,16 +499,17 @@ namespace CityX.Character
         /// <paramref name="fullCircle"/> skips the forward-arc check
         /// entirely -- the spin attack's own whole point, matching Smash's
         /// up-special hitting all around rather than only what an ordinary
-        /// swing's HalfArcDegrees would let it reach.
+        /// swing's HalfArcDegrees would let it reach. <paramref name="halfArc"/>
+        /// narrows or widens the arc for one blow (a thrust's is narrow).
         /// </summary>
-        private List<Contact> ContactsInReach(bool fullCircle = false, float reach = -1.0f)
+        private List<Contact> ContactsInReach(bool fullCircle = false, float reach = -1.0f, float halfArc = -1.0f)
         {
             var found = new List<Contact>();
             Vector3 origin = SwingOrigin();
 
             Collider[] hits = Physics.OverlapSphere(origin, reach > 0.0f ? reach : Range, TargetLayers,
                 QueryTriggerInteraction.Ignore);
-            float cosLimit = Mathf.Cos(HalfArcDegrees * Mathf.Deg2Rad);
+            float cosLimit = Mathf.Cos((halfArc > 0.0f ? halfArc : HalfArcDegrees) * Mathf.Deg2Rad);
 
             foreach (Collider collider in hits)
             {
@@ -748,11 +749,13 @@ namespace CityX.Character
         }
 
         /// <summary>
-        /// One cut of a sword ability that is not a swing (Octaslash): everything within <paramref name="reach"/> all round the body takes
-        /// <paramref name="scale"/> times the sword's damage (Strength and Bloodrage included, as every sword blow), and, if
-        /// <paramref name="launch"/> is not zero, whatever can be launched is sent that way. Returns how many it hit. Nothing without a sword.
+        /// One cut of a sword ability that is not a swing (Octaslash, the stab dash): everything within <paramref name="reach"/> all round the
+        /// body, or within <paramref name="halfArcDegrees"/> of straight ahead when that is under 180, takes <paramref name="scale"/> times the
+        /// sword's damage (Strength and Bloodrage included, as every sword blow), and, if <paramref name="launch"/> is not zero, whatever can be
+        /// launched is sent that way. A target already in <paramref name="once"/> is spared, and one hit is added to it (a move that hurts each
+        /// target once). Returns how many it hit. Nothing without a sword.
         /// </summary>
-        public int LandSwordCut(float scale, float reach, Vector3 launch)
+        public int LandSwordCut(float scale, float reach, Vector3 launch, float halfArcDegrees = 180.0f, HashSet<IDamageable> once = null)
         {
             if (!HoldsSword || scale <= 0.0f)
             {
@@ -762,14 +765,19 @@ namespace CityX.Character
             float damage = CombatTuning.DamageFor(EquippedWeapon.GetMeleeDamage() * scale, strength) * BloodrageFactor;
             Vector3 origin = SwingOrigin();
             int hits = 0;
-            foreach (Contact contact in ContactsInReach(fullCircle: true, reach: reach))
+            foreach (Contact contact in ContactsInReach(fullCircle: halfArcDegrees >= 180.0f, reach: reach, halfArc: halfArcDegrees))
             {
+                if (once != null && once.Contains(contact.Target))
+                {
+                    continue;
+                }
                 HitResponse response = DamageContext.Strike(contact.Target, damage, transform.position, CombatTuning.HitstunSeconds, DamageKind.Physical, Penetration, contact.Point);
                 if (response == HitResponse.Ignored)
                 {
                     continue;
                 }
                 hits++;
+                once?.Add(contact.Target);
                 Landed?.Invoke(contact.Target, damage);
                 if (launch.sqrMagnitude > 0.0f && contact.Target.IsAlive && contact.Target is ILaunchable launchable)
                 {

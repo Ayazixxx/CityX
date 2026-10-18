@@ -316,6 +316,50 @@ namespace CityX.Tests
         }
 
         [UnityTest]
+        public IEnumerator AnotherPlayersStabDashLungesOnTheirBodyThenLetsGoAndHurtsNothing()
+        {
+#if UNITY_EDITOR
+            GameObject body = RemoteBody();
+            var stab = body.AddComponent<StabDashAbility>();
+            var locomotion = body.GetComponent<PlayerLocomotion>();
+            Animator animator = body.GetComponentInChildren<Animator>();
+            Transform hips = animator.GetBoneTransform(HumanBodyBones.Hips);
+            Transform hand = animator.GetBoneTransform(HumanBodyBones.RightHand);
+            // The other player's sword, as their copy carries it (ICosmeticMountable).
+            GameObject sword = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/Sword.prefab"));
+            _made.Add(sword);
+            sword.GetComponent<ICosmeticMountable>().MountCosmetic(body);
+            Victim victim = VictimAt(body.transform.position + body.transform.forward * 2.0f + Vector3.up);
+            yield return null;
+            float standingHips = hips.localPosition.y;
+            Vector3 start = body.transform.position;
+
+            stab.PlayRemote(new AbilityEvent(StabDashAbility.EventStarted, body.transform.position, body.transform.forward));
+            while (stab.IsActive && stab.Elapsed < 20.0f / 60.0f)
+            {
+                yield return null;
+            }
+            Assert.Greater(locomotion.BakedPoseWeight, 0.99f, "the stab's animation is not on the copy");
+            Assert.Less(hips.localPosition.y, standingHips - 0.3f, "the copy is not low in the lunge");
+            Assert.Greater(body.transform.InverseTransformPoint(hand.position).z, 0.9f, "the copy's sword arm is not thrust out ahead");
+
+            for (float t = 0.0f; t < 2.0f && stab.IsActive; t += Time.deltaTime)
+            {
+                yield return null;
+            }
+            yield return null;
+            Assert.IsFalse(stab.IsActive, "the copy's move never ended");
+            Assert.AreEqual(0.0f, locomotion.BakedPoseWeight, "the copy was left holding the animation");
+            Vector3 moved = body.transform.position - start;
+            moved.y = 0.0f;
+            Assert.Less(moved.magnitude, 0.05f, "the copy slid itself: its slide comes with the other player's own transform");
+            Assert.AreEqual(0, victim.Hits, "a copy's stab hurt someone");
+#else
+            yield break;
+#endif
+        }
+
+        [UnityTest]
         public IEnumerator TheSyncFindsAnAbilityByItsHashAndIgnoresStrangers()
         {
 #if UNITY_EDITOR

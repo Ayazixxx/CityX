@@ -231,6 +231,7 @@ namespace CityX.Character
             _acidRain = GetComponent<IAcidRainCaster>();
             _selfSmite = GetComponent<SelfSmiteAbility>();
             _bodySize = GetComponent<BodySizeAbility>();
+            _stabDash = GetComponent<StabDashAbility>();
 
             // The player gets wet in the rain and dries under cover. Added here
             // rather than baked into the prefab: only the real, local player has
@@ -280,6 +281,7 @@ namespace CityX.Character
                 _octaslash = GetComponent<OctaslashAbility>();
             }
             _octaslash?.Interrupt();
+            _stabDash?.Interrupt();
             _melee?.InterruptSpinCharge();
         }
 
@@ -498,6 +500,20 @@ namespace CityX.Character
             // read, and the body is ticked with no movement (it is rooted), so gravity and the Animator carry on. Mouse look still turns the camera.
             if (_selfSmite != null && _selfSmite.HoldsTheBody)
             {
+                _locomotion.Tick(new LocomotionInput { YawDegrees = transform.eulerAngles.y }, deltaTime);
+                _audio?.SilenceFootsteps();
+                return;
+            }
+
+            // THE STAB DASH HOLDS THE BODY too (StabDashAbility), from the key to the end of its recovery, as Smash's Power Thrust commits: it
+            // moves the body itself, and until the lunge leaves it keeps turning to where the camera looks.
+            if (_stabDash != null && _stabDash.HoldsTheBody)
+            {
+                Transform looking = YawSource != null ? YawSource : (Camera.main != null ? Camera.main.transform : null);
+                if (_stabDash.IsWindingUp && looking != null)
+                {
+                    _stabDash.Aim(looking.forward);
+                }
                 _locomotion.Tick(new LocomotionInput { YawDegrees = transform.eulerAngles.y }, deltaTime);
                 _audio?.SilenceFootsteps();
                 return;

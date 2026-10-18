@@ -19,8 +19,8 @@ namespace CityX.Tests
         {
             SkillCatalog.Vault, SkillCatalog.Dash, SkillCatalog.Climb, SkillCatalog.SuperJump, SkillCatalog.WallStick,
             SkillCatalog.Fireball, SkillCatalog.IceShards, SkillCatalog.PoisonBreath, SkillCatalog.AcidRain,
-            SkillCatalog.SwordSpin, SkillCatalog.SwordWave, SkillCatalog.Octaslash, SkillCatalog.Bloodrage, SkillCatalog.SelfSmite,
-            SkillCatalog.Grow, SkillCatalog.Shrink,
+            SkillCatalog.SwordSpin, SkillCatalog.SwordWave, SkillCatalog.Octaslash, SkillCatalog.StabDash, SkillCatalog.Bloodrage,
+            SkillCatalog.SelfSmite, SkillCatalog.Grow, SkillCatalog.Shrink,
         };
 
         [Test]
@@ -83,6 +83,7 @@ namespace CityX.Tests
             Assert.AreEqual(AcidRainCaster.Id, SkillCatalog.AcidRain);
             Assert.AreEqual(SwordWaveCaster.Id, SkillCatalog.SwordWave);
             Assert.AreEqual(OctaslashAbility.Id, SkillCatalog.Octaslash);
+            Assert.AreEqual(StabDashAbility.Id, SkillCatalog.StabDash);
             Assert.AreEqual(BloodrageAbility.Id, SkillCatalog.Bloodrage);
             Assert.AreEqual(MeleeAttacker.SpinAbilityId, SkillCatalog.SwordSpin);
             Assert.AreEqual(SelfSmiteAbility.Id, SkillCatalog.SelfSmite);
@@ -121,7 +122,8 @@ namespace CityX.Tests
         public void TheSwordTechniquesNeedASwordAndNothingElseDoes()
         {
             var needs = SkillCatalog.Nodes.Where(n => n.NeedsSword).Select(n => n.Id).OrderBy(id => id).ToArray();
-            CollectionAssert.AreEqual(new[] { SkillCatalog.Octaslash, SkillCatalog.SwordSpin, SkillCatalog.SwordWave }.OrderBy(id => id).ToArray(), needs);
+            CollectionAssert.AreEqual(new[] { SkillCatalog.Octaslash, SkillCatalog.StabDash, SkillCatalog.SwordSpin, SkillCatalog.SwordWave }
+                .OrderBy(id => id).ToArray(), needs);
         }
 
         [Test]

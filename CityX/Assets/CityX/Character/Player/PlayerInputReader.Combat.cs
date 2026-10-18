@@ -377,6 +377,15 @@ namespace CityX.Character
             bool octaslashBusy = _octaslash != null && _octaslash.IsActive;
             spinning |= octaslashBusy;
 
+            // THE STAB DASH (Power Thrust), from its slot on the bar with the sword in hand: a short wind-up, then a lunge a dash's length where
+            // the camera looks, the blade thrust out. It holds the body from here (PlayerInputReader.Update), so a held guard is let go now.
+            if (_stabDash != null && source != null && !spinning && !souls.IsCommitted && _skills.Pressed(SkillCatalog.StabDash, keyboard)
+                && _stabDash.TryStart(source.forward))
+            {
+                souls.SetBlockHeld(false);
+                return;
+            }
+
             // THE HEAVY IS THE MIDDLE MOUSE BUTTON (the wheel's click): the overhead with a one-handed sword, the slam with a two-handed one.
             // F stays unbound -- explicit ask: "F shouldnt do anything yet."
             if (mouse.middleButton.wasPressedThisFrame && !octaslashCharging && !spinning)

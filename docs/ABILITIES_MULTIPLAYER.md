@@ -43,6 +43,7 @@ ability.Fired(event) ───────► SendAbilityToServer ────�
 | Self Smite (9) | `self-smite` | once per cast | the same animation, cloud, bolt, burst, light, sky flash and thunder on the same timeline; hurts nothing, never rooted -- see docs/SELF_SMITE.md |
 | Grow, Shrink (0, and the Wizard tree) | `body-size` | once per cast or early end | the swirl of motes, the chime and the raised hand; the SIZE itself comes with the body's NetworkTransform (it syncs scale), so a late joiner sees it too -- see docs/SIZE_SPELLS.md |
 | Sword spin (2) | `sword-spin` | charging begun, turn begun (A = 1 for air, B = charge), ended | the Blender animation (the turn is inside it) and the light trailing from the blade, on the same timeline -- see docs/SWORD_SPIN.md |
+| Stab dash (Sword tree, sword) | `stab-dash` | begun (direction), ended | the Blender animation (the squat, the thrust, the lunge) on the same timeline; the slide and facing come with the body's transform; hurts nothing -- see docs/STAB_DASH.md |
 
 The spin's rise is ordinary movement and arrives with the body's own transform; its turn is inside the animation (since 2026-10-17), so a
 copy whirls smoothly whatever the transform sync's rate.

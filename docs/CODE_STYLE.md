@@ -28,6 +28,7 @@ conventions down and apply them every time.
    - `Character/Interaction/InteractionReach.LookSource`, `CanReach`, `LocalPlayerBody` and `IsLeaving`: where a player looks from, whether a
      pickup is in reach, and which body entering or leaving its trigger is this machine's player.
    - `Tests/PlayMode/BuildingShapeCapture.Shoot` and `ShotsFolder`: render a camera to `Logs/CityShots/<name>.png` (20 captures use it).
+   - `Tests/PlayMode/OpenRun.Face`: turn the player to look along an open, level run of street (the tests of moves that travel).
    - `Character/Editor/ClipAsset.Store`: save a generated animation clip into the one already at its path. Never delete and re-create an
      asset that prefabs or controllers hold: what still held the deleted one saves a blank.
    - Already shared before: `TwoBoneIK`, `DeterministicRandom`, `CaptureGuard` (tests), the `*Strikes` keyframe tables and others.

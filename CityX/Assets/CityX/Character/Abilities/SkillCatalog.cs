@@ -62,7 +62,7 @@ namespace CityX.Character
         /// <summary>Everyone has it from the start (vaulting: the tutorial teaches it, owner 2026-10-14).</summary>
         public readonly bool KnownFromStart;
 
-        /// <summary>Only with a sword in hand (the sword's spin, wave and Octaslash).</summary>
+        /// <summary>Only with a sword in hand (the sword's spin, wave, Octaslash and stab dash).</summary>
         public readonly bool NeedsSword;
 
         public SkillNode(string id, string name, string treeId, SkillKind kind, Vector2 position, string description,
@@ -108,6 +108,7 @@ namespace CityX.Character
         public const string SwordSpin = "sword-spin";
         public const string SwordWave = "sword-wave";
         public const string Octaslash = "octaslash";
+        public const string StabDash = "stab-dash";
         public const string Bloodrage = "bloodrage";
         public const string SelfSmite = "self-smite";
         public const string Grow = "grow";
@@ -227,6 +228,9 @@ namespace CityX.Character
                     "With a sword: a swing that sends a crescent of light down the crosshair.", new[] { SwordSpin }, needsSword: true),
                 new SkillNode(Octaslash, "Octaslash", "sword", SkillKind.Ability, At(0.8f, 1),
                     "With a sword: a long wind-up, then a dash of eight cuts where the camera looks. Click to send it early.",
+                    new[] { SwordSpin }, needsSword: true),
+                new SkillNode(StabDash, "Stab Dash", "sword", SkillKind.Ability, At(0, 1),
+                    "With a sword: draw back, then lunge a dash's length where the camera looks with the blade thrust out. It hits hardest at once.",
                     new[] { SwordSpin }, needsSword: true),
                 Empty("sword", 1, At(-0.8f, 2), SwordWave),
                 Empty("sword", 2, At(0.8f, 2), Octaslash),

@@ -68,6 +68,9 @@ namespace CityX.CharacterEditor
             var octaslash = GetOrAdd<OctaslashAbility>(player);
             octaslash.SlashMaterial = SwordSlashMaterialBuilder.Ensure();
 
+            // --- the stab dash (Sword tree, sword in hand): the Mii Swordfighter's Power Thrust. Its look is its Blender animation, in Resources.
+            GetOrAdd<StabDashAbility>(player);
+
             // --- Self Smite (Electromancer, key 9 on the default bar): Pikachu's Thunder. Its bolt is drawn in code; only the thunder is an asset.
             var selfSmite = GetOrAdd<SelfSmiteAbility>(player);
             selfSmite.StrikeSound = AssetDatabase.LoadAssetAtPath<AudioClip>(ThunderStrikeClipPath) ?? selfSmite.StrikeSound;

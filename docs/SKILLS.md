@@ -18,7 +18,7 @@ One row, left to right, wrapping round: **Freerunner, Sword, Berserker, Pyromanc
 | Tree | Stars | Notes |
 |---|---|---|
 | Freerunner | Vault (root, everyone has it) -> Dash, Climb, Super Jump; Wall Stick above Climb | the owner's shape; Wall Stick's place is mine |
-| Sword | Sword Spin -> Sword Wave, Octaslash | the three need a sword in hand |
+| Sword | Sword Spin -> Sword Wave, Stab Dash, Octaslash | the four need a sword in hand; Stab Dash (2026-10-18) is the owner's, docs/STAB_DASH.md |
 | Berserker | Bloodrage | |
 | Pyromancer | Fireball | its top star joins Steam |
 | Steam | one star, high in the gap | a hybrid (fire + water), not in the game yet: drawn faded |

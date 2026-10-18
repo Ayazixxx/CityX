@@ -31,6 +31,8 @@ namespace CityX.Character
 
         private OctaslashAbility _octaslash;
 
+        private StabDashAbility _stabDash;
+
         /// <summary>5: ACID RAIN, a green storm called down where the crosshair points (no further than its reach), burning everyone out in the open.</summary>
         private void CastAcidRain(Transform aimSource)
         {

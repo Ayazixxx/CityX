@@ -1,7 +1,6 @@
 using System.Collections;
 using CityX.Character;
 using CityX.Items;
-using CityX.World;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -104,40 +103,6 @@ namespace CityX.Tests
 #endif
         }
 
-        /// <summary>Looks along a level, open run from where the player stands (no building in the next 30 m), and returns that direction.</summary>
-        private Vector3 FaceAnOpenRun()
-        {
-            CityWorld world = CurrentWorld.Instance;
-            Vector3 from = _vitals.transform.position;
-            float bestRise = float.MaxValue;
-            Vector3 heading = Vector3.forward;
-            for (int a = 0; a < 72; a++)
-            {
-                var dir = new Vector3(Mathf.Sin(a * 5.0f * Mathf.Deg2Rad), 0.0f, Mathf.Cos(a * 5.0f * Mathf.Deg2Rad));
-                double h0 = world.Plan.GroundHeight(from.x, from.z);
-                float rise = 0.0f;
-                bool open = true;
-                for (float run = 2.0f; run <= 30.0f && open; run += 2.0f)
-                {
-                    Vector3 p = from + dir * run;
-                    rise = Mathf.Max(rise, (float)(world.Plan.GroundHeight(p.x, p.z) - h0));   // only ground rising into the dash matters
-                    open = world.Plan.BuildingAt(p.x, p.z, 3.0) < 0;
-                }
-                if (open && rise < bestRise)
-                {
-                    bestRise = rise;
-                    heading = dir;
-                }
-            }
-            Assert.Less(bestRise, 0.6f, "setup: no level or downhill open run from the spawn");
-            var yaw = new GameObject("TestYaw");
-            _made.Add(yaw);
-            yaw.transform.position = _vitals.transform.position + Vector3.up * 2.4f;
-            yaw.transform.rotation = Quaternion.LookRotation(heading, Vector3.up);
-            _vitals.GetComponent<PlayerInputReader>().YawSource = yaw.transform;
-            return heading;
-        }
-
         private Target Dummy(Vector3 feet)
         {
             var go = new GameObject("Target");
@@ -163,7 +128,7 @@ namespace CityX.Tests
         public IEnumerator SixWindsUpForTwoAndAHalfSecondsThenDashesWhereTheCameraLooksCuttingEightTimes()
         {
             yield return LoadScene(withSword: true);
-            Vector3 heading = FaceAnOpenRun();
+            Vector3 heading = OpenRun.Face(_vitals, _made);
             yield return null;
             Vector3 start = _vitals.transform.position;
             Target target = Dummy(start + heading * 7.0f);
@@ -226,7 +191,7 @@ namespace CityX.Tests
         public IEnumerator AClickDuringTheWindUpSendsItAtOnce()
         {
             yield return LoadScene(withSword: true);
-            FaceAnOpenRun();
+            OpenRun.Face(_vitals, _made);
             yield return null;
 
             Press(_keyboard.digit6Key);
@@ -286,7 +251,7 @@ namespace CityX.Tests
         public IEnumerator OctaslashCapture()
         {
             yield return LoadScene(withSword: true);
-            Vector3 heading = FaceAnOpenRun();
+            Vector3 heading = OpenRun.Face(_vitals, _made);
             Time.captureFramerate = 60;
             yield return null;
             Vector3 side = Vector3.Cross(Vector3.up, heading);
@@ -323,7 +288,7 @@ namespace CityX.Tests
         public IEnumerator OctaslashFilm()
         {
             yield return LoadScene(withSword: true);
-            Vector3 heading = FaceAnOpenRun();
+            Vector3 heading = OpenRun.Face(_vitals, _made);
             Time.captureFramerate = 60;
             yield return null;
             Vector3 side = Vector3.Cross(Vector3.up, heading);
