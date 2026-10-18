@@ -771,6 +771,12 @@ namespace CityX.Character
         /// </summary>
         private void LateUpdate()
         {
+            // A copy of another player's body is never Ticked (nothing drives it): its impact freeze is counted down here instead.
+            if (_impactFrozen && _freezeTickedFrame != Time.frameCount)
+            {
+                TickImpactFreeze(Time.deltaTime);
+            }
+
             // Only a live Animator has a torso pose worth following; a frozen or ragdolled one is held flat.
             bool animatorLive = _animator != null && _animator.enabled;
             float torsoTarget = !animatorLive ? 0.0f
@@ -1167,6 +1173,13 @@ namespace CityX.Character
                 _gunFireHold = Mathf.Max(0.0f, _gunFireHold - deltaTime);
             }
 
+            // An impact holds the whole body still (PlayerLocomotion.Impact.cs): nothing below runs until it lets go.
+            _freezeTickedFrame = Time.frameCount;
+            if (TickImpactFreeze(deltaTime))
+            {
+                return;
+            }
+
             // See FallThroughWorldY's own doc comment. Checked first, every
             // Tick, unconditionally -- cheap when it never fires (which is
             // every ordinary frame), and it must run before anything below
@@ -1183,6 +1196,8 @@ namespace CityX.Character
             LastWallHitNormal = Vector3.zero;
 
             ApplyHeight();
+            // A blow still throwing the body back (PlayerLocomotion.Impact.cs), under whatever the keys ask for.
+            ApplyShove(deltaTime);
 
             Vector3 direction = input.WorldDirection();
             bool moving = direction.sqrMagnitude > 0.0001f;

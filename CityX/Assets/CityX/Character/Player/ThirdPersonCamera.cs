@@ -220,6 +220,74 @@ namespace CityX.Character
         private float _yaw;
         private float _pitch = 12.0f;
         private PlayerLocomotion _player;
+
+        // THE IMPACT SHAKE (owner, 2026-10-17: "the hits dont feel impactful at all"): a blow taken or landed jolts the picture for a quarter of
+        // a second, a smooth wobble that dies away rather than a random jump (action games scale it with the blow). It moves only where the
+        // camera is drawn from, never where it looks: aim, the crosshair and the hit traces are untouched, and it ends exactly where it began.
+        private float _shakeMetres;
+        private float _shakeSeconds;
+        private float _shakeRemaining;
+        private float _shakePhaseX;
+        private float _shakePhaseY;
+
+        /// <summary>The follow camera of this machine's own player (the last one enabled), or null: whoever shows a hit asks it to shake.</summary>
+        public static ThirdPersonCamera Local { get; private set; }
+
+        /// <summary>How far the shake has the picture off its place right now, metres (for tests).</summary>
+        public Vector3 ShakeOffset { get; private set; }
+
+        /// <summary>
+        /// Jolts the picture by up to <paramref name="metres"/> (dying away over <paramref name="seconds"/>). A bigger shake replaces a smaller
+        /// one still going; a smaller one is ignored, so a flurry of hits does not add up to a blur.
+        /// </summary>
+        public void AddShake(float metres, float seconds)
+        {
+            if (!(metres > 0.0f) || !(seconds > 0.0f))
+            {
+                return;
+            }
+            float going = _shakeSeconds > 0.0f ? _shakeMetres * Mathf.Clamp01(_shakeRemaining / _shakeSeconds) : 0.0f;
+            if (metres <= going)
+            {
+                return;
+            }
+            _shakeMetres = metres;
+            _shakeSeconds = seconds;
+            _shakeRemaining = seconds;
+            _shakePhaseX = Random.value * 6.2831f;
+            _shakePhaseY = Random.value * 6.2831f;
+        }
+
+        /// <summary>This frame's shake, in the camera's own right and up: two wobbles of unequal rate, dying away with the square of the life left.</summary>
+        private Vector3 TickShake(float deltaTime)
+        {
+            if (_shakeRemaining <= 0.0f)
+            {
+                ShakeOffset = Vector3.zero;
+                return Vector3.zero;
+            }
+            _shakeRemaining -= deltaTime;
+            float life = Mathf.Clamp01(_shakeRemaining / _shakeSeconds);
+            float amplitude = _shakeMetres * life * life;
+            float t = _shakeSeconds - _shakeRemaining;
+            float x = Mathf.Sin(t * 2.0f * Mathf.PI * 23.0f + _shakePhaseX) * 0.7f + Mathf.Sin(t * 2.0f * Mathf.PI * 37.0f + _shakePhaseX * 1.3f) * 0.3f;
+            float y = Mathf.Sin(t * 2.0f * Mathf.PI * 29.0f + _shakePhaseY) * 0.7f + Mathf.Sin(t * 2.0f * Mathf.PI * 41.0f + _shakePhaseY * 1.3f) * 0.3f;
+            ShakeOffset = new Vector3(x * amplitude, y * amplitude, 0.0f);
+            return ShakeOffset;
+        }
+
+        private void OnEnable()
+        {
+            Local = this;
+        }
+
+        private void OnDisable()
+        {
+            if (Local == this)
+            {
+                Local = null;
+            }
+        }
         private Camera _camera;
         private float _restNearClip;
 
@@ -683,6 +751,9 @@ namespace CityX.Character
             {
                 wanted = pivot + direction * Mathf.Max(MinDistance * scale, nearest - 0.1f * scale);
             }
+
+            // The impact shake, last: after the walls have had their say, and only on where the picture is taken from.
+            wanted += rotation * (TickShake(Time.deltaTime) * scale);
 
             transform.position = wanted;
             transform.rotation = rotation;

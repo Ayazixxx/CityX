@@ -251,44 +251,6 @@ namespace CityX.Tests
             }
         }
 
-        /// <summary>
-        /// The blood burst matches weapons/blood_splatter.tscn's own numbers.
-        ///
-        /// Pinned because they are the difference between a spurt and a
-        /// fountain, and nothing about a wrong one throws -- 14 droplets at
-        /// 0.4s reads as a hit landing, the same system at 140 for 4s reads as
-        /// a special effect.
-        /// </summary>
-        [Test]
-        public void TheBloodSplatterMatchesTheGodotScene()
-        {
-            var prefab = LoadPrefab();
-            var melee = prefab.GetComponent<MeleeAttacker>();
-            Assert.IsNotNull(melee.BloodPrefab, "no blood prefab wired to the punch");
-
-            var particles = melee.BloodPrefab.GetComponent<ParticleSystem>();
-            Assert.IsNotNull(particles, "the blood prefab has no particle system");
-            Assert.IsNotNull(melee.BloodPrefab.GetComponent<BloodSplatter>(),
-                "nothing frees the burst, so every punch leaks a GameObject");
-
-            ParticleSystem.MainModule main = particles.main;
-            Assert.AreEqual(0.4f, main.startLifetime.constant, 0.001f, "lifetime");
-            Assert.AreEqual(1.2f, main.startSpeed.constantMin, 0.001f, "initial_velocity_min");
-            Assert.AreEqual(2.8f, main.startSpeed.constantMax, 0.001f, "initial_velocity_max");
-            Assert.IsFalse(main.loop, "one_shot -- a looping spray is a wound, not a blow");
-
-            // amount = 14, delivered as a single burst (explosiveness 1.0)
-            // rather than a rate.
-            var bursts = new ParticleSystem.Burst[particles.emission.burstCount];
-            particles.emission.GetBursts(bursts);
-            Assert.AreEqual(1, bursts.Length, "expected exactly one burst");
-            Assert.AreEqual(14, bursts[0].maxCount, "amount");
-            Assert.AreEqual(0.0f, particles.emission.rateOverTime.constant, 0.001f,
-                "a steady rate would read as bleeding rather than as impact");
-
-            Assert.AreEqual(28.0f, particles.shape.angle, 0.001f, "spread");
-        }
-
         [Test]
         public void BlendThresholdsMatchTheControllerSpeeds()
         {

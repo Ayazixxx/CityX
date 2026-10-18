@@ -213,7 +213,13 @@ namespace CityX.Character
 
         private void OnDied()
         {
-            Activate(_locomotion != null ? _locomotion.Velocity : Vector3.zero);
+            // The body's own motion, plus the fling of the blow that killed it (PlayerVitals.DeathImpulse: a melee kill throws the corpse).
+            Vector3 velocity = _locomotion != null ? _locomotion.Velocity : Vector3.zero;
+            if (_vitals != null)
+            {
+                velocity += _vitals.DeathImpulse;
+            }
+            Activate(velocity);
         }
 
         private void OnRevived()

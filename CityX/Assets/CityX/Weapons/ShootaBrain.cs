@@ -122,6 +122,11 @@ namespace CityX.Weapons
         {
             _locomotion = GetComponent<PlayerLocomotion>();
             _vitals = GetComponent<PlayerVitals>();
+            // What a blow does to him: the freeze, the shove, the blood (as on the player's body, where PlayerInputReader adds it).
+            if (GetComponent<HitImpactEffects>() == null)
+            {
+                gameObject.AddComponent<HitImpactEffects>();
+            }
             _driver = GetComponent<PlayerAnimationDriver>();
             _controller = GetComponent<CharacterController>();
             _animator = GetComponentInChildren<Animator>();
@@ -390,11 +395,11 @@ namespace CityX.Weapons
                     IDamageable target = hit.collider.GetComponentInParent<IDamageable>();
                     if (target != null && target.IsAlive && !ReferenceEquals(target, _vitals))
                     {
-                        DamageContext.Strike(target, _profile.Damage * DamageScale, origin, 0.0f, DamageKind.Bullet, 0.0f);
+                        DamageContext.Strike(target, _profile.Damage * DamageScale, origin, 0.0f, DamageKind.Bullet, 0.0f, hit.point);
                         Hits++;
-                        if (_gun.BloodPrefab != null)
+                        if (!(target is PlayerVitals))
                         {
-                            BloodSplatter.Spawn(_gun.BloodPrefab, hit.point, origin - hit.point);
+                            BloodBurst.Spawn(hit.point, hit.point - origin, 0.6f);
                         }
                     }
                 }

@@ -47,6 +47,7 @@ namespace CityX.Character
         private FlinchPoseDriver _flinch;
         private GunReloadDriver _gunReload;
         private PlayerVitals _vitals;
+        private PlayerLocomotion _locomotion;
 
         /// <summary>The masked layers the poison breath's scream plays on: torso and head, and the arms (separate, so a sword swing can keep them).</summary>
         public const string TorsoLayerName = "ScreamTorso";
@@ -169,6 +170,7 @@ namespace CityX.Character
                 _gunReload = gameObject.AddComponent<GunReloadDriver>();
             }
             _vitals = GetComponent<PlayerVitals>();
+            _locomotion = GetComponent<PlayerLocomotion>();
         }
 
         /// <summary>The procedural sword poser on this body (an attack's progress, a guard held), for tests and captures.</summary>
@@ -252,7 +254,7 @@ namespace CityX.Character
             // EquippedWeapon anything for animation purposes.
             string moveset = _melee != null ? _melee.EquippedWeapon?.MovesetId : null;
             string blockState = moveset == ComboChain.Sword ? "SwordBlock" : "Block";
-            _animator.speed = 1.0f;
+            SetAnimatorSpeed(1.0f);
             PlayState(blockState);
             StatePlayed?.Invoke(blockState);
         }
@@ -267,7 +269,7 @@ namespace CityX.Character
             // Melee Speed (2026-10-14): the swing runs faster, and other players' copies are told how fast.
             float speed = _melee != null ? _melee.SwingSpeed : 1.0f;
             bool procedural = FistStrikes.Has(stage.Animation) || SwordStrikes.Has(stage.Animation);
-            _animator.speed = procedural ? 1.0f : speed;
+            SetAnimatorSpeed(procedural ? 1.0f : speed);
             PlayState(stage.Animation);
             if (Mathf.Approximately(speed, 1.0f))
             {
@@ -289,6 +291,16 @@ namespace CityX.Character
             if (SwordStrikes.Has(stateName))
             {
                 _sword?.SetSpeed(speed);
+                // A sword swing held at 0 is a hit-stop: the whole body is held with it (PlayerLocomotion.Impact.cs), here and on a copy told
+                // the same speed -- let go when the swing runs again, or on its own if that word never comes.
+                if (speed <= 0.0f)
+                {
+                    _locomotion?.ImpactFreeze(PlayerLocomotion.MaxImpactFreezeSeconds);
+                }
+                else
+                {
+                    _locomotion?.ReleaseImpactFreeze();
+                }
                 return true;
             }
             if (GunReload.Has(stateName))
@@ -313,6 +325,9 @@ namespace CityX.Character
 
         /// <summary>A blow the player this body is a copy of stopped outright with a block (BlockDeflectEffect.StateName, from the network).</summary>
         public event System.Action RemoteDeflected;
+
+        /// <summary>A blow that got through to the player this body is a copy of (HitImpactEffects.NameFor, from the network): the side it came from, and whether it was heavy.</summary>
+        public event System.Action<HitDirection, bool> RemoteWounded;
 
         /// <summary>Tells other players' copies of this body about something that already happened here (a gun shot), without playing anything.</summary>
         public void AnnounceState(string stateName)
@@ -381,13 +396,24 @@ namespace CityX.Character
         {
             if (LayerFor(stateName) > 0)
             {
-                _animator.speed = 1.0f;
+                SetAnimatorSpeed(1.0f);
                 _animator.SetFloat(UpperSpeedHash, speed);
             }
             else
             {
-                _animator.speed = speed;
+                SetAnimatorSpeed(speed);
             }
+        }
+
+        /// <summary>Animator.speed, unless an impact is holding the body still: then the speed is kept for when the freeze lets go.</summary>
+        private void SetAnimatorSpeed(float speed)
+        {
+            if (_locomotion != null && _locomotion.IsImpactFrozen)
+            {
+                _locomotion.NoteAnimatorSpeedWhileFrozen(speed);
+                return;
+            }
+            _animator.speed = speed;
         }
 
         /// <summary>The playback speeds a remote copy will accept -- a garbled packet cannot freeze or blur an animator.</summary>
@@ -422,6 +448,11 @@ namespace CityX.Character
             if (stateName == BlockDeflectEffect.StateName)
             {
                 RemoteDeflected?.Invoke();   // the copy's guard throws the same sparks and rings the same ting
+                return;
+            }
+            if (HitImpactEffects.TryParse(stateName, out HitDirection woundDirection, out bool woundHeavy))
+            {
+                RemoteWounded?.Invoke(woundDirection, woundHeavy);   // the copy bleeds, flashes and is held still the same way
                 return;
             }
             if (FistStrikes.Has(stateName) || SwordStrikes.Has(stateName) || HitReactions.Has(stateName) || GunReload.Has(stateName))

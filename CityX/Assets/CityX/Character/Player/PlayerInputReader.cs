@@ -245,6 +245,11 @@ namespace CityX.Character
             {
                 gameObject.AddComponent<BlockDeflectEffect>();
             }
+            // What a blow that lands does to this body: the freeze, the shove, the flash, the blood, the thud, the camera's jolt.
+            if (GetComponent<HitImpactEffects>() == null)
+            {
+                gameObject.AddComponent<HitImpactEffects>();
+            }
 
             // A stagger cuts short what was winding up (2026-10-14: the Stability stat makes it rarer).
             if (_vitals != null)

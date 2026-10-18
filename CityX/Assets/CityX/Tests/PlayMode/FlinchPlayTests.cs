@@ -62,15 +62,18 @@ namespace CityX.Tests
             }
             float restingLean = spine.up.z;
 
-            string announced = null;
-            driver.TimedStatePlayed += (name, speed, start) => announced ??= name;
+            // Every state the body announces: the wound (HitImpactEffects) comes first, then the stagger.
+            var announced = new System.Collections.Generic.List<string>();
+            driver.TimedStatePlayed += (name, speed, start) => announced.Add(name);
             ((IDamageable)vitals).ApplyHit(10.0f, _player.transform.position + _player.transform.forward * 2.0f + Vector3.up, 0.4f);
             yield return null;
 
-            Assert.AreEqual(HitReactions.NameFor(HitDirection.Front, true), announced, "the stagger from the front was not announced by name");
+            Assert.Contains(HitReactions.NameFor(HitDirection.Front, true), announced, "the stagger from the front was not announced by name");
+            Assert.Contains(HitImpactEffects.NameFor(HitDirection.Front, false), announced, "the wound was not announced by name");
             Assert.IsTrue(driver.Flincher.IsPlaying && driver.Flincher.Direction == HitDirection.Front, "the body is not flinching from the front");
             float worst = restingLean;
-            for (int i = 0; i < 8; i++)
+            // The recoil waits out the body's own instant of freeze (0.07 s), then snaps: measured over a quarter of a second.
+            for (int i = 0; i < 15; i++)
             {
                 locomotion.Tick(default, Time.deltaTime);
                 vitals.TickHitstun(Time.deltaTime);

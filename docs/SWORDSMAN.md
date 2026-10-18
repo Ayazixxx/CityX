@@ -47,6 +47,14 @@ guard cannot afford breaks the guard instead (the defender staggers, 1 s). The b
 blow (`PlayerVitals.GuardStruck` -> `BlockDeflectEffect`). It is the same for both sides: his blade bounces off your guard too, and that is your
 opening. Details in docs/SOULSLIKE_COMBAT.md.
 
+## What a hit does, both ways (2026-10-17)
+
+A cut that lands -- his on you, yours on him -- holds both bodies still for a few frames, throws the one hit back, flashes it, bursts
+blood out of the wound onto the street and the walls, and jolts your camera (docs/SOULSLIKE_COMBAT.md, "Hits that land"). A landed
+light holds the other until the chain's next cut arrives, so whoever lands first gets the follow-up; the way out is a guard held through
+the stun (the parry window catches the next cut) or a dash the moment it ends. He is stunned by the same rule, and dashes away 35% of the
+time once he can. A killing cut flings the corpse.
+
 ## Multiplayer
 
 **He is local for now**, as the Shoota and the Crimson Claw are: NPCs are not networked yet (docs/GAME_DESIGN.md, "Enemy/NPC sync"). He exists

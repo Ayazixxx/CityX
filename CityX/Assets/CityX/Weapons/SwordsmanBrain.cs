@@ -102,6 +102,10 @@ namespace CityX.Weapons
             {
                 gameObject.AddComponent<BlockDeflectEffect>();
             }
+            if (GetComponent<HitImpactEffects>() == null)
+            {
+                gameObject.AddComponent<HitImpactEffects>();
+            }
             EquipSword();
         }
 

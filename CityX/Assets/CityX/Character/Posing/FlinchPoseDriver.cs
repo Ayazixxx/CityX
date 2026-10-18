@@ -66,6 +66,11 @@ namespace CityX.Character
             {
                 return;
             }
+            // The body is held dead still through the instant of impact (the freeze); the recoil is thrown out of it.
+            if (_locomotion != null && _locomotion.IsImpactFrozen)
+            {
+                return;
+            }
             _elapsed += deltaTime;
             if (_elapsed >= _duration)
             {

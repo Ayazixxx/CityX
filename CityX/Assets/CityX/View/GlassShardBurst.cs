@@ -15,7 +15,7 @@ namespace CityX.View
     /// A SHARED PREFAB CANNOT PRE-BAKE PER-INSTANCE RANDOMNESS, so this
     /// script's only job is giving each child a fresh, random launch the
     /// moment a burst spawns, then freeing the whole burst once it has had
-    /// time to fly, bounce and settle -- matching BloodSplatter's own
+    /// time to fly, bounce and settle -- matching BloodBurst's own
     /// "a temporary effect cleans up after itself" convention, just on a
     /// timer instead of watching a ParticleSystem, since these are ordinary
     /// Rigidbodies with no natural "finished" signal of their own.
@@ -43,7 +43,7 @@ namespace CityX.View
 
         /// <summary>
         /// Puts one burst at a shattered pane, flying away from its own wall.
-        /// Mirrors BloodSplatter.Spawn's own shape and its own zero-normal
+        /// Mirrors BloodBurst.Spawn's own shape and its own zero-normal
         /// guard, for the same reason: LookRotation on a zero vector is an
         /// undefined answer and a console error.
         /// </summary>

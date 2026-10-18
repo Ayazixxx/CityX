@@ -123,6 +123,54 @@ namespace CityX.Tests
             Assert.Less(_cameraObject.transform.position.y, restHeight - 0.5f, "aiming did not bring the camera down from over the head");
         }
 
+        /// <summary>The impact shake (a hit taken or landed): the picture jolts, the aim does not, and the camera ends up exactly where it was.</summary>
+        [UnityTest]
+        public IEnumerator AnImpactShakeJoltsThePictureAndSettlesBackExactlyWhereItWas()
+        {
+            yield return null;
+            Vector3 rest = _cameraObject.transform.position;
+            Quaternion aim = _cameraObject.transform.rotation;
+
+            _camera.AddShake(0.1f, 0.25f);
+            float biggest = 0.0f;
+            for (int i = 0; i < 6; i++)
+            {
+                yield return null;
+                biggest = Mathf.Max(biggest, Vector3.Distance(_cameraObject.transform.position, rest));
+                Assert.Less(Quaternion.Angle(aim, _cameraObject.transform.rotation), 0.01f, "the shake turned the camera: it must only move where the picture is taken from");
+            }
+            Assert.Greater(biggest, 0.02f, "the shake never moved the picture");
+            Assert.LessOrEqual(biggest, 0.1f + 0.001f, "the shake went past its own amplitude");
+
+            float waited = 0.0f;
+            while (waited < 0.4f)
+            {
+                waited += Time.deltaTime;
+                yield return null;
+            }
+            Assert.Less(Vector3.Distance(_cameraObject.transform.position, rest), 1e-4f, "the shake did not settle back exactly");
+            Assert.AreEqual(Vector3.zero, _camera.ShakeOffset);
+        }
+
+        [UnityTest]
+        public IEnumerator ASmallerShakeNeverCutsABiggerOneShortAndTheLocalCameraIsKnown()
+        {
+            yield return null;
+            Assert.AreEqual(_camera, ThirdPersonCamera.Local, "the enabled follow camera should be the one hits ask to shake");
+            _camera.AddShake(0.1f, 0.3f);
+            yield return null;
+            _camera.AddShake(0.01f, 0.3f);   // a flurry's small jolt on top of a big one: ignored
+            float biggest = 0.0f;
+            Vector3 rest = _target.transform.position + Vector3.up * (_camera.PivotHeightFraction * 1.8f + _camera.FramingHeight)
+                + Vector3.right * _camera.ShoulderOffset - Vector3.forward * _camera.Distance;
+            for (int i = 0; i < 4; i++)
+            {
+                yield return null;
+                biggest = Mathf.Max(biggest, Vector3.Distance(_cameraObject.transform.position, rest));
+            }
+            Assert.Greater(biggest, 0.02f, "the big shake was cut short by the small one");
+        }
+
         /// <summary>
         /// THE ACTUAL BUG this exists to catch: a wall right on top of the
         /// pivot used to clamp the camera down to its old 0.4m minimum,

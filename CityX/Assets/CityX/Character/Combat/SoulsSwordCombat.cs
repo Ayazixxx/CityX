@@ -187,21 +187,26 @@ namespace CityX.Character
         // then the diagonal finisher (owner, 2026-10-16: "i like the two handed horizontal slashes of this linked game").
         // Poise: a light takes 25 (20 one-handed) off a target's 60, a heavy 60 (50) -- so a heavy breaks an opponent's heavy outright and it
         // takes three lights to stop one; only the heavies have hyper-armour themselves (the research: poise is for committed attacks).
+        // HITSTUN (2026-10-17, owner: "if there wasnt dashing it would pretty much be two people spamming click on eachother"): a landed light
+        // now stuns for longer than it takes the chain's next cut to arrive (0.35-0.4 s let the victim get up and trade blow for blow, so the
+        // fight was whoever clicked first). The second cut of a chain lands while the first still holds, as a straight sword's R1-R1 does in
+        // Dark Souls: a landed cut is a follow-up earned, and the way out is a guard held through the stun (the parry window catches the next
+        // cut) or a dash the moment it ends. SoulsCombatRhythmTests pins the margin.
         [Header("Two-handed light chain (left click)")]
-        public SoulsAttack Light1 = SoulsAttack.FromStrike(SwordStrikeKind.Sweep2H, 0.55f, 22.0f, 1.00f, 0.40f, 0.25f, 25.0f, false);
-        public SoulsAttack Light2 = SoulsAttack.FromStrike(SwordStrikeKind.Reverse2H, 0.55f, 22.0f, 1.05f, 0.40f, 0.25f, 25.0f, false);
-        public SoulsAttack Light3 = SoulsAttack.FromStrike(SwordStrikeKind.Cut2H, 0.60f, 26.0f, 1.30f, 0.55f, 0.35f, 30.0f, false);
+        public SoulsAttack Light1 = SoulsAttack.FromStrike(SwordStrikeKind.Sweep2H, 0.55f, 22.0f, 1.00f, 0.65f, 0.25f, 25.0f, false);
+        public SoulsAttack Light2 = SoulsAttack.FromStrike(SwordStrikeKind.Reverse2H, 0.55f, 22.0f, 1.05f, 0.75f, 0.25f, 25.0f, false);   // longer: the finisher after it winds up for 0.44 s
+        public SoulsAttack Light3 = SoulsAttack.FromStrike(SwordStrikeKind.Cut2H, 0.60f, 26.0f, 1.30f, 0.70f, 0.35f, 30.0f, false);
 
         [Header("Two-handed heavy (middle mouse)")]
-        public SoulsAttack Heavy = SoulsAttack.FromStrike(SwordStrikeKind.Slam2H, 0.60f, 40.0f, 2.00f, 0.90f, 0.50f, 60.0f, true);
+        public SoulsAttack Heavy = SoulsAttack.FromStrike(SwordStrikeKind.Slam2H, 0.60f, 40.0f, 2.00f, 1.00f, 0.50f, 60.0f, true);
 
         [Header("One-handed light chain (left click)")]
-        public SoulsAttack OneHandLight1 = SoulsAttack.FromStrike(SwordStrikeKind.Slash1H, 0.50f, 16.0f, 0.80f, 0.35f, 0.20f, 20.0f, false);
-        public SoulsAttack OneHandLight2 = SoulsAttack.FromStrike(SwordStrikeKind.Cut1H, 0.50f, 16.0f, 0.85f, 0.35f, 0.20f, 20.0f, false);
-        public SoulsAttack OneHandLight3 = SoulsAttack.FromStrike(SwordStrikeKind.Thrust1H, 0.55f, 18.0f, 1.00f, 0.45f, 0.50f, 25.0f, false);
+        public SoulsAttack OneHandLight1 = SoulsAttack.FromStrike(SwordStrikeKind.Slash1H, 0.50f, 16.0f, 0.80f, 0.60f, 0.20f, 20.0f, false);
+        public SoulsAttack OneHandLight2 = SoulsAttack.FromStrike(SwordStrikeKind.Cut1H, 0.50f, 16.0f, 0.85f, 0.60f, 0.20f, 20.0f, false);
+        public SoulsAttack OneHandLight3 = SoulsAttack.FromStrike(SwordStrikeKind.Thrust1H, 0.55f, 18.0f, 1.00f, 0.60f, 0.50f, 25.0f, false);
 
         [Header("One-handed heavy (middle mouse)")]
-        public SoulsAttack OneHandHeavy = SoulsAttack.FromStrike(SwordStrikeKind.Overhead1H, 0.60f, 30.0f, 1.60f, 0.80f, 0.35f, 50.0f, true);
+        public SoulsAttack OneHandHeavy = SoulsAttack.FromStrike(SwordStrikeKind.Overhead1H, 0.60f, 30.0f, 1.60f, 0.90f, 0.35f, 50.0f, true);
 
         [Header("Feel")]
         [Tooltip("How long an early attack press is remembered. Long enough that a click during a light swing still chains at its window, " +
@@ -214,13 +219,13 @@ namespace CityX.Character
         [Tooltip("Stamina per second once recovery resumes. Dark Souls 3: 45.")]
         public float StaminaRegenPerSecond = 45.0f;
 
-        [Tooltip("Seconds the swing freezes (animation and timing both) the instant its blade connects. " +
-                 "A mocap swing has no contact in it, so without this a hit feels like the blade passed through; " +
-                 "a few frames of stillness is what sells the impact. 0 turns it off.")]
-        public float HitStopSeconds = 0.07f;
+        [Tooltip("Seconds the swing freezes (animation and timing both) the instant its blade connects -- the WHOLE body with it since " +
+                 "2026-10-17 (PlayerLocomotion.Impact.cs: the legs used to walk on under a frozen arm), and the victim holds for its own " +
+                 "instant (HitImpactEffects). A few frames of stillness is what sells the impact. 0 turns it off.")]
+        public float HitStopSeconds = 0.09f;
 
         [Tooltip("A heavy attack's hit-stop is this many times longer.")]
-        public float HeavyHitStopMultiplier = 1.8f;
+        public float HeavyHitStopMultiplier = 1.7f;
 
         [Header("Hit volumes (live only during the active frames)")]
         [Tooltip("Radius of the blade capsule swept along the actual sword.")]
@@ -967,7 +972,7 @@ namespace CityX.Character
             HitResponse response = _melee != null
                 ? _melee.RegisterExternalHit(target, point, damage, _current.HitstunSeconds)
                 : DamageContext.Strike(target, damage, transform.position, _current.HitstunSeconds, DamageKind.Physical,
-                    _vitals != null ? _vitals.Stats.Effect(StatId.ArmorPenetration) : 0.0f);
+                    _vitals != null ? _vitals.Stats.Effect(StatId.ArmorPenetration) : 0.0f, point);
 
             if (response == HitResponse.Ignored)
             {

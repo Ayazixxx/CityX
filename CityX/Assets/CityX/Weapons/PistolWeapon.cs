@@ -149,9 +149,6 @@ namespace CityX.Weapons
 
         private int _shotPoolIndex;
 
-        [Tooltip("For a bullet landing on a body -- same prefab MeleeAttacker uses.")]
-        public GameObject BloodPrefab;
-
         public LayerMask TargetLayers = ~0;
 
         // ---- live-tunable feel (/gun), on the profile ----
@@ -1056,7 +1053,7 @@ namespace CityX.Weapons
                         float actualDamage = CombatTuning.DamageFor(Profile.Damage, firearmDamage);
                         // No hitstun: a bullet interrupts nothing (pistol.gd's own take_damage passes none either).
                         bool wasAlive = damageable.IsAlive;
-                        DamageContext.Strike(damageable, actualDamage, origin, 0.0f, DamageKind.Bullet, penetration);
+                        DamageContext.Strike(damageable, actualDamage, origin, 0.0f, DamageKind.Bullet, penetration, hit.point);
                         hitDamageable = true;
                         killed = !damageable.IsAlive;
                         // A kill pays its XP, as a fist's or a sword's does (2026-10-15: a Shoota is worth some; a civilian always was). Once:
@@ -1065,9 +1062,9 @@ namespace CityX.Weapons
                         {
                             shooter.AddXp(reward.XpReward);
                         }
-                        if (BloodPrefab != null)
+                        if (!(damageable is PlayerVitals))
                         {
-                            BloodSplatter.Spawn(BloodPrefab, hit.point, origin - hit.point);
+                            BloodBurst.Spawn(hit.point, hit.point - origin, 0.6f);   // a body with vitals shows its own wound (HitImpactEffects)
                         }
                     }
                 }

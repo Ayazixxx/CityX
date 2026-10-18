@@ -5,7 +5,7 @@ namespace CityX.Weapons
     /// <summary>
     /// A one-shot glass-shard burst at a thrown bottle's impact point,
     /// ported from weapons/glass_shatter.gd -- the same standalone,
-    /// self-cleaning shape as CityX.Character.BloodSplatter, so a shatter
+    /// self-cleaning shape as CityX.Character.BloodBurst, so a shatter
     /// finishes playing in a fixed world position no matter what the
     /// thrown bottle does next (it's already destroyed itself by then).
     /// </summary>

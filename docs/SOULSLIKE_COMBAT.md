@@ -247,14 +247,21 @@ have one, scaled to this game's 130-point stamina bar.
   a 0.9s stagger and hyper-armour. It is a decision, not an upgrade.
 * **Roll i-frames.** 0.42s of invincibility (Elden Ring's medium roll: 13 frames
   at 30), 20 stamina.
-* **Hit-stop, both sides.** A landed hit freezes the attacker's swing (its clock
-  and its pose) for 0.07s (1.8x for a heavy), and the victim's recoil holds for the
-  same instant. The freeze is sent to other players too (`StateSpeedChanged`), so a
-  copy's swing freezes on contact.
+* **Hit-stop, both sides.** A landed hit freezes the attacker's WHOLE BODY (the
+  swing's clock and pose, the Animator, the footwork, the movement) for 0.09s (1.7x
+  for a heavy), and the victim's whole body for its own instant (0.07s, 0.12s for a
+  heavy). The freeze is sent to other players too (`StateSpeedChanged`), so a copy
+  freezes on contact. See "Hits that land" below.
 * **Hit reactions.** Being hit shows now: `HitReactions` throws the torso and head
   away from the blow (four directions by name: `hit_front`...; a `stagger_*` when the
   blow took the controls away), played by `FlinchPoseDriver` and replicated like a
-  swing. Nothing on the body reacted before.
+  swing, out of the victim's instant of freeze. Nothing on the body reacted before.
+* **A landed light earns its follow-up** (2026-10-17). The lights' hitstun is longer
+  than the chain's gap to the next cut: one-handed 0.6s (the contacts are 0.64s
+  apart), two-handed 0.65s then 0.75s (the finisher winds up for 0.44s). With the
+  freezes counted the victim is free for 0.05-0.10s before the next cut lands: enough
+  to raise a guard (whose parry window then catches the cut), never enough to swing
+  first. The heavies stun 1.0s / 0.9s. `SoulsCombatRhythmTests` pins the margins.
 * **Poise** (DS3's rule: it is only on inside attacks with hyper-armour). Every
   body has a 60-point pool that refills 20/s after 1.5s. A heavy's wind-up and
   active frames have **hyper-armour**: blows then only stagger once their poise
@@ -281,6 +288,65 @@ have one, scaled to this game's 130-point stamina bar.
   `BlockDeflectEffect`). Against another player the rebound comes back with the
   defender's verdict (`ApplyRemoteVerdict(Guarded)`). The swordsman NPC
   (docs/SWORDSMAN.md) punishes exactly this opening.
+
+## Hits that land (2026-10-17)
+
+Owner: "the hits dont feel impactful at all. make it feel better and make the blood effects better too, research how to do both. we need
+to work on the fluidity and the reactivity." Before this, a hit froze the attacker's sword arm for 0.07s while the legs walked on, tipped
+the victim's torso 14 degrees, and sprayed fourteen slow dots back at the attacker; and a 0.35s stun let the victim get up and trade blow
+for blow, so a fight was whoever clicked first.
+
+**What the research says.** Games known for their hits fire several small things on the same frame rather than one big one: a hit-stop
+on BOTH fighters (Street Fighter V holds 8/12/15 frames by weight; God of War on every hit; past about 0.12s a freeze reads as a dropped
+frame), a displacement that shows the force (an impulse sized by the attack), a short camera shake scaled to the blow, particles whose
+direction and size match the attack, a hit flash, layered sound. Sources: Jason de Heras on how 3rd-person melee games communicate hit
+feel (https://www.jasondeheras.com/gamedesign/2021/4/23/how-do-3rd-person-melee-combat-games-communicate-game-and-hit-feel), the game-feel
+guide on hit-stop and screen shake (https://swordarcade.xyz/guides/game-feel-hitstop-and-screen-shake/), a combat-feel devlog
+(https://dev.to/hirodeath/improving-combat-feel-with-hit-stop-slash-effects-and-combo-animations-3dbo); for the blood, the Real Time
+VFX critique of a sword-hit splatter (burst outward from the wound, not along the swing; most of what sells it is what stays on the
+ground: https://realtimevfx.com/t/wip-blood-splatter-effect/11803).
+
+**What a blow does now** (`HitImpactEffects`, on every body; `PlayerLocomotion.Impact.cs`):
+
+1. **The freeze, both sides.** The attacker's hit-stop holds their whole body (Animator stopped, no movement, the sword's footwork
+   waiting): 0.09s, 0.15s for a heavy. The victim is held for its own instant (0.07s, 0.12s for a heavy) with its pose at the moment of
+   impact, and the recoil (`HitReactions`) is thrown out of the freeze. A freeze never outlasts 0.25s (`MaxImpactFreezeSeconds`), so a copy
+   told to freeze and never told to stop lets go on its own; a copy that nobody Ticks counts it down in LateUpdate.
+2. **The shove.** The victim is thrown back along the blow, 0.65m for each second of hitstun up to 1m (a light 0.39m, a heavy 0.65m, a
+   punch 0.33m), over 0.2s, fast at first; through the controller, so walls stop it; after the freeze. A copy is moved by the network.
+3. **The flash.** Every renderer on the body brightens by up to 90% and fades over 0.09s, through property blocks (no material touched).
+4. **The blood** (`BloodBurst`): a burst out of the wound AWAY from the blow, tilted up -- 26 heavy drops that arc, streak as they fly
+   (stretched billboards with a soft dot, no texture file) and stop where they land (world collision), plus 12 fast fine drops gone in a
+   quarter second; a heavy throws 1.6x as much, a bullet 0.6x. Made in code once and copied. Then the splats (`BloodSplats`): on the floor
+   under the wound, on the floor where the spray lands (further along the blow, stretched the way it flew), and on a wall within 1.8m
+   behind the body; four procedural splat shapes (a ragged blob, droplets flung one way, a drip), alpha-blended quads a centimetre off
+   the surface; they stay 45s and fade over the last 10; 48 at most, the oldest making room. The old `BloodSplatter` prefab (the Godot
+   scene's fourteen dots) is gone; bodies without vitals of their own (a civilian, a dummy) get the burst from the striker's side.
+5. **The thud**, at the wound: a low thump with a slap on the front of it, made in code; the attacker's own impact clip now varies its
+   pitch a little (`MeleeAttacker.PlayImpact`).
+6. **The camera** (`ThirdPersonCamera.AddShake`): when the player's own body is hit, the picture jolts 7cm (12cm for a heavy) and settles
+   over 0.25s, a smooth wobble dying with the square of the time left; when the player's blade lands, 3.5cm for 0.15s, 9cm for a kill.
+   Only where the picture is taken from: the aim, the crosshair and the hit traces never move, and it ends exactly where it began. A
+   smaller shake never cuts a bigger one short.
+7. **A killing cut flings the corpse** away from the striker (`PlayerVitals.DeathImpulse`, 3.6 m/s and 1.4 up, read by the ragdoll as it
+   goes limp). A bullet, a spell or a fall still drops the body where it stood.
+
+**Where the wound is.** The striker says where the blow met the body (`DamageContext.ContactPoint`: the blade sweep's closest point, a
+bullet's hit) and the victim's own body shows the wound there, inside the blow's scope; a blow forwarded from another machine, or told to
+a copy, is placed on the body's near side toward the blow.
+
+**Multiplayer.** The victim's own body announces its wound by name (`wounded_<front|back|left|right>_<light|heavy>`, `AnnounceState`
+like `block_deflect`), and every copy shows it: the freeze, the flash, the blood and the splats at the copy's own position (the shove
+comes with the owner's movement). The attacker's hit-stop reaches copies as the swing's speed 0, which now freezes the copy's whole body
+too, and the restored speed lets it go.
+
+**Tests.** `HitImpactPlayTests` (a landed blow holds the body still then throws it back; a heavy holds longer and throws further; a guard
+that held shows no wound; the blood lands on the floor and a wall behind; the splats never exceed their cap; the flash brightens then lets
+go; a wound told from the network is shown on a copy whose freeze lets go without a Tick; the attacker's hit-stop holds the whole body;
+a killing cut flings the corpse), `SoulsCombatRhythmTests` (the follow-up margins, the hit-stop's length),
+`ThirdPersonCameraPlayTests` (the shake settles back exactly, never turns the camera, a smaller never cuts a bigger short).
+`HitImpactCapture` (Explicit, `-Graphics`) films a light and a heavy landing on the swordsman from the side, the player's own view at the
+contact, and the floor after a few cuts (`hit-impact-*.png`).
 
 ## Hit detection
 
@@ -336,7 +402,7 @@ Grips; a one-handed sword saves its own hold, `WeaponGripSettings.OneHand*`).
 
 * **Riposte / backstab** after a parry: the stagger is the opening for now.
 * **Two-handing toggle, weapon arts, weapon weight -> roll speed.**
-* **Hit-stop on the whole world** (the legs keep walking under a frozen swing).
+* **Hit-stop on the whole world.** Both fighters freeze (2026-10-17); the rest of the world goes on.
 
 ## Known limitations
 

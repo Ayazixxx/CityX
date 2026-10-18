@@ -317,6 +317,24 @@ namespace CityX.Character
         public event Action<Vector3> Hit;
 
         /// <summary>
+        /// Raised when a blow got THROUGH to the body (not parried, not stopped outright, not soaked by a held guard -- a guard broken counts):
+        /// where it came from, the damage after armour, and the hitstun it left (0 when Stability shrugged the stagger off). What a wound looks
+        /// like (the blood, the freeze, the shove, the flash: HitImpactEffects) listens here, inside the blow's own DamageContext scope.
+        /// </summary>
+        public event Action<Vector3, float, float> Wounded;
+
+        /// <summary>
+        /// How fast the body is thrown as it dies, for the ragdoll (Ragdoll.OnDied adds it to the body's own velocity): a killing melee blow
+        /// flings the corpse away from whoever struck it instead of dropping it where it stood. Zero for a bullet, a spell, a fall.
+        /// </summary>
+        public Vector3 DeathImpulse { get; private set; }
+
+        /// <summary>Metres a second a killing blow sends the corpse, flat, plus a little up.</summary>
+        public const float DeathFlingSpeed = 3.6f;
+
+        public const float DeathFlingUpSpeed = 1.4f;
+
+        /// <summary>
         /// How long this body still cannot be hit. Set by a dash.
         ///
         /// EXACTLY THE BURST, not the animation's follow-through -- the dash
@@ -518,7 +536,15 @@ namespace CityX.Character
             // spells -- rating / (rating + 100), never all of it, less the share the attacker's penetration ignores.
             amount *= 1.0f - ResistanceTo(kind, penetration);
 
+            // A melee blow that kills flings the corpse away from the striker (the ragdoll reads this as it goes limp, inside TakeDamage).
+            if (kind == DamageKind.Physical && hitstunSeconds > 0.0f && !blocked)
+            {
+                Vector3 away = transform.position - fromPosition;
+                away.y = 0.0f;
+                DeathImpulse = (away.sqrMagnitude > 1e-4f ? away.normalized : -transform.forward) * DeathFlingSpeed + Vector3.up * DeathFlingUpSpeed;
+            }
             TakeDamage(amount, blocked);
+            DeathImpulse = Vector3.zero;
 
             // SOULS GUARD: a held block pays for what it stops in stamina, and
             // a hit it cannot afford breaks the guard -- you eat the reduced
@@ -536,6 +562,7 @@ namespace CityX.Character
                     HitstunRemaining = Mathf.Max(HitstunRemaining, GuardBreakStunSeconds);
                     DelayStaminaRegen(GuardBreakStunSeconds);
                     GuardBroken?.Invoke();
+                    Wounded?.Invoke(fromPosition, amount * CombatTuning.BlockDamageMultiplier, GuardBreakStunSeconds);
                     Hit?.Invoke(fromPosition);
                     return HitResponse.Landed;
                 }
@@ -587,6 +614,10 @@ namespace CityX.Character
                 }
             }
 
+            if (!blocked)
+            {
+                Wounded?.Invoke(fromPosition, amount, staggers ? hitstunSeconds : 0.0f);
+            }
             Hit?.Invoke(fromPosition);
             if (!blocked)
             {

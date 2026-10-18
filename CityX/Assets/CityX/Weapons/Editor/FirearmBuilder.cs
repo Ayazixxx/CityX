@@ -147,7 +147,6 @@ namespace CityX.WeaponsEditor
                 weapon.ShotPlayer = shotPlayer;
                 weapon.ShotPlayerPool = shotPool;
                 weapon.ReloadPlayer = reloadPlayer;
-                weapon.BloodPrefab = BloodSplatterBuilder.Build();
 
                 GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
                 AssetDatabase.SaveAssets();

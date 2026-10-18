@@ -4,7 +4,7 @@ namespace CityX.Weapons
 {
     /// <summary>
     /// A one-shot flame burst at a fireball's impact point -- same
-    /// standalone, self-cleaning shape as GlassShatter/BloodSplatter, so it
+    /// standalone, self-cleaning shape as GlassShatter/BloodBurst, so it
     /// finishes playing in a fixed world position no matter what the
     /// fireball does next (it's already destroyed itself by then).
     /// </summary>

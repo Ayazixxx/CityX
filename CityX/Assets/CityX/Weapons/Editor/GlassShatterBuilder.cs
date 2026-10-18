@@ -6,7 +6,7 @@ namespace CityX.WeaponsEditor
 {
     /// <summary>
     /// Builds the glass shatter prefab from weapons/glass_shatter.tscn's
-    /// own numbers -- a structural copy of BloodSplatterBuilder, with the
+    /// own numbers -- a structural copy of the old blood splatter builder (replaced by BloodBurst, 2026-10-17), with the
     /// two real differences: an omnidirectional burst (Godot's spread=180,
     /// vs. blood's 28-degree cone) and flat glass-tinted quads instead of
     /// spheres.

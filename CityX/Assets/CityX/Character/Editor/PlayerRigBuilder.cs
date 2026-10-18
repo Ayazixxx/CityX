@@ -1802,7 +1802,6 @@ namespace CityX.CharacterEditor
                 // clip shows up as an empty slot on the prefab instead of a
                 // silent null at runtime.
                 melee.ImpactSounds = LoadImpactSounds();
-                melee.BloodPrefab = BloodSplatterBuilder.Build();
                 AddAudio(root);
                 root.AddComponent<PlayerAnimationDriver>();
                 BloodrageAbility bloodrage = root.AddComponent<BloodrageAbility>();

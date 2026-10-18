@@ -14,7 +14,7 @@ namespace CityX.Tests
     /// renders as its usual bright pink "missing shader" fallback (see
     /// CharacterSkin's own doc comment for the identical symptom on a body
     /// with no material at all). Now saved as its own real .mat asset
-    /// first, matching BloodSplatterBuilder/GlassShatterBuilder/
+    /// first, matching GlassShatterBuilder/
     /// GlassShardsBuilder's own established convention for particle
     /// materials.
     /// </summary>

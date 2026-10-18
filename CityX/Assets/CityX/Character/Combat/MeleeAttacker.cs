@@ -101,9 +101,6 @@ namespace CityX.Character
         [Tooltip("player.gd PunchImpactSounds -- one is picked at random per LANDED hit.")]
         public AudioClip[] ImpactSounds;
 
-        [Tooltip("weapons/blood_splatter.tscn -- one burst per landed hit, at the impact point.")]
-        public GameObject BloodPrefab;
-
         private AudioSource _impactSource;
 
         [Header("Targets")]
@@ -1082,7 +1079,7 @@ namespace CityX.Character
             foreach (Contact contact in ContactsInReach())
             {
                 HitResponse response =
-                    DamageContext.Strike(contact.Target, damage, transform.position, hitstun, DamageKind.Physical, Penetration);
+                    DamageContext.Strike(contact.Target, damage, transform.position, hitstun, DamageKind.Physical, Penetration, contact.Point);
                 if (response == HitResponse.Ignored)
                 {
                     continue;
@@ -1109,10 +1106,12 @@ namespace CityX.Character
                     continue;
                 }
 
-                // Spraying back towards whoever threw the punch, which is what
-                // "away from the surface that got hit" means when the surface
-                // is a body facing you. Nothing bleeds off a blocked hit.
-                BloodSplatter.Spawn(BloodPrefab, contact.Point, origin - contact.Point);
+                // A target with vitals of its own (a player, a swordsman) shows its own wound (HitImpactEffects, on every machine); anything
+                // else bleeds here, out of the wound away from the fist. Nothing bleeds off a blocked hit.
+                if (!(contact.Target is PlayerVitals))
+                {
+                    BloodBurst.Spawn(contact.Point, contact.Point - origin, 1.0f);
+                }
 
                 // THE FINISHER RAGDOLLS INSTEAD OF STUNNING -- see
                 // PlayerVitals.TriggerFinisherKnockdown's own doc comment
@@ -1169,7 +1168,7 @@ namespace CityX.Character
                 return HitResponse.Ignored;
             }
 
-            HitResponse response = DamageContext.Strike(target, damage, transform.position, hitstunSeconds, DamageKind.Physical, Penetration);
+            HitResponse response = DamageContext.Strike(target, damage, transform.position, hitstunSeconds, DamageKind.Physical, Penetration, contactPoint);
             if (response == HitResponse.Ignored)
             {
                 return response;
@@ -1182,9 +1181,9 @@ namespace CityX.Character
                 _vitals?.AddXp(xpSource.XpReward);
             }
 
-            if (response != HitResponse.Blocked && response != HitResponse.Guarded)
+            if (response != HitResponse.Blocked && response != HitResponse.Guarded && !(target is PlayerVitals))
             {
-                BloodSplatter.Spawn(BloodPrefab, contactPoint, SwingOrigin() - contactPoint);
+                BloodBurst.Spawn(contactPoint, contactPoint - SwingOrigin(), 1.0f);
             }
             PlayImpact();
             EquippedWeapon?.RegisterLandedMeleeHit();
@@ -1223,7 +1222,7 @@ namespace CityX.Character
             int hits = 0;
             foreach (Contact contact in ContactsInReach(fullCircle: true, reach: reach))
             {
-                HitResponse response = DamageContext.Strike(contact.Target, damage, transform.position, CombatTuning.HitstunSeconds, DamageKind.Physical, Penetration);
+                HitResponse response = DamageContext.Strike(contact.Target, damage, transform.position, CombatTuning.HitstunSeconds, DamageKind.Physical, Penetration, contact.Point);
                 if (response == HitResponse.Ignored)
                 {
                     continue;
@@ -1238,9 +1237,9 @@ namespace CityX.Character
                 {
                     _vitals?.AddXp(xpSource.XpReward);
                 }
-                if (response != HitResponse.Blocked)
+                if (response != HitResponse.Blocked && !(contact.Target is PlayerVitals))
                 {
-                    BloodSplatter.Spawn(BloodPrefab, contact.Point, origin - contact.Point);
+                    BloodBurst.Spawn(contact.Point, contact.Point - origin, 1.0f);
                 }
             }
             if (hits > 0)
@@ -1273,7 +1272,7 @@ namespace CityX.Character
                 {
                     continue;
                 }
-                HitResponse response = DamageContext.Strike(contact.Target, damage, transform.position, CombatTuning.HitstunSeconds, DamageKind.Physical, Penetration);
+                HitResponse response = DamageContext.Strike(contact.Target, damage, transform.position, CombatTuning.HitstunSeconds, DamageKind.Physical, Penetration, contact.Point);
                 if (response == HitResponse.Ignored)
                 {
                     continue;
@@ -1304,7 +1303,10 @@ namespace CityX.Character
                     continue;
                 }
 
-                BloodSplatter.Spawn(BloodPrefab, contact.Point, origin - contact.Point);
+                if (!(contact.Target is PlayerVitals))
+                {
+                    BloodBurst.Spawn(contact.Point, contact.Point - origin, 1.0f);
+                }
             }
 
             if (connected)
@@ -1371,6 +1373,7 @@ namespace CityX.Character
                 _impactSource.spatialBlend = 0.0f;
                 _impactSource.playOnAwake = false;
             }
+            _impactSource.pitch = Random.Range(0.92f, 1.08f);   // no two hits quite the same
             _impactSource.PlayOneShot(clip);
         }
     }

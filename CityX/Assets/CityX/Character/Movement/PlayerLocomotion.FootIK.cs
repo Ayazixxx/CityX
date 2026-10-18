@@ -155,7 +155,7 @@ namespace CityX.Character
             // (whose slowed blend slid them along the ground). Off in the air (last frame's verdict: this frame's needs the samples below).
             float footworkWanted = FootIkEnabled && !_footIkWasInAir && !IsResized && (_controller == null || _controller.enabled) ? SwordFootworkWanted : 0.0f;
             float legLength = Vector3.Distance(_leftUpperLeg.position, _leftLowerLeg.position) + Vector3.Distance(_leftLowerLeg.position, _leftFoot.position);
-            _footwork.Step(deltaTime, footworkWanted, new SwordFootwork.Body
+            _footwork.Step(IsImpactFrozen ? 0.0f : deltaTime, footworkWanted, new SwordFootwork.Body
             {
                 Ground = position,
                 Yaw = yaw,
