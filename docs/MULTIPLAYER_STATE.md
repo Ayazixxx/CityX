@@ -46,3 +46,8 @@ A joining player's body now has an `Inventory` with the item prefabs (it had non
 
 Implement `ICosmeticMountable` on its component (copy `SwordWeapon`), and add its prefab to `NetworkedPlayerWiring.ItemPrefabPaths`.
 `EquipmentReplicationGuardTests` fails otherwise.
+
+Its pickup in the world notices only THIS machine's player: `InteractionReach.LocalPlayerBody` in `OnTriggerEnter` and
+`InteractionReach.IsLeaving` in `OnTriggerExit`, as every pickup does. Until 2026-10-17 each took whichever body walked in last, so an
+NPC or another player's copy passing through left E doing nothing, and hats and clothes forgot the player when an arm swung out
+(`PickupReachPlayTests`).

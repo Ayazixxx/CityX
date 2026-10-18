@@ -25,7 +25,8 @@ conventions down and apply them every time.
      from it, so they can no longer drift apart. They had drifted, which is how ReDraw's tools came to do nothing (fixed in fa8cefc).
    - `Character/Posing/StillPose`: fixed poses for a body shown without its Animator.
    - `Items/InertModel`: an item's model with nothing of the item acting (another player's copy holds one; a dead body drops one).
-   - `Character/Interaction/InteractionReach.LookSource` and `CanReach`: where a player looks from, and whether a pickup is in reach.
+   - `Character/Interaction/InteractionReach.LookSource`, `CanReach`, `LocalPlayerBody` and `IsLeaving`: where a player looks from, whether a
+     pickup is in reach, and which body entering or leaving its trigger is this machine's player.
    - `Tests/PlayMode/BuildingShapeCapture.Shoot` and `ShotsFolder`: render a camera to `Logs/CityShots/<name>.png` (20 captures use it).
    - Already shared before: `TwoBoneIK`, `DeterministicRandom`, `CaptureGuard` (tests), the `*Strikes` keyframe tables and others.
 2. **One topic per file.** A file past about a thousand lines usually holds several topics. Split it into partial files by topic, named

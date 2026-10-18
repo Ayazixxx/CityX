@@ -80,15 +80,16 @@ namespace CityX.Wearables
 
         private void OnTriggerEnter(Collider other)
         {
-            if (other.GetComponentInParent<PlayerVitals>() != null)
+            Transform body = InteractionReach.LocalPlayerBody(other);
+            if (body != null)
             {
-                _nearbyPlayer = other.transform;
+                _nearbyPlayer = body;
             }
         }
 
         private void OnTriggerExit(Collider other)
         {
-            if (other.transform == _nearbyPlayer || (other.GetComponentInParent<PlayerVitals>() != null))
+            if (InteractionReach.IsLeaving(other, _nearbyPlayer))
             {
                 _nearbyPlayer = null;
             }

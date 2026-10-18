@@ -24,6 +24,30 @@ namespace CityX.Character
         /// </summary>
         public static bool IsBodyLeaving(UnityEngine.Collider other) => other is UnityEngine.CharacterController;
 
+        /// <summary>
+        /// The body of THIS machine's player when <paramref name="other"/> is one of its colliders (a limb's or its own), else null. Only that body
+        /// can pick something up here: an NPC has no input reader, and another player's copy has its reader switched off. Every pickup used to take
+        /// whichever body walked in last (found 2026-10-17), so a swordsman passing through a sword's sphere left E doing nothing until the player
+        /// stepped out and back in, and another player's copy could be handed the item.
+        /// </summary>
+        public static UnityEngine.Transform LocalPlayerBody(UnityEngine.Collider other)
+        {
+            PlayerVitals vitals = other != null ? other.GetComponentInParent<PlayerVitals>() : null;
+            if (vitals == null)
+            {
+                return null;
+            }
+            var reader = vitals.GetComponent<PlayerInputReader>();
+            return reader != null && reader.enabled ? vitals.transform : null;
+        }
+
+        /// <summary>
+        /// Whether <paramref name="other"/> leaving a pickup's sphere is <paramref name="nearby"/>, the player it noticed, walking away: their body
+        /// itself, not a limb swinging out (IsBodyLeaving), and not some other body passing through.
+        /// </summary>
+        public static bool IsLeaving(UnityEngine.Collider other, UnityEngine.Transform nearby) =>
+            nearby != null && IsBodyLeaving(other) && other.transform == nearby;
+
         /// <summary>Where a player looks from: the yaw source the input reader turns with (the camera's), else the main camera, else the body.</summary>
         public static UnityEngine.Transform LookSource(UnityEngine.Transform player)
         {

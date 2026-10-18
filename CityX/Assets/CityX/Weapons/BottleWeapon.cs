@@ -73,24 +73,16 @@ namespace CityX.Weapons
 
         private void OnTriggerEnter(Collider other)
         {
-            // See PistolWeapon.OnTriggerEnter's own comment -- the player's
-            // ragdoll carries a collider on every bone, so this has to be
-            // the PlayerVitals transform itself rather than whichever bone
-            // happened to sweep into the trigger first.
-            PlayerVitals vitals = other.GetComponentInParent<PlayerVitals>();
-            if (vitals != null)
+            Transform body = InteractionReach.LocalPlayerBody(other);
+            if (body != null)
             {
-                _nearbyPlayer = vitals.transform;
+                _nearbyPlayer = body;
             }
         }
 
         private void OnTriggerExit(Collider other)
         {
-            if (!CityX.Character.InteractionReach.IsBodyLeaving(other))
-            {
-                return;   // a limb's collider swinging out of the trigger is not the player walking away
-            }
-            if (other.transform == _nearbyPlayer || (other.GetComponentInParent<PlayerVitals>() != null))
+            if (InteractionReach.IsLeaving(other, _nearbyPlayer))
             {
                 _nearbyPlayer = null;
             }
