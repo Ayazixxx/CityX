@@ -437,7 +437,7 @@ namespace CityX.Weapons
             {
                 return false;
             }
-            Transform lookSource = LookSourceFor(player);
+            Transform lookSource = InteractionReach.LookSource(player);
             Vector3 toSelf = transform.position - lookSource.position;
             if (toSelf.sqrMagnitude > 0.0001f &&
                 Vector3.Dot(lookSource.forward, toSelf.normalized) < LookDotThreshold)
@@ -455,17 +455,6 @@ namespace CityX.Weapons
                 return true;
             }
             return false;
-        }
-
-        /// <summary>Where the player is looking from: the input's yaw source, else the main camera, else the body. Shared with BottleWeapon.</summary>
-        internal static Transform LookSourceFor(Transform player)
-        {
-            var input = player.GetComponent<PlayerInputReader>();
-            if (input != null && input.YawSource != null)
-            {
-                return input.YawSource;
-            }
-            return Camera.main != null ? Camera.main.transform : player;
         }
 
         private void OnTriggerEnter(Collider other)

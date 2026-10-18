@@ -1,5 +1,4 @@
 using System.Collections;
-using System.IO;
 using CityX.Character;
 using CityX.Items;
 using NUnit.Framework;
@@ -23,7 +22,6 @@ namespace CityX.Tests
         private const string ScenePath = "Assets/CityX/Scenes/CityMassing.unity";
         private Scene _scene;
         private Keyboard _keyboard;
-        private string _directory;
 
         public override void Setup()
         {
@@ -41,35 +39,6 @@ namespace CityX.Tests
                 yield return SceneManager.UnloadSceneAsync(_scene);
             }
             LogAssert.ignoreFailingMessages = false;
-        }
-
-        private void Shoot(Camera camera, string name, Vector3 position, Vector3 lookAt)
-        {
-            camera.transform.position = position;
-            camera.transform.rotation = Quaternion.LookRotation(lookAt - position, Vector3.up);
-            const int width = 1024, height = 768;
-            RenderTexture target = RenderTexture.GetTemporary(width, height, 24, RenderTextureFormat.ARGB32);
-            RenderTexture previous = RenderTexture.active;
-            try
-            {
-                camera.targetTexture = target;
-                camera.Render();
-                RenderTexture.active = target;
-                var image = new Texture2D(width, height, TextureFormat.RGB24, false);
-                image.ReadPixels(new Rect(0, 0, width, height), 0, 0);
-                image.Apply();
-                // This assembly has no reference to the image-conversion module, so ask for EncodeToPNG by name (the editor always has it).
-                System.Type conversion = System.Type.GetType("UnityEngine.ImageConversion, UnityEngine.ImageConversionModule");
-                var encode = conversion.GetMethod("EncodeToPNG", new[] { typeof(Texture2D) });
-                File.WriteAllBytes(Path.Combine(_directory, name + ".png"), (byte[])encode.Invoke(null, new object[] { image }));
-                Object.Destroy(image);
-            }
-            finally
-            {
-                camera.targetTexture = null;
-                RenderTexture.active = previous;
-                RenderTexture.ReleaseTemporary(target);
-            }
         }
 
         private IEnumerator Seconds(float seconds)
@@ -97,8 +66,8 @@ namespace CityX.Tests
                     yield return null;
                 }
                 Vector3 centre = body.position + Vector3.up * 1.3f;
-                Shoot(camera, $"spin-{kind}-f{frame:00}-side", centre + body.right * 7.5f + Vector3.up * 0.3f, centre);
-                Shoot(camera, $"spin-{kind}-f{frame:00}-behind", centre - body.forward * 5.5f + Vector3.up * 2.4f, centre + body.forward);
+                CaptureShots.Shoot(camera, $"spin-{kind}-f{frame:00}-side", centre + body.right * 7.5f + Vector3.up * 0.3f, centre);
+                CaptureShots.Shoot(camera, $"spin-{kind}-f{frame:00}-behind", centre - body.forward * 5.5f + Vector3.up * 2.4f, centre + body.forward);
             }
         }
 
@@ -108,8 +77,6 @@ namespace CityX.Tests
             CaptureGuard.NeedsGraphics();
 #if UNITY_EDITOR
             LogAssert.ignoreFailingMessages = true;
-            _directory = Path.Combine(Directory.GetParent(Application.dataPath).FullName, "Logs", "CityShots");
-            Directory.CreateDirectory(_directory);
 
             UnityEditor.SceneManagement.EditorSceneManager.LoadSceneInPlayMode(ScenePath, new LoadSceneParameters(LoadSceneMode.Additive));
             yield return null;
@@ -147,8 +114,8 @@ namespace CityX.Tests
             yield return Seconds(0.45f);
             {
                 Vector3 centre = body.position + Vector3.up * 1.3f;
-                Shoot(camera, "spin-charge-side", centre + body.right * 7.5f + Vector3.up * 0.3f, centre);
-                Shoot(camera, "spin-charge-behind", centre - body.forward * 5.5f + Vector3.up * 2.4f, centre + body.forward);
+                CaptureShots.Shoot(camera, "spin-charge-side", centre + body.right * 7.5f + Vector3.up * 0.3f, centre);
+                CaptureShots.Shoot(camera, "spin-charge-behind", centre - body.forward * 5.5f + Vector3.up * 2.4f, centre + body.forward);
             }
             Release(_keyboard.digit2Key);
             yield return ShootFrames(camera, melee, body, "ground", GroundFrames);
@@ -167,7 +134,7 @@ namespace CityX.Tests
             yield return null;
             Release(_keyboard.digit2Key);
             yield return ShootFrames(camera, melee, body, "air", AirFrames);
-            Debug.Log($"CityX: spin capture wrote to {_directory}; kind {melee.CurrentSpinKind}, animation weight {locomotion.BakedPoseWeight:0.00}");
+            Debug.Log($"CityX: spin capture wrote to {CaptureShots.Folder}; kind {melee.CurrentSpinKind}, animation weight {locomotion.BakedPoseWeight:0.00}");
             Time.captureFramerate = 0;
             Object.Destroy(cameraObject);
 #else

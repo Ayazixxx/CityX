@@ -762,6 +762,8 @@ namespace CityX.ViewEditor
             streamerObject.AddComponent<CityX.Character.BalconyDoorsNetwork>();
             // Broken glass (2026-10-16): a window or a door's glass another player broke is broken here too.
             streamerObject.AddComponent<CityX.Character.GlassDamageNetwork>();
+            // Dropped items (2026-10-17): the weapon a player let go of when they died lies on every machine, and only one player gets it.
+            streamerObject.AddComponent<CityX.Character.DroppedItemsNetwork>();
             // Graffiti (2026-10-15): pieces painted with a spray can, kept the same on every machine, drawn lit (GraffitiPaint.mat).
             streamerObject.AddComponent<CityX.Character.GraffitiNetwork>().PaintMaterial = CityX.WeaponsEditor.SprayCanBuilder.EnsureGraffitiMaterial();
             streamer.RoadLineMaterial = roadLine;

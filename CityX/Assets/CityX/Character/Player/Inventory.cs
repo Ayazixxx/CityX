@@ -317,6 +317,67 @@ namespace CityX.Character
         }
 
         /// <summary>
+        /// Lets go of the weapon in hand (a body that dies drops it): gives its id, its state and where its model was in the world, puts the model
+        /// away (its own OnUnequip) and empties the slot without returning it to storage. False with nothing in hand.
+        /// </summary>
+        public bool TakeWeaponInHand(GameObject player, out string itemId, out ItemInstanceData instanceData, out Pose pose)
+        {
+            string slot = ActiveWeaponSlot;
+            itemId = EquippedItemId(slot);
+            instanceData = ItemInstanceData.None;
+            pose = default;
+            GameObject instance = EquippedInstance(slot);
+            if (string.IsNullOrEmpty(itemId) || instance == null)
+            {
+                return false;
+            }
+            var equippable = instance.GetComponent<IEquippableItem>();
+            instanceData = equippable != null ? equippable.GetInstanceData() : ItemInstanceData.None;
+            pose = new Pose(instance.transform.position, instance.transform.rotation);
+            equippable?.OnUnequip(player);
+            _equipment[slot] = string.Empty;
+            _equippedInstances[slot] = null;
+            _holstered.Remove(slot);
+            NotifyEquipmentChanged();
+            return true;
+        }
+
+        /// <summary>Whether one <paramref name="itemId"/> would fit in storage now: a stack of it with room, or an empty slot (AddItem's own rule).</summary>
+        public bool HasRoomFor(string itemId, ItemInstanceData instanceData = default)
+        {
+            if (!ItemRegistry.TryGet(itemId, out ItemDefinition definition))
+            {
+                return false;
+            }
+            for (int i = 0; i < Storage.Length; i++)
+            {
+                if (Storage[i].IsEmpty)
+                {
+                    return true;
+                }
+                if (instanceData.IsEmpty && Storage[i].ItemId == itemId && Storage[i].InstanceData.IsEmpty && Storage[i].Count < definition.StackSize)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>The prefab for an item from whichever inventory in the scene lists it (every body's lists the same): what a dropped item is shown with.</summary>
+        public static GameObject FindPrefab(string itemId)
+        {
+            foreach (Inventory inventory in FindObjectsByType<Inventory>(FindObjectsSortMode.None))
+            {
+                GameObject prefab = inventory.PrefabFor(itemId);
+                if (prefab != null)
+                {
+                    return prefab;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
         /// Clears the slot with no return to storage -- the bottle-throw
         /// special case. The item is consumed, not unequipped.
         /// </summary>

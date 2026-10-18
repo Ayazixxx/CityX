@@ -250,6 +250,15 @@ namespace CityX.Character
             {
                 gameObject.AddComponent<HitImpactEffects>();
             }
+            // Dying drops the weapon in hand for anyone to pick up, and E picks up what lies in reach (DroppedItems).
+            if (GetComponent<DropsWeaponOnDeath>() == null)
+            {
+                gameObject.AddComponent<DropsWeaponOnDeath>();
+            }
+            if (GetComponent<DroppedItemPicker>() == null)
+            {
+                gameObject.AddComponent<DroppedItemPicker>();
+            }
 
             // A stagger cuts short what was winding up (2026-10-14: the Stability stat makes it rarer).
             if (_vitals != null)

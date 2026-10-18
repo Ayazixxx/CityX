@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using CityX.Character;
+using CityX.Items;
 using UnityEngine;
 
 namespace CityX.Weapons
@@ -140,6 +141,7 @@ namespace CityX.Weapons
             if (_vitals != null)
             {
                 _vitals.Damaged += OnDamaged;
+                _vitals.Died += OnDied;
                 _vitals.XpRewardOnDeath = XpReward;
             }
             MountGun();
@@ -150,7 +152,28 @@ namespace CityX.Weapons
             if (_vitals != null)
             {
                 _vitals.Damaged -= OnDamaged;
+                _vitals.Died -= OnDied;
             }
+        }
+
+        /// <summary>Killed: his rifle falls from his hands for the player to pick up (owner, 2026-10-17); on this machine alone, as he is.</summary>
+        private void OnDied()
+        {
+            if (_gun == null)
+            {
+                return;
+            }
+            var pose = new Pose(_gun.transform.position, _gun.transform.rotation);
+            Vector3 bodyVelocity = _locomotion != null ? _locomotion.Velocity : Vector3.zero;
+            DroppedItems.Shared.Drop(DroppedItem.LetGo(_gun.ItemId, ItemInstanceData.None, pose, transform, bodyVelocity, _vitals.DeathImpulse),
+                shared: false, gameObject, GunPrefab);
+            _gun.UnmountCosmetic(gameObject);
+            if (_locomotion != null)
+            {
+                _locomotion.GunMuzzle = null;
+            }
+            Destroy(_gun.gameObject);
+            _gun = null;
         }
 
         private void OnDamaged(float amount)

@@ -95,6 +95,7 @@ namespace CityX.Weapons
             if (_vitals != null)
             {
                 _vitals.Damaged += OnDamaged;
+                _vitals.Died += OnDied;
                 _vitals.XpRewardOnDeath = XpReward;
             }
             // The clash of a blow on his guard (sparks and the ting), as on the player's body (PlayerInputReader adds it there).
@@ -114,6 +115,7 @@ namespace CityX.Weapons
             if (_vitals != null)
             {
                 _vitals.Damaged -= OnDamaged;
+                _vitals.Died -= OnDied;
             }
             WatchTarget(null, null);
         }
@@ -147,6 +149,24 @@ namespace CityX.Weapons
         private void OnDamaged(float amount)
         {
             _hurt = true;
+        }
+
+        /// <summary>
+        /// Beaten: his sword falls from his hand for the player to pick up (owner, 2026-10-17). His drop stays on this machine, as he does
+        /// (an NPC exists only on the machine that spawned it).
+        /// </summary>
+        private void OnDied()
+        {
+            if (_sword == null)
+            {
+                return;
+            }
+            var pose = new Pose(_sword.transform.position, _sword.transform.rotation);
+            Vector3 bodyVelocity = _locomotion != null ? _locomotion.Velocity : Vector3.zero;
+            DroppedItems.Shared.Drop(DroppedItem.LetGo(_sword.ItemId, ItemInstanceData.None, pose, transform, bodyVelocity, _vitals.DeathImpulse),
+                shared: false, gameObject, SwordPrefab);
+            _sword.OnUnequip(gameObject);
+            _sword = null;
         }
 
         /// <summary>The combat sword in his right hand, equipped exactly as the player equips one (the hold, the sword combat, the posing).</summary>

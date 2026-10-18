@@ -184,24 +184,7 @@ namespace CityX.Character
             mount.MountCosmetic(gameObject);
 
             // Nothing about a copy's item may act: no pickup, no collision, no physics, no scripts.
-            foreach (Collider c in model.GetComponentsInChildren<Collider>(true))
-            {
-                c.enabled = false;   // off at once (Destroy only takes effect at the end of the frame)
-                Destroy(c);
-            }
-            foreach (Rigidbody rb in model.GetComponentsInChildren<Rigidbody>(true))
-            {
-                rb.isKinematic = true;
-            }
-            foreach (MonoBehaviour b in model.GetComponentsInChildren<MonoBehaviour>(true))
-            {
-                b.enabled = false;
-            }
-            foreach (AudioSource a in model.GetComponentsInChildren<AudioSource>(true))
-            {
-                a.Stop();
-                a.enabled = false;
-            }
+            InertModel.Strip(model);
             return model;
         }
 

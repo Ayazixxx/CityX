@@ -55,6 +55,11 @@ light holds the other until the chain's next cut arrives, so whoever lands first
 the stun (the parry window catches the next cut) or a dash the moment it ends. He is stunned by the same rule, and dashes away 35% of the
 time once he can. A killing cut flings the corpse.
 
+## Beaten, he drops his sword (2026-10-17)
+
+His combat sword falls from his hand, tumbles to the street and lies there for the player to pick up with E (docs/DROPPED_ITEMS.md). It is on
+this machine alone, as he is.
+
 ## Multiplayer
 
 **He is local for now**, as the Shoota and the Crimson Claw are: NPCs are not networked yet (docs/GAME_DESIGN.md, "Enemy/NPC sync"). He exists

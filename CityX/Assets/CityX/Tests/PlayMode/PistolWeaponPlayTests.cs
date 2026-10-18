@@ -58,7 +58,7 @@ namespace CityX.Tests
         /// PlayerLocomotion only turns the body while actually moving, so
         /// a stopped player's body can be pointing anywhere at all --
         /// while the camera, the only thing this test wires deliberately,
-        /// faces the gun directly. LookSourceFor has to reach past the
+        /// faces the gun directly. InteractionReach.LookSource has to reach past the
         /// body to the camera for this to succeed.
         /// </summary>
         [UnityTest]

@@ -36,6 +36,10 @@
   The tracer is drawn along the true path, with the flash, the crack, the brass and the bolt.
 - **Never through a wall**: he only shoots what he can see.
 
+## Killed, he drops his rifle (2026-10-17)
+
+His AK-47 falls from his hands to the street for the player to pick up with E (docs/DROPPED_ITEMS.md), on this machine alone, as he is.
+
 ## Cover (`Character/NPC/CoverPicker.cs`)
 
 Rings of spots round him (2.5 to 20 m, 16 each): a spot is cover when the lines from your eye to a crouching body there (head and chest) both

@@ -151,7 +151,7 @@ namespace CityX.Weapons
                 return false;
             }
 
-            Transform lookSource = PistolWeapon.LookSourceFor(player);
+            Transform lookSource = InteractionReach.LookSource(player);
             Vector3 toSelf = transform.position - lookSource.position;
             if (toSelf.sqrMagnitude > 0.0001f &&
                 Vector3.Dot(lookSource.forward, toSelf.normalized) < LookDotThreshold)

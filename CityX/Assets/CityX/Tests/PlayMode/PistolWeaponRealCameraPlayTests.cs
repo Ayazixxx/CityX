@@ -15,7 +15,7 @@ namespace CityX.Tests
     /// the player actually stood, and nearbyPlayer=head instead of the
     /// player's own root.
     ///
-    /// Root cause: TryPickup's range check measured from LookSourceFor's
+    /// Root cause: TryPickup's range check measured from InteractionReach.LookSource's
     /// result -- the camera, when no YawSource is wired -- rather than from
     /// the player's own body. PistolWeaponPlayTests's own existing coverage
     /// never caught this because it glues a bare Camera directly onto the

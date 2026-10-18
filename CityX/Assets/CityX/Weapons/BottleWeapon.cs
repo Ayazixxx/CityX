@@ -120,7 +120,7 @@ namespace CityX.Weapons
             }
 
             // See PistolWeapon.TryPickup's own comment -- range has to come
-            // from the player's own body, not the camera LookSourceFor falls
+            // from the player's own body, not the camera InteractionReach.LookSource falls
             // back to, which trails Distance behind the player under the
             // real ThirdPersonCamera and made this permanently unreachable.
             Vector3 toPlayer = transform.position - player.position;
@@ -129,7 +129,7 @@ namespace CityX.Weapons
                 return false;
             }
 
-            Transform lookSource = PistolWeapon.LookSourceFor(player);
+            Transform lookSource = InteractionReach.LookSource(player);
             Vector3 toSelf = transform.position - lookSource.position;
             if (toSelf.sqrMagnitude > 0.0001f &&
                 Vector3.Dot(lookSource.forward, toSelf.normalized) < LookDotThreshold)
