@@ -765,6 +765,39 @@ namespace CityX.Character
             }
         }
 
+        /// <summary>The highest level /level sets.</summary>
+        public const int MaxSettableLevel = 10000;
+
+        /// <summary>
+        /// Sets the level outright (the console's /level, owner 2026-10-17), with the points the levels in between bring, exactly as
+        /// AddXp would have given them: StatPointsPerLevel each, and a skill point on every SkillPointEveryNLevels-th. Going down takes those
+        /// points back from what is unspent (never below zero; points already spent stay spent). The XP towards the next level starts over.
+        /// Returns the stat and skill points given (negative when taken back).
+        /// </summary>
+        public (int stat, int skill) SetLevel(int level)
+        {
+            level = Mathf.Clamp(level, 1, MaxSettableLevel);
+            int stat = 0;
+            int skill = 0;
+            for (int l = Level + 1; l <= level; l++)
+            {
+                stat += StatPointsPerLevel;
+                if (l % SkillPointEveryNLevels == 0) skill++;
+            }
+            for (int l = Level; l > level; l--)
+            {
+                stat -= StatPointsPerLevel;
+                if (l % SkillPointEveryNLevels == 0) skill--;
+            }
+            int statBefore = StatPoints;
+            int skillBefore = SkillPoints;
+            StatPoints = Mathf.Max(0, StatPoints + stat);
+            SkillPoints = Mathf.Max(0, SkillPoints + skill);
+            Level = level;
+            Experience = 0;
+            return (StatPoints - statBefore, SkillPoints - skillBefore);
+        }
+
         /// <summary>
         /// Spends one available point on Vitality/Endurance/Strength. Ported
         /// from player.gd's own spend_stat_point(), scoped to the 3 stats

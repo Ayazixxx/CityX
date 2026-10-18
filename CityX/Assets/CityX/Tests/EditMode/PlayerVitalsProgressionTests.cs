@@ -29,6 +29,43 @@ namespace CityX.Tests
         }
 
         [Test]
+        public void SettingTheLevelGivesThePointsTheLevelsInBetweenWouldHave()
+        {
+            // The same as earning it: AddXp up to level 20 on another body.
+            var earned = new GameObject("Earned").AddComponent<PlayerVitals>();
+            try
+            {
+                while (earned.Level < 20) earned.AddXp(earned.ExperienceToNextLevel);
+                (int stat, int skill) = _vitals.SetLevel(20);
+                Assert.AreEqual(20, _vitals.Level);
+                Assert.AreEqual(earned.StatPoints, _vitals.StatPoints);
+                Assert.AreEqual(earned.SkillPoints, _vitals.SkillPoints);
+                Assert.AreEqual(19 * PlayerVitals.StatPointsPerLevel, stat);
+                Assert.AreEqual(10, skill, "levels 2, 4 ... 20 each bring a skill point");
+                Assert.AreEqual(0, _vitals.Experience);
+            }
+            finally
+            {
+                Object.DestroyImmediate(earned.gameObject);
+            }
+        }
+
+        [Test]
+        public void SettingALowerLevelTakesBackOnlyUnspentPoints()
+        {
+            _vitals.SetLevel(10);
+            _vitals.StatPoints = 3;   // most of them spent
+            (int stat, int skill) = _vitals.SetLevel(4);
+            Assert.AreEqual(4, _vitals.Level);
+            Assert.AreEqual(0, _vitals.StatPoints, "never below zero");
+            Assert.AreEqual(-3, stat);
+            Assert.AreEqual(2, _vitals.SkillPoints, "levels 6, 8 and 10 took their skill points back");
+            Assert.AreEqual(-3, skill);
+            _vitals.SetLevel(0);
+            Assert.AreEqual(1, _vitals.Level, "level 1 is the lowest");
+        }
+
+        [Test]
         public void ANonNegativeAmountIsIgnored()
         {
             _vitals.AddXp(0);

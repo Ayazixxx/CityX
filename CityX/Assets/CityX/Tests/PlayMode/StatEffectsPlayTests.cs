@@ -166,6 +166,13 @@ namespace CityX.Tests
             player.GetComponent<PlayerAnimationDriver>().PlayRemoteState(BlockDeflectEffect.StateName, 1.0f, 0.0f);
             Assert.AreEqual(2, effect.Shown, "a copy shows another player's deflection too");
             Assert.IsNotNull(BlockDeflectEffect.Ting(), "the ting is made");
+            Assert.AreEqual(0, effect.ClashesShown, "a bullet glancing off is the ting, not a sword clash");
+
+            // A sword guard meeting a blade, on a copy (the owner, 2026-10-17: one of their three recordings at random).
+            player.GetComponent<PlayerAnimationDriver>().PlayRemoteState(BlockDeflectEffect.ClashStateName, 1.0f, 0.0f);
+            Assert.AreEqual(1, effect.ClashesShown, "a copy shows another player's sword clash");
+            Assert.IsNotNull(effect.LastClashClip, "the clash played no recording");
+            CollectionAssert.Contains(BlockDeflectEffect.Clashes(), effect.LastClashClip);
         }
 
         [UnityTest]

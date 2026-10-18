@@ -130,6 +130,7 @@ namespace CityX.UI
             "infinitehealth",
             "infinitesprint",
             "xp",
+            "level",
             "skills",
             "spawn",
             "car",
@@ -160,6 +161,7 @@ namespace CityX.UI
                 case "infinitehealth": return "/infinitehealth -- toggles";
                 case "infinitesprint": return "/infinitesprint -- toggles";
                 case "xp": return "/xp <amount>";
+                case "level": return "/level <n> -- sets your level, with the stat and skill points the levels in between bring (going down takes unspent ones back)";
                 case "skills": return "/skills -- what is learnt, the points and the bar; /skills points <n> gives skill points; " +
                     "/skills reset forgets everything but vaulting and gives the points back; /skills all learns everything; " +
                     "/skills new is a brand new character's (vaulting and one point)";

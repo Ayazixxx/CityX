@@ -58,6 +58,12 @@ attacker's penetration (that player's own armour answers it); a player's Max Hea
 deflection is announced by name (`block_deflect`) and the copy throws the same sparks; a faster swing or reload is sent with its speed and the
 copy plays it at that pace. Tested over real sockets (`NetworkedPlayerStateSyncPlayTests`).
 
+## Setting the level (console)
+
+`/level <n>` (owner, 2026-10-17) sets the level outright with the points the levels in between bring, exactly as earning them would: 5 stat
+points per level and a skill point on every even level (`PlayerVitals.SetLevel`). Going down takes those points back from what is unspent,
+never below zero. The XP toward the next level starts over.
+
 ## Saving
 
 `CharacterSave.Stats` keeps every stat by key. A save from before has only Vitality, Endurance and Strength, which become Max Health, Max

@@ -16,6 +16,14 @@ namespace CityX.Character
         /// <summary>The name a deflection travels to other players under.</summary>
         public const string StateName = "block_deflect";
 
+        /// <summary>The name a sword guard meeting a blade travels under: the same sparks, a recorded clash instead of the ting.</summary>
+        public const string ClashStateName = "guard_clash";
+
+        /// <summary>The owner's sword-on-sword recordings (2026-10-17), in Resources: one is picked at random for each clash.</summary>
+        public static readonly string[] ClashClipNames = { "SwordClash/SwordClash1", "SwordClash/SwordClash2", "SwordClash/SwordClash3" };
+
+        public const float ClashVolume = 0.8f;
+
         public const int SparkCount = 9;
         public const float SparkSeconds = 0.2f;
         public const float SparkSpeed = 6.0f;
@@ -31,6 +39,7 @@ namespace CityX.Character
 
         private static Material _material;
         private static AudioClip _ting;
+        private static AudioClip[] _clashes;
 
         private PlayerVitals _vitals;
         private PlayerAnimationDriver _driver;
@@ -60,25 +69,31 @@ namespace CityX.Character
             if (_driver != null) _driver.RemoteDeflected -= OnRemoteDeflected;
         }
 
-        /// <summary>A sword guard met a blow (a parry or a soak, owner 2026-10-17's guard rebound): the same clash of sparks and the ting.</summary>
+        /// <summary>A sword guard met a blow (a parry or a soak, owner 2026-10-17's guard rebound): sparks and one of the recorded clashes.</summary>
         private void OnGuardStruck(Vector3 from)
         {
-            OnDeflected(from, DamageKind.Physical);
+            Vector3 direction = Toward(from);
+            Show(Chest() + direction * GuardReach, direction, true);
+            _driver?.AnnounceState(ClashStateName);
         }
 
         private void OnDeflected(Vector3 from, DamageKind kind)
         {
-            Vector3 chest = Chest();
-            Vector3 toward = from - chest;
-            toward.y = 0.0f;
-            Vector3 direction = toward.sqrMagnitude > 1e-4f ? toward.normalized : transform.forward;
-            Show(chest + direction * GuardReach, direction);
+            Vector3 direction = Toward(from);
+            Show(Chest() + direction * GuardReach, direction);
             _driver?.AnnounceState(StateName);
         }
 
-        private void OnRemoteDeflected()
+        private void OnRemoteDeflected(bool clash)
         {
-            Show(Chest() + transform.forward * GuardReach, transform.forward);
+            Show(Chest() + transform.forward * GuardReach, transform.forward, clash);
+        }
+
+        private Vector3 Toward(Vector3 from)
+        {
+            Vector3 toward = from - Chest();
+            toward.y = 0.0f;
+            return toward.sqrMagnitude > 1e-4f ? toward.normalized : transform.forward;
         }
 
         private Vector3 Chest()
@@ -87,10 +102,25 @@ namespace CityX.Character
             return transform.position + Vector3.up * (height * 0.62f);
         }
 
-        /// <summary>Sparks fanning out of <paramref name="point"/> toward <paramref name="direction"/>, and the ting.</summary>
-        public void Show(Vector3 point, Vector3 direction)
+        /// <summary>How many sword-on-sword clashes this body has shown: what a test reads.</summary>
+        public int ClashesShown { get; private set; }
+
+        /// <summary>The clip the last clash played (one of the recordings; null if they are missing and the ting played).</summary>
+        public AudioClip LastClashClip { get; private set; }
+
+        /// <summary>
+        /// Sparks fanning out of <paramref name="point"/> toward <paramref name="direction"/>, and the sound: a recorded sword clash picked
+        /// at random when a blade met the guard (<paramref name="clash"/>), the ting otherwise (a bullet glancing off, a Block Chance stop).
+        /// </summary>
+        public void Show(Vector3 point, Vector3 direction, bool clash = false)
         {
             Shown++;
+            AudioClip clip = null;
+            if (clash)
+            {
+                ClashesShown++;
+                clip = LastClashClip = RandomClash();
+            }
             if (!Application.isPlaying)
             {
                 return;
@@ -98,7 +128,37 @@ namespace CityX.Character
             var burst = new GameObject("DeflectSparks");
             burst.transform.position = point;
             burst.AddComponent<SparkBurst>().Begin(point, direction);
-            AudioSource.PlayClipAtPoint(Ting(), point, Volume);
+            if (clip != null)
+            {
+                AudioSource.PlayClipAtPoint(clip, point, ClashVolume);
+            }
+            else
+            {
+                AudioSource.PlayClipAtPoint(Ting(), point, Volume);
+            }
+        }
+
+        /// <summary>The owner's clash recordings, loaded once.</summary>
+        public static AudioClip[] Clashes()
+        {
+            if (_clashes == null)
+            {
+                var found = new System.Collections.Generic.List<AudioClip>();
+                foreach (string name in ClashClipNames)
+                {
+                    AudioClip clip = Resources.Load<AudioClip>(name);
+                    if (clip != null) found.Add(clip);
+                }
+                _clashes = found.ToArray();
+            }
+            return _clashes;
+        }
+
+        /// <summary>One of the recordings, each equally likely; null if none loaded.</summary>
+        public static AudioClip RandomClash()
+        {
+            AudioClip[] clashes = Clashes();
+            return clashes.Length > 0 ? clashes[Random.Range(0, clashes.Length)] : null;
         }
 
         /// <summary>A short, bright metallic ting: a click and four inharmonic partials ringing down fast, as struck steel does.</summary>

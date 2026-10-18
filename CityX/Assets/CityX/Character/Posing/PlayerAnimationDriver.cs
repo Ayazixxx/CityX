@@ -324,7 +324,8 @@ namespace CityX.Character
         public event System.Action RemoteGunFired;
 
         /// <summary>A blow the player this body is a copy of stopped outright with a block (BlockDeflectEffect.StateName, from the network).</summary>
-        public event System.Action RemoteDeflected;
+        /// <remarks>True when it was a sword guard meeting a blade (BlockDeflectEffect.ClashStateName): the recorded clash plays.</remarks>
+        public event System.Action<bool> RemoteDeflected;
 
         /// <summary>A blow that got through to the player this body is a copy of (HitImpactEffects.NameFor, from the network): the side it came from, and whether it was heavy.</summary>
         public event System.Action<HitDirection, bool> RemoteWounded;
@@ -445,9 +446,10 @@ namespace CityX.Character
                 RemoteGunFired?.Invoke();   // the copy's mounted gun flashes, cracks, throws brass
                 return;
             }
-            if (stateName == BlockDeflectEffect.StateName)
+            if (stateName == BlockDeflectEffect.StateName || stateName == BlockDeflectEffect.ClashStateName)
             {
-                RemoteDeflected?.Invoke();   // the copy's guard throws the same sparks and rings the same ting
+                // the copy's guard throws the same sparks and makes the same sound
+                RemoteDeflected?.Invoke(stateName == BlockDeflectEffect.ClashStateName);
                 return;
             }
             if (HitImpactEffects.TryParse(stateName, out HitDirection woundDirection, out bool woundHeavy))

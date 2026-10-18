@@ -409,6 +409,10 @@ namespace CityX.UI
                     Experience(line.Argument(0));
                     return;
 
+                case "level":
+                    SetLevel(line.Argument(0));
+                    return;
+
                 case "skills":
                     SkillsCommand(line.Argument(0), line.Argument(1));
                     return;
@@ -827,6 +831,28 @@ namespace CityX.UI
             Log(levelsGained > 0
                 ? $"+{points} xp -- +{levelsGained} level(s), now level {Vitals.Level} ({Vitals.StatPoints} point(s) to spend)"
                 : $"+{points} xp -- {Vitals.Experience}/{Vitals.ExperienceToNextLevel} to next level");
+        }
+
+        /// <summary>"/level 20": the level outright, with the points reaching it brings (PlayerVitals.SetLevel).</summary>
+        private void SetLevel(string value)
+        {
+            if (Vitals == null)
+            {
+                Log("no body here");
+                return;
+            }
+            if (value == null || !int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int level) || level < 1)
+            {
+                Log(DevCommands.UsageFor("level"));
+                return;
+            }
+            int levelBefore = Vitals.Level;
+            (int stat, int skill) = Vitals.SetLevel(level);
+            // The skill menu and the bar redraw on a change of points.
+            PlayerSkills skills = PlayerSkills.Local != null ? PlayerSkills.Local : PlayerSkills.On(Vitals.gameObject);
+            skills?.SetPoints(Vitals.SkillPoints);
+            Log($"level {levelBefore} -> {Vitals.Level}: {stat:+0;-0;0} stat point(s), {skill:+0;-0;0} skill point(s) " +
+                $"(now {Vitals.StatPoints} stat, {Vitals.SkillPoints} skill to spend)");
         }
 
         private void Spawn(string what)

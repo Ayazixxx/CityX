@@ -43,7 +43,7 @@ By priority, every frame:
 Swing into a held guard and the blade bounces off it: `SoulsSwordCombat.GuardReboundSeconds` (0.6 s) stunned, the sword arm thrown up and back
 past the shoulder and the body leaning away (`SwordStrikes.Rebound1HName` / `Rebound2HName`, posed by `SwordPoseDriver.BeginRebound`), then
 gathered back into the ready stance. A parry (the guard's first 0.2 s) does the same for longer (`BlockedRecoilSeconds`, 0.9 s). A blow the
-guard cannot afford breaks the guard instead (the defender staggers, 1 s). The blades clash with sparks and a ting on every guarded or parried
+guard cannot afford breaks the guard instead (the defender staggers, 1 s). The blades clash with sparks and one of the owner's three recorded clashes (picked at random) on every guarded or parried
 blow (`PlayerVitals.GuardStruck` -> `BlockDeflectEffect`). It is the same for both sides: his blade bounces off your guard too, and that is your
 opening. Details in docs/SOULSLIKE_COMBAT.md.
 
