@@ -49,6 +49,8 @@ MonoBehaviour:
   GarmentMesh: {fileID: 4300000, guid: f6288c65ff125b24297095b1ca61b21e, type: 2}
   GarmentMaterial: {fileID: 2100000, guid: 9db923dcf17bb2c47b24f673f7a28aec, type: 2}
   GroundPreview: {fileID: 8497283753923071065}
+  HiddenBodyTriangles: 
+  HiddenFromBodyTriangles: 0
 --- !u!135 &2543807319930648781
 SphereCollider:
   m_ObjectHideFlags: 0

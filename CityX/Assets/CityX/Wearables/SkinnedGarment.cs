@@ -1,4 +1,5 @@
 using CityX.Character;
+using CityX.Core;
 using CityX.Items;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -57,6 +58,12 @@ namespace CityX.Wearables
                  "skin and the two z-fight into a flickering, wrong-shaded mess.")]
         public GameObject GroundPreview;
 
+        [Tooltip("The body's triangles this garment covers, one bit each, not drawn while it is worn (BodyUnderGarment). Empty keeps the whole body.")]
+        [HideInInspector] public byte[] HiddenBodyTriangles;
+
+        [Tooltip("The body's triangle count HiddenBodyTriangles was made for: another body is drawn whole.")]
+        public int HiddenFromBodyTriangles;
+
         public abstract string ItemId { get; }
 
         /// <summary>
@@ -68,6 +75,8 @@ namespace CityX.Wearables
 
         private Transform _nearbyPlayer;
         private bool _equipped;
+        private SkinnedMeshRenderer _bodySkin;
+        private Mesh _wholeBody;
 
         private void Update()
         {
@@ -162,6 +171,7 @@ namespace CityX.Wearables
                 Combiner = player.AddComponent<SkinnedGarmentCombiner>();
             }
             Combiner.Register(ItemId, GarmentMesh, GarmentMaterial);
+            CoverBody(player);
             OnEquipped(player);
         }
 
@@ -169,12 +179,34 @@ namespace CityX.Wearables
         public void OnUnequip(GameObject player)
         {
             OnUnequipped(player);
+            if (_bodySkin != null && _wholeBody != null)
+            {
+                _bodySkin.sharedMesh = _wholeBody;
+            }
+            _bodySkin = null;
+            _wholeBody = null;
             if (Combiner != null)
             {
                 Combiner.Unregister(ItemId);
             }
             Combiner = null;
             Destroy(gameObject);
+        }
+
+        /// <summary>Draws the body without what this garment hides, keeping the whole body to put back on unequip.</summary>
+        private void CoverBody(GameObject player)
+        {
+            if (HiddenBodyTriangles == null || HiddenBodyTriangles.Length == 0)
+            {
+                return;
+            }
+            Transform skin = TransformSearch.FindDeep(player.transform, "Skin");
+            _bodySkin = skin != null ? skin.GetComponent<SkinnedMeshRenderer>() : null;
+            if (_bodySkin != null)
+            {
+                _wholeBody = _bodySkin.sharedMesh;
+                _bodySkin.sharedMesh = BodyCover.Cut(_wholeBody, HiddenBodyTriangles, HiddenFromBodyTriangles);
+            }
         }
 
         /// <summary>

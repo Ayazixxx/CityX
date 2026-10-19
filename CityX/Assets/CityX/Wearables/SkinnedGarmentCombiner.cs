@@ -64,6 +64,7 @@ namespace CityX.Wearables
         private const float LodFarDistance = 30.0f;
 
         private SkinnedMeshRenderer _renderer;
+        private Transform[] _humanBones;
         private bool _bonesResolved;
         private float _sinceLodCheck;
 
@@ -162,6 +163,7 @@ namespace CityX.Wearables
             {
                 _renderer.sharedMesh = null;
                 _renderer.enabled = false;
+                BindHelperBones(System.Array.Empty<Matrix4x4>());
                 return;
             }
 
@@ -174,6 +176,39 @@ namespace CityX.Wearables
             _renderer.sharedMesh = BuildCombinedMesh(visible);
             _renderer.sharedMaterials = materials;
             _renderer.enabled = true;
+            BindHelperBones(_renderer.sharedMesh.bindposes);
+        }
+
+        /// <summary>
+        /// A garment skinned to GarmentHelperBones (its bindposes run past the body's 14) gets them on this body; one that is not leaves the
+        /// renderer on the 14 alone.
+        /// </summary>
+        private void BindHelperBones(Matrix4x4[] bindposes)
+        {
+            var helpers = GetComponent<GarmentHelperBones>();
+            bool wanted = bindposes.Length > SkinnedGarment.Bones.Length && _humanBones != null;
+            if (wanted && helpers == null)
+            {
+                helpers = gameObject.AddComponent<GarmentHelperBones>();
+            }
+            if (helpers != null)
+            {
+                helpers.enabled = wanted;
+            }
+            if (_humanBones == null)
+            {
+                return;
+            }
+            if (!wanted)
+            {
+                _renderer.bones = _humanBones;
+                return;
+            }
+            Transform[] helperBones = helpers.Bind(GetComponentInChildren<Animator>(), bindposes);
+            var bones = new Transform[_humanBones.Length + helperBones.Length];
+            _humanBones.CopyTo(bones, 0);
+            helperBones.CopyTo(bones, _humanBones.Length);
+            _renderer.bones = bones;
         }
 
         /// <summary>
@@ -231,10 +266,18 @@ namespace CityX.Wearables
             combined.SetNormals(normals);
             combined.SetUVs(0, uvs);
             combined.boneWeights = weights.ToArray();
-            // Identical across every entry by construction (see class doc
-            // comment) -- any one of them is as correct as picking the
-            // "true" shared skeleton bindpose.
-            combined.bindposes = entries[0].Mesh.bindposes;
+            // The same skeleton for every entry by construction (see class
+            // doc comment); the longest list also carries the helper bones
+            // a garment skinned to them adds after the body's 14.
+            Matrix4x4[] bindposes = entries[0].Mesh.bindposes;
+            foreach (Entry entry in entries)
+            {
+                if (entry.Mesh.bindposes.Length > bindposes.Length)
+                {
+                    bindposes = entry.Mesh.bindposes;
+                }
+            }
+            combined.bindposes = bindposes;
             combined.subMeshCount = entries.Count;
             for (int i = 0; i < entries.Count; i++)
             {
@@ -289,13 +332,13 @@ namespace CityX.Wearables
                 return;
             }
 
-            var bones = new Transform[SkinnedGarment.Bones.Length];
+            _humanBones = new Transform[SkinnedGarment.Bones.Length];
             for (int i = 0; i < SkinnedGarment.Bones.Length; i++)
             {
-                bones[i] = animator.GetBoneTransform(SkinnedGarment.Bones[i]);
+                _humanBones[i] = animator.GetBoneTransform(SkinnedGarment.Bones[i]);
             }
-            _renderer.bones = bones;
-            _renderer.rootBone = bones[0];   // Hips
+            _renderer.bones = _humanBones;
+            _renderer.rootBone = _humanBones[0];   // Hips
         }
     }
 }

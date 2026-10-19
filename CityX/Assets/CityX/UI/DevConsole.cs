@@ -166,10 +166,10 @@ namespace CityX.UI
                     "/skills reset forgets everything but vaulting and gives the points back; /skills all learns everything; " +
                     "/skills new is a brand new character's (vaulting and one point)";
                 case "spawn": return "/spawn <dummy|civilian|flyer|crimsonclaw|shoota|swordsman|radio|bottle|jeans|cloak|coat|jacket|" +
-                    "grapple|pistol|sword|flamethrower|jetpack|parachute|top_hat|farmer_hat|knight_helmet|mustang|book>";
+                    "midnight_coat|grapple|pistol|sword|flamethrower|jetpack|parachute|top_hat|farmer_hat|knight_helmet|mustang|book>";
                 case "car": return "/car pose -- logs the nearest car's seat positions (drag them in the Editor to nudge)";
                 case "celshade": return "/celshade -- toggles toon shading on every character skin";
-                case "equip": return "/equip <bottle|jeans|cloak|coat|jacket|grapple|pistol|sword|flamethrower|" +
+                case "equip": return "/equip <bottle|jeans|cloak|coat|jacket|midnight_coat|grapple|pistol|sword|flamethrower|" +
                     "jetpack|parachute|top_hat|farmer_hat|knight_helmet|spikesword|combatsword|ak47|crowbar|bat|spraycan>";
                 case "unequip": return "/unequip <hand_r (primary)|hand_l (secondary)|legs|top|back|helmet>";
                 case "goto": return "/goto <slope|highway> -- teleports to the nearest one (onto an expressway's deck for highway)";

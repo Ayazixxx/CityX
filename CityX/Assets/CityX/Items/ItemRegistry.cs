@@ -15,6 +15,7 @@ namespace CityX.Items
         public const string HoodedCloak = "hooded_cloak";
         public const string MidnightPatchworkCoat = "midnight_patchwork_coat";
         public const string BlackPufferJacket = "black_puffer_jacket";
+        public const string MidnightCoat = "midnight_coat";
         public const string GrapplingHook = "grappling_hook";
         public const string Pistol = "pistol";
         public const string Jetpack = "jetpack";
@@ -40,6 +41,7 @@ namespace CityX.Items
                 MidnightPatchworkCoat, "Midnight Patchwork Coat", "wearable", EquipSlots.Torso, 1),
             [BlackPufferJacket] = new ItemDefinition(
                 BlackPufferJacket, "Black Puffer Jacket", "wearable", EquipSlots.Torso, 1),
+            [MidnightCoat] = new ItemDefinition(MidnightCoat, "Midnight Coat", "wearable", EquipSlots.Torso, 1),
             [GrapplingHook] = new ItemDefinition(GrapplingHook, "Grappling Hook", "weapon", EquipSlots.Primary, 1),
             [Pistol] = new ItemDefinition(Pistol, "Pistol", "weapon", EquipSlots.Primary, 1),
             // "back", not "top" -- LoadoutPanelView's own slot list already

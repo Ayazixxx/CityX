@@ -1716,6 +1716,8 @@ namespace CityX.UI
                 case "cloak": return ItemRegistry.HoodedCloak;
                 case "coat": return ItemRegistry.MidnightPatchworkCoat;
                 case "jacket": return ItemRegistry.BlackPufferJacket;
+                case "midnight_coat":
+                case "midnightcoat": return ItemRegistry.MidnightCoat;
                 case "jetpack": return ItemRegistry.Jetpack;
                 case "parachute": return ItemRegistry.Parachute;
                 case "grapple": return ItemRegistry.GrapplingHook;

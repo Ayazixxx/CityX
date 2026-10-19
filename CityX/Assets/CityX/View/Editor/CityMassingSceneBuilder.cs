@@ -239,6 +239,7 @@ namespace CityX.ViewEditor
             GameObject hoodedCloakPrefab = CityX.WearablesEditor.SkinnedGarmentBuilder.BuildCloak();
             GameObject midnightPatchworkCoatPrefab = CityX.WearablesEditor.MidnightPatchworkCoatBuilder.Build();
             GameObject blackPufferJacketPrefab = CityX.WearablesEditor.BlackPufferJacketBuilder.Build();
+            GameObject midnightCoatPrefab = CityX.WearablesEditor.MidnightCoatBuilder.Build();
             GameObject grapplingHookPrefab = CityX.WeaponsEditor.GrapplingHookBuilder.Build();
             GameObject pistolPrefab = CityX.WeaponsEditor.PistolBuilder.Build();
             GameObject jetpackPrefab = CityX.WeaponsEditor.JetpackBuilder.Build();
@@ -437,6 +438,8 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.MidnightPatchworkCoat, Prefab = midnightPatchworkCoatPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.BlackPufferJacket, Prefab = blackPufferJacketPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.MidnightCoat, Prefab = midnightCoatPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.GrapplingHook, Prefab = grapplingHookPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
