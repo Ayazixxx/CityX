@@ -165,8 +165,8 @@ electricity or something. there will also be furniture items you can pick up and
 - This replaces the prototype `/claim` (instant, whole building, no requirement, ported from Godot).
 
 ### How it fits what exists or is planned (my notes)
-- **The bed as the room's heart**: claiming by bed makes it the natural respawn point. `ClaimSystem.ClaimedSpawnPosition` was ported for exactly this and is not
-  used yet.
+- **The bed is your sethome** (owner, 2026-10-18: "there is no respawns though i guess the bed would be your sethome for teleport crystals"): a teleport
+  crystal takes you to it (GAME_DESIGN.md, Getting home). `ClaimSystem.ClaimedSpawnPosition`, ported from Godot and unused, is where that spot would live.
 - **"Cleared" is already in the level plan** (4.5): the same state that marks a building cleared on the map is the first condition for owning it.
 - **Electricity can build on the room lights**: buildings already have powered and dark rooms (`docs/ROOM_LIGHTS.md`). Ways to give a building power, to be
   decided: a generator brought in and fuelled (Project Zomboid does this), the building's breaker box repaired, or power from a station the faction holds. A

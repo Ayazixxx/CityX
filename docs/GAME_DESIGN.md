@@ -70,7 +70,7 @@ Enemies are the real content cost, not terrain (see Enemies).
 
 - **Teleport crystals** (an item: works on controller, dropped on death, tradeable) with a hotkey or menu shortcut.
 - **10 s charge**, cancelled by taking damage or moving. **Blocked** for 15 s after any player fight, during a siege, and in enemy territory.
-- Takes you home (faction base, else the hub) or to waypoints you have found yourself, never anywhere deeper.
+- Takes you home or to waypoints you have found yourself, never anywhere deeper. **Home is your bed**: the bed in your claimed room is your sethome for teleport crystals (owner, 2026-10-18; it is not a respawn point). Without one, the faction base, else the hub (the order is not decided).
 
 ## Character progression
 
