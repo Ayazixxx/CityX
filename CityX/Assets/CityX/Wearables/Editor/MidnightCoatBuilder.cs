@@ -26,13 +26,27 @@ namespace CityX.WearablesEditor
         private const float FabricSmoothness = 0.2f;
 
         /// <summary>
-        /// The body the coat may hide where it covers it (BodyUnderGarment): the torso and arms it moves with. Never the hips and legs: the
-        /// skirt swings off them and the legs come out of its slit.
+        /// The body never drawn under the coat (owner, 2026-10-19: "make the torso and top half of arms up until the elbow invisible while
+        /// wearing the midnight coat"): the torso and the upper arms, to the elbow.
         /// </summary>
-        private static readonly HumanBodyBones[] Hideable =
+        private static readonly HumanBodyBones[] AlwaysHidden =
         {
-            HumanBodyBones.Spine, HumanBodyBones.Neck,
-            HumanBodyBones.LeftUpperArm, HumanBodyBones.LeftLowerArm, HumanBodyBones.RightUpperArm, HumanBodyBones.RightLowerArm,
+            HumanBodyBones.Spine, HumanBodyBones.LeftUpperArm, HumanBodyBones.RightUpperArm,
+        };
+
+        /// <summary>
+        /// The coat's open front, bind pose (+z ahead), from the waist to the collar: the torso there is drawn wherever it shows through it
+        /// (owner: "make a little bit of the top of the torso visible, any amount that is in view regularly", "and ... toward the bottom").
+        /// </summary>
+        private static readonly Bounds FrontOpening = new Bounds(new Vector3(0.0f, 1.5f, 0.25f), new Vector3(0.4f, 1.2f, 0.5f));
+
+        /// <summary>
+        /// The body hidden only where the coat covers it (BodyUnderGarment): the neck and forearms. Never the hips and legs: the skirt swings
+        /// off them and the legs come out of its slit.
+        /// </summary>
+        private static readonly HumanBodyBones[] HiddenWhereCovered =
+        {
+            HumanBodyBones.Neck, HumanBodyBones.LeftLowerArm, HumanBodyBones.RightLowerArm,
         };
 
         [MenuItem("CityX/Rebuild Midnight Coat")]
@@ -44,7 +58,7 @@ namespace CityX.WearablesEditor
                 return null;
             }
             Material material = BlenderGarmentMesh.TexturedMaterial(MaterialPath, TexturePath, FabricSmoothness);
-            byte[] hidden = BodyUnderGarment.HiddenTriangles(mesh, Hideable, out int bodyTriangles);
+            byte[] hidden = BodyUnderGarment.HiddenTriangles(mesh, AlwaysHidden, HiddenWhereCovered, FrontOpening, out int bodyTriangles);
             GameObject saved = SkinnedGarmentBuilder.BuildPrefabFromMesh<MidnightCoat>(
                 mesh, material, PrefabPath, "MidnightCoat", GroundScale, GroundPitchDegrees, GroundLift,
                 coat =>
