@@ -90,6 +90,24 @@ namespace CityX.Tests
             Assert.Greater((hold * sword.EdgeLocal).x, 0.9f, "the default hold does not turn the combat sword's edge to the knuckles");
         }
 
+        /// <summary>The owner's white-and-black paint (2026-10-19), kept small: one 512 colour map and one 256 metallic map, on a model still light.</summary>
+        [Test]
+        public void ItWearsItsPaintInTwoSmallMaps()
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath);
+            Mesh mesh = prefab.GetComponentInChildren<MeshFilter>().sharedMesh;
+            Assert.AreEqual(mesh.vertexCount, mesh.uv.Length, "the sword has no texture coordinates");
+            Assert.LessOrEqual(mesh.triangles.Length / 3, 5000, "the sword is heavier than it needs to be");
+            Material material = prefab.GetComponentInChildren<MeshRenderer>().sharedMaterial;
+            Texture colour = material.GetTexture("_BaseMap");
+            Texture metal = material.GetTexture("_MetallicGlossMap");
+            Assert.IsNotNull(colour, "the sword has no paint");
+            Assert.IsNotNull(metal, "the sword does not know which parts are steel");
+            Assert.LessOrEqual(colour.width, 512);
+            Assert.LessOrEqual(metal.width, 256);
+            Assert.IsTrue(material.IsKeywordEnabled("_METALLICSPECGLOSSMAP"), "the metallic map is set but not used");
+        }
+
         [Test]
         public void EveryBodyCanEquipItSoOthersSeeIt()
         {

@@ -518,3 +518,10 @@ shield. With nothing in it, the empty hand is kept out of the way: the stance an
 (`FreeHandWeight` 0, so the carry clips' arm hangs standing and swings walking), and through a cut it hangs by the hip
 (`SwordStrikes.FreeHandRelaxed`, 96% of the arm's reach, a soft elbow) and swings against the sword for balance like a tennis player's
 other arm (`FreeHandBalanceSwing`, forward while the sword is wound back, back as it crosses).
+
+**The combat sword's paint (2026-10-19).** The owner sent Meshy's "White Sword": the same sword (same 1.9 m, same place), 50,698 triangles,
+four 2048 maps (19 MB as files, about 22 MB of video memory per sword). The game keeps its own 3,802 triangles. `SourceArt/CombatSword/
+combat_sword_bake.py` unwraps them, bakes Meshy's colour onto one 512 map (`Weapons/CombatSword.png`), and bakes metal and smoothness onto
+one 256 map (`CombatSwordMetal.png`: metal in red, smoothness in alpha, URP's metallic map). It then writes `CombatSword.glb` back with its
+UVs. White steel shines; the black wrapped grip does not. The normal map was left out: detail too fine to see on a swung sword, for twice the
+size. In the game the two maps are about 0.45 MB of video memory.

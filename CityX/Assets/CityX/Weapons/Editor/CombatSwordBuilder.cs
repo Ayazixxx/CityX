@@ -36,7 +36,8 @@ namespace CityX.WeaponsEditor
         /// <summary>The blade from the guard to the tip, in the sword's own (scaled) space.</summary>
         public static float BladeLength => (TipY - GuardY) * Scale;
 
-        private static readonly Color SteelColour = new Color(0.62f, 0.64f, 0.68f);
+        private const string ColourPath = "Assets/CityX/Weapons/CombatSword.png";
+        private const string MetalPath = "Assets/CityX/Weapons/CombatSwordMetal.png";
 
         [MenuItem("CityX/Rebuild Combat Sword")]
         public static GameObject Build()
@@ -54,11 +55,7 @@ namespace CityX.WeaponsEditor
                 model.transform.localPosition = new Vector3(-handleCentre.x, -GuardY, -handleCentre.z) * Scale;
                 model.AddComponent<MeshFilter>().sharedMesh = mesh;
 
-                Material steel = CharacterSkin.Ensure("CombatSwordSteel", SteelColour);
-                steel.SetFloat("_Metallic", 0.85f);
-                steel.SetFloat("_Smoothness", 0.6f);
-                steel.SetFloat("_Cull", 0.0f); // the glb is double-sided
-                model.AddComponent<MeshRenderer>().sharedMaterial = steel;
+                model.AddComponent<MeshRenderer>().sharedMaterial = PaintedSteel();
 
                 var pickupTrigger = root.AddComponent<SphereCollider>();
                 pickupTrigger.isTrigger = true;
@@ -79,6 +76,31 @@ namespace CityX.WeaponsEditor
             {
                 Object.DestroyImmediate(root);
             }
+        }
+
+        /// <summary>
+        /// The sword's paint (owner, 2026-10-19: Meshy's "White Sword", the same sword textured): white steel and a black wrapped grip, baked
+        /// onto this mesh by SourceArt/CombatSword/combat_sword_bake.py as one 512 colour map and one 256 metallic map (metal in red,
+        /// smoothness in alpha), so the steel shines and the wrapping does not.
+        /// </summary>
+        private static Material PaintedSteel()
+        {
+            var importer = (TextureImporter)AssetImporter.GetAtPath(MetalPath);
+            if (importer != null && importer.sRGBTexture)
+            {
+                importer.sRGBTexture = false;   // amounts, not colours
+                importer.SaveAndReimport();
+            }
+            Material steel = CharacterSkin.Ensure("CombatSwordSteel", Color.white);
+            steel.SetColor("_BaseColor", Color.white);
+            steel.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>(ColourPath));
+            steel.SetTexture("_MetallicGlossMap", AssetDatabase.LoadAssetAtPath<Texture2D>(MetalPath));
+            steel.EnableKeyword("_METALLICSPECGLOSSMAP");
+            steel.SetFloat("_Metallic", 1.0f);
+            steel.SetFloat("_Smoothness", 1.0f);   // scales the map's smoothness
+            steel.SetFloat("_Cull", 0.0f);         // the glb is double-sided
+            EditorUtility.SetDirty(steel);
+            return steel;
         }
 
         /// <summary>The average of the handle's vertices (sideways and front-to-back), in the baked mesh's own frame.</summary>
@@ -117,7 +139,7 @@ namespace CityX.WeaponsEditor
                 vertices[i] = bake.MultiplyPoint3x4(vertices[i]);
                 normals[i] = bake.MultiplyVector(normals[i]).normalized;
             }
-            var mesh = new Mesh { name = "CombatSwordMesh", vertices = vertices, normals = normals, triangles = source.triangles };
+            var mesh = new Mesh { name = "CombatSwordMesh", vertices = vertices, normals = normals, uv = source.uv, triangles = source.triangles };
             mesh.RecalculateBounds();
             Mesh existing = AssetDatabase.LoadAssetAtPath<Mesh>(MeshPath);
             if (existing != null)
