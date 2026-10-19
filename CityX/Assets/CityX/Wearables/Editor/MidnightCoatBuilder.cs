@@ -35,6 +35,16 @@ namespace CityX.WearablesEditor
         };
 
         /// <summary>
+        /// Behind the body, also the hips and the top of the thighs, down to the buttocks' crease (bind pose, -z behind; owner: "make the amount
+        /// invisible a little more on the back, go lower because some the back is clipping through when doing swinging sword animations").
+        /// </summary>
+        private static readonly HumanBodyBones[] AlwaysHiddenBehind =
+        {
+            HumanBodyBones.Hips, HumanBodyBones.LeftUpperLeg, HumanBodyBones.RightUpperLeg,
+        };
+        private static readonly Bounds Behind = new Bounds(new Vector3(0.0f, 1.05f, -0.3f), new Vector3(0.8f, 0.6f, 0.6f));
+
+        /// <summary>
         /// The coat's open front, bind pose (+z ahead), from the waist to the collar: the torso there is drawn wherever it shows through it
         /// (owner: "make a little bit of the top of the torso visible, any amount that is in view regularly", "and ... toward the bottom").
         /// </summary>
@@ -58,7 +68,8 @@ namespace CityX.WearablesEditor
                 return null;
             }
             Material material = BlenderGarmentMesh.TexturedMaterial(MaterialPath, TexturePath, FabricSmoothness);
-            byte[] hidden = BodyUnderGarment.HiddenTriangles(mesh, AlwaysHidden, HiddenWhereCovered, FrontOpening, out int bodyTriangles);
+            byte[] hidden = BodyUnderGarment.HiddenTriangles(mesh, AlwaysHidden, AlwaysHiddenBehind, Behind, HiddenWhereCovered, FrontOpening,
+                out int bodyTriangles);
             GameObject saved = SkinnedGarmentBuilder.BuildPrefabFromMesh<MidnightCoat>(
                 mesh, material, PrefabPath, "MidnightCoat", GroundScale, GroundPitchDegrees, GroundLift,
                 coat =>

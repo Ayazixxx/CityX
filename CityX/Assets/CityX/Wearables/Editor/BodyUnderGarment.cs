@@ -32,10 +32,11 @@ namespace CityX.WearablesEditor
         /// The mask (one bit per body triangle, in the body mesh's order) of the triangles <paramref name="garment"/> hides: those skinned to
         /// <paramref name="always"/> (but inside <paramref name="opening"/>, the bind-pose box round an opening such as a coat's open front,
         /// only where it covers them, so the skin seen through it stays), and those skinned to <paramref name="hideable"/> that it covers; with
-        /// the body's triangle count it was made for. Null when there is no body to measure.
+        /// the body's triangle count it was made for. Bones in <paramref name="alwaysWithin"/> count as <paramref name="always"/> inside
+        /// <paramref name="within"/> (a coat's back: the hips, which its open front shows). Null when there is no body to measure.
         /// </summary>
-        public static byte[] HiddenTriangles(Mesh garment, HumanBodyBones[] always, HumanBodyBones[] hideable, Bounds opening,
-            out int bodyTriangles)
+        public static byte[] HiddenTriangles(Mesh garment, HumanBodyBones[] always, HumanBodyBones[] alwaysWithin, Bounds within,
+            HumanBodyBones[] hideable, Bounds opening, out int bodyTriangles)
         {
             bodyTriangles = 0;
             var body = AssetDatabase.LoadAssetAtPath<Mesh>(BodyMeshPath);
@@ -54,6 +55,7 @@ namespace CityX.WearablesEditor
                 }
             }
             HashSet<int> alwaysIndex = Indices(order, always);
+            HashSet<int> withinIndex = Indices(order, alwaysWithin);
             HashSet<int> hideableIndex = Indices(order, hideable);
 
             var cover = new GameObject("GarmentCover");
@@ -74,7 +76,8 @@ namespace CityX.WearablesEditor
                     Vector3 a = vertices[triangles[t * 3]], b = vertices[triangles[t * 3 + 1]], c = vertices[triangles[t * 3 + 2]];
                     Vector3 normal = Vector3.Cross(b - a, c - a);
                     Vector3 centre = (a + b + c) / 3.0f;
-                    bool alwaysBone = TriangleShare(weights, triangles, t, alwaysIndex) >= AlwaysShare;
+                    bool alwaysBone = TriangleShare(weights, triangles, t, alwaysIndex) >= AlwaysShare ||
+                        (within.Contains(centre) && TriangleShare(weights, triangles, t, withinIndex) >= AlwaysShare);
                     bool covered = normal.sqrMagnitude > 1e-12f && Covered(centre, normal.normalized);
                     bool hide = alwaysBone ? covered || !opening.Contains(centre)
                         : TriangleShare(weights, triangles, t, hideableIndex) >= HideableShare && covered;

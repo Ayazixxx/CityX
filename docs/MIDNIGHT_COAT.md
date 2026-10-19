@@ -73,7 +73,7 @@ In `coat_build.py`:
 - **Hidden where the coat covers them:** the neck and the forearms, when rays out along the triangle's normal and 35 degrees round it all hit
   the coat within 0.3 m.
 
-The hips and legs are never hidden: the skirt swings off them and the legs come out of the slit. The coat hides 18,815 of the body's 85,838
+Behind the body the hips and the top of the thighs, down to 0.75 m, are always hidden too: the back was clipping through in sword swings. Elsewhere the hips and legs are never hidden: the skirt swings off them and the legs come out of the slit. The coat hides 23,205 of the body's 85,838
 triangles. It stores them as one bit each (about 11 KB in the prefab, not a 6.4 MB copy of the body). `BodyCover` builds the trimmed body once, when the coat goes on. A body with a different
 triangle count is drawn whole, so a stale list never cuts the wrong holes.
 
