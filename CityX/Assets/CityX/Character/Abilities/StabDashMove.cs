@@ -58,8 +58,11 @@ namespace CityX.Character
             40, 90, 84, 74, 64, 60, 56, 50, 42, 34, 28, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 4, 2,
         };
 
-        /// <summary>How far the stab carries the body: exactly a dash's (PlayerLocomotion.DashSpeed for DashSeconds, 4.8 m).</summary>
-        public static float SlideMetres => PlayerLocomotion.DashSpeed * PlayerLocomotion.DashSeconds;
+        /// <summary>How many dashes long the slide is (owner, 2026-10-18: "increase the dash stab distance by 2x"; it was one).</summary>
+        public const float SlideDashes = 2.0f;
+
+        /// <summary>How far the stab carries the body: two dashes (PlayerLocomotion.DashSpeed for DashSeconds is 4.8 m), over the same frames.</summary>
+        public static float SlideMetres => PlayerLocomotion.DashSpeed * PlayerLocomotion.DashSeconds * SlideDashes;
 
         public static float SlideStartSeconds => Frames(SlideStartFrame);
 

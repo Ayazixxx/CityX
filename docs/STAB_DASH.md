@@ -31,7 +31,7 @@ All the numbers are in [StabDashMove.cs](../CityX/Assets/CityX/Character/Abiliti
 |---|---|
 | Key | its slot on the bar, with a sword in hand (the Sword tree's fourth star, after Sword Spin) |
 | Wind-up | frames 0-11: the squat and the sword drawn back; the body turns to where the camera looks |
-| Slide | frames 11-35: exactly a dash's 4.8 m (24 m/s for 0.2 s) where the camera looked as it left, level, shaped as the GIF's: off at 31 m/s, slowing to a stop |
+| Slide | frames 11-35: two dashes, 9.6 m (owner 2026-10-18: "increase the dash stab distance by 2x"; it was a dash's 4.8 m) where the camera looked as it left, level, shaped as the GIF's: off at about 62 m/s, slowing to a stop |
 | Hits | frames 12-30, each target once, 1.5x a light swing (frames 12-14), 1.3x (15-22), 1.0x (23-30): Smash's percent at the spin's 1% = 0.1. A clean hit (12-14) throws what can be thrown on along the stab and up |
 | Reach | 3 m ahead of the chest (the arm and the 2.1 m blade), 35 degrees either side (a swing's is 60) |
 | Holds the body | 59 frames, from the key: nothing else is read (no walking, jumping, dashing or swinging out of it) |
@@ -101,12 +101,12 @@ through `PlayerAbilityWiring`.
 
 ### Tests
 
-- `StabDashMoveTests` (EditMode): the hit frames and the three damage bands, the clean hit, frame 59; the slide a dash's length from frame 11 to
+- `StabDashMoveTests` (EditMode): the hit frames and the three damage bands, the clean hit, frame 59; the slide two dashes long from frame 11 to
   35, fastest off the mark and slowing all the way; the animation on BodyRig's bones and as long as the move, the squat with the sword drawn
   back, the blade straight ahead on a straight arm on every hit frame, the low lunge with the back leg stretched out and the free arm raised,
   its elbow lifted out to the side (never hanging with the forearm folded back up), ending in the stance it started from, nothing snapping
   but the dip and the thrust.
-- `StabDashPlayTests` (real keys, real city): the squat, then the lunge a dash's length where the camera looks, facing it, low, the arm out,
+- `StabDashPlayTests` (real keys, real city): the squat, then the lunge two dashes long where the camera looks, facing it, low, the arm out,
   running through a target beside the line once and throwing it, the blade straight ahead and level; walking and jumping do nothing
   meanwhile; a wall stops the slide short; without a sword nothing happens; with the one-handed combat sword the blade is straight and level
   too, the handle running through the fist and across it (not along the hand), and the sword is back in its own hold after.

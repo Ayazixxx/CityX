@@ -53,13 +53,13 @@ namespace CityX.Tests
         [Test]
         public void TheSlideGoesExactlyADashsLengthFromFrame11ToFrame35()
         {
-            Assert.AreEqual(PlayerLocomotion.DashSpeed * PlayerLocomotion.DashSeconds, StabDashMove.SlideMetres, 1e-5f, "not a dash's length");
-            Assert.AreEqual(4.8f, StabDashMove.SlideMetres, 1e-4f);
+            Assert.AreEqual(2.0f * PlayerLocomotion.DashSpeed * PlayerLocomotion.DashSeconds, StabDashMove.SlideMetres, 1e-5f, "not two dashes long");
+            Assert.AreEqual(9.6f, StabDashMove.SlideMetres, 1e-4f);
             Assert.AreEqual(0.0f, StabDashMove.SlideDistance(0.0f), 1e-5f);
             Assert.AreEqual(0.0f, StabDashMove.SlideDistance(11.0f * Frame), 1e-5f, "the body moves before the release");
             Assert.Greater(StabDashMove.SlideDistance(12.0f * Frame), 0.0f, "the body has not moved off by the first hit");
-            Assert.AreEqual(4.8f, StabDashMove.SlideDistance(35.0f * Frame), 1e-4f, "the slide is not over by frame 35");
-            Assert.AreEqual(4.8f, StabDashMove.SlideDistance(StabDashMove.CommitSeconds), 1e-4f);
+            Assert.AreEqual(9.6f, StabDashMove.SlideDistance(35.0f * Frame), 1e-4f, "the slide is not over by frame 35");
+            Assert.AreEqual(9.6f, StabDashMove.SlideDistance(StabDashMove.CommitSeconds), 1e-4f);
             float last = 0.0f;
             for (float f = 0.0f; f <= 40.0f; f += 0.25f)
             {

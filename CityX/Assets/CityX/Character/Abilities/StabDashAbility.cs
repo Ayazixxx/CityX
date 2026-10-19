@@ -7,7 +7,7 @@ namespace CityX.Character
     /// THE STAB DASH (Sword tree, from a slot on the bar, sword in hand): the Mii Swordfighter's grounded Power Thrust from Smash Ultimate (owner,
     /// 2026-10-18, with SmashWiki's hitbox GIF: "make a hotbar skill for the swordsman called stab dash where it pretty much goes the same distance
     /// as a dash but he does a stab like the gif attached"). The body sinks into a deep squat with the sword drawn back past the shoulder, then
-    /// lunges: the blade thrust out straight ahead, the body sliding a dash's 4.8 m where the camera looks, off fast and slowing to a stop, held
+    /// lunges: the blade thrust out straight ahead, the body sliding two dashes' 9.6 m where the camera looks, off fast and slowing to a stop, held
     /// low in the lunge until it rises back into the stance. The thrust runs through what is ahead of it, each target once, hardest at its very
     /// start. The timing is StabDashMove's.
     ///
@@ -15,7 +15,7 @@ namespace CityX.Character
     /// (BakedMotion, PlayerLocomotion.SetBakedPose): its frame f is the move's frame f.
     ///
     /// THE SLIDE MOVES THE BODY ITSELF, by what the curve still owes each frame (as a sword swing's lunge does), so a long frame cannot carry it
-    /// past 4.8 m, and gravity keeps it on a hill; a wall, or a body it runs into, stops it there, and the thrust still hurts until its window
+    /// past 9.6 m, and gravity keeps it on a hill; a wall, or a body it runs into, stops it there, and the thrust still hurts until its window
     /// ends. The body faces the stab. Every blow goes through MeleeAttacker.LandSwordCut, so Strength and Bloodrage count and other players are
     /// hit through their copies. From the key to the end it HOLDS THE BODY (PlayerInputReader reads nothing else), as Smash's commits.
     ///

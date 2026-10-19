@@ -13,7 +13,7 @@ namespace CityX.Tests
 {
     /// <summary>
     /// The stab dash (the Mii Swordfighter's Power Thrust) through the real keys in the real city: from its slot on the bar with the sword in hand
-    /// it draws back in a squat, then lunges a dash's 4.8 m where the camera looks with the blade thrust out, running through what is ahead
+    /// it draws back in a squat, then lunges two dashes' 9.6 m where the camera looks with the blade thrust out, running through what is ahead
     /// once; the body is held from the key to the end; a wall stops the slide short; without a sword nothing happens; with the one-handed
     /// combat sword the blade is thrust straight and level too, and the sword goes back to its own hold after.
     /// </summary>
@@ -178,7 +178,7 @@ namespace CityX.Tests
             Assert.IsFalse(_stab.IsActive, "the stab dash never ended");
             Vector3 travelled = _vitals.transform.position - start;
             float along = Vector3.Dot(travelled, heading);
-            Assert.That(along, Is.InRange(4.4f, 5.1f), $"the lunge went {along:0.00} m, not a dash's 4.8");
+            Assert.That(along, Is.InRange(8.8f, 10.2f), $"the lunge went {along:0.00} m, not two dashes' 9.6");
             Assert.Less(Mathf.Abs(Vector3.Dot(travelled, side)), 0.3f, "the lunge did not go straight where the camera looked");
             Assert.AreEqual(1, target.Hits, "the thrust did not run through what it passed exactly once");
             Assert.AreEqual(1, target.Launches, "the clean thrust did not throw what it caught");
