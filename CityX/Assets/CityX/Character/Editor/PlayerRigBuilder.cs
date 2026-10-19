@@ -91,6 +91,14 @@ namespace CityX.CharacterEditor
             back = ExaggerateStrideIfMixamo(back, "walk_backward");
             left = ExaggerateStrideIfMixamo(left, "walk_left");
             right = ExaggerateStrideIfMixamo(right, "walk_right");
+            // The Godot walks with steps long enough for this body's speeds, so the foot locks can hold their feet (PacedGait).
+            if (IsBakedGodotClip(walk))
+            {
+                walk = PacedGait.Build(walk, "walk", PacedGait.Walk);
+                back = PacedGait.Build(back, "walk_backward", PacedGait.Backward);
+                left = PacedGait.Build(left, "walk_left", PacedGait.Strafe);
+                right = PacedGait.Build(right, "walk_right", PacedGait.Strafe);
+            }
 
             // BLOODRAGE (key 8) swaps the walking, running and jumping clips above for the user's own. Looped and stride-widened exactly as the
             // ordinary ones are, and paired with the clips the controller actually uses so BloodrageAbility can override them.

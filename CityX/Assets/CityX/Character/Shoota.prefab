@@ -409,7 +409,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: CityX.Character::CityX.Character.BloodrageAbility
   OriginalClips:
-  - {fileID: 7400000, guid: 2630a70530045c04eb0917f6e971293b, type: 2}
+  - {fileID: 7400000, guid: 979c7f551c84b0e4d82f48df67022450, type: 2}
   - {fileID: 7400000, guid: 8b4be7368b5d89c44b8d5711f8015ed2, type: 2}
   - {fileID: -203655887218126122, guid: a02750c3113c3c147a77e9b0eeb33fdb, type: 3}
   BloodrageClips:

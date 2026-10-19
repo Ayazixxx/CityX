@@ -21,7 +21,8 @@ namespace CityX.CharacterEditor
     ///  * the play rate takes up to 20% of what is left (50% for a strafe or backward walk, which have no faster clip to hand over to), the STRIDE takes up
     ///    to 20% more (<see cref="GaitStrides"/>: the foot placement puts the feet that much further along the body's travel, the hips dipping to reach),
     ///    and the foot locks hold the feet through the stance for the remainder when it is small (FootPlanting.LocksViable), so nothing slides;
-    ///  * a strafe at 4 m/s is still 1.4 m/s of walk clip under 2.4x of re-pacing and slides some: only a strafe clip at that pace would fix it.
+    ///  * the walks are not the plain Godot clips but PacedGait's: the same with longer steps and a quicker cycle, so at 4 m/s their feet keep up
+    ///    within these limits and the locks hold them (a strafe was 1.4 m/s of clip under 2.4x of re-pacing and slid).
     /// </summary>
     public static class ClipCadence
     {
@@ -226,8 +227,7 @@ namespace CityX.CharacterEditor
         ///
         /// SWITCHED OFF (owner, 2026-10-13, after trying the jog: "the walking animation is the same as the running animation now just slower. he
         /// shouldn't be pumping his arms like that when he is just walking"). Every tree keeps its own clips, re-paced within the limits; the walk at
-        /// 4 m/s is the walk clip at 1.2x with 12% longer strides, and its feet are placed on the ground but not held (its pace is too far from the
-        /// body's to hold them without dragging: FootPlanting.LocksViable). A walk clip with longer strides would remove the remaining glide.
+        /// 4 m/s is PacedGait's longer-stepping walk, whose feet keep up closely enough to be held (FootPlanting.LocksViable).
         /// Set this to "Locomotion" to bring the jog back.
         /// </summary>
         public const string GaitSwapTree = "";

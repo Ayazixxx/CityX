@@ -198,6 +198,74 @@ namespace CityX.Tests
 #endif
         }
 
+        /// <summary>
+        /// The walks re-paced for this body (PacedGait, owner 2026-10-19: foot sliding): walking, strafing, backing up and sprinting at full speed, a
+        /// foot on the ground hardly moves over it. Measured as the median speed of a planted foot over the ground (its world position, sideways
+        /// and along): before the walks were re-paced, a walking foot glided at about 2 m/s.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator WalkingStrafingBackingUpAndSprintingAPlantedFootStaysPut()
+        {
+#if UNITY_EDITOR
+            Box(new Vector3(0.0f, -0.5f, 0.0f), new Vector3(400.0f, 1.0f, 400.0f));
+            Physics.SyncTransforms();
+            var report = new System.Text.StringBuilder();
+            var failures = new System.Collections.Generic.List<string>();
+            foreach ((string name, Vector2 stick, bool sprint) in new[]
+                { ("walking", Vector2.up, false), ("strafing", Vector2.right, false), ("backing up", Vector2.down, false), ("sprinting", Vector2.up, true) })
+            {
+                PlayerLocomotion locomotion = Spawn(new Vector3(0.0f, 0.05f, 0.0f));
+                yield return null;
+                Transform[] feet = { Bone(_player, HumanBodyBones.LeftFoot), Bone(_player, HumanBodyBones.RightFoot) };
+                var last = new Vector3?[2];
+                var speeds = new System.Collections.Generic.List<float>();
+                int viable = 0, frames = 0;
+                for (int frame = 0; frame < 160; frame++)
+                {
+                    locomotion.Tick(new LocomotionInput { Move = stick, Sprint = sprint }, Dt);
+                    yield return null;
+                    if (frame < 60)
+                    {
+                        continue;
+                    }
+                    frames++;
+                    viable += locomotion.FootPlanting.LocksViable ? 1 : 0;
+                    for (int i = 0; i < 2; i++)
+                    {
+                        Vector3 at = feet[i].position;
+                        if (locomotion.FootPlanting.IsOnFloor(i) && last[i].HasValue)
+                        {
+                            Vector3 moved = at - last[i].Value;
+                            moved.y = 0.0f;
+                            speeds.Add(moved.magnitude / Dt);
+                        }
+                        last[i] = locomotion.FootPlanting.IsOnFloor(i) ? at : (Vector3?)null;
+                    }
+                }
+                speeds.Sort();
+                float median = speeds.Count > 0 ? speeds[speeds.Count / 2] : float.NaN;
+                report.Append($"{name}: a planted foot moves {median:0.00} m/s over the ground, the locks viable {100 * viable / Mathf.Max(1, frames)}% of the time; ");
+                if (speeds.Count < 20)
+                {
+                    failures.Add($"{name}: the feet were hardly ever on the ground");
+                }
+                else if (median > PlantedSlide)
+                {
+                    failures.Add($"{name}: a planted foot slides at {median:0.00} m/s");
+                }
+                Object.Destroy(_player);
+                yield return null;
+            }
+            Debug.Log("CityX foot slide: " + report);
+            Assert.IsEmpty(failures, string.Join("; ", failures) + " (" + report + ")");
+#else
+            yield break;
+#endif
+        }
+
+        /// <summary>How fast a planted foot may still move over the ground (the heel-to-toe roll and a lock's easing in), metres a second.</summary>
+        private const float PlantedSlide = 0.5f;
+
         [UnityTest]
         public IEnumerator OnFlatGroundTheHipsStayUpAndThePlantedFeetStayOnTheFloor()
         {
@@ -256,17 +324,10 @@ namespace CityX.Tests
                 float bodySpeed = bodySpeedSum[gait] / speedSamples[gait];
                 Debug.Log($"CityX foot placement ({(gait == 0 ? "walk" : "sprint")}): planted feet move back through the body at {clipSpeed:0.00} m/s while the body goes {bodySpeed:0.00} m/s " +
                           $"(releases so far: {locomotion.FootPlanting.ReleasedBySwing} swing, {locomotion.FootPlanting.ReleasedByStretch} stretch, {locomotion.FootPlanting.ReleasedByLift} lift)");
-                // The sprint (the run clip within the 20% limits plus the stride) keeps up; the walk clip cannot at 4 m/s (owner's choice: the walk's
-                // own look over a jog), but is paced up within the limit, so its feet move faster than the clip alone (1.4 m/s).
-                if (gait == 1)
-                {
-                    Assert.AreEqual(bodySpeed, clipSpeed, bodySpeed * 0.25f,
-                        $"sprinting, the clip moves the planted feet at {clipSpeed:0.00} m/s under a body going {bodySpeed:0.00} m/s: the feet slide");
-                }
-                else
-                {
-                    Assert.Greater(clipSpeed, 1.6f, $"walking, the walk clip is not paced up (its feet move at {clipSpeed:0.00} m/s)");
-                }
+                // Both keep up: the sprint (the run clip within the 20% limits plus the stride) and the walk (the Godot walk with longer steps and a
+                // quicker cycle, PacedGait; the plain clip moved its feet at 1.4 m/s under the 4 m/s body).
+                Assert.AreEqual(bodySpeed, clipSpeed, bodySpeed * 0.25f,
+                    $"{(gait == 0 ? "walking" : "sprinting")}, the clip moves the planted feet at {clipSpeed:0.00} m/s under a body going {bodySpeed:0.00} m/s: the feet slide");
             }
             // The controller's capsule rests a skin width (up to 3 cm) above the floor; the placement brings the feet down that much, plus at most the
             // small dip a long stride is allowed at heel strike (FootPlanting.MaxReachDip), and no more.

@@ -144,3 +144,27 @@ aside while it has the feet, the soles lie flat, the toes and the knees point th
 crouch will put it (`PoseHipDrop`) -- judged from standing height, a planted foot out in the stance looked out of reach and was pulled in
 under the hip: dragged. A sword cut's hips are turned before all this (`ApplySwordHips`) so the legs are solved under them. See
 docs/SOULSLIKE_COMBAT.md ("The feet step under the sword").
+
+## Update: the walks re-paced, no more sliding (2026-10-19)
+
+Owner: "is there a way we can improve our movement to eliminate foot sliding without buying the Learned Motion Matching for Unity", then "make
+those improvements and we can try kimodo for the animations if they look off" and "the style doesnt really need to be preserved just make it
+look good". The walk, the strafes and the backward walk moved their planted feet at 1.4, 1.4 and 0.7 m/s under a body going 4, too far from the
+body's pace for the locks to hold them, so they glided.
+
+`Character/Editor/PacedGait.cs` builds each of them from the Godot clip, as `godot_*_paced.anim`, when the player rig is built.
+
+| Walk | Thigh swing forward / back | Out to the side | Knee bend | Cycle quicker | Feet's own pace |
+|---|---|---|---|---|---|
+| walk | 1.5x / 1.15x | | 1.4x | 1.35x | 1.4 to 2.2 m/s |
+| backward | 1.6x / 1.6x | | 1.3x | 1.6x | 0.7 to 1.9 m/s |
+| strafe | | 1.2x | 1.2x | 1.45x | 1.4 to 2.3 m/s |
+
+The thigh swing is widened round its own middle, the knee bends more in the swing to clear the longer step, and the keys move closer together.
+The walk reaches further forward than back: widening both alike kicked the trailing leg out level behind. The strafe gets little extra spread:
+1.5x was the splits. ClipCadence then paces them within its usual limits. Planted feet now move at 3.7 m/s through the body at 4 (walk), and
+the locks hold every walk. `FootIkPlayTests.WalkingStrafingBackingUpAndSprintingAPlantedFootStaysPut` measures a planted foot's speed over the
+ground at 0.00 m/s walking, strafing and backing up, and 0.01 m/s sprinting. `WalkGaitCapture` renders each walk at twelve moments of a stride.
+
+If these look off in play, the next try is Kimodo-generated walks at these speeds. The sword's one-handed carry walks
+(`SwordCarryBaker`) are still the plain clips.

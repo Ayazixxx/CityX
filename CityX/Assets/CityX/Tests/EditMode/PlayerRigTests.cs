@@ -304,6 +304,10 @@ namespace CityX.Tests
                 {
                     name = name.Substring(0, name.Length - "_stride".Length);
                 }
+                if (name.EndsWith("_paced"))
+                {
+                    name = name.Substring(0, name.Length - "_paced".Length);
+                }
                 // The locomotion clips are the Godot character's own baked motion (godot_walk.anim ...), which answers to the Mixamo clip it was made from.
                 switch (name)
                 {
