@@ -172,6 +172,16 @@ namespace CityX.UI
         private bool _refreshPending;
         private Inventory _boundInventory;
 
+        /// <summary>
+        /// The first portrait's pose and camera, relative to the body. Every later portrait (a helmet put on, a redraw) is taken in that pose
+        /// from that spot (owner, 2026-10-18: "i think you changed the angle of the portrait which i specifically asked you not to do", "and the
+        /// arms positioned different"): retaken mid-game, the body was in whatever pose it was in, and the shot moved with it.
+        /// </summary>
+        private PoseSnapshot _portraitPose;
+        private Transform _portraitBody;
+        private Vector3 _portraitCameraPosition;
+        private Quaternion _portraitCameraRotation;
+
         /// <summary>The character just put on a new look (a redraw, a load): retake the portrait so it matches.</summary>
         private void OnLookApplied(CharacterIdentity identity)
         {
@@ -249,31 +259,61 @@ namespace CityX.UI
                 return false;
             }
 
-            Transform[] hands = HeldItemRoots(Target.transform);
+            Transform body = Target.transform;
+            Animator animator = Target.GetComponentInChildren<Animator>();
+            Transform skeleton = animator != null ? animator.transform : body;
+            bool first = _portraitPose == null || _portraitBody != body;
+            PoseSnapshot current = first ? null : PoseSnapshot.Of(skeleton);
+            Transform[] hands = HeldItemRoots(body);
             var moved = new List<KeyValuePair<Renderer, int>>();
-            float top = headRenderer.bounds.max.y;
-            Bounds headBounds = headRenderer.bounds;
-            foreach (Renderer renderer in Target.GetComponentsInChildren<Renderer>(false))
-            {
-                if (!renderer.enabled || IsHeld(renderer.transform, hands) || renderer.transform.IsChildOf(PortraitCamera.transform))
-                {
-                    continue;
-                }
-                moved.Add(new KeyValuePair<Renderer, int>(renderer, renderer.gameObject.layer));
-                renderer.gameObject.layer = layer;
-
-                // The hair sits at head height or above: it sets how much room the top needs. Worn items do not (owner, 2026-10-18: show
-                // what is equipped but "dont alter the positioning of the playermodel in the portrait"), so a helmet never moves the shot.
-                if (renderer.bounds.center.y >= headBounds.center.y - headBounds.extents.y * 0.2f
-                    && renderer.GetComponentInParent<IEquippableItem>() == null)
-                {
-                    top = Mathf.Max(top, renderer.bounds.max.y);
-                }
-            }
-
+            var standIns = new List<GameObject>();
             try
             {
-                Frame(PortraitCamera, headBounds, top, Target.transform.forward);
+                if (!first)
+                {
+                    _portraitPose.Apply();
+                }
+                float top = headRenderer.bounds.max.y;
+                Bounds headBounds = headRenderer.bounds;
+                foreach (Renderer renderer in Target.GetComponentsInChildren<Renderer>(false))
+                {
+                    if (!renderer.enabled || IsHeld(renderer.transform, hands) || renderer.transform.IsChildOf(PortraitCamera.transform))
+                    {
+                        continue;
+                    }
+                    if (renderer is SkinnedMeshRenderer skinned)
+                    {
+                        // The body was skinned to this frame's pose before this runs, so the bones put back above would not reach it: it is
+                        // photographed as a still copy of itself in the pose the bones are in now.
+                        standIns.Add(StillCopy(skinned, layer));
+                    }
+                    else
+                    {
+                        moved.Add(new KeyValuePair<Renderer, int>(renderer, renderer.gameObject.layer));
+                        renderer.gameObject.layer = layer;
+                    }
+
+                    // The hair sits at head height or above: it sets how much room the top needs. Worn items do not (owner, 2026-10-18: show
+                    // what is equipped but "dont alter the positioning of the playermodel in the portrait"), so a helmet never moves the shot.
+                    if (renderer.bounds.center.y >= headBounds.center.y - headBounds.extents.y * 0.2f
+                        && renderer.GetComponentInParent<IEquippableItem>() == null)
+                    {
+                        top = Mathf.Max(top, renderer.bounds.max.y);
+                    }
+                }
+
+                if (first)
+                {
+                    Frame(PortraitCamera, headBounds, top, body.forward);
+                    _portraitBody = body;
+                    _portraitPose = PoseSnapshot.Of(skeleton);
+                    _portraitCameraPosition = body.InverseTransformPoint(PortraitCamera.transform.position);
+                    _portraitCameraRotation = Quaternion.Inverse(body.rotation) * PortraitCamera.transform.rotation;
+                }
+                else
+                {
+                    PortraitCamera.transform.SetPositionAndRotation(body.TransformPoint(_portraitCameraPosition), body.rotation * _portraitCameraRotation);
+                }
                 // The whole GameObject, not just the camera -- PlayerHudBuilder hangs a dedicated light
                 // off this same object for the shot, so it has to be on for the shot and off afterwards
                 // (leaving it lit would cost render time near the player forever, for a texture
@@ -290,9 +330,34 @@ namespace CityX.UI
                         entry.Key.gameObject.layer = entry.Value;
                     }
                 }
+                foreach (GameObject standIn in standIns)
+                {
+                    DestroyImmediate(standIn.GetComponent<MeshFilter>().sharedMesh);
+                    DestroyImmediate(standIn);
+                }
                 PortraitCamera.gameObject.SetActive(false);
+                current?.Apply();
             }
             return true;
+        }
+
+        /// <summary>A still copy of a skinned renderer in its bones' pose of this moment, on <paramref name="layer"/>, wearing what it wears.</summary>
+        private static GameObject StillCopy(SkinnedMeshRenderer skinned, int layer)
+        {
+            var mesh = new Mesh { name = skinned.name + " (portrait)" };
+            skinned.BakeMesh(mesh, true);
+            var copy = new GameObject(mesh.name) { layer = layer };
+            copy.transform.SetPositionAndRotation(skinned.transform.position, skinned.transform.rotation);
+            copy.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var renderer = copy.AddComponent<MeshRenderer>();
+            renderer.sharedMaterials = skinned.sharedMaterials;
+            var block = new MaterialPropertyBlock();
+            for (int i = 0; i < skinned.sharedMaterials.Length; i++)
+            {
+                skinned.GetPropertyBlock(block, i);
+                renderer.SetPropertyBlock(block, i);
+            }
+            return copy;
         }
 
         /// <summary>

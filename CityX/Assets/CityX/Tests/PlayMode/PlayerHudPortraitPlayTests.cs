@@ -182,14 +182,16 @@ namespace CityX.Tests
         }
 
         /// <summary>The share of pixels in a band of rows that differ noticeably between two pictures.</summary>
-        private static float Differs(Texture2D a, Texture2D b, float fromRow, float toRow)
+        private static float Differs(Texture2D a, Texture2D b, float fromRow, float toRow, float fromColumn = 0.0f, float toColumn = 1.0f)
         {
             int y0 = Mathf.RoundToInt(fromRow * (a.height - 1));
             int y1 = Mathf.RoundToInt(toRow * (a.height - 1));
+            int x0 = Mathf.RoundToInt(fromColumn * (a.width - 1));
+            int x1 = Mathf.RoundToInt(toColumn * (a.width - 1));
             int differing = 0, total = 0;
             for (int y = y0; y <= y1; y++)
             {
-                for (int x = 0; x < a.width; x++)
+                for (int x = x0; x <= x1; x++)
                 {
                     Color p = a.GetPixel(x, y), q = b.GetPixel(x, y);
                     total++;
@@ -319,6 +321,16 @@ namespace CityX.Tests
             Vector3 cameraBefore = _portraitCamera.transform.position;
             Quaternion turnBefore = _portraitCamera.transform.rotation;
 
+            // Mid-game the body is in some other pose when the helmet goes on: here the arms are flung out and the chest turned.
+            Animator animator = _player.GetComponentInChildren<Animator>();
+            animator.enabled = false;
+            Transform leftArm = animator.GetBoneTransform(HumanBodyBones.LeftUpperArm);
+            Transform chest = animator.GetBoneTransform(HumanBodyBones.Spine);
+            leftArm.localRotation *= Quaternion.Euler(0.0f, 0.0f, 70.0f);
+            animator.GetBoneTransform(HumanBodyBones.RightUpperArm).localRotation *= Quaternion.Euler(0.0f, 0.0f, -70.0f);
+            chest.localRotation *= Quaternion.Euler(0.0f, 25.0f, 0.0f);
+            Quaternion flungArm = leftArm.localRotation;
+
             Assert.IsTrue(_player.GetComponent<Inventory>().EquipItemId(ItemRegistry.KnightHelmet, _player), "the helmet could not be put on");
             yield return null;
             yield return null;
@@ -332,6 +344,9 @@ namespace CityX.Tests
             float moved = Vector3.Distance(cameraBefore, _portraitCamera.transform.position);
             Assert.Less(moved, 0.01f, $"the helmet moved the portrait's camera {moved:0.000} m");
             Assert.Less(Quaternion.Angle(turnBefore, _portraitCamera.transform.rotation), 0.5f, "the helmet turned the portrait's camera");
+            float shouldersChanged = Differs(before, after, 0.0f, 0.2f, 0.0f, 0.3f);   // the shoulder at the left edge, clear of the helmet
+            Assert.Less(shouldersChanged, 0.05f, $"the portrait was retaken in the body's pose of the moment ({shouldersChanged * 100:0}% of the shoulders differ)");
+            Assert.Less(Quaternion.Angle(flungArm, leftArm.localRotation), 0.01f, "taking the portrait left the body in the portrait's pose");
 
             Assert.IsTrue(_player.GetComponent<Inventory>().UnequipToSlot(EquipSlots.Helmet, _player));
             yield return null;
