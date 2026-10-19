@@ -12,14 +12,8 @@ namespace CityX.Wearables
     /// </summary>
     public sealed class KnightHelmet : HeadWearable, ICosmeticMountable
     {
-        /// <summary>The child holding the mesh, tinted steel on the shared helmet material.</summary>
+        /// <summary>The child holding the mesh.</summary>
         public const string ModelName = "Model";
-
-        public static readonly Color SteelColour = new Color(0.5f, 0.51f, 0.54f);
-
-        public const float SteelMetallic = 0.85f;
-
-        public const float SteelSmoothness = 0.5f;
 
         protected override string ItemId => ItemRegistry.KnightHelmet;
 
@@ -27,12 +21,6 @@ namespace CityX.Wearables
 
         /// <summary>Owner, 2026-10-18: hair pokes through it, so "make all hairstyles go bald until it is taken off".</summary>
         protected override bool HidesHair => true;
-
-        protected override void Awake()
-        {
-            base.Awake();
-            WearableTint.Apply(transform.Find(ModelName)?.GetComponent<Renderer>(), SteelColour, SteelSmoothness, 0, SteelMetallic);
-        }
 
         public void MountCosmetic(GameObject body)
         {

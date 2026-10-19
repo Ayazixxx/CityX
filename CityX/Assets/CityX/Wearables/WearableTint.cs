@@ -18,12 +18,12 @@ namespace CityX.Wearables
     /// through PrefabUtility.SaveAsPrefabAsset the way a real asset
     /// reference does (the same caution CharacterSkin.EnsurePainted's own
     /// doc comment already applies to a loose Texture2D). Re-applying every
-    /// time a wearable actually loads -- see TopHat.Awake/KnightHelmet.Awake --
+    /// time a wearable actually loads -- see TopHat.Awake --
     /// sidesteps that question entirely instead of trusting it either way.
     /// </summary>
     public static class WearableTint
     {
-        public static void Apply(Renderer renderer, Color colour, float smoothness = 0.2f, int materialIndex = 0, float metallic = 0.0f)
+        public static void Apply(Renderer renderer, Color colour, float smoothness = 0.2f, int materialIndex = 0)
         {
             if (renderer == null)
             {
@@ -33,7 +33,6 @@ namespace CityX.Wearables
             renderer.GetPropertyBlock(block, materialIndex);
             block.SetColor("_BaseColor", colour);
             block.SetFloat("_Smoothness", smoothness);
-            block.SetFloat("_Metallic", metallic);
             renderer.SetPropertyBlock(block, materialIndex);
         }
     }

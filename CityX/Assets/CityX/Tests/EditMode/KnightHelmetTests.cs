@@ -43,6 +43,21 @@ namespace CityX.Tests
             Assert.Greater(bounds.max.z, head, "the head pokes out of the helmet's face");
         }
 
+        /// <summary>Owner, 2026-10-18: the Meshy textures on the helmet, but light enough for a big MMO: one small colour map on its own unwrap.</summary>
+        [Test]
+        public void TheHelmetWearsOneSmallColourMap()
+        {
+            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath);
+            Transform model = prefab.transform.Find(KnightHelmet.ModelName);
+            Mesh mesh = model.GetComponent<MeshFilter>().sharedMesh;
+            Assert.AreEqual(mesh.vertexCount, mesh.uv.Length, "the helmet has no texture coordinates");
+            Material material = model.GetComponent<MeshRenderer>().sharedMaterial;
+            Texture texture = material.GetTexture("_BaseMap");
+            Assert.IsNotNull(texture, "the helmet has no colour map");
+            Assert.LessOrEqual(texture.width, 512, "the helmet's colour map is too big for many players at once");
+            Assert.Greater(material.GetFloat("_Metallic"), 0.3f, "the helmet is not metal");
+        }
+
         [Test]
         public void OtherPlayersCanBeShownTheHelmet()
         {

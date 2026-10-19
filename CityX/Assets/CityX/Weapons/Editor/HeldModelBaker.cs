@@ -14,6 +14,12 @@ namespace CityX.WeaponsEditor
         /// <summary>The glb's first mesh with the import's own transform (glTF's mirror, the node's scale) applied, in the glb's metres.</summary>
         public static void Load(string sourcePath, out Vector3[] vertices, out Vector3[] normals, out int[] triangles)
         {
+            Load(sourcePath, out vertices, out normals, out triangles, out _);
+        }
+
+        /// <summary>The same, with the model's texture coordinates (empty when it has none).</summary>
+        public static void Load(string sourcePath, out Vector3[] vertices, out Vector3[] normals, out int[] triangles, out Vector2[] uv)
+        {
             var model = AssetDatabase.LoadAssetAtPath<GameObject>(sourcePath);
             if (model == null)
             {
@@ -25,6 +31,7 @@ namespace CityX.WeaponsEditor
             vertices = source.vertices;
             normals = source.normals;
             triangles = source.triangles;
+            uv = source.uv;
             for (int i = 0; i < vertices.Length; i++)
             {
                 vertices[i] = bake.MultiplyPoint3x4(vertices[i]);
