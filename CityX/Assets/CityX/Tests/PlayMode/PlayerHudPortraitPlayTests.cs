@@ -105,6 +105,11 @@ namespace CityX.Tests
                         ItemId = ItemRegistry.KnightHelmet,
                         Prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Wearables/KnightHelmet.prefab"),
                     },
+                    new Inventory.ItemPrefabEntry
+                    {
+                        ItemId = ItemRegistry.CombatSword,
+                        Prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/CombatSword.prefab"),
+                    },
                 };
             }
 
@@ -353,6 +358,38 @@ namespace CityX.Tests
             Assert.IsFalse(_player.GetComponent<CharacterHair>().IsCovered, "the hair did not come back when the helmet came off");
             Object.Destroy(before);
             Object.Destroy(after);
+#else
+            yield break;
+#endif
+        }
+
+        /// <summary>
+        /// Owner, 2026-10-19: "the portrait in the top left changing when i am switching weapons just make it stay as the default". Taking a
+        /// weapon out or putting it away leaves the portrait as it was (what is held is never in it); putting something on still retakes it.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator SwitchingWeaponsLeavesThePortraitAsItWas()
+        {
+#if UNITY_EDITOR
+            Build("hair1", withInventory: true);
+            for (int i = 0; i < 60; i++)
+            {
+                yield return null;
+            }
+            _hud.CaptureNow();
+            int taken = _hud.PortraitsTaken;
+            var inventory = _player.GetComponent<Inventory>();
+            Assert.IsTrue(inventory.EquipItemId(ItemRegistry.CombatSword, _player), "the sword could not be taken out");
+            yield return null;
+            yield return null;
+            Assert.IsTrue(inventory.UnequipToSlot(EquipSlots.Primary, _player), "the sword could not be put away");
+            yield return null;
+            yield return null;
+            Assert.AreEqual(taken, _hud.PortraitsTaken, "switching weapons retook the portrait");
+            Assert.IsTrue(inventory.EquipItemId(ItemRegistry.KnightHelmet, _player));
+            yield return null;
+            yield return null;
+            Assert.AreEqual(taken + 1, _hud.PortraitsTaken, "putting on a helmet no longer retakes the portrait");
 #else
             yield break;
 #endif

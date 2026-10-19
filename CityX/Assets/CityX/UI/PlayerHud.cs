@@ -338,8 +338,12 @@ namespace CityX.UI
                 PortraitCamera.gameObject.SetActive(false);
                 current?.Apply();
             }
+            PortraitsTaken++;
             return true;
         }
+
+        /// <summary>How many portraits have been taken: for tests of when it is retaken.</summary>
+        public int PortraitsTaken { get; private set; }
 
         /// <summary>A still copy of a skinned renderer in its bones' pose of this moment, on <paramref name="layer"/>, wearing what it wears.</summary>
         private static GameObject StillCopy(SkinnedMeshRenderer skinned, int layer)
@@ -518,7 +522,7 @@ namespace CityX.UI
             }
             if (_boundInventory != null)
             {
-                _boundInventory.EquipmentChanged -= RefreshPortrait;
+                _boundInventory.EquipmentChanged -= OnEquipmentChanged;
             }
 
             _bound = vitals;
@@ -531,9 +535,44 @@ namespace CityX.UI
                 _bound.Revived += OnRevived;
             }
             // Owner, 2026-10-18: "make the portrait in the top left show helmets and any other items equipped".
+            _wornAtLastShot = WornNow();
             if (_boundInventory != null)
             {
-                _boundInventory.EquipmentChanged += RefreshPortrait;
+                _boundInventory.EquipmentChanged += OnEquipmentChanged;
+            }
+        }
+
+        /// <summary>
+        /// The slots whose items the portrait shows. Not the hands: what is held is left out of the picture, so switching weapons does not retake it
+        /// (owner, 2026-10-19: "the portrait in the top left changing when i am switching weapons just make it stay as the default").
+        /// </summary>
+        private static readonly string[] WornSlots =
+            { EquipSlots.Helmet, EquipSlots.Mask, EquipSlots.Torso, EquipSlots.Gloves, EquipSlots.Legs, EquipSlots.Shoes, EquipSlots.Back };
+
+        private string _wornAtLastShot;
+
+        private string WornNow()
+        {
+            if (_boundInventory == null)
+            {
+                return "";
+            }
+            var worn = new System.Text.StringBuilder();
+            foreach (string slot in WornSlots)
+            {
+                worn.Append(_boundInventory.EquippedItemId(slot)).Append('|');
+            }
+            return worn.ToString();
+        }
+
+        /// <summary>Retakes the portrait when what is WORN changed; a weapon taken out or put away leaves it as it is.</summary>
+        private void OnEquipmentChanged()
+        {
+            string worn = WornNow();
+            if (worn != _wornAtLastShot)
+            {
+                _wornAtLastShot = worn;
+                RefreshPortrait();
             }
         }
 
