@@ -17,6 +17,7 @@ Unity port of a Godot game: a procedurally generated multiplayer megacity with t
 - `docs/*.md` hold the design notes per feature (CLIMBING, FIST_COMBAT, MULTIPLAYER_STATE, ...). Read the relevant one before changing a feature; update it after.
 - `docs/GAME_DESIGN.md` is the whole-game plan (progression, world layers, death, karma, factions, roadmap, open decisions). Read it before starting any new system; build in its roadmap order.
 - `tools/unity_tests.ps1` runs tests headless.
+- `tools/model_qa.py` checks every model that comes in (Meshy zip, owner's fit, bake) before it goes into the game; show the owner its labelled picture and record the findings they say are meant with `--keep` (`docs/MODEL_QA.md`).
 
 ## Commands (PowerShell; the Unity editor must be closed)
 - `powershell -ExecutionPolicy Bypass -File tools/unity_tests.ps1 -Platform EditMode|PlayMode [-Graphics] [-Filter CityX.Tests.SomeTests]`
