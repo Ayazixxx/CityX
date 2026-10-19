@@ -429,6 +429,10 @@ namespace CityX.Character
                 _spinMotionLoaded = true;
                 _spinMotion = BakedMotion.Load(SwordSpinMove.MotionResource);
                 _spinPose = _spinMotion?.NewPose();
+                if (_spinPose != null)
+                {
+                    _spinPose.ThrustGrip = true;   // posed with it in Blender (spin_build_all.py), so every sword's blade sweeps level
+                }
             }
             return _spinMotion != null;
         }

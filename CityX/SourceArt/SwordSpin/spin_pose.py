@@ -148,6 +148,11 @@ def ground_release():
     return P
 
 
+# The blade rides this much higher than the arm through the turns (rise per unit out, about 8 degrees): level or a little up, never down
+# (owner, 2026-10-18: "i want it either horizontally or slightly upward").
+BLADE_RISE = 0.14
+
+
 def spin_pose(frame, hips_y=0.55, lift=0.0, base_tilt=0.0, tilt_swing=0.0, yaw_deg=0.0):
     """The spin: low and wide, the sword arm straight out to the right with the blade carrying on its line, the free arm out the other way.
     `tilt_swing` raises the blade when it points behind and lowers it in front (it follows the turn, `yaw_deg`), as the air spin's disc
@@ -157,7 +162,7 @@ def spin_pose(frame, hips_y=0.55, lift=0.0, base_tilt=0.0, tilt_swing=0.0, yaw_d
     tilt = base_tilt - tilt_swing * math.sin(yaw_rad) + lift
     hy = hips_y + bob
     P = {"hips": (0.0, hy, 0.0), "body": rot(p=12), "spine": rot(p=4, y=10), "neck": rot(p=-10, y=-8), "head": rot(p=-6, y=-6),
-         "sword": {"hand": (0.85, 0.05 + tilt * 0.4, 0.10), "blade": (1.0, tilt, 0.16), "space": "chest"},
+         "sword": {"hand": (0.85, 0.05 + tilt * 0.4, 0.10), "blade": (1.0, tilt + BLADE_RISE, 0.16), "space": "chest"},
          "free": {"hand": (-0.80, -0.32, -0.15), "pole": (0.0, -1.0, -0.3), "space": "chest"}}
     P.update(legs_wide(hy))
     return P

@@ -362,7 +362,7 @@ namespace CityX.Character
         public bool UpperBodyOnly;
 
         /// <summary>
-        /// The stab dash: while it holds the body, the sword in the right hand is held in the thrust grip the move was posed with in Blender, so the
+        /// The stab dash and the sword spin: while the move holds the body, the sword in the right hand is held in the thrust grip the move was posed with in Blender, so the
         /// blade points where the move means it, gripped in the fist, whatever hold the sword is otherwise in (ISwordBlade.HoldForThrust).
         /// </summary>
         public bool ThrustGrip;

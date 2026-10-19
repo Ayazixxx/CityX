@@ -113,7 +113,7 @@ namespace CityX.Character
             _bakedFingerWeight = 0.0f;
             if (_bakedPose == null || _bakedPoseWeight <= 0.0f || _animator == null)
             {
-                HoldSwordForThrust(0.0f);   // the stab dash, once it has let go, hands the sword back to its own hold
+                HoldSwordForThrust(0.0f);   // a move in the thrust grip, once it has let go, hands the sword back to its own hold
                 return;
             }
             if (!ReferenceEquals(_bakedBonesFor, _bakedPose.Bones))

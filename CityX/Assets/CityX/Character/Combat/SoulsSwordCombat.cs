@@ -138,7 +138,7 @@ namespace CityX.Character
 
         /// <summary>
         /// Holds the sword in the thrust grip at <paramref name="weight"/> (the handle in the fist, turned so the blade leans out toward the
-        /// fingertips), and as it is otherwise held at 0. PlayerLocomotion does it while the stab dash's pose holds the body (BakedPose.ThrustGrip).
+        /// fingertips), and as it is otherwise held at 0. PlayerLocomotion does it while the stab dash's or the spin's pose holds the body (BakedPose.ThrustGrip).
         /// </summary>
         void HoldForThrust(float weight)
         {

@@ -1,4 +1,5 @@
 using CityX.Character;
+using CityX.Weapons;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -135,7 +136,9 @@ namespace CityX.Tests
             return turned;
         }
 
-        private static Vector3 BladeOn(BakedMotion motion, int frame) => BakedMotionPoses.Blade(BakedMotionPoses.WorldTurns(motion, frame));
+        /// <summary>The blade on a frame, in the thrust grip the spin is posed with and every sword is held in while it plays.</summary>
+        private static Vector3 BladeOn(BakedMotion motion, int frame) =>
+            BakedMotionPoses.Blade(BakedMotionPoses.WorldTurns(motion, frame), SwordWeapon.ThrustBladeAxisInHand);
 
         [Test]
         public void TheAnimationIsOnTheGamesOwnBonesAndLastsAsLongAsTheMove()
@@ -182,8 +185,10 @@ namespace CityX.Tests
             {
                 var world = BakedMotionPoses.WorldTurns(motion, start + f);
                 var joints = BakedMotionPoses.Joints(motion, start + f, world);
-                Vector3 blade = BakedMotionPoses.Blade(world);
-                Assert.Less(Mathf.Abs(blade.y), 0.35f, $"frame {f}: the blade is not swept level");
+                Vector3 blade = BakedMotionPoses.Blade(world, SwordWeapon.ThrustBladeAxisInHand);
+                // Owner, 2026-10-18: "i want it either horizontally or slightly upward" (it pointed down with the combat sword).
+                float rise = Mathf.Asin(Mathf.Clamp(blade.y, -1.0f, 1.0f)) * Mathf.Rad2Deg;
+                Assert.That(rise, Is.InRange(-3.0f, 25.0f), $"frame {f}: the blade is not swept level or a little up ({rise:0} degrees)");
                 Assert.Greater((joints["hand_r"] - joints["arm_r"]).magnitude, 0.8f, $"frame {f}: the sword arm is not straight out");
                 Vector3 outward = Vector3.ProjectOnPlane(joints["hand_r"] - joints["hips"], Vector3.up).normalized;
                 Assert.Greater(Vector3.Dot(Vector3.ProjectOnPlane(blade, Vector3.up).normalized, outward), 0.7f,

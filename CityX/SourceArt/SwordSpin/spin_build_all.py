@@ -1,6 +1,7 @@
 # EVERYTHING FOR THE SWORD SPIN, headless:
 #   blender --background --python spin_build_all.py -- [--no-export] [--render <out_dir> [--frames ground:0,4,7 air:8,48]]
-# Builds the body rig (../Octaslash/octaslash_rig.py), loads Octaslash's pose solver, bakes the spin's poses (spin_pose.py), exports
+# Builds the body rig (../Octaslash/octaslash_rig.py), puts its sword in the thrust grip (../StabDash/stab_grip.py: the game holds every
+# sword so during the spin), loads Octaslash's pose solver, bakes the spin's poses (spin_pose.py), exports
 # CityX/Assets/CityX/Character/Resources/SwordSpin/SwordSpinMotion.json (../Octaslash/octaslash_export.py) and renders check frames.
 import os
 import sys
@@ -9,6 +10,7 @@ import bpy
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OCTASLASH = os.path.join(os.path.dirname(HERE), "Octaslash")
+STAB_DASH = os.path.join(os.path.dirname(HERE), "StabDash")
 FIREARMS = os.path.join(os.path.dirname(HERE), "Firearms")
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
 args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
@@ -20,6 +22,8 @@ def run(path):
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 run(os.path.join(OCTASLASH, "octaslash_rig.py"))
+run(os.path.join(STAB_DASH, "stab_grip.py"))     # the sword in the thrust grip the game holds it in during the spin
+SOLVER_TWIST_WEIGHT = 1.0                        # and the hand not wrung round its forearm to lay the blade
 OCTASLASH_NO_BAKE = True
 run(os.path.join(OCTASLASH, "octaslash_pose.py"))
 run(os.path.join(HERE, "spin_pose.py"))

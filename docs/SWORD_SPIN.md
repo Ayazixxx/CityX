@@ -132,3 +132,17 @@ and arrives with the body's transform.
 Public fields on `MeleeAttacker` ("Sword Spin Attack"): `SpinReachMetres`, `SpinAttackCooldownSeconds`, `SpinAttackDamageScale`,
 `AirSpinRiseSpeed`, `AirSpinGravityScale`, `AirSpinMoveFraction`, `AirSpinLaunchUp`, `AirSpinLaunchAway`, `SpinSlashMaterial`. The
 timeline's numbers (frames, damage table, blend times) are constants in `SwordSpinMove`; the turn and the poses are the animation's.
+
+## Fixed 2026-10-18: the blade level, gripped in the fist, with every sword
+
+Owner: "right now the sword spin has the sword angled downward i want it either horizontally or slightly upward ... make sure the hand grip on the sword
+look right as well". The spin was posed in Blender with the two-handed sword's hold, and each sword kept its own hold while it played; the one-handed
+combat sword is held straight out past the thumb, so its blade pointed almost straight down through the whole spin (the two-handed one was level).
+- The spin is now posed with the stab dash's **thrust grip** (`spin_build_all.py` runs `../StabDash/stab_grip.py` and the solver's twist weight), and
+  the game holds every sword in that grip while the spin's animation holds the body (`MeleeAttacker.Spin`: `BakedPose.ThrustGrip`): the handle in a
+  closed fist, the blade carrying on along the arm.
+- Through the turns the blade rides a little above the arm (`spin_pose.BLADE_RISE`, about 8 degrees): level or slightly up, never down. The wind-up
+  (sword cocked over the shoulder) and the ending (the deep lunge with the blade low in front, as in Smash) are unchanged.
+- Tests: `SwordSpinMoveTests` measures the blade in the thrust grip (between 3 degrees down and 25 up on every hit frame of the ground spin);
+  `SwordSpinRealInputPlayTests` checks the blade along the arm and level or up in the real game with both swords. `SwordSpinCapture` films both swords
+  (`spin-*.png`, `spin-1h-*.png`) with the sword hand close up on frames 13, 20 and 33.

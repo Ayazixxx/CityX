@@ -202,14 +202,15 @@ namespace CityX.Weapons
 
         private Transform _leftHandGrip;
 
-        // ---- THE THRUST GRIP (the stab dash) ----
+        // ---- THE THRUST GRIP (the stab dash, the sword spin) ----
         //
         // A sword thrust straight out ahead (the stab dash's lunge, animated in Blender) is held with the handle in the fist where the one-handed
         // hold has it, turned within the fist so the blade comes out between the thumb and the index finger leaning toward the fingertips: the
         // fingers round the handle, the blade carrying on ahead of the arm. Owner, 2026-10-18: "make him grip the sword properly too as well as
         // pointing it horizontally". Held straight out past the thumb (the one-handed hold), the blade stood off the arm and pointed at the street;
         // held as the two-handed sword is, the one-handed sword's long handle ran back along the forearm. SourceArt/StabDash/stab_build_all.py
-        // poses the move with this same grip.
+        // poses the move with this same grip, and SourceArt/SwordSpin/spin_build_all.py the spin (owner, 2026-10-18: the spin's blade was
+        // "angled downward" with the combat sword, held in its own grip on a move posed for the two-handed one).
 
         /// <summary>How far the thrust grip leans the blade from straight out past the thumb toward the fingertips, degrees, about the palm's normal.</summary>
         public const float ThrustTiltDegrees = 50.0f;

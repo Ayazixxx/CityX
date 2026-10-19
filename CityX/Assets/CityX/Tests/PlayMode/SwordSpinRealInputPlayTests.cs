@@ -90,7 +90,7 @@ namespace CityX.Tests
             LogAssert.ignoreFailingMessages = false;
         }
 
-        private IEnumerator LoadSceneWithASword()
+        private IEnumerator LoadSceneWithASword(string sword = ItemRegistry.Sword)
         {
 #if UNITY_EDITOR
             LogAssert.ignoreFailingMessages = true;
@@ -105,9 +105,9 @@ namespace CityX.Tests
             _melee = _vitals.GetComponent<MeleeAttacker>();
 
             Inventory inventory = _vitals.GetComponent<Inventory>();
-            inventory.AddItem(ItemRegistry.Sword, 1);
-            Assert.IsTrue(inventory.RemoveFromStorage(ItemRegistry.Sword, 1, out ItemInstanceData data));
-            Assert.IsTrue(inventory.EquipItemId(ItemRegistry.Sword, _vitals.gameObject, data), "could not equip the sword");
+            inventory.AddItem(sword, 1);
+            Assert.IsTrue(inventory.RemoveFromStorage(sword, 1, out ItemInstanceData data));
+            Assert.IsTrue(inventory.EquipItemId(sword, _vitals.gameObject, data), "could not equip the sword");
             _vitals.InfiniteHealth = true;
 
             for (int i = 0; i < 400 && !_locomotion.IsGrounded; i++)
@@ -231,8 +231,23 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator TheSpinHoldsTheSwordArmOutToTheSideWithTheBladeAlongIt()
         {
+            yield return SpinsWithTheBladeLevelAlongTheArm(ItemRegistry.Sword);
+        }
+
+        /// <summary>
+        /// Owner, 2026-10-18: the spin's blade was "angled downward" with the combat sword (held in its own grip on a move posed for the
+        /// two-handed one); every sword is held in the thrust grip the spin is posed with now.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator WithTheOneHandedSwordTheSpinsBladeIsLevelAlongTheArmToo()
+        {
+            yield return SpinsWithTheBladeLevelAlongTheArm(ItemRegistry.CombatSword);
+        }
+
+        private IEnumerator SpinsWithTheBladeLevelAlongTheArm(string sword)
+        {
 #if UNITY_EDITOR
-            yield return LoadSceneWithASword();
+            yield return LoadSceneWithASword(sword);
 
             Press(_keyboard.digit2Key);
             yield return null;
@@ -258,7 +273,7 @@ namespace CityX.Tests
             Assert.Less(Vector3.Angle(probe.Along, probe.Right), 30.0f,
                 $"the blade points {Vector3.Angle(probe.Along, probe.Right):0} degrees off straight out to the chest's right " +
                 $"(spun for {_melee.SpinElapsedSeconds:0.00}s, kind {_melee.CurrentSpinKind})");
-            Assert.Less(Mathf.Abs(probe.Along.y), 0.35f, "the blade should be swept level");
+            Assert.That(probe.Along.y, Is.InRange(-0.08f, 0.45f), $"the blade should be swept level or a little up, not {probe.Along.y:0.00}");
             Assert.Less(Vector3.Dot(probe.LeftHandOffset, probe.Right), -0.2f, "the free arm should be out the other side for balance");
 #else
             yield break;
