@@ -23,6 +23,9 @@ namespace CityX.Weapons
         [Tooltip("The sword he fights with: the combat sword, equipped at spawn as the player equips it.")]
         public GameObject SwordPrefab;
 
+        [Tooltip("What he wears on his head (the Knight Helmet), put on at spawn as the player puts one on.")]
+        public GameObject HelmetPrefab;
+
         [Tooltip("XP for beating him.")]
         public int XpReward = 80;
 
@@ -108,6 +111,7 @@ namespace CityX.Weapons
                 gameObject.AddComponent<HitImpactEffects>();
             }
             EquipSword();
+            EquipHelmet();
         }
 
         private void OnDestroy()
@@ -167,6 +171,18 @@ namespace CityX.Weapons
                 shared: false, gameObject, SwordPrefab);
             _sword.OnUnequip(gameObject);
             _sword = null;
+        }
+
+        /// <summary>His helmet on his head, worn as the player wears one; it stays on his body when he falls.</summary>
+        private void EquipHelmet()
+        {
+            if (HelmetPrefab == null)
+            {
+                return;
+            }
+            GameObject helmet = Instantiate(HelmetPrefab);
+            helmet.name = HelmetPrefab.name;
+            helmet.GetComponent<IEquippableItem>()?.OnEquip(gameObject, ItemInstanceData.None);
         }
 
         /// <summary>The combat sword in his right hand, equipped exactly as the player equips one (the hold, the sword combat, the posing).</summary>

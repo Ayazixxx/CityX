@@ -26,6 +26,46 @@ namespace CityX.Tests
         private const int Columns = 10;
         private const float Dt = 1.0f / 60.0f;
 
+        /// <summary>
+        /// The swordsman standing, from the front, the side and behind: the owner's character "Knight" and the Knight Helmet (2026-10-18).
+        /// Output: CityX/Logs/CityShots/swordsman-look-*.png
+        /// </summary>
+        [UnityTest]
+        public IEnumerator RenderHisLook()
+        {
+            CaptureGuard.NeedsGraphics();
+#if UNITY_EDITOR
+            Time.captureFramerate = 60;
+            var ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            ground.transform.position = new Vector3(0.0f, -0.5f, 0.0f);
+            ground.transform.localScale = new Vector3(60.0f, 1.0f, 60.0f);
+            var sun = new GameObject("Sun").AddComponent<Light>();
+            sun.type = LightType.Directional;
+            sun.intensity = 1.2f;
+            sun.transform.rotation = Quaternion.Euler(40.0f, -30.0f, 0.0f);
+            Camera camera = new GameObject("Cam").AddComponent<Camera>();
+            camera.clearFlags = CameraClearFlags.SolidColor;
+            camera.backgroundColor = new Color(0.55f, 0.68f, 0.85f);
+            camera.fieldOfView = 30.0f;
+            GameObject swordsman = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Swordsman.prefab"),
+                new Vector3(0.0f, 0.05f, 0.0f), Quaternion.identity);
+            for (int i = 0; i < 90; i++)
+            {
+                yield return null;   // he puts on his sword and helmet and settles into his stance, with nobody to fight
+            }
+            Vector3 chest = swordsman.transform.position + Vector3.up * 1.6f;
+            BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, "swordsman-look-front", chest + new Vector3(1.5f, 0.4f, 8.0f), chest);
+            BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, "swordsman-look-side", chest + new Vector3(8.0f, 0.4f, 0.0f), chest);
+            BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, "swordsman-look-behind", chest + new Vector3(-2.0f, 0.6f, -8.0f), chest);
+            Object.Destroy(swordsman);
+            Object.Destroy(camera.gameObject);
+            Object.Destroy(sun.gameObject);
+            Object.Destroy(ground);
+#else
+            yield break;
+#endif
+        }
+
         [UnityTest]
         public IEnumerator RenderTheDuel()
         {

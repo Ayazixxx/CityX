@@ -109,8 +109,9 @@ namespace CityX.CharacterEditor
             }
             else if (savedAtlas != atlas)
             {
-                savedAtlas.SetPixels32(atlas.GetPixels32());
-                savedAtlas.Apply();
+                // Copied whole rather than pixel by pixel: a compressed atlas (the swordsman's) cannot take SetPixels32.
+                EditorUtility.CopySerialized(atlas, savedAtlas);
+                savedAtlas.name = $"{name}Atlas";
                 EditorUtility.SetDirty(savedAtlas);
             }
 
