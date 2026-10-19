@@ -1,0 +1,63 @@
+using System.Collections;
+using CityX.Character;
+using CityX.Items;
+using CityX.Wearables;
+using NUnit.Framework;
+using UnityEngine;
+using UnityEngine.TestTools;
+
+namespace CityX.Tests
+{
+    /// <summary>
+    /// Owner, 2026-10-18: under the Knight Helmet "make all hairstyles go bald until it is taken off then it goes back to the hairstyle you
+    /// had equipped". The hair is hidden while the helmet is on, kept hidden through a change of style, and back when it comes off.
+    /// </summary>
+    public sealed class KnightHelmetPlayTests
+    {
+        [UnityTest]
+        public IEnumerator TheHairIsHiddenWhileTheHelmetIsOnAndBackWhenItComesOff()
+        {
+            var body = new GameObject("Body");
+            var hair = body.AddComponent<CharacterHair>();
+            var helmetObject = new GameObject("KnightHelmet");
+            var helmet = helmetObject.AddComponent<KnightHelmet>();
+
+            helmet.OnEquip(body, ItemInstanceData.None);
+            Assert.IsTrue(hair.IsCovered, "the hair shows through the helmet");
+            hair.SetStyle(CharacterHair.Hyde);
+            Assert.IsTrue(hair.IsCovered, "a new hairstyle came out through the helmet");
+
+            helmet.OnUnequip(body);
+            yield return null;   // Destroy() is deferred to the end of the frame
+            Assert.IsFalse(hair.IsCovered, "the hair did not come back with the helmet off");
+            Assert.AreEqual(CharacterHair.Hyde, hair.Style, "the hairstyle was lost under the helmet");
+            Object.Destroy(body);
+        }
+
+        [Test]
+        public void AHatDoesNotHideTheHair()
+        {
+            var body = new GameObject("Body");
+            var hair = body.AddComponent<CharacterHair>();
+            var hat = new GameObject("TopHat").AddComponent<TopHat>();
+
+            hat.OnEquip(body, ItemInstanceData.None);
+            Assert.IsFalse(hair.IsCovered, "the top hat made the wearer bald");
+            Object.DestroyImmediate(hat.gameObject);
+            Object.DestroyImmediate(body);
+        }
+
+        [Test]
+        public void TwoCoversNeedTwoUncovers()
+        {
+            var hair = new GameObject("Body").AddComponent<CharacterHair>();
+            hair.Cover();
+            hair.Cover();
+            hair.Uncover();
+            Assert.IsTrue(hair.IsCovered, "taking one helmet off showed the hair under the other");
+            hair.Uncover();
+            Assert.IsFalse(hair.IsCovered);
+            Object.DestroyImmediate(hair.gameObject);
+        }
+    }
+}

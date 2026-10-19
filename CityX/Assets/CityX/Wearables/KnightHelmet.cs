@@ -25,6 +25,9 @@ namespace CityX.Wearables
 
         protected override Vector3 HeadPosition => Vector3.zero;
 
+        /// <summary>Owner, 2026-10-18: hair pokes through it, so "make all hairstyles go bald until it is taken off".</summary>
+        protected override bool HidesHair => true;
+
         protected override void Awake()
         {
             base.Awake();
@@ -34,10 +37,12 @@ namespace CityX.Wearables
         public void MountCosmetic(GameObject body)
         {
             CosmeticMount.ToBone(transform, body, HumanBodyBones.Head, HeadPosition, HeadRotationEuler, 1.0f);
+            CoverHairOf(body);
         }
 
         public void UnmountCosmetic(GameObject body)
         {
+            UncoverHair();
         }
 
         public void SetCosmeticActive(bool active)

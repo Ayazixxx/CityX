@@ -92,11 +92,43 @@ namespace CityX.Character
 
         private GameObject _worn;
 
+        private int _covers;
+
         private static MaterialPropertyBlock _block;
         private static readonly int BaseColourId = Shader.PropertyToID("_BaseColor");
         private static readonly int ColourId = Shader.PropertyToID("_Color");
 
         public string Style => _style;
+
+        /// <summary>Headwear that hides the hair is on (the Knight Helmet): the style is kept, only not drawn, and comes back when it is off.</summary>
+        public bool IsCovered => _covers > 0;
+
+        /// <summary>
+        /// Hides the hair under headwear (owner, 2026-10-18: the Knight Helmet "make all hairstyles go bald until it is taken off"). Counted, so
+        /// two pieces of headwear each undo only their own. Not drawn rather than removed: the hair keeps its style, colour and bounds (the HUD
+        /// portrait frames by them, so the picture does not move).
+        /// </summary>
+        public void Cover()
+        {
+            _covers++;
+            ApplyCovered();
+        }
+
+        /// <summary>Undoes one <see cref="Cover"/>.</summary>
+        public void Uncover()
+        {
+            _covers = Mathf.Max(0, _covers - 1);
+            ApplyCovered();
+        }
+
+        private void ApplyCovered()
+        {
+            var renderer = _worn != null ? _worn.GetComponent<MeshRenderer>() : null;
+            if (renderer != null)
+            {
+                renderer.forceRenderingOff = IsCovered;
+            }
+        }
 
         /// <summary>The colour of the hair, worn or not: it is kept while bald and put back on the next style.</summary>
         public Color Colour => _colour;
@@ -342,6 +374,7 @@ namespace CityX.Character
 
             ApplyColour();
             ApplyFit();
+            ApplyCovered();
         }
 
         /// <summary>Puts the worn hair where the style's fit says. Runs on every fit change.</summary>

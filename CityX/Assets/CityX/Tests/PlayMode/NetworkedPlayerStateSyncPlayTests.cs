@@ -383,9 +383,13 @@ namespace CityX.Tests
             {
                 Assert.IsFalse(c.enabled, "a copy's helmet can be picked up");
             }
+            var copyHair = _aOnB.GetComponentInChildren<CharacterHair>(true);
+            Assert.IsTrue(copyHair.IsCovered, "other players see player A's hair poking through the helmet");
 
             Assert.IsTrue(inventory.UnequipToSlot(EquipSlots.Helmet, _aOnA.gameObject));
             yield return WaitUntil(() => copySync.ShownItem(ItemRegistry.KnightHelmet) == null, "the helmet to leave player A's copy");
+            yield return null;   // the copy's helmet model is destroyed at the end of the frame
+            Assert.IsFalse(copyHair.IsCovered, "player A's copy stayed bald after the helmet came off");
 #else
             Assert.Ignore("needs the editor to load the networked player prefab.");
             yield break;

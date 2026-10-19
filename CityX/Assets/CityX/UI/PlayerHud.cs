@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using CityX.Character;
+using CityX.Items;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -169,6 +170,7 @@ namespace CityX.UI
         }
 
         private bool _refreshPending;
+        private Inventory _boundInventory;
 
         /// <summary>The character just put on a new look (a redraw, a load): retake the portrait so it matches.</summary>
         private void OnLookApplied(CharacterIdentity identity)
@@ -260,8 +262,10 @@ namespace CityX.UI
                 moved.Add(new KeyValuePair<Renderer, int>(renderer, renderer.gameObject.layer));
                 renderer.gameObject.layer = layer;
 
-                // Hair and hats sit at head height or above: they set how much room the top needs.
-                if (renderer.bounds.center.y >= headBounds.center.y - headBounds.extents.y * 0.2f)
+                // The hair sits at head height or above: it sets how much room the top needs. Worn items do not (owner, 2026-10-18: show
+                // what is equipped but "dont alter the positioning of the playermodel in the portrait"), so a helmet never moves the shot.
+                if (renderer.bounds.center.y >= headBounds.center.y - headBounds.extents.y * 0.2f
+                    && renderer.GetComponentInParent<IEquippableItem>() == null)
                 {
                     top = Mathf.Max(top, renderer.bounds.max.y);
                 }
@@ -447,14 +451,24 @@ namespace CityX.UI
                 _bound.Died -= OnDied;
                 _bound.Revived -= OnRevived;
             }
+            if (_boundInventory != null)
+            {
+                _boundInventory.EquipmentChanged -= RefreshPortrait;
+            }
 
             _bound = vitals;
             Target = vitals;
+            _boundInventory = vitals != null ? vitals.GetComponent<Inventory>() : null;
 
             if (_bound != null)
             {
                 _bound.Died += OnDied;
                 _bound.Revived += OnRevived;
+            }
+            // Owner, 2026-10-18: "make the portrait in the top left show helmets and any other items equipped".
+            if (_boundInventory != null)
+            {
+                _boundInventory.EquipmentChanged += RefreshPortrait;
             }
         }
 

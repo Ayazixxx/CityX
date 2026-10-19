@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using CityX.Character;
 using CityX.Core;
+using CityX.Items;
 using CityX.UI;
 using NUnit.Framework;
 using UnityEngine;
@@ -40,7 +41,7 @@ namespace CityX.Tests
         }
 
         /// <summary>The player with hair and a coloured body, and a HUD pointed at it -- built the way PlayerHudBuilder builds it.</summary>
-        private void Build(string hairStyle)
+        private void Build(string hairStyle, bool withInventory = false)
         {
 #if UNITY_EDITOR
             // A portrait is a picture: there is nothing to check without a graphics device (the default
@@ -93,6 +94,19 @@ namespace CityX.Tests
             sun.type = LightType.Directional;
             sun.intensity = 1.2f;
             sun.transform.rotation = Quaternion.Euler(40.0f, -30.0f, 0.0f);
+
+            if (withInventory)
+            {
+                // The world player's inventory, as the scene builder gives it (Player.prefab has none): what can be worn.
+                _player.AddComponent<Inventory>().ItemPrefabs = new[]
+                {
+                    new Inventory.ItemPrefabEntry
+                    {
+                        ItemId = ItemRegistry.KnightHelmet,
+                        Prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Wearables/KnightHelmet.prefab"),
+                    },
+                };
+            }
 
             _hudObject = Object.Instantiate(hudPrefab);
             _hud = _hudObject.GetComponent<PlayerHud>();
@@ -279,6 +293,49 @@ namespace CityX.Tests
             float changed = Differs(before, after, 0.55f, 1.0f);
             Debug.Log($"CityX portrait: {changed * 100:0.0}% of the top pixels changed after the new hair (was {topBefore * 100:0}% covered)");
             Assert.Greater(changed, 0.02f, "the portrait did not refresh when the character's look changed");
+            Object.Destroy(before);
+            Object.Destroy(after);
+#else
+            yield break;
+#endif
+        }
+
+        /// <summary>
+        /// Owner, 2026-10-18: "make the portrait in the top left show helmets and any other items equipped. dont alter the camera angle of the
+        /// portrait", "dont alter the positioning of the playermodel in the portrait either". Putting on the Knight Helmet retakes the portrait
+        /// with the helmet in it and the hair hidden under it, from exactly where the camera stood before.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator PuttingOnAHelmetRetakesThePortraitWithItFromTheSameSpot()
+        {
+#if UNITY_EDITOR
+            Build("hair1", withInventory: true);
+            for (int i = 0; i < 60; i++)
+            {
+                yield return null;   // standing on the ground, not still dropping onto it
+            }
+            _hud.CaptureNow();
+            Texture2D before = Read();
+            Vector3 cameraBefore = _portraitCamera.transform.position;
+            Quaternion turnBefore = _portraitCamera.transform.rotation;
+
+            Assert.IsTrue(_player.GetComponent<Inventory>().EquipItemId(ItemRegistry.KnightHelmet, _player), "the helmet could not be put on");
+            yield return null;
+            yield return null;
+
+            Texture2D after = Read();
+            Save("helmet-before", before);
+            Save("helmet-after", after);
+            Assert.IsTrue(_player.GetComponent<CharacterHair>().IsCovered, "the hair is still drawn under the helmet");
+            Assert.Greater(Differs(before, after, 0.0f, 1.0f), 0.05f, "the portrait was not retaken with the helmet on");
+            // A centimetre for the idle's breathing; framed round the helmet, the camera would stand about ten back.
+            float moved = Vector3.Distance(cameraBefore, _portraitCamera.transform.position);
+            Assert.Less(moved, 0.01f, $"the helmet moved the portrait's camera {moved:0.000} m");
+            Assert.Less(Quaternion.Angle(turnBefore, _portraitCamera.transform.rotation), 0.5f, "the helmet turned the portrait's camera");
+
+            Assert.IsTrue(_player.GetComponent<Inventory>().UnequipToSlot(EquipSlots.Helmet, _player));
+            yield return null;
+            Assert.IsFalse(_player.GetComponent<CharacterHair>().IsCovered, "the hair did not come back when the helmet came off");
             Object.Destroy(before);
             Object.Destroy(after);
 #else

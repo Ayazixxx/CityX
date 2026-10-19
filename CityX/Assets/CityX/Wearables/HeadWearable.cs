@@ -21,6 +21,7 @@ namespace CityX.Wearables
         private SphereCollider _pickupTrigger;
         private Transform _nearbyPlayer;
         private bool _equipped;
+        private CharacterHair _coveredHair;
 
         /// <summary>The registry id the pickup adds to the inventory.</summary>
         protected abstract string ItemId { get; }
@@ -29,6 +30,9 @@ namespace CityX.Wearables
         protected abstract Vector3 HeadPosition { get; }
 
         protected virtual Vector3 HeadRotationEuler => Vector3.zero;
+
+        /// <summary>A closed helmet the hair would poke through: the wearer goes bald while it is on (CharacterHair.Cover).</summary>
+        protected virtual bool HidesHair => false;
 
         protected virtual void Awake()
         {
@@ -102,6 +106,33 @@ namespace CityX.Wearables
             {
                 _pickupTrigger.enabled = false;
             }
+            CoverHairOf(player);
+        }
+
+        /// <summary>Hides <paramref name="body"/>'s hair while this is worn, when this headwear hides hair; once, however often it is called.</summary>
+        protected void CoverHairOf(GameObject body)
+        {
+            if (!HidesHair || _coveredHair != null || body == null)
+            {
+                return;
+            }
+            _coveredHair = body.GetComponentInChildren<CharacterHair>(true);
+            _coveredHair?.Cover();
+        }
+
+        /// <summary>Gives the hair back (taken off, or this model destroyed with its wearer's copy).</summary>
+        protected void UncoverHair()
+        {
+            if (_coveredHair != null)
+            {
+                _coveredHair.Uncover();
+                _coveredHair = null;
+            }
+        }
+
+        private void OnDestroy()
+        {
+            UncoverHair();
         }
 
         public void OnUnequip(GameObject player)
