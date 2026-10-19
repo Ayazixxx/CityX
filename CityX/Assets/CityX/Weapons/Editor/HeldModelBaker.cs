@@ -9,7 +9,7 @@ namespace CityX.WeaponsEditor
     /// MEASURED from the model's own vertices (its long axis, which end is which), not typed in, so a model that comes in diagonal (the baseball
     /// bat lies at 45 degrees) or curved (the crowbar's claw) lands upright all the same.
     /// </summary>
-    internal static class HeldModelBaker
+    public static class HeldModelBaker
     {
         /// <summary>The glb's first mesh with the import's own transform (glTF's mirror, the node's scale) applied, in the glb's metres.</summary>
         public static void Load(string sourcePath, out Vector3[] vertices, out Vector3[] normals, out int[] triangles)

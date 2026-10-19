@@ -119,7 +119,7 @@ PrefabInstance:
       addedObject: {fileID: 4178808262995625697}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 2463273690512928567}
+      addedObject: {fileID: 6057135501565433054}
   m_SourcePrefab: {fileID: 100100000, guid: c573dea59fa2558478b70344c659896a, type: 3}
 --- !u!1 &5771231832799346164 stripped
 GameObject:
@@ -385,6 +385,8 @@ MonoBehaviour:
     Prefab: {fileID: 3368552267168502446, guid: 39f322b1d45be904aac97d5896056930, type: 3}
   - ItemId: spray_can
     Prefab: {fileID: 1457213973204992229, guid: c6f1f93176398104d9f27215ee7a94dd, type: 3}
+  - ItemId: knight_helmet
+    Prefab: {fileID: 9123680244003564177, guid: 019dcfb9028920640b2c5558ab34fa72, type: 3}
 --- !u!114 &752554928827252169
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -633,7 +635,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 17deb901f9bbd384ea0ad42e0b8123af, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Character::CityX.Character.BodySizeAbility
---- !u!114 &2463273690512928567
+--- !u!114 &6057135501565433054
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

@@ -1106,9 +1106,39 @@ namespace CityX.UI
                     return;
 
                 default:
-                    Log(DevCommands.UsageFor("spawn"));
+                    if (!SpawnItem(what, where))
+                    {
+                        Log(DevCommands.UsageFor("spawn"));
+                    }
                     return;
             }
+        }
+
+        /// <summary>
+        /// Any item the player's inventory has a prefab for, put down to be picked up with E, without a prefab field of its own here. Lifted
+        /// so its lowest point rests on the ground (a helmet's root is the head's centre, half its height up).
+        /// </summary>
+        private bool SpawnItem(string what, Vector3 where)
+        {
+            string itemId = AliasToItemId(what);
+            Inventory inventory = Vitals != null ? Vitals.GetComponent<Inventory>() : null;
+            GameObject prefab = itemId != null && inventory != null ? inventory.PrefabForItem(itemId) : null;
+            if (prefab == null)
+            {
+                return false;
+            }
+            GameObject item = Instantiate(prefab, where, Quaternion.identity);
+            float lowest = float.MaxValue;
+            foreach (Renderer part in item.GetComponentsInChildren<Renderer>())
+            {
+                lowest = Mathf.Min(lowest, part.bounds.min.y);
+            }
+            if (lowest < float.MaxValue)
+            {
+                item.transform.position += Vector3.up * (where.y - lowest + 0.02f);
+            }
+            Log($"spawned a {(ItemRegistry.TryGet(itemId, out ItemDefinition definition) ? definition.DisplayName : itemId)} -- press E nearby to pick it up");
+            return true;
         }
 
         /// <summary>
@@ -1714,6 +1744,9 @@ namespace CityX.UI
                 case "glock": return ItemRegistry.Pistol;
                 case "top_hat":
                 case "tophat": return ItemRegistry.TopHat;
+                case "knight_helmet":
+                case "knighthelmet":
+                case "helmet": return ItemRegistry.KnightHelmet;
                 default: return null;
             }
         }

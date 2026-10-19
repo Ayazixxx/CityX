@@ -33,6 +33,7 @@ namespace CityX.CharacterEditor
             (ItemRegistry.Flamethrower, "Assets/CityX/Weapons/Flamethrower.prefab"),
             (ItemRegistry.AK47, "Assets/CityX/Weapons/AK47.prefab"),
             (ItemRegistry.SprayCan, "Assets/CityX/Weapons/SprayCan.prefab"),
+            (ItemRegistry.KnightHelmet, "Assets/CityX/Wearables/KnightHelmet.prefab"),
         };
 
         public static void AddSharedState(GameObject body, bool addInventory)

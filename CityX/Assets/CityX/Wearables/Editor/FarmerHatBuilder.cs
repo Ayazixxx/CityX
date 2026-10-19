@@ -110,7 +110,7 @@ namespace CityX.WearablesEditor
                 // Re-centred on the mesh's own horizontal middle, with the
                 // hat's own lowest point (the brim's underside, since
                 // everything below CutY was just discarded) landing at
-                // root's own y=0 -- the point FarmerHat.HeadPosition
+                // root's own y=0 -- the point FarmerHat.HatOnHead
                 // actually positions, same convention TopHatBuilder's
                 // procedural pieces already use.
                 visual.transform.localPosition = new Vector3(

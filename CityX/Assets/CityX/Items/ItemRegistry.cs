@@ -29,6 +29,7 @@ namespace CityX.Items
         public const string SprayCan = "spray_can";
         public const string TopHat = "top_hat";
         public const string FarmerHat = "farmer_hat";
+        public const string KnightHelmet = "knight_helmet";
 
         private static readonly Dictionary<string, ItemDefinition> Items = new Dictionary<string, ItemDefinition>
         {
@@ -75,6 +76,8 @@ namespace CityX.Items
             // gap doesn't need resolving yet.
             [TopHat] = new ItemDefinition(TopHat, "Top Hat", "wearable", EquipSlots.Helmet, 1),
             [FarmerHat] = new ItemDefinition(FarmerHat, "Farmer Hat", "wearable", EquipSlots.Helmet, 1),
+            // The owner's KnightxHelmet.glb (2026-10-18): a closed steel helmet, shown to other players too.
+            [KnightHelmet] = new ItemDefinition(KnightHelmet, "Knight Helmet", "wearable", EquipSlots.Helmet, 1),
         };
 
         public static bool TryGet(string itemId, out ItemDefinition definition)

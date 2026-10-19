@@ -365,6 +365,33 @@ namespace CityX.Tests
 #endif
         }
 
+        [UnityTest]
+        public IEnumerator AWornKnightHelmetShowsOnAnotherPlayersCopyAndGoesWhenTakenOff()
+        {
+#if UNITY_EDITOR
+            yield return StartTwoPlayers();
+            var inventory = _aOnA.GetComponent<Inventory>();
+            var copySync = _aOnB.GetComponent<NetworkedEquipmentSync>();
+            Animator copyAnimator = _aOnB.GetComponentInChildren<Animator>();
+
+            Assert.IsTrue(inventory.EquipItemId(ItemRegistry.KnightHelmet, _aOnA.gameObject), "the knight helmet could not be equipped on player A");
+            yield return WaitUntil(() => copySync.ShownItem(ItemRegistry.KnightHelmet) != null, "the helmet to appear on player A's copy");
+            GameObject model = copySync.ShownItem(ItemRegistry.KnightHelmet);
+            Assert.AreEqual(copyAnimator.GetBoneTransform(HumanBodyBones.Head), model.transform.parent, "the helmet is not on the copy's head");
+            Assert.AreEqual(Vector3.zero, model.transform.localPosition, "the copy wears the helmet somewhere else than its owner does");
+            foreach (Collider c in model.GetComponentsInChildren<Collider>(true))
+            {
+                Assert.IsFalse(c.enabled, "a copy's helmet can be picked up");
+            }
+
+            Assert.IsTrue(inventory.UnequipToSlot(EquipSlots.Helmet, _aOnA.gameObject));
+            yield return WaitUntil(() => copySync.ShownItem(ItemRegistry.KnightHelmet) == null, "the helmet to leave player A's copy");
+#else
+            Assert.Ignore("needs the editor to load the networked player prefab.");
+            yield break;
+#endif
+        }
+
         // --- hair ---
 
         [UnityTest]

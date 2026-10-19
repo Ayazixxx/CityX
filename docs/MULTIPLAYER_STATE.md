@@ -36,7 +36,7 @@ A joining player's body now has an `Inventory` with the item prefabs (it had non
 
 ## Not synced yet
 
-- **Clothing** (jackets, jeans, coats, hats): they are equipment, but a garment merges into the body's skinned mesh and is not shown on copies. `EquipmentReplicationGuardTests` exempts `Wearables`.
+- **Clothing** (jackets, jeans, coats, hats): they are equipment, but a garment merges into the body's skinned mesh and is not shown on copies. `EquipmentReplicationGuardTests` exempts `Wearables`. The Knight Helmet (2026-10-18) is the exception: rigid on the Head bone, it is an `ICosmeticMountable` in `NetworkedPlayerWiring.ItemPrefabPaths`, so copies wear it.
 - **Ragdoll / knockdown / stand-up**: a throw (a combo finisher, Self Smite's burst) on another player's copy is sent to their own body (2026-10-15, `IRemoteDamageRelay.TryRelayKnockdown`), so the victim falls on their own machine, and the copy on the attacker's machine falls too; other players see the body's transform but not the limp pose.
 - **Parachute canopy open/closed**, **grapple rope**, **bottle throw projectile**, **vehicles**, **sitting on benches**, **street doors** (the balcony doors are synced, above).
 - Death is shown as health 0 only.

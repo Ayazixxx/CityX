@@ -9,7 +9,7 @@ namespace CityX.WearablesEditor
     /// Builds the top hat -- brim + crown + a contrasting band, all
     /// procedural, matching top_hat.gd's own three-CylinderMesh build and
     /// exact dimensions (Godot's head_size cube matches this rig's own
-    /// FusedBodyShape.HeadRadius exactly -- see TopHat.HeadPosition's own
+    /// FusedBodyShape.HeadRadius exactly -- see TopHat.HatOnHead's own
     /// doc comment -- so nothing here needed rescaling for the port).
     ///
     /// UNIFORM CYLINDERS, NOT TAPERED. Unity's built-in primitive cylinder
