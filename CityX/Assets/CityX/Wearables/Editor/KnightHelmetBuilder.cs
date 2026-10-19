@@ -21,11 +21,23 @@ namespace CityX.WearablesEditor
         public const string SourcePath = "Assets/CityX/Wearables/Models/KnightHelmet.glb";
         private const string MeshPath = "Assets/CityX/Wearables/KnightHelmetMesh.asset";
 
+        /// <summary>
+        /// The owner's hand fit on the worn helmet in Play Mode (2026-10-18), baked into the mesh on top of the Blender placement: in the Head
+        /// bone's space, a little lower and further back, the front tipped down and a touch smaller.
+        /// </summary>
+        private static readonly Vector3 FitPosition = new Vector3(0.0f, -0.05f, -0.04f);
+        private static readonly Vector3 FitRotationEuler = new Vector3(5.57f, 0.0f, 0.0f);
+        private const float FitScale = 0.975f;
+
         [MenuItem("CityX/Rebuild Knight Helmet")]
         public static GameObject Build()
         {
             HeldModelBaker.Load(SourcePath, out Vector3[] vertices, out Vector3[] normals, out int[] triangles);
-            HeldModelBaker.Place(vertices, normals, new Vector3(0.0f, BodyRig.HeadCentreY, 0.0f), Quaternion.identity, 1.0f);
+            HeldModelBaker.Place(vertices, normals, new Vector3(0.0f, BodyRig.HeadCentreY, 0.0f), Quaternion.Euler(FitRotationEuler), FitScale);
+            for (int i = 0; i < vertices.Length; i++)
+            {
+                vertices[i] += FitPosition;
+            }
             Mesh mesh = HeldModelBaker.Save(MeshPath, "KnightHelmetMesh", vertices, normals, triangles);
 
             var root = new GameObject("KnightHelmet");
