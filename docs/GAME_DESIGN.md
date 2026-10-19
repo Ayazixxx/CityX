@@ -167,7 +167,7 @@ Undecided between the two; current recommendation:
 Minecraft Factions, in the city.
 
 - **Relations:** ally and truce need both sides to agree; neutral by default; enemy is one-sided.
-- **Territory:** claim buildings, then blocks, then districts (the `/claim` command for buildings exists, ported from Godot).
+- **Territory:** first **a room**, then **a whole building**, then blocks, then districts (owner, 2026-10-18). A room is claimed by meeting a requirement, such as placing a bed in it; a whole building only once it is **cleared of enemies and has electricity**. Furniture found in buildings can be picked up and brought home to decorate your room and house. Details and open questions: `docs/LOOT_AND_BUILDING_LEVELS.md` section 5. (The existing `/claim` command, ported from Godot, claims a whole building at once with no requirement: a prototype.)
 - **Faction power:** members' deaths drain it; the land you can hold is limited by it; lose too much and your land becomes raidable.
 - **War:** declare, 24 h warm-up, a goal (take a district, raid a base, tribute), ends in surrender, truce or exhaustion.
 - **No offline raiding: sieges only happen in windows the defenders chose** (EVE, Albion). Scheduled sieges are also what guarantees big battles.

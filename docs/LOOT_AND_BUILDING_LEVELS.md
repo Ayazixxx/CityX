@@ -150,3 +150,43 @@ Each step with tests, renders, and the chunk build cost measured before and afte
 2. Searching: instant, or a few seconds of risk (Tarkov-style tension)?
 3. Enemies in every building, or some quiet buildings that are only looting?
 4. Furniture mostly built in code (simple shapes, cheap) with Meshy for special pieces, or Meshy for all of it?
+
+---
+
+## 5. Claiming rooms and buildings, and taking furniture home (owner, 2026-10-18)
+
+The owner's decisions: "instead of claiming a building i think first you have to claim a room. and there should be some requirements to claim a room like
+you must place a bed in it or something. and in order to claim a whole building you have to clear the whole thing out of enemies and make sure it has
+electricity or something. there will also be furniture items you can pick up and bring back to decorate your house and room".
+
+- **A room first**, with a requirement (a bed placed in it, for example).
+- **A whole building** once it is cleared of every enemy and has electricity.
+- **Furniture is loot too**: picked up in buildings, carried home, placed to decorate your room and house.
+- This replaces the prototype `/claim` (instant, whole building, no requirement, ported from Godot).
+
+### How it fits what exists or is planned (my notes)
+- **The bed as the room's heart**: claiming by bed makes it the natural respawn point. `ClaimSystem.ClaimedSpawnPosition` was ported for exactly this and is not
+  used yet.
+- **"Cleared" is already in the level plan** (4.5): the same state that marks a building cleared on the map is the first condition for owning it.
+- **Electricity can build on the room lights**: buildings already have powered and dark rooms (`docs/ROOM_LIGHTS.md`). Ways to give a building power, to be
+  decided: a generator brought in and fuelled (Project Zomboid does this), the building's breaker box repaired, or power from a station the faction holds. A
+  powered, claimed building would light up at night, which other players can see from the street.
+- **Furniture is the same kit** the rooms are furnished with (4.2): what the generator puts in a room is what a player can take. The carry already exists
+  (`GrabCarry`, hold E); a bed or a sofa could be carried in the hands and slow you, or packed into the inventory as an item and placed with a preview.
+
+### What it needs that does not exist yet
+- **Rooms with a type**, and the furniture kit (4.1, 4.2): the same first steps as the loot.
+- **Player-placed things that last**: a placed bed must be seen by every player and still be there tomorrow, so the server has to store what each player put
+  where (the doors and glass are a small shared overlay today; this is a bigger one).
+- **Taken furniture**: once a sofa leaves a building, that spot is empty for everyone (or refills after a while), which is the same shared-or-personal question
+  as the loot (4.6).
+- **Power** as a real state per building, not only a lighting look.
+
+### Open questions for the owner
+1. Can several players claim different rooms in the same building (neighbours in an apartment block), and who can then claim the whole building?
+2. What happens to a claimed room when other players walk in: can they take things, break the bed, unclaim it? And to a claimed building (the faction rules
+   already say no offline raiding: sieges only in windows the defenders chose)?
+3. Electricity: generator, repair, a power station, or several of these?
+4. Moving furniture: carried in the hands (slow, visible, can be dropped in a fight) or packed into the inventory?
+5. Is there a limit on how much furniture a room or building can hold (it matters for performance with many players' homes in one area)?
+
