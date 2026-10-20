@@ -27,7 +27,7 @@ namespace CityX.WearablesEditor
 
         /// <summary>
         /// The body never drawn under the shirt: the torso and the upper arms, but what shows outside it (Shown). Hidden only where the shirt
-        /// covers it, the upper arms came through the cut-loose armholes at the back, where the coverage rays found the seam.
+        /// covers it, the upper arms came through at the back of the armholes, where the coverage rays found the seam.
         /// </summary>
         private static readonly HumanBodyBones[] AlwaysHidden = { HumanBodyBones.Spine, HumanBodyBones.LeftUpperArm, HumanBodyBones.RightUpperArm };
 

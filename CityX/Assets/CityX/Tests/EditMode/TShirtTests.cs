@@ -10,7 +10,7 @@ namespace CityX.Tests
     /// <summary>
     /// The T-Shirt (owner, 2026-10-19/20: "a wearable top called T-Shirt ... flatten out the lump and wrinks at the front so we can cleanly put
     /// a various textures and logos on here ... lower the face count"; "detatch the sleeve from the body"): a top in the registry, within its
-    /// budget, worn from the shoulders to the hips with short sleeves, skinned only to what a shirt covers, its sleeves cut loose from its body
+    /// budget, worn from the shoulders to the hips with short sleeves, skinned only to what a shirt covers, its sleeves sewn to its body
     /// along seams that never open, and laid out so a design's front lands on the chest and its back on the back.
     /// </summary>
     public sealed class TShirtTests
@@ -116,9 +116,9 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// The sleeves are cut loose from the shirt's body, and the texture's pieces apart from each other, by points doubled along the cut:
-        /// every two at one place move alike, so no seam ever opens (at the armholes, both edges follow the half-turning shoulder bone; skinned
-        /// apart, a swinging arm pulled them 25 cm apart and the arm showed through the slit at rest).
+        /// The texture's pieces are cut apart (the sleeves from the shirt's body at the armholes among them) by points doubled along their
+        /// seams: every two at one place move alike, so no seam ever opens (skinned apart, a swinging arm once pulled the armhole 25 cm open
+        /// and the arm showed through the slit at rest).
         /// </summary>
         [Test]
         public void NoSeamEverOpens()
@@ -138,7 +138,7 @@ namespace CityX.Tests
                 doubled++;
                 Assert.IsTrue(Alike(weights[v], weights[other]), $"the shirt's seam at {vertices[v]:F3} (bind pose) opens: its two sides are skinned apart");
             }
-            Assert.Greater(doubled, 100, "the shirt has no seams: the sleeves are not cut loose and the texture's pieces not apart");
+            Assert.Greater(doubled, 100, "the shirt has no seams: the texture's pieces are not apart");
         }
 
         private static bool Alike(BoneWeight a, BoneWeight b)
