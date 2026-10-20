@@ -33,11 +33,11 @@ namespace CityX.WearablesEditor
         /// <paramref name="always"/> (but inside <paramref name="opening"/>, the bind-pose box round an opening such as a coat's open front,
         /// only where it covers them, so the skin seen through it stays), and those skinned to <paramref name="hideable"/> that it covers; with
         /// the body's triangle count it was made for. Bones in <paramref name="alwaysWithin"/> count as <paramref name="always"/> inside
-        /// <paramref name="within"/> (a coat's back: the hips, which its open front shows). Triangles <paramref name="shown"/> accepts (by their
-        /// bind-pose centre and normal, with the garment there to cast rays at) are never hidden. Null when there is no body to measure.
+        /// <paramref name="within"/> (a coat's back: the hips, which its open front shows). Triangles whose bind-pose centre <paramref name="shown"/>
+        /// accepts are never hidden (the skin a garment leaves bare: inside a crew neck, below a short sleeve). Null when there is no body.
         /// </summary>
         public static byte[] HiddenTriangles(Mesh garment, HumanBodyBones[] always, HumanBodyBones[] alwaysWithin, Bounds within,
-            HumanBodyBones[] hideable, Bounds opening, out int bodyTriangles, System.Func<Vector3, Vector3, bool> shown = null)
+            HumanBodyBones[] hideable, Bounds opening, out int bodyTriangles, System.Predicate<Vector3> shown = null)
         {
             bodyTriangles = 0;
             var body = AssetDatabase.LoadAssetAtPath<Mesh>(BodyMeshPath);
@@ -82,7 +82,7 @@ namespace CityX.WearablesEditor
                     bool covered = normal.sqrMagnitude > 1e-12f && Covered(centre, normal.normalized);
                     bool hide = alwaysBone ? covered || !opening.Contains(centre)
                         : TriangleShare(weights, triangles, t, hideableIndex) >= HideableShare && covered;
-                    if (!hide || shown != null && normal.sqrMagnitude > 1e-12f && shown(centre, normal.normalized))
+                    if (!hide || shown != null && shown(centre))
                     {
                         continue;
                     }

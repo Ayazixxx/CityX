@@ -8,9 +8,10 @@ using UnityEngine;
 namespace CityX.Tests
 {
     /// <summary>
-    /// The T-Shirt (owner, 2026-10-20: "a wearable top called T-Shirt ... flatten out the lump and wrinks at the front so we can cleanly put a
-    /// various textures and logos on here ... lower the face count"): a top in the registry, within its budget, worn from the shoulders to the
-    /// hips with short sleeves, skinned only to what a shirt covers, and laid out so a design's front lands on the chest and its back on the back.
+    /// The T-Shirt (owner, 2026-10-19/20: "a wearable top called T-Shirt ... flatten out the lump and wrinks at the front so we can cleanly put
+    /// a various textures and logos on here ... lower the face count"; "detatch the sleeve from the body"): a top in the registry, within its
+    /// budget, worn from the shoulders to the hips with short sleeves, skinned only to what a shirt covers, its sleeves cut loose from its body
+    /// along seams that never open, and laid out so a design's front lands on the chest and its back on the back.
     /// </summary>
     public sealed class TShirtTests
     {
@@ -59,18 +60,10 @@ namespace CityX.Tests
                 "the shirt is not bound to the body's bones and the helper bones (shoulders, collar)");
             var never = new System.Collections.Generic.List<int>
             {
-                System.Array.IndexOf(SkinnedGarment.Bones, HumanBodyBones.Head),
-                System.Array.IndexOf(SkinnedGarment.Bones, HumanBodyBones.LeftHand),
-                System.Array.IndexOf(SkinnedGarment.Bones, HumanBodyBones.RightHand),
-                System.Array.IndexOf(SkinnedGarment.Bones, HumanBodyBones.LeftUpperLeg),
-                System.Array.IndexOf(SkinnedGarment.Bones, HumanBodyBones.RightUpperLeg),
-                System.Array.IndexOf(SkinnedGarment.Bones, HumanBodyBones.LeftLowerLeg),
-                System.Array.IndexOf(SkinnedGarment.Bones, HumanBodyBones.RightLowerLeg),
+                Bone(HumanBodyBones.Head), Bone(HumanBodyBones.LeftHand), Bone(HumanBodyBones.RightHand),
+                Bone(HumanBodyBones.LeftUpperLeg), Bone(HumanBodyBones.RightUpperLeg), Bone(HumanBodyBones.LeftLowerLeg), Bone(HumanBodyBones.RightLowerLeg),
+                HelperIndex("skirt_front_l"), HelperIndex("skirt_back_l"), HelperIndex("skirt_front_r"), HelperIndex("skirt_back_r"),
             };
-            for (int skirt = 0; skirt < 4; skirt++)
-            {
-                never.Add(SkinnedGarment.Bones.Length + skirt);   // a shirt has no skirt
-            }
             foreach (BoneWeight w in mesh.boneWeights)
             {
                 Assert.AreEqual(1.0f, w.weight0 + w.weight1 + w.weight2 + w.weight3, 0.01f);
@@ -82,6 +75,101 @@ namespace CityX.Tests
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Owner, 2026-10-20: "the shirt stretches around the armpits please detatch the sleeve from the body". Every point is either on a
+        /// sleeve, following its arm (the upper arm, the forearm near the cuff and, round the armhole, that side's half-turning shoulder bone)
+        /// and nothing of the torso, or on the shirt's body, following no arm: nothing is blended between the torso and an arm to stretch.
+        /// </summary>
+        [Test]
+        public void EachSleeveFollowsItsArmAndTheBodyNoArm()
+        {
+            Mesh mesh = Shirt().GarmentMesh;
+            int[] left = { Bone(HumanBodyBones.LeftUpperArm), Bone(HumanBodyBones.LeftLowerArm), HelperIndex("shoulder_l") };
+            int[] right = { Bone(HumanBodyBones.RightUpperArm), Bone(HumanBodyBones.RightLowerArm), HelperIndex("shoulder_r") };
+            var arms = new System.Collections.Generic.HashSet<int>
+            {
+                Bone(HumanBodyBones.LeftUpperArm), Bone(HumanBodyBones.LeftLowerArm), Bone(HumanBodyBones.LeftHand),
+                Bone(HumanBodyBones.RightUpperArm), Bone(HumanBodyBones.RightLowerArm), Bone(HumanBodyBones.RightHand),
+            };
+            int onSleeves = 0;
+            foreach (BoneWeight w in mesh.boneWeights)
+            {
+                var used = new System.Collections.Generic.List<int>();
+                foreach ((int bone, float weight) in new[] { (w.boneIndex0, w.weight0), (w.boneIndex1, w.weight1), (w.boneIndex2, w.weight2), (w.boneIndex3, w.weight3) })
+                {
+                    if (weight > 0.001f)
+                    {
+                        used.Add(bone);
+                    }
+                }
+                if (!used.Exists(arms.Contains))
+                {
+                    continue;   // the shirt's body
+                }
+                onSleeves++;
+                Assert.IsTrue(used.TrueForAll(b => System.Array.IndexOf(left, b) >= 0) || used.TrueForAll(b => System.Array.IndexOf(right, b) >= 0),
+                    "a point of the shirt is shared between the torso and an arm (it stretches)");
+            }
+            Assert.Greater(onSleeves, mesh.vertexCount / 8, "the sleeves do not follow the arms");
+        }
+
+        /// <summary>
+        /// The sleeves are cut loose from the shirt's body, and the texture's pieces apart from each other, by points doubled along the cut:
+        /// every two at one place move alike, so no seam ever opens (at the armholes, both edges follow the half-turning shoulder bone; skinned
+        /// apart, a swinging arm pulled them 25 cm apart and the arm showed through the slit at rest).
+        /// </summary>
+        [Test]
+        public void NoSeamEverOpens()
+        {
+            Mesh mesh = Shirt().GarmentMesh;
+            Vector3[] vertices = mesh.vertices;
+            BoneWeight[] weights = mesh.boneWeights;
+            var first = new System.Collections.Generic.Dictionary<Vector3, int>();
+            int doubled = 0;
+            for (int v = 0; v < vertices.Length; v++)
+            {
+                if (!first.TryGetValue(vertices[v], out int other))
+                {
+                    first[vertices[v]] = v;
+                    continue;
+                }
+                doubled++;
+                Assert.IsTrue(Alike(weights[v], weights[other]), $"the shirt's seam at {vertices[v]:F3} (bind pose) opens: its two sides are skinned apart");
+            }
+            Assert.Greater(doubled, 100, "the shirt has no seams: the sleeves are not cut loose and the texture's pieces not apart");
+        }
+
+        private static bool Alike(BoneWeight a, BoneWeight b)
+        {
+            var share = new System.Collections.Generic.Dictionary<int, float>();
+            foreach ((int bone, float weight) in new[] { (a.boneIndex0, a.weight0), (a.boneIndex1, a.weight1), (a.boneIndex2, a.weight2), (a.boneIndex3, a.weight3) })
+            {
+                share[bone] = share.TryGetValue(bone, out float s) ? s + weight : weight;
+            }
+            foreach ((int bone, float weight) in new[] { (b.boneIndex0, b.weight0), (b.boneIndex1, b.weight1), (b.boneIndex2, b.weight2), (b.boneIndex3, b.weight3) })
+            {
+                share[bone] = (share.TryGetValue(bone, out float s) ? s : 0.0f) - weight;
+            }
+            foreach (float difference in share.Values)
+            {
+                if (Mathf.Abs(difference) > 0.002f)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private static int Bone(HumanBodyBones bone)
+        {
+            return System.Array.IndexOf(SkinnedGarment.Bones, bone);
+        }
+
+        private static int HelperIndex(string name)
+        {
+            return SkinnedGarment.Bones.Length + System.Array.FindIndex(GarmentHelperBones.Helpers, h => h.name == name);
         }
 
         [Test]

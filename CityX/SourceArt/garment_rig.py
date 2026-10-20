@@ -1,7 +1,8 @@
-# SKINNING A GARMENT ONTO THIS GAME'S BODY, shared by the garments' Blender build scripts (MidnightCoat/coat_build.py, TShirt/tshirt_build.py).
+# SKINNING A GARMENT ONTO THIS GAME'S BODY, shared by the garments' Blender scripts (MidnightCoat/coat_build.py, TShirt/tshirt_build.py).
 # Load it into a script's globals with exec(), after Octaslash/octaslash_rig.py has built the body ("Body") and skeleton ("CityXRig").
 #   body_weights:   each point takes the weights of the nearest skin; hands go to the forearms, the head to the neck, shins and feet to the thighs;
-#   share_armpits:  round each armpit the weights are smoothed and what torso and arm share goes to the half-turning shoulder bone;
+#   share_armpits:  round each armpit the weights are smoothed and what torso and arm share goes to the half-turning shoulder bone (the
+#                   coat; the T-Shirt cuts its sleeves loose instead);
 #   lift_collar:    up a collar the collar bone (the neck's turn, the head's place) takes over;
 #   write_garment:  the BlenderGarmentMesh JSON, in the game's frame, four bones per point.
 import json

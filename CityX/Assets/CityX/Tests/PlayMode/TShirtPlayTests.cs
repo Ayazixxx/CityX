@@ -11,7 +11,7 @@ namespace CityX.Tests
 {
     /// <summary>
     /// The T-Shirt worn on the real player: the body under it is hidden and given back when it comes off, and through a sprint (the clip lowers
-    /// the head 3.4 cm along the neck) the head never sinks into the collar, which rides on the collar bone.
+    /// the head 3.4 cm along the neck) the head never sinks into the collar, whose sides follow the neck.
     /// </summary>
     public sealed class TShirtPlayTests
     {

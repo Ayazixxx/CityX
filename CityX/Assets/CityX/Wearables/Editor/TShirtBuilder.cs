@@ -25,8 +25,19 @@ namespace CityX.WearablesEditor
         private static readonly Color Cotton = new Color(0.92f, 0.92f, 0.9f);
         private const float FabricSmoothness = 0.1f;
 
-        /// <summary>The body never drawn under the shirt: the torso (but the skin inside the crew neck, InsideTheNeck).</summary>
-        private static readonly HumanBodyBones[] AlwaysHidden = { HumanBodyBones.Spine };
+        /// <summary>
+        /// The body never drawn under the shirt: the torso and the upper arms, but what shows outside it (Shown). Hidden only where the shirt
+        /// covers it, the upper arms came through the cut-loose armholes at the back, where the coverage rays found the seam.
+        /// </summary>
+        private static readonly HumanBodyBones[] AlwaysHidden = { HumanBodyBones.Spine, HumanBodyBones.LeftUpperArm, HumanBodyBones.RightUpperArm };
+
+        /// <summary>
+        /// Bind pose, the bare upper arm below the cuffs, down to the elbow: further out than ArmFromX (its inner side is at 0.35 there, the
+        /// torso within 0.27) and lower than CuffY (the cuffs end at 1.52 outside, 1.48 inside: the skin just under them stays drawn too,
+        /// inside the sleeve). Hidden where covered, its inner side, facing the shirt's side, was hidden and left a hole in the arm.
+        /// </summary>
+        private const float ArmFromX = 0.31f;
+        private const float CuffY = 1.56f;
 
         /// <summary>
         /// The crew neck's opening (tshirt_build.py's NECK_SIDE, NECK_FRONT, NECK_BACK: an oval round the neck's axis, bind pose, +z ahead), less
@@ -40,20 +51,25 @@ namespace CityX.WearablesEditor
         private const float NeckBand = 0.02f;
         private const float NeckFloor = 1.75f;
 
-        private static bool InsideTheNeck(Vector3 centre, Vector3 normal)
+        /// <summary>The skin the shirt leaves bare, by a body triangle's bind-pose centre: the upper arms below the cuffs, inside the neck.</summary>
+        private static bool Shown(Vector3 centre)
         {
+            if (Mathf.Abs(centre.x) > ArmFromX && centre.y < CuffY)
+            {
+                return true;
+            }
             float across = centre.x / (NeckSide - NeckBand);
             float ahead = centre.z / ((centre.z > 0.0f ? NeckFront : NeckBack) - NeckBand);
             return centre.y > NeckFloor && across * across + ahead * ahead < 1.0f;
         }
 
         /// <summary>
-        /// The body hidden only where the shirt covers it (BodyUnderGarment): the hips down to the hem, the upper arms down to the cuffs (short
-        /// of the elbow). Not the neck: the crew neck opens round it.
+        /// The body hidden only where the shirt covers it (BodyUnderGarment): the hips, down to the hem. Not the neck: the crew neck opens round
+        /// it.
         /// </summary>
         private static readonly HumanBodyBones[] HiddenWhereCovered =
         {
-            HumanBodyBones.Hips, HumanBodyBones.LeftUpperArm, HumanBodyBones.RightUpperArm,
+            HumanBodyBones.Hips,
         };
 
         [MenuItem("CityX/Rebuild T-Shirt")]
@@ -66,7 +82,7 @@ namespace CityX.WearablesEditor
             }
             Material material = BlenderGarmentMesh.PlainMaterial(MaterialPath, Cotton, FabricSmoothness);
             byte[] hidden = BodyUnderGarment.HiddenTriangles(mesh, AlwaysHidden, new HumanBodyBones[0], new Bounds(), HiddenWhereCovered,
-                new Bounds(), out int bodyTriangles, InsideTheNeck);
+                new Bounds(), out int bodyTriangles, Shown);
             GameObject saved = SkinnedGarmentBuilder.BuildPrefabFromMesh<TShirt>(
                 mesh, material, PrefabPath, "TShirt", GroundScale, GroundPitchDegrees, GroundLift,
                 shirt =>
