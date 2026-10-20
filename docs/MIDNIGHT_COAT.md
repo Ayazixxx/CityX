@@ -18,7 +18,7 @@ named "Midnight Coat". Spawn it with `/spawn midnight_coat`, put it on with `/eq
 
 | Step | Where | What |
 |---|---|---|
-| Skinning | `SourceArt/MidnightCoat/coat_build.py` (Blender, headless) | the coat is not moved; every point takes the weights of the nearest skin, then the skirt, armpits and collar are reworked (below) |
+| Skinning | `SourceArt/MidnightCoat/coat_build.py` (Blender, headless), its shared steps in `SourceArt/garment_rig.py` (the T-Shirt uses them too) | the coat is not moved; every point takes the weights of the nearest skin, then the skirt, armpits and collar are reworked (below) |
 | Mesh | `Wearables/Editor/BlenderGarmentMesh.cs` | the JSON into a skinned mesh bound to the arms-down skeleton plus the helper bones |
 | Body under it | `Wearables/Editor/BodyUnderGarment.cs` | which of the body's triangles the coat hides |
 | Item | `MidnightCoatBuilder`, `MidnightCoat`, `ItemRegistry.MidnightCoat` | the prefab, built with the scene |

@@ -115,14 +115,25 @@ namespace CityX.WearablesEditor
         /// <summary>The garment's own textured URP material, both faces drawn (an open front and the cuffs show the inside).</summary>
         public static Material TexturedMaterial(string materialPath, string texturePath, float smoothness)
         {
+            return Fabric(materialPath, AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath), Color.white, smoothness);
+        }
+
+        /// <summary>The garment's own URP material in one colour and no texture (a design's texture goes in its base map), both faces drawn.</summary>
+        public static Material PlainMaterial(string materialPath, Color colour, float smoothness)
+        {
+            return Fabric(materialPath, null, colour, smoothness);
+        }
+
+        private static Material Fabric(string materialPath, Texture2D map, Color colour, float smoothness)
+        {
             var material = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
             if (material == null)
             {
                 material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
                 AssetDatabase.CreateAsset(material, materialPath);
             }
-            material.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath));
-            material.SetColor("_BaseColor", Color.white);
+            material.SetTexture("_BaseMap", map);
+            material.SetColor("_BaseColor", colour);
             material.SetFloat("_Smoothness", smoothness);
             material.SetFloat("_Metallic", 0.0f);
             material.SetFloat("_Cull", 0.0f);
