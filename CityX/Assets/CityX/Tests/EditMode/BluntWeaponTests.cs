@@ -105,8 +105,25 @@ namespace CityX.Tests
             Assert.GreaterOrEqual(steel.GetFloat("_Metallic"), 0.8f, "the owner asked for it to be metallic");
         }
 
+        /// <summary>
+        /// The one-handed hold the owner saved was set on the combat sword (edge on +X). The crowbar's edge is on -X, so its hold is turned half round
+        /// the handle: in the hand its edge faces where the combat sword's does, and the poses do not turn the hand half round to lead with it (owner,
+        /// 2026-10-19: "after you swing the crowbar it leave it in this weird arm position").
+        /// </summary>
+        [Test]
+        public void TheCrowbarsEdgeSitsInTheHandWhereTheCombatSwordsDoes()
+        {
+            var crowbar = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/MetalCrowbar.prefab").GetComponent<SwordWeapon>();
+            var combat = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/CombatSword.prefab").GetComponent<SwordWeapon>();
+            Assert.AreNotEqual(crowbar.EdgeOnPlusX, combat.EdgeOnPlusX, "the two have their edges on the same side now: this test no longer applies");
+            Vector3 crowbarEdge = crowbar.HoldRotation * crowbar.EdgeLocal;
+            Vector3 combatEdge = combat.HoldRotation * combat.EdgeLocal;
+            Assert.Less(Vector3.Angle(crowbarEdge, combatEdge), 1.0f, "the crowbar's edge faces another way in the hand than the combat sword's");
+            Assert.Less(Vector3.Angle(crowbar.HoldRotation * Vector3.up, combat.HoldRotation * Vector3.up), 1.0f, "the crowbar is not along the same line in the hand");
+        }
+
         private const float MetalCrowbarLength = 1.0f;
-        private const float BatLength = 1.12f;
+        private const float BatLength = 1.6f;
 
         [Test]
         public void TheBatIsATwoHandedWoodenWeaponOfItsOwnHeldAtTheKnob()

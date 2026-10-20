@@ -13,7 +13,7 @@ namespace CityX.WeaponsEditor
     /// barrel first.
     ///
     /// The glb lies at 45 degrees, so it is MEASURED (HeldModelBaker): its long axis is the bat's, and the barrel is the end that is thicker on
-    /// average. Scaled to <see cref="Length"/> (an 86 cm bat at the game's 1.3x), turned knob down and placed in the greatsword's frame: the
+    /// average. Scaled to <see cref="Length"/> (a big bat: the owner found a real 86 cm one at the game's 1.3x, 1.12 m, "two small", 2026-10-19), turned knob down and placed in the greatsword's frame: the
     /// bottom hand just over the knob, the root SwordWeapon.DefaultSupportGripDown above it, so it shares the greatsword's tuned two-handed hold.
     /// Unwrapped round its length (U round it, V along it; the seam's triangles get their own vertices) for the grain WoodGrain draws.
     /// </summary>
@@ -24,10 +24,10 @@ namespace CityX.WeaponsEditor
         private const string MeshPath = "Assets/CityX/Weapons/BaseballBatMesh.asset";
 
         /// <summary>The bat end to end on the 2.6 m body, metres.</summary>
-        public const float Length = 1.12f;
+        public const float Length = 1.6f;
 
         /// <summary>The middle of the bottom hand above the knob's end, metres.</summary>
-        public const float BottomHandAboveKnob = 0.08f;
+        public const float BottomHandAboveKnob = 0.11f;
 
         /// <summary>The share of the length at either end whose thickness tells the barrel from the handle.</summary>
         private const float EndShare = 0.3f;

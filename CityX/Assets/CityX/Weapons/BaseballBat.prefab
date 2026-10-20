@@ -54,7 +54,7 @@ SphereCollider:
   m_Enabled: 1
   serializedVersion: 3
   m_Radius: 2.5
-  m_Center: {x: 0, y: 0.36, z: 0}
+  m_Center: {x: 0, y: 0.58500004, z: 0}
 --- !u!114 &5507618447358542174
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -69,7 +69,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: CityX.Weapons::CityX.Weapons.SwordWeapon
   _itemId: baseball_bat
   _oneHanded: 0
-  _bladeLength: 0.72
+  _bladeLength: 1.1700001
   _edgeOnPlusX: 0
 --- !u!1 &1642096565736658083
 GameObject:

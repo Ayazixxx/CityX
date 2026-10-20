@@ -525,3 +525,24 @@ combat_sword_bake.py` unwraps them, bakes Meshy's colour onto one 512 map (`Weap
 one 256 map (`CombatSwordMetal.png`: metal in red, smoothness in alpha, URP's metallic map). It then writes `CombatSword.glb` back with its
 UVs. White steel shines; the black wrapped grip does not. The normal map was left out: detail too fine to see on a swung sword, for twice the
 size. In the game the two maps are about 0.45 MB of video memory.
+
+## Update 2026-10-19: arms out of the body, the crowbar's hold, a bigger bat
+
+Owner, with screenshots: "after you swing the crowbar it leave it in this weird arm position, and the bat's default position has the elbows
+clipping through the body ... find out if it is for all two handed weapons", "adjust the size of the bat its two small", "its just a baseball
+bat not meant to be a massive greatsword".
+
+- **Every two-handed weapon** had it. The carry held the grip 0.22 m in front of the spine, but the torso is 0.26 m round it: the left hand
+  (lower on the handle) sat inside the belly, the left forearm 21 cm in, and both elbows went through.
+  - The carry now holds the grip 0.50 m out (`CarryKey2H`), and the running carry's 0.38 m to the side.
+  - `ElbowClearance` (after the support hand, `PlayerLocomotion.KeepArmsOutOfTorso`) turns each arm holding a sword round its own
+    shoulder-to-hand line until the elbow and both bones are out of the torso capsule, with the hands kept. Of the clear turns it takes the
+    lowest elbow (the nearest swung it up into a chicken wing).
+- **The crowbar after a swing**: the owner's saved one-handed hold was set on the combat sword (edge on +X), and the crowbar's edge is on -X.
+  So it sat in the hand edge to the thumb, and every one-handed pose turned the hand half round to lead with it, which put the ready stance's
+  arm up over the shoulder. `SwordWeapon.SavedOneHandHoldFor` turns the saved hold half round the handle for a sword whose edge is on the other
+  side.
+- **The bat** is 1.6 m (from 1.12 m), the bottom hand 11 cm above the knob.
+- Tests: `SwordArmsClearPlayTests` holds each sword-combat weapon, standing and after a swing: no arm more than 3 cm into the torso, and a
+  one-handed weapon's hand below the shoulder after a swing. `ElbowClearanceTests`, and
+  `BluntWeaponTests.TheCrowbarsEdgeSitsInTheHandWhereTheCombatSwordsDoes`.

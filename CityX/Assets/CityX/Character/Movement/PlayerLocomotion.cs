@@ -852,6 +852,8 @@ namespace CityX.Character
             // The sword attacks (SwordStrikes): the sword arm, blade and torso; before the support hand, which follows the grip they move.
             ApplySwordPose();
             ApplySupportHand();
+            // The sword arms round the body, not through it (ElbowClearance): after the support hand has its grip.
+            KeepArmsOutOfTorso();
             ApplyBakedPose();
             ApplyFistPose();
             ApplyClimbLimbs();

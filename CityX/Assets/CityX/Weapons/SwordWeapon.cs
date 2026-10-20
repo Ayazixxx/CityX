@@ -191,8 +191,23 @@ namespace CityX.Weapons
         public Vector3 HoldPosition => _oneHanded ? OneHandGripPosition : GripPosition;
 
         public Quaternion HoldRotation => _oneHanded
-            ? (WeaponGripSettings.Current.OneHandTuned ? OneHandGripRotation : DefaultOneHandGripRotationFor(_edgeOnPlusX))
+            ? (WeaponGripSettings.Current.OneHandTuned ? SavedOneHandHoldFor(_edgeOnPlusX) : DefaultOneHandGripRotationFor(_edgeOnPlusX))
             : GripRotation;
+
+        /// <summary>The edge of the sword the saved one-handed hold was set on: the combat sword's, +X (the owner's hold, 2026-10-17).</summary>
+        public const bool SavedOneHandHoldEdgeOnPlusX = true;
+
+        /// <summary>
+        /// The saved one-handed hold for a sword whose edge is on +X or -X: as saved for the combat sword's side, turned half round the handle for
+        /// the other, so the edge sits where the hold put the combat sword's. Not turned, the metal crowbar (edge on -X) sat in the hand edge to the
+        /// thumb, and every one-handed pose turned the hand half round to lead with it: after a swing the arm went up over the shoulder (owner,
+        /// 2026-10-19: "after you swing the crowbar it leave it in this weird arm position").
+        /// </summary>
+        public static Quaternion SavedOneHandHoldFor(bool edgeOnPlusX)
+        {
+            Quaternion saved = OneHandGripRotation;
+            return edgeOnPlusX == SavedOneHandHoldEdgeOnPlusX ? saved : Quaternion.AngleAxis(180.0f, saved * Vector3.up) * saved;
+        }
 
         /// <summary>
         /// The marker the left hand reaches for, a child of the sword. Select it while the game runs and
