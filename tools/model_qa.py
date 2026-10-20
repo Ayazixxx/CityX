@@ -233,13 +233,15 @@ def check_surface(report, bm, size):
     else:
         say(report, "holes", "PASS", "no small holes (%d openings, such as sleeves or a collar)" % openings)
 
-    # spikes: a point standing far out from the points round it (long thin triangles alone are no fault: a blade is made of them)
+    # spikes: a point standing far out of the surface from the points round it (only out of it: long thin triangles put a point far to one
+    # side of its neighbours' middle, in the surface, and are no fault; a blade and a reduced flat panel are made of them)
     spikes = []
+    bm.normal_update()
     for v in bm.verts:
         if len(v.link_edges) < 3 or v.is_boundary:
             continue
         ring = [e.other_vert(v).co for e in v.link_edges]
-        out = (v.co - sum(ring, Vector()) / len(ring)).length
+        out = abs((v.co - sum(ring, Vector()) / len(ring)).dot(v.normal))
         reach = sum(e.calc_length() for e in v.link_edges) / len(v.link_edges)
         if out > SPIKE_LONG * typical and out > SPIKE_OUT * reach:
             spikes.append(v.co.copy())

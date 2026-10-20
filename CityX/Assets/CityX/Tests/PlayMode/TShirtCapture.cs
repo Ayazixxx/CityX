@@ -70,6 +70,8 @@ namespace CityX.Tests
                 BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, $"tshirt-{look}-threequarter", chest + new Vector3(5.0f, 1.2f, 5.0f), chest);
                 Vector3 sleeve = player.transform.position + new Vector3(0.45f, 1.6f, 0.0f);
                 BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, $"tshirt-{look}-sleeve", sleeve + new Vector3(2.2f, 0.3f, 1.6f), sleeve);
+                Vector3 neck = player.transform.position + new Vector3(0.0f, 1.95f, 0.0f);
+                BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, $"tshirt-{look}-collar", neck + new Vector3(0.6f, 0.15f, 2.2f), neck);
                 for (int i = 0; i < 60; i++)
                 {
                     locomotion.Tick(new LocomotionInput { Move = Vector2.up, Sprint = true }, 1.0f / 60.0f);

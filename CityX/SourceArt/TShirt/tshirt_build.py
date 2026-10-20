@@ -1,18 +1,20 @@
 # THE T-SHIRT, headless (owner, 2026-10-19: "put this in as a wearable top called T-Shirt ... separate the body from the playermodel from the shirt
 # and flatten out the lump and wrinks at the front so we can cleanly put a various textures and logos on here ... lower the face count", then
-# "the fabric should wrap around the bicep tighter"):
-#   blender --background --factory-startup --python tshirt_build.py -- <Meshy .fbx> <out .json> [<preview folder>]
-# The source is Meshy's "Blank Slate Character" (Meshy_AI_Blank_Slate_Character_1020040122_generate.fbx, 5 MB, not kept here): one 180k-triangle
-# surface, a ball-headed mannequin in a plain tee, 1.9 m tall.
-#   1. scaled to our body's height (2.6 m) and centred on its head; it then lies within 1-3 cm of our body everywhere;
-#   2. the shirt cut out of it: roughly by zones, then cleanly along the hem's level, each cuff's plane and the neckline, every new edge point
-#      on the line (straight edges, the hem's and cuffs' bands kept); holes where the arms touched the sides closed;
+# "the fabric should wrap around the bicep tighter"; then, with their own cut: "i have my own open i selected more precisely please lower the
+# face count and fill the missing space on the collar from the meshy models head being removed"; then "make it rounded inward and evenly dont
+# make it raise around the shoulders" and "i want there to be a visible collar though"):
+#   blender --background --factory-startup --python tshirt_build.py -- TShirtCut.glb <out .json> [<preview folder>]
+# TShirtCut.glb is THE OWNER'S CUT of Meshy's "Blank Slate Character" (a ball-headed mannequin in a plain tee, one 180k-triangle surface,
+# 1.9 m tall): the shirt alone, selected by hand in Blender, 8,550 triangles, still where Meshy's figure stood.
+#   1. scaled to our body's height (2.6 m) and centred on its head as the whole figure was; it then lies within 1-3 cm of our body everywhere;
+#   2. Meshy's collar cut away along an oval round the neck (it was notched where the mannequin's neck had been, and stood up at the shoulders);
 #   3. the sleeves pulled in round the arms (they stood 4-8 cm off them, a bell);
 #   4. the front and back evened out: their distance off the body smoothed (no lumps or wrinkles for a design to ride on), never inside it;
-#   5. reduced to about 5,800 triangles (6,192 with the seams);
+#   5. reduced; points standing out of the surface put back level with their neighbours; then a crew neck's band sewn round the oval, the
+#      same all round;
 #   6. unwrapped into four pieces at fixed places on the texture (front, back, two sleeves), split along smooth seam lines, upright, not
 #      mirrored, one scale; the template a design is drawn on (tshirt_uv_template.png) and a test design (tshirt_test_design.png) written;
-#   7. skinned from the body like the Midnight Coat (../garment_rig.py): the hem on the hips, never a leg; the armpits; the collar;
+#   7. skinned from the body like the Midnight Coat (../garment_rig.py): the hem on the hips, never a leg; the armpits;
 #   8. written for BlenderGarmentMesh.
 import os
 import sys
@@ -26,29 +28,37 @@ from mathutils.bvhtree import BVHTree
 HERE = os.path.dirname(os.path.abspath(__file__))
 OCTASLASH = os.path.join(os.path.dirname(HERE), "Octaslash")
 args = sys.argv[sys.argv.index("--") + 1:]
-FBX, OUT = args[0], args[1]
+CUT, OUT = args[0], args[1]
 PREVIEW = args[2] if len(args) > 2 else None
 
 SHOULDERS = {"l": np.array([0.35, 0.0, 1.9]), "r": np.array([-0.35, 0.0, 1.9])}   # Blender +x is the body's left, -y its front
 HANDS = {"l": np.array([0.545, 0.0, 1.033]), "r": np.array([-0.545, 0.0, 1.033])}
-HEAD_CENTRE, HEAD_CLEAR = np.array([0.0, 0.0, 2.251]), 0.36
-NECKLINE_FRONT, NECKLINE_SIDE = 1.921, 0.035   # the collar's inner edge: this high in front and behind, this much higher at the sides,
-NECK_REACH = 0.24                              # within this of the neck's axis (beyond it are the shoulders' tops)
-HEM_Z = 0.932                # the hem's fold is level all round at 0.922-0.928: cut just above it (the turned-under part goes, the band stays)
-CUFF_T, CUFF_TILT, CUFF_R = 0.409, 0.021, 0.11   # each cuff's fold: 0.394 along the arm on its outside, 0.436 on its inside; cut 6 mm short of
-                                                 # it on a plane: CUFF_T - CUFF_TILT * (how far outward, in sleeve radii CUFF_R) along the arm
-ARM_REACH = 0.22
-SNAP = 0.2                   # 2, 6. a cut or seam line passing this near (of the edge) an existing point moves the point onto it
-OPENINGS = 4                 # the shirt's openings: the neck, the hem and the two cuffs; any other hole is closed
+# 1. Meshy's whole figure scaled from its feet to our body's height and moved so its head is over ours (measured on the figure itself).
+MESHY_FLOOR, MESHY_SCALE = -0.951734, 1.367869
+MESHY_OFFSET = np.array([0.001599, -0.002361, -0.001130])
+OPENINGS = 4                 # the shirt's openings: the neck, the hem and the two cuffs
+NECK_SIDE, NECK_FRONT, NECK_BACK = 0.28, 0.2, 0.2   # 2. the neck opened on an oval this far out to the sides, in front and behind (game
+                                                    # metres from the neck's axis): outside Meshy's collar rib all round, room for the band
+COLLAR_BAND = ((0.003, -0.002), (0.007, 0.004), (0.026, 0.005))     # 5b. the crew neck's band: (across toward the neck, out off the cloth)
+                                                                    # from the seam: a groove, then the rib raised a little
+COLLAR_ROLL = 0.006          # its far edge rounded over and down in a half turn of this radius
+COLLAR_TILT, COLLAR_TILT_SIDE = np.radians(40.0), np.radians(20.0)   # the band's lean up toward the neck in front and behind; at the
+                                                                     # shoulders, lower (it stood out beside the head)
+COLLAR_CLEAR = 0.008               # and nowhere nearer the body than this
+COLLAR_STEPS, COLLAR_HEIGHT_ORDER = 5, 3   # points round the half turn; terms of the smooth curve the neckline's heights are put on
+SNAP = 0.2                   # 6. a seam line passing this near (of the edge) an existing point moves the point onto it
 SLEEVE_GAP = 0.018           # 3. the sleeves (4-8 cm off the arm, a bell) pulled in: the smooth looseness beyond SLEEVE_GAP cut to SLEEVE_KEEP of
 SLEEVE_KEEP = 0.3            # itself; the detail on it (folds, the cuff's roll) kept at SLEEVE_DETAIL
 SLEEVE_DETAIL, SLEEVE_SMOOTHING = 0.8, 40
 PANEL_SMOOTHING = 200        # 4. the front and back: how far they stand off the body evened out (no lumps or wrinkles), the hang kept
 PANEL_MIN = 0.015            # and at least this far off it (the chest came through)
-PANEL_SIDES = (62.0, 88.0)   # degrees round from the front (and the back): flat up to the first, Meshy's folds again by the second
-PANEL_TOP, PANEL_BOTTOM = (1.80, 1.88), (1.02, 0.98)   # and from the collar down to the hem's roll, fading over these heights
+PANEL_SIDES = (50.0, 80.0)   # degrees round from the front (and the back): flat up to the first, Meshy's folds again by the second
+PANEL_TOP, PANEL_BOTTOM = (1.62, 1.78), (1.02, 0.98)   # and from the collar down to the hem's roll, fading over these heights
 CLEAR = 0.012                # nothing nearer the body than this (it came through at the chest and the shoulders)
-TRIANGLES = 5800             # 5. reduced to about this many (the seams' lines then add about 1,700)
+PUSH_ROUNDS, PUSH_SPREAD = 12, 3   # out in rounds, each push spread over its neighbours; what is left after them, pushed point by point
+TRIANGLES = 5800             # 5. reduced to about this many (the seams' lines then add about 300)
+SPIKE_LONG, SPIKE_OUT, SPIKE_PASSES = 3.0, 0.35, 3   # a point standing out of its neighbours' middle by this many typical edges and this share of
+                                                     # its own edges is a spike
 PIECES = ["front", "back", "sleeve_r", "sleeve_l"]   # 6. where each piece goes on the texture (u0, v0, u1, v1): the front on the left, the
 PIECE_BOXES = [(0.0, 0.4, 0.5, 1.0), (0.5, 0.4, 1.0, 1.0), (0.0, 0.0, 0.5, 0.4), (0.5, 0.0, 1.0, 0.4)]   # back on the right, sleeves below
 PIECE_MARGIN = 0.01
@@ -57,7 +67,6 @@ TEMPLATE_SIZE, TEMPLATE_GRID = 1024, 0.1   # the design template: its size, and 
 TEMPLATE_PIECE, TEMPLATE_GRID_COLOUR, TEMPLATE_EDGE = (0.93, 0.93, 0.93), (0.8, 0.8, 0.8), (0.2, 0.2, 0.2)
 TEMPLATE_MARKS = {"front": 1.62, "back": 1.62}   # the middle of the chest and of the back (a logo's usual place) crossed, at this height
 ARMPIT_REACH, ARMPIT_ABOVE, ARMPIT_SMOOTHING = 0.24, 0.04, 6   # 7. skinned as the Midnight Coat is (../garment_rig.py)
-COLLAR_FROM, COLLAR_RISE, COLLAR_REACH = 1.87, 0.05, 0.26     # the collar band (1.89-1.96) on the collar bone
 
 
 def run(path):
@@ -195,27 +204,74 @@ def openings(bm):
     return sorted(loops, key=len, reverse=True)
 
 
-def largest_piece(bm, what):
+def keep_joined_to_hem(bm):
+    """Deletes every piece not joined to the hem (what a cut leaves loose)."""
+    hem = min(bm.faces, key=lambda f: f.calc_center_median().z)
+    joined, frontier = {hem}, [hem]
+    while frontier:
+        for e in frontier.pop().edges:
+            for f in e.link_faces:
+                if f not in joined:
+                    joined.add(f)
+                    frontier.append(f)
+    bmesh.ops.delete(bm, geom=[f for f in bm.faces if f not in joined], context="FACES")
     bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
-    pieces, seen = [], set()
-    for f in bm.faces:
-        if f in seen:
-            continue
-        piece, stack = [], [f]
-        seen.add(f)
-        while stack:
-            g = stack.pop()
-            piece.append(g)
-            for e in g.edges:
-                for h in e.link_faces:
-                    if h not in seen:
-                        seen.add(h)
-                        stack.append(h)
-        pieces.append(piece)
-    pieces.sort(key=len, reverse=True)
-    print("%s: kept the largest of %d pieces (%d faces), dropped %s" % (what, len(pieces), len(pieces[0]), [len(p) for p in pieces[1:8]]))
-    bmesh.ops.delete(bm, geom=[f for p in pieces[1:] for f in p], context="FACES")
-    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+
+
+def in_order(loop):
+    """An opening's points in order round it, from its open edges, from its lowest-numbered point (so a rebuild comes out the same)."""
+    ring = [min((v for e in loop for v in e.verts), key=lambda v: v.index)]
+    previous = None
+    while True:
+        here = ring[-1]
+        step = next(e for e in here.link_edges if e.is_boundary and e is not previous and e in loop)
+        previous = step
+        following = step.other_vert(here)
+        if following is ring[0]:
+            return ring
+        ring.append(following)
+
+
+def sew_collar(bm, ring):
+    """Sews a crew neck's ribbed band onto the neckline, evenly all round. The neckline's heights are put on a smooth curve round the neck
+    (a low Fourier series through them: the cut edge followed every fold) and the band is swept along it with one cross-section: from the
+    seam a groove, then the rib raised a little off the cloth (COLLAR_BAND, across toward the neck and out), its far edge rounding over and
+    down into the opening in a half turn of COLLAR_ROLL. It leans up toward the neck by COLLAR_TILT in front and behind, by less at the
+    shoulders (COLLAR_TILT_SIDE: steeper, it stood out beside the head). Returns the faces made."""
+    count = len(ring)
+    at = np.array([v.co[:] for v in ring])
+    round_ = np.arctan2(at[:, 0], -at[:, 1])
+    basis = np.stack([np.ones(count)] + [f(k * round_) for k in range(1, COLLAR_HEIGHT_ORDER + 1) for f in (np.cos, np.sin)], 1)
+    at[:, 2] = basis @ np.linalg.lstsq(basis, at[:, 2], rcond=None)[0]
+    for v, p in zip(ring, at):
+        v.co = Vector(p)
+    up = np.array([0.0, 0.0, 1.0])
+    inward = -np.stack([at[:, 0] / NECK_SIDE ** 2, at[:, 1] / np.where(at[:, 1] < 0.0, NECK_FRONT, NECK_BACK) ** 2, np.zeros(count)], 1)
+    inward /= np.linalg.norm(inward, axis=1)[:, None]   # square to the oval, toward the neck
+    facing = at[:, 1] ** 2 / np.maximum(at[:, 0] ** 2 + at[:, 1] ** 2, 1e-9)   # 1 in front and behind, 0 at the shoulders
+    tilt = (COLLAR_TILT_SIDE + (COLLAR_TILT - COLLAR_TILT_SIDE) * facing)[:, None]
+    onward = inward * np.cos(tilt) + up * np.sin(tilt)
+    out = up * np.cos(tilt) - inward * np.sin(tilt)
+    profile = list(COLLAR_BAND)
+    across, raised = COLLAR_BAND[-1]
+    for k in range(1, COLLAR_STEPS + 1):   # the far edge rounding over and down into the neck
+        turn = np.pi * k / COLLAR_STEPS
+        profile.append((across + COLLAR_ROLL * np.sin(turn), raised + COLLAR_ROLL * (np.cos(turn) - 1.0)))
+    rings = [ring] + [[bm.verts.new(p) for p in at + onward * a + out * o] for a, o in profile]
+    # Wound like the shirt: its open edge from point i to i+1 is walked the other way round by the new face.
+    edge = next(e for e in ring[0].link_edges if e.other_vert(ring[0]) is ring[1])
+    forward = edge.link_loops[0].vert is ring[0]
+    made = []
+    for inner, outer in zip(rings, rings[1:]):
+        for i in range(count):
+            j = (i + 1) % count
+            quad = (inner[j], inner[i], outer[i], outer[j]) if forward else (inner[i], inner[j], outer[j], outer[i])
+            made.append(bm.faces.new(quad))
+            made[-1].smooth = True
+    bm.normal_update()
+    assert np.mean([f.normal.dot(Vector(o)) for f, o in zip(made[count:2 * count], out)]) > 0.5, "the collar is wound inside out"
+    bmesh.ops.triangulate(bm, faces=made)
+    return len(made)
 
 
 def preview(objects, path, colours, colour_type="OBJECT"):
@@ -254,65 +310,35 @@ def preview(objects, path, colours, colour_type="OBJECT"):
     os.remove(shot)
 
 
-# ---- 1. our body, and Meshy's figure scaled onto it ----
+# ---- 1. our body, and the owner's cut scaled onto it ----
 bpy.ops.wm.read_factory_settings(use_empty=True)
 run(os.path.join(OCTASLASH, "octaslash_rig.py"))
 body, head = bpy.data.objects["Body"], bpy.data.objects["Head"]
-ours = np.vstack([np.array([(o.matrix_world @ v.co)[:] for v in o.data.vertices]) for o in (body, head)])
-headpoints = np.array([(head.matrix_world @ v.co)[:] for v in head.data.vertices])
 before = set(bpy.data.objects)
-bpy.ops.import_scene.fbx(filepath=FBX)
+bpy.ops.import_scene.gltf(filepath=CUT)
 shirt = [o for o in bpy.data.objects if o not in before and o.type == "MESH"][0]
-for o in [o for o in bpy.data.objects if o not in before and o is not shirt]:
-    bpy.data.objects.remove(o)
 select_only(shirt)
-bpy.ops.object.parent_clear(type="CLEAR_KEEP_TRANSFORM")
 bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
-co = coords(shirt)
-scale = np.ptp(ours[:, 2]) / np.ptp(co[:, 2])
-co = (co - [0, 0, co[:, 2].min()]) * scale + [0, 0, ours[:, 2].min()]
-top = co[:, 2] > ours[:, 2].max() - 0.5
-co += [headpoints[:, 0].mean() - co[top, 0].mean(), headpoints[:, 1].mean() - co[top, 1].mean(), 0]
+co = (coords(shirt) - [0.0, 0.0, MESHY_FLOOR]) * MESHY_SCALE + MESHY_OFFSET
 shirt.data.vertices.foreach_set("co", co.ravel())
 shirt.data.update()
-print("figure: %d vertices, %d faces, scaled %.4f" % (len(co), len(shirt.data.polygons), scale))
 
-# ---- 2. the shirt cut out ----
-# First roughly, by zones (below the hem's level, the forearms and hands, the neck and head go), then cleanly along the hem's level, the
-# cuffs' planes and the neckline, each new edge point placed on the line, so every edge ends straight; then the largest piece is kept.
-tree = body_tree((body, head))
-radius = np.hypot(co[:, 0], co[:, 1])
-z = co[:, 2]
-sideways = np.abs(co[:, 0]) / np.maximum(radius, 1e-6)
-t, r, out = arm_frame(co)
-on_arm = ((radius - TORSO_R) > (r - ARM_R)) & (t > -0.05)   # nearer the arm's surface (octaslash_rig's sizes) than the torso's
-neckline = NECKLINE_FRONT + NECKLINE_SIDE * sideways * sideways - co[:, 2] + np.maximum(0.0, radius - NECK_REACH)
-keep = (z > HEM_Z - 0.05) & (neckline > -0.05) & ~(on_arm & ((t > CUFF_T + 0.08) | (r > ARM_REACH)))
-keep &= (radius < NECK_REACH) | (np.linalg.norm(co - HEAD_CENTRE, axis=1) > HEAD_CLEAR)   # round the neck the neckline decides
-cut = np.minimum(z - HEM_Z, neckline)
-for side in SHOULDERS:
-    this = co[:, 0] * np.sign(SHOULDERS[side][0]) > 0.0
-    outward = r * (out @ arm_outside(side))
-    nearer_torso = np.maximum(0.0, (r - ARM_R) - (radius - TORSO_R))
-    cut = np.where(this, np.minimum(cut, CUFF_T - CUFF_TILT * outward / CUFF_R - t + 10.0 * nearer_torso), cut)
+# ---- 2. the neck opened on an oval: Meshy's collar cut away (notched where the mannequin's neck was joined to it, standing up at the shoulders) ----
 bm = bmesh.new()
 bm.from_mesh(shirt.data)
-bm.verts.ensure_lookup_table()
-level = bm.verts.layers.float.new("cut")
+bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-6)   # the glb splits points along its normals
+level = bm.verts.layers.float.new("neck")
 for v in bm.verts:
-    v[level] = cut[v.index]
-bmesh.ops.delete(bm, geom=[f for f in bm.faces if not all(keep[v.index] for v in f.verts)], context="FACES")
-bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
-bm.verts.ensure_lookup_table()
+    v[level] = np.hypot(v.co.x / NECK_SIDE, v.co.y / (NECK_FRONT if v.co.y < 0.0 else NECK_BACK)) - 1.0
 iso_cut(bm, level)
-largest_piece(bm, "cut")
-small = [e for loop in openings(bm)[OPENINGS:] for e in loop]   # where the arms touched the sides: closed
-bmesh.ops.holes_fill(bm, edges=small, sides=len(small))
-bmesh.ops.triangulate(bm, faces=bm.faces)
+keep_joined_to_hem(bm)
+holes = openings(bm)
+assert len(holes) == OPENINGS, "the shirt should open only at the neck, the hem and the cuffs: %d openings" % len(holes)
+print("cut: %d vertices, %d faces" % (len(bm.verts), len(bm.faces)))
 bm.to_mesh(shirt.data)
 bm.free()
 shirt.data.update()
-print("shirt: %d vertices, %d faces" % (len(shirt.data.vertices), len(shirt.data.polygons)))
+tree = body_tree((body, head))
 if PREVIEW:
     preview([shirt, body, head], os.path.join(PREVIEW, "cut_on_body.png"), [(0.9, 0.3, 0.25, 1), (0.7, 0.7, 0.7, 1), (0.7, 0.7, 0.7, 1)])
 
@@ -335,15 +361,22 @@ panel = np.maximum(1.0 - smoothstep(round_, *PANEL_SIDES), 1.0 - smoothstep(180.
 panel *= (1.0 - smoothstep(co[:, 2], *PANEL_TOP)) * smoothstep(co[:, 2], *PANEL_BOTTOM[::-1]) * (1.0 - sleeve)
 even = np.maximum(smoothed(d, PANEL_SMOOTHING, mesh_edges), PANEL_MIN)
 co += normal * (panel * (even - d))[:, None]
-# Nothing of the body comes through: what still lies inside it or on it is put just outside.
-nearest = [tree.find_nearest(Vector(p)) for p in co]
-for i, (p, n) in enumerate(zip(co, nearest)):
-    depth = (Vector(p) - n[0]).dot(n[1])
-    if depth < CLEAR:
-        co[i] += np.array(n[1][:]) * (CLEAR - depth)
+# Nothing of the body comes through: what still lies inside it or on it is put just outside, a little at a time and spread over its
+# neighbours (pushed one by one, single points stood out as spikes).
+for step in range(PUSH_ROUNDS + 1):
+    push = np.zeros_like(co)
+    for i, p in enumerate(co):
+        loc, n, _, _ = tree.find_nearest(Vector(p))
+        depth = (Vector(p) - loc).dot(n)
+        if depth < CLEAR:
+            push[i] = np.array(n[:]) * (CLEAR - depth)
+    if step < PUSH_ROUNDS:
+        push = np.stack([smoothed(push[:, k], PUSH_SPREAD, mesh_edges) for k in range(3)], 1)
+    co += push
 shirt.data.vertices.foreach_set("co", co.ravel())
 shirt.data.update()
 print("sleeves: %d points pulled in, by up to %.3f m; panels: %d points evened" % ((sleeve > 0.5).sum(), inward.max(), (panel > 0.5).sum()))
+
 
 # ---- 5. reduced ----
 select_only(shirt)
@@ -353,7 +386,48 @@ decimate.use_collapse_triangulate = True
 bpy.ops.object.modifier_apply(modifier=decimate.name)
 for p in shirt.data.polygons:
     p.use_smooth = True
-print("reduced: %d vertices, %d faces" % (len(shirt.data.vertices), len(shirt.data.polygons)))
+# Points standing out of the surface like spikes (Meshy's and the reduction's own; tools/model_qa.py's test, a little stricter) are put back
+# level with the points round them: only out of the surface counts, and only that way are they moved (a point of a long thin triangle lies
+# far to one side of its neighbours' middle, in the surface: moved there, it folded the cloth into a pit).
+bm = bmesh.new()
+bm.from_mesh(shirt.data)
+bm.normal_update()
+typical = float(np.median([e.calc_length() for e in bm.edges]))
+flattened = set()
+for _ in range(SPIKE_PASSES):
+    for v in bm.verts:
+        if v.is_boundary or len(v.link_edges) < 3:
+            continue
+        middle = sum((e.other_vert(v).co for e in v.link_edges), Vector()) / len(v.link_edges)
+        reach = sum(e.calc_length() for e in v.link_edges) / len(v.link_edges)
+        out = (v.co - middle).dot(v.normal)
+        if abs(out) > max(SPIKE_LONG * typical, SPIKE_OUT * reach):
+            v.co -= v.normal * out
+            flattened.add(v.index)
+    bm.normal_update()
+bm.to_mesh(shirt.data)
+bm.free()
+print("reduced: %d vertices, %d faces; %d spikes flattened" % (len(shirt.data.vertices), len(shirt.data.polygons), len(flattened)))
+
+# ---- 5b. the collar: a crew neck's band sewn round the neckline, evenly all round (after the reduction, which would lose its groove) ----
+bm = bmesh.new()
+bm.from_mesh(shirt.data)
+neckline = max(openings(bm), key=lambda loop: np.mean([v.co.z for e in loop for v in e.verts]))
+sewn_from = len(bm.verts)
+print("collar: %d faces sewn round the neckline" % sew_collar(bm, in_order(neckline)))
+bm.verts.ensure_lookup_table()
+lifted = 0
+for v in bm.verts[sewn_from:]:   # the band kept out of the body like the rest of the shirt (in front it leant into the chest's rise to the neck)
+    loc, n, _, _ = tree.find_nearest(v.co)
+    depth = (v.co - loc).dot(n)
+    if depth < COLLAR_CLEAR:
+        v.co += n * (COLLAR_CLEAR - depth)
+        lifted += 1
+print("collar: %d of its points lifted out of the body" % lifted)
+bm.to_mesh(shirt.data)
+bm.free()
+shirt.data.update()
+
 
 bm = bmesh.new()
 bm.from_mesh(shirt.data)
@@ -519,7 +593,6 @@ for leg in ("thigh_l", "thigh_r"):   # the hem ends at the hips: it follows them
     weights[:, BONE["hips"]] += weights[:, BONE[leg]]
     weights[:, BONE[leg]] = 0.0
 weights = share_armpits(weights, co, mesh, ARMPIT_REACH, ARMPIT_ABOVE, ARMPIT_SMOOTHING)
-weights = lift_collar(weights, co, COLLAR_FROM, COLLAR_RISE, COLLAR_REACH, 0.0)
 
 # ---- 8. written for the game ----
 write_garment(mesh, co, weights, OUT)

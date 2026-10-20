@@ -18,7 +18,7 @@ bake): it catches the faults this project has met before the owner has to spot t
 | textures | maps over 1024 (WARN) or 2048 (FAIL), with the video memory they take in the game | Meshy's four 2048 maps, about 22 MB |
 | size | the size and where it stands; against `--height` if given | |
 | holes (H) | small holes in the surface; big openings (sleeves, a collar) are only counted | the shearling coat's fur |
-| spikes (S) | points sticking out of the surface | the coat's collar after the shoulder lift |
+| spikes (S) | points sticking out of the surface (measured out of it only: a long thin triangle's corner lies far to one side of its neighbours, in the surface, and is no fault) | the coat's collar after the shoulder lift |
 | floating bits (F) | small loose pieces off the model | |
 | z-fighting (Z) | faces lying on top of each other (they flicker) | |
 | turned faces (T), broken edges (B), zero-size faces (D) | surfaces inside out, edges shared by three faces, faces with no area | |
