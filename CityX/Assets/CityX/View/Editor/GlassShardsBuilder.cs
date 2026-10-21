@@ -6,7 +6,7 @@ namespace CityX.ViewEditor
 {
     /// <summary>
     /// Builds the glass shard burst -- real angular fragment meshes now,
-    /// not a billboard particle sprite. EXPLICIT ASK: "improve upon the
+    /// not a billboard particle sprite. Requested: "improve upon the
     /// window breaking mechanics. ideally it would be like garrys mod/half
     /// life where it turns to shards." The old version was a 16-particle
     /// Stretch/Billboard sphere burst that faded to nothing in 0.4s -- it

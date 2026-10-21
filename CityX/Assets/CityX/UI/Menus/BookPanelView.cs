@@ -7,7 +7,7 @@ using UnityEngine.UI;
 namespace CityX.UI
 {
     /// <summary>
-    /// The on-screen page a Book (CityX.View) opens on E -- EXPLICIT ASK:
+    /// The on-screen page a Book (CityX.View) opens on E -- Requested:
     /// "add books and when you press E on them it opens a page on screen
     /// with text ive prepared but just make the system for now." Implements
     /// CityX.View.IBookPanel rather than Book holding a direct reference,

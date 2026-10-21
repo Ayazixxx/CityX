@@ -322,7 +322,7 @@ there next (4 % reached). The floor-above check now runs for the lobby too. Foun
 ## Fix 2026-10-16: the ground kept out of the basements
 
 Owner, with a screenshot looking down a lobby's opening to its basement: "the basement is only 1 foot high". The terrain grid and the block's
-paving (`View/CitySurfaceBuilder`) ran across every building's footprint (the old ground cut under the footprint was lost in the move to the
+paving (`View/Streets/CitySurfaceBuilder`) ran across every building's footprint (the old ground cut under the footprint was lost in the move to the
 free-form plan), so they passed through each basement a foot or so under the lobby floor: its stairs went down two or three steps and met the
 street's paving, which also stopped a body. The footprints of the buildings with a basement (`CitySurfaceBuilder.HasBasementUnder`: an ordinary
 box building on the ground, not a garage, car park, mall or round tower) are now cut out of the terrain (each cell less the footprints, at the

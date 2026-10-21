@@ -80,7 +80,7 @@ namespace CityX.Character
         /// snapshot from the moment the cast began.
         ///
         /// "LIVE" ONLY WHILE THE ANIMATOR IS ACTUALLY EVALUATING IT, THOUGH.
-        /// EXPLICIT BUG REPORT ("stretched out... until I left console" /
+        /// Bug report ("stretched out... until I left console" /
         /// mid-swing contortion): this used to read arm.localRotation back
         /// off the bone itself every frame and multiply the offset onto
         /// THAT -- which is only ever the clean, un-offset clip pose

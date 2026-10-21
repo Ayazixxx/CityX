@@ -183,7 +183,7 @@ namespace CityX.UI
 
         /// <summary>
         /// Same normalization rule as IsClaimCommand, for /sleep -- a diagnostic,
-        /// not a real feature: EXPLICIT ASK, "make it so if you press enter and
+        /// not a real feature: Requested, "make it so if you press enter and
         /// open text chat and type '/sleep' the character just goes limp and
         /// ragdolls immediately no animation... lets see if its something do it
         /// with it being playable." The grapple-swing distortion investigation
@@ -217,7 +217,7 @@ namespace CityX.UI
             }
             if (IsSleepCommand(text))
             {
-                // EXPLICIT ASK: "make it so i can press space to get up at
+                // Requested: "make it so i can press space to get up at
                 // any time after /sleep is used" -- see Ragdoll.CanStandUp's
                 // own doc comment for why /sleep specifically skips the
                 // ordinary rest timer real knockdowns use.

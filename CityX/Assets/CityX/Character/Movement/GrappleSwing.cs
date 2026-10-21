@@ -128,7 +128,7 @@ namespace CityX.Character
         public ThirdPersonCamera OrbitCamera;
 
         /// <summary>
-        /// EXPLICIT BUG REPORT, confirmed directly by measurement: a real
+        /// Bug report, confirmed directly by measurement: a real
         /// varied swing anchored on a real nearby building brought the
         /// swinging hand within 1.23m of the camera -- every grapple
         /// anchor is on a wall (see ThirdPersonCamera.MinDistance's own

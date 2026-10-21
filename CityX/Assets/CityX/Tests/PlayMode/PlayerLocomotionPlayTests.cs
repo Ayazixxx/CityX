@@ -493,7 +493,7 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// EXPLICIT ASK: a hanging ragdoll dummy near spawn should "move
+        /// Requested: a hanging ragdoll dummy near spawn should "move
         /// like it's a real object" when walked into. CharacterController
         /// never pushes a Rigidbody on its own -- it is a kinematic capsule
         /// that solves its own collisions by sliding, the same reason

@@ -37,7 +37,7 @@ namespace CityX.Weapons
         /// long as Space stays down, which needs more than jump-height
         /// speed to feel like thrust rather than a very long hang time.
         ///
-        /// EXPLICIT ASK: "make the default speed the speed that holding
+        /// Requested: "make the default speed the speed that holding
         /// shift goes now" -- was 7.0, the plain (non-boosted) climb speed;
         /// now equal to the OLD BoostThrustSpeed (11.0), so ordinary
         /// thrust already climbs as fast as a boost used to.
@@ -51,7 +51,7 @@ namespace CityX.Weapons
         /// toward; holding a direction spends the boost on lean instead
         /// (see TickTilt's own doc comment).
         ///
-        /// EXPLICIT ASK, same pass as ThrustSpeed's own: "make holding
+        /// Requested, same pass as ThrustSpeed's own: "make holding
         /// shift double as fast as that" -- double the NEW ThrustSpeed
         /// (11.0), not the old one, so boosting still means something
         /// once plain thrust is this much faster than it used to be.
@@ -97,7 +97,7 @@ namespace CityX.Weapons
 
         /// <summary>
         /// While diving (W+shift together), A/D banks the whole body into
-        /// the strafe -- EXPLICIT ASK: "if your in superman position and
+        /// the strafe -- Requested: "if your in superman position and
         /// you press A or D the model rolls slightly in that direction,"
         /// refined once actually seen in real play: the first version
         /// capped this at the plain TiltMaxDegrees (12 degrees) to read as
@@ -115,7 +115,7 @@ namespace CityX.Weapons
         public const float SupermanRollMaxDegrees = 35.0f;
 
         /// <summary>
-        /// SECOND EXPLICIT ASK, refining the first: "if you are holding
+        /// SECOND Requested, refining the first: "if you are holding
         /// shift and w... plus also looking forward, he should be
         /// horizontal like superman flies. if looking straight up he
         /// should be stood up straight normally. if looking down he
@@ -136,7 +136,7 @@ namespace CityX.Weapons
         /// bound the input to +/-90, which maps the output to exactly
         /// [0, 180].
         ///
-        /// THIRD EXPLICIT CORRECTION -- this used to apply only while
+        /// THIRD Correction -- this used to apply only while
         /// boosting (the "committed Superman dive"), leaving plain forward
         /// thrust (no shift) with a raw, unclamped camera-follow pitch
         /// instead: "when holding space and w without shift... if you look
@@ -147,13 +147,13 @@ namespace CityX.Weapons
         /// pointing straight down), a headstand at the bottom -- so this
         /// applied to ANY forward-held thrust, boosted or not.
         ///
-        /// FOURTH EXPLICIT CORRECTION (SUPERSEDED, see the fifth below) --
+        /// FOURTH Correction (SUPERSEDED, see the fifth below) --
         /// even THAT was still one gap short: a plain hover (Space alone)
         /// had no forward component to trigger the offset with, so it kept
         /// the old unclamped camera-follow. Briefly made unconditional
         /// inside TiltTarget to close that gap.
         ///
-        /// FIFTH EXPLICIT CORRECTION (SUPERSEDED, see the sixth below) --
+        /// FIFTH Correction (SUPERSEDED, see the sixth below) --
         /// making it unconditional over-fixed the fourth: "now hold space
         /// defaults to superman position make it default to standing
         /// upright." A LEVEL camera pitched a plain hover to a full 90
@@ -164,7 +164,7 @@ namespace CityX.Weapons
         /// or up, tipping toward a headstand only once actually looking
         /// down.
         ///
-        /// SIXTH EXPLICIT CORRECTION -- even that partial tip while looking
+        /// SIXTH Correction -- even that partial tip while looking
         /// down was one tilt too many: "make it so if your just holding
         /// space or holding shift+space no w with jetpack then the
         /// character just stay upright and doesnt tilt forward when you
@@ -180,7 +180,7 @@ namespace CityX.Weapons
 
         /// <summary>
         /// How far the camera is allowed to look, while the jetpack is the
-        /// equipped item -- EXPLICIT ASK: "make it so you can go all the
+        /// equipped item -- Requested: "make it so you can go all the
         /// vertical upward and downward." ThirdPersonCamera's own ordinary
         /// MinPitch/MaxPitch (-35/70) exist for looking around on foot,
         /// where straight up or straight down would either clip into the
@@ -210,7 +210,7 @@ namespace CityX.Weapons
 
         /// <summary>
         /// Roughly how long the lean takes to settle into a new target, in
-        /// seconds, via Mathf.SmoothDamp -- EXPLICIT CORRECTION: this used
+        /// seconds, via Mathf.SmoothDamp -- Correction: this used
         /// to be a plain constant-rate Mathf.MoveTowards ramp
         /// (TiltDegreesPerSecond, 90 degrees/second), which reaches its
         /// target at a constant angular velocity and then stops dead the
@@ -234,7 +234,7 @@ namespace CityX.Weapons
         public AudioSource ThrustAudio;
 
         /// <summary>
-        /// Set by JetpackBuilder (jetpack_wind_loop.wav) -- EXPLICIT ASK:
+        /// Set by JetpackBuilder (jetpack_wind_loop.wav) -- Requested:
         /// "add this wind noise as a looping sound when flying through the
         /// air at shift speed using jetpack." WAV, not MP3 like ThrustAudio
         /// -- the source clip was built into a seamless loop with an exact,
@@ -250,7 +250,7 @@ namespace CityX.Weapons
         public AudioSource WindAudio;
 
         /// <summary>
-        /// EXPLICIT FOLLOW-UP ASK: "make the wind slowly fade in and out as
+        /// Follow-up request: "make the wind slowly fade in and out as
         /// it begins and stops when you enter and exit shift jetpack mode."
         /// A plain Play()/Stop() (the ordinary FlameEffect/ThrustAudio
         /// pattern) starts/stops instantly, which reads fine for an engine
@@ -489,7 +489,7 @@ namespace CityX.Weapons
         /// <summary>
         /// The actual vertical speed a frame of thrust climbs or dives at.
         ///
-        /// FLYING FORWARD FOLLOWS THE CAMERA'S OWN PITCH -- EXPLICIT ASK:
+        /// FLYING FORWARD FOLLOWS THE CAMERA'S OWN PITCH -- Requested:
         /// "make it curve and turn with where your looking." Horizontal
         /// turning already follows the camera (WASD is camera-relative, the
         /// same as ordinary ground movement); this is what makes vertical
@@ -596,7 +596,7 @@ namespace CityX.Weapons
 
             // "AT SHIFT SPEED" -- boostHeld specifically, not thrustHeld
             // alone; ordinary unboosted thrust keeps only ThrustAudio's own
-            // engine loop, silent on wind. TWO EXPLICIT FOLLOW-UP ASKS
+            // engine loop, silent on wind. TWO Follow-up requests
             // layered on top of the original Play()/Stop() pattern:
             // "end when stopped flying at that speed and starts from the
             // top when resumed" (Play()/Stop(), never Pause()/UnPause() --
@@ -691,7 +691,7 @@ namespace CityX.Weapons
         /// anything else -- for when something OTHER than releasing Space
         /// needs the effects to stop.
         ///
-        /// EXPLICIT BUG REPORT: "when your using jetpack and crash into a
+        /// Bug report: "when your using jetpack and crash into a
         /// surface and ragdoll, the jetpack also turns off even if your
         /// holding space." Thrust/movement already stops correctly the
         /// instant the ragdoll goes limp -- PlayerInputReader's own ragdoll
@@ -727,7 +727,7 @@ namespace CityX.Weapons
         /// EaseTilt entirely -- for the moment a ragdoll takes over, not for
         /// ordinary flight.
         ///
-        /// EXPLICIT BUG REPORT: "im still getting up at an angle when i
+        /// Bug report: "im still getting up at an angle when i
         /// ragdoll." _animatorTransform (see OnEquip's own doc comment --
         /// "the whole visual body, leaned as one rigid piece") sits on a
         /// CHILD of the character root, the same Animator.transform Ragdoll
@@ -769,11 +769,11 @@ namespace CityX.Weapons
         /// for.
         ///
         /// PITCH FOLLOWS THE CAMERA, BUT ONLY WHILE FLYING FORWARD -- SIXTH
-        /// EXPLICIT CORRECTION. The fifth correction gave a plain hover
+        /// Correction. The fifth correction gave a plain hover
         /// (Space alone, or Space+Shift, no W) its OWN curve --
         /// `2 * Clamp(camera, 0, 90)` -- so it stayed upright looking level
         /// or up and only tipped toward a headstand once the camera
-        /// actually looked down. EXPLICIT FOLLOW-UP: "make it so if your
+        /// actually looked down. Follow-up: "make it so if your
         /// just holding space or holding shift+space no W with jetpack then
         /// the character just stay upright and doesnt tilt forward when you
         /// look down" -- even THAT partial tip was one tilt too many for
@@ -845,7 +845,7 @@ namespace CityX.Weapons
         /// factored out, pure and static, for the same testability reason
         /// TiltTarget/EaseTilt already are.
         ///
-        /// SECOND EXPLICIT CORRECTION -- the FIRST fix here (`pitch * roll`,
+        /// SECOND Correction -- the FIRST fix here (`pitch * roll`,
         /// rolling around the body's OWN post-pitch forward) was itself
         /// wrong, confirmed directly by the user: "roll not turn left to
         /// right." SupermanPitchOffsetDegrees pitches the body a full 90

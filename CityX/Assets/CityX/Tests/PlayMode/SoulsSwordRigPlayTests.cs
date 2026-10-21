@@ -311,7 +311,7 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// EXPLICIT ASK: "make the legs walk and not freeze up during sword use
+        /// Requested: "make the legs walk and not freeze up during sword use
         /// too." The swings are full-body Mixamo clips; on the base layer they
         /// overwrote the legs with a planted lunge. They play on a masked
         /// upper-body layer now, so while you walk AND swing the feet must keep

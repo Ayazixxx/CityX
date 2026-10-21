@@ -8,8 +8,8 @@ namespace CityX.View
 {
     /// <summary>
     /// Rain, ported from player/rain_effect.gd, built out into a storm
-    /// (EXPLICIT ASK: "make it look reallllly good"), and now rebuilt around
-    /// what shipped games do with rain (EXPLICIT ASK: "research good rain
+    /// (Requested: "make it look reallllly good"), and now rebuilt around
+    /// what shipped games do with rain (Requested: "research good rain
     /// mechanics in video games like mine and implement what you learn" --
     /// see docs/RAIN.md for the sources).
     ///
@@ -78,7 +78,7 @@ namespace CityX.View
         /// <summary>
         /// Final rendered streak length in metres (see Build's own doc
         /// comment on main.startSize for the real bug this used to have --
-        /// this is now a true, direct length). EXPLICIT FEEDBACK: "improve upon
+        /// this is now a true, direct length). Feedback: "improve upon
         /// the rain it looks terrible the drops are too large".
         /// </summary>
         public const float DropHeight = 0.55f;
@@ -117,7 +117,7 @@ namespace CityX.View
 
         /// <summary>
         /// How long the environment takes to fully settle into or out of a
-        /// storm once toggled -- EXPLICIT ASK ("really good"), not an instant
+        /// storm once toggled -- Requested ("really good"), not an instant
         /// snap. Covers the sun/ambient dampening, the fog tightening and the
         /// grade shift; rain thickening and thinning rides the same clock.
         /// </summary>
@@ -210,10 +210,10 @@ namespace CityX.View
         public float[] DryGroundSmoothness;
 
         /// <summary>
-        /// The scene's own clear-weather fog distances -- EXPLICIT FIELDS,
+        /// The scene's own clear-weather fog distances -- fields of their own,
         /// wired by CityMassingSceneBuilder to the exact same numbers it
         /// sets on RenderSettings itself, rather than read back from
-        /// RenderSettings at runtime. EXPLICIT BUG, caught by a real test:
+        /// RenderSettings at runtime. Bug, caught by a real test:
         /// RenderSettings is per-ACTIVE-scene, and there is no single frame
         /// guaranteed to be both "after everything has finished loading" and
         /// "before this component's own Update might already have run" in
@@ -1264,7 +1264,7 @@ namespace CityX.View
         /// same properties every frame like this.
         ///
         /// STILL RUNS ONE LAST TIME ONCE FULLY CLEAR, NOT JUST WHILE ACTIVE
-        /// -- EXPLICIT BUG, caught by a real test asserting the exact
+        /// -- Bug, caught by a real test asserting the exact
         /// restore rather than "close enough": skipping this body outright
         /// the instant _stormStrength first reaches exactly 0 meant the
         /// frame BEFORE that -- the last one that still had a tiny nonzero

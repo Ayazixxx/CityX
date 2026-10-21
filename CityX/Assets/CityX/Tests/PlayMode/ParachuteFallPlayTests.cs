@@ -9,7 +9,7 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// EXPLICIT ASK: "press space and open... it slows down your fall
+    /// Requested: "press space and open... it slows down your fall
     /// pretty basic." Needs real PlayMode physics, not the bare EditMode rig
     /// ParachuteTests otherwise uses -- see that file's own class doc
     /// comment for why: a CharacterController with no ground collider at all

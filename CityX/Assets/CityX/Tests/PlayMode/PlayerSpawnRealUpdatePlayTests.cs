@@ -9,7 +9,7 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// EXPLICIT BUG REPORT, reported AGAIN after
+    /// Bug report, reported AGAIN after
     /// PlayerSpawnGroundedPlayTests was already green: "i loaded in as
     /// ayazixxx and [w]ent through the floor again." That test drives
     /// PlayerLocomotion.Tick directly and explicitly DISABLES

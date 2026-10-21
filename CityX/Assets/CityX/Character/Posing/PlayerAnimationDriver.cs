@@ -545,7 +545,7 @@ namespace CityX.Character
                 return;   // e.g. "UpperEmpty" on a controller that predates the upper-body layer
             }
 
-            // EXPLICIT BUG REPORT, root-caused directly with the sword spin
+            // Bug report, root-caused directly with the sword spin
             // attack's own diagnostic render: a real swing thrown before the
             // Animator has ever actually evaluated a single frame crossfades
             // FROM the raw imported bind pose (a T-pose) rather than from a

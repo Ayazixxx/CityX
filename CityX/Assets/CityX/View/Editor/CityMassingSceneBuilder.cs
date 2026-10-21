@@ -34,7 +34,7 @@ namespace CityX.ViewEditor
         private const string MaterialDirectory = "Assets/CityX/View/Materials";
 
         /// <summary>
-        /// The real, played game world's own seed. EXPLICIT ASK: "generate
+        /// The real, played game world's own seed. Requested: "generate
         /// a new world every time you make a change to the city
         /// generation" -- was two separate hardcoded 54145500 literals
         /// (TerrainField and CityStreamer.WorldSeed below) that had to be
@@ -177,7 +177,7 @@ namespace CityX.ViewEditor
             // own _default_fov uses), so it has to be set explicitly here or
             // it silently falls back to Unity's own unrelated default (60,
             // narrower than Godot's real 75 -- never noticed because nothing
-            // ever set it either way). EXPLICIT ASK: "I WANT IT EXACTLY THE
+            // ever set it either way). Requested: "I WANT IT EXACTLY THE
             // SAME," found by actually reading player.gd instead of guessing.
             camera.fieldOfView = ThirdPersonCamera.DefaultFieldOfView;
             camera.backgroundColor = new Color(0.55f, 0.60f, 0.66f);
@@ -192,7 +192,7 @@ namespace CityX.ViewEditor
             UniversalAdditionalCameraData cameraData = cameraObject.AddComponent<UniversalAdditionalCameraData>();
             cameraData.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
             cameraData.antialiasingQuality = AntialiasingQuality.High;
-            // EXPLICIT BUG, the camera-side twin of the Volume persistence bug
+            // Bug, the camera-side twin of the Volume persistence bug
             // documented on EnsureGradeProfile: UniversalAdditionalCameraData's
             // own renderPostProcessing defaults to FALSE, and nothing here ever
             // set it true. The grade Volume below has been correctly wired and
@@ -214,8 +214,8 @@ namespace CityX.ViewEditor
             // the scene ends up with SEVERAL Ragdoll components (the sparring
             // dummies are Civilian.prefab-based too, and each carries its
             // own), so a type-only lookup after they all exist is genuinely
-            // ambiguous about which one it finds. EXPLICIT
-            // BUG REPORT this caused: "/sleep" wired to whichever Ragdoll
+            // ambiguous about which one it finds.
+            // The bug report this caused: "/sleep" wired to whichever Ragdoll
             // FindFirstObjectByType happened to return first -- some NPC
             // somewhere, never the player -- so typing it visibly did nothing
             // to the character actually being watched.
@@ -324,7 +324,7 @@ namespace CityX.ViewEditor
                 // now; Civilian is still built and still placed deliberately by
                 // the scale screenshots.
                 //
-                // NO SPARRING DUMMIES AT SPAWN EITHER -- EXPLICIT ASK: "get
+                // NO SPARRING DUMMIES AT SPAWN EITHER -- Requested: "get
                 // rid of these objects from spawn." Still fully available on
                 // demand via the real console (`/spawn dummy`, see
                 // DevConsoleView.Spawn's own identical capsule-building
@@ -413,7 +413,7 @@ namespace CityX.ViewEditor
                 // --- doc comment for why it never touches
                 // --- PlayerInputReader/ThirdPersonCamera.enabled.
                 //
-                // NO DEMO CRATE AT SPAWN -- EXPLICIT ASK: "get rid of these
+                // NO DEMO CRATE AT SPAWN -- Requested: "get rid of these
                 // objects from spawn." A knocked-out ragdoll already gives
                 // Grabbable something real to pick up; the crate was only
                 // ever a stand-in for testing this before ragdolls existed.
@@ -619,7 +619,7 @@ namespace CityX.ViewEditor
             // -- see PoseDistortionWatchdog's own class doc comment for why
             // this exists instead of another synthetic diagnostic.
             //
-            // IsConsoleOpen IS DELIBERATELY NOT WIRED HERE -- EXPLICIT BUG,
+            // IsConsoleOpen IS DELIBERATELY NOT WIRED HERE -- Bug,
             // found chasing the grapple/console distortion report: a
             // System.Func<bool> field can never survive Unity's own scene
             // serialization, so an assignment made here, while BUILDING the
@@ -847,7 +847,7 @@ namespace CityX.ViewEditor
                 Object.FindFirstObjectByType<PlayerInputReader>(),
                 Object.FindFirstObjectByType<ThirdPersonCamera>());
 
-            // The book-reading page -- EXPLICIT ASK: "add books and when
+            // The book-reading page -- Requested: "add books and when
             // you press E on them it opens a page on screen with text ive
             // prepared but just make the system for now." Same one-shared-
             // instance shape as the placeholder above.
@@ -945,27 +945,6 @@ namespace CityX.ViewEditor
         /// UVs are in metres.
         /// </param>
         /// <summary>
-        /// Window glass, in two flavours: one with a light behind it and one
-        /// without.
-        ///
-        /// TWO MATERIALS RATHER THAN ONE WITH A VERTEX COLOUR. Whether a
-        /// particular window is lit is a per-pane fact, and the cheap ways to
-        /// get a per-pane fact into a shader all cost something on every vertex
-        /// in the city. Two submeshes cost nothing per vertex and let
-        /// DayNightCycle bring every lit window up at dusk by touching one
-        /// material.
-        ///
-        /// CULL OFF, because a pane fills a real hole through a real wall and
-        /// is therefore seen from inside as often as from the street. The
-        /// alternative is two quads per window, which is the same triangles
-        /// again for something one flag does.
-        /// </summary>
-        /// <summary>
-        /// A flat printed colour: lane paint. Unshaded, which is
-        /// city_chunk.gd's own _flat_material(colour, true), and the reason
-        /// road markings stay legible in a street that is in shadow all day.
-        /// </summary>
-        /// <summary>
         /// The sky dome. Its colours are overwritten by DayNightCycle every
         /// frame; what is set here is the geometry of the gradient -- the two
         /// curves and the glow -- which does not change with the time of day.
@@ -997,25 +976,6 @@ namespace CityX.ViewEditor
             return material;
         }
 
-        /// <summary>
-        /// The grade: a tonemap and a small contrast/saturation lift, matching
-        /// city.tscn's own Environment.
-        ///
-        /// THE TONEMAP IS THE POINT. Without one the renderer's HDR output is
-        /// simply clamped, so every sunlit concrete face lands on flat white
-        /// with no roll-off and no highlight detail -- which is most of what
-        /// "the graphics looked worse" actually was, and why the sun had to be
-        /// held down to 1.15 to be bearable at all.
-        ///
-        /// ONE HONEST DIVERGENCE: Godot uses AgX (tonemap_mode 4). URP offers
-        /// None, Neutral and ACES, and has no AgX. NEUTRAL is the closer of the
-        /// two, because both it and AgX preserve hue as they compress; ACES
-        /// applies a strong S-curve and visibly shifts blues toward purple and
-        /// oranges toward yellow, which would pull the sunset and the sky dome
-        /// away from the values Godot tuned. Swap the mode below if a punchier
-        /// image is wanted over a faithful one.
-        /// (2026-10-09: ACES tried and reverted -- see the tonemapping line below.)
-        /// </summary>
         /// <summary>
         /// How far the city streams in full, in 24 m chunks (30 = 720 m), and the clear-weather fog distances: the haze is total at the fog end,
         /// which must stay inside what is drawn. 24 / 150-380 m until 2026-10-09, when the owner asked for more render distance -- the streamed city
@@ -1085,6 +1045,25 @@ namespace CityX.ViewEditor
         /// <summary>How much more exposure the night grade has than the day grade, stops.</summary>
         private const float NightExposureLift = 0.0f;   // 0.7 lifted the whole night into a grey wash
 
+        /// <summary>
+        /// The grade: a tonemap and a small contrast/saturation lift, matching
+        /// city.tscn's own Environment.
+        ///
+        /// THE TONEMAP IS THE POINT. Without one the renderer's HDR output is
+        /// simply clamped, so every sunlit concrete face lands on flat white
+        /// with no roll-off and no highlight detail -- which is most of what
+        /// "the graphics looked worse" actually was, and why the sun had to be
+        /// held down to 1.15 to be bearable at all.
+        ///
+        /// ONE HONEST DIVERGENCE: Godot uses AgX (tonemap_mode 4). URP offers
+        /// None, Neutral and ACES, and has no AgX. NEUTRAL is the closer of the
+        /// two, because both it and AgX preserve hue as they compress; ACES
+        /// applies a strong S-curve and visibly shifts blues toward purple and
+        /// oranges toward yellow, which would pull the sunset and the sky dome
+        /// away from the values Godot tuned. Swap the mode below if a punchier
+        /// image is wanted over a faithful one.
+        /// (2026-10-09: ACES tried and reverted -- see the tonemapping line below.)
+        /// </summary>
         private static VolumeProfile EnsureGradeProfile()
         {
             string path = $"{MaterialDirectory}/CityGrade.asset";
@@ -1095,7 +1074,7 @@ namespace CityX.ViewEditor
                 AssetDatabase.CreateAsset(profile, path);
             }
 
-            // EXPLICIT BUG, found and fixed in the same session as the
+            // Bug, found and fixed in the same session as the
             // vignette/chromatic-aberration additions below: VolumeProfile.
             // Add<T> only appends the new component to the profile's own
             // in-memory list -- it never calls AssetDatabase.AddObjectToAsset,
@@ -1343,7 +1322,7 @@ namespace CityX.ViewEditor
             material.SetColor("_BaseColor", RainEffect.DropColour);
             material.color = RainEffect.DropColour;
             // A soft vertical streak, not a flat solid-alpha rectangle --
-            // EXPLICIT ASK ("make it look reallllly good"). Without this the
+            // Requested ("make it look reallllly good"). Without this the
             // stretched quad has hard rectangular edges and reads as a
             // little grey bar falling rather than as a drop of rain.
             Texture2D streak = EnsureRainStreakTexture();
@@ -1674,6 +1653,22 @@ namespace CityX.ViewEditor
             return clip;
         }
 
+        /// <summary>
+        /// Window glass, in two flavours: one with a light behind it and one
+        /// without.
+        ///
+        /// TWO MATERIALS RATHER THAN ONE WITH A VERTEX COLOUR. Whether a
+        /// particular window is lit is a per-pane fact, and the cheap ways to
+        /// get a per-pane fact into a shader all cost something on every vertex
+        /// in the city. Two submeshes cost nothing per vertex and let
+        /// DayNightCycle bring every lit window up at dusk by touching one
+        /// material.
+        ///
+        /// CULL OFF, because a pane fills a real hole through a real wall and
+        /// is therefore seen from inside as often as from the street. The
+        /// alternative is two quads per window, which is the same triangles
+        /// again for something one flag does.
+        /// </summary>
         private static Material EnsureGlassMaterial(string name, bool lit, bool cracked = false)
         {
             string path = $"{MaterialDirectory}/{name}.mat";
@@ -1760,21 +1755,7 @@ namespace CityX.ViewEditor
         }
 
         /// <summary>
-        /// The real crack-texture decal a shot's own impact point gets --
-        /// EXPLICIT ASK: replacing the plain square hole with the user's own
-        /// reference PNG (radial cracks with a real see-through centre),
-        /// checked into Assets/CityX/View/Textures/BulletHoleCrack.png
-        /// rather than procedurally generated like every other texture in
-        /// this file -- a hand-authored photo reference has no "regenerate
-        /// from code" equivalent the way a tiling facade pattern does.
-        ///
-        /// SAME TRANSPARENT BLEND SETTINGS AS EnsureGlassMaterial, because
-        /// this decal sits directly on top of that same Cracked glass and
-        /// has to composite over it the same way. White base colour so the
-        /// texture's own colours/alpha show through unmodified.
-        /// </summary>
-        /// <summary>
-        /// One-off cleanup of BulletHoleCrack.png. EXPLICIT BUG REPORT: "the bullet holes have a visible square
+        /// One-off cleanup of BulletHoleCrack.png. Bug report: "the bullet holes have a visible square
         /// around them due to the image i used."
         ///
         /// Measured directly (a rendered pane WITH the decal against the identical pane without it, pixel-
@@ -1941,6 +1922,20 @@ namespace CityX.ViewEditor
                       $"{biggestSize * 100.0f / candidates:0.0}% of {candidates} candidate pixels), cleared {cleared} stray pixels.");
         }
 
+        /// <summary>
+        /// The real crack-texture decal a shot's own impact point gets --
+        /// Requested: replacing the plain square hole with the user's own
+        /// reference PNG (radial cracks with a real see-through centre),
+        /// checked into Assets/CityX/View/Textures/BulletHoleCrack.png
+        /// rather than procedurally generated like every other texture in
+        /// this file -- a hand-authored photo reference has no "regenerate
+        /// from code" equivalent the way a tiling facade pattern does.
+        ///
+        /// SAME TRANSPARENT BLEND SETTINGS AS EnsureGlassMaterial, because
+        /// this decal sits directly on top of that same Cracked glass and
+        /// has to composite over it the same way. White base colour so the
+        /// texture's own colours/alpha show through unmodified.
+        /// </summary>
         private static Material EnsureCrackDecalMaterial()
         {
             const string texturePath = "Assets/CityX/View/Textures/BulletHoleCrack.png";

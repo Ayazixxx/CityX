@@ -27,7 +27,7 @@ the electricity back on later."
   `ChunkRoomLights` as a `RoomLightGroup` per room (a plain object). Only while a room's switch is on is anything drawn or lit for it: its glow
   (`RoomGlow.mat`, URP Unlit, colour x3 so it blooms) joins its chunk's mesh of lit rooms of its colour, and `RoomLightDirector` lends it spot
   lights without shadows (since 2026-10-14, see the last update; before, every room's meshes and lights were made when its chunk streamed in).
-- Interacting: `View/LightSwitchInteractor` (on the CityStreamer, one for the scene): E or the gamepad's west button flips the switch nearest the
+- Interacting: `View/Interactables/LightSwitchInteractor` (on the CityStreamer, one for the scene): E or the gamepad's west button flips the switch nearest the
   player that is within 2.4 m, on their floor and in front of where they look -- found from the plan only when the key is pressed, so there is no
   component per switch. A procedural click plays either way.
 - Multiplayer: `Character/RoomLightsNetwork` keeps every machine's switches the same with FishNet BROADCASTS (not RPCs on a body, which only reach
@@ -71,11 +71,11 @@ well as city lighting at night time and implement what you learn". What the rese
   in the room's colour greyed a little, about a quarter as bright as the floor (`CeilingLight` 0.24 vs `FloorLight` 0.9). First try had it 0.8 m
   down -- below the slab, inside the room underneath -- and every lit room burnt bright ovals into the ceiling below it.
 - **Nothing reaches another storey.** A lamp's range stops short of the floor of the storey below, a bounce's of the ceiling of the storey above.
-- **Lights know which side of a wall they are on** (`View/CityLightLayers`). Room lights are on rendering layer 1 ("inside"), the door lamps on
+- **Lights know which side of a wall they are on** (`View/Lighting/CityLightLayers`). Room lights are on rendering layer 1 ("inside"), the door lamps on
   layer 2 ("outside"); the facade shader (`FacadeForwardPass.hlsl`, `CityXFragmentPBR`) skips a light on the wrong side of the surface it is
   shading, so a lit room never shines through its walls onto the pavement or the building next door. Everything else (players, props) is lit by
   both (URP's own layer test); unmarked lights (a muzzle flash) light everything, as before.
-- **Shadows only where the player is.** `View/RoomLightDirector` (made on demand by the first lit room) keeps real lights only for lit rooms within
+- **Shadows only where the player is.** `View/Lighting/RoomLightDirector` (made on demand by the first lit room) keeps real lights only for lit rooms within
   110 m of the camera (at most 160 room lights at once -- one fully lit tower has hundreds; farther rooms are their glow alone) and gives the 4
   lamps nearest the camera, within 30 m, soft shadows: bodies, stairs and partitions throw shadows in the room you are in. Bounces never do.
 - **Pale rooms.** The inside of every building is no longer bare grey concrete (which swallowed the light): plaster walls in a colour that says
@@ -89,13 +89,13 @@ well as city lighting at night time and implement what you learn". What the rese
   (a distant building's strips, the sealed top of a tower) stays dark. The old opaque glow panel is now a faint additive veil just behind the glass
   (`Shaders/CityXWindowLight.shader`, `CityStreamer.RoomWindowBrightness` 0.15), brighter towards the top, so a lit window still reads from down the
   street; it is one-sided, so it is not there when you look out from inside.
-- **A lamp over every powered door** (`World/EntranceLighting`, `View/EntranceLamp`): a warm glowing box under the canopy and a spot shining down
+- **A lamp over every powered door** (`World/EntranceLighting`, `View/Lighting/EntranceLamp`): a warm glowing box under the canopy and a spot shining down
   on the steps and pavement, lit from dusk to dawn (`DayNightCycle.Daylight`). Pools of warm light at doorways with the street dark between them
   are what a night street is made of -- and in a city where nine buildings in ten are dead, a lit doorway is how you find the ones with power.
   Street lamps were NOT brought back (removed 2026-09-04 on request).
 - **Shop blade signs glow only on powered buildings**; a dead building's sign is dark glass like its windows. So do the lit shop signs and the
   floodlit billboards on the roofs (2026-10-15, docs/WORLD_GACHA.md phase 4: the board's own paint lit by its lamps, `SurfaceLook.PackFloodlit`).
-- **E works the thing you look at** (`View/InteractionFocus`): the door and the switch beside it used to both answer one press. Now each offers
+- **E works the thing you look at** (`View/Interactables/InteractionFocus`): the door and the switch beside it used to both answer one press. Now each offers
   itself with how far off the crosshair it is, and only the nearest acts; of several switches in reach, the one nearest the crosshair flips.
 
 Tests: `NightLightingTests` (indoor flag, pale rooms, lamps and bounces per storey, layers, clear glass, dark signs, door lamps, the night's
@@ -119,9 +119,9 @@ rooms (294 lights: 12 ms of meshes, 10 ms of lights), **14.1 ms** for one of 30 
 first time in a session). And nearly all of it stayed dark: a room lights only when somebody flips its switch.
 
 Now nothing is made for a room until its switch is on:
-- **A room is a plain object** (`View/RoomLightGroup`, no longer a MonoBehaviour): where its lamps and bounces go, their colour and brightness,
+- **A room is a plain object** (`View/Lighting/RoomLightGroup`, no longer a MonoBehaviour): where its lamps and bounces go, their colour and brightness,
   and the faces it shows (`CityMeshBuilder.RoomGlow`, kept from the worker that built them). A chunk with powered rooms gets one component,
-  `View/ChunkRoomLights`, which follows the switches (`RoomLights.Changed`: one listener per chunk; there was one per room).
+  `View/Lighting/ChunkRoomLights`, which follows the switches (`RoomLights.Changed`: one listener per chunk; there was one per room).
 - **The lit rooms' glow and windows are one mesh per light colour per chunk** (five colours in all, `RoomLighting.ColourOf`), drawn with the same
   materials and colours as before (`RoomGlow.mat` x`RoomGlowBrightness`, the window veil x`RoomWindowBrightness`), rebuilt when a switch in the
   chunk changes, at most once a frame and before the frame is drawn (`RoomLightDirector`'s LateUpdate). A dark room draws nothing; a chunk whose

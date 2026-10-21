@@ -60,7 +60,7 @@ namespace CityX.Character
         private bool _haveEverCapturedArmSnapBaseline;
 
         /// <summary>
-        /// EXPLICIT BUG REPORT, with real screenshots: "the console and
+        /// Bug report, with real screenshots: "the console and
         /// grapple still wildly stretches the body" -- arms twisted into an
         /// X, arms flung up and out. ROOT-CAUSED DIRECTLY: a new PlayMode
         /// test (LocomotionAnimatorStabilityPlayTests) drove realistic,
@@ -108,7 +108,7 @@ namespace CityX.Character
         /// would be a new, self-inflicted regression, not a fix.
         ///
         /// SKIPPED ENTIRELY WHILE MeleeAttacker/GrappleSwing OWN THESE SAME
-        /// BONES -- EXPLICIT BUG, found live (broke two established
+        /// BONES -- Bug, found live (broke two established
         /// GrappleSwing tests the first time this shipped): Unity does not
         /// guarantee this component's own LateUpdate runs before or after
         /// GrappleSwing's, and if this one ran FIRST, WRITING a bone back
@@ -118,7 +118,7 @@ namespace CityX.Character
         /// animator pose.
         ///
         /// TRACKING (updating _previousXxx without correcting, rather than
-        /// skipping outright) WAS TRIED AND REVERTED -- EXPLICIT BUG,
+        /// skipping outright) WAS TRIED AND REVERTED -- Bug,
         /// found live via a new randomised PlayMode test: while
         /// GrappleSwing/MeleeAttacker actively drive these bones, the
         /// value sitting on them is THEIR OWN pose, not the Animator's --
@@ -179,7 +179,7 @@ namespace CityX.Character
         }
 
         /// <summary>
-        /// EXPLICIT GAP, found live after the user reported the distortion
+        /// Gap, found live after the user reported the distortion
         /// still happening post-fix: SuppressImplausibleArmSnaps only ever
         /// runs from THIS component's own LateUpdate, but GrappleSwing.
         /// Attach and DevConsoleView.Open both force an EXTRA, synchronous
@@ -252,7 +252,7 @@ namespace CityX.Character
         /// against.
         ///
         /// _rightUpperArm AND _head ARE SKIPPED SPECIFICALLY, NOT THE WHOLE
-        /// METHOD -- EXPLICIT REGRESSION, found by the full suite: a first
+        /// METHOD -- Regression, found by the full suite: a first
         /// version of this gun-aim exclusion skipped this entire method
         /// whenever ApplyGunAimPose's own blend was nonzero, the same
         /// "something else legitimately owns these bones" shape the
@@ -329,8 +329,8 @@ namespace CityX.Character
         /// <summary>
         /// The on-demand capture path (GrappleSwing.Attach/DevConsoleView.Open,
         /// via SuppressImplausibleArmSnapsNow) used to share this exact
-        /// correction with the ordinary per-frame path above -- EXPLICIT
-        /// BUG, found live: that sharing meant an UNRELATED hold from the
+        /// correction with the ordinary per-frame path above --
+        /// Bug, found live: that sharing meant an UNRELATED hold from the
         /// ordinary path's own most recent LateUpdate (some earlier,
         /// completely different frame-to-frame glitch, nothing to do with
         /// this Attach/Open call at all) could leave its own
@@ -438,7 +438,7 @@ namespace CityX.Character
         /// legitimate fast transition can never lock up permanently.
         ///
         /// SAFE TO DO THIS HERE, UNLIKE THE ON-DEMAND CAPTURE PATH --
-        /// EXPLICIT BUG, found live: an earlier version shared this exact
+        /// Bug, found live: an earlier version shared this exact
         /// flag/logic with SuppressImplausibleArmSnapsNow (GrappleSwing.
         /// Attach/DevConsoleView.Open's own one-shot capture call), and an
         /// UNRELATED hold from this method's own most recent, completely

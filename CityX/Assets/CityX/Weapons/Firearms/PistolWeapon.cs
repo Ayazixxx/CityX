@@ -43,7 +43,7 @@ namespace CityX.Weapons
         public const float ReloadSeconds = 1.5f;
 
         /// <summary>
-        /// No random spread, hip or aimed. EXPLICIT ASK: "i want you to do bullets the same as csgo... make every shot hit exact where you
+        /// No random spread, hip or aimed. Requested: "i want you to do bullets the same as csgo... make every shot hit exact where you
         /// clicked in the middle of your screen." The recoil moves the VIEW (the crosshair with it), never the bullet off the crosshair.
         /// </summary>
         public const float HipFireSpreadDegrees = 0.0f;

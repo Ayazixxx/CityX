@@ -9,7 +9,7 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// EXPLICIT ASK: "add benches you can go up to and press E to sit as
+    /// Requested: "add benches you can go up to and press E to sit as
     /// well." Through the REAL PlayerInputReader.Update() dispatch, with a
     /// real simulated keyboard (InputTestFixture, the same pattern
     /// JetpackGroundedJumpPlayTests already establishes) and a real

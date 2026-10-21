@@ -8,7 +8,7 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// EXPLICIT BUG REPORT, with real screenshots this time: "the console
+    /// Bug report, with real screenshots this time: "the console
     /// and grapple still wildly stretches the body" -- arms twisted into
     /// an X, arms flung up and out, the torso visibly spiralled, and
     /// (separately, per the user's own follow-up) the head sometimes
@@ -33,7 +33,7 @@ namespace CityX.Tests
     /// while a real PoseDistortionWatchdog watches the whole time.
     ///
     /// MEASURED VIA PoseDistortionWatchdog ITSELF, NOT A CUSTOM BONE-DELTA
-    /// LOOP -- EXPLICIT BUG, found live: an earlier version of this test
+    /// LOOP -- Bug, found live: an earlier version of this test
     /// read bone rotations directly from its own coroutine right after each
     /// Tick() call, trying to time exactly when the Animator's own
     /// per-frame write and PlayerLocomotion's own LateUpdate correction had
@@ -93,7 +93,7 @@ namespace CityX.Tests
         private void SpawnPlayer()
         {
 #if UNITY_EDITOR
-            // A REAL FLOOR -- EXPLICIT BUG, found live: the first version of
+            // A REAL FLOOR -- Bug, found live: the first version of
             // this test had no ground at all, so the CharacterController
             // free-fell for the whole test (hundreds of metres down, not even
             // deterministic run to run since real gravity over hundreds of

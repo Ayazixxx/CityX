@@ -10,7 +10,7 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// The doors onto the balconies in a real streamed city (World/BalconyDoors, View/BalconyDoorInteractor): a body the player's size walking
+    /// The doors onto the balconies in a real streamed city (World/BalconyDoors, View/Interactables/BalconyDoorInteractor): a body the player's size walking
     /// into a shut door from its balcony opens it and walks on into the flat; a door half way up a room stays shut and holds the body on the
     /// balcony; E shuts an open door and opens it again, but not on someone standing in it.
     /// </summary>

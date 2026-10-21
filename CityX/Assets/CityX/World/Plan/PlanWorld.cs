@@ -1065,7 +1065,6 @@ namespace CityX.World.Plan
             (into ?? (into = new List<WallContact>(2))).Add(contact);
         }
 
-        /// <summary>Whether every block of a building, turned ones by their corners, stays inside its lot rectangle (a few centimetres of rounding allowed).</summary>
         /// <summary>The highest and lowest ground under one volume of a lot (on a grid at most GroundSampleMetres apart, corners included).</summary>
         private static void GroundUnder(PlanFields fields, Vec2 centre, double axisX, double axisZ, MassVolume vol, out double high, out double low)
         {
@@ -1088,6 +1087,7 @@ namespace CityX.World.Plan
             }
         }
 
+        /// <summary>Whether every block of a building, turned ones by their corners, stays inside its lot rectangle (a few centimetres of rounding allowed).</summary>
         public static bool InsideLot(List<MassVolume> volumes, double width, double depth)
         {
             const double slack = 0.02;
@@ -1178,7 +1178,6 @@ namespace CityX.World.Plan
             return result;
         }
 
-        /// <summary>A volume's footprint box in the lot frame.</summary>
         /// <summary>The highest ground at a block's foot: its four corners and the middles of its four sides.</summary>
         private static double HighestAtFoot(PlanFields fields, Vec2 centre, double axisX, double axisZ, MassVolume vol)
         {
@@ -1199,6 +1198,7 @@ namespace CityX.World.Plan
             return high;
         }
 
+        /// <summary>A volume's footprint box in the lot frame.</summary>
         private static void Box(MassVolume v, out double x0, out double x1, out double z0, out double z1)
         {
             double ex = Math.Abs(v.TurnX) * v.Width * 0.5 + Math.Abs(v.TurnZ) * v.Depth * 0.5;

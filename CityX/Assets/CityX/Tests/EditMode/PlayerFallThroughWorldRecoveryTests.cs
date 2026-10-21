@@ -6,7 +6,7 @@ using UnityEngine;
 namespace CityX.Tests
 {
     /// <summary>
-    /// EXPLICIT BUG REPORT, after extensive investigation
+    /// Bug report, after extensive investigation
     /// ([[spawn_clip_investigation_2026_09_04]] -- see that memory) could
     /// not pin a single reproducible cause on any of four different
     /// real-flow tests, all of which settled the real player onto real

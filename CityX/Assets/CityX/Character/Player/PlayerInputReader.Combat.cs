@@ -171,7 +171,7 @@ namespace CityX.Character
             // null` guard below since firing needs no fists at all.
             if (_grappleSwing != null && _grappleSwing.EquippedHook != null)
             {
-                // THE SAME AIM POSE A PISTOL USES -- EXPLICIT ASK: "use the
+                // THE SAME AIM POSE A PISTOL USES -- Requested: "use the
                 // pistol animation for the grapple gun." Right-click raises
                 // the arm via ApplyGunAimPose, the exact mechanism
                 // EquippedGun's own branch above uses -- purely the visual;

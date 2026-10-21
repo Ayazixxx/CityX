@@ -97,7 +97,7 @@ stations a building's worth each.
 
 ## Built so far
 
-**L2 footbridges (2026-10-15, `World/Footbridges.cs`, `View/CityMeshBuilder.Footbridges.cs`).** Between two ordinary blocks of three floors or more
+**L2 footbridges (2026-10-15, `World/Footbridges.cs`, `View/Buildings/CityMeshBuilder.Footbridges.cs`).** Between two ordinary blocks of three floors or more
 facing each other across a street 5-34 m wide (not round towers, sealed blocks, wings or set pieces; never on a wall of balconies or a walkway,
 a party wall, or where an expressway runs): a 2.8 m concrete deck with 1.25 m solid parapets and a handrail, from a doorway in a floor of one
 into a doorway in the matching floor of the other (the floors within 1.6 m of each other, the deck sloping between at no more than 1 in 10;

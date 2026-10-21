@@ -26,7 +26,7 @@ namespace CityX.View
         // Matches CityMassingSceneBuilder.WorldSeed -- a fallback default
         // for a CityStreamer added without one explicitly assigned; the
         // real scenes always set this from that same constant at build
-        // time. EXPLICIT ASK: "generate a new world every time you make a
+        // time. Requested: "generate a new world every time you make a
         // change to the city generation."
         public int WorldSeed = 19077151;
 
@@ -85,7 +85,7 @@ namespace CityX.View
         /// <summary>
         /// How many chunks around the real player get force-built
         /// synchronously in Awake, before anyone's own Update can run at
-        /// all -- EXPLICIT BUG REPORT: "the thing where i fall through at
+        /// all -- Bug report: "the thing where i fall through at
         /// the beginning... occurs every time i enter the game." Ordinary
         /// streaming is lazy and budgeted PER FRAME (see Update's own
         /// StreamAround call, ChunkBuildBudgetPerFrame chunks at a time) --

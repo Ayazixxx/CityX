@@ -31,7 +31,7 @@ namespace CityX.Character
         /// one key with two unrelated meanings and drain stamina for a
         /// mechanic the explicit ask says should not cost any.
         /// <paramref name="cameraPitchDegrees"/> is ThirdPersonCamera's own
-        /// Pitch for this frame -- EXPLICIT ASK, "make it curve and turn
+        /// Pitch for this frame -- Requested, "make it curve and turn
         /// with where your looking": flying forward angles the climb/dive
         /// rate to it instead of always pushing straight up (see
         /// Jetpack.ClimbVelocityFor's own doc comment for the actual math).

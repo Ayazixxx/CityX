@@ -7,7 +7,7 @@ using UnityEngine;
 namespace CityX.Tests
 {
     /// <summary>
-    /// An apartment block's faces (World/ApartmentFront, View/CityMeshBuilder.Apartment.cs): a balcony on every floor across the back wall and a
+    /// An apartment block's faces (World/ApartmentFront, View/Buildings/CityMeshBuilder.Apartment.cs): a balcony on every floor across the back wall and a
     /// walkway across the street wall, only on ordinary homes, the partitions on column lines (never across a window), the same stripes near
     /// and far, and nothing of it where a 2.6 m body walks or hanging through a slab.
     /// </summary>

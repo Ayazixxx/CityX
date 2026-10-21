@@ -6,7 +6,7 @@ namespace CityX.CharacterEditor
     /// <summary>
     /// Trims the raw Mixamo mocap imports for combat clips down to the exact
     /// windows the Godot original bakes its own combat animations to --
-    /// EXPLICIT BUG REPORT: "make the animations exactly the same they feel
+    /// Bug report: "make the animations exactly the same they feel
     /// different in unity," narrowed down to "poses and timing," combat
     /// specifically.
     ///

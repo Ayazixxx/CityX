@@ -45,18 +45,18 @@ accumulates and dries on its own clock, and consequences for the player.
 
 | Idea | Where |
 |---|---|
-| Rain only falls where there is open sky: a cover map | `View/RainCover.cs` |
-| Drops end at the first surface (roofs, decks), splashes at real landings | `View/RainEffect.cs` (`EmitOneDrop`, `ProcessLandings`) |
+| Rain only falls where there is open sky: a cover map | `View/Weather/RainCover.cs` |
+| Drops end at the first surface (roofs, decks), splashes at real landings | `View/Weather/RainEffect.cs` (`EmitOneDrop`, `ProcessLandings`) |
 | Ripples only on wet enough ground, denser in heavier rain | `Weather.RippleChance`, `RainEffect.RippleDensity` |
 | Wetness rises fast, falls slowly; the gloss goes before the darkness | `Weather.StepWetness`, `SheenFactor` |
 | Intensity levels: light / moderate / heavy, eased in and out | `Weather.LightRain`..`HeavyRain`, `RainEffect.SetRain` |
 | Rain sound muffled and quieter under cover | `Weather.ShelteredCutoffHz`, `ShelteredVolume` |
-| Thunder delayed by 343 m/s, duller and quieter with distance | `Weather.ThunderDelaySeconds`, `View/ThunderSynth.cs` |
-| Lightning: jagged bolt to a tall building, glow, whole sky flashes | `View/LightningBolt.cs`, `RainEffect.StrikeLightning`, `DayNightCycle.Flash` |
+| Thunder delayed by 343 m/s, duller and quieter with distance | `Weather.ThunderDelaySeconds`, `View/Weather/ThunderSynth.cs` |
+| Lightning: jagged bolt to a tall building, glow, whole sky flashes | `View/Weather/LightningBolt.cs`, `RainEffect.StrikeLightning`, `DayNightCycle.Flash` |
 | A storm greys the sky, fog and background TOGETHER | `SkyCycle.Weathered`, `DayNightCycle.Overcast` |
 | Wet ground: less traction | `Character/Movement/PlayerLocomotion.cs` (`Weather.GroundTraction`) |
 | Wet walls and ladders: more stamina, and a slow slide | `Character/Movement/WallStick.cs`, `Character/Movement/PlayerClimbing.cs` |
-| Rain weakens flames (reach and damage) | `Weapons/Flamethrower.cs` (`Weather.FlameStrength`) |
+| Rain weakens flames (reach and damage) | `Weapons/Firearms/Flamethrower.cs` (`Weather.FlameStrength`) |
 | Pedestrians hurry, and seek a roof | `Character/NPC/CivilianBrain.cs` (`IRainSense`) |
 | The player soaks, darkens and dries | `Character/Player/PlayerWetness.cs` |
 | Dev console | `/weather rain [light\|moderate\|heavy\|0.1-1]`, `clear`, `dry`, `lightning [metres]`, `status` |

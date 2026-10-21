@@ -47,7 +47,7 @@ namespace CityX.Character
         /// length (scratch_mixamo_bake.gd's HEAVY_PUNCH_WINDOW, [0.95,1.55])
         /// is 0.6s, not the 0.35s jab/PUNCH_COOLDOWN_SECONDS figure. The old
         /// 0.55s here was an independently-guessed number that matched
-        /// neither Godot figure -- EXPLICIT BUG REPORT: "make the animations
+        /// neither Godot figure -- Bug report: "make the animations
         /// exactly the same they feel different in unity," combat poses/
         /// timing specifically.
         /// </summary>

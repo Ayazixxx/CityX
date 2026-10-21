@@ -91,7 +91,7 @@ namespace CityX.Character
         /// How much a contact's own normal has to rotate from
         /// _lastJetpackCrashNormal before this counts as hitting a
         /// DIFFERENT wall rather than continuing to press into the same
-        /// one -- EXPLICIT BUG REPORT: "i bugged out when running into the
+        /// one -- Bug report: "i bugged out when running into the
         /// corner of the building with jetpack and got stuck into it
         /// instead ragdolling." A plain "was I touching A wall last frame"
         /// bool cannot tell a genuinely new impact apart from continuing to
@@ -133,7 +133,7 @@ namespace CityX.Character
         }
 
         /// <summary>
-        /// EXPLICIT BUG REPORT: "the crosshair doesnt seem to allign with
+        /// Bug report: "the crosshair doesnt seem to allign with
         /// where the bullet goes... maybe that was just for the fireball
         /// spell." It was: the fireball launches from a point on the
         /// player's own CHEST, but its own direction used to be
@@ -398,7 +398,7 @@ namespace CityX.Character
                 // on their own, and a corpse walking on the spot is audible.
                 _audio?.SilenceFootsteps();
 
-                // SAME REASONING, FOR THE JETPACK -- EXPLICIT BUG REPORT:
+                // SAME REASONING, FOR THE JETPACK -- Bug report:
                 // "when your using jetpack and crash into a surface and
                 // ragdoll, the jetpack also turns off even if your holding
                 // space." EquippedJetpack.Tick (the only place that stops
@@ -409,7 +409,7 @@ namespace CityX.Character
                 // is not flying anywhere any more.
                 EquippedJetpack?.StopThrustEffects();
 
-                // EXPLICIT BUG REPORT: "im still getting up at an angle when
+                // Bug report: "im still getting up at an angle when
                 // i ragdoll." Jetpack.Tick is the only thing that ever eases
                 // the body's own flight lean back toward upright, and it
                 // never runs while this branch keeps returning early -- so
@@ -439,14 +439,14 @@ namespace CityX.Character
                     // running its own Update().
                     _ragdoll.Tick(deltaTime);
 
-                    // EXPLICIT ASK: "the ragdoll can continue to take fall
+                    // Requested: "the ragdoll can continue to take fall
                     // damage." The torso's own Rigidbody is what is
                     // actually falling now, not the (disabled)
                     // CharacterController -- IsRestingOnGround is the
                     // closest thing it has to isGrounded while limp (see
                     // its own doc comment).
                     //
-                    // RETURN VALUE NOW CHECKED -- EXPLICIT BUG REPORT: "no
+                    // RETURN VALUE NOW CHECKED -- Bug report: "no
                     // second impact noise once i crash and then hit the
                     // ground and take fall damage a second time." A wall
                     // crash's own impact plays through the jetpackThrusting
@@ -627,7 +627,7 @@ namespace CityX.Character
                 _grappleSwing.Tick(swingMove, swingYaw, boostedRelease, plainRelease,
                     reelHeld, payoutHeld, deltaTime);
 
-                // EXPLICIT BUG REPORT: "make it so my limbs cant clip
+                // Bug report: "make it so my limbs cant clip
                 // through walls and get stuck... swinging around with
                 // grapple." A swing never ragdolls (Ragdoll.Activate's own
                 // "NEVER RAGDOLLS OUT OF AN ACTIVE SWING"), so the bones
@@ -878,7 +878,7 @@ namespace CityX.Character
             // key with two unrelated meanings and draining stamina for a
             // mechanic that is not supposed to cost any.
             //
-            // AIRBORNE ONLY -- EXPLICIT BUG REPORT: "when you press space on
+            // AIRBORNE ONLY -- Bug report: "when you press space on
             // the floor with jetpack on it just does boost right away but
             // make it so you can still jump with jetpack on and but when you
             // hold space mid air then it activates." Space used to mean
@@ -891,7 +891,7 @@ namespace CityX.Character
                 !_locomotion.IsGrounded;
 
             // A PARACHUTE TAKES A FRESH PRESS OF SPACE WHILE AIRBORNE, not a
-            // hold -- EXPLICIT ASK: "press space and open and close it."
+            // hold -- Requested: "press space and open and close it."
             // wasPressedThisFrame rather than isPressed, since this is a
             // toggle (open, then a second press later closes it again), not
             // a held state the way jetpack thrust is. Airborne-only for the
@@ -951,7 +951,7 @@ namespace CityX.Character
             else if (soulsArmed && soulsNow.IsCommitted)
             {
                 // THE SWORD'S SWINGS PLAY ON THE UPPER BODY, so the legs walk
-                // under them -- EXPLICIT ASK: "make the legs walk and not freeze
+                // under them -- Requested: "make the legs walk and not freeze
                 // up during sword use too." A committed swing still slows you
                 // hard (CommittedMoveSpeedFraction), it just no longer nails your
                 // feet to the floor; 0 there restores the old full root.
@@ -1005,7 +1005,7 @@ namespace CityX.Character
             }
 
             // A JETPACK TAKES SPACE OVER ONLY ONCE ACTUALLY AIRBORNE --
-            // EXPLICIT BUG REPORT: "when you press space on the floor with
+            // Bug report: "when you press space on the floor with
             // jetpack on it just does boost right away but make it so you
             // can still jump with jetpack on and but when you hold space
             // mid air then it activates." While grounded, jetpackThrusting
@@ -1016,7 +1016,7 @@ namespace CityX.Character
             // ask ("mixed with wasd to move around").
             //
             // STILL CALLED EVERY FRAME WHILE EQUIPPED, GROUNDED OR NOT --
-            // EXPLICIT BUG REPORT: "after i crash and recover sometimes i
+            // Bug report: "after i crash and recover sometimes i
             // am stuck at an angle." This used to be gated on
             // `!_locomotion.IsGrounded`, so the instant the player landed
             // (including standing back up from a crash ragdoll) Tick simply
@@ -1037,7 +1037,7 @@ namespace CityX.Character
                 EquippedJetpack.Tick(jetpackThrusting, move, keyboard.leftShiftKey.isPressed, deltaTime, cameraPitch);
             }
 
-            // EXPLICIT BUG REPORT: "make it so my limbs cant clip through
+            // Bug report: "make it so my limbs cant clip through
             // walls and get stuck when im flying around with jetpack." Only
             // while actually thrusting (matches jetpackThrusting's own
             // airborne-and-holding-space gate) -- a crash hard enough to
@@ -1139,7 +1139,7 @@ namespace CityX.Character
             float horizontalSpeedBeforeMove = _locomotion.CurrentSpeed;
             _locomotion.Tick(input, deltaTime);
 
-            // EXPLICIT ASK: "horizontal 'fall damage' when using the jetpack
+            // Requested: "horizontal 'fall damage' when using the jetpack
             // and you crash into a wall... if the amount of damage you take
             // doesnt kill you, you still ragdoll." Gated on jetpackThrusting
             // specifically, not just EquippedJetpack != null -- an ordinary
@@ -1153,7 +1153,7 @@ namespace CityX.Character
             // the wall, and applying fresh damage each of those frames
             // would be continuous, not a single impact.
             //
-            // HitWallThisFrame, NOT CollisionFlags.Sides -- EXPLICIT BUG
+            // HitWallThisFrame, NOT CollisionFlags.Sides -- Bug
             // REPORT: "the jetpack sideways fall damage thing still hasnt
             // worked, make it do it upon my playermodel coming into
             // contact with the wall or object." CollisionFlags is a coarse
@@ -1177,7 +1177,7 @@ namespace CityX.Character
                         _audio?.PlayFallImpact();
                         if (!_vitals.IsDead)
                         {
-                            // EXPLICIT BUG REPORT: "whenever i fly into a
+                            // Bug report: "whenever i fly into a
                             // wall or window i just get stuck in it" --
                             // STILL true after a first attempt at a fixed
                             // pull-back nudge here (a guess at how far a

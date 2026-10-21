@@ -32,7 +32,6 @@ namespace CityX.Tests
             _made.Clear();
         }
 
-        /// <summary>A building's street wall with a row of glazed windows in clear air, and where to stand to spray it.</summary>
         /// <summary>Up to <paramref name="most"/> door-side facades near spawn with at least four glazed windows in their first two upper rows.</summary>
         private static List<(List<Vector3> panes, Vector3 outward)> FindFacades(CityWorld world, int most)
         {
@@ -60,6 +59,7 @@ namespace CityX.Tests
             return facades.Count > 0;
         }
 
+        /// <summary>A building's street wall with a row of glazed windows in clear air, and where to stand to spray it.</summary>
         private static bool FacadeOf(CityWorld world, BuildingSite site, out List<Vector3> panes, out Vector3 outward)
         {
             {

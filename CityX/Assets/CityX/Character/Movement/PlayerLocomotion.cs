@@ -25,7 +25,7 @@ namespace CityX.Character
     /// network input without changing.
     /// </summary>
     [RequireComponent(typeof(CharacterController))]
-    // EARLIER THAN DEFAULT, ON PURPOSE -- EXPLICIT BUG, found live: Unity
+    // EARLIER THAN DEFAULT, ON PURPOSE -- Bug, found live: Unity
     // does not guarantee LateUpdate order between separate MonoBehaviours
     // on the same GameObject (this project's own history already hit this
     // once for GrappleSwing, see SuppressImplausibleArmSnaps's own doc
@@ -51,7 +51,7 @@ namespace CityX.Character
 
         /// <summary>
         /// How much faster than SprintSpeed a full W+shift jetpack dive
-        /// travels -- EXPLICIT ASK: "the jetpack goes twice as fast" for
+        /// travels -- Requested: "the jetpack goes twice as fast" for
         /// that specific hold. Applied on top of the jetpack's own already-
         /// boosted SprintSpeed rather than WalkSpeed, since JetpackDiving
         /// only ever fires alongside JetpackBoosting (see LocomotionInput.
@@ -415,7 +415,7 @@ namespace CityX.Character
         /// A real, direct contact against a wall-like surface (a building,
         /// a window -- anything roughly vertical) during THIS frame's own
         /// Move -- set from OnControllerColliderHit's own per-contact
-        /// normal, not derived from CollisionFlags. EXPLICIT BUG REPORT:
+        /// normal, not derived from CollisionFlags. Bug report:
         /// "the jetpack sideways fall damage thing still hasnt worked...
         /// make it do it upon my playermodel coming into contact with the
         /// wall or object" -- CollisionFlags.Sides (LastMoveCollisionFlags
@@ -451,7 +451,7 @@ namespace CityX.Character
         /// A hard floor no legitimate ground ever sits below --
         /// TerrainField.SeaLevel is 0 and TotalRelief tops out at 72, so
         /// nothing in this world's own terrain, streets or building podiums
-        /// is ever built anywhere near this low. EXPLICIT BUG REPORT,
+        /// is ever built anywhere near this low. Bug report,
         /// repeated after extensive investigation could not pin a single
         /// reproducible cause on any of four different real-flow tests
         /// (direct Tick, the real PlayerInputReader dispatch, a real
@@ -537,13 +537,6 @@ namespace CityX.Character
         public bool IsDashing => _dashRemaining > 0.0f;
 
         /// <summary>
-        /// Sends the body into a dash along <paramref name="direction"/>.
-        ///
-        /// THE DIRECTION IS LOCKED IN HERE rather than read live each step.
-        /// That is what makes a dash a committed lunge: turning mid-burst
-        /// would let it be steered, which is a different move.
-        /// </summary>
-        /// <summary>
         /// Hands the body's own persistent vertical velocity to whatever a
         /// caller just computed, without touching anything else about how
         /// the next Tick runs.
@@ -623,6 +616,13 @@ namespace CityX.Character
             _residualVelocity = horizontalVelocity;
         }
 
+        /// <summary>
+        /// Sends the body into a dash along <paramref name="direction"/>.
+        ///
+        /// THE DIRECTION IS LOCKED IN HERE rather than read live each step.
+        /// That is what makes a dash a committed lunge: turning mid-burst
+        /// would let it be steered, which is a different move.
+        /// </summary>
         public void StartDash(Vector3 direction)
         {
             direction.y = 0.0f;
@@ -809,7 +809,7 @@ namespace CityX.Character
             // Only guarded while the Animator is actually live: the whole
             // point is to stop a bad Mecanim transition from ever reaching
             // the bone in the first place, so a subsequent console/grapple
-            // freeze captures the good, corrected pose. EXPLICIT BUG, found
+            // freeze captures the good, corrected pose. Bug, found
             // live TWICE: an unconditional placement (matching hips/spine
             // above) was tried both to keep tracking data fresh through an
             // ownership window and to let a synthetic test-injected snap
@@ -890,7 +890,7 @@ namespace CityX.Character
         }
 
         /// <summary>
-        /// EXPLICIT BUG REPORT: opening the console mid-jump "plays the
+        /// Bug report: opening the console mid-jump "plays the
         /// rest of the jump animation after the console freezes the rest
         /// of the game" -- a real, if cosmetic, side effect of no longer
         /// disabling the Animator on console-open at all (see
@@ -951,7 +951,7 @@ namespace CityX.Character
 
             // ALWAYS FED AS STRAIGHT FORWARD IN LOCAL SPACE -- never the
             // swing's own true direction, even smoothed and magnitude-
-            // clamped. EXPLICIT BUG, found live by PoseDistortionWatchdogPlayTests.
+            // clamped. Bug, found live by PoseDistortionWatchdogPlayTests.
             // ARealVariedSwingNeverTriggersTheWatchdog, through TWO earlier
             // versions of this method that both still failed it: the first
             // fed the raw world velocity straight to Speed/MoveX/MoveZ; the
@@ -1443,7 +1443,7 @@ namespace CityX.Character
             // instead of snapping.
             //
             // AIMING SNAPS INSTANTLY INSTEAD, EVEN WHILE MOVING -- CHECKED
-            // FIRST, ahead of "moving". EXPLICIT BUG REPORT: "fix the pistol
+            // FIRST, ahead of "moving". Bug report: "fix the pistol
             // make it so you hold it straight crosshair centered character
             // not at weird angle," later repeated specifically for walking
             // while holding right-click: "he is rotated to the left." The

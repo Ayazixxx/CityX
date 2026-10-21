@@ -50,7 +50,7 @@ namespace CityX.Character
     {
         /// <summary>
         /// How far away another player is still worth seeing, in metres.
-        /// EXPLICIT ASK: "lets say there was 1000 players in the same areas
+        /// Requested: "lets say there was 1000 players in the same areas
         /// all wearing outfits do you think the game would be able to
         /// handle that" -- answered honestly as no at the time: every
         /// player observed every other player regardless of distance

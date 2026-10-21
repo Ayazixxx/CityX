@@ -59,16 +59,16 @@ my layout, as are the trees' order and the two not in the game.
 leap back to the same street is free and one off a roof costs what stepping off would. Without this every full leap cost about a fifth of the
 health (it rises past the 12.8 m safe fall).
 
-### The bar (`Hotbar`, `UI/HotbarView.cs`)
+### The bar (`Hotbar`, `UI/Hud/HotbarView.cs`)
 
 - Ten round slots on **1 to 9 and 0**, all equal, in the **bottom-left corner** of the HUD: a gold ring, a dark face, the skill's icon in pale
   gold, the key at the lower right. An empty slot is a dim ring; a sword technique with no sword in hand is greyed; a slot flashes when its key
   goes down. It steps aside while the chat line (same corner) is open.
 - A skill sits in one slot at most; a newly learnt spell goes in the first empty slot. Movement never goes on the bar.
-- Built when the HUD wakes, from code-drawn art (`HudArt.Disc`, `HudArt.Ring`) and code-drawn icons (`UI/SkillIcons.cs`): no image files, no
+- Built when the HUD wakes, from code-drawn art (`HudArt.Disc`, `HudArt.Ring`) and code-drawn icons (`UI/Menus/SkillIcons.cs`): no image files, no
   prefab rebuild.
 
-### The menu (`UI/SkillMenuView.cs`, `UI/SkillMapLayout.cs`)
+### The menu (`UI/Menus/SkillMenuView.cs`, `UI/Menus/SkillMapLayout.cs`)
 
 C, Player, Skills. A night sky, the trees side by side, each growing up from its name. **Drag** anywhere to move (sideways and up); the **wheel**
 slides along the row; **Ctrl + wheel** or the **- / +** buttons zoom; **Show all** fits the whole row. The row **wraps round** like Skyrim's

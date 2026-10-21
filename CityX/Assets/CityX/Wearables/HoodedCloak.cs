@@ -173,7 +173,7 @@ namespace CityX.Wearables
         /// the spread onto arm.localRotation every frame is only safe
         /// because the Animator overwrites this same bone with the clean
         /// clip pose earlier in the very same frame, every frame, while it
-        /// is enabled. EXPLICIT BUG REPORT: wearing the cloak while opening
+        /// is enabled. Bug report: wearing the cloak while opening
         /// the dev console (which disables the Animator the same way
         /// Ragdoll.Activate and GrappleSwing.Attach already do, for its own
         /// unrelated reason -- see DevConsoleView.Open's own comment) left

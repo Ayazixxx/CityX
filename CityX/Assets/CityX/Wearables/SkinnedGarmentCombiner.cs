@@ -6,7 +6,7 @@ namespace CityX.Wearables
     /// <summary>
     /// One SkinnedMeshRenderer shared by every currently-worn skinned
     /// garment on a player, replacing the one-renderer-per-item that
-    /// SkinnedGarment.OnEquip used to build directly. EXPLICIT ASK:
+    /// SkinnedGarment.OnEquip used to build directly. Requested:
     /// preparing the equip pipeline for "100s if not 1000s" of clothing
     /// items worn by many players in the same area at once -- a real GPU
     /// skin evaluation runs once per SkinnedMeshRenderer regardless of how

@@ -7,7 +7,7 @@ using UnityEngine;
 namespace CityX.Tests
 {
     /// <summary>
-    /// EXPLICIT BUG REPORT, with a screenshot: "whenever i fly into a wall
+    /// Bug report, with a screenshot: "whenever i fly into a wall
     /// or window i just get stuck in it" -- an arm visibly embedded in a
     /// building wall after a jetpack crash. STILL true after a first
     /// attempt at this fix (a fixed PlayerInputReader.CrashPullBackDistance
@@ -144,7 +144,7 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// EXPLICIT BUG REPORT: "make it so my limbs cant clip through
+        /// Bug report: "make it so my limbs cant clip through
         /// walls and get stuck when im flying around with jetpack." A hard
         /// enough crash ragdolls and gets cleared by Activate's own
         /// DepenetrateFromWorld (see the test above) -- but plenty of real
@@ -221,7 +221,7 @@ namespace CityX.Tests
     }
 
     /// <summary>
-    /// EXPLICIT BUG REPORT: "i bugged out when running into the corner of
+    /// Bug report: "i bugged out when running into the corner of
     /// the building with jetpack and got stuck into it instead ragdolling."
     /// See PlayerInputReader.NewWallContactAngleDegrees' own doc comment
     /// for the full root cause -- a plain "was I touching A wall last

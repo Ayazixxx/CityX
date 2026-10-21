@@ -20,7 +20,7 @@ namespace CityX.View
     }
 
     /// <summary>
-    /// A book you can walk up to and press E to read. EXPLICIT ASK: "add
+    /// A book you can walk up to and press E to read. Requested: "add
     /// books and when you press E on them it opens a page on screen with
     /// text ive prepared but just make the system for now" -- this is that
     /// system. Title/Body are plain public fields rather than a registry or

@@ -11,7 +11,7 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// EXPLICIT BUG REPORT: "im still getting up at an angle when i
+    /// Bug report: "im still getting up at an angle when i
     /// ragdoll." This came right after a previous fix
     /// (JetpackGroundedJumpPlayTests.LandingWithAnExistingLeanStraightensItBackUpright)
     /// that made Jetpack.Tick run unconditionally once grounded -- but a

@@ -311,7 +311,7 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// EXPLICIT ASK: "the character just goes limp and ragdolls
+        /// Requested: "the character just goes limp and ragdolls
         /// immediately no animation... lets see if its something do it with
         /// it being playable" -- Bodies is an empty array rather than a real
         /// built rig, since the DISPATCH path is what's under test here
@@ -341,7 +341,7 @@ namespace CityX.Tests
                     "going limp should stop normal locomotion too, not just play dead visually");
                 Assert.IsFalse(bubble.IsShowing, "/sleep should never show as a speech bubble");
 
-                // EXPLICIT ASK: "make it so i can press space to get up at
+                // Requested: "make it so i can press space to get up at
                 // any time after /sleep is used" -- see Ragdoll.CanStandUp's
                 // own doc comment for why /sleep passes allowImmediateStandUp.
                 Assert.IsTrue(ragdoll.CanStandUp,

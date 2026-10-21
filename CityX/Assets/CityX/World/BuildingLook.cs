@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace CityX.World
 {
-    /// <summary>The eight wall materials in the facade texture array. The numbers ARE the slice numbers (View/FacadeTextures.cs).</summary>
+    /// <summary>The eight wall materials in the facade texture array. The numbers ARE the slice numbers (View/Buildings/FacadeTextures.cs).</summary>
     public enum WallMaterial
     {
         Concrete = 0,
@@ -21,7 +21,7 @@ namespace CityX.World
     ///
     /// WHY A LOOK AND NOT A MATERIAL. A city of one concrete reads as a toy (that is what the Roblox complaint was). But the frame rate
     /// follows draw calls (docs/PERFORMANCE.md), so a brick block and a metal-clad shed cannot be two materials: they are one shader that
-    /// reads this off the vertices (View/SurfaceLook.cs).
+    /// reads this off the vertices (View/Buildings/SurfaceLook.cs).
     ///
     /// THE PALETTE IS RESTRAINED ON PURPOSE. The aim is a dense, weathered megacity that is rich but not overwhelming: most walls are
     /// concrete, plaster and brick in muted tints, glass towers carry a cool dark tint, and the few strong colours (tile, painted metal)

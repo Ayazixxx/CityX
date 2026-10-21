@@ -15,7 +15,7 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// EXPLICIT ASK: "make sure things like jump and punch are shared
+    /// Requested: "make sure things like jump and punch are shared
     /// between players." NetworkedAnimatorSync already mirrored the
     /// CONTINUOUS animation state (walking, aiming, ...) but deliberately
     /// skipped one-shot actions -- a jump or a punch happens once, so it

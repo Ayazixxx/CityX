@@ -10,7 +10,7 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// EXPLICIT ASK, verified end to end through the real saved scene's own
+    /// Requested, verified end to end through the real saved scene's own
     /// dev console and real player, not just the pure mechanic already
     /// covered in ParachuteTests -- same "batch diagnostics are not proof,
     /// real Play Mode is" reasoning JetpackRealScenePlayTests' own doc
@@ -65,7 +65,7 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// EXPLICIT DESIGN DECISION: Parachute reuses Jetpack's own "back"
+        /// Design decision: Parachute reuses Jetpack's own "back"
         /// equip slot (see ItemRegistry.Parachute's own doc comment) so
         /// wearing both at once -- which would not mean anything, since
         /// Space could only ever talk to one of them -- is impossible for

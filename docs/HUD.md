@@ -44,7 +44,7 @@ percentages on hover, cooldown sweeps on the bar's slots.
 
 Owner: "make the hotbar and portrait in the top left fade away when you open the c menu". While the C menu or any page it opens is up (the
 Player fly-out's Loadout, Stats, Skills and Items, Quests and Social, the map), the portrait frame (`StatusFrame`, top left) and the hotbar
-(bottom left) fade out over 0.2 s and come back the same way when it shuts (`UI/MenuHudFade.cs`, added by `PlayerHud.Awake` like the hotbar,
+(bottom left) fade out over 0.2 s and come back the same way when it shuts (`UI/Hud/MenuHudFade.cs`, added by `PlayerHud.Awake` like the hotbar,
 so no scene rebuild: the frame is found by name and given a CanvasGroup; the hotbar reads the same visibility into its own, which already hid
 it for the chat). Real time, so a slowed game cannot slow the fade. Test: `MenuHudFadePlayTests` (half-faded mid-way, gone, back).
 

@@ -8,7 +8,7 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// EXPLICIT BUG REPORT, round 8 of the console/grapple stretch saga
+    /// Bug report, round 8 of the console/grapple stretch saga
     /// (see grapple_swing_deprioritized memory): round 7 fixed a real
     /// permanent-lockup bug, but the user reported the glitch STILL
     /// happening. A fresh watchdog log entry taken right after showed FIVE

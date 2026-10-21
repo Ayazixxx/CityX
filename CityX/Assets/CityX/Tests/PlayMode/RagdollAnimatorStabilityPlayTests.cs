@@ -8,7 +8,7 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// EXPLICIT GAP, found live from a REAL PoseDistortionWatchdog log entry
+    /// Gap, found live from a REAL PoseDistortionWatchdog log entry
     /// during actual play (not a synthetic test): `Swing.IsActive: False,
     /// Console.IsOpen: False, Animator.enabled: False` -- neither of the two
     /// systems the whole "console and grapple wildly stretches the body"

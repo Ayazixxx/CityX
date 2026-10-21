@@ -101,7 +101,7 @@ namespace CityX.Tests
             Assert.IsTrue(_combat.IsCommitted, "a real click never started a swing");
             Assert.AreEqual(_combat.Light1.Animation, _combat.CurrentAttack.Animation);
 
-            // Held W through the whole swing. EXPLICIT ASK: "make the legs walk
+            // Held W through the whole swing. Requested: "make the legs walk
             // and not freeze up during sword use too" -- the swing plays on the
             // upper body now, so the body WALKS under it, but a committed swing
             // still slows you hard (CommittedMoveSpeedFraction). It used to be

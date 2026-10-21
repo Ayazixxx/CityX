@@ -251,8 +251,7 @@ namespace CityX.WearablesEditor
         /// Binding arms-down vertex data against T-pose bone positions was
         /// the actual cause of the cloak's sleeves visibly tearing away
         /// from the arms: see RestBones's own doc comment for the numbers.
-        /// </summary>
-        /// <summary>
+        ///
         /// hooded_cloak.gd/skelli_jeans.gd's own rest never needed this: Godot's
         /// body has no T-pose at all, it just sits arms-down, so a plain
         /// translation-only bind (Basis(), -origin -- see _rebind()) was always

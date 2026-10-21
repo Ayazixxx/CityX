@@ -31,7 +31,7 @@ namespace CityX.Tests
     /// Early fixes (see grapple_swing_deprioritized memory) kept
     /// progressively refining the hand-off's ORDERING so the two systems
     /// stopped fighting over the same skeleton -- but the hand-off itself
-    /// still read as a glitch. EXPLICIT, REPEATED ASK settled it instead:
+    /// still read as a glitch. Repeated request settled it instead:
     /// "remove the ragdoll function completely and revert back to him just
     /// being still" -- Ragdoll.Activate now never ragdolls out of an active
     /// swing at all, it just releases the rope and leaves the character
@@ -57,7 +57,7 @@ namespace CityX.Tests
         {
             // See LocomotionAnimatorStabilityPlayTests's own TearDown
             // comment for why this is set and why it must always be
-            // cleared, pass or fail. EXPLICIT BUG, found live while
+            // cleared, pass or fail. Bug, found live while
             // diagnosing an apparent PoseDistortionWatchdog violation in
             // this exact test: this file predates that fix and never got
             // it, so the swing's own real-time-based reach-pose

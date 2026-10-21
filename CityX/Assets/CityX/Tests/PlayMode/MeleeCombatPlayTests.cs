@@ -59,7 +59,6 @@ namespace CityX.Tests
             Step(FullSwing());
         }
 
-        /// <summary>Advances time in small slices so contact moments are not skipped.</summary>
         /// <summary>How long the swing in progress takes to play out (each unarmed strike has its own length: see FistStrikes), plus a hair.</summary>
         private float FullSwing()
         {
@@ -67,6 +66,7 @@ namespace CityX.Tests
             return seconds + 0.01f;
         }
 
+        /// <summary>Advances time in small slices so contact moments are not skipped.</summary>
         private void Step(float seconds, float slice = 1.0f / 60.0f)
         {
             for (float t = 0.0f; t < seconds; t += slice)
@@ -385,7 +385,7 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// EXPLICIT ASK: "add a spin attack with the sword press 2 to use
+        /// Requested: "add a spin attack with the sword press 2 to use
         /// it. its like links up special in smash bros he just spins
         /// around with the sword for a bit."
         /// </summary>
@@ -584,7 +584,7 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// EXPLICIT BUG REPORT, root-caused directly with the spin attack's
+        /// Bug report, root-caused directly with the spin attack's
         /// own diagnostic render: an Animator that has never actually
         /// evaluated a single real frame yet sits at the raw imported BIND
         /// POSE, same root cause GrappleSwing.Attach/DevConsoleView.Open

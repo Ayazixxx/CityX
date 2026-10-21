@@ -3,7 +3,7 @@ using UnityEngine;
 namespace CityX.Weapons
 {
     /// <summary>
-    /// A brief visible streak from muzzle to impact -- EXPLICIT ASK: "i want
+    /// A brief visible streak from muzzle to impact -- Requested: "i want
     /// you to do bullets the same as csgo... effectively the same (zero
     /// travel time) for all guns... the visible bullet tracers are purely
     /// cosmetic particle effects. They do not affect hit registration."
@@ -37,8 +37,8 @@ namespace CityX.Weapons
         public const float FollowSeconds = 0.05f;
 
         /// <summary>
-        /// How wide the streak is ON SCREEN, in pixels, wherever it is -- EXPLICIT
-        /// BUG REPORT: "bullet trails ... most of the time they arent showing up
+        /// How wide the streak is ON SCREEN, in pixels, wherever it is --
+        /// Bug report: "bullet trails ... most of the time they arent showing up
         /// at all." The streak was a fixed 1.5cm wide, which at 4-8m from the
         /// camera is about ONE pixel, and it lived for 0.05s (three frames): a
         /// hairline that came and went before the eye could catch it. A
@@ -166,6 +166,12 @@ namespace CityX.Weapons
             return Mathf.Clamp(worldPerPixel * PixelWidth, Width, MaxWorldWidth);
         }
 
+        /// <summary>Makes the shared material now (a gun being drawn), so the first shot does not pay for it.</summary>
+        public static void Warm()
+        {
+            EnsureMaterial();
+        }
+
         /// <summary>
         /// One shared, additive-blended material for every tracer -- the
         /// same "Particles/Unlit + additive" combination FlamethrowerBuilder
@@ -175,12 +181,6 @@ namespace CityX.Weapons
         /// irrelevant here, a LineRenderer needs no texture at all to
         /// render as a solid streak).
         /// </summary>
-        /// <summary>Makes the shared material now (a gun being drawn), so the first shot does not pay for it.</summary>
-        public static void Warm()
-        {
-            EnsureMaterial();
-        }
-
         private static Material EnsureMaterial()
         {
             if (_material != null)

@@ -116,7 +116,7 @@ namespace CityX.Character
         /// JetpackTests.TheRealTopDiveSpeedIsActuallyFastEnoughToTriggerCrashDamage:
         /// reusing SafeFallDistance itself gave a threshold of 15.85 m/s
         /// against a jetpack dive that only ever reaches 15.0 m/s (an
-        /// EXPLICIT ASK -- see PlayerLocomotion.JetpackDiveSpeedMultiplier's
+        /// Requested -- see PlayerLocomotion.JetpackDiveSpeedMultiplier's
         /// own doc comment -- so the speed side is not this fix's to
         /// change), meaning the single fastest way to hit a wall with this
         /// jetpack could never clear the bar. This is what "the jetpack
@@ -467,7 +467,7 @@ namespace CityX.Character
         }
 
         /// <summary>
-        /// EXPLICIT ASK: "if the amount of damage you take doesnt kill you,
+        /// Requested: "if the amount of damage you take doesnt kill you,
         /// you still ragdoll when you crash into something when using the
         /// jetpack." Same knockback shape as TriggerFinisherKnockdown
         /// (reuses its own speed constants -- a hard impact reads the same
@@ -475,7 +475,7 @@ namespace CityX.Character
         /// FinisherRagdollSeconds' own timed auto-recovery: a jetpack crash
         /// instead uses Ragdoll's own manual "press space once resting
         /// StandUpRestSeconds" recovery (see Ragdoll.CanStandUp/
-        /// BeginStandingUp) -- EXPLICIT ASK, "press space to stand up once
+        /// BeginStandingUp) -- Requested, "press space to stand up once
         /// your on the floor for 2.5 seconds."
         /// </summary>
         public void TriggerCrashKnockdown(Vector3 awayDirection)
@@ -1126,7 +1126,7 @@ namespace CityX.Character
 
         /// <summary>
         /// Fall damage's own formula, applied to a jetpack crash into a wall
-        /// instead of a drop -- EXPLICIT ASK: "horizontal fall damage when
+        /// instead of a drop -- Requested: "horizontal fall damage when
         /// using the jetpack and you crash into a wall... calculated same
         /// as fall damage but instead horizontal."
         ///

@@ -6,7 +6,7 @@ using UnityEngine;
 namespace CityX.ViewEditor
 {
     /// <summary>
-    /// Bakes the eight procedural wall materials (View/FacadeTextures.cs) to two PNG atlases, sets them to import as 2D texture arrays,
+    /// Bakes the eight procedural wall materials (View/Buildings/FacadeTextures.cs) to two PNG atlases, sets them to import as 2D texture arrays,
     /// and makes the facade material that reads them.
     ///
     ///   Assets/CityX/View/Textures/FacadeAlbedo.png   4 x 3 grid of 512 px tiles: albedo rgb, smoothness in alpha

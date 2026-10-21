@@ -8,7 +8,7 @@ namespace CityX.Tests
 {
     /// <summary>
     /// World Gacha phase 3, the finer street detail: window canopies (庇) over the upper windows of homes (FacadeOrnament.CanopyDepth), shops with
-    /// their roller shutters down and the band of shop signs over the shopfronts (World/Shopfronts, View/CityMeshBuilder.Shopfronts.cs).
+    /// their roller shutters down and the band of shop signs over the shopfronts (World/Shopfronts, View/Buildings/CityMeshBuilder.Shopfronts.cs).
     /// </summary>
     public sealed class StreetDetailTests
     {

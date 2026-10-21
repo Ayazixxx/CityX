@@ -7,7 +7,7 @@ using UnityEngine;
 namespace CityX.Tests
 {
     /// <summary>
-    /// Pitched roofs (World/RoofShape, View/CityMeshBuilder.Roofs.cs): only on low buildings and warehouses that stand free, walkable, closing the
+    /// Pitched roofs (World/RoofShape, View/Buildings/CityMeshBuilder.Roofs.cs): only on low buildings and warehouses that stand free, walkable, closing the
     /// building from eave to ridge, with no stair up to them, no parapet and no cornice; and common enough out of the centre to be seen.
     /// </summary>
     public sealed class RoofShapeTests

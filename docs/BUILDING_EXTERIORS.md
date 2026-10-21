@@ -161,9 +161,9 @@ Direction given: **dense megacity, but not so crowded it overwhelms**; "proceed 
 replace them with their own). Built so far, in the order of section 5:
 
 1. **Material and light pass.** One facade shader (`View/Shaders/CityXFacade.shader`, URP Lit's passes with the surface replaced) reads each vertex's *look*
-   (`View/SurfaceLook.cs`: tint, one of eight wall materials, wear) and draws it from texture arrays. `MeshBuffer` carries a `Look` and a `UvOffset` per building.
+   (`View/Buildings/SurfaceLook.cs`: tint, one of eight wall materials, wear) and draws it from texture arrays. `MeshBuffer` carries a `Look` and a `UvOffset` per building.
    `World/BuildingLook.cs` decides a building's walls, ground floor, roof, trim, frames and glass tint from its seed, zone and facade style (restrained palettes,
-   district wear). The eight materials (`View/FacadeTextures.cs`: concrete, brick, plaster, metal, stone, tile, glazed spandrel, roof) are drawn procedurally to
+   district wear). The eight materials (`View/Buildings/FacadeTextures.cs`: concrete, brick, plaster, metal, stone, tile, glazed spandrel, roof) are drawn procedurally to
    `View/Textures/FacadeAlbedo.png` and `FacadeNormal.png` (4 x 2 grids of 512 px tiles, imported as texture arrays). **Replace the two PNGs with your own set on the same
    grid and slice order and they are used as they are** (`CityX/Generate Facade Textures` never overwrites existing ones; `Regenerate` does). The roof is its own material, in
    the wall buffer, so a building is still one draw. The rain's wetness reaches the walls through a global (`_CityXWetness`).

@@ -33,7 +33,7 @@ Rules, all tested in `BuildingShapeTests`:
 
 - A roof with a sealed block on it (`BuildingSite.RoofSealed`) has no stair up to it (`BuildingStairs.Layout.RoofCovered`): there would be nowhere to come out.
 
-## Round towers (`World/RoundFootprint.cs`, `View/CityMeshBuilder.Round.cs`)
+## Round towers (`World/RoundFootprint.cs`, `View/Buildings/CityMeshBuilder.Round.cs`)
 
 `BuildingSite.Sides` > 0: the outline is a regular polygon whose corners lie on the circle `Width` across (`Width == Depth`), side 0 facing the front with the door.
 - **Every side is a short flat wall built by the ordinary wall code.** The buffers' frame is turned to each side (building turn, then side turn, out at the

@@ -10,7 +10,7 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// EXPLICIT ASK: "add rainy weather, in console /weather rain... make it
+    /// Requested: "add rainy weather, in console /weather rain... make it
     /// look reallllly good." /weather rain/clear already existed end to end
     /// before this; what is new is everything RainEffect now reaches beyond
     /// its own particles -- checked here through the real dev console
@@ -69,7 +69,7 @@ namespace CityX.Tests
             Assert.IsTrue(rain.IsActive, "/weather rain did not activate the real rain particles");
 
             // WAITING ON THE REAL CONDITION, NOT A FIXED FRAME COUNT --
-            // EXPLICIT BUG, caught directly rather than assumed away: a
+            // Bug, caught directly rather than assumed away: a
             // batch-mode PlayMode run has no fixed frame rate at all (this
             // project's own tooling notes ~2500fps headless), so "300
             // frames" is nowhere near "5 real seconds" and StormStrength

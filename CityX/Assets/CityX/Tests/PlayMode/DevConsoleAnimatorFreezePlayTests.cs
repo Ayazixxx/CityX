@@ -8,7 +8,7 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// EXPLICIT ASK, after seven rounds of the console/grapple distortion
+    /// Requested, after seven rounds of the console/grapple distortion
     /// saga (see grapple_swing_deprioritized memory): "remove the console
     /// function and rebuild it entirely if you have to, just get rid of
     /// it." DevConsoleView.Open() used to disable the player's Animator to

@@ -328,11 +328,6 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// Clicking past the silhouette must not paint. If it did, the
-        /// backdrop would be dragging colour onto whatever part of the atlas a
-        /// stray ray happened to resolve to.
-        /// </summary>
-        /// <summary>
         /// The face, which is a DIFFERENT MESH ON A DIFFERENT COLLIDER.
         ///
         /// The skull left the body's shape field when it stopped being fused
@@ -397,6 +392,11 @@ namespace CityX.Tests
                 + "landing at the wrong offset in the shared index space");
         }
 
+        /// <summary>
+        /// Clicking past the silhouette must not paint. If it did, the
+        /// backdrop would be dragging colour onto whatever part of the atlas a
+        /// stray ray happened to resolve to.
+        /// </summary>
         [UnityTest]
         public IEnumerator AClickOnEmptySpaceLeavesTheBodyAlone()
         {

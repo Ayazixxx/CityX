@@ -53,7 +53,7 @@ CityX.exe                                   # singleplayer
 
 ## 3. Connecting (title screen)
 
-`UI/TitleMultiplayerView` drives it:
+`UI/Title/TitleMultiplayerView` drives it:
 - **Host** -> `Bootstrap.Begin(HostedWorld, LaunchArgs.For(HostedWorld, loopback, port))`; success/failure is known synchronously.
 - **Join** -> `Bootstrap.Begin(RemoteClient, ...)`; there is no synchronous answer, so it subscribes to `ClientManager.OnClientConnectionState` and reacts to the real result.
 
@@ -161,7 +161,7 @@ R&D for scale and feel, kept separate from the real player:
 | Area | Path |
 |---|---|
 | Modes / args | `CityX/Assets/CityX/Core/GameMode.cs`, `Core/LaunchArgs.cs` |
-| Startup | `Net/NetworkBootstrap.cs`, `UI/TitleMultiplayerView.cs` |
+| Startup | `Net/NetworkBootstrap.cs`, `UI/Title/TitleMultiplayerView.cs` |
 | Player spawn | `Character/Network/NetworkedPlayerSpawner.cs`, `Character/Network/NetworkedPlayerIdentity.cs`, `Character/Network/NetworkedAnimatorSync.cs` |
 | Prefab / scene wiring | `Character/Editor/NetworkedPlayerBuilder.cs`, `View/Editor/CityMassingSceneBuilder.cs` |
 | Interest management | `NetworkedPlayerBuilder.AddViewDistanceObserver`, `Character/PlayerViewDistance.asset` |

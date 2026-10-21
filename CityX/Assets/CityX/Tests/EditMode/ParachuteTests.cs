@@ -63,7 +63,7 @@ namespace CityX.Tests
             Object.DestroyImmediate(_parachuteObject);
         }
 
-        /// <summary>EXPLICIT ASK: "press space and open and close it."</summary>
+        /// <summary>Requested: "press space and open and close it."</summary>
         [Test]
         public void APressTogglesItOpenAndASecondPressTogglesItClosed()
         {

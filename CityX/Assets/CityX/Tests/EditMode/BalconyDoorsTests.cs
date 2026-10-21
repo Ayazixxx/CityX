@@ -8,7 +8,7 @@ using UnityEngine;
 namespace CityX.Tests
 {
     /// <summary>
-    /// The doors onto the balconies (World/BalconyDoors, View/CityMeshBuilder.BalconyDoors.cs, View/BalconyDoorInteractor, Character/BalconyDoorsNetwork):
+    /// The doors onto the balconies (World/BalconyDoors, View/Buildings/CityMeshBuilder.BalconyDoors.cs, View/Interactables/BalconyDoorInteractor, Character/BalconyDoorsNetwork):
     /// every flat's balcony has one, of the building's kind (mostly sliding), big enough for a 2.6 m body; the ones onto a floor open, and leave a way
     /// through the wall a body fits, and the ones half way up a room or onto the stairs stay shut; the cells they take have no window; the state is
     /// shared and only real doors are taken from the network.

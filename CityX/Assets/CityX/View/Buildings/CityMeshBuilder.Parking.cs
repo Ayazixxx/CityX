@@ -532,7 +532,6 @@ namespace CityX.View
             }
         }
 
-        /// <summary>PaintStallRow on sloping ground: each line in two pieces that follow the surface.</summary>
         /// <summary>How far the paint stands over the lot's asphalt.</summary>
         public const float LotPaintLift = 0.03f;
 

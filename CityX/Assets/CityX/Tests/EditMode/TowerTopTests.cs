@@ -7,7 +7,7 @@ using UnityEngine;
 namespace CityX.Tests
 {
     /// <summary>
-    /// The tops of the tall towers (World/TowerTop, View/CityMeshBuilder.TowerTops.cs): only a tower's topmost box volume with its flat parapet roof
+    /// The tops of the tall towers (World/TowerTop, View/Buildings/CityMeshBuilder.TowerTops.cs): only a tower's topmost box volume with its flat parapet roof
     /// gets one, about as often as real ones do (a fifth of the towers, more than half of the supertalls), standing on the roof inside its edges
     /// and off the stair's hatch, drawn to their height near and far, and as a stub in the skyline tier.
     /// </summary>

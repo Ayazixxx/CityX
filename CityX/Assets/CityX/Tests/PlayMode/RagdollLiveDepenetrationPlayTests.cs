@@ -7,7 +7,7 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// EXPLICIT ASK: "do what you can to avoid ragdolls from getting stuck
+    /// Requested: "do what you can to avoid ragdolls from getting stuck
     /// in walls/floor." Ragdoll.DepenetrateFromWorld (see JetpackWallCrashTests)
     /// only ever runs ONCE, at the instant Activate hands the rig to live
     /// physics -- it cannot catch a body that tunnels or gets wedged into

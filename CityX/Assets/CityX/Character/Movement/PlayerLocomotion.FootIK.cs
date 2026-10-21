@@ -345,7 +345,6 @@ namespace CityX.Character
             _head.rotation = Quaternion.Slerp(_head.rotation, target, Mathf.SmoothStep(0.0f, 1.0f, _headForwardBlend));
         }
 
-        /// <summary>How far the leading foot turns toward the travel: a share of the angle between its toes and the heading, scaled by how sideways the travel is.</summary>
         /// <summary>
         /// Standing or walking with a sword, the neck and the head are carried as at idle (<see cref="IdleNeckLeanDegrees"/>,
         /// <see cref="IdleFacePitchDegrees"/>), in the body's own frame: the neck first, so the head sits over the shoulders where it does at idle,

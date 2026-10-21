@@ -379,7 +379,7 @@ namespace CityX.View
             float doorU1 = centreX + BuildingInterior.EntranceWidth(site) * 0.5f;
             float doorTop = lobbyY + BuildingInterior.DoorHeight(height);
 
-            // EXPLICIT ASK: "the windows/entrances should never be cut off
+            // Requested: "the windows/entrances should never be cut off
             // always have like a stairway entrance." site.BaseHeight (what
             // the door stands on) is the HIGHEST pad the WHOLE footprint
             // covers (see PadRangeForSpan's own doc comment: "put it at the
@@ -1138,8 +1138,7 @@ namespace CityX.View
         /// <summary>
         /// What stands on a flat roof. Boxes, for the same reason everything else here is (a skyline is read from far off and a cylinder costs
         /// sixteen times the triangles to say the same thing), but at the scale of the real thing.
-        /// </summary>
-        /// <summary>
+        ///
         /// The plant on a flat roof: the signature piece of the roof's type (BuildingParams.Roof) and some ordinary units, placed off the hatch,
         /// a billboard's ground (<paramref name="keepClear"/>), a tower top's (<paramref name="keepClear2"/>) and whatever stands on the roof.
         /// <paramref name="sparse"/> (a flat roof with eaves) keeps only a few ordinary units; <paramref name="hasTop"/> leaves out the "antenna"
@@ -2143,8 +2142,8 @@ namespace CityX.View
                 return;
             }
 
-            // A real hole where the blow that cracked it landed, EXPLICIT
-            // ASK: "when you shoot the glass make it shatter but also have a
+            // A real hole where the blow that cracked it landed,
+            // requested: "when you shoot the glass make it shatter but also have a
             // hole in it where you shot." Only cracked panes carry an
             // impact point at all (a fresh Intact pane was never hit), and
             // only cracked panes are still drawn (Shattered returned above),
@@ -2203,7 +2202,7 @@ namespace CityX.View
         }
 
         /// <summary>
-        /// The crack-texture decal's own size in metres -- EXPLICIT ASK:
+        /// The crack-texture decal's own size in metres -- Requested:
         /// "shrink them to size," a real bullet-hole scale rather than the
         /// old 18cm square that read as oversized. Aspect matches
         /// BulletHoleCrack.png's own 1024x856 ratio so the image doesn't
@@ -2223,7 +2222,7 @@ namespace CityX.View
         /// The REAL geometric opening at the decal's own centre, sized as a fraction of the decal itself.
         ///
         /// DELIBERATELY SMALLER THAN THE TEXTURE'S OWN TRANSPARENT CENTRE (a measured alpha=0 run 149px wide by
-        /// 141px tall in a 1024x856 image; this is 60% of it) -- EXPLICIT BUG REPORT: "the bullet holes have a
+        /// 141px tall in a 1024x856 image; this is 60% of it) -- Bug report: "the bullet holes have a
         /// visible square around them due to the image i used." Sizing the real cut to match the transparent
         /// run EXACTLY left nothing standing between the hard-edged rectangular hole and whatever is really
         /// behind the glass (the building interior, at night far darker or far flatter than the frosted glass
@@ -2325,7 +2324,7 @@ namespace CityX.View
         /// The real crack-texture decal (BulletHoleCrack.png, via
         /// CrackDecalMaterial) sitting on top of the base glass, centred on
         /// the same `centre` AddPaneWithHoles just cut its own real opening
-        /// at -- EXPLICIT ASK: replacing the old plain square hole with the
+        /// at -- Requested: replacing the old plain square hole with the
         /// user's own reference image, "radial cracks with a real see-
         /// through hole in the middle" instead of a bare geometric notch.
         /// One quad, explicit 0..1 UVs (not MeshBuffer's usual metre-scale
@@ -2469,7 +2468,7 @@ namespace CityX.View
 
         /// <summary>
         /// The same quad, plus a second copy wound the other way so it also
-        /// faces (and renders/collides) from behind -- EXPLICIT BUG REPORT:
+        /// faces (and renders/collides) from behind -- Bug report:
         /// "when shooting windows from inside the building the are not
         /// breaking." Every other wall surface in the city is genuinely
         /// solid (the interior gets its own separate inward-facing pass, see

@@ -37,7 +37,7 @@ of the longer articles blocked the fetch, so those points come from the search s
 
 ## What changed
 
-**Doors** (`View/BuildingDoor.cs`, `View/DoorSounds.cs`, `View/PositionalSound.cs`)
+**Doors** (`View/Interactables/BuildingDoor.cs`, `View/Interactables/DoorSounds.cs`, `View/Interactables/PositionalSound.cs`)
 - Swings **away from whoever opens it**: from the street it opens inward, from the lobby outward
   (`BuildingDoor.SwingSignFor`). An NPC's `SetOpen` keeps the old inward swing.
 - A **damped spring** instead of a timed ease: it starts quickly and settles, and E mid-swing turns it round
@@ -53,8 +53,8 @@ of the longer articles blocked the fetch, so those points come from the search s
   code (`DoorSounds`), so the game gains no audio files.
 - Not done: a character reach/push animation (there is no such clip), auto-close, locked doors.
 
-**Windows** (`World/GlassDamage.cs`, `View/GlassBreaker.cs`, `Character/Combat/SoulsSwordCombat.cs`,
-`Character/Movement/PlayerLocomotion.cs`, `Weapons/ThrownBottle.cs`)
+**Windows** (`World/GlassDamage.cs`, `View/Glass/GlassBreaker.cs`, `Character/Combat/SoulsSwordCombat.cs`,
+`Character/Movement/PlayerLocomotion.cs`, `Weapons/Melee/ThrownBottle.cs`)
 - Blows have a **strength**. A fist or a bullet is *light* (a whole pane cracks, a second blow shatters it,
   as before). A **sword swing** (the blade is traced through space each active frame, so a fast swing cannot
   skip over a pane), a **thrown bottle** (4 m/s or faster) and (running or diving into an INTACT pane no longer breaks it: removed 2026-10-05 by request; a CRACKED pane still gives way to a knock) a ~~sprint or jetpack dive at 6.5 m/s or
@@ -205,7 +205,7 @@ bullet (`ShatteringBullet`, 5) shatters it like a knock does -- shards, the brea
 
 - Owner: "I keep accidentally opening and closing the door when I'm only trying to do the light switch, make it so it only interacts with the
   one you are looking at." A door (`BuildingDoor`) and the switches (`LightSwitchInteractor`) no longer act on E themselves: each OFFERS itself
-  to `View/InteractionFocus` with how far off the crosshair it is, and after every Update has run only the nearest acts
+  to `View/Interactables/InteractionFocus` with how far off the crosshair it is, and after every Update has run only the nearest acts
   (`InteractionFocusRunner`, made on demand). Of several switches in reach, the one nearest the crosshair is the one offered. Tests:
   `InteractionFocusTests`.
 - A window with a fitted-out room behind it is CLEAR glass (`SurfaceLook.PackGlass(clear)`, the glass shader's `_ClearAlpha` 0.4): the room
@@ -240,10 +240,10 @@ Unity glass generates a 2D pattern at the impact, clips it to the pane and extru
 **What changed.**
 - Before: the pane vanished and the same twelve small pre-made prisms (convex mesh colliders) popped out of the point it was hit, whatever its
   size.
-- Now: `World/GlassFracture` (pure) cuts the pane's real rectangle (`View/GlassPaneFrame`: the cell less the frame's insets, a shop window's
+- Now: `World/GlassFracture` (pure) cuts the pane's real rectangle (`View/Glass/GlassPaneFrame`: the cell less the frame's insets, a shop window's
   big glass on the entrance row, at the depth the blow landed) into 7 to 11 radial cracks from the impact crossed by three jittered rings
   (10, 30, 70 cm); a big pane's outer corners are cut across once or twice more; at most 56 pieces, covering the pane exactly.
-- `View/GlassFractureBurst`: each piece a thin slab (8 mm) with a box collider and a body. The slivers round the blow are knocked through the
+- `View/Glass/GlassFractureBurst`: each piece a thin slab (8 mm) with a box collider and a body. The slivers round the blow are knocked through the
   way the blow went (4 m/s for a fist, 6.4 for a heavy blow, 2.4 for a bullet), the rings further out follow slower, and the big pieces on the
   frame hang on 0.1 to 0.8 s before they drop, as real glass does. Pooled (no allocation after the warm-up; waiting pieces stay switched on,
   parked far below the city -- switching a body and its collider on was most of a break's cost), never colliding with each other (layer 29),
@@ -291,7 +291,7 @@ the flat, and the door on every other balcony (half way up a two-row storey) rat
 
 Owner: "windows dont fracture the same way as when you shoot them vs walking into them. right now they only do the procedural fracture when you
 shoot them a bunch of times but after being shattered they should do the procedural fracture when you walk into them". A knock into a cracked
-pane (`View/CrackedPane`: a body walking or running into it, a thrown thing) only marked the pane broken, so it vanished with no sound and no
+pane (`View/Glass/CrackedPane`: a body walking or running into it, a thrown thing) only marked the pane broken, so it vanished with no sound and no
 pieces; a shot or a blow went through `GlassBreaker`, which plays the break and cuts the glass into its own pieces (`GlassFractureBurst`).
 A knock now goes through `GlassBreaker.Knock` as well: the pane is cut round where the body met it (the nearest point of the body to the
 pane, carried onto the pane along the way it was moving), the pieces thrown the way it was going, a sprint or a dive (4 m/s or more) like a

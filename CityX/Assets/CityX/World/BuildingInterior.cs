@@ -423,19 +423,6 @@ namespace CityX.World
         }
 
         /// <summary>
-        /// Which corner this floor's flight hugs, and where that puts it.
-        ///
-        /// AGAINST A ROTATING CORNER, not the middle of the room and not the
-        /// same wall every floor. Centred read as an odd freestanding block in
-        /// an otherwise empty room. The same corner every floor made climbing
-        /// several in a row feel like one room repeated. Rotating the corner
-        /// keeps every flight flush against real walls while still climbing
-        /// towards a different one each floor -- and, because the corner turns
-        /// rather than jumping across, the next flight starts along the SAME
-        /// wall the previous one topped out at. A walk along one wall to reach
-        /// it, not a diagonal march across the open room.
-        /// </summary>
-        /// <summary>
         /// The stairwell for a floor whose flight must not come out under <paramref name="avoid"/> (another volume of the building standing on
         /// this one's roof): the first corner, going round from the usual one, whose opening clears it. Where none does, the usual one.
         /// </summary>
@@ -452,6 +439,19 @@ namespace CityX.World
             return StairwellFor(floorIndex, halfX, halfZ, run);
         }
 
+        /// <summary>
+        /// Which corner this floor's flight hugs, and where that puts it.
+        ///
+        /// AGAINST A ROTATING CORNER, not the middle of the room and not the
+        /// same wall every floor. Centred read as an odd freestanding block in
+        /// an otherwise empty room. The same corner every floor made climbing
+        /// several in a row feel like one room repeated. Rotating the corner
+        /// keeps every flight flush against real walls while still climbing
+        /// towards a different one each floor -- and, because the corner turns
+        /// rather than jumping across, the next flight starts along the SAME
+        /// wall the previous one topped out at. A walk along one wall to reach
+        /// it, not a diagonal march across the open room.
+        /// </summary>
         public static Stairwell StairwellFor(int floorIndex, float halfX, float halfZ, float run)
         {
             int corner = ((floorIndex % 4) + 4) % 4;

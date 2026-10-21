@@ -4,7 +4,7 @@ using UnityEngine;
 namespace CityX.Character
 {
     /// <summary>
-    /// Sticky-feet wall running. EXPLICIT ASK: "add another ability where
+    /// Sticky-feet wall running. Requested: "add another ability where
     /// you can walk and run up walls like the bottom of your feet are
     /// sticky." Leap at a wall while sprinting and your feet grip it, then
     /// WASD moves freely across the WHOLE surface -- up, down, and

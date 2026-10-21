@@ -207,7 +207,7 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// EXPLICIT BUG REPORT, root-caused directly in CityMassingSceneBuilder:
+        /// Bug report, root-caused directly in CityMassingSceneBuilder:
         /// the real gameplay camera GameObject is first positioned by the
         /// FlyCamera editor preview (a street-level walking view, nowhere near
         /// "4.5m behind the shoulder") and ThirdPersonCamera is added
@@ -305,7 +305,7 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// EXPLICIT ASK: "make the camera follow the ragdoll when /sleep is
+        /// Requested: "make the camera follow the ragdoll when /sleep is
         /// used and the ragdoll is moved." Nothing moves the player's own
         /// root transform while limp (see Ragdoll's own doc comment: "only
         /// the individual Rigidbodies do"), so without this the camera

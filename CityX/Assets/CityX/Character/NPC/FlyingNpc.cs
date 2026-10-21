@@ -4,7 +4,7 @@ namespace CityX.Character
 {
     /// <summary>
     /// A background NPC that flies around the city with a jetpack --
-    /// EXPLICIT ASK: "make an npc that is a normal white playermodel and he
+    /// Requested: "make an npc that is a normal white playermodel and he
     /// flys around with the jetpack in the sky. make him go around walls and
     /// stuff and not get stuck." Composes FlyingNpcBrain (which way it wants
     /// to head) with FlyingNpcSteering (the real raycasts that keep it clear

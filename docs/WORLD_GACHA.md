@@ -48,7 +48,7 @@ Left out on purpose (the owner's call): trees and nature, vehicles.
 
 Not in their list, added alongside it (my suggestion, in the spirit of their Japanese streets): **rooftop billboards** (屋上看板), phase 4 (below).
 
-## Phase 1: the apartment block (`World/ApartmentFront.cs`, `View/CityMeshBuilder.Apartment.cs`)
+## Phase 1: the apartment block (`World/ApartmentFront.cs`, `View/Buildings/CityMeshBuilder.Apartment.cs`)
 
 - **Which buildings.** An ordinary building people live in: not a special one, a sealed or roof-top block, a wing or a round tower; not a
   glass skin, a shed or a blank box; at least three window rows, each at least 2.95 m (the first slab then clears a 2.6 m body). Of those,
@@ -80,7 +80,7 @@ Not in their list, added alongside it (my suggestion, in the spirit of their Jap
 Not yet (their apartment has it): front doors and small windows along the walkway, an outside staircase at a walkway's end. (The doors
 onto the balconies came on 2026-10-15: below.)
 
-### The doors onto the balconies (2026-10-15, `World/BalconyDoors.cs`, `View/CityMeshBuilder.BalconyDoors.cs`, `View/BalconyDoorInteractor.cs`)
+### The doors onto the balconies (2026-10-15, `World/BalconyDoors.cs`, `View/Buildings/CityMeshBuilder.BalconyDoors.cs`, `View/Interactables/BalconyDoorInteractor.cs`)
 
 Owner: "make it so all balconies have a door leading between the inside of the building and the balcony ... most will be sliding glass doors
 which is the most common balcony door in real life ... double doors ... along with the single doors we built already".
@@ -120,7 +120,7 @@ which is the most common balcony door in real life ... double doors ... along wi
   shut one does not; the state, the network check, the bump and E), `BalconyDoorPlayTests` (a body walks off a balcony through a real
   sliding door into the flat; a locked door holds it; E shuts and opens), `BalconyDoorCapture` (Explicit, `-Graphics`).
 
-## Phase 2: pitched roofs (`World/RoofShape.cs`, `View/CityMeshBuilder.Roofs.cs`)
+## Phase 2: pitched roofs (`World/RoofShape.cs`, `View/Buildings/CityMeshBuilder.Roofs.cs`)
 
 - **Which buildings.** Low buildings (LowRise, no more than 26 m across the ridge and 48 m along it) in the homes zones and some downtown --
   per zone 10 % downtown, 25 % urban, 60 % residential, 75 % old town, 70 % outskirts -- and 45 % of warehouses (a low metal gable). Never a
@@ -181,7 +181,7 @@ these generally appear in comparison to flat roofs in real life cities and make 
   in the homes, 49 of 757 are skillions (6.5 %); 212 of the 967 flat house roofs in the homes have eaves instead of a parapet (22 %), 149 of 3161
   downtown mid-rise volumes (4.7 %: the stacked and sealed ones never do); of the sheds 55 are pitched (18 monopitch, 6 lean-to) and 18 of the 79 flat
   ones have the overhang (23 %).
-- **The saltbox** (`View/CityMeshBuilder.Roofs.cs`): both slopes at one pitch (26-32 degrees), the front wall (the street door's) carried up an
+- **The saltbox** (`View/Buildings/CityMeshBuilder.Roofs.cs`): both slopes at one pitch (26-32 degrees), the front wall (the street door's) carried up an
   attic storey (0.45 of the height, 3.6 m at most: two storeys in front, one behind), so the ridge sits forward (the attic's height over twice the
   pitch's tangent, never nearer the
   front than a fifth of the span) and the back slope runs long and low to the back wall's top; the end walls close in the saltbox's own profile;
@@ -192,7 +192,7 @@ these generally appear in comparison to flat roofs in real life cities and make 
   soffit under the overhang. No parapet, no coping, no cornice (`FacadeOrnament`), no billboard (`RoofBillboards`), the corner piers stop at the
   soffit, a vent or two instead of the full roof plant; the stair still comes up through the deck (`RoofShape.IsFlat`). `RoofShape.Pitched` now
   means sloped (nobody stands on it) and `HasParapet` the plain flat roof: what wants a parapet (cornice, billboard, piers) asks for that.
-- **Tower tops (`World/TowerTop.cs`, `View/CityMeshBuilder.TowerTops.cs`).** The topmost volume of a tower that reaches 100 m (a plain tower, the
+- **Tower tops (`World/TowerTop.cs`, `View/Buildings/CityMeshBuilder.TowerTops.cs`).** The topmost volume of a tower that reaches 100 m (a plain tower, the
   tower on its podium, the top stage of a stepped one; a box or a round one; not the leg of an L, not a set piece: `BuildingSite.Reach` is the whole
   tower's height, since a stage carries the building's mass but only its own height) gets one on its flat parapet roof by its
   seed: a Tower (110-240 m) 22 % (mast 5, spire 5, stepped crown 5, fins 7), a Supertall (240 m up) 55 % (spire 20, stepped crown 12, fins 9,
@@ -250,7 +250,7 @@ these generally appear in comparison to flat roofs in real life cities and make 
   elsewhere 5 % (measured round the spawn: 29 %, 23 %, 7 %, 5 %). Pure, from the building's seed: every machine has the same boards.
 - **Never on the stair's hatch.** Where it would stand within 1.2 m of the hatch the stair comes up through, it slides to one end of the
   roof or the other, then a board 65 % as wide is tried, then there is none. The roof plant keeps off its ground (legs to catwalk).
-- **The ad (`View/CityMeshBuilder.Billboards.cs`).** A grey galvanised panel whose face is a skin of paint in one of nine strong colours, an
+- **The ad (`View/Buildings/CityMeshBuilder.Billboards.cs`).** A grey galvanised panel whose face is a skin of paint in one of nine strong colours, an
   accent in another (a band across, a block at one end, or a border round a block) and lettering -- a headline and a line or two in white or
   black, whichever stands out from what it is on -- laid round the accent. No textures: thin boxes a centimetre or two proud of the face.
 - **The steel.** Two or three legs behind it (three past 9 m wide) with struts to its back and two rails; a catwalk with a railing in front;

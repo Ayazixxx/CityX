@@ -208,7 +208,7 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// The title has NO music. EXPLICIT ASK: "remove the title screen music
+        /// The title has NO music. Requested: "remove the title screen music
         /// also" -- title_screen.gd's StarsPlayer (stars.mp3) is gone. The rain
         /// sound is ambience and is the one looping sound the title still has.
         /// </summary>

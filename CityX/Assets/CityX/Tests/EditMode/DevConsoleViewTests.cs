@@ -12,7 +12,7 @@ namespace CityX.Tests
     /// doc comment for why shader identity replaced a name allowlist, and
     /// why Transparent is excluded specifically to keep glass see-through.
     /// Also the console's own Open/Close handling of the player's Animator
-    /// -- EXPLICIT ASK, after seven rounds of the console/grapple
+    /// -- Requested, after seven rounds of the console/grapple
     /// distortion saga: "remove the console function and rebuild it
     /// entirely if you have to, just get rid of it." Open() used to
     /// disable the Animator to stop whatever animation was playing from

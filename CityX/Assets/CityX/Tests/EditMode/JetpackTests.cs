@@ -104,7 +104,7 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// EXPLICIT BUG REPORT: "im still getting up at an angle when i
+        /// Bug report: "im still getting up at an angle when i
         /// ragdoll." See ResetTilt's own doc comment in Jetpack.cs for the
         /// full reasoning -- this pins the bookkeeping half of the fix
         /// (CurrentTilt snapping to exactly zero, immediately, not eased);
@@ -188,7 +188,7 @@ namespace CityX.Tests
                 "a 100m drop with no fall-tracking reset should have hurt -- the control case is broken");
         }
 
-        // --- ApplyCrashDamage: EXPLICIT ASK, "horizontal fall damage... calculated same as fall damage but instead horizontal" ---
+        // --- ApplyCrashDamage: Requested, "horizontal fall damage... calculated same as fall damage but instead horizontal" ---
 
         [Test]
         public void ApplyCrashDamageBelowTheSafeEquivalentSpeedDealsNothing()
@@ -247,7 +247,7 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// EXPLICIT BUG REPORT, after the detection mechanism itself was
+        /// Bug report, after the detection mechanism itself was
         /// already fixed once: "the jetpack sideways fall damage thing
         /// still hasnt workedt." The other ApplyCrashDamage tests above all
         /// feed it a hand-picked speed chosen to land on a particular side
@@ -316,7 +316,7 @@ namespace CityX.Tests
         /// STALE, CORRECTED: this used to assert a hover pitched further
         /// down the more the camera looked down, back when the fifth
         /// correction's `2 * Clamp(camera, 0, 90)` curve was still in use
-        /// for a plain hover. SIXTH EXPLICIT CORRECTION removed that too --
+        /// for a plain hover. SIXTH Correction removed that too --
         /// "make it so if your just holding space... the character just
         /// stay upright and doesnt tilt forward when you look down." A
         /// hover no longer pitches at all, regardless of camera direction.
@@ -330,7 +330,7 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// EXPLICIT BUG REPORT: "now hold space defaults to superman
+        /// Bug report: "now hold space defaults to superman
         /// position make it default to standing upright." The FOURTH
         /// correction's unconditional offset made a plain hover (Space
         /// alone) pitch to a full 90 (horizontal) at this jetpack's own
@@ -356,7 +356,7 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// EXPLICIT BUG REPORT: "if your only holding space with jetpack no
+        /// Bug report: "if your only holding space with jetpack no
         /// w it still lets you lean all the way back and forward fix
         /// that... implement the same rule where it lets you look all the
         /// way up and down but the character only goes standing straight to
@@ -392,7 +392,7 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// SIXTH EXPLICIT CORRECTION: "make it so if your just holding
+        /// SIXTH Correction: "make it so if your just holding
         /// space or holding shift+space no w with jetpack then the
         /// character just stay upright and doesnt tilt forward when you
         /// look down." A plain hover (flyingForward false, with or without
@@ -468,7 +468,7 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// UPDATED FOR THE SIXTH EXPLICIT CORRECTION: a plain hover no
+        /// UPDATED FOR THE SIXTH Correction: a plain hover no
         /// longer has a nonzero pitch target at any camera angle (see
         /// EaseTiltStraightensOutOnceTheCameraLevelsOut's own doc comment),
         /// so there would be nothing left to ease TOWARD here -- driven
@@ -514,7 +514,7 @@ namespace CityX.Tests
         /// one of those keys it goes back to straight" ask. Pitch's own
         /// equivalent is the camera returning to level, not a released key.
         ///
-        /// UPDATED FOR THE SIXTH EXPLICIT CORRECTION: a plain hover
+        /// UPDATED FOR THE SIXTH Correction: a plain hover
         /// (flyingForward false) now stays at a constant 0 regardless of
         /// the camera, so it can no longer stand in for "a target that
         /// actually changes as the camera moves" -- this now drives the
@@ -587,7 +587,7 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// SECOND EXPLICIT CORRECTION: "roll not turn left to right." The
+        /// SECOND Correction: "roll not turn left to right." The
         /// FIRST fix here checked that the body's own POST-PITCH forward
         /// stayed fixed under roll -- true, but the wrong property: once
         /// SupermanPitchOffsetDegrees has tipped the body a full 90
@@ -671,7 +671,7 @@ namespace CityX.Tests
         public void TiltTargetIgnoresBoostingWithNoDirectionHeld()
         {
             // Only ROLL is checked here -- pitch is no longer zero at a
-            // level camera (see the FOURTH EXPLICIT CORRECTION), but
+            // level camera (see the FOURTH Correction), but
             // boosting with nothing to strafe toward should still never
             // manufacture a roll out of thin air.
             Assert.AreEqual(0.0f,
@@ -679,7 +679,7 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// EXPLICIT ASK: "if your in superman position and you press A or
+        /// Requested: "if your in superman position and you press A or
         /// D the model rolls slightly in that direction" -- a dive still
         /// picks up a real roll off a held strafe, at SupermanRollMaxDegrees
         /// (see TiltTargetDivingUsesTheSupermanRollMax and that constant's
@@ -726,7 +726,7 @@ namespace CityX.Tests
             Assert.AreEqual(0.0f, diving.y, 0.001f);
         }
 
-        // --- SupermanPitchOffsetDegrees: SECOND EXPLICIT ASK, refining the first ---
+        // --- SupermanPitchOffsetDegrees: SECOND Requested, refining the first ---
 
         /// <summary>Looking forward while diving is the pose the whole feature is named after.</summary>
         [Test]
@@ -738,7 +738,7 @@ namespace CityX.Tests
                 "looking forward while diving should be fully horizontal, Superman-style");
         }
 
-        /// <summary>EXPLICIT ASK: "if looking straight up he should be stood up straight normally."</summary>
+        /// <summary>Requested: "if looking straight up he should be stood up straight normally."</summary>
         [Test]
         public void TiltTargetStandsUpstraightWhenDivingWhileLookingStraightUp()
         {
@@ -748,7 +748,7 @@ namespace CityX.Tests
                 "looking straight up while diving should stand the body back up straight");
         }
 
-        /// <summary>EXPLICIT ASK: "if looking down he should be head down feet in the air, straight vertically."</summary>
+        /// <summary>Requested: "if looking down he should be head down feet in the air, straight vertically."</summary>
         [Test]
         public void TiltTargetGoesFullyInvertedWhenDivingWhileLookingStraightDown()
         {
@@ -761,14 +761,14 @@ namespace CityX.Tests
         // STALE TEST REMOVED (TiltTargetPlainThrustDoesNotGetTheSupermanOffset):
         // used to assert a plain hover (Space alone, nothing else held) got
         // NO Superman offset at all -- true right up until the FOURTH
-        // EXPLICIT CORRECTION (see SupermanPitchOffsetDegrees' own doc
+        // Correction (see SupermanPitchOffsetDegrees' own doc
         // comment) made the offset unconditional. See
         // TiltTargetAlwaysAppliesTheStandingToHeadstandOffsetRegardlessOfInput,
         // which explicitly covers this exact "plain hover" case as its
         // first input combination.
 
         /// <summary>
-        /// THIRD EXPLICIT CORRECTION -- roll's own Superman-sized cap now
+        /// THIRD Correction -- roll's own Superman-sized cap now
         /// requires BOTH boosting AND flyingForward together, not
         /// flyingForward alone. Real callers (TickTilt) never actually
         /// separated these (its own "amplify" is already boostHeld-gated),
@@ -789,7 +789,7 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// EXPLICIT BUG REPORT: "when holding space and w without shift...
+        /// Bug report: "when holding space and w without shift...
         /// if you look all the way up its like your character is lying on
         /// his back in the sky[,] ... looking all the way down it is
         /// rotated too far as well. make it so the farthest he rotates...
@@ -827,7 +827,7 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// EXPLICIT CORRECTION: the lean used to follow WASD alone, so
+        /// Correction: the lean used to follow WASD alone, so
         /// air-steering a fall with the jetpack equipped but NOT thrusting
         /// still leaned the body as if flying. Holding a direction with
         /// thrust released must stay level instead -- the model should read
@@ -924,7 +924,7 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// EXPLICIT ASK: "hold w + shift while using jetpack your character
+        /// Requested: "hold w + shift while using jetpack your character
         /// tilts all the way horizontally" -- end to end through the real
         /// public Tick, not just TiltTarget in isolation, so this also
         /// proves TickTilt's own W-held detection actually reaches it. Pitch
@@ -955,7 +955,7 @@ namespace CityX.Tests
                 "a pure sideways boost should still bank into the strafe, not level out as if diving");
         }
 
-        // --- ClimbVelocityFor: EXPLICIT ASK, "make it curve and turn with where your looking" ---
+        // --- ClimbVelocityFor: Requested, "make it curve and turn with where your looking" ---
 
         [Test]
         public void FlyingForwardWhileLookingUpClimbs()

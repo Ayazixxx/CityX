@@ -30,7 +30,7 @@ namespace CityX.ViewEditor
         private const int Height = 720;
         // Must match CityMassingSceneBuilder.WorldSeed exactly -- otherwise
         // these screenshots stop being screenshots OF the real game.
-        // EXPLICIT ASK: "generate a new world every time you make a change
+        // Requested: "generate a new world every time you make a change
         // to the city generation" -- change this alongside that constant
         // (and TitleScreenBuilder's own copy), never alone.
         private const int WorldSeed = 19077151;

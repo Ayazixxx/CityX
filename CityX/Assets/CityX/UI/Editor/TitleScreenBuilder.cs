@@ -392,7 +392,7 @@ namespace CityX.UIEditor
         /// <summary>
         /// NetworkManager + Transport + NetworkBootstrap, for the Multiplayer
         /// panel's own Host/Join buttons to drive. AutoStartOnPlay is OFF --
-        /// EXPLICIT ASK: "get the multiplayer part of the menu working" --
+        /// Requested: "get the multiplayer part of the menu working" --
         /// a menu decides when to connect, not Start() on its own.
         ///
         /// DOES NOT CALL DontDestroyOnLoad HERE -- and just as importantly,
@@ -485,7 +485,7 @@ namespace CityX.UIEditor
             TitleScreen title = root.AddComponent<TitleScreen>();
 
             // NO MUSIC. title_screen.gd had a StarsPlayer (stars.mp3) looping under the
-            // whole title flow; EXPLICIT ASK: "remove the title screen music also." The
+            // whole title flow; Requested: "remove the title screen music also." The
             // rain sound below is ambience, not music, and stays. TitleScreen.MusicPlayer
             // is left null on purpose -- the settings panel's music slider guards for it.
 
@@ -678,7 +678,7 @@ namespace CityX.UIEditor
         /// identical panel (see that file's own comments on why a blank
         /// port field means NetworkBootstrap's default, why the two fields
         /// are separate ports rather than one shared one, and why a pasted
-        /// "1.2.3.4:port" address is accepted directly). EXPLICIT ASK: "get
+        /// "1.2.3.4:port" address is accepted directly). Requested: "get
         /// the multiplayer part of the menu working" -- this replaces the
         /// former placeholder ("Host and join are not ported yet.").
         /// </summary>

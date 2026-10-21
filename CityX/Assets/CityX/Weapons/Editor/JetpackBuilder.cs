@@ -19,7 +19,7 @@ namespace CityX.WeaponsEditor
         private const string PrefabPath = "Assets/CityX/Weapons/Jetpack.prefab";
 
         /// <summary>
-        /// WAV, not the original MP3 -- EXPLICIT BUG REPORT: "the jetpack
+        /// WAV, not the original MP3 -- Bug report: "the jetpack
         /// has been sounding choppy for awhile." The original
         /// jetpack_thrust_loop.mp3 (0.86s) had no seamless loop point at
         /// all -- MP3 encoding also pads real, measured leading silence
@@ -133,7 +133,7 @@ namespace CityX.WeaponsEditor
         }
 
         /// <summary>
-        /// THE SAME FLAME FlamethrowerBuilder BUILDS, EXPLICIT ASK: "replace
+        /// THE SAME FLAME FlamethrowerBuilder BUILDS, Requested: "replace
         /// the flame effect... with the same one you used for the
         /// flamethrower it looks way better." The old jetpack flame was one
         /// flat, untextured cone -- Unity's Particles/Unlit shader with no
@@ -196,7 +196,7 @@ namespace CityX.WeaponsEditor
         /// (ThrustAudio on thrustHeld alone, this on thrustHeld AND
         /// boostHeld), so an ordinary unboosted thrust needs ThrustAudio's
         /// own engine loop to keep playing uninterrupted while this one
-        /// stays silent. EXPLICIT ASK: "add this wind noise as a looping
+        /// stays silent. Requested: "add this wind noise as a looping
         /// sound when flying through the air at shift speed using
         /// jetpack." Same non-positional spatialBlend reasoning as
         /// BuildThrustAudio -- the sound of air rushing past THIS BODY,

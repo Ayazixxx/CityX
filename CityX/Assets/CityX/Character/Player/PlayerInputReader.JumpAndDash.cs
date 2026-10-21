@@ -56,8 +56,8 @@ namespace CityX.Character
         /// than letting a charge that started on solid ground pay out as a
         /// mid-air launch once it releases.
         ///
-        /// KEPT IN THE VAULT, NOT CALLED FROM Update() RIGHT NOW -- EXPLICIT
-        /// ASK: "get rid of charged jump for now that is going to be a
+        /// KEPT IN THE VAULT, NOT CALLED FROM Update() RIGHT NOW --
+        /// Requested: "get rid of charged jump for now that is going to be a
         /// skill tree ability keep it in the vault." Update's own dispatch
         /// fires a plain, un-charged jump directly instead (JumpReleased
         /// with JumpChargeFraction left at 0 -- see that call site's own

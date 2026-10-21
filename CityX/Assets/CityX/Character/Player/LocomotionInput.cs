@@ -78,7 +78,7 @@ namespace CityX.Character
 
         /// <summary>
         /// The camera's own current world position/forward while aiming --
-        /// EXPLICIT BUG REPORT: "the pose he goes in when you hold right
+        /// Bug report: "the pose he goes in when you hold right
         /// click is aimed to the left slightly he isnt even pointing the
         /// gun forward." AimPitchDegrees alone only ever pitched the arm
         /// around the BODY's own forward axis, which ignores the camera's
@@ -132,7 +132,7 @@ namespace CityX.Character
         /// Locomotion for GunLocomotion (see PlayerRigBuilder.
         /// AddGunLocomotion) the moment the character is actually moving,
         /// same "carry the answer, decide nothing here" split SwordEquipped
-        /// already uses. EXPLICIT BUG REPORT: "the legs move as you hold
+        /// already uses. Bug report: "the legs move as you hold
         /// the pistol and aim in if you are walking [in Godot] which it
         /// doesnt do in unity" -- character.gd's own set_walking() plays a
         /// full-body "gun_walk"/"gun_run" cycle (raised, ready arms +
@@ -191,7 +191,7 @@ namespace CityX.Character
 
         /// <summary>
         /// True whenever a jetpack is thrusting, shift is held, AND there is
-        /// a forward (W) component to the held movement -- EXPLICIT ASK:
+        /// a forward (W) component to the held movement -- Requested:
         /// "when you hold w + shift while using jetpack your character
         /// tilts all the way horizontally and the jetpack goes twice as
         /// fast." A strict superset condition of JetpackBoosting (every

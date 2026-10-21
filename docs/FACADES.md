@@ -45,7 +45,7 @@ regular grid of punched windows.
   the building) -- random speckle over a fully glazed face reads as noise. Other styles keep per-window lights.
 - **Special buildings:** supermarket = blank + shopfront, hospital = ribbon, bank/police = punched.
 
-## Relief: base, shaft, top (`World/FacadeOrnament.cs`, `View/CityMeshBuilder.Ornament.cs`, 2026-10-09)
+## Relief: base, shaft, top (`World/FacadeOrnament.cs`, `View/Buildings/CityMeshBuilder.Ornament.cs`, 2026-10-09)
 
 From the Kelly & McCabe survey of procedural cities the owner sent: the one system it calls realistic is Wonka et al.'s split grammars (Instant
 Architecture, 2003) -- a facade divided into a base, a shaft and a top, floors into bays, with vertical details at the building's edges. Our walls had
@@ -85,4 +85,4 @@ Tests: `StackedVolumeTests`; guard: `BuildingOverlapTests` (no two buildings sha
 
 A share of the ordinary buildings in every zone but the industrial one is an apartment block (`World/ApartmentFront.cs`): a balcony on every floor across the
 back wall (slab, parapet or railing, partitions between flats on the column lines, side walls, an eave over the top floor) and, on blocks without a
-shopfront, an open walkway across the street wall. Built by `View/CityMeshBuilder.Apartment.cs`, near and far. The idea and its numbers: `docs/WORLD_GACHA.md`.
+shopfront, an open walkway across the street wall. Built by `View/Buildings/CityMeshBuilder.Apartment.cs`, near and far. The idea and its numbers: `docs/WORLD_GACHA.md`.

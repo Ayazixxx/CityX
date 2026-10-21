@@ -29,7 +29,7 @@ namespace CityX.UIEditor
 
         /// <summary>
         /// The idle "PRESS ANY KEY TO START" state -- rain, the flickering
-        /// logo, the pulsing prompt, no menu yet. EXPLICIT ASK: "recreate
+        /// logo, the pulsing prompt, no menu yet. Requested: "recreate
         /// the godot title screen instead of the one you have now."
         /// </summary>
         [MenuItem("CityX/Capture Title Idle Screenshot")]

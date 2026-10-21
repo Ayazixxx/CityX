@@ -176,7 +176,7 @@ namespace CityX.World
 
         /// <summary>
         /// Rolled INDEPENDENTLY per candidate wall (see WingsFor), not once
-        /// per building -- EXPLICIT ASK: "different sized buildings too dont
+        /// per building -- Requested: "different sized buildings too dont
         /// have to have 4 corners." One shared roll could only ever produce a
         /// plain box or a single L; checking each of the three walls on its
         /// own is what lets a roomy corner lot grow wings on two or even all
@@ -236,7 +236,7 @@ namespace CityX.World
         /// <summary>
         /// The L/T/U-shaped massing volumes a building grows off its own
         /// walls, or none. Zero, one, two or all three of the candidate
-        /// walls can grow one -- EXPLICIT ASK: "different sized buildings
+        /// walls can grow one -- Requested: "different sized buildings
         /// too dont have to have 4 corners", which a single shared pick
         /// could only ever answer with a plain box or one L.
         ///
@@ -347,7 +347,7 @@ namespace CityX.World
         }
 
         /// <summary>
-        /// EXPLICIT ASK: "generate a bunch of different types of entrances
+        /// Requested: "generate a bunch of different types of entrances
         /// like san francisco style that fit with the steepness of the
         /// hill... the windows/entrances should never be cut off, always
         /// have like a stairway entrance or some transition to flatness."
@@ -386,7 +386,7 @@ namespace CityX.World
         private const ulong EntranceApproachStream = 0x41505052UL;   // "APPR"
 
         /// <summary>
-        /// EXPLICIT ASK: "lets do 60% have the terrain slope into the
+        /// Requested: "lets do 60% have the terrain slope into the
         /// entrance... the other 40% of entrances will be more like how you
         /// have them now with hard edges and fencing and staircases." One
         /// roll per building (not per edge) -- a whole frontage reads as one

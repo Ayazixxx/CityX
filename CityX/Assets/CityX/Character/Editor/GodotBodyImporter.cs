@@ -9,7 +9,7 @@ namespace CityX.CharacterEditor
     /// Builds a Unity Mesh directly from fused_body.gd's own exact,
     /// unconverted vertex/normal numbers (tests/scratch_export_body_obj.gd's
     /// own raw dump, GodotPlayerBodyRaw.txt) instead of running Unity's own
-    /// independent marching-tetrahedra extraction -- EXPLICIT ASK: "can you
+    /// independent marching-tetrahedra extraction -- Requested: "can you
     /// just make the godot one in unity why is there any difference at
     /// all?"
     ///

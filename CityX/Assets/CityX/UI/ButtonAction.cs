@@ -80,7 +80,7 @@ namespace CityX.UI
             CreatorRedrawSave,
 
             // ADDED AT THE END, NOT ALPHABETICALLY/THEMATICALLY GROUPED WITH
-            // ShowMultiplayer ABOVE -- EXPLICIT BUG, caught by
+            // ShowMultiplayer ABOVE -- Bug, caught by
             // TitleScreenWiringTests.EveryButtonActionHasWhateverItActsOn:
             // Title.unity is a SAVED scene, and Unity serializes an enum
             // field by its raw ordinal, not its name. Inserting new members

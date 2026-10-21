@@ -8,7 +8,7 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// EXPLICIT BUG REPORT: "the thing where i fall through at the
+    /// Bug report: "the thing where i fall through at the
     /// beginning is a temporary glitch but it occurs every time i enter
     /// the game." Root cause: CityStreamer's ordinary chunk building is
     /// lazy and budgeted PER FRAME (ChunkBuildBudgetPerFrame, 6 by

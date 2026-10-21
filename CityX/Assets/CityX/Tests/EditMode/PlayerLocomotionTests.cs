@@ -135,7 +135,7 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// EXPLICIT ASK: "the jetpack goes twice as fast" while diving
+        /// Requested: "the jetpack goes twice as fast" while diving
         /// (w+shift). Checked against SprintSpeed * JetpackDiveSpeedMultiplier
         /// directly, the same "pin the real constant, not just greater-than"
         /// reasoning JetpackBoostingReachesSprintSpeedEvenGoingBackward uses.
@@ -278,7 +278,7 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// EXPLICIT BUG REPORT: "fix the pistol make it so you hold it
+        /// Bug report: "fix the pistol make it so you hold it
         /// straight crosshair centered character not at weird angle." The
         /// body used to only ever turn to face the camera WHILE MOVING --
         /// stopping to aim (the natural way to aim: stop, aim, shoot) left
@@ -345,7 +345,7 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// EXPLICIT BUG REPORT: "he is rotated to the left [while] holding
+        /// Bug report: "he is rotated to the left [while] holding
         /// right click," reported specifically while walking. Aiming used
         /// to be an else-if under "moving", so aiming WHILE moving took the
         /// ordinary eased TurnDegreesPerSecond walking-turn instead of the

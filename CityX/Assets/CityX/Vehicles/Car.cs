@@ -67,7 +67,7 @@ namespace CityX.Vehicles
         public const float SeatXFraction = 0.32f;
 
         /// <summary>
-        /// EXPLICIT ASK: "make it so when you sit in the car your butt is
+        /// Requested: "make it so when you sit in the car your butt is
         /// in the seat hands on the steering wheel and your character is
         /// stuck there but cant collide with the car." Investigated live:
         /// the "stuck"/"no collision" halves were already correct

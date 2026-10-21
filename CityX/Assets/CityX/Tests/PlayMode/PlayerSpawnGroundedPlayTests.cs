@@ -8,7 +8,7 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// EXPLICIT BUG REPORT: "i keep trying to load in as ayazixxx and i clip
+    /// Bug report: "i keep trying to load in as ayazixxx and i clip
     /// through the floor and fall infinitely... same with old guy." The real
     /// saved scene's own player spawn used to be placed at
     /// TerrainField.PadHeightFor(0, 0) -- the flat, quantised pad -- but

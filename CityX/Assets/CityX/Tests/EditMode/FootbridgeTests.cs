@@ -7,7 +7,7 @@ using UnityEngine;
 namespace CityX.Tests
 {
     /// <summary>
-    /// Footbridges between buildings (World/Footbridges, View/CityMeshBuilder.Footbridges.cs; the layered city, docs/LAYERED_CITY_PLAN.md):
+    /// Footbridges between buildings (World/Footbridges, View/Buildings/CityMeshBuilder.Footbridges.cs; the layered city, docs/LAYERED_CITY_PLAN.md):
     /// bridges from a floor of one block across the street into a floor of the block facing it, both ends agreeing, level with the floors,
     /// clear of the ground, with a doorway at each end in place of a window, and a deck drawn where the bridge says it is.
     /// </summary>

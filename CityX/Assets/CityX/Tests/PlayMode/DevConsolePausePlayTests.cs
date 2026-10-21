@@ -11,7 +11,7 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// EXPLICIT ASK: opening the console should pause the player and the
+    /// Requested: opening the console should pause the player and the
     /// game in singleplayer, but must never pause anything in multiplayer --
     /// Time.timeScale governs this whole PROCESS, and in HostedWorld this
     /// same process is also the authoritative server for every other

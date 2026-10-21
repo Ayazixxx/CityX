@@ -9,7 +9,7 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// EXPLICIT ASK: "add books and when you press E on them it opens a
+    /// Requested: "add books and when you press E on them it opens a
     /// page on screen with text ive prepared but just make the system for
     /// now." Through the REAL PlayerInputReader.Update()-independent Book.
     /// Update() dispatch (Book polls Keyboard directly, same as BenchSeat),

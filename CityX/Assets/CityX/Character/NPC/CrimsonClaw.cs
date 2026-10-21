@@ -36,7 +36,7 @@ namespace CityX.Character
     /// rigid piece per mesh island, matching the source file's own
     /// _spawn_ragdoll_pieces exactly.
     ///
-    /// NO LOOT -- EXPLICIT SCOPE CUT. The source's own LootComponent
+    /// NO LOOT -- Scope cut. The source's own LootComponent
     /// ("press E to loot a corpse") has no equivalent anywhere in this
     /// Unity port yet; building that whole interaction from nothing is a
     /// separate task from porting the creature itself.

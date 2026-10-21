@@ -5,7 +5,7 @@ using UnityEngine;
 namespace CityX.Weapons
 {
     /// <summary>
-    /// A parachute backpack -- EXPLICIT ASK: "add a parachute as an item
+    /// A parachute backpack -- Requested: "add a parachute as an item
     /// parachute backpack and it functions exactly the same as a fortnite
     /// glider but its a parachute. press space and open and close it and it
     /// slows down your fall pretty basic." Press Space while airborne to

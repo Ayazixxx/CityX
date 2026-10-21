@@ -11,7 +11,7 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// EXPLICIT BUG REPORT: "when you press space on the floor with jetpack
+    /// Bug report: "when you press space on the floor with jetpack
     /// on it just does boost right away but make it so you can still jump
     /// with jetpack on and but when you hold space mid air then it
     /// activates." Through the REAL PlayerInputReader.Update() dispatch,
@@ -148,7 +148,7 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// EXPLICIT BUG REPORT: "after i crash and recover sometimes i am
+        /// Bug report: "after i crash and recover sometimes i am
         /// stuck at an angle." Root cause was right here in the real
         /// dispatch, not in Jetpack.Tick itself: EquippedJetpack.Tick used
         /// to be called ONLY while `!_locomotion.IsGrounded`, and

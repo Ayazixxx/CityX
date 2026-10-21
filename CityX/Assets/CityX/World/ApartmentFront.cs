@@ -11,7 +11,7 @@ namespace CityX.World
     ///
     /// Pure: chosen from the building's own seed on a salt of its own (the dice every other choice rolled keep meaning what they did), without
     /// allocating, so every machine builds the same faces and the chunk builder can ask as often as it likes. The mesh is
-    /// CityMeshBuilder.AddApartmentFronts' (View/CityMeshBuilder.Apartment.cs).
+    /// CityMeshBuilder.AddApartmentFronts' (View/Buildings/CityMeshBuilder.Apartment.cs).
     /// </summary>
     public readonly struct ApartmentFront
     {

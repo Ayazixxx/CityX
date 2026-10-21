@@ -5,7 +5,7 @@ using UnityEngine;
 namespace CityX.Tests
 {
     /// <summary>
-    /// EXPLICIT BUG REPORT: "make it so my limbs cant clip through walls
+    /// Bug report: "make it so my limbs cant clip through walls
     /// and get stuck when im flying around with jetpack or swinging
     /// around with grapple." Neither state ever ragdolls, so
     /// Ragdoll.TickKinematicLimbClearance is the only thing that ever

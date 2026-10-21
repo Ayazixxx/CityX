@@ -79,7 +79,7 @@ namespace CityX.UI
         /// flicker, the rain and the pulsing prompt -- EVERY panel hidden,
         /// including Menu, until the player actually presses something. The
         /// old Unity title screen skipped this entirely and showed Menu
-        /// immediately; EXPLICIT ASK: "recreate the godot title screen
+        /// immediately; Requested: "recreate the godot title screen
         /// instead of the one you have now."
         ///
         /// PUBLIC, NOT JUST OnEnable's OWN BODY -- TitleScreenCapture calls
@@ -106,7 +106,7 @@ namespace CityX.UI
         /// Shows one panel and hides the others. The only way to change what is
         /// on screen, so the invariant holds by construction.
         ///
-        /// ALWAYS IMPLIES THE MENU HAS BEEN REVEALED. EXPLICIT BUG, caught by
+        /// ALWAYS IMPLIES THE MENU HAS BEEN REVEALED. Bug, caught by
         /// a title screenshot: calling Show() directly (TitleScreenCapture
         /// does exactly this, and so does Back()) left the idle "PRESS ANY
         /// KEY TO START" prompt showing behind every panel, since only
@@ -182,7 +182,7 @@ namespace CityX.UI
             {
                 // title_screen.gd's own _flicker_opacity, ported exactly (a
                 // failing-neon-sign look: mostly full opacity, with a couple
-                // of quick dips/flares) -- EXPLICIT ASK: "recreate the godot
+                // of quick dips/flares) -- Requested: "recreate the godot
                 // title screen instead of the one you have now." The logo is
                 // a quad in the skyline scene now, so this drives its opacity
                 // rather than a UI image's.

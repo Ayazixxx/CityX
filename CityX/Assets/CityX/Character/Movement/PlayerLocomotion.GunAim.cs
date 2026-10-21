@@ -133,7 +133,7 @@ namespace CityX.Character
         /// <summary>
         /// Extra yaw added on top of the camera's own while aiming and
         /// standing still (see Tick's own "AIMING SNAPS INSTANTLY" branch) --
-        /// EXPLICIT ASK: "let me adjust the pov and model rotation manually
+        /// Requested: "let me adjust the pov and model rotation manually
         /// ... set up something using ingame console," after the plain
         /// snap-to-camera-yaw still didn't read right for every camera
         /// setup. A live, mutable field (not a const, which the /aim
@@ -165,7 +165,7 @@ namespace CityX.Character
         public float AimMoveSpeedMultiplier = 0.8f;
 
         /// <summary>
-        /// EXPLICIT BUG REPORT, twice over. First: "the pistol aimed in
+        /// Bug report, twice over. First: "the pistol aimed in
         /// pose is like positioned to the left slightly make it point
         /// forward and turn with the mouse" -- pistol_aim_in is a single
         /// static clip with no pitch tracking at all, so looking up or down
@@ -197,7 +197,7 @@ namespace CityX.Character
         /// comment gives for the identical choice.
         ///
         /// BLENDED IN OVER _gunAimBlend, NOT APPLIED AT FULL STRENGTH THE
-        /// INSTANT AIMING STARTS -- EXPLICIT REGRESSION, found by the full
+        /// INSTANT AIMING STARTS -- Regression, found by the full
         /// suite: BendLimbToward is a hard re-target, and several
         /// randomised PlayMode tests occasionally set Aiming=true as part
         /// of realistic varied input with no gun equipped at all
@@ -244,7 +244,7 @@ namespace CityX.Character
                 return;
             }
 
-            // EXPLICIT REGRESSION, found by the full suite (the same class
+            // Regression, found by the full suite (the same class
             // this method's own blend-easing doc comment already
             // describes fixing once): several PlayMode tests drive
             // PlayerLocomotion.Tick with a directly-constructed
@@ -292,7 +292,7 @@ namespace CityX.Character
             // extreme camera pitch, and this bounds both the same way.
             Vector3 targetDirection = Vector3.RotateTowards(
                 transform.forward, desiredDirection, GunAimPitchClampDegrees * Mathf.Deg2Rad, 0.0f);
-            // A SEPARATE KNOB FROM AimYawOffsetDegrees -- EXPLICIT BUG REPORT:
+            // A SEPARATE KNOB FROM AimYawOffsetDegrees -- Bug report:
             // "the commands your giving arent rotating the part of the body
             // i want." AimYawOffsetDegrees only ever rotates the BODY ROOT;
             // this arm target is computed from the CAMERA's own convergence
@@ -339,7 +339,7 @@ namespace CityX.Character
                 }
             }
 
-            // THE HEAD, SAME TREATMENT -- EXPLICIT BUG REPORT: "the head is
+            // THE HEAD, SAME TREATMENT -- Bug report: "the head is
             // still being angled to the left slightly when aiming in just
             // have it face forward and move with the mouse obviously."
             // pistol_aim_in.fbx/pistol_walk.fbx's own retargeted mocap bakes
@@ -375,7 +375,7 @@ namespace CityX.Character
         }
 
         /// <summary>
-        /// HIP-FIRE HEAD -- EXPLICIT BUG REPORT, after the aim-only head fix
+        /// HIP-FIRE HEAD -- Bug report, after the aim-only head fix
         /// above shipped: "the walking animation and his head is still
         /// angled to the left slightly why is it doing this... there was no
         /// issue in godot." The fix above only ever runs while

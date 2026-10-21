@@ -70,7 +70,7 @@ namespace CityX.Weapons
         public static readonly Vector3 GripHandRotationEuler = PistolWeapon.GripHandRotationEuler;
 
         /// <summary>
-        /// EXPLICIT ASK: "scale up the grapple gun size by 1.5x." Applied
+        /// Requested: "scale up the grapple gun size by 1.5x." Applied
         /// on top of whatever GrapplingHookBuilder's own NormalizeScale
         /// already baked into the Visual child at build time -- this is a
         /// runtime multiplier on the WHOLE held item's root, not a change
@@ -308,7 +308,7 @@ namespace CityX.Weapons
         }
 
         /// <summary>
-        /// EXPLICIT BUG REPORT: "the rope is glitching disappearing and
+        /// Bug report: "the rope is glitching disappearing and
         /// tweaking out" / "teleporting all over the place." Muzzle (and
         /// the fallback, this item's own transform) are both parented to
         /// the RightHand bone -- fine when the old GrappleSwing held that

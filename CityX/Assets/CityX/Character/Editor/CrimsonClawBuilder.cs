@@ -63,7 +63,7 @@ namespace CityX.CharacterEditor
                 model.transform.SetParent(root.transform, false);
                 model.transform.localScale = Vector3.one * CrimsonClaw.ModelScale;
 
-                // EXPLICIT BUG REPORT: "the crimson claw is backwards its
+                // Bug report: "the crimson claw is backwards its
                 // chasing me with its backside facing me." The source .gd's
                 // own class comment says the raw mesh faces +Z in GODOT's
                 // own imported coordinate space, needing a 180-degree
@@ -88,7 +88,7 @@ namespace CityX.CharacterEditor
                 Transform leftClawPivot = BuildClawPivot(imported, facingFlip.transform, "LeftClaw", ClawPivotL, bodyMaterial);
                 Transform rightClawPivot = BuildClawPivot(imported, facingFlip.transform, "RightClaw", ClawPivotR, bodyMaterial);
 
-                // NO EYES -- EXPLICIT ASK: "remove the crimson claws glowing
+                // NO EYES -- Requested: "remove the crimson claws glowing
                 // eyes we are going to redo those completely." Used to build
                 // a pair of emissive spheres + point lights here (see git
                 // history if the old approach is ever wanted for reference);

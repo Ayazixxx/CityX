@@ -63,7 +63,7 @@ namespace CityX.Character
         public const float RestVelocityThreshold = 0.3f;
 
         /// <summary>
-        /// EXPLICIT ASK, restated and retimed twice: "once you are ragdolled
+        /// Requested, restated and retimed twice: "once you are ragdolled
         /// from one of these events your are able to press space to stand up
         /// once your on the floor for 2.5 seconds" -- corrected to "3 seconds
         /// on the ground," then shortened again to "2 seconds."
@@ -72,7 +72,7 @@ namespace CityX.Character
 
         /// <summary>
         /// How long the recovery actually locks movement for, once
-        /// standing-up starts -- EXPLICIT BUG REPORT: "whenever i ragdoll
+        /// standing-up starts -- Bug report: "whenever i ragdoll
         /// and then get up my character is stuck standing still for a
         /// bit." BeginStandingUp plays the SAME "GettingUp" Animator state
         /// IntroCutscene uses for its own one-time fall-from-the-sky
@@ -137,7 +137,7 @@ namespace CityX.Character
         /// a disabled CharacterController has to "grounded" while limp.
         /// Used both to gate CanStandUp and, from PlayerInputReader, to
         /// keep PlayerVitals.TickFallDamage running while ragdolled --
-        /// EXPLICIT ASK: "the ragdoll can continue to take fall damage."
+        /// Requested: "the ragdoll can continue to take fall damage."
         /// </summary>
         public bool IsRestingOnGround =>
             _limp && (Torso == null || Torso.linearVelocity.magnitude < RestVelocityThreshold);
@@ -149,8 +149,8 @@ namespace CityX.Character
         /// Whether pressing the stand-up key would actually do anything
         /// right now -- resting long enough, not already mid-recovery.
         ///
-        /// _allowImmediateStandUp SKIPS THE REST TIMER ENTIRELY -- EXPLICIT
-        /// ASK: "make it so i can press space to get up at any time after
+        /// _allowImmediateStandUp SKIPS THE REST TIMER ENTIRELY --
+        /// Requested: "make it so i can press space to get up at any time after
         /// /sleep is used." /sleep is a diagnostic, not a real knockdown
         /// (PlayerChat.Dispatch calls Activate directly, bypassing
         /// PlayerVitals -- no death, no damage, no real "you got hit"
@@ -287,7 +287,7 @@ namespace CityX.Character
         /// doc comment for why /sleep passes true here and every real
         /// knockdown leaves it false.
         ///
-        /// NEVER RAGDOLLS OUT OF AN ACTIVE SWING. EXPLICIT, REPEATED ASK:
+        /// NEVER RAGDOLLS OUT OF AN ACTIVE SWING. Repeated request:
         /// "remove the ragdoll function completely and revert back to him
         /// just being still" -- the swing-to-ragdoll hand-off (see
         /// grapple_swing_deprioritized memory for the full saga: 4 rounds of
@@ -386,7 +386,7 @@ namespace CityX.Character
         /// SetKinematic(false)) out of anything any of its own body
         /// colliders is currently overlapping.
         ///
-        /// EXPLICIT BUG REPORT: "whenever i fly into a wall i just get
+        /// Bug report: "whenever i fly into a wall i just get
         /// stuck in it" -- STILL happening after the first attempt at this
         /// fix (a fixed PlayerInputReader.CrashPullBackDistance nudge
         /// applied before calling Activate). A fixed guess cannot know how
@@ -529,7 +529,7 @@ namespace CityX.Character
         private const float DepenetrationMinDistance = 0.02f;
 
         /// <summary>
-        /// EXPLICIT ASK: "do what you can to avoid ragdolls from getting
+        /// Requested: "do what you can to avoid ragdolls from getting
         /// stuck in walls/floor." DepenetrateFromWorld only ever runs ONCE,
         /// at the instant Activate hands the rig to live physics -- it
         /// catches whatever pose the Animator left behind at the moment of
@@ -603,7 +603,7 @@ namespace CityX.Character
 
         /// <summary>
         /// Keeps a STILL-KINEMATIC limb from embedding in world geometry
-        /// while jetpacking or grapple-swinging -- EXPLICIT BUG REPORT:
+        /// while jetpacking or grapple-swinging -- Bug report:
         /// "make it so my limbs cant clip through walls and get stuck when
         /// im flying around with jetpack or swinging around with grapple."
         /// Neither state ever ragdolls: Jetpack.cs never touches this class

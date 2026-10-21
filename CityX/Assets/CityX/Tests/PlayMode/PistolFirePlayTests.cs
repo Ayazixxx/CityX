@@ -76,7 +76,7 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// EXPLICIT BUG REPORT, TWICE: the first ("coming from all sorts of
+        /// Bug report, TWICE: the first ("coming from all sorts of
         /// different directions") was fixed by drawing the tracer along the
         /// muzzle's own forward instead of muzzle-to-hit-point. The SECOND
         /// report of the exact same symptom, after that fix had already

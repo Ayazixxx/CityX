@@ -91,7 +91,7 @@ namespace CityX.WeaponsEditor
         }
 
         /// <summary>
-        /// The trail streaming off the ball -- EXPLICIT ASK, to look like
+        /// The trail streaming off the ball -- Requested, to look like
         /// the jetpack/flamethrower's own fire rather than its own
         /// hand-rolled lookalike: "make the fireball trail... the same as
         /// the jetpack and flamethrower fire effect... turn it into the

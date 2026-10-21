@@ -9,7 +9,7 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// EXPLICIT ASK: "make an npc that is a normal white playermodel and he
+    /// Requested: "make an npc that is a normal white playermodel and he
     /// flys around with the jetpack in the sky. make him go around walls and
     /// stuff and not get stuck." FlyingNpcBrainTests/FlyingNpcSteeringPlayTests
     /// already prove the wander and avoidance logic in isolation; this is the

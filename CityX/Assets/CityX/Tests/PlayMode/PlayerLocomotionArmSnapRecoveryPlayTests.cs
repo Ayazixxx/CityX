@@ -7,7 +7,7 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// EXPLICIT BUG REPORT: "it is imperative that we fix this immediately"
+    /// Bug report: "it is imperative that we fix this immediately"
     /// -- the console/grapple stretch, reported as happening again after
     /// seven previous rounds of fixes (see grapple_swing_deprioritized
     /// memory). This test's own history is itself part of that saga's
@@ -41,7 +41,7 @@ namespace CityX.Tests
     /// shipped and didn't help), and that it stays that way call after
     /// call -- exactly what a capture moment needs.
     ///
-    /// A REAL [UnityTest], NOT [Test] -- EXPLICIT BUG found live building
+    /// A REAL [UnityTest], NOT [Test] -- Bug found live building
     /// this: an EditMode [Test] calling SuppressImplausibleArmSnapsNow
     /// synchronously has no real per-frame Time.deltaTime to measure a
     /// rate against (EditMode has no frame loop at all), so an injected

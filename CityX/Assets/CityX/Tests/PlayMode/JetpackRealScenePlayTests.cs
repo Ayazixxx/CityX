@@ -10,7 +10,7 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// EXPLICIT ASK, verified end to end through the real saved scene's own
+    /// Requested, verified end to end through the real saved scene's own
     /// dev console and real player, not just the pure static math already
     /// covered in JetpackTests -- the same "batch diagnostics are not proof,
     /// real Play Mode is" lesson this project's own history keeps relearning
@@ -67,7 +67,7 @@ namespace CityX.Tests
 
             Assert.IsNotNull(input.EquippedJetpack, "/equip jetpack did not actually equip one");
 
-            // EXPLICIT ASK: "make it so you can go all the vertical upward
+            // Requested: "make it so you can go all the vertical upward
             // and downward" -- widened the instant it is equipped, not only
             // once thrust is actually held (see Jetpack.OnEquip's own
             // comment on why: a player should be able to aim the camera
@@ -79,7 +79,7 @@ namespace CityX.Tests
             Assert.IsNotNull(jetpack, "no live Jetpack component after equipping");
             Assert.IsNotNull(jetpack.FlameEffect, "the equipped jetpack has no FlameEffect at all");
 
-            // EXPLICIT ASK: "replace the flame effect... with the same one
+            // Requested: "replace the flame effect... with the same one
             // you used for the flamethrower" -- FlamethrowerBuilder's own
             // outer+core layering, not the old single flat cone. Checking
             // the REAL prefab instance, not the builder's own return value,
@@ -168,7 +168,7 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// SECOND EXPLICIT ASK, end to end: "holding shift and w... looking
+        /// SECOND Requested, end to end: "holding shift and w... looking
         /// forward... horizontal like superman flies." Through the real
         /// equipped Jetpack and the real widened camera range, not
         /// TiltTarget in isolation.
@@ -217,7 +217,7 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// EXPLICIT BUG REPORT: "when your using jetpack and crash into a
+        /// Bug report: "when your using jetpack and crash into a
         /// surface and ragdoll, the jetpack also turns off even if your
         /// holding space." Through the real PlayerInputReader.Update() --
         /// not calling Jetpack.Tick directly the way the flame/audio are
@@ -298,7 +298,7 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// EXPLICIT ASK: "add this wind noise as a looping sound when
+        /// Requested: "add this wind noise as a looping sound when
         /// flying through the air at shift speed using jetpack." Boost
         /// (shift) specifically, not thrust alone -- an ordinary unboosted
         /// thrust should keep only the ordinary engine loop (ThrustAudio)
@@ -376,7 +376,7 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// EXPLICIT FOLLOW-UP ASK: "make the wind slowly fade in and out as
+        /// Follow-up request: "make the wind slowly fade in and out as
         /// it begins and stops when you enter and exit shift jetpack mode
         /// [wind sound]." Checks the actual VOLUME curve, not just
         /// isPlaying -- a plain Play()/Stop() would also leave isPlaying

@@ -96,7 +96,7 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// EXPLICIT BUG REPORT: "the legs move as you hold the pistol and
+        /// Bug report: "the legs move as you hold the pistol and
         /// aim in if you are walking [in Godot] which it doesnt do in
         /// unity." Before PlayerRigBuilder.AddGunLocomotion existed, the
         /// "Aiming" Any State transition fired on Aiming alone (see
@@ -151,7 +151,7 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// EXPLICIT BUG REPORT: "the head is still being angled to the left
+        /// Bug report: "the head is still being angled to the left
         /// slightly when aiming in just have it face forward and move with
         /// the mouse obviously." pistol_aim_in.fbx's own retargeted mocap
         /// bakes a realistic sighting head-cant into the head bone's LOCAL
@@ -220,7 +220,7 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// FOLLOW-UP EXPLICIT BUG REPORT, after the aim-only fix above
+        /// FOLLOW-UP Bug report, after the aim-only fix above
         /// shipped: "the walking animation and his head is still angled to
         /// the left slightly why is it doing this... there was no issue in
         /// godot." The fix above only ever corrects the head while

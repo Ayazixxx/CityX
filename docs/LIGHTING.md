@@ -17,7 +17,7 @@ Done:
 The reference cities (Megacity, the Unreal city demos) read as big because of **aerial perspective**: the street is sharp, towers a few blocks off are
 paler, the far skyline melts into the sky. Ours had a flat linear fog wall at 150-380 m that only hid the end of the streamed city.
 
-- **Haze pass** (`View/Shaders/CityXHaze.shader`, `View/CityHaze.cs`): exponential height fog as a URP Full Screen Pass renderer feature, before
+- **Haze pass** (`View/Shaders/CityXHaze.shader`, `View/Lighting/CityHaze.cs`): exponential height fog as a URP Full Screen Pass renderer feature, before
   post-processing, reading depth. Closed-form optical depth (Wenzel 2006 / Unreal's exponential height fog), no ray marching. Density 0.0015/m at street
   level, thinning by e every 150 m up; a storm makes it 3.5x thicker.
 - **The haze is the colour of the sky in the direction you look** (the dome's own gradient, from `_CityXHazeSkyTop` and the horizon), brightened toward

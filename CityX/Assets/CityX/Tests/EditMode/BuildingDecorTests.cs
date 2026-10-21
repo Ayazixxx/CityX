@@ -403,7 +403,7 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// EXPLICIT BUG REPORT reasoning, not a made-up number: a mismatch
+        /// Bug report reasoning, not a made-up number: a mismatch
         /// bigger than a single stoop could sanely bridge must not send the
         /// stairs running out over the sidewalk or into the street forever --
         /// see EntranceMaxRise's own doc comment for why this is capped the
@@ -432,7 +432,7 @@ namespace CityX.Tests
             }
         }
 
-        /// <summary>EXPLICIT ASK: "lets do 60%... the other 40%" -- a real split across many buildings, not always one answer.</summary>
+        /// <summary>Requested: "lets do 60%... the other 40%" -- a real split across many buildings, not always one answer.</summary>
         [Test]
         public void EntranceApproachIsSlopedSplitsRoughlySixtyForty()
         {

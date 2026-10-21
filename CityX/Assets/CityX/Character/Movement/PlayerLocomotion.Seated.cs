@@ -114,7 +114,7 @@ namespace CityX.Character
         /// <summary>
         /// Sets/clears IsSitting -- just the flag; ApplySittingPose's own
         /// procedural leg bend (LateUpdate) is what actually shows it. NOT
-        /// a swapped Animator state: EXPLICIT VISUAL FINDING (see
+        /// a swapped Animator state: Visual finding (see
         /// ApplySittingPose's own doc comment) that reusing entering_car's
         /// baked hip/leg pose for a bench looked broken no matter how the
         /// root was positioned -- that clip's own shape is built for
@@ -186,13 +186,13 @@ namespace CityX.Character
 
         /// <summary>
         /// Bends the real leg bones into a seated shape every frame while
-        /// IsSitting -- EXPLICIT VISUAL FINDING, not a guess: a scratch
+        /// IsSitting -- Visual finding, not a guess: a scratch
         /// capture showed BenchSeat's original design (reusing
         /// entering_car.fbx, this rig's only existing "seated" clip)
         /// looking broken no matter where the root was placed, because
         /// that clip's own hip/leg shape is built for reaching a car's low
         /// wheel with legs stretched flat, not sitting upright with knees
-        /// bent -- EXPLICIT FEEDBACK confirmed it: "make him sit on his
+        /// bent -- Feedback confirmed it: "make him sit on his
         /// but[t]." Rotating LeftUpperLeg/RightUpperLeg/LeftLowerLeg/
         /// RightLowerLeg directly gives a real "seated, knees bent, feet
         /// down" silhouette instead, the same additive-on-top-of-the-live-

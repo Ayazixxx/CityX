@@ -7,7 +7,7 @@ namespace CityX.CharacterEditor
 {
     /// <summary>
     /// Verifies the pistol aim POV fix (AimShoulderOffset 0.25 -> 0.65) --
-    /// EXPLICIT BUG REPORT, with a screenshot: holding right-click put the
+    /// Bug report, with a screenshot: holding right-click put the
     /// crosshair almost exactly on the character's own head/shoulder and
     /// read as the character being "aimed left slightly." Renders from the
     /// SAME position/rotation ThirdPersonCamera.ApplyCameraTransform would
@@ -120,7 +120,7 @@ namespace CityX.CharacterEditor
         }
 
         /// <summary>
-        /// EXPLICIT BUG REPORT: "the legs move as you hold the pistol and
+        /// Bug report: "the legs move as you hold the pistol and
         /// aim in if you are walking [in Godot] which it doesnt do in
         /// unity," and separately, "he is rotated to the left [while]
         /// holding right click," reported specifically while walking.

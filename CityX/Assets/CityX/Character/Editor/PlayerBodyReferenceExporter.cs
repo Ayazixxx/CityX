@@ -10,7 +10,7 @@ namespace CityX.CharacterEditor
 {
     /// <summary>
     /// Exports the real player body shape, at fused_body.gd's own "arms
-    /// down" rest, to a plain .obj file -- EXPLICIT ASK, after the black
+    /// down" rest, to a plain .obj file -- Requested, after the black
     /// puffer jacket's geometry-only auto-rig didn't fit well enough by
     /// uniform scale/offset alone: "give me the file for the standard
     /// playermodel so i can shape the outfit to him in blender."

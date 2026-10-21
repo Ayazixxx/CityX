@@ -591,7 +591,7 @@ namespace CityX.CharacterEditor
         ///
         /// ENTRY IS ALSO GATED ON STANDING STILL (Speed below
         /// MovingSpeedThreshold), added after this was found to be the
-        /// actual cause of an EXPLICIT BUG REPORT: "the legs move as you
+        /// actual cause of an Bug report: "the legs move as you
         /// hold the pistol and aim in if you are walking [in Godot] which
         /// it doesnt do in unity." Before this, the Any State transition
         /// fired on Aiming alone, so holding right-click froze the WHOLE
@@ -992,14 +992,14 @@ namespace CityX.CharacterEditor
             outOfExiting.exitTime = 1.0f;
         }
 
-        // Sitting on a BenchSeat (View/BenchSeat.cs) does NOT get an
+        // Sitting on a BenchSeat (View/Interactables/BenchSeat.cs) does NOT get an
         // Animator state here -- a first version reused entering_car.fbx's
         // own held pose (a real Bool state, matching Dance/Breakdance's
         // toggle shape rather than AddCarSeatStates' one-shot Triggers),
         // but a scratch capture showed it looking broken no matter where
         // the root was placed: that clip's own hip/leg shape is built for
         // reaching a car's low wheel with legs stretched flat, not for
-        // sitting upright with bent knees -- EXPLICIT FEEDBACK confirmed
+        // sitting upright with bent knees -- Feedback confirmed
         // it ("make him sit on his but[t]"). PlayerLocomotion.
         // ApplySittingPose now bends the real leg bones directly instead,
         // the same procedural-pose idiom ApplyCastingPose/
@@ -1159,8 +1159,8 @@ namespace CityX.CharacterEditor
             return ClipAsset.Store(dampened, $"{AnimationDirectory}/charged_jump_dampened.anim");
         }
 
-        /// <summary>One transition, with the boilerplate that is the same every time.</summary>
         /// <summary>
+        /// One transition, with the boilerplate that is the same every time.
         /// Returns the transition it built, so a caller that needs one more
         /// condition than this covers (see AddCrouchStates' own
         /// AddSpeedCondition calls) can add it without a second, near-
@@ -1311,7 +1311,7 @@ namespace CityX.CharacterEditor
             AnimationClip left = FindClip("2hsw_left");
             AnimationClip right = FindClip("2hsw_right");
 
-            // EXPLICIT BUG REPORT, with a screenshot: "this is the current
+            // Bug report, with a screenshot: "this is the current
             // idle pose ... it should be moving slightly but its frozen."
             // The file was right (2hsw_idle.fbx is byte-identical to the one
             // the user sent) -- the CLIP was imported with loopTime OFF, so
@@ -1399,7 +1399,7 @@ namespace CityX.CharacterEditor
         /// folder, the same "already imported, never wired up" situation
         /// AddSwordLocomotion's own doc comment found for the 2hsw pack.
         ///
-        /// EXPLICIT BUG REPORT (with the Godot original held up as the
+        /// Bug report (with the Godot original held up as the
         /// reference to match): "the legs move as you hold the pistol and
         /// aim in if you are walking which it doesnt do in unity."
         /// character.gd's own set_walking() plays this exact clip set any
@@ -1581,7 +1581,7 @@ namespace CityX.CharacterEditor
 
         /// <summary>
         /// THE SWORD'S SWINGS AND GUARD PLAY ON THE UPPER BODY ONLY, over the
-        /// top of the walk cycle -- EXPLICIT ASK: "make the legs walk and not
+        /// top of the walk cycle -- Requested: "make the legs walk and not
         /// freeze up during sword use too." The Mixamo swing clips are
         /// full-body: played on the base layer they overwrite the legs with a
         /// planted lunge, so the body froze mid-stride for the whole swing (or,

@@ -16,7 +16,7 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// EXPLICIT ASK: "make it so shards and fireball and all the spells are visible to all players on multiplayer." Over REAL sockets, to a
+    /// Requested: "make it so shards and fireball and all the spells are visible to all players on multiplayer." Over REAL sockets, to a
     /// DIFFERENT player: a dedicated server and two clients, each with its own spawned body (the NetworkedPlayer.prefab every joining player
     /// is given, which now carries the spells). Player A uses each ability on their own body; player B's copy of A's body must show it, and
     /// A's own copy must not have it shown back at them.

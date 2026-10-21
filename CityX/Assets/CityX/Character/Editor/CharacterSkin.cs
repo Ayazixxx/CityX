@@ -152,7 +152,7 @@ namespace CityX.CharacterEditor
         /// <summary>
         /// One material shared by every wearable in a category (e.g. every
         /// helmet), instead of one unique Material asset per item --
-        /// EXPLICIT ASK: preparing the equip pipeline for "100s if not
+        /// Requested: preparing the equip pipeline for "100s if not
         /// 1000s" of clothing items worn by many players in the same area
         /// at once. Every item in a category referencing this SAME asset is
         /// what lets URP's SRP Batcher amortise per-object rendering cost

@@ -7,7 +7,7 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// EXPLICIT BUG REPORT, with a screenshot: "this is the current idle pose,
+    /// Bug report, with a screenshot: "this is the current idle pose,
     /// are we sure this is 2hsw idle? it should be moving slightly but its
     /// frozen." It was the right clip -- imported with loop OFF, so the
     /// 2-second breathing idle played once and then held its last frame

@@ -57,7 +57,7 @@ namespace CityX.Character
 
         /// <summary>
         /// Found automatically in Bind() if left null. Used ONLY to skip
-        /// the bone-snap check below while limp -- EXPLICIT BUG, found
+        /// the bone-snap check below while limp -- Bug, found
         /// live: a real, live, non-kinematic ragdoll's own ordinary joint
         /// physics (settling from depenetration forces, a violent first
         /// step, an actual tumble) can easily exceed MaxBoneDegreesPerSecond

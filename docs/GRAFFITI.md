@@ -81,7 +81,7 @@ Everything needed to save a piece is already in one plain record, `GraffitiPiece
 | The pieces on this machine, ids, the checks, where the wall is (`WallMask`) | `Character/Interaction/GraffitiWall.cs` |
 | One piece on a wall | `Character/Interaction/GraffitiPanel.cs` |
 | Multiplayer | `Character/Network/GraffitiNetwork.cs` |
-| The can | `Weapons/SprayCanItem.cs`, model by `Weapons/Editor/SprayCanBuilder.cs` (also `GraffitiPaint.mat`) |
+| The can | `Weapons/Gear/SprayCanItem.cs`, model by `Weapons/Editor/SprayCanBuilder.cs` (also `GraffitiPaint.mat`) |
 | Right-click with the can | `PlayerInputReader.SprayRequested` |
-| The canvas screen | `UI/GraffitiMenuView.cs` (built in code by the HUD) |
+| The canvas screen | `UI/Menus/GraffitiMenuView.cs` (built in code by the HUD) |
 | Tests | `GraffitiTests` (EditMode), `GraffitiPlayTests`, `NetworkedGraffitiPlayTests`; render: `GraffitiCapture` (with `-Graphics`) |

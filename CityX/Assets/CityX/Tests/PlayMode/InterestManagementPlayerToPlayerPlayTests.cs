@@ -11,7 +11,7 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// EXPLICIT ASK: "lets say there was 1000 players in the same areas all
+    /// Requested: "lets say there was 1000 players in the same areas all
     /// wearing outfits do you think the game would be able to handle that" --
     /// answered honestly at the time as no, and this is the fix. Without
     /// this, a player observes every OTHER player regardless of distance

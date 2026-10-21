@@ -58,7 +58,7 @@ namespace CityX.Character
         /// <summary>
         /// Where the head sphere's centre sits above the shoulders.
         ///
-        /// EXPLICIT ASK: "make the head size and placement exactly the same
+        /// Requested: "make the head size and placement exactly the same
         /// as it was in godot." character.gd's own _define_parts() pivots
         /// the head at FusedBody.NECK_Y (== ShoulderY + NeckLength, not
         /// ShoulderY alone) and offsets it up by the sphere's own radius on

@@ -221,11 +221,6 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// The blend tree's thresholds have to be the speeds the controller
-        /// actually moves at. If they drift apart the character plays a walk
-        /// cycle while travelling at a sprint, which is the classic moonwalk.
-        /// </summary>
-        /// <summary>
         /// The three punch impact samples are on the prefab.
         ///
         /// player.gd plays one at random on a LANDED hit and nothing on a
@@ -251,6 +246,11 @@ namespace CityX.Tests
             }
         }
 
+        /// <summary>
+        /// The blend tree's thresholds have to be the speeds the controller
+        /// actually moves at. If they drift apart the character plays a walk
+        /// cycle while travelling at a sprint, which is the classic moonwalk.
+        /// </summary>
         [Test]
         public void BlendThresholdsMatchTheControllerSpeeds()
         {

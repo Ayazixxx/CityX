@@ -74,13 +74,6 @@ namespace CityX.Tests
         private static Bounds Box(Vector3 centre, Vector3 size) => new Bounds(centre, size);
 
         /// <summary>
-        /// THE WETNESS GLITCH: rain edits the shared ground materials in place, and
-        /// stopping the rain by any route but waiting for it to dry left them dark
-        /// and glossy in the ASSET -- which the next scene builder then saved, so the
-        /// whole game looked different in dry weather. However the rain ends, the
-        /// materials must come back exactly as they were.
-        /// </summary>
-        /// <summary>
         /// THE WETNESS STUCK ON, TWICE. The rain remembered "dry" by reading the shared
         /// materials when the game started -- so a run that began with them already soaked
         /// on disk (left there by an earlier crash, a save while raining) took the soaked
@@ -114,6 +107,13 @@ namespace CityX.Tests
             Object.DestroyImmediate(material);
         }
 
+        /// <summary>
+        /// THE WETNESS GLITCH: rain edits the shared ground materials in place, and
+        /// stopping the rain by any route but waiting for it to dry left them dark
+        /// and glossy in the ASSET -- which the next scene builder then saved, so the
+        /// whole game looked different in dry weather. However the rain ends, the
+        /// materials must come back exactly as they were.
+        /// </summary>
         [UnityTest]
         public IEnumerator DestroyingTheRainLeavesTheSharedGroundMaterialsDry()
         {

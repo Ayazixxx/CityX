@@ -7,7 +7,7 @@ using UnityEngine;
 namespace CityX.Tests
 {
     /// <summary>
-    /// Billboards on the roofs (World/RoofBillboards, View/CityMeshBuilder.Billboards.cs, World Gacha phase 4): on flat roofs of mid-rise buildings,
+    /// Billboards on the roofs (World/RoofBillboards, View/Buildings/CityMeshBuilder.Billboards.cs, World Gacha phase 4): on flat roofs of mid-rise buildings,
     /// most downtown, facing the street, inside the roof's edges and clear of the stair's hatch, high enough to walk under, and drawn where they
     /// are said to be.
     /// </summary>

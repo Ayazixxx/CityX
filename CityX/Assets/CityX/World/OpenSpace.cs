@@ -26,7 +26,7 @@ namespace CityX.World
         QuietCourt = 5,
     }
 
-    /// <summary>The things an open block can hold (View/CityProps builds each).</summary>
+    /// <summary>The things an open block can hold (View/Streets/CityProps builds each).</summary>
     public enum OpenProp
     {
         Bench, SeatBlock, Planter, TreePlanter, DeadTree, ShadeSail, UmbrellaTable, PicnicTable, CubeSeat, BollardLight, Bollard, Fountain, Tower,

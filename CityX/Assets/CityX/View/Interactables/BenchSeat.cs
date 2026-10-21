@@ -5,7 +5,7 @@ using UnityEngine.InputSystem;
 namespace CityX.View
 {
     /// <summary>
-    /// A park bench you can walk up to and press E to sit on. EXPLICIT ASK,
+    /// A park bench you can walk up to and press E to sit on. Requested,
     /// layered onto the pedestrian-zone/plaza work: "add benches you can go
     /// up to and press E to sit as well." A genuinely new feature -- nothing
     /// named bench or sit exists anywhere in the original Godot project
@@ -36,7 +36,7 @@ namespace CityX.View
     {
         public const float InteractRange = 2.0f;
 
-        // EXPLICIT ASK: "make the bench a lil bigger so it fits better" --
+        // Requested: "make the bench a lil bigger so it fits better" --
         // bumped from the original human-proportioned dimensions once a
         // real sitting pose (ApplySittingPose) showed the seat was a
         // little cramped for this rig's own body.
@@ -110,7 +110,7 @@ namespace CityX.View
                 }
             }
 
-            // BELOW THE SEAT SURFACE, NOT AT IT -- EXPLICIT MEASUREMENT,
+            // BELOW THE SEAT SURFACE, NOT AT IT -- Measurement,
             // not a guess: the Hips bone sits at a FIXED local offset
             // above the rig's own root (BodyRig.HipY, ~0.9m -- "hip height
             // above the feet" for a standing person), and Hips is the

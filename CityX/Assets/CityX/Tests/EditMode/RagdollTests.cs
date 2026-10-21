@@ -291,7 +291,7 @@ namespace CityX.Tests
             }
         }
 
-        // --- Stand-up recovery: EXPLICIT ASK, "once you are ragdolled from
+        // --- Stand-up recovery: Requested, "once you are ragdolled from
         // --- one of these events your are able to press space to stand up
         // --- once your on the floor for 2.5 seconds" ---
 
@@ -397,7 +397,7 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// EXPLICIT ASK: "make it so i can press space to get up at any
+        /// Requested: "make it so i can press space to get up at any
         /// time after /sleep is used" -- /sleep (PlayerChat.Dispatch) calls
         /// Activate with allowImmediateStandUp:true specifically so it
         /// skips the rest timer a real knockdown still has to sit through.
@@ -535,7 +535,7 @@ namespace CityX.Tests
             }
         }
 
-        // --- Depenetration: EXPLICIT BUG REPORT, "whenever i fly into a
+        // --- Depenetration: Bug report, "whenever i fly into a
         // --- wall i just get stuck in it" -- still true after a first,
         // --- fixed-distance pull-back attempt (see JetpackWallCrashTests'
         // --- own doc comment for the full history) ---

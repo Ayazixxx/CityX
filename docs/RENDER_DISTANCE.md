@@ -11,7 +11,7 @@ driven by the fog distances 460-690 m) hid the end of it: from a roof or a jetpa
 
 ## What was built
 
-- **`View/SkylineStreamer.cs`** -- a third tier past the streamed ring: every building of 9 m or more as ONE BOX in its own wall colour (a round
+- **`View/Skyline/SkylineStreamer.cs`** -- a third tier past the streamed ring: every building of 9 m or more as ONE BOX in its own wall colour (a round
   tower as the prism of its outline), and the ground as a plain floor following the land (water in water's colour), one mesh per group of 16 x 16
   chunks (384 m square), out to `RadiusMetres` 2200 m (127 groups round the spawn; about 2,500 vertices a group near the centre, nothing else).
   No colliders, no shadows, nothing small. Generated on the thread pool from the plan alone (`CityMeshBuilder.BuildSkyline`), assembled one group a

@@ -61,7 +61,7 @@ trust them.
 | The view widens with speed | `FlightFeel.FovBonus` -> `ThirdPersonCamera.FlightFovBonus` |
 | The camera falls back on a spring | `FlightFeel.DistanceBonus` -> `ThirdPersonCamera.FlightDistanceBonus` |
 | Boost is an event: a brief extra punch that fades | `FlightFeel.KickEnvelope` (Shift starts it) |
-| Streaks of air rushing past | `Weapons/JetpackSpeedLines.cs` |
+| Streaks of air rushing past | `Weapons/Gear/JetpackSpeedLines.cs` |
 | Wind quickens with speed | `FlightFeel.WindPitch` on the existing wind loop |
 | Off on the ground and on a crash/ragdoll | `Jetpack.TickFlightFeel` / `ResetFlightFeel` |
 | Live tuning | `/flight` in the dev console |

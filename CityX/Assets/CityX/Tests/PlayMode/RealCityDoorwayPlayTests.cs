@@ -134,7 +134,6 @@ namespace CityX.Tests
             yield return null;
         }
 
-        /// <summary>Everything solid in front of a body at a few heights, for a failure message.</summary>
         /// <summary>The free height over a window's sill, the lowest of three places across the wall's thickness (rays up from just over the sill).</summary>
         private static float OpeningOver(Vector3 face, Vector3 inward, float sillY)
         {

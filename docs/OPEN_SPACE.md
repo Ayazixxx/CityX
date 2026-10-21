@@ -151,7 +151,7 @@ Only the bollard lights and the kiosk's sign band glow (the owner removed street
 ## 5. Build order
 1. **Roles + kit + paving patterns** on the plaza blocks (the biggest visual change per hour): `World/OpenSpace.cs` (pure: the role and the layout
    from the block index and seed, every prop's rectangle, a walkability check that every prop keeps 1.2 m of clear paving on at least one side and
-   the kerb-to-door lines free), `View/CityProps.cs` (the new props), `CitySurfaceBuilder.BuildPlazaFurniture` rewritten over the layout. Tests:
+   the kerb-to-door lines free), `View/Streets/CityProps.cs` (the new props), `CitySurfaceBuilder.BuildPlazaFurniture` rewritten over the layout. Tests:
    shares of roles over a region, nothing inside a building or in the road, clearances, every role builds near and far; a PlayMode walk across a
    furnished plaza; `OpenSpaceCapture` renders each role by day and at dusk.
 2. **Streets**: pedestrian streets, parklets, junction triangles, median islands (plan change: the island role; new world seed).
@@ -182,12 +182,12 @@ Each phase: EditMode + PlayMode, the captures looked at, a new world seed where 
   tree planters and benches in two rows every 4.5 m, bins, lights. **The bare yard**: nothing (40 %), or one bench, one heap of rubble or one
   dead tree. **The vacant lot**: earth, 2-4 heaps of rubble, a painted hoarding along the street in two runs with a 3.2 m gap. **The quiet court**:
   planters along the kerbs every 7 m and a sparse grid inside, nothing to sit on.
-- **`View/CityProps.OpenSpace.cs`**: the kit as boxes and beams (`AddBeam`: a square beam from a to b at any tilt -- branches, posts, slats,
+- **`View/Streets/CityProps.OpenSpace.cs`**: the kit as boxes and beams (`AddBeam`: a square beam from a to b at any tilt -- branches, posts, slats,
   fallen pieces): seat block, shade sail (three steel posts, a canted double-sided triangle of fabric, torn = bare posts), umbrella table (table,
   pole, an eight-panel canopy, three or four chairs; fallen = the umbrella down beside it and a chair over), chair (fallen = on its side), picnic
   table, cube seat, bollard light (a band into the lit glass as `SurfaceLook.PackFloodlit` on a powered block, dark otherwise), dead tree (a
   tapering trunk, 4-7 branches going out and up, twigs), tree planter, round tree bench, pergola, tiered tower (five concrete tiers on a stone
-  core, a finial), chessboard and pieces, bike rack, name wall (lettering bars), hoarding, bin, lawn kerb. **`View/CitySurfaceBuilder.OpenSpace.cs`**
+  core, a finial), chessboard and pieces, bike rack, name wall (lettering bars), hoarding, bin, lawn kerb. **`View/Streets/CitySurfaceBuilder.OpenSpace.cs`**
   draws a block's layout: the paving in the role's look (`OpenSpacePavingLook`: earth for the vacant lot, warm setts for the square and the court,
   plain paving for the rest), the lawns as straw ground 2 cm over the paving with a concrete kerb, the pieces (each by the chunk it stands in), the
   bollards along the kerb. The lit glass reaches the ground pass now (`CitySurfaceBuilder.Build(..., lit)`).
@@ -234,7 +234,7 @@ Each phase: EditMode + PlayMode, the captures looked at, a new world seed where 
   streets on seed 91736402 at the classic scale (4.5 %). `Furniture(plan, g)`: bollards every 1.6 m across both ends 1.2 m inside the trims with
   a planter either side of the middle, and down the middle every 9 m a dead tree in its planter, an umbrella table (a bench where the street is
   too narrow) or a bench facing one walk, a bollard light between each pair; `WalkWidth` 3 m kept either side.
-- **`View/CitySurfaceBuilder`**: the ribbon (`BuildRoad`) in setts at the PAVEMENT's height (`PedestrianStreetLook`), no lane paint and no
+- **`View/Streets/CitySurfaceBuilder`**: the ribbon (`BuildRoad`) in setts at the PAVEMENT's height (`PedestrianStreetLook`), no lane paint and no
   crossings (`BuildPaint` returns), no kerb face along it (`BuildPavement`, `PedestrianStreets.Along` via `PlanWorld.EdgeBetween`: a block's corners
   are road nodes), the junction plates at its ends a kerb's step below; the furniture through `DrawPiece` (`CitySurfaceBuilder.Pedestrian.cs`,
   shared with the open blocks). Lights lit on half the streets (`Powered`).

@@ -634,10 +634,6 @@ namespace CityX.UI
         }
 
         /// <summary>
-        /// The colour the health bar takes at a given fraction of full. Static
-        /// and pure so the thresholds can be checked without a canvas.
-        /// </summary>
-        /// <summary>
         /// A bar's percentage, as WoW's frames show it: 100 only when full and 0 only when empty (a scratch reads 99, a sliver 1). The text is
         /// only rebuilt when the number changes.
         /// </summary>
@@ -677,6 +673,10 @@ namespace CityX.UI
             NameLabel.text = string.IsNullOrEmpty(name) ? DefaultName : name;
         }
 
+        /// <summary>
+        /// The colour the health bar takes at a given fraction of full. Static
+        /// and pure so the thresholds can be checked without a canvas.
+        /// </summary>
         public static Color ColourForHealth(float fraction)
         {
             if (fraction <= HealthRedFraction)

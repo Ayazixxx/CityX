@@ -115,7 +115,7 @@ namespace CityX.WeaponsEditor
 
         /// <summary>
         /// The launcher's visual: a plain metal rectangle, TargetLengthMeters
-        /// long with the muzzle at its +Z end. EXPLICIT ASK: "just replace it
+        /// long with the muzzle at its +Z end. Requested: "just replace it
         /// with a rectangle" -- the old sci-fi blaster model (a 118 MB .glb) was
         /// deleted, and a simpler one is to be made later. Dropping a real model
         /// back in means replacing this box; the muzzle, collider and grip all
@@ -447,7 +447,7 @@ namespace CityX.WeaponsEditor
         /// <summary>
         /// DIAGNOSTIC, NOT A PERMANENT TOOL -- a street-level look at
         /// CityMeshBuilder.AddSlopedStreetRamp in the REAL streamed city
-        /// (EXPLICIT ASK: "make these cut off streets sloped like san
+        /// (Requested: "make these cut off streets sloped like san
         /// francisco... never so steep that you can walk or run up it").
         /// Mirrors AddStreetEdgeFeatures's own roll to find a real
         /// street-vs-street terrace drop that actually came out sloped,
@@ -562,7 +562,7 @@ namespace CityX.WeaponsEditor
         /// DIAGNOSTIC, NOT A PERMANENT TOOL -- a birds-eye look at a real
         /// district boundary in the streamed city, framed to show two
         /// neighbouring districts with visibly different local block sizes
-        /// on either side of the same arterial street (EXPLICIT ASK:
+        /// on either side of the same arterial street (Requested:
         /// "separate areas by neighborhood and having main streets
         /// connecting them. not everything should be a blocky grid").
         /// </summary>
@@ -656,7 +656,7 @@ namespace CityX.WeaponsEditor
 
         /// <summary>
         /// DIAGNOSTIC, NOT A PERMANENT TOOL -- a street-level look at a real
-        /// multi-wing building in the streamed city (EXPLICIT ASK: "you can
+        /// multi-wing building in the streamed city (Requested: "you can
         /// make different sized buildings too dont have to have 4 corners").
         /// Searches for a building that grew wings on two or three walls at
         /// once, not just one, since that is the case most likely to actually

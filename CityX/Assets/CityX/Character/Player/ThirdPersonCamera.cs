@@ -22,7 +22,7 @@ namespace CityX.Character
         public Ragdoll Ragdoll;
 
         /// <summary>
-        /// EXPLICIT ASK: "make the camera follow the ragdoll when /sleep is
+        /// Requested: "make the camera follow the ragdoll when /sleep is
         /// used and the ragdoll is moved." Nothing moves the player's own
         /// root transform while limp (Ragdoll's own doc comment: "only the
         /// individual Rigidbodies do"), so Target alone leaves the camera
@@ -66,7 +66,7 @@ namespace CityX.Character
         public float LookDegreesPerPixel = 0.12f;
 
         /// <summary>
-        /// EXPLICIT BUG REPORT: "its not letting me all the way straight up
+        /// Bug report: "its not letting me all the way straight up
         /// it cuts off at a certain point. make it so I can look all the way
         /// up and down." Was -35/70 -- barely past the horizon looking up,
         /// and short of straight down too.
@@ -433,7 +433,7 @@ namespace CityX.Character
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
 
-            // POSITIONED HERE TOO, NOT ONLY IN LateUpdate. EXPLICIT BUG
+            // POSITIONED HERE TOO, NOT ONLY IN LateUpdate. Bug
             // REPORT, confirmed directly in CityMassingSceneBuilder: this
             // component lands on the SAME camera GameObject the FlyCamera
             // editor preview already positioned at a street-level walking
