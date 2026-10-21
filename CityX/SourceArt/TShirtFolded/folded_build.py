@@ -14,9 +14,9 @@ import bmesh
 import bpy
 from mathutils import Matrix, Vector
 
-FOLDED_WIDTH = 0.40          # across the folded shirt, game metres (the game is about 1.3x real: a real folded tee is 30 cm)
+FOLDED_WIDTH = 0.80          # across the folded shirt, game metres (the owner: twice a real folded tee, so it reads on the ground)
 TRIANGLES = 3000             # a small thing on the ground: as light as a helmet (2-5k); at 2,000 its far corner and collar went ragged
-VOXEL = 0.002                # the closed surface it is rebuilt from: a 2 mm grid (the folded shirt is 3.5 cm thick)
+VOXEL = 0.004                # the closed surface it is rebuilt from: a 4 mm grid (the folded shirt is 7 cm thick)
 SMOOTHING = 5                # passes evening out the voxel grid's steps before the reduction
 
 args = sys.argv[sys.argv.index("--") + 1:]

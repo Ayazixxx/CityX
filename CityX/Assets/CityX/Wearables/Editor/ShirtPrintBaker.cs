@@ -83,7 +83,7 @@ namespace CityX.WearablesEditor
                 if (print.CoverTheWholeShirt)
                 {
                     return ShirtPrintLayout.Cover(logo.GetPixels32(), logo.width, logo.height, TextureSize, cloth,
-                        print.RepeatEveryCm / CentimetresPerMetre * uvPerMetre);
+                        print.WidthCm / CentimetresPerMetre * uvPerMetre, centre - middleUv, print.RotationDegrees);
                 }
                 return ShirtPrintLayout.Print(logo.GetPixels32(), logo.width, logo.height, TextureSize, cloth, centre,
                     print.WidthCm / CentimetresPerMetre * uvPerMetre, print.RotationDegrees);

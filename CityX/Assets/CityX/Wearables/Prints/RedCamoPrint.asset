@@ -14,9 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: CityX.Wearables::CityX.Wearables.ShirtPrint
   Logo: {fileID: 2800000, guid: 1c4e63b6d3ebf0d4a9709fac47b12b57, type: 3}
   CoverTheWholeShirt: 1
-  RepeatEveryCm: 60
   Side: 0
   RightCm: 0
   UpCm: 0
-  WidthCm: 34
+  WidthCm: 107.3
   RotationDegrees: 0

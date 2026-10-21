@@ -90,8 +90,8 @@ texture). Another printed shirt is a picture in `Prints/`, an item, and one line
 "try making another shirt that has this camo all over print texture ... make it cover the whole surface of the tee" (owner, 2026-10-20).
 `/equip redcamo` (also `camo`). Its print (`Prints/RedCamoPrint.asset`, menu **CityX > Size the Red Camo**) has **Cover The Whole Shirt**
 ticked: the picture (`Prints/RedCamo.png`) is repeated across the whole texture, wrapping edge to edge, and since every piece lies on the
-texture at one scale, the pattern is the same size all over the shirt. **Repeat Every Cm** is how much shirt one copy of the picture covers:
-larger zooms the camo in (bigger blotches), smaller zooms it out. The placement fields do nothing for an all-over print.
+texture at one scale, the pattern is the same size all over the shirt. The same fields as a logo's then work on the pattern: **Width Cm** is how
+wide one copy of the picture is (larger zooms the camo in), **Rotation Degrees** turns it, **Right Cm** / **Up Cm** slide it; **Side** is unused.
 
 ## Folded on the ground
 
@@ -101,7 +101,7 @@ picked up; equipped, it is shown worn (the garment's existing ground preview, `S
 
 | Step | What |
 |---|---|
-| Model | The owner's `T-ShirtFolded.fbx` (Meshy, 350,000 triangles, no texture coordinates; in the owner's Downloads, not kept in the repo). `SourceArt/TShirtFolded/folded_build.py` lays it flat, front up, collar toward +z in Unity, 40 x 52 x 3.5 cm; makes it one closed even surface (a 2 mm voxel remesh, smoothed lightly, only the outer piece kept) and reduces that to 3,000 triangles: collapsed straight from 350,000, the collar tore and the top came out jagged; copying the source's shading on, its hidden inner folds turned patches dark; QuadriFlow refused the surface. `Models/TShirtFolded.glb`, 55 KB. |
+| Model | The owner's `T-ShirtFolded.fbx` (Meshy, 350,000 triangles, no texture coordinates; in the owner's Downloads, not kept in the repo). `SourceArt/TShirtFolded/folded_build.py` lays it flat, front up, collar toward +z in Unity, 80 x 105 x 7 cm (twice a real folded tee's size, at the owner's ask); makes it one closed even surface (a 4 mm voxel remesh, smoothed lightly, only the outer piece kept) and reduces that to 3,000 triangles: collapsed straight from 350,000, the collar tore and the top came out jagged; copying the source's shading on, its hidden inner folds turned patches dark; QuadriFlow refused the surface. `Models/TShirtFolded.glb`, 55 KB. |
 | Texture layout | Not made in Blender: `TShirtBuilder` gives it the worn shirt's own layout (`FoldedShirtLayout`), so one texture dresses the shirt folded and worn. The folded top is the worn front as seen from in front: the bottom of the folded neck opening (found as the end of the dip it makes in the middle line, 11 cm below the collar's edge) at the bottom of the worn neck opening (the neck rim's lowest point at the middle), the chest's width as seen from in front across the folded width, one scale both ways. Its underside is the worn back the same way, from the top of the collar, seen from behind. |
 
 **Players' own pictures (planned, not built):** possible as it stands. A player's picture placed on the worn shirt is just another print:

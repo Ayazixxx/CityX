@@ -168,6 +168,10 @@ namespace CityX.UI
                 return false;
             }
             GameObject item = Instantiate(prefab, where, Quaternion.identity);
+            // The floor under the spot, not the player's feet: the body stands a little above the floor (its controller's skin), and a
+            // thing lying flat, a folded shirt, showed the gap as a hover.
+            float floor = Physics.Raycast(where + Vector3.up * SpawnFloorSearch, Vector3.down, out RaycastHit hit, 2.0f * SpawnFloorSearch, ~0,
+                QueryTriggerInteraction.Ignore) ? hit.point.y : where.y;
             float lowest = float.MaxValue;
             foreach (Renderer part in item.GetComponentsInChildren<Renderer>())
             {
@@ -175,7 +179,7 @@ namespace CityX.UI
             }
             if (lowest < float.MaxValue)
             {
-                item.transform.position += Vector3.up * (where.y - lowest + 0.02f);
+                item.transform.position += Vector3.up * (floor - lowest + SpawnFloorClearance);
             }
             Log($"spawned a {(ItemRegistry.TryGet(itemId, out ItemDefinition definition) ? definition.DisplayName : itemId)} -- press E nearby to pick it up");
             return true;

@@ -57,21 +57,27 @@ namespace CityX.Wearables
         }
 
         /// <summary>
-        /// A square texture of <paramref name="size"/> texels covered all over with the picture, repeated every <paramref name="repeatUv"/>
-        /// along both of its sides (the garment's pieces lie at one scale on it, so the pattern is one size everywhere on the cloth), its
-        /// transparency letting <paramref name="cloth"/> through.
+        /// A square texture of <paramref name="size"/> texels covered all over with the picture, each copy <paramref name="repeatUv"/> wide
+        /// (the garment's pieces lie at one scale on it, so the pattern is one size everywhere on the cloth), the pattern slid by
+        /// <paramref name="offsetUv"/> and turned <paramref name="rotationDegrees"/> anticlockwise, the picture's transparency letting
+        /// <paramref name="cloth"/> through.
         /// </summary>
-        public static Color32[] Cover(Color32[] picture, int pictureWidth, int pictureHeight, int size, Color32 cloth, float repeatUv)
+        public static Color32[] Cover(Color32[] picture, int pictureWidth, int pictureHeight, int size, Color32 cloth, float repeatUv,
+            Vector2 offsetUv = default, float rotationDegrees = 0.0f)
         {
             var texels = new Color32[size * size];
             float repeatHeight = repeatUv * pictureHeight / pictureWidth;
+            float radians = rotationDegrees * Mathf.Deg2Rad;
+            float cos = Mathf.Cos(radians), sin = Mathf.Sin(radians);
             Color clothColour = cloth;
             for (int y = 0; y < size; y++)
             {
-                float v = Mathf.Repeat((y + 0.5f) / size / repeatHeight, 1.0f);
+                float dv = (y + 0.5f) / size - offsetUv.y;
                 for (int x = 0; x < size; x++)
                 {
-                    float u = Mathf.Repeat((x + 0.5f) / size / repeatUv, 1.0f);
+                    float du = (x + 0.5f) / size - offsetUv.x;
+                    float u = Mathf.Repeat((du * cos + dv * sin) / repeatUv, 1.0f);   // turned back into the pattern's own frame
+                    float v = Mathf.Repeat((-du * sin + dv * cos) / repeatHeight, 1.0f);
                     Color ink = Sample(picture, pictureWidth, pictureHeight, u, v, wrap: true);
                     texels[y * size + x] = Color.Lerp(clothColour, new Color(ink.r, ink.g, ink.b, 1.0f), ink.a);
                 }
