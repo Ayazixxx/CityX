@@ -90,7 +90,7 @@ namespace CityX.Tests
             LogAssert.ignoreFailingMessages = false;
         }
 
-        private IEnumerator LoadSceneWithASword(string sword = ItemRegistry.Sword)
+        private IEnumerator LoadSceneWithASword(string sword = ItemRegistry.SpikeSword)
         {
 #if UNITY_EDITOR
             LogAssert.ignoreFailingMessages = true;
@@ -231,7 +231,7 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator TheSpinHoldsTheSwordArmOutToTheSideWithTheBladeAlongIt()
         {
-            yield return SpinsWithTheBladeLevelAlongTheArm(ItemRegistry.Sword);
+            yield return SpinsWithTheBladeLevelAlongTheArm(ItemRegistry.SpikeSword);
         }
 
         /// <summary>

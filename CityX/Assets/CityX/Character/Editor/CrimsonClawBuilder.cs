@@ -11,8 +11,7 @@ namespace CityX.CharacterEditor
     /// present at Assets/CityX/NPC/Audio -- both reused wholesale from the
     /// Godot project, matching [[port_reuse_godot_assets]]).
     ///
-    /// UNLIKE FarmerHatBuilder's SOURCE, this .glb carries no whole extra
-    /// body to cut away -- it ships exactly 3 named mesh nodes ("Body",
+    /// The .glb carries no extra body to cut away -- it ships exactly 3 named mesh nodes ("Body",
     /// "LeftClaw", "RightClaw", a crude offline region-based split done
     /// once in Blender, not reproduced here), found by name via
     /// FindMeshFilterNamed the same way the source .gd's own
@@ -23,9 +22,8 @@ namespace CityX.CharacterEditor
     /// box, audio sources) happens HERE, once,
     /// at build time -- CrimsonClaw.cs itself is behaviour-only and just
     /// holds references to what this method wires up, the same split every
-    /// other prefab in this project already keeps (compare JetpackBuilder/
-    /// FarmerHatBuilder building geometry while Jetpack.cs/FarmerHat.cs only
-    /// ever read fields). This is a deliberate difference from the source
+    /// other prefab in this project already keeps (compare JetpackBuilder
+    /// building geometry while Jetpack.cs only ever reads fields). This is a deliberate difference from the source
     /// .gd, which builds its whole model procedurally at runtime in
     /// _ready() -- there is no Editor/runtime split in Godot to mirror.
     /// </summary>

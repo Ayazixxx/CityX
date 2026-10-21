@@ -167,8 +167,8 @@ namespace CityX.CharacterEditor
         /// needs its own material carrying its own texture; forcing a real
         /// texture map onto a shared flat-tint material would just lose it.
         /// This is for the common case a large catalog will mostly be
-        /// instead: simple recoloured primitives or cut meshes, the same
-        /// shape TopHat and FarmerHat already are.
+        /// instead: simple recoloured primitives or cut meshes, like the
+        /// top hat.
         /// </summary>
         public static Material EnsureSharedCategory(string category)
         {

@@ -20,7 +20,7 @@ namespace CityX.Tests
         private const string PlayerPath = "Assets/CityX/Character/Player.prefab";
         private const string SwordsmanPath = "Assets/CityX/Character/Swordsman.prefab";
         private const string ShootaPath = "Assets/CityX/Character/Shoota.prefab";
-        private const string SwordPath = "Assets/CityX/Weapons/Sword.prefab";
+        private const string SwordPath = "Assets/CityX/Weapons/SpikeSword.prefab";
 
         private GameObject _ground;
         private readonly List<GameObject> _made = new List<GameObject>();
@@ -77,7 +77,7 @@ namespace CityX.Tests
         private static Inventory GiveInventory(GameObject player)
         {
             var inventory = player.AddComponent<Inventory>();
-            inventory.ItemPrefabs = new[] { new Inventory.ItemPrefabEntry { ItemId = ItemRegistry.Sword, Prefab = SwordPrefab() } };
+            inventory.ItemPrefabs = new[] { new Inventory.ItemPrefabEntry { ItemId = ItemRegistry.SpikeSword, Prefab = SwordPrefab() } };
             return inventory;
         }
 
@@ -119,9 +119,9 @@ namespace CityX.Tests
             GameObject player = Spawn(PlayerPath, new Vector3(0.0f, 0.05f, 0.0f));
             Inventory inventory = GiveInventory(player);
             var vitals = player.GetComponent<PlayerVitals>();
-            Assert.IsTrue(inventory.AddItem(ItemRegistry.Sword, 1));
-            Assert.IsTrue(inventory.RemoveFromStorage(ItemRegistry.Sword, 1, out ItemInstanceData data));
-            Assert.IsTrue(inventory.EquipItemId(ItemRegistry.Sword, player, data), "setup: the sword was not equipped");
+            Assert.IsTrue(inventory.AddItem(ItemRegistry.SpikeSword, 1));
+            Assert.IsTrue(inventory.RemoveFromStorage(ItemRegistry.SpikeSword, 1, out ItemInstanceData data));
+            Assert.IsTrue(inventory.EquipItemId(ItemRegistry.SpikeSword, player, data), "setup: the sword was not equipped");
             yield return Seconds(0.3f);
             Assert.IsNotNull(inventory.EquippedInstance(Inventory.PrimarySlot), "setup: no sword in hand");
             Transform handBone = player.GetComponentInChildren<Animator>().GetBoneTransform(HumanBodyBones.RightHand);
@@ -130,9 +130,9 @@ namespace CityX.Tests
             Vector3 hand = handBone.position;   // after the ragdoll took the body, which may lift it out of the ground
             Assert.IsTrue(vitals.IsDead);
             Assert.IsEmpty(inventory.EquippedItemId(Inventory.PrimarySlot), "the sword is still in the dead player's hand");
-            Assert.IsFalse(inventory.HasItem(ItemRegistry.Sword), "the sword went back into the dead player's storage");
+            Assert.IsFalse(inventory.HasItem(ItemRegistry.SpikeSword), "the sword went back into the dead player's storage");
             DroppedItem dropped = OnlyDrop();
-            Assert.AreEqual(ItemRegistry.Sword, dropped.ItemId);
+            Assert.AreEqual(ItemRegistry.SpikeSword, dropped.ItemId);
             Assert.Less(Vector3.Distance(dropped.transform.position, hand), 0.4f, "the sword did not start in the dead player's hand");
             Assert.Less(dropped.Id, 0L, "with no session the drop is this machine's alone");
 
@@ -154,13 +154,13 @@ namespace CityX.Tests
             Assert.IsNotNull(picker, "the player's body has no way to pick up a dropped item");
             Assert.AreSame(dropped, picker.InReach(), "the sword at the player's feet, looked at, is not in reach");
             Assert.IsTrue(picker.TryPickUp());
-            Assert.IsTrue(otherInventory.HasItem(ItemRegistry.Sword), "picking it up did not put the sword in the inventory");
+            Assert.IsTrue(otherInventory.HasItem(ItemRegistry.SpikeSword), "picking it up did not put the sword in the inventory");
             Assert.AreEqual(0, DroppedItems.Shared.Count);
             yield return null;
             Assert.IsTrue(dropped == null, "the sword still lies there after it was picked up");
 
             // Looking away, nothing is in reach.
-            DroppedItem second = DroppedItems.Shared.Drop(new ItemDrop { ItemId = ItemRegistry.Sword, Position = lying + Vector3.up * 0.2f, Rotation = Quaternion.identity },
+            DroppedItem second = DroppedItems.Shared.Drop(new ItemDrop { ItemId = ItemRegistry.SpikeSword, Position = lying + Vector3.up * 0.2f, Rotation = Quaternion.identity },
                 false, null, SwordPrefab());
             eye.transform.rotation = Quaternion.LookRotation(eye.transform.position - lying);
             Assert.IsNull(picker.InReach(), "a sword behind the player's back was in reach");
@@ -216,7 +216,7 @@ namespace CityX.Tests
         {
             // Another player's drop far across the city, where this machine has not built the street yet.
             var high = new Vector3(500.0f, 300.0f, 500.0f);
-            DroppedItem item = DroppedItems.Shared.Drop(new ItemDrop { ItemId = ItemRegistry.Sword, Position = high, Rotation = Quaternion.identity },
+            DroppedItem item = DroppedItems.Shared.Drop(new ItemDrop { ItemId = ItemRegistry.SpikeSword, Position = high, Rotation = Quaternion.identity },
                 false, null, SwordPrefab());
             Assert.IsNotNull(item, "the sword was not shown");
             yield return Seconds(1.0f);

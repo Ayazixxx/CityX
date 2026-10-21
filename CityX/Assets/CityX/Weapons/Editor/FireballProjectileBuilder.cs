@@ -7,10 +7,8 @@ namespace CityX.WeaponsEditor
 {
     /// <summary>
     /// Builds the fireball projectile -- a glowing sphere with a short
-    /// trailing ember stream, procedural (matching BottleBuilder/
-    /// JetpackBuilder/SwordBuilder's own reasoning: no glTF importer
-    /// exists in this project for a hand-authored mesh, and a fireball is
-    /// a sphere anyway, which needs no authored mesh at all). No Godot
+    /// trailing ember stream, procedural: a fireball is a sphere, which needs
+    /// no authored mesh at all. No Godot
     /// source to port numbers from -- see FireballCaster.cs's own doc
     /// comment.
     /// </summary>

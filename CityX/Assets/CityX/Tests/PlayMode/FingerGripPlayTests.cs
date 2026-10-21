@@ -93,7 +93,7 @@ namespace CityX.Tests
             Transform left = animator.GetBoneTransform(HumanBodyBones.LeftHand);
             yield return Settle(0.5f);
 
-            var swordPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/Sword.prefab");
+            var swordPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/SpikeSword.prefab");
             _sword = Object.Instantiate(swordPrefab, new Vector3(10, 1, 10), Quaternion.identity);
             SwordWeapon sword = _sword.GetComponent<SwordWeapon>();
             sword.OnEquip(_player, CityX.Items.ItemInstanceData.None);

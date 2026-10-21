@@ -140,7 +140,7 @@ namespace CityX.Character
         /// console command couldn't reassign) so it can be tuned in-game
         /// via /aim yaw and baked into this default afterward, the same
         /// "tune live, then bake the winning number" workflow already
-        /// established for /jacket and /pistol.
+        /// established for /pistol.
         /// </summary>
         public float AimYawOffsetDegrees = 0.0f;
 

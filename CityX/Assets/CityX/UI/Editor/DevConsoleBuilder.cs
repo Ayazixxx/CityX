@@ -26,20 +26,11 @@ namespace CityX.UIEditor
         private static readonly Color Ink = new Color(0.82f, 0.86f, 0.92f, 1.0f);
 
         /// <summary>
-        /// <paramref name="radioPrefab"/> is handed in rather than built here,
-        /// because building it needs the View editor assembly and the UI
-        /// editor has no business referencing that just to fill one slot.
+        /// <paramref name="radioPrefab"/> and <paramref name="mustangPrefab"/> are handed in rather than built here: building them needs the
+        /// View and Vehicles editor assemblies. Items need no prefab here: /spawn puts down the player inventory's own.
         /// </summary>
-        public static DevConsoleView AddToScene(PlayerVitals vitals, RainEffect rain,
-            DayNightCycle cycle, FlyCamera fly, GameObject radioPrefab,
-            GameObject bottlePrefab = null, GameObject skelliJeansPrefab = null, GameObject hoodedCloakPrefab = null,
-            PlayerInputReader inputReader = null, ThirdPersonCamera orbitCamera = null,
-            GameObject grapplingHookPrefab = null, GameObject pistolPrefab = null,
-            GameObject midnightPatchworkCoatPrefab = null, GameObject jetpackPrefab = null,
-            GameObject swordPrefab = null, GameObject topHatPrefab = null,
-            GameObject mustangPrefab = null,
-            GameObject flamethrowerPrefab = null, GameObject parachutePrefab = null,
-            GameObject blackPufferJacketPrefab = null)
+        public static DevConsoleView AddToScene(PlayerVitals vitals, RainEffect rain, DayNightCycle cycle, FlyCamera fly,
+            GameObject radioPrefab, GameObject mustangPrefab, PlayerInputReader inputReader, ThirdPersonCamera orbitCamera)
         {
             var root = new GameObject("DevConsole", typeof(RectTransform));
             Canvas canvas = root.AddComponent<Canvas>();
@@ -113,19 +104,7 @@ namespace CityX.UIEditor
             view.CrimsonClawPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
                 "Assets/CityX/Character/CrimsonClaw.prefab");
             view.RadioPrefab = radioPrefab;
-            view.BottlePrefab = bottlePrefab;
-            view.SkelliJeansPrefab = skelliJeansPrefab;
-            view.HoodedCloakPrefab = hoodedCloakPrefab;
-            view.GrapplingHookPrefab = grapplingHookPrefab;
-            view.PistolPrefab = pistolPrefab;
-            view.MidnightPatchworkCoatPrefab = midnightPatchworkCoatPrefab;
-            view.BlackPufferJacketPrefab = blackPufferJacketPrefab;
-            view.JetpackPrefab = jetpackPrefab;
-            view.ParachutePrefab = parachutePrefab;
-            view.SwordPrefab = swordPrefab;
-            view.TopHatPrefab = topHatPrefab;
             view.MustangPrefab = mustangPrefab;
-            view.FlamethrowerPrefab = flamethrowerPrefab;
             view.InputReader = inputReader;
             view.OrbitCamera = orbitCamera;
             view.Swing = inputReader != null ? inputReader.GetComponent<GrappleSwing>() : null;

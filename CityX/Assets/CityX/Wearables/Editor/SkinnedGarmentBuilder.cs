@@ -34,8 +34,6 @@ namespace CityX.WearablesEditor
         private const string CloakMeshPath = "Assets/CityX/Wearables/HoodedCloakMesh.asset";
         private const string JeansPrefabPath = "Assets/CityX/Wearables/SkelliJeans.prefab";
         private const string CloakPrefabPath = "Assets/CityX/Wearables/HoodedCloak.prefab";
-        private const string CoatPrefabPath = "Assets/CityX/Wearables/MidnightPatchworkCoat.prefab";
-        private const string JacketPrefabPath = "Assets/CityX/Wearables/BlackPufferJacket.prefab";
 
         // Lying on the ground pre-pickup, shown tipped and shrunk so a
         // person-sized garment reads as a dropped item rather than half an
@@ -183,9 +181,9 @@ namespace CityX.WearablesEditor
 
         /// <summary>
         /// The part of Build&lt;T&gt; that has nothing to do with WHERE the
-        /// baked mesh came from -- pulled out so MidnightPatchworkCoatBuilder
+        /// baked mesh came from -- pulled out so MidnightCoatBuilder and TShirtBuilder
         /// can reuse the same root/preview/pickup-trigger/prefab scaffolding
-        /// for a mesh it bakes with its own, unrelated strip-and-rebind
+        /// for a mesh they bake with their own, unrelated
         /// logic, rather than duplicating it.
         /// </summary>
         internal static GameObject BuildPrefabFromMesh<T>(Mesh bakedMesh, Material material,
@@ -601,12 +599,6 @@ namespace CityX.WearablesEditor
             Shoot(bodyPrefab, CloakPrefabPath, outputDirectory, "cloak-stride", 215.0f, StridePose);
             Shoot(bodyPrefab, JeansPrefabPath, outputDirectory, "jeans-front", 0.0f, RestPose);
             Shoot(bodyPrefab, JeansPrefabPath, outputDirectory, "jeans-stride", 215.0f, StridePose);
-            Shoot(bodyPrefab, CoatPrefabPath, outputDirectory, "coat-front", 0.0f, RestPose);
-            Shoot(bodyPrefab, CoatPrefabPath, outputDirectory, "coat-stride", 215.0f, StridePose);
-            Shoot(bodyPrefab, CoatPrefabPath, outputDirectory, "coat-back", 180.0f, RestPose);
-            Shoot(bodyPrefab, JacketPrefabPath, outputDirectory, "jacket-front", 0.0f, RestPose);
-            Shoot(bodyPrefab, JacketPrefabPath, outputDirectory, "jacket-stride", 215.0f, StridePose);
-            Shoot(bodyPrefab, JacketPrefabPath, outputDirectory, "jacket-back", 180.0f, RestPose);
 
             if (Application.isBatchMode)
             {

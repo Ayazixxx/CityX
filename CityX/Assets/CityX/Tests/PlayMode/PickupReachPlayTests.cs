@@ -16,7 +16,7 @@ namespace CityX.Tests
     public sealed class PickupReachPlayTests : InputTestFixture
     {
         private const string PlayerPath = "Assets/CityX/Character/Player.prefab";
-        private const string SwordPath = "Assets/CityX/Weapons/Sword.prefab";
+        private const string SwordPath = "Assets/CityX/Weapons/SpikeSword.prefab";
 
         private Keyboard _keyboard;
         private readonly List<GameObject> _made = new List<GameObject>();
@@ -92,7 +92,7 @@ namespace CityX.Tests
             yield return null;
             Release(_keyboard.eKey);
             yield return null;
-            Assert.IsTrue(inventory.HasItem(ItemRegistry.Sword), "E did nothing: the NPC passing through made the sword forget the player standing at it");
+            Assert.IsTrue(inventory.HasItem(ItemRegistry.SpikeSword), "E did nothing: the NPC passing through made the sword forget the player standing at it");
 #else
             yield break;
 #endif

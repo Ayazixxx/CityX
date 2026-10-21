@@ -136,7 +136,7 @@ namespace CityX.Tests
 
         private static ItemDrop Sword(Vector3 at) => new ItemDrop
         {
-            ItemId = ItemRegistry.Sword, Position = at, Rotation = Quaternion.identity, Velocity = new Vector3(0.6f, 1.5f, 0.0f), Spin = Vector3.forward * 4.0f,
+            ItemId = ItemRegistry.SpikeSword, Position = at, Rotation = Quaternion.identity, Velocity = new Vector3(0.6f, 1.5f, 0.0f), Spin = Vector3.forward * 4.0f,
         };
 
         [UnityTest]
@@ -178,11 +178,11 @@ namespace CityX.Tests
             Assert.Greater(id, 0L, "a shared drop has no id from the session");
             yield return WaitUntil(() => onB.Has(id), "player B to see the sword player A dropped");
             Assert.IsNotNull(onB.Find(id), "the sword is not shown on player B's machine");
-            Assert.AreEqual(ItemRegistry.Sword, onB.Find(id).ItemId);
+            Assert.AreEqual(ItemRegistry.SpikeSword, onB.Find(id).ItemId);
 
             // Player B picks it up: B gets it, and it is gone from both machines.
             Assert.IsTrue(onB.Take(id, bPockets));
-            yield return WaitUntil(() => bPockets.HasItem(ItemRegistry.Sword), "player B to get the sword");
+            yield return WaitUntil(() => bPockets.HasItem(ItemRegistry.SpikeSword), "player B to get the sword");
             yield return WaitUntil(() => !onA.Has(id), "the sword to be gone from player A's machine");
             Assert.IsFalse(onB.Has(id), "the sword still lies on player B's machine");
             Assert.IsFalse(onA.Take(id, aPockets), "player A could still pick up a sword player B took");
@@ -191,12 +191,12 @@ namespace CityX.Tests
             DroppedItem second = onA.Drop(Sword(new Vector3(1.0f, 1.6f, 0.0f)), shared: true);
             long secondId = second.Id;
             yield return WaitUntil(() => onB.Has(secondId), "player B to see the second sword");
-            int bBefore = Count(bPockets, ItemRegistry.Sword);
+            int bBefore = Count(bPockets, ItemRegistry.SpikeSword);
             Assert.IsTrue(onA.Take(secondId, aPockets));
             Assert.IsTrue(onB.Take(secondId, bPockets));
             yield return WaitUntil(() => !onA.Has(secondId) && !onB.Has(secondId), "the second sword to be gone from both machines");
             yield return WaitSeconds(0.3f);
-            int got = Count(aPockets, ItemRegistry.Sword) + Count(bPockets, ItemRegistry.Sword) - bBefore;
+            int got = Count(aPockets, ItemRegistry.SpikeSword) + Count(bPockets, ItemRegistry.SpikeSword) - bBefore;
             Assert.AreEqual(1, got, "two players asking at once must not both get the sword");
 
             // A drop 300 m from the dropper's body is refused.

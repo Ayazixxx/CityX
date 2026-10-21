@@ -239,7 +239,7 @@ namespace CityX.Tests
         private SwordWeapon EquipSword()
         {
 #if UNITY_EDITOR
-            var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/Sword.prefab");
+            var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/SpikeSword.prefab");
             Assert.IsNotNull(prefab, "Sword.prefab is missing");
             _weaponObject = Object.Instantiate(prefab, new Vector3(20.0f, 0.5f, 20.0f), Quaternion.identity);
             var sword = _weaponObject.GetComponent<SwordWeapon>();

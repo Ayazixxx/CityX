@@ -209,7 +209,7 @@ namespace CityX.Tests
             Assert.IsNotNull(melee.SpinSlashMaterial, "setup: the player has no slash material for the spin");
             Transform hips = body.GetComponentInChildren<Animator>().GetBoneTransform(HumanBodyBones.Hips);
             // The other player's sword, as their copy carries it: the model mounted in the right hand and nothing else (ICosmeticMountable).
-            GameObject sword = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/Sword.prefab"));
+            GameObject sword = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/SpikeSword.prefab"));
             _made.Add(sword);
             sword.GetComponent<ICosmeticMountable>().MountCosmetic(body);
             yield return null;
@@ -273,7 +273,7 @@ namespace CityX.Tests
             var locomotion = body.GetComponent<PlayerLocomotion>();
             Transform hips = body.GetComponentInChildren<Animator>().GetBoneTransform(HumanBodyBones.Hips);
             // The other player's sword, as their copy carries it: the model mounted in the right hand and nothing else (ICosmeticMountable).
-            GameObject sword = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/Sword.prefab"));
+            GameObject sword = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/SpikeSword.prefab"));
             _made.Add(sword);
             sword.GetComponent<ICosmeticMountable>().MountCosmetic(body);
             Victim victim = VictimAt(body.transform.position + body.transform.forward * 2.0f + Vector3.up);
@@ -326,7 +326,7 @@ namespace CityX.Tests
             Transform hips = animator.GetBoneTransform(HumanBodyBones.Hips);
             Transform hand = animator.GetBoneTransform(HumanBodyBones.RightHand);
             // The other player's sword, as their copy carries it (ICosmeticMountable).
-            GameObject sword = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/Sword.prefab"));
+            GameObject sword = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/SpikeSword.prefab"));
             _made.Add(sword);
             sword.GetComponent<ICosmeticMountable>().MountCosmetic(body);
             Victim victim = VictimAt(body.transform.position + body.transform.forward * 2.0f + Vector3.up);

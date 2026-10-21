@@ -267,11 +267,9 @@ namespace CityX.Weapons
         /// Re-stretches the rope tube between the muzzle and the anchor.
         /// Called every frame by GrappleSwing while swinging, since both
         /// ends move. Rebuilds the ring of vertices at each end around the
-        /// current muzzle-to-anchor axis -- the same tapered-tube technique
-        /// SwordBuilder's own AddTube uses at edit time, run live here
-        /// since both endpoints move every frame a real LineRenderer strip
-        /// could update by just moving two points, but a real tube needs
-        /// its whole cross-section re-oriented to the new axis instead.
+        /// current muzzle-to-anchor axis: a LineRenderer strip could update
+        /// by just moving two points, but a real tube needs its whole
+        /// cross-section re-oriented to the new axis instead.
         /// </summary>
         public void UpdateRope(Vector3 anchor)
         {

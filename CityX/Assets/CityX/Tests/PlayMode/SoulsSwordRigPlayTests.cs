@@ -48,7 +48,7 @@ namespace CityX.Tests
             _ground.transform.localScale = new Vector3(200.0f, 1.0f, 200.0f);
 
             var playerPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab");
-            var swordPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/Sword.prefab");
+            var swordPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/SpikeSword.prefab");
             Assert.IsNotNull(playerPrefab, "Player.prefab is missing");
             Assert.IsNotNull(swordPrefab, "Sword.prefab is missing");
 

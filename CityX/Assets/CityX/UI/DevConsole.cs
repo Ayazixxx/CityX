@@ -138,7 +138,6 @@ namespace CityX.UI
             "equip",
             "unequip",
             "goto",
-            "jacket",
             "pistol",
             "aim",
             "camera",
@@ -165,16 +164,14 @@ namespace CityX.UI
                 case "skills": return "/skills -- what is learnt, the points and the bar; /skills points <n> gives skill points; " +
                     "/skills reset forgets everything but vaulting and gives the points back; /skills all learns everything; " +
                     "/skills new is a brand new character's (vaulting and one point)";
-                case "spawn": return "/spawn <dummy|civilian|flyer|crimsonclaw|shoota|swordsman|radio|bottle|jeans|cloak|coat|jacket|" +
-                    "midnight_coat|tshirt|grapple|pistol|sword|flamethrower|jetpack|parachute|top_hat|farmer_hat|knight_helmet|mustang|book>";
+                case "spawn": return "/spawn <dummy|civilian|flyer|crimsonclaw|shoota|swordsman|radio|mustang|book|" +
+                    "any item /equip takes>";
                 case "car": return "/car pose -- logs the nearest car's seat positions (drag them in the Editor to nudge)";
                 case "celshade": return "/celshade -- toggles toon shading on every character skin";
-                case "equip": return "/equip <bottle|jeans|cloak|coat|jacket|midnight_coat|tshirt|grapple|pistol|sword|flamethrower|" +
-                    "jetpack|parachute|top_hat|farmer_hat|knight_helmet|spikesword|combatsword|ak47|crowbar|bat|spraycan>";
+                case "equip": return "/equip <bottle|jeans|cloak|coat|tshirt|grapple|pistol|flamethrower|jetpack|parachute|top_hat|" +
+                    "knight_helmet|spikesword|combatsword|ak47|crowbar|bat|spraycan>";
                 case "unequip": return "/unequip <hand_r (primary)|hand_l (secondary)|legs|top|back|helmet>";
                 case "goto": return "/goto <slope|highway> -- teleports to the nearest one (onto an expressway's deck for highway)";
-                case "jacket": return "/jacket <scale|offset> <value>, or /jacket pose -- " +
-                    "live-tunes the equipped top's own size/vertical position (wear only one top while tuning)";
                 case "pistol": return "/pistol <pos|rot> <x> <y> <z>, /pistol scale <value>, or /pistol pose -- " +
                     "live-tunes the equipped pistol's own grip in the hand";
                 case "aim": return "/aim offset <metres>, /aim yaw <degrees>, /aim armyaw <degrees>, or /aim pose -- " +

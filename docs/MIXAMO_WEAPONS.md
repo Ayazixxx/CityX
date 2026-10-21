@@ -86,7 +86,7 @@ Three separate causes, found in this order:
 
 ## Adjusting how a weapon is held (in the Unity editor)
 
-1. Press **Play**, then equip the weapon in the game (press `` ` `` and type `/equip sword` or `/equip pistol` --
+1. Press **Play**, then equip the weapon in the game (press `` ` `` and type `/equip spikesword` or `/equip pistol` --
    the only console step; a pistol's free hand only comes up while you aim, so hold right-click).
 2. **CityX > Weapon Grips > Select the held sword** (or pistol). The held weapon is an ordinary object under the
    right hand and carries an orange **left-hand marker** (drawn in the Scene view).

@@ -13,7 +13,7 @@ namespace CityX.Tests
     {
         private static ItemDropMessage Sword(long id) => new ItemDropMessage
         {
-            Id = id, ItemId = ItemRegistry.Sword, Durability = -1, Position = new Vector3(3.0f, 1.2f, -4.0f), Rotation = Quaternion.identity,
+            Id = id, ItemId = ItemRegistry.SpikeSword, Durability = -1, Position = new Vector3(3.0f, 1.2f, -4.0f), Rotation = Quaternion.identity,
             Velocity = new Vector3(0.5f, 1.5f, 0.0f), Spin = new Vector3(0.0f, 0.0f, 4.0f),
         };
 
@@ -65,7 +65,7 @@ namespace CityX.Tests
             Assert.AreEqual(drop.Position, back.Position);
             Assert.AreEqual(drop.Velocity, back.Velocity);
 
-            ItemDrop plain = DroppedItemsNetwork.ToDrop(DroppedItemsNetwork.ToMessage(new ItemDrop { Id = 1L << 32, ItemId = ItemRegistry.Sword }));
+            ItemDrop plain = DroppedItemsNetwork.ToDrop(DroppedItemsNetwork.ToMessage(new ItemDrop { Id = 1L << 32, ItemId = ItemRegistry.SpikeSword }));
             Assert.IsFalse(plain.Data.HasDurability, "a sword arrived with a durability it never had");
         }
 
@@ -76,12 +76,12 @@ namespace CityX.Tests
             try
             {
                 var inventory = go.AddComponent<Inventory>();
-                Assert.IsTrue(inventory.HasRoomFor(ItemRegistry.Sword));
+                Assert.IsTrue(inventory.HasRoomFor(ItemRegistry.SpikeSword));
                 for (int i = 0; i < Inventory.StorageSlotCount; i++)
                 {
                     Assert.IsTrue(inventory.AddItem(ItemRegistry.CombatSword, 1));
                 }
-                Assert.IsFalse(inventory.HasRoomFor(ItemRegistry.Sword), "a full inventory said a sword would fit");
+                Assert.IsFalse(inventory.HasRoomFor(ItemRegistry.SpikeSword), "a full inventory said a sword would fit");
                 Assert.IsFalse(inventory.HasRoomFor("no_such_item"));
             }
             finally

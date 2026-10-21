@@ -10,8 +10,8 @@ namespace CityX.WeaponsEditor
     /// The spike sword (owner, 2026-10-13: "put this in as a two handed sword", Sharpspikesword.glb): a second two-handed sword that plays
     /// exactly like the greatsword -- same swings, guard, roll, same hold -- with the owner's own model.
     ///
-    /// The glb's mesh is baked into a plain mesh asset (no textures in it; one plain steel material), then placed so it sits in the SAME
-    /// frame as SwordBuilder's sword: the guard at the root, the handle running down -Y, the blade up +Y and 2.1 m long
+    /// The glb's mesh is baked into a plain mesh asset (no textures in it; one plain steel material), then placed in the greatsword frame:
+    /// the guard at the root, the handle running down -Y, the blade up +Y and 2.1 m long
     /// (<see cref="SwordWeapon.BladeLocalLength"/>). That is what lets it share the greatsword's tuned grip (WeaponGripSettings).
     /// </summary>
     public static class SpikeSwordBuilder

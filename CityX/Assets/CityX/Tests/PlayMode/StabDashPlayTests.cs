@@ -70,7 +70,7 @@ namespace CityX.Tests
             LogAssert.ignoreFailingMessages = false;
         }
 
-        private IEnumerator LoadScene(bool withSword, string sword = ItemRegistry.Sword)
+        private IEnumerator LoadScene(bool withSword, string sword = ItemRegistry.SpikeSword)
         {
 #if UNITY_EDITOR
             LogAssert.ignoreFailingMessages = true;

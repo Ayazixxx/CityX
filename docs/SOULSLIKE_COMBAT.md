@@ -4,11 +4,14 @@ The sword is fought the way Dark Souls fights it. Fists, the bottle and every
 other weapon keep the old `MeleeAttacker` combat; equipping a sword adds
 `SoulsSwordCombat` to the body (`SwordWeapon.OnEquip`), and unequipping drops it.
 
-Two kinds of sword since 2026-10-13: the **two-handed** greatsword and spike sword
-(`/equip sword`, `/equip spikesword`), and the **one-handed** combat sword
+Two kinds of sword since 2026-10-13: the **two-handed** spike sword
+(`/equip spikesword`), and the **one-handed** combat sword
 (`/equip combatsword`, the owner's COMBATSWORDX.glb, `SwordWeapon.OneHanded`), each
 with its own four attacks and guard. The one-handed sword's first attack is a
-horizontal slash (the owner's choice).
+horizontal slash (the owner's choice). The two-handed moves are still called the
+greatsword's after the first two-handed model, ported from Godot's `greatsword.gd`;
+that model was removed on 2026-10-20 ("it looks terrible and we will make way
+better"), and the spike sword keeps its frame and hold.
 
 ## Controls
 

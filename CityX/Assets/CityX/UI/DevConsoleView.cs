@@ -73,37 +73,6 @@ namespace CityX.UI
         [Tooltip("What /spawn radio puts down.")]
         public GameObject RadioPrefab;
 
-        [Tooltip("What /spawn bottle puts down, and what /equip bottle equips.")]
-        public GameObject BottlePrefab;
-
-        [Tooltip("What /spawn jeans puts down, and what /equip jeans equips.")]
-        public GameObject SkelliJeansPrefab;
-
-        [Tooltip("What /spawn cloak puts down, and what /equip cloak equips.")]
-        public GameObject HoodedCloakPrefab;
-
-        [Tooltip("What /spawn grapple puts down, and what /equip grapple equips.")]
-        public GameObject GrapplingHookPrefab;
-        public GameObject PistolPrefab;
-        public GameObject FlamethrowerPrefab;
-
-        [Tooltip("What /spawn coat puts down, and what /equip coat equips.")]
-        public GameObject MidnightPatchworkCoatPrefab;
-
-        [Tooltip("What /spawn jacket puts down, and what /equip jacket equips.")]
-        public GameObject BlackPufferJacketPrefab;
-
-        [Tooltip("What /spawn jetpack puts down, and what /equip jetpack equips.")]
-        public GameObject JetpackPrefab;
-
-        [Tooltip("What /spawn parachute puts down, and what /equip parachute equips.")]
-        public GameObject ParachutePrefab;
-
-        [Tooltip("What /spawn sword puts down, and what /equip sword equips.")]
-        public GameObject SwordPrefab;
-        public GameObject TopHatPrefab;
-        public GameObject FarmerHatPrefab;
-
         [Tooltip("What /spawn mustang puts down.")]
         public GameObject MustangPrefab;
 
@@ -439,10 +408,6 @@ namespace CityX.UI
 
                 case "goto":
                     Goto(line.Argument(0));
-                    return;
-
-                case "jacket":
-                    JacketCommand(line.Argument(0), line.Argument(1));
                     return;
 
                 case "pistol":
@@ -933,127 +898,6 @@ namespace CityX.UI
                     Log("spawned radio -- press E to switch it on");
                     return;
 
-                case "bottle":
-                    if (BottlePrefab == null)
-                    {
-                        Log("no bottle prefab wired");
-                        return;
-                    }
-                    Instantiate(BottlePrefab, where + Vector3.up * 0.1f, Quaternion.identity);
-                    Log("spawned a glass bottle -- walk up, look at it and press E");
-                    return;
-
-                case "jeans":
-                    if (SkelliJeansPrefab == null)
-                    {
-                        Log("no skelli jeans prefab wired");
-                        return;
-                    }
-                    Instantiate(SkelliJeansPrefab, where + Vector3.up * 0.05f, Quaternion.identity);
-                    Log("spawned skelli jeans -- press E nearby to pick them up");
-                    return;
-
-                case "cloak":
-                    if (HoodedCloakPrefab == null)
-                    {
-                        Log("no hooded cloak prefab wired");
-                        return;
-                    }
-                    Instantiate(HoodedCloakPrefab, where + Vector3.up * 0.05f, Quaternion.identity);
-                    Log("spawned a hooded cloak -- press E nearby to pick it up");
-                    return;
-
-                case "coat":
-                    if (MidnightPatchworkCoatPrefab == null)
-                    {
-                        Log("no midnight patchwork coat prefab wired");
-                        return;
-                    }
-                    Instantiate(MidnightPatchworkCoatPrefab, where + Vector3.up * 0.05f, Quaternion.identity);
-                    Log("spawned a midnight patchwork coat -- press E nearby to pick it up");
-                    return;
-
-                case "jacket":
-                    if (BlackPufferJacketPrefab == null)
-                    {
-                        Log("no black puffer jacket prefab wired");
-                        return;
-                    }
-                    Instantiate(BlackPufferJacketPrefab, where + Vector3.up * 0.05f, Quaternion.identity);
-                    Log("spawned a black puffer jacket -- press E nearby to pick it up");
-                    return;
-
-                case "jetpack":
-                    if (JetpackPrefab == null)
-                    {
-                        Log("no jetpack prefab wired");
-                        return;
-                    }
-                    Instantiate(JetpackPrefab, where + Vector3.up * 0.05f, Quaternion.identity);
-                    Log("spawned a jetpack -- press E nearby to pick it up");
-                    return;
-
-                case "parachute":
-                    if (ParachutePrefab == null)
-                    {
-                        Log("no parachute prefab wired");
-                        return;
-                    }
-                    Instantiate(ParachutePrefab, where + Vector3.up * 0.05f, Quaternion.identity);
-                    Log("spawned a parachute -- press E nearby to pick it up");
-                    return;
-
-                case "sword":
-                    if (SwordPrefab == null)
-                    {
-                        Log("no sword prefab wired");
-                        return;
-                    }
-                    Instantiate(SwordPrefab, where + Vector3.up * 0.05f, Quaternion.identity);
-                    Log("spawned a sword -- press E nearby to pick it up");
-                    return;
-
-                case "top_hat":
-                case "tophat":
-                    if (TopHatPrefab == null)
-                    {
-                        Log("no top hat prefab wired");
-                        return;
-                    }
-                    Instantiate(TopHatPrefab, where + Vector3.up * 0.05f, Quaternion.identity);
-                    Log("spawned a top hat -- press E nearby to pick it up");
-                    return;
-
-                case "grapple":
-                    if (GrapplingHookPrefab == null)
-                    {
-                        Log("no grappling hook prefab wired");
-                        return;
-                    }
-                    Instantiate(GrapplingHookPrefab, where + Vector3.up * 0.1f, Quaternion.identity);
-                    Log("spawned a grappling hook -- walk up, look at it and press E");
-                    return;
-
-                case "pistol":
-                    if (PistolPrefab == null)
-                    {
-                        Log("no pistol prefab wired");
-                        return;
-                    }
-                    Instantiate(PistolPrefab, where + Vector3.up * 0.1f, Quaternion.identity);
-                    Log("spawned a pistol -- walk up, look at it and press E");
-                    return;
-
-                case "flamethrower":
-                    if (FlamethrowerPrefab == null)
-                    {
-                        Log("no flamethrower prefab wired");
-                        return;
-                    }
-                    Instantiate(FlamethrowerPrefab, where + Vector3.up * 0.1f, Quaternion.identity);
-                    Log("spawned a flamethrower -- walk up, look at it and press E");
-                    return;
-
                 case "mustang":
                     if (MustangPrefab == null)
                     {
@@ -1185,71 +1029,6 @@ namespace CityX.UI
             return $"({v.x:0.00}, {v.y:0.00}, {v.z:0.00})";
         }
 
-        /// <summary>
-        /// "/jacket scale|offset|pose" -- same live-and-read-back idiom as
-        /// "/car pose". EXPLICIT BUG, found and fixed the hard way: the
-        /// first version of this command nudged SkinnedGarmentCombiner's
-        /// own renderer Transform, on the mistaken assumption that a
-        /// SkinnedMeshRenderer's own Transform affects its rendered result
-        /// the way an ordinary MeshRenderer's does -- it does not, once
-        /// bones are assigned, which is exactly why "the commands aren't
-        /// altering it at all" was reported. This calls
-        /// BlackPufferJacket.SetLivePlacement instead, which actually
-        /// rebuilds the mesh's vertex positions AND bone weights -- see
-        /// that method's own doc comment.
-        ///
-        /// THE FINAL NUMBERS THIS REPORTS ARE A LIVE PREVIEW, NOT THE
-        /// PERMANENT FIX -- once "/jacket pose" reads back numbers that
-        /// look right in-game, those same two numbers go into
-        /// BlackPufferJacketBuilder's own ManualScale/ManualVerticalOffset
-        /// constants for the permanent bake.
-        /// </summary>
-        private void JacketCommand(string sub, string valueText)
-        {
-            if (Vitals == null)
-            {
-                Log("no body here");
-                return;
-            }
-            var jacket = Vitals.GetComponentInChildren<CityX.Wearables.BlackPufferJacket>();
-            if (jacket == null)
-            {
-                Log("no black puffer jacket worn -- /equip jacket first");
-                return;
-            }
-
-            switch (sub)
-            {
-                case "scale":
-                    if (!TryParseFloat(valueText, out float scale) || scale <= 0.0f)
-                    {
-                        Log(DevCommands.UsageFor("jacket"));
-                        return;
-                    }
-                    jacket.SetLivePlacement(scale, jacket.LiveVerticalOffset);
-                    Log($"jacket scale set to {scale:0.000}");
-                    return;
-
-                case "offset":
-                    if (!TryParseFloat(valueText, out float offset))
-                    {
-                        Log(DevCommands.UsageFor("jacket"));
-                        return;
-                    }
-                    jacket.SetLivePlacement(jacket.LiveScale, offset);
-                    Log($"jacket vertical offset set to {offset:0.000}");
-                    return;
-
-                case "pose":
-                    Log($"scale {jacket.LiveScale:0.000}   offset {jacket.LiveVerticalOffset:0.000}");
-                    return;
-
-                default:
-                    Log(DevCommands.UsageFor("jacket"));
-                    return;
-            }
-        }
-
         private static bool TryParseFloat(string text, out float value)
         {
             return float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
@@ -1257,7 +1036,7 @@ namespace CityX.UI
 
         /// <summary>
         /// "/pistol pos|rot|scale|pose" -- same live-and-read-back idiom as
-        /// "/car pose" and "/jacket scale|offset|pose", for EXPLICIT ASK
+        /// "/car pose", for EXPLICIT ASK
         /// "let me adjust the pistol position in his hand ingame using the
         /// console." Nudges PistolWeapon's own live grip fields directly
         /// (see that class's own doc comment on LiveGripPosition/Rotation/
@@ -1339,14 +1118,14 @@ namespace CityX.UI
         /// pistol_aim_pov_fortnite_offset memory) -- once a number here
         /// looks right, it still has to be typed into ThirdPersonCamera.cs's
         /// own default and the scene rebuilt, the same "tune live, then
-        /// bake the winning number" workflow /jacket and /pistol already
+        /// bake the winning number" workflow /pistol already
         /// use.
         /// </summary>
         /// <summary>
         /// /gun -- live-tunes the third-person pistol's feel (recoil, kick,
         /// aim sensitivity and speed) without a rebuild, the same "tune live,
         /// then bake the winning numbers into the defaults" workflow as
-        /// /jacket, /pistol, /aim and /sword.
+        /// /pistol, /aim and /sword.
         /// </summary>
         private void GunCommand(string name, string value)
         {
@@ -1428,7 +1207,7 @@ namespace CityX.UI
         /// without a rebuild: every timing, cost and damage number is a public
         /// field, so this lists them all and sets any one by name. Same "tune
         /// live, then bake the winning numbers into the defaults" workflow as
-        /// /jacket, /pistol and /aim.
+        /// /pistol and /aim.
         /// </summary>
         private void SwordCommand(string name, string value)
         {
@@ -1437,7 +1216,7 @@ namespace CityX.UI
                 : null;
             if (combat == null || !combat.IsEquipped)
             {
-                Log("no sword equipped -- /equip sword first");
+                Log("no sword equipped -- /equip spikesword first");
                 return;
             }
 
@@ -1714,8 +1493,7 @@ namespace CityX.UI
                 case "bottle": return ItemRegistry.GlassBottle;
                 case "jeans": return ItemRegistry.SkelliJeans;
                 case "cloak": return ItemRegistry.HoodedCloak;
-                case "coat": return ItemRegistry.MidnightPatchworkCoat;
-                case "jacket": return ItemRegistry.BlackPufferJacket;
+                case "coat":
                 case "midnight_coat":
                 case "midnightcoat": return ItemRegistry.MidnightCoat;
                 case "tshirt":
@@ -1725,7 +1503,6 @@ namespace CityX.UI
                 case "parachute": return ItemRegistry.Parachute;
                 case "grapple": return ItemRegistry.GrapplingHook;
                 case "pistol": return ItemRegistry.Pistol;
-                case "sword": return ItemRegistry.Sword;
                 case "spikesword":
                 case "spike_sword": return ItemRegistry.SpikeSword;
                 case "combatsword":

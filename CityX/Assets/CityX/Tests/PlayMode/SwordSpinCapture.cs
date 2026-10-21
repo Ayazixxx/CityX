@@ -86,7 +86,7 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator RenderTheSpin()
         {
-            yield return Film(ItemRegistry.Sword, "spin");
+            yield return Film(ItemRegistry.SpikeSword, "spin");
         }
 
         /// <summary>The same with the one-handed combat sword: Logs/CityShots/spin-1h-*.png.</summary>

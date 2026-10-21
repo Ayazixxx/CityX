@@ -66,12 +66,7 @@ namespace CityX.Wearables
 
         public abstract string ItemId { get; }
 
-        /// <summary>
-        /// Protected, not private -- BlackPufferJacket's own live-placement
-        /// re-tuning (see its class comment) needs to re-Register itself
-        /// with the same combiner an ordinary equip already found.
-        /// </summary>
-        protected SkinnedGarmentCombiner Combiner { get; private set; }
+        private SkinnedGarmentCombiner Combiner { get; set; }
 
         private Transform _nearbyPlayer;
         private bool _equipped;

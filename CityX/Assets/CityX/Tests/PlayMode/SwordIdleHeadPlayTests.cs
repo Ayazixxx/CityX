@@ -109,7 +109,7 @@ namespace CityX.Tests
             Posture idle = default;
             yield return StandAndMeasure(locomotion, new LocomotionInput(), p => idle = p);
 
-            foreach (string path in new[] { "Assets/CityX/Weapons/SpikeSword.prefab", "Assets/CityX/Weapons/Sword.prefab" })
+            foreach (string path in new[] { "Assets/CityX/Weapons/SpikeSword.prefab" })
             {
                 var swordPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(path);
                 Assert.IsNotNull(swordPrefab, path + " is missing");

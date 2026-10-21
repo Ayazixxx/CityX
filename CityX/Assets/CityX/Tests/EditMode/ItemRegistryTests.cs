@@ -23,12 +23,21 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void TopHatAndFarmerHatShareTheHelmetSlot()
+        public void TopHatAndKnightHelmetShareTheHelmetSlot()
         {
             Assert.IsTrue(ItemRegistry.TryGet(ItemRegistry.TopHat, out ItemDefinition topHat));
-            Assert.IsTrue(ItemRegistry.TryGet(ItemRegistry.FarmerHat, out ItemDefinition farmerHat));
+            Assert.IsTrue(ItemRegistry.TryGet(ItemRegistry.KnightHelmet, out ItemDefinition knightHelmet));
             Assert.AreEqual("helmet", topHat.EquipSlot);
-            Assert.AreEqual("helmet", farmerHat.EquipSlot);
+            Assert.AreEqual("helmet", knightHelmet.EquipSlot);
+        }
+
+        [Test]
+        public void TheRemovedItemsAreGone()
+        {
+            foreach (string id in new[] { "sword", "farmer_hat", "midnight_patchwork_coat", "black_puffer_jacket" })
+            {
+                Assert.IsFalse(ItemRegistry.Has(id), $"{id} is still an item");
+            }
         }
 
         [Test]

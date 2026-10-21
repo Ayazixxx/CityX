@@ -333,10 +333,10 @@ namespace CityX.Tests
             Assert.IsNotNull(copySync);
             Animator copyAnimator = _aOnB.GetComponentInChildren<Animator>();
 
-            Assert.IsTrue(inventory.EquipItemId(ItemRegistry.Sword, _aOnA.gameObject), "the sword could not be equipped on player A");
-            yield return WaitUntil(() => copySync.ShownItem(ItemRegistry.Sword) != null, "the sword to appear on player A's copy");
+            Assert.IsTrue(inventory.EquipItemId(ItemRegistry.SpikeSword, _aOnA.gameObject), "the sword could not be equipped on player A");
+            yield return WaitUntil(() => copySync.ShownItem(ItemRegistry.SpikeSword) != null, "the sword to appear on player A's copy");
 
-            GameObject model = copySync.ShownItem(ItemRegistry.Sword);
+            GameObject model = copySync.ShownItem(ItemRegistry.SpikeSword);
             Assert.AreEqual(copyAnimator.GetBoneTransform(HumanBodyBones.RightHand), model.transform.parent, "the sword is not in the copy's right hand");
             foreach (Collider c in model.GetComponentsInChildren<Collider>(true))
             {
@@ -350,11 +350,11 @@ namespace CityX.Tests
             Assert.IsTrue(inventory.EquipItemId(ItemRegistry.Jetpack, _aOnA.gameObject), "the jetpack could not be equipped on player A");
             yield return WaitUntil(() => copySync.ShownItem(ItemRegistry.Jetpack) != null, "the jetpack to appear on player A's copy");
             Assert.AreEqual(copyAnimator.GetBoneTransform(HumanBodyBones.Spine), copySync.ShownItem(ItemRegistry.Jetpack).transform.parent, "the jetpack is not on the copy's back");
-            Assert.IsNotNull(copySync.ShownItem(ItemRegistry.Sword), "equipping the jetpack took the sword off the copy");
+            Assert.IsNotNull(copySync.ShownItem(ItemRegistry.SpikeSword), "equipping the jetpack took the sword off the copy");
 
             // Putting the sword away takes it out of the copy's hand.
             Assert.IsTrue(inventory.UnequipToSlot(Inventory.PrimarySlot, _aOnA.gameObject));
-            yield return WaitUntil(() => copySync.ShownItem(ItemRegistry.Sword) == null, "the sword to leave player A's copy");
+            yield return WaitUntil(() => copySync.ShownItem(ItemRegistry.SpikeSword) == null, "the sword to leave player A's copy");
             Assert.IsNotNull(copySync.ShownItem(ItemRegistry.Jetpack), "putting the sword away took the jetpack off");
 
             // The owner's own body is not given a second, cosmetic sword.

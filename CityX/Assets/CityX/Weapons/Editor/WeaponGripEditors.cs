@@ -102,7 +102,7 @@ namespace CityX.WeaponsEditor
             SwordWeapon sword = HeldSword();
             if (sword == null)
             {
-                EditorUtility.DisplayDialog("No sword held", "Press Play, then equip a sword in the game (press ` and type /equip sword, " +
+                EditorUtility.DisplayDialog("No sword held", "Press Play, then equip a sword in the game (press ` and type /equip spikesword, " +
                     "/equip spikesword, /equip combatsword, /equip bat or /equip crowbar).", "OK");
                 return;
             }
@@ -147,7 +147,7 @@ namespace CityX.WeaponsEditor
             if (!Application.isPlaying || sword.LeftHandGrip == null)
             {
                 EditorGUILayout.HelpBox(
-                    "Press Play and equip the sword (press ` in the game and type /equip sword). While it is held, " +
+                    "Press Play and equip the sword (press ` in the game and type /equip spikesword). While it is held, " +
                     "use CityX > Weapon Grips > Select the held sword, then drag it and its orange left-hand marker " +
                     "in the Scene view. This section appears on the sword and on the marker.", MessageType.Info);
                 return;

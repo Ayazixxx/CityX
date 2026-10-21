@@ -237,15 +237,12 @@ namespace CityX.ViewEditor
             GameObject bottlePrefab = CityX.WeaponsEditor.BottleBuilder.Build();
             GameObject skelliJeansPrefab = CityX.WearablesEditor.SkinnedGarmentBuilder.BuildJeans();
             GameObject hoodedCloakPrefab = CityX.WearablesEditor.SkinnedGarmentBuilder.BuildCloak();
-            GameObject midnightPatchworkCoatPrefab = CityX.WearablesEditor.MidnightPatchworkCoatBuilder.Build();
-            GameObject blackPufferJacketPrefab = CityX.WearablesEditor.BlackPufferJacketBuilder.Build();
             GameObject midnightCoatPrefab = CityX.WearablesEditor.MidnightCoatBuilder.Build();
             GameObject tShirtPrefab = CityX.WearablesEditor.TShirtBuilder.Build();
             GameObject grapplingHookPrefab = CityX.WeaponsEditor.GrapplingHookBuilder.Build();
             GameObject pistolPrefab = CityX.WeaponsEditor.PistolBuilder.Build();
             GameObject jetpackPrefab = CityX.WeaponsEditor.JetpackBuilder.Build();
             GameObject parachutePrefab = CityX.WeaponsEditor.ParachuteBuilder.Build();
-            GameObject swordPrefab = CityX.WeaponsEditor.SwordBuilder.Build();
             GameObject spikeSwordPrefab = CityX.WeaponsEditor.SpikeSwordBuilder.Build();
             GameObject combatSwordPrefab = CityX.WeaponsEditor.CombatSwordBuilder.Build();
             GameObject metalCrowbarPrefab = CityX.WeaponsEditor.MetalCrowbarBuilder.Build();
@@ -436,10 +433,6 @@ namespace CityX.ViewEditor
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.HoodedCloak, Prefab = hoodedCloakPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
-                        { ItemId = CityX.Items.ItemRegistry.MidnightPatchworkCoat, Prefab = midnightPatchworkCoatPrefab },
-                    new CityX.Character.Inventory.ItemPrefabEntry
-                        { ItemId = CityX.Items.ItemRegistry.BlackPufferJacket, Prefab = blackPufferJacketPrefab },
-                    new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.MidnightCoat, Prefab = midnightCoatPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.TShirt, Prefab = tShirtPrefab },
@@ -451,8 +444,6 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.Jetpack, Prefab = jetpackPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.Parachute, Prefab = parachutePrefab },
-                    new CityX.Character.Inventory.ItemPrefabEntry
-                        { ItemId = CityX.Items.ItemRegistry.Sword, Prefab = swordPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.SpikeSword, Prefab = spikeSwordPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
@@ -619,21 +610,9 @@ namespace CityX.ViewEditor
                 cycle,
                 cameraObject.GetComponent<FlyCamera>(),
                 RadioBuilder.Build(),
-                bottlePrefab,
-                skelliJeansPrefab,
-                hoodedCloakPrefab,
-                Object.FindFirstObjectByType<PlayerInputReader>(),
-                Object.FindFirstObjectByType<ThirdPersonCamera>(),
-                grapplingHookPrefab,
-                pistolPrefab,
-                midnightPatchworkCoatPrefab,
-                jetpackPrefab,
-                swordPrefab,
-                topHatPrefab,
                 mustangPrefab,
-                flamethrowerPrefab,
-                parachutePrefab,
-                blackPufferJacketPrefab);
+                Object.FindFirstObjectByType<PlayerInputReader>(),
+                Object.FindFirstObjectByType<ThirdPersonCamera>());
 
             // Watches the player's own rig every real frame during ordinary
             // play and logs a full snapshot the instant it looks distorted

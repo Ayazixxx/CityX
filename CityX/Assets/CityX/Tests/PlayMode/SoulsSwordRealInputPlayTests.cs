@@ -12,7 +12,7 @@ namespace CityX.Tests
     /// <summary>
     /// The sword's controls through the REAL input path: a simulated mouse and
     /// keyboard, the real PlayerInputReader, the real saved scene, a sword
-    /// equipped the way /equip sword equips it. The state machine itself is
+    /// equipped the way /equip spikesword equips it. The state machine itself is
     /// covered without any of that (SoulsSwordCombatPlayTests); this is the
     /// wiring -- that a click starts a swing, the body is actually rooted for
     /// it, right-click is a HELD guard, and a roll can cut the recovery short.
@@ -67,9 +67,9 @@ namespace CityX.Tests
 
             Inventory inventory = _vitals.GetComponent<Inventory>();
             Assert.IsNotNull(inventory, "the player has no inventory");
-            inventory.AddItem(ItemRegistry.Sword, 1);
-            Assert.IsTrue(inventory.RemoveFromStorage(ItemRegistry.Sword, 1, out ItemInstanceData data));
-            Assert.IsTrue(inventory.EquipItemId(ItemRegistry.Sword, _vitals.gameObject, data), "could not equip the sword");
+            inventory.AddItem(ItemRegistry.SpikeSword, 1);
+            Assert.IsTrue(inventory.RemoveFromStorage(ItemRegistry.SpikeSword, 1, out ItemInstanceData data));
+            Assert.IsTrue(inventory.EquipItemId(ItemRegistry.SpikeSword, _vitals.gameObject, data), "could not equip the sword");
 
             _combat = _vitals.GetComponent<SoulsSwordCombat>();
             Assert.IsNotNull(_combat, "equipping the sword did not give the body its soulslike combat");

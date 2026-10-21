@@ -55,7 +55,7 @@ namespace CityX.Tests
         [UnityTest]
         public IEnumerator RenderTheStabDash()
         {
-            yield return Film(ItemRegistry.Sword, "stabdash");
+            yield return Film(ItemRegistry.SpikeSword, "stabdash");
         }
 
         [UnityTest]

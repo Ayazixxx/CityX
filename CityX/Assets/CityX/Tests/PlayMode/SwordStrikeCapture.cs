@@ -55,7 +55,6 @@ namespace CityX.Tests
                 ("1h", "Assets/CityX/Weapons/CombatSword.prefab"),
                 ("crowbar", "Assets/CityX/Weapons/MetalCrowbar.prefab"),
                 ("bat", "Assets/CityX/Weapons/BaseballBat.prefab"),
-                ("2h", "Assets/CityX/Weapons/Sword.prefab"),
             })
             {
                 var swordPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(swordPath);
@@ -261,7 +260,6 @@ namespace CityX.Tests
                 ("1h", "Assets/CityX/Weapons/CombatSword.prefab"),
                 ("crowbar", "Assets/CityX/Weapons/MetalCrowbar.prefab"),
                 ("bat", "Assets/CityX/Weapons/BaseballBat.prefab"),
-                ("2h", "Assets/CityX/Weapons/Sword.prefab"),
             })
             {
                 var swordPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(swordPath);

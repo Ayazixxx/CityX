@@ -379,9 +379,9 @@ namespace CityX.Tests
             yield return LoadScene();
 
             Inventory inventory = _vitals.GetComponent<Inventory>();
-            inventory.AddItem(ItemRegistry.Sword, 1);
-            Assert.IsTrue(inventory.RemoveFromStorage(ItemRegistry.Sword, 1, out ItemInstanceData data));
-            Assert.IsTrue(inventory.EquipItemId(ItemRegistry.Sword, _vitals.gameObject, data));
+            inventory.AddItem(ItemRegistry.SpikeSword, 1);
+            Assert.IsTrue(inventory.RemoveFromStorage(ItemRegistry.SpikeSword, 1, out ItemInstanceData data));
+            Assert.IsTrue(inventory.EquipItemId(ItemRegistry.SpikeSword, _vitals.gameObject, data));
 
             SparringDummy target = PlaceDummy(2.4f, 40.0f);   // well off to the side of where the camera looks
             yield return TapTab();

@@ -83,9 +83,9 @@ namespace CityX.Tests
             if (withSword)
             {
                 Inventory inventory = _vitals.GetComponent<Inventory>();
-                inventory.AddItem(ItemRegistry.Sword, 1);
-                Assert.IsTrue(inventory.RemoveFromStorage(ItemRegistry.Sword, 1, out ItemInstanceData data));
-                Assert.IsTrue(inventory.EquipItemId(ItemRegistry.Sword, _vitals.gameObject, data), "could not equip the sword");
+                inventory.AddItem(ItemRegistry.SpikeSword, 1);
+                Assert.IsTrue(inventory.RemoveFromStorage(ItemRegistry.SpikeSword, 1, out ItemInstanceData data));
+                Assert.IsTrue(inventory.EquipItemId(ItemRegistry.SpikeSword, _vitals.gameObject, data), "could not equip the sword");
             }
             _vitals.InfiniteHealth = true;
             Time.captureFramerate = 60;   // batch frames are a fraction of a millisecond: one frame = 1/60 s, so frame counts are seconds

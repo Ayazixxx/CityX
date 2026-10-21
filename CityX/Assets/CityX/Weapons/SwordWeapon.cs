@@ -49,15 +49,13 @@ namespace CityX.Weapons
         public const float LookDotThreshold = 0.82f; // cos(35 degrees)
 
         /// <summary>
-        /// Blade length in the sword root's own space: SwordBuilder's
-        /// BladeLength (1.05) times its ModelScale (2.0). The blade runs
-        /// along the root's local +Y from the grip (SwordBuilder centres the
-        /// pickup trigger at half this height on +Y).
+        /// A two-handed blade's length in the sword root's own space, from the guard at the root up its local +Y to the tip: every greatsword
+        /// model is placed in this frame (SpikeSwordBuilder scales its model to it) so they share one tuned grip.
         /// </summary>
         public const float BladeLocalLength = 2.1f;
 
-        /// <summary>Which inventory item this sword is (the original greatsword, or a model the owner brought in, e.g. the spike sword).</summary>
-        [SerializeField] private string _itemId = ItemRegistry.Sword;
+        /// <summary>Which inventory item this blade is; each weapon's builder sets its own.</summary>
+        [SerializeField] private string _itemId = ItemRegistry.SpikeSword;
 
         public string ItemId { get => _itemId; set => _itemId = value; }
 
@@ -93,9 +91,8 @@ namespace CityX.Weapons
         public bool EdgeOnPlusX { get => _edgeOnPlusX; set => _edgeOnPlusX = value; }
 
         /// <summary>
-        /// The side the cutting edge faces in the sword root's own space. -X for SwordBuilder's greatsword (its blade profile puts the sharp slice
-        /// at edge_x - half the width, the thick spine at edge_x + half, and curves the tip toward -X: a kopis, the edge on the inside of the
-        /// curve) and the spike sword (its spikes); +X where <see cref="EdgeOnPlusX"/> says so.
+        /// The side the cutting edge faces in the sword root's own space: -X by default (the spike sword's spikes); +X where
+        /// <see cref="EdgeOnPlusX"/> says so.
         /// </summary>
         public Vector3 EdgeLocal => _edgeOnPlusX ? Vector3.right : Vector3.left;
 

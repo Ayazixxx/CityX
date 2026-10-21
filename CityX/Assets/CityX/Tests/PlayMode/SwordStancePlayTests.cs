@@ -201,7 +201,7 @@ namespace CityX.Tests
         public IEnumerator TheBodyStaysUprightThroughTheSwingsAndTheGuard()
         {
 #if UNITY_EDITOR
-            Build("Assets/CityX/Weapons/Sword.prefab");
+            Build("Assets/CityX/Weapons/SpikeSword.prefab");
             for (int i = 0; i < 40; i++) yield return Frame(Vector2.zero);
             Transform hips = _animator.GetBoneTransform(HumanBodyBones.Hips);
             Transform neck = _animator.GetBoneTransform(HumanBodyBones.Neck);

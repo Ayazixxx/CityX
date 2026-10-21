@@ -23,9 +23,8 @@ namespace CityX.WeaponsEditor
     /// material, normalize its scale" pattern PistolBuilder's own
     /// Beretta_M9.obj already uses.
     ///
-    /// THE EMBEDDED TEXTURE IS UNUSABLE, for the exact reason the
-    /// meshy-ai-import-quirks memory already documents twice over
-    /// (FarmerHat, MidnightPatchworkCoat): confirmed directly that
+    /// THE EMBEDDED TEXTURE IS UNUSABLE, a known glTFast quirk with Meshy
+    /// exports: confirmed directly that
     /// glTFast imports this file's base_color/normal/metallicRoughness
     /// textures as silently stubbed 4x4 Texture2Ds, not the real (extracted
     /// from the .glb's own binary chunk by scanning for JPEG signatures,
@@ -62,9 +61,7 @@ namespace CityX.WeaponsEditor
         /// Eyeballed off the source .glb's own real base_color JPEG (see
         /// this file's own class comment) -- a dark, near-black charcoal
         /// gunmetal with lighter worn-steel highlights. This single flat
-        /// colour stands in for the whole texture, the same fix
-        /// FarmerHatBuilder/MidnightPatchworkCoatBuilder already use for
-        /// the identical glTFast stub bug.
+        /// colour stands in for the whole texture.
         /// </summary>
         private static readonly Color MetalColour = new Color(0.11f, 0.11f, 0.12f);
 

@@ -119,7 +119,7 @@ PrefabInstance:
       addedObject: {fileID: 4178808262995625697}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 2657364818169662532}
+      addedObject: {fileID: 3706890317666729116}
   m_SourcePrefab: {fileID: 100100000, guid: c573dea59fa2558478b70344c659896a, type: 3}
 --- !u!1 &5771231832799346164 stripped
 GameObject:
@@ -369,8 +369,6 @@ MonoBehaviour:
     Prefab: {fileID: 1497176507958876276, guid: 1a6940b80ae2d7b44b2ee294839c1047, type: 3}
   - ItemId: parachute
     Prefab: {fileID: 2779368628204385612, guid: 8c41f06cce0cc4e43b663686ba80e7bc, type: 3}
-  - ItemId: sword
-    Prefab: {fileID: 8618594126550342705, guid: 2a07fb92a0a87fe40b529df87e9c5a25, type: 3}
   - ItemId: spike_sword
     Prefab: {fileID: 8710099697489369953, guid: 82395567d6da9c241928b3c0ac6cbbdb, type: 3}
   - ItemId: combat_sword
@@ -635,7 +633,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 17deb901f9bbd384ea0ad42e0b8123af, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Character::CityX.Character.BodySizeAbility
---- !u!114 &2657364818169662532
+--- !u!114 &3706890317666729116
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
