@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using CityX.Items;
 using CityX.Wearables;
 using UnityEditor;
 using UnityEngine;
@@ -7,8 +8,8 @@ namespace CityX.WearablesEditor
 {
     /// <summary>
     /// Builds the T-Shirt: Meshy's tee cut off its mannequin, fitted, evened out at the front and back, reduced and laid out for designs by
-    /// SourceArt/TShirt/tshirt_build.py into Models/TShirt.json. It is plain white cloth; a design is a texture drawn on the template that
-    /// script writes (docs/TSHIRT.md).
+    /// SourceArt/TShirt/tshirt_build.py into Models/TShirt.json. It is plain white cloth. A printed shirt is the same shirt with its own
+    /// texture (a <see cref="ShirtPrint"/> printed by <see cref="ShirtPrintBaker"/>) and its own item (docs/TSHIRT.md).
     /// </summary>
     public static class TShirtBuilder
     {
@@ -16,6 +17,11 @@ namespace CityX.WearablesEditor
         private const string SourcePath = "Assets/CityX/Wearables/Models/TShirt.json";
         private const string MeshPath = "Assets/CityX/Wearables/TShirtMesh.asset";
         private const string MaterialPath = "Assets/CityX/Wearables/TShirt.mat";
+
+        public const string BloodRavenPrefabPath = "Assets/CityX/Wearables/BloodRavenTShirt.prefab";
+        public const string BloodRavenPrintPath = "Assets/CityX/Wearables/Prints/BloodRavenPrint.asset";
+        private const string BloodRavenLogoPath = "Assets/CityX/Wearables/Prints/BloodRaven.png";
+        private const string BloodRavenMaterialPath = "Assets/CityX/Wearables/BloodRavenTShirt.mat";
 
         // Matches the other tops' ground pose: tipped so it reads as a dropped shirt.
         private const float GroundScale = 0.45f;
@@ -88,7 +94,49 @@ namespace CityX.WearablesEditor
             {
                 return null;
             }
-            Material material = BlenderGarmentMesh.PlainMaterial(MaterialPath, Cotton, FabricSmoothness);
+            return Save(mesh, BlenderGarmentMesh.PlainMaterial(MaterialPath, Cotton, FabricSmoothness), PrefabPath, "TShirt", ItemRegistry.TShirt);
+        }
+
+        /// <summary>The Blood Raven T-Shirt: the T-Shirt (built first) printed with the Blood Raven logo where its print says.</summary>
+        [MenuItem("CityX/Rebuild Blood Raven T-Shirt")]
+        public static GameObject BuildBloodRaven()
+        {
+            Mesh mesh = AssetDatabase.LoadAssetAtPath<Mesh>(MeshPath);
+            if (mesh == null)
+            {
+                Debug.LogError($"CityX: no T-Shirt mesh at {MeshPath} -- build the T-Shirt first.");
+                return null;
+            }
+            var print = AssetDatabase.LoadAssetAtPath<ShirtPrint>(BloodRavenPrintPath);
+            if (print == null)
+            {
+                print = ScriptableObject.CreateInstance<ShirtPrint>();
+                print.Logo = AssetDatabase.LoadAssetAtPath<Texture2D>(BloodRavenLogoPath);
+                AssetDatabase.CreateAsset(print, BloodRavenPrintPath);
+            }
+            Print(print);
+            Material material = BlenderGarmentMesh.TexturedMaterial(BloodRavenMaterialPath, ShirtPrintBaker.TexturePathFor(print), FabricSmoothness);
+            return Save(mesh, material, BloodRavenPrefabPath, "BloodRavenTShirt", ItemRegistry.BloodRavenTShirt);
+        }
+
+        /// <summary>Prints <paramref name="print"/> on the T-Shirt's texture, in the shirt's cotton.</summary>
+        public static Texture2D Print(ShirtPrint print)
+        {
+            var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(MeshPath);
+            return mesh != null ? ShirtPrintBaker.Bake(print, mesh, Cotton) : null;
+        }
+
+        /// <summary>Selects the Blood Raven print, whose Inspector places the logo.</summary>
+        [MenuItem("CityX/Place the Blood Raven Logo")]
+        public static void SelectBloodRavenPrint()
+        {
+            Selection.activeObject = AssetDatabase.LoadAssetAtPath<ShirtPrint>(BloodRavenPrintPath);
+            EditorGUIUtility.PingObject(Selection.activeObject);
+        }
+
+        /// <summary>A shirt prefab of the mesh in <paramref name="material"/>, the body under it hidden as the plain T-Shirt hides it.</summary>
+        private static GameObject Save(Mesh mesh, Material material, string prefabPath, string rootName, string itemId)
+        {
             List<SleeveCuff> cuffs = SleeveCuff.Of(mesh, ArmFromX);
             if (cuffs.Count != Cuffs)
             {
@@ -97,15 +145,16 @@ namespace CityX.WearablesEditor
             byte[] hidden = BodyUnderGarment.HiddenTriangles(mesh, AlwaysHidden, new HumanBodyBones[0], new Bounds(), HiddenWhereCovered,
                 new Bounds(), out int bodyTriangles, centre => Shown(centre, cuffs));
             GameObject saved = SkinnedGarmentBuilder.BuildPrefabFromMesh<TShirt>(
-                mesh, material, PrefabPath, "TShirt", GroundScale, GroundPitchDegrees, GroundLift,
+                mesh, material, prefabPath, rootName, GroundScale, GroundPitchDegrees, GroundLift,
                 shirt =>
                 {
+                    shirt.SetItemId(itemId);
                     shirt.HiddenBodyTriangles = hidden;
                     shirt.HiddenFromBodyTriangles = bodyTriangles;
                 });
             if (saved != null)
             {
-                Debug.Log($"CityX: TShirt written to {PrefabPath} -- {mesh.vertexCount} vertices, {mesh.triangles.Length / 3} triangles");
+                Debug.Log($"CityX: {rootName} written to {prefabPath} -- {mesh.vertexCount} vertices, {mesh.triangles.Length / 3} triangles");
             }
             return saved;
         }

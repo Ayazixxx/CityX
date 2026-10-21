@@ -198,6 +198,10 @@ namespace CityX.UI
                 case "tshirt":
                 case "t_shirt":
                 case "shirt": return ItemRegistry.TShirt;
+                case "bloodraven":
+                case "blood_raven":
+                case "bloodraventshirt":
+                case "blood_raven_t_shirt": return ItemRegistry.BloodRavenTShirt;
                 case "jetpack": return ItemRegistry.Jetpack;
                 case "parachute": return ItemRegistry.Parachute;
                 case "grapple": return ItemRegistry.GrapplingHook;

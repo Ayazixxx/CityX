@@ -42,13 +42,14 @@ namespace CityX.Tests
             conversion.GetMethod("LoadImage", new[] { typeof(Texture2D), typeof(byte[]) }).Invoke(null,
                 new object[] { design, System.IO.File.ReadAllBytes(System.IO.Path.Combine(Application.dataPath, TestDesignPath)) });
 
-            foreach (string look in new[] { "plain", "design" })
+            foreach (string look in new[] { "plain", "design", "bloodraven" })
             {
                 GameObject player = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab"),
                     new Vector3(0.0f, 0.05f, 0.0f), Quaternion.identity);
                 player.GetComponent<PlayerInputReader>().enabled = false;
                 var locomotion = player.GetComponent<PlayerLocomotion>();
-                GameObject shirtObject = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Wearables/TShirt.prefab"),
+                string prefab = look == "bloodraven" ? "Assets/CityX/Wearables/BloodRavenTShirt.prefab" : "Assets/CityX/Wearables/TShirt.prefab";
+                GameObject shirtObject = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(prefab),
                     new Vector3(30.0f, 0.5f, 30.0f), Quaternion.identity);
                 var shirt = shirtObject.GetComponent<TShirt>();
                 if (look == "design")
@@ -65,6 +66,7 @@ namespace CityX.Tests
                 }
                 Vector3 chest = player.transform.position + Vector3.up * 1.5f;
                 BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, $"tshirt-{look}-front", chest + new Vector3(0.0f, 0.3f, 7.0f), chest);
+                BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, $"tshirt-{look}-chest", chest + new Vector3(0.0f, 0.2f, 3.2f), chest + Vector3.up * 0.1f);
                 BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, $"tshirt-{look}-side", chest + new Vector3(7.0f, 0.3f, 0.0f), chest);
                 BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, $"tshirt-{look}-behind", chest + new Vector3(0.0f, 0.6f, -7.0f), chest);
                 BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, $"tshirt-{look}-threequarter", chest + new Vector3(5.0f, 1.2f, 5.0f), chest);

@@ -16,6 +16,7 @@
         "CityX.UI.Editor",
         "CityX.Weapons",
         "CityX.Wearables",
+        "CityX.Wearables.Editor",
         "CityX.Vehicles",
         "UnityEngine.UI",
         "Unity.RenderPipelines.Core.Runtime",

@@ -59,14 +59,38 @@ The grey grid is 10 cm of shirt per square, and the crosses mark the middle of t
 anywhere inside the outlines, and a little over them so the seams do not show a white line. `tshirt_test_design.png` is a check design (a dark
 grid and a red disc on each cross): `TShirtCapture` wears it, and it lands round and centred on the chest and the back.
 
-A new shirt is then one texture plus one item, with the same mesh. That step (which item carries which texture) is not built yet.
+A new shirt is then one texture plus one item, with the same mesh.
+
+## Printed shirts: the Blood Raven T-Shirt
+
+The owner, 2026-10-20: "put this logo on the shirt and call it "Blood Raven T-Shirt", let me adjust the logo positioning too in unity".
+`/equip bloodraven` (also `blood_raven`) or `/spawn bloodraven`.
+
+**Placing the logo:** menu **CityX > Place the Blood Raven Logo** selects `Wearables/Prints/BloodRavenPrint.asset`. Its Inspector:
+
+| Field | What it does |
+|---|---|
+| Logo | the picture (`Prints/BloodRaven.png`, transparent background) |
+| Side | front or back |
+| Right Cm / Up Cm | where its centre is, in cm from the middle of the chest (or the back), as you look at that side; negative is left / down |
+| Width Cm | how wide it is printed (34 cm to start; the height follows the picture) |
+| Rotation Degrees | turned anticlockwise as you look at it |
+
+A moment after a number stops changing, the shirt is printed again (`Prints/BloodRavenPrintShirt.png`), in Play mode too, on the shirt being
+worn. The values are saved in the asset; commit it with the printed PNG.
+
+**How it works:** `ShirtPrintBaker` reads off the shirt's mesh where the middle of each side (1.62 m) lies on the texture and how far a metre
+of cloth goes on it (a straight-line fit of the points round the middle), and `ShirtPrintLayout` lays the picture over the cotton there,
+blended by its transparency, at 2048 texels (about 960 a metre, so the 34 cm logo is about 330 texels wide). The printed shirt is the
+T-Shirt's prefab with its own item (`TShirt.SetItemId`) and a white material carrying the printed texture (the cotton's colour is in the
+texture). Another printed shirt is a new print asset, item and three lines in `TShirtBuilder`, like `BuildBloodRaven`.
 
 ## In the game
 
 | Part | Where |
 |---|---|
-| Item | `ItemRegistry.TShirt` (`t_shirt`, "T-Shirt", Torso slot), `TShirt : SkinnedGarment` |
-| Prefab | `TShirtBuilder` (`CityX/Rebuild T-Shirt`), built with the scene: plain off-white cotton, matte, no texture |
+| Item | `ItemRegistry.TShirt` (`t_shirt`, "T-Shirt") and `ItemRegistry.BloodRavenTShirt` (`blood_raven_t_shirt`, "Blood Raven T-Shirt"), Torso slot; `TShirt : SkinnedGarment`, its item set by its builder |
+| Prefab | `TShirtBuilder` (`CityX/Rebuild T-Shirt`, `CityX/Rebuild Blood Raven T-Shirt`), built with the scene: plain off-white cotton, matte; the printed shirt the same with its printed texture |
 | Body under it | the torso and upper arms always hidden (`BodyUnderGarment`), except the skin the shirt leaves bare: inside the crew neck (in front just inside the band, behind out to its seam, drawn whole along a clean line) and the upper arm past each cuff, read off the cuff's own edge on the mesh (`SleeveCuff`) and drawn 1.5 cm up inside it, behind the rolled lip; the hips hidden where the shirt covers them. Hidden only where covered, the upper arms came through at the back of the armholes; shown below one height, the arm came through the back of each slanted cuff ("the sleeve is clipping through the arm"); cut off right at the lip, the skin's ragged edge showed up the sleeve. |
 | Other players | not shown on copies, like all clothing (`docs/MULTIPLAYER_STATE.md`) |
-| Tests | `TShirtTests` (registry, budget, weights, shape, each sleeve on its arm and the body on no arm, no seam ever opens, no arm skin drawn inside a sleeve but just inside a cuff, each sleeve round the arm with no flat side, a design's front on the chest and back on the back, upright and not mirrored), `TShirtPlayTests` (the body hidden and given back; the head never sinks into the collar in a sprint; the cloth never drawn out past 2.3x, and few edges past 2x, in a sprint), `TShirtCapture` (renders, plain and with the test design, with close-ups of the collar from in front and from behind and above, a sleeve and the back of an armhole) |
+| Tests | `TShirtTests` (registry, budget, weights, shape, each sleeve on its arm and the body on no arm, no seam ever opens, no arm skin drawn inside a sleeve but just inside a cuff, each sleeve round the arm with no flat side, a design's front on the chest and back on the back, upright and not mirrored), `TShirtPlayTests` (the body hidden and given back; the head never sinks into the collar in a sprint; the cloth never drawn out past 2.3x, and few edges past 2x, in a sprint), `BloodRavenTShirtTests` (its own item, the T-Shirt's mesh and hiding, the logo where its print says and only there; the printing maths: placement, shape, turn, transparency), `TShirtCapture` (renders, plain, with the test design and the Blood Raven shirt, a close-up of the chest, with close-ups of the collar from in front and from behind and above, a sleeve and the back of an armhole) |
