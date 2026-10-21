@@ -15,6 +15,6 @@ MonoBehaviour:
   Logo: {fileID: 2800000, guid: 20fd8522401dc104bac5a9caea6ac6b1, type: 3}
   Side: 0
   RightCm: 0
-  UpCm: 0
-  WidthCm: 34
+  UpCm: 0.85
+  WidthCm: 86.5
   RotationDegrees: 0
