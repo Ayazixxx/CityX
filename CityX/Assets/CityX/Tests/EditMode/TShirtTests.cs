@@ -24,6 +24,22 @@ namespace CityX.Tests
         /// <summary>The middle of the chest, bind pose (+z ahead).</summary>
         private const float ChestHeight = 1.62f;
 
+        /// <summary>Bind pose: the arms lie further out to the sides than this (the torso within 0.27), and a sleeve sits nearer them.</summary>
+        private const float ArmFromX = 0.31f;
+        private const float SleeveOffArm = 0.05f;
+
+        /// <summary>How far up inside a cuff the arm may be drawn on, behind its lip (the shirt draws it 1.5 cm up).</summary>
+        private const float InsideACuff = 0.025f;
+
+        /// <summary>
+        /// The sleeves lie below this on the template (tshirt_build.py's PIECE_BOXES); a ring round one is taken at this height, this far up
+        /// and down, and its points are never this many degrees apart round the arm (they are at most 16 apart; across the flat side, 57).
+        /// </summary>
+        private const float SleevePieces = 0.4f;
+        private const float SleeveRingHeight = 1.6f;
+        private const float SleeveRingDepth = 0.02f;
+        private const float SleeveGap = 45.0f;
+
         private static SkinnedGarment Shirt()
         {
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Wearables/TShirt.prefab");
@@ -188,6 +204,83 @@ namespace CityX.Tests
                 {
                     Assert.Greater(v.y, (BodyRig.ShoulderY + BodyRig.HandY) / 2.0f, "a sleeve reaches down past the elbow: it is a short-sleeved shirt");
                 }
+            }
+        }
+
+        /// <summary>
+        /// Owner, 2026-10-20, of the skin at the back of a cuff: "the sleeve is clipping through the arm a bit here ... make the parts of the
+        /// body being covered invisible". No skin the shirt leaves drawn out at the sides lies under a sleeve (straight out from it, the shirt
+        /// nearer than a sleeve ever sits off the arm) but just inside a cuff, where a little further down the arm it is bare.
+        /// </summary>
+        [Test]
+        public void NoArmSkinIsDrawnInsideASleeve()
+        {
+            SkinnedGarment shirt = Shirt();
+            var body = AssetDatabase.LoadAssetAtPath<Mesh>("Assets/CityX/Character/FusedBody.asset");
+            Assert.AreEqual(shirt.HiddenFromBodyTriangles, body.triangles.Length / 3, "the shirt's hidden skin was made for another body");
+            var cover = new GameObject("ShirtCover");
+            bool hitBackfaces = Physics.queriesHitBackfaces;
+            var under = new System.Collections.Generic.List<Vector3>();
+            try
+            {
+                cover.AddComponent<MeshCollider>().sharedMesh = shirt.GarmentMesh;
+                Physics.SyncTransforms();
+                Physics.queriesHitBackfaces = true;
+                Vector3[] vertices = body.vertices;
+                int[] triangles = body.triangles;
+                for (int t = 0; t < triangles.Length / 3; t++)
+                {
+                    if ((shirt.HiddenBodyTriangles[t / 8] & (1 << (t % 8))) != 0)
+                    {
+                        continue;
+                    }
+                    Vector3 a = vertices[triangles[t * 3]], b = vertices[triangles[t * 3 + 1]], c = vertices[triangles[t * 3 + 2]];
+                    Vector3 centre = (a + b + c) / 3.0f, normal = Vector3.Cross(b - a, c - a).normalized;
+                    if (Mathf.Abs(centre.x) > ArmFromX && Physics.Raycast(centre + normal * 0.002f, normal, SleeveOffArm) &&
+                        Physics.Raycast(centre + Vector3.down * InsideACuff + normal * 0.002f, normal, SleeveOffArm))
+                    {
+                        under.Add(centre);
+                    }
+                }
+            }
+            finally
+            {
+                Physics.queriesHitBackfaces = hitBackfaces;
+                Object.DestroyImmediate(cover);
+            }
+            Assert.IsEmpty(under, $"{under.Count} drawn triangles of the arms lie under a sleeve, the first at {(under.Count > 0 ? under[0] : Vector3.zero):F3}");
+        }
+
+        /// <summary>
+        /// Owner, 2026-10-20: "it like rolls in at the side on both sleeves, make it shaped like a real shirt". Round each sleeve, partway down
+        /// it, its points are never far apart: a quarter of it was one flat face, cutting into the arm.
+        /// </summary>
+        [Test]
+        public void EachSleeveGoesRoundTheArmWithNoFlatSide()
+        {
+            Mesh mesh = Shirt().GarmentMesh;
+            Vector3[] vertices = mesh.vertices;
+            Vector2[] uvs = mesh.uv;
+            foreach (float side in new[] { -1.0f, 1.0f })
+            {
+                var ring = new System.Collections.Generic.List<Vector3>();
+                for (int v = 0; v < vertices.Length; v++)
+                {
+                    if (uvs[v].y < SleevePieces && vertices[v].x * side > 0.0f && Mathf.Abs(vertices[v].y - SleeveRingHeight) < SleeveRingDepth)
+                    {
+                        ring.Add(vertices[v]);
+                    }
+                }
+                Vector3 middle = Vector3.zero;
+                ring.ForEach(p => middle += p / ring.Count);
+                var turns = ring.ConvertAll(p => Mathf.Atan2(p.z - middle.z, p.x - middle.x) * Mathf.Rad2Deg);
+                turns.Sort();
+                float widest = 360.0f + turns[0] - turns[turns.Count - 1];
+                for (int i = 1; i < turns.Count; i++)
+                {
+                    widest = Mathf.Max(widest, turns[i] - turns[i - 1]);
+                }
+                Assert.Less(widest, SleeveGap, $"the sleeve on the {(side > 0.0f ? "+x" : "-x")} side has no cloth across {widest:0} degrees round the arm");
             }
         }
 

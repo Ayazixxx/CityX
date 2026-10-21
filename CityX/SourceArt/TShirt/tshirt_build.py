@@ -41,8 +41,11 @@ HANDS = {"l": np.array([0.545, 0.0, 1.033]), "r": np.array([-0.545, 0.0, 1.033])
 MESHY_FLOOR, MESHY_SCALE = -0.951734, 1.367869
 MESHY_OFFSET = np.array([0.001599, -0.002361, -0.001130])
 OPENINGS = 4                 # the shirt's openings: the neck, the hem and the two cuffs
-NECK_SIDE, NECK_FRONT, NECK_BACK = 0.28, 0.2, 0.2   # 2. the neck opened on an oval this far out to the sides, in front and behind (game
-                                                    # metres from the neck's axis): outside Meshy's collar rib all round, room for the band
+NECK_SIDE, NECK_FRONT, NECK_BACK = 0.28, 0.2, 0.18   # 2. the neck opened this far out to the sides, in front and behind (game metres from
+                                                     # the neck's axis): outside Meshy's collar rib all round, room for the band
+NECK_BACK_SQUARE = 3         # in front an oval; behind flatter, higher across the middle (owner: "typically on a tshirt the back side of the
+                             # collar doesnt hang as low as the front"), its corners as far out as an oval's 0.2 behind (nearer, the head
+                             # dipping in a sprint sank into them)
 COLLAR_BAND = ((0.003, -0.002), (0.007, 0.004), (0.026, 0.005))     # 5b. the crew neck's band: (across toward the neck, out off the cloth)
                                                                     # from the seam: a groove, then the rib raised a little
 COLLAR_ROLL = 0.006          # its far edge rounded over and down in a half turn of this radius
@@ -59,9 +62,15 @@ PANEL_SMOOTHING = 200        # 4. the front and back: how far they stand off the
 PANEL_MIN = 0.015            # and at least this far off it (the chest came through)
 PANEL_SIDES = (50.0, 80.0)   # degrees round from the front (and the back): flat up to the first, Meshy's folds again by the second
 PANEL_TOP, PANEL_BOTTOM = (1.62, 1.78), (1.02, 0.98)   # and from the collar down to the hem's roll, fading over these heights
+PANEL_TOP_BACK = (1.80, 1.95)   # the back's middle up to its collar, cut higher than the front's (a fold of Meshy's collar dented the band)
+PANEL_NAPE = (0.12, 0.2)        # out to the sides as far as this (further, by the armholes, the cut there opened a hole)
+DRAPE_TOP, DRAPE_FULL = 1.25, 1.15   # 4b. below the belly the front hangs straight down from its line at DRAPE_TOP (wholly below DRAPE_FULL)
+DRAPE_WIDTH, DRAPE_STEP = 0.24, 0.01   # across the front this far either side of the middle, measured on a grid this fine
+DRAPE_CURVE, DRAPE_RISE = 2.0, 0.3   # where the body stands out past it, a swell falling away to the sides as x^2 this steep, and above it
+                                     # rising into it this steeply (the back's over the seat falls about 2 cm over 8)
 CLEAR = 0.012                # nothing nearer the body than this (it came through at the chest and the shoulders)
 PUSH_ROUNDS, PUSH_SPREAD = 12, 3   # out in rounds, each push spread over its neighbours; what is left after them, pushed point by point
-TRIANGLES = 5000             # 5. reduced to about this many (the collar, the seams and the armholes then add about 2,300)
+TRIANGLES = 3800             # 5. reduced to about this many (the collar, the seams and the armholes then add about 3,400)
 SPIKE_LONG, SPIKE_OUT, SPIKE_PASSES = 3.0, 0.35, 3   # a point standing out of its neighbours' middle by this many typical edges and this part of
                                                      # its own edges is a spike
 ARMPIT_CREASE = 1.76         # 5c. the armpit's crease: the height where the arm's skin meets the ribs'
@@ -79,7 +88,9 @@ PIECE_MARGIN = 0.01
 TEMPLATE_SIZE, TEMPLATE_GRID = 1024, 0.1   # the design template: its size, and a grid line every 10 cm of shirt
 TEMPLATE_PIECE, TEMPLATE_GRID_COLOUR, TEMPLATE_EDGE = (0.93, 0.93, 0.93), (0.8, 0.8, 0.8), (0.2, 0.2, 0.2)
 TEMPLATE_MARKS = {"front": 1.62, "back": 1.62}   # the middle of the chest and of the back (a logo's usual place) crossed, at this height
-ARMHOLE_BLEND, ARMHOLE_BODY_BLEND = 0.30, 0.20   # 7. how far the half-turning shoulder bone's hold reaches from the armhole's seam: down the
+ARM_SKIN, ARM_SKIN_SPAN = 0.9, 0.03   # 7. the arm's own skin: held this much by the arm and forearm; its forearm share averaged over this
+                                     # far along the arm
+ARMHOLE_BLEND, ARMHOLE_BODY_BLEND = 0.30, 0.20   # how far the half-turning shoulder bone's hold reaches from the armhole's seam: down the
                                                  # sleeve, into the shirt's body
 
 
@@ -152,10 +163,32 @@ def smoothstep(x, a, b):
     return s * s * (3.0 - 2.0 * s)
 
 
+def neck_level(x, y):
+    """How far out a point (x, y) lies on the neck's opening, 1 on its edge: an oval in front; behind, the flatter curve
+    (|x| / NECK_SIDE)^NECK_BACK_SQUARE + (y / NECK_BACK)^2 = 1."""
+    x, y = np.abs(np.asarray(x, float)), np.asarray(y, float)
+    across = np.where(y < 0.0, (x / NECK_SIDE) ** 2, (x / NECK_SIDE) ** NECK_BACK_SQUARE)
+    return np.sqrt(across + (y / np.where(y < 0.0, NECK_FRONT, NECK_BACK)) ** 2)
+
+
+def toward_neck(x, y):
+    """The direction square to the neck's opening, in toward the neck (x, y; not of unit length)."""
+    across = np.where(y < 0.0, 2.0 * x / NECK_SIDE ** 2,
+                      NECK_BACK_SQUARE * np.sign(x) * np.abs(x) ** (NECK_BACK_SQUARE - 1.0) / NECK_SIDE ** NECK_BACK_SQUARE)
+    return -across, -2.0 * y / np.where(y < 0.0, NECK_FRONT, NECK_BACK) ** 2
+
+
 def edge_list(me):
     edges = np.empty(len(me.edges) * 2, dtype=np.int64)
     me.edges.foreach_get("vertices", edges)
     return edges.reshape(-1, 2)
+
+
+def smoothed_along(at, values, span):
+    """values, at the sorted places at along a line, each averaged with those within span / 2 of it."""
+    low, high = np.searchsorted(at, at - span / 2.0), np.searchsorted(at, at + span / 2.0, side="right")
+    total = np.concatenate([[0.0], np.cumsum(values)])
+    return (total[high] - total[low]) / np.maximum(high - low, 1)
 
 
 def smoothed(values, passes, edges):
@@ -263,7 +296,7 @@ def sew_collar(bm, ring):
     for v, p in zip(ring, at):
         v.co = Vector(p)
     up = np.array([0.0, 0.0, 1.0])
-    inward = -np.stack([at[:, 0] / NECK_SIDE ** 2, at[:, 1] / np.where(at[:, 1] < 0.0, NECK_FRONT, NECK_BACK) ** 2, np.zeros(count)], 1)
+    inward = np.stack(toward_neck(at[:, 0], at[:, 1]) + (np.zeros(count),), 1)
     inward /= np.linalg.norm(inward, axis=1)[:, None]   # square to the oval, toward the neck
     facing = at[:, 1] ** 2 / np.maximum(at[:, 0] ** 2 + at[:, 1] ** 2, 1e-9)   # 1 in front and behind, 0 at the shoulders
     tilt = (COLLAR_TILT_SIDE + (COLLAR_TILT - COLLAR_TILT_SIDE) * facing)[:, None]
@@ -398,10 +431,22 @@ def sew_sleeve(bm, top, side, original, cuff, plane):
     to_frame, from_frame = sleeve_frame(side)
     axis = (HANDS[side] - SHOULDERS[side]) / np.linalg.norm(HANDS[side] - SHOULDERS[side])
     point, normal = plane
-    rim = np.array([to_frame(np.array(v.co[:])) for v in top])
+    armhole = np.array([to_frame(np.array(v.co[:])) for v in top])
+    onward = np.angle(np.exp(1j * (np.roll(armhole[:, 0], -1) - armhole[:, 0]) / SLEEVE_ROUND))   # each point's turn on to the next
+    assert abs(abs(np.sum(onward)) - 2.0 * np.pi) < 0.5, "the %s armhole does not go once round the arm (%.1f turns)" % (
+        side, np.sum(onward) / 2.0 / np.pi)
+    # The rings' points: below each of the armhole's, and more between two of them far apart round the arm (the crease under the arm has
+    # few: one face across a quarter of each ring cut into the arm and turned the cuff in at the side).
+    rim, starts = [], []
+    for j in range(len(top)):
+        following = armhole[(j + 1) % len(top)]
+        between = max(1, int(np.ceil(abs(onward[j]) * SLEEVE_ROUND / SLEEVE_SPACING)))
+        starts.append(len(rim))
+        for f in np.arange(between) / between:
+            rim.append([armhole[j, 0] + onward[j] * SLEEVE_ROUND * f, armhole[j, 1] + (following[1] - armhole[j, 1]) * f,
+                        armhole[j, 2] + (following[2] - armhole[j, 2]) * f])
+    rim = np.array(rim)
     turn = rim[:, 0] / SLEEVE_ROUND
-    winding = np.sum(np.angle(np.exp(1j * (np.roll(turn, -1) - turn))))
-    assert abs(abs(winding) - 2.0 * np.pi) < 0.5, "the %s armhole does not go once round the arm (%.1f turns)" % (side, winding / 2.0 / np.pi)
     edge = np.array([to_frame(p) for p in cuff])
     order = np.argsort(edge[:, 0])
     cuff_at = np.interp(turn, edge[order, 0] / SLEEVE_ROUND, edge[order, 1], period=2.0 * np.pi)   # how far down the arm the cuff is
@@ -411,8 +456,8 @@ def sew_sleeve(bm, top, side, original, cuff, plane):
     for k in range(1, rows + 1):
         s = k / rows
         along = rim[:, 1] + (cuff_at - rim[:, 1]) * s
-        off = np.empty(len(top))
-        for j in range(len(top)):
+        off = np.empty(len(rim))
+        for j in range(len(rim)):
             origin = Vector(SHOULDERS[side] + along[j] * axis)
             direction = (Vector(from_frame(rim[j, 0], along[j], 1.0)) - origin).normalized()
             hit, _, _, distance = original.ray_cast(origin, direction, ARM_R + SLEEVE_REACH)
@@ -424,10 +469,10 @@ def sew_sleeve(bm, top, side, original, cuff, plane):
                 off[j] = (skin if skin is not None else ARM_R) + SLEEVE_WALL
         for _ in range(SLEEVE_ROUNDING):
             off = 0.5 * off + 0.25 * (np.roll(off, 1) + np.roll(off, -1))
-        ease = smoothstep(np.full(len(top), s), 0.0, SLEEVE_EASE)
+        ease = smoothstep(np.full(len(rim), s), 0.0, SLEEVE_EASE)
         off = rim[:, 2] + (off - rim[:, 2]) * ease
         row = []
-        for j in range(len(top)):
+        for j in range(len(rim)):
             p = Vector(from_frame(rim[j, 0], along[j], off[j]))
             loc, n, _, _ = tree.find_nearest(p)
             row.append(bm.verts.new(p + n * max(0.0, CLEAR - (p - loc).dot(n))))
@@ -445,16 +490,21 @@ def sew_sleeve(bm, top, side, original, cuff, plane):
             row.append(bm.verts.new(p + axis * CUFF_ROLL * np.sin(a) - radial * CUFF_ROLL * (1.0 - np.cos(a))))
         grid.append(row)
         made += row
-    # One winding for the whole tube, the one that faces its first row out from the arm (each face on its own, the cuff's turn under was
-    # wound the other way round from the rest).
-    quad = [grid[0][0], grid[0][1], grid[1][1], grid[1][0]]
+    # One winding for the whole tube, the one that faces its first full row out from the arm (each face on its own, the cuff's turn under
+    # was wound the other way round from the rest).
+    quad = [grid[1][0], grid[1][1], grid[2][1], grid[2][0]]
     q = np.array(sum((v.co for v in quad), Vector())[:]) / 4.0 - SHOULDERS[side]
     outward = Vector(q - (q @ axis) * axis)
     reverse = (quad[1].co - quad[0].co).cross(quad[3].co - quad[0].co).dot(outward) < 0.0
     faces = []
-    for upper, lower in zip(grid, grid[1:]):
-        for j in range(len(top)):
-            quad = [upper[j], upper[(j + 1) % len(top)], lower[(j + 1) % len(top)], lower[j]]
+    for j in range(len(top)):   # the armhole to the first ring: one face down from each of its edges, over the ring's points below it
+        below = [grid[1][c % len(rim)] for c in range(starts[j], (starts[(j + 1) % len(top)] - 1) % len(rim) + 2)]
+        face = bm.faces.new([top[j], top[(j + 1) % len(top)]] + below[::-1] if not reverse else below + [top[(j + 1) % len(top)], top[j]])
+        face.smooth = True
+        faces.append(face)
+    for upper, lower in zip(grid[1:], grid[2:]):
+        for j in range(len(rim)):
+            quad = [upper[j], upper[(j + 1) % len(rim)], lower[(j + 1) % len(rim)], lower[j]]
             face = bm.faces.new(quad[::-1] if reverse else quad)
             face.smooth = True
             faces.append(face)
@@ -516,7 +566,7 @@ bm.from_mesh(shirt.data)
 bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-6)   # the glb splits points along its normals
 level = bm.verts.layers.float.new("neck")
 for v in bm.verts:
-    v[level] = np.hypot(v.co.x / NECK_SIDE, v.co.y / (NECK_FRONT if v.co.y < 0.0 else NECK_BACK)) - 1.0
+    v[level] = neck_level(v.co.x, v.co.y) - 1.0
 iso_cut(bm, level)
 keep_joined_to_hem(bm)
 holes = openings(bm)
@@ -545,9 +595,43 @@ co -= out * inward[:, None]
 # The front and back: their distance off the body evened out.
 round_ = np.degrees(np.arctan2(np.abs(co[:, 0]), -co[:, 1]))   # 0 straight in front, 180 straight behind
 panel = np.maximum(1.0 - smoothstep(round_, *PANEL_SIDES), 1.0 - smoothstep(180.0 - round_, *PANEL_SIDES))
-panel *= (1.0 - smoothstep(co[:, 2], *PANEL_TOP)) * smoothstep(co[:, 2], *PANEL_BOTTOM[::-1]) * (1.0 - sleeve)
+nape = (co[:, 1] > 0.0) * (1.0 - smoothstep(np.abs(co[:, 0]), *PANEL_NAPE))
+top = np.maximum(1.0 - smoothstep(co[:, 2], *PANEL_TOP), nape * (1.0 - smoothstep(co[:, 2], *PANEL_TOP_BACK)))
+panel *= top * smoothstep(co[:, 2], *PANEL_BOTTOM[::-1]) * (1.0 - sleeve)
 even = np.maximum(smoothed(d, PANEL_SMOOTHING, mesh_edges), PANEL_MIN)
 co += normal * (panel * (even - d))[:, None]
+# Below the belly the front hangs straight down, as a shirt does, instead of keeping its distance off the body: that brought it out over
+# the crotch in a narrow point 4 cm proud (owner: "get rid of this weird boner thing just flatten it out like the back side"). Where the
+# body stands out past the hanging line, the cloth spans it in a broad swell like the back's over the seat.
+shirt_tree = BVHTree.FromPolygons([Vector(p) for p in co], [p.vertices[:] for p in shirt.data.polygons])
+grid_x = np.arange(-DRAPE_WIDTH, DRAPE_WIDTH + 1e-9, DRAPE_STEP)
+grid_z = np.arange(co[:, 2].min(), DRAPE_TOP + 1e-9, DRAPE_STEP)
+
+
+def front_depth(target, x, z):
+    hit = target.ray_cast(Vector((x, -1.0, z)), Vector((0.0, 1.0, 0.0)), 2.0)[0]
+    return -hit.y if hit is not None else np.nan
+
+
+hanging = np.array([front_depth(shirt_tree, x, DRAPE_TOP) for x in grid_x])
+beyond = np.nan_to_num(np.array([[front_depth(tree, x, z) + PANEL_MIN for x in grid_x] for z in grid_z]) - hanging, nan=0.0)
+beyond = np.maximum(beyond, 0.0)
+spread = np.max(beyond[:, None, :] - DRAPE_CURVE * (grid_x[None, :, None] - grid_x[None, None, :]) ** 2, axis=2)   # a broad swell
+swell = np.zeros_like(spread)
+for i in range(len(grid_z)):   # the rows go up: hung straight under a swell higher up, eased into one lower down
+    hung = spread[i:].max(axis=0)
+    eased = np.max(spread[:i + 1] - DRAPE_RISE * (grid_z[i] - grid_z[:i + 1, None]), axis=0)
+    swell[i] = np.maximum(np.maximum(hung, eased), 0.0)
+hang = (1.0 - smoothstep(co[:, 2], DRAPE_FULL, DRAPE_TOP)) * (1.0 - smoothstep(round_, *PANEL_SIDES)) * (1.0 - sleeve) * (co[:, 1] < 0.0)
+for i in np.flatnonzero(hang > 0.0):
+    x, z = co[i, 0], co[i, 2]
+    surface = front_depth(shirt_tree, x, z)
+    if np.isnan(surface) or abs(x) > DRAPE_WIDTH:
+        continue
+    gx = np.interp(x, grid_x, np.arange(len(grid_x)))
+    gz = np.interp(z, grid_z, np.arange(len(grid_z)))
+    lift = swell[int(round(gz)), int(round(gx))] + np.interp(x, grid_x, hanging) - surface
+    co[i, 1] -= hang[i] * lift   # the whole thickness moved alike, so the hem's roll keeps its shape
 # Nothing of the body comes through: what still lies inside it or on it is put just outside, a little at a time and spread over its
 # neighbours (pushed one by one, single points stood out as spikes).
 for step in range(PUSH_ROUNDS + 1):
@@ -674,7 +758,9 @@ for side in SHOULDERS:
         np.mean([v.co[:] for e in loop for v in e.verts], 0) - under_arm)))
     on_seam = [abs((np.array(v.co[:]) - point) @ normal) < 1e-5 and v.co.z >= ARMPIT_CREASE - 1e-4 for v in ring]
     assert any(on_seam) and not all(on_seam), "the armhole's seam over the %s shoulder is missing from the hole's rim" % side
-    start = next(i for i in range(len(ring)) if on_seam[i] and not on_seam[i - 1])   # the seam's run round the rim, in the rim's order
+    # The seam's run round the rim, in the rim's order: the longest (a stray point of the rim can lie on the plane too).
+    runs = [i for i in range(len(ring)) if on_seam[i] and not on_seam[i - 1]]
+    start = max(runs, key=lambda i: (on_seam[i:] + on_seam[:i]).index(False))
     ring, on_seam = ring[start:] + ring[:start], on_seam[start:] + on_seam[:start]
     length = on_seam.index(False)
     seam, rest = ring[:length], ring[length - 1:] + ring[:1]   # over the shoulder; and back round the side's hole, both from end to end
@@ -890,23 +976,33 @@ for leg in ("thigh_l", "thigh_r"):   # the hem ends at the hips: it follows them
 # The collar's band follows the neck at the sides (on the torso alone, the head dipping in a sprint sank 1.8 cm into it beside the neck);
 # not in front and behind, where the neck's own turn pushed it into the chest.
 sideways = co[:, 0] ** 2 / np.maximum(co[:, 0] ** 2 + co[:, 1] ** 2, 1e-9)
-collar = (1.0 - smoothstep(np.hypot(co[:, 0] / NECK_SIDE, co[:, 1] / NECK_FRONT), 1.05, 1.2)) * (co[:, 2] > NECKLINE_FLOOR)   # the band
+collar = (1.0 - smoothstep(neck_level(co[:, 0], co[:, 1]), 1.05, 1.2)) * (co[:, 2] > NECKLINE_FLOOR)   # the band
 share = COLLAR_NECK_SHARE * sideways * collar
 weights *= (1.0 - share)[:, None]
 weights[:, BONE["neck"]] += share
 on_body = sleeve_of == ""
 collar_points = co[collar > 0.5]
+rig_bones = bpy.data.objects["CityXRig"].data.bones
+skin_co = np.array([(body.matrix_world @ v.co)[:] for v in body.data.vertices])
 for side in SHOULDERS:
     for bone in ("arm_" + side, "forearm_" + side, "hand_" + side):   # the shirt's body never follows an arm
         weights[on_body, BONE["spine"]] += weights[on_body, BONE[bone]]
         weights[on_body, BONE[bone]] = 0.0
-    # A sleeve follows its arm as the skin under it does (near the cuff, partly the forearm: the elbow bends there), never the torso.
+    # A sleeve follows its arm as the arm's own skin does as far down it (near the cuff, partly the forearm: the elbow bends there), never
+    # the torso. Taken from the skin nearest each point, the inside of the sleeve under the armpit took the ribs' scraps of forearm, and the
+    # bending elbow drew it out 2.7x in a sprint.
     on_sleeve = sleeve_of == side
-    arm_bones = [BONE["arm_" + side], BONE["forearm_" + side]]
-    kept = weights[np.ix_(on_sleeve, arm_bones)]
-    kept[kept.sum(1) <= 1e-6, 0] = 1.0
+    axis = (HANDS[side] - SHOULDERS[side]) / np.linalg.norm(HANDS[side] - SHOULDERS[side])
+    upper, lower = (sum(group_values(body, b.name) for b in rig_bones if FOLDED.get(b.name, b.name) == part + side)
+                    for part in ("arm_", "forearm_"))
+    on_arm = upper + lower > ARM_SKIN
+    down = (skin_co[on_arm] - SHOULDERS[side]) @ axis
+    order = np.argsort(down)
+    forearm = smoothed_along(down[order], (lower / np.maximum(upper + lower, 1e-9))[on_arm][order], ARM_SKIN_SPAN)
+    share = np.interp((co[on_sleeve] - SHOULDERS[side]) @ axis, down[order], forearm)
     weights[on_sleeve] = 0.0
-    weights[np.ix_(on_sleeve, arm_bones)] = kept / kept.sum(1, keepdims=True)
+    weights[on_sleeve, BONE["arm_" + side]] = 1.0 - share
+    weights[on_sleeve, BONE["forearm_" + side]] = share
     from_rim = np.min(np.linalg.norm(co[:, None, :] - rims[side][None, :, :], axis=2), axis=1)
     this_side = co[:, 0] * np.sign(SHOULDERS[side][0]) > 0.0
     # Never the collar: on the shoulder bone, an arm swing lifted it into the head; the hold fades out on the way to it (cut off at it, the

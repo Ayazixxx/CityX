@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using CityX.Wearables;
 using UnityEditor;
 using UnityEngine;
@@ -32,35 +33,42 @@ namespace CityX.WearablesEditor
         private static readonly HumanBodyBones[] AlwaysHidden = { HumanBodyBones.Spine, HumanBodyBones.LeftUpperArm, HumanBodyBones.RightUpperArm };
 
         /// <summary>
-        /// Bind pose, the bare upper arm below the cuffs, down to the elbow: further out than ArmFromX (its inner side is at 0.35 there, the
-        /// torso within 0.27) and lower than CuffY (the cuffs end at 1.52 outside, 1.48 inside: the skin just under them stays drawn too,
-        /// inside the sleeve). Hidden where covered, its inner side, facing the shirt's side, was hidden and left a hole in the arm.
+        /// Bind pose, the bare upper arm past the cuffs (SleeveCuff), down to the elbow: further out than ArmFromX (its inner side is at 0.35
+        /// there, the torso within 0.27). Hidden where covered, its inner side, facing the shirt's side, was hidden and left a hole in the arm.
         /// </summary>
         private const float ArmFromX = 0.31f;
-        private const float CuffY = 1.56f;
+        private const int Cuffs = 2;
 
         /// <summary>
-        /// The crew neck's opening (tshirt_build.py's NECK_SIDE, NECK_FRONT, NECK_BACK: an oval round the neck's axis, bind pose, +z ahead), less
-        /// NeckBand, about where the collar's band lies: the skin within it is drawn, all of it, along that clean line (the build keeps the band
-        /// out of the body, so none of it comes through). Hidden there, the inside of the shirt showed through the neck; hidden only where the
-        /// shirt covered it, it came through the band in jagged bits.
+        /// How far up inside a cuff the arm is drawn on, behind its rolled lip: cut off at the lip, the skin's edge showed ragged up the
+        /// sleeve, white with the sleeve's inside behind it.
+        /// </summary>
+        private const float CuffTuck = 0.015f;
+
+        /// <summary>
+        /// The crew neck's opening (tshirt_build.py's NECK_SIDE, NECK_FRONT, NECK_BACK, NECK_BACK_SQUARE: round the neck's axis, bind pose, +z
+        /// ahead, an oval in front and flatter behind), less NeckBand in front, about where the collar's band lies: the skin within it is drawn,
+        /// all of it, along that clean line (the build keeps the band out of the body, so none of it comes through). Hidden there, the inside of
+        /// the shirt showed through the neck; hidden only where the shirt covered it, it came through the band in jagged bits. Behind, it is
+        /// drawn out to the band's seam: the band, lifted clear of the neck there, showed the edge of the skin under it in slivers.
         /// </summary>
         private const float NeckSide = 0.28f;
         private const float NeckFront = 0.2f;
-        private const float NeckBack = 0.2f;
+        private const float NeckBack = 0.18f;
+        private const float NeckBackSquare = 3.0f;
         private const float NeckBand = 0.02f;
         private const float NeckFloor = 1.75f;
 
-        /// <summary>The skin the shirt leaves bare, by a body triangle's bind-pose centre: the upper arms below the cuffs, inside the neck.</summary>
-        private static bool Shown(Vector3 centre)
+        /// <summary>The skin the shirt leaves bare, by a body triangle's bind-pose centre: the upper arms past the cuffs, inside the neck.</summary>
+        private static bool Shown(Vector3 centre, List<SleeveCuff> cuffs)
         {
-            if (Mathf.Abs(centre.x) > ArmFromX && centre.y < CuffY)
+            if (Mathf.Abs(centre.x) > ArmFromX && cuffs.Exists(cuff => cuff.IsPast(centre, CuffTuck)))
             {
                 return true;
             }
-            float across = centre.x / (NeckSide - NeckBand);
-            float ahead = centre.z / ((centre.z > 0.0f ? NeckFront : NeckBack) - NeckBand);
-            return centre.y > NeckFloor && across * across + ahead * ahead < 1.0f;
+            float across = Mathf.Abs(centre.x) / (NeckSide - NeckBand);
+            float ahead = centre.z / (centre.z > 0.0f ? NeckFront - NeckBand : NeckBack);
+            return centre.y > NeckFloor && Mathf.Pow(across, centre.z > 0.0f ? 2.0f : NeckBackSquare) + ahead * ahead < 1.0f;
         }
 
         /// <summary>
@@ -81,8 +89,13 @@ namespace CityX.WearablesEditor
                 return null;
             }
             Material material = BlenderGarmentMesh.PlainMaterial(MaterialPath, Cotton, FabricSmoothness);
+            List<SleeveCuff> cuffs = SleeveCuff.Of(mesh, ArmFromX);
+            if (cuffs.Count != Cuffs)
+            {
+                Debug.LogError($"CityX: the T-Shirt has {cuffs.Count} cuffs, not {Cuffs}; its sleeves' arms stay hidden down to the hands.");
+            }
             byte[] hidden = BodyUnderGarment.HiddenTriangles(mesh, AlwaysHidden, new HumanBodyBones[0], new Bounds(), HiddenWhereCovered,
-                new Bounds(), out int bodyTriangles, Shown);
+                new Bounds(), out int bodyTriangles, centre => Shown(centre, cuffs));
             GameObject saved = SkinnedGarmentBuilder.BuildPrefabFromMesh<TShirt>(
                 mesh, material, PrefabPath, "TShirt", GroundScale, GroundPitchDegrees, GroundLift,
                 shirt =>
