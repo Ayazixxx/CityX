@@ -1,7 +1,6 @@
 # CityX
 
-A multiplayer open-world game set in a procedurally generated megacity, built in Unity: third-person melee and gun combat, parkour and
-climbing, spells, a jetpack and a character creator. It started as a Godot prototype and is being ported to Unity for multiplayer scale.
+A multiplayer open-world game set in a procedurally generated megacity, built in Unity: third-person melee and gun combat combined with hotbar spells..
 
 ## Repository layout
 
