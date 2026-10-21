@@ -18,6 +18,13 @@ namespace CityX.Wearables
         [Tooltip("The picture: a PNG with a transparent background.")]
         public Texture2D Logo;
 
+        [Tooltip("Cover the whole shirt with the picture, repeated (an all-over print such as camo), instead of printing it once.")]
+        public bool CoverTheWholeShirt;
+
+        [Tooltip("Covering the whole shirt: how much of the shirt one copy of the picture covers, in cm.")]
+        [Min(1.0f)]
+        public float RepeatEveryCm = 60.0f;
+
         [Tooltip("Which side of the shirt it is printed on.")]
         public ShirtSide Side = ShirtSide.Front;
 

@@ -168,7 +168,7 @@ namespace CityX.UI
                     "any item /equip takes>";
                 case "car": return "/car pose -- logs the nearest car's seat positions (drag them in the Editor to nudge)";
                 case "celshade": return "/celshade -- toggles toon shading on every character skin";
-                case "equip": return "/equip <bottle|jeans|cloak|coat|tshirt|bloodraven|grapple|pistol|flamethrower|jetpack|parachute|top_hat|" +
+                case "equip": return "/equip <bottle|jeans|cloak|coat|tshirt|bloodraven|redcamo|grapple|pistol|flamethrower|jetpack|parachute|top_hat|" +
                     "knight_helmet|spikesword|combatsword|ak47|crowbar|bat|spraycan>";
                 case "unequip": return "/unequip <hand_r (primary)|hand_l (secondary)|legs|top|back|helmet>";
                 case "goto": return "/goto <slope|highway> -- teleports to the nearest one (onto an expressway's deck for highway)";

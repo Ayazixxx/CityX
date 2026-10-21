@@ -99,6 +99,54 @@ namespace CityX.Tests
             AssertClose(Cloth, turned[65 * 100 + 50], "turned a quarter anticlockwise, the clear half is at the top");
         }
 
+        /// <summary>The Red Camo T-Shirt (owner: "make it cover the whole surface of the tee"): its own item, the camo all over its texture.</summary>
+        [Test]
+        public void TheRedCamoTShirtIsCoveredAllOver()
+        {
+            Assert.IsTrue(ItemRegistry.TryGet(ItemRegistry.RedCamoTShirt, out ItemDefinition item));
+            Assert.AreEqual("Red Camo T-Shirt", item.DisplayName);
+            Assert.AreEqual(EquipSlots.Torso, item.EquipSlot);
+            Assert.AreEqual(ItemRegistry.RedCamoTShirt, Prefab(TShirtBuilder.RedCamoPrefabPath).ItemId);
+            var print = AssetDatabase.LoadAssetAtPath<ShirtPrint>(TShirtBuilder.RedCamoPrintPath);
+            Assert.IsTrue(print.CoverTheWholeShirt);
+            Assert.IsNotNull(print.Logo, "the camo print has no picture");
+            Texture2D printed = Decoded(ShirtPrintBaker.TexturePathFor(print));
+            try
+            {
+                int inked = 0, seen = 0;
+                for (float u = 0.025f; u < 1.0f; u += 0.05f)
+                {
+                    for (float v = 0.025f; v < 1.0f; v += 0.05f)
+                    {
+                        Color32 texel = printed.GetPixelBilinear(u, v);
+                        seen++;
+                        inked += Mathf.Abs(texel.r - Cloth.r) + Mathf.Abs(texel.g - Cloth.g) + Mathf.Abs(texel.b - Cloth.b) > 60 ? 1 : 0;
+                    }
+                }
+                Assert.Greater((float)inked / seen, 0.6f, $"only {inked} of {seen} places on the camo shirt's texture are camo, not plain cloth");
+            }
+            finally
+            {
+                Object.DestroyImmediate(printed);
+            }
+        }
+
+        [Test]
+        public void AnAllOverPrintRepeatsThePictureAcrossTheWholeTexture()
+        {
+            // Four texels wide: red on the left half, clear on the right; repeated every 0.1 of the texture.
+            var picture = new[] { Red, Red, Clear, Clear, Red, Red, Clear, Clear };
+            Color32[] texels = ShirtPrintLayout.Cover(picture, 4, 2, 100, Cloth, 0.1f);
+            foreach (int row in new[] { 2, 50, 97 })
+            {
+                foreach (int tile in new[] { 0, 4, 9 })
+                {
+                    AssertClose(Red, texels[row * 100 + tile * 10 + 1], $"the left of copy {tile}, row {row}");
+                    AssertClose(Cloth, texels[row * 100 + tile * 10 + 8], $"the clear right of copy {tile}, row {row}");
+                }
+            }
+        }
+
         [Test]
         public void MovingThePrintMovesItAlongTheCloth()
         {

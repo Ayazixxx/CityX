@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using CityX.Wearables;
 using UnityEditor;
@@ -28,6 +29,9 @@ namespace CityX.WearablesEditor
         /// <summary>The cloth around the middle a side's placement is fitted to: this far either side of it, and up and down.</summary>
         private const float FitAcross = 0.2f;
         private const float FitUpDown = 0.2f;
+
+        /// <summary>How near the middle line (or the middle height) a point counts as on it, metres.</summary>
+        private const float MiddleBand = 0.03f;
 
         private const float CentimetresPerMetre = 100.0f;
 
@@ -76,6 +80,11 @@ namespace CityX.WearablesEditor
                 // Read from the file, so the picture's own import settings (not readable, compressed, resized) do not matter.
                 logo.LoadImage(File.ReadAllBytes(Path.Combine(Directory.GetParent(Application.dataPath).FullName,
                     AssetDatabase.GetAssetPath(print.Logo))));
+                if (print.CoverTheWholeShirt)
+                {
+                    return ShirtPrintLayout.Cover(logo.GetPixels32(), logo.width, logo.height, TextureSize, cloth,
+                        print.RepeatEveryCm / CentimetresPerMetre * uvPerMetre);
+                }
                 return ShirtPrintLayout.Print(logo.GetPixels32(), logo.width, logo.height, TextureSize, cloth, centre,
                     print.WidthCm / CentimetresPerMetre * uvPerMetre, print.RotationDegrees);
             }
@@ -131,6 +140,70 @@ namespace CityX.WearablesEditor
                 Debug.LogError($"CityX: the T-Shirt's {(front ? "front" : "back")} piece does not lie upright on its texture as seen from its side " +
                                $"(u {uSlope:0.000}, v {vSlope:0.000} a metre); a print on it lands mirrored.");
             }
+        }
+
+        /// <summary>
+        /// One side of the worn shirt as the folded shirt shows it (<see cref="FoldedShirtLayout"/>): where its anchor is on the texture,
+        /// at the middle (the front: the bottom of the neck opening; the back: the top of the collar), how far a metre goes, and how wide the
+        /// side is across the chest.
+        /// </summary>
+        public static FoldedShirtLayout.WornSide WornSide(Mesh shirt, bool front)
+        {
+            FitSide(shirt, front, out Vector2 middleUv, out float uvPerMetre);
+            Vector3[] vertices = shirt.vertices;
+            Vector2[] uvs = shirt.uv;
+            Rect piece = front ? FrontPiece : BackPiece;
+            float collarY = MiddleHeight, minX = float.MaxValue, maxX = float.MinValue;
+            for (int i = 0; i < vertices.Length; i++)
+            {
+                Vector3 p = vertices[i];
+                if (!piece.Contains(uvs[i]) || (p.z > 0.0f) != front)
+                {
+                    continue;
+                }
+                if (Mathf.Abs(p.x) < MiddleBand)
+                {
+                    collarY = Mathf.Max(collarY, p.y);
+                }
+                if (Mathf.Abs(p.y - MiddleHeight) < MiddleBand)
+                {
+                    minX = Mathf.Min(minX, p.x);
+                    maxX = Mathf.Max(maxX, p.x);
+                }
+            }
+            float anchorY = front ? NecklineAtMiddle(shirt, collarY) : collarY;
+            return new FoldedShirtLayout.WornSide
+            {
+                AnchorUv = middleUv + new Vector2(0.0f, (anchorY - MiddleHeight) * uvPerMetre),
+                UvPerMetre = uvPerMetre,
+                ChestWidth = maxX - minX,
+            };
+        }
+
+        /// <summary>The bottom of the neck opening at the middle of the front: the neck's rim (the highest opening), its lowest point there.</summary>
+        private static float NecklineAtMiddle(Mesh shirt, float fallback)
+        {
+            List<Vector3> neck = null;
+            float highest = float.MinValue;
+            foreach ((List<Vector3> rim, Vector3 _) in MeshOpenings.Of(shirt).Rims)
+            {
+                float y = 0.0f;
+                rim.ForEach(p => y += p.y / rim.Count);
+                if (y > highest)
+                {
+                    highest = y;
+                    neck = rim;
+                }
+            }
+            float lowest = float.MaxValue;
+            foreach (Vector3 p in neck ?? new List<Vector3>())
+            {
+                if (p.z > 0.0f && Mathf.Abs(p.x) < MiddleBand)
+                {
+                    lowest = Mathf.Min(lowest, p.y);
+                }
+            }
+            return lowest < float.MaxValue ? lowest : fallback;
         }
 
         private static void SetImport(string texturePath)

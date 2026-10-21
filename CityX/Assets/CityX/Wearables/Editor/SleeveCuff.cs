@@ -9,9 +9,6 @@ namespace CityX.WearablesEditor
     /// </summary>
     public sealed class SleeveCuff
     {
-        /// <summary>Points of the garment's mesh nearer than this are one point (the mesh is split along its texture seams).</summary>
-        private const float WeldDistance = 1e-4f;
-
         /// <summary>The garment's cloth this near the rim is its cuff, whose lip may hang past the rim.</summary>
         private const float LipReach = 0.03f;
 
@@ -76,52 +73,10 @@ namespace CityX.WearablesEditor
         /// </summary>
         public static List<SleeveCuff> Of(Mesh garment, float armFromX)
         {
-            Vector3[] vertices = garment.vertices;
-            int[] triangles = garment.triangles;
-            var weld = new Dictionary<Vector3Int, int>();
-            var points = new List<Vector3>();
-            var id = new int[vertices.Length];
-            for (int v = 0; v < vertices.Length; v++)
-            {
-                Vector3Int key = Vector3Int.RoundToInt(vertices[v] / WeldDistance);
-                if (!weld.TryGetValue(key, out id[v]))
-                {
-                    id[v] = weld[key] = points.Count;
-                    points.Add(vertices[v]);
-                }
-            }
-            // An open edge is used by one triangle only, in its winding: so walked, round an opening they all go the same way.
-            var edges = new Dictionary<(int, int), (int from, int to, int uses)>();
-            for (int t = 0; t < triangles.Length; t++)
-            {
-                int a = id[triangles[t]], b = id[triangles[t % 3 == 2 ? t - 2 : t + 1]];
-                var key = (Mathf.Min(a, b), Mathf.Max(a, b));
-                edges[key] = edges.TryGetValue(key, out var edge) ? (edge.from, edge.to, edge.uses + 1) : (a, b, 1);
-            }
-            var opening = new int[points.Count];
-            for (int p = 0; p < opening.Length; p++)
-            {
-                opening[p] = p;
-            }
-            var open = new List<(int from, int to)>();
-            foreach (var edge in edges.Values)
-            {
-                if (edge.uses == 1)
-                {
-                    open.Add((edge.from, edge.to));
-                    opening[Root(opening, edge.from)] = Root(opening, edge.to);
-                }
-            }
-            var rims = new Dictionary<int, (List<Vector3> rim, Vector3 area)>();
-            foreach ((int from, int to) in open)
-            {
-                int root = Root(opening, from);
-                (List<Vector3> rim, Vector3 area) = rims.TryGetValue(root, out var found) ? found : (new List<Vector3>(), Vector3.zero);
-                rim.Add(points[from]);
-                rims[root] = (rim, area + Vector3.Cross(points[from], points[to]));
-            }
+            var openings = MeshOpenings.Of(garment);
+            List<Vector3> points = openings.Points;
             var cuffs = new List<SleeveCuff>();
-            foreach ((List<Vector3> rim, Vector3 area) in rims.Values)
+            foreach ((List<Vector3> rim, Vector3 area) in openings.Rims)
             {
                 var cuff = new SleeveCuff(rim, area);
                 if (Mathf.Abs(cuff._centre.x) <= armFromX)
@@ -144,15 +99,6 @@ namespace CityX.WearablesEditor
         {
             Vector3 q = point - _centre;
             return Mathf.Atan2(Vector3.Dot(q, _ahead), Vector3.Dot(q, _across));
-        }
-
-        private static int Root(int[] parent, int p)
-        {
-            while (parent[p] != p)
-            {
-                p = parent[p] = parent[parent[p]];
-            }
-            return p;
         }
     }
 }

@@ -42,13 +42,14 @@ namespace CityX.Tests
             conversion.GetMethod("LoadImage", new[] { typeof(Texture2D), typeof(byte[]) }).Invoke(null,
                 new object[] { design, System.IO.File.ReadAllBytes(System.IO.Path.Combine(Application.dataPath, TestDesignPath)) });
 
-            foreach (string look in new[] { "plain", "design", "bloodraven" })
+            foreach (string look in new[] { "plain", "design", "bloodraven", "redcamo" })
             {
                 GameObject player = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab"),
                     new Vector3(0.0f, 0.05f, 0.0f), Quaternion.identity);
                 player.GetComponent<PlayerInputReader>().enabled = false;
                 var locomotion = player.GetComponent<PlayerLocomotion>();
-                string prefab = look == "bloodraven" ? "Assets/CityX/Wearables/BloodRavenTShirt.prefab" : "Assets/CityX/Wearables/TShirt.prefab";
+                string prefab = look == "bloodraven" ? "Assets/CityX/Wearables/BloodRavenTShirt.prefab"
+                    : look == "redcamo" ? "Assets/CityX/Wearables/RedCamoTShirt.prefab" : "Assets/CityX/Wearables/TShirt.prefab";
                 GameObject shirtObject = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(prefab),
                     new Vector3(30.0f, 0.5f, 30.0f), Quaternion.identity);
                 var shirt = shirtObject.GetComponent<TShirt>();
@@ -57,7 +58,17 @@ namespace CityX.Tests
                     shirt.GarmentMaterial = new Material(shirt.GarmentMaterial);
                     shirt.GarmentMaterial.SetTexture("_BaseMap", design);
                     shirt.GarmentMaterial.SetColor("_BaseColor", Color.white);
+                    shirt.GroundPreview.GetComponent<MeshRenderer>().sharedMaterial = shirt.GarmentMaterial;
                 }
+                // Folded on the ground first, as it lies before it is picked up; then held up to see its underside (the worn back).
+                shirtObject.transform.position = new Vector3(-3.0f, 0.0f, 3.0f);
+                yield return null;
+                Vector3 folded = shirtObject.transform.position + Vector3.up * 0.02f;
+                BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, $"tshirt-{look}-folded", folded + new Vector3(0.0f, 0.75f, -0.35f), folded);
+                shirtObject.transform.position = new Vector3(-3.0f, 2.0f, 3.0f);
+                yield return null;
+                folded = shirtObject.transform.position;
+                BuildingShapeCapture.Shoot(camera, BuildingShapeCapture.ShotsFolder, $"tshirt-{look}-folded-under", folded + new Vector3(0.0f, -0.75f, -0.35f), folded);
                 shirt.OnEquip(player, ItemInstanceData.None);
                 for (int i = 0; i < 90; i++)
                 {

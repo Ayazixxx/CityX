@@ -83,7 +83,32 @@ worn. The values are saved in the asset; commit it with the printed PNG.
 of cloth goes on it (a straight-line fit of the points round the middle), and `ShirtPrintLayout` lays the picture over the cotton there,
 blended by its transparency, at 2048 texels (about 960 a metre, so the 34 cm logo is about 330 texels wide). The printed shirt is the
 T-Shirt's prefab with its own item (`TShirt.SetItemId`) and a white material carrying the printed texture (the cotton's colour is in the
-texture). Another printed shirt is a new print asset, item and three lines in `TShirtBuilder`, like `BuildBloodRaven`.
+texture). Another printed shirt is a picture in `Prints/`, an item, and one line in `TShirtBuilder` (`BuildPrinted`), like `BuildBloodRaven`.
+
+## All-over prints: the Red Camo T-Shirt
+
+"try making another shirt that has this camo all over print texture ... make it cover the whole surface of the tee" (owner, 2026-10-20).
+`/equip redcamo` (also `camo`). Its print (`Prints/RedCamoPrint.asset`, menu **CityX > Size the Red Camo**) has **Cover The Whole Shirt**
+ticked: the picture (`Prints/RedCamo.png`) is repeated across the whole texture, wrapping edge to edge, and since every piece lies on the
+texture at one scale, the pattern is the same size all over the shirt. **Repeat Every Cm** is how much shirt one copy of the picture covers:
+larger zooms the camo in (bigger blotches), smaller zooms it out. The placement fields do nothing for an all-over print.
+
+## Folded on the ground
+
+"use this as the model for the t shirt when it is out as an object ... I want whatever design or texture we put on the worn model to appear
+on the tee object as well, and in as similar a position as possible" (owner, 2026-10-20). Every shirt lies folded on the ground until it is
+picked up; equipped, it is shown worn (the garment's existing ground preview, `SkinnedGarment.GroundPreview`, now with a model of its own).
+
+| Step | What |
+|---|---|
+| Model | The owner's `T-ShirtFolded.fbx` (Meshy, 350,000 triangles, no texture coordinates; in the owner's Downloads, not kept in the repo). `SourceArt/TShirtFolded/folded_build.py` lays it flat, front up, collar toward +z in Unity, 40 x 52 x 3.5 cm; makes it one closed even surface (a 2 mm voxel remesh, smoothed lightly, only the outer piece kept) and reduces that to 3,000 triangles: collapsed straight from 350,000, the collar tore and the top came out jagged; copying the source's shading on, its hidden inner folds turned patches dark; QuadriFlow refused the surface. `Models/TShirtFolded.glb`, 55 KB. |
+| Texture layout | Not made in Blender: `TShirtBuilder` gives it the worn shirt's own layout (`FoldedShirtLayout`), so one texture dresses the shirt folded and worn. The folded top is the worn front as seen from in front: the bottom of the folded neck opening (found as the end of the dip it makes in the middle line, 11 cm below the collar's edge) at the bottom of the worn neck opening (the neck rim's lowest point at the middle), the chest's width as seen from in front across the folded width, one scale both ways. Its underside is the worn back the same way, from the top of the collar, seen from behind. |
+
+**Players' own pictures (planned, not built):** possible as it stands. A player's picture placed on the worn shirt is just another print:
+`ShirtPrintLayout` (runtime code, no editor needed) prints it into a texture, and the folded shirt shows it in the same place with nothing
+more, because it shares the worn shirt's layout. Still to build: choosing the picture and placing it in the game, printing per shirt instance
+(a material and texture each, 2048 texels, about a second of work), keeping it with the item (`ItemInstanceData`), and sending it to other
+players (a compressed picture, tens of KB, plus its placement, rather than the whole texture).
 
 ## In the game
 

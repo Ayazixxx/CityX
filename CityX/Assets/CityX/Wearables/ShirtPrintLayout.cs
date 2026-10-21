@@ -56,18 +56,61 @@ namespace CityX.Wearables
             return texels;
         }
 
+        /// <summary>
+        /// A square texture of <paramref name="size"/> texels covered all over with the picture, repeated every <paramref name="repeatUv"/>
+        /// along both of its sides (the garment's pieces lie at one scale on it, so the pattern is one size everywhere on the cloth), its
+        /// transparency letting <paramref name="cloth"/> through.
+        /// </summary>
+        public static Color32[] Cover(Color32[] picture, int pictureWidth, int pictureHeight, int size, Color32 cloth, float repeatUv)
+        {
+            var texels = new Color32[size * size];
+            float repeatHeight = repeatUv * pictureHeight / pictureWidth;
+            Color clothColour = cloth;
+            for (int y = 0; y < size; y++)
+            {
+                float v = Mathf.Repeat((y + 0.5f) / size / repeatHeight, 1.0f);
+                for (int x = 0; x < size; x++)
+                {
+                    float u = Mathf.Repeat((x + 0.5f) / size / repeatUv, 1.0f);
+                    Color ink = Sample(picture, pictureWidth, pictureHeight, u, v, wrap: true);
+                    texels[y * size + x] = Color.Lerp(clothColour, new Color(ink.r, ink.g, ink.b, 1.0f), ink.a);
+                }
+            }
+            return texels;
+        }
+
         /// <summary>The picture at (u, v) in 0..1, blended between its four nearest texels.</summary>
-        private static Color Sample(Color32[] logo, int width, int height, float u, float v)
+        private static Color Sample(Color32[] logo, int width, int height, float u, float v, bool wrap = false)
         {
             if (width < 2 || height < 2)
             {
                 return logo[0];
             }
-            float x = Mathf.Clamp(u * width - 0.5f, 0.0f, width - 1.0f), y = Mathf.Clamp(v * height - 0.5f, 0.0f, height - 1.0f);
-            int ix = Mathf.Min((int)x, width - 2), iy = Mathf.Min((int)y, height - 2);
-            float fx = x - ix, fy = y - iy;
-            Color bottom = Color.Lerp(Premultiplied(logo[iy * width + ix]), Premultiplied(logo[iy * width + ix + 1]), fx);
-            Color top = Color.Lerp(Premultiplied(logo[(iy + 1) * width + ix]), Premultiplied(logo[(iy + 1) * width + ix + 1]), fx);
+            int ix, iy, ix1, iy1;
+            float fx, fy;
+            if (wrap)
+            {
+                // Repeated: the texels past an edge are the other edge's, so one copy runs into the next without a seam.
+                float x = Mathf.Repeat(u * width - 0.5f, width), y = Mathf.Repeat(v * height - 0.5f, height);
+                ix = Mathf.Min((int)x, width - 1);
+                iy = Mathf.Min((int)y, height - 1);
+                ix1 = (ix + 1) % width;
+                iy1 = (iy + 1) % height;
+                fx = x - ix;
+                fy = y - iy;
+            }
+            else
+            {
+                float x = Mathf.Clamp(u * width - 0.5f, 0.0f, width - 1.0f), y = Mathf.Clamp(v * height - 0.5f, 0.0f, height - 1.0f);
+                ix = Mathf.Min((int)x, width - 2);
+                iy = Mathf.Min((int)y, height - 2);
+                ix1 = ix + 1;
+                iy1 = iy + 1;
+                fx = x - ix;
+                fy = y - iy;
+            }
+            Color bottom = Color.Lerp(Premultiplied(logo[iy * width + ix]), Premultiplied(logo[iy * width + ix1]), fx);
+            Color top = Color.Lerp(Premultiplied(logo[iy1 * width + ix]), Premultiplied(logo[iy1 * width + ix1]), fx);
             Color blended = Color.Lerp(bottom, top, fy);
             return blended.a > 0.0f ? new Color(blended.r / blended.a, blended.g / blended.a, blended.b / blended.a, blended.a) : Color.clear;
         }

@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6ffa52520e4f0d443acf2537195cfccd, type: 3}
+  m_Name: RedCamoPrint
+  m_EditorClassIdentifier: CityX.Wearables::CityX.Wearables.ShirtPrint
+  Logo: {fileID: 2800000, guid: 1c4e63b6d3ebf0d4a9709fac47b12b57, type: 3}
+  CoverTheWholeShirt: 1
+  RepeatEveryCm: 60
+  Side: 0
+  RightCm: 0
+  UpCm: 0
+  WidthCm: 34
+  RotationDegrees: 0

@@ -189,7 +189,7 @@ namespace CityX.WearablesEditor
         internal static GameObject BuildPrefabFromMesh<T>(Mesh bakedMesh, Material material,
             string prefabPath, string rootName,
             float groundScale, float groundPitchDegrees, float groundLift,
-            System.Action<T> configure = null) where T : SkinnedGarment
+            System.Action<T> configure = null, Mesh groundMesh = null) where T : SkinnedGarment
         {
             var root = new GameObject(rootName);
             try
@@ -202,14 +202,16 @@ namespace CityX.WearablesEditor
                 // A non-skinned preview, shown lying on the ground pre-pickup
                 // and hidden by SkinnedGarment.OnEquip -- its raw, unposed
                 // mesh sitting where the live skin also renders would
-                // otherwise z-fight with it.
+                // otherwise z-fight with it. A garment with a ground model of
+                // its own (a folded shirt, in the garment's texture layout)
+                // shows that instead, as it is.
                 var preview = new GameObject("Preview");
                 preview.transform.SetParent(root.transform, false);
                 preview.transform.localScale = Vector3.one * groundScale;
                 preview.transform.localEulerAngles = new Vector3(groundPitchDegrees, 0.0f, 0.0f);
                 preview.transform.localPosition = new Vector3(0.0f, groundLift, 0.0f);
                 var filter = preview.AddComponent<MeshFilter>();
-                filter.sharedMesh = bakedMesh;
+                filter.sharedMesh = groundMesh != null ? groundMesh : bakedMesh;
                 var previewRenderer = preview.AddComponent<MeshRenderer>();
                 previewRenderer.sharedMaterial = material;
                 garment.GroundPreview = preview;

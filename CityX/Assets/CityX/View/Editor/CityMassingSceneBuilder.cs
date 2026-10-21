@@ -240,6 +240,7 @@ namespace CityX.ViewEditor
             GameObject midnightCoatPrefab = CityX.WearablesEditor.MidnightCoatBuilder.Build();
             GameObject tShirtPrefab = CityX.WearablesEditor.TShirtBuilder.Build();
             GameObject bloodRavenTShirtPrefab = CityX.WearablesEditor.TShirtBuilder.BuildBloodRaven();
+            GameObject redCamoTShirtPrefab = CityX.WearablesEditor.TShirtBuilder.BuildRedCamo();
             GameObject grapplingHookPrefab = CityX.WeaponsEditor.GrapplingHookBuilder.Build();
             GameObject pistolPrefab = CityX.WeaponsEditor.PistolBuilder.Build();
             GameObject jetpackPrefab = CityX.WeaponsEditor.JetpackBuilder.Build();
@@ -439,6 +440,8 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.TShirt, Prefab = tShirtPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.BloodRavenTShirt, Prefab = bloodRavenTShirtPrefab },
+                    new CityX.Character.Inventory.ItemPrefabEntry
+                        { ItemId = CityX.Items.ItemRegistry.RedCamoTShirt, Prefab = redCamoTShirtPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.GrapplingHook, Prefab = grapplingHookPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
