@@ -154,7 +154,9 @@ namespace CityX.Tests
             Assert.IsNotNull(picker, "the player's body has no way to pick up a dropped item");
             Assert.AreSame(dropped, picker.InReach(), "the sword at the player's feet, looked at, is not in reach");
             Assert.IsTrue(picker.TryPickUp());
-            Assert.IsTrue(otherInventory.HasItem(ItemRegistry.SpikeSword), "picking it up did not put the sword in the inventory");
+            // Empty-handed, the sword goes straight into the hand, in the primary slot (owner, 2026-10-21).
+            Assert.AreEqual(ItemRegistry.SpikeSword, otherInventory.EquippedItemId(Inventory.PrimarySlot), "picking it up did not put the sword in the hand");
+            Assert.IsNotNull(otherInventory.EquippedInstance(Inventory.PrimarySlot), "the picked-up sword is not out in the hand");
             Assert.AreEqual(0, DroppedItems.Shared.Count);
             yield return null;
             Assert.IsTrue(dropped == null, "the sword still lies there after it was picked up");

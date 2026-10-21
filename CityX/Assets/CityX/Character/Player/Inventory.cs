@@ -342,6 +342,30 @@ namespace CityX.Character
             return true;
         }
 
+        /// <summary>
+        /// Takes a picked-up item. Something held in hand (a weapon) goes straight into the hand when the hand is empty (owner, 2026-10-21:
+        /// "if you dont have any item in hand and you press E on weapon then it equips it automatically, starting with primary slot and if
+        /// thats full then it goes in secondary"); anything else, or with something already in hand, goes into storage.
+        /// </summary>
+        public bool PickUp(string itemId, ItemInstanceData instanceData = default)
+        {
+            if (GoesStraightToHand(itemId) && EquipItemId(itemId, gameObject, instanceData))
+            {
+                return true;
+            }
+            return AddItem(itemId, 1, instanceData);
+        }
+
+        /// <summary>Whether picking up <paramref name="itemId"/> now would put it in the hand: a hand item, the hand empty, a weapon slot free.</summary>
+        public bool GoesStraightToHand(string itemId) =>
+            ItemRegistry.TryGet(itemId, out ItemDefinition definition) && IsWeaponSlot(definition.EquipSlot) &&
+            EquippedInstance(ActiveWeaponSlot) == null &&
+            (string.IsNullOrEmpty(EquippedItemId(PrimarySlot)) || string.IsNullOrEmpty(EquippedItemId(SecondarySlot)));
+
+        /// <summary>Whether <see cref="PickUp"/> would take one <paramref name="itemId"/> now: into the hand, or into storage.</summary>
+        public bool CanPickUp(string itemId, ItemInstanceData instanceData = default) =>
+            (GoesStraightToHand(itemId) && PrefabFor(itemId) != null) || HasRoomFor(itemId, instanceData);
+
         /// <summary>Whether one <paramref name="itemId"/> would fit in storage now: a stack of it with room, or an empty slot (AddItem's own rule).</summary>
         public bool HasRoomFor(string itemId, ItemInstanceData instanceData = default)
         {

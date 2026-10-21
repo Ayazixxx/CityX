@@ -5,6 +5,12 @@ primary, the next secondary (holstered), a third replaces the one in hand. Only 
 and rebuilt on draw through the normal OnEquip/OnUnequip. **Scroll wheel** swaps (`PlayerInputReader.TickCombat`, 0.25 s cooldown; not while carrying or aiming).
 The inventory panel shows PRIMARY / SECONDARY and a `>` on the one in hand.
 
+**Picked up straight into the hand** (2026-10-21, owner: "if you dont have any item in hand and you press E on weapon then it equips it automatically, starting
+with primary slot and if thats full then it goes in secondary"). Every pickup of a hand item goes through `Inventory.PickUp`: this covers a weapon's own E pickup
+(sword, pistol and AK, flamethrower, bottle, grappling hook) and a dropped item (`DroppedItems.Take`). With the hand empty and a weapon slot free, the item is
+equipped (primary first, else secondary) and drawn. Otherwise it goes into storage as before. Clothing always goes into storage. Tests: `InventoryTests.PickingUp*`,
+`DroppedItemPlayTests`.
+
 **Sword wave, key 7** with the sword in hand (`Character/ISwordWaveCaster`, `Weapons/Spells/SwordWaveCaster`, `SwordWaveProjectile`, `Editor/SwordWaveBuilder`): the sword does a
 light-attack swing and 0.18 s later a white swoosh (three layered streaky ribbons, additive, a small light) leaves the blade down the crosshair like the fireball
 (`ConvergedDirection`). It flies 34 m/s for 1.6 s, cuts through what it hurts (40 damage, each target once) and stops on the world. Colour: `SwordWaveBuilder.WaveColour`

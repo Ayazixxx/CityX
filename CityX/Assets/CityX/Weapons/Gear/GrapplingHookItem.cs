@@ -183,7 +183,7 @@ namespace CityX.Weapons
             }
 
             var inventory = _nearbyPlayer.GetComponentInParent<Inventory>();
-            if (inventory != null && inventory.AddItem(ItemRegistry.GrapplingHook, 1))
+            if (inventory != null && inventory.PickUp(ItemRegistry.GrapplingHook))
             {
                 Destroy(gameObject);
             }

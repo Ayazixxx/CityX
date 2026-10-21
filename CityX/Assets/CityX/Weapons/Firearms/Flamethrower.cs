@@ -160,7 +160,7 @@ namespace CityX.Weapons
             {
                 return false;
             }
-            if (inventory.AddItem(ItemRegistry.Flamethrower, 1))
+            if (inventory.PickUp(ItemRegistry.Flamethrower))
             {
                 Destroy(gameObject);
                 return true;

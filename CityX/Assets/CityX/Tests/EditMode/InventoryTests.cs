@@ -194,6 +194,46 @@ namespace CityX.Tests
         }
 
         [Test]
+        public void PickingUpAWeaponWithEmptyHandsPutsItInTheHandPrimaryFirst()
+        {
+            Assert.IsTrue(_inventory.PickUp(ItemRegistry.GlassBottle));
+            Assert.AreEqual(ItemRegistry.GlassBottle, _inventory.EquippedItemId(Inventory.PrimarySlot));
+            Assert.IsNotNull(_inventory.EquippedInstance(Inventory.PrimarySlot), "the weapon is in hand");
+            Assert.IsFalse(_inventory.HasItem(ItemRegistry.GlassBottle), "it went to the hand, not into storage");
+        }
+
+        [Test]
+        public void PickingUpAWeaponWithEmptyHandsAndThePrimaryAwayPutsItInTheSecondary()
+        {
+            _inventory.EquipItemId(ItemRegistry.GlassBottle, _playerObject);   // primary, in hand
+            _inventory.EquipItemId(ItemRegistry.GlassBottle, _playerObject);   // secondary, holstered
+            _inventory.CycleWeapon(_playerObject);                             // secondary in hand, primary holstered
+            _inventory.TakeWeaponInHand(_playerObject, out _, out _, out _);   // secondary thrown: hands empty, primary taken
+
+            Assert.IsTrue(_inventory.PickUp(ItemRegistry.GlassBottle));
+            Assert.AreEqual(ItemRegistry.GlassBottle, _inventory.EquippedItemId(Inventory.SecondarySlot));
+            Assert.AreEqual(Inventory.SecondarySlot, _inventory.ActiveWeaponSlot);
+            Assert.IsNotNull(_inventory.EquippedInstance(Inventory.SecondarySlot), "the weapon is in hand");
+        }
+
+        [Test]
+        public void PickingUpAWeaponWithOneInHandStoresIt()
+        {
+            _inventory.EquipItemId(ItemRegistry.GlassBottle, _playerObject);
+            Assert.IsTrue(_inventory.PickUp(ItemRegistry.GlassBottle));
+            Assert.IsTrue(_inventory.HasItem(ItemRegistry.GlassBottle), "with a weapon in hand the new one goes into storage");
+            Assert.AreEqual(string.Empty, _inventory.EquippedItemId(Inventory.SecondarySlot));
+        }
+
+        [Test]
+        public void PickingUpClothingStoresItEvenWithEmptyHands()
+        {
+            Assert.IsTrue(_inventory.PickUp(ItemRegistry.SkelliJeans));
+            Assert.IsTrue(_inventory.HasItem(ItemRegistry.SkelliJeans));
+            Assert.AreEqual(string.Empty, _inventory.EquippedItemId(EquipSlots.Legs));
+        }
+
+        [Test]
         public void ScrollingWithOnlyOneWeaponDoesNothingAndAHolsteredWeaponCanStillBeUnequipped()
         {
             _inventory.EquipItemId(ItemRegistry.GlassBottle, _playerObject);

@@ -336,7 +336,7 @@ namespace CityX.Weapons
             {
                 return false;
             }
-            if (inventory.AddItem(_itemId, 1))
+            if (inventory.PickUp(_itemId))
             {
                 Destroy(gameObject);
                 return true;

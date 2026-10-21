@@ -449,7 +449,7 @@ namespace CityX.Weapons
             {
                 return false;
             }
-            if (inventory.AddItem(ItemId, 1))
+            if (inventory.PickUp(ItemId))
             {
                 Destroy(gameObject);
                 return true;

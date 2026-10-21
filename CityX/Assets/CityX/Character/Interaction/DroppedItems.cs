@@ -109,14 +109,14 @@ namespace CityX.Character
         /// </summary>
         public bool Take(long id, Inventory into)
         {
-            if (into == null || !_drops.TryGetValue(id, out ItemDrop drop) || _asked.ContainsKey(id) || !into.HasRoomFor(drop.ItemId, drop.Data))
+            if (into == null || !_drops.TryGetValue(id, out ItemDrop drop) || _asked.ContainsKey(id) || !into.CanPickUp(drop.ItemId, drop.Data))
             {
                 return false;
             }
             if (id < 0 || Relay == null)
             {
                 Remove(id);
-                return into.AddItem(drop.ItemId, 1, drop.Data);
+                return into.PickUp(drop.ItemId, drop.Data);
             }
             _asked[id] = into;
             Relay.RequestTake(id);
@@ -131,7 +131,7 @@ namespace CityX.Character
         {
             if (byThisMachine && _asked.TryGetValue(id, out Inventory into) && into != null && _drops.TryGetValue(id, out ItemDrop drop))
             {
-                into.AddItem(drop.ItemId, 1, drop.Data);
+                into.PickUp(drop.ItemId, drop.Data);
             }
             Remove(id);
         }

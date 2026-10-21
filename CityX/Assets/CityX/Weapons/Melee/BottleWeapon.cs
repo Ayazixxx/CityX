@@ -135,7 +135,7 @@ namespace CityX.Weapons
                 return false;
             }
             var instanceData = new ItemInstanceData { HasDurability = true, Durability = (int)State };
-            if (inventory.AddItem(ItemRegistry.GlassBottle, 1, instanceData))
+            if (inventory.PickUp(ItemRegistry.GlassBottle, instanceData))
             {
                 Destroy(gameObject);
                 return true;
