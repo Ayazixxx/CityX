@@ -20,7 +20,10 @@ import math
 import os
 from mathutils import Vector, Matrix
 
-REPO = r"C:\Users\Lenovo\Downloads\the game"
+# The repository's root: from this file's place (SourceArt/<part>/) when run as a file, else from CITYX_REPO (code pasted into a live
+# Blender has no file), else the owner's checkout.
+REPO = (os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..")) if "__file__" in globals()
+        else os.environ.get("CITYX_REPO", r"C:\Users\Lenovo\Downloads\the game"))
 GLB = os.path.join(REPO, "CityX", "Assets", "CityX", "Weapons", "Glock.glb")
 
 # A Glock 19 in real metres, times this: the body is 2.6 m and its hands are wide, so a real-size pistol was a nub in them (the Beretta needed

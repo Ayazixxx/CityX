@@ -17,7 +17,10 @@ import math
 import os
 from mathutils import Vector, Matrix
 
-REPO = r"C:\Users\Lenovo\Downloads\the game"
+# The repository's root: from this file's place (SourceArt/<part>/) when run as a file, else from CITYX_REPO (code pasted into a live
+# Blender has no file), else the owner's checkout.
+REPO = (os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..")) if "__file__" in globals()
+        else os.environ.get("CITYX_REPO", r"C:\Users\Lenovo\Downloads\the game"))
 GLB = os.path.join(REPO, "CityX", "Assets", "CityX", "Weapons", "AK47.glb")
 GUN_NAME = "AK47"
 PARTS = ("Magazine", "Bolt", "Trigger")   # the parts the reload animates and the game drives

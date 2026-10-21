@@ -6,7 +6,8 @@ import os
 import sys
 from mathutils import Vector
 
-HERE = os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() else r"C:\Users\Lenovo\Downloads\the game\CityX\SourceArt\Glock"
+HERE = (os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals()
+        else os.path.join(os.environ.get("CITYX_REPO", r"C:\Users\Lenovo\Downloads\the game"), "CityX", "SourceArt", "Glock"))
 args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 OUT = args[0] if args else HERE
 WHAT = args[1] if len(args) > 1 else "model"

@@ -16,6 +16,9 @@ MonoBehaviour:
   SwordPosition: {x: 0, y: 0, z: 0}
   SwordEuler: {x: 0, y: 0, z: 0}
   SwordLeftHand: {x: 0, y: 0, z: 0}
+  OneHandTuned: 1
+  OneHandPosition: {x: 0.08, y: -0.04, z: 0.27}
+  OneHandEuler: {x: 85.60003, y: 174.84995, z: 178.10004}
   PistolTuned: 0
   PistolLeftHand: {x: 0, y: 0, z: 0}
   TorsoFollowStrength: 1

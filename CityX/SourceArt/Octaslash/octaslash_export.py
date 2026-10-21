@@ -21,8 +21,11 @@ import os
 from mathutils import Matrix, Quaternion, Vector
 
 RIG = "CityXRig"
+REPO = globals().get("REPO") or (
+    os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..")) if "__file__" in globals()
+    else os.environ.get("CITYX_REPO", r"C:\Users\Lenovo\Downloads\the game"))
 OUT = globals().get("EXPORT_PATH") or globals().get("OCTASLASH_EXPORT_PATH") or os.path.join(
-    r"C:\Users\Lenovo\Downloads\the game", "CityX", "Assets", "CityX", "Character", "Resources", "Octaslash", "OctaslashMotion.json")
+    REPO, "CityX", "Assets", "CityX", "Character", "Resources", "Octaslash", "OctaslashMotion.json")
 SEGMENTS = tuple(globals().get("EXPORT_SEGMENTS") or ("coil_in", "hold", "dash", "recover"))
 
 M = Matrix(((-1, 0, 0), (0, 0, 1), (0, -1, 0)))     # Blender -> Unity

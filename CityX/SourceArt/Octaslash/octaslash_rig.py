@@ -14,7 +14,10 @@ import math
 import os
 from mathutils import Vector, Quaternion, Matrix
 
-REPO = r"C:\Users\Lenovo\Downloads\the game"
+# The repository's root: from this file's place (SourceArt/<part>/) when run as a file, else from CITYX_REPO (code pasted into a live
+# Blender has no file), else the owner's checkout.
+REPO = (os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..")) if "__file__" in globals()
+        else os.environ.get("CITYX_REPO", r"C:\Users\Lenovo\Downloads\the game"))
 OBJ = os.path.join(REPO, "PlayerModel.obj")
 
 # BodyRig / FusedBodyShape's own numbers
@@ -24,7 +27,7 @@ TOP = HEAD_CENTRE_Y + 0.35
 KNEE_Y = HIP_Y - (HIP_Y - FOOT_Y) * 0.5
 TORSO_R, ARM_R, LEG_R, NECK_R, BLEND_R, LIMB_WIDEN = 0.26, 0.09, 0.135, 0.10, 0.06, 2.5
 
-# SwordWeapon's default hold, in the right hand bone's frame (Unity), and SwordBuilder's blade length
+# SwordWeapon's default hold, in the right hand bone's frame (Unity), and a greatsword's blade length (SwordWeapon.BladeLocalLength)
 SWORD_AXIS = Vector((0.84, -0.25, 0.48)).normalized()
 SWORD_ROLL = 270.0
 PALM = Vector((0.949, 0.141, -0.283)).normalized() * 0.08

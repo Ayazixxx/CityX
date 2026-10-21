@@ -17,7 +17,10 @@ import math
 import os
 from mathutils import Vector, Quaternion, Matrix
 
-REPO = r"C:\Users\Lenovo\Downloads\the game"
+# The repository's root: from this file's place (SourceArt/<part>/) when run as a file, else from CITYX_REPO (code pasted into a live
+# Blender has no file), else the owner's checkout.
+REPO = (os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..")) if "__file__" in globals()
+        else os.environ.get("CITYX_REPO", r"C:\Users\Lenovo\Downloads\the game"))
 OBJ = os.path.join(REPO, "PlayerModel.obj")
 SKIP_BODY = os.environ.get("FIREARM_NO_BODY") == "1"     # the export needs only the armature; the renders want the body
 

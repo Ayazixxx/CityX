@@ -71,6 +71,10 @@ Thumbs.db
 # Local Claude Code settings (per-machine tool permissions)
 .claude/
 
-# tools/cityplan (dotnet plan renderer)
-tools/cityplan/bin/
-tools/cityplan/obj/
+# Build output of the dotnet helper tools (tools/cityplan: plan renderer; tools/bodyshape: body-shape preview)
+tools/*/bin/
+tools/*/obj/
+
+# Python caches (the Blender scripts under CityX/SourceArt and tools/)
+__pycache__/
+*.pyc
