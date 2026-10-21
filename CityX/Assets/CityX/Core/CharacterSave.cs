@@ -129,6 +129,12 @@ namespace CityX.Core
         /// <summary>The bar, keys 1 to 0: a skill id per slot, an empty string for an empty slot.</summary>
         public List<string> Hotbar = new List<string>();
 
+        /// <summary>
+        /// The ids of the clothes the character has on (owner, 2026-10-20: "make it so items you equipped stay equipped when you close the
+        /// game"). Weapons are not kept yet.
+        /// </summary>
+        public List<string> Wearing = new List<string>();
+
         /// <summary>Seconds played, shown on the select screen.</summary>
         public double PlaytimeSeconds;
 
@@ -259,6 +265,12 @@ namespace CityX.Core
             if (Hotbar == null)
             {
                 Hotbar = new List<string>();
+                changed = true;
+            }
+
+            if (Wearing == null)
+            {
+                Wearing = new List<string>();
                 changed = true;
             }
 

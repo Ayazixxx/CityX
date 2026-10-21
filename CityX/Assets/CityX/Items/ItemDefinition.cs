@@ -13,6 +13,11 @@ namespace CityX.Items
         public readonly string EquipSlot;
         public readonly int StackSize;
 
+        /// <summary>The category of clothing (hats, tops, trousers): what a character's save keeps on them and the select screen shows.</summary>
+        public const string WearableCategory = "wearable";
+
+        public bool IsWearable => Category == WearableCategory;
+
         public ItemDefinition(string id, string displayName, string category, string equipSlot, int stackSize)
         {
             Id = id;

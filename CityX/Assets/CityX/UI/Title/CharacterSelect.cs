@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using CityX.Character;
 using CityX.Core;
+using CityX.Items;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -56,6 +57,9 @@ namespace CityX.UI
         public Mesh[] HairStyleMeshes = new Mesh[0];
 
         public Material HairMaterialAsset;
+
+        [Tooltip("The clothes a pedestal body can wear, by item id. Loaded by the builder, as the hair is.")]
+        public Inventory.ItemPrefabEntry[] ClothingPrefabs = new Inventory.ItemPrefabEntry[0];
 
         public Text NameLabel;
         public Text DetailLabel;
@@ -408,6 +412,10 @@ namespace CityX.UI
             body.transform.localPosition = Vector3.zero;
             body.transform.localRotation = Quaternion.identity;
 
+            StripWorldComponents(body);
+            ApplyCosmetics(body, _characters[characterIndex]);
+            PutOnClothes(body, _characters[characterIndex]);
+
             // ONTO THE STAGE'S OWN LAYER, NOT WHATEVER Player.prefab SHIPS
             // ON. The anchors were put on the carousel's dedicated layer at
             // build time (CharacterSelectBuilder.BuildCarouselStage), but a
@@ -421,11 +429,8 @@ namespace CityX.UI
             int layer = PedestalAnchors[slot].gameObject.layer;
             foreach (Transform t in body.GetComponentsInChildren<Transform>(true))
             {
-                t.gameObject.layer = layer;
+                t.gameObject.layer = layer;   // the clothes' own renderers too, so after they are put on
             }
-
-            StripWorldComponents(body);
-            ApplyCosmetics(body, _characters[characterIndex]);
 
             _pedestalBodies[slot] = body;
         }
@@ -490,6 +495,52 @@ namespace CityX.UI
                 animator.enabled = false;
             }
             StillPose.ArmsDown(body.transform);
+        }
+
+        /// <summary>
+        /// The character's saved clothes (owner, 2026-10-20: "make sure they have the items equipped on the character select screen (not
+        /// weapons yet just wearables)"), put on the display body by each one's own OnEquip, which only dresses the body, the way the game
+        /// puts them on. After the paint: painting recolours every renderer under the body.
+        /// </summary>
+        private void PutOnClothes(GameObject body, CharacterSave character)
+        {
+            if (character.Wearing == null)
+            {
+                return;
+            }
+            foreach (string itemId in character.Wearing)
+            {
+                bool clothing = ItemRegistry.TryGet(itemId, out ItemDefinition definition) && definition.IsWearable;
+                GameObject prefab = clothing ? ClothingPrefab(itemId) : null;
+                if (prefab == null)
+                {
+                    continue;
+                }
+                GameObject worn = Instantiate(prefab, body.transform, false);
+                var equippable = worn.GetComponent<IEquippableItem>();
+                if (equippable == null)
+                {
+                    Destroy(worn);
+                    continue;
+                }
+                equippable.OnEquip(body, ItemInstanceData.None);
+                foreach (Collider pickup in worn.GetComponentsInChildren<Collider>(true))
+                {
+                    pickup.enabled = false;
+                }
+            }
+        }
+
+        private GameObject ClothingPrefab(string itemId)
+        {
+            foreach (Inventory.ItemPrefabEntry entry in ClothingPrefabs)
+            {
+                if (entry.ItemId == itemId)
+                {
+                    return entry.Prefab;
+                }
+            }
+            return null;
         }
 
         private static void Strip<T>(GameObject root) where T : Component

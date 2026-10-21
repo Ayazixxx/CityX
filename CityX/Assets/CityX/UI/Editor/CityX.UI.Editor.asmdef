@@ -4,6 +4,8 @@
     "references":  [
                        "CityX.Core",
                        "CityX.UI",
+                       "CityX.Character.Editor",
+                       "CityX.Items",
                        "CityX.Character",
                        "CityX.View",
                        "CityX.World",

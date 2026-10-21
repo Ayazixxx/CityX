@@ -33,7 +33,40 @@ namespace CityX.CharacterEditor
             (ItemRegistry.AK47, "Assets/CityX/Weapons/AK47.prefab"),
             (ItemRegistry.SprayCan, "Assets/CityX/Weapons/SprayCan.prefab"),
             (ItemRegistry.KnightHelmet, "Assets/CityX/Wearables/KnightHelmet.prefab"),
+            (ItemRegistry.TopHat, "Assets/CityX/Wearables/TopHat.prefab"),
+            (ItemRegistry.SkelliJeans, "Assets/CityX/Wearables/SkelliJeans.prefab"),
+            (ItemRegistry.HoodedCloak, "Assets/CityX/Wearables/HoodedCloak.prefab"),
+            (ItemRegistry.MidnightCoat, "Assets/CityX/Wearables/MidnightCoat.prefab"),
+            (ItemRegistry.TShirt, "Assets/CityX/Wearables/TShirt.prefab"),
+            (ItemRegistry.BloodRavenTShirt, "Assets/CityX/Wearables/BloodRavenTShirt.prefab"),
+            (ItemRegistry.RedCamoTShirt, "Assets/CityX/Wearables/RedCamoTShirt.prefab"),
         };
+
+        /// <summary>
+        /// The item prefabs, as an Inventory lists them: every item, or those <paramref name="include"/> keeps (the select screen shows the
+        /// clothes only).
+        /// </summary>
+        public static Inventory.ItemPrefabEntry[] ItemPrefabEntries(System.Func<ItemDefinition, bool> include = null)
+        {
+            var entries = new System.Collections.Generic.List<Inventory.ItemPrefabEntry>();
+            foreach ((string id, string path) in ItemPrefabPaths)
+            {
+                if (include != null && !(ItemRegistry.TryGet(id, out ItemDefinition definition) && include(definition)))
+                {
+                    continue;
+                }
+                GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+                if (prefab != null)
+                {
+                    entries.Add(new Inventory.ItemPrefabEntry { ItemId = id, Prefab = prefab });
+                }
+                else
+                {
+                    Debug.LogWarning($"CityX: no item prefab at {path}: a body cannot show '{id}'.");
+                }
+            }
+            return entries.ToArray();
+        }
 
         public static void AddSharedState(GameObject body, bool addInventory)
         {
@@ -48,21 +81,7 @@ namespace CityX.CharacterEditor
             }
             if (addInventory && body.GetComponent<Inventory>() == null)
             {
-                Inventory inventory = body.AddComponent<Inventory>();
-                var entries = new System.Collections.Generic.List<Inventory.ItemPrefabEntry>();
-                foreach ((string id, string path) in ItemPrefabPaths)
-                {
-                    GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
-                    if (prefab != null)
-                    {
-                        entries.Add(new Inventory.ItemPrefabEntry { ItemId = id, Prefab = prefab });
-                    }
-                    else
-                    {
-                        Debug.LogWarning($"CityX: no item prefab at {path}: a copy of this body cannot show '{id}'.");
-                    }
-                }
-                inventory.ItemPrefabs = entries.ToArray();
+                body.AddComponent<Inventory>().ItemPrefabs = ItemPrefabEntries();
             }
         }
 

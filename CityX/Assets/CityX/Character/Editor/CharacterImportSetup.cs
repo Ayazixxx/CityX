@@ -178,6 +178,9 @@ namespace CityX.CharacterEditor
             // hips is the pose, measured from the feet, not a fall of the whole transform.
             bool lowers = name == "standing_to_crouch" || name == "crouch_to_idle" ||
                           name == "crouch_walk" || name.StartsWith("pushup");
+            // The get-up rises from lying flat to standing: its hips' height is the motion, kept as authored. Discarded, the hips stayed at
+            // the lying height while the body stood, the legs sank into the floor and the torso pulled itself up like a rope climb.
+            bool keepsItsHeight = name == "getting_up";
 
             // ALWAYS WRITTEN, NEVER JUST RETURNED PAST. A clip that used to
             // qualify (charged_jump, briefly, before that turned out to be
@@ -197,9 +200,9 @@ namespace CityX.CharacterEditor
             ModelImporterClipAnimation[] clips = importer.defaultClipAnimations;
             for (int i = 0; i < clips.Length; i++)
             {
-                clips[i].lockRootHeightY = lowers;    // bake Y into the pose
-                clips[i].keepOriginalPositionY = false;
-                clips[i].heightFromFeet = lowers;     // measured from the feet
+                clips[i].lockRootHeightY = lowers || keepsItsHeight;   // bake Y into the pose
+                clips[i].keepOriginalPositionY = keepsItsHeight;       // as authored
+                clips[i].heightFromFeet = lowers;                      // measured from the feet
             }
             importer.clipAnimations = clips;
         }

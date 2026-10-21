@@ -32,14 +32,14 @@ namespace CityX.Items
         private static readonly Dictionary<string, ItemDefinition> Items = new Dictionary<string, ItemDefinition>
         {
             [GlassBottle] = new ItemDefinition(GlassBottle, "Glass Bottle", "weapon", EquipSlots.Primary, 1),
-            [SkelliJeans] = new ItemDefinition(SkelliJeans, "Skelli Jeans", "wearable", EquipSlots.Legs, 1),
-            [HoodedCloak] = new ItemDefinition(HoodedCloak, "Hooded Cloak", "wearable", EquipSlots.Torso, 1),
-            [MidnightCoat] = new ItemDefinition(MidnightCoat, "Midnight Coat", "wearable", EquipSlots.Torso, 1),
-            [TShirt] = new ItemDefinition(TShirt, "T-Shirt", "wearable", EquipSlots.Torso, 1),
+            [SkelliJeans] = new ItemDefinition(SkelliJeans, "Skelli Jeans", ItemDefinition.WearableCategory, EquipSlots.Legs, 1),
+            [HoodedCloak] = new ItemDefinition(HoodedCloak, "Hooded Cloak", ItemDefinition.WearableCategory, EquipSlots.Torso, 1),
+            [MidnightCoat] = new ItemDefinition(MidnightCoat, "Midnight Coat", ItemDefinition.WearableCategory, EquipSlots.Torso, 1),
+            [TShirt] = new ItemDefinition(TShirt, "T-Shirt", ItemDefinition.WearableCategory, EquipSlots.Torso, 1),
             // The T-Shirt with the Blood Raven logo printed on it (Wearables/Prints/BloodRavenPrint).
-            [BloodRavenTShirt] = new ItemDefinition(BloodRavenTShirt, "Blood Raven T-Shirt", "wearable", EquipSlots.Torso, 1),
+            [BloodRavenTShirt] = new ItemDefinition(BloodRavenTShirt, "Blood Raven T-Shirt", ItemDefinition.WearableCategory, EquipSlots.Torso, 1),
             // The T-Shirt covered all over in red camo (Wearables/Prints/RedCamoPrint).
-            [RedCamoTShirt] = new ItemDefinition(RedCamoTShirt, "Red Camo T-Shirt", "wearable", EquipSlots.Torso, 1),
+            [RedCamoTShirt] = new ItemDefinition(RedCamoTShirt, "Red Camo T-Shirt", ItemDefinition.WearableCategory, EquipSlots.Torso, 1),
             [GrapplingHook] = new ItemDefinition(GrapplingHook, "Grappling Hook", "weapon", EquipSlots.Primary, 1),
             [Pistol] = new ItemDefinition(Pistol, "Pistol", "weapon", EquipSlots.Primary, 1),
             // The jetpack and the parachute share the back slot: worn with a coat, never with each other (which would Space work?).
@@ -57,8 +57,8 @@ namespace CityX.Items
             // Right-click a wall with it to paint graffiti (GraffitiMenuView).
             [SprayCan] = new ItemDefinition(SprayCan, "Spray Can", "tool", EquipSlots.Primary, 1),
             // One headwear slot for now: Godot's separate hat and mask slots are not ported.
-            [TopHat] = new ItemDefinition(TopHat, "Top Hat", "wearable", EquipSlots.Helmet, 1),
-            [KnightHelmet] = new ItemDefinition(KnightHelmet, "Knight Helmet", "wearable", EquipSlots.Helmet, 1),
+            [TopHat] = new ItemDefinition(TopHat, "Top Hat", ItemDefinition.WearableCategory, EquipSlots.Helmet, 1),
+            [KnightHelmet] = new ItemDefinition(KnightHelmet, "Knight Helmet", ItemDefinition.WearableCategory, EquipSlots.Helmet, 1),
         };
 
         public static bool TryGet(string itemId, out ItemDefinition definition)

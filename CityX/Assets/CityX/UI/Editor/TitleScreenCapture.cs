@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using CityX.UI;
 using UnityEditor;
@@ -473,6 +474,7 @@ namespace CityX.UIEditor
             veteran.Level = 24;
             veteran.PlaytimeSeconds = 9 * 3600 + 41 * 60;
             veteran.LastPlayedUnixSeconds = 3000;
+            veteran.Wearing = new List<string> { Items.ItemRegistry.RedCamoTShirt, Items.ItemRegistry.SkelliJeans, Items.ItemRegistry.KnightHelmet };
             made.Add(veteran);
 
             Core.CharacterSave second = Core.CharacterSave.Create(
@@ -480,6 +482,7 @@ namespace CityX.UIEditor
             second.Level = 7;
             second.PlaytimeSeconds = 52 * 60;
             second.LastPlayedUnixSeconds = 2000;
+            second.Wearing = new List<string> { Items.ItemRegistry.MidnightCoat, Items.ItemRegistry.TopHat };
             made.Add(second);
 
             Core.CharacterSave fresh = Core.CharacterSave.Create(

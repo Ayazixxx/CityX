@@ -1,4 +1,6 @@
+using System.Linq;
 using CityX.Core;
+using CityX.Items;
 using UnityEngine;
 
 namespace CityX.Character
@@ -27,6 +29,7 @@ namespace CityX.Character
         public float SaveIntervalSeconds = 30.0f;
 
         private PlayerVitals _vitals;
+        private Inventory _inventory;
         private CharacterSave _character;
         private float _sinceSave;
         private bool _wroteOnce;
@@ -44,6 +47,53 @@ namespace CityX.Character
             }
 
             Apply(_character);
+        }
+
+        /// <summary>
+        /// The clothes the character had on are put back on, after Awake has painted the body (painting recolours every renderer under it,
+        /// clothes too); from then on every change to what is worn is saved at once.
+        /// </summary>
+        private void Start()
+        {
+            if (_character == null)
+            {
+                return;
+            }
+            _inventory = GetComponent<Inventory>();
+            if (_inventory == null)
+            {
+                return;
+            }
+            PutOnClothes(_character);
+            _inventory.EquipmentChanged += SaveWhatIsWorn;
+        }
+
+        /// <summary>Puts each piece of <paramref name="character"/>'s saved clothing on this body. Public so a test can drive it.</summary>
+        public void PutOnClothes(CharacterSave character)
+        {
+            if (_inventory == null)
+            {
+                _inventory = GetComponent<Inventory>();
+            }
+            if (_inventory == null || character?.Wearing == null)
+            {
+                return;
+            }
+            foreach (string itemId in character.Wearing.ToArray())
+            {
+                if (ItemRegistry.TryGet(itemId, out ItemDefinition definition) && definition.IsWearable)
+                {
+                    _inventory.EquipItemId(itemId, gameObject);
+                }
+            }
+        }
+
+        private void SaveWhatIsWorn()
+        {
+            if (_character != null && !_inventory.WornClothingIds().SequenceEqual(_character.Wearing))
+            {
+                Write();
+            }
         }
 
         /// <summary>
@@ -218,6 +268,10 @@ namespace CityX.Character
                 _character.StatPoints = _vitals.StatPoints;
                 CharacterStats.Save(_vitals, _character);
                 _character.SkillPoints = _vitals.SkillPoints;
+            }
+            if (_inventory != null)
+            {
+                _character.Wearing = _inventory.WornClothingIds();
             }
             PlayerSkills skills = GetComponent<PlayerSkills>();
             if (skills != null)

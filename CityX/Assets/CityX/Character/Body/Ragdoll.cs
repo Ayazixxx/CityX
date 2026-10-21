@@ -103,7 +103,10 @@ namespace CityX.Character
         /// and can't move after standing up". Control comes back when the body is up, which at this pace is after 5.0/7.6 of the clip, and the
         /// animator is cross-faded to locomotion so the tail never plays.
         /// </summary>
-        public const float StandUpRecoverySeconds = StandUpPaceSeconds * (5.0f / 7.6f);
+        public const float StandUpRecoverySeconds = StandUpPaceSeconds * UprightShare;
+
+        /// <summary>How much of the get-up clip has passed when the body is up (5.0 of its 7.6 seconds).</summary>
+        public const float UprightShare = 5.0f / 7.6f;
 
         /// <summary>How long the hand-back from the get-up clip to ordinary locomotion blends, in seconds.</summary>
         public const float StandUpHandBackBlendSeconds = 0.25f;
@@ -129,6 +132,7 @@ namespace CityX.Character
         private float _restSeconds;
         private float _standingUpElapsed = -1.0f;
         private bool _allowImmediateStandUp;
+        private float _standUpPaceSeconds = StandUpPaceSeconds;
 
         public bool IsLimp => _limp;
 
@@ -737,7 +741,7 @@ namespace CityX.Character
             if (IsStandingUp)
             {
                 _standingUpElapsed += deltaTime;
-                if (_standingUpElapsed >= StandUpRecoverySeconds)
+                if (_standingUpElapsed >= _standUpPaceSeconds * UprightShare)
                 {
                     FinishStandingUp();
                 }
@@ -767,12 +771,15 @@ namespace CityX.Character
         /// own ragdoll branch (and this Tick) instead of ordinary movement
         /// while the clip plays.
         /// </summary>
-        public void BeginStandingUp(bool force = false)
+        /// <param name="paceSeconds">How long the whole get-up clip takes: an ordinary recovery is quick (StandUpPaceSeconds); the intro takes
+        /// its time.</param>
+        public void BeginStandingUp(bool force = false, float paceSeconds = StandUpPaceSeconds)
         {
             if (!(force ? _limp && !IsStandingUp : CanStandUp))
             {
                 return;
             }
+            _standUpPaceSeconds = paceSeconds;
             _standingUpElapsed = 0.0f;
             _blendElapsed = -1.0f;
 
@@ -787,7 +794,7 @@ namespace CityX.Character
             if (Animator != null)
             {
                 Animator.enabled = true;
-                Animator.speed = StandUpPlaybackSpeed;
+                Animator.speed = IntroCutscene.GettingUpClipSeconds / _standUpPaceSeconds;
                 Animator.Play("GettingUp", 0, 0.0f);
                 Animator.Update(0.0f);   // the clip's first frame is posed now, so it can be measured
             }
@@ -836,9 +843,22 @@ namespace CityX.Character
 
         private void LateUpdate()
         {
+            float clipShare = BlendFromSnapshot();
+            if (IsStandingUp)
+            {
+                // The get-up was made on a body with shorter arms: its hands went under the floor (the capsule, moved to where the body lay,
+                // stands on it). Faded in with the clip: the pose the ragdoll lay in is on the floor already, and clamping it in full swung
+                // its elbows and knees on the first frame.
+                LimbFloorClamp.Apply(Animator, transform.position.y, clipShare);
+            }
+        }
+
+        /// <summary>Blends the captured ragdoll pose into the clip; returns how much of the pose is the clip's (1 once the blend is over).</summary>
+        private float BlendFromSnapshot()
+        {
             if (_blendElapsed < 0.0f || _snapshotBones == null)
             {
-                return;
+                return 1.0f;
             }
             _blendElapsed += Time.deltaTime;
             float t = Mathf.Clamp01(_blendElapsed / StandUpBlendSeconds);
@@ -860,6 +880,7 @@ namespace CityX.Character
                 _blendElapsed = -1.0f;
                 _snapshotBones = null;
             }
+            return eased;
         }
 
         private void FinishStandingUp()

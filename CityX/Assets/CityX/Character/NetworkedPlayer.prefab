@@ -119,7 +119,7 @@ PrefabInstance:
       addedObject: {fileID: 4178808262995625697}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 3433936144574491846}
+      addedObject: {fileID: 2606184023765761440}
   m_SourcePrefab: {fileID: 100100000, guid: c573dea59fa2558478b70344c659896a, type: 3}
 --- !u!1 &5771231832799346164 stripped
 GameObject:
@@ -385,6 +385,20 @@ MonoBehaviour:
     Prefab: {fileID: 1457213973204992229, guid: c6f1f93176398104d9f27215ee7a94dd, type: 3}
   - ItemId: knight_helmet
     Prefab: {fileID: 9123680244003564177, guid: 019dcfb9028920640b2c5558ab34fa72, type: 3}
+  - ItemId: top_hat
+    Prefab: {fileID: 8614009782328922178, guid: fae39e298fa65d5449a6e992be709fa3, type: 3}
+  - ItemId: skelli_jeans
+    Prefab: {fileID: 6723280492602004957, guid: fba35a3431e1abd4780a11e9019ea8c7, type: 3}
+  - ItemId: hooded_cloak
+    Prefab: {fileID: 4861952590144521463, guid: 5751df4e3d53cf64dbabc5b9d9ae42ca, type: 3}
+  - ItemId: midnight_coat
+    Prefab: {fileID: 2959689151926336571, guid: b48a9cdfc0fe2f74399c7a73d5fe26a4, type: 3}
+  - ItemId: t_shirt
+    Prefab: {fileID: 3717271276691646498, guid: f0b4700e8a9d5314bbe35feb52b50c30, type: 3}
+  - ItemId: blood_raven_t_shirt
+    Prefab: {fileID: 6109061731227431963, guid: 530d04326dd780c40b91a14c607bed46, type: 3}
+  - ItemId: red_camo_t_shirt
+    Prefab: {fileID: 2686815821401831974, guid: b719b375fd4a6f74fabcf699e927ac9f, type: 3}
 --- !u!114 &752554928827252169
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -633,7 +647,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 17deb901f9bbd384ea0ad42e0b8123af, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Character::CityX.Character.BodySizeAbility
---- !u!114 &3433936144574491846
+--- !u!114 &2606184023765761440
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

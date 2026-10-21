@@ -93,6 +93,7 @@ namespace CityX.UIEditor
 
             select.CarouselBodyPrefab = bodyPrefab;
             LoadHair(select);
+            select.ClothingPrefabs = CityX.CharacterEditor.NetworkedPlayerWiring.ItemPrefabEntries(item => item.IsWearable);
 
             var anchors = new Transform[3];
             string[] names = { "PedestalLeft", "PedestalCentre", "PedestalRight" };

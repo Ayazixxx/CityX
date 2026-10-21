@@ -57,6 +57,28 @@ namespace CityX.Tests
             Assert.AreEqual(0.4f, loaded[0].Skin.g, 0.001f, "the colour did not survive");
         }
 
+        [Test]
+        public void TheClothesACharacterHasOnSurviveARoundTripThroughDisk()
+        {
+            CharacterSave made = CharacterSave.Create("Ayaz", Color.white);
+            made.Wearing = new List<string> { "red_camo_t_shirt", "top_hat" };
+            CharacterStore.Add(made);
+
+            CollectionAssert.AreEqual(new[] { "red_camo_t_shirt", "top_hat" }, CharacterStore.Load()[0].Wearing);
+        }
+
+        [Test]
+        public void ASaveFromBeforeClothesWereKeptLoadsWearingNothing()
+        {
+            CharacterSave old = JsonUtility.FromJson<CharacterSave>("{\"Id\":\"abc\",\"Name\":\"Old\"}");
+            Assert.IsNotNull(old.Wearing);
+            Assert.IsEmpty(old.Wearing);
+
+            old.Wearing = null;
+            Assert.IsTrue(old.Repair());
+            Assert.IsNotNull(old.Wearing);
+        }
+
         /// <summary>
         /// A FIRST RUN IS NOT AN ERROR. The commonest state of this file is
         /// "does not exist", and anything that throws there stops a new player

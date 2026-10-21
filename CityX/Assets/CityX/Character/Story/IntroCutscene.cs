@@ -5,141 +5,126 @@ using UnityEngine.InputSystem;
 namespace CityX.Character
 {
     /// <summary>
-    /// Runs once, the very first time a genuinely new character enters the
-    /// world: falls from the sky playing "Falling" (looped) while ruins1.mp3
-    /// plays and the fog thins as the character descends, lands at exactly
-    /// FallDurationSeconds and plays "FallingFlatImpact" (one-shot), holds,
-    /// plays "GettingUp" (one-shot), then "LookingAround" (one-shot, a
-    /// "taking in the new world" beat) during which the camera runs its own
-    /// 3-beat sequence, then lerps the camera the rest of the way down to
-    /// normal gameplay framing and hands control back. Ported from
-    /// player/intro_cutscene.gd.
+    /// A new character's entrance (ported from player/intro_cutscene.gd, then made physical): the body falls from the sky as a ragdoll,
+    /// through cloud that thins as it nears the city, hits the ground as a ragdoll, lies a moment, gets up (the ragdoll's own recovery, at a
+    /// cinematic pace), looks around while the camera takes in the new world, and hands control back standing on the ground.
     ///
-    /// SAME ORCHESTRATION SHAPE AS CLAIMCUTSCENE: a MonoBehaviour added to
-    /// the player, ticked from its own Update, driving the scene's single
-    /// shared Camera transform directly while ThirdPersonCamera and
-    /// PlayerInputReader are disabled for the duration (see
-    /// ClaimSystem.StartCutscene's own precedent) -- not a second Camera,
-    /// which would need its own AudioListener and Unity only tolerates one
-    /// enabled at a time.
+    /// Owner, 2026-10-20: "make it so you are ragdolling falling from the sky instead of an animation and make the fall impact as a ragdoll as
+    /// well", "there is a jump cut in the cutscene mid fall right before the impact" (the scripted fall cut from a dive clip to a landing
+    /// clip), "make it so there is some fog but it fades as you get closer to the surface like you are falling through the clouds", and "make
+    /// it so your feet are on the ground when you take over control".
     ///
-    /// PITCH SIGN IS THE OPPOSITE OF GODOT'S OWN VALUES, deliberately. This
-    /// project's ThirdPersonCamera computes camera position as
-    /// `pivot - Quaternion.Euler(pitch, yaw, 0) * Vector3.forward *
-    /// distance` -- working the sign out from that formula directly (not
-    /// assumed): a POSITIVE pitch here rotates +Z toward -Y, so a large
-    /// positive pitch swings the camera UP and ABOVE the pivot, looking
-    /// DOWN at it. Godot's SpringArm3D reaches the identical visual result
-    /// from a NEGATIVE camera_pivot pitch (see intro_cutscene.gd's own
-    /// comment on OVERHEAD_PITCH_DEGREES). Every pitch constant below is
-    /// the Godot value with its sign flipped for that reason; yaw carries
-    /// over unchanged, matching ClaimCutsceneMath's own established note
-    /// that Godot and Unity agree on rotation direction for yaw in this
-    /// project.
+    /// Everything during the fall follows the falling body's height above the ground, not a clock: the camera swings from looking down on
+    /// the body to beside it as it nears the ground, and the cloud clears, so nothing jumps whatever the physics does. The camera follows a
+    /// smoothed point (the body while it falls and lies, the standing player after), so changing what it follows never cuts.
     ///
-    /// NO HIP-ROTATION RESET, unlike intro_cutscene.gd's own
-    /// reset_hips_rotation() call. That existed because Godot's
-    /// AnimationPlayer only writes the tracks a clip actually defines, so a
-    /// rotation track "Falling" alone carries (its dive lean) stays applied
-    /// forever once nothing else ever touches that same track again. This
-    /// project's Humanoid-retargeted Mecanim clips don't have that failure
-    /// mode: every clip on a Humanoid avatar defines a value for every
-    /// muscle each frame, so the very next state (FallingFlatImpact, then
-    /// Locomotion) fully replaces the pose rather than leaving anything
-    /// behind. That's about PERSISTENCE, not about the cut itself looking
-    /// smooth -- see ImpactBlendSeconds's own comment for the separate,
-    /// real bug that "fully replaces the pose" caused: a hard one-frame pop
-    /// between the dive and impact poses, fixed with a short cross-fade.
+    /// The scene's one Camera is driven directly while ThirdPersonCamera and PlayerInputReader are disabled (IntroCutsceneStarter), as
+    /// ClaimCutscene does; the ragdoll is ticked here, since PlayerInputReader (which ticks it in play) is off.
     ///
-    /// NO PORTRAIT-RACE WAIT NEEDED EITHER, for the equivalent reason
-    /// intro_cutscene.gd itself gives for why ITS wait is safe to place
-    /// after the positional teleport: PlayerHud's own CapturePortrait
-    /// coroutine waits two frames before finding the head renderer and
-    /// reading its CURRENT world bounds, so it is immune to where the body
-    /// has moved to by then. What it is NOT immune to is which ANIMATION
-    /// is playing at that moment -- so exactly like the Godot original,
-    /// Begin() moves the player to altitude and arms the fall tween
-    /// immediately, but the "Falling" clip itself does not start playing
-    /// until PortraitCaptureDelayFrames frames later.
+    /// PITCH SIGN: ThirdPersonCamera puts the camera at pivot - Euler(pitch, yaw, 0) * forward * distance, so a positive pitch is above the
+    /// pivot looking down (Godot's values had the other sign).
     /// </summary>
     public sealed class IntroCutscene : MonoBehaviour
     {
-        // --- timing, ported from intro_cutscene.gd's own named constants ---
-
         public const float StartAltitude = 300.0f;
-        public const float FallDurationSeconds = 15.0f;
-        public const float ImpactHoldSeconds = 2.5f;
-        public const float HandoffDurationSeconds = 1.5f;
-        public const float CutsceneSpringLength = 9.0f;
 
-        public const float OverheadSpringLength = 10.0f;
-        public const float OverheadPitchDegrees = 80.0f;
-        public const float CamSwitchLeadSeconds = 2.5f;
-        public const float CamSwitchDurationSeconds = 1.5f;
+        /// <summary>
+        /// How many frames the body hangs, standing, before it goes limp: PlayerHud captures the portrait off the head two frames in, and a
+        /// tumbling head would be captured turned.
+        /// </summary>
+        public const int PortraitCaptureDelayFrames = 6;
+
+        /// <summary>The air's drag on the falling body: about 35 m/s at the most (9.81 / this), so the fall from StartAltitude takes about 10 s.</summary>
+        public const float FallDrag = 0.28f;
+
+        /// <summary>The push the body is let go with: a slow tumble from the start.</summary>
+        public static readonly Vector3 LetGoVelocity = new Vector3(0.0f, -3.0f, 0.0f);
 
         public const float FallDriftSpeed = 4.0f;
         public const float MaxDriftDistance = 10.0f;
 
-        /// <summary>How many frames the falling ANIMATION waits before starting, so it never races PlayerHud's own 2-frame portrait capture. See this class's own doc comment.</summary>
-        public const int PortraitCaptureDelayFrames = 6;
+        /// <summary>How fast the body's sideways speed comes round to what the drift keys ask (per second).</summary>
+        public const float DriftResponse = 3.0f;
 
-        // --- real baked clip lengths, read directly off Player.prefab's own
-        // --- Animator states (every clip on this rig shares Mixamo's
-        // --- generic "mixamo.com" internal take name, which makes a
-        // --- runtime name lookup useless -- these are read once from the
-        // --- built controller and hardcoded here the same way Godot's own
-        // --- tests/test_intro_cutscene_check.gd documents its clip
-        // --- lengths as known constants rather than deriving them live). ---
-        public const float ImpactClipSeconds = 0.767f;
+        // --- the cloud: thick fog high up, thinning to the scene's own as the body nears the ground ---
+        public const float CloudFogStartDistance = 4.0f;
+        public const float CloudFogEndDistance = 30.0f;
+
+        /// <summary>Above this height over the ground the body is in the cloud; below <see cref="CloudClearAltitude"/> it is clear.</summary>
+        public const float CloudThickAltitude = 250.0f;
+        public const float CloudClearAltitude = 80.0f;
+
+        // --- the camera during the fall: looking down on the body, then beside it as it nears the ground ---
+        public const float OverheadSpringLength = 10.0f;
+        public const float OverheadPitchDegrees = 80.0f;
+        public const float BesideSpringLength = 9.0f;
+        public const float BesidePitchDegrees = 15.0f;
+
+        /// <summary>The camera swings from overhead to beside the body over this stretch of height above the ground.</summary>
+        public const float CameraSwingTopAltitude = 45.0f;
+        public const float CameraSwingBottomAltitude = 4.0f;
+
+        /// <summary>How quickly the camera's followed point catches up with the body (per second): smooth, a few metres behind at full speed.</summary>
+        public const float CameraFollowRate = 10.0f;
+
+        // --- the landing ---
+
+        /// <summary>A landing: the body was falling faster than this, and lost more than <see cref="ImpactSpeedLoss"/> of its speed in a frame.</summary>
+        public const float ImpactSpeed = 8.0f;
+        public const float ImpactSpeedLoss = 0.5f;
+
+        /// <summary>How long the body lies still before it gets up; at the most <see cref="MaxLyingSeconds"/> after the landing, still or not.</summary>
+        public const float LyingStillSeconds = 2.0f;
+        public const float MaxLyingSeconds = 5.0f;
+
+        /// <summary>How long the whole get-up clip takes here: its own length, a slow waking-up, against a quick recovery in play.</summary>
+        public const float GettingUpPaceSeconds = GettingUpClipSeconds;
+
+        /// <summary>A body fallen through the ground (a collider not there yet) is put back on it at this height over where it should have landed.</summary>
+        public const float FellThroughMargin = 3.0f;
+
+        // --- the baked clips' real lengths, read off the built controller (every clip shares Mixamo's take name) ---
         public const float GettingUpClipSeconds = 7.6f;
         public const float LookingAroundClipSeconds = 12.667f;
 
-        // --- fog. This project's fog is global, distance-based
-        // --- (RenderSettings.fogStartDistance/fogEndDistance), not a
-        // --- per-camera height-fog override the way Godot's
-        // --- Camera3D.environment is -- there is no equivalent to scope a
-        // --- fog change to just this camera, so this pushes the shared
-        // --- values down to something dense for the fall and lerps them
-        // --- back to whatever they were, rather than trying to reproduce
-        // --- height fog's exact shape. ---
-        public const float FallFogStartDistance = 4.0f;
-        public const float FallFogEndDistance = 20.0f;
-        public const float FogFadeDurationSeconds = 5.0f;
+        /// <summary>The stood-up body eases into looking around over this long, rather than popping into the clip's first frame.</summary>
+        public const float LookingAroundBlendSeconds = 0.4f;
 
-        // --- "Looking Around" 3-beat camera sequence. Durations sum to
-        // --- 11.0s, inside LookingAroundClipSeconds's own 12.667s with
-        // --- margin, so the rotate is always fully settled before the
-        // --- clip's own end triggers handoff. ---
-        public const float LookingAroundShotAHoldSeconds = 3.5f;
-        public const float LookingAroundShotBHoldSeconds = 3.5f;
-        public const float LookingAroundRotateDurationSeconds = 4.0f;
-        public const float LookingAroundShotAYawDegrees = 150.0f;
-        public const float LookingAroundShotAPitchDegrees = 8.0f;
-        public const float LookingAroundShotASpringLength = 5.5f;
-        public const float LookingAroundShotBYawDegrees = -130.0f;
-        public const float LookingAroundShotBPitchDegrees = 35.0f;
-        public const float LookingAroundShotBSpringLength = 10.5f;
-
-        /// <summary>30% of unity gain -- GroundImpactSound's own real explicit ask, matching Godot's GROUND_IMPACT_VOLUME_LINEAR.</summary>
-        public const float GroundImpactVolumeLinear = 0.3f;
+        public const float HandoffDurationSeconds = 1.5f;
+        public const float CutsceneSpringLength = 9.0f;
 
         /// <summary>
-        /// THE FALLING-TO-IMPACT CROSS-FADE -- a real reported "extra jump
-        /// cut... before he hits the ground." Confirmed directly (see
-        /// IntroCutsceneImpactPlayTests): a zero-blend Animator.Play() here
-        /// popped LeftUpperLeg 45.9 degrees in a single frame, versus ~0
-        /// degrees of normal frame-to-frame movement mid-fall -- the dive
-        /// pose (limbs trailing) and the flat-impact pose (braced against
-        /// the ground) don't remotely agree, so the hard cut reads exactly
-        /// like a splice. Same class of bug, same fix, as character.gd's own
-        /// BLEND_SECONDS ("an instant cut... reads as a visible pop/snap...
-        /// even a short cross-fade over the gap reads as fluid instead") --
-        /// slightly longer than that 0.1s general value because this gap is
-        /// bigger (a full-body dive-to-braced repose, not a walk/punch
-        /// hand-off) and, unlike combat, nothing here needs to stay snappy
-        /// for input responsiveness -- it's a one-shot cutscene beat.
+        /// The "looking around" beat's camera, glided through and never cut to: from beside the risen body round to its face, over to a high
+        /// view of the city, then back behind it at the gameplay framing (11 s, inside the clip's 12.667 s).
         /// </summary>
-        public const float ImpactBlendSeconds = 0.15f;
+        private static readonly CameraKey[] LookingAroundCamera =
+        {
+            new CameraKey(0.0f, BesideSpringLength, BesidePitchDegrees, 0.0f),
+            new CameraKey(2.0f, 5.5f, 8.0f, 150.0f),
+            new CameraKey(3.5f, 5.5f, 8.0f, 150.0f),
+            new CameraKey(6.0f, 10.5f, 35.0f, -130.0f),
+            new CameraKey(7.0f, 10.5f, 35.0f, -130.0f),
+            new CameraKey(11.0f, CutsceneSpringLength, 0.0f, 0.0f),
+        };
+
+        private readonly struct CameraKey
+        {
+            public readonly float Seconds, Distance, Pitch, Yaw;
+
+            public CameraKey(float seconds, float distance, float pitch, float yaw)
+            {
+                Seconds = seconds;
+                Distance = distance;
+                Pitch = pitch;
+                Yaw = yaw;
+            }
+        }
+
+        /// <summary>30% of unity gain, as Godot's GROUND_IMPACT_VOLUME_LINEAR.</summary>
+        public const float GroundImpactVolumeLinear = 0.3f;
+
+        /// <summary>How far down from over the player's feet the ground is looked for at hand-off.</summary>
+        public const float GroundSearch = 3.0f;
 
         public event System.Action Finished;
 
@@ -148,82 +133,64 @@ namespace CityX.Character
 
         public AudioClip GroundImpactSound;
 
-        private enum Phase { Falling, Impact, Hold, GettingUp, LookingAround, HandingOff, Done }
+        private enum Phase { Hanging, Falling, Lying, GettingUp, LookingAround, HandingOff, Done }
 
         private CharacterController _controller;
         private ThirdPersonCamera _thirdPersonCamera;
         private Animator _animator;
         private Transform _camera;
+        private Ragdoll _ragdoll;
 
         private Vector3 _spawnPosition;
         private float _originalSpringLength;
         private float _pivotHeight;
+        private Vector3 _followed;
 
         private Phase _phase;
         private float _phaseElapsed;
         private int _framesWaited;
-        private bool _fallingClipStarted;
-        private bool _driftActive;
-        private bool _cameraSwitching;
-        private float _cameraSwitchElapsed;
-        private bool _fogFadeStarted;
-        private float _fogFadeElapsed;
+        private float _lastSpeed;
+        private float _stillSeconds;
+        private bool _landed;
+
         private float _normalFogStart;
         private float _normalFogEnd;
 
-        // Looking-around's own 3-beat sub-schedule, ticked only while
-        // _phase == LookingAround.
-        private enum LookBeat { ShotA, ShotB, Rotating, Settled }
-        private LookBeat _lookBeat;
-        private float _lookBeatElapsed;
 
-        private AudioSource _musicSource;
+        private float[] _savedDrag;
+        private CollisionDetectionMode[] _savedCollision;
 
-        /// <summary>Public so a test can confirm the portrait-race delay is real rather than just not-throwing.</summary>
-        public bool FallingClipStarted => _fallingClipStarted;
+        /// <summary>True once the body has gone limp and is falling.</summary>
+        public bool IsFalling => _phase == Phase.Falling;
+
+        /// <summary>True once the body has hit the ground.</summary>
+        public bool HasLanded => _landed;
 
         /// <summary>
-        /// Starts the cutscene. Called right after AddComponent, mirroring
-        /// ClaimSystem.StartCutscene's own precedent -- the caller is
-        /// responsible for disabling ThirdPersonCamera and PlayerInputReader
-        /// first and re-enabling them from the Finished handler. Not taken
-        /// as a parameter here: nothing in this class ever touches
-        /// PlayerInputReader itself.
+        /// Starts the cutscene. Called right after AddComponent; the caller disables ThirdPersonCamera and PlayerInputReader first and
+        /// re-enables them from Finished.
         /// </summary>
-        public void Begin(CharacterController controller, ThirdPersonCamera thirdPersonCamera,
-            Animator animator, Transform cameraTransform, PlayerLocomotion locomotion)
+        public void Begin(CharacterController controller, ThirdPersonCamera thirdPersonCamera, Animator animator, Transform cameraTransform,
+            PlayerLocomotion locomotion)
         {
             _controller = controller;
             _thirdPersonCamera = thirdPersonCamera;
             _animator = animator;
             _camera = cameraTransform;
+            _ragdoll = GetComponent<Ragdoll>();
 
             _spawnPosition = transform.position;
             _originalSpringLength = thirdPersonCamera.Distance;
             float height = locomotion != null ? locomotion.StandingHeight : 1.8f;
             _pivotHeight = height * thirdPersonCamera.PivotHeightFraction;
 
-            // EVERYTHING POSITIONAL HAPPENS SYNCHRONOUSLY -- see this
-            // class's own doc comment on why the falling animation's own
-            // start is delayed instead.
-            if (_controller != null)
-            {
-                _controller.enabled = false;
-            }
-            transform.position = _spawnPosition + Vector3.up * StartAltitude;
-            if (_controller != null)
-            {
-                _controller.enabled = true;
-                // The CharacterController desync bug: a raw transform.position
-                // write is invisible to the very next Move() call without this.
-                Physics.SyncTransforms();
-            }
+            MovePlayerTo(_spawnPosition + Vector3.up * StartAltitude);
 
             _normalFogStart = RenderSettings.fogStartDistance;
             _normalFogEnd = RenderSettings.fogEndDistance;
-            RenderSettings.fogStartDistance = FallFogStartDistance;
-            RenderSettings.fogEndDistance = FallFogEndDistance;
+            SetCloud(StartAltitude);
 
+            _followed = transform.position + Vector3.up * _pivotHeight;
             _thirdPersonCamera.Distance = OverheadSpringLength;
             _thirdPersonCamera.Pitch = OverheadPitchDegrees;
             _thirdPersonCamera.Yaw = 0.0f;
@@ -233,27 +200,18 @@ namespace CityX.Character
             {
                 var musicObject = new GameObject("IntroCutsceneMusic");
                 musicObject.transform.SetParent(transform.parent, false);
-                _musicSource = musicObject.AddComponent<AudioSource>();
-                _musicSource.clip = RuinsMusic;
-                _musicSource.spatialBlend = 0.0f;
-                _musicSource.loop = false;
-                // Read fresh rather than held onto, since this source is
-                // created new every time and there is no live settings view
-                // watching it -- the Music Volume slider only ever writes
-                // GameSettings, never this specific AudioSource.
-                _musicSource.volume = GameSettings.Load().MusicVolume;
-                _musicSource.Play();
-                // Not this cutscene's own destruction -- see this class's
-                // own [Tooltip] on RuinsMusic. Self-frees once the track
-                // actually finishes.
-                Destroy(musicObject, RuinsMusic.length);
+                var music = musicObject.AddComponent<AudioSource>();
+                music.clip = RuinsMusic;
+                music.spatialBlend = 0.0f;
+                music.loop = false;
+                music.volume = GameSettings.Load().MusicVolume;   // read fresh: the volume slider writes only GameSettings
+                music.Play();
+                Destroy(musicObject, RuinsMusic.length);          // plays out past the cutscene, then frees itself
             }
 
-            _phase = Phase.Falling;
+            _phase = Phase.Hanging;
             _phaseElapsed = 0.0f;
             _framesWaited = 0;
-            _fallingClipStarted = false;
-            _driftActive = true;
         }
 
         private void Update()
@@ -261,55 +219,31 @@ namespace CityX.Character
             Tick(Time.deltaTime);
         }
 
-        /// <summary>
-        /// Public and taking its own deltaTime for the same reason
-        /// ClaimCutscene.Tick already does -- a test can fast-forward
-        /// through the whole ~40 second sequence without waiting on real
-        /// wall-clock seconds.
-        /// </summary>
+        /// <summary>Public and taking its own deltaTime, as ClaimCutscene.Tick, so a test can run the sequence at its own pace.</summary>
         public void Tick(float deltaTime)
         {
             if (_phase == Phase.Done)
             {
                 return;
             }
-
-            if (!_fallingClipStarted)
+            if (_ragdoll != null && _phase != Phase.Hanging)
             {
-                _framesWaited++;
-                if (_framesWaited > PortraitCaptureDelayFrames)
-                {
-                    _animator.Play("Falling", 0, 0.0f);
-                    _fallingClipStarted = true;
-                }
+                _ragdoll.Tick(deltaTime);
             }
-
-            if (_driftActive)
-            {
-                TickDrift(deltaTime);
-            }
-            if (_cameraSwitching)
-            {
-                TickCameraSwitch(deltaTime);
-            }
-            if (_fogFadeStarted && _fogFadeElapsed < FogFadeDurationSeconds)
-            {
-                TickFogFade(deltaTime);
-            }
-
+            EaseFollowedPoint(deltaTime);
             switch (_phase)
             {
+                case Phase.Hanging:
+                    TickHanging();
+                    break;
                 case Phase.Falling:
                     TickFalling(deltaTime);
                     break;
-                case Phase.Impact:
-                    TickImpact(deltaTime);
-                    break;
-                case Phase.Hold:
-                    TickHold(deltaTime);
+                case Phase.Lying:
+                    TickLying(deltaTime);
                     break;
                 case Phase.GettingUp:
-                    TickGettingUp(deltaTime);
+                    TickGettingUp();
                     break;
                 case Phase.LookingAround:
                     TickLookingAround(deltaTime);
@@ -318,280 +252,207 @@ namespace CityX.Character
                     TickHandoff(deltaTime);
                     break;
             }
+            if (_phase < Phase.LookingAround)
+            {
+                FollowBody();
+            }
         }
 
-        // --- Falling ---
+        // --- the fall ---
+
+        private void TickHanging()
+        {
+            _framesWaited++;
+            if (_framesWaited <= PortraitCaptureDelayFrames)
+            {
+                return;
+            }
+            if (_ragdoll == null)
+            {
+                Debug.LogWarning("CityX: the intro has no ragdoll on the player -- skipping the fall.");
+                MovePlayerTo(_spawnPosition);
+                StartLookingAround();
+                return;
+            }
+            _ragdoll.Activate(LetGoVelocity);
+            SetFallPhysics(true);
+            _phase = Phase.Falling;
+            _lastSpeed = 0.0f;
+        }
 
         private void TickFalling(float deltaTime)
         {
-            _phaseElapsed += deltaTime;
-            float t = Mathf.Clamp01(_phaseElapsed / FallDurationSeconds);
-            // Quad ease-in -- a single continuously-accelerating fall, no
-            // slow-down flourish near impact (a real reported Godot bug;
-            // see intro_cutscene.gd's own class comment).
-            float eased = t * t;
-            float y = Mathf.Lerp(_spawnPosition.y + StartAltitude, _spawnPosition.y, eased);
-            SetPlayerY(y);
-            // Re-anchored to the player EVERY frame, not just while
-            // TickCameraSwitch is active. Without this the camera is only
-            // ever placed once, in Begin() -- it sits frozen at the
-            // spawn-altitude framing for the whole fall and only starts
-            // tracking again in the last CamSwitchLeadSeconds, which reads
-            // exactly like "the camera doesn't follow the player down."
-            PlaceCamera(_thirdPersonCamera.Distance, _thirdPersonCamera.Pitch, _thirdPersonCamera.Yaw);
-
-            if (!_cameraSwitching && _phaseElapsed >= FallDurationSeconds - CamSwitchLeadSeconds)
+            Rigidbody torso = _ragdoll.Torso;
+            Drift(deltaTime);
+            SetCloud(torso.position.y - _spawnPosition.y);
+            if (torso.position.y < _spawnPosition.y - FellThroughMargin)
             {
-                _cameraSwitching = true;
-                _cameraSwitchElapsed = 0.0f;
-                _driftActive = false;
+                PutBackOnTheGround();
             }
-
-            if (t >= 1.0f)
+            float speed = torso.linearVelocity.magnitude;
+            if (_lastSpeed > ImpactSpeed && speed < _lastSpeed * ImpactSpeedLoss)
             {
-                StartImpact();
+                Land();
             }
+            _lastSpeed = speed;
         }
 
         /// <summary>
-        /// Fortnite-Battle-Bus-style horizontal steering. World-axis
-        /// relative, not camera-relative -- the overhead camera never
-        /// rotates with mouse look during this window (PlayerInputReader is
-        /// disabled for the whole cutscene), so there is no live facing to
-        /// steer relative to.
+        /// Sideways steering in the air, Battle-Bus style: the keys ask for a sideways speed (world axes: the overhead camera never turns with
+        /// the mouse here), every part of the body is brought round to it alike, and the body is kept within MaxDriftDistance of the spawn.
         /// </summary>
-        private void TickDrift(float deltaTime)
+        private void Drift(float deltaTime)
         {
             Keyboard keyboard = Keyboard.current;
-            if (keyboard == null)
-            {
-                return;
-            }
             var input = Vector2.zero;
-            if (keyboard.wKey.isPressed) input.y += 1.0f;
-            if (keyboard.sKey.isPressed) input.y -= 1.0f;
-            if (keyboard.dKey.isPressed) input.x += 1.0f;
-            if (keyboard.aKey.isPressed) input.x -= 1.0f;
-            if (input.sqrMagnitude < 0.0001f)
+            if (keyboard != null)
             {
-                return;
+                if (keyboard.wKey.isPressed) input.y += 1.0f;
+                if (keyboard.sKey.isPressed) input.y -= 1.0f;
+                if (keyboard.dKey.isPressed) input.x += 1.0f;
+                if (keyboard.aKey.isPressed) input.x -= 1.0f;
             }
-
-            Vector3 position = transform.position;
-            Vector3 moved = position + new Vector3(input.x, 0.0f, input.y).normalized * FallDriftSpeed * deltaTime;
-            var offset = new Vector2(moved.x - _spawnPosition.x, moved.z - _spawnPosition.z);
+            if (Gamepad.current != null)
+            {
+                input += Gamepad.current.leftStick.ReadValue();
+            }
+            Vector3 wanted = Vector3.ClampMagnitude(new Vector3(input.x, 0.0f, input.y), 1.0f) * FallDriftSpeed;
+            var offset = new Vector2(_ragdoll.Torso.position.x - _spawnPosition.x, _ragdoll.Torso.position.z - _spawnPosition.z);
             if (offset.magnitude > MaxDriftDistance)
             {
-                offset = offset.normalized * MaxDriftDistance;
-                moved.x = _spawnPosition.x + offset.x;
-                moved.z = _spawnPosition.z + offset.y;
+                wanted = -new Vector3(offset.x, 0.0f, offset.y).normalized * FallDriftSpeed;   // back toward the spawn
             }
-
-            if (_controller != null)
+            Vector3 sideways = _ragdoll.Torso.linearVelocity;
+            sideways.y = 0.0f;
+            Vector3 change = (wanted - sideways) * Mathf.Min(1.0f, DriftResponse * deltaTime);
+            foreach (Rigidbody body in _ragdoll.Bodies)
             {
-                _controller.enabled = false;
-            }
-            transform.position = new Vector3(moved.x, position.y, moved.z);
-            if (_controller != null)
-            {
-                _controller.enabled = true;
+                if (body != null)
+                {
+                    body.linearVelocity += change;
+                }
             }
         }
 
-        /// <summary>
-        /// Swings the camera back down from the overhead freefall view to
-        /// the normal cinematic framing -- see this class's own doc comment
-        /// on the pitch sign.
-        /// </summary>
-        private void TickCameraSwitch(float deltaTime)
+        private void Land()
         {
-            _cameraSwitchElapsed += deltaTime;
-            float t = Mathf.Clamp01(_cameraSwitchElapsed / CamSwitchDurationSeconds);
-            float springLength = Mathf.Lerp(OverheadSpringLength, CutsceneSpringLength, t);
-            float pitch = Mathf.Lerp(OverheadPitchDegrees, 0.0f, t);
-            _thirdPersonCamera.Distance = springLength;
-            _thirdPersonCamera.Pitch = pitch;
-            // Placed by TickFalling's own unconditional call, right after it
-            // moves the player for this same frame -- not here, which would
-            // place it a frame stale (TickCameraSwitch runs before TickFalling
-            // in Tick()'s own ordering).
-
-            if (t >= 1.0f)
-            {
-                _cameraSwitching = false;
-            }
-        }
-
-        // --- Impact / hold / getting up ---
-
-        private void StartImpact()
-        {
-            _phase = Phase.Impact;
-            _phaseElapsed = 0.0f;
-            _animator.CrossFade("FallingFlatImpact", ImpactBlendSeconds, 0);
+            _landed = true;
+            SetFallPhysics(false);
             if (GroundImpactSound != null)
             {
-                AudioSource.PlayClipAtPoint(GroundImpactSound, transform.position,
-                    GroundImpactVolumeLinear);
+                AudioSource.PlayClipAtPoint(GroundImpactSound, _ragdoll.Torso.position, GroundImpactVolumeLinear);
             }
+            _phase = Phase.Lying;
+            _phaseElapsed = 0.0f;
+            _stillSeconds = 0.0f;
+            SetCloud(0.0f);
         }
 
-        private void TickImpact(float deltaTime)
+        /// <summary>The body fell through the ground (its collider was not there yet): every part lifted back over where it should have landed, still.</summary>
+        private void PutBackOnTheGround()
         {
-            _phaseElapsed += deltaTime;
-            if (_phaseElapsed >= ImpactClipSeconds)
+            float lift = _spawnPosition.y + 1.0f - _ragdoll.Torso.position.y;
+            foreach (Rigidbody body in _ragdoll.Bodies)
             {
-                _phase = Phase.Hold;
-                _phaseElapsed = 0.0f;
+                if (body != null)
+                {
+                    body.position += Vector3.up * lift;
+                    body.linearVelocity = Vector3.zero;
+                    body.angularVelocity = Vector3.zero;
+                }
             }
+            Land();
         }
-
-        private void TickHold(float deltaTime)
-        {
-            _phaseElapsed += deltaTime;
-            if (_phaseElapsed >= ImpactHoldSeconds)
-            {
-                _phase = Phase.GettingUp;
-                _phaseElapsed = 0.0f;
-                _animator.Play("GettingUp", 0, 0.0f);
-            }
-        }
-
-        private void TickGettingUp(float deltaTime)
-        {
-            _phaseElapsed += deltaTime;
-            if (_phaseElapsed >= GettingUpClipSeconds)
-            {
-                StartLookingAround();
-            }
-        }
-
-        // --- Looking around ---
 
         /// <summary>
-        /// "Looking Around" always plays here -- confirmed placement: a
-        /// "taking in the new world" beat between standing up and gameplay
-        /// starting.
+        /// The fall's own physics, set while falling and put back after: the air's drag on every part, and continuous collision (at 35 m/s a
+        /// part moves half a metre a step, more than the ground's thickness).
         /// </summary>
+        private void SetFallPhysics(bool falling)
+        {
+            Rigidbody[] bodies = _ragdoll.Bodies;
+            if (falling)
+            {
+                _savedDrag = new float[bodies.Length];
+                _savedCollision = new CollisionDetectionMode[bodies.Length];
+            }
+            for (int i = 0; i < bodies.Length; i++)
+            {
+                if (bodies[i] == null)
+                {
+                    continue;
+                }
+                if (falling)
+                {
+                    _savedDrag[i] = bodies[i].linearDamping;
+                    _savedCollision[i] = bodies[i].collisionDetectionMode;
+                    bodies[i].linearDamping = FallDrag;
+                    bodies[i].collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+                }
+                else if (_savedDrag != null)
+                {
+                    bodies[i].linearDamping = _savedDrag[i];
+                    bodies[i].collisionDetectionMode = _savedCollision[i];
+                }
+            }
+        }
+
+        // --- lying and getting up ---
+
+        private void TickLying(float deltaTime)
+        {
+            _phaseElapsed += deltaTime;
+            _stillSeconds = _ragdoll.IsRestingOnGround ? _stillSeconds + deltaTime : 0.0f;
+            if (_stillSeconds >= LyingStillSeconds || _phaseElapsed >= MaxLyingSeconds)
+            {
+                _ragdoll.BeginStandingUp(force: true, paceSeconds: GettingUpPaceSeconds);
+                _phase = Phase.GettingUp;
+            }
+        }
+
+        private void TickGettingUp()
+        {
+            if (!_ragdoll.IsLimp)
+            {
+                StartLookingAround();   // the ragdoll has handed the body back to the Animator, standing
+            }
+        }
+
+        // --- looking around ---
+
+        /// <summary>A "taking in the new world" beat between standing up and play.</summary>
         private void StartLookingAround()
         {
             _phase = Phase.LookingAround;
             _phaseElapsed = 0.0f;
-            _animator.Play("LookingAround", 0, 0.0f);
-
-            _lookBeat = LookBeat.ShotA;
-            _lookBeatElapsed = 0.0f;
-            _thirdPersonCamera.Yaw = LookingAroundShotAYawDegrees;
-            _thirdPersonCamera.Pitch = LookingAroundShotAPitchDegrees;
-            _thirdPersonCamera.Distance = LookingAroundShotASpringLength;
-            PlaceCamera(LookingAroundShotASpringLength, LookingAroundShotAPitchDegrees,
-                LookingAroundShotAYawDegrees);
+            _animator.CrossFadeInFixedTime("LookingAround", LookingAroundBlendSeconds, 0);
         }
 
         private void TickLookingAround(float deltaTime)
         {
             _phaseElapsed += deltaTime;
-            TickLookAroundCamera(deltaTime);
-
+            int next = 1;
+            while (next < LookingAroundCamera.Length - 1 && LookingAroundCamera[next].Seconds <= _phaseElapsed)
+            {
+                next++;
+            }
+            CameraKey from = LookingAroundCamera[next - 1], to = LookingAroundCamera[next];
+            float t = Mathf.SmoothStep(0.0f, 1.0f, Mathf.InverseLerp(from.Seconds, to.Seconds, _phaseElapsed));
+            SetShot(Mathf.Lerp(from.Distance, to.Distance, t), Mathf.Lerp(from.Pitch, to.Pitch, t), Mathf.LerpAngle(from.Yaw, to.Yaw, t));
             if (_phaseElapsed >= LookingAroundClipSeconds)
             {
-                StartHandoff();
+                _phase = Phase.HandingOff;
+                _phaseElapsed = 0.0f;
             }
         }
 
-        private void TickLookAroundCamera(float deltaTime)
-        {
-            switch (_lookBeat)
-            {
-                case LookBeat.ShotA:
-                    _lookBeatElapsed += deltaTime;
-                    if (_lookBeatElapsed >= LookingAroundShotAHoldSeconds)
-                    {
-                        _lookBeat = LookBeat.ShotB;
-                        _lookBeatElapsed = 0.0f;
-                        _thirdPersonCamera.Yaw = LookingAroundShotBYawDegrees;
-                        _thirdPersonCamera.Pitch = LookingAroundShotBPitchDegrees;
-                        _thirdPersonCamera.Distance = LookingAroundShotBSpringLength;
-                        PlaceCamera(LookingAroundShotBSpringLength, LookingAroundShotBPitchDegrees,
-                            LookingAroundShotBYawDegrees);
-                    }
-                    break;
-
-                case LookBeat.ShotB:
-                    _lookBeatElapsed += deltaTime;
-                    if (_lookBeatElapsed >= LookingAroundShotBHoldSeconds)
-                    {
-                        _lookBeat = LookBeat.Rotating;
-                        _lookBeatElapsed = 0.0f;
-                        // THE fog cue -- see FogFadeDurationSeconds's own
-                        // comment. Starts on the third beat, as the camera
-                        // begins turning back to normal framing.
-                        StartFogFade();
-                    }
-                    break;
-
-                case LookBeat.Rotating:
-                    _lookBeatElapsed += deltaTime;
-                    float t = Mathf.Clamp01(_lookBeatElapsed / LookingAroundRotateDurationSeconds);
-                    float yaw = Mathf.LerpAngle(LookingAroundShotBYawDegrees, 0.0f, t);
-                    float pitch = Mathf.Lerp(LookingAroundShotBPitchDegrees, 0.0f, t);
-                    float distance = Mathf.Lerp(LookingAroundShotBSpringLength, CutsceneSpringLength, t);
-                    _thirdPersonCamera.Yaw = yaw;
-                    _thirdPersonCamera.Pitch = pitch;
-                    _thirdPersonCamera.Distance = distance;
-                    PlaceCamera(distance, pitch, yaw);
-                    if (t >= 1.0f)
-                    {
-                        _lookBeat = LookBeat.Settled;
-                    }
-                    break;
-
-                case LookBeat.Settled:
-                    break;
-            }
-        }
-
-        // --- Fog ---
-
-        private void StartFogFade()
-        {
-            // Idempotent -- also called at handoff as a safety net, same
-            // reasoning as _start_fog_fade's own comment in the original.
-            if (_fogFadeStarted)
-            {
-                return;
-            }
-            _fogFadeStarted = true;
-            _fogFadeElapsed = 0.0f;
-        }
-
-        private void TickFogFade(float deltaTime)
-        {
-            _fogFadeElapsed += deltaTime;
-            float t = Mathf.Clamp01(_fogFadeElapsed / FogFadeDurationSeconds);
-            RenderSettings.fogStartDistance = Mathf.Lerp(FallFogStartDistance, _normalFogStart, t);
-            RenderSettings.fogEndDistance = Mathf.Lerp(FallFogEndDistance, _normalFogEnd, t);
-        }
-
-        // --- Handoff ---
-
-        private void StartHandoff()
-        {
-            _phase = Phase.HandingOff;
-            _phaseElapsed = 0.0f;
-            StartFogFade();
-        }
+        // --- hand-off ---
 
         private void TickHandoff(float deltaTime)
         {
             _phaseElapsed += deltaTime;
             float t = Mathf.Clamp01(_phaseElapsed / HandoffDurationSeconds);
-            float distance = Mathf.Lerp(CutsceneSpringLength, _originalSpringLength, t);
-            _thirdPersonCamera.Distance = distance;
-            _thirdPersonCamera.Yaw = 0.0f;
-            _thirdPersonCamera.Pitch = 0.0f;
-            PlaceCamera(distance, 0.0f, 0.0f);
-
+            SetShot(Mathf.Lerp(CutsceneSpringLength, _originalSpringLength, t), 0.0f, 0.0f);
             if (t >= 1.0f)
             {
                 Finish();
@@ -604,41 +465,93 @@ namespace CityX.Character
             RenderSettings.fogStartDistance = _normalFogStart;
             RenderSettings.fogEndDistance = _normalFogEnd;
             _animator.Play("Locomotion", 0, 0.0f);
-            if (_controller != null)
-            {
-                Physics.SyncTransforms();
-            }
+            StandOnTheGround();
             Finished?.Invoke();
         }
 
-        // --- shared helpers ---
-
-        private void SetPlayerY(float y)
+        /// <summary>The player's feet put on the ground under them (the ragdoll's rest can leave the standing capsule a little over it).</summary>
+        private void StandOnTheGround()
         {
-            Vector3 position = transform.position;
+            Vector3 feet = transform.position;
+            RaycastHit[] hits = Physics.RaycastAll(feet + Vector3.up * GroundSearch, Vector3.down, 2.0f * GroundSearch, ~0, QueryTriggerInteraction.Ignore);
+            float ground = float.MinValue;
+            foreach (RaycastHit hit in hits)
+            {
+                bool ownBody = hit.collider.transform == transform || hit.collider.transform.IsChildOf(transform);
+                if (!ownBody && hit.point.y > ground)
+                {
+                    ground = hit.point.y;
+                }
+            }
+            if (ground > float.MinValue)
+            {
+                MovePlayerTo(new Vector3(feet.x, ground, feet.z));
+            }
+        }
+
+        // --- shared ---
+
+        /// <summary>The cloud for a body this high over the ground: thick fog above CloudThickAltitude, the scene's own below CloudClearAltitude.</summary>
+        private void SetCloud(float altitude)
+        {
+            float clear = Mathf.SmoothStep(0.0f, 1.0f, Mathf.InverseLerp(CloudThickAltitude, CloudClearAltitude, altitude));
+            RenderSettings.fogStartDistance = Mathf.Lerp(CloudFogStartDistance, _normalFogStart, clear);
+            RenderSettings.fogEndDistance = Mathf.Lerp(CloudFogEndDistance, _normalFogEnd, clear);
+        }
+
+        /// <summary>
+        /// The camera on the falling (or lying, or rising) body: the followed point eased toward it, the camera overhead high up and swung
+        /// beside the body as it nears the ground.
+        /// </summary>
+        private void FollowBody()
+        {
+            float altitude = _followed.y - _spawnPosition.y;
+            float beside = Mathf.SmoothStep(0.0f, 1.0f, Mathf.InverseLerp(CameraSwingTopAltitude, CameraSwingBottomAltitude, altitude));
+            float distance = Mathf.Lerp(OverheadSpringLength, BesideSpringLength, beside);
+            float pitch = Mathf.Lerp(OverheadPitchDegrees, BesidePitchDegrees, beside);
+            _thirdPersonCamera.Distance = distance;
+            _thirdPersonCamera.Pitch = pitch;
+            _thirdPersonCamera.Yaw = 0.0f;
+            PlaceCamera(distance, pitch, 0.0f);
+        }
+
+        /// <summary>The point the camera follows, eased toward the body while it falls and lies, and toward the player's own pivot once it rises.</summary>
+        private void EaseFollowedPoint(float deltaTime)
+        {
+            bool onBody = _ragdoll != null && _ragdoll.IsLimp && !_ragdoll.IsStandingUp;
+            Vector3 target = onBody ? _ragdoll.Torso.position : transform.position + Vector3.up * _pivotHeight;
+            _followed = Vector3.Lerp(_followed, target, 1.0f - Mathf.Exp(-CameraFollowRate * deltaTime));
+        }
+
+        private void SetShot(float distance, float pitch, float yaw)
+        {
+            _thirdPersonCamera.Distance = distance;
+            _thirdPersonCamera.Pitch = pitch;
+            _thirdPersonCamera.Yaw = yaw;
+            PlaceCamera(distance, pitch, yaw);
+        }
+
+        /// <summary>ThirdPersonCamera's own placement, around the followed point.</summary>
+        private void PlaceCamera(float distance, float pitch, float yaw)
+        {
+            Quaternion rotation = Quaternion.Euler(pitch, yaw, 0.0f);
+            _camera.position = _followed - rotation * Vector3.forward * distance;
+            _camera.rotation = rotation;
+        }
+
+        private void MovePlayerTo(Vector3 position)
+        {
+            bool controllerOn = _controller != null && _controller.enabled;
             if (_controller != null)
             {
                 _controller.enabled = false;
             }
-            transform.position = new Vector3(position.x, y, position.z);
-            if (_controller != null)
+            transform.position = position;
+            if (controllerOn)
             {
                 _controller.enabled = true;
             }
-        }
-
-        /// <summary>
-        /// Same pivot/rotation formula ThirdPersonCamera.LateUpdate itself
-        /// uses, reused here rather than duplicated blind -- see this
-        /// class's own doc comment on the pitch sign for how that formula
-        /// was worked out.
-        /// </summary>
-        private void PlaceCamera(float distance, float pitch, float yaw)
-        {
-            Vector3 pivot = transform.position + Vector3.up * _pivotHeight;
-            Quaternion rotation = Quaternion.Euler(pitch, yaw, 0.0f);
-            _camera.position = pivot - rotation * Vector3.forward * distance;
-            _camera.rotation = rotation;
+            Physics.SyncTransforms();   // a raw position write is invisible to the controller's next Move without this
         }
     }
 }

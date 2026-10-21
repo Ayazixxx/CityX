@@ -132,6 +132,58 @@ namespace CityX.Tests
                 "the ambience PlayerAudio.Awake() started before it could be stripped");
         }
 
+        /// <summary>
+        /// A saved character's clothes are on their pedestal body (owner, 2026-10-20: "make sure they have the items equipped on the character
+        /// select screen (not weapons yet just wearables)"), on the stage's layer, where its camera sees them.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ACharactersClothesAreOnTheirPedestalBody()
+        {
+            CharacterSave save = CharacterSave.Create("Ayaz", new Color(0.3f, 0.4f, 0.5f));
+            save.Wearing = new System.Collections.Generic.List<string>
+            {
+                CityX.Items.ItemRegistry.RedCamoTShirt, CityX.Items.ItemRegistry.KnightHelmet, CityX.Items.ItemRegistry.Pistol,
+            };
+            CharacterStore.Add(save);
+#if UNITY_EDITOR
+            _select.ClothingPrefabs = new[]
+            {
+                new CityX.Character.Inventory.ItemPrefabEntry
+                {
+                    ItemId = CityX.Items.ItemRegistry.RedCamoTShirt,
+                    Prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Wearables/RedCamoTShirt.prefab"),
+                },
+                new CityX.Character.Inventory.ItemPrefabEntry
+                {
+                    ItemId = CityX.Items.ItemRegistry.KnightHelmet,
+                    Prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Wearables/KnightHelmet.prefab"),
+                },
+                new CityX.Character.Inventory.ItemPrefabEntry
+                {
+                    ItemId = CityX.Items.ItemRegistry.Pistol,
+                    Prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Weapons/Pistol.prefab"),
+                },
+            };
+#endif
+            _select.Refresh();
+            yield return null;
+
+            Transform centreAnchor = _select.PedestalAnchors[1];
+            GameObject body = centreAnchor.GetChild(0).gameObject;
+            var clothes = body.GetComponent<CityX.Wearables.SkinnedGarmentCombiner>();
+            Assert.IsNotNull(clothes, "the pedestal body wears nothing");
+            Assert.IsTrue(clothes.IsShowing(CityX.Items.ItemRegistry.RedCamoTShirt), "the pedestal body is not wearing the T-shirt");
+            var helmet = body.GetComponentInChildren<CityX.Wearables.KnightHelmet>(true);
+            Assert.IsNotNull(helmet, "the pedestal body is not wearing the helmet");
+            Assert.AreEqual(body.GetComponentInChildren<Animator>().GetBoneTransform(HumanBodyBones.Head), helmet.transform.parent,
+                "the helmet is not on the head");
+            Assert.IsNull(body.GetComponentInChildren<CityX.Weapons.PistolWeapon>(true), "a weapon was shown on the select screen");
+            foreach (Renderer renderer in body.GetComponentsInChildren<Renderer>(true))
+            {
+                Assert.AreEqual(centreAnchor.gameObject.layer, renderer.gameObject.layer, $"{renderer.name} is off the stage's layer");
+            }
+        }
+
         /// <summary>A saved character's hair colour is on the hair of their pedestal body -- not just the default gold.</summary>
         [UnityTest]
         public IEnumerator ACharactersHairColourShowsOnTheirPedestalBody()

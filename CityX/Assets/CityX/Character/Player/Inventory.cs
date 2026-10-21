@@ -415,6 +415,21 @@ namespace CityX.Character
             return ids;
         }
 
+        /// <summary>The ids of the clothes worn (ItemDefinition.IsWearable), by slot: what a character's save keeps on them.</summary>
+        public System.Collections.Generic.List<string> WornClothingIds()
+        {
+            var ids = new System.Collections.Generic.List<string>();
+            foreach (System.Collections.Generic.KeyValuePair<string, string> pair in _equipment)
+            {
+                if (!string.IsNullOrEmpty(pair.Value) && ItemRegistry.TryGet(pair.Value, out ItemDefinition definition) && definition.IsWearable)
+                {
+                    ids.Add(pair.Value);
+                }
+            }
+            ids.Sort(System.StringComparer.Ordinal);
+            return ids;
+        }
+
         private GameObject PrefabFor(string itemId)
         {
             if (ItemPrefabs == null)
