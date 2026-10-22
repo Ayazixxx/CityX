@@ -81,6 +81,9 @@ The owner's plan:
 - **Old Guy dies so that every player does not have their own Old Guy** forever in their faction. The faction you created stays yours.
 - **Freedom to leave.** You can skip the tutorial and walk away, but once you are a certain distance from him you cannot go back. You can also say no to him several times through the tutorial: he says his lines, walks away and disappears once off screen.
 - **Nobody else is involved.** Old Guy is invisible to other players, and a player doing the tutorial must not be player-killed.
+- **About 10 minutes**, give or take. **Starting the game throws you straight into it**: no party invites or lobby on the title screen, and no doing the tutorial together with a friend. Friends meet up after it (or early, if one refuses it).
+- **Saying no at the start** (when you first talk to him outside, or never talking to him at all): he disappears at some point once off screen and you are moved into the full multiplayer game with no tutorial.
+- **He asks about the faction inside the house, after you clear it**, so the cutscene still makes sense whatever you answer. (My reading, to confirm: with yes you create the faction and claim the house before the door is broken in; with no the cutscene follows straight away.)
 
 My suggestions (not decided):
 
@@ -90,6 +93,9 @@ My suggestions (not decided):
 - **Teach by doing:** vaulting on the way to the house (everyone gets it in the tutorial, see Skill trees); fighting in the house; the level-up from clearing it spends the first stat point; the first skill point is spent on the skill tree, and the spells and hotbar are taught by using them. The claim follows the real rule: the house is cleared, Old Guy has you turn its power back on, then you claim it.
 - **The claim in the private copy cannot carry into the shared world** (every player would claim the same house): it is a practice claim, and your first real claim is the first thing to do after the hub, with a marker.
 - **No death penalty in the tutorial:** you come back near Old Guy (the unanchored cannot fully die yet).
+
+- **A 10-minute budget (mine):** fall and meeting him 1 min; walk to the house (vaulting) 1; clearing it and the gear 3; stats, skill tree, spells 2; the faction and the claim 1; cutscene, rescuer, lore 1-2; the hub and the first jump 1. So his house is right by where you land, and each mechanic is one action and a line or two, not a lecture.
+- **Where you land:** a quiet, unclaimed street with nobody near, inside a starting region under the hub (not anywhere in the endless city), so friends are never impossibly far apart; the hub is the meeting place. Later: friends and parties shown on the map, and teleport crystals that can take you to a party member who accepts (with the crystals' charge time and fight blocks).
 
 Open: what a player who skips misses (the gear and the faction for sure; the first skill point?); who the gunman and the rescuer are; how the rescuer gets you up to the sky hub.
 
