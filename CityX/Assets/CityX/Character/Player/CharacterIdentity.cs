@@ -252,7 +252,7 @@ namespace CityX.Character
         }
 
         /// <summary>
-        /// Copies what the body has become back onto the save and stores it.
+        /// Copies what the body has become back onto the save and stores it on the server played on.
         /// </summary>
         public bool Write()
         {
@@ -282,7 +282,8 @@ namespace CityX.Character
                 System.DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
             _wroteOnce = true;
-            return CharacterStore.Update(_character);
+            CharacterSources.Current.Save(_character);
+            return true;
         }
 
         // Both, and deliberately: OnApplicationQuit does not run when the

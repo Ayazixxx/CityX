@@ -50,7 +50,7 @@ namespace CityX.Tests
 #if UNITY_EDITOR
             CharacterSave save = CharacterSave.Create("Ayaz", Color.white);
             save.Wearing = new List<string> { ItemRegistry.TShirt, ItemRegistry.TopHat, ItemRegistry.Pistol };
-            CharacterStore.Add(save);
+            LocalServer.Database.For(PlayerKey.Local).Add(save);
             PlaySession.Begin(save, isNew: false);
 
             _player = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab"));
@@ -72,7 +72,7 @@ namespace CityX.Tests
             Assert.IsEmpty(inventory.EquippedItemId(EquipSlots.Primary), "a weapon in a save's clothes was put on");
 
             Assert.IsTrue(inventory.UnequipToSlot(EquipSlots.Helmet, _player));
-            CollectionAssert.AreEqual(new[] { ItemRegistry.TShirt }, CharacterStore.Load()[0].Wearing, "taking the hat off was not saved");
+            CollectionAssert.AreEqual(new[] { ItemRegistry.TShirt }, LocalServer.Characters.List(PlayerKey.Local)[0].Wearing, "taking the hat off was not saved");
 #else
             yield break;
 #endif

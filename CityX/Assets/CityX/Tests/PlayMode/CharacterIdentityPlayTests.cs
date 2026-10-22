@@ -57,7 +57,7 @@ namespace CityX.Tests
             chosen.Vitality = 4;
             chosen.Endurance = 2;
             chosen.Strength = 6;
-            CharacterStore.Add(chosen);
+            LocalServer.Database.For(PlayerKey.Local).Add(chosen);
             PlaySession.Begin(chosen, isNew: false);
 
             GameObject body = MakeBody();
@@ -109,7 +109,7 @@ namespace CityX.Tests
             var identity = body.GetComponent<CharacterIdentity>();
             Assert.IsNull(identity.Character);
             Assert.IsFalse(identity.Write(), "it saved something with nobody playing");
-            Assert.IsEmpty(CharacterStore.Load());
+            Assert.IsEmpty(LocalServer.Characters.List(PlayerKey.Local));
 
             Object.Destroy(body);
         }
@@ -118,7 +118,7 @@ namespace CityX.Tests
         public IEnumerator PlayingAccruesPlaytimeAndWritesItBack()
         {
             CharacterSave chosen = CharacterSave.Create("Clocker", Color.white);
-            CharacterStore.Add(chosen);
+            LocalServer.Database.For(PlayerKey.Local).Add(chosen);
             PlaySession.Begin(chosen, isNew: false);
 
             GameObject body = MakeBody();
@@ -133,7 +133,7 @@ namespace CityX.Tests
                 "no playtime accrued over ten frames");
 
             Assert.IsTrue(identity.Write());
-            Assert.Greater(CharacterStore.Load()[0].PlaytimeSeconds, 0.0,
+            Assert.Greater(LocalServer.Characters.List(PlayerKey.Local)[0].PlaytimeSeconds, 0.0,
                 "the playtime never reached disk");
 
             Object.Destroy(body);
@@ -147,7 +147,7 @@ namespace CityX.Tests
         public IEnumerator LevellingUpDuringPlayIsWrittenBack()
         {
             CharacterSave chosen = CharacterSave.Create("Climber", Color.white);
-            CharacterStore.Add(chosen);
+            LocalServer.Database.For(PlayerKey.Local).Add(chosen);
             PlaySession.Begin(chosen, isNew: false);
 
             GameObject body = MakeBody();
@@ -156,7 +156,7 @@ namespace CityX.Tests
             body.GetComponent<PlayerVitals>().Level = 15;
             body.GetComponent<CharacterIdentity>().Write();
 
-            Assert.AreEqual(15, CharacterStore.Load()[0].Level);
+            Assert.AreEqual(15, LocalServer.Characters.List(PlayerKey.Local)[0].Level);
 
             Object.Destroy(body);
         }

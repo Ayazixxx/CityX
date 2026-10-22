@@ -17,10 +17,10 @@ namespace CityX.UI
     /// three scripts passing the same list between each other and agreeing on
     /// who owns it.
     ///
-    /// It reads and writes through <see cref="CharacterStore"/> on every
-    /// change rather than holding an unsaved list, so backing out of the screen
-    /// can never lose a character and there is no "are you sure you want to
-    /// discard" to get wrong.
+    /// It asks the server played on (<see cref="CharacterSources.Current"/>:
+    /// this PC's own, or the one joined) on every change rather than holding an
+    /// unsaved list, so backing out of the screen can never lose a character
+    /// and there is no "are you sure you want to discard" to get wrong.
     /// </summary>
     public sealed class CharacterSelect : MonoBehaviour
     {
@@ -113,12 +113,19 @@ namespace CityX.UI
             Show(Mode.List);
         }
 
-        /// <summary>Re-reads the store and rebuilds the carousel.</summary>
+        /// <summary>Asks the server for the player's characters again and rebuilds the carousel.</summary>
         public void Refresh()
         {
-            _characters = CharacterStore.Load();
-            _selectedIndex = Mathf.Clamp(_selectedIndex, 0, Mathf.Max(0, _characters.Count - 1));
-            UpdateCarousel();
+            CharacterSources.Current.List(characters =>
+            {
+                if (this == null)
+                {
+                    return;   // a server's late answer, after the screen has gone
+                }
+                _characters = characters;
+                _selectedIndex = Mathf.Clamp(_selectedIndex, 0, Mathf.Max(0, _characters.Count - 1));
+                UpdateCarousel();
+            });
         }
 
         public void Show(Mode mode)
@@ -202,25 +209,50 @@ namespace CityX.UI
         }
 
         /// <summary>
-        /// Creates the character and goes straight into the world with it --
+        /// Has the server make the character and goes straight into the world with it --
         /// which is what somebody who just typed a name wants, rather than
         /// being returned to a list to find and click the thing they made.
+        /// Returns the server's new character when it answered at once (this PC's own server), else null.
         /// </summary>
         public CharacterSave ConfirmCreate()
         {
             string name = NameField != null ? NameField.text : string.Empty;
-            CharacterSave created = CharacterSave.Create(name, _pendingSkin);
-            created.SetPaint(PendingPaint);
-            created.HairStyle = string.IsNullOrEmpty(PendingHair) ? "none" : PendingHair;
-            created.HairColour = PendingHairColour;
+            CharacterSave requested = CharacterSave.Create(name, _pendingSkin);
+            requested.SetPaint(PendingPaint);
+            requested.HairStyle = string.IsNullOrEmpty(PendingHair) ? "none" : PendingHair;
+            requested.HairColour = PendingHairColour;
             PendingPaint = null;
             PendingHair = "none";
             PendingHairColour = CharacterSave.DefaultHairColour;
-            _characters = CharacterStore.Add(created);
-            _selectedIndex = _characters.FindIndex(c => c.Id == created.Id);
-            UpdateCarousel();
-            Play(created, isNew: true);
-            return created;
+            CharacterSave answered = null;
+            CharacterSources.Current.Create(requested, made =>
+            {
+                answered = made;
+                if (this == null)
+                {
+                    return;
+                }
+                if (made == null)
+                {
+                    Refuse($"The server would not make that character (at most {CharacterService.MaxCharactersPerPlayer} each).");
+                    return;
+                }
+                _characters.Insert(0, made);
+                _selectedIndex = 0;
+                UpdateCarousel();
+                Play(made, isNew: true);
+            });
+            return answered;
+        }
+
+        private void Refuse(string why)
+        {
+            Debug.LogWarning($"CityX: {why}");
+            if (DetailLabel != null)
+            {
+                DetailLabel.text = why;
+            }
+            Show(Mode.List);
         }
 
         // --- deleting one ---
@@ -252,10 +284,14 @@ namespace CityX.UI
         {
             if (!string.IsNullOrEmpty(_pendingDeleteId))
             {
-                _characters = CharacterStore.Delete(_pendingDeleteId);
+                CharacterSources.Current.Delete(_pendingDeleteId, _ =>
+                {
+                    if (this != null)
+                    {
+                        Refresh();
+                    }
+                });
                 _pendingDeleteId = null;
-                _selectedIndex = Mathf.Clamp(_selectedIndex, 0, Mathf.Max(0, _characters.Count - 1));
-                UpdateCarousel();
             }
             Show(Mode.List);
         }
@@ -275,8 +311,25 @@ namespace CityX.UI
                 return;
             }
 
-            PlaySession.Begin(character, isNew);
+            // The server hands back the character as IT keeps it (and whether this player is an admin): that copy is the one played.
+            CharacterSources.Current.Play(character.Id, (served, isAdmin) =>
+            {
+                if (this == null)
+                {
+                    return;
+                }
+                if (served == null)
+                {
+                    Refuse($"The server would not let {character.Name} be played.");
+                    return;
+                }
+                PlaySession.Begin(served, isNew, isAdmin);
+                LoadWorld();
+            });
+        }
 
+        private void LoadWorld()
+        {
             // Guarded because the scene has to be in the build settings for
             // this to work, and a missing entry throws an exception that reads
             // as the button being broken rather than as a project setting.

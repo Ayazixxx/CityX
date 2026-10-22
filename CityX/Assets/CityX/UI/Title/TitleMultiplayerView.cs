@@ -149,6 +149,7 @@ namespace CityX.UI
         public void Back()
         {
             Unsubscribe();
+            UseThisPcsCharacters();
             if (Bootstrap != null)
             {
                 Bootstrap.Shutdown();
@@ -170,6 +171,9 @@ namespace CityX.UI
             {
                 _joinPending = false;
                 Unsubscribe();
+                // The characters are now the joined server's (docs/SERVER_SAVING.md), not this PC's.
+                UseThisPcsCharacters();
+                CharacterSources.Current = new RemoteCharacterSource(Bootstrap.Manager);
                 EnterGame();
             }
             else if (args.ConnectionState == LocalConnectionState.Stopped)
@@ -201,6 +205,13 @@ namespace CityX.UI
             {
                 Title.Show(TitleScreen.Panel.CharacterSelect);
             }
+        }
+
+        /// <summary>Back to the characters of this PC's own server, letting go of a joined server's.</summary>
+        private static void UseThisPcsCharacters()
+        {
+            (CharacterSources.Current as System.IDisposable)?.Dispose();
+            CharacterSources.Current = null;
         }
 
         /// <summary>Blank means NetworkBootstrap's own LaunchArgs.DefaultPort, so the common case needs no typing at all.</summary>

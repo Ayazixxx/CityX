@@ -55,8 +55,25 @@ does on entering play mode, and a set-up fixture outside the tests' namespace ne
 `ClassicCityScaleFixture`, which is outside every namespace, may not be pinning the classic city for the play tests either; not checked).
 `ScratchDataPlayTests` guards it.
 
+## How the game reaches the server
+
+- **`ICharacterSource`** (Core): list, create, delete, play (the server's copy back, and whether you are an admin), save. Answers come
+  through callbacks. `CharacterSources.Current` is the one in use.
+- **This PC's own server** (`LocalCharacterSource`, `LocalServer`): singleplayer and hosting. This PC is the server, so it is asked
+  directly and answers at once; singleplayer starts no network for it (the title's network only runs when hosting or joining, as before).
+- **A server joined across the network** (`RemoteCharacterSource`, Net): the title puts it in when a join succeeds and takes it out on
+  Back. Each question is a `CharacterRequest` broadcast carrying this copy's player key; `CharacterServer` (beside the title's
+  NetworkManager, built by `TitleScreenBuilder`) answers from the host's storage. A list comes back one character per message (a painted
+  character is up to about 7 KB).
+- **The character screen** (`CharacterSelect`) lists, makes, deletes and plays through `CharacterSources.Current`; the character played
+  is the server's copy (`PlaySession.Begin(served, isNew, isAdmin)`).
+- **Saving while playing** (`CharacterIdentity.Write`, every 30 s and on quit) goes through `CharacterSources.Current.Save`.
+- **The console** opens only while `PlaySession.IsAdmin` (true when the world is opened directly in the editor, with no menu).
+
 ## Status
 
-- Done: the storage, the rules, the admin list, the move-in, tests (`CharacterServiceTests`).
-- Next: the messages between the game and the server; the title starting your own server for singleplayer before the character screen;
-  the character screen and the in-game saving going through it; the console asking the server whether you are an admin.
+- Done: storage, rules, admin list, move-in, the local and network paths, the character screen, in-game saving, the console's admin check.
+  Tests: `CharacterServiceTests`, `LocalServerTests`, `CharacterServerPlayTests` (a player joining over real sockets lists, makes,
+  plays, saves and deletes), and the character screen and identity play tests now going through the server.
+- Not yet: a dedicated server has no title, so nothing adds a `CharacterServer` to it (it has no player spawn path either,
+  `MULTIPLAYER_ARCHITECTURE.md`); the console's commands themselves still run on the player's own copy; step 2 (the server deciding).

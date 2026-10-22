@@ -466,6 +466,8 @@ namespace CityX.UIEditor
 
             NetworkBootstrap bootstrap = networkObject.AddComponent<NetworkBootstrap>();
             bootstrap.AutoStartOnPlay = false;
+            // Answers joining players' questions about their characters while this copy hosts (docs/SERVER_SAVING.md).
+            networkObject.AddComponent<CharacterServer>();
             return bootstrap;
         }
 

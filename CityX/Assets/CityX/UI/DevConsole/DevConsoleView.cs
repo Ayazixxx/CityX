@@ -179,8 +179,9 @@ namespace CityX.UI
                 {
                     Close();
                 }
-                else
+                else if (PlaySession.IsAdmin)
                 {
+                    // Admins only (owner, 2026-10-22); every player is one while the server's admin list says so.
                     Open();
                 }
                 return;

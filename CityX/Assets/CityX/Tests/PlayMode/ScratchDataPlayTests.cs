@@ -15,13 +15,16 @@ namespace CityX.Tests
         {
             Assert.IsNotNull(ScratchDataFixture.Folder, "the scratch folder was never set up");
             StringAssert.StartsWith(ScratchDataFixture.Folder, CharacterStore.Directory, "saving does not point at the scratch folder");
-            var body = new GameObject("Body", typeof(PlayerVitals), typeof(CharacterIdentity));
+            StringAssert.StartsWith(ScratchDataFixture.Folder, CharacterDatabase.LocalServerRoot, "this PC's server keeps its data outside the scratch folder");
             CharacterSave played = CharacterSave.Create("Scratch Guard", Color.white);
+            LocalServer.Database.For(PlayerKey.Local).Add(played);
+            var body = new GameObject("Body", typeof(PlayerVitals), typeof(CharacterIdentity));
             body.GetComponent<CharacterIdentity>().Apply(played);
-            yield return null;
+            yield return new WaitForSeconds(0.2f);
             Object.Destroy(body);
             yield return null;
-            Assert.IsTrue(new CharacterFile(ScratchDataFixture.Folder).Load().Exists(c => c.Id == played.Id), "the played character was not saved into the scratch folder");
+            Assert.Greater(LocalServer.Characters.Play(PlayerKey.Local, played.Id).PlaytimeSeconds, 0.0,
+                "the played character was not saved into the scratch folder's server");
         }
     }
 }

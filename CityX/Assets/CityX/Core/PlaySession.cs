@@ -32,16 +32,24 @@ namespace CityX.Core
         /// </summary>
         public static bool IsNewCharacter;
 
-        public static void Begin(CharacterSave character, bool isNew)
+        /// <summary>
+        /// Whether the server played on counts this player as an admin (the console is theirs). True when the world is opened directly, with
+        /// no menu and no server's answer: that is the project being worked on.
+        /// </summary>
+        public static bool IsAdmin = true;
+
+        public static void Begin(CharacterSave character, bool isNew, bool isAdmin = true)
         {
             Character = character;
             IsNewCharacter = isNew;
+            IsAdmin = isAdmin;
         }
 
         public static void Clear()
         {
             Character = null;
             IsNewCharacter = false;
+            IsAdmin = true;
         }
     }
 }

@@ -76,7 +76,7 @@ namespace CityX.Tests
         {
             Assert.IsNotNull(_select.CarouselBodyPrefab, "Player.prefab is missing");
 
-            CharacterStore.Add(CharacterSave.Create("Ayaz", new Color(0.3f, 0.4f, 0.5f)));
+            LocalServer.Database.For(PlayerKey.Local).Add(CharacterSave.Create("Ayaz", new Color(0.3f, 0.4f, 0.5f)));
             _select.Refresh();
             yield return null;
 
@@ -117,7 +117,7 @@ namespace CityX.Tests
         {
             Assert.IsNotNull(_select.CarouselBodyPrefab, "Player.prefab is missing");
 
-            CharacterStore.Add(CharacterSave.Create("Ayaz", new Color(0.3f, 0.4f, 0.5f)));
+            LocalServer.Database.For(PlayerKey.Local).Add(CharacterSave.Create("Ayaz", new Color(0.3f, 0.4f, 0.5f)));
             _select.Refresh();
             yield return null;
 
@@ -144,7 +144,7 @@ namespace CityX.Tests
             {
                 CityX.Items.ItemRegistry.RedCamoTShirt, CityX.Items.ItemRegistry.KnightHelmet, CityX.Items.ItemRegistry.Pistol,
             };
-            CharacterStore.Add(save);
+            LocalServer.Database.For(PlayerKey.Local).Add(save);
 #if UNITY_EDITOR
             _select.ClothingPrefabs = new[]
             {
@@ -200,7 +200,7 @@ namespace CityX.Tests
             CharacterSave save = CharacterSave.Create("Ayaz", new Color(0.3f, 0.4f, 0.5f));
             save.HairStyle = CityX.Character.CharacterHair.Hair1;
             save.HairColour = blue;
-            CharacterStore.Add(save);
+            LocalServer.Database.For(PlayerKey.Local).Add(save);
             _select.Refresh();
             yield return null;
 
