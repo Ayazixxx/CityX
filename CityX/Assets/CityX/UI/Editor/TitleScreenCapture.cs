@@ -123,6 +123,13 @@ namespace CityX.UIEditor
             CaptureHyde();
         }
 
+        /// <summary>Rebuilds the title scene, then photographs DREADS (the owner's dreadlocks, brought down to 6k triangles, 2026-10-21): front, side, back.</summary>
+        public static void RebuildAndCaptureDreads()
+        {
+            TitleScreenBuilder.Build();
+            ShootHairViews("hair-dreads-", Character.CharacterHair.Dreads);
+        }
+
         /// <summary>Front and side close-ups of every style after Danny (the user-supplied 2026-09-27..10-01 batch).</summary>
         public static void CaptureBatchStyles()
         {

@@ -288,6 +288,30 @@ namespace CityX.Tests
             Assert.Greater(placed.min.y, -FusedBodyShape.HeadRadius * 1.6f, $"{style}: the hair hangs down past the chin and neck");
         }
 
+        /// <summary>
+        /// DREADS (2026-10-21) splay wider than the cap they hang from, so the automatic fit (sized on the outer width) sank the head through
+        /// them; its saved fit sizes it on the hollow inside instead. Placed, the hair holds the whole head and covers the crown.
+        /// </summary>
+        [Test]
+        public void TheDreadsHoldTheWholeHeadAndCoverTheCrown()
+        {
+            Mesh mesh = BakedMesh(CharacterHair.Dreads);
+            // The real saved fits: this fixture puts a scratch set in force.
+            var saved = UnityEditor.AssetDatabase.LoadAssetAtPath<HairFitSettings>(UIEditor.HairAssets.FitSettingsPath);
+            Assert.IsNotNull(saved, "no saved hair fits");
+            Assert.IsTrue(saved.TryGet(CharacterHair.Dreads, out CharacterHair.Fit fit), "the dreads have no saved fit");
+            Matrix4x4 place = Matrix4x4.TRS(fit.Position, Quaternion.Euler(fit.Euler), fit.Scale);
+            float nearest = float.MaxValue;
+            foreach (Vector3 vertex in mesh.vertices)
+            {
+                nearest = Mathf.Min(nearest, place.MultiplyPoint3x4(vertex).magnitude);
+            }
+            Assert.GreaterOrEqual(nearest, FusedBodyShape.HeadRadius, "the head pokes through the dreads");
+            Bounds placed = Placed(mesh.bounds, fit);
+            // The locks stand thick on the crown (0.2 m at this fit), but no higher than that.
+            Assert.That(placed.max.y, Is.InRange(FusedBodyShape.HeadRadius, FusedBodyShape.HeadRadius * 1.7f), "the dreads do not sit on the crown");
+        }
+
         [Test]
         public void EveryStyleAfterNoneHasALabelAndAModel()
         {

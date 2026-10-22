@@ -171,3 +171,15 @@ Both are on the automatic fit; tune by hand with the Inspector + Save. Both scen
   whatever style it was asked for -- fixed); `TitleScreenWiringTests` checks every style has a creator button and a mesh, and that
   the backdrop is the kept one; `EquipmentReplicationGuardTests` checks the networked body has a mesh for every style, so other
   players never see a newer style as bald.
+
+## Added 2026-10-21: dreads
+
+The owner's dreadlocks (701,603 triangles from Meshy) brought down in Blender to 5,983 (Decimate Collapse; 11 stray triangles below
+the hair dropped and 4 small holes the reduction left filled; `tools/model_qa.py` clean apart from the texture coordinates hair never
+uses). Exported as `Dreads.glb` (109 KB, no textures), style `dreads`, button DREAD, baked as usual (`DreadsMesh.asset`).
+
+- **Its fit is saved, not automatic.** The automatic fit sizes a style on its outer width; dreads splay out wider than the cap they
+  hang from, so the head came through them. The saved fit in `HairFits.asset` sizes it on the hollow inside: the largest ball that
+  fits under the cap (0.214 m in the model) holds the 0.35 m head with 4% to spare (scale 1.7025). Retune by hand as usual.
+- `TitleScreenCapture.RebuildAndCaptureDreads` shoots `Logs/CityShots/hair-dreads-*.png`. Test:
+  `CharacterHairFitTests.TheDreadsHoldTheWholeHeadAndCoverTheCrown`. Both scenes and `NetworkedPlayer.prefab` were rebuilt.
