@@ -12,7 +12,9 @@ namespace CityX.Character
     /// Owner, 2026-10-20: "make it so you are ragdolling falling from the sky instead of an animation and make the fall impact as a ragdoll as
     /// well", "there is a jump cut in the cutscene mid fall right before the impact" (the scripted fall cut from a dive clip to a landing
     /// clip), "make it so there is some fog but it fades as you get closer to the surface like you are falling through the clouds", and "make
-    /// it so your feet are on the ground when you take over control".
+    /// it so your feet are on the ground when you take over control". 2026-10-22: "make it so you are laying flat horizontal during the fall
+    /// ... and make some amount of flailing in the air like there is wind" -- the body is turned onto its back and the wind throws its arms
+    /// and legs about (FallFlail).
     ///
     /// Everything during the fall follows the falling body's height above the ground, not a clock: the camera swings from looking down on
     /// the body to beside it as it nears the ground, and the cloud clears, so nothing jumps whatever the physics does. The camera follows a
@@ -160,6 +162,12 @@ namespace CityX.Character
         private float[] _savedDrag;
         private CollisionDetectionMode[] _savedCollision;
 
+        // The parts the fall turns and the wind throws about (FallFlail), found on the ragdoll's bones as it is let go.
+        private Transform _hipsBone, _neckBone, _leftShoulder, _rightShoulder;
+        private Rigidbody _chest;
+        private readonly Rigidbody[] _limbEnds = new Rigidbody[FallFlail.LimbCount];
+        private readonly Rigidbody[] _limbRoots = new Rigidbody[FallFlail.LimbCount];
+
         /// <summary>True once the body has gone limp and is falling.</summary>
         public bool IsFalling => _phase == Phase.Falling;
 
@@ -274,6 +282,7 @@ namespace CityX.Character
                 StartLookingAround();
                 return;
             }
+            FindFlyingParts();   // while the Animator is still on: going limp switches it off
             _ragdoll.Activate(LetGoVelocity);
             SetFallPhysics(true);
             _phase = Phase.Falling;
@@ -283,7 +292,9 @@ namespace CityX.Character
         private void TickFalling(float deltaTime)
         {
             Rigidbody torso = _ragdoll.Torso;
+            _phaseElapsed += deltaTime;
             Drift(deltaTime);
+            Fly(deltaTime);
             SetCloud(torso.position.y - _spawnPosition.y);
             if (torso.position.y < _spawnPosition.y - FellThroughMargin)
             {
@@ -330,6 +341,93 @@ namespace CityX.Character
                 if (body != null)
                 {
                     body.linearVelocity += change;
+                }
+            }
+        }
+
+        /// <summary>The ragdoll's bones and bodies the fall works on: the torso's for its turn, the arms' and legs' for the wind.</summary>
+        private void FindFlyingParts()
+        {
+            _hipsBone = _animator.GetBoneTransform(HumanBodyBones.Hips);
+            _neckBone = _animator.GetBoneTransform(HumanBodyBones.Neck) ?? _animator.GetBoneTransform(HumanBodyBones.Head);
+            _leftShoulder = _animator.GetBoneTransform(HumanBodyBones.LeftUpperArm);
+            _rightShoulder = _animator.GetBoneTransform(HumanBodyBones.RightUpperArm);
+            _chest = BodyOn(HumanBodyBones.Chest) ?? BodyOn(HumanBodyBones.Spine);   // RagdollBuilder's chest box, on whichever the rig has
+            _limbRoots[FallFlail.LeftArm] = BodyOn(HumanBodyBones.LeftUpperArm);
+            _limbRoots[FallFlail.RightArm] = BodyOn(HumanBodyBones.RightUpperArm);
+            _limbRoots[FallFlail.LeftLeg] = BodyOn(HumanBodyBones.LeftUpperLeg);
+            _limbRoots[FallFlail.RightLeg] = BodyOn(HumanBodyBones.RightUpperLeg);
+            _limbEnds[FallFlail.LeftArm] = BodyOn(HumanBodyBones.LeftLowerArm);
+            _limbEnds[FallFlail.RightArm] = BodyOn(HumanBodyBones.RightLowerArm);
+            _limbEnds[FallFlail.LeftLeg] = BodyOn(HumanBodyBones.LeftLowerLeg);
+            _limbEnds[FallFlail.RightLeg] = BodyOn(HumanBodyBones.RightLowerLeg);
+        }
+
+        private Rigidbody BodyOn(HumanBodyBones bone)
+        {
+            Transform t = _animator.GetBoneTransform(bone);
+            return t != null ? t.GetComponent<Rigidbody>() : null;
+        }
+
+        /// <summary>
+        /// The body brought round onto its back and held there, its arms and legs thrown about by the wind (FallFlail), as changes to the bodies'
+        /// speeds, like Drift's, so it holds at any frame rate.
+        /// </summary>
+        private void Fly(float deltaTime)
+        {
+            if (_hipsBone == null || _neckBone == null || _leftShoulder == null || _rightShoulder == null)
+            {
+                return;
+            }
+            TurnOntoItsBack(deltaTime);
+            ThrowLimbsAbout(deltaTime);
+        }
+
+        /// <summary>
+        /// The whole body turned as one about its middle, each part's spin and the speed that turn gives it where it is: turning the trunk alone
+        /// fought the joints, and the gusts on the limbs tumbled it.
+        /// </summary>
+        private void TurnOntoItsBack(float deltaTime)
+        {
+            Vector3 spine = (_neckBone.position - _hipsBone.position).normalized;
+            Vector3 front = FallFlail.Front(_hipsBone.position, _neckBone.position, _leftShoulder.position, _rightShoulder.position);
+            Vector3 trunkSpin = _chest != null ? (_ragdoll.Torso.angularVelocity + _chest.angularVelocity) * 0.5f : _ragdoll.Torso.angularVelocity;
+            Vector3 turn = FallFlail.Righting(front, spine, trunkSpin) * deltaTime;
+            Vector3 middle = Vector3.zero;
+            float mass = 0.0f;
+            foreach (Rigidbody body in _ragdoll.Bodies)
+            {
+                if (body != null)
+                {
+                    middle += body.worldCenterOfMass * body.mass;
+                    mass += body.mass;
+                }
+            }
+            middle /= Mathf.Max(mass, 1e-4f);
+            foreach (Rigidbody body in _ragdoll.Bodies)
+            {
+                if (body != null)
+                {
+                    body.angularVelocity += turn;
+                    body.linearVelocity += Vector3.Cross(turn, body.worldCenterOfMass - middle);
+                }
+            }
+        }
+
+        /// <summary>The wind on each arm and leg: all of it on the forearm and shin, a share on the upper arm and thigh.</summary>
+        private void ThrowLimbsAbout(float deltaTime)
+        {
+            float fallSpeed = Mathf.Max(0.0f, -_ragdoll.Torso.linearVelocity.y);
+            for (int limb = 0; limb < FallFlail.LimbCount; limb++)
+            {
+                Vector3 push = FallFlail.Wind(limb, _phaseElapsed, fallSpeed) * deltaTime;
+                if (_limbEnds[limb] != null)
+                {
+                    _limbEnds[limb].linearVelocity += push;
+                }
+                if (_limbRoots[limb] != null)
+                {
+                    _limbRoots[limb].linearVelocity += push * FallFlail.UpperLimbShare;
                 }
             }
         }

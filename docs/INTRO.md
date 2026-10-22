@@ -12,7 +12,7 @@ are on the ground when you take over control", "make sure the hands arent clippi
    upright head.
 2. **Falling**: `Ragdoll.Activate`. While falling, each body part gets air drag (`FallDrag` 0.28, about 35 m/s at most, about 10 s of
    fall) and continuous collision, and both are put back on landing. WASD or the left stick drift the body sideways, up to 10 m from
-   the spawn.
+   the spawn. The body lies flat on its back with its arms and legs thrown about by the wind (below).
 3. **Landing**: the torso loses more than half its speed in one frame while going faster than 8 m/s. The impact sound plays. A body
    that falls through the ground (its collider not built yet) is put back on it.
 4. **Lying**: 2 s at rest, or 5 s after the landing at the most.
@@ -48,3 +48,22 @@ The clip was made on a body with shorter arms and lower hips, so its hands, seat
 
 `GetUpFloorPlayTests` bakes the skin through the whole clip: no vertex more than 2 cm under the floor (about 1 cm at worst now).
 `GetUpClipCapture` (Explicit) films it side on.
+
+## Flat on its back, flailing in the wind (2026-10-22)
+
+Owner: "make it so you are laying flat horizontal during the fall cutscene at the beginning instead of vertical. and make some amount of
+flailing in the air like there is wind, so he isnt just still during the whole fall". The limp body used to fall the way it was let go:
+upright, limbs hanging.
+
+- **On its back**, the way the get-up clip starts (a body landing face down rolls over during the get-up's blend) and with its face to the
+  camera overhead. `FallFlail.Righting` is a damped spring (22 per radian, 6 per second) from the way the chest faces (`FallFlail.Front`:
+  from the spine and the shoulders) round to the sky. It turns the WHOLE body as one about its middle, every part's spin and the speed that
+  turn gives it where it is: turning the trunk alone fought the joints and the gusts on the limbs tumbled it (measured: the chest 96
+  degrees off on average, never flat). It is still let go standing, for the HUD portrait, and tips over onto its back in under a second.
+- **The wind** (`FallFlail.Wind`): on each forearm and shin (half as much on the upper arm and thigh) a lift and a gust that wanders every
+  way (Perlin noise, 1.3 a second, each limb its own), growing with the fall's speed up to 25 m/s.
+- Both are changes to the bodies' speeds made each frame, like the drift's, so they hold at any frame rate.
+
+Measured over the fall (`IntroCutsceneFallPlayTests.TheBodyFallsFlatOnItsBackWithItsArmsAndLegsThrownAbout`): the chest within 30 degrees
+of the sky for more than 80% of it, the hand and the foot moving well over 30 and 20 cm about the hips. `FallFlailTests` holds the maths.
+Other players still see the body's transform, not its limp pose (docs/MULTIPLAYER_STATE.md, not synced yet).
