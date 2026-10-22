@@ -128,7 +128,10 @@ end). Every table has some junk. Open spots roll fewer and plainer things; close
   story without words.
 - **Tiers**: buildings on the outskirts easy with plain loot, core towers hard with the best, as the Level Design Book's concentric zones.
 
-### 4.6 In an MMO (a decision for the owner)
+### 4.6 In an MMO (decided by the owner, 2026-10-22)
+
+**Decided: A, whoever gets it first**, with group quests and their bosses giving loot to everyone in the group (`docs/GAME_DESIGN.md`, Loot, refills
+and repairs). The options as they were weighed:
 - **A. Shared loot** (DayZ, Fallout 76): first come, first served; containers refill on a timer. Real competition, but the first player empties the building.
 - **B. Personal loot**: every player gets their own roll in every container. It can be rolled on the server from the world seed, the container, the player
   and the respawn cycle, so nothing is stored until something is taken and a cheat cannot invent loot. Everyone can clear every building; nobody camps doors.

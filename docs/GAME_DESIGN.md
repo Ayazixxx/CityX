@@ -222,6 +222,23 @@ Minecraft Factions, in the city.
 - **Non-humanoid monsters** (like the Crimson Claw) are reserved for bosses and each zone's signature creature.
 - Needs: enemy syncing across players (not built), animation LOD for crowds.
 
+## Loot, refills and repairs (owner, 2026-10-22)
+
+The owner's plan, like Rust:
+
+- **Loot in the world is whoever gets it first**: one stock per building, not a copy for each player.
+- **Quests done with allies, and their bosses:** everyone in the group gets loot drops.
+- **Unclaimed buildings get new enemies and loot at random, about once a day.**
+- **Destroyed buildings are repaired by robots the corporations send down**, at some point.
+
+My suggestions (not decided):
+
+- **The world is its original state plus a list of changes** (looted, cleared, damaged, claimed), kept by the server. A refill clears a building's looted and cleared entries; a repair clears its damage. The original costs nothing to store, so only changes are saved and sent. The same in a generated or a designed world; in a designed, finite world the list is bounded.
+- Each building refills at its own random time, so nobody camps a known refill. Claimed buildings never refill or get repaired: they are the faction's.
+- Better loot and harder enemies in dangerous districts and deeper zones. What a room holds follows its type and furniture (`docs/LOOT_AND_BUILDING_LEVELS.md`).
+- Destruction in pieces (doors, windows, wall sections, floors) is doable; glass already breaks and is shared between players. A whole building collapsing is costly; a middle way is swapping a badly damaged building for a ruined version.
+- The repair robots as something to see and fight: drones and scaffolding arriving, a repair to attack or defend. In the lore they fit the "leftover AI and machinery" fighting over the abandoned city.
+
 ## Items and art
 
 - Designs are the owner's own drawings; an image-to-3D tool models them; the owner edits them in Blender.
