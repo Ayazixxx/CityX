@@ -66,6 +66,31 @@ Enemies are the real content cost, not terrain (see Enemies).
 - **Copies** of about 100 players each when it gets busy; the market board works across copies.
 - **Text chat only** in the hub at first (voice everywhere else).
 
+## The tutorial (owner, 2026-10-22)
+
+The owner's plan:
+
+- **Old Guy asks you to help clear out his house.** Inside you find basic clothing and a basic weapon (a baseball bat, a kitchen knife).
+- **He explains the basic mechanics** the game needs: spells, skill trees, stats.
+- **The faction.** He explains factions and suggests starting one together. If you say yes, **he has you create the faction** (you lead it, he joins), then teaches claiming a base. Claiming it ends the tutorial proper.
+- **The cutscene.** Someone bursts in the door, shoots Old Guy dead and aims the gun at you. Someone else shoots magic through the gunman's head and saves you at the last second. More lore follows and leads to them showing you **the hub**, where the tutorial ends.
+- **Old Guy dies so that every player does not have their own Old Guy** forever in their faction. The faction you created stays yours.
+- **Freedom to leave.** You can skip the tutorial and walk away, but once you are a certain distance from him you cannot go back. You can also say no to him several times through the tutorial: he says his lines, walks away and disappears once off screen.
+- **Nobody else is involved.** Old Guy is invisible to other players, and a player doing the tutorial must not be player-killed.
+
+My suggestions (not decided):
+
+- **The tutorial runs in your own private copy of the starting streets ("phasing", as WoW's Worgen zone does).** This is how nobody else sees Old Guy or can hurt you, and how many players do it at once without sharing a house, its loot or its claim. The copy is cheap: the city is built from the world seed, so it is the real streets with nobody else in them.
+- **The lore reason: the newly fallen are "unanchored"**, not fully in the world yet, so other players cannot see or reach them. The gunman is one of the Demiurge's hunters, who can see the unanchored and kill them before they anchor; the rescuer is from whoever fights back. You **anchor in the hub**, appearing in the shared world for the first time.
+- **Walking away = anchoring early:** past the edge of the private copy (about 60-100 m from Old Guy, with a warning first) you appear in the real world, Old Guy gone for good. Saying no lets you walk out the same way. You still reach the hub, as death respawns you there and it is visible in the sky. Short new-player protection (ends with time, a level, or your first attack) covers players who skip.
+- **Teach by doing:** vaulting on the way to the house (everyone gets it in the tutorial, see Skill trees); fighting in the house; the level-up from clearing it spends the first stat point; the first skill point is spent on the skill tree, and the spells and hotbar are taught by using them. The claim follows the real rule: the house is cleared, Old Guy has you turn its power back on, then you claim it.
+- **The claim in the private copy cannot carry into the shared world** (every player would claim the same house): it is a practice claim, and your first real claim is the first thing to do after the hub, with a marker.
+- **No death penalty in the tutorial:** you come back near Old Guy (the unanchored cannot fully die yet).
+
+Open: what a player who skips misses (the gear and the faction for sure; the first skill point?); who the gunman and the rescuer are; how the rescuer gets you up to the sky hub.
+
+Exists now: the fall from the sky, Old Guy, vaulting, the baseball bat, the T-shirt, stats, skill tree, spells, a prototype `/claim`, ragdolls. Not yet: the private copy and its edge, Old Guy's new dialogue and its "no" branches, house loot (the knife, turning the power on), factions, the cutscene system, the rescuer, the hub.
+
 ## Getting home
 
 - **Teleport crystals** (an item: works on controller, dropped on death, tradeable) with a hotkey or menu shortcut.
