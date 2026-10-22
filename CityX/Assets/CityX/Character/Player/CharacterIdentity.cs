@@ -166,14 +166,10 @@ namespace CityX.Character
         /// </summary>
         public static event System.Action<CharacterIdentity> LookApplied;
 
-        /// <summary>Puts a painted atlas on the body.</summary>
+        /// <summary>Puts a painted atlas on the body's own surface (the skin and the skull, <see cref="BodySurface"/>).</summary>
         public void ApplyPaint(Texture texture)
         {
-            // EVERY RENDERER, NOT JUST THE SKINNED ONES. The skull is a plain
-            // mesh hung off the head bone rather than part of the skinned body
-            // -- see HeadMesh -- so looking only for SkinnedMeshRenderers left
-            // every character with a default-coloured, unpainted head.
-            foreach (Renderer renderer in GetComponentsInChildren<Renderer>())
+            foreach (Renderer renderer in BodySurface.Renderers(transform))
             {
                 Material instance = renderer.material;
                 if (instance == null)
@@ -199,7 +195,7 @@ namespace CityX.Character
         }
 
         /// <summary>
-        /// Tints every skinned renderer under this body.
+        /// Tints the body's own surface (the skin and the skull, <see cref="BodySurface"/>).
         ///
         /// Writes to `material`, NOT `sharedMaterial`. sharedMaterial is the
         /// asset on disk: setting a colour through it recolours every character
@@ -209,11 +205,7 @@ namespace CityX.Character
         /// </summary>
         public void Recolour(Color skin)
         {
-            // EVERY RENDERER, NOT JUST THE SKINNED ONES. The skull is a plain
-            // mesh hung off the head bone rather than part of the skinned body
-            // -- see HeadMesh -- so looking only for SkinnedMeshRenderers left
-            // every character with a default-coloured, unpainted head.
-            foreach (Renderer renderer in GetComponentsInChildren<Renderer>())
+            foreach (Renderer renderer in BodySurface.Renderers(transform))
             {
                 Material instance = renderer.material;
                 if (instance == null)

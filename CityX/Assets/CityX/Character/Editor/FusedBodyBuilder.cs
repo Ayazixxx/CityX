@@ -35,7 +35,7 @@ namespace CityX.CharacterEditor
         private const string HeadPath = "Assets/CityX/Character/Head.asset";
 
         /// <summary>The child of the head bone that carries the skull.</summary>
-        public const string HeadObjectName = "Head";
+        public const string HeadObjectName = BodySurface.HeadName;
 
         /// <summary>The step of the central difference the normals come from: smaller than a finger's radius, or a finger shades as a blob.</summary>
         private const float NormalStep = 0.004f;
@@ -333,7 +333,7 @@ namespace CityX.CharacterEditor
                 return root;
             }
 
-            var holder = new GameObject("Skin");
+            var holder = new GameObject(BodySurface.SkinName);
             holder.transform.SetParent(root.transform, false);
 
             var renderer = holder.AddComponent<SkinnedMeshRenderer>();

@@ -57,6 +57,19 @@ namespace CityX.Tests
             save.HairStyle = "hair1";
             save.HairColour = new Color(0.35f, 0.18f, 0.08f);
             player.GetComponent<CharacterIdentity>().Apply(save);
+            // Wearing the Blood Raven tee, with the look put on again after it, as it arrives over the network in multiplayer: the shirt
+            // used to take the skin colour then, and the portrait showed it (owner, 2026-10-22).
+            var inventory = player.AddComponent<Inventory>();
+            inventory.ItemPrefabs = new[]
+            {
+                new Inventory.ItemPrefabEntry
+                {
+                    ItemId = CityX.Items.ItemRegistry.BloodRavenTShirt,
+                    Prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Wearables/BloodRavenTShirt.prefab"),
+                },
+            };
+            inventory.EquipItemId(CityX.Items.ItemRegistry.BloodRavenTShirt, player);
+            player.GetComponent<CharacterIdentity>().Recolour(save.Skin);
 
             // The portrait camera, as PlayerHudBuilder.AddToScene builds it.
             var cameraObject = new GameObject("PortraitCamera");

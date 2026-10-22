@@ -193,7 +193,7 @@ namespace CityX.Wearables
             {
                 return;
             }
-            Transform skin = TransformSearch.FindDeep(player.transform, "Skin");
+            Transform skin = TransformSearch.FindDeep(player.transform, BodySurface.SkinName);
             _bodySkin = skin != null ? skin.GetComponent<SkinnedMeshRenderer>() : null;
             if (_bodySkin != null)
             {

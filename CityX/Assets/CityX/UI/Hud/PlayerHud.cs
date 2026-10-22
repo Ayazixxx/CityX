@@ -461,7 +461,7 @@ namespace CityX.UI
         {
             foreach (Renderer renderer in root.GetComponentsInChildren<Renderer>(true))
             {
-                if (renderer.gameObject.name == "Head")
+                if (renderer.gameObject.name == BodySurface.HeadName)
                 {
                     return renderer;
                 }

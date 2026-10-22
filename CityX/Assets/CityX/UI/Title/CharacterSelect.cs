@@ -628,7 +628,7 @@ namespace CityX.UI
                 }
             }
 
-            foreach (Renderer renderer in body.GetComponentsInChildren<Renderer>(true))
+            foreach (Renderer renderer in BodySurface.Renderers(body.transform))
             {
                 Material instance = renderer.material;
                 if (instance == null)

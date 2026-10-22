@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using CityX.Character;
 using CityX.Core;
 using CityX.Items;
@@ -73,6 +74,47 @@ namespace CityX.Tests
 
             Assert.IsTrue(inventory.UnequipToSlot(EquipSlots.Helmet, _player));
             CollectionAssert.AreEqual(new[] { ItemRegistry.TShirt }, LocalServer.Characters.List(PlayerKey.Local)[0].Wearing, "taking the hat off was not saved");
+#else
+            yield break;
+#endif
+        }
+
+        /// <summary>
+        /// Owner, 2026-10-22: in multiplayer the Blood Raven tee wore the face paint, and after a redraw the Midnight Coat turned skin-tan:
+        /// the look (paint, skin colour) was put on every renderer under the body, clothes included, whenever it arrived after them (the
+        /// look sent over the network; saving a redraw). Now only the skin and the skull take it.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator PaintAndSkinColourPutOnAfterTheClothesLeaveTheClothesAlone()
+        {
+#if UNITY_EDITOR
+            _player = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab"));
+            var inventory = _player.AddComponent<Inventory>();
+            inventory.ItemPrefabs = new[]
+            {
+                Entry(ItemRegistry.BloodRavenTShirt, "Assets/CityX/Wearables/BloodRavenTShirt.prefab"),
+                Entry(ItemRegistry.TopHat, "Assets/CityX/Wearables/TopHat.prefab"),
+            };
+            yield return null;
+            Assert.IsTrue(inventory.EquipItemId(ItemRegistry.BloodRavenTShirt, _player));
+            Assert.IsTrue(inventory.EquipItemId(ItemRegistry.TopHat, _player));
+            yield return null;
+            Renderer shirt = _player.GetComponent<SkinnedGarmentCombiner>().GetComponentsInChildren<Renderer>(true)
+                .First(r => r.sharedMaterials.Length > 0 && System.Array.Exists(r.sharedMaterials, m => m != null && m.name.Contains("BloodRaven")));
+            Material[] shirtBefore = shirt.sharedMaterials;
+            Renderer hat = inventory.EquippedInstance(EquipSlots.Helmet).GetComponentInChildren<Renderer>();
+            Material hatBefore = hat.sharedMaterial;
+
+            var identity = _player.GetComponent<CharacterIdentity>();
+            var paint = new Texture2D(4, 4);
+            identity.ApplyPaint(paint);
+            identity.Recolour(new Color(0.8f, 0.6f, 0.4f));
+
+            CollectionAssert.AreEqual(shirtBefore, shirt.sharedMaterials, "the paint or skin colour went onto the shirt");
+            Assert.AreSame(hatBefore, hat.sharedMaterial, "the paint or skin colour went onto the hat");
+            Renderer skin = BodySurface.Renderers(_player.transform).First(r => r.name == BodySurface.SkinName);
+            Assert.AreSame(paint, skin.sharedMaterial.GetTexture("_BaseMap"), "the body itself did not take the paint");
+            Object.Destroy(paint);
 #else
             yield break;
 #endif
