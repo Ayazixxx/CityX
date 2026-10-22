@@ -48,16 +48,16 @@ namespace CityX.Net
         public void Play(string characterId, Action<CharacterSave, bool> done) =>
             Ask(CharacterRequest.Play, characterId, reply => done(reply.Ok ? CharacterServer.Parse(reply.Payload) : null, reply.IsAdmin));
 
-        public void Save(CharacterSave character) => Ask(CharacterRequest.Save, JsonUtility.ToJson(character), null);
+        public void Save(CharacterSave character, bool adminEdited) => Ask(CharacterRequest.Save, JsonUtility.ToJson(character), null, adminEdited);
 
-        private int Ask(string kind, string payload, Action<CharacterReply> answered)
+        private int Ask(string kind, string payload, Action<CharacterReply> answered, bool adminEdited = false)
         {
             int ticket = _nextTicket++;
             if (answered != null)
             {
                 _waiting[ticket] = answered;
             }
-            _manager.ClientManager.Broadcast(new CharacterRequest { Ticket = ticket, Kind = kind, PlayerKey = PlayerKey.Local, Payload = payload });
+            _manager.ClientManager.Broadcast(new CharacterRequest { Ticket = ticket, Kind = kind, PlayerKey = PlayerKey.Local, Payload = payload, AdminEdited = adminEdited });
             return ticket;
         }
 

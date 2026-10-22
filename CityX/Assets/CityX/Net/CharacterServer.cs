@@ -84,7 +84,7 @@ namespace CityX.Net
                     reply.IsAdmin = LocalServer.IsAdmin(request.PlayerKey);
                     break;
                 case CharacterRequest.Save:
-                    characters.Save(request.PlayerKey, Parse(request.Payload));
+                    characters.Save(request.PlayerKey, Parse(request.Payload), request.AdminEdited);
                     return;   // saving needs no answer
                 default:
                     return;

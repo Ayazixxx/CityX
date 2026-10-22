@@ -70,10 +70,35 @@ does on entering play mode, and a set-up fixture outside the tests' namespace ne
 - **Saving while playing** (`CharacterIdentity.Write`, every 30 s and on quit) goes through `CharacterSources.Current.Save`.
 - **The console** opens only while `PlaySession.IsAdmin` (true when the world is opened directly in the editor, with no menu).
 
+## Step 2: the server checks a save's progress (2026-10-22)
+
+Enemies run on each player's own machine (not networked yet), so the server cannot see a kill happen and cannot decide XP itself. What it
+can do, and does: every save's progress must add up against the last save it accepted from that character (`ProgressRules`, installed
+as `CharacterService.Rules` when the game loads). Judging the change, not the whole, holds for any character however its numbers got
+where they are (an old save, a console edit).
+
+- **XP** gained fits the time played: at most 100 a second plus one burst of 1,000 (kills give 20-80; a spell can take a crowd).
+  The XP towards the next level is less than that level needs.
+- **Stat and skill points**, spent and unspent together, grow by no more than the levels gained bring (5 stat points a level, a skill
+  point every second level). Resetting skills for their points back passes.
+- **Every skill newly learnt** is a real one, with what it requires learnt too. A save from before the skill tree is not checked on
+  its first save after (it kept its skills for free).
+- **Playtime** grows no faster than real time.
+- **Refused:** the server keeps the character's progress as it was and logs why; the look, clothes and hotbar are still taken.
+  The time allowed counts from the last accepted save, so a player who briefly beat the speed limit is caught up as they play on.
+- **Admins' console edits** (`/xp`, `/level`, `/skills`) set `PlaySession.AdminEdited`; the next save carries it, and the server
+  takes it past the rules only if the player is on its admin list. So the rules apply to everyone, admins included, except a deliberate
+  console edit.
+
+Tests: `ProgressRulesTests` (playing passes; made-up XP, levels, points, free or unreachable skills and fast playtime are refused; a
+console edit passes for an admin only), `CharacterServerPlayTests` (a made-up level sent over the network is refused, the new look
+taken).
+
+Not yet: XP from kills is still the player's copy's word, within the speed limit, until enemies run on the server (GAME_DESIGN,
+Technical foundations 3); the bag is not saved at all, so items are not checked; a refused player keeps playing with their own numbers
+until they next load the character (the server's copy); a dedicated server has no `CharacterServer` yet.
+
 ## Status
 
-- Done: storage, rules, admin list, move-in, the local and network paths, the character screen, in-game saving, the console's admin check.
-  Tests: `CharacterServiceTests`, `LocalServerTests`, `CharacterServerPlayTests` (a player joining over real sockets lists, makes,
-  plays, saves and deletes), and the character screen and identity play tests now going through the server.
-- Not yet: a dedicated server has no title, so nothing adds a `CharacterServer` to it (it has no player spawn path either,
-  `MULTIPLAYER_ARCHITECTURE.md`); the console's commands themselves still run on the player's own copy; step 2 (the server deciding).
+- Step 1 done: storage, rules, admin list, move-in, the local and network paths, the character screen, in-game saving, the console's admin check.
+- Step 2 done as far as it can go before enemies run on the server (above).

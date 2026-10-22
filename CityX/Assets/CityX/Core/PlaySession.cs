@@ -38,6 +38,12 @@ namespace CityX.Core
         /// </summary>
         public static bool IsAdmin = true;
 
+        /// <summary>
+        /// An admin changed the character's progress with the console (/xp, /level, /skills) since the last save: the next save tells the
+        /// server, which takes it past its progress rules if this player really is an admin (docs/SERVER_SAVING.md, step 2).
+        /// </summary>
+        public static bool AdminEdited;
+
         public static void Begin(CharacterSave character, bool isNew, bool isAdmin = true)
         {
             Character = character;
@@ -50,6 +56,7 @@ namespace CityX.Core
             Character = null;
             IsNewCharacter = false;
             IsAdmin = true;
+            AdminEdited = false;
         }
     }
 }

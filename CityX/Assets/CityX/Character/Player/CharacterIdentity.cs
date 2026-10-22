@@ -274,7 +274,8 @@ namespace CityX.Character
                 System.DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
             _wroteOnce = true;
-            CharacterSources.Current.Save(_character);
+            CharacterSources.Current.Save(_character, PlaySession.AdminEdited);
+            PlaySession.AdminEdited = false;
             return true;
         }
 

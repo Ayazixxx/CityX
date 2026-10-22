@@ -153,10 +153,10 @@ namespace CityX.Tests
             GameObject body = MakeBody();
             yield return null;
 
-            body.GetComponent<PlayerVitals>().Level = 15;
+            body.GetComponent<PlayerVitals>().AddXp(300);   // two levels, as playing earns them (a level set outright is refused, step 2)
             body.GetComponent<CharacterIdentity>().Write();
 
-            Assert.AreEqual(15, LocalServer.Characters.List(PlayerKey.Local)[0].Level);
+            Assert.AreEqual(3, LocalServer.Characters.List(PlayerKey.Local)[0].Level);
 
             Object.Destroy(body);
         }

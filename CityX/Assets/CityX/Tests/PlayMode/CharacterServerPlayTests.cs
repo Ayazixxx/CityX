@@ -113,12 +113,21 @@ namespace CityX.Tests
             Assert.IsNotNull(served);
             Assert.IsTrue(isAdmin, "everyone is an admin while the admin list says so");
 
-            served.Level = 5;
+            // Playing: some XP and a shirt put on. The server takes it.
+            served.Experience = 60;
             served.Wearing = new List<string> { "t_shirt" };
-            _remote.Save(served);
-            yield return WaitUntil(() => LocalServer.Characters.List(PlayerKey.Local).Exists(c => c.Id == made.Id && c.Level == 5),
+            _remote.Save(served, adminEdited: false);
+            yield return WaitUntil(() => LocalServer.Characters.List(PlayerKey.Local).Exists(c => c.Id == made.Id && c.Experience == 60),
                 "the save to reach the server's storage");
             CollectionAssert.AreEqual(new[] { "t_shirt" }, LocalServer.Characters.Play(PlayerKey.Local, made.Id).Wearing);
+
+            // Making it up: level 50 from nowhere, over the network. The server keeps level 1 (step 2), but takes the new look.
+            Assert.IsNotNull(CharacterService.Rules, "the server's progress rules were not installed as the game loaded");
+            served.Level = 50;
+            served.HairStyle = "hyde";
+            _remote.Save(served, adminEdited: false);
+            yield return WaitUntil(() => LocalServer.Characters.Play(PlayerKey.Local, made.Id).HairStyle == "hyde", "the second save to arrive");
+            Assert.AreEqual(1, LocalServer.Characters.Play(PlayerKey.Local, made.Id).Level, "the server took a made-up level");
 
             bool deleted = false;
             answered = false;

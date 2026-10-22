@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace CityX.Core
 {
@@ -8,19 +10,38 @@ namespace CityX.Core
     /// connections.
     ///
     /// A player only ever reaches their own characters (their <see cref="PlayerKey"/>'s folder). A new character always starts at the
-    /// start, whatever it is sent with. A save still takes the progress the player's copy reports: deciding XP, levels and items on the
-    /// server is the next step (docs/GAME_DESIGN.md, Technical foundations 1).
+    /// start, whatever it is sent with. A save's progress must add up against the last save this server accepted (<see cref="Rules"/>,
+    /// docs/SERVER_SAVING.md step 2): what does not is refused, and the server keeps the character as it was. The one way past the rules is
+    /// an admin's console edit, and only for a player on the admin list.
     /// </summary>
     public sealed class CharacterService
     {
         /// <summary>How many characters one player may keep on a server.</summary>
         public const int MaxCharactersPerPlayer = 20;
 
-        private readonly CharacterDatabase _database;
+        /// <summary>
+        /// The time allowed for a character this server has not seen played since it started (it restarted while they played): about two
+        /// of the game's 30-second saves.
+        /// </summary>
+        public const double UnseenSeconds = 60.0;
 
-        public CharacterService(CharacterDatabase database)
+        /// <summary>How a save's progress is judged; installed by the Character assembly as the game loads. Null: progress is taken as sent.</summary>
+        public static IProgressRules Rules;
+
+        private readonly CharacterDatabase _database;
+        private readonly Func<double> _clock;
+        private readonly Dictionary<string, double> _lastAccepted = new Dictionary<string, double>();
+
+        /// <param name="clock">Seconds of real time, for how long a character has been played between saves; a test gives its own.</param>
+        public CharacterService(CharacterDatabase database, Func<double> clock = null)
         {
             _database = database;
+            if (clock == null)
+            {
+                Stopwatch watch = Stopwatch.StartNew();
+                clock = () => watch.Elapsed.TotalSeconds;
+            }
+            _clock = clock;
         }
 
         /// <summary>The player's characters, newest-played first; none for a key that is not one.</summary>
@@ -60,18 +81,25 @@ namespace CityX.Core
             return true;
         }
 
-        /// <summary>One of the player's characters, as saved, to play; null when it is not theirs.</summary>
+        /// <summary>One of the player's characters, as saved, to play; null when it is not theirs. Its play time is counted from now.</summary>
         public CharacterSave Play(string playerKey, string characterId)
         {
             CharacterFile file = _database.For(playerKey);
-            return file != null ? Find(file, characterId) : null;
+            CharacterSave character = file != null ? Find(file, characterId) : null;
+            if (character != null)
+            {
+                _lastAccepted[character.Id] = _clock();
+            }
+            return character;
         }
 
         /// <summary>
-        /// Saves a character being played over its stored copy: its progress, its look (the in-game redraw changes it), its clothes and
-        /// playtime. Its id, name and when it was made stay the server's. False when it is not the player's.
+        /// Saves a character being played over its stored copy. Its look (the in-game redraw changes it), clothes and hotbar are always
+        /// taken. Its progress (level, XP, points, stats, skills) is taken when it adds up against the last save accepted (<see cref="Rules"/>),
+        /// or when <paramref name="adminEdited"/> and the player is an admin (the console sets levels and points outright). Its id, name and
+        /// when it was made stay the server's. True when everything was taken; false when it is not the player's or its progress was refused.
         /// </summary>
-        public bool Save(string playerKey, CharacterSave reported)
+        public bool Save(string playerKey, CharacterSave reported, bool adminEdited = false)
         {
             CharacterFile file = _database.For(playerKey);
             CharacterSave stored = file != null && reported != null ? Find(file, reported.Id) : null;
@@ -79,23 +107,36 @@ namespace CityX.Core
             {
                 return false;
             }
-            stored.Level = reported.Level;
-            stored.Experience = reported.Experience;
-            stored.StatPoints = reported.StatPoints;
-            stored.Stats = reported.Stats;
-            stored.Vitality = reported.Vitality;
-            stored.Endurance = reported.Endurance;
-            stored.Strength = reported.Strength;
-            stored.SkillsVersion = reported.SkillsVersion;
-            stored.SkillPoints = reported.SkillPoints;
-            stored.LearnedSkills = reported.LearnedSkills;
+            double now = _clock();
+            double played = _lastAccepted.TryGetValue(stored.Id, out double since) ? now - since : UnseenSeconds;
+            bool trusted = adminEdited && _database.LoadAdmins().Includes(playerKey);
+            string refusal = trusted || Rules == null ? null : Rules.Refusal(stored, reported, played);
+
             stored.Hotbar = reported.Hotbar;
             stored.Wearing = reported.Wearing;
-            stored.PlaytimeSeconds = reported.PlaytimeSeconds;
             stored.LastPlayedUnixSeconds = reported.LastPlayedUnixSeconds;
             CopyLook(reported, stored);
+            if (refusal != null)
+            {
+                UnityEngine.Debug.LogWarning($"CityX server: refused {stored.Name}'s progress ({refusal}); keeping level {stored.Level}.");
+            }
+            else
+            {
+                stored.Level = reported.Level;
+                stored.Experience = reported.Experience;
+                stored.StatPoints = reported.StatPoints;
+                stored.Stats = reported.Stats;
+                stored.Vitality = reported.Vitality;
+                stored.Endurance = reported.Endurance;
+                stored.Strength = reported.Strength;
+                stored.SkillsVersion = reported.SkillsVersion;
+                stored.SkillPoints = reported.SkillPoints;
+                stored.LearnedSkills = reported.LearnedSkills;
+                stored.PlaytimeSeconds = reported.PlaytimeSeconds;
+                _lastAccepted[stored.Id] = now;
+            }
             stored.Repair();
-            return file.Update(stored);
+            return file.Update(stored) && refusal == null;
         }
 
         private static void CopyLook(CharacterSave from, CharacterSave to)

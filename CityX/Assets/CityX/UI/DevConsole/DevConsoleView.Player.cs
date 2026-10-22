@@ -123,6 +123,11 @@ namespace CityX.UI
                     return;
             }
 
+            if (verb != null)
+            {
+                PlaySession.AdminEdited = true;
+            }
+
             var learnt = new System.Collections.Generic.List<string>(skills.Book.Learnt);
             learnt.Sort(System.StringComparer.Ordinal);
             var bar = new System.Text.StringBuilder();
@@ -148,6 +153,7 @@ namespace CityX.UI
                 return;
             }
 
+            PlaySession.AdminEdited = true;
             int levelBefore = Vitals.Level;
             Vitals.AddXp(points);
             int levelsGained = Vitals.Level - levelBefore;
@@ -169,6 +175,7 @@ namespace CityX.UI
                 Log(DevCommands.UsageFor("level"));
                 return;
             }
+            PlaySession.AdminEdited = true;
             int levelBefore = Vitals.Level;
             (int stat, int skill) = Vitals.SetLevel(level);
             // The skill menu and the bar redraw on a change of points.

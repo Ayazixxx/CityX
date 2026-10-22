@@ -19,6 +19,9 @@ namespace CityX.Net
         /// <summary>Who is asking (<see cref="Core.PlayerKey"/>; Steam's id later).</summary>
         public string PlayerKey;
 
+        /// <summary>A save after an admin changed the character's progress with the console (the server checks the player is an admin).</summary>
+        public bool AdminEdited;
+
         /// <summary>A character id, or a character as JSON.</summary>
         public string Payload;
     }

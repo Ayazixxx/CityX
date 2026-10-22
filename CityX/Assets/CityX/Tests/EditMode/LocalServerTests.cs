@@ -60,7 +60,7 @@ namespace CityX.Tests
             Assert.IsTrue(isAdmin);
 
             served.Experience = 40;
-            CharacterSources.ThisPc.Save(served);
+            CharacterSources.ThisPc.Save(served, adminEdited: false);
             Assert.AreEqual(40, LocalServer.Characters.Play(PlayerKey.Local, made.Id).Experience);
         }
 

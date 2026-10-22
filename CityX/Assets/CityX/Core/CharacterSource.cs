@@ -19,8 +19,8 @@ namespace CityX.Core
         /// <summary>The character to play as the server keeps it, and whether the player is an admin; null when it refused.</summary>
         void Play(string characterId, Action<CharacterSave, bool> done);
 
-        /// <summary>Saves the character being played.</summary>
-        void Save(CharacterSave character);
+        /// <summary>Saves the character being played; <paramref name="adminEdited"/> when an admin changed its progress with the console since the last save.</summary>
+        void Save(CharacterSave character, bool adminEdited);
     }
 
     /// <summary>The server this copy runs itself (singleplayer, hosting), asked directly: it answers at once.</summary>
@@ -35,7 +35,7 @@ namespace CityX.Core
         public void Play(string characterId, Action<CharacterSave, bool> done) =>
             done(LocalServer.Characters.Play(PlayerKey.Local, characterId), LocalServer.IsAdmin(PlayerKey.Local));
 
-        public void Save(CharacterSave character) => LocalServer.Characters.Save(PlayerKey.Local, character);
+        public void Save(CharacterSave character, bool adminEdited) => LocalServer.Characters.Save(PlayerKey.Local, character, adminEdited);
     }
 
     /// <summary>The server characters come from now: this PC's own, until the title joins someone else's (which puts its own in).</summary>
