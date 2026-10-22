@@ -26,13 +26,13 @@ namespace CityX.Tests
             Directory.CreateDirectory(_directory);
             _database = new CharacterDatabase(Path.Combine(_directory, "server"));
             _service = new CharacterService(_database);
-            PlayerKey.DirectoryOverride = _directory;
+            CharacterStore.DirectoryOverride = _directory;
         }
 
         [TearDown]
         public void TearDown()
         {
-            PlayerKey.DirectoryOverride = null;
+            CharacterStore.DirectoryOverride = ScratchDataFixture.Folder;
             if (Directory.Exists(_directory))
             {
                 Directory.Delete(_directory, recursive: true);

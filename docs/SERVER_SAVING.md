@@ -39,6 +39,22 @@ an admin, never everyone.
 The first time a server on this PC runs for this player, the characters in the old `characters.json` are copied into their folder.
 The old file stays where it was, as the backup; the copy happens once (`CharacterDatabase.MoveInLocalCharacters`).
 
+## Where things are written
+
+`DataFolder.Path`: Unity's per-user data folder, unless the environment variable `CITYX_DATA_FOLDER` names another (a dedicated
+server's own disk; the tests' scratch folder). Characters, settings, the player key and a local server's data all go under it.
+
+## Tests were filling the real save (found 2026-10-22)
+
+Tests that played a character (the redraw creator, the HUD portrait) let it save into the owner's real `characters.json`: 2,566
+characters, 5 MB, by 2026-10-22. Cleaned once by hand: everything named as only tests name characters ("Redraw Test", "Redraw Mouse
+Test", "Flours", "Portrait", the three "FlowTest" ones) was taken out, 11 kept, the original backed up beside it as
+`characters.json.before-test-cleanup-2026-10-22`. From now on `ScratchDataFixture` (one per test assembly) points every run at a scratch
+folder through `CITYX_DATA_FOLDER`. Two traps met on the way: a static field set in a set-up fixture is wiped by the code reload Unity
+does on entering play mode, and a set-up fixture outside the tests' namespace never ran for the play tests at all (so the existing
+`ClassicCityScaleFixture`, which is outside every namespace, may not be pinning the classic city for the play tests either; not checked).
+`ScratchDataPlayTests` guards it.
+
 ## Status
 
 - Done: the storage, the rules, the admin list, the move-in, tests (`CharacterServiceTests`).

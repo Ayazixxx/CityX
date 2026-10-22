@@ -37,7 +37,7 @@ namespace CityX.Tests
                 Object.Destroy(_player);
             }
             PlaySession.Clear();
-            CharacterStore.DirectoryOverride = null;
+            CharacterStore.DirectoryOverride = ScratchDataFixture.Folder;
             if (Directory.Exists(_directory))
             {
                 Directory.Delete(_directory, recursive: true);

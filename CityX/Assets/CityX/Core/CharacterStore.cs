@@ -20,7 +20,7 @@ namespace CityX.Core
 
         public static string Directory =>
             string.IsNullOrEmpty(DirectoryOverride)
-                ? Application.persistentDataPath
+                ? DataFolder.Path
                 : DirectoryOverride;
 
         public static string Path_ => Local.Path;

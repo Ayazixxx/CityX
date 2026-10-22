@@ -14,11 +14,8 @@ namespace CityX.Core
     {
         public const string FileName = "player.key";
 
-        /// <summary>Overridable, as <see cref="CharacterStore.DirectoryOverride"/>, so a test never reads or replaces the real key.</summary>
-        public static string DirectoryOverride;
-
-        public static string Directory =>
-            string.IsNullOrEmpty(DirectoryOverride) ? Application.persistentDataPath : DirectoryOverride;
+        /// <summary>The game's data folder, beside the characters saved on this PC (so a test's scratch folder covers it too).</summary>
+        public static string Directory => CharacterStore.Directory;
 
         private static string _cached;
         private static string _cachedFrom;

@@ -30,7 +30,7 @@ namespace CityX.Tests
         [TearDown]
         public void TearDown()
         {
-            CharacterStore.DirectoryOverride = null;
+            CharacterStore.DirectoryOverride = ScratchDataFixture.Folder;
             if (Directory.Exists(_directory))
             {
                 Directory.Delete(_directory, recursive: true);
