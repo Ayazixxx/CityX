@@ -345,8 +345,7 @@ namespace CityX.Weapons
             {
                 return;
             }
-            var keyboard = UnityEngine.InputSystem.Keyboard.current;
-            if (keyboard == null || !keyboard.eKey.wasPressedThisFrame)
+            if (!InteractKey.Tapped)
             {
                 return;
             }
@@ -356,7 +355,7 @@ namespace CityX.Weapons
             }
 
             var inventory = _nearbyPlayer.GetComponentInParent<Inventory>();
-            if (inventory != null && inventory.AddItem(ItemRegistry.Jetpack, 1))
+            if (inventory != null && inventory.PickUp(ItemRegistry.Jetpack))
             {
                 Destroy(gameObject);
             }

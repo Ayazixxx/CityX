@@ -37,6 +37,21 @@ namespace CityX.Character
             return Vector3.ClampMagnitude(force, maxForce);
         }
 
+        /// <summary>The spin that turns <paramref name="current"/> to <paramref name="wanted"/> at <paramref name="rate"/> per second, the short way round.</summary>
+        public static Vector3 TurnTowards(Quaternion current, Quaternion wanted, float rate)
+        {
+            (wanted * Quaternion.Inverse(current)).ToAngleAxis(out float degrees, out Vector3 axis);
+            if (degrees > 180.0f)
+            {
+                degrees -= 360.0f;
+            }
+            if (Mathf.Abs(degrees) < 0.01f || float.IsInfinity(axis.x) || float.IsNaN(axis.x))
+            {
+                return Vector3.zero;
+            }
+            return axis.normalized * (degrees * Mathf.Deg2Rad * rate);
+        }
+
         /// <summary>True once the carried body has drifted too far from its own target to be worth chasing -- auto-drop rather than let the force keep growing.</summary>
         public static bool ShouldAutoDrop(Vector3 target, Vector3 currentPosition, float maxDistance)
         {

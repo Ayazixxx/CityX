@@ -75,8 +75,8 @@ namespace CityX.Character
 
             // Both hands are full while carrying something -- matches
             // player.gd's own "entirely while carrying something" guard on
-            // punch/block input.
-            if (_grabCarry != null && _grabCarry.IsCarrying)
+            // punch/block input. The click that throws is not an attack either.
+            if (_grabCarry != null && _grabCarry.HandsFull)
             {
                 return;
             }

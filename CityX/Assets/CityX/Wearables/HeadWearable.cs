@@ -1,7 +1,6 @@
 using CityX.Character;
 using CityX.Items;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace CityX.Wearables
 {
@@ -70,8 +69,7 @@ namespace CityX.Wearables
             {
                 return;
             }
-            Keyboard keyboard = Keyboard.current;
-            if (keyboard == null || !keyboard.eKey.wasPressedThisFrame)
+            if (!InteractKey.Tapped)
             {
                 return;
             }
@@ -81,7 +79,7 @@ namespace CityX.Wearables
             }
 
             var inventory = _nearbyPlayer.GetComponentInParent<Inventory>();
-            if (inventory != null && inventory.AddItem(ItemId, 1))
+            if (inventory != null && inventory.PickUp(ItemId))
             {
                 Destroy(gameObject);
             }

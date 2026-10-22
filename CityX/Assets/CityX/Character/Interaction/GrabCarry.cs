@@ -4,32 +4,31 @@ using UnityEngine.InputSystem;
 namespace CityX.Character
 {
     /// <summary>
-    /// Skyrim-style physics grab: hold "interact" (E) while the crosshair
-    /// is on a Grabbable rigidbody to lift it into a loose, force-driven
-    /// carry; a plain tap while already carrying drops it. Ported from
-    /// player.gd's _process_grab_carry/_find_grab_target/_apply_carry_force.
+    /// Skyrim's carry (owner, 2026-10-21: "make it so holding E on objects carrys them while tapping E key equips it. make the holding system
+    /// like skyrims"). HOLD E on something in reach that the player looks at (<see cref="Carryable"/>: an item lying in the world, a dropped
+    /// item, a limp body's bone) and it is lifted to float in front of them; it follows where they look and keeps the turn it was picked up at.
+    /// LET GO of E and it drops; CLICK while holding it and it is thrown. A TAP of E is a pickup, each item's own (<see cref="InteractKey"/>).
     ///
-    /// MOVEMENT AND LOOKING STAY FREE WHILE CARRYING, deliberately -- unlike
-    /// the Map/Chat/Pause overlays, this never disables PlayerInputReader or
-    /// ThirdPersonCamera. Godot's own comment on _carried_body is explicit
-    /// that carrying does not early-return _physics_process; only combat
-    /// input is gated on it (see PlayerInputReader.TickCombat's own guard).
+    /// The carried thing is pulled by a bounded spring force, not placed: it bumps into walls, and something heavy (a body's hips) lags where a
+    /// light item snaps to the hands. A lifted item floats free of gravity, as in Skyrim, and turns back to its held angle; a bone keeps both, so
+    /// a body hangs from the part that was grabbed.
     ///
-    /// NO NETWORK SYNC. Godot's version RPCs carry state to other peers for
-    /// a networked ragdoll target; this port has no multiplayer carry sync
-    /// yet (nothing in this single-player-focused build is networked today
-    /// -- see ClaimSystem's own note on the same gap). Purely local.
+    /// Movement and looking stay free while carrying; only combat is held off (PlayerInputReader.TickCombat).
     ///
-    /// READS Keyboard.current DIRECTLY IN ITS OWN Update(), matching
-    /// BuildingDoor's own established pattern of every interactable asking
-    /// for the key itself rather than being told by a shared dispatcher --
-    /// this project has no such dispatcher and Godot does not either.
+    /// Only on this machine: what is carried, and where it ends up, is not sent to other players yet.
     /// </summary>
     public sealed class GrabCarry : MonoBehaviour
     {
-        public const float GrabHoldSeconds = 0.35f;
+        /// <summary>How far from the feet something can be lifted.</summary>
         public const float GrabRange = 3.0f;
-        public const float CarryMinDistance = 1.0f;
+
+        /// <summary>How directly the player must look at something to lift it (cosine of the cone's half-angle).</summary>
+        public const float LookDot = 0.55f;
+
+        /// <summary>Where things are held from: chest height on the 2.6 m body.</summary>
+        public const float HoldHeight = 1.6f;
+
+        public const float CarryMinDistance = 1.3f;
         public const float CarryMaxDistance = 2.5f;
 
         /// <summary>
@@ -48,136 +47,170 @@ namespace CityX.Character
         /// <summary>Auto-drop rather than let the spring force keep growing against an unmovable obstruction.</summary>
         public const float MaxCarryDistanceBeforeAutoDrop = 4.0f;
 
+        /// <summary>How fast a held item turns back to the angle it was picked up at (per second).</summary>
+        public const float TurnBackRate = 10.0f;
+
+        /// <summary>How fast a thrown thing leaves the hands.</summary>
+        public const float ThrowSpeed = 10.0f;
+
         public PlayerVitals Vitals;
 
-        [Tooltip("The scene's single camera transform -- the raycast origin and carry-target direction.")]
+        [Tooltip("The scene's single camera transform: where the player looks.")]
         public Transform Eye;
 
         public Rigidbody CarriedBody { get; private set; }
         public bool IsCarrying => CarriedBody != null;
 
+        /// <summary>Carrying, or throwing this frame: the hands are not free to fight.</summary>
+        public bool HandsFull => IsCarrying || _threwOnFrame == Time.frameCount;
+
+        private int _threwOnFrame = -1;
         private float _carryDistance;
-        private float _grabHoldTimer;
+        private bool _floats;
+        private bool _hadGravity;
+        private Quaternion _heldTurn;
 
         private void Update()
         {
-            Keyboard keyboard = Keyboard.current;
-            if (keyboard == null)
-            {
-                return;
-            }
-            Tick(Time.deltaTime, keyboard.eKey.wasPressedThisFrame, keyboard.eKey.isPressed);
+            Mouse mouse = Mouse.current;
+            Tick(InteractKey.HoldBegan, InteractKey.IsDown, mouse != null && mouse.leftButton.wasPressedThisFrame);
         }
 
         /// <summary>
-        /// The hold/tap state machine advanced by one step. Public, and
-        /// taking its own deltaTime/key state rather than reading them
-        /// directly, so a test can drive it without a real Keyboard --
-        /// matches PlayerVitals.TickStamina's own reasoning.
+        /// One step of the hold/carry: lift on <paramref name="holdBegan"/>, drop once E is up, throw on <paramref name="throwPressed"/>. Public
+        /// and fed the key state, so a test can drive it without a keyboard.
         ///
-        /// DEATH IS POLLED HERE, NOT EVENT-DRIVEN. An OnEnable subscription
-        /// to Vitals.Died looked like the obvious port of player.gd's own
-        /// die-handling drop, but OnEnable fires the moment AddComponent
-        /// runs -- before the scene builder's very next line assigns the
-        /// externally-wired Vitals field, so the subscription silently
-        /// bound to null and never fired. Checking Vitals.IsDead here
-        /// instead, on the same frame that already reads it for the "no new
-        /// grab while dead" gate below, has no such ordering hazard: Tick
-        /// only ever runs long after Vitals has been assigned.
+        /// DEATH IS POLLED HERE, NOT EVENT-DRIVEN: an OnEnable subscription to Vitals.Died bound before the scene builder assigned Vitals.
         /// </summary>
-        public void Tick(float deltaTime, bool interactPressedThisFrame, bool interactHeld)
+        public void Tick(bool holdBegan, bool interactDown, bool throwPressed)
         {
             if (CarriedBody != null)
             {
-                if ((Vitals != null && Vitals.IsDead) || interactPressedThisFrame)
+                if ((Vitals != null && Vitals.IsDead) || !interactDown)
                 {
                     Drop();
                 }
-                return;
-            }
-
-            // No new grab can start while dead/stunned -- same gating every
-            // other player-initiated action in this project already applies.
-            if (Vitals != null && (Vitals.IsDead || Vitals.IsStunned))
-            {
-                _grabHoldTimer = 0.0f;
-                return;
-            }
-
-            if (interactHeld)
-            {
-                _grabHoldTimer += deltaTime;
-                if (_grabHoldTimer >= GrabHoldSeconds)
+                else if (throwPressed)
                 {
-                    _grabHoldTimer = 0.0f;
-                    Rigidbody target = FindGrabTarget();
-                    if (target != null)
-                    {
-                        StartCarry(target);
-                    }
+                    Throw();
                 }
+                return;
             }
-            else
+            if (!holdBegan || (Vitals != null && (Vitals.IsDead || Vitals.IsStunned)))
             {
-                _grabHoldTimer = 0.0f;
+                return;
+            }
+            GameObject target = FindGrabTarget();
+            if (target != null)
+            {
+                StartCarry(Carryable.Physical(target));
             }
         }
 
         private void FixedUpdate()
         {
-            if (CarriedBody == null || Eye == null)
+            if (CarriedBody != null)
             {
-                return;
+                ApplyCarryForce();
             }
-            ApplyCarryForce();
         }
 
-        /// <summary>
-        /// Camera-forward raycast, only ever returning something explicitly
-        /// marked Grabbable AND actually dynamic right now -- a raw world
-        /// hit, or a still-kinematic (living) ragdoll bone, never counts.
-        /// </summary>
-        public Rigidbody FindGrabTarget()
+        /// <summary>The liftable thing in reach the player looks at most directly, or null.</summary>
+        public GameObject FindGrabTarget()
         {
-            if (Eye == null)
+            GameObject best = null;
+            float bestDot = float.MinValue;
+            Collider[] near = Physics.OverlapSphere(transform.position + Vector3.up * HoldHeight * 0.5f, GrabRange, ~0, QueryTriggerInteraction.Collide);
+            foreach (Collider hit in near)
             {
-                return null;
+                if (Carryable.TryFind(hit, transform, out GameObject thing, out Vector3 centre) && thing != best &&
+                    (centre - transform.position).sqrMagnitude <= GrabRange * GrabRange)
+                {
+                    float dot = LookDotTo(centre);
+                    if (dot >= LookDot && dot > bestDot)
+                    {
+                        best = thing;
+                        bestDot = dot;
+                    }
+                }
             }
-            if (!Physics.Raycast(Eye.position, Eye.forward, out RaycastHit hit, GrabRange))
-            {
-                return null;
-            }
-            Rigidbody body = hit.rigidbody;
-            if (body != null && !body.isKinematic && body.GetComponent<Grabbable>() != null)
-            {
-                return body;
-            }
-            return null;
+            return best;
+        }
+
+        /// <summary>How directly the player looks at <paramref name="point"/>: the cosine between the look and the way to it.</summary>
+        private float LookDotTo(Vector3 point)
+        {
+            Vector3 from = Eye != null ? Eye.position : transform.position;
+            Vector3 toPoint = point - from;
+            return toPoint.sqrMagnitude > 1e-4f ? Vector3.Dot(LookForward(), toPoint.normalized) : 1.0f;
         }
 
         public void StartCarry(Rigidbody body)
         {
             CarriedBody = body;
-            float raw = Eye != null ? Vector3.Distance(Eye.position, body.position) : CarryMinDistance;
-            _carryDistance = GrabCarryMath.ClampCarryDistance(raw, CarryMinDistance, CarryMaxDistance);
+            _carryDistance = GrabCarryMath.ClampCarryDistance(Vector3.Distance(HoldPoint(), body.worldCenterOfMass), CarryMinDistance, CarryMaxDistance);
+            // A loose thing floats and keeps its turn; a bone hangs off its body.
+            _floats = body.GetComponent<Joint>() == null;
+            _hadGravity = body.useGravity;
+            if (_floats)
+            {
+                body.useGravity = false;
+            }
+            _heldTurn = Quaternion.Inverse(LookYaw()) * body.rotation;
+            // It must not shove the body carrying it.
+            foreach (Collider mine in GetComponentsInChildren<Collider>())
+            {
+                foreach (Collider its in body.GetComponentsInChildren<Collider>())
+                {
+                    Physics.IgnoreCollision(mine, its, true);
+                }
+            }
+        }
+
+        public void Drop()
+        {
+            if (CarriedBody != null)
+            {
+                CarriedBody.useGravity = _hadGravity;
+            }
+            CarriedBody = null;
+        }
+
+        /// <summary>Lets go with a push along the look: Skyrim's throw.</summary>
+        public void Throw()
+        {
+            Rigidbody body = CarriedBody;
+            Drop();
+            _threwOnFrame = Time.frameCount;
+            body.linearVelocity += LookForward() * ThrowSpeed;
         }
 
         private void ApplyCarryForce()
         {
-            Vector3 target = GrabCarryMath.CarryTarget(Eye.position, Eye.forward, _carryDistance);
-            if (GrabCarryMath.ShouldAutoDrop(target, CarriedBody.position, MaxCarryDistanceBeforeAutoDrop))
+            Vector3 target = GrabCarryMath.CarryTarget(HoldPoint(), LookForward(), _carryDistance);
+            if (GrabCarryMath.ShouldAutoDrop(target, CarriedBody.worldCenterOfMass, MaxCarryDistanceBeforeAutoDrop))
             {
                 Drop();
                 return;
             }
             Vector3 force = GrabCarryMath.SpringForce(
-                target, CarriedBody.position, CarriedBody.linearVelocity, CarrySpringK, CarryDampingK, MaxCarryForce);
+                target, CarriedBody.worldCenterOfMass, CarriedBody.linearVelocity, CarrySpringK, CarryDampingK, MaxCarryForce);
             CarriedBody.AddForce(force, ForceMode.Force);
+            if (_floats)
+            {
+                CarriedBody.angularVelocity = GrabCarryMath.TurnTowards(CarriedBody.rotation, LookYaw() * _heldTurn, TurnBackRate);
+            }
         }
 
-        public void Drop()
+        private Vector3 HoldPoint() => transform.position + Vector3.up * HoldHeight;
+
+        private Vector3 LookForward() => Eye != null ? Eye.forward : transform.forward;
+
+        /// <summary>The look's turn about the vertical alone: a held thing turns with the player, not with the camera's pitch.</summary>
+        private Quaternion LookYaw()
         {
-            CarriedBody = null;
+            Vector3 flat = Vector3.ProjectOnPlane(LookForward(), Vector3.up);
+            return flat.sqrMagnitude > 1e-6f ? Quaternion.LookRotation(flat, Vector3.up) : Quaternion.identity;
         }
     }
 }

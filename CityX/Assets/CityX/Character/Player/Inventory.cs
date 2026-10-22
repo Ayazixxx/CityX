@@ -343,28 +343,52 @@ namespace CityX.Character
         }
 
         /// <summary>
-        /// Takes a picked-up item. Something held in hand (a weapon) goes straight into the hand when the hand is empty (owner, 2026-10-21:
-        /// "if you dont have any item in hand and you press E on weapon then it equips it automatically, starting with primary slot and if
-        /// thats full then it goes in secondary"); anything else, or with something already in hand, goes into storage.
+        /// Takes a picked-up item (a tap of E), equipping it where it can (owner, 2026-10-21: "tapping E key equips it"):
+        /// <list type="bullet">
+        /// <item>a weapon goes straight into an empty hand, in the primary slot, else the secondary ("if you dont have any item in hand and you
+        /// press E on weapon then it equips it automatically, starting with primary slot and if thats full then it goes in secondary"); with
+        /// something already in hand it is stored;</item>
+        /// <item>anything worn (clothes, back gear) is put on, what was worn there going into storage.</item>
+        /// </list>
+        /// What cannot be equipped is stored.
         /// </summary>
         public bool PickUp(string itemId, ItemInstanceData instanceData = default)
         {
-            if (GoesStraightToHand(itemId) && EquipItemId(itemId, gameObject, instanceData))
+            if (EquipsOnPickUp(itemId) && EquipItemId(itemId, gameObject, instanceData))
             {
                 return true;
             }
             return AddItem(itemId, 1, instanceData);
         }
 
-        /// <summary>Whether picking up <paramref name="itemId"/> now would put it in the hand: a hand item, the hand empty, a weapon slot free.</summary>
-        public bool GoesStraightToHand(string itemId) =>
-            ItemRegistry.TryGet(itemId, out ItemDefinition definition) && IsWeaponSlot(definition.EquipSlot) &&
-            EquippedInstance(ActiveWeaponSlot) == null &&
-            (string.IsNullOrEmpty(EquippedItemId(PrimarySlot)) || string.IsNullOrEmpty(EquippedItemId(SecondarySlot)));
+        /// <summary>Whether picking up <paramref name="itemId"/> now would equip it (<see cref="PickUp"/>'s rule).</summary>
+        public bool EquipsOnPickUp(string itemId)
+        {
+            if (!ItemRegistry.TryGet(itemId, out ItemDefinition definition) || string.IsNullOrEmpty(definition.EquipSlot))
+            {
+                return false;
+            }
+            if (!IsWeaponSlot(definition.EquipSlot))
+            {
+                return true;
+            }
+            return EquippedInstance(ActiveWeaponSlot) == null &&
+                   (string.IsNullOrEmpty(EquippedItemId(PrimarySlot)) || string.IsNullOrEmpty(EquippedItemId(SecondarySlot)));
+        }
 
-        /// <summary>Whether <see cref="PickUp"/> would take one <paramref name="itemId"/> now: into the hand, or into storage.</summary>
-        public bool CanPickUp(string itemId, ItemInstanceData instanceData = default) =>
-            (GoesStraightToHand(itemId) && PrefabFor(itemId) != null) || HasRoomFor(itemId, instanceData);
+        /// <summary>Whether <see cref="PickUp"/> would take one <paramref name="itemId"/> now: equipped (with room for what it replaces), or stored.</summary>
+        public bool CanPickUp(string itemId, ItemInstanceData instanceData = default)
+        {
+            if (EquipsOnPickUp(itemId) && PrefabFor(itemId) != null && ItemRegistry.TryGet(itemId, out ItemDefinition definition))
+            {
+                string worn = IsWeaponSlot(definition.EquipSlot) ? string.Empty : EquippedItemId(definition.EquipSlot);
+                if (string.IsNullOrEmpty(worn) || HasRoomFor(worn))
+                {
+                    return true;
+                }
+            }
+            return HasRoomFor(itemId, instanceData);
+        }
 
         /// <summary>Whether one <paramref name="itemId"/> would fit in storage now: a stack of it with room, or an empty slot (AddItem's own rule).</summary>
         public bool HasRoomFor(string itemId, ItemInstanceData instanceData = default)

@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace CityX.Character
 {
@@ -33,8 +32,7 @@ namespace CityX.Character
             {
                 return;
             }
-            Keyboard keyboard = Keyboard.current;
-            if (keyboard != null && keyboard.eKey.wasPressedThisFrame)
+            if (InteractKey.Tapped)
             {
                 TryPickUp();
             }

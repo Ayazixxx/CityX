@@ -226,11 +226,23 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void PickingUpClothingStoresItEvenWithEmptyHands()
+        public void PickingUpClothingPutsItOnAndStoresWhatWasWornThere()
         {
             Assert.IsTrue(_inventory.PickUp(ItemRegistry.SkelliJeans));
+            Assert.AreEqual(ItemRegistry.SkelliJeans, _inventory.EquippedItemId(EquipSlots.Legs), "tapping E on clothing did not put it on");
+            Assert.IsFalse(_inventory.HasItem(ItemRegistry.SkelliJeans));
+
+            Assert.IsTrue(_inventory.PickUp(ItemRegistry.SkelliJeans));
+            Assert.AreEqual(ItemRegistry.SkelliJeans, _inventory.EquippedItemId(EquipSlots.Legs));
+            Assert.IsTrue(_inventory.HasItem(ItemRegistry.SkelliJeans), "the pair worn before went into storage");
+        }
+
+        [Test]
+        public void ClothingThatCannotBePutOnIsStored()
+        {
+            _inventory.ItemPrefabs = new Inventory.ItemPrefabEntry[0];
+            Assert.IsTrue(_inventory.PickUp(ItemRegistry.SkelliJeans));
             Assert.IsTrue(_inventory.HasItem(ItemRegistry.SkelliJeans));
-            Assert.AreEqual(string.Empty, _inventory.EquippedItemId(EquipSlots.Legs));
         }
 
         [Test]

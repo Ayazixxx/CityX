@@ -2,7 +2,6 @@ using CityX.Character;
 using CityX.Items;
 using CityX.World;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace CityX.Weapons
 {
@@ -420,8 +419,7 @@ namespace CityX.Weapons
             {
                 return;
             }
-            Keyboard keyboard = Keyboard.current;
-            bool ePressed = keyboard != null && keyboard.eKey.wasPressedThisFrame;
+            bool ePressed = InteractKey.Tapped;
             TryPickup(_nearbyPlayer, ePressed);
         }
 

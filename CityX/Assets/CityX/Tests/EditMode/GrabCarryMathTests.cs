@@ -81,5 +81,15 @@ namespace CityX.Tests
             Assert.IsTrue(GrabCarryMath.ShouldAutoDrop(
                 new Vector3(0.0f, 0.0f, 2.0f), new Vector3(0.0f, 0.0f, -10.0f), 4.0f));
         }
+
+        [Test]
+        public void TurnTowardsSpinsTheShortWayRoundAndStopsWhenThere()
+        {
+            Vector3 spin = GrabCarryMath.TurnTowards(Quaternion.identity, Quaternion.Euler(0.0f, 90.0f, 0.0f), 10.0f);
+            Assert.AreEqual(90.0f * Mathf.Deg2Rad * 10.0f, spin.y, 0.01f);
+            Vector3 back = GrabCarryMath.TurnTowards(Quaternion.identity, Quaternion.Euler(0.0f, 270.0f, 0.0f), 10.0f);
+            Assert.Less(back.y, 0.0f, "270 degrees one way is 90 the other");
+            Assert.AreEqual(Vector3.zero, GrabCarryMath.TurnTowards(Quaternion.identity, Quaternion.identity, 10.0f));
+        }
     }
 }

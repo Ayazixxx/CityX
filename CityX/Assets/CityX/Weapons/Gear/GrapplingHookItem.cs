@@ -1,7 +1,6 @@
 using CityX.Character;
 using CityX.Items;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace CityX.Weapons
 {
@@ -172,8 +171,7 @@ namespace CityX.Weapons
             {
                 return;
             }
-            Keyboard keyboard = Keyboard.current;
-            if (keyboard == null || !keyboard.eKey.wasPressedThisFrame)
+            if (!InteractKey.Tapped)
             {
                 return;
             }
