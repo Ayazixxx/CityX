@@ -15,6 +15,7 @@ namespace CityX.Items
         public const string TShirt = "t_shirt";
         public const string BloodRavenTShirt = "blood_raven_t_shirt";
         public const string RedCamoTShirt = "red_camo_t_shirt";
+        public const string BlackTShirt = "black_t_shirt";
         public const string GrapplingHook = "grappling_hook";
         public const string Pistol = "pistol";
         public const string Jetpack = "jetpack";
@@ -40,6 +41,8 @@ namespace CityX.Items
             [BloodRavenTShirt] = new ItemDefinition(BloodRavenTShirt, "Blood Raven T-Shirt", ItemDefinition.WearableCategory, EquipSlots.Torso, 1),
             // The T-Shirt covered all over in red camo (Wearables/Prints/RedCamoPrint).
             [RedCamoTShirt] = new ItemDefinition(RedCamoTShirt, "Red Camo T-Shirt", ItemDefinition.WearableCategory, EquipSlots.Torso, 1),
+            // The plain T-Shirt in black cotton.
+            [BlackTShirt] = new ItemDefinition(BlackTShirt, "Black T-Shirt", ItemDefinition.WearableCategory, EquipSlots.Torso, 1),
             [GrapplingHook] = new ItemDefinition(GrapplingHook, "Grappling Hook", "weapon", EquipSlots.Primary, 1),
             [Pistol] = new ItemDefinition(Pistol, "Pistol", "weapon", EquipSlots.Primary, 1),
             // The jetpack and the parachute share the back slot: worn with a coat, never with each other (which would Space work?).

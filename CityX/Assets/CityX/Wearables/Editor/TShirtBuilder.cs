@@ -24,6 +24,7 @@ namespace CityX.WearablesEditor
         public const string BloodRavenPrintPath = PrintsFolder + "/BloodRavenPrint.asset";
         public const string RedCamoPrefabPath = WearablesFolder + "/RedCamoTShirt.prefab";
         public const string RedCamoPrintPath = PrintsFolder + "/RedCamoPrint.asset";
+        public const string BlackPrefabPath = WearablesFolder + "/BlackTShirt.prefab";
 
         /// <summary>The shirt as it lies on the ground before it is picked up, folded (it is shown worn once equipped).</summary>
         private const string FoldedSourcePath = "Assets/CityX/Wearables/Models/TShirtFolded.glb";
@@ -32,6 +33,9 @@ namespace CityX.WearablesEditor
         /// <summary>Cotton: white, a little off, and matte.</summary>
         private static readonly Color Cotton = new Color(0.92f, 0.92f, 0.9f);
         private const float FabricSmoothness = 0.1f;
+
+        /// <summary>Black cotton: not quite black, so the folds and the lighting still read on it.</summary>
+        private static readonly Color BlackCotton = new Color(0.05f, 0.05f, 0.055f);
 
         /// <summary>
         /// The body never drawn under the shirt: the torso and the upper arms, but what shows outside it (Shown). Hidden only where the shirt
@@ -143,6 +147,20 @@ namespace CityX.WearablesEditor
             }
             AssetDatabase.CreateAsset(folded, FoldedMeshPath);
             return folded;
+        }
+
+        /// <summary>The Black T-Shirt (owner, 2026-10-22): the T-Shirt (built first) in black cotton.</summary>
+        [MenuItem("CityX/Rebuild Black T-Shirt")]
+        public static GameObject BuildBlack()
+        {
+            Mesh mesh = AssetDatabase.LoadAssetAtPath<Mesh>(MeshPath);
+            if (mesh == null)
+            {
+                Debug.LogError($"CityX: no T-Shirt mesh at {MeshPath} -- build the T-Shirt first.");
+                return null;
+            }
+            Material material = BlenderGarmentMesh.PlainMaterial($"{WearablesFolder}/BlackTShirt.mat", BlackCotton, FabricSmoothness);
+            return Save(mesh, material, BlackPrefabPath, "BlackTShirt", ItemRegistry.BlackTShirt);
         }
 
         /// <summary>The Blood Raven T-Shirt: the T-Shirt (built first) printed with the Blood Raven logo where its print says.</summary>
