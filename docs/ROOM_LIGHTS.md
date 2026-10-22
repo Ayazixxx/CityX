@@ -153,3 +153,37 @@ outgrows the budget and is reused; a chunk that goes gives its lights back, and 
 Seed 83920571 turned up a dark hall: the top floor of a 10 x 12 m building, whose only free strip of ceiling (between the corner room and two
 stair holes) was 2.3 m wide, while its fluorescent tube is 2.4 m. The last-resort fitting (`RoomLighting.Plan`, when the grid finds no free
 spot) now tries the fitting as it is, then turned a quarter round, then a small 0.6 m one anywhere off the walls, on a 25 cm search grid.
+
+## Update 2026-10-22: the light a room's walls throw back (RoomFill)
+
+Owner: "it feels like there are still really dark spots that are close by to the light source im not sure if its working as good as it
+could be". The night renders (`RoomLightsCapture`) showed where: the ceiling round every fitting, the tops of the walls beside the lamps, the
+undersides of stairs and the bottom of stairwells were near black, a metre from a glowing fitting. Every light in a room shone down in a cone,
+and the only stand-in for the light a real room bounces off its pale walls was the bounce spot, which lights the ceiling straight over it and
+little else. The ambient occlusion was not the cause: rendered with it off, the rooms barely changed.
+
+What games do instead of global illumination (Godot's "faking global illumination" page; Source's ambient cubes per visleaf): a soft fill with
+no shadows and no shine, 10-40% of the main light. A fill LIGHT here would leak through floors and walls (room lights cast no shadows), so the
+fill is per ROOM, the way Source keeps its ambient per leaf:
+
+- **How bright** (`RoomLighting.FillFor`, pure): the lamps' light (pi times each lamp's straight-down brightness), given back by surfaces of
+  reflectance 0.5 again and again (r / (1 - r)), spread over the room's floor, ceiling and walls; a small room is brighter than a big hall
+  with the same lamps. Never more than `MaxFillShare` (0.6) of the light under a lamp, or a small tall room crowded with lamps is lit flat.
+  Halls come out at 0.4-0.8 against the lamps' 1.3, corner rooms and stairwells up to 0.78.
+- **Where** (`RoomLightPlan.FillArea`, `FloorY`, `CeilingY`, `Cuts`): the room's box, a hall's out to its window glass (the reveals), less
+  the rooms carved from it (the corner room, an enclosed stairwell), which have their own switch.
+- **Drawn by the facade shader** (`View/Lighting/RoomFill`, `FacadeForwardPass.hlsl` `CityXRoomFill`): `RoomLightDirector` packs the 32
+  nearest lit rooms (lamps or not, so a lit room seen from down the street glows inside) into a global array; an indoor surface adds the light
+  of the room it FACES -- the point 5 cm in front of it is the one tested -- so a floor belongs to the storey above it, a ceiling to the storey
+  under it, and the two faces of a partition (one sheet) to the rooms either side. Diffuse only, dimmed by the screen-space occlusion (corners
+  and contact shadows) but not by the indoor sky shade.
+- Players and props (URP Lit) do not get it; the lamps and bounces still light them.
+
+Found on the way: a hall's lamp hangs under the middle of the fittings in its part of the hall, and fittings either side of an enclosed
+stairwell in the middle of a hall put it inside the stairwell (seed 19077151's building 7343). A lamp whose middle lands in something the
+room keeps clear of (a carved room, a stair hole) now hangs under the fitting nearest it.
+
+Tests: `RoomFillTests` (the fill covers its floor, walls, ceiling and fittings and neither the storey above nor below; a partition's faces
+go to the rooms either side; a hall's fill reaches its window reveals but not its stairwell; brightness bounds; no lamp in a carved room or
+over a stair hole; the shader's constants and packing), `RoomLightsPlayTests.ALitRoomsBouncedLightGoesToTheShaderAndComesOutWhenItGoesDark`.
+Checked by rendering `RoomLightsCapture` before and after.

@@ -63,6 +63,47 @@ void CityXSoftenFitting(inout Light light, uint i, float3 positionWS)
     }
 }
 
+// The bounced light of the lit rooms nearest the camera (View/Lighting/RoomFill.cs packs them, RoomLightDirector sets them): an even light on
+// every surface of a lit room, which its lamps (spots shining down) do not give. A surface belongs to the room it FACES: the point
+// CITYX_ROOM_FILL_NUDGE in front of it is tested against each room's box, less the rooms carved from it. Per room, CITYX_ROOM_FILL_STRIDE
+// entries: (origin x, origin z, floor y, height), (x axis x, z, z axis x, z), floor plan (xMin, zMin, xMax, zMax), two cuts the same, colour.
+// MUST match RoomFill.Stride / RoomFill.Nudge and RoomLightDirector.MaxFilledRooms.
+#define CITYX_MAX_ROOM_FILLS 32
+#define CITYX_ROOM_FILL_STRIDE 6
+#define CITYX_ROOM_FILL_NUDGE 0.05
+
+CBUFFER_START(CityXRoomFills)
+float4 _CityXRoomFills[CITYX_MAX_ROOM_FILLS * CITYX_ROOM_FILL_STRIDE];
+float _CityXRoomFillCount;
+CBUFFER_END
+
+// The lit rooms' bounced light on the surface at positionWS facing normalWS (RoomFill.Covers is the same test).
+half3 CityXRoomFill(float3 positionWS, float3 normalWS)
+{
+    float3 q = positionWS + normalWS * CITYX_ROOM_FILL_NUDGE;
+    half3 fill = half3(0.0, 0.0, 0.0);
+    int count = min((int)_CityXRoomFillCount, CITYX_MAX_ROOM_FILLS);
+    [loop] for (int i = 0; i < count; i++)
+    {
+        int at = i * CITYX_ROOM_FILL_STRIDE;
+        float4 frame = _CityXRoomFills[at];
+        float4 axes = _CityXRoomFills[at + 1];
+        float4 area = _CityXRoomFills[at + 2];
+        float4 cutA = _CityXRoomFills[at + 3];
+        float4 cutB = _CityXRoomFills[at + 4];
+        float2 d = q.xz - frame.xy;
+        float2 p = float2(dot(d, axes.xy), dot(d, axes.zw));
+        float y = q.y - frame.z;
+        bool inside = y >= 0.0 && y <= frame.w && all(p >= area.xy) && all(p <= area.zw);
+        bool cut = (all(p >= cutA.xy) && all(p <= cutA.zw)) || (all(p >= cutB.xy) && all(p <= cutB.zw));
+        if (inside && !cut)
+        {
+            fill += half3(_CityXRoomFills[at + 5].rgb);
+        }
+    }
+    return fill;
+}
+
 // What a tile of each wall material covers, in metres across and up. MUST match FacadeTextures.TileMetresX / TileMetresY.
 static const float2 kTileMetres[12] =
 {
@@ -217,7 +258,11 @@ half4 CityXFragmentPBR(InputData inputData, SurfaceData surfaceData, bool indoor
 
     BRDFData brdfDataClearCoat = CreateClearCoatBRDFData(surfaceData, brdfData);
     half4 shadowMask = CalculateShadowMask(inputData);
-    AmbientOcclusionFactor aoFactor = CreateAmbientOcclusionFactor(inputData, surfaceData);
+    // URP's CreateAmbientOcclusionFactor, keeping the screen's occlusion alone for a lit room's bounced light: the indoor shade in
+    // surfaceData.occlusion is the sky's, not the room's.
+    AmbientOcclusionFactor aoFactor = GetScreenSpaceAmbientOcclusion(inputData.normalizedScreenSpaceUV);
+    half screenOcclusion = aoFactor.indirectAmbientOcclusion;
+    aoFactor.indirectAmbientOcclusion = min(screenOcclusion, surfaceData.occlusion);
     uint meshRenderingLayers = GetMeshRenderingLayer();
     Light mainLight = GetMainLight(inputData, shadowMask, aoFactor);
 
@@ -227,6 +272,10 @@ half4 CityXFragmentPBR(InputData inputData, SurfaceData surfaceData, bool indoor
     lightingData.giColor = GlobalIllumination(brdfData, brdfDataClearCoat, surfaceData.clearCoatMask,
                                               inputData.bakedGI, aoFactor.indirectAmbientOcclusion, inputData.positionWS,
                                               inputData.normalWS, inputData.viewDirectionWS, inputData.normalizedScreenSpaceUV);
+    if (indoors)
+    {
+        lightingData.giColor += CityXRoomFill(inputData.positionWS, inputData.normalWS) * brdfData.diffuse * screenOcclusion;
+    }
 #ifdef _LIGHT_LAYERS
     if (IsMatchingLightLayer(mainLight.layerMask, meshRenderingLayers))
 #endif

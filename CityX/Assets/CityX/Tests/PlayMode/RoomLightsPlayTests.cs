@@ -20,6 +20,8 @@ namespace CityX.Tests
     {
         private const int Seed = 19077151;
         private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
+        private static readonly int FillsId = Shader.PropertyToID("_CityXRoomFills");
+        private static readonly int FillCountId = Shader.PropertyToID("_CityXRoomFillCount");
         private readonly List<GameObject> _made = new List<GameObject>();
         private CityScale _scaleBefore;
         private bool _scaleChanged;
@@ -167,6 +169,40 @@ namespace CityX.Tests
             Assert.IsFalse(room.IsLit);
             Assert.IsFalse(room.LightsOn);
             foreach (Light l in lights) Assert.IsFalse(l.enabled);
+        }
+
+        [UnityTest]
+        public IEnumerator ALitRoomsBouncedLightGoesToTheShaderAndComesOutWhenItGoesDark()
+        {
+            // 2026-10-22: the light a lit room's walls throw back (RoomFill) is drawn by the facade shader from an array the director fills with
+            // the nearest lit rooms -- lamps or not, so a lit room seen from down the street still glows inside.
+            var world = new CityWorld(Seed);
+            BuildingSite powered = PoweredNearSpawn(world);
+            Assert.IsTrue(powered.Exists, "no powered building near the spawn");
+            GameObject go = StreamRound(powered, out _);
+            yield return null;
+            RoomLightGroup room = RoomsOf(ChunkOf(go, powered.Id), powered.Id)[0];
+            Assert.AreEqual(0.0f, Shader.GetGlobalFloat(FillCountId), "bounced light drawn with every room dark");
+
+            RoomLights.Flip(room.Key);
+            yield return null;
+            RoomLightDirector.Direct(room.Centre);
+            Assert.AreEqual(1.0f, Shader.GetGlobalFloat(FillCountId), "the lit room's bounced light is not drawn");
+            var expected = new Vector4[RoomFill.Stride];
+            room.Fill.Pack(expected, 0);
+            Vector4[] given = Shader.GetGlobalVectorArray(FillsId);
+            for (int i = 0; i < RoomFill.Stride; i++) Assert.AreEqual(expected[i], given[i], $"entry {i} of the room's bounced light");
+            Assert.IsTrue(room.Fill.Covers(room.Lamps[0].transform.position, Vector3.down), "the room's bounced light is not where its lamps are");
+            Assert.Greater(room.Fill.Light.maxColorComponent, 0.05f, "next to no bounced light");
+
+            RoomLightDirector.Direct(room.Centre + Vector3.right * (RoomLightDirector.LightReachMetres + 50.0f));
+            Assert.IsFalse(room.LightsOn);
+            Assert.AreEqual(1.0f, Shader.GetGlobalFloat(FillCountId), "a lit room out of reach of its lamps went dark inside");
+
+            RoomLights.Flip(room.Key);
+            yield return null;
+            RoomLightDirector.Direct(room.Centre);
+            Assert.AreEqual(0.0f, Shader.GetGlobalFloat(FillCountId), "a room switched off still glows inside");
         }
 
         [UnityTest]

@@ -45,6 +45,13 @@ namespace CityX.View
         /// </summary>
         public const int MaxLightsMadePerFrame = 2 * RoomLighting.MaxLightPoints;
 
+        /// <summary>The most lit rooms whose bounced light (RoomFill) the facade shader draws at once: the nearest. MUST match CITYX_MAX_ROOM_FILLS.</summary>
+        public const int MaxFilledRooms = 32;
+
+        private static readonly Vector4[] Fills = new Vector4[MaxFilledRooms * RoomFill.Stride];
+        private static readonly int FillsId = Shader.PropertyToID("_CityXRoomFills");
+        private static readonly int FillCountId = Shader.PropertyToID("_CityXRoomFillCount");
+
         private static RoomLightDirector _instance;
 
         /// <summary>Every lit room whose chunk is on screen.</summary>
@@ -231,6 +238,20 @@ namespace CityX.View
                     lamp.shadows = wanted;
                 }
             }
+
+            // The bounced light of the nearest lit rooms, lamps or not (a lit room seen from down the street glows inside), as many as the
+            // shader's array holds.
+            int filled = 0;
+            foreach (RoomLightGroup room in Order)
+            {
+                if (filled == MaxFilledRooms)
+                {
+                    break;
+                }
+                room.Fill.Pack(Fills, filled++);
+            }
+            Shader.SetGlobalVectorArray(FillsId, Fills);
+            Shader.SetGlobalFloat(FillCountId, filled);
         }
 
         /// <summary>A spot light from the pool, made if the pool is empty. Its room puts it in place and switches it on.</summary>
@@ -277,11 +298,12 @@ namespace CityX.View
                 return;
             }
             _instance = null;
-            // Its lights go with it: no room may keep one.
+            // Its lights go with it: no room may keep one, nor its bounced light.
             foreach (RoomLightGroup room in LitRooms)
             {
                 room.ReturnLights(null);
             }
+            Shader.SetGlobalFloat(FillCountId, 0.0f);
         }
     }
 }

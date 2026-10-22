@@ -93,6 +93,22 @@ namespace CityX.World
         public float BounceRange;
         public float BounceIntensity;
 
+        /// <summary>The heights of the room's floor and of its ceiling (the underside of the slab over it), in the building's frame.</summary>
+        public float FloorY;
+        public float CeilingY;
+
+        /// <summary>The rooms carved out of this one's floor plan, which have their own switch and light (a hall's corner room and enclosed stairwell).</summary>
+        public readonly List<Rect> Cuts = new List<Rect>();
+
+        /// <summary>The floor plan its bounced light fills, in the building's frame: <see cref="Area"/>, out to the glass of the windows in its outer walls.</summary>
+        public Rect FillArea;
+
+        /// <summary>
+        /// The light the room's own floor, walls and ceiling throw back and forth (<see cref="RoomLighting.FillFor"/>), the same units as the
+        /// lamps' floor light: it reaches every surface of the room, where the lamps shine and where they do not.
+        /// </summary>
+        public float FillLight;
+
         /// <summary>The switch plate's centre, on the wall, and the way it faces (into the room), in the building's frame.</summary>
         public Vector3 Switch;
         public Vector3 SwitchFacing;
@@ -161,6 +177,18 @@ namespace CityX.World
         /// <summary>The bounce reaches this many times the height from it to the ceiling.</summary>
         public const float BounceReachPerHeight = 1.6f;
 
+        /// <summary>
+        /// The share of the light landing on a room's surfaces that they give back (pale plaster walls, a white ceiling, a mid floor). It goes on
+        /// bouncing between them, so all the bounces together give back r / (1 - r) of what the lamps sent (<see cref="FillFor"/>).
+        /// </summary>
+        public const float RoomReflectance = 0.5f;
+
+        /// <summary>
+        /// The bounced light is never more than this share of the light straight under a lamp: a small, tall room crowded with lamps (a corner room
+        /// split into four cells) would otherwise be lit flat, its lamps' pools lost.
+        /// </summary>
+        public const float MaxFillShare = 0.6f;
+
         /// <summary>Nothing hangs lower than this above the floor (a 2.6 m player, with room to jump a little).</summary>
         public const float HeadroomMetres = 3.2f;
 
@@ -221,9 +249,12 @@ namespace CityX.World
             {
                 Key = new RoomKey(site.Id, floor, room),
                 Area = area,
+                FillArea = area,
                 Pattern = PatternFor(site, floor, room),
                 Switch = switchAt,
                 SwitchFacing = switchFacing,
+                FloorY = floorY,
+                CeilingY = ceilingY,
             };
             plan.Colour = ColourOf(plan.Pattern);
 
@@ -331,20 +362,33 @@ namespace CityX.World
                     int n = 0;
                     foreach (Fixture f in plan.Fixtures)
                     {
-                        Vector3 c = (f.HousingMin + f.HousingMax) * 0.5f;
-                        int cx = Mathf.Clamp(Mathf.FloorToInt((c.x - area.xMin) / area.width * split), 0, split - 1);
-                        int cz = Mathf.Clamp(Mathf.FloorToInt((c.z - area.yMin) / area.height * split), 0, split - 1);
-                        bool inX = cx == qx;
-                        bool inZ = cz == qz;
-                        if (inX && inZ)
+                        if (InCell(f, area, split, qx, qz))
                         {
-                            sum += c;
+                            sum += (f.HousingMin + f.HousingMax) * 0.5f;
                             n++;
                         }
                     }
                     if (n > 0 && plan.LightPoints.Count < MaxLightPoints)
                     {
                         Vector3 middle = sum / n;
+                        // Fittings either side of what the room keeps clear of (an enclosed stairwell in the middle of a hall, its corner room, a
+                        // stair hole) can have their middle in it: the lamp then hangs under the fitting nearest that middle, never in a room with
+                        // a switch of its own nor over a hole down to the storey below.
+                        if (Blocked(Rect.MinMaxRect(middle.x - 0.05f, middle.z - 0.05f, middle.x + 0.05f, middle.z + 0.05f), avoid))
+                        {
+                            Vector3 under = middle;
+                            float nearest = float.MaxValue;
+                            foreach (Fixture f in plan.Fixtures)
+                            {
+                                Vector3 c = (f.HousingMin + f.HousingMax) * 0.5f;
+                                if (InCell(f, area, split, qx, qz) && (c - middle).sqrMagnitude < nearest)
+                                {
+                                    nearest = (c - middle).sqrMagnitude;
+                                    under = c;
+                                }
+                            }
+                            middle = under;
+                        }
                         plan.LightPoints.Add(new Vector3(middle.x, underside - LampBelowFitting, middle.z));
                         plan.BouncePoints.Add(new Vector3(middle.x, floorY - BounceBelowFloor, middle.z));
                     }
@@ -395,14 +439,23 @@ namespace CityX.World
                 BuildingInterior.Room room = BuildingStairs.RoomFor(floor, halfX, halfZ, flight, arriving);
 
                 // The hall: the whole floor inside the outer walls, round the corner room and the stair's hole.
+                bool shaft = flight != null && flight.Enclosed;
+                Rect shaftWalls = shaft
+                    ? Rect.MinMaxRect(flight.Bounds.xMin - BuildingStairs.CoreWall, flight.Bounds.yMin - BuildingStairs.CoreWall, flight.Bounds.xMax + BuildingStairs.CoreWall, flight.Bounds.yMax + BuildingStairs.CoreWall)
+                    : Rect.zero;
                 avoid.Clear();
                 if (room.Exists) avoid.Add(room.Plan);
                 if (flight != null) avoid.Add(flight.Hole);
                 if (arriving != null) avoid.Add(arriving.Hole);
-                if (flight != null && flight.Enclosed) avoid.Add(Rect.MinMaxRect(flight.Bounds.xMin - BuildingStairs.CoreWall, flight.Bounds.yMin - BuildingStairs.CoreWall, flight.Bounds.xMax + BuildingStairs.CoreWall, flight.Bounds.yMax + BuildingStairs.CoreWall));   // the stairwell lights itself
+                if (shaft) avoid.Add(shaftWalls);   // the stairwell lights itself
                 var hall = Rect.MinMaxRect(-halfX + wall, -halfZ + wall, halfX - wall, halfZ - wall);
                 var hallSwitch = new Vector3(BuildingInterior.EntranceWidth(site) * 0.5f + SwitchBesideDoor, floorY + SwitchHeight, halfZ - wall - SwitchDepth * 0.5f);
-                plans.Add(Plan(site, floor, 0, hall, avoid, floorY, ceilingY, hallSwitch, Vector3.back));
+                RoomLightPlan hallPlan = Plan(site, floor, 0, hall, avoid, floorY, ceilingY, hallSwitch, Vector3.back);
+                float toGlass = wall - BuildingInterior.GlassSetBack;   // the window reveals in its outer walls (the corner room's plan already reaches them)
+                hallPlan.FillArea = Rect.MinMaxRect(hall.xMin - toGlass, hall.yMin - toGlass, hall.xMax + toGlass, hall.yMax + toGlass);
+                if (room.Exists) hallPlan.Cuts.Add(room.Plan);
+                if (shaft) hallPlan.Cuts.Add(shaftWalls);
+                plans.Add(hallPlan);
 
                 if (room.Exists)
                 {
@@ -418,7 +471,7 @@ namespace CityX.World
 
                 // An enclosed stairwell is a room of its own, with its own light and a switch inside beside its doorway (owner, 2026-10-10: "the
                 // rooms with the stairwells should have lights and switches in there"). Its light keeps off the hole the flight climbs through.
-                if (flight != null && flight.Enclosed)
+                if (shaft)
                 {
                     RoomLightPlan stairwell = StairwellPlan(site, floor, flight, floorY, ceilingY);
                     if (stairwell != null)
@@ -427,7 +480,38 @@ namespace CityX.World
                     }
                 }
             }
+            foreach (RoomLightPlan plan in plans)
+            {
+                plan.FillLight = FillFor(plan);
+            }
             return plans;
+        }
+
+        /// <summary>
+        /// The light a lit room's own surfaces throw back and forth, spread evenly over all of them (2026-10-22: rooms lit by downward lamps alone
+        /// were dark right beside their fittings -- the ceiling round them, the tops of the walls, the underside of a stair -- because nothing stood
+        /// in for the light a real room bounces off its walls). Every lamp sends pi times its straight-down brightness into the room (a fitting
+        /// under a flat ceiling lights the half of the world below it, brightest straight down); the room's floor, walls and ceiling give back
+        /// <see cref="RoomReflectance"/> of it, again and again; and that is spread over all of them. So a small room is brighter than a big hall
+        /// with the same lamps, as in a real building.
+        /// </summary>
+        public static float FillFor(RoomLightPlan plan)
+        {
+            Rect area = plan.Area;
+            float floorArea = area.width * area.height;
+            foreach (Rect cut in plan.Cuts)
+            {
+                float w = Mathf.Min(area.xMax, cut.xMax) - Mathf.Max(area.xMin, cut.xMin);
+                float d = Mathf.Min(area.yMax, cut.yMax) - Mathf.Max(area.yMin, cut.yMin);
+                floorArea -= Mathf.Max(0.0f, w) * Mathf.Max(0.0f, d);
+            }
+            float surfaces = 2.0f * Mathf.Max(0.0f, floorArea) + 2.0f * (area.width + area.height) * (plan.CeilingY - plan.FloorY);
+            if (surfaces <= 0.0f)
+            {
+                return 0.0f;
+            }
+            float sent = Mathf.PI * plan.LightIntensity * plan.LightPoints.Count;
+            return Mathf.Min(sent / surfaces * RoomReflectance / (1.0f - RoomReflectance), MaxFillShare * FloorLight);
         }
 
         /// <summary>The room number of a floor's enclosed stairwell (0 is the hall, 1 the corner room).</summary>
@@ -529,6 +613,15 @@ namespace CityX.World
                 }
             }
             return bestDistance < float.MaxValue;
+        }
+
+        /// <summary>Whether a fitting's centre falls in cell (<paramref name="qx"/>, <paramref name="qz"/>) of <paramref name="area"/> cut into <paramref name="split"/> x split cells.</summary>
+        private static bool InCell(Fixture f, Rect area, int split, int qx, int qz)
+        {
+            Vector3 c = (f.HousingMin + f.HousingMax) * 0.5f;
+            int cx = Mathf.Clamp(Mathf.FloorToInt((c.x - area.xMin) / area.width * split), 0, split - 1);
+            int cz = Mathf.Clamp(Mathf.FloorToInt((c.z - area.yMin) / area.height * split), 0, split - 1);
+            return cx == qx && cz == qz;
         }
 
         private static bool Blocked(Rect foot, IList<Rect> avoid)

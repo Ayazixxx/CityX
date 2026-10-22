@@ -28,6 +28,7 @@ namespace CityX.View
         private readonly CityMeshBuilder.RoomGlow _glow;
         private readonly Vector3[] _lampPoints;
         private readonly Vector3[] _bouncePoints;
+        private readonly Color _bounced;
         private Light[] _lamps;
         private Light[] _bounces;
 
@@ -35,7 +36,10 @@ namespace CityX.View
         {
             Chunk = chunk;
             _glow = glow;
+            _bounced = Color.Lerp(glow.Colour, PaleFloor, FloorGreying);
             Transform frame = chunk.transform;
+            Fill = new RoomFill(frame.TransformPoint(glow.FrameOrigin), frame.TransformDirection(glow.FrameX), frame.TransformDirection(glow.FrameZ),
+                glow.Plan, _bounced);
             Vector3[] lamps = glow.Lights ?? Array.Empty<Vector3>();
             Vector3[] bounces = glow.Bounces ?? Array.Empty<Vector3>();
             _lampPoints = new Vector3[lamps.Length];
@@ -66,6 +70,9 @@ namespace CityX.View
 
         /// <summary>The middle of its lamps, in the world.</summary>
         public Vector3 Centre { get; }
+
+        /// <summary>The light its walls, floor and ceiling throw back, which the facade shader spreads over the room while it is lit (RoomLightDirector).</summary>
+        public RoomFill Fill { get; }
 
         /// <summary>How many real lights it has while they are on: a lamp and a bounce under it per cell of the room (RoomLighting.SplitFor).</summary>
         public int LightCount => _lampPoints.Length + _bouncePoints.Length;
@@ -105,10 +112,9 @@ namespace CityX.View
                 _lamps[i] = Place(director.Take(), _lampPoints[i], ShiningDown, _glow.Colour, _glow.Range, _glow.Intensity,
                     RoomLighting.LampOuterAngle, RoomLighting.LampInnerAngle);
             }
-            Color bounced = Color.Lerp(_glow.Colour, PaleFloor, FloorGreying);
             for (int i = 0; i < _bounces.Length; i++)
             {
-                _bounces[i] = Place(director.Take(), _bouncePoints[i], ShiningUp, bounced, _glow.BounceRange, _glow.BounceIntensity,
+                _bounces[i] = Place(director.Take(), _bouncePoints[i], ShiningUp, _bounced, _glow.BounceRange, _glow.BounceIntensity,
                     RoomLighting.BounceOuterAngle, RoomLighting.BounceInnerAngle);
             }
             LightsOn = true;

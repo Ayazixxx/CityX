@@ -30,6 +30,14 @@ namespace CityX.View
             public float BounceRange;
             public float BounceIntensity;
             public Color Colour;
+
+            /// <summary>The room's plan (World.RoomLighting), for its bounced light (RoomFill): the space it fills and how bright, in the building's frame.</summary>
+            public RoomLightPlan Plan;
+
+            /// <summary>The building's frame, chunk-local: its origin and its x and z axes.</summary>
+            public Vector3 FrameOrigin;
+            public Vector3 FrameX;
+            public Vector3 FrameZ;
         }
 
         /// <summary>
@@ -63,7 +71,7 @@ namespace CityX.View
                     var glow = new RoomGlow
                     {
                         Key = plan.Key, Range = plan.LightRange, Intensity = plan.LightIntensity, Colour = plan.Colour,
-                        BounceRange = plan.BounceRange, BounceIntensity = plan.BounceIntensity,
+                        BounceRange = plan.BounceRange, BounceIntensity = plan.BounceIntensity, Plan = plan,
                     };
                     glow.Glow.SetFrame(offset, site.AxisX, site.AxisZ);
                     glow.Windows.SetFrame(offset, site.AxisX, site.AxisZ);
@@ -165,6 +173,9 @@ namespace CityX.View
                     {
                         glow.Bounces[i] = framed.FramePoint(plan.BouncePoints[i]);
                     }
+                    glow.FrameOrigin = framed.FramePoint(Vector3.zero);
+                    glow.FrameX = framed.FrameDirection(Vector3.right);
+                    glow.FrameZ = framed.FrameDirection(Vector3.forward);
                     glows.Add(glow);
                 }
             }
