@@ -67,7 +67,8 @@ My suggestions (not decided): the hub gives you a parachute for the drop (or a d
 - **You leave by jumping off with the parachute** (exists) to a random spot, or to your faction's base.
 - You **respawn here** after death.
 - **Spawn protection** for a few seconds after landing, or until you attack.
-- **Copies** of about 100 players each when it gets busy; the market board works across copies.
+- **Crowds (owner, 2026-10-22): hoping for a lot more than 100 at once**, with space for everyone to stand, and fun things: parkour, shops, maybe a duelling arena, maybe players' own shops. My suggestions: aim for **300-500 in one hub** (other games: Minecraft hubs 100-200 a copy, FFXIV and WoW cities a few hundred a copy; over 1,000 in one place is rare); a **main island about 600-800 m across** (1.5 min sprinting edge to edge) with districts so the crowd spreads out (plaza where you arrive and respawn, NPC shops and trainers, the player market, faction hall), and **side islands** for the duelling arena (40-50 m ring with stands, small 1v1 pits) and parkour (falling off a course puts you back at its start, never down into the world). Player shops: rented stalls that show what the owner has listed on the market board, so buying works across copies and while the seller is offline (not decided).
+- **Copies** only as a safety valve, opened when one is truly full; the cap is whatever the crowd test (Technical foundations) shows the game holds, not a guess. The market board works across copies.
 - **Text chat only** in the hub at first (voice everywhere else).
 
 ## The tutorial (owner, 2026-10-22)
@@ -234,6 +235,7 @@ Minecraft Factions, in the city.
 2. **A shared character database** any server can read (see Servers).
 3. **Enemy/NPC sync** between players.
 4. **Hosting, crash reports, the report button, privacy policy.**
+5. **Crowds (owner, 2026-10-22):** other players' bodies get fewer triangles the further away they are, until far enough that they are not drawn at all, and **that range shrinks when more people are around**. Every character is the 86k-triangle body today, with no lighter versions. My suggestions: a crowd budget (always show the N nearest players in full; past it, lighter versions, then nothing), distant players animated and updated less often, and anyone fighting you, your party and your faction always shown. Before the hub is built: **a crowd test** that walks 100, 300, then 500 fake players around a test scene and measures frame rate, data sent and server load, so the hub's size and cap come from measurements.
 
 ## Roadmap (first year)
 
