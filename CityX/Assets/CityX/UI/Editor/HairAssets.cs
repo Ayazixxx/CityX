@@ -190,6 +190,10 @@ namespace CityX.UIEditor
             {
                 AddScalp(baked, CharacterHair.Dreads);
             }
+            else if (bakedPath == HydeBaked)
+            {
+                FillWithCurl(baked, CharacterHair.Hyde, HydeCurlFrom, HydeCurlTo, HydeCurlTop, HydeCurlTurn);
+            }
             AssetDatabase.CreateAsset(baked, bakedPath);
             AssetDatabase.SaveAssets();
             Debug.Log($"CityX: baked {bakedPath} -- bounds {baked.bounds.min} to {baked.bounds.max}");
@@ -220,6 +224,53 @@ namespace CityX.UIEditor
                 AssetDatabase.MoveAsset(temporary, bakedPath);
                 AssetDatabase.SaveAssets();
             }
+        }
+
+        /// <summary>
+        /// The notch in Hyde's lower edge on the left (the owner's gap: the edge jumps from 29 to 10 degrees under the head's middle between
+        /// 264 and 268 degrees round): filled with the curl behind it, 254-263 degrees, its lower part turned this far forward into it.
+        /// </summary>
+        private const float HydeCurlFrom = 251.0f;
+        private const float HydeCurlTo = 264.0f;
+        private const float HydeCurlTop = 10.0f;
+        private const float HydeCurlTurn = 8.5f;
+
+        /// <summary>A curl of a style copied round the head (HairEdgeFill.CopyCurl), in the head's space as the saved fit wears it.</summary>
+        private static void FillWithCurl(Mesh mesh, string style, float fromTurn, float toTurn, float topHeight, float byTurn)
+        {
+            if (!EnsureFitSettings().TryGet(style, out CharacterHair.Fit fit))
+            {
+                Debug.LogWarning($"CityX: \"{style}\" has no saved fit -- its edge is left as it is.");
+                return;
+            }
+            Matrix4x4 worn = Matrix4x4.TRS(fit.Position, Quaternion.Euler(fit.Euler), fit.Scale);
+            Matrix4x4 back = worn.inverse;
+            var vertices = new System.Collections.Generic.List<Vector3>(mesh.vertices);
+            var normals = new System.Collections.Generic.List<Vector3>(mesh.normals);
+            var uvs = new System.Collections.Generic.List<Vector2>(mesh.uv);
+            var triangles = new System.Collections.Generic.List<int>(mesh.triangles);
+            for (int i = 0; i < vertices.Count; i++)
+            {
+                vertices[i] = worn.MultiplyPoint3x4(vertices[i]);
+                normals[i] = worn.MultiplyVector(normals[i]).normalized;
+            }
+            int copied = HairEdgeFill.CopyCurl(vertices, normals, uvs.Count > 0 ? uvs : null, triangles, FusedBodyShape.HeadRadius, fromTurn, toTurn,
+                topHeight, byTurn);
+            for (int i = 0; i < vertices.Count; i++)
+            {
+                vertices[i] = back.MultiplyPoint3x4(vertices[i]);
+                normals[i] = back.MultiplyVector(normals[i]).normalized;
+            }
+            mesh.indexFormat = vertices.Count > 65535 ? UnityEngine.Rendering.IndexFormat.UInt32 : mesh.indexFormat;
+            mesh.SetVertices(vertices);
+            mesh.SetNormals(normals);
+            if (uvs.Count > 0)
+            {
+                mesh.SetUVs(0, uvs);
+            }
+            mesh.SetTriangles(triangles, 0);
+            mesh.RecalculateBounds();
+            Debug.Log($"CityX: {style}: {copied} triangles of the curl at {fromTurn:0}-{toTurn:0} degrees copied {byTurn:0} degrees round");
         }
 
         /// <summary>
