@@ -214,15 +214,18 @@ namespace CityX.UIEditor
             return camera;
         }
 
+        /// <summary>How wide the crosshair's dot is, in design pixels (about 8 screen pixels at 1080p).</summary>
+        public const float CrosshairDotSize = 5.0f;
+
+        /// <summary>The crosshair: a small white dot you can see through (owner, 2026-10-22: "change the crosshair to a white transparent dot").</summary>
         private static GameObject BuildCrosshair(Transform parent)
         {
             var crosshair = new GameObject("Crosshair", typeof(RectTransform));
             RectTransform rect = Attach(crosshair, parent);
             Centre(rect, Vector2.zero, Vector2.zero);
 
-            var white = new Color(1.0f, 1.0f, 1.0f, 0.85f);
-            MakeRect("Horizontal", crosshair.transform, white, new Vector2(16.0f, 2.0f));
-            MakeRect("Vertical", crosshair.transform, white, new Vector2(2.0f, 16.0f));
+            Image dot = MakeRect("Dot", crosshair.transform, GunReticleView.NormalColour, new Vector2(CrosshairDotSize, CrosshairDotSize));
+            dot.sprite = CircleSprite.Dot();
             return crosshair;
         }
 
@@ -589,7 +592,7 @@ namespace CityX.UIEditor
             rect.offsetMax = new Vector2(-inset, -inset);
         }
 
-        private static void MakeRect(string name, Transform parent, Color colour, Vector2 size)
+        private static Image MakeRect(string name, Transform parent, Color colour, Vector2 size)
         {
             var go = new GameObject(name, typeof(RectTransform));
             RectTransform rect = Attach(go, parent);
@@ -599,6 +602,7 @@ namespace CityX.UIEditor
             // Nothing should ever click a crosshair, and every raycast target
             // costs work per pointer event.
             image.raycastTarget = false;
+            return image;
         }
 
         private static Font BuiltinFont()

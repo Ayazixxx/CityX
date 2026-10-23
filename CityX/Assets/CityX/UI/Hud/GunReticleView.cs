@@ -29,8 +29,9 @@ namespace CityX.UI
         public const float KillMarkerSeconds = 0.32f;
         public const float FirePulseSeconds = 0.10f;
 
-        public static readonly Color NormalColour = new Color(1.0f, 1.0f, 1.0f, 0.85f);
-        public static readonly Color ReloadingColour = new Color(1.0f, 1.0f, 1.0f, 0.35f);
+        /// <summary>The crosshair's dot, white and see-through (owner, 2026-10-22: "change the crosshair to a white transparent dot"); fainter reloading.</summary>
+        public static readonly Color NormalColour = new Color(1.0f, 1.0f, 1.0f, 0.55f);
+        public static readonly Color ReloadingColour = new Color(1.0f, 1.0f, 1.0f, 0.2f);
         public static readonly Color BlockedColour = new Color(1.0f, 0.25f, 0.2f, 0.95f);
         public static readonly Color HitColour = new Color(1.0f, 1.0f, 1.0f, 1.0f);
         public static readonly Color KillColour = new Color(1.0f, 0.15f, 0.12f, 1.0f);

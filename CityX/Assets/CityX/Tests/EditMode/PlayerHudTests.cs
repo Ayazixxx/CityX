@@ -63,6 +63,30 @@ namespace CityX.Tests
             // prefab alone does not have.
         }
 
+        /// <summary>Owner, 2026-10-22: "change the crosshair to a white transparent dot".</summary>
+        [Test]
+        public void TheCrosshairIsASmallWhiteDotYouCanSeeThrough()
+        {
+            Image[] parts = LoadHud().Crosshair.GetComponentsInChildren<Image>(true);
+            Assert.AreEqual(1, parts.Length, "the crosshair is more than one dot");
+            Image dot = parts[0];
+            Assert.IsNotNull(dot.sprite, "the dot has no picture: it is drawn as a square");
+            Color middle = dot.sprite.texture.GetPixel(dot.sprite.texture.width / 2, dot.sprite.texture.height / 2);
+            Color corner = dot.sprite.texture.GetPixel(0, 0);
+            Assert.Greater(middle.a, 0.9f, "the dot's picture is empty in the middle");
+            Assert.Less(corner.a, 0.1f, "the dot's picture fills its corners: it is a square");
+            Assert.IsTrue(dot.sprite.texture.mipmapCount > 1, "a dot this small needs mipmaps to stay round");
+            Vector2 size = dot.rectTransform.sizeDelta;
+            Assert.AreEqual(size.x, size.y, "the dot is not round");
+            Assert.LessOrEqual(size.x, 8.0f, "the dot is too big for a crosshair");
+            foreach (Color colour in new[] { dot.color, GunReticleView.NormalColour })
+            {
+                Assert.AreEqual(1.0f, Mathf.Min(colour.r, colour.g, colour.b), 1e-4f, "the dot is not white");
+                Assert.That(colour.a, Is.InRange(0.3f, 0.8f), "the dot is not see-through, or barely there");
+            }
+            Assert.Less(GunReticleView.ReloadingColour.a, GunReticleView.NormalColour.a, "the dot does not dim while reloading");
+        }
+
         /// <summary>
         /// If the death screen ships enabled, the game opens with a black
         /// overlay and a YOU DIED across it. It is on in the editor exactly

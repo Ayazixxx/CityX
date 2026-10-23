@@ -51,3 +51,11 @@ it for the chat). Real time, so a slowed game cannot slow the fade. Test: `MenuH
 ReDraw counts too (owner, 2026-10-17: "the portrait in the top left as well as the hotbar skills should go away on this redraw menu"): it is
 reached from the C menu after that has closed, so `MenuHudFade.AnyMenuOpen` also asks `PlayerRedrawStarter.Active`, and while ReDraw is up
 the crosshair fades too (`CrosshairVisibility`, a CanvasGroup on `PlayerHud.Crosshair`). Test: `RedrawRealInputPlayTests`.
+
+## The crosshair is a dot (2026-10-22)
+
+Owner: "change the crosshair to a white transparent dot". The white plus (two 16 x 2 bars) is one round dot, 5 design pixels across (about 8
+on a 1080p screen), white at 55% (`GunReticleView.NormalColour`, which colours it every frame; 20% while reloading, red when the barrel is
+blocked, the hit marker's ticks round it as before). Its picture is a 32-pixel circle with mipmaps (`CircleSprite.Dot`,
+`UI/CrosshairDotTexture.asset`): the portrait's 256-pixel circle has none to shrink that far with. Built by `PlayerHudBuilder` with the
+scene. Test: `PlayerHudTests.TheCrosshairIsASmallWhiteDotYouCanSeeThrough`.
