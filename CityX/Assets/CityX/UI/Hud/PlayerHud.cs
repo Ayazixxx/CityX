@@ -262,16 +262,23 @@ namespace CityX.UI
             Transform body = Target.transform;
             Animator animator = Target.GetComponentInChildren<Animator>();
             Transform skeleton = animator != null ? animator.transform : body;
-            bool first = _portraitPose == null || _portraitBody != body;
+            // The pose of the first portrait, taken at load, is kept for good: a later body (a respawn, the networked body that appears when
+            // hosting) wears it too, not whatever it is doing then (owner, 2026-10-23: a hand at the face after taking out the combat sword;
+            // "i dont want it to change from the position it is at when you load in").
+            bool first = _portraitPose == null;
             PoseSnapshot current = first ? null : PoseSnapshot.Of(skeleton);
             Transform[] hands = HeldItemRoots(body);
             var moved = new List<KeyValuePair<Renderer, int>>();
             var standIns = new List<GameObject>();
             try
             {
-                if (!first)
+                if (!first && _portraitBody == body)
                 {
                     _portraitPose.Apply();
+                }
+                else if (!first)
+                {
+                    _portraitPose.ApplyTo(skeleton);
                 }
                 float top = headRenderer.bounds.max.y;
                 Bounds headBounds = headRenderer.bounds;
