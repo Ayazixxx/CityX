@@ -119,7 +119,7 @@ PrefabInstance:
       addedObject: {fileID: 4178808262995625697}
     - targetCorrespondingSourceObject: {fileID: 8412405609517267180, guid: c573dea59fa2558478b70344c659896a, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 4808746600356394458}
+      addedObject: {fileID: 6118230492854182736}
   m_SourcePrefab: {fileID: 100100000, guid: c573dea59fa2558478b70344c659896a, type: 3}
 --- !u!1 &5771231832799346164 stripped
 GameObject:
@@ -401,6 +401,10 @@ MonoBehaviour:
     Prefab: {fileID: 2686815821401831974, guid: b719b375fd4a6f74fabcf699e927ac9f, type: 3}
   - ItemId: black_t_shirt
     Prefab: {fileID: 3676163138410343625, guid: c889a408fb5389f4090a70d060c70d53, type: 3}
+  - ItemId: long_sleeve_t_shirt
+    Prefab: {fileID: 3390546682514234531, guid: e28cccf1c1343d14d8fd416796725d45, type: 3}
+  - ItemId: black_long_sleeve_t_shirt
+    Prefab: {fileID: 5334946810275182409, guid: 70143437cc357d14d8a0f83c17d0dcd2, type: 3}
 --- !u!114 &752554928827252169
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -649,7 +653,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 17deb901f9bbd384ea0ad42e0b8123af, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CityX.Character::CityX.Character.BodySizeAbility
---- !u!114 &4808746600356394458
+--- !u!114 &6118230492854182736
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

@@ -19,6 +19,9 @@
 #   7. skinned from the body (../garment_rig.py): each sleeve on its arm, the shirt's body on the torso, never a leg or an arm; round the
 #      armhole's seam the half-turning shoulder bone, fading out down the sleeve and into the body; the collar's sides on the neck;
 #   8. written for BlenderGarmentMesh.
+# With --long-sleeves (owner, 2026-10-22: "make a longsleeve version of the tshirt both black and white"), each sleeve's tube goes on down
+# the forearm to a cuff just above the wrist (LONG_CUFF), SLEEVE_WALL off the skin where Meshy's short sleeve ends; its template and test
+# design are written as long_sleeve_*.png.
 import os
 import sys
 
@@ -32,8 +35,11 @@ from mathutils.bvhtree import BVHTree
 HERE = os.path.dirname(os.path.abspath(__file__))
 OCTASLASH = os.path.join(os.path.dirname(HERE), "Octaslash")
 args = sys.argv[sys.argv.index("--") + 1:]
+LONG = "--long-sleeves" in args
+args = [a for a in args if a != "--long-sleeves"]
 CUT, OUT = args[0], args[1]
 PREVIEW = args[2] if len(args) > 2 else None
+DRAWINGS = "long_sleeve" if LONG else "tshirt"   # the template's and the test design's names
 
 SHOULDERS = {"l": np.array([0.35, 0.0, 1.9]), "r": np.array([-0.35, 0.0, 1.9])}   # Blender +x is the body's left, -y its front
 HANDS = {"l": np.array([0.545, 0.0, 1.033]), "r": np.array([-0.545, 0.0, 1.033])}
@@ -80,6 +86,11 @@ SLEEVE_SPACING, SLEEVE_ROUNDING = 0.03, 4    # the made sleeve's rings this far 
 SLEEVE_REACH, SLEEVE_WALL = 0.045, 0.02      # the original sleeve read up to this far off the arm's skin; where it had none, this far off it
 SLEEVE_EASE = 0.25           # the top part of the sleeve over which it eases from the armhole's own distance off the arm to its own
 CUFF_ROLL, CUFF_ROLL_STEPS = 0.005, 4        # the cuff's edge rolled under in a half turn of this radius
+LONG_CUFF = 0.86             # a long sleeve's cuff, this far down the arm from the shoulder: just above the wrist (the hand's bone starts at
+                             # 0.889, the forearm narrowest at 0.84-0.86)
+LONG_RING_SPACING = 0.04     # and its rings this far apart (SLEEVE_SPACING's 3 cm all the way down came to 10,105 triangles, over a top's 10k)
+LONG_SHOULDER_RINGS = 4      # but the first rings, over the shoulder, as close as a short sleeve's (4 cm there laid the first faces over the
+                             # shoulder's cloth: model_qa found two z-fighting)
 PATCH_SPACING, PATCH_SMOOTHING = 0.03, 200    # the side's new points this far apart; passes blending their distance off the body
 SLEEVE_ROUND, TORSO_ROUND = 0.12, 0.28       # the round frames' radii, so a step round them is about as long as a step along them
 PIECES = ["front", "back", "sleeve_r", "sleeve_l"]   # 6. where each piece goes on the texture (u0, v0, u1, v1): the front on the left, the
@@ -450,11 +461,16 @@ def sew_sleeve(bm, top, side, original, cuff, plane):
     edge = np.array([to_frame(p) for p in cuff])
     order = np.argsort(edge[:, 0])
     cuff_at = np.interp(turn, edge[order, 0] / SLEEVE_ROUND, edge[order, 1], period=2.0 * np.pi)   # how far down the arm the cuff is
-    rows = int(np.ceil(np.max(cuff_at - rim[:, 1]) / SLEEVE_SPACING))
+    length = np.max(cuff_at - rim[:, 1])
+    rows = int(np.ceil(length / SLEEVE_SPACING))
+    rings = np.arange(1, rows + 1) / rows   # each ring's share of the way down to the cuff
+    if LONG:   # over the shoulder the short sleeve's rings, then wider apart down the arm
+        shoulder = SLEEVE_SPACING * np.arange(1, LONG_SHOULDER_RINGS + 1)
+        arm = np.linspace(shoulder[-1], length, int(np.ceil((length - shoulder[-1]) / LONG_RING_SPACING)) + 1)[1:]
+        rings = np.concatenate([shoulder, arm]) / length
     grid = [list(top)]
     made = []
-    for k in range(1, rows + 1):
-        s = k / rows
+    for s in rings:
         along = rim[:, 1] + (cuff_at - rim[:, 1]) * s
         off = np.empty(len(rim))
         for j in range(len(rim)):
@@ -718,6 +734,10 @@ original = BVHTree.FromBMesh(bm)   # the sleeves' shape is read off the shirt as
 co = np.array([v.co[:] for v in bm.verts])
 cuffs = {side: np.array([v.co[:] for e in min(openings(bm), key=lambda loop: np.linalg.norm(
     np.mean([v.co[:] for e in loop for v in e.verts], 0) - HANDS[side])) for v in e.verts]) for side in SHOULDERS}
+if LONG:   # the cuff a ring round the forearm just above the wrist, square to the arm
+    for side in SHOULDERS:
+        from_sleeve = sleeve_frame(side)[1]
+        cuffs[side] = np.array([from_sleeve(u, LONG_CUFF, ARM_R) for u in np.linspace(-np.pi, np.pi, 48, endpoint=False) * SLEEVE_ROUND])
 planes = {}
 field = np.full(len(co), -1.0)
 for side in SHOULDERS:
@@ -925,7 +945,7 @@ for name, height in TEMPLATE_MARKS.items():
     draw(np.array([x, y - 18]), np.array([x, y + 18]), TEMPLATE_EDGE)
 template = bpy.data.images.new("TShirtTemplate", size, size)
 template.pixels.foreach_set(np.concatenate([image, np.ones((size, size, 1))], -1).ravel().astype(np.float32))
-template.filepath_raw = os.path.join(HERE, "tshirt_uv_template.png")
+template.filepath_raw = os.path.join(HERE, DRAWINGS + "_uv_template.png")
 template.file_format = "PNG"
 template.save()
 print("WROTE %s" % template.filepath_raw)
@@ -941,7 +961,7 @@ for name, height in TEMPLATE_MARKS.items():
     test[(xs - x) ** 2 + (ys - y) ** 2 < (0.12 * fit * size) ** 2] = (0.8, 0.1, 0.1)
 design = bpy.data.images.new("TShirtTestDesign", size, size)
 design.pixels.foreach_set(np.concatenate([test, np.ones((size, size, 1))], -1).ravel().astype(np.float32))
-design.filepath_raw = os.path.join(HERE, "tshirt_test_design.png")
+design.filepath_raw = os.path.join(HERE, DRAWINGS + "_test_design.png")
 design.file_format = "PNG"
 design.save()
 print("WROTE %s" % design.filepath_raw)
@@ -1029,4 +1049,4 @@ if PREVIEW:
     mesh.materials.append(material)
     preview([shirt, body, head], os.path.join(PREVIEW, "shirt_on_body.png"), [(1, 1, 1, 1), (0.7, 0.7, 0.7, 1), (0.7, 0.7, 0.7, 1)], "TEXTURE")
     select_only(shirt)
-    bpy.ops.export_scene.gltf(filepath=os.path.join(PREVIEW, "tshirt.glb"), export_format="GLB", use_selection=True)   # for tools/model_qa.py
+    bpy.ops.export_scene.gltf(filepath=os.path.join(PREVIEW, DRAWINGS + ".glb"), export_format="GLB", use_selection=True)   # for tools/model_qa.py

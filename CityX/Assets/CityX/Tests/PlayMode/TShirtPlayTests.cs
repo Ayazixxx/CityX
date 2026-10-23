@@ -11,10 +11,20 @@ namespace CityX.Tests
 {
     /// <summary>
     /// The T-Shirt worn on the real player: the body under it is hidden and given back when it comes off, and through a sprint (the clip lowers
-    /// the head 3.4 cm along the neck) the head never sinks into the collar, whose sides follow the neck.
+    /// the head 3.4 cm along the neck) the head never sinks into the collar, whose sides follow the neck. The Long Sleeve T-Shirt the same, its
+    /// sleeves bending at the elbows.
     /// </summary>
+    [TestFixture("TShirt")]
+    [TestFixture("LongSleeveTShirt")]
     public sealed class TShirtPlayTests
     {
+        private readonly string _prefab;
+
+        public TShirtPlayTests(string prefab)
+        {
+            _prefab = prefab;
+        }
+
         private const int StandFrames = 20;
         private const int SprintFrames = 170;
 
@@ -51,7 +61,7 @@ namespace CityX.Tests
             ground.name = "TestGround";
             ground.transform.position = new Vector3(0.0f, -0.5f, 0.0f);
             ground.transform.localScale = new Vector3(400.0f, 1.0f, 400.0f);
-            _shirt = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Wearables/TShirt.prefab"),
+            _shirt = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/CityX/Wearables/{_prefab}.prefab"),
                 new Vector3(30.0f, 0.5f, 30.0f), Quaternion.identity);
 #endif
             yield return null;
@@ -187,7 +197,7 @@ namespace CityX.Tests
                 Object.Destroy(baked);
             }
             int strained = System.Array.FindAll(edgeWorst, s => s > Strained).Length;
-            Debug.Log($"TShirt sprint: the cloth drawn out {worst:0.00}x at the most, at {where:F3} (bind pose), frame {when}; " +
+            Debug.Log($"{_prefab} sprint: the cloth drawn out {worst:0.00}x at the most, at {where:F3} (bind pose), frame {when}; " +
                 $"{strained} of its triangles' {triangles.Length} sides past {Strained}x");
             Assert.Less(worst, MostStretch, $"the shirt's cloth was drawn out {worst:0.00}x at {where:F3} (bind pose), frame {when}");
             Assert.LessOrEqual(strained, MostStrained, $"{strained} edges of the shirt were drawn out past {Strained}x");

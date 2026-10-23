@@ -126,3 +126,21 @@ Owner: "make a black version of the T-Shirt". The T-Shirt's own mesh, fit and fo
 `BlackTShirt.prefab`, colour 0.05/0.05/0.055: not pure black, so the folds still read), item `black_t_shirt`, `/equip black` (also
 `blackshirt`, `blacktshirt`). In every item list (scene player, networked player, select screen). Tests: `BlackTShirtTests`; `TShirtCapture`
 shoots `tshirt-black-*.png`.
+
+## The Long Sleeve T-Shirts (2026-10-22)
+
+Owner: "make a longsleeve version of the tshirt both black and white". The same build (`tshirt_build.py --long-sleeves`, writing
+`Models/LongSleeveTShirt.json` and `long_sleeve_uv_template.png` / `long_sleeve_test_design.png`): each sleeve's tube is made exactly as the
+T-Shirt's is (its shape read off Meshy's sleeve, `SLEEVE_WALL` off the skin where Meshy had none) but carried on down the forearm to a
+cuff ring square to the arm at `LONG_CUFF` (0.86 m along the arm from the shoulder: the forearm is narrowest at 0.84-0.86, the hand's bone
+starts at 0.889), the cuff rolled under as the T-Shirt's is. Its rings are 3 cm apart over the shoulder, as the T-Shirt's, then 4 cm
+(`LONG_RING_SPACING`; at 3 cm all the way down it came to 10,105 triangles, and 4 cm from the armhole on laid two faces over the
+shoulder's cloth). 8,921 triangles (a top: fine up to 10,000), 415 texture pixels per metre against the T-Shirt's 479 (its sleeves take
+more of the same map); `tools/model_qa.py` passes every check. Without the option the build writes the T-Shirt byte for byte as before.
+
+In the game (`TShirtBuilder.BuildLongSleeve`, `BuildBlackLongSleeve`): items `long_sleeve_t_shirt` ("Long Sleeve T-Shirt", the T-Shirt's
+white cotton) and `black_long_sleeve_t_shirt` ("Black Long Sleeve T-Shirt", the Black T-Shirt's black cotton); `/equip longsleeve`,
+`/equip blacklongsleeve` (also `long_sleeve`, `longsleeveblack`). The forearms are hidden under the sleeves too, all but the wrist past
+each cuff (`SleeveCuff`, as at the T-Shirt's short cuffs). On the ground it lies as the T-Shirt's folded model. In every item list.
+Tests: `TShirtTests` and `TShirtPlayTests` run for both shirts (the long one's sleeves end just above the wrist, not over the hand),
+`BlackTShirtTests` for both black ones; `TShirtCapture` shoots `tshirt-longsleeve-*.png` and `tshirt-longsleeveblack-*.png`.

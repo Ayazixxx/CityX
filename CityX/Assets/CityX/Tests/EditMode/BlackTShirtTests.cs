@@ -7,30 +7,49 @@ using UnityEngine;
 
 namespace CityX.Tests
 {
-    /// <summary>The Black T-Shirt (owner, 2026-10-22: "make a black version of the T-Shirt"): its own item, the T-Shirt's mesh and fit, black cotton.</summary>
+    /// <summary>
+    /// The black shirts (owner, 2026-10-22: "make a black version of the T-Shirt", then "make a longsleeve version of the tshirt both black and
+    /// white"): each its own item, the white shirt's mesh and fit, in black cotton.
+    /// </summary>
+    [TestFixture(TShirtBuilder.PrefabPath, TShirtBuilder.BlackPrefabPath, ItemRegistry.BlackTShirt, "Black T-Shirt")]
+    [TestFixture(TShirtBuilder.LongSleevePrefabPath, TShirtBuilder.BlackLongSleevePrefabPath, ItemRegistry.BlackLongSleeveTShirt,
+        "Black Long Sleeve T-Shirt")]
     public sealed class BlackTShirtTests
     {
-        [Test]
-        public void TheBlackTShirtIsATop()
+        private readonly string _whitePrefab;
+        private readonly string _blackPrefab;
+        private readonly string _itemId;
+        private readonly string _displayName;
+
+        public BlackTShirtTests(string whitePrefab, string blackPrefab, string itemId, string displayName)
         {
-            Assert.IsTrue(ItemRegistry.TryGet(ItemRegistry.BlackTShirt, out ItemDefinition shirt));
-            Assert.AreEqual("Black T-Shirt", shirt.DisplayName);
+            _whitePrefab = whitePrefab;
+            _blackPrefab = blackPrefab;
+            _itemId = itemId;
+            _displayName = displayName;
+        }
+
+        [Test]
+        public void TheBlackShirtIsATop()
+        {
+            Assert.IsTrue(ItemRegistry.TryGet(_itemId, out ItemDefinition shirt));
+            Assert.AreEqual(_displayName, shirt.DisplayName);
             Assert.AreEqual(EquipSlots.Torso, shirt.EquipSlot);
             Assert.IsTrue(shirt.IsWearable);
         }
 
         [Test]
-        public void ItIsTheTShirtInBlackCotton()
+        public void ItIsTheWhiteShirtInBlackCotton()
         {
-            TShirt plain = Prefab(TShirtBuilder.PrefabPath);
-            TShirt black = Prefab(TShirtBuilder.BlackPrefabPath);
-            Assert.AreEqual(ItemRegistry.BlackTShirt, black.ItemId);
-            Assert.AreSame(plain.GarmentMesh, black.GarmentMesh, "the black shirt is not the T-Shirt's own mesh");
-            CollectionAssert.AreEqual(plain.HiddenBodyTriangles, black.HiddenBodyTriangles, "the black shirt hides the body differently");
+            TShirt white = Prefab(_whitePrefab);
+            TShirt black = Prefab(_blackPrefab);
+            Assert.AreEqual(_itemId, black.ItemId);
+            Assert.AreSame(white.GarmentMesh, black.GarmentMesh, "the black shirt is not the white one's own mesh");
+            CollectionAssert.AreEqual(white.HiddenBodyTriangles, black.HiddenBodyTriangles, "the black shirt hides the body differently");
             Color colour = black.GarmentMaterial.GetColor("_BaseColor");
             Assert.Less(Mathf.Max(colour.r, colour.g, colour.b), 0.1f, "the shirt is not black");
             Assert.Greater(colour.r, 0.0f, "pure black hides the shirt's folds");
-            Assert.AreNotSame(plain.GarmentMaterial, black.GarmentMaterial, "the black shirt dyed the white one");
+            Assert.AreNotSame(white.GarmentMaterial, black.GarmentMaterial, "the black shirt dyed the white one");
         }
 
         private static TShirt Prefab(string path)

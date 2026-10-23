@@ -9,7 +9,8 @@ namespace CityX.WearablesEditor
     /// <summary>
     /// Builds the T-Shirt: Meshy's tee cut off its mannequin, fitted, evened out at the front and back, reduced and laid out for designs by
     /// SourceArt/TShirt/tshirt_build.py into Models/TShirt.json. It is plain white cloth. A printed shirt is the same shirt with its own
-    /// texture (a <see cref="ShirtPrint"/> printed by <see cref="ShirtPrintBaker"/>) and its own item (docs/TSHIRT.md).
+    /// texture (a <see cref="ShirtPrint"/> printed by <see cref="ShirtPrintBaker"/>) and its own item (docs/TSHIRT.md). The long-sleeved shirt
+    /// is the same build with its sleeves down to the wrists (--long-sleeves into Models/LongSleeveTShirt.json), in white and in black.
     /// </summary>
     public static class TShirtBuilder
     {
@@ -25,6 +26,12 @@ namespace CityX.WearablesEditor
         public const string RedCamoPrefabPath = WearablesFolder + "/RedCamoTShirt.prefab";
         public const string RedCamoPrintPath = PrintsFolder + "/RedCamoPrint.asset";
         public const string BlackPrefabPath = WearablesFolder + "/BlackTShirt.prefab";
+
+        /// <summary>The long-sleeved shirt: its own mesh (tshirt_build.py --long-sleeves), in white and in black.</summary>
+        public const string LongSleevePrefabPath = WearablesFolder + "/LongSleeveTShirt.prefab";
+        public const string BlackLongSleevePrefabPath = WearablesFolder + "/BlackLongSleeveTShirt.prefab";
+        private const string LongSleeveSourcePath = "Assets/CityX/Wearables/Models/LongSleeveTShirt.json";
+        public const string LongSleeveMeshPath = "Assets/CityX/Wearables/LongSleeveTShirtMesh.asset";
 
         /// <summary>The shirt as it lies on the ground before it is picked up, folded (it is shown worn once equipped).</summary>
         private const string FoldedSourcePath = "Assets/CityX/Wearables/Models/TShirtFolded.glb";
@@ -42,6 +49,12 @@ namespace CityX.WearablesEditor
         /// covers it, the upper arms came through at the back of the armholes, where the coverage rays found the seam.
         /// </summary>
         private static readonly HumanBodyBones[] AlwaysHidden = { HumanBodyBones.Spine, HumanBodyBones.LeftUpperArm, HumanBodyBones.RightUpperArm };
+
+        /// <summary>Under long sleeves the forearms too, but for the wrist past each cuff (Shown).</summary>
+        private static readonly HumanBodyBones[] AlwaysHiddenUnderLongSleeves =
+        {
+            HumanBodyBones.Spine, HumanBodyBones.LeftUpperArm, HumanBodyBones.RightUpperArm, HumanBodyBones.LeftLowerArm, HumanBodyBones.RightLowerArm,
+        };
 
         /// <summary>
         /// Bind pose, the bare upper arm past the cuffs (SleeveCuff), down to the elbow: further out than ArmFromX (its inner side is at 0.35
@@ -100,7 +113,40 @@ namespace CityX.WearablesEditor
                 return null;
             }
             BuildFoldedMesh(mesh);
-            return Save(mesh, BlenderGarmentMesh.PlainMaterial(MaterialPath, Cotton, FabricSmoothness), PrefabPath, "TShirt", ItemRegistry.TShirt);
+            return Save(mesh, BlenderGarmentMesh.PlainMaterial(MaterialPath, Cotton, FabricSmoothness), PrefabPath, "TShirt", ItemRegistry.TShirt,
+                AlwaysHidden);
+        }
+
+        /// <summary>
+        /// The Long Sleeve T-Shirt (owner, 2026-10-22: "make a longsleeve version of the tshirt both black and white"): the T-Shirt with its
+        /// sleeves down to the wrists (tshirt_build.py --long-sleeves into Models/LongSleeveTShirt.json), in the T-Shirt's white cotton. It lies
+        /// on the ground as the T-Shirt's folded model, its long sleeves folded behind.
+        /// </summary>
+        [MenuItem("CityX/Rebuild Long Sleeve T-Shirt")]
+        public static GameObject BuildLongSleeve()
+        {
+            Mesh mesh = BlenderGarmentMesh.Bake(LongSleeveSourcePath, "LongSleeveTShirtMesh", LongSleeveMeshPath);
+            if (mesh == null)
+            {
+                return null;
+            }
+            Material material = BlenderGarmentMesh.PlainMaterial($"{WearablesFolder}/LongSleeveTShirt.mat", Cotton, FabricSmoothness);
+            return Save(mesh, material, LongSleevePrefabPath, "LongSleeveTShirt", ItemRegistry.LongSleeveTShirt, AlwaysHiddenUnderLongSleeves);
+        }
+
+        /// <summary>The Black Long Sleeve T-Shirt: the Long Sleeve T-Shirt (built first) in the Black T-Shirt's black cotton.</summary>
+        [MenuItem("CityX/Rebuild Black Long Sleeve T-Shirt")]
+        public static GameObject BuildBlackLongSleeve()
+        {
+            Mesh mesh = AssetDatabase.LoadAssetAtPath<Mesh>(LongSleeveMeshPath);
+            if (mesh == null)
+            {
+                Debug.LogError($"CityX: no Long Sleeve T-Shirt mesh at {LongSleeveMeshPath} -- build the Long Sleeve T-Shirt first.");
+                return null;
+            }
+            Material material = BlenderGarmentMesh.PlainMaterial($"{WearablesFolder}/BlackLongSleeveTShirt.mat", BlackCotton, FabricSmoothness);
+            return Save(mesh, material, BlackLongSleevePrefabPath, "BlackLongSleeveTShirt", ItemRegistry.BlackLongSleeveTShirt,
+                AlwaysHiddenUnderLongSleeves);
         }
 
         /// <summary>
@@ -160,7 +206,7 @@ namespace CityX.WearablesEditor
                 return null;
             }
             Material material = BlenderGarmentMesh.PlainMaterial($"{WearablesFolder}/BlackTShirt.mat", BlackCotton, FabricSmoothness);
-            return Save(mesh, material, BlackPrefabPath, "BlackTShirt", ItemRegistry.BlackTShirt);
+            return Save(mesh, material, BlackPrefabPath, "BlackTShirt", ItemRegistry.BlackTShirt, AlwaysHidden);
         }
 
         /// <summary>The Blood Raven T-Shirt: the T-Shirt (built first) printed with the Blood Raven logo where its print says.</summary>
@@ -200,7 +246,7 @@ namespace CityX.WearablesEditor
             Print(print);
             Material material = BlenderGarmentMesh.TexturedMaterial($"{WearablesFolder}/{name}TShirt.mat", ShirtPrintBaker.TexturePathFor(print),
                 FabricSmoothness);
-            return Save(mesh, material, $"{WearablesFolder}/{name}TShirt.prefab", $"{name}TShirt", itemId);
+            return Save(mesh, material, $"{WearablesFolder}/{name}TShirt.prefab", $"{name}TShirt", itemId, AlwaysHidden);
         }
 
         /// <summary>Prints <paramref name="print"/> on the T-Shirt's texture, in the shirt's cotton.</summary>
@@ -226,15 +272,18 @@ namespace CityX.WearablesEditor
             EditorGUIUtility.PingObject(Selection.activeObject);
         }
 
-        /// <summary>A shirt prefab of the mesh in <paramref name="material"/>, the body under it hidden as the plain T-Shirt hides it.</summary>
-        private static GameObject Save(Mesh mesh, Material material, string prefabPath, string rootName, string itemId)
+        /// <summary>
+        /// A shirt prefab of the mesh in <paramref name="material"/>, the body under it hidden as the plain T-Shirt hides it: the
+        /// <paramref name="alwaysHidden"/> bones' skin, but for what the shirt leaves bare (Shown).
+        /// </summary>
+        private static GameObject Save(Mesh mesh, Material material, string prefabPath, string rootName, string itemId, HumanBodyBones[] alwaysHidden)
         {
             List<SleeveCuff> cuffs = SleeveCuff.Of(mesh, ArmFromX);
             if (cuffs.Count != Cuffs)
             {
-                Debug.LogError($"CityX: the T-Shirt has {cuffs.Count} cuffs, not {Cuffs}; its sleeves' arms stay hidden down to the hands.");
+                Debug.LogError($"CityX: {rootName} has {cuffs.Count} cuffs, not {Cuffs}; its sleeves' arms stay hidden down to the hands.");
             }
-            byte[] hidden = BodyUnderGarment.HiddenTriangles(mesh, AlwaysHidden, new HumanBodyBones[0], new Bounds(), HiddenWhereCovered,
+            byte[] hidden = BodyUnderGarment.HiddenTriangles(mesh, alwaysHidden, new HumanBodyBones[0], new Bounds(), HiddenWhereCovered,
                 new Bounds(), out int bodyTriangles, centre => Shown(centre, cuffs));
             GameObject saved = SkinnedGarmentBuilder.BuildPrefabFromMesh<TShirt>(
                 mesh, material, prefabPath, rootName, 1.0f, 0.0f, 0.0f,

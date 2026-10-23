@@ -42,7 +42,7 @@ namespace CityX.Tests
             conversion.GetMethod("LoadImage", new[] { typeof(Texture2D), typeof(byte[]) }).Invoke(null,
                 new object[] { design, System.IO.File.ReadAllBytes(System.IO.Path.Combine(Application.dataPath, TestDesignPath)) });
 
-            foreach (string look in new[] { "plain", "design", "bloodraven", "redcamo", "black" })
+            foreach (string look in new[] { "plain", "design", "bloodraven", "redcamo", "black", "longsleeve", "longsleeveblack" })
             {
                 GameObject player = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Character/Player.prefab"),
                     new Vector3(0.0f, 0.05f, 0.0f), Quaternion.identity);
@@ -50,7 +50,9 @@ namespace CityX.Tests
                 var locomotion = player.GetComponent<PlayerLocomotion>();
                 string prefab = look == "bloodraven" ? "Assets/CityX/Wearables/BloodRavenTShirt.prefab"
                     : look == "redcamo" ? "Assets/CityX/Wearables/RedCamoTShirt.prefab"
-                    : look == "black" ? "Assets/CityX/Wearables/BlackTShirt.prefab" : "Assets/CityX/Wearables/TShirt.prefab";
+                    : look == "black" ? "Assets/CityX/Wearables/BlackTShirt.prefab"
+                    : look == "longsleeve" ? "Assets/CityX/Wearables/LongSleeveTShirt.prefab"
+                    : look == "longsleeveblack" ? "Assets/CityX/Wearables/BlackLongSleeveTShirt.prefab" : "Assets/CityX/Wearables/TShirt.prefab";
                 GameObject shirtObject = Object.Instantiate(UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(prefab),
                     new Vector3(30.0f, 0.5f, 30.0f), Quaternion.identity);
                 var shirt = shirtObject.GetComponent<TShirt>();

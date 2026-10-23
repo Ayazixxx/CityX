@@ -41,6 +41,8 @@ namespace CityX.CharacterEditor
             (ItemRegistry.BloodRavenTShirt, "Assets/CityX/Wearables/BloodRavenTShirt.prefab"),
             (ItemRegistry.RedCamoTShirt, "Assets/CityX/Wearables/RedCamoTShirt.prefab"),
             (ItemRegistry.BlackTShirt, "Assets/CityX/Wearables/BlackTShirt.prefab"),
+            (ItemRegistry.LongSleeveTShirt, "Assets/CityX/Wearables/LongSleeveTShirt.prefab"),
+            (ItemRegistry.BlackLongSleeveTShirt, "Assets/CityX/Wearables/BlackLongSleeveTShirt.prefab"),
         };
 
         /// <summary>

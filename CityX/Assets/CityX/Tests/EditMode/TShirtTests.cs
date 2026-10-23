@@ -11,11 +11,30 @@ namespace CityX.Tests
     /// The T-Shirt (owner, 2026-10-19/20: "a wearable top called T-Shirt ... flatten out the lump and wrinks at the front so we can cleanly put
     /// a various textures and logos on here ... lower the face count"; "detatch the sleeve from the body"): a top in the registry, within its
     /// budget, worn from the shoulders to the hips with short sleeves, skinned only to what a shirt covers, its sleeves sewn to its body
-    /// along seams that never open, and laid out so a design's front lands on the chest and its back on the back.
+    /// along seams that never open, and laid out so a design's front lands on the chest and its back on the back. The Long Sleeve T-Shirt
+    /// (owner, 2026-10-22: "make a longsleeve version of the tshirt both black and white") is held to all of it, its sleeves down to the wrists.
     /// </summary>
+    [TestFixture("TShirt", ItemRegistry.TShirt, "T-Shirt", 8000, false)]
+    [TestFixture("LongSleeveTShirt", ItemRegistry.LongSleeveTShirt, "Long Sleeve T-Shirt", 10000, true)]
     public sealed class TShirtTests
     {
-        private const int TriangleBudget = 8000;
+        private readonly string _prefab;
+        private readonly string _itemId;
+        private readonly string _displayName;
+        private readonly int _triangleBudget;
+        private readonly bool _longSleeves;
+
+        public TShirtTests(string prefab, string itemId, string displayName, int triangleBudget, bool longSleeves)
+        {
+            _prefab = prefab;
+            _itemId = itemId;
+            _displayName = displayName;
+            _triangleBudget = triangleBudget;
+            _longSleeves = longSleeves;
+        }
+
+        /// <summary>A long sleeve's cuff lies no further than this up the forearm from the wrist (tshirt_build.py's LONG_CUFF: 3 cm along the arm).</summary>
+        private const float LongCuffAboveWrist = 0.06f;
 
         /// <summary>Where on the template each piece lies (tshirt_build.py's PIECE_BOXES): the front on the left of the top, the back on the right.</summary>
         private static readonly Rect FrontPiece = new Rect(0.0f, 0.4f, 0.5f, 0.6f);
@@ -40,29 +59,29 @@ namespace CityX.Tests
         private const float SleeveRingDepth = 0.02f;
         private const float SleeveGap = 45.0f;
 
-        private static SkinnedGarment Shirt()
+        private SkinnedGarment Shirt()
         {
-            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/CityX/Wearables/TShirt.prefab");
-            Assert.IsNotNull(prefab, "no TShirt.prefab: rebuild the scene (CityMassingSceneBuilder)");
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/CityX/Wearables/{_prefab}.prefab");
+            Assert.IsNotNull(prefab, $"no {_prefab}.prefab: rebuild the scene (CityMassingSceneBuilder)");
             var shirt = prefab.GetComponent<TShirt>();
             Assert.IsNotNull(shirt.GarmentMesh, "the shirt has no mesh");
             return shirt;
         }
 
         [Test]
-        public void TheTShirtIsATopCalledTShirt()
+        public void TheShirtIsATopCalledByItsName()
         {
-            Assert.IsTrue(ItemRegistry.TryGet(ItemRegistry.TShirt, out ItemDefinition shirt));
-            Assert.AreEqual("T-Shirt", shirt.DisplayName);
+            Assert.IsTrue(ItemRegistry.TryGet(_itemId, out ItemDefinition shirt));
+            Assert.AreEqual(_displayName, shirt.DisplayName);
             Assert.AreEqual(EquipSlots.Torso, shirt.EquipSlot);
-            Assert.AreEqual(ItemRegistry.TShirt, Shirt().ItemId);
+            Assert.AreEqual(_itemId, Shirt().ItemId);
         }
 
         [Test]
         public void TheShirtIsWithinItsBudgetAndHidesTheBodyItCovers()
         {
             SkinnedGarment shirt = Shirt();
-            Assert.LessOrEqual(shirt.GarmentMesh.triangles.Length / 3, TriangleBudget);
+            Assert.LessOrEqual(shirt.GarmentMesh.triangles.Length / 3, _triangleBudget);
             Assert.AreEqual(shirt.GarmentMesh.vertexCount, shirt.GarmentMesh.uv.Length, "the shirt has no texture coordinates for a design");
             Assert.IsNotNull(shirt.HiddenBodyTriangles, "the shirt hides none of the body under it");
             Assert.AreEqual((shirt.HiddenFromBodyTriangles + 7) / 8, shirt.HiddenBodyTriangles.Length);
@@ -189,7 +208,7 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void TheShirtCoversTheShouldersToTheHipsWithShortSleeves()
+        public void TheShirtCoversTheShouldersToTheHipsAndItsSleevesEndWhereTheyShould()
         {
             Bounds bounds = Shirt().GarmentMesh.bounds;
             Assert.Greater(bounds.max.y, BodyRig.ShoulderY, "the shirt does not reach the shoulders");
@@ -198,12 +217,24 @@ namespace CityX.Tests
             Assert.Greater(bounds.min.y, BodyRig.HipY - 0.1f, "the shirt hangs down the thighs");
             Assert.Greater(bounds.max.x, BodyRig.ShoulderX + 0.1f, "no sleeve reaches out along the arm");
             Assert.Greater(bounds.min.y, 0.0f);
+            float lowestSleeve = float.MaxValue;
             foreach (Vector3 v in Shirt().GarmentMesh.vertices)
             {
                 if (Mathf.Abs(v.x) > BodyRig.ShoulderX + 0.05f)
                 {
-                    Assert.Greater(v.y, (BodyRig.ShoulderY + BodyRig.HandY) / 2.0f, "a sleeve reaches down past the elbow: it is a short-sleeved shirt");
+                    lowestSleeve = Mathf.Min(lowestSleeve, v.y);
                 }
+            }
+            float elbow = BodyRig.ShoulderY + BodyRig.ElbowT * (BodyRig.HandY - BodyRig.ShoulderY);
+            float wrist = BodyRig.ShoulderY + BodyRig.WristT * (BodyRig.HandY - BodyRig.ShoulderY);
+            if (_longSleeves)
+            {
+                Assert.Less(lowestSleeve, wrist + LongCuffAboveWrist, "a long sleeve stops short of the wrist");
+                Assert.Greater(lowestSleeve, wrist, "a long sleeve reaches down over the hand");
+            }
+            else
+            {
+                Assert.Greater(lowestSleeve, elbow, "a sleeve reaches down past the elbow: it is a short-sleeved shirt");
             }
         }
 
