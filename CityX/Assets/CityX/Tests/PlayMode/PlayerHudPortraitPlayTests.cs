@@ -363,33 +363,6 @@ namespace CityX.Tests
 #endif
         }
 
-        [UnityTest]
-        public IEnumerator ThePortraitIsTakenStandingAtRestAndTheBodyGoesOnAsItWas()
-        {
-#if UNITY_EDITOR
-            // Owner, 2026-10-22: "my portrait is still doing poses just lock him in default position" (a hand at the face, mid idle).
-            Build("hair1", withInventory: false);
-            yield return null;
-            var skin = TransformSearch.FindDeep(_player.transform, BodySurface.SkinName).GetComponent<SkinnedMeshRenderer>();
-            Transform hand = _player.GetComponentInChildren<Animator>().GetBoneTransform(HumanBodyBones.RightHand);
-            Transform forearm = _player.GetComponentInChildren<Animator>().GetBoneTransform(HumanBodyBones.RightLowerArm);
-
-            forearm.localRotation *= Quaternion.Euler(0.0f, 0.0f, 120.0f);   // the hand brought up, as an idle gesture does
-            Vector3 gesture = hand.position;
-            BindPose.Apply(skin);
-            Vector3 rest = hand.position;
-            Assert.Greater(Vector3.Distance(gesture, rest), 0.2f, "putting the body at rest left the raised hand where it was");
-            Assert.Less(rest.y, _player.transform.position.y + 1.4f, "at rest the hand is not down by the side");
-
-            forearm.localRotation *= Quaternion.Euler(0.0f, 0.0f, 120.0f);
-            gesture = hand.position;
-            Assert.IsTrue(_hud.CaptureNow());
-            Assert.Less(Vector3.Distance(gesture, hand.position), 1e-4f, "taking the portrait left the body in another pose");
-#else
-            yield break;
-#endif
-        }
-
         /// <summary>
         /// Owner, 2026-10-19: "the portrait in the top left changing when i am switching weapons just make it stay as the default". Taking a
         /// weapon out or putting it away leaves the portrait as it was (what is held is never in it); putting something on still retakes it.

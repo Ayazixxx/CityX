@@ -1,7 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using CityX.Character;
-using CityX.Core;
 using CityX.Items;
 using UnityEngine;
 using UnityEngine.UI;
@@ -264,20 +263,13 @@ namespace CityX.UI
             Animator animator = Target.GetComponentInChildren<Animator>();
             Transform skeleton = animator != null ? animator.transform : body;
             bool first = _portraitPose == null || _portraitBody != body;
-            PoseSnapshot current = PoseSnapshot.Of(skeleton);   // the live pose, put back after the shot
+            PoseSnapshot current = first ? null : PoseSnapshot.Of(skeleton);
             Transform[] hands = HeldItemRoots(body);
             var moved = new List<KeyValuePair<Renderer, int>>();
             var standIns = new List<GameObject>();
             try
             {
-                if (first)
-                {
-                    // Standing at rest, arms down, whatever the body was doing (owner, 2026-10-22: "my portrait is still doing poses just lock
-                    // him in default position": it was taken mid idle gesture, a hand at the face).
-                    Transform skin = TransformSearch.FindDeep(body, BodySurface.SkinName);
-                    BindPose.Apply(skin != null ? skin.GetComponent<SkinnedMeshRenderer>() : null);
-                }
-                else
+                if (!first)
                 {
                     _portraitPose.Apply();
                 }
