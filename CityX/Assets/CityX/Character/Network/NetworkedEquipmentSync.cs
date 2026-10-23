@@ -6,8 +6,8 @@ using UnityEngine;
 namespace CityX.Character
 {
     /// <summary>
-    /// What a player is HOLDING (sword, pistol, bottle, flamethrower, grappling hook) or WEARING ON THE BACK (jetpack, parachute), seen on every other
-    /// player's copy of the body. Before this the animation said "sword equipped" but nothing was in anyone's hand: equipment was not networked at all.
+    /// What a player is HOLDING (sword, pistol, bottle, flamethrower, grappling hook), WEARING ON THE BACK (jetpack, parachute) or WEARING (clothes,
+    /// hats, helmets; since 2026-10-22), seen on every other player's copy of the body. Before this the animation said "sword equipped" but nothing was in anyone's hand: equipment was not networked at all.
     ///
     /// The owner sends the list of item ids that currently exist as objects, whenever it changes (<see cref="Inventory.EquipmentChanged"/>) and once
     /// when the body appears; the server relays it with BufferLast so a late joiner is told too. A copy reconciles: it builds a COSMETIC model of any item
@@ -183,8 +183,15 @@ namespace CityX.Character
             model.transform.SetParent(transform, false);
             mount.MountCosmetic(gameObject);
 
-            // Nothing about a copy's item may act: no pickup, no collision, no physics, no scripts.
+            // Nothing about a copy's item may act: no pickup, no collision, no physics, no scripts -- but clothing's own upkeep of the body.
             InertModel.Strip(model);
+            foreach (MonoBehaviour behaviour in model.GetComponents<MonoBehaviour>())
+            {
+                if (behaviour is ICosmeticKeepsRunning)
+                {
+                    behaviour.enabled = true;
+                }
+            }
             return model;
         }
 

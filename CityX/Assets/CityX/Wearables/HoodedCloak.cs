@@ -204,7 +204,7 @@ namespace CityX.Wearables
             }
         }
 
-        protected override void OnUnequipped(GameObject player)
+        protected override void OnUnequipped()
         {
             if (_bodySkin != null)
             {

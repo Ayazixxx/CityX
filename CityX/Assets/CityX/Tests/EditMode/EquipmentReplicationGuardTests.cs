@@ -39,11 +39,7 @@ namespace CityX.Tests
                     {
                         continue;
                     }
-                    if (type.Namespace != null && type.Namespace.EndsWith("Wearables"))
-                    {
-                        continue;   // clothing is not held; it is not shown on copies yet (see docs/MULTIPLAYER_STATE.md)
-                    }
-                    yield return type;
+                    yield return type;   // clothes and hats too, since 2026-10-22
                 }
             }
         }

@@ -26,8 +26,12 @@ namespace CityX.Wearables
     /// renderer, and this project expects "100s if not 1000s" of items
     /// across many players in one area eventually, so the per-character
     /// rendering cost has to stay bounded by slot count, not catalog size.
+    ///
+    /// OTHER PLAYERS SEE IT (2026-10-22): it is put on their copy of the
+    /// wearer the same way (ICosmeticMountable), and keeps running there
+    /// (ICosmeticKeepsRunning) for what it does to the body each frame.
     /// </summary>
-    public abstract class SkinnedGarment : MonoBehaviour, IEquippableItem
+    public abstract class SkinnedGarment : MonoBehaviour, IEquippableItem, ICosmeticMountable, ICosmeticKeepsRunning
     {
         public const float InteractRange = 2.5f;
 
@@ -129,6 +133,34 @@ namespace CityX.Wearables
 
         public void OnEquip(GameObject player, ItemInstanceData instanceData)
         {
+            PutOn(player);
+        }
+
+        /// <summary>Unregisters from the shared combiner, then destroys the (by then bare) root.</summary>
+        public void OnUnequip(GameObject player)
+        {
+            TakeOff();
+            Destroy(gameObject);
+        }
+
+        /// <summary>Worn by another player's copy of the wearer: drawn on its body as on the wearer's own.</summary>
+        public void MountCosmetic(GameObject body)
+        {
+            PutOn(body);
+        }
+
+        /// <summary>Off the copy; NetworkedEquipmentSync destroys the model.</summary>
+        public void UnmountCosmetic(GameObject body)
+        {
+            TakeOff();
+        }
+
+        public void SetCosmeticActive(bool active)
+        {
+        }
+
+        private void PutOn(GameObject player)
+        {
             _equipped = true;
             // Left showing, the ground pose's own raw, unposed mesh sits
             // right where the live skin also renders and the two z-fight
@@ -168,10 +200,10 @@ namespace CityX.Wearables
             OnEquipped(player);
         }
 
-        /// <summary>Unregisters from the shared combiner, then destroys the (by then bare) root.</summary>
-        public void OnUnequip(GameObject player)
+        /// <summary>The body given back whole and the worn skin unregistered.</summary>
+        private void TakeOff()
         {
-            OnUnequipped(player);
+            OnUnequipped();
             if (_bodySkin != null && _wholeBody != null)
             {
                 _bodySkin.sharedMesh = _wholeBody;
@@ -183,7 +215,6 @@ namespace CityX.Wearables
                 Combiner.Unregister(ItemId);
             }
             Combiner = null;
-            Destroy(gameObject);
         }
 
         /// <summary>Draws the body without what this garment hides, keeping the whole body to put back on unequip.</summary>
@@ -212,7 +243,7 @@ namespace CityX.Wearables
         }
 
         /// <summary>The reverse of OnEquipped, called before the skin is torn down.</summary>
-        protected virtual void OnUnequipped(GameObject player)
+        protected virtual void OnUnequipped()
         {
         }
 

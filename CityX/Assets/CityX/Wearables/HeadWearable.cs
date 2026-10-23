@@ -11,9 +11,11 @@ namespace CityX.Wearables
     ///
     /// The Head bone's pivot is the head sphere's CENTRE (BodyRig.HeadCentreY), so an offset of FusedBodyShape.HeadRadius up reaches the
     /// top of the head.
+    ///
+    /// Other players see it on their copy of the wearer (ICosmeticMountable; the Knight Helmet first, every hat since 2026-10-22).
     /// </summary>
     [RequireComponent(typeof(SphereCollider))]
-    public abstract class HeadWearable : MonoBehaviour, IEquippableItem
+    public abstract class HeadWearable : MonoBehaviour, IEquippableItem, ICosmeticMountable
     {
         public const float InteractRange = 2.5f;
 
@@ -136,6 +138,22 @@ namespace CityX.Wearables
         public void OnUnequip(GameObject player)
         {
             Destroy(gameObject);
+        }
+
+        /// <summary>Worn by another player's copy of the wearer: on its head where the wearer has it, its hair covered the same.</summary>
+        public void MountCosmetic(GameObject body)
+        {
+            CosmeticMount.ToBone(transform, body, HumanBodyBones.Head, HeadPosition, HeadRotationEuler, 1.0f);
+            CoverHairOf(body);
+        }
+
+        public void UnmountCosmetic(GameObject body)
+        {
+            UncoverHair();
+        }
+
+        public void SetCosmeticActive(bool active)
+        {
         }
 
         /// <summary>Plain headwear carries no per-instance state.</summary>
