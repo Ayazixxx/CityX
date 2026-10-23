@@ -186,10 +186,82 @@ namespace CityX.UIEditor
             Matrix4x4 bake = filter.transform.localToWorldMatrix;
             Mesh baked = Bake(filter.sharedMesh, bake);
             baked.name = meshName;
+            if (bakedPath == DreadsBaked)
+            {
+                AddScalp(baked, CharacterHair.Dreads);
+            }
             AssetDatabase.CreateAsset(baked, bakedPath);
             AssetDatabase.SaveAssets();
             Debug.Log($"CityX: baked {bakedPath} -- bounds {baked.bounds.min} to {baked.bounds.max}");
             return baked;
+        }
+
+        /// <summary>
+        /// The dreads baked again (with their scalp cap, placed by their saved fit) into the same asset, so every head wearing them keeps it.
+        /// </summary>
+        [MenuItem("CityX/Rebake Dreads")]
+        public static void RebakeDreads()
+        {
+            var existing = AssetDatabase.LoadAssetAtPath<Mesh>(DreadsBaked);
+            string temporary = Folder + "/DreadsMeshRebake.asset";
+            if (existing != null)
+            {
+                AssetDatabase.MoveAsset(DreadsBaked, temporary);
+            }
+            Mesh fresh = BakedFromModel(DreadsSource, DreadsBaked, "DreadsMesh");
+            if (existing != null && fresh != null)
+            {
+                EditorUtility.CopySerialized(fresh, existing);
+                AssetDatabase.DeleteAsset(DreadsBaked);
+                AssetDatabase.MoveAsset(temporary, DreadsBaked);
+                AssetDatabase.SaveAssets();
+            }
+        }
+
+        /// <summary>
+        /// A thin cap of hair over the scalp (HairScalp) merged into <paramref name="mesh"/>: made in the head's space and brought into the
+        /// mesh's own through <paramref name="style"/>'s saved fit, so it lies on the head wherever the fit puts the hair.
+        /// </summary>
+        private static void AddScalp(Mesh mesh, string style)
+        {
+            if (!EnsureFitSettings().TryGet(style, out CharacterHair.Fit fit))
+            {
+                Debug.LogWarning($"CityX: \"{style}\" has no saved fit -- its scalp cap is left off.");
+                return;
+            }
+            Matrix4x4 intoMesh = Matrix4x4.TRS(fit.Position, Quaternion.Euler(fit.Euler), fit.Scale).inverse;
+            var capVertices = new System.Collections.Generic.List<Vector3>();
+            var capNormals = new System.Collections.Generic.List<Vector3>();
+            var capTriangles = new System.Collections.Generic.List<int>();
+            HairScalp.Build(FusedBodyShape.HeadRadius, capVertices, capNormals, capTriangles);
+
+            var vertices = new System.Collections.Generic.List<Vector3>(mesh.vertices);
+            var normals = new System.Collections.Generic.List<Vector3>(mesh.normals);
+            var uvs = new System.Collections.Generic.List<Vector2>(mesh.uv);
+            var triangles = new System.Collections.Generic.List<int>(mesh.triangles);
+            int first = vertices.Count;
+            for (int i = 0; i < capVertices.Count; i++)
+            {
+                vertices.Add(intoMesh.MultiplyPoint3x4(capVertices[i]));
+                normals.Add(intoMesh.MultiplyVector(capNormals[i]).normalized);
+                if (uvs.Count > 0)
+                {
+                    uvs.Add(Vector2.zero);
+                }
+            }
+            foreach (int t in capTriangles)
+            {
+                triangles.Add(first + t);
+            }
+            mesh.indexFormat = vertices.Count > 65535 ? UnityEngine.Rendering.IndexFormat.UInt32 : mesh.indexFormat;
+            mesh.SetVertices(vertices);
+            mesh.SetNormals(normals);
+            if (uvs.Count > 0)
+            {
+                mesh.SetUVs(0, uvs);
+            }
+            mesh.SetTriangles(triangles, 0);
+            mesh.RecalculateBounds();
         }
 
         /// <summary>A copy of a mesh with a transform applied to its vertices (and its normals turned to match).</summary>

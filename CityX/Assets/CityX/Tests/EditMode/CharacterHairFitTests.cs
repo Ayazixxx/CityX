@@ -300,13 +300,33 @@ namespace CityX.Tests
             var saved = UnityEditor.AssetDatabase.LoadAssetAtPath<HairFitSettings>(UIEditor.HairAssets.FitSettingsPath);
             Assert.IsNotNull(saved, "no saved hair fits");
             Assert.IsTrue(saved.TryGet(CharacterHair.Dreads, out CharacterHair.Fit fit), "the dreads have no saved fit");
+            // Owner, 2026-10-22: the head poked through between the locks. Every way out from the head's centre above the hairline meets the
+            // scalp cap just off the skin.
             Matrix4x4 place = Matrix4x4.TRS(fit.Position, Quaternion.Euler(fit.Euler), fit.Scale);
-            float nearest = float.MaxValue;
-            foreach (Vector3 vertex in mesh.vertices)
+            var cover = new GameObject("DreadsCover");
+            bool hitBackfaces = Physics.queriesHitBackfaces;
+            try
             {
-                nearest = Mathf.Min(nearest, place.MultiplyPoint3x4(vertex).magnitude);
+                Mesh placedMesh = UIEditor.HairAssets.Bake(mesh, place);
+                cover.AddComponent<MeshCollider>().sharedMesh = placedMesh;
+                Physics.SyncTransforms();
+                Physics.queriesHitBackfaces = true;
+                for (float turn = 0.0f; turn < 360.0f; turn += 15.0f)
+                {
+                    for (float height = HairScalp.Hairline(turn) + 5.0f; height < 90.0f; height += 10.0f)
+                    {
+                        float h = height * Mathf.Deg2Rad, t = turn * Mathf.Deg2Rad;
+                        var direction = new Vector3(Mathf.Cos(h) * Mathf.Sin(t), Mathf.Sin(h), Mathf.Cos(h) * Mathf.Cos(t));
+                        Assert.IsTrue(Physics.Raycast(Vector3.zero, direction, FusedBodyShape.HeadRadius * 1.05f),
+                            $"the head shows through the dreads {turn:0} degrees round, {height:0} up");
+                    }
+                }
             }
-            Assert.GreaterOrEqual(nearest, FusedBodyShape.HeadRadius, "the head pokes through the dreads");
+            finally
+            {
+                Physics.queriesHitBackfaces = hitBackfaces;
+                Object.DestroyImmediate(cover);
+            }
             Bounds placed = Placed(mesh.bounds, fit);
             // The locks stand thick on the crown (0.2 m at this fit), but no higher than that.
             Assert.That(placed.max.y, Is.InRange(FusedBodyShape.HeadRadius, FusedBodyShape.HeadRadius * 1.7f), "the dreads do not sit on the crown");

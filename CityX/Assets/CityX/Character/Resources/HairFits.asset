@@ -45,6 +45,6 @@ MonoBehaviour:
       Scale: {x: 1, y: 1, z: 1}
   - Style: dreads
     Fit:
-      Position: {x: -0.016, y: -1.0646, z: -0.0337}
+      Position: {x: -0.016, y: -0.97, z: -0.04}
       Euler: {x: 0, y: 0, z: 0}
-      Scale: {x: 1.7025, y: 1.7025, z: 1.7025}
+      Scale: {x: 1.5, y: 1.5, z: 1.5}

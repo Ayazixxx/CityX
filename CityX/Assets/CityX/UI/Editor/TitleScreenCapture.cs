@@ -60,7 +60,7 @@ namespace CityX.UIEditor
 
         private static void ShootHairViews(string prefix, string style)
         {
-            foreach (string view in new[] { "front", "side", "back" })
+            foreach (string view in new[] { "front", "side", "back", "top" })
             {
                 Shoot(prefix + view, TitleScreen.Panel.Creator, seedCharacters: false,
                     hairStyle: style, headView: view);
@@ -183,7 +183,8 @@ namespace CityX.UIEditor
             Vector3 head = hair.Head.position;
             Vector3 forward = hair.transform.forward;
             Vector3 right = hair.transform.right;
-            Vector3 from = plainView == "front" ? forward : plainView == "side" ? right : -forward;
+            bool top = plainView == "top";   // from above and a little behind: where gaps in the hair show the scalp
+            Vector3 from = top ? (Vector3.up - forward * 0.35f).normalized : plainView == "front" ? forward : plainView == "side" ? right : -forward;
 
             Vector3 focus = head;
             float distance = 1.7f;
@@ -198,7 +199,7 @@ namespace CityX.UIEditor
             }
 
             camera.transform.position = focus + from * distance + Vector3.up * (wide ? 0.0f : 0.15f);
-            camera.transform.rotation = Quaternion.LookRotation(focus - camera.transform.position, Vector3.up);
+            camera.transform.rotation = Quaternion.LookRotation(focus - camera.transform.position, top ? forward : Vector3.up);
             camera.fieldOfView = wide ? 60.0f : 38.0f;
         }
 
