@@ -241,6 +241,9 @@ namespace CityX.UIEditor
         private const float ForeheadLine = 40.0f;
         private const float ForeheadFull = 40.0f;        // the forehead's line holds this far round from straight ahead, gone by ForeheadHalfWidth
         private const float ForeheadHalfWidth = 80.0f;
+        private const float BackTuckDegrees = 14.0f;     // behind the ears: this far above the lowest tips, hidden under the locks
+        private const float BackFrom = 95.0f;            // from straight ahead, where the back's tuck starts, and where it is whole
+        private const float BackFull = 130.0f;
 
         /// <summary>The hairline under a hair <paramref name="mesh"/> worn at <paramref name="fit"/>, for HairScalp.</summary>
         private static System.Func<float, float> MeasuredHairline(Mesh mesh, CharacterHair.Fit fit)
@@ -284,7 +287,10 @@ namespace CityX.UIEditor
                 float turn = 360.0f * i / MeasuredTurns;
                 float fromFront = Mathf.Abs(Mathf.DeltaAngle(0.0f, turn));
                 float floor = Mathf.Lerp(ForeheadLine, MeasuredLowest, Mathf.SmoothStep(0.0f, 1.0f, Mathf.InverseLerp(ForeheadFull, ForeheadHalfWidth, fromFront)));
-                line[i] = Mathf.Max(low + TuckDegrees, floor);
+                // Behind the ears the cap stays up under the locks, never below their tips (owner, 2026-10-23, of Hyde's back: "get rid of all
+                // of this extra hair trim the fat ... just get rid of the scalp cap in the back").
+                float tuck = Mathf.Lerp(TuckDegrees, BackTuckDegrees, Mathf.SmoothStep(0.0f, 1.0f, Mathf.InverseLerp(BackFrom, BackFull, fromFront)));
+                line[i] = Mathf.Max(low + tuck, floor);
             }
             Debug.Log($"CityX: measured hairline -- front {line[0]:0}, right {line[MeasuredTurns / 4]:0}, back {line[MeasuredTurns / 2]:0}, " +
                       $"left {line[3 * MeasuredTurns / 4]:0} degrees");
