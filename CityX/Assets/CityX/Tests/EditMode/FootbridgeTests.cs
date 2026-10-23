@@ -13,7 +13,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class FootbridgeTests
     {
-        private const int Seed = 19077151;
+        private const int Seed = 80469103;
 
         private static CityWorld _world;
         private static CityWorld World => _world ?? (_world = new CityWorld(Seed));
@@ -103,10 +103,12 @@ namespace CityX.Tests
                     BalconyDoor? door = null;
                     foreach (BalconyDoor d in doors)
                     {
-                        if (d.Wall == wall && d.Row == row && d.Column == column) door = d;
+                        if (d.Wall == wall && d.Row == row && d.Column <= column && column < d.Column + d.Columns) door = d;
                     }
                     Assert.IsTrue(door.HasValue, $"{what}: building {site.Id} has no doorway for it");
-                    Assert.IsTrue(door.Value.Opens, $"{what}: building {site.Id}'s doorway does not open");
+                    // An open deck's door opens; a corridor's mouth is an open doorway with nothing to open (FootbridgeKindTests).
+                    Assert.AreEqual(b.Kind == BridgeKind.Open, door.Value.Opens, $"{what}: building {site.Id}'s doorway {(b.Kind == BridgeKind.Open ? "does not open" : "is a door")}");
+                    Assert.AreEqual(b.Kind != BridgeKind.Open, door.Value.Kind == BalconyDoorKind.Opening, $"{what}: building {site.Id}'s doorway is the wrong kind");
                     Assert.That(door.Value.Height, Is.GreaterThanOrEqualTo(2.7f), $"{what}: a doorway a 2.6 m body does not fit");
                     Assert.That(door.Value.Width, Is.GreaterThanOrEqualTo(BalconyDoors.MinSingleWidth - 1e-3f), $"{what}: a doorway too narrow");
                     // The doorway is where the deck meets the wall (a door's U0 runs from the building's centre, the bridge's u from the wall's start).
@@ -124,33 +126,10 @@ namespace CityX.Tests
                     new MeshBuffer(), false);
                 Vector2 midPlan = b.Path.PlanAt(b.Path.Length * 0.5f, out _);
                 Vector3 mid = new Vector3(midPlan.x, b.Path.HeightAt(b.Path.Length * 0.5f), midPlan.y) - origin;
-                Assert.IsTrue(Crosses(structures, mid + Vector3.up * 0.5f, mid - Vector3.up * 0.6f), $"{what}: no deck drawn at the bridge's middle");
+                Assert.IsTrue(MeshRays.Crosses(structures, mid + Vector3.up * 0.5f, mid - Vector3.up * 0.6f), $"{what}: no deck drawn at the bridge's middle");
                 if (++checkedBridges >= 10) break;
             }
             Assert.That(checkedBridges, Is.GreaterThan(3), "too few bridges to check");
-        }
-
-        private static bool Crosses(MeshBuffer b, Vector3 p0, Vector3 p1)
-        {
-            Vector3 dir = p1 - p0;
-            for (int i = 0; i + 2 < b.Triangles.Count; i += 3)
-            {
-                Vector3 a = b.Vertices[b.Triangles[i]];
-                Vector3 e1 = b.Vertices[b.Triangles[i + 1]] - a, e2 = b.Vertices[b.Triangles[i + 2]] - a;
-                Vector3 p = Vector3.Cross(dir, e2);
-                float det = Vector3.Dot(e1, p);
-                if (Mathf.Abs(det) < 1e-9f) continue;
-                float inv = 1.0f / det;
-                Vector3 s = p0 - a;
-                float u = Vector3.Dot(s, p) * inv;
-                if (u < 0.0f || u > 1.0f) continue;
-                Vector3 q = Vector3.Cross(s, e1);
-                float v = Vector3.Dot(dir, q) * inv;
-                if (v < 0.0f || u + v > 1.0f) continue;
-                float t = Vector3.Dot(e2, q) * inv;
-                if (t >= 0.0f && t <= 1.0f) return true;
-            }
-            return false;
         }
     }
 }

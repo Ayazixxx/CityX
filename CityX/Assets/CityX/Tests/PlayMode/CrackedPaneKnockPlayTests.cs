@@ -20,7 +20,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class CrackedPaneKnockPlayTests
     {
-        private const int Seed = 19077151;
+        private const int Seed = 80469103;
         private readonly List<GameObject> _made = new List<GameObject>();
 
         [TearDown]

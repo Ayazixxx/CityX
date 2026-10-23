@@ -21,6 +21,7 @@ namespace CityX.Tests
         private const string ScenePath = "Assets/CityX/Scenes/CityMassing.unity";
 
         [UnityTest]
+        [Timeout(900000)]
         public IEnumerator RenderTheBridgesKinds()
         {
             CaptureGuard.NeedsGraphics();
@@ -76,6 +77,14 @@ namespace CityX.Tests
             foreach (Footbridge b in all) if (b.Path.HasStairs) { picks.Add(("bridges-stairs", b)); break; }
             foreach (Footbridge b in all) if (b.Stair != null && !b.Stair.Switchback) { picks.Add(("bridges-street-stair", b)); break; }
             foreach (Footbridge b in all) if (b.Stair != null && b.Stair.Switchback) { picks.Add(("bridges-stair-tower", b)); break; }
+            // The corridors (2026-10-23): an enclosed bridge and a breezeway, and one of each turning or with a flight.
+            foreach (BridgeKind kind in new[] { BridgeKind.Enclosed, BridgeKind.Breezeway })
+            {
+                string kindName = "bridges-kind-" + kind.ToString().ToLowerInvariant();
+                foreach (Footbridge b in all) if (b.Kind == kind && b.Shape == BridgeShape.Straight && !b.Path.HasStairs) { picks.Add((kindName, b)); break; }
+                foreach (Footbridge b in all) if (b.Kind == kind && b.Shape != BridgeShape.Straight) { picks.Add((kindName + "-turning", b)); break; }
+                foreach (Footbridge b in all) if (b.Kind == kind && b.Path.HasStairs) { picks.Add((kindName + "-flight", b)); break; }
+            }
 
             foreach ((string name, Footbridge b) in picks)
             {
@@ -101,7 +110,17 @@ namespace CityX.Tests
                     Vector3 along = new Vector3(b.Stair.Along.x, 0.0f, b.Stair.Along.y);
                     BuildingShapeCapture.Shoot(camera, directory, name + "-foot", foot + away * 7.0f + along * 4.0f + Vector3.up * 2.2f, foot + Vector3.up * 3.0f - along * 4.0f);
                 }
-                Debug.Log($"CityX bridge capture: {name} = {b.SiteA}->{b.SiteB} #{b.Index} {b.Shape} {b.Rail} {b.Deck}, floors {b.FloorA}/{b.FloorB}, " +
+                if (b.Kind != BridgeKind.Open)
+                {
+                    // Inside, a step in from A's mouth at a person's eye, looking down the corridor; and its far mouth from inside B's room.
+                    Vector2 inPlan = path.PlanAt(1.5f, out Vector2 inDir);
+                    var inside = new Vector3(inPlan.x, path.HeightAt(1.5f) + 2.3f, inPlan.y);
+                    BuildingShapeCapture.Shoot(camera, directory, name + "-inside", inside, inside + new Vector3(inDir.x, -0.12f, inDir.y) * 10.0f);
+                    Vector2 endPlan = path.PlanAt(length - 0.1f, out Vector2 endDir);
+                    var room = new Vector3(endPlan.x + endDir.x * 3.5f, path.HeightAt(length) + 2.3f, endPlan.y + endDir.y * 3.5f);
+                    BuildingShapeCapture.Shoot(camera, directory, name + "-mouth", room, room - new Vector3(endDir.x, 0.25f, endDir.y) * 6.0f);
+                }
+                Debug.Log($"CityX bridge capture: {name} = {b.SiteA}->{b.SiteB} #{b.Index} {b.Kind} {b.Shape} {b.Rail} {b.Deck}, floors {b.FloorA}/{b.FloorB}, " +
                     $"length {length:F1} m, {path.Points.Length} points, flights {(path.HasStairs ? "yes" : "no")}, piers {path.Piers.Length}, " +
                     $"street stair {(b.Stair != null ? $"{b.Stair.Top - b.Stair.Bottom:F1} m" : "no")}, clearance {middle.y - ground:F1} m");
             }

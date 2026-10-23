@@ -15,6 +15,9 @@ namespace CityX.World
 
         /// <summary>One door like the street doors (BuildingDoor): a solid wooden leaf with a lever handle on each face, opening into the flat.</summary>
         Single = 2,
+
+        /// <summary>No door at all: an open doorway, the mouth of a footbridge's corridor (Footbridges, 2026-10-23: "No entry door needed").</summary>
+        Opening = 3,
     }
 
     /// <summary>One flat's door onto its balcony, in the building's own frame (metres from its centre along +X; metres above its base).</summary>
@@ -186,6 +189,8 @@ namespace CityX.World
                     return clear * 0.5f - SlidingOverlap * 0.5f - SlidingStop;
                 case BalconyDoorKind.Double:
                     return clear - 2.0f * PanelThickness;
+                case BalconyDoorKind.Opening:
+                    return door.Width;
                 default:
                     return clear - SolidLeafThickness;
             }
@@ -211,6 +216,10 @@ namespace CityX.World
                 case BalconyDoorKind.Double:
                     from = Jamb + PanelThickness;
                     to = w - Jamb - PanelThickness;
+                    break;
+                case BalconyDoorKind.Opening:
+                    from = 0.0f;
+                    to = w;
                     break;
                 default:
                     from = low ? Jamb + SolidLeafThickness : Jamb;

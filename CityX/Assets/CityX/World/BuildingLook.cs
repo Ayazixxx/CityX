@@ -189,6 +189,17 @@ namespace CityX.World
             return For(site.Seed, site.Zone, site.Params.Mass, style);
         }
 
+        /// <summary>
+        /// A building's look in the world: its own, unless a footbridge's corridor (an enclosed bridge, a breezeway) joins its rooms to other
+        /// buildings', when all of them wear the lowest-numbered one's look, so they read as one (Footbridges.SharesLookOf; owner, 2026-10-23:
+        /// "the buildings connected should be the same color").
+        /// </summary>
+        public static BuildingLook For(CityWorld world, BuildingSite site, FacadeStyle style)
+        {
+            BuildingSite shared = Footbridges.SharesLookOf(world, site);
+            return shared.Exists ? For(shared, WindowPlan.For(world, shared).Style) : For(site, style);
+        }
+
         public static BuildingLook For(int seed, ZoneKind zone, BuildingMass mass, FacadeStyle style)
         {
             var rng = new DeterministicRandom(unchecked((ulong)(uint)seed), LookStream);

@@ -195,7 +195,8 @@ namespace CityX.View
                     {
                         // The doorway is a recess the thickness of the wall (no floor face: the balcony slab and the room's floor are there).
                         AddWindowReveals(wallBuffer, wall, door.U0, door.U1, y0, doorTop, normal, null, false, false);
-                        if (looks.HasValue)
+                        // A corridor's mouth (Footbridges) is the open doorway alone: nothing hangs in it.
+                        if (looks.HasValue && door.Kind != BalconyDoorKind.Opening)
                         {
                             AddBalconyDoor(wallBuffer, glazing, site, wall, door, y0, normal, looks.Value);
                             wallBuffer.Look = rowLook;

@@ -17,7 +17,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class FootbridgePathWalkPlayTests
     {
-        private const int Seed = 19077151;
+        private const int Seed = 80469103;
         private readonly List<GameObject> _made = new List<GameObject>();
 
         [TearDown]
@@ -173,6 +173,13 @@ namespace CityX.Tests
 
         [UnityTest]
         public IEnumerator ABridgesFlightIsClimbedFromDoorToDoor() => WalkTheBridge(b => b.Path.HasStairs, "bridge with a flight");
+
+        // The corridors (2026-10-23): between their walls, under their roof, in at one open mouth and out at the other.
+        [UnityTest]
+        public IEnumerator AnEnclosedCorridorIsWalkedMouthToMouth() => WalkTheBridge(b => b.Kind == BridgeKind.Enclosed, "enclosed corridor");
+
+        [UnityTest]
+        public IEnumerator ABreezewayIsWalkedMouthToMouth() => WalkTheBridge(b => b.Kind == BridgeKind.Breezeway, "breezeway");
 
         private IEnumerator ClimbTheStreetStair(bool tower)
         {

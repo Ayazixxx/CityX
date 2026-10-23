@@ -98,7 +98,7 @@ namespace CityX.Tests
                 WindowPlan plan = WindowPlan.For(world, site);
                 bool ribs = BuildingDecor.Ribs(site.Seed, site.Params.Width, site.Params.Depth, site.Params.Height,
                     -BuildingInterior.EntranceWidth(site) * 0.5f, BuildingInterior.EntranceWidth(site) * 0.5f).Fins.Count > 0;
-                bool piers = FacadeOrnament.For(site, plan.Style, BuildingLook.For(site, plan.Style).Wall).PierEveryColumns > 0;
+                bool piers = FacadeOrnament.For(site, plan.Style, BuildingLook.For(world, site, plan.Style).Wall).PierEveryColumns > 0;
                 if (!ribs && !piers) continue;
                 doors.Clear();
                 Footbridges.DoorsOf(world, site, plan, doors);

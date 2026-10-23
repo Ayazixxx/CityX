@@ -49,6 +49,23 @@ namespace CityX.World
     }
 
     /// <summary>
+    /// What a footbridge is built as (2026-10-23, the owner's photo of Chongqing's bridges between two apartment blocks: "make multiple types
+    /// of sky bridges that can occur ... more that are fully indoor like the buildings they stem from and have windows too ... the other type
+    /// ... still have roofs and long window like spaces ... open to air, no glass").
+    /// </summary>
+    public enum BridgeKind : byte
+    {
+        /// <summary>An open deck with guard rails, a door into the building at each end.</summary>
+        Open,
+
+        /// <summary>A corridor: walled and roofed, long glazed windows down both sides; part of the rooms it joins (an open doorway at each end, no door).</summary>
+        Enclosed,
+
+        /// <summary>A breezeway: the corridor with its long windows open to the air, no glass in them; open doorways at its ends too.</summary>
+        Breezeway,
+    }
+
+    /// <summary>
     /// A footbridge's walking line, in the world: points at the walking surface along its middle, from A's doorway to B's. Each stretch between
     /// two points is deck (level, or sloping at most <see cref="Footbridges.MaxGrade"/>) or a flight of steps (<see cref="Risers"/> &gt; 0, each at
     /// most <see cref="Footbridges.MaxRiser"/> high and <see cref="Footbridges.Tread"/> deep). The ends lie on the walls' faces, the deck's ends cut
@@ -277,6 +294,11 @@ namespace CityX.World
         public readonly BridgeRail Rail;
         public readonly BridgeDeck Deck;
 
+        /// <summary>Open, or a corridor of one of two kinds; a corridor's clear height over its floor (0 on an open deck).</summary>
+        public readonly BridgeKind Kind;
+
+        public readonly float Headroom;
+
         /// <summary>The walking line from <see cref="StartWorld"/> to <see cref="EndWorld"/>.</summary>
         public readonly BridgePath Path;
 
@@ -285,7 +307,7 @@ namespace CityX.World
 
         public Footbridge(int siteA, int siteB, WindowGrid.Wall wallA, WindowGrid.Wall wallB, int floorA, int floorB, int columnA, int columnB,
             float ua, float ub, Vector3 startWorld, Vector3 endWorld, float width, int index, BridgeShape shape, BridgeRail rail, BridgeDeck deck,
-            BridgePath path, StreetStair stair)
+            BridgeKind kind, float headroom, BridgePath path, StreetStair stair)
         {
             SiteA = siteA;
             SiteB = siteB;
@@ -304,6 +326,8 @@ namespace CityX.World
             Shape = shape;
             Rail = rail;
             Deck = deck;
+            Kind = kind;
+            Headroom = headroom;
             Path = path;
             Stair = stair;
         }
@@ -358,6 +382,14 @@ namespace CityX.World
     ///   * PIERS under a dog-leg's landings and a long span's middle, where the ground under it is not a road.
     ///   * STREET STAIRS (<see cref="StreetStair"/>): a low dog-leg's landing beside a side or back wall gets, often, a stair down along that wall
     ///     to the paving, so the bridge is reached from the street.
+    ///
+    /// 2026-10-23 (owner, with a photo of Chongqing's enclosed bridges between two grey apartment blocks: "make multiple types of sky bridges
+    /// that can occur ... more that are fully indoor like the buildings they stem from and have windows too ... No entry door needed ... the
+    /// other type i want still have roofs and long window like spaces ... open to air, no glass ... a hybrid"): three KINDS
+    /// (<see cref="BridgeKind"/>), by district: the OPEN deck above; an ENCLOSED corridor, walled and roofed, long glazed windows down both
+    /// sides; a BREEZEWAY, the same corridor with its windows open to the air. A corridor is part of the rooms it joins: its mouth in each wall
+    /// is an open doorway its own clear width and height (BalconyDoorKind.Opening: nothing to open), and the two buildings wear one look
+    /// ("the buildings connected should be the same color": <see cref="SharesLookOf"/>).
     ///
     /// Pure, from the two buildings' seeds: the lower-numbered building of a facing pair decides (<see cref="FromSite"/>), the higher one
     /// finds it by looking at its neighbours, so both agree without talking; kept per building like the balcony doors.
@@ -461,6 +493,29 @@ namespace CityX.World
         public const int CornerColumns = 1;
 
         public const int DoorUnitBase = 1000;
+
+        /// <summary>A corridor (an enclosed bridge, a breezeway): its walls' thickness, its roof slab's, and the clear width between its walls (its open doorway's).</summary>
+        public const float CorridorWallThickness = 0.16f;
+
+        public const float CorridorRoofThickness = 0.25f;
+
+        public const float CorridorWidth = DeckWidth - 2.0f * CorridorWallThickness;
+
+        /// <summary>A corridor's clear height: a window row's less the door head (its mouth fits the row), capped; too low a row gets the open deck.</summary>
+        public const float MaxHeadroom = 3.6f;
+
+        public const float MinHeadroom = 2.75f;
+
+        /// <summary>The corridor's long windows: from this sill up to this far under the roof, in bays this long between mullions (glazed) or piers (open).</summary>
+        public const float CorridorSill = 1.0f;
+
+        public const float CorridorLintel = 0.45f;
+
+        public const float CorridorBay = 1.8f;
+
+        public const float CorridorMullion = 0.08f;
+
+        public const float BreezewayPier = 0.35f;
 
         /// <summary>A switch for before/after renders and tests.</summary>
         public static bool On = true;
@@ -584,17 +639,80 @@ namespace CityX.World
                 && BuildingInterior.FloorCountFor(site.Params.Height) >= MinFloors;
         }
 
-        /// <summary>Whether a window cell of a building is a bridge's doorway (it gets no window), from the bridges already worked out.</summary>
-        public static bool IsDoorCell(BuildingSite site, WindowGrid.Wall wall, int column, int row)
+        /// <summary>
+        /// Whether a window cell of a building is a bridge's doorway (it gets no window), from the bridges already worked out: a door's own
+        /// column, or any cell a corridor's wider mouth passes through.
+        /// </summary>
+        public static bool IsDoorCell(BuildingSite site, WindowGrid.Wall wall, CellLayout columns, int column, int row)
         {
             Footbridge[] bridges = Cached(site);
             for (int i = 0; i < bridges.Length; i++)
             {
                 bridges[i].EndOn(site.Id, out WindowGrid.Wall w, out int floor, out int c, out _);
-                if (w == wall && c == column && floor * BuildingInterior.StoreyHeightRows == row)
+                if (w != wall || floor * BuildingInterior.StoreyHeightRows != row)
+                {
+                    continue;
+                }
+                if (bridges[i].Kind == BridgeKind.Open)
+                {
+                    if (c == column) return true;
+                    continue;
+                }
+                OpeningCells(columns, c, out int first, out int count);
+                if (column >= first && column < first + count)
                 {
                     return true;
                 }
+            }
+            return false;
+        }
+
+        /// <summary>The window cells a corridor's mouth, centred on <paramref name="column"/>, passes through: more than one where the columns are narrow.</summary>
+        public static void OpeningCells(CellLayout columns, int column, out int first, out int count)
+        {
+            float centre = (column + 0.5f) * columns.Size, half = CorridorWidth * 0.5f;
+            first = Mathf.Clamp(Mathf.FloorToInt((centre - half) / columns.Size), 0, columns.Count - 1);
+            int last = Mathf.Clamp(Mathf.FloorToInt((centre + half - 0.001f) / columns.Size), 0, columns.Count - 1);
+            count = last - first + 1;
+        }
+
+        /// <summary>
+        /// The building whose look this one wears, or none: a corridor (an enclosed bridge, a breezeway) joins its rooms to another building's,
+        /// and the two read as one (owner, 2026-10-23: "if they are going to be the 2 or 3 type then the buildings connected should be the same
+        /// color"). Every building a chain of corridors reaches, either way along each, wears the lowest-numbered of them all: one look from
+        /// end to end, whichever end a corridor was decided from (a building with corridors to two lower-numbered neighbours once wore one's look
+        /// while the other kept its own).
+        /// </summary>
+        public static BuildingSite SharesLookOf(CityWorld world, BuildingSite site)
+        {
+            if (!HasACorridor(For(world, site)))
+            {
+                return BuildingSite.None;
+            }
+            int lowest = site.Id;
+            var seen = new HashSet<int> { site.Id };
+            var open = new Stack<BuildingSite>();
+            open.Push(site);
+            while (open.Count > 0)
+            {
+                BuildingSite at = open.Pop();
+                foreach (Footbridge b in For(world, at))
+                {
+                    if (b.Kind == BridgeKind.Open) continue;
+                    int other = b.SiteA == at.Id ? b.SiteB : b.SiteA;
+                    if (!seen.Add(other)) continue;
+                    lowest = Mathf.Min(lowest, other);
+                    open.Push(world.Building(other));
+                }
+            }
+            return lowest == site.Id ? BuildingSite.None : world.Building(lowest);
+        }
+
+        private static bool HasACorridor(Footbridge[] bridges)
+        {
+            for (int i = 0; i < bridges.Length; i++)
+            {
+                if (bridges[i].Kind != BridgeKind.Open) return true;
             }
             return false;
         }
@@ -624,8 +742,10 @@ namespace CityX.World
                     float half = Mathf.Max(DeckWidth / across, BalconyDoors.MaxDoubleWidth) * 0.5f + margin;
                     float centre = u - length * 0.5f;
                     float y = floor * storey;
-                    into.Add(new FacadeClearing(centre - half, centre + half, y - DeckThickness - margin,
-                        y + Mathf.Min(BalconyDoors.MaxHeight, BuildingInterior.RowHeight(site.Params.Height) - BalconyDoors.HeadBar) + margin));
+                    float top = b.Kind == BridgeKind.Open
+                        ? Mathf.Min(BalconyDoors.MaxHeight, BuildingInterior.RowHeight(site.Params.Height) - BalconyDoors.HeadBar)
+                        : b.Headroom + CorridorRoofThickness;   // a corridor's roof meets the wall over its mouth
+                    into.Add(new FacadeClearing(centre - half, centre + half, y - DeckThickness - margin, y + top + margin));
                 }
                 StreetStair s = b.Stair;
                 if (s != null && s.Site == site.Id && s.Wall == wall)
@@ -868,8 +988,15 @@ namespace CityX.World
                     continue;
                 }
                 BridgePath path = BuildPath(world, plan, stairStretch, ya, yb, endA.Along, endB.Along, shape);
+                BridgeKind kind = PickKind(a.Zone, dice(8));
+                float headroom = kind == BridgeKind.Open ? 0.0f : HeadroomFor(a, b);
+                if (kind != BridgeKind.Open && headroom < MinHeadroom)
+                {
+                    kind = BridgeKind.Open;   // a window row too low for a corridor a body walks through: the open deck instead
+                    headroom = 0.0f;
+                }
                 BridgeRail rail = PickRail(a.Zone, dice(4));
-                BridgeDeck deck = rail == BridgeRail.Parapet || rail == BridgeRail.Pickets ? BridgeDeck.Concrete
+                BridgeDeck deck = kind != BridgeKind.Open || rail == BridgeRail.Parapet || rail == BridgeRail.Pickets ? BridgeDeck.Concrete
                     : dice(5) < (a.Zone == ZoneKind.Industrial ? 0.75 : 0.45) ? BridgeDeck.Steel : BridgeDeck.Concrete;
 
                 // The street stair: from the pair's lowest bridge, low enough, leaving A's wall square (not on the slant), down along A's wall
@@ -884,7 +1011,8 @@ namespace CityX.World
                 // A pier standing through a lower bridge of the pair, or the stair, is left out.
                 path = WithoutPiersThrough(path, into, a.Id, b.Id, stair);
                 into.Add(new Footbridge(a.Id, b.Id, endA.Wall, wallB, fa, fb, endA.Column, columnB, endA.U, uB,
-                    new Vector3(endA.Point.x, ya, endA.Point.y), new Vector3(endWorld2.x, yb, endWorld2.y), DeckWidth, into.Count, shape, rail, deck, path, stair));
+                    new Vector3(endA.Point.x, ya, endA.Point.y), new Vector3(endWorld2.x, yb, endWorld2.y), DeckWidth, into.Count, shape, rail, deck,
+                    kind, headroom, path, stair));
                 chosenFloorA = fa;
                 return true;
             }
@@ -904,13 +1032,7 @@ namespace CityX.World
                 case ZoneKind.OldTown: weights = new[] { 0.45f, 0.15f, 0.30f, 0.10f }; break;
                 default: weights = new[] { 0.45f, 0.20f, 0.25f, 0.10f }; break;
             }
-            float acc = 0.0f;
-            for (int i = 0; i < weights.Length; i++)
-            {
-                acc += weights[i];
-                if (r < acc) return (BridgeShape)i;
-            }
-            return BridgeShape.Straight;
+            return (BridgeShape)Weighted(weights, r);
         }
 
         /// <summary>A bridge's rails by district.</summary>
@@ -927,13 +1049,43 @@ namespace CityX.World
                 case ZoneKind.Industrial: weights = new[] { 0.05f, 0.20f, 0.00f, 0.35f, 0.40f }; break;
                 default: weights = new[] { 0.30f, 0.30f, 0.20f, 0.10f, 0.10f }; break;
             }
+            return (BridgeRail)Weighted(weights, r);
+        }
+
+        /// <summary>A bridge's kind by district: corridors downtown, breezeways among the homes and in the old town, the open deck most often in the works.</summary>
+        private static BridgeKind PickKind(ZoneKind zone, double r)
+        {
+            // Open, enclosed, breezeway.
+            float[] weights;
+            switch (zone)
+            {
+                case ZoneKind.Core: weights = new[] { 0.35f, 0.45f, 0.20f }; break;
+                case ZoneKind.Urban: weights = new[] { 0.40f, 0.30f, 0.30f }; break;
+                case ZoneKind.Residential: weights = new[] { 0.35f, 0.25f, 0.40f }; break;
+                case ZoneKind.OldTown: weights = new[] { 0.50f, 0.15f, 0.35f }; break;
+                case ZoneKind.Industrial: weights = new[] { 0.60f, 0.15f, 0.25f }; break;
+                default: weights = new[] { 0.45f, 0.25f, 0.30f }; break;
+            }
+            return (BridgeKind)Weighted(weights, r);
+        }
+
+        /// <summary>The index a roll <paramref name="r"/> (0..1) lands on among <paramref name="weights"/> (which add up to one); the first past the end.</summary>
+        private static int Weighted(float[] weights, double r)
+        {
             float acc = 0.0f;
             for (int i = 0; i < weights.Length; i++)
             {
                 acc += weights[i];
-                if (r < acc) return (BridgeRail)i;
+                if (r < acc) return i;
             }
-            return BridgeRail.Parapet;
+            return 0;
+        }
+
+        /// <summary>A corridor's clear height between two buildings: the lower of their window rows less the door head (its mouth fits the row), capped.</summary>
+        public static float HeadroomFor(BuildingSite a, BuildingSite b)
+        {
+            float row = Mathf.Min(WindowGrid.RowsFor(a.Params.Height).Size, WindowGrid.RowsFor(b.Params.Height).Size);
+            return Mathf.Min(MaxHeadroom, row - BalconyDoors.HeadBar);
         }
 
         /// <summary>
@@ -1591,7 +1743,8 @@ namespace CityX.World
 
         /// <summary>
         /// A building's bridge doorways as balcony doors (BalconyDoor, on the bridge's wall, unit <see cref="DoorUnitBase"/> plus the bridge's
-        /// place in <paramref name="bridges"/>): a pair of glazed doors in a doorway one column wide, opening into the floor the bridge meets.
+        /// place in <paramref name="bridges"/>): an open bridge's a pair of glazed doors in a doorway one column wide, opening into the floor the
+        /// bridge meets; a corridor's mouth an open doorway its own clear width and headroom, through whatever cells that takes, with no door.
         /// </summary>
         public static void DoorsOf(BuildingSite site, in WindowPlan plan, Footbridge[] bridges, List<BalconyDoor> into)
         {
@@ -1604,6 +1757,13 @@ namespace CityX.World
                 CellLayout columns = plan.ColumnsFor(length);
                 int row = floor * BuildingInterior.StoreyHeightRows;
                 float y0 = row * rows.Size;
+                if (b.Kind != BridgeKind.Open)
+                {
+                    OpeningCells(columns, column, out int first, out int count);
+                    float m0 = (column + 0.5f) * columns.Size - length * 0.5f - CorridorWidth * 0.5f;
+                    into.Add(new BalconyDoor(DoorUnitBase + i, row, first, count, m0, m0 + CorridorWidth, y0, y0 + b.Headroom, BalconyDoorKind.Opening, false, wall));
+                    continue;
+                }
                 float height = Mathf.Min(BalconyDoors.MaxHeight, rows.Size - BalconyDoors.HeadBar);
                 float width = Mathf.Min(BalconyDoors.MaxDoubleWidth, columns.Size - 2.0f * BalconyDoors.Jamb - 0.1f);
                 if (width < BalconyDoors.MinSingleWidth)

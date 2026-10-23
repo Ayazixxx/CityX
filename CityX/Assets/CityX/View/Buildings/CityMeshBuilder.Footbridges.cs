@@ -10,6 +10,12 @@ namespace CityX.View
     /// catwalk's rails, pickets, mesh panels or pipe rails); piers under its landings and long spans; and the stair down along the wall to the
     /// street where it has one. Drawn by the lower-numbered building of the pair, in its own frame, into the wall buffer (so it is in the chunk's
     /// collider: it is walked); near and far alike, the far ones plainer (solid panels for the rails, ramps for the flights).
+    ///
+    /// A CORRIDOR (BridgeKind.Enclosed, BridgeKind.Breezeway; 2026-10-23, the owner's photo of Chongqing's bridges) has walls along both edges in
+    /// place of the rails, in the look the two buildings share, a long window down each from a sill to a lintel -- glazed in bays between thin
+    /// mullions, its glass in the dark glass buffer (so it stops a body, like a window), or open to the air between concrete piers -- and a roof
+    /// slab over them; inside, an enclosed one wears the pale of the rooms it joins. Where a street stair leaves the deck the wall is open as the
+    /// rail would be. Far off, plain walls and the roof.
     /// </summary>
     public static partial class CityMeshBuilder
     {
@@ -35,8 +41,8 @@ namespace CityX.View
         private const float SteelBeamDepth = 0.32f;
         private const float SteelBeamWidth = 0.12f;
 
-        /// <summary>The bridges a building decides (its id the lower of the pair), drawn from its own frame.</summary>
-        private static void AddFootbridges(CityWorld world, BuildingSite site, Vector3 origin, MeshBuffer buffer, bool far)
+        /// <summary>The bridges a building decides (its id the lower of the pair), drawn from its own frame; a corridor's glass into <paramref name="glass"/>.</summary>
+        private static void AddFootbridges(CityWorld world, BuildingSite site, Vector3 origin, MeshBuffer buffer, MeshBuffer glass, in SiteLooks looks, bool far)
         {
             Footbridge[] bridges = Footbridges.For(world, site);
             if (bridges.Length == 0)
@@ -48,18 +54,24 @@ namespace CityX.View
             {
                 if (bridges[i].SiteA == site.Id)
                 {
-                    DrawBridge(world, site, origin, buffer, bridges[i], far);
+                    DrawBridge(world, site, origin, buffer, glass, looks, bridges[i], far);
                 }
             }
             buffer.Look = saved;
         }
 
-        /// <summary>The looks of a bridge: its deck's top and underside, its rails, its piers.</summary>
+        /// <summary>The looks of a bridge: its deck's top and underside, its rails, its piers; and a corridor's walls, windows, roof and inside.</summary>
         private readonly struct BridgeLooks
         {
             public readonly Color32 Deck, Under, Rail, Pier, Mesh;
 
-            public BridgeLooks(BridgeDeck deck)
+            /// <summary>
+            /// A corridor's: the buildings' own wall outside (the two share one look), their window frames, glass and roof; inside, the pale walls,
+            /// ceiling and floor of the rooms it joins, lit as the outdoors is (its windows are all round it, not a room with its lamp).
+            /// </summary>
+            public readonly Color32 Wall, Frame, Glass, Roof, Inside, Ceiling, Floor;
+
+            public BridgeLooks(BridgeDeck deck, BuildingSite site, in SiteLooks building)
             {
                 bool steel = deck == BridgeDeck.Steel;
                 Deck = steel ? SurfaceLook.Pack(BridgeSteel, (int)WallMaterial.Metal, 0.6f) : SurfaceLook.Pack(BridgeConcrete, (int)WallMaterial.Concrete, 0.5f);
@@ -67,6 +79,20 @@ namespace CityX.View
                 Rail = SurfaceLook.Pack(BridgeRailTint, (int)WallMaterial.Metal, 0.5f);
                 Pier = steel ? Rail : SurfaceLook.Pack(BridgeUnderside, (int)WallMaterial.Concrete, 0.6f);
                 Mesh = SurfaceLook.Pack(BridgeMesh, (int)WallMaterial.Metal, 0.6f);
+                Wall = building.Wall;
+                Frame = building.Frame;
+                Glass = SurfaceLook.PackGlass(building.GlassTint, 0, 0.0f, true);
+                Roof = building.Roof;
+                InteriorLooks rooms = InteriorLooks.For(site);
+                Inside = Outdoors(rooms.Wall);
+                Ceiling = Outdoors(rooms.Ceiling);
+                Floor = Outdoors(rooms.Floor);
+            }
+
+            private static Color32 Outdoors(Color32 look)
+            {
+                SurfaceLook.Unpack(look, out Color32 tint, out int slice, out float wear);
+                return SurfaceLook.Pack(tint, slice, wear);
             }
         }
 
@@ -129,10 +155,11 @@ namespace CityX.View
             }
         }
 
-        private static void DrawBridge(CityWorld world, BuildingSite site, Vector3 origin, MeshBuffer buffer, in Footbridge b, bool far)
+        private static void DrawBridge(CityWorld world, BuildingSite site, Vector3 origin, MeshBuffer buffer, MeshBuffer glass, in SiteLooks building,
+            in Footbridge b, bool far)
         {
             BridgePath path = b.Path;
-            var looks = new BridgeLooks(b.Deck);
+            var looks = new BridgeLooks(b.Deck, site, building);
             int n = path.Points.Length;
             var c = new Vector3[n];
             for (int i = 0; i < n; i++) c[i] = BridgeLocal(site, origin, path.Points[i]);
@@ -143,7 +170,8 @@ namespace CityX.View
             float half = b.Width * 0.5f;
             BridgeEdges(c, tangentA, tangentB, half, out Vector3[] left, out Vector3[] right);
 
-            // The deck, stretch by stretch: a slab (a steel plate on two beams), or a flight's steps.
+            // The deck, stretch by stretch: a slab (a steel plate on two beams; an enclosed corridor's in its rooms' floor), or a flight's steps.
+            Color32 floor = b.Kind == BridgeKind.Enclosed ? looks.Floor : looks.Deck;
             for (int i = 0; i + 1 < n; i++)
             {
                 if (path.Risers[i] > 0)
@@ -151,10 +179,11 @@ namespace CityX.View
                     AddFlight(buffer, left[i], right[i], right[i + 1], left[i + 1], path.Risers[i], looks, far);
                     continue;
                 }
-                AddDeckSlab(buffer, left[i], right[i], right[i + 1], left[i + 1], b.Deck, looks);
+                AddDeckSlab(buffer, left[i], right[i], right[i + 1], left[i + 1], b.Deck, floor, looks);
             }
 
-            // The rails along both edges, set in from them; where a street stair leaves the deck by A's wall, its side is open there.
+            // Along both edges, set in from them, the rails (an open deck) or the corridor's walls; where a street stair leaves the deck by A's
+            // wall, that side is open there.
             Vector3 outA = FlatOf(c[1] - c[0]).normalized;
             Vector3 stairSide = Vector3.zero;
             if (b.Stair != null)
@@ -177,8 +206,19 @@ namespace CityX.View
                         if (dp < opening && dq < opening) continue;
                         if (dp < opening) p = Vector3.Lerp(p, q, (opening - dp) / (dq - dp));
                     }
-                    AddBridgeRail(buffer, b.Rail, p, q, inward, looks, far, i + 2 == n);
+                    if (b.Kind == BridgeKind.Open)
+                    {
+                        AddBridgeRail(buffer, b.Rail, p, q, inward, looks, far, i + 2 == n);
+                    }
+                    else
+                    {
+                        AddCorridorWall(buffer, glass, b.Kind, p, q, inward, b.Headroom, looks, far);
+                    }
                 }
+            }
+            if (b.Kind != BridgeKind.Open)
+            {
+                AddCorridorRoof(buffer, b.Headroom, left, right, looks.Roof, b.Kind == BridgeKind.Enclosed ? looks.Ceiling : looks.Under);
             }
 
             // The piers, from the ground up to the deck they hold.
@@ -198,15 +238,15 @@ namespace CityX.View
             }
         }
 
-        /// <summary>A stretch of deck: a concrete slab, or a steel plate on a beam under each edge.</summary>
-        private static void AddDeckSlab(MeshBuffer buffer, Vector3 a, Vector3 b, Vector3 c, Vector3 d, BridgeDeck deck, BridgeLooks looks)
+        /// <summary>A stretch of deck: a concrete slab, or a steel plate on a beam under each edge; its walking surface in <paramref name="top"/>.</summary>
+        private static void AddDeckSlab(MeshBuffer buffer, Vector3 a, Vector3 b, Vector3 c, Vector3 d, BridgeDeck deck, Color32 top, BridgeLooks looks)
         {
             if (deck == BridgeDeck.Concrete)
             {
-                AddSlopedSlab(buffer, a, b, c, d, Footbridges.DeckThickness, looks.Deck, looks.Under);
+                AddSlopedSlab(buffer, a, b, c, d, Footbridges.DeckThickness, top, looks.Under);
                 return;
             }
-            AddSlopedSlab(buffer, a, b, c, d, SteelPlate, looks.Deck, looks.Under);
+            AddSlopedSlab(buffer, a, b, c, d, SteelPlate, top, looks.Under);
             // a-d runs along one edge, b-c along the other: a beam under each, set in a little.
             Vector3 drop = Vector3.down * SteelPlate;
             foreach ((Vector3 p, Vector3 q, Vector3 pIn, Vector3 qIn) in new[] { (a, d, b, c), (b, c, a, d) })
@@ -317,6 +357,87 @@ namespace CityX.View
                     Bar(0.8f, RailBar, RailBar, looks.Rail);
                     Bar(0.4f, RailBar, RailBar, looks.Rail);
                     break;
+            }
+        }
+
+        /// <summary>
+        /// A corridor's wall along one edge from <paramref name="p"/> to <paramref name="q"/> (at the walking surface; <paramref name="inward"/> toward
+        /// the deck's middle): a solid wall under the window sill and a lintel under the roof, and between them the long window in bays -- glazed
+        /// between thin mullions, or open to the air between concrete piers (the breezeway). Far off, a plain wall the whole height.
+        /// </summary>
+        private static void AddCorridorWall(MeshBuffer buffer, MeshBuffer glass, BridgeKind kind, Vector3 p, Vector3 q, Vector3 inward, float headroom,
+            BridgeLooks looks, bool far)
+        {
+            float t = Footbridges.CorridorWallThickness;
+            bool glazed = kind == BridgeKind.Enclosed;
+            Color32 inside = glazed ? looks.Inside : looks.Wall;
+            if (far)
+            {
+                AddWallBox(buffer, p, q, inward, 0.0f, headroom, t, looks.Wall, looks.Wall);
+                return;
+            }
+            float sill = Footbridges.CorridorSill, head = headroom - Footbridges.CorridorLintel;
+            AddWallBox(buffer, p, q, inward, 0.0f, sill, t, looks.Wall, inside);
+            AddWallBox(buffer, p, q, inward, head, headroom, t, looks.Wall, inside);
+
+            // The posts between the bays: half a post at each end (its other half in the next stretch's wall, or in the building's).
+            float length = FlatOf(q - p).magnitude;
+            int bays = Mathf.Max(1, Mathf.RoundToInt(length / Footbridges.CorridorBay));
+            float half = (glazed ? Footbridges.CorridorMullion : Footbridges.BreezewayPier) * 0.5f / length;
+            Color32 post = glazed ? looks.Frame : looks.Wall;
+            for (int j = 0; j <= bays; j++)
+            {
+                float s = j / (float)bays;
+                AddWallBox(buffer, Vector3.Lerp(p, q, Mathf.Clamp01(s - half)), Vector3.Lerp(p, q, Mathf.Clamp01(s + half)), inward, sill, head, t, post, post);
+            }
+            if (!glazed || glass == null)
+            {
+                return;
+            }
+            // One sheet the length of the stretch, in the wall's middle plane, both faces, clear: the corridor shows through it like a room.
+            Vector3 mid = inward * (t * 0.5f);
+            Vector3 a = p + mid + Vector3.up * sill, b = q + mid + Vector3.up * sill, c = q + mid + Vector3.up * head, d = p + mid + Vector3.up * head;
+            Color32 saved = glass.Look;
+            glass.Look = looks.Glass;
+            float h = head - sill;
+            glass.AddQuad(a, b, c, d, -inward, new Vector2(0, 0), new Vector2(length, 0), new Vector2(length, h), new Vector2(0, h));
+            glass.AddQuad(a, b, c, d, inward, new Vector2(0, 0), new Vector2(length, 0), new Vector2(length, h), new Vector2(0, h));
+            glass.Look = saved;
+        }
+
+        /// <summary>
+        /// A length of wall standing on the line <paramref name="p"/>..<paramref name="q"/> (its outer face on it, <paramref name="thickness"/> toward
+        /// <paramref name="inward"/>), from <paramref name="y0"/> to <paramref name="y1"/> over the line (which may slope): its outer face in one look,
+        /// its inner in another, closed at its ends and top; no underside where it stands on the deck.
+        /// </summary>
+        private static void AddWallBox(MeshBuffer s, Vector3 p, Vector3 q, Vector3 inward, float y0, float y1, float thickness, Color32 outside, Color32 inside)
+        {
+            if (y1 - y0 <= 0.001f || FlatOf(q - p).sqrMagnitude < 1e-6f)
+            {
+                return;
+            }
+            Vector3 lift0 = Vector3.up * y0, lift1 = Vector3.up * y1, deep = inward * thickness;
+            Vector3 along = FlatOf(q - p).normalized;
+            s.Look = outside;
+            AddFace(s, -inward, p + lift0, q + lift0, q + lift1, p + lift1);
+            AddFace(s, Vector3.up, p + lift1, q + lift1, q + deep + lift1, p + deep + lift1);
+            AddFace(s, -along, p + lift0, p + lift1, p + deep + lift1, p + deep + lift0);
+            AddFace(s, along, q + lift0, q + lift1, q + deep + lift1, q + deep + lift0);
+            if (y0 > 0.001f)
+            {
+                AddFace(s, Vector3.down, p + lift0, q + lift0, q + deep + lift0, p + deep + lift0);
+            }
+            s.Look = inside;
+            AddFace(s, inward, p + deep + lift0, q + deep + lift0, q + deep + lift1, p + deep + lift1);
+        }
+
+        /// <summary>A corridor's roof: a slab over its walls the deck's full width, stretch by stretch, its underside the ceiling.</summary>
+        private static void AddCorridorRoof(MeshBuffer buffer, float headroom, Vector3[] left, Vector3[] right, Color32 roof, Color32 ceiling)
+        {
+            Vector3 up = Vector3.up * (headroom + Footbridges.CorridorRoofThickness);
+            for (int i = 0; i + 1 < left.Length; i++)
+            {
+                AddSlopedSlab(buffer, left[i] + up, right[i] + up, right[i + 1] + up, left[i + 1] + up, Footbridges.CorridorRoofThickness, roof, ceiling);
             }
         }
 

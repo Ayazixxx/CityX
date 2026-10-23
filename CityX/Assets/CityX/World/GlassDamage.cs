@@ -670,7 +670,7 @@ namespace CityX.World
             if (row >= 1 && site.Sides < 3)
             {
                 // A footbridge's doorway (Footbridges, known once the building has been built), on any wall.
-                if (Footbridges.IsDoorCell(site, wall, column, row))
+                if (Footbridges.IsDoorCell(site, wall, columns, column, row))
                 {
                     return true;
                 }

@@ -15,7 +15,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class BalconyDoorsTests
     {
-        private const int Seed = 19077151;
+        private const int Seed = 80469103;
 
         /// <summary>The player's capsule (PlayerRigBuilder): its height and its radius, each with the controller's skin round it.</summary>
         private static float BodyHeight => BodyRig.StandingHeight + 2.0f * 0.03f;

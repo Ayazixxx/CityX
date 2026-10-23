@@ -101,7 +101,7 @@ namespace CityX.View
             {
                 return;
             }
-            SiteLooks looks = SiteLooks.For(site, WindowPlan.For(world, site).Style);
+            SiteLooks looks = SiteLooks.For(world, site, WindowPlan.For(world, site).Style);
             var offset = new Vector3((float)(site.CentreX - origin.x), -origin.y, (float)(site.CentreZ - origin.z));
             structures.SetFrame(offset, site.AxisX, site.AxisZ);
             structures.Look = looks.Wall;

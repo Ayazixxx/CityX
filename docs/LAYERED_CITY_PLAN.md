@@ -160,6 +160,43 @@ types of guard rails ... make more staircases throughout the city overall, and h
   join floors further apart; the doorway is looked at along the deck), `FootbridgeVarietyCapture` (bridges-*.png: each shape, each rail, the
   flights, a street stair and a tower).
 
+**Footbridges, third pass (2026-10-23): three kinds, and the enclosed ones make their two buildings one.** Owner, with a photo of Chongqing's
+bridges between two grey apartment blocks (walled, roofed, long window slots with no glass): *"make it so the sky bridges can also be connected
+by building like in the image attached. make multiple types of sky bridges that can occur. I want the ones that exist now to occur sometimes,
+but i want more that are fully indoor like the buildings they stem from and have windows too, as they apart of the indoor rooms they stem from.
+No entry door needed in between these types ... the other type i want still have roofs and long window like spaces similar to the image
+attached ... no glass in the windows they are kind of a hybrid"*, and then *"if they are going to be the 2 or 3 type then the buildings
+connected should be the same color"*.
+
+- **Kinds** (`BridgeKind`, drawn by district from the pair's dice): OPEN, the deck and rails above (downtown 35 %, busy streets 40 %, homes
+  35 %, old town 50 %, works 60 %); ENCLOSED, a corridor walled and roofed with a long glazed window down each side (downtown 45 %, busy
+  streets 30 %, homes 25 %, old town and works 15 %); BREEZEWAY, the same corridor with its long windows open to the air between concrete
+  piers, the photo (homes 40 %, old town 35 %, busy streets 30 %, works 25 %, downtown 20 %). A corridor keeps the bridge's shape, flights and
+  piers; a street stair still leaves it where it would leave the deck, through a gap in its wall.
+- **The corridor** (`Footbridges.Corridor*`): the 2.8 m deck with a 0.16 m wall on each edge (2.48 m clear between them), a 0.25 m roof slab,
+  headroom the lower of the two buildings' window rows less the door head (3.1 m or so, 3.6 at most; a row too low for 2.75 m gets the open
+  deck); the window from a 1 m sill up to 0.45 m under the roof, in 1.8 m bays between 8 cm mullions (glazed, one clear sheet a stretch, in
+  the dark glass buffer so it is in the collider: a body cannot walk through it) or 35 cm piers (open). An enclosed corridor's floor,
+  walls and ceiling inside are the pale of the rooms it joins (`InteriorLooks`), lit as the outdoors is (its windows are all round it; a room's
+  indoor shade would leave it dark by day); a breezeway is concrete inside like out. Far off, plain walls and the roof.
+- **The mouth.** A corridor is part of the rooms it joins: its end in each wall is an open doorway its own clear width and headroom
+  (`BalconyDoorKind.Opening`: the wall is cut and its reveals drawn, nothing hangs in it, the door interactor passes it by, the glass counts
+  every cell it passes through as a door cell), where an open bridge keeps its pair of glazed doors. An air conditioner under the window above
+  a mouth would have hung into it (a mouth is nearly a row tall): nothing is hung in a bridge's landing (`CityMeshBuilder.InABridgeLanding`),
+  and the facade's piers and fins keep clear up to the corridor's roof (`Footbridges.ClearingsOn`).
+- **One look.** A building joined by a corridor to a lower-numbered building wears that building's look -- wall and base materials and tints,
+  bands, trim, roof, frames, glass tint (`BuildingLook.For(world, site, style)`, `Footbridges.SharesLookOf`): the lowest-numbered such
+  neighbour decides, and what it wears in turn, so a chain of corridors is one colour from end to end; the corridor itself is drawn in it. A
+  building with no corridor keeps its own.
+- **The world seed was rerolled** to **80469103**, chosen with `tools/cityplan -- hillseeds` and `stairlanes` among the hilliest seeds for
+  the stairs near the spawn (21 stairways and 21 step streets within 1 km; the old seed had 27 and 22). Near the spawn: 52 bridges, 24 open, 21 enclosed, 7 breezeways; 26 buildings wearing a corridor neighbour's look.
+- Tests: `FootbridgeKindTests` (every kind near the spawn, a corridor's headroom; its mouth an open doorway the corridor's width and headroom
+  at both ends, every cell it takes a door cell, and both buildings in one look; a building with no corridor in its own look and a chain in
+  the first building's; built with a roof at the headroom and a wall either side at the clear half width, the enclosed one's window band glass
+  all along and the breezeway's open; the facade clearing up to the roof), `FootbridgeTests` and `FootbridgeDoorwayTests` updated (an open
+  bridge's door opens, a corridor's mouth is an Opening; `MeshRays` is the shared ray helper), `FootbridgePathWalkPlayTests` (a body walks an
+  enclosed corridor and a breezeway mouth to mouth), `FootbridgeVarietyCapture` (`bridges-kind-{enclosed,breezeway}[-turning|-flight]-{up,side,inside,mouth}.png`).
+
 **Stairways, step streets and hills (2026-10-16): the stairs that are streets, a first part of L1.** Owner, the same message: *"make
 more staircases throughout the city overall ... san francisco has a lot of randoms staircases that go up hills and stuff in intricate ways
 study how they do it, maybe make the terrain more hilly overall."* What San Francisco and Pittsburgh do (Wikipedia, "Step street"; KQED's

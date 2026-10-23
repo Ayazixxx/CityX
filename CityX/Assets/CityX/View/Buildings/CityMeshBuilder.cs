@@ -101,8 +101,11 @@ namespace CityX.View
             // switched on"). A window glows only when the room behind it has its light switched on (RoomWindowGlow, below).
             const double litShare = 0.0;
 
+            // The building's footbridges (World/Footbridges) are known before anything else: its walls cut their doorways, and a corridor's far
+            // building wears the near one's look.
+            Footbridges.For(world, site);
             // What the building is made of: one look for its walls, one for its ground floor, one for its roof and trim.
-            SiteLooks looks = SiteLooks.For(site, WindowPlan.For(world, site).Style);
+            SiteLooks looks = SiteLooks.For(world, site, WindowPlan.For(world, site).Style);
             structures.UvOffset = looks.UvOffset;
 
             if (site.IsParkingGarage)
@@ -133,17 +136,14 @@ namespace CityX.View
             // A sealed block (a stage of a twisted tower, a block of a wonky pile) is its outside only at every distance: nothing in it to go into.
             else if (far || site.Shell)
             {
-                // The building's footbridges (World/Footbridges) are known before its walls, which cut their doorways.
-                Footbridges.For(world, site);
                 BuildBuildingShell(world, site, builderOrigin, structures, concrete,
                     new Glazing(litGlass, darkGlass, null, damage, null, null, litShare), looks);
                 // An apartment block's balconies and walkway, the distant version (CityMeshBuilder.Apartment.cs; never on a sealed block).
                 AddApartmentFronts(world, site, builderOrigin, structures, looks, true);
-                AddFootbridges(world, site, builderOrigin, structures, true);
+                AddFootbridges(world, site, builderOrigin, structures, darkGlass, looks, true);
             }
             else
             {
-                Footbridges.For(world, site);
                 // A powered building's rooms get their glow set up first, so each window can add its own glow to the room behind it as it is built.
                 RoomWindowGlow windowGlow = roomGlows != null ? RoomWindowGlow.For(site, offset) : null;
                 BuildBuilding(world, site, builderOrigin, structures, concrete,
@@ -152,7 +152,7 @@ namespace CityX.View
                 // An apartment block's balconies on every floor and its walkway (CityMeshBuilder.Apartment.cs).
                 AddApartmentFronts(world, site, builderOrigin, structures, looks, false);
                 // The footbridges it decides, across to the buildings facing it (CityMeshBuilder.Footbridges.cs).
-                AddFootbridges(world, site, builderOrigin, structures, false);
+                AddFootbridges(world, site, builderOrigin, structures, darkGlass, looks, false);
                 // Every room's ceiling lights and the switch by its door; a powered building's glow (CityMeshBuilder.RoomLights.cs).
                 AddRoomLighting(site, concrete, structures, offset, roomGlows, windowGlow);
             }
@@ -224,9 +224,9 @@ namespace CityX.View
                 UvOffset = uvOffset;
             }
 
-            public static SiteLooks For(BuildingSite site, FacadeStyle style)
+            public static SiteLooks For(CityWorld world, BuildingSite site, FacadeStyle style)
             {
-                BuildingLook look = BuildingLook.For(site, style);
+                BuildingLook look = BuildingLook.For(world, site, style);
                 return new SiteLooks(
                     SurfaceLook.Pack(look.WallTint, (int)look.Wall, look.WallWear),
                     SurfaceLook.Pack(look.BaseTint, (int)look.Base, look.BaseWear),
@@ -1924,9 +1924,11 @@ namespace CityX.View
                     bool intact = glazing.Damage == null || glazing.Damage.StateOf(new PaneKey(site.Id, which, column, row)) == PaneState.Intact;
                     AddWindowFrame(wallBuffer, Inward(wall, normal, BuildingInterior.GlassSetBack), u0, u1, y0, y1, normal, looks.Value, intact);
                     // Never on the first two rows: an air conditioner hangs a metre under its window, and that is a tall body's head height
-                    // when the window is low in its row.
+                    // when the window is low in its row. Nor in a footbridge's landing (a corridor's mouth is nearly a row tall: one hung in it).
                     if (looks.Value.AcDensity > 0.0f && row > 1
-                        && AirConditionerAt(site, which, column, row) < looks.Value.AcDensity)
+                        && AirConditionerAt(site, which, column, row) < looks.Value.AcDensity
+                        && !InABridgeLanding(site, which, (u0 + u1) * 0.5f - AcWidth * 0.5f, (u0 + u1) * 0.5f + AcWidth * 0.5f,
+                            Mathf.Max(y0 - AcDrop, standOn), Mathf.Max(y0 - AcDrop, standOn) + AcHeight))
                     {
                         AddAirConditioner(wallBuffer, wall, u0, u1, y0, normal, looks.Value, standOn);
                     }
@@ -2069,16 +2071,34 @@ namespace CityX.View
             return (h & 0xFFFFu) / 65536.0f;
         }
 
+        /// <summary>An air conditioner's size, and how far under its window's sill it hangs, metres.</summary>
+        private const float AcWidth = 1.05f;
+        private const float AcHeight = 0.46f;
+        private const float AcDrop = 0.78f;
+
+        /// <summary>
+        /// Whether something hung on a wall across <paramref name="u0"/>..<paramref name="u1"/> (from the building's centre) and
+        /// <paramref name="y0"/>..<paramref name="y1"/> (real heights) would stand in a footbridge's landing on it (Footbridges.ClearingsOn).
+        /// </summary>
+        private static bool InABridgeLanding(BuildingSite site, WindowGrid.Wall which, float u0, float u1, float y0, float y1)
+        {
+            if (Footbridges.Cached(site).Length == 0)
+            {
+                return false;
+            }
+            return NextBridgeLanding(BridgeClearings(site, which), site.BaseHeight, u0, u1, y0, y1, out _) < y1 - 0.01f;
+        }
+
         /// <summary>A split-system condenser on a bracket under a window: the thing that hangs on every flat in a dense city.</summary>
         private static void AddAirConditioner(MeshBuffer buffer, in Wall wall, float u0, float u1, float y0, Vector3 outward, SiteLooks looks,
             float standOn = float.NegativeInfinity)
         {
-            const float width = 1.05f;
-            const float height = 0.46f;
+            const float width = AcWidth;
+            const float height = AcHeight;
             const float depth = 0.38f;
             float centre = (u0 + u1) * 0.5f;
             // Hung a metre under its window; on a balcony (ApartmentFront) it stands on the floor instead of hanging through the slab.
-            float bottom = Mathf.Max(y0 - 0.78f, standOn);
+            float bottom = Mathf.Max(y0 - AcDrop, standOn);
             Color32 saved = buffer.Look;
             buffer.Look = looks.Appliance;
             Vector3 a = wall.At(centre - width * 0.5f, bottom);

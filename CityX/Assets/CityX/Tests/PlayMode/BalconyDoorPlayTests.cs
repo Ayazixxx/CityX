@@ -16,7 +16,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class BalconyDoorPlayTests
     {
-        private const int Seed = 19077151;
+        private const int Seed = 80469103;
         private readonly List<GameObject> _made = new List<GameObject>();
 
         [SetUp]

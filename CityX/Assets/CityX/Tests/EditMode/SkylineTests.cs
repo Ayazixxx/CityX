@@ -12,7 +12,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class SkylineTests
     {
-        private const int Seed = 19077151;
+        private const int Seed = 80469103;
         private static CityWorld _world;
         private static CityWorld World => _world ?? (_world = new CityWorld(Seed));
 
@@ -126,7 +126,19 @@ namespace CityX.Tests
             Assert.AreEqual(0, ground.Vertices.Count, "the exclusion radius covers the whole group from its middle");
             Assert.AreEqual(0, structures.Vertices.Count);
 
-            (MeshBuffer ground2, MeshBuffer structures2, _) = Build(g, around, 2);
+            // The 5 x 5 chunks round a viewer well inside the group, on a chunk that owns a tall building (the group's middle need not: seed
+            // 80469103's does not), so there is something for them to leave out.
+            Vector2Int inside = around;
+            foreach (BuildingSite site in TallBuildingsOf(g))
+            {
+                int lx = site.OwnerChunkX - g.x * n, ly = site.OwnerChunkY - g.y * n;
+                if (lx >= 2 && lx <= n - 3 && ly >= 2 && ly <= n - 3)
+                {
+                    inside = new Vector2Int(site.OwnerChunkX, site.OwnerChunkY);
+                    break;
+                }
+            }
+            (MeshBuffer ground2, MeshBuffer structures2, _) = Build(g, inside, 2);
             Assert.AreEqual((n * n - 25) * 4, ground2.Vertices.Count, "the 5 x 5 chunks round the viewer have no floor, the rest do");
             (_, MeshBuffer all, _) = Build(g, FarAway, SkylineStreamer.ExcludeRadiusChunks);
             Assert.Greater(structures2.Vertices.Count, 0);

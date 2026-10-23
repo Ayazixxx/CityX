@@ -238,6 +238,10 @@ namespace CityX.View
                         for (int k = 0; k < doors.Count; k++)
                         {
                             BalconyDoor door = doors[k];
+                            if (door.Kind == BalconyDoorKind.Opening)
+                            {
+                                continue;   // a corridor's open mouth (Footbridges): nothing to open
+                            }
                             float floorY = b.BaseHeight + door.Y0;
                             if (Mathf.Abs(feet.y - floorY) > ReachUpDown + 1.0f)
                             {

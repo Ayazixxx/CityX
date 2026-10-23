@@ -15,7 +15,7 @@ namespace CityX.Tests
     /// </summary>
     public sealed class RoadPaintTests
     {
-        private const int Seed = 19077151;
+        private const int Seed = 80469103;
 
         [Test]
         public void PaintLiesFlatOnTheAsphaltWhereverItShows()
