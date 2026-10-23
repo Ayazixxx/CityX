@@ -1,4 +1,4 @@
-using CityX.Character;
+﻿using CityX.Character;
 using UnityEditor;
 using UnityEngine;
 
@@ -188,7 +188,11 @@ namespace CityX.UIEditor
             baked.name = meshName;
             if (bakedPath == DreadsBaked)
             {
-                AddScalp(baked, CharacterHair.Dreads);
+                AddScalp(baked, CharacterHair.Dreads, measured: false);
+            }
+            else if (bakedPath == HydeBaked)
+            {
+                AddScalp(baked, CharacterHair.Hyde, measured: true);
             }
             AssetDatabase.CreateAsset(baked, bakedPath);
             AssetDatabase.SaveAssets();
@@ -196,24 +200,28 @@ namespace CityX.UIEditor
             return baked;
         }
 
-        /// <summary>
-        /// The dreads baked again (with their scalp cap, placed by their saved fit) into the same asset, so every head wearing them keeps it.
-        /// </summary>
+        /// <summary>The dreads baked again (with their scalp cap, placed by their saved fit) into the same asset, so every head wearing them keeps it.</summary>
         [MenuItem("CityX/Rebake Dreads")]
-        public static void RebakeDreads()
+        public static void RebakeDreads() => Rebake(DreadsSource, DreadsBaked, "DreadsMesh");
+
+        /// <summary>HYDE baked again the same way, its cap shaped by where the hair reaches.</summary>
+        [MenuItem("CityX/Rebake Hyde")]
+        public static void RebakeHyde() => Rebake(HydeSource, HydeBaked, "HydeMesh");
+
+        private static void Rebake(string sourcePath, string bakedPath, string meshName)
         {
-            var existing = AssetDatabase.LoadAssetAtPath<Mesh>(DreadsBaked);
-            string temporary = Folder + "/DreadsMeshRebake.asset";
+            var existing = AssetDatabase.LoadAssetAtPath<Mesh>(bakedPath);
+            string temporary = bakedPath.Replace(".asset", "Rebake.asset");
             if (existing != null)
             {
-                AssetDatabase.MoveAsset(DreadsBaked, temporary);
+                AssetDatabase.MoveAsset(bakedPath, temporary);
             }
-            Mesh fresh = BakedFromModel(DreadsSource, DreadsBaked, "DreadsMesh");
+            Mesh fresh = BakedFromModel(sourcePath, bakedPath, meshName);
             if (existing != null && fresh != null)
             {
                 EditorUtility.CopySerialized(fresh, existing);
-                AssetDatabase.DeleteAsset(DreadsBaked);
-                AssetDatabase.MoveAsset(temporary, DreadsBaked);
+                AssetDatabase.DeleteAsset(bakedPath);
+                AssetDatabase.MoveAsset(temporary, bakedPath);
                 AssetDatabase.SaveAssets();
             }
         }
@@ -222,7 +230,73 @@ namespace CityX.UIEditor
         /// A thin cap of hair over the scalp (HairScalp) merged into <paramref name="mesh"/>: made in the head's space and brought into the
         /// mesh's own through <paramref name="style"/>'s saved fit, so it lies on the head wherever the fit puts the hair.
         /// </summary>
-        private static void AddScalp(Mesh mesh, string style)
+        // A cap shaped by the hair over it: round the head, down to the lowest point the hair reaches there or beside it (the tips between which
+        // gaps showed the skin), and this many degrees on (below the tips: the gaps between them filled as the owner showed); never below the forehead's line in
+        // front, where the fringe's gaps are meant, nor round the temples, where locks standing off the head would leave the cap showing beside the face.
+        private const int MeasuredTurns = 72;
+        private const float MeasuredStep = 2.0f;
+        private const float MeasuredLowest = -70.0f;
+        private const float TuckDegrees = -4.0f;
+        private const int EvenOver = 2;
+        private const float ForeheadLine = 40.0f;
+        private const float ForeheadFull = 40.0f;        // the forehead's line holds this far round from straight ahead, gone by ForeheadHalfWidth
+        private const float ForeheadHalfWidth = 80.0f;
+
+        /// <summary>The hairline under a hair <paramref name="mesh"/> worn at <paramref name="fit"/>, for HairScalp.</summary>
+        private static System.Func<float, float> MeasuredHairline(Mesh mesh, CharacterHair.Fit fit)
+        {
+            var cover = new GameObject("HairCover") { hideFlags = HideFlags.HideAndDontSave };
+            bool hitBackfaces = Physics.queriesHitBackfaces;
+            var lowest = new float[MeasuredTurns];
+            try
+            {
+                cover.AddComponent<MeshCollider>().sharedMesh = Bake(mesh, Matrix4x4.TRS(fit.Position, Quaternion.Euler(fit.Euler), fit.Scale));
+                Physics.SyncTransforms();
+                Physics.queriesHitBackfaces = true;
+                for (int i = 0; i < MeasuredTurns; i++)
+                {
+                    float t = 360.0f * i / MeasuredTurns * Mathf.Deg2Rad;
+                    lowest[i] = 90.0f;
+                    for (float height = 90.0f; height >= MeasuredLowest; height -= MeasuredStep)
+                    {
+                        float h = height * Mathf.Deg2Rad;
+                        var direction = new Vector3(Mathf.Cos(h) * Mathf.Sin(t), Mathf.Sin(h), Mathf.Cos(h) * Mathf.Cos(t));
+                        if (Physics.Raycast(Vector3.zero, direction, 2.0f))
+                        {
+                            lowest[i] = height;
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                Physics.queriesHitBackfaces = hitBackfaces;
+                Object.DestroyImmediate(cover);
+            }
+            var line = new float[MeasuredTurns];
+            for (int i = 0; i < MeasuredTurns; i++)
+            {
+                float low = 90.0f;   // the lowest tip near here, so the gaps between tips fill
+                for (int k = -EvenOver; k <= EvenOver; k++)
+                {
+                    low = Mathf.Min(low, lowest[(i + k + MeasuredTurns) % MeasuredTurns]);
+                }
+                float turn = 360.0f * i / MeasuredTurns;
+                float fromFront = Mathf.Abs(Mathf.DeltaAngle(0.0f, turn));
+                float floor = Mathf.Lerp(ForeheadLine, MeasuredLowest, Mathf.SmoothStep(0.0f, 1.0f, Mathf.InverseLerp(ForeheadFull, ForeheadHalfWidth, fromFront)));
+                line[i] = Mathf.Max(low + TuckDegrees, floor);
+            }
+            Debug.Log($"CityX: measured hairline -- front {line[0]:0}, right {line[MeasuredTurns / 4]:0}, back {line[MeasuredTurns / 2]:0}, " +
+                      $"left {line[3 * MeasuredTurns / 4]:0} degrees");
+            return turn =>
+            {
+                float at = Mathf.Repeat(turn, 360.0f) / 360.0f * MeasuredTurns;
+                int a = Mathf.FloorToInt(at) % MeasuredTurns;
+                return Mathf.Lerp(line[a], line[(a + 1) % MeasuredTurns], at - Mathf.Floor(at));
+            };
+        }
+
+        private static void AddScalp(Mesh mesh, string style, bool measured)
         {
             if (!EnsureFitSettings().TryGet(style, out CharacterHair.Fit fit))
             {
@@ -233,7 +307,8 @@ namespace CityX.UIEditor
             var capVertices = new System.Collections.Generic.List<Vector3>();
             var capNormals = new System.Collections.Generic.List<Vector3>();
             var capTriangles = new System.Collections.Generic.List<int>();
-            HairScalp.Build(FusedBodyShape.HeadRadius, capVertices, capNormals, capTriangles);
+            System.Func<float, float> hairline = measured ? MeasuredHairline(mesh, fit) : HairScalp.Hairline;
+            HairScalp.Build(FusedBodyShape.HeadRadius, hairline, capVertices, capNormals, capTriangles);
 
             var vertices = new System.Collections.Generic.List<Vector3>(mesh.vertices);
             var normals = new System.Collections.Generic.List<Vector3>(mesh.normals);
