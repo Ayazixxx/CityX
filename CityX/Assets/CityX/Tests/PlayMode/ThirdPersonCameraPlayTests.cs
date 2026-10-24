@@ -66,13 +66,14 @@ namespace CityX.Tests
         }
 
         /// <summary>
-        /// THE FRAMING (owner, 2026-10-17: "i feel like the camera pov needs to be adjusted so i can see more of whats going on in front of
-        /// me"): looking level, the whole body sits in the lower half of the frame, and someone as tall standing a few metres in front is seen
-        /// over the head rather than behind it. Looking level at the chest, as the camera used to, put the head above the middle of the screen,
-        /// with whoever was in front hidden behind it.
+        /// THE FRAMING IS SAINTS ROW: THE THIRD'S (owner, 2026-10-23: "research the saints row the third camera pov and zoom and just copy
+        /// that"): at the pitch the camera starts at, the top of the head sits at the middle of the screen, the body fills the lower half and
+        /// sits left of the middle (the camera over the right shoulder), and someone as tall standing a few metres in front is seen over the
+        /// head rather than behind it. Looking level at the chest, as the camera did until 2026-10-17, put the head above the middle, with
+        /// whoever was in front hidden behind it.
         /// </summary>
         [UnityTest]
-        public IEnumerator LookingLevelTheBodySitsLowInTheFrameAndWhoeverIsAheadIsSeenOverIt()
+        public IEnumerator TheHeadSitsAtTheMiddleTheBodyFillsTheLowerHalfAndWhoeverIsAheadIsSeenOverIt()
         {
             var rig = new GameObject("FramingRig");
             Camera lens = rig.AddComponent<Camera>();
@@ -80,7 +81,7 @@ namespace CityX.Tests
             ThirdPersonCamera follow = rig.AddComponent<ThirdPersonCamera>();
             follow.Target = _target.transform;
             follow.Yaw = 0.0f;
-            follow.Pitch = 0.0f;
+            follow.Pitch = ThirdPersonCamera.DefaultPitch;
             try
             {
                 yield return null;
@@ -89,10 +90,11 @@ namespace CityX.Tests
                 Vector3 feet = _target.transform.position;
                 Vector3 head = lens.WorldToViewportPoint(feet + Vector3.up * height);
                 Vector3 soles = lens.WorldToViewportPoint(feet);
-                Assert.Less(head.y, 0.5f, $"the top of the head is at {head.y:0.00} of the screen's height: above the middle, in front of what is ahead");
-                Assert.Greater(soles.y, 0.0f, "the feet are off the bottom of the screen");
+                Assert.That(head.y, Is.InRange(0.42f, 0.52f), $"the top of the head is at {head.y:0.00} of the screen's height, not at the middle");
+                Assert.That(soles.y, Is.InRange(0.03f, 0.25f), $"the feet are at {soles.y:0.00} of the screen's height: the body does not fill the lower half");
+                Assert.Less(head.x, 0.45f, $"the body is at {head.x:0.00} of the screen's width: not left of the middle");
                 Vector3 ahead = lens.WorldToViewportPoint(feet + Vector3.forward * 4.0f + Vector3.up * height);
-                Assert.Greater(ahead.y, head.y + 0.02f, "the head of someone as tall 4 m in front is hidden behind the player's own");
+                Assert.Greater(ahead.y, head.y + 0.05f, "the head of someone as tall 4 m in front is hidden behind the player's own");
             }
             finally
             {
@@ -100,15 +102,16 @@ namespace CityX.Tests
             }
         }
 
-        /// <summary>Aiming keeps its own over-the-shoulder framing: the camera comes down from over the head to the aiming place.</summary>
+        /// <summary>Fine aim keeps its own framing: in close over the right shoulder, the camera's line down from the top of the head to the shoulders.</summary>
         [UnityTest]
-        public IEnumerator AimingBringsTheCameraDownFromOverTheHeadToItsOwnPlace()
+        public IEnumerator AimingBringsTheCameraInCloseOverTheShoulder()
         {
             yield return null;
             float restHeight = _cameraObject.transform.position.y;
+            float restDistance = Vector3.Distance(_target.transform.position, _cameraObject.transform.position);
 
             _camera.IsAiming = true;
-            for (int i = 0; i < 60; i++)   // a second; the camera takes a quarter to get there
+            for (int i = 0; i < 300; i++)   // the camera takes 0.15 s to get there
             {
                 yield return null;
             }
@@ -118,9 +121,85 @@ namespace CityX.Tests
                 + Vector3.up * (_camera.PivotHeightFraction * height + _camera.AimPivotRaise)
                 + Vector3.right * _camera.AimShoulderOffset
                 - Vector3.forward * _camera.AimDistance;
-            Assert.Less(Vector3.Distance(expected, _cameraObject.transform.position), 0.01f,
-                $"aiming put the camera at {_cameraObject.transform.position}, not its over-the-shoulder place {expected}");
-            Assert.Less(_cameraObject.transform.position.y, restHeight - 0.5f, "aiming did not bring the camera down from over the head");
+            Vector3 position = _cameraObject.transform.position;
+            Assert.Less(Vector3.Distance(expected, position), 0.01f, $"aiming put the camera at {position}, not its over-the-shoulder place {expected}");
+            Assert.Less(position.y, restHeight - 0.1f, "aiming did not bring the camera's line down from the top of the head to the shoulders");
+            Assert.Less(Vector3.Distance(_target.transform.position, position), restDistance * 0.7f, "aiming did not bring the camera in close");
+        }
+
+        /// <summary>Into fine aim in Saints Row's 0.15 s, back out over half a second: the snap in reads as readiness, the ease out as relief.</summary>
+        [UnityTest]
+        public IEnumerator AimingSnapsInAndEasesBackOut()
+        {
+            Time.captureFramerate = 60;
+            try
+            {
+                yield return null;
+                _camera.IsAiming = true;
+                for (int i = 0; i < 12; i++)   // 0.2 s
+                {
+                    yield return null;
+                }
+                Assert.Greater(_camera.AimCameraBlend, 0.95f, $"0.2 s into aiming the camera is only {_camera.AimCameraBlend:0.00} of the way in");
+                _camera.IsAiming = false;
+                for (int i = 0; i < 12; i++)
+                {
+                    yield return null;
+                }
+                Assert.Greater(_camera.AimCameraBlend, 0.2f, $"0.2 s after releasing aim the camera is already {1.0f - _camera.AimCameraBlend:P0} of the way out: no ease");
+                for (int i = 0; i < 30; i++)   // 0.7 s in all
+                {
+                    yield return null;
+                }
+                Assert.Less(_camera.AimCameraBlend, 0.001f, "0.7 s after releasing aim the camera is not back");
+            }
+            finally
+            {
+                Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
+            }
+        }
+
+        /// <summary>
+        /// A sprint widens the view a tenth over half a second (Saints Row's camera has its own sprint entry, which its first-person mod mirrors
+        /// with a 1.1x field of view); aiming overrides it, and stopping restores the rest.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator SprintingWidensTheFieldOfViewATenthAndAimingOverridesIt()
+        {
+            var rig = new GameObject("SprintRig");
+            Camera cam = rig.AddComponent<Camera>();
+            cam.fieldOfView = 50.0f;
+            ThirdPersonCamera follow = rig.AddComponent<ThirdPersonCamera>();
+            follow.Target = _target.transform;
+            Time.captureFramerate = 60;
+            try
+            {
+                yield return null;
+                follow.IsSprinting = true;
+                for (int i = 0; i < 90; i++)   // 1.5 s, three times the blend
+                {
+                    yield return null;
+                }
+                Assert.AreEqual(50.0f * follow.SprintFieldOfViewScale, cam.fieldOfView, 0.5f, "sprinting should widen the field of view a tenth");
+                follow.IsAiming = true;
+                for (int i = 0; i < 90; i++)
+                {
+                    yield return null;
+                }
+                Assert.AreEqual(follow.AimFieldOfView, cam.fieldOfView, 0.5f, "aiming while sprinting should still zoom to the aim field of view");
+                follow.IsAiming = false;
+                follow.IsSprinting = false;
+                for (int i = 0; i < 90; i++)
+                {
+                    yield return null;
+                }
+                Assert.AreEqual(50.0f, cam.fieldOfView, 0.5f, "stopping should restore the rest field of view");
+            }
+            finally
+            {
+                Time.captureFramerate = SteadyFrameTime.FramesPerSecond;
+                Object.Destroy(rig);
+            }
         }
 
         /// <summary>The impact shake (a hit taken or landed): the picture jolts, the aim does not, and the camera ends up exactly where it was.</summary>

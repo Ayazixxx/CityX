@@ -1079,6 +1079,10 @@ namespace CityX.Character
             // happens to be attached.
             bool castRaisesLeftArm = _grappleSwing != null && _grappleSwing.EquippedHook != null;
             _locomotion.SetCastPose(SpellCastFraction, castRaisesLeftArm);
+            if (_orbitCamera != null)
+            {
+                _orbitCamera.IsSprinting = sprinting;   // the view widens a touch at a sprint (ThirdPersonCamera.SprintFieldOfViewScale)
+            }
 
             var input = new LocomotionInput
             {

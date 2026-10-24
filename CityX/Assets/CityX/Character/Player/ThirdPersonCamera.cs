@@ -11,6 +11,11 @@ namespace CityX.Character
     /// The collision arm is not polish. This city is narrow canyons and 14m
     /// streets; without it the camera spends most of its time inside a wall,
     /// and you would be judging the buildings from the inside.
+    ///
+    /// THE FRAMING IS SAINTS ROW: THE THIRD'S (owner, 2026-10-23: "research the saints row the third camera pov and zoom and just copy that"):
+    /// a 50 degree field of view, the camera close behind and over the right shoulder with the top of the head at the middle of the screen
+    /// and the body filling the lower half; fine aim snaps in close over the shoulder and zooms to 30 degrees, and eases back out; a sprint
+    /// widens the view a tenth. The game's own camera table (camera_free.xtbl) and frames of it, scaled 1.44x to this body: docs/CAMERA.md.
     /// </summary>
     public sealed class ThirdPersonCamera : MonoBehaviour
     {
@@ -43,27 +48,28 @@ namespace CityX.Character
         public float PivotHeightFraction = 0.73f;
 
         /// <summary>
-        /// How far above the pivot the camera sits, in the view's own up, metres. The body is framed in the lower half of the screen and the middle of
-        /// the screen shows what is in front, over the head (owner, 2026-10-17: "i feel like the camera pov needs to be adjusted so i can see more
-        /// of whats going on in front of me, look at other third person action/fighting games"). Looking level at the pivot (the chest) put the
-        /// head and shoulders in the middle of the screen: exactly where someone standing in front of you is. Third-person action games raise the
-        /// camera over the head and let the body sit low in the frame (the Souls games, Assassin's Creed; the Unreal and Cinemachine third-person
-        /// rigs' raised arm). In the view's own up, so the body keeps its place in the frame at any pitch. Eased away while aiming, whose
-        /// over-the-shoulder framing is its own (AimPivotRaise, AimShoulderOffset). 1.3 at first; 1.0 is the owner's choice after playing it (2026-10-17). See docs/CAMERA.md.
+        /// How far above the pivot the camera's line sits, in the view's own up, metres: the body is framed in the lower half of the screen and
+        /// the middle of the screen shows what is in front, over the head (owner, 2026-10-17: "i feel like the camera pov needs to be adjusted so
+        /// i can see more of whats going on in front of me"). In the view's own up, so the body keeps its place in the frame at any pitch. Eased
+        /// away while aiming, whose over-the-shoulder framing is its own (AimPivotRaise, AimShoulderOffset). 1.0 from 2026-10-17 (the body well
+        /// below the middle); 0.6 since 2026-10-23 puts the camera's line at the top of the head, where Saints Row: The Third looks. See docs/CAMERA.md.
         /// </summary>
         public float FramingHeight = DefaultFramingHeight;
 
-        public const float DefaultFramingHeight = 1.0f;
+        public const float DefaultFramingHeight = 0.6f;
 
         /// <summary>
         /// How far behind the pivot the camera hangs, metres (the spring arm's length, before walls pull it in). 4.0 was player.gd's own
-        /// spring_length; with the camera raised over the head (FramingHeight) it hangs a little further back, so more of the street and of
-        /// whoever is in front fits around the body (owner, 2026-10-17, see FramingHeight).
+        /// spring_length, 4.8 the 2026-10-17 framing; 5.0 is Saints Row: The Third's 3.5 m on this 1.44x body, which with the narrower field of
+        /// view fills over half the screen's height with the body.
         /// </summary>
         public float Distance = DefaultDistance;
 
-        public const float DefaultDistance = 4.8f;
+        public const float DefaultDistance = 5.0f;
         public float LookDegreesPerPixel = 0.12f;
+
+        /// <summary>The pitch the camera starts at, degrees down: looking a little down on the body, as the game's own camera rests.</summary>
+        public const float DefaultPitch = 12.0f;
 
         /// <summary>
         /// Bug report: "its not letting me all the way straight up
@@ -89,18 +95,18 @@ namespace CityX.Character
             "is off to one side of frame instead of dead centre. Reported directly: standing " +
             "square behind the head put anything small and close in front of the player -- a " +
             "dropped pistol on the ground being the concrete case -- right behind their own " +
-            "silhouette, with nothing on screen to actually judge alignment against. Matches " +
-            "player.gd's own SHOULDER_OFFSET_X exactly -- was 0.85, a from-scratch guess made " +
-            "without ever checking Godot's own already-tuned real number.")]
+            "silhouette, with nothing on screen to actually judge alignment against. 0.5 was " +
+            "player.gd's own SHOULDER_OFFSET_X; 0.87 is Saints Row: The Third's x_shift 0.6 on this body (2026-10-23).")]
         public float ShoulderOffset = DefaultShoulderOffset;
 
-        public const float DefaultShoulderOffset = 0.5f;
+        public const float DefaultShoulderOffset = 0.87f;
 
         /// <summary>
-        /// The game camera's field of view when neither aiming nor flying, degrees (vertical): player.gd's own camera.fov. Set on the Camera by
-        /// the scene builder; this camera reads it from there at Start (RestFieldOfView).
+        /// The game camera's field of view when neither aiming nor flying, degrees (vertical). 75 was player.gd's own camera.fov; 50 is Saints
+        /// Row: The Third's base_fov (2026-10-23): far less wide-angle, the street's far end bigger, the body bigger on screen. Set on the Camera
+        /// by the scene builder; this camera reads it from there at Start (RestFieldOfView).
         /// </summary>
-        public const float DefaultFieldOfView = 75.0f;
+        public const float DefaultFieldOfView = 50.0f;
 
         /// <summary>
         /// How far to the side of the pivot the camera sits while aiming, metres. HISTORY: 0.25, then 0.65, then 1.415 (player.gd's own
@@ -109,23 +115,27 @@ namespace CityX.Character
         /// The research (docs/THIRD_PERSON_PISTOL.md): aiming in a third-person shooter brings the camera IN over the shoulder (Gears, The
         /// Division, Fortnite, RE4's shoulder cam) so the character fills the left of the frame and the gun points into its middle. And this body's
         /// head is 0.7 m across with the gun held under its middle (a two-handed stance): from behind, a camera less than about 0.9 m to the
-        /// side sees the head and not the gun (checked in FirearmCapture's renders at 0.6). Now 1.0 m
-        /// to the side and AimDistance (2.3 m) back, a little above the pivot: the gun sits left of and just below the crosshair, pointing at it.
-        /// The gun agrees with the crosshair whatever this is (PlayerLocomotion aims the barrel at the camera ray's point).
+        /// side sees the head and not the gun (checked in FirearmCapture's renders at 0.6). 1.0 m from 2026-10-14; since 2026-10-23 Saints Row:
+        /// The Third's fine aim as measured from its frames: 0.75 m to the side, AimDistance (2.9 m) back, the camera's line at the shoulders
+        /// (AimPivotRaise), so the head and torso fill the left third and the gun points into the middle. The gun agrees with the crosshair
+        /// whatever this is (PlayerLocomotion aims the barrel at the camera ray's point).
         /// </summary>
         public float AimShoulderOffset = DefaultAimShoulderOffset;
 
-        public const float DefaultAimShoulderOffset = 1.0f;
+        public const float DefaultAimShoulderOffset = 0.75f;
 
-        public const float DefaultAimDistance = 2.3f;
+        public const float DefaultAimDistance = 2.9f;
 
-        public const float DefaultAimPivotRaise = 0.2f;
+        public const float DefaultAimPivotRaise = 0.35f;
 
         [Tooltip("How far back from the shoulder pivot the camera sits while aiming, metres (Distance otherwise). Closer is what makes the gun read.")]
         public float AimDistance = DefaultAimDistance;
 
-        [Tooltip("Per second: how fast the camera moves in to its aiming place (and back out). 4 = a quarter of a second.")]
-        public float AimCameraBlendPerSecond = 4.0f;
+        [Tooltip("Per second: how fast the camera snaps in to its aiming place. 6.7 = Saints Row's 0.15 s fine-aim blend.")]
+        public float AimCameraBlendPerSecond = 6.7f;
+
+        [Tooltip("Per second: how fast the camera eases back out of aiming. 2 = half a second, Saints Row's blend back to free roam.")]
+        public float AimCameraReleasePerSecond = 2.0f;
 
         /// <summary>0 (the ordinary place) to 1 (in over the shoulder, aiming), as an S-curve.</summary>
         public float AimCameraBlend => Mathf.SmoothStep(0.0f, 1.0f, _aimCameraBlend);
@@ -134,7 +144,7 @@ namespace CityX.Character
         public float AimPivotRaise = DefaultAimPivotRaise;
 
         [Tooltip("Metres per second ShoulderOffset eases toward AimShoulderOffset when the aim state changes -- mirrors AimZoomDegreesPerSecond's own shape for FOV.")]
-        public float AimShoulderOffsetMetresPerSecond = 3.0f;
+        public float AimShoulderOffsetMetresPerSecond = 1.0f;
 
         [Tooltip("Layers the spring arm collides with. Should include the city.")]
         public LayerMask CollisionLayers = ~0;
@@ -163,11 +173,31 @@ namespace CityX.Character
             "Field of view while aiming (see IsAiming). Narrower than the ordinary field of " +
             "view, which is read from whatever the Camera component already starts at rather " +
             "than assumed here, so this only ever has to describe how much CLOSER aiming zooms. " +
-            "Matches player.gd's own ADS_FOV_DEGREES exactly -- was 40, a guess.")]
-        public float AimFieldOfView = 50.0f;
+            "50 was player.gd's own ADS_FOV_DEGREES; 30 is Saints Row: The Third's fine aim, a real 1.7x zoom (2026-10-23).")]
+        public float AimFieldOfView = 30.0f;
 
-        [Tooltip("Degrees of field of view crossed per second when the aim state changes.")]
-        public float AimZoomDegreesPerSecond = 90.0f;
+        [Tooltip("Degrees of field of view crossed per second zooming in to aim: 20 degrees in Saints Row's 0.15 s.")]
+        public float AimZoomDegreesPerSecond = 135.0f;
+
+        [Tooltip("Degrees of field of view crossed per second zooming back out: 20 degrees in half a second.")]
+        public float AimZoomOutDegreesPerSecond = 40.0f;
+
+        /// <summary>
+        /// Set every frame by PlayerInputReader, like IsAiming: the body is sprinting. Saints Row's camera has its own sprint entry; the one
+        /// thing of it that is documented (its first-person mod mirrors it) is a field of view a tenth wider, the cheapest speed cue there is.
+        /// </summary>
+        public bool IsSprinting;
+
+        [Tooltip("The field of view is this many times wider at a full sprint (1 = no change); aiming overrides it.")]
+        public float SprintFieldOfViewScale = 1.1f;
+
+        [Tooltip("Per second: how fast the sprint widening comes and goes. 2 = half a second, Saints Row's camera blend.")]
+        public float SprintBlendPerSecond = 2.0f;
+
+        private float _sprintBlend;
+
+        /// <summary>0 (not sprinting) to 1 (the view fully widened).</summary>
+        public float SprintBlend => _sprintBlend;
 
         /// <summary>
         /// Extra field of view, in degrees, while flying fast -- widening the view
@@ -196,8 +226,9 @@ namespace CityX.Character
         [Header("Aiming feel (third-person-shooter research; live-tunable with /gun)")]
         [Tooltip(
             "Mouse-look scale while aiming down sights. Zoomed-in aim needs finer control -- every " +
-            "shooter scales sensitivity down with the field of view. 1 = unchanged.")]
-        public float AimSensitivityMultiplier = 0.75f;
+            "shooter scales sensitivity down with the field of view. 1 = unchanged; 0.6 is the aim field of view over the rest one (30/50), " +
+            "so a mouse movement shifts the picture the same on screen in and out of aim.")]
+        public float AimSensitivityMultiplier = 0.6f;
 
         [Tooltip("Per second, how fast a gun's camera kick settles back to where you were aiming.")]
         public float RecoilRecoverPerSecond = 10.0f;
@@ -218,7 +249,7 @@ namespace CityX.Character
         public float ShoulderSwapPerSecond = 6.0f;
 
         private float _yaw;
-        private float _pitch = 12.0f;
+        private float _pitch = DefaultPitch;
         private PlayerLocomotion _player;
 
         // THE IMPACT SHAKE (owner, 2026-10-17: "the hits dont feel impactful at all"): a blow taken or landed jolts the picture for a quarter of
@@ -657,7 +688,11 @@ namespace CityX.Character
             }
 
             bool followingRagdoll = Ragdoll != null && Ragdoll.IsLimp && Ragdoll.Torso != null;
-            _aimCameraBlend = Mathf.MoveTowards(_aimCameraBlend, IsAiming && !followingRagdoll ? 1.0f : 0.0f, AimCameraBlendPerSecond * Time.deltaTime);
+            // In fast, out slower (Saints Row's 0.15 s into fine aim, 0.5 s back): a snap to the gun reads as readiness, an ease out as relief.
+            bool aiming = IsAiming && !followingRagdoll;
+            _aimCameraBlend = Mathf.MoveTowards(_aimCameraBlend, aiming ? 1.0f : 0.0f,
+                (aiming ? AimCameraBlendPerSecond : AimCameraReleasePerSecond) * Time.deltaTime);
+            _sprintBlend = Mathf.MoveTowards(_sprintBlend, IsSprinting && !aiming ? 1.0f : 0.0f, SprintBlendPerSecond * Time.deltaTime);
 
             // GROW AND SHRINK (BodySizeAbility): every distance of the shot is the body's, so a giant is framed as anyone is, from ten times as
             // far, and a tiny body from close in. Its near plane comes in with a tiny body, so a wall it walks along is not cut open.
@@ -760,9 +795,11 @@ namespace CityX.Character
 
             if (_camera != null)
             {
-                float target = IsAiming ? AimFieldOfView : _restFieldOfView + FlightFovBonus;
+                // The sprint's widening rides on the rest field of view and blends on its own clock (_sprintBlend); the flight bonus the same.
+                float rest = _restFieldOfView * Mathf.Lerp(1.0f, SprintFieldOfViewScale, _sprintBlend) + FlightFovBonus;
+                float target = IsAiming ? AimFieldOfView : rest;
                 _camera.fieldOfView = Mathf.MoveTowards(
-                    _camera.fieldOfView, target, AimZoomDegreesPerSecond * Time.deltaTime);
+                    _camera.fieldOfView, target, (IsAiming ? AimZoomDegreesPerSecond : AimZoomOutDegreesPerSecond) * Time.deltaTime);
             }
         }
     }

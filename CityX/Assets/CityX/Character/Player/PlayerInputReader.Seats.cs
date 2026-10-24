@@ -62,6 +62,7 @@ namespace CityX.Character
                 // input-freezing state already uses (see the ragdoll/dead
                 // branches above resetting _orbitCamera.IsAiming).
                 _orbitCamera.IsAiming = false;
+                _orbitCamera.IsSprinting = false;
             }
             if (_locomotion != null)
             {

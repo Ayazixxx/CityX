@@ -12,10 +12,11 @@ namespace CityX.Tests
 {
     /// <summary>
     /// Not a test: what the player sees through the follow camera, in the real city, squared up to a swordsman standing a few metres down the
-    /// street (owner, 2026-10-17: "i feel like the camera pov needs to be adjusted so i can see more of whats going on in front of me"). Each
-    /// shot is the game's own camera, rendered as the game renders it, once with the old framing (looking level at the chest, 4 m back) and
-    /// once with the current one, at the starting pitch and looking level. Writes Logs/CityShots/camera-*.png, and camera-compare-*.png with
-    /// the old framing above the new.
+    /// street (owner, 2026-10-17: "i feel like the camera pov needs to be adjusted so i can see more of whats going on in front of me";
+    /// 2026-10-23: "research the saints row the third camera pov and zoom and just copy that"). Each shot is the game's own camera, rendered as
+    /// the game renders it, once with the 2026-10-17 framing (raised over the head, 4.8 m back, 75 degrees) and once with the current, Saints
+    /// Row one, at the starting pitch and looking level, in sword reach, and in fine aim. Writes Logs/CityShots/camera-*.png, and
+    /// camera-compare-*.png with the old framing above the new.
     /// Explicit; run by name with -Graphics: ./tools/unity_tests.ps1 -Platform PlayMode -Graphics -Filter CityX.Tests.CameraViewCapture
     /// </summary>
     [Explicit("renders screenshots; needs a graphics device")]
@@ -103,18 +104,22 @@ namespace CityX.Tests
                 yield return Stand(locomotion, yaw, foeLocomotion, foeYaw);
             }
 
-            var shots = new (string name, float height, float distance, float pitch)[]
+            // The 2026-10-17 framing (raised over the head, 75 degrees) above Saints Row: The Third's (2026-10-23).
+            const float actionHeight = 1.0f, actionDistance = 4.8f, actionFov = 75.0f;
+            var shots = new (string name, float height, float distance, float fov, float pitch)[]
             {
-                ("old-start", 0.0f, 4.0f, 12.0f),
-                ("new-start", ThirdPersonCamera.DefaultFramingHeight, ThirdPersonCamera.DefaultDistance, 12.0f),
-                ("old-level", 0.0f, 4.0f, 0.0f),
-                ("new-level", ThirdPersonCamera.DefaultFramingHeight, ThirdPersonCamera.DefaultDistance, 0.0f),
+                ("action-start", actionHeight, actionDistance, actionFov, ThirdPersonCamera.DefaultPitch),
+                ("sr3-start", ThirdPersonCamera.DefaultFramingHeight, ThirdPersonCamera.DefaultDistance, ThirdPersonCamera.DefaultFieldOfView, ThirdPersonCamera.DefaultPitch),
+                ("action-level", actionHeight, actionDistance, actionFov, 0.0f),
+                ("sr3-level", ThirdPersonCamera.DefaultFramingHeight, ThirdPersonCamera.DefaultDistance, ThirdPersonCamera.DefaultFieldOfView, 0.0f),
             };
             var images = new Texture2D[shots.Length];
             for (int s = 0; s < shots.Length; s++)
             {
                 follow.FramingHeight = shots[s].height;
                 follow.Distance = shots[s].distance;
+                follow.RestFieldOfView = shots[s].fov;
+                camera.fieldOfView = shots[s].fov;
                 follow.Yaw = yaw;
                 follow.Pitch = shots[s].pitch;
                 for (int i = 0; i < 3; i++)
@@ -133,18 +138,33 @@ namespace CityX.Tests
             var close = new Texture2D[2];
             for (int s = 0; s < 2; s++)
             {
-                follow.FramingHeight = s == 0 ? 0.0f : ThirdPersonCamera.DefaultFramingHeight;
-                follow.Distance = s == 0 ? 4.0f : ThirdPersonCamera.DefaultDistance;
+                follow.FramingHeight = s == 0 ? actionHeight : ThirdPersonCamera.DefaultFramingHeight;
+                follow.Distance = s == 0 ? actionDistance : ThirdPersonCamera.DefaultDistance;
+                follow.RestFieldOfView = s == 0 ? actionFov : ThirdPersonCamera.DefaultFieldOfView;
+                camera.fieldOfView = follow.RestFieldOfView;
                 follow.Yaw = yaw;
-                follow.Pitch = 12.0f;
+                follow.Pitch = ThirdPersonCamera.DefaultPitch;
                 for (int i = 0; i < 3; i++)
                 {
                     yield return Stand(locomotion, yaw, foeLocomotion, foeYaw);
                 }
                 close[s] = Shoot(camera);
-                Save(close[s], s == 0 ? "camera-old-close" : "camera-new-close");
+                Save(close[s], s == 0 ? "camera-action-close" : "camera-sr3-close");
             }
             SaveStacked(close[0], close[1], "camera-compare-close");
+
+            // Fine aim: in close over the right shoulder, zoomed, the swordsman back down the street.
+            _swordsman.transform.position = body.position + forward * 6.5f + Vector3.up * 0.1f;
+            Physics.SyncTransforms();
+            follow.IsAiming = true;
+            for (int i = 0; i < 40; i++)
+            {
+                yield return Stand(locomotion, yaw, foeLocomotion, foeYaw);
+            }
+            Texture2D aim = Shoot(camera);
+            Save(aim, "camera-sr3-aim");
+            follow.IsAiming = false;
+            Object.Destroy(aim);
             foreach (Texture2D image in images)
             {
                 Object.Destroy(image);

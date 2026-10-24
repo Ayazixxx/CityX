@@ -60,12 +60,14 @@ differed from the old one in that one component only: `FramingHeight` 1.3, `Dist
 ## Tests and renders
 
 - `ThirdPersonCameraPlayTests`:
-  - `LookingLevelTheBodySitsLowInTheFrameAndWhoeverIsAheadIsSeenOverIt` fails with the old framing, where the head is above the middle of
-    the screen.
-  - `AimingBringsTheCameraDownFromOverTheHeadToItsOwnPlace` covers aiming, plus the older shoulder, spring-arm, ragdoll and recoil tests.
+  - `TheHeadSitsAtTheMiddleTheBodyFillsTheLowerHalfAndWhoeverIsAheadIsSeenOverIt` (the Saints Row framing since 2026-10-23; until then
+    `LookingLevelTheBodySitsLowInTheFrame...`, the 2026-10-17 framing).
+  - `AimingBringsTheCameraInCloseOverTheShoulder`, `AimingSnapsInAndEasesBackOut` and `SprintingWidensTheFieldOfViewATenthAndAimingOverridesIt`
+    cover aiming and sprinting, plus the older shoulder, spring-arm, ragdoll and recoil tests.
 - `DevConsoleViewTests.TheCameraCommandTunesTheFollowCameraAndResetPutsItBack` covers `/camera`.
-- `CameraViewCapture` (Explicit, `-Graphics`) renders the game's own camera in the real city, squared up to a swordsman, with the old framing
-  and the new one. It writes `Logs/CityShots/camera-compare-start.png`, `-level` and `-close`, each with the old view above the new.
+- `CameraViewCapture` (Explicit, `-Graphics`) renders the game's own camera in the real city, squared up to a swordsman, with the 2026-10-17
+  framing and the current one. It writes `Logs/CityShots/camera-compare-start.png`, `-level` and `-close`, each with the old view above the
+  new, and `camera-sr3-aim.png`.
 
 ## Sources
 
@@ -73,3 +75,42 @@ differed from the old one in that one component only: `FramingHeight` 1.3, `Dist
 - Moonjump, [Third-person camera systems](https://moonjump.com/game-dev-mechanics-third-person-camera-systems-how-it-works/) (look-at above the target, pitch limits, look-ahead)
 - Unity, [Cinemachine Third Person Follow](https://docs.unity3d.com/Packages/com.unity.cinemachine@3.1/manual/CinemachineThirdPersonFollow.html) (shoulder offset and vertical arm)
 - ActualidadGadget, [God of War's camera position](https://www.actualidadgadget.com/en/god-of-war-ps4-was-the-subject-of-discussions-development-the-position-the-camera/) and eXputer, [on the God of War camera](https://exputer.com/features/marvels-wolverine-god-of-war-camera-unfitting/)
+
+## 2026-10-23: Saints Row: The Third's camera, copied
+
+> "our third person pov camera needs work research the saints row the third camera pov and zoom and just copy that"
+
+**Where the numbers come from.** Saints Row's camera lives in `camera_free.xtbl`, one entry per situation ("exterior close" on foot, "sprint",
+"fine aim", "crouch", "interior close"...), each with a look-at offset (where the camera orbits, metres above the feet), `z_dist` (how far
+back), `x_shift` (how far to the side: the character sits left of the middle, the camera over the right shoulder), `y_dist`, `base_fov` and a
+`blend_time`. The modding threads quote the stock values they changed: on foot `x_shift` 0.6, `y_dist` 0.05, `base_fov` 50, elevation limits
+-75/55; interior `z_dist` 3, look-at 1.8; fine aim `z_dist` 2.0, `y_dist` 0.3, look-at 1.9, `base_fov` 30, `blend_time` 0.15 (0.5 going back
+out). The first-person mod mirrors the game's sprint with a field of view 10% wider. Frames of the game (free roam on foot, hip fire, fine
+aim) were measured to settle what the threads leave out: on foot the camera is about 3.5 m back, the character fills over half the screen's
+height with the top of the head at the middle and the feet below the bottom edge, 10-15% left of the middle; in fine aim the camera is in
+close over the right shoulder, the screen's middle at the shoulder, the head and torso on the left third, the view zoomed well in.
+
+**Scaled to this body.** Saints Row's character is about 1.8 m; ours is 2.6 m, so every distance is 1.44x.
+
+| | Saints Row (1.8 m body) | Here, before | **Here, now** |
+|---|---|---|---|
+| Field of view on foot (vertical) | 50 | 75 | **50** |
+| Distance back | 3.5 | 4.8 | **5.0** |
+| Height of the camera's line over the pivot (`FramingHeight`) | look-at at the top of the head | 1.0 (head below the middle) | **0.6** (the camera's line at the top of the head) |
+| To the right of the spine (`ShoulderOffset`) | 0.6 | 0.5 | **0.87** |
+| Fine aim: field of view | 30 | 50 | **30** |
+| Fine aim: distance | 2.0 | 2.3 | **2.9** |
+| Fine aim: to the side | 0.6 | 1.0 | **0.75** (measured from the frame) |
+| Fine aim: the camera's line | the shoulders (1.55) | the chest + 0.2 | **the chest + 0.35** |
+| Into fine aim / back out | 0.15 s / 0.5 s | 0.25 s / 0.25 s | **0.15 s / 0.5 s** |
+| Mouse-look while aiming | slower | 0.75x | **0.6x** (30/50, so a pixel moves the same on screen) |
+| Sprinting | own entry | nothing | **field of view +10%** over 0.5 s |
+
+**What it looks like.** The view is a lot less wide-angle (buildings stop splaying out at the edges, the far end of a street reads bigger),
+the body is bigger on screen and further to the left, and fine aim is a real zoom: 1.7x, in close over the shoulder, snapping in and easing
+back out. Sprinting widens the view a touch, as the game does. The spring arm, the lock-on and the ragdoll follow are unchanged; the look
+limits stay at the full +/-90 the owner asked for. `/camera` tunes the same four numbers live; `/camera reset` puts these back.
+
+Renders: `CameraViewCapture` now compares the 2026-10-17 framing (top) with this one (bottom) at the start pitch, level and in sword reach,
+and adds `camera-sr3-aim.png` for fine aim. Tests: `ThirdPersonCameraPlayTests` (the head at the middle and the body filling the lower
+half, aiming in over the shoulder with the zoom, in fast and out slower, sprinting widening the view).
