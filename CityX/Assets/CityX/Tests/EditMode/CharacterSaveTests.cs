@@ -61,10 +61,10 @@ namespace CityX.Tests
         public void TheClothesACharacterHasOnSurviveARoundTripThroughDisk()
         {
             CharacterSave made = CharacterSave.Create("Ayaz", Color.white);
-            made.Wearing = new List<string> { "red_camo_t_shirt", "top_hat" };
+            made.Wearing = new List<string> { "red_camo_t_shirt", "knight_helmet" };
             CharacterStore.Add(made);
 
-            CollectionAssert.AreEqual(new[] { "red_camo_t_shirt", "top_hat" }, CharacterStore.Load()[0].Wearing);
+            CollectionAssert.AreEqual(new[] { "red_camo_t_shirt", "knight_helmet" }, CharacterStore.Load()[0].Wearing);
         }
 
         [Test]

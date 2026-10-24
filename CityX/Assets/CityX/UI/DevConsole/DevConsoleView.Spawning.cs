@@ -194,7 +194,6 @@ namespace CityX.UI
             switch (which)
             {
                 case "bottle": return ItemRegistry.GlassBottle;
-                case "jeans": return ItemRegistry.SkelliJeans;
                 case "cloak": return ItemRegistry.HoodedCloak;
                 case "coat":
                 case "midnight_coat":
@@ -247,8 +246,6 @@ namespace CityX.UI
                 case "ak-47":
                 case "rifle": return ItemRegistry.AK47;
                 case "glock": return ItemRegistry.Pistol;
-                case "top_hat":
-                case "tophat": return ItemRegistry.TopHat;
                 case "knight_helmet":
                 case "knighthelmet":
                 case "helmet": return ItemRegistry.KnightHelmet;

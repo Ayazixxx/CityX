@@ -25,7 +25,7 @@ namespace CityX.UI
     /// SlotKeys[1] IS "top" AND SlotKeys[6]/[7] ARE "hand_r"/"hand_l" --
     /// the same underlying Inventory slot keys InventoryPanelView's own
     /// EquipSlotKeys already use, so items already registered against them
-    /// (HoodedCloak -> top, SkelliJeans -> legs, GlassBottle/GrapplingHook
+    /// (HoodedCloak -> top, GlassBottle/GrapplingHook
     /// -> hand_r) show up here unchanged, just under the friendlier label
     /// "Torso"/"Primary Weapon". The keys are EquipSlots', the same ones the
     /// inventory's own equipped row uses since 2026-10-15; of them only

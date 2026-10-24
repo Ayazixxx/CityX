@@ -83,9 +83,8 @@ namespace CityX.Tests
 
         /// <summary>
         /// NO ANIMATOR AT ALL, deliberately -- GetBoneTransform THROWS
-        /// rather than returning null on an Animator with no Avatar (see
-        /// TopHat.OnEquip's own doc comment for where this was first
-        /// found), so a bare `AddComponent&lt;Animator&gt;()` here would
+        /// rather than returning null on an Animator with no Avatar (HeadWearable.OnEquip guards against
+        /// it), so a bare `AddComponent&lt;Animator&gt;()` here would
         /// throw instead of testing anything. Skipping the Animator
         /// entirely still exercises the wiring this test actually cares
         /// about: EquippedFlamethrower gets set/cleared regardless of

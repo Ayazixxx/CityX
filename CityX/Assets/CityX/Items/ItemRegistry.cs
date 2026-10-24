@@ -9,7 +9,6 @@ namespace CityX.Items
     public static class ItemRegistry
     {
         public const string GlassBottle = "glass_bottle";
-        public const string SkelliJeans = "skelli_jeans";
         public const string HoodedCloak = "hooded_cloak";
         public const string MidnightCoat = "midnight_coat";
         public const string TShirt = "t_shirt";
@@ -29,13 +28,11 @@ namespace CityX.Items
         public const string Flamethrower = "flamethrower";
         public const string AK47 = "ak47";
         public const string SprayCan = "spray_can";
-        public const string TopHat = "top_hat";
         public const string KnightHelmet = "knight_helmet";
 
         private static readonly Dictionary<string, ItemDefinition> Items = new Dictionary<string, ItemDefinition>
         {
             [GlassBottle] = new ItemDefinition(GlassBottle, "Glass Bottle", "weapon", EquipSlots.Primary, 1),
-            [SkelliJeans] = new ItemDefinition(SkelliJeans, "Skelli Jeans", ItemDefinition.WearableCategory, EquipSlots.Legs, 1),
             [HoodedCloak] = new ItemDefinition(HoodedCloak, "Hooded Cloak", ItemDefinition.WearableCategory, EquipSlots.Torso, 1),
             [MidnightCoat] = new ItemDefinition(MidnightCoat, "Midnight Coat", ItemDefinition.WearableCategory, EquipSlots.Torso, 1),
             [TShirt] = new ItemDefinition(TShirt, "T-Shirt", ItemDefinition.WearableCategory, EquipSlots.Torso, 1),
@@ -66,7 +63,6 @@ namespace CityX.Items
             // Right-click a wall with it to paint graffiti (GraffitiMenuView).
             [SprayCan] = new ItemDefinition(SprayCan, "Spray Can", "tool", EquipSlots.Primary, 1),
             // One headwear slot for now: Godot's separate hat and mask slots are not ported.
-            [TopHat] = new ItemDefinition(TopHat, "Top Hat", ItemDefinition.WearableCategory, EquipSlots.Helmet, 1),
             [KnightHelmet] = new ItemDefinition(KnightHelmet, "Knight Helmet", ItemDefinition.WearableCategory, EquipSlots.Helmet, 1),
         };
 

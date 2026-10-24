@@ -7,12 +7,10 @@ namespace CityX.Wearables
 {
     /// <summary>
     /// Base for garments that deform with the body across several joints at
-    /// once -- skelli jeans (hip and knee) and the hooded cloak (the whole
-    /// body) -- rather than the coarse rigid per-bone attachment the old
+    /// once -- the hooded cloak (the whole body) -- rather than the coarse rigid per-bone attachment the old
     /// t-shirt/hoodie used, which could not span a joint without tearing.
     ///
-    /// Ported from wearables/skelli_jeans.gd's and hooded_cloak.gd's own
-    /// wear_on(): SkinnedGarmentBuilder pre-bakes the garment mesh, in the
+    /// Ported from wearables/hooded_cloak.gd's own wear_on(): SkinnedGarmentBuilder pre-bakes the garment mesh, in the
     /// editor, against this rig's own 14 named bones AT REST -- the exact
     /// bindpose convention FusedBodyBuilder uses for the body itself. The
     /// bake and the live pose agree exactly at rest, and deform together
@@ -37,8 +35,8 @@ namespace CityX.Wearables
 
         /// <summary>
         /// The 14 bones every garment mesh is baked against, in bind order --
-        /// matches skelli_jeans.glb's and hooded_cloak.glb's own imported
-        /// bone list exactly (confirmed by inspecting both). Bind ORDER is
+        /// matches hooded_cloak.glb's own imported bone list exactly
+        /// (confirmed by inspecting it). Bind ORDER is
         /// load-bearing: BoneWeight.boneIndexN are indices into this array,
         /// not names, so SkinnedGarmentBuilder and this file must agree on it.
         /// </summary>

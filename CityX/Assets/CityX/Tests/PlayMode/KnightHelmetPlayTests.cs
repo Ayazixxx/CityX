@@ -34,15 +34,23 @@ namespace CityX.Tests
             Object.Destroy(body);
         }
 
+        /// <summary>An open hat: any head wearable that does not say it hides the hair (the top hat was one until 2026-10-24).</summary>
+        private sealed class OpenHat : HeadWearable
+        {
+            protected override string ItemId => "open_hat";
+
+            protected override Vector3 HeadPosition => Vector3.zero;
+        }
+
         [Test]
         public void AHatDoesNotHideTheHair()
         {
             var body = new GameObject("Body");
             var hair = body.AddComponent<CharacterHair>();
-            var hat = new GameObject("TopHat").AddComponent<TopHat>();
+            var hat = new GameObject("OpenHat").AddComponent<OpenHat>();
 
             hat.OnEquip(body, ItemInstanceData.None);
-            Assert.IsFalse(hair.IsCovered, "the top hat made the wearer bald");
+            Assert.IsFalse(hair.IsCovered, "an open hat made the wearer bald");
             Object.DestroyImmediate(hat.gameObject);
             Object.DestroyImmediate(body);
         }

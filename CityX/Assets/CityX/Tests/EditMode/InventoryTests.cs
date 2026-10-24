@@ -39,7 +39,7 @@ namespace CityX.Tests
         private GameObject _playerObject;
         private Inventory _inventory;
         private GameObject _bottlePrefab;
-        private GameObject _legsPrefab;
+        private GameObject _clothingPrefab;
 
         [SetUp]
         public void SetUp()
@@ -52,14 +52,14 @@ namespace CityX.Tests
             _bottlePrefab.AddComponent<TestEquippableItem>();
             _bottlePrefab.SetActive(false);
 
-            _legsPrefab = new GameObject("LegsPrefab");
-            _legsPrefab.AddComponent<TestEquippableItem>();
-            _legsPrefab.SetActive(false);
+            _clothingPrefab = new GameObject("ClothingPrefab");
+            _clothingPrefab.AddComponent<TestEquippableItem>();
+            _clothingPrefab.SetActive(false);
 
             _inventory.ItemPrefabs = new[]
             {
                 new Inventory.ItemPrefabEntry { ItemId = ItemRegistry.GlassBottle, Prefab = _bottlePrefab },
-                new Inventory.ItemPrefabEntry { ItemId = ItemRegistry.SkelliJeans, Prefab = _legsPrefab },
+                new Inventory.ItemPrefabEntry { ItemId = ItemRegistry.HoodedCloak, Prefab = _clothingPrefab },
             };
         }
 
@@ -68,14 +68,14 @@ namespace CityX.Tests
         {
             Object.DestroyImmediate(_playerObject);
             Object.DestroyImmediate(_bottlePrefab);
-            Object.DestroyImmediate(_legsPrefab);
+            Object.DestroyImmediate(_clothingPrefab);
         }
 
         [Test]
         public void AddItemOnAnEmptyInventoryTakesTheFirstSlot()
         {
-            Assert.IsTrue(_inventory.AddItem(ItemRegistry.SkelliJeans, 1));
-            Assert.AreEqual(ItemRegistry.SkelliJeans, _inventory.Storage[0].ItemId);
+            Assert.IsTrue(_inventory.AddItem(ItemRegistry.HoodedCloak, 1));
+            Assert.AreEqual(ItemRegistry.HoodedCloak, _inventory.Storage[0].ItemId);
         }
 
         [Test]
@@ -119,7 +119,7 @@ namespace CityX.Tests
             }
             var before = (Inventory.StorageSlot[])_inventory.Storage.Clone();
 
-            Assert.IsFalse(_inventory.AddItem(ItemRegistry.SkelliJeans, 1));
+            Assert.IsFalse(_inventory.AddItem(ItemRegistry.HoodedCloak, 1));
 
             for (int i = 0; i < Inventory.StorageSlotCount; i++)
             {
@@ -228,21 +228,21 @@ namespace CityX.Tests
         [Test]
         public void PickingUpClothingPutsItOnAndStoresWhatWasWornThere()
         {
-            Assert.IsTrue(_inventory.PickUp(ItemRegistry.SkelliJeans));
-            Assert.AreEqual(ItemRegistry.SkelliJeans, _inventory.EquippedItemId(EquipSlots.Legs), "tapping E on clothing did not put it on");
-            Assert.IsFalse(_inventory.HasItem(ItemRegistry.SkelliJeans));
+            Assert.IsTrue(_inventory.PickUp(ItemRegistry.HoodedCloak));
+            Assert.AreEqual(ItemRegistry.HoodedCloak, _inventory.EquippedItemId(EquipSlots.Torso), "tapping E on clothing did not put it on");
+            Assert.IsFalse(_inventory.HasItem(ItemRegistry.HoodedCloak));
 
-            Assert.IsTrue(_inventory.PickUp(ItemRegistry.SkelliJeans));
-            Assert.AreEqual(ItemRegistry.SkelliJeans, _inventory.EquippedItemId(EquipSlots.Legs));
-            Assert.IsTrue(_inventory.HasItem(ItemRegistry.SkelliJeans), "the pair worn before went into storage");
+            Assert.IsTrue(_inventory.PickUp(ItemRegistry.HoodedCloak));
+            Assert.AreEqual(ItemRegistry.HoodedCloak, _inventory.EquippedItemId(EquipSlots.Torso));
+            Assert.IsTrue(_inventory.HasItem(ItemRegistry.HoodedCloak), "the one worn before went into storage");
         }
 
         [Test]
         public void ClothingThatCannotBePutOnIsStored()
         {
             _inventory.ItemPrefabs = new Inventory.ItemPrefabEntry[0];
-            Assert.IsTrue(_inventory.PickUp(ItemRegistry.SkelliJeans));
-            Assert.IsTrue(_inventory.HasItem(ItemRegistry.SkelliJeans));
+            Assert.IsTrue(_inventory.PickUp(ItemRegistry.HoodedCloak));
+            Assert.IsTrue(_inventory.HasItem(ItemRegistry.HoodedCloak));
         }
 
         [Test]
@@ -279,7 +279,7 @@ namespace CityX.Tests
 
             for (int i = 0; i < Inventory.StorageSlotCount; i++)
             {
-                _inventory.AddItem(ItemRegistry.SkelliJeans, 1, new ItemInstanceData { HasDurability = true, Durability = i });
+                _inventory.AddItem(ItemRegistry.HoodedCloak, 1, new ItemInstanceData { HasDurability = true, Durability = i });
             }
 
             _inventory.AddItem(ItemRegistry.GlassBottle, 1);
@@ -310,7 +310,7 @@ namespace CityX.Tests
             _inventory.EquipItemId(ItemRegistry.GlassBottle, _playerObject);
             for (int i = 0; i < Inventory.StorageSlotCount; i++)
             {
-                _inventory.AddItem(ItemRegistry.SkelliJeans, 1, new ItemInstanceData { HasDurability = true, Durability = i });
+                _inventory.AddItem(ItemRegistry.HoodedCloak, 1, new ItemInstanceData { HasDurability = true, Durability = i });
             }
 
             Assert.IsFalse(_inventory.UnequipToSlot("hand_r", _playerObject));

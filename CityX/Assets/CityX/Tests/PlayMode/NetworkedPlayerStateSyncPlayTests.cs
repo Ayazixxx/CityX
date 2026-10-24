@@ -397,7 +397,7 @@ namespace CityX.Tests
         }
 
         [UnityTest]
-        public IEnumerator WornClothesAndAHatShowOnAnotherPlayersCopyAndGoWhenTakenOff()
+        public IEnumerator WornClothesAndAHelmetShowOnAnotherPlayersCopyAndGoWhenTakenOff()
         {
 #if UNITY_EDITOR
             // 2026-10-22: clothes were seen only by their wearer; other players saw them bare.
@@ -409,16 +409,16 @@ namespace CityX.Tests
             Transform copyHead = _aOnB.GetComponentInChildren<Animator>().GetBoneTransform(HumanBodyBones.Head);
 
             Assert.IsTrue(inventory.EquipItemId(ItemRegistry.LongSleeveTShirt, _aOnA.gameObject), "the shirt could not be worn by player A");
-            Assert.IsTrue(inventory.EquipItemId(ItemRegistry.TopHat, _aOnA.gameObject), "the top hat could not be worn by player A");
-            yield return WaitUntil(() => copySync.ShownItem(ItemRegistry.LongSleeveTShirt) != null && copySync.ShownItem(ItemRegistry.TopHat) != null,
-                "the shirt and the hat to appear on player A's copy");
+            Assert.IsTrue(inventory.EquipItemId(ItemRegistry.KnightHelmet, _aOnA.gameObject), "the knight helmet could not be worn by player A");
+            yield return WaitUntil(() => copySync.ShownItem(ItemRegistry.LongSleeveTShirt) != null && copySync.ShownItem(ItemRegistry.KnightHelmet) != null,
+                "the shirt and the helmet to appear on player A's copy");
 
             Transform worn = TransformSearch.FindDeep(_aOnB.transform, "CombinedGarmentSkin");
             Assert.IsNotNull(worn, "the copy draws no clothes");
             var wornSkin = worn.GetComponent<SkinnedMeshRenderer>();
             Assert.IsTrue(wornSkin.enabled && wornSkin.sharedMesh != null && wornSkin.sharedMesh.vertexCount > 0, "the copy's clothes are empty");
             Assert.AreNotSame(wholeBody, copySkin.sharedMesh, "the copy's body is drawn whole under the shirt and pokes through it");
-            Assert.AreEqual(copyHead, copySync.ShownItem(ItemRegistry.TopHat).transform.parent, "the hat is not on the copy's head");
+            Assert.AreEqual(copyHead, copySync.ShownItem(ItemRegistry.KnightHelmet).transform.parent, "the helmet is not on the copy's head");
             foreach (Collider c in copySync.ShownItem(ItemRegistry.LongSleeveTShirt).GetComponentsInChildren<Collider>(true))
             {
                 Assert.IsFalse(c.enabled, "a copy's shirt can be picked up");
@@ -426,8 +426,8 @@ namespace CityX.Tests
 
             Assert.IsTrue(inventory.UnequipToSlot(EquipSlots.Torso, _aOnA.gameObject));
             Assert.IsTrue(inventory.UnequipToSlot(EquipSlots.Helmet, _aOnA.gameObject));
-            yield return WaitUntil(() => copySync.ShownItem(ItemRegistry.LongSleeveTShirt) == null && copySync.ShownItem(ItemRegistry.TopHat) == null,
-                "the shirt and the hat to leave player A's copy");
+            yield return WaitUntil(() => copySync.ShownItem(ItemRegistry.LongSleeveTShirt) == null && copySync.ShownItem(ItemRegistry.KnightHelmet) == null,
+                "the shirt and the helmet to leave player A's copy");
             Assert.AreSame(wholeBody, copySkin.sharedMesh, "the copy's body stayed cut after the shirt came off");
 #else
             Assert.Ignore("needs the editor to load the networked player prefab.");

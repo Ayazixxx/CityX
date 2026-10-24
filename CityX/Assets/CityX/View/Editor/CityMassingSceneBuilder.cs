@@ -235,7 +235,6 @@ namespace CityX.ViewEditor
             // --- own Inventory.ItemPrefabs and the dev console's /spawn +
             // --- /equip can point at the very same prefabs.
             GameObject bottlePrefab = CityX.WeaponsEditor.BottleBuilder.Build();
-            GameObject skelliJeansPrefab = CityX.WearablesEditor.SkinnedGarmentBuilder.BuildJeans();
             GameObject hoodedCloakPrefab = CityX.WearablesEditor.SkinnedGarmentBuilder.BuildCloak();
             GameObject midnightCoatPrefab = CityX.WearablesEditor.MidnightCoatBuilder.Build();
             GameObject tShirtPrefab = CityX.WearablesEditor.TShirtBuilder.Build();
@@ -255,7 +254,6 @@ namespace CityX.ViewEditor
             GameObject flamethrowerPrefab = CityX.WeaponsEditor.FlamethrowerBuilder.Build();
             GameObject ak47Prefab = CityX.WeaponsEditor.AK47Builder.Build();
             GameObject sprayCanPrefab = CityX.WeaponsEditor.SprayCanBuilder.Build();
-            GameObject topHatPrefab = CityX.WearablesEditor.TopHatBuilder.Build();
             GameObject knightHelmetPrefab = CityX.WearablesEditor.KnightHelmetBuilder.Build();
             GameObject mustangPrefab = CityX.VehiclesEditor.CarBuilder.Build();
 
@@ -434,8 +432,6 @@ namespace CityX.ViewEditor
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.GlassBottle, Prefab = bottlePrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
-                        { ItemId = CityX.Items.ItemRegistry.SkelliJeans, Prefab = skelliJeansPrefab },
-                    new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.HoodedCloak, Prefab = hoodedCloakPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.MidnightCoat, Prefab = midnightCoatPrefab },
@@ -467,8 +463,6 @@ namespace CityX.ViewEditor
                         { ItemId = CityX.Items.ItemRegistry.MetalCrowbar, Prefab = metalCrowbarPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.BaseballBat, Prefab = baseballBatPrefab },
-                    new CityX.Character.Inventory.ItemPrefabEntry
-                        { ItemId = CityX.Items.ItemRegistry.TopHat, Prefab = topHatPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry
                         { ItemId = CityX.Items.ItemRegistry.KnightHelmet, Prefab = knightHelmetPrefab },
                     new CityX.Character.Inventory.ItemPrefabEntry

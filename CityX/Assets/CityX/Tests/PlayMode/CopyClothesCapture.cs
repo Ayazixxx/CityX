@@ -8,8 +8,8 @@ using UnityEngine.TestTools;
 namespace CityX.Tests
 {
     /// <summary>
-    /// Not a test: another player's copy of a body (NetworkedPlayer.prefab) wearing what the wearer announced -- a long-sleeved shirt, jeans
-    /// and a top hat (NetworkedEquipmentSync.Show) -- standing, so the clothes others see can be looked at. Written to
+    /// Not a test: another player's copy of a body (NetworkedPlayer.prefab) wearing what the wearer announced -- a long-sleeved shirt
+    /// and the knight helmet (NetworkedEquipmentSync.Show) -- standing, so the clothes others see can be looked at. Written to
     /// Logs/CityShots/copy-clothes-*.png. Explicit; needs -Graphics.
     /// </summary>
     [Explicit("renders screenshots; needs a graphics device")]
@@ -38,7 +38,7 @@ namespace CityX.Tests
                 Vector3.zero, Quaternion.identity);
             yield return null;
 
-            copy.GetComponent<NetworkedEquipmentSync>().Show(new[] { ItemRegistry.LongSleeveTShirt, ItemRegistry.SkelliJeans, ItemRegistry.TopHat });
+            copy.GetComponent<NetworkedEquipmentSync>().Show(new[] { ItemRegistry.LongSleeveTShirt, ItemRegistry.KnightHelmet });
             for (int i = 0; i < 30; i++)
             {
                 yield return null;

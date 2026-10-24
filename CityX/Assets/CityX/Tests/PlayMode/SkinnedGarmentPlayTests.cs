@@ -17,7 +17,7 @@ namespace CityX.Tests
     {
         private GameObject _playerObject;
         private Inventory _inventory;
-        private GameObject _jeansPrefab;
+        private GameObject _helmetPrefab;
         private GameObject _cloakPrefab;
 
         [SetUp]
@@ -27,9 +27,9 @@ namespace CityX.Tests
             _inventory = _playerObject.AddComponent<Inventory>();
             _inventory.Storage = new Inventory.StorageSlot[Inventory.StorageSlotCount];
 
-            _jeansPrefab = new GameObject("JeansPrefab");
-            _jeansPrefab.AddComponent<SkelliJeans>();
-            _jeansPrefab.SetActive(false);
+            _helmetPrefab = new GameObject("HelmetPrefab");
+            _helmetPrefab.AddComponent<KnightHelmet>();
+            _helmetPrefab.SetActive(false);
 
             _cloakPrefab = new GameObject("CloakPrefab");
             _cloakPrefab.AddComponent<HoodedCloak>();
@@ -37,7 +37,7 @@ namespace CityX.Tests
 
             _inventory.ItemPrefabs = new[]
             {
-                new Inventory.ItemPrefabEntry { ItemId = ItemRegistry.SkelliJeans, Prefab = _jeansPrefab },
+                new Inventory.ItemPrefabEntry { ItemId = ItemRegistry.KnightHelmet, Prefab = _helmetPrefab },
                 new Inventory.ItemPrefabEntry { ItemId = ItemRegistry.HoodedCloak, Prefab = _cloakPrefab },
             };
         }
@@ -46,7 +46,7 @@ namespace CityX.Tests
         public void TearDown()
         {
             Object.DestroyImmediate(_playerObject);
-            Object.DestroyImmediate(_jeansPrefab);
+            Object.DestroyImmediate(_helmetPrefab);
             Object.DestroyImmediate(_cloakPrefab);
         }
 
@@ -87,15 +87,15 @@ namespace CityX.Tests
         }
 
         [UnityTest]
-        public IEnumerator JeansOccupyTheLegsSlotAndTheCloakOccupiesTheTopSlotSoBothCanBeWornAtOnce()
+        public IEnumerator TheHelmetAndTheCloakFillDifferentSlotsSoBothCanBeWornAtOnce()
         {
-            Assert.IsTrue(_inventory.EquipItemId(ItemRegistry.SkelliJeans, _playerObject));
+            Assert.IsTrue(_inventory.EquipItemId(ItemRegistry.KnightHelmet, _playerObject));
             yield return null;
             Assert.IsTrue(_inventory.EquipItemId(ItemRegistry.HoodedCloak, _playerObject));
             yield return null;
 
-            Assert.AreEqual(ItemRegistry.SkelliJeans, _inventory.EquippedItemId("legs"),
-                "the jeans should still be worn -- the cloak fills a different slot");
+            Assert.AreEqual(ItemRegistry.KnightHelmet, _inventory.EquippedItemId("helmet"),
+                "the helmet should still be worn -- the cloak fills a different slot");
             Assert.AreEqual(ItemRegistry.HoodedCloak, _inventory.EquippedItemId("top"));
         }
 
@@ -103,20 +103,20 @@ namespace CityX.Tests
         /// THE ACTUAL POINT OF SkinnedGarmentCombiner, proven on a real rig
         /// rather than assumed from the EditMode logic tests alone -- with
         /// many players on screen at once, a real GPU skin evaluation runs
-        /// once per SkinnedMeshRenderer, so wearing both a top and legs
-        /// garment has to cost one renderer, not two, regardless of how
+        /// once per SkinnedMeshRenderer, so wearing two skinned
+        /// garments has to cost one renderer, not two, regardless of how
         /// large the item catalog ever grows.
         /// </summary>
         [UnityTest]
-        public IEnumerator WearingBothATopAndLegsGarmentSharesOneCombinedRendererNotTwo()
+        public IEnumerator WearingTwoSkinnedGarmentsSharesOneCombinedRendererNotTwo()
         {
 #if UNITY_EDITOR
             GameObject playerPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
                 "Assets/CityX/Character/Player.prefab");
             Assert.IsNotNull(playerPrefab, "Player.prefab is missing");
-            GameObject jeansPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
-                "Assets/CityX/Wearables/SkelliJeans.prefab");
-            Assert.IsNotNull(jeansPrefab, "SkelliJeans.prefab is missing -- run its own Rebuild menu item first");
+            GameObject shirtPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/CityX/Wearables/TShirt.prefab");
+            Assert.IsNotNull(shirtPrefab, "TShirt.prefab is missing -- rebuild the scene");
             GameObject cloakPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(
                 "Assets/CityX/Wearables/HoodedCloak.prefab");
             Assert.IsNotNull(cloakPrefab, "HoodedCloak.prefab is missing -- run its own Rebuild menu item first");
@@ -124,8 +124,8 @@ namespace CityX.Tests
             var realPlayer = Object.Instantiate(playerPrefab);
             int bodyOnlyRendererCount = realPlayer.GetComponentsInChildren<SkinnedMeshRenderer>(true).Length;
 
-            var jeans = Object.Instantiate(jeansPrefab).GetComponent<SkelliJeans>();
-            jeans.OnEquip(realPlayer, ItemInstanceData.None);
+            var shirt = Object.Instantiate(shirtPrefab).GetComponent<TShirt>();
+            shirt.OnEquip(realPlayer, ItemInstanceData.None);
             yield return null;
 
             var cloak = Object.Instantiate(cloakPrefab).GetComponent<HoodedCloak>();
@@ -141,7 +141,7 @@ namespace CityX.Tests
                 "wearing two garments should add exactly ONE renderer (the shared combiner's), not one per item");
 
             Object.Destroy(realPlayer);
-            Object.Destroy(jeans.gameObject);
+            Object.Destroy(shirt.gameObject);
             Object.Destroy(cloak.gameObject);
 #else
             yield break;

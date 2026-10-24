@@ -33,8 +33,6 @@ namespace CityX.CharacterEditor
             (ItemRegistry.AK47, "Assets/CityX/Weapons/AK47.prefab"),
             (ItemRegistry.SprayCan, "Assets/CityX/Weapons/SprayCan.prefab"),
             (ItemRegistry.KnightHelmet, "Assets/CityX/Wearables/KnightHelmet.prefab"),
-            (ItemRegistry.TopHat, "Assets/CityX/Wearables/TopHat.prefab"),
-            (ItemRegistry.SkelliJeans, "Assets/CityX/Wearables/SkelliJeans.prefab"),
             (ItemRegistry.HoodedCloak, "Assets/CityX/Wearables/HoodedCloak.prefab"),
             (ItemRegistry.MidnightCoat, "Assets/CityX/Wearables/MidnightCoat.prefab"),
             (ItemRegistry.TShirt, "Assets/CityX/Wearables/TShirt.prefab"),

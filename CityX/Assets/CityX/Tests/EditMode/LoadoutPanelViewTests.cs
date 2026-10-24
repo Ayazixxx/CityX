@@ -32,7 +32,7 @@ namespace CityX.Tests
 
         private GameObject _playerObject;
         private GameObject _bottlePrefab;
-        private GameObject _legsPrefab;
+        private GameObject _clothingPrefab;
         private Inventory _inventory;
         private PlayerInputReader _inputReader;
         private GameObject _cameraObject;
@@ -52,14 +52,14 @@ namespace CityX.Tests
             _bottlePrefab.AddComponent<TestEquippableItem>();
             _bottlePrefab.SetActive(false);
 
-            _legsPrefab = new GameObject("LegsPrefab");
-            _legsPrefab.AddComponent<TestEquippableItem>();
-            _legsPrefab.SetActive(false);
+            _clothingPrefab = new GameObject("ClothingPrefab");
+            _clothingPrefab.AddComponent<TestEquippableItem>();
+            _clothingPrefab.SetActive(false);
 
             _inventory.ItemPrefabs = new[]
             {
                 new Inventory.ItemPrefabEntry { ItemId = ItemRegistry.GlassBottle, Prefab = _bottlePrefab },
-                new Inventory.ItemPrefabEntry { ItemId = ItemRegistry.SkelliJeans, Prefab = _legsPrefab },
+                new Inventory.ItemPrefabEntry { ItemId = ItemRegistry.HoodedCloak, Prefab = _clothingPrefab },
             };
 
             _cameraObject = new GameObject("Camera");
@@ -98,7 +98,7 @@ namespace CityX.Tests
         {
             Object.DestroyImmediate(_playerObject);
             Object.DestroyImmediate(_bottlePrefab);
-            Object.DestroyImmediate(_legsPrefab);
+            Object.DestroyImmediate(_clothingPrefab);
             Object.DestroyImmediate(_cameraObject);
             Object.DestroyImmediate(_panelRoot);
         }
@@ -147,12 +147,12 @@ namespace CityX.Tests
         [Test]
         public void OpenRefreshesAnEquippedSlotToTheItemsDisplayName()
         {
-            _inventory.EquipItemId(ItemRegistry.SkelliJeans, _playerObject);
+            _inventory.EquipItemId(ItemRegistry.HoodedCloak, _playerObject);
 
             _loadout.Open();
 
-            int legsIndex = System.Array.IndexOf(LoadoutPanelView.SlotKeys, "legs");
-            Assert.AreEqual("Skelli Jeans", _loadout.SlotLabels[legsIndex].text);
+            int topIndex = System.Array.IndexOf(LoadoutPanelView.SlotKeys, "top");
+            Assert.AreEqual("Hooded Cloak", _loadout.SlotLabels[topIndex].text);
         }
     }
 }

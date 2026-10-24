@@ -221,7 +221,7 @@ namespace CityX.Character
         /// out for Unity's own humanoid retargeting (see that method's own
         /// doc comment for why the two have to differ for the LIVE rig).
         ///
-        /// The wearable meshes -- hooded_cloak.glb, skelli_jeans.glb -- were
+        /// The wearable meshes -- hooded_cloak.glb -- were
         /// authored against exactly THIS pose, since Godot's own body never
         /// had a T-pose to begin with. Binding them against Bones() instead
         /// (as SkinnedGarmentBuilder originally did, on the mistaken analogy

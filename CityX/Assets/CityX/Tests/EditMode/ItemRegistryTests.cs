@@ -14,27 +14,19 @@ namespace CityX.Tests
         }
 
         [Test]
-        public void SkelliJeansFillsTheLegsSlotAndHoodedCloakFillsTheTopSlot()
+        public void TheHoodedCloakFillsTheTopSlotAndTheKnightHelmetTheHelmetSlot()
         {
-            Assert.IsTrue(ItemRegistry.TryGet(ItemRegistry.SkelliJeans, out ItemDefinition jeans));
             Assert.IsTrue(ItemRegistry.TryGet(ItemRegistry.HoodedCloak, out ItemDefinition cloak));
-            Assert.AreEqual("legs", jeans.EquipSlot);
-            Assert.AreEqual("top", cloak.EquipSlot);
-        }
-
-        [Test]
-        public void TopHatAndKnightHelmetShareTheHelmetSlot()
-        {
-            Assert.IsTrue(ItemRegistry.TryGet(ItemRegistry.TopHat, out ItemDefinition topHat));
             Assert.IsTrue(ItemRegistry.TryGet(ItemRegistry.KnightHelmet, out ItemDefinition knightHelmet));
-            Assert.AreEqual("helmet", topHat.EquipSlot);
+            Assert.AreEqual("top", cloak.EquipSlot);
             Assert.AreEqual("helmet", knightHelmet.EquipSlot);
         }
 
         [Test]
         public void TheRemovedItemsAreGone()
         {
-            foreach (string id in new[] { "sword", "farmer_hat", "midnight_patchwork_coat", "black_puffer_jacket" })
+            // The skelli jeans and the top hat (owner, 2026-10-24) are to be replaced with better models.
+            foreach (string id in new[] { "sword", "farmer_hat", "midnight_patchwork_coat", "black_puffer_jacket", "skelli_jeans", "top_hat" })
             {
                 Assert.IsFalse(ItemRegistry.Has(id), $"{id} is still an item");
             }

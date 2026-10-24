@@ -24,7 +24,7 @@ namespace CityX.Tests
         private GameObject _panelObject;
         private GameObject _playerObject;
         private GameObject _cameraObject;
-        private GameObject _jeansPrefab;
+        private GameObject _cloakPrefab;
 
         [TearDown]
         public void TearDown()
@@ -32,7 +32,7 @@ namespace CityX.Tests
             if (_panelObject != null) Object.DestroyImmediate(_panelObject);
             if (_playerObject != null) Object.DestroyImmediate(_playerObject);
             if (_cameraObject != null) Object.DestroyImmediate(_cameraObject);
-            if (_jeansPrefab != null) Object.DestroyImmediate(_jeansPrefab);
+            if (_cloakPrefab != null) Object.DestroyImmediate(_cloakPrefab);
         }
 
         /// <summary>
@@ -55,12 +55,12 @@ namespace CityX.Tests
             inventory = _playerObject.AddComponent<Inventory>();
             inventory.Storage = new Inventory.StorageSlot[Inventory.StorageSlotCount];
 
-            _jeansPrefab = new GameObject("JeansPrefab");
-            _jeansPrefab.AddComponent<SkelliJeans>();
-            _jeansPrefab.SetActive(false);
+            _cloakPrefab = new GameObject("CloakPrefab");
+            _cloakPrefab.AddComponent<HoodedCloak>();
+            _cloakPrefab.SetActive(false);
             inventory.ItemPrefabs = new[]
             {
-                new Inventory.ItemPrefabEntry { ItemId = ItemRegistry.SkelliJeans, Prefab = _jeansPrefab },
+                new Inventory.ItemPrefabEntry { ItemId = ItemRegistry.HoodedCloak, Prefab = _cloakPrefab },
             };
 
             _cameraObject = new GameObject("Camera");
@@ -154,7 +154,7 @@ namespace CityX.Tests
         {
             InventoryPanelView panel = MakePanel(out _, out _, out Inventory inventory);
             inventory.Storage[0] = new Inventory.StorageSlot
-                { ItemId = ItemRegistry.SkelliJeans, Count = 1, InstanceData = ItemInstanceData.None };
+                { ItemId = ItemRegistry.HoodedCloak, Count = 1, InstanceData = ItemInstanceData.None };
 
             Button slot = MakeButton(_panelObject);
             panel.StorageButtons = new[] { slot };
@@ -165,32 +165,32 @@ namespace CityX.Tests
             slot.onClick.Invoke();
             yield return null;
 
-            Assert.IsTrue(inventory.Storage[0].IsEmpty, "the jeans should have left storage");
-            Assert.AreEqual(ItemRegistry.SkelliJeans, inventory.EquippedItemId("legs"),
-                "the jeans should now be equipped");
+            Assert.IsTrue(inventory.Storage[0].IsEmpty, "the cloak should have left storage");
+            Assert.AreEqual(ItemRegistry.HoodedCloak, inventory.EquippedItemId("top"),
+                "the cloak should now be equipped");
         }
 
         [UnityTest]
         public IEnumerator ClickingAFilledEquipmentSlotUnequipsItBackToStorage()
         {
             InventoryPanelView panel = MakePanel(out _, out _, out Inventory inventory);
-            Assert.IsTrue(inventory.EquipItemId(ItemRegistry.SkelliJeans, _playerObject));
+            Assert.IsTrue(inventory.EquipItemId(ItemRegistry.HoodedCloak, _playerObject));
 
-            int legsIndex = System.Array.IndexOf(InventoryPanelView.EquipSlotKeys, "legs");
+            int topIndex = System.Array.IndexOf(InventoryPanelView.EquipSlotKeys, "top");
             var buttons = new Button[InventoryPanelView.EquipSlotKeys.Length];
-            buttons[legsIndex] = MakeButton(_panelObject);
+            buttons[topIndex] = MakeButton(_panelObject);
             panel.EquipButtons = buttons;
             panel.EquipLabels = new Text[InventoryPanelView.EquipSlotKeys.Length];
             ActivatePanel();
             yield return null;
 
-            buttons[legsIndex].onClick.Invoke();
+            buttons[topIndex].onClick.Invoke();
             yield return null;
 
-            Assert.AreEqual(string.Empty, inventory.EquippedItemId("legs"),
-                "the legs slot should be empty again");
-            Assert.IsTrue(inventory.HasItem(ItemRegistry.SkelliJeans),
-                "the jeans should be back in storage");
+            Assert.AreEqual(string.Empty, inventory.EquippedItemId("top"),
+                "the top slot should be empty again");
+            Assert.IsTrue(inventory.HasItem(ItemRegistry.HoodedCloak),
+                "the cloak should be back in storage");
         }
 
         /// <summary>Stands in for a real jetpack: equipping one needs only something that answers to being put on and taken off.</summary>

@@ -115,14 +115,15 @@ namespace CityX.Character
         /// The research (docs/THIRD_PERSON_PISTOL.md): aiming in a third-person shooter brings the camera IN over the shoulder (Gears, The
         /// Division, Fortnite, RE4's shoulder cam) so the character fills the left of the frame and the gun points into its middle. And this body's
         /// head is 0.7 m across with the gun held under its middle (a two-handed stance): from behind, a camera less than about 0.9 m to the
-        /// side sees the head and not the gun (checked in FirearmCapture's renders at 0.6). 1.0 m from 2026-10-14; since 2026-10-23 Saints Row:
-        /// The Third's fine aim as measured from its frames: 0.75 m to the side, AimDistance (2.9 m) back, the camera's line at the shoulders
-        /// (AimPivotRaise), so the head and torso fill the left third and the gun points into the middle. The gun agrees with the crosshair
-        /// whatever this is (PlayerLocomotion aims the barrel at the camera ray's point).
+        /// side sees the head and not the gun (checked in FirearmCapture's renders at 0.6). So 1.0 m, kept when Saints Row: The Third's fine
+        /// aim was copied on 2026-10-23 (its 0.75 m, measured from its frames, hid the Glock behind this body's bigger head:
+        /// FirearmPlayTests.TheGunIsOnScreenAndNotBehindTheHeadWhileAiming); its distance (AimDistance 2.9 m) and the camera's line at the
+        /// shoulders (AimPivotRaise) are copied. The gun agrees with the crosshair whatever this is (PlayerLocomotion aims the barrel at the
+        /// camera ray's point).
         /// </summary>
         public float AimShoulderOffset = DefaultAimShoulderOffset;
 
-        public const float DefaultAimShoulderOffset = 0.75f;
+        public const float DefaultAimShoulderOffset = 1.0f;
 
         public const float DefaultAimDistance = 2.9f;
 

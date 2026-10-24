@@ -38,7 +38,7 @@ namespace CityX.Tests
             var view = Object.FindFirstObjectByType<InventoryPanelView>(FindObjectsInactive.Include);
             Assert.IsNotNull(view, "no inventory in the scene");
             Inventory inventory = view.Inventory;
-            foreach (string worn in new[] { ItemRegistry.TopHat, ItemRegistry.SkelliJeans, ItemRegistry.Jetpack })
+            foreach (string worn in new[] { ItemRegistry.KnightHelmet, ItemRegistry.HoodedCloak, ItemRegistry.Jetpack })
             {
                 Assert.IsTrue(inventory.EquipItemId(worn, view.Player), $"could not put on the {worn}");
             }

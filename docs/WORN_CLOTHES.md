@@ -4,7 +4,7 @@ Owner, 2026-10-20: "make it so items you equipped stay equipped when you close t
 sure they have the items equipped on the character select screen (not weapons yet just wearables)".
 
 - **What counts as clothing:** items registered with `ItemDefinition.WearableCategory` (`IsWearable`). These are the T-shirts, coats,
-  cloak, jeans, top hat and Knight Helmet. Weapons and back gear (jetpack, parachute) are not kept.
+  cloak and Knight Helmet (the jeans and the top hat until 2026-10-24, taken out to be replaced with better models). Weapons and back gear (jetpack, parachute) are not kept.
 - **Saved:** `CharacterSave.Wearing` lists the worn item ids. An older save loads wearing nothing.
   - `CharacterIdentity.Write` copies `Inventory.WornClothingIds()` onto it on every autosave and on quit.
   - Any change to what is worn is saved at once (`Inventory.EquipmentChanged`).
@@ -19,6 +19,6 @@ sure they have the items equipped on the character select screen (not weapons ye
 
 ## Known gaps
 
-- Another player's copy of you shows only the Knight Helmet. The shirts, coats, jeans and top hat have no `ICosmeticMountable` yet, so
+- Another player's copy of you shows only the Knight Helmet. The shirts and coats have no `ICosmeticMountable` yet, so
   `NetworkedEquipmentSync` cannot build them on a copy.
 - The inventory's storage is not saved, only what is worn.

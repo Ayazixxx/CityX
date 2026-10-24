@@ -100,7 +100,7 @@ close over the right shoulder, the screen's middle at the shoulder, the head and
 | To the right of the spine (`ShoulderOffset`) | 0.6 | 0.5 | **0.87** |
 | Fine aim: field of view | 30 | 50 | **30** |
 | Fine aim: distance | 2.0 | 2.3 | **2.9** |
-| Fine aim: to the side | 0.6 | 1.0 | **0.75** (measured from the frame) |
+| Fine aim: to the side | 0.6 (0.75 measured) | 1.0 | **1.0** (0.75 hid the Glock behind our bigger head) |
 | Fine aim: the camera's line | the shoulders (1.55) | the chest + 0.2 | **the chest + 0.35** |
 | Into fine aim / back out | 0.15 s / 0.5 s | 0.25 s / 0.25 s | **0.15 s / 0.5 s** |
 | Mouse-look while aiming | slower | 0.75x | **0.6x** (30/50, so a pixel moves the same on screen) |

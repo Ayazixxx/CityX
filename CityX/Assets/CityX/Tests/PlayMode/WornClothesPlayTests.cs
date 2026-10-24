@@ -50,7 +50,7 @@ namespace CityX.Tests
         {
 #if UNITY_EDITOR
             CharacterSave save = CharacterSave.Create("Ayaz", Color.white);
-            save.Wearing = new List<string> { ItemRegistry.TShirt, ItemRegistry.TopHat, ItemRegistry.Pistol };
+            save.Wearing = new List<string> { ItemRegistry.TShirt, ItemRegistry.KnightHelmet, ItemRegistry.Pistol };
             LocalServer.Database.For(PlayerKey.Local).Add(save);
             PlaySession.Begin(save, isNew: false);
 
@@ -61,19 +61,19 @@ namespace CityX.Tests
             inventory.ItemPrefabs = new[]
             {
                 Entry(ItemRegistry.TShirt, "Assets/CityX/Wearables/TShirt.prefab"),
-                Entry(ItemRegistry.TopHat, "Assets/CityX/Wearables/TopHat.prefab"),
+                Entry(ItemRegistry.KnightHelmet, "Assets/CityX/Wearables/KnightHelmet.prefab"),
                 Entry(ItemRegistry.Pistol, "Assets/CityX/Weapons/Pistol.prefab"),
             };
             yield return null;
             yield return null;
 
             Assert.AreEqual(ItemRegistry.TShirt, inventory.EquippedItemId(EquipSlots.Torso), "the saved T-shirt was not put back on");
-            Assert.AreEqual(ItemRegistry.TopHat, inventory.EquippedItemId(EquipSlots.Helmet), "the saved hat was not put back on");
+            Assert.AreEqual(ItemRegistry.KnightHelmet, inventory.EquippedItemId(EquipSlots.Helmet), "the saved helmet was not put back on");
             Assert.IsTrue(_player.GetComponent<SkinnedGarmentCombiner>().IsShowing(ItemRegistry.TShirt), "the T-shirt is on but not shown");
             Assert.IsEmpty(inventory.EquippedItemId(EquipSlots.Primary), "a weapon in a save's clothes was put on");
 
             Assert.IsTrue(inventory.UnequipToSlot(EquipSlots.Helmet, _player));
-            CollectionAssert.AreEqual(new[] { ItemRegistry.TShirt }, LocalServer.Characters.List(PlayerKey.Local)[0].Wearing, "taking the hat off was not saved");
+            CollectionAssert.AreEqual(new[] { ItemRegistry.TShirt }, LocalServer.Characters.List(PlayerKey.Local)[0].Wearing, "taking the helmet off was not saved");
 #else
             yield break;
 #endif
@@ -93,11 +93,11 @@ namespace CityX.Tests
             inventory.ItemPrefabs = new[]
             {
                 Entry(ItemRegistry.BloodRavenTShirt, "Assets/CityX/Wearables/BloodRavenTShirt.prefab"),
-                Entry(ItemRegistry.TopHat, "Assets/CityX/Wearables/TopHat.prefab"),
+                Entry(ItemRegistry.KnightHelmet, "Assets/CityX/Wearables/KnightHelmet.prefab"),
             };
             yield return null;
             Assert.IsTrue(inventory.EquipItemId(ItemRegistry.BloodRavenTShirt, _player));
-            Assert.IsTrue(inventory.EquipItemId(ItemRegistry.TopHat, _player));
+            Assert.IsTrue(inventory.EquipItemId(ItemRegistry.KnightHelmet, _player));
             yield return null;
             Renderer shirt = _player.GetComponent<SkinnedGarmentCombiner>().GetComponentsInChildren<Renderer>(true)
                 .First(r => r.sharedMaterials.Length > 0 && System.Array.Exists(r.sharedMaterials, m => m != null && m.name.Contains("BloodRaven")));
